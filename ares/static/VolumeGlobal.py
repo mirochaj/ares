@@ -51,6 +51,7 @@ defkwargs = \
  'xavg': 0.0,
  'igm_h_1': 1.0,
  'igm_h_2': 0.0,
+ 'igm_he_1': 1.0,
  'igm_he_2': 0.0,
  'igm_he_3': 0.0,
  'cgm_h_1': 1.0,
@@ -152,6 +153,7 @@ class GlobalVolume(object):
         self.dlogE = [[] for k in range(self.Npops)]
         self.fheat = [[] for k in range(self.Npops)]
         self.flya = [[] for k in range(self.Npops)]
+        self.fexc = [[] for k in range(self.Npops)]
         
         # These are species dependent
         self._sigma_E = {}
@@ -174,6 +176,7 @@ class GlobalVolume(object):
                 self.dlogE[i] = [None]
                 self.fheat[i] = [None]
                 self.flya[i] = [None]
+                self.fexc[i] = [None]
                 
                 for species in ['h_1', 'he_1', 'he_2']:
                     self.fion[species][i] = [None]
@@ -192,6 +195,7 @@ class GlobalVolume(object):
             self.dlogE[i] = [None for k in range(Nbands)]
             self.fheat[i] = [None for k in range(Nbands)]
             self.flya[i] = [None for k in range(Nbands)]
+            self.fexc[i] = [None for k in range(Nbands)]
             for species in ['h_1', 'he_1', 'he_2']:
                 self.fion[species][i] = [None for k in range(Nbands)]
                 self._sigma_E[species][i] = [None for k in range(Nbands)]
@@ -202,7 +206,7 @@ class GlobalVolume(object):
                 if band is None:
                     continue
                             
-                need_tab = self.pops[i].is_xray_src \
+                need_tab = self.pops[i].is_src_xray \
                     and np.any(np.array(band) > E_LL) \
                     and self.background.solve_rte[i][j]
                                                                     
@@ -218,7 +222,11 @@ class GlobalVolume(object):
                         [np.ones([self.background.energies[i][j].size, 
                          len(self.esec.x)]) \
                          for j in range(Nbands)]
-                
+                    self.fexc[i] = \
+                        [np.ones([self.background.energies[i][j].size, 
+                         len(self.esec.x)]) \
+                         for j in range(Nbands)] 
+                    
                     for species in ['h_1', 'he_1', 'he_2']:
                         if self.esec.method > 1:
                             self._sigma_E[species][i] = \
@@ -235,7 +243,8 @@ class GlobalVolume(object):
                             self.fion[species][i] = [None for k in range(Nbands)]
                             self.fheat[i] = [None for k in range(Nbands)]
                             self.flya[i] = [None for k in range(Nbands)]    
-                
+                            self.fexc[i] = [None for k in range(Nbands)]
+                    
                 # More convenient variables
                 E = self._E[i][j]
                 N = E.size
@@ -255,6 +264,7 @@ class GlobalVolume(object):
                     # Don't worry: we'll fill these in in a sec!
                     self.fheat[i][j] = np.ones([N, len(self.esec.x)])
                     self.flya[i][j] = np.ones([N, len(self.esec.x)])
+                    self.fexc[i][j] = np.ones([N, len(self.esec.x)])
                 
                     # Must evaluate at ELECTRON energy, not photon energy
                     for k, nrg in enumerate(E - E_th[0]):
@@ -269,6 +279,9 @@ class GlobalVolume(object):
                             self.flya[i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, E=nrg, 
                                 channel='lya') 
+                            self.fexc[i][j][k] = \
+                                self.esec.DepositionFraction(self.esec.x, E=nrg, 
+                                channel='exc')    
                 
                     # Helium
                     if self.pf['include_He'] and not self.pf['approx_He']:
@@ -290,11 +303,7 @@ class GlobalVolume(object):
                     else:
                         self.fion['he_1'][i][j] = np.zeros([N, len(self.esec.x)])
                         self.fion['he_2'][i][j] = np.zeros([N, len(self.esec.x)])
-            
-            
-            
-            
-                
+
         return        
                                             
     def _set_integrator(self):
@@ -405,7 +414,7 @@ class GlobalVolume(object):
                 
         pop = self.pops[popid]
                                 
-        if (not pop.is_heat_src_igm) or (z >= pop.zform):
+        if (not pop.is_src_heat_igm) or (z >= pop.zform):
             return 0.0    
             
         if pop.pf['pop_heat_rate'] is not None:
@@ -585,7 +594,7 @@ class GlobalVolume(object):
         else:
             b = [13.6, 24.6]
         
-        if (not pop.is_ion_src_cgm) or (z > pop.zform):
+        if (not pop.is_src_ion_cgm) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
@@ -632,7 +641,7 @@ class GlobalVolume(object):
         pop = self.pops[popid]
 
         # z between zform, zdead? must be careful for BHs
-        if (not pop.is_ion_src_igm) or (z > pop.zform):
+        if (not pop.is_src_ion_igm) or (z > pop.zform):
             return 0.0
 
         # Grab defaults, do some patches if need be
@@ -748,7 +757,7 @@ class GlobalVolume(object):
         if not solve_rte:
             return 0.0
 
-        if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+        if not np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_EminX']):
             return 0.0
         
         if ((donor or species) in [1,2]) and (not self.pf['include_He']):
@@ -808,7 +817,6 @@ class GlobalVolume(object):
                 integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                     * (self.E[popid][band] - E_th[1])
             
-            integrand = integrand
             integrand *= kw['fluxes'][popid][band] / E_th[species] / norm \
                 / ev_per_hz
         
@@ -831,64 +839,78 @@ class GlobalVolume(object):
             pass
         else:
             ion *= self.coefficient_to_rate(z, species, **kw) 
-        
+
         return ion
-        
-    def SecondaryLymanAlphaFlux(self, z, popid=0, **kwargs):
+
+    def SecondaryLymanAlphaFlux(self, z, species=0, popid=0, band=0,
+        **kwargs):
         """
         Flux of Lyman-alpha photons induced by photo-electron collisions.
-        
+    
         Can only be sourced by X-ray populations.
-        
+
         """
-        
+    
         pop = self.pops[popid]
-                
+    
         if not self.pf['secondary_lya']:
             return 0.0
-        
-        if not pop.is_ion_src_igm:
+
+        if not pop.is_src_ion_igm:
             return 0.0
-                
-        species = 0
+    
         species_str = species_i_to_str[species]
+        donor_str = species_i_to_str[donor]
         band = 0        
-                
-                
+
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
-                
+    
         E = self.E        
-                
+    
         # Compute fraction of photo-electron energy deposited as Lya excitation
         if self.esec.method > 1 and (kw['fluxes'][popid] is not None):
+    
+            ##
+            # Recall that flya is measured relative to fexc
+            ##
+    
+
             if kw['igm_e'] == 0:
-                flya = self.flya[popid][band][:,0]
+                flya = self.flya[popid][band][:,0] \
+                     * self.fexc[popid][band][:,0]
+    
             else:
-                i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
-                if self.esec.x[i_x] > kw['igm_e']:
-                    i_x -= 1
-                    
-                j = i_x + 1    
-                
-                flya = self.flya[popid][band][:,i_x] \
-                    + (self.flya[popid][band][:,j] - self.flya[popid][band][:,i_x]) \
-                    * (kw['igm_e'] - self.esec.x[i_x]) \
-                    / (self.esec.x[j] - self.esec.x[i_x])
+                flya = 1.
+                for tab in [self.fexc, self.flya]:
+    
+                    i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
+                    if self.esec.x[i_x] > kw['igm_e']:
+                        i_x -= 1
+    
+                    j = i_x + 1    
+    
+                    f = tab[popid][band][:,i_x] \
+                        + (tab[popid][band][:,j] - tab[popid][band][:,i_x]) \
+                        * (kw['igm_e'] - self.esec.x[i_x]) \
+                        / (self.esec.x[j] - self.esec.x[i_x])
+    
+                    flya *= f
+    
         else:
             return 0.0
-                
+    
         norm = J21_num * self.sigma0        
-
+    
         integrand = self.sigma_E[species_str][popid][band] \
             * (self._E[popid][band] - E_th[species])
-        
+    
         if self.approx_He:
             integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                 * (self._E[popid][band] - E_th[1])
-                
-        integrand *= kw['fluxes'][popid][band] * flya / norm / ev_per_hz
-                         
+
+        # Must get back to intensity units
+        integrand *= kw['fluxes'][popid][band] * flya / norm / E_LyA / ev_per_hz
 
         if kw['Emax'] is not None:
             imax = np.argmin(np.abs(self._E[popid][band] - kw['Emax']))
@@ -896,37 +918,48 @@ class GlobalVolume(object):
                 return 0.0
             elif imax == (len(self._E[popid][band]) - 1):  
                 imax = None 
-                                    
+    
             if self.sampled_integrator == 'romb':
                 raise ValueError("Romberg's method cannot be used for integrating subintervals.")
-                heat = romb(integrand[0:imax] * self.E[0:imax], 
+                e_ax = romb(integrand[0:imax] * self.E[0:imax], 
                     dx=self.dlogE[0:imax])[0] * log10
             else:
-                heat = simps(integrand[0:imax] * self._E[popid][band][0:imax], 
+                e_ax = simps(integrand[0:imax] * self._E[popid][band][0:imax], 
                     x=self.logE[popid][band][0:imax]) * log10
-        
         else:
             imin = np.argmin(np.abs(self._E[popid][band] - pop.pf['pop_Emin']))
-            
+    
             if self.sampled_integrator == 'romb':
-                heat = romb(integrand[imin:] * self._E[popid][band][imin:], 
+                e_ax = romb(integrand[imin:] * self._E[popid][band][imin:], 
                     dx=self.dlogE[popid][band][imin:])[0] * log10
             elif self.sampled_integrator == 'trapz':
-                heat = np.trapz(integrand[imin:] * self._E[popid][band][imin:], 
+                e_ax = np.trapz(integrand[imin:] * self._E[popid][band][imin:], 
                     x=self.logE[popid][band][imin:]) * log10
             else:
-                heat = simps(integrand[imin:] * self._E[popid][band][imin:], 
+                e_ax = simps(integrand[imin:] * self._E[popid][band][imin:], 
                     x=self.logE[popid][band][imin:]) * log10
-          
-        # Re-normalize, get rid of per steradian units, convert from
-        # energy in Lya photons to photon number
-        heat *= 4. * np.pi * norm / E_LyA
+    
+        # Re-normalize. This is essentially a photon emissivity modulo 4 pi ster
+        # This is a *proper* emissivity, BTW.
+        e_ax *= norm
 
-        # Currently a rate coefficient, returned value depends on return_rc                                      
-        if kw['return_rc']:
-            pass
-        else:
-            heat *= self.coefficient_to_rate(z, species, **kw)
-            
-        return heat
+        # Just normalizing by electron donor species abundance
+        e_ax *= self.coefficient_to_rate(z, species, **kw)
+
+        # At this point, we've got a diffuse Ly-a emissivity.
+        # Need to convert it to a flux. Assume infinitesimally narrow line
+        # profile, i.e., emissivity translates instantaneously to flux only
+        # at this redshift.
+    
+        # Convert to a co-moving emissivity [photons / s / cm^3]
+        e_ax /= (1. + z)**3
         
+        # We get a factor of nu_alpha from integrating over the line profile
+        # (assuming it's a delta function).
+        e_ax /= nu_alpha
+        
+        # Convert to a flux
+        Ja = e_ax * (1 + z)**2 * c / self.cosm.HubbleParameter(z)
+        
+        return Ja
+    

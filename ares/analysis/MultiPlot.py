@@ -15,7 +15,7 @@ from math import ceil
 import matplotlib.pyplot as pl
 
 # Matplotlibrc defaults
-figsize = pl.rcParams['figure.figsize']
+#figsize = pl.rcParams['figure.figsize']
 wspace = pl.rcParams['figure.subplot.wspace']
 hspace = pl.rcParams['figure.subplot.hspace']
 
@@ -27,6 +27,7 @@ defs = \
  'dims':(2,2), 
  'padding':(0,0), 
  'panel_size':(1,1), 
+ 'figsize': (6,6),
  'fig':1,
  'diagonal':None,
  'left':None, 
@@ -40,26 +41,36 @@ defs = \
  'active_panels': None,
 }
 
-def add_master_legend(mp, **kwargs):
+def add_master_legend(mp, exclude_panels=None, loc='upper center', 
+    exclude_labels=[], **kwargs):
     """
     Make a big legend!
     """
 
     handles, labels = [], []
 
+    if 'bbox_to_anchor' not in kwargs:
+        kwargs['bbox_to_anchor'] = (0.5, 1.0)
+
     if isinstance(mp, MultiPanel):
-        for ax in mp.grid:
+        for k, ax in enumerate(mp.grid):
+            
+            if exclude_panels is not None:
+                if k in exclude_panels:
+                    continue
+            
             h, l = ax.get_legend_handles_labels()
 
             for i, lab in enumerate(l):
                 if lab in labels:
                     continue
+                if lab in exclude_labels:
+                    continue    
 
                 handles.append(h[i])
                 labels.append(l[i])
 
-        mp.fig.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 0.97), **kwargs)        
+        mp.fig.legend(handles, labels, loc=loc, **kwargs)        
 
     else:
         h, l = mp.get_legend_handles_labels()
@@ -67,12 +78,13 @@ def add_master_legend(mp, **kwargs):
         for i, lab in enumerate(l):
             if lab in labels:
                 continue
+            if lab in exclude_labels:
+                continue
 
             handles.append(h[i])
             labels.append(l[i])
 
-        mp.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 0.97), **kwargs)            
+        mp.legend(handles, labels, loc=loc, **kwargs)            
 
     return mp    
 
@@ -145,7 +157,7 @@ class MultiPanel(object):
             self.padding = tuple([self.padding]* 2)
                 
         # Size of an individual panel (in inches)
-        self.pane_size = np.array(figsize) * np.array([self.right-self.left, self.top-self.bottom])
+        self.pane_size = np.array(self.figsize) * np.array([self.r-self.l, self.t-self.b])
         self.pane_size *= np.array(self.panel_size)
 
         # Now, figure out the size of the entire figure (in inches)
@@ -157,8 +169,8 @@ class MultiPanel(object):
         self.panel_size[1] = self.pane_size[1] * self.J + self.padding[1] * (self.J - 1)     
 
         # Add empty area above/below and left/right of panel-filled area
-        self.panel_size[0] += figsize[0] * (self.left + (1. - self.right))
-        self.panel_size[1] += figsize[1] * (self.bottom + (1. - self.top))
+        self.panel_size[0] += self.figsize[0] * (self.left + (1. - self.right))
+        self.panel_size[1] += self.figsize[1] * (self.bottom + (1. - self.top))
 
         self.panel_size_rel = self.pane_size / self.panel_size
 
@@ -180,11 +192,11 @@ class MultiPanel(object):
 
             # Adjust padding
             if self.preserve_margins:
-                l = self.left * figsize[0] / self.panel_size[0]
-                r = (self.left * figsize[0] + self.K * self.pane_size[0]) \
+                l = self.left * self.figsize[0] / self.panel_size[0]
+                r = (self.left * self.figsize[0] + self.K * self.pane_size[0]) \
                     / self.panel_size[0]
-                b = self.bottom * figsize[1] / self.panel_size[1]
-                t = (self.bottom * figsize[1] + self.J * self.pane_size[1]) \
+                b = self.bottom * self.figsize[1] / self.panel_size[1]
+                t = (self.bottom * self.figsize[1] + self.J * self.pane_size[1]) \
                     / self.panel_size[1]
             else:
                 l, r, b, t = self.left, self.right, self.bottom, self.top
@@ -307,16 +319,20 @@ class MultiPanel(object):
             if ax not in axes:
                 caxes[ax] = None
                 continue
-            
+
             l, b, r, t = np.array(self.grid[ax].get_position()).ravel()
-            
+
             if position == 'top':
-                cax = self.fig.add_axes([l, t+padding, r-l, width]) 
+                cax = self.fig.add_axes([l, t+padding, r-l, width])
+            elif position == 'right':
+                cax = self.fig.add_axes([r+padding, b, width, t-b])
+            elif position == 'bottom':
+                cax = self.fig.add_axes([l, b-width-padding, r-l, width])
             else:
                 raise NotImplementedError('sorry!')
-                
+
             caxes[ax] = cax
-        
+
         return caxes
             
     @property
@@ -426,7 +442,7 @@ class MultiPanel(object):
         else:
             return False
             
-    def align_labels(self, xpadding=0.5, ypadding=None):
+    def align_labels(self, xpadding=0.5, ypadding=None, fix_all=False):
         """
         Re-draw labels so they are a constant distance away from the *axis*,
         not the axis *labels*.
@@ -435,10 +451,11 @@ class MultiPanel(object):
         if ypadding is None:
             ypadding = xpadding
         
-        for i in self.bottom:
-            self.grid[i].xaxis.set_label_coords(0.5, -xpadding)
-        for i in self.left:
-            self.grid[i].yaxis.set_label_coords(-ypadding, 0.5)
+        for i, ax in enumerate(self.grid):
+            if i in self.bottom or fix_all:
+                ax.xaxis.set_label_coords(0.5, -xpadding)
+            if i in self.left or fix_all:
+                ax.yaxis.set_label_coords(-ypadding, 0.5)
             
         pl.draw()    
             

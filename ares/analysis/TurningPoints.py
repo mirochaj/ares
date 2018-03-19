@@ -12,16 +12,12 @@ Description:
 
 import numpy as np
 from ..util import ParameterFile
+from scipy.misc import derivative
+from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
+from scipy.interpolate import splrep, splev
 from ..util.Math import central_difference, take_derivative
 from ..util.SetDefaultParameterValues import SetAllDefaults
-
-try:
-    from scipy.misc import derivative
-    from scipy.optimize import minimize
-    from scipy.interpolate import splrep, splev
-except ImportError:
-    pass
 
 class TurningPoints(object):
     def __init__(self, inline=False, **kwargs):
@@ -61,6 +57,7 @@ class TurningPoints(object):
         
         # Based on sign of brightness temperature and concavity,
         # determine which turning point we've found.
+        #print max(z), negative, concave_up, self.TPs.keys()
         if negative and concave_up and (max(z) > 60 and 'B' not in self.TPs):
             return 'A'
         elif negative and concave_down:
@@ -175,6 +172,7 @@ class TurningPoints(object):
                                                                                                          
             # Spline interpolation to get "final" extremum redshift
             for ll in [3, 2, 1]:
+
                 if ll > 1:
                     Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
                         

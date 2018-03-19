@@ -22,7 +22,8 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum',
+    'Halo']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -199,6 +200,8 @@ def PhysicsParameters():
     "collapse": 0,              # Referring to single-zone collapse
     "compton_scattering": 1,
     "recombination": 'B',
+    "exotic_heating": False,
+    'exotic_heating_func': None,
 
     "clumping_factor": 1,
 
@@ -208,6 +211,24 @@ def PhysicsParameters():
     "approx_Salpha": 1, # 1 = Salpha = 1
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
+
+    "approx_thermal_history": False,
+    "inits_Tk_p0": None,
+    "inits_Tk_p1": None,
+    "inits_Tk_p2": None,    # Set to -4/3 if thermal_hist = 'exp' to recover adiabatic cooling
+    "inits_Tk_p3": 0.0,
+    "inits_Tk_p4": np.inf,
+    "inits_Tk_p5": None,
+    "inits_Tk_dz": 1.,
+    
+    "Tbg": None,
+    "Tbg_p0": None,
+    "Tbg_p1": None,
+    "Tbg_p2": None,
+    "Tbg_p3": None,
+    "Tbg_p4": None,
+            
+    "spin_temperature_floor": None,
 
     # Lyman alpha sources
     "lya_nmax": 23,
@@ -235,7 +256,7 @@ def PhysicsParameters():
     'feedback_LW_Mmin_rtol': 0.0,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_sfrd_rtol': 1e-1,
-    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_atol': 0.0,
     'feedback_LW_sfrd_popid': None,
     'feedback_LW_zstart': None,
     'feedback_LW_mixup_freq': 5,
@@ -317,26 +338,101 @@ def DustParameters():
      'dustcorr_method': None,
 
      'dustcorr_beta': -2.,
-     
+
      # Only used if method is a list
      'dustcorr_ztrans': None,
-     
+
      # Intrinsic scatter in the AUV-beta relation
      'dustcorr_scatter_A': 0.0,
      # Intrinsic scatter in the beta-mag relation (gaussian)
      'dustcorr_scatter_B': 0.34,
-          
+
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
 
     }
-        
+
     pf.update(tmp)
     pf.update(rcParams)
 
     return pf
-    
+
+def PowerSpectrumParameters():
+    pf = {}
+
+    tmp = \
+    {     
+     'powspec_redshifts': np.arange(6, 20, 1),
+     'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
+
+     # Ultimately we'll interpolate beyond these
+     'powspec_dlogk': 0.1,
+     'powspec_dlogr': 0.1,
+     
+     'include_acorr': True,
+     'include_xcorr': False,
+     
+     'include_xcorr_wrt': None,
+     
+     'include_density_fl': True,
+     'include_ion_fl': True,
+     'include_temp_fl': False,
+     'include_lya_fl': False,
+     
+     'include_lya_lc': False,
+           
+     'include_bias': False,
+
+     "powspec_volfix": False,
+     "powspec_rescale_Qion": False,
+     "powspec_rescale_Qlya": False,
+     "powspec_rescale_Qhot": False,
+     "powspec_rescale_dTb": False,
+
+     "bubble_size": None,
+     "bubble_density": None,
+     
+     # Important that the number is at the end! ARES will interpret
+     # numbers within underscores as population ID numbers.
+     "bubble_shell_rsize_zone_0": None,
+     "bubble_shell_asize_zone_0": None,
+     "bubble_shell_ktemp_zone_0": None,
+     "bubble_shell_tpert_zone_0": None,
+     "bubble_shell_rsize_zone_1": None,
+     "bubble_shell_asize_zone_1": None,
+     "bubble_shell_ktemp_zone_1": None,
+     "bubble_shell_tpert_zone_1": None,
+     "bubble_shell_rsize_zone_2": None,
+     "bubble_shell_asize_zone_2": None,
+     "bubble_shell_ktemp_zone_2": None,
+     "bubble_shell_tpert_zone_2": None,
+     
+     "bubble_shell_include_xcorr": True,
+     
+
+     #"bubble_pod_size": None,
+     #"bubble_pod_size_rel": None,
+     #"bubble_pod_size_abs": None,
+     #"bubble_pod_size_func": None,
+     #"bubble_pod_temp": None,
+     #"bubble_pod_Nsc": 1e3,
+     
+     "powspec_lya_method": 'lpt',
+     "powspec_ion_method": None,  # unused
+     "powspec_temp_method": 'xset',  # or...'shell'
+     
+     #"powspec_lya_approx_sfr": 'exp',
+     
+     "bubble_shell_size_dist": None,
+     "bubble_size_dist": 'fzh04', # or FZH04, PC14
+    }
+
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf
+
 def PopulationParameters():
     """
     Parameters associated with populations of objects, which give rise to
@@ -367,7 +463,12 @@ def PopulationParameters():
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
+    "pop_MAR_interp": 'linear',
 
+    "pop_interp_MAR": 'linear',
+    "pop_interp_sfrd": 'cubic',
+    "pop_interp_lf": 'linear',
+    
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
@@ -388,6 +489,8 @@ def PopulationParameters():
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
+    
+    "pop_sed_sharp_at": None,
     
     # If pop_sed == 'user'
     "pop_E": None,
@@ -411,6 +514,7 @@ def PopulationParameters():
     "pop_Emax": 3e4,
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
+    "pop_Enorm": None,
 
     "pop_Emin_xray": 2e2,
     
@@ -426,8 +530,8 @@ def PopulationParameters():
     "pop_Ja": None,
     "pop_Tk": None,
     "pop_xi": None,  
-    "pop_ne": None,  
-    
+    "pop_ne": None,
+
     # 
     "pop_ion_rate_cgm": None,
     "pop_ion_rate_igm": None,
@@ -435,11 +539,10 @@ def PopulationParameters():
 
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
-    "pop_k_heat_igm": None,
-    
+    "pop_k_heat_igm": None,    
 
     # Set time interval over which emission occurs
-    "pop_zform": 50.,
+    "pop_zform": 60.,
     "pop_zdead": 0.0,
 
     # Main parameters in our typical global 21-cm models
@@ -448,7 +551,7 @@ def PopulationParameters():
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
     "pop_sfr": None,
-    
+
     "pop_facc": 0.0,
     "pop_fsmooth": 1.0,
 
@@ -461,9 +564,15 @@ def PopulationParameters():
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
+    "pop_frd": None,
     "pop_fshock": 1.0,
+    
+    "pop_mdist": None,
+    "pop_age_res": 1.,
+    "pop_dlogM": 0.1,
 
     "pop_fobsc": 0.0,
+    "pop_fobsc_by_num": False,
 
     "pop_tab_z": None,
     "pop_tab_Mh": None,
@@ -493,11 +602,16 @@ def PopulationParameters():
     "pop_limit_logic": 'and', 
     
     "pop_time_ceil": None,
-    
+
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
+
+    # For BHs
+    "pop_bhmd": None,
+    "pop_bhard": None,
+    "pop_fseed": 1e-1,
 
     # Scales SFRD
     "pop_Nlw": 9690.,
@@ -523,14 +637,24 @@ def PopulationParameters():
     "pop_LE": None,
 
     # What radiation does this population emit?
-    # Should these be deprecated?
+    # These are passive fields
+    "pop_oir_src": False,
     "pop_lw_src": True,
     "pop_lya_src": True,
+    "pop_radio_src": False,
+    
+    # These are active fields (i.e., they change the IGMs properties)
     "pop_ion_src_cgm": True,
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
     
+    "pop_lya_fl": False,
+    "pop_ion_fl": False,
+    "pop_temp_fl": False,
+    "pop_one_halo_term": True,
+    "pop_two_halo_term": True,
+        
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_rad_yield": 2.6e39,
@@ -574,7 +698,20 @@ def PopulationParameters():
     "pop_kwargs": {},
 
     "pop_test_param": None,
-
+    
+    # Utility
+    "pop_user_par0": None,
+    "pop_user_par1": None,
+    "pop_user_par2": None,
+    "pop_user_par3": None,
+    "pop_user_par4": None,
+    "pop_user_par5": None,
+    "pop_user_par6": None,
+    "pop_user_par7": None,
+    "pop_user_par8": None,
+    "pop_user_par9": None,
+    "pop_user_pmap": {},
+    
     }
 
     pf.update(tmp)
@@ -588,6 +725,11 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    "source_sed_sharp_at": None,
+    
+    "source_sfr": 1.,
+    "source_fesc": 0.1,
     
     # only for schaerer2002 right now        
     "source_piecewise": True,
@@ -607,6 +749,7 @@ def SourceParameters():
 
     "source_Emin": 13.6,  
     "source_Emax": 1e2,  
+    "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     
@@ -629,18 +772,18 @@ def SourceParameters():
     "source_aging": True,
     
     # Stellar
-    "source_temperature": 1e5,  
+    "source_temperature": 1e5,
     "source_qdot": 5e48,
-    
+
     # SFH
     "source_sfh": None,
     "source_meh": None,
-    
+
     # BH
     "source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
-    
+
     # SIMPL
     "source_fsc": 0.1,
     "source_uponly": True,
@@ -722,9 +865,11 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
+    "hmf_load_ps": True,
+    "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,
-    
+
     # Table resolution
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
@@ -732,7 +877,7 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
-    
+
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
@@ -744,9 +889,14 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+    # For matter power spectrum
+    'mpowspec_dlogk': 0.1,
+    'mpowspec_dlogr': 0.1,
+    
+
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
-    
+
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
@@ -778,6 +928,19 @@ def CosmologyParameters():
 
     return pf
     
+def HaloParameters():
+    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
+    pf = \
+    {
+     "halo_profile": 'nfw',
+     "halo_cmr": 'duffy',
+     "halo_delta": 200.,
+    }
+
+    pf.update(rcParams)
+
+    return pf    
+    
 def ControlParameters():
     pf = \
     {
@@ -791,10 +954,11 @@ def ControlParameters():
     'logdzDataDump': None,
     "stop_time": 500,
     
-    "initial_redshift": 50.,
+    "initial_redshift": 60.,
     "final_redshift": 5,
     "fallback_dz": 0.1, # only used when no other constraints 
     "kill_redshift": 0.0,
+    "first_light_redshift": 60.,
     
     "save_rate_coefficients": 1,
     
@@ -807,14 +971,19 @@ def ControlParameters():
     "solver_atol": 1e-8,
     "interp_tab": 'cubic',
     "interp_cc": 'linear',
+    "interp_rc": 'linear',
     "interp_Z": 'linear',
     "interp_hist": 'linear',
+    "interp_all": 'linear',  # backup
+    #"interp_sfrd": 'cubic',
+    #"interp_hmf": 'cubic',
+    "master_interp": None,    
     
     # Not implemented
     "extrap_Z": False,
 
     # Initialization
-    "load_ics": True,
+    "load_ics": 'cosmorec',
     "cosmological_ics": False,
     "load_sim": False,
 
@@ -825,7 +994,15 @@ def ControlParameters():
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
-        
+    
+    "compute_fluxes_at_start": False,
+    
+    # k-space resolution
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2.,
+    "powspec_dlogk": 0.1,
+    "powspec_z": 10.,
+    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
@@ -840,6 +1017,7 @@ def ControlParameters():
     "blob_names": None,
     "blob_ivars": None,
     "blob_funcs": None,
+    "blob_kwargs": {},
 
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)
@@ -858,6 +1036,14 @@ def ControlParameters():
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
 
+    # Power spectrum stuff
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2,
+    "powspec_dlogk": 0.5,    
+    "powspec_dlogr": 0.1,
+    "powspec_band": (11.2, 13.6),
+
+    "sam_dt": 1., # Myr
     "sam_dz": 2., # Usually good enough!
     "sam_atol": 1e-2,
     "sam_rtol": 1e-2,
@@ -893,7 +1079,8 @@ _sampling_parameters = \
  'output_freq_min': 30.,
  'output_freq_max': 200.,
  'output_freq_res': 1.,    
- 'output_dz': None,  # Redshift sampling    
+ 'output_dz': None,  # Redshift sampling 
+ 'output_redshifts': None,   
 }
 
 # Old != Deprecated
@@ -946,3 +1133,5 @@ def GaussianParameters():
     
     return pf
 
+
+    

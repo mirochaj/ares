@@ -43,7 +43,7 @@ class BlackHole(Source):
         spec_pars: dict
             Contains spectrum-specific parameters.
     
-        """  
+        """
         
         self.pf = BlackHoleParameters()
         self.pf.update(kwargs)    
@@ -55,7 +55,6 @@ class BlackHole(Source):
         self.epsilon = self.pf['source_eta']
         
         # Duty cycle parameters
-        self.tau = self.pf['source_lifetime'] * s_per_myr
         self.fduty = self.pf['source_fduty'] 
         self.variable = self.fduty < 1
         #if self.src_pars['fduty'] == 1:
@@ -69,7 +68,8 @@ class BlackHole(Source):
         self.r_out = self.pf['source_rmax'] * self._GravitationalRadius(self.M0)
         self.T_in = self._DiskInnermostTemperature(self.M0)
         self.T_out = self._DiskTemperature(self.M0, self.r_out)
-        self.Lbol = self.Luminosity(0.0)
+        self.Lbol0 = self.Luminosity(0.0)
+        self.Lbol = self.Luminosity
 
         self.disk_history = {}
 

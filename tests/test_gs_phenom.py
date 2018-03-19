@@ -17,14 +17,14 @@ def test():
 
     sim = ares.simulations.Global21cm(tanh_model=True)
     sim.run()
-    ax = sim.GlobalSignature(label='tanh')
+    ax, zax = sim.GlobalSignature(label='tanh')
         
     sim2 = ares.simulations.Global21cm(gaussian_model=True)
     sim2.run()
     sim2.GlobalSignature(ax=ax, label='gaussian')
     
     ax.legend(loc='lower right', fontsize=14)
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()        
         
     assert True

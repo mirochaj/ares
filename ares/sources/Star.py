@@ -48,9 +48,9 @@ class Star(Source):
             Number of photons emitted in the range ``(EminNorm, EmaxNorm)``
         source_lifetime : int, float
             Source will switch off after this amount of time [Myr]
-        
+
         """  
-        
+
         self.pf = ParameterFile(**kwargs)#StellarParameters()
         #self.pf.update(kwargs)
         Source.__init__(self)
@@ -69,14 +69,10 @@ class Star(Source):
 
         # "Analytic" solution has poly-logarithm function - not in scipy (yet)
         self.R = np.sqrt(self.Q / 4. / np.pi / QNorm)
-        self.Lbol = self.Lbol0 = 4. * np.pi * self.R**2 * sigma_SB * self.T**4
-        self.tau = self.pf['source_lifetime'] * s_per_myr
-
-    def SourceOn(self, t):
-        if t < self.tau:
-            return True    
-        else:
-            return False
+        self.Lbol0 = 4. * np.pi * self.R**2 * sigma_SB * self.T**4
+        
+        # No time evolution is implicit for such simple spectra
+        self.Lbol = lambda t: self.Lbol0
 
     def Luminosity(self, t=None):
         return self.Lbol

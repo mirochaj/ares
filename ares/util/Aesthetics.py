@@ -21,7 +21,7 @@ if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
 else:
     custom_labels = {}
     
-prefixes = ['igm_', 'cgm_']    
+prefixes = ['igm_', 'cgm_']
     
 #
 ## Common axis labels
@@ -128,11 +128,14 @@ common = \
  
  'tau_e': r'$\tau_e$',
  'tau_tot': r'$\tau_e$', 
+ 'z_dec': r'$z_{\mathrm{dec}}$',
  
  'skewness_absorption': r'$\mu_{3, \mathrm{abs}}$',
  'kurtosis_absorption': r'$\mu_{4, \mathrm{abs}}$',
  'skewness_emission': r'$\mu_{3, \mathrm{em}}$',
  'kurtosis_emission': r'$\mu_{4, \mathrm{em}}$',
+ 
+ 'igm_initial_temperature': r'$T_0$',
 }    
 ##
 #
@@ -154,6 +157,7 @@ history_elements = \
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+ 'dlogTk_dlogt': r'$d\log T_K / d\log t$',
  
  'slope': r'$\delta^{\prime} T_b \ [\mathrm{mK} \ \mathrm{MHz}^{-1}]$',
  'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$', 
@@ -163,7 +167,7 @@ tp_parameters = {}
 hist_plus_derived = history_elements
 hist_plus_derived.update(derived)
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D', 'ZC']:        
+    for tp in ['A', 'B', 'C', 'D', 'ZC']:        
         if key in ['z', 'nu']:
             tp_parameters['{0!s}_{1!s}'.format(key, tp)] = \
                 r'{0!s}_{{\mathrm{{{1!s}}}}}$'.format(hist_plus_derived[key][0:-1], tp)
@@ -172,7 +176,7 @@ for key in hist_plus_derived:
                 r'{0!s}(\nu_{{\mathrm{{{1!s}}}}})$'.format(hist_plus_derived[key][0:-1], tp)
 
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D']:        
+    for tp in ['A', 'B', 'C', 'D']:        
         if key in ['z', 'nu']:
             tp_parameters['{0!s}_{1!s}p'.format(key, tp)] = \
                 r'{0!s}_{{\mathrm{{{1!s}}}}}^{{\prime}}$'.format(hist_plus_derived[key][0:-1], tp)
@@ -222,6 +226,7 @@ pop_parameters = \
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
  'pop_fstar': r'$f_{\ast}$',
  'pop_fobsc': r'$f_{\mathrm{obsc}}$',
+ 'fobsc': r'$f_{\mathrm{obsc}}$',
  'pop_acc_frac_stellar': r'$f_{\ast}^{\mathrm{acc}}$',
  'pop_acc_frac_metals': r'$f_Z^{\mathrm{acc}}$',
  'pop_acc_frac_gas': r'$f_g^{\mathrm{acc}}$',
@@ -239,12 +244,15 @@ sfe_parameters = \
 }
 
 for i in range(6):
-    sfe_parameters['php_Mfun_par{}'.format(i)] = r'$p_{{{}}}$'.format(i)
-    for j in range(6):
-        sfe_parameters['php_Mfun_par{0}_par{1}'.format(i,j)] =\
-            r'$p_{{{0},{1}}}$'.format(i,j)
+    sfe_parameters['pq_func_par%i' % i] = r'$p_{%i}$' % i
         
+powspec = \
+{
+ 'k': r'$k \ [\mathrm{cMpc}^{-1}]$',
+ 'dpow': r'$\overline{\delta T_b}^2 \Delta_{21}^2 \ \left[\mathrm{mK}^2 \right]$',
+ 'pow': r'$P(k)$',
 
+}
 other = \
 {
  'load': 'processor #',
@@ -260,6 +268,7 @@ labels.update(lf_parameters)
 labels.update(pop_parameters)
 labels.update(tp_parameters)
 labels.update(sfe_parameters)
+labels.update(powspec)
 
 # Add custom labels
 labels.update(custom_labels)
@@ -358,13 +367,15 @@ class Labeler(object):
         units = self.units(prefix)
         
         label = None
-        
+                
         # Simplest case. Not popid, not a PQ, label found.
         if popid == phpid == None and (prefix in self.labels):
             label = self.labels[prefix]
         # Has pop ID number but is not a PQ, label found.
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
+        elif (popid is not None) and (phpid is None) and (prefix.strip('pop_') in self.labels):
+            label = self.labels[prefix.strip('pop_')]    
         # Has Pop ID, not a PQ, no label found.      
         elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
             try:
@@ -374,9 +385,10 @@ class Labeler(object):
         
             if hard is not None:    
                 # If all else fails, just typset the parameter decently
-                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
-                label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
-                    popid, phpid, parnum)    
+                label = prefix
+                #parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                #label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
+                #    popid, phpid, parnum)    
         # Is PQ, label found. Just need to parse []s.
         elif phpid is not None and (prefix in self.labels):
             parnum = list(map(int, re.findall(r'\d+', par.replace('[{}]'.format(phpid),''))))
@@ -398,18 +410,18 @@ class Labeler(object):
                     label = self.labels[prefix[4:]]
             else:
                 label = r'${!s}$'.format(par.replace('_', '\_'))
-        
+
         if par in self.parameters: 
-            print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
-                un_log))
+            #print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
+            #    un_log))
             if take_log:
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             elif self.is_log[par] and (not un_log):
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             else:
-                return label    
-        
+                return label
+
         return label
-        
+
         
     

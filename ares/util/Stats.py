@@ -69,56 +69,37 @@ def GaussND(x, mu, cov):
     return norm * np.exp(-0.5 * score)
 
 def get_nu(sigma, nu_in, nu_out):
-    """
-    Parameters
-    ----------
-    sigma : float
-        1-D Gaussian error on some parameter.
-    nu_in : float
-        Percent of likelihood enclosed within given sigma.
-    nu_out : float
-        Percent of likelihood
-    
-    Example
-    -------
-    Convert 68% error-bar of 0.5 (arbitrary) to 95% error-bar:
-    >>> get_nu(0.5, 0.68, 0.95)
-    
-    Returns
-    -------
-    sigma corresponding to nu_out.
-    
-    """
-    
+
     if nu_in == nu_out:
         return sigma
-    
-    var_in = sigma**2
-    
-    # 1-D Gaussian with variable variance
-    pdf = lambda x, vv: np.exp(-x**2 / 2. / vv)
+        
+    guess = nu_in / nu_out
+        
+    # Define a 1-D Gaussian with variable variance
+    pdf = lambda x, s: np.exp(-x**2 / 2. / s**2) / np.sqrt(s**2 * 2 * np.pi)
         
     # Integral (relative to total) from -sigma to sigma
-    # Allows us to convert input sigma to 1-D error-bar
-    integral = lambda vr: quad(lambda x: pdf(x, vv=var_in), -sigma, sigma)[0] \
-        / (np.sqrt(abs(var_in)) * np.sqrt(2 * np.pi))
+    integral = lambda s: quad(lambda x: pdf(x, s=s), 
+        -abs(sigma), abs(sigma))[0]
     
     # Minimize difference between integral (as function of variance) and
-    # desired area
+    # specified area (i.e., supplied confidence interval).
     to_min = lambda y: abs(integral(y) - nu_in)
     
-    # Input sigma converted to 
-    var = fmin(to_min, 0.5 * sigma**2, disp=False)[0]
+    # Solve above equation to obtain the 1-sigma error-bar.
+    s1 = fmin(to_min, guess * sigma, disp=False)[0]
     
-    pdf_1sigma = lambda x: np.exp(-x**2 / 2. / var)
+    # Define a new PDF using this 1-sigma error. Now, the unknown is
+    # the interval over which we must integrate to obtain the 
+    # desired area, nu_out.
+    f_s_out = lambda s_out: quad(lambda x: pdf(x, s=s1), 
+        -abs(s_out), abs(s_out))[0]
+        
+    to_min = lambda y: abs(f_s_out(y) - nu_out)
     
-    integral = lambda sigma: quad(lambda x: pdf_1sigma(x), 
-        -sigma, sigma)[0] \
-        / (np.sqrt(abs(var)) * np.sqrt(2 * np.pi))
+    s_out = fmin(to_min, guess * sigma, disp=False)[0]
     
-    to_min = lambda y: abs(integral(y) - nu_out)
-    
-    return fmin(to_min, np.sqrt(var), disp=False)[0]
+    return s_out
 
 def error_1D(x, y, nu=0.68, limit=None):
     """
@@ -132,6 +113,13 @@ def error_1D(x, y, nu=0.68, limit=None):
         PDF
     nu : float
         Integrate out until nu-% of the likelihood has been enclosed.
+        
+    Example
+    -------
+    For a Gaussian, should recover 1, 2, and 3 sigma easily:
+    >>> x = np.linspace(-20, 20, 10000)
+    >>> y = np.exp(-x**2 / 2. / 1.)
+    >>> print error_1D(x, y, 0.6827), error_1D(x, y, 0.9545), error_1D(x, y, 0.9973)
 
     Returns
     -------
@@ -298,7 +286,7 @@ def correlation_matrix(cov):
             rho[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
 
     return rho
-    
+
 def rebin(bins):
     """
     Take in an array of bin edges and convert them to bin centers.        

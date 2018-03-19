@@ -25,12 +25,12 @@ def test():
         data.append((sim.history['z'], sim.history['dTb']))
         
         # Plot the global signal
-        ax = sim.GlobalSignature(ax=ax,
+        ax, zax = sim.GlobalSignature(ax=ax,
             label=r'$f_X={:.2g}$'.format(fX))
         
     ax.legend(loc='lower right', fontsize=14)
     pl.draw()
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()
     
     # Most common problem: breaking backward compatibility means the 

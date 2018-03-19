@@ -13,13 +13,14 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
-from scipy.interpolate import interp1d
+from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from matplotlib.ticker import ScalarFormatter 
 from ..analysis.BlobFactory import BlobFactory
-from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis
+from scipy.interpolate import interp1d, splrep, splev
+from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
 
 def add_master_legend(ax, **kwargs):
     """
@@ -71,7 +72,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 except ValueError:
                     raise AttributeError('No attribute {!s}.'.format(name))    
     
-            if pt not in ['B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
+            if pt not in ['A', 'B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
                 # This'd be where e.g., zrei, should go
                 raise NotImplementedError(('Looking for attribute ' +\
                     '\'{!s}\'.').format(name))
@@ -133,6 +134,50 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             _nu = self._nu_p
             self._nu_pp, self._dTb2dnu2 = central_difference(_nu, _dTbdnu)
         return self._dTb2dnu2        
+        
+    @property
+    def nu_A(self):
+        return nu_0_mhz / (1. + self.z_A)
+        
+    @property
+    def z_A(self):
+        if not hasattr(self, '_z_A'):
+            
+            if max(self.history_asc['z']) < 70:
+                self._z_A = -np.inf
+                return -np.inf
+                        
+            zall = self.history_asc['z']
+            Tall = self.history_asc['dTb']
+            zfl = self.pf['first_light_redshift']
+            zok = np.logical_and(zall > zfl, zall < 1e3)
+            
+            zguess = zall[zok][np.argmin(Tall[zok])]
+            
+            zslc = np.logical_and(zall[zok] > zguess - 2., zall[zok] < zguess + 2.)
+            
+            dz = 2.
+            while zslc.sum() < 5:
+                zslc = np.logical_and(zall[zok] > zguess - dz, zall[zok] < zguess + dz)
+                dz += 1.
+                
+                if dz > 10:
+                    break
+            
+            dTb = interp1d(zall[zok][zslc], Tall[zok][zslc], kind='cubic')
+            
+            try:
+                to_min = minimize(lambda zz: dTb(zz), zguess)    
+                self._z_A = to_min.x[0]
+            except:
+                self._z_A = -np.inf
+            
+        return self._z_A
+    
+    @property
+    def dTb_A(self):
+        return np.interp(self.z_A, self.history_asc['z'], 
+            self.history_asc['dTb'])
     
     @property
     def z_p(self):
@@ -159,47 +204,36 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         return self._nu_pp    
 
     @property
-    def kurtosis_absorption(self):
+    def kurtosis(self):
         if not hasattr(self, '_kurtosis_abs'):
-            i1 = np.argmin(np.abs(30. - self.history['nu']))
-            i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            data = np.abs(self.history['dTb'][i1:i2])
+            ok = np.isfinite(self.history['dTb'])
+            data = np.abs(self.history['dTb'][ok])
             self._kurtosis_abs = np.sum((data - np.mean(data))**4) \
                 / float(data.size) / np.std(data)**4
             
         return self._kurtosis_abs
 
     @property
-    def skewness_absorption(self):
+    def skewness(self):
         if not hasattr(self, '_skewness_abs'):
-            i1 = np.argmin(np.abs(30. - self.history['nu']))
-            i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            data = np.abs(self.history['dTb'][i1:i2])
+            ok = np.isfinite(self.history['dTb'])
+            data = np.abs(self.history['dTb'][ok])
             self._skewness_abs = np.sum((data - np.mean(data))**3) \
                 / float(data.size) / np.std(data)**3
+                
         return self._skewness_abs
-
+        
     @property
-    def kurtosis_emission(self):
-        if not hasattr(self, '_kurtosis_emi'):
-            i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            i2 = np.argmin(np.abs(200.0 - self.history['nu']))
-            data = self.history['dTb'][i1:i2]
-            self._kurtosis_emi = np.sum((data - np.mean(data))**4) \
-                / float(data.size) / np.std(data)**4
-
-        return self._kurtosis_emi
-
+    def z_dec(self):
+        if not hasattr(self, '_z_dec'):
+            self._z_dec = self.cosm.z_dec
+        return self._z_dec
+        
     @property
-    def skewness_emission(self):
-        if not hasattr(self, '_skewness_emi'):
-            i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            i2 = np.argmin(np.abs(200.0 - self.history['nu']))
-            data = self.history['dTb'][i1:i2]
-            self._skewness_emi = np.sum((data - np.mean(data))**3) \
-                / float(data.size) / np.std(data)**3
-        return self._skewness_emi    
-    
+    def Tk_dec(self):
+        return np.interp(self.z_dec, self.history_asc['z'],
+            self.history_asc['igm_Tk'])
+        
     @property
     def track(self):
         if not hasattr(self, '_track'):     
@@ -253,9 +287,12 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if 'C' in self.track.turning_points:
                 zC = self.track.turning_points['C'][0]
                 if (zC < 0) or (zC > 50):
+                    print("WARNING: absorption minimum redshift wonky (z={})".format(zC))
                     i_min = np.argmin(self.history['dTb'])
                     fixes['C'] = (self.history['z'][i_min], 
                         self.history['dTb'][i_min], -99999)
+                    print("WARNING: Reset to z={}, dTb={}".format(*fixes['C'][0:2]))
+                        
             if 'D' in self.track.turning_points:
                 zD = self.track.turning_points['D'][0]
                 TD = self.track.turning_points['D'][1]
@@ -270,7 +307,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             result.update(fixes)
             
             self._turning_points = result       
-            
+
             ## 
             # If there are multiple extrema (e.g, C and C'), fix order.
             ##
@@ -326,16 +363,31 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         return ax
         
-    def AdiabaticFloor(self, ax):
+    def AdiabaticFloor(self, ax, gap=None, temp_units='mk', **kwargs):
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.adiabatic_floor(z)
         
+        if temp_units.lower() in ['k', 'kelvin']:
+            conv = 1e-3
+        else:
+            conv = 1.
+        
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
-
-        ax.plot(self.history['nu'], dTb, color='k', ls=':')
-        ax.fill_between(self.history['nu'], -500 * np.ones_like(dTb), dTb, 
-            color='none', hatch='X', edgecolor='k', linewidth=0.0)
+        
+        if kwargs == {}:
+            ax.fill_between(self.history['nu'], 
+                -500 * np.ones_like(dTb) * conv, dTb * conv, 
+                color='none', hatch='X', edgecolor='k', linewidth=0.0)
+        else:
+            if gap is None:
+                ax.plot(self.history['nu'], dTb * conv, **kwargs)
+            else:
+                i1 = np.argmin(np.abs(self.history['nu'] - gap[0]))
+                i2 = np.argmin(np.abs(self.history['nu'] - gap[1]))
+                
+                ax.plot(self.history['nu'][0:i1], dTb[0:i1] * conv, **kwargs)
+                ax.plot(self.history['nu'][i2:], dTb[i2:] * conv, **kwargs)
             
         ax.set_xlim(xlim)    
         ax.set_ylim(ylim)
@@ -347,7 +399,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=None, scatter=False, xaxis='nu', 
         ymin=None, ymax=50, zmax=None, rotate_xticks=False, rotate_yticks=False,
-        force_draw=False,
+        force_draw=False, zlim=80,
         temp_unit='mK', yscale='linear', take_abs=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
@@ -424,7 +476,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             xticks = list(np.arange(zmin, zmax, zmin))
             xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
-            xticks = np.arange(50, 250, 50)
+            xticks = np.arange(0, 250, 50)
             xticks_minor = np.arange(10, 200, 10)
 
         if ymin is None and yscale == 'linear':
@@ -432,7 +484,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
-            for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
+            for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500, -550, -600]:
                 if val <= ymin:
                     ymin = int(val)
                     break
@@ -444,7 +496,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if yscale == 'linear':
             if (not gotax) or force_draw:
                 ax.set_yticks(np.arange(int(ymin / 50) * 50, 
-                    100, 50))
+                    100, 50) * conv)
                 
             else:
                 # Minor y-ticks - 10 mK increments
@@ -452,17 +504,18 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 yticks = list(yticks)      
                 
                 # Remove major ticks from minor tick list
-                for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)) * conv:
-                    if y in yticks:
-                        yticks.remove(y) 
+                if ymin >= -200:
+                    for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)) * conv:
+                        if y in yticks:
+                            yticks.remove(y) 
                         
-                ax.set_ylim(ymin, ymax)
+                ax.set_ylim(ymin * conv, ymax * conv)
                 ax.set_yticks(yticks, minor=True)
         
         if xaxis == 'z' and hasattr(self, 'pf'):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
-            ax.set_xlim(10, 210)
+            ax.set_xlim(0, 210)
 
         if (not gotax) or force_draw:    
             ax.set_xticks(xticks, minor=False)
@@ -480,11 +533,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                     yt.append(y.get_text())
             
                 ax.set_yticklabels(yt, rotation=45.)    
-        
-        if gotax and (ax.get_xlabel().strip()) and (not force_draw):
-            pl.draw()
-            return ax
-            
+                    
         if ax.get_xlabel() == '':  
             if xaxis == 'z':  
                 ax.set_xlabel(labels['z'], fontsize='x-large')
@@ -495,19 +544,23 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if temp_unit.lower() == 'mk':
                 ax.set_ylabel(labels['dTb'], fontsize='x-large')    
             else:
-                ax.set_ylabel(r'$T_b \ (\mathrm{K})$', fontsize='x-large')    
+                ax.set_ylabel(r'$\delta T_b \ (\mathrm{K})$', fontsize='x-large')    
         
         # Twin axes along the top
         if freq_ax:
-            twinax = self.add_frequency_axis(ax)        
+            twinax = self.add_frequency_axis(ax)
         elif time_ax:
-            twinax = self.add_time_axis(ax)
+            twinax = add_time_axis(ax, self.cosm)
         elif z_ax:
-            twinax = add_redshift_axis(ax)
+            twinax = add_redshift_axis(ax, zlim=zmax)
         else:
             twinax = None
         
         self.twinax = twinax
+        
+        if gotax and (ax.get_xlabel().strip()) and (not force_draw):
+            pl.draw()
+            return ax, twinax
         
         try:
             ax.ticklabel_format(style='plain', axis='both')
@@ -519,7 +572,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                                 
         pl.draw()
         
-        return ax
+        return ax, twinax
 
     def GlobalSignatureDerivative(self, mp=None, ax=None, fig=1, 
         show_signal=False, **kwargs):
@@ -662,18 +715,18 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         """    
         
         return np.interp(freq, self.nu_p, self.dTbdnu)
-    
+
     def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True,
         absorption=True):
         # This only helps with backward compatibility between two obscure
         # revisions that probably nobody is using...
         return self.Width(max_fraction, peak_relative, to_freq)
-        
+
     def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True,
         absorption=True):
         """
         Return a measurement of the width of the absorption or emission signal.
-        
+
         Parameters
         ----------
         max_fraction : float

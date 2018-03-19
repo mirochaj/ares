@@ -35,7 +35,7 @@ def test():
     pl.annotate(r'assuming $T_k \propto (1+z)^2$', (0.05, 0.05), 
         xycoords='axes fraction')
         
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()    
 
     assert True

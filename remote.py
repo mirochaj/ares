@@ -20,7 +20,8 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 #
 aux_data = \
 {
- 'hmf': ['{!s}/downloads'.format(ares_link), 
+ 'hmf': ['{!s}/downloads'.format(ares_link),
+    'hmf_ST_logM_1200_4-16_z_1181_1-60.npz',
     'hmf_ST_logM_1200_4-16_z_1141_3-60.npz',
     None],
  'inits': ['{!s}/downloads'.format(ares_link), 
@@ -28,14 +29,16 @@ aux_data = \
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
     'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
-    'optical_depth_He_400x1616_z_10-50_logE_2-4.7.npz',
+    'optical_depth_He_200x429_z_5-60_logE_2.3-4.5.npz'
+    'optical_depth_He_400x862_z_5-60_logE_2.3-4.5.npz',
+    'optical_depth_He_1000x2158_z_5-60_logE_2.3-4.5.npz',
     None],
  'secondary_electrons': ['{!s}/downloads'.format(ares_link),
-    'elec_interp.tar.gz', 
+    'elec_interp.tar.gz',
     'read_FJS10.py'],
  'starburst99': ['http://www.stsci.edu/science/starburst99/data',
-    'data.tar.gz', 
-    None],                        
+    'data.tar.gz',
+    None],
  #'hm12': ['http://www.ucolick.org/~pmadau/CUBA/Media',
  #   'UVB.out', 
  #   'emissivity.out', 
@@ -136,8 +139,7 @@ for i, direc in enumerate(to_download):
         try:
             execfile(aux_data[direc][-1])
         except:
-            print("WARNING: Error running {!s}".format(aux_data[direc][-1])) 
-    
-    os.chdir('..')
+            print("WARNING: Error running {!s}".format(aux_data[direc][-1]))
 
+    os.chdir('..')
 

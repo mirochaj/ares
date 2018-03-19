@@ -34,7 +34,7 @@ def test():
     pl.annotate(r'Verner & Ferland (1996)', (20, 1e-24), ha='left')
     pl.annotate(r'Approximate', (20, 1e-25), color='b', ha='left')
     
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()    
     
     assert True

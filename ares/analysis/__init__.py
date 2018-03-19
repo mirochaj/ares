@@ -4,6 +4,7 @@ from ares.analysis.MultiPlot import MultiPanel
 from ares.analysis.RaySegment import RaySegment
 from ares.analysis.Population import Population
 from ares.analysis.Global21cm import Global21cm
+from ares.analysis.PowerSpectrum import PowerSpectrum
 from ares.analysis.ModelSelection import ModelSelection
 from ares.analysis.InlineAnalysis import InlineAnalysis
 from ares.analysis.GalaxyPopulation import GalaxyPopulation

@@ -15,6 +15,7 @@ import re
 from .Toy import Toy
 from .Star import Star
 from .BlackHole import BlackHole
+from .SynthesisModel import SynthesisModel
 
 class Composite(object):
     """ Class for stitching together several radiation sources. """
@@ -55,6 +56,9 @@ class Composite(object):
                 rs = BlackHole(**sf)
             elif sf['source_type'][i] == 'toy':
                 rs = Toy(**sf)
+            elif sf['source_type'][i] in ['cluster', 'galaxy']:
+                # Only difference is galaxies can have SFHs
+                rs = SynthesisModel(**sf)
             else:
                 msg = 'Unrecognized source_type: {!s}'.format(\
                     sf['source_type'][i])

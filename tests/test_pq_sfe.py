@@ -121,7 +121,7 @@ def test():
     pl.ylim(1e-4, 0.2)
     pl.legend(loc='lower right', fontsize=14)
     
-    pl.savefig('{!s}_1.png'.format(__file__.rstrip('.py')))     
+    pl.savefig('{!s}_1.png'.format(__file__[0:__file__.rfind('.')]))     
     pl.close()
     
     pop1 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 

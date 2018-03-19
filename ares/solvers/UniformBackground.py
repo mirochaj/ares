@@ -17,7 +17,7 @@ from ..util.Misc import logbx
 from ..util import ParameterFile
 from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
@@ -25,8 +25,8 @@ from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
-from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
-    flatten_emissivities
+#from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
+#    flatten_emissivities
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -95,7 +95,7 @@ class UniformBackground(object):
             self.cosm = grid.cosm
         else:
             self.grid = None
-            self.cosm = Cosmology()
+            self.cosm = Cosmology(**self.pf)
 
         self._set_integrator()
         
@@ -147,11 +147,15 @@ class UniformBackground(object):
                        #if j == 0:
                        #    break
                     elif type(pop.pf['pop_solve_rte']) is tuple:
+                        
                         if band == pop.pf['pop_solve_rte']:
                             tmp.append(True)
-                        # Eh, close  enough (to 0.1 eV)
+                        # Round (close enough?)
                         elif np.allclose(band, pop.pf['pop_solve_rte'], 
                             atol=1e-1, rtol=0.):
+                            tmp.append(True)
+                        elif (band[0] >= pop.pf['pop_solve_rte'][0]) and \
+                             (band[1] <= pop.pf['pop_solve_rte'][1]):
                             tmp.append(True)
                         else:
                             tmp.append(False)
@@ -188,13 +192,19 @@ class UniformBackground(object):
         
         bands = []
         
+        if (Emin < E_LyA) and (Emax < E_LyA):
+            bands.append((Emin, Emax))
+            return bands
+        
         # Check for optical/IR
-        if Emin < E_LyA:
+        if (Emin < E_LyA) and (Emax >= E_LyA):
             bands.append((Emin, E_LyA))
         
         # Check for sawtooth
-        if Emin < E_LL:
-            bands.append((E_LyA, E_LL))
+        if (Emax > E_LyA) and (Emax < E_LL):
+            bands.append((E_LyA, Emax))
+        elif (Emin < E_LL) and (Emax >= E_LL):
+            bands.append((max(E_LyA, Emin), E_LL))    
 
         if Emax <= E_LL:
             return bands
@@ -205,10 +215,10 @@ class UniformBackground(object):
             bands.append((4 * E_LyA, 4 * E_LL))
             bands.append((4 * E_LL, Emax))
         else:
-            bands.append((E_LL, Emax))    
-            
+            bands.append((E_LL, Emax))
+
         return bands
-        
+
     @property
     def approx_all_pops(self):
         if not hasattr(self, '_approx_all_pops'):
@@ -254,9 +264,9 @@ class UniformBackground(object):
         if not hasattr(self, '_bands_by_pop'):
             # Figure out which band each population emits in
             if self.approx_all_pops:
-                self._energies = [[None] for i in range(self.Npops)]
-                self._redshifts = [None for i in range(self.Npops)]
-                self._bands_by_pop = [[None] for i in range(self.Npops)]   
+                self._energies = [[None] for i in xrange(self.Npops)]
+                self._redshifts = [None for i in xrange(self.Npops)]
+                self._bands_by_pop = [[None] for i in xrange(self.Npops)]   
             else:    
                 # Really just need to know if it emits ionizing photons, 
                 # or has any sawtooths we need to care about
@@ -265,6 +275,7 @@ class UniformBackground(object):
                 self._redshifts = []
                 for i, pop in enumerate(self.pops):
                     bands = self._get_bands(pop)
+                                        
                     self._bands_by_pop.append(bands)   
                     
                     if (bands is None) or (not pop.pf['pop_solve_rte']):
@@ -333,7 +344,7 @@ class UniformBackground(object):
         """
 
         if zi is None:
-            zi = pop.pf['initial_redshift']
+            zi = pop.pf['first_light_redshift']
         if zf is None:    
             zf = pop.pf['final_redshift']
         if nz is None:
@@ -572,7 +583,7 @@ class UniformBackground(object):
             if popid is not None:
                 if i != popid:
                     continue
-
+            
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):
 
@@ -699,7 +710,7 @@ class UniformBackground(object):
         # Set limits of integration in redshift space
         zi = max(z, pop.zdead)
         if kw['zf'] is None:
-            zf = pop.zform
+            zf = min(pop.zform, self.pf['first_light_redshift'])
         else:
             zf = kw['zf']
     
@@ -979,7 +990,7 @@ class UniformBackground(object):
         
         pop = self.pops[popid]
 
-        if (not pop.is_lya_src) or (z > pop.zform):
+        if (not pop.is_src_lya) or (z > pop.zform):
             return 0.0
 
         if pop.pf['pop_Ja'] is not None:
@@ -1098,16 +1109,18 @@ class UniformBackground(object):
 
         scalable = pop.is_emissivity_scalable
         separable = pop.is_emissivity_separable
-
+        
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
+                    
+            Lbol = pop.Emissivity(z)        
             for ll in range(Nz):
-                Lbol = pop.Emissivity(z[ll])
-                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
+                #Lbol = pop.Emissivity(z[ll])
+                epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:
-                
+                            
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense 
@@ -1130,6 +1143,8 @@ class UniformBackground(object):
                     fix = 1. / pop._convert_band(*band)
                 
                 # Setup interpolant
+                # If there's an attribute error here, it probably means
+                # is_emissivity_scalable isn't being set correctly.
                 rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
                 
                 if rho_L is None:
@@ -1142,10 +1157,16 @@ class UniformBackground(object):
 
                 for ll, redshift in enumerate(z):
                     
-                    if redshift < self.pf['final_redshift']:
+                    if (redshift < self.pf['final_redshift']):
                         continue    
+                    if (redshift < pop.zdead):
+                        continue
+                    if (redshift > pop.zform):
+                        continue        
                     if redshift < self.pf['kill_redshift']:
                         continue    
+                    if redshift > self.pf['first_light_redshift']:
+                        continue
                                             
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
@@ -1253,7 +1274,7 @@ class UniformBackground(object):
         
         """     
         
-        line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
+        line_flux = [np.zeros_like(fluxes[i]) for i in xrange(len(fluxes))]
 
         # Compute Lyman-alpha flux
         if self.pf['include_injected_lya']:
@@ -1271,7 +1292,7 @@ class UniformBackground(object):
             gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
 
         # Generator over redshift
-        for i in range(z.size):  
+        for i in xrange(z.size):  
             flux = []
             for gen in gens:
                 z, new_flux = next(gen)
