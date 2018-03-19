@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import c, ev_per_hz, erg_per_ev
 
-def test(tol=5e-2):
+def test(tol=1e-1):
 
     alpha = -2.
     beta = -6.
@@ -126,7 +126,8 @@ def test(tol=5e-2):
     
             # Check analytic solution at *lowest* redshift
             diff = np.abs(f_an - f2[0]) / f_an
-    
+
+            # Check difference at lowest energy.
             # Loose tolerance in this example since tau table is coarse
             assert diff[0] < tol, \
                 "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)

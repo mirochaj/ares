@@ -9,57 +9,59 @@ Created on: Wed Sep 24 14:55:35 MDT 2014
 Description: 
 
 """
+
 from __future__ import print_function
+
 import os
 import time
 import numpy as np
 from types import FunctionType
-from ..util.Pickling import write_pickle_file
+from ..util.Math import interp1d
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
-from ..physics.Constants import nu_0_mhz, E_LyA
+from ..util.Pickling import write_pickle_file
 from ..util import ParameterFile, ProgressBar, get_hg_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
+from ..physics.Constants import nu_0_mhz, E_LyA, h_p, erg_per_ev, k_B, c
 
-defaults = \
-{
- 'load_ics': True,
-}
-
-class _DummyClass(object):
-    def __init__(self, f):
-        self.f = f
-    def __call__(self, x):
-        return self.f(x)
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
 
 class Global21cm(AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
-        
+
         ..note :: This is essentially a MultiPhaseMedium calculation, except
             the Lyman alpha background and 21-cm background are calculated, 
             and alternative (phenomenological) parameterizations such as a 
             tanh for the ionization, thermal, and LW background evolution, 
             may be used.
-            
+
         """
-        
+
         self.is_complete = False
-        
+
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
-        kwargs.update(defaults)
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
-        
+                
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)
-        
+            
+    #def __del__(self):
+    #    print("Killing it! Processor={}".format(rank))
+                    
     @property 
     def timer(self):
         if not hasattr(self, '_timer'):
@@ -108,13 +110,15 @@ class Global21cm(AnalyzeGlobal21cm):
         if not hasattr(self, '_medium'):
             from .MultiPhaseMedium import MultiPhaseMedium
             self._medium = MultiPhaseMedium(**self.kwargs)
+            #self.pf = self._medium.pf
+                        
         return self._medium
         
     @property
     def field(self):
         if not hasattr(self, '_field'):
             self._field = self.medium.field
-        return self._field    
+        return self._field
 
     @property
     def pops(self):
@@ -132,7 +136,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
         dTb = []
         for i, data_igm in enumerate(self.all_data_igm):
-
+            
             n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
             Ts = \
                 self.medium.parcel_igm.grid.hydr.Ts(
@@ -180,7 +184,7 @@ class Global21cm(AnalyzeGlobal21cm):
         if (not self.is_tanh) and (not self.is_gauss) and (not self.is_param):
             return False
                 
-        model = PhenomModel(**kwargs)                
+        model = self._model = PhenomModel(**kwargs)                
         self.pf = model.pf
             
         if self.pf['output_frequencies'] is not None:
@@ -234,7 +238,7 @@ class Global21cm(AnalyzeGlobal21cm):
             
         tf = self.medium.tf
         self.medium._insert_inits()
-
+        
         pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'])
 
         # Lists for data in general
@@ -258,7 +262,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 break
             if z < self.pf['kill_redshift']:
                 break    
-
+                
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
@@ -308,7 +312,7 @@ class Global21cm(AnalyzeGlobal21cm):
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
         self.history['Jlw'] = self.history['igm_Jlw']
-        
+            
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
             self.rates_igm = \
@@ -321,11 +325,57 @@ class Global21cm(AnalyzeGlobal21cm):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-
-        t2 = time.time()
-                
-        self.timer = t2 - t1
         
+        ##
+        # Optional extra radio background
+        ##
+        Tr = np.zeros_like(self.history['z'])
+        for popid, pop in enumerate(self.pops):
+            if not pop.is_src_radio:
+                continue
+
+            z, E, flux = self.field.get_history(popid, flatten=True)
+
+            E21cm = h_p * nu_0_mhz * 1e6 / erg_per_ev
+            f21 = interp1d(E, flux, axis=1, bounds_error=False, 
+                fill_value=0.0, force_scipy=True)
+            flux_21cm = f21(E21cm)
+
+            Tr += np.interp(self.history['z'], z, flux_21cm) \
+                * E21cm * erg_per_ev * c**2 / k_B / 2. / (nu_0_mhz * 1e6)**2
+            
+        if not np.all(Tr == 0):
+            assert self.medium.parcel_igm.grid.hydr.Tbg is None
+        elif self.medium.parcel_igm.grid.hydr.Tbg is not None:
+            Tr = self.medium.parcel_igm.grid.hydr.Tbg(self.history['z'])
+            
+        self.history['Tr'] = Tr
+        
+        # Correct the brightness temperature if there are non-CMB backgrounds
+        if not np.all(Tr == 0):
+            zall = self.history['z']
+            n_H = self.medium.parcel_igm.grid.cosm.nH(zall)
+            Ts = self.medium.parcel_igm.grid.hydr.Ts(zall,
+                self.history['igm_Tk'], self.history['Ja'], 
+                self.history['igm_h_2'], self.history['igm_e'] * n_H, Tr)
+
+            if self.pf['spin_temperature_floor'] is not None:
+                Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=zall))            
+
+            # Compute volume-averaged ionized fraction
+            xavg = self.history['cgm_h_2'] \
+                 + (1. - self.history['cgm_h_2']) * self.history['igm_h_2']
+
+            # Derive brightness temperature
+            dTb = self.medium.parcel_igm.grid.hydr.dTb(zall, xavg, Ts, Tr)
+            
+            self.history['dTb_no_radio'] = self.history['dTb'].copy()
+            self.history['dTb'] = dTb
+            
+        t2 = time.time()
+
+        self.timer = t2 - t1
+
         self.is_complete = True
 
     def step(self):
@@ -335,7 +385,7 @@ class Global21cm(AnalyzeGlobal21cm):
         .. note:: Basically just calling MultiPhaseMedium here, except we
             compute the spin temperature and brightness temperature on
             each step.
-        
+
         Returns
         -------
         Generator for MultiPhaseMedium object, with notable addition that
@@ -343,16 +393,19 @@ class Global21cm(AnalyzeGlobal21cm):
         tracked.
 
         """
-                                
+
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
 
             Ja = np.atleast_1d(self._f_Ja(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
-                                                                                
+
             # Compute spin temperature
-            n_H = self.medium.parcel_igm.grid.cosm.nH(z)
+            n_H = self.medium.parcel_igm.grid.cosm.nH(z)            
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
+
+            if self.pf['spin_temperature_floor'] is not None:
+                Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=z))            
 
             # Compute volume-averaged ionized fraction
             xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']

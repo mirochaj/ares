@@ -8,63 +8,82 @@ info = \
 {
  'reference':'Tomczak et al., 2014, ApJ, 783, 85',
  'data': 'Table 1', 
+ 'imf': ('chabrier', (0.1, 100.)),
 }
 
-redshifts = [2,3]
+redshifts = [2.25, 2.75]
 wavelength = 1600.
 
 ULIM = -1e10
 
 fits = {}
 
-# From Louis: this is total! See paper for red/blue breakdown
-_x3 =  np.array([9.50,9.75,10.0,10.25,10.5,10.75,11.0,11.25,11.50]) + 0.15 # TO SALPETER
-_y3 =  -1 * np.array([2.65,2.78,3.02,3.21,3.35,3.74,4.00,4.14,4.73])
-_ehi3 = [0.06,0.07,0.08,0.09,0.10,0.13,0.18,0.17,0.31]
-_elo3 = [0.07,0.08,0.09,0.10,0.13,0.17,0.25,0.28,2.00]
-
-_x2 =  np.array([9.0,9.25,9.50,9.75,10.0,10.25,10.5,10.75,11.0,11.25,11.50]) + 0.15 
-_y2 =  -1 * np.array([2.20,2.31,2.41,2.54,2.67,2.76,2.87,3.03,3.13,3.56,4.27])
-_ehi2 = [0.05,0.05,0.05,0.06,0.06,0.06,0.07,0.08,0.08,0.10,0.12]
-_elo2 = [0.06,0.06,0.06,0.06,0.07,0.07,0.08,0.09,0.10,0.13,0.15]
-
 # Table 1
 tmp_data = {}
-tmp_data['smf'] = \
+tmp_data['smf_tot'] = \
 {
- 2: {'M': list(10**_x2),
-     'phi': _y2,
-     'err': list(zip(*(_elo2, _ehi2))),
+ #1.75: {'M': list(10**np.arange(9.25, 11.75, 0.25)),
+ #     'phi': [-2.53, -2.50, -2.63, -2.74, -2.91, -3.07, -3.35, -3.54, -3.89, -4.41],
+ #     'err': [(0.06, 0.07), (0.06, 0.07), (0.06, 0.07), (0.07, 0.08),
+ #             (0.08, 0.09), (0.09, 0.10), (0.10, 0.13), (0.12, 0.16),
+ #             (0.12, 0.17), (0.14, 0.19)],
+ 2.25: {'M': list(10**np.arange(9.25, 11.75, 0.25)),
+     'phi': [-2.53, -2.50, -2.63, -2.74, -2.91, -3.07, -3.35, -3.54, -3.89, -4.41],
+     'err': [(0.06, 0.07), (0.06, 0.07), (0.06, 0.07), (0.07, 0.08),
+             (0.08, 0.09), (0.09, 0.10), (0.10, 0.13), (0.12, 0.16),
+             (0.12, 0.17), (0.14, 0.19)],
     },
- 3: {'M': list(10**_x3),
-     'phi': _y3,
-     'err': list(zip(*(_elo3, _ehi3))),
+ 2.75: {'M': list(10**np.arange(9.5, 11.75, 0.25)),
+     'phi': [-2.65, -2.78, -3.02, -3.21, -3.35, -3.74, -4.00, -4.14, -4.73],
+     'err': [(0.06, 0.07), (0.07, 0.08), (0.08, 0.09),
+             (0.09, 0.10), (0.10, 0.13), (0.13, 0.17),
+             (0.18, 0.25), (0.17, 0.28), (0.31, 2.00)],
     },            
 }
 
-units = {'smf': 'log10'}
+
+units = {'smf_tot': 'log10', 'smf_sf': 'log10'}
+
+tmp_data['smf_sf'] = \
+{
+ 2.25: {'M': list(10**np.arange(9.25, 11.75, 0.25)),
+     'phi': [-2.53, -2.51, -2.67, -2.78, -3.00, -3.26, -3.54, -3.69, -4.00, -4.59],
+     'err': [(0.06, 0.07), (0.06, 0.07), (0.06, 0.07), (0.07, 0.08),
+             (0.08, 0.09), (0.09, 0.11), (0.11, 0.14), (0.13, 0.17),
+             (0.13, 0.17), (0.15, 0.21)],
+    },
+ 2.75: {'M': list(10**np.arange(9.5, 11.75, 0.25)),
+     'phi': [-2.66, -2.79, -3.06, -3.32, -3.59, -3.97, -4.16, -4.32, -4.94],
+     'err': [(0.06, 0.07), (0.07, 0.08), (0.08, 0.09),
+             (0.09, 0.11), (0.11, 0.14), (0.16, 0.20),
+             (0.20, 0.28), (0.18, 0.29), (0.32, 2.00)],
+    },            
+}
 
 data = {}
-data['smf'] = {}
-for key in tmp_data['smf']:
-    mask = []
-    for element in tmp_data['smf'][key]['err']:
-        if element == ULIM:
-            mask.append(1)
-        else:
-            mask.append(0)
+data['smf_tot'] = {}
+data['smf_sf'] = {}
+for group in ['smf_tot', 'smf_sf']:
     
-    mask = np.array(mask)
+    for key in tmp_data[group]:
+        
+        if key not in tmp_data[group]:
+            continue
     
-    data['smf'][key] = {}
-    data['smf'][key]['M'] = np.ma.array(tmp_data['smf'][key]['M'], mask=mask) 
-    data['smf'][key]['phi'] = np.ma.array(tmp_data['smf'][key]['phi'], mask=mask) 
-    data['smf'][key]['err'] = tmp_data['smf'][key]['err']
-
-
-
-
-
-
+        subdata = tmp_data[group]
+        
+        mask = []
+        for element in subdata[key]['err']:
+            if element == ULIM:
+                mask.append(1)
+            else:
+                mask.append(0)
+        
+        mask = np.array(mask)
+        
+        data[group][key] = {}
+        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask) 
+        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask) 
+        data[group][key]['err'] = tmp_data['smf_sf'][key]['err']
 
 

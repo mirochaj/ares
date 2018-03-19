@@ -13,7 +13,7 @@ Fukugita & Kawasaki (1994). Would be nice to include rates from other sources.
 
 import numpy as np
 from scipy.misc import derivative
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.Math import central_difference
 
 #try:
@@ -27,7 +27,8 @@ have_chianti = False
 rate_sources = ['fk94', 'chianti']
 
 class RateCoefficients(object):
-    def __init__(self, grid=None, rate_src='fk94', T=T, recombination='B'):
+    def __init__(self, grid=None, rate_src='fk94', T=T, recombination='B',
+        interp_rc='linear'):
         """
         Parameters
         ----------
@@ -39,9 +40,12 @@ class RateCoefficients(object):
         
         self.grid = grid
         self.rate_src = rate_src
+        self.interp_rc = interp_rc
         self.T = T
 
         self.rec = recombination
+        
+        self.Tarr = 10**np.arange(-1, 6.1, 0.1)
             
         if self.rate_src == 'chianti':
             if not have_chianti:
@@ -107,11 +111,23 @@ class RateCoefficients(object):
         
         else:
             name = self.grid.neutrals[species]
-            return self.neutrals[name]['ionizRate'](T)
+            return self.neutrals[name]['ionizRate'](T)        
+           
+    @property 
+    def _dCollisionalIonizationRate(self):
+        if not hasattr(self, '_dCollisionalIonizationRate_'):
+            self._dCollisionalIonizationRate_ = {}
+            for i, absorber in enumerate(self.grid.absorbers):
+                tmp = derivative(lambda T: self.CollisionalIonizationRate(i, T), self.Tarr)
+                self._dCollisionalIonizationRate_[i] = interp1d(self.Tarr, tmp, 
+                    kind=self.interp_rc)
+            
+        return self._dCollisionalIonizationRate_
             
     def dCollisionalIonizationRate(self, species, T):
         if self.rate_src == 'fk94':
-            return derivative(lambda T: self.CollisionalIonizationRate(species, T), T)
+            return self._dCollisionalIonizationRate[species](T)
+            #return derivative(lambda T: self.CollisionalIonizationRate(species, T), T)
         else:
             name = self.grid.neutrals[species]
             return self.neutrals[name]['dionizRate']
@@ -157,10 +173,22 @@ class RateCoefficients(object):
         else:
             name = self.grid.ions[species]
             return self.ions[name]['recombRate'](T)
-            
+    
+    @property 
+    def _dRadiativeRecombinationRate(self):
+        if not hasattr(self, '_dRadiativeRecombinationRate_'):
+            self._dRadiativeRecombinationRate_ = {}
+            for i, absorber in enumerate(self.grid.absorbers):
+                tmp = derivative(lambda T: self.RadiativeRecombinationRate(i, T), self.Tarr)
+                self._dRadiativeRecombinationRate_[i] = interp1d(self.Tarr, tmp, 
+                    kind=self.interp_rc)
+    
+        return self._dRadiativeRecombinationRate_        
+    
     def dRadiativeRecombinationRate(self, species, T):
         if self.rate_src == 'fk94':
-            return derivative(lambda T: self.RadiativeRecombinationRate(species, T), T)        
+            return self._dRadiativeRecombinationRate[species](T)
+            #return derivative(lambda T: self.RadiativeRecombinationRate(species, T), T)        
         else:
             name = self.ions.neutrals[species] 
             return self.ions[name]['drecombRate']
@@ -175,9 +203,20 @@ class RateCoefficients(object):
         else:
             raise NotImplementedError()
             
+    @property 
+    def _dDielectricRecombinationRate(self):
+        if not hasattr(self, '_dDielectricRecombinationRate_'):
+            self._dDielectricRecombinationRate_ = {}
+            tmp = derivative(lambda T: self.DielectricRecombinationRate(T), self.Tarr)
+            self._dDielectricRecombinationRate_ = interp1d(self.Tarr, tmp, 
+                kind=self.interp_rc)
+    
+        return self._dDielectricRecombinationRate_
+                    
     def dDielectricRecombinationRate(self, T):
         if self.rate_src == 'fk94':
-            return derivative(self.DielectricRecombinationRate, T)
+            return self._dDielectricRecombinationRate(T)
+            #return derivative(self.DielectricRecombinationRate, T)
         else:
             raise NotImplementedError()
             
@@ -199,9 +238,21 @@ class RateCoefficients(object):
         else:
             raise NotImplemented('Cannot do cooling for rate_source != fk94 (yet).')
     
+    @property 
+    def _dCollisionalIonizationCoolingRate(self):
+        if not hasattr(self, '_dCollisionalIonizationCoolingRate_'):
+            self._dCollisionalIonizationCoolingRate_ = {}
+            for i, absorber in enumerate(self.grid.absorbers):
+                tmp = derivative(lambda T: self.CollisionalExcitationCoolingRate(i, T), self.Tarr)
+                self._dCollisionalIonizationCoolingRate_[i] = interp1d(self.Tarr, tmp, 
+                    kind=self.interp_rc)
+    
+        return self._dCollisionalIonizationCoolingRate_
+    
     def dCollisionalIonizationCoolingRate(self, species, T):
         if self.rate_src == 'fk94':
-            return derivative(lambda T: self.CollisionalIonizationCoolingRate(species, T), T)        
+            return self._dCollisionalIonizationCoolingRate[species](T)
+            #return derivative(lambda T: self.CollisionalIonizationCoolingRate(species, T), T)        
         else:
             raise NotImplementedError()   
            
@@ -223,9 +274,21 @@ class RateCoefficients(object):
         else:
             raise NotImplemented('Cannot do cooling for rate_source != fk94 (yet).')
 
+    @property 
+    def _dCollisionalExcitationCoolingRate(self):
+        if not hasattr(self, '_dCollisionalExcitationCoolingRate_'):
+            self._dCollisionalExcitationCoolingRate_ = {}
+            for i, absorber in enumerate(self.grid.absorbers):
+                tmp = derivative(lambda T: self.CollisionalExcitationCoolingRate(i, T), self.Tarr)
+                self._dCollisionalExcitationCoolingRate_[i] = interp1d(self.Tarr, tmp, 
+                    kind=self.interp_rc)
+    
+        return self._dCollisionalExcitationCoolingRate_
+    
     def dCollisionalExcitationCoolingRate(self, species, T):
         if self.rate_src == 'fk94':
-            return derivative(lambda T: self.CollisionalExcitationCoolingRate(species, T), T)        
+            return self._dCollisionalExcitationCoolingRate[species](T)
+            #return derivative(lambda T: self.CollisionalExcitationCoolingRate(species, T), T)        
         else:
             raise NotImplementedError()
             
@@ -249,10 +312,22 @@ class RateCoefficients(object):
                 return 3.48e-26 * np.sqrt(T) * (T / 1e3)**-0.2 * (1. + (T / 4e6)**0.7)**-1.
         else:
             raise NotImplemented('Cannot do cooling for rate_source != fk94 (yet).')
+    
+    @property 
+    def _dRecombinationCoolingRate(self):
+        if not hasattr(self, '_dRecombinationCoolingRate_'):
+            self._dRecombinationCoolingRate_ = {}
+            for i, absorber in enumerate(self.grid.absorbers):
+                tmp = derivative(lambda T: self.RecombinationCoolingRate(i, T), self.Tarr)
+                self._dRecombinationCoolingRate_[i] = interp1d(self.Tarr, tmp, 
+                    kind=self.interp_rc)
+    
+        return self._dRecombinationCoolingRate_
 
     def dRecombinationCoolingRate(self, species, T):
         if self.rate_src == 'fk94':
-            return derivative(lambda T: self.RecombinationCoolingRate(species, T), T)
+            return self._dRecombinationCoolingRate[species](T)
+            #return derivative(lambda T: self.RecombinationCoolingRate(species, T), T)
         else:
             raise NotImplemented('Cannot do cooling for rate_source != fk94 (yet).')
             
@@ -268,9 +343,19 @@ class RateCoefficients(object):
         else:
             raise NotImplementedError()
             
+    @property 
+    def _dDielectricRecombinationCoolingRate(self):
+        if not hasattr(self, '_dDielectricRecombinationCoolingRate_'):
+            tmp = derivative(lambda T: self.DielectricRecombinationCoolingRate(T), self.Tarr)
+            self._dDielectricRecombinationCoolingRate_ = interp1d(self.Tarr, tmp, 
+                kind=self.interp_rc)
+    
+        return self._dDielectricRecombinationCoolingRate_        
+            
     def dDielectricRecombinationCoolingRate(self, T):
         if self.rate_src == 'fk94':
-            return derivative(self.DielectricRecombinationCoolingRate, T)
+            return self._dDielectricRecombinationCoolingRate(T)
+            #return derivative(self.DielectricRecombinationCoolingRate, T)
         else:
             raise NotImplementedError()
             

@@ -22,17 +22,15 @@ class Parametric21cm(object):
         self.pf = ParameterFile(**kwargs)
         
         # Cosmology class
-        self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-            omega_l_0=self.pf["omega_l_0"], 
-            omega_b_0=self.pf["omega_b_0"], 
-            hubble_0=self.pf["hubble_0"], 
-            helium_by_number=self.pf['helium_by_number'], 
-            cmb_temp_0=self.pf["cmb_temp_0"], 
-            approx_highz=self.pf["approx_highz"])
+        self.cosm = Cosmology(**self.pf)
         
         # Create instance of Hydrogen class
         self.hydr = Hydrogen(cosm=self.cosm,
             approx_Salpha=self.pf['approx_Salpha'], **kwargs)
+        
+    def electron_density(self, z):
+        return np.interp(z, self.cosm.thermal_history['z'], 
+            self.cosm.thermal_history['xe']) * self.cosm.nH(z)    
         
     def __getattr__(self, name):
         # Indicates that this attribute is being accessed from within a 
@@ -69,9 +67,9 @@ class Parametric21cm(object):
         """
         
         Ja = self.Ja(z=z)
-        Tk = self.Tk(z=z) + self.hydr.Tk_floor(z)
+        Tk = self.Tk(z=z) + self.cosm.Tgas(z)
         xi = self.xi(z=z)
-        ne = self.hydr.ne_floor(z)
+        ne = self.electron_density(z)
 
         # Spin temperature
         Ts = self.hydr.SpinTemperature(z, Tk, Ja, 0.0, ne)

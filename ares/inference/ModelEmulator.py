@@ -27,10 +27,10 @@ try:
 except ImportError:
     pass
 
-try:
-    import astropy.stats as astats
-except ImportError:
-    pass    
+#try:
+#    import astropy.stats as astats
+#except ImportError:
+#    pass    
 
 try:
     import sklearn.gaussian_process as gp
@@ -83,7 +83,6 @@ class ModelEmulator(object):
         """
         
         Ns = self.tset.chain.shape[0]
-        
         if downsample is not None:
             Ns = min(Ns, int(downsample))
             

@@ -9,14 +9,17 @@ Created on: Sat Feb 21 11:26:50 MST 2015
 Description: 
 
 """
+
+import inspect
 import numpy as np
 import os, re, types, sys
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..physics import Cosmology
 from scipy.integrate import quad
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..physics.Constants import c
 from ..util.Misc import num_freq_bins
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection, \
@@ -94,7 +97,9 @@ class OpticalDepth(object):
         
     @ionization_history.setter
     def ionization_history(self, value):
-        if isinstance(value, interp1d):
+        if inspect.ismethod(interp1d):
+            self._ionization_history = value
+        elif isinstance(value, interp1d_scipy):
             self._ionization_history = value
         elif type(value) is not types.FunctionType:
             self._ionization_history = lambda z: value
@@ -339,8 +344,8 @@ class OpticalDepth(object):
             # If we made it this far, we found a table that may be suitable
             z, E, tau = self.load(self.tabname)
     
-            zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
-                np.allclose(self.z.max(), self.pf['initial_redshift'])
+            zmax_ok = (self.z.max() >= self.pf['first_light_redshift']) or \
+                np.allclose(self.z.max(), self.pf['first_light_redshift'])
     
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
@@ -382,7 +387,7 @@ class OpticalDepth(object):
     
             # Set up log-grid in parameter x = 1 + z
             self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
-                np.log10(1+self.pf['initial_redshift']),
+                np.log10(1+self.pf['first_light_redshift']),
                 int(self.pf['tau_redshift_bins']))
     
             self.z = self.x - 1.
@@ -395,7 +400,7 @@ class OpticalDepth(object):
     
             # Create mapping to frequency space
             self.N = num_freq_bins(self.x.size, 
-                zi=self.pf['initial_redshift'], zf=self.pf['final_redshift'], 
+                zi=self.pf['first_light_redshift'], zf=self.pf['final_redshift'], 
                 Emin=self.E0, Emax=self.E1)
     
             # Create energy arrays
@@ -463,9 +468,11 @@ class OpticalDepth(object):
             if re.search('pkl', fn):
                 data = read_pickle_file(fn, nloads=1, verbose=False)
             else:
-                f = open(fn, 'r')
-                data = dict(np.load(f))
-                f.close()
+                data = dict(np.load(fn))
+                # For some reason Python 3 doesn't like this.
+                #f = open(fn, 'r')
+                #data = dict(np.load(f))
+                #f.close()
     
             self.E0 = data['E'].min()
             self.E1 = data['E'].max()            
@@ -534,7 +541,7 @@ class OpticalDepth(object):
         HorHe = 'He' if self.pf['include_He'] else 'H'
     
         zf = self.pf['final_redshift']
-        zi = self.pf['initial_redshift']
+        zi = self.pf['first_light_redshift']
     
         L, N = self.tau_shape()
     
@@ -703,11 +710,9 @@ class OpticalDepth(object):
         # Return right away if there's no potential for conflict
         if (zpf is None) and (Epf is None):
             return ztab, Etab, tau
-    
+        
         # Figure out if the tables need fixing    
-        zmax_ok = \
-            (ztab.max() >= zpf.max()) or \
-            np.allclose(ztab.max(), zpf.max())
+        zmax_ok = (ztab.max() >= self.pf['first_light_redshift'])
         zmin_ok = \
             (ztab.min() <= zpf.min()) or \
             np.allclose(ztab.min(), zpf.min())
@@ -776,7 +781,7 @@ class OpticalDepth(object):
     
         # Set up log-grid in parameter x = 1 + z
         x = np.logspace(np.log10(1+self.pf['final_redshift']),
-            np.log10(1+self.pf['initial_redshift']),
+            np.log10(1+self.pf['first_light_redshift']),
             int(self.pf['tau_redshift_bins']))
         z = x - 1.
         logx = np.log10(x)
@@ -799,7 +804,7 @@ class OpticalDepth(object):
         L = len(x)
     
         # Frequency grid must be index 1-based.
-        N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
+        N = num_freq_bins(L, zi=self.pf['first_light_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
             Emax=self.pf['tau_Emax'])
         N -= 1

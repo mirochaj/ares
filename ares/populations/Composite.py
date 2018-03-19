@@ -72,7 +72,7 @@ class CompositePopulation(object):
                     ct += 1    
             
             assert ct < 2
-
+            
             if ct == 0:
                 self.pops[i] = GalaxyPopulation(**pf)
 

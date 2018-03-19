@@ -57,6 +57,7 @@ class TurningPoints(object):
         
         # Based on sign of brightness temperature and concavity,
         # determine which turning point we've found.
+        #print max(z), negative, concave_up, self.TPs.keys()
         if negative and concave_up and (max(z) > 60 and 'B' not in self.TPs):
             return 'A'
         elif negative and concave_down:
@@ -171,6 +172,7 @@ class TurningPoints(object):
                                                                                                          
             # Spline interpolation to get "final" extremum redshift
             for ll in [3, 2, 1]:
+
                 if ll > 1:
                     Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
                         

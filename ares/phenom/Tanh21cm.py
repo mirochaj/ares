@@ -47,43 +47,21 @@ class Tanh21cm(object):
         self.pf = ParameterFile(**kwargs)
 
         # Cosmology class
-        self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-            omega_l_0=self.pf["omega_l_0"], 
-            omega_b_0=self.pf["omega_b_0"], 
-            hubble_0=self.pf["hubble_0"], 
-            helium_by_number=self.pf['helium_by_number'], 
-            cmb_temp_0=self.pf["cmb_temp_0"], 
-            approx_highz=self.pf["approx_highz"])
+        self.cosm = Cosmology(**self.pf)
         
         # Create instance of Hydrogen class
         self.hydr = Hydrogen(cosm=self.cosm, **kwargs)
 
-        if self.pf['load_ics']:
-            CR = _load_inits()
-            self.CR_TK = lambda z: np.interp(z, CR['z'], CR['Tk'])
-            self.CR_ne = lambda z: np.interp(100, CR['z'], CR['xe']) \
-                * self.cosm.nH(z)
-
-    def Tgas_adiabatic(self, z):
-        if self.pf['load_ics']:
-            return self.CR_TK(z)
-        else:    
-            # Cosmology.Tgas can't handle arrays
-            return self.cosm.TCMB(self.cosm.zdec) * (1. + z)**2 \
-                / (1. + self.cosm.zdec)**2
-                
     def dTgas_dz(self, z):
-        return derivative(self.Tgas_adiabatic, x0=z)
+        return derivative(self.cosm.Tgas, x0=z)
                 
     def electron_density(self, z):
-        if self.pf['load_ics']:
-            return self.CR_ne(z)
-        else:
-            return 0.0
+        return np.interp(z, self.cosm.thermal_history['z'], 
+            self.cosm.thermal_history['xe']) * self.cosm.nH(z)
         
     def temperature(self, z, Tref, zref, dz):
         return Tref * tanh_generic(z, zref=zref, dz=dz) \
-            + self.Tgas_adiabatic(z)
+            + self.cosm.Tgas(z)
 
     def ionized_fraction(self, z, xref, zref, dz):
         return xref * tanh_generic(z, zref=zref, dz=dz)
@@ -172,7 +150,7 @@ class Tanh21cm(object):
         Jref *= J21_num
 
         # Assumes z < zdec
-        Tgas = self.Tgas_adiabatic(z)
+        Tgas = self.cosm.Tgas(z)
         ne = self.electron_density(z)
 
         Ja = Jref * tanh_generic(z, zref=zref_J, dz=dz_J)

@@ -34,7 +34,7 @@ func_options = \
  'exp': 'p[0] * exp(-(x / p[1])**p[2])',
  'exp_flip': 'p[0] * exp(-(x / p[1])**p[2])', 
  'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
- 'dpl_arbnorm': 'p[0](p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
+ 'dpl_arbnorm': 'p[0] * (p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'pwpl': 'p[0] * (x / p[4])**p[1] if x <= p[4] else p[2] * (x / p[4])**p[3]',
  'plexp': 'p[0] * (x / p[1])**p[2] * np.exp(-x / p[3])',
  'lognormal': 'p[0] * np.exp(-(logx - p[1])**2 / 2. / p[2]**2)',
@@ -54,7 +54,7 @@ class ParameterizedQuantity(object):
         self.raw_pf = raw_pf
         
         self._set_sub_pqs()
-        
+                
     def _set_sub_pqs(self):
         """
         Determine if there are any nested ParameterizedQuantity objects.
@@ -80,7 +80,7 @@ class ParameterizedQuantity(object):
             
     @property
     def idnum(self):
-        if not hasatrr(self, '_idnum'):
+        if not hasattr(self, '_idnum'):
             self._idnum = None
         return self._idnum
         
@@ -103,9 +103,9 @@ class ParameterizedQuantity(object):
                 self._var_ceil = self.pf['pq_var_ceil']
             else:
                 self._var_ceil = None
-                
+
         return self._var_ceil        
-    
+
     @property
     def var_floor(self):
         if not hasattr(self, '_var_floor'):
@@ -130,7 +130,19 @@ class ParameterizedQuantity(object):
     def floor(self):
         if not hasattr(self, '_floor'):
             if 'pq_val_floor' in self.pf:
-                self._floor = self.pf['pq_val_floor']
+                if type(self.pf['pq_val_floor']) is str:
+                    val = self.pf['pq_val_floor']
+                                                                                
+                    pq_pars = get_pq_pars(val, self.raw_pf)
+                    
+                    PQ = ParameterizedQuantity(**pq_pars)
+                    
+                    self._sub_pqs[val] = PQ
+                                        
+                    self._floor = PQ
+                
+                else:
+                    self._floor = self.pf['pq_val_floor']
             else:
                 self._floor = None
     
@@ -221,10 +233,23 @@ class ParameterizedQuantity(object):
         # 'quadratic_hi' means higher order terms vanish when x >> p3
         elif func in ['quadratic_hi', 'quad']:
             f = self.p0 * (1. +  self.p1 * (self.p3 / x) + self.p2 * (self.p3 / x)**2)
-        #elif func == 'cubic_lo':
-        #    f = self.p1 * (1. + self.p2 * (x / self.p0) + self.p3 * (x / self.p0)**2)
-        #elif func == 'cubic_hi':
-        #    f = self.p1 * (1. +  self.p2 * (self.p0 / x) + self.p3 * (self.p0 / x)**2)
+        elif func == 'cubic_lo':
+            f = self.p1 * (1. + self.p2 * (x / self.p0) + self.p3 * (x / self.p0)**2 + self.p4 * (x / self.p0)**3)
+        elif func == 'cubic_hi':
+            f = self.p1 * (1. +  self.p2 * (self.p0 / x) + self.p3 * (self.p0 / x)**2)
+        elif func == 'poly':
+            k = 0
+            f = 0.0
+            while 'p{}'.format(k) in self.__dict__:                
+                norm = getattr(self, 'p{}'.format(2*k))
+                slope = getattr(self, 'p{}'.format(2*k+1))
+                
+                if norm is None:
+                    break
+                
+                f += norm * x**slope
+                k += 1
+                                            
         elif func == 'exp':
             f = self.p0 * np.exp((x / self.p1)**self.p2)
         elif func == 'exp_flip':
@@ -339,7 +364,10 @@ class ParameterizedQuantity(object):
         if self.ceil is not None:
             f = np.minimum(f, self.ceil)
         if self.floor is not None:
-            f = np.maximum(f, self.floor)
+            if type(self.floor) in [int, float]:
+                f = np.maximum(f, self.floor)
+            else:
+                f = np.maximum(f, self.floor(**kwargs))
         
         return f
               

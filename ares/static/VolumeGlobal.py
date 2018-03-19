@@ -757,7 +757,7 @@ class GlobalVolume(object):
         if not solve_rte:
             return 0.0
 
-        if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+        if not np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_EminX']):
             return 0.0
         
         if ((donor or species) in [1,2]) and (not self.pf['include_He']):

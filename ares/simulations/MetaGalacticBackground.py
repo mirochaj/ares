@@ -19,12 +19,12 @@ from ..util.Math import smooth
 from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
-    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c
+    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c, h_p, k_B
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -187,9 +187,11 @@ class MetaGalacticBackground(AnalyzeMGB):
         ##
         if self._is_Mmin_converged(self._lwb_sources):
             self._has_fluxes = True
-            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
-            self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-            
+            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja, 
+                left=0.0, right=0.0)
+            self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw,
+                left=0.0, right=0.0)
+                        
             # Now that feedback is done, evolve all non-LW sources to get
             # final background.
             if include_pops == self._lwb_sources:
@@ -221,7 +223,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         _fluxes_today = []
         _energies_today = []
-        
+
         for popid, pop in enumerate(self.pops):
             if not self.solver.solve_rte[popid]:
                 _fluxes_today.append(None)
@@ -237,7 +239,32 @@ class MetaGalacticBackground(AnalyzeMGB):
             _fluxes_today.append(ft)
             
         return _energies_today, _fluxes_today
-                           
+    
+    def today_of_E(self, E):
+        """
+        Grab radiation background at a single energy at z=0.
+        """
+        nrg, fluxes = self.today
+        
+        flux = 0.0
+        for i, band in enumerate(nrg):
+            
+            if not (min(band) <= E <= max(band)):
+                continue
+                
+            flux += np.interp(E, band, fluxes[i])
+                
+        return flux   
+        
+    def temp_of_E(self, E):
+        """
+        Convert the z=0 background intensity to a temperature in K.
+        """
+        flux = self.today_of_E(E)
+        
+        freq = E * erg_per_ev / h_p
+        return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
+                               
     @property        
     def jsxb(self):
         if not hasattr(self, '_jsxb'):
@@ -400,6 +427,25 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         return self._history
         
+    @property
+    def _subgen(self):
+        if not hasattr(self, '_subgen_'):
+            self._subgen_ = {}
+            
+            for popid, pop in enumerate(self.pops):
+                gen = self.solver.generators[popid]
+                
+                if gen is None:
+                    self._subgen_[popid] = None
+                    continue
+                
+                if len(gen) == 1:
+                    self._subgen_[popid] = False
+                else:
+                    self._subgen_[popid] = True
+                    
+        return self._subgen_
+        
     def update_fluxes(self, popid=0):
         """
         Loop over flux generators and retrieve the next values.
@@ -422,13 +468,23 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         fluxes_by_band = []
 
+        needs_flattening = self._subgen[popid]
+        
         # For each population, the band is broken up into pieces
         for j, generator in enumerate(pop_generator):
             if generator is None:
                 fluxes_by_band.append(None)
             else:    
                 z, f = next(generator)
-                fluxes_by_band.append(flatten_flux(f))
+                
+                if not needs_flattening:
+                    fluxes_by_band.append(f)
+                    continue
+                
+                if z > self.pf['first_light_redshift']:
+                    fluxes_by_band.append(np.zeros_like(flatten_flux(f)))
+                else:
+                    fluxes_by_band.append(flatten_flux(f))
 
         return z, fluxes_by_band
 
@@ -548,23 +604,26 @@ class MetaGalacticBackground(AnalyzeMGB):
                     [None for _i in range(self.grid.N_absorbers)]
             
                 self._interp[i]['Ja'] = interp1d(zarr, 
-                    self._rc_tabs[i]['Ja'], 
+                    self._rc_tabs[i]['Ja'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)
                 self._interp[i]['Jlw'] = interp1d(zarr, 
-                    self._rc_tabs[i]['Jlw'], 
+                    self._rc_tabs[i]['Jlw'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)    
             
                 for j in range(self.grid.N_absorbers):
                     self._interp[i]['k_ion'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
+                            kind=self.pf['interp_all'], 
                             bounds_error=False, fill_value=0.0)    
                     self._interp[i]['k_heat'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
+                            kind=self.pf['interp_all'],
                             bounds_error=False, fill_value=0.0)    
                     
                     for k in range(self.grid.N_absorbers):
                         self._interp[i]['k_ion2'][j][k] = \
                             interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
+                                kind=self.pf['interp_all'],
                                 bounds_error=False, fill_value=0.0)
                      
             self._has_coeff = True  
@@ -789,7 +848,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     tlb_p = self.grid.cosm.LookbackTime(z, z2p) / s_per_myr
                     zdt = np.interp(dt, [tlb_p, tlb], [z2p, z2])
                     
-                    J = np.interp(zdt, zarr, Jlw)
+                    J = np.interp(zdt, zarr, Jlw, left=0.0, right=0.0)
                                             
                     break
                         
@@ -1079,7 +1138,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         #    z = np.array(self.all_z).T[popid][-1::-1]
 
         if flatten:
-            E = flatten_energies(self.solver.energies[popid])
+            E = np.array(flatten_energies(self.solver.energies[popid]))
 
             f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist):

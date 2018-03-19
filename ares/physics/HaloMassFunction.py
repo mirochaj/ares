@@ -216,16 +216,7 @@ class HaloMassFunction(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(
-                omega_m_0=self.pf['omega_m_0'], 
-                omega_l_0=self.pf['omega_l_0'], 
-                omega_b_0=self.pf['omega_b_0'],  
-                hubble_0=self.pf['hubble_0'],  
-                helium_by_number=self.pf['helium_by_number'],
-                cmb_temp_0=self.pf['cmb_temp_0'],
-                approx_highz=self.pf['approx_highz'], 
-                sigma_8=self.pf['sigma_8'],
-                primordial_index=self.pf['primordial_index'])        
+            self._cosm = Cosmology(**self.pf)        
 
         return self._cosm
             
@@ -507,7 +498,8 @@ class HaloMassFunction(object):
         self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
-            kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
+            kind=self.pf['hmf_interp'], 
+            bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
         
         return fcoll_spline, dfcolldz_spline, None
@@ -551,6 +543,14 @@ class HaloMassFunction(object):
         
         return np.squeeze(self.dfcolldz_spline(z))
         
+    @property
+    def _tab_MAR(self):
+        if not hasattr(self, '_tab_MAR_'):
+            pass
+            
+        return self._tab_MAR_
+            
+            
     def MAR_via_AM(self, z):
         """
         Compute mass accretion rate by abundance matching across redshift.
@@ -604,8 +604,9 @@ class HaloMassFunction(object):
             
             mask = np.zeros_like(_MAR_tab)
             mask[np.isnan(_MAR_tab)] = 1
+            mask[_MAR_tab < 0] = 1
             _MAR_tab[mask == 1] = 0.
-            
+                        
             self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
             self._MAR_mask = mask    
             
@@ -660,6 +661,9 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
               
+    def CircularVelocity(self, M, z, mu=0.6):
+        return np.sqrt(G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
+              
     def MassFromVc(self, Vc, z):
         cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
@@ -687,6 +691,10 @@ class HaloMassFunction(object):
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
+    def DynamicalTime(self, M, z, mu=0.6):
+        return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
+            / G / M / g_per_msun)
+            
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
