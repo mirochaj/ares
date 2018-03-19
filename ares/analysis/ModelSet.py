@@ -179,17 +179,17 @@ class ModelSet(BlobFactory):
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
-            self._mask = np.zeros(self.chain.shape[0])
+            self._mask = np.zeros(self.chain.shape)
         return self._mask
-    
+
     @mask.setter
     def mask(self, value):
         if self.is_mcmc:
             assert len(value) == len(self.logL)
-            
+
             # Must be re-initialized to reflect new mask
             del self._chain, self._logL
-        
+
         self._mask = value
 
     @property
@@ -467,14 +467,16 @@ class ModelSet(BlobFactory):
                         
                 if hasattr(self, '_mask'):
                     if self.mask.ndim == 1:
-                        mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                        mask2d = np.repeat(self.mask, 2).reshape(len(self.mask), 2)
+                    elif self.mask.ndim == 2:
+                        mask2d = self.mask
                     else:
-                        mask2d = np.zeros_like(self._chain)
+                        raise ValueError('mask ndim > 2!')
                 else:
-                    mask2d = 0        
-                    
+                    mask2d = 0
+
                 self._chain = np.ma.array(self._chain, mask=mask2d)
-            
+
             # We might have data stored by processor
             elif os.path.exists('{!s}.000.chain.pkl'.format(self.prefix)):
                 i = 0
@@ -482,10 +484,10 @@ class ModelSet(BlobFactory):
                 full_mask = []
                 fn = '{!s}.000.chain.pkl'.format(self.prefix)
                 while True:
-                                        
+          
                     if not os.path.exists(fn):
                         break
-                    
+
                     try:
                         this_chain = read_pickled_chain(fn)
                         full_chain.extend(this_chain.copy())
@@ -519,7 +521,7 @@ class ModelSet(BlobFactory):
                     
                 if hasattr(self, '_mask'):
                     if self.mask.ndim == 1:
-                        mask2d = np.array([self.mask] * chain.shape[1]).T
+                        mask2d = np.repeat(self.mask, 2).reshape(len(self.mask), 2)
                     else:
                         mask2d = self.mask#np.zeros_like(self._chain)
                 else:
@@ -625,6 +627,7 @@ class ModelSet(BlobFactory):
                     mask1d = np.array([np.max(self.mask[i,:]) for i in range(N)])
                 else:
                     mask1d = self.mask
+                    
                 self._logL = np.ma.array(self._logL, mask=mask1d)
                 
             elif os.path.exists('{!s}.000.logL.pkl'.format(self.prefix)):
@@ -940,9 +943,9 @@ class ModelSet(BlobFactory):
                 else:
                     lo = np.mean([vals[i-1], val])  
                     hi = np.mean([vals[i+1], val])  
-                    
+
                 slices.append(self.Slice([lo, hi], [par]))
-            
+
             return vals, slices
         else:
             vals
@@ -993,7 +996,7 @@ class ModelSet(BlobFactory):
         xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
             np.abs(data[pars[0]].data - x2) <= MP)
         xok_pre = np.logical_or(xok_, xok_MP)
-        
+
         unmasked = np.logical_not(data[pars[0]].mask == 1)
         xok = np.logical_and(xok_pre, unmasked)
 
@@ -1007,7 +1010,7 @@ class ModelSet(BlobFactory):
             to_keep = np.array(xok)
 
         mask = np.logical_not(to_keep)
-        
+
         ##
         # CREATE NEW MODELSET INSTANCE
         ##
@@ -1015,8 +1018,9 @@ class ModelSet(BlobFactory):
         
         # Set the mask!
         mask2d = np.array([mask] * self.chain.shape[1]).T
+        
         model_set.mask = np.logical_or(mask2d, self.mask)
-                
+
         i = 0
         while hasattr(self, 'slice_{}'.format(i)):
             i += 1
@@ -1631,14 +1635,22 @@ class ModelSet(BlobFactory):
             
         else:
             _condition = None
-            xd = xdata.compressed()
-            yd = ydata.compressed()
+            
+            mask = np.logical_or(xdata.mask == True, ydata.mask == True)
+                        
+            if cdata is not None:
+                mask = np.logical_or(mask == True, cdata.mask == True)
+            
+            print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
+            
+            xd = xdata[mask == 0]
+            yd = ydata[mask == 0]
             
             if cdata is not None:
-                cd = cdata.compressed()
+                cd = cdata[mask == 0]
             else:
                 cd = cdata
-                        
+
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
                 label=rung_label, label_on_top=rung_label_top, **kwargs)
@@ -2387,10 +2399,18 @@ class ModelSet(BlobFactory):
                 # we need to make sure that every blob element corresponding
                 # to those links are masked.
                 else:
-                    mask = np.zeros_like(val)
-                    for j, element in enumerate(self.mask):
-                        if np.all(element == 1):
-                            mask[j].fill(1)
+                    #print("hello, {}".format(self.mask[:,0].sum()))
+                    
+                    mask = self.mask[:,0]
+                    
+                    
+                    
+                    #mask = np.zeros_like(val)
+                    #for j, element in enumerate(self.mask[:,0]):
+                    #    if np.all(element == 1):
+                    #        mask[j].fill(1)
+                    #        
+                    #print(mask.sum())
             else:
                 mask = self.mask
 
@@ -2966,20 +2986,20 @@ class ModelSet(BlobFactory):
                 print("Applying cludge to ensure shape match...")
             else:
                 raise ValueError('Shape mismatch between blobs and chain!')    
-                
+
         if take_log[2]:
-            zax = np.log10(zax)    
-            
+            zax = np.log10(zax)
+
         z.pop(-1)
         ax = self.PosteriorPDF(pars, z=z, take_log=take_log, fill=False, 
             bins=bins, **kwargs)
-        
+
         # Pick out Nscat random points to plot
         mask = np.zeros_like(xax, dtype=bool)
         rand = np.arange(len(xax))
         np.random.shuffle(rand)
         mask[rand < Nscat] = True
-        
+
         if zbins is not None:
             cmap_obj = eval('mpl.colorbar.cm.{!s}'.format(cmap))
             #if take_log[2]:

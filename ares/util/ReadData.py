@@ -367,9 +367,7 @@ def read_pickled_logL(fn):
         raise ValueError('unrecognized logL shape')
     
 def read_pickled_chain(fn):
-    
-    print 'hello', read_pickle_file(fn)
-    
+
     # Removes chunks dimension
     data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
