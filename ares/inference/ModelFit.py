@@ -1333,7 +1333,7 @@ class ModelFit(FitBase):
 
         if rank == 0:
             print("Starting MCMC: {!s}".format(time.ctime()))
-        
+
         # Need to make sure we don't overwrite previous outputs in this case    
         if restart and (not self.checkpoint_append):
             ct = save_freq * (1 + max(self._saved_checkpoints(prefix)))

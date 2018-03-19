@@ -139,7 +139,7 @@ class RateCoefficients(object):
         """
         
         if self.rec == 0:
-            return 0.0
+            return np.zeros_like(T)
         
         if self.rate_src == 'fk94':
             if self.rec == 'A':
@@ -180,6 +180,7 @@ class RateCoefficients(object):
             self._dRadiativeRecombinationRate_ = {}
             for i, absorber in enumerate(self.grid.absorbers):
                 tmp = derivative(lambda T: self.RadiativeRecombinationRate(i, T), self.Tarr)
+                                
                 self._dRadiativeRecombinationRate_[i] = interp1d(self.Tarr, tmp, 
                     kind=self.interp_rc)
     
@@ -301,7 +302,7 @@ class RateCoefficients(object):
         """
         
         if self.rec == 0:
-            return 0.0
+            return np.zeros_like(T)
         
         if self.rate_src == 'fk94':
             if species == 0: 
