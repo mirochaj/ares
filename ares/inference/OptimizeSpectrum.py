@@ -10,18 +10,20 @@ Description:
 
 """
 
+import os
 import copy
+import pickle
 import numpy as np
 from ..static import Grid
 from ..sources import BlackHole, Star
 from ..physics.Constants import erg_per_ev 
-from ..util.ParameterFile import ParameterFile
+from ..util import ParameterFile, ProgressBar
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 
-try:
-    import h5py
-except ImportError:
-    pass    
+#try:
+#    import h5py
+#except ImportError:
+#    pass    
     
 try:
     from scipy.optimize import basinhopping
@@ -38,11 +40,12 @@ except ImportError:
     
 def halve_list(li):
     N = len(li)
-    return li[0:N/2], li[N/2:]    
+    return li[0:N//2], li[N//2:]    
     
 class SpectrumOptimization(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
+        self.base_kwargs = self.pf
 
         # Use Grid class to carry info about absorbing species
         self.grid = Grid(**kwargs)
@@ -51,17 +54,23 @@ class SpectrumOptimization(object):
         # Shortcut
         self.Z = self.grid.Z
         
-        # 
         self.mcmc = False
         
-        # Should make property/setter
-        self.thinlimit = True
-        
         # Needs to be made more general!
-        self.rs = Star(grid=self.grid, init_tabs=True, **kwargs)
+        self.rs = Star(**kwargs)
         
         # Forget why this has to be set by hand...
         self.rs.grid = self.grid        
+
+    @property
+    def thinlimit(self):
+        if not hasattr(self, '_thinlimit'):
+            self._thinlimit = False
+        return self._thinlimit
+    
+    @thinlimit.setter
+    def thinlimit(self, value):
+        self._thinlimit = value
 
     @property
     def logN(self):
@@ -132,7 +141,7 @@ class SpectrumOptimization(object):
     def guess(self):
         if not hasattr(self, '_guess'):
             self._guess = []
-            for i in xrange(self.nfreq * 2):
+            for i in range(self.nfreq * 2):
                 if i < self.nfreq:
                     self._guess.append(np.random.rand() * \
                     (self.limits[i][1] - self.limits[i][0]) + self.limits[i][0])
@@ -140,7 +149,7 @@ class SpectrumOptimization(object):
                     self._guess.append(self.rs.Spectrum(self._guess[i - self.nfreq]))
     
             tot = np.sum(self._guess[self.nfreq:])
-            for i in xrange(self.nfreq, self.nfreq * 2):
+            for i in range(self.nfreq, self.nfreq * 2):
                 self._guess[i] /= tot
             
             self._guess = np.array(self._guess)
@@ -169,23 +178,123 @@ class SpectrumOptimization(object):
         
         return True
     
-    def run(self, steps=1, **kwargs):
+    @property
+    def basinhopper_kwargs(self):
+        """
+        Possibilities
+        -------------
+        niter: int
+            Number of basin hopping iterations.
+        T : int, float
+            Temperature parameter. Should be comparable to separation between
+            local minima.
+        stepsize : int, float
+            Initial displacement.
+        interval : int
+            How often to update stepsize.
+        niter_success : int
+            Stop if global minimum doesn't change for this many steps.
+        disp : bool
+            Display status messages?
         
-        if rank == 0:
-            print 'Finding optimal %i-bin discrete SED...' % self.nfreq
+        """
+        if not hasattr(self, '_basinhopper_kwargs'):
+            self._basinhopper_kwargs = {}
+        return self._basinhopper_kwargs
         
-        logL = []
-        results = []
-        for i in range(steps):
-            self.__call__(**kwargs)
-            logL.append(self.logL)
-            results.append(self.pars.copy())
+    @basinhopper_kwargs.setter
+    def basinhopper_kwargs(self, value):
+        if not hasattr(self, '_basinhopper_kwargs'):
+            self._basinhopper_kwargs = {}
+            
+        if type(value) is dict:
+            self._basinhopper_kwargs.update(value)
+        elif type(value) is tuple:
+            self._basinhopper_kwargs.update(dict(value))
+        else:
+            raise TypeError('Must supply dict or tuple for basinhopper_kwargs')
     
-        self.all_logL = logL
-        self.all_results = results
+    def run(self, prefix, repeat=1, clobber=False, restart=False, save_freq=10):
         
         if rank == 0:
-            print 'Optimization complete.'    
+            print('Finding optimal {0}-bin discrete SED...'.format(self.nfreq))
+        
+        prefix_by_proc = '{0!s}.{1!s}'.format(prefix, str(rank).zfill(3))
+                
+        actual_restart = True        
+        if restart:
+            if not os.path.exists("{0}.chain.pkl".format(prefix_by_proc)):
+                print("Can't be a restart, {0}*.pkl not found!".format(prefix))
+                print("Continuing on with new run.")
+                actual_restart = False
+        else:
+            actual_restart = False        
+                            
+        if not actual_restart:
+            if os.path.exists("{0}.chain.pkl".format(prefix_by_proc)):
+                if not clobber:
+                    raise IOError("{0}*.pkl exists! Set clobber=True to overwrite".format(prefix))
+                else:
+                    os.system("rm -f {!s}.*.pkl".format(prefix_by_proc))    
+                
+            # Save metadata
+            with open("{0}.binfo.pkl".format(prefix), 'wb') as f:
+                pickle.dump(self.base_kwargs, f)
+            
+            # Save metadata
+            with open("{0}.pinfo.pkl".format(prefix), 'wb') as f:
+                pinfo = ['E{0}'.format(i) for i in range(self.nfreq)] \
+                      + ['L{0}'.format(i) for i in range(self.nfreq)]
+                pickle.dump((pinfo, [False] * len(pinfo)), f)
+                 
+        _logL = np.zeros(repeat)
+        _results = np.zeros((repeat, 2 * self.nfreq))         
+                         
+        pb = self.pb = ProgressBar(repeat, use=repeat > 1, name='sedop')
+        
+        ct = 0
+        for i in range(repeat):
+            
+            if i % size != rank: 
+                continue
+            
+            if not pb.has_pb:
+                pb.start()
+                        
+            self.__call__()
+            
+            _logL[i] = self.logL * 1
+            _results[i] = self.pars.copy()
+                        
+            ct += 1
+            pb.update(ct * size)
+            
+            # Checkpoints
+            #if (ct % save_freq != 0):
+            #    continue
+                        
+            with open('{0}.chain.pkl'.format(prefix_by_proc), 'ab') as f:
+                pickle.dump([np.atleast_2d(self.pars)], f)
+                
+            with open('{0}.logL.pkl'.format(prefix_by_proc), 'ab') as f:
+                pickle.dump([self.logL], f)
+            
+        pb.finish()
+        
+        if size > 1:
+            self.logL = np.zeros_like(_logL)
+            MPI.COMM_WORLD.Allreduce(_logL, self.logL)
+            
+            self.chain = np.zeros_like(_results)
+            MPI.COMM_WORLD.Allreduce(_results, self.chain)
+        else:
+            self.logL = _logL
+            self.chain = _results
+        
+        if rank == 0:
+            print('Optimization complete.')
+            
+        #self.dump(prefix)    
     
     def __call__(self, **kwargs):
         """
@@ -196,12 +305,11 @@ class SpectrumOptimization(object):
                 entry in Z.
         """
         
-        
         self.sampler = basinhopping(self.cost, x0=self.guess, 
-            accept_test=self._accept_test)
+            accept_test=self._accept_test, **self.basinhopper_kwargs)
          
         E, L = self.sampler.x[0:self.nfreq], self.sampler.x[self.nfreq:] 
-        loc = np.argsort(E) 
+        loc = np.argsort(E)
          
         self.logL = self.sampler.fun
         self.pos = self.pars = self.results = np.concatenate((E[loc], L[loc]))
@@ -250,7 +358,7 @@ class SpectrumOptimization(object):
         return cost
     
     def tab_name(self, integral, absorber):
-        return 'log%s_%s' % (integral, absorber)
+        return 'log{0!s}_{1!s}'.format(integral, absorber)
 
     def discrete_tabs(self, E, LE, tau=None):
         """
@@ -264,7 +372,7 @@ class SpectrumOptimization(object):
         for i, integral in enumerate(self.integrals):
             for j, absorber in enumerate(self.grid.absorbers):
                 Eth = self.grid.ioniz_thresholds[absorber]
-                
+                                
                 tmp = np.zeros(self.tab_dims)
                 if integral == 'Phi':
                     tmp = self.DiscretePhi(E, LE, tau[:,j,:], Eth)
@@ -277,13 +385,13 @@ class SpectrumOptimization(object):
         
     def DiscretePhi(self, E, LE, tau_E, Eth):
         to_sum = LE * np.exp(-tau_E) / E
-        to_sum[E < Eth] = 0.0
-        summed = np.sum(to_sum, axis = -1)
+        to_sum[:,E < Eth] = 0.0
+        summed = np.sum(to_sum, axis=-1)
         return np.log10(summed / erg_per_ev)
 
     def DiscretePsi(self, E, LE, tau_E, Eth):
         to_sum = LE * np.exp(-tau_E)
-        to_sum[E < Eth] = 0.0
+        to_sum[:,E < Eth] = 0.0
         summed = np.sum(to_sum, axis = -1)
         return np.log10(summed)
     
@@ -304,37 +412,35 @@ class SpectrumOptimization(object):
         E = np.atleast_1d(E)
         tau_E = np.zeros(self.tau_dims)
         
-        for i in xrange(self.rs.tab.elements_per_table):
+        for i in range(self.rs.tab.elements_per_table):
             for j, absorber in enumerate(self.grid.absorbers):
                 
                 loc = list(self.rs.tab.indices_N[i])
                 loc.append(j)
                     
-                tmp = np.array(map(lambda EE: self.rs.tab.PartialOpticalDepth(EE, 
-                    float(self.rs.tab.Nall[i]), absorber), E))
+                tmp = np.array([self.rs.tab.PartialOpticalDepth(EE, float(self.rs.tab.Nall[i]), absorber) for EE in E])
                                 
                 tau_E[tuple(loc)] = tmp
                     
         return tau_E
         
-    def dump(self, fn):
-        """
-        Write optimization result to HDF5 file.
-        """    
+    #def dump(self, prefix, clobber):
+    #    """
+    #    Write optimization result to HDF5 file.
+    #    """    
+    #    
+    #    if rank > 0:
+    #        return
+    #        
+    #    f = open(fn, 'wb')
+    #    pickle.dump(self.chain)
+    #        
+    #    f = h5py.File(fn, 'w')
+    #    f.create_dataset('chain', data=self.chain)
+    #    f.create_dataset('cost', data=self.logL)
+    #    f.close()
+    #    
+    #    print('Wrote chain to {!s}.'.format(fn))    
         
-        if rank > 0:
-            return
-            
-        f = h5py.File(fn, 'w')
-        f.create_dataset('chain', data=self.sampler.chain)
-        
-        if self.mcmc:
-            f.create_dataset('post', data=self.sampler.post)
-        else:
-            f.create_dataset('cost', data=self.sampler.cost)
-        
-        print 'Wrote chain to %s.' % fn    
-        f.close()
-        
-            
-                
+    
+

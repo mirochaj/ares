@@ -68,6 +68,39 @@ def GaussND(x, mu, cov):
 
     return norm * np.exp(-0.5 * score)
 
+def get_nu(sigma, nu_in, nu_out):
+
+    if nu_in == nu_out:
+        return sigma
+        
+    guess = nu_in / nu_out
+        
+    # Define a 1-D Gaussian with variable variance
+    pdf = lambda x, s: np.exp(-x**2 / 2. / s**2) / np.sqrt(s**2 * 2 * np.pi)
+        
+    # Integral (relative to total) from -sigma to sigma
+    integral = lambda s: quad(lambda x: pdf(x, s=s), 
+        -abs(sigma), abs(sigma))[0]
+    
+    # Minimize difference between integral (as function of variance) and
+    # specified area (i.e., supplied confidence interval).
+    to_min = lambda y: abs(integral(y) - nu_in)
+    
+    # Solve above equation to obtain the 1-sigma error-bar.
+    s1 = fmin(to_min, guess * sigma, disp=False)[0]
+    
+    # Define a new PDF using this 1-sigma error. Now, the unknown is
+    # the interval over which we must integrate to obtain the 
+    # desired area, nu_out.
+    f_s_out = lambda s_out: quad(lambda x: pdf(x, s=s1), 
+        -abs(s_out), abs(s_out))[0]
+        
+    to_min = lambda y: abs(f_s_out(y) - nu_out)
+    
+    s_out = fmin(to_min, guess * sigma, disp=False)[0]
+    
+    return s_out
+
 def error_1D(x, y, nu=0.68, limit=None):
     """
     Compute 1-D (possibly asymmetric) errorbar for input PDF.
@@ -248,12 +281,12 @@ def correlation_matrix(cov):
 
     rho = np.zeros_like(cov)
     N = rho.shape[0]
-    for i in xrange(N):
-        for j in xrange(N):
+    for i in range(N):
+        for j in range(N):
             rho[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
 
     return rho
-    
+
 def rebin(bins):
     """
     Take in an array of bin edges and convert them to bin centers.        

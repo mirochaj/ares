@@ -32,7 +32,6 @@ dpl = \
  
  # Solve LWB!
  'pop_solve_rte{0}': (10.2, 13.6),
-
  
  # SFE
  'pop_fstar{0}': 'pq[0]',
@@ -42,7 +41,7 @@ dpl = \
  ##
  # IMPORTANT
  ##
- 'pq_func_par0{0}[0]': 0.05,       # Table 1 in paper (last 4 rows)
+ 'pq_func_par0{0}[0]': 0.05,           # Table 1 in paper (last 4 rows)
  'pq_func_par1{0}[0]': 2.8e11,
  'pq_func_par2{0}[0]': 0.49,       
  'pq_func_par3{0}[0]': -0.61,      
@@ -64,8 +63,8 @@ dpl = \
  'pop_logN{1}': -inf,
 
  'pop_solve_rte{1}': True,
- 'pop_tau_Nz{1}': 1000,
- 'pop_approx_tau{1}': 'neutral',
+ 'tau_redshift_bins': 1000,
+ 'tau_approx': 'neutral',
 
  # Control parameters
  'include_He': True,
@@ -146,12 +145,12 @@ _flex2 = \
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 'pq[3]',
  'pq_func_par3{0}[0]': 'pq[4]',
- 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+ 'pq_func_par4{0}[0]': 1e10,        # Mass at which fstar,0 is defined
 
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
- 'pq_func_par0{0}[1]': 0.00205,
+ 'pq_func_par0{0}[1]': 0.019,       # DPL model at Mh=1e10
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
 
@@ -173,18 +172,68 @@ _flex2 = \
  'pq_func_par1{0}[4]': 7.,
  'pq_func_par2{0}[4]': 0.,   # power-law index!
  
+ # Possibility of LF steepening.
+ 'pq_val_floor{0}[0]': 'pq[5]',
+ 'pq_func{0}[5]': 'pl',
+ 'pq_func_var{0}[5]': '1+z',
+ 'pq_func_par0{0}[5]': 0.0, # unused by default
+ 'pq_func_par1{0}[5]': 7.,
+ 'pq_func_par2{0}[5]': 0.,
+ 
+ # Possibility of LF turn-over
+ 'pop_focc{0}': 'pq[6]',
+ 'pq_func{0}[6]': 'okamoto',
+ 'pq_func_var{0}[6]': 'Mh',
+ 'pq_func_par0{0}[6]': 'pq[7]',
+ 'pq_func_par1{0}[6]': 'pq[8]',
+
+ 'pq_func{0}[7]': 'pl',
+ 'pq_func_var{0}[7]': '1+z',
+ 'pq_func_par0{0}[7]': 1.,
+ 'pq_func_par1{0}[7]': 5.,   # effectively not in use
+ 'pq_func_par2{0}[7]': 0.,   # power-law index!
+
+ 'pq_func{0}[8]': 'pl',
+ 'pq_func_var{0}[8]': '1+z',
+ 'pq_func_par0{0}[8]': 0.,  # Renders focc = 1 for all halos 
+ 'pq_func_par1{0}[8]': 7.,
+ 'pq_func_par2{0}[8]': 0.,   # power-law index!
 }
 
-#dpl_evol = _flex2
-#dpl_pl = dpl_evol
-#dpl_quad = {}
-#for j, i in enumerate(range(1, 5)):
-#    dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
-#    dpl_quad['pq_func{0}[%i]' % i] = 'quad'
-#    dpl_quad['pq_func_var{0}[%i]' % i] = '1+z'
-#    dpl_quad['pq_func_par0{0}[%i]' % i] = dpl['pq_func_par%i{0}[0]' % j]
-#    dpl_quad['pq_func_par1{0}[%i]' % i] = 0.
-#    dpl_quad['pq_func_par2{0}[%i]' % i] = 0.
-#    dpl_quad['pq_func_par3{0}[%i]' % i] = 4. # Normalize to z=3
+dflex = _flex2
+
+fobsc = \
+{
+ 'pop_fobsc{0}': 'pq[10]',
+ 'pop_fobsc_by_num{0}': False,     # fraction of UV luminosity that gets out
+ 'pq_val_ceil{0}[10]': 1.0,
+ 'pq_val_floor{0}[10]': 0.0, 
+ 'pq_func{0}[10]': 'log_tanh_abs',
+ 'pq_func_var{0}[10]': 'Mh',
+ 'pq_func_par0{0}[10]': 0.0,       # minimal obscuration
+ 'pq_func_par1{0}[10]': 'pq[11]',  # peak obscuration
+ 'pq_func_par2{0}[10]': 'pq[12]',  # log transition mass
+ 'pq_func_par3{0}[10]': 'pq[13]',  # dlogM
+ 
+ 'pq_func{0}[11]': 'pl',
+ 'pq_func_var{0}[11]': '1+z',
+ 'pq_func_par0{0}[11]': 0.5,
+ 'pq_func_par1{0}[11]': 7.,   # effectively not in use
+ 'pq_func_par2{0}[11]': 0.,   # power-law index!
+ 
+ 'pq_func{0}[12]': 'pl',
+ 'pq_func_var{0}[12]': '1+z',
+ 'pq_func_par0{0}[12]': 11.,  
+ 'pq_func_par1{0}[12]': 7.,
+ 'pq_func_par2{0}[12]': 0.,   # power-law index!
+ 
+ 'pq_func{0}[13]': 'pl',
+ 'pq_func_var{0}[13]': '1+z',
+ 'pq_func_par0{0}[13]': 1.0,  
+ 'pq_func_par1{0}[13]': 7.,
+ 'pq_func_par2{0}[13]': 0.,   # power-law index!
+ 
+}
+
 
 

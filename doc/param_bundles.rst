@@ -73,6 +73,8 @@ If the bundle you specify is not defined in ares.util.ParameterBundles, *ares* w
     
     .. note :: For this to work "out of the box" you will need a lookup table for the IGM opacity that is not included with *ares* by default. See :doc:`inits_tables`: for more info on generating these lookup tables.
 
+* ``mirocha2017:high``
+    Parameters to augment the 'mirocha2016' simulations of the global 21-cm by adding in a simple prescription for PopIII stars. Changing the suffixed from ``high`` to ``low`` or ``med`` will assume different masses for PopIII stars. See :doc:`example_popIII` for more information.
 
 Creating your own
 -----------------

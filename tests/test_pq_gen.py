@@ -15,7 +15,7 @@ import numpy as np
 
 def test():
     # Make sure we can parameterize a bunch of things
-
+    
     pars = ares.util.ParameterBundle('pop:sfe-dpl')
     
     pop = ares.populations.GalaxyPopulation(**pars)
@@ -37,14 +37,14 @@ def test():
     for par in parameterizable_things:
         
         pars = base_kwargs.copy()
-        pars['pop_%s' % par] = 'pq'
+        pars['pop_{!s}'.format(par)] = 'pq'
         
         pop = ares.populations.GalaxyPopulation(**pars)
         
         func = pop.__getattr__(par)
         val.append(func(z=6, Mh=1e12))
-
-    print val
+    
+    print('{!s}'.format(val))
     assert np.unique(val).size == 1, "Error in building ParameterizedQuantity!"
     
 if __name__ == '__main__':

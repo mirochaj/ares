@@ -102,15 +102,15 @@ class LocalVolume:
         # Unpack source-specific rates if necessary            
         if len(self.srcs) > 1:
             for i, src in enumerate(self.srcs):
-                self.kwargs.update({'k_ion_%i' % i: k_ion_src[i], 
-                    'k_ion2_%i' % i: k_ion2_src[i],
-                    'k_heat_%i' % i: k_heat_src[i]})
+                self.kwargs.update({'k_ion_{}'.format(i): k_ion_src[i], 
+                    'k_ion2_{}'.format(i): k_ion2_src[i],
+                    'k_heat_{}'.format(i): k_heat_src[i]})
                     
                 if False:
-                    self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
+                    self.kwargs.update({'Ja_{}'.format(i): Ja_src[i]})
         
                     #if self.pf['secondary_lya']:
-                    #    self.kwargs.update({'Ja_X_%i' % i: Ja_src[i]})
+                    #    self.kwargs.update({'Ja_X_{}'.format(i): Ja_src[i]})
         
         # Sum over sources
         k_ion = np.sum(k_ion_src, axis=0)
@@ -179,7 +179,7 @@ class LocalVolume:
             for absorber in self.grid.absorbers:          
                 
                 if self.pf['photon_conserving']:
-                    self.A[absorber] = self.src.Lbol \
+                    self.A[absorber] = self.src.Lbol(t) \
                         / self.n[absorber] / self.grid.Vsh
                 else:
                     self.A[absorber] = self.A_npc
@@ -198,10 +198,10 @@ class LocalVolume:
                                     
                     # Discrete spectrum (multi-freq approach)
                     if self.src.multi_freq:
-                        r1, r2, r3 = self.MultiFreqCoefficients(data, absorber)
+                        r1, r2, r3 = self.MultiFreqCoefficients(data, absorber, t)
                         self.k_ion[h,:,i], self.k_ion2[h,:,i,:], \
                         self.k_heat[h,:,i] = \
-                            self.MultiFreqCoefficients(data, absorber)
+                            self.MultiFreqCoefficients(data, absorber, t)
                     
                     # Discrete spectrum (multi-grp approach)
                     elif self.src.multi_group:
@@ -219,7 +219,7 @@ class LocalVolume:
                 self.Ja = None
             else:
                 self.Ja[h] = src.Spectrum(E_LyA) * ev_per_hz \
-                    * src.Lbol / 4. / np.pi / self.grid.r_mid**2 \
+                    * src.Lbol(t) / 4. / np.pi / self.grid.r_mid**2 \
                     / E_LyA / erg_per_ev 
             
             # Initialize some arrays/dicts
@@ -265,63 +265,63 @@ class LocalVolume:
             for i, absorber in enumerate(self.grid.absorbers):
                                            
                 self.PhiN[absorber] = \
-                    10**self.src.tables["logPhi_%s" % absorber](self.logN_by_cell,
+                    10**self.src.tables["logPhi_{!s}".format(absorber)](self.logN_by_cell,
                     self.logx, t)
                 
                 if (not self.pf['isothermal']) and (self.pf['secondary_ionization'] < 2):
                     self.PsiN[absorber] = \
-                        10**self.src.tables["logPsi_%s" % absorber](self.logN_by_cell,
+                        10**self.src.tables["logPsi_{!s}".format(absorber)](self.logN_by_cell,
                         self.logx, t)
                     
                 if self.pf['photon_conserving']:
                     self.PhiNdN[absorber] = \
-                        10**self.src.tables["logPhi_%s" % absorber](self.logNdN[i],
+                        10**self.src.tables["logPhi_{!s}".format(absorber)](self.logNdN[i],
                         self.logx, t)
                     
                     if (not self.pf['isothermal']) and (self.pf['secondary_ionization'] < 2):
                         self.PsiNdN[absorber] = \
-                            10**self.src.tables["logPsi_%s" % absorber](self.logNdN[i],
+                            10**self.src.tables["logPsi_{!s}".format(absorber)](self.logNdN[i],
                             self.logx, t)
             
                 if self.pf['secondary_ionization'] > 1:
                     
                     self.PhiHatN[absorber] = \
-                        10**self.src.tables["logPhiHat_%s" % absorber](self.logN_by_cell,
+                        10**self.src.tables["logPhiHat_{!s}".format(absorber)](self.logN_by_cell,
                         self.logx, t)    
                                         
                     if not self.pf['isothermal']:
                         self.PsiHatN[absorber] = \
-                            10**self.src.tables["logPsiHat_%s" % absorber](self.logN_by_cell,
+                            10**self.src.tables["logPsiHat_{!s}".format(absorber)](self.logN_by_cell,
                             self.logx, t)  
                                                 
                         if self.pf['photon_conserving']:    
                             self.PhiHatNdN[absorber] = \
-                                10**self.src.tables["logPhiHat_%s" % absorber](self.logNdN[i],
+                                10**self.src.tables["logPhiHat_{!s}".format(absorber)](self.logNdN[i],
                                 self.logx, t)
                             self.PsiHatNdN[absorber] = \
-                                10**self.src.tables["logPsiHat_%s" % absorber](self.logNdN[i],
+                                10**self.src.tables["logPsiHat_{!s}".format(absorber)](self.logNdN[i],
                                 self.logx, t)     
                     
                     for j, donor in enumerate(self.grid.absorbers):
                         
-                        suffix = '%s_%s' % (absorber, donor)
+                        suffix = '{0!s}_{1!s}'.format(absorber, donor)
                         
                         self.PhiWiggleN[absorber][donor] = \
-                            10**self.src.tables["logPhiWiggle_%s" % suffix](self.logN_by_cell,
+                            10**self.src.tables["logPhiWiggle_{!s}".format(suffix)](self.logN_by_cell,
                                 self.logx, t)    
                         
                         self.PsiWiggleN[absorber][donor] = \
-                            10**self.src.tables["logPsiWiggle_%s" % suffix](self.logN_by_cell,
+                            10**self.src.tables["logPsiWiggle_{!s}".format(suffix)](self.logN_by_cell,
                             self.logx, t)
                             
                         if not self.pf['photon_conserving']:
                             continue
                         
                         self.PhiWiggleNdN[absorber][donor] = \
-                            10**self.src.tables["logPhiWiggle_%s" % suffix](self.logNdN[j],
+                            10**self.src.tables["logPhiWiggle_{!s}".format(suffix)](self.logNdN[j],
                             self.logx, t)
                         self.PsiWiggleNdN[absorber][donor] = \
-                            10**self.src.tables["logPsiWiggle_%s" % suffix](self.logNdN[j],
+                            10**self.src.tables["logPsiWiggle_{!s}".format(suffix)](self.logNdN[j],
                             self.logx, t)
 
             # Now, go ahead and calculate the rate coefficients
@@ -338,7 +338,7 @@ class LocalVolume:
             
         return self.k_ion, self.k_ion2, self.k_heat, self.Ja
         
-    def MultiFreqCoefficients(self, data, absorber):
+    def MultiFreqCoefficients(self, data, absorber, t=None):
         """
         Compute all source-dependent rates.
         
@@ -357,7 +357,9 @@ class LocalVolume:
         N = np.ones([self.src.Nfreq, self.grid.dims]) * self.N[absorber]
         
         self.tau_r = N * self.sigma[self.h]
-        self.tau_tot = np.sum(self.tau_r, axis = 1)
+        self.tau_tot = np.sum(self.tau_r, axis=1)
+        
+        Qdot = self.src.Qdot(t=t)
                         
         # Loop over energy groups
         k_ion_E = np.zeros([self.grid.dims, self.src.Nfreq])
@@ -371,7 +373,7 @@ class LocalVolume:
                                                             
             # Photo-ionization by *this* energy group
             k_ion_E[...,j] = \
-                self.PhotoIonizationRateMultiFreq(self.src.Qdot[j], n,
+                self.PhotoIonizationRateMultiFreq(Qdot[j], n,
                 self.tau_r[j], tau_c)     
                                           
             # Heating
@@ -451,7 +453,7 @@ class LocalVolume:
         if self.pf['isothermal']:
             return 0.0
 
-        if self.esec.Method < 2:
+        if self.esec.method < 2:
             HeatingRate = self.PsiN[absorber].copy()
             HeatingRate -= self.E_th[absorber] * erg_per_ev  \
                 * self.PhiN[absorber]
@@ -482,7 +484,7 @@ class LocalVolume:
         If this routine is called, it means TabulateIntegrals = 1.
         """    
         
-        if self.esec.Method < 2:
+        if self.esec.method < 2:
             IonizationRate = self.PsiN[donor].copy()
             IonizationRate -= self.E_th[donor] \
                 * erg_per_ev * self.PhiN[donor]

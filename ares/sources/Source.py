@@ -9,16 +9,16 @@ Created on: Sun Jul 22 16:28:08 2012
 Description: Initialize a radiation source.
 
 """
-
+from __future__ import print_function
 import re, os
 import numpy as np
 from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
-from ..physics.Constants import erg_per_ev, E_LL
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable
+from ..physics.Constants import erg_per_ev, E_LL, s_per_myr
 from ..util.SetDefaultParameterValues import SourceParameters, \
     CosmologyParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
@@ -34,7 +34,7 @@ np.seterr(all='ignore')   # exp overflow occurs when integrating BB
 cosmo_pars = CosmologyParameters()
 
 class Source(object):
-    def __init__(self, grid=None, logN=None, init_tabs=True):
+    def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
         """ 
         Initialize a radiation source object. 
         
@@ -96,7 +96,17 @@ class Source(object):
         """
         pass
         
-        
+    def SourceOn(self, t):
+        if t < self.tau:
+            return True    
+        else:
+            return False
+
+    @property
+    def tau(self):
+        if not hasattr(self, '_tau'):
+            self._tau = self.pf['source_lifetime'] * s_per_myr
+        return self._tau
     
     @property
     def cosm(self):
@@ -154,8 +164,8 @@ class Source(object):
     @property 
     def discrete(self):
         if not hasattr(self, '_discrete'):
-            self._discrete = (self.pf['source_E'] != None) #\
-                  #or self.pf['optically_thin']
+            self._discrete = (self.pf['source_E'] != None) or \
+                (self.pf['source_sed'] in ['eldridge2009', 'leitherer1999'])
         
         return self._discrete
         
@@ -187,9 +197,9 @@ class Source(object):
             return None
         
         n = np.arange(2, self.hydr.nmax)
-        En = np.array(map(self.hydr.ELyn, n))
-        In = np.array(map(self.Spectrum, En)) / En
-        fr = np.array(map(self.hydr.frec, n))
+        En = np.array(list(map(self.hydr.ELyn, n)))
+        In = np.array(list(map(self.Spectrum, En))) / En
+        fr = np.array(list(map(self.hydr.frec, n)))
         
         return np.sum(fr * In) / np.sum(In)
 
@@ -231,16 +241,21 @@ class Source(object):
     @property
     def _normL(self):
         if not hasattr(self, '_normL_'):
-                            
-            if self.intrinsic_hardening:
-                self._normL_ = 1. / quad(self._Intensity,
-                    self.pf['source_EminNorm'], self.pf['source_EmaxNorm'],
-                    points=self.sharp_points)[0]
-            else:    
-                integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
-                integral = quad(integrand,
-                    self.pf['source_EminNorm'], self.pf['source_EmaxNorm'], 
-                    points=self.sharp_points)
+            if self.pf['source_Enorm'] is not None:
+                En = self.pf['source_Enorm']
+                
+                if self.intrinsic_hardening:
+                    self._normL_ = 1. / self._Intensity(En),
+                else:    
+                    self._normL_ = 1. / (self._Intensity(En) / self._hardening_factor(En))
+            else:
+                if self.intrinsic_hardening:
+                    self._normL_ = 1. / quad(self._Intensity,
+                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                else:    
+                    integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
+                    self._normL_ = 1. / quad(integrand,
+                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
                 
                 self._normL_ = 1. / integral[0]
                 
@@ -338,31 +353,36 @@ class Source(object):
         if not self.discrete:
             return None
         if not hasattr(self, '_sigma_all'):
-            self._sigma_all = np.array(map(sigma_E, self.E))
+            self._sigma_all = np.array(list(map(sigma_E, self.E)))
         
         return self._sigma_all
         
-    @property
-    def Qdot(self):
+    def Qdot(self, t=None):
         """
         Returns number of photons emitted (s^-1) at all frequencies.
         """    
-        if not hasattr(self, '_Qdot_all'):
-            self._Qdot_all = self.Lbol * self.LE / self.E / erg_per_ev
+        #if not hasattr(self, '_Qdot_all'):
+        self._Qdot_all = self.Lbol(t) * self.LE / self.E / erg_per_ev
         
         return self._Qdot_all
         
-    @property
-    def hnu_bar(self):
+    def hnu_bar(self, t=0):
         """
         Average ionizing (per absorber) photon energy in eV.
         """
         if not hasattr(self, '_hnu_bar_all'):
-            self._hnu_bar_all = np.zeros_like(self.grid.zeros_absorbers)
-            self._qdot_bar_all = np.zeros_like(self.grid.zeros_absorbers)
-            for i, absorber in enumerate(self.grid.absorbers):
-                self._hnu_bar_all[i], self._qdot_bar_all[i] = \
-                    self._FrequencyAveragedBin(absorber=absorber)
+            self._hnu_bar_all = {}
+        if not hasattr(self, '_qdot_bar_all'):
+            self._qdot_bar_all = {}    
+            
+        if t in self._hnu_bar_all:    
+            return self._hnu_bar_all[t]
+            
+        self._hnu_bar_all[t] = np.zeros_like(self.grid.zeros_absorbers)
+        self._qdot_bar_all[t] = np.zeros_like(self.grid.zeros_absorbers)
+        for i, absorber in enumerate(self.grid.absorbers):
+            self._hnu_bar_all[t][i], self._qdot_bar_all[t][i] = \
+                self._FrequencyAveragedBin(absorber=absorber, t=t)    
             
         return self._hnu_bar_all
     
@@ -436,7 +456,7 @@ class Source(object):
         return self._sigma_tilde_all
         
     @property
-    def fLbol_ionizing(self):
+    def fLbol_ionizing(self, absorber=0):
         """
         Fraction of bolometric luminosity emitted above all ionization
         thresholds.
@@ -571,7 +591,7 @@ class Source(object):
             return self.Luminosity(t)
                 
     def _FrequencyAveragedBin(self, absorber='h_1', Emin=None, Emax=None,
-        energy_weighted=False):
+        energy_weighted=False, t=0):
         """
         Bolometric luminosity / number of ionizing photons in spectrum in bandpass
         spanning interval (Emin, Emax). Returns mean photon energy and number of 
@@ -610,14 +630,14 @@ class Source(object):
         """
 
         if os.path.exists(fn) and (clobber == False):
-            raise OSError('%s exists!')
+            raise OSError('{!s} exists!'.format(fn))
 
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             out = 'hdf5'
         else:
             out = 'ascii'
-            
-        LE = map(self.Spectrum, E)    
+        
+        LE = list(map(self.Spectrum, E))
             
         if out == 'hdf5':
             f = h5py.File(fn, 'w')    
@@ -626,23 +646,23 @@ class Source(object):
             f.close()
         else:
             f = open(fn, 'w')
-            print >> f, "# E     LE"
+            print("# E     LE", file=f)
             for i, nrg in enumerate(E):
-                print >> f, "%.8e %.8e" % (nrg, LE[i])
+                print("{0:.8e} {1:.8e}".format(nrg, LE[i]), file=f)
             f.close()    
     
-        print "Wrote %s." % fn    
+        print("Wrote {!s}.".format(fn))    
     
     def sed_name(self, i=0):
         """
         Return name of output file based on SED properties.
         """
             
-        name = '%s_logM_%.2g_Gamma_%.3g_fsc_%.3g_logE_%.2g-%.2g' % \
-            (self.SpectrumPars['type'][i], np.log10(self.src.M0), 
-             self.src.spec_pars['alpha'][i], 
-             self.src.spec_pars['fsc'][i], self.logEmin, self.logEmax)
-
+        name = ('{0!s}_logM_{1:.2g}_Gamma_{2:.3g}_fsc_{3:.3g}_' +\
+            'logE_{4:.2g}-{5:.2g}').format(self.SpectrumPars['type'][i],\
+            np.log10(self.src.M0), self.src.spec_pars['alpha'][i], 
+            self.src.spec_pars['fsc'][i], self.logEmin, self.logEmax)
+        
         return name
         
         

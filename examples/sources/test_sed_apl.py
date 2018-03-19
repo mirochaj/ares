@@ -34,7 +34,7 @@ for i, alpha in enumerate([-0.5, -1.5, -2.5]):
         bh = ares.analysis.Source(src)
         
         if j == 2:
-            label = r'$\alpha = %.2g$' % alpha
+            label = r'$\alpha = {:.2g}$'.format(alpha)
         else:
             label = None
         

@@ -10,56 +10,58 @@ Description:
 
 """
 
+from __future__ import print_function
+
 import os
 import time
-import pickle
 import numpy as np
 from types import FunctionType
+from ..util.Math import interp1d
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
-from ..physics.Constants import nu_0_mhz, E_LyA
+from ..util.Pickling import write_pickle_file
 from ..util import ParameterFile, ProgressBar, get_hg_rev
-from ..analysis.Global21cm import Global21cm as AnalyzeGS
+from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
+from ..physics.Constants import nu_0_mhz, E_LyA, h_p, erg_per_ev, k_B, c
 
-defaults = \
-{
- 'load_ics': True,
-}
-
-class _DummyClass(object):
-    def __init__(self, f):
-        self.f = f
-    def __call__(self, x):
-        return self.f(x)
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
 
 class Global21cm(AnalyzeGS):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
-        
+
         ..note :: This is essentially a MultiPhaseMedium calculation, except
             the Lyman alpha background and 21-cm background are calculated, 
             and alternative (phenomenological) parameterizations such as a 
             tanh for the ionization, thermal, and LW background evolution, 
             may be used.
-            
+
         """
-        
+
         self.is_complete = False
-        
+
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
-        kwargs.update(defaults)
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
-        
+                
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)
-        
+            
+    #def __del__(self):
+    #    print("Killing it! Processor={}".format(rank))
+                    
     @property 
     def timer(self):
         if not hasattr(self, '_timer'):
@@ -108,13 +110,15 @@ class Global21cm(AnalyzeGS):
         if not hasattr(self, '_medium'):
             from .MultiPhaseMedium import MultiPhaseMedium
             self._medium = MultiPhaseMedium(**self.kwargs)
+            #self.pf = self._medium.pf
+                        
         return self._medium
         
     @property
     def field(self):
         if not hasattr(self, '_field'):
             self._field = self.medium.field
-        return self._field    
+        return self._field
 
     @property
     def pops(self):
@@ -132,7 +136,7 @@ class Global21cm(AnalyzeGS):
 
         dTb = []
         for i, data_igm in enumerate(self.all_data_igm):
-
+            
             n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
             Ts = \
                 self.medium.parcel_igm.grid.hydr.Ts(
@@ -180,7 +184,7 @@ class Global21cm(AnalyzeGS):
         if (not self.is_tanh) and (not self.is_gauss) and (not self.is_param):
             return False
                 
-        model = PhenomModel(**kwargs)                
+        model = self._model = PhenomModel(**kwargs)                
         self.pf = model.pf
             
         if self.pf['output_frequencies'] is not None:
@@ -224,13 +228,13 @@ class Global21cm(AnalyzeGS):
         if self.is_phenom:
             return
         if self.is_complete:
-            print "Already ran simulation!"
+            print("Already ran simulation!")
             return    
 
         # Need to generate radiation backgrounds first.
         self.medium.field.run()
         self._f_Ja = self.medium.field._f_Ja
-        self._f_Jlw = self.medium.field._f_Jlw   
+        self._f_Jlw = self.medium.field._f_Jlw
 
         # Start timer
         t1 = time.time()
@@ -262,7 +266,7 @@ class Global21cm(AnalyzeGS):
                 break
             if z < self.pf['kill_redshift']:
                 break    
-
+                
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
@@ -293,11 +297,26 @@ class Global21cm(AnalyzeGS):
 
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
+        
+        ##
+        # In the future, could do this better by only calculating Ja at
+        # the end, since it a passive quantity (unless we included its
+        # very small heating).
+        ##
+        #if self.pf['secondary_lya']:
+        #    xe = lambda zz: np.interp(zz, self.history['z'][-1::-1],
+        #        self.history['igm_e'][-1::-1])
+        #    self.medium.field.run(xe=xe)
+        #    self._f_Ja = self.medium.field._f_Ja
+        #    #self._f_Jlw = self.medium.field._f_Jlw
+        #
+        #    # Fix Ja in history
+        
         self.history['dTb'] = self.history['igm_dTb']
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
         self.history['Jlw'] = self.history['igm_Jlw']
-        
+            
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
             self.rates_igm = \
@@ -310,11 +329,57 @@ class Global21cm(AnalyzeGS):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-
-        t2 = time.time()        
-                
-        self.timer = t2 - t1
         
+        ##
+        # Optional extra radio background
+        ##
+        Tr = np.zeros_like(self.history['z'])
+        for popid, pop in enumerate(self.pops):
+            if not pop.is_src_radio:
+                continue
+
+            z, E, flux = self.field.get_history(popid, flatten=True)
+
+            E21cm = h_p * nu_0_mhz * 1e6 / erg_per_ev
+            f21 = interp1d(E, flux, axis=1, bounds_error=False, 
+                fill_value=0.0, force_scipy=True)
+            flux_21cm = f21(E21cm)
+
+            Tr += np.interp(self.history['z'], z, flux_21cm) \
+                * E21cm * erg_per_ev * c**2 / k_B / 2. / (nu_0_mhz * 1e6)**2
+            
+        if not np.all(Tr == 0):
+            assert self.medium.parcel_igm.grid.hydr.Tbg is None
+        elif self.medium.parcel_igm.grid.hydr.Tbg is not None:
+            Tr = self.medium.parcel_igm.grid.hydr.Tbg(self.history['z'])
+            
+        self.history['Tr'] = Tr
+        
+        # Correct the brightness temperature if there are non-CMB backgrounds
+        if not np.all(Tr == 0):
+            zall = self.history['z']
+            n_H = self.medium.parcel_igm.grid.cosm.nH(zall)
+            Ts = self.medium.parcel_igm.grid.hydr.Ts(zall,
+                self.history['igm_Tk'], self.history['Ja'], 
+                self.history['igm_h_2'], self.history['igm_e'] * n_H, Tr)
+
+            if self.pf['spin_temperature_floor'] is not None:
+                Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=zall))            
+
+            # Compute volume-averaged ionized fraction
+            xavg = self.history['cgm_h_2'] \
+                 + (1. - self.history['cgm_h_2']) * self.history['igm_h_2']
+
+            # Derive brightness temperature
+            dTb = self.medium.parcel_igm.grid.hydr.dTb(zall, xavg, Ts, Tr)
+            
+            self.history['dTb_no_radio'] = self.history['dTb'].copy()
+            self.history['dTb'] = dTb
+            
+        t2 = time.time()
+
+        self.timer = t2 - t1
+
         self.is_complete = True
 
     def step(self):
@@ -324,7 +389,7 @@ class Global21cm(AnalyzeGS):
         .. note:: Basically just calling MultiPhaseMedium here, except we
             compute the spin temperature and brightness temperature on
             each step.
-        
+
         Returns
         -------
         Generator for MultiPhaseMedium object, with notable addition that
@@ -332,16 +397,19 @@ class Global21cm(AnalyzeGS):
         tracked.
 
         """
-                                
+
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():
 
             Ja = np.atleast_1d(self._f_Ja(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
-                                                                                
+
             # Compute spin temperature
-            n_H = self.medium.parcel_igm.grid.cosm.nH(z)
+            n_H = self.medium.parcel_igm.grid.cosm.nH(z)            
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
+
+            if self.pf['spin_temperature_floor'] is not None:
+                Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=z))            
 
             # Compute volume-averaged ionized fraction
             xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']
@@ -376,28 +444,24 @@ class Global21cm(AnalyzeGS):
     
         """
     
-        fn = '%s.history.%s' % (prefix, suffix)
+        fn = '{0!s}.history.{1!s}'.format(prefix, suffix)
     
         if os.path.exists(fn):
             if clobber:
                 os.remove(fn)
             else: 
-                raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+                raise IOError('{!s} exists! Set clobber=True to overwrite.'.format(fn))
     
         if suffix == 'pkl':         
-            f = open(fn, 'wb')
-            pickle.dump(self.history._data, f)
-            f.close()
+            write_pickle_file(self.history._data, fn, ndumps=1, open_mode='w',\
+                safe_mode=False, verbose=False)
                 
             try:
-                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
-                pickle.dump(self.blobs, f)
-                f.close()
-                
-                if self.pf['verbose']:
-                    print 'Wrote %s.blobs.%s' % (prefix, suffix)
+                write_pickle_file(self.blobs, '{0!s}.blobs.{1!s}'.format(\
+                    prefix, suffix), ndumps=1, open_mode='w', safe_mode=False,\
+                    verbose=self.pf['verbose'])
             except AttributeError:
-                print 'Error writing %s.blobs.%s' % (prefix, suffix)
+                print('Error writing {0!s}.blobs.{1!s}'.format(prefix, suffix))
     
         elif suffix in ['hdf5', 'h5']:
             import h5py
@@ -416,22 +480,21 @@ class Global21cm(AnalyzeGS):
             f.close()
             
             if self.blobs:
-                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                f = open('{0!s}.blobs.{1!s}'.format(prefix, suffix), 'wb')
                 np.savez(f, self.blobs)
                 f.close()
 
         # ASCII format
         else:            
             f = open(fn, 'w')
-            print >> f, "#",
+            print("#", end='', file=f)
     
             for key in self.history:
                 if fields is not None:
                     if key not in fields:
                         continue
-                print >> f, '%-18s' % key,
-    
-            print >> f, ''
+                print('{0:<18s}'.format(key), end='', file=f)
+            print('', file=f)
 
             # Now, the data
             for i in xrange(len(self.history[key])):
@@ -442,43 +505,40 @@ class Global21cm(AnalyzeGS):
                         if key not in fields:
                             continue
                             
-                    s += '%-20.8e' % (self.history[key][i])
+                    s += '{:<20.8e}'.format(self.history[key][i])
 
                 if not s.strip():
                     continue
 
-                print >> f, s
+                print(s, file=f)
 
             f.close()
 
         if self.pf['verbose']:
-            print 'Wrote %s.history.%s' % (prefix, suffix)
+            print('Wrote {0!s}.history.{1!s}'.format(prefix, suffix))
             
         # Save histories for Mmin and SFRD if we're doing iterative stuff
         if self.count > 1 and hasattr(self, '_Mmin_bank'):
-            f = open('%s.Mmin.pkl' % prefix, 'wb')
-            pickle.dump(self.medium.field._zarr, f)
-            pickle.dump(self.medium.field._Mmin_bank, f)
-            f.close()
-            if self.pf['verbose']:
-                print 'Wrote %s.Mmin.pkl' % prefix
+            write_pickle_file((self.medium.field._zarr,\
+                self.medium.field._Mmin_bank), '{!s}.Mmin.pkl'.format(prefix),\
+                ndumps=2, open_mode='w', safe_mode=False,\
+                verbose=self.pf['verbose'])
             
             if self.pf['feedback_LW_sfrd_popid'] is not None:
                 pid = self.pf['feedback_LW_sfrd_popid']
-                f = open('%s.sfrd.pkl' % prefix, 'wb')
-                pickle.dump(self.medium.field.pops[pid].halos.z, f)
-                pickle.dump(self.medium.field._sfrd_bank, f)
-                f.close()
-                if self.pf['verbose']:
-                    print 'Wrote %s.sfrd.pkl' % prefix
-            
+                write_pickle_file((self.medium.field.pops[pid].halos.z,\
+                    self.medium.field._sfrd_bank), '{!s}.sfrd.pkl'.format(\
+                    prefix), ndumps=1, open_mode='w', safe_mode=False,\
+                    verbose=self.pf['verbose'])
+        
         write_pf = True
-        if os.path.exists('%s.parameters.pkl' % prefix):
+        if os.path.exists('{!s}.parameters.pkl'.format(prefix)):
             if clobber:
-                os.remove('%s.parameters.pkl' % prefix)
+                os.remove('{!s}.parameters.pkl'.format(prefix))
             else: 
                 write_pf = False
-                print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
+                print(('WARNING: {!s}.parameters.pkl exists! Set ' +\
+                    'clobber=True to overwrite.').format(prefix))
 
         if write_pf:
 
@@ -492,11 +552,8 @@ class Global21cm(AnalyzeGS):
                 self.pf['revision'] = get_hg_rev()
             
             # Save parameter file
-            f = open('%s.parameters.pkl' % prefix, 'wb')
-            pickle.dump(self.pf, f, -1)
-            f.close()
-    
-            if self.pf['verbose']:
-                print 'Wrote %s.parameters.pkl' % prefix
+            write_pickle_file(self.pf, '{!s}.parameters.pkl'.format(prefix),\
+                ndumps=1, open_mode='w', safe_mode=False,\
+                verbose=self.pf['verbose'])
         
     

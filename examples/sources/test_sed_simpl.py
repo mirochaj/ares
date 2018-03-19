@@ -62,7 +62,7 @@ for i, fsc in enumerate(f_scatter):
         bh2 = ares.analysis.Source(bh_simpl)
         
         if j == 0:
-            label = r'$f_{\mathrm{sc}} = %g$' % fsc
+            label = r'$f_{{\mathrm{{sc}}}} = {:g}$'.format(fsc)
         else:
             label = None
             

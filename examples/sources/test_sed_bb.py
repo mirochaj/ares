@@ -30,7 +30,7 @@ for i, logT in enumerate([4, 4.5, 5]):
     bh = ares.analysis.Source(src)
     
     ax = bh.PlotSpectrum(ls=ls[i], 
-        label=r'$T_{\ast} = 10^{%.2g} \mathrm{K}$' % logT)
+        label=r'$T_{{\ast}} = 10^{{{:.2g}}} \mathrm{{K}}$'.format(logT))
 
 ax.plot([10.2]*2, [1e-8, 1], color='r', ls='--')
 ax.plot([13.6]*2, [1e-8, 1], color='r', ls='--')

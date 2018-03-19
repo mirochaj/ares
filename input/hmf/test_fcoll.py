@@ -40,7 +40,7 @@ for z in zarr:
     #fcoll_mgtm2 = np.trapz(dndlnm, x=np.log(M)) / pop.halos.MF.mean_density0
     fcoll_mgtm2 = simps(dndlnm[ok], x=np.log(M[ok])) / pop.halos.MF.mean_density0
         
-    print z, fcoll_mgtm1, fcoll_mgtm2#, fcoll
+    print('{0!s} {1!s} {2!s}'.format(z, fcoll_mgtm1, fcoll_mgtm2))#, fcoll
     
     new_fcoll.append(fcoll_mgtm2)
     

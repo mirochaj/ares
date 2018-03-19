@@ -57,21 +57,21 @@ def _reader(fn, skip=3, dtype=float):
         
     """
 
-    f = open('%s/%s' % (_input, fn), 'r')
+    f = open('{0!s}/{1!s}'.format(_input, fn), 'r')
 
     data = []
     for i, line in enumerate(f):
         if i < skip:
             continue
 
-        data.append(map(dtype, line.split()))
+        data.append(list(map(dtype, line.split())))
 
     return np.array(data)
 
 def _fignum_to_figname():
     num, names = _reader('README', skip=18, dtype=str).T
     
-    num = map(int, num)
+    num = list(map(int, num))
     
     prefixes = []
     for name in names:
@@ -127,12 +127,12 @@ def _figure_name(pop_Z=0.04, pop_imf=2.35, pop_nebular=False, pop_ssp=True,
             if i not in [5,6,11,12]:
                 mask[i-1] *= 0
                       
-    Zvals = metallicities.values()
+    Zvals = list(metallicities.values())
     
     if pop_Z not in Zvals:
         raise ValueError('Unrecognized metallicity.')
         
-    Z_suffix = metallicities.keys()[Zvals.index(pop_Z)]
+    Z_suffix = list(metallicities.keys())[Zvals.index(pop_Z)]
     
     if mask.sum() > 1:
         raise ValueError('Ambiguous SED.')
@@ -140,13 +140,13 @@ def _figure_name(pop_Z=0.04, pop_imf=2.35, pop_nebular=False, pop_ssp=True,
     j = options[mask == 1]
     k = fig_num.index(j)
     
-    return '%s%s.dat' % (fig_prefix[k], Z_suffix)
+    return '{0!s}{1!s}.dat'.format(fig_prefix[k], Z_suffix)
     
 def _load(**kwargs):
     """
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
-    Zvals = np.sort(metallicities.values())
+    Zvals = np.sort(list(metallicities.values()))
             
     if kwargs['pop_Z'] not in Zvals:
         

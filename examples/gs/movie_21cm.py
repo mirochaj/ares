@@ -14,7 +14,7 @@ Note: Can run this in parallel.
 """
 
 import numpy as np
-import ares, pickle
+import ares
 import matplotlib.pyplot as pl
 
 try:
@@ -55,17 +55,17 @@ for par in ['Nlw', 'fX', 'Nion', 'fstar']:
         ax = anl.GlobalSignature(ymax=60, ymin=-200)
         ax.set_ylim(-180, 60)
 
-        ax.annotate(r'$f_{\alpha} = %.2g$' % (sim.pf['Nlw'] / refvals['Nlw']), 
+        ax.annotate(r'$f_{{\alpha}} = {:.2g}$'.format(sim.pf['Nlw'] / refvals['Nlw']), 
             (15, 40), ha='left')
-        ax.annotate(r'$f_{X} = %.2g$' % (sim.pf['fX'] / refvals['fX']), 
+        ax.annotate(r'$f_{{X}} = {:.2g}$'.format(sim.pf['fX'] / refvals['fX']), 
             (55, 40), ha='left')        
-        ax.annotate(r'$f_{\mathrm{ion}} = %.2g$' % (sim.pf['Nion'] / refvals['Nion']),
+        ax.annotate(r'$f_{{\mathrm{{ion}}}} = {:.2g}$'.format(sim.pf['Nion'] / refvals['Nion']),
             (95, 40), ha='left')    
-        ax.annotate(r'$f_{\ast} = %.2g$' % sim.pf['fstar'],
+        ax.annotate(r'$f_{{\ast}} = {:.2g}$'.format(sim.pf['fstar']),
             (135, 40), ha='left')        
 
         pl.draw()
-        pl.savefig('frame_%s.png' % (str(frame).zfill(5)), dpi=120)
+        pl.savefig('frame_{!s}.png'.format(str(frame).zfill(5)), dpi=120)
         
         ax.clear()
 

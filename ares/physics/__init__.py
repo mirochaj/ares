@@ -1,8 +1,8 @@
-import Constants
-from .Hydrogen import Hydrogen
-from .Cosmology import Cosmology
-from .HaloModel import HaloModel
-from .HaloMassFunction import HaloMassFunction
-from .RateCoefficients import RateCoefficients
-from .SecondaryElectrons import SecondaryElectrons
-from .CrossSections import PhotoIonizationCrossSection
+import ares.physics.Constants
+from ares.physics.Hydrogen import Hydrogen
+from ares.physics.Cosmology import Cosmology
+from ares.physics.HaloMassFunction import HaloMassFunction
+from ares.physics.RateCoefficients import RateCoefficients
+from ares.physics.SecondaryElectrons import SecondaryElectrons
+from ares.physics.CrossSections import PhotoIonizationCrossSection
+

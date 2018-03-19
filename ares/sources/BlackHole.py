@@ -20,6 +20,12 @@ from ..util.SetDefaultParameterValues import BlackHoleParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 from ..physics.Constants import s_per_myr, G, g_per_msun, c, t_edd, m_p, \
     sigma_T, sigma_SB
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 sptypes = ['pl', 'mcd', 'simpl']
 
@@ -37,7 +43,7 @@ class BlackHole(Source):
         spec_pars: dict
             Contains spectrum-specific parameters.
     
-        """  
+        """
         
         self.pf = BlackHoleParameters()
         self.pf.update(kwargs)    
@@ -49,7 +55,6 @@ class BlackHole(Source):
         self.epsilon = self.pf['source_eta']
         
         # Duty cycle parameters
-        self.tau = self.pf['source_lifetime'] * s_per_myr
         self.fduty = self.pf['source_fduty'] 
         self.variable = self.fduty < 1
         #if self.src_pars['fduty'] == 1:
@@ -63,7 +68,8 @@ class BlackHole(Source):
         self.r_out = self.pf['source_rmax'] * self._GravitationalRadius(self.M0)
         self.T_in = self._DiskInnermostTemperature(self.M0)
         self.T_out = self._DiskTemperature(self.M0, self.r_out)
-        self.Lbol = self.Luminosity(0.0)
+        self.Lbol0 = self.Luminosity(0.0)
+        self.Lbol = self.Luminosity
 
         self.disk_history = {}
 
@@ -76,7 +82,7 @@ class BlackHole(Source):
 
         if self.pf['source_sed'] in sptypes:
             pass
-        elif type(self.pf['source_sed']) is str:
+        elif isinstance(self.pf['source_sed'], basestring):
             from_lit = read_lit(self.pf['source_sed'])
             src = from_lit.Source()
             self._UserDefined = src.Spectrum
@@ -102,7 +108,7 @@ class BlackHole(Source):
         #        continue
         #    
         #    self.type_by_num.append(sptype)
-        #    self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
+        #    self.type_by_name.append(list(sptypes.keys())[list(sptypes.values()).index(sptype)])                
                 
     def _SchwartzchildRadius(self, M):
         return 2. * self._GravitationalRadius(M)
@@ -193,8 +199,8 @@ class BlackHole(Source):
         N = (ma - mi) / dlogE + 1
         Earr = 10**np.arange(mi, ma+dlogE, dlogE)
         
-        gf = map(lambda EE: self._GreensFunctionSIMPL(EE, E), Earr)
-        integrand = np.array(map(nin, Earr)) * np.array(gf) * Earr
+        gf = [self._GreensFunctionSIMPL(EE, E) for EE in Earr]
+        integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
         
         nout = (1.0 - fsc) * nin(E) + fsc \
             * np.trapz(integrand, dx=dlogE) * np.log(10.)

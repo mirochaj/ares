@@ -10,21 +10,23 @@ Description: For analysis of MCMC fitting.
 
 """
 
+import pickle
 import shutil
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
-import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.colors import Normalize
 from matplotlib.patches import Rectangle
-from ..physics.Constants import nu_0_mhz
+from ..phenom.DustCorrection import DustCorrection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
+from ..physics.Constants import nu_0_mhz, erg_per_ev, h_p
 from ..util import labels as default_labels
+from ..util.Pickling import read_pickle_file, write_pickle_file
 import matplotlib.patches as patches
 from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
@@ -34,11 +36,14 @@ from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
-from ..util.ReadData import read_pickled_dict, read_pickle_file, \
-    read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
-    tanh_gjah_to_ares
-
-import pickle 
+from ..util.ReadData import concatenate, read_pickled_chain,\
+    read_pickled_logL, fcoll_gjah_to_ares, tanh_gjah_to_ares
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from scipy.spatial import Delaunay
@@ -102,9 +107,9 @@ def patch_pinfo(pars):
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
 
-    s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[1], err[0])
+    s += '={0:.3g}^{{+{1:.2g}}}_{{-{2:.2g}}}'.format(mu, err[1], err[0])
     
-    return r'$%s$' % s
+    return r'${!s}$'.format(s)
 
 class ModelSubSet(object):
     def __init__(self):
@@ -118,7 +123,7 @@ class ModelSet(BlobFactory):
         data : instance, str
             prefix for a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.,
             or a ModelSubSet instance.
-        
+
         subset : list, str
             List of parameters / blobs to recover from individual files. Can
             also set subset='all', and we'll try to automatically track down
@@ -129,7 +134,7 @@ class ModelSet(BlobFactory):
         self.subset = subset
                 
         # Read in data from file (assumed to be pickled)
-        if type(data) == str:
+        if isinstance(data, basestring):
             
             # Check to see if perhaps this is just the chain
             if re.search('pkl', data):
@@ -173,27 +178,106 @@ class ModelSet(BlobFactory):
         #    pass
 
     @property
+    def dust(self):
+        if not hasattr(self, '_dust'):
+            self._dust = DustCorrection(**self.pf)
+        return self._dust
+
+    @property
     def mask(self):
         if not hasattr(self, '_mask'):
-            self._mask = np.zeros(self.chain.shape[0])
+            self._mask = np.zeros_like(self.chain) # chain.shape[0]?
         return self._mask
-    
+
     @mask.setter
     def mask(self, value):
         if self.is_mcmc:
             assert len(value) == len(self.logL)
-            
+
             # Must be re-initialized to reflect new mask
             del self._chain, self._logL
-            
+
         self._mask = value
 
     @property
+    def skip(self):
+        if not hasattr(self._skip):
+            self._skip = 0
+        return self._skip
+        
+    @skip.setter
+    def skip(self, value):
+        
+        if hasattr(self, '_skip'):
+            pass
+            #print("WARNING: Running `skip` for (at least) the second time!")
+        else:
+            # On first time, stash away a copy of the original mask
+            if not hasattr(self, '_original_mask'):
+                self._original_mask = self.mask.copy()
+                
+            if hasattr(self, '_stop'):
+                mask = self.mask.copy()
+                assert value < self._stop
+            else:    
+                mask = self._original_mask.copy()    
+        
+        self._skip = int(value)
+        
+        x = np.arange(0, self.logL.size)
+        
+        mask[x < self._skip] = True
+        print("Masked out {} elements using `skip`.".format(self._skip))
+        self.mask = mask
+        
+    @property
+    def stop(self):
+        if not hasattr(self._stop):
+            self._stop = 0
+        return self._stop
+    
+    @stop.setter
+    def stop(self, value):
+        
+        if hasattr(self, '_stop'):
+            pass
+            #print("WARNING: Running `stop` for (at least) the second time!")
+        else:
+            # On first time, stash away a copy of the original mask
+            if not hasattr(self, '_original_mask'):
+                self._original_mask = self.mask.copy()
+            
+            # If skip has already been called, operate on pre-existing mask.
+            # Otherwise, start from scratch
+            if hasattr(self, '_skip'):
+                mask = self.mask.copy()
+                assert value > self._skip
+            else:    
+                mask = self._original_mask.copy()    
+                                
+        self._stop = int(value)
+    
+        x = np.arange(0, self.logL.size)
+            
+        print("Masked out {} elements using `stop`.".format(max(x) - self._stop))    
+        self.mask = mask
+        
+    def reset_mask(self):
+        if hasattr(self, '_skip'):
+            del self._skip
+        
+        if hasattr(self, '_stop'):
+            del self._stop
+        
+    @property
     def load(self):
         if not hasattr(self, '_load'):
-            print "WARNING: if this run was restarted, the `load` values are probably wrong."
-            if os.path.exists('%s.load.pkl' % self.prefix):
-                self._load = read_pickle_file('%s.load.pkl' % self.prefix)
+            print("WARNING: if this run was restarted, the `load` values " +\
+                "are probably wrong.")
+            if os.path.exists('{!s}.load.pkl'.format(self.prefix)):
+                self._load = concatenate(read_pickle_file(\
+                    '{!s}.load.pkl'.format(self.prefix), nloads=None,\
+                    verbose=False))
             else:
                 self._load = None
 
@@ -213,22 +297,21 @@ class ModelSet(BlobFactory):
             else:
                 pre = self.prefix
                       
-            if os.path.exists('%s.binfo.pkl' % pre):
-                fn = '%s.binfo.pkl' % pre
-            elif os.path.exists('%s.setup.pkl' % pre):
-                fn = '%s.setup.pkl' % pre
+            if os.path.exists('{!s}.binfo.pkl'.format(pre)):
+                fn = '{!s}.binfo.pkl'.format(pre)
+            elif os.path.exists('{!s}.setup.pkl'.format(pre)):
+                fn = '{!s}.setup.pkl'.format(pre)
             else:    
                 self._base_kwargs = None
                 return self._base_kwargs
-                
-            f = open(fn, 'rb')
+            
             try:
-                self._base_kwargs = pickle.load(f)
+                self._base_kwargs =\
+                    read_pickle_file(fn, nloads=1, verbose=False)
             except ImportError as err:
                 raise err
             except:
                 self._base_kwargs = {}
-            f.close()  
             
         return self._base_kwargs    
 
@@ -243,20 +326,20 @@ class ModelSet(BlobFactory):
             else:
                 pre = self.prefix
             
-            if os.path.exists('%s.pinfo.pkl' % pre):
-                f = open('%s.pinfo.pkl' % pre, 'rb')
-                self._parameters, self._is_log = pickle.load(f)
-                f.close()
+            if os.path.exists('{!s}.pinfo.pkl'.format(pre)):
+                (self._parameters, self._is_log) =\
+                    read_pickle_file('{!s}.pinfo.pkl'.format(pre), nloads=1,\
+                    verbose=False)
                 self._parameters = patch_pinfo(self._parameters)
-            elif os.path.exists('%s.hdf5' % self.prefix):
-                f = h5py.File('%s.hdf5' % self.prefix)
+            elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
+                f = h5py.File('{!s}.hdf5'.format(self.prefix))
                 self._parameters = list(f['chain'].attrs.get('names'))
                 #self._is_log = list(f['chain'].attrs.get('is_log'))
                 self._is_log = [False] * len(self._parameters)
-                f.close()                
+                f.close()
             else:
                 self._is_log = [False] * self.chain.shape[-1]
-                self._parameters = ['p%i' % i \
+                self._parameters = ['p{}'.format(i) \
                     for i in range(self.chain.shape[-1])]
         
             self._is_log = tuple(self._is_log)
@@ -268,11 +351,18 @@ class ModelSet(BlobFactory):
     def nwalkers(self):
         # Read parameter names and info
         if not hasattr(self, '_nwalkers'):
-            if os.path.exists('%s.rinfo.pkl' % self.prefix):
-                f = open('%s.rinfo.pkl' % self.prefix, 'rb')
+            burn = self.prefix.endswith('.burn')
+            if burn:
+                pre = self.prefix.replace('.burn', '')
+            else:
+                pre = self.prefix
+                
+            if os.path.exists('{!s}.rinfo.pkl'.format(pre)):
+                loaded =\
+                    read_pickle_file('{!s}.rinfo.pkl'.format(pre),\
+                    nloads=1, verbose=False)
                 self._nwalkers, self._save_freq, self._steps = \
-                    map(int, pickle.load(f))
-                f.close()
+                    list(map(int, loaded))
             else:
                 self._nwalkers = self._save_freq = self._steps = None
     
@@ -293,10 +383,10 @@ class ModelSet(BlobFactory):
     @property
     def priors(self):
         if not hasattr(self, '_priors'):   
-            if os.path.exists('%s.priors.pkl' % self.prefix):
-                f = open('%s.priors.pkl' % self.prefix, 'rb')
-                self._priors = pickle.load(f)
-                f.close() 
+            if os.path.exists('{!s}.priors.pkl'.format(self.prefix)):
+                self._priors =\
+                    read_pickle_file('{!s}.priors.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
             else:
                 self._priors = {}
                 
@@ -322,9 +412,9 @@ class ModelSet(BlobFactory):
     @property
     def is_mcmc(self):
         if not hasattr(self, '_is_mcmc'):
-            if os.path.exists('%s.logL.pkl' % self.prefix):
+            if os.path.exists('{!s}.logL.pkl'.format(self.prefix)):
                 self._is_mcmc = True
-            elif glob.glob('%s.dd*.logL.pkl' % self.prefix):
+            elif glob.glob('{!s}.dd*.logL.pkl'.format(self.prefix)):
                 self._is_mcmc = True    
             else:
                 self._is_mcmc = False
@@ -334,15 +424,10 @@ class ModelSet(BlobFactory):
     @property
     def facc(self):
         if not hasattr(self, '_facc'):
-            if os.path.exists('%s.facc.pkl' % self.prefix):
-                f = open('%s.facc.pkl' % self.prefix, 'rb')
-                self._facc = []
-                while True:
-                    try:
-                        self._facc.append(pickle.load(f))
-                    except EOFError:
-                        break
-                f.close()
+            if os.path.exists('{!s}.facc.pkl'.format(self.prefix)):
+                self._facc =\
+                    read_pickle_file('{!s}.facc.pkl'.format(self.prefix),\
+                    nloads=None, verbose=False)
                 self._facc = np.array(self._facc)
             else:
                 self._facc = None
@@ -365,19 +450,13 @@ class ModelSet(BlobFactory):
             self._timing = []
             
             i = 1
-            fn = '%s.timing_%s.pkl' % (self.prefix, str(i).zfill(4))
+            fn = '{0!s}.timing_{1!s}.pkl'.format(self.prefix, str(i).zfill(4))
             while os.path.exists(fn):
-                f = open(fn, 'rb')
-                while True:
-                    try:
-                        t, kw = pickle.load(f)
-                        self._timing.append((t, kw))
-                    except EOFError:
-                        break
-                        
-                f.close()
+                self._timing.extend(\
+                    read_pickle_file(fn, nloads=None, verbose=False))
                 i += 1
-                fn = '%s.timing_%s.pkl' % (self.prefix, str(i).zfill(4))  
+                fn = '{0!s}.timing_{1!s}.pkl'.format(self.prefix,\
+                    str(i).zfill(4))  
                 
                 
         return self._timing
@@ -391,6 +470,19 @@ class ModelSet(BlobFactory):
                 self._Nd = None
         
         return self._Nd
+    
+    def last_n_checkpoints(self, num):
+        return self.saved_checkpoints[-num:]
+
+    def last_checkpoint(self):
+        return self.saved_checkpoints[-1]
+    
+    @property
+    def unique_samples(self):
+        if not hasattr(self, '_unique_samples'):
+            self._unique_samples = \
+                [np.unique(self.chain[:,i].data) for i in range(self.Nd)]
+        return self._unique_samples
     
     @property
     def unique_samples(self):
@@ -416,58 +508,89 @@ class ModelSet(BlobFactory):
             self._include_checkpoints = value
             
         if hasattr(self, '_chain'):
-            print "WARNING: the chain has already been read.", 
-            print "Be sure to delete `_chain` attribute before continuing."
+            print("WARNING: the chain has already been read. Be sure to " +\
+                "delete `_chain` attribute before continuing.")
+
+    @property
+    def largest_checkpoint(self):
+        if not hasattr(self, '_largest_checkpoint'):
+            self._largest_checkpoint = max(self.saved_checkpoints)
+        return self._largest_checkpoint
+    
+    @property
+    def saved_checkpoints(self):
+        """
+        The sorted checkpoint numbers of data files saved in the prefix
+        associated with this ModelSet. This property uses the counting
+        convention which starts with zero.
+        """
+        if not hasattr(self, '_saved_checkpoints'):
+            fns = glob.glob(self.prefix + '.dd*.chain.pkl')
+            self._saved_checkpoints = [(int(fn[-14:-10])) for fn in fns]
+            self._saved_checkpoints = sorted(self._saved_checkpoints)
+            self._saved_checkpoints = np.array(self._saved_checkpoints)
+        return self._saved_checkpoints
 
     @property
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
-            have_chain_f = os.path.exists('%s.chain.pkl' % self.prefix)
-            have_f = os.path.exists('%s.pkl' % self.prefix)
+            have_chain_f = os.path.exists('{!s}.chain.pkl'.format(self.prefix))
+            have_f = os.path.exists('{!s}.pkl'.format(self.prefix))
 
             if have_chain_f or have_f:
                 if have_chain_f:
-                    fn = '%s.chain.pkl' % self.prefix
+                    fn = '{!s}.chain.pkl'.format(self.prefix)
                 else:
-                    fn = '%s.pkl' % self.prefix
+                    fn = '{!s}.pkl'.format(self.prefix)
                 
                 if rank == 0:
-                    print "Loading %s..." % fn
+                    print("Loading {!s}...".format(fn))
 
                 t1 = time.time()
                 self._chain = read_pickled_chain(fn)
                 t2 = time.time()
 
                 if rank == 0:
-                    print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
-
-                if self.mask.ndim == 1:
-                    mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                    print("Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
+                        t2-t1))
+                        
+                if hasattr(self, '_mask'):
+                    if self.mask.ndim == 1:
+                        mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                    elif self.mask.ndim == 2:
+                        mask2d = self.mask
+                        #mask2d = np.zeros_like(self._chain)
                 else:
-                    mask2d = self.mask
+                    mask2d = 0
 
                 self._chain = np.ma.array(self._chain, mask=mask2d)
-            
+
             # We might have data stored by processor
-            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
+            elif os.path.exists('{!s}.000.chain.pkl'.format(self.prefix)):
                 i = 0
                 full_chain = []
                 full_mask = []
-                fn = '%s.000.chain.pkl' % self.prefix
+                fn = '{!s}.000.chain.pkl'.format(self.prefix)
                 while True:
-                                        
+          
                     if not os.path.exists(fn):
                         break
-                    
+
                     try:
                         this_chain = read_pickled_chain(fn)
                         full_chain.extend(this_chain.copy())
                     except ValueError:
-                        print "Error loading %s." % fn
+                        #import pickle
+                        #f = open(fn, 'rb')
+                        #data = pickle.load(f)
+                        #f.close()
+                        #print data
+                        print("Error loading {!s}.".format(fn))
                     
                     i += 1
-                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
+                    fn = '{0!s}.{1!s}.chain.pkl'.format(self.prefix,\
+                        str(i).zfill(3))  
                     
                 self._chain = np.ma.array(full_chain, 
                     mask=np.zeros_like(full_chain))
@@ -477,9 +600,25 @@ class ModelSet(BlobFactory):
                 # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
                 # Hence, it is commented out (for now).
                 #if rank == 0:
-                #    f = open('%s.chain.pkl' % self.prefix, 'wb')
-                #    pickle.dump(self._chain, f)
-                #    f.close()
+                #    write_pickle_file(self._chain,\
+                #        '{!s}.chain.pkl'.format(self.prefix), ndumps=1,\
+                #        open_mode='w', safe_mode=False, verbose=False)
+
+            elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
+                f = h5py.File('{!s}.hdf5'.format(self.prefix))
+                chain = f['chain'].value
+                    
+                if hasattr(self, '_mask'):
+                    if self.mask.ndim == 1:
+                        mask2d = np.repeat(self.mask, 2).reshape(len(self.mask), 2)
+                    else:
+                        mask2d = self.mask#np.zeros_like(self._chain)
+                else:
+                    mask2d = np.zeros(chain.shape)    
+                    self.mask = mask2d
+                                                                    
+                self._chain = np.ma.array(chain, mask=mask2d)
+                f.close()
 
             elif os.path.exists('%s.hdf5' % self.prefix):
                 f = h5py.File('%s.hdf5' % self.prefix)
@@ -490,36 +629,36 @@ class ModelSet(BlobFactory):
                 f.close()
 
             # If each "chunk" gets its own file.
-            elif glob.glob('%s.dd*.chain.pkl' % self.prefix):
+            elif glob.glob('{!s}.dd*.chain.pkl'.format(self.prefix)):
                 
                 if self.include_checkpoints is not None:
                     outputs_to_read = []
                     for output_num in self.include_checkpoints:
                         dd = str(output_num).zfill(4)
-                        fn = '%s.dd%s.chain.pkl' % (self.prefix, dd)
+                        fn = '{0!s}.dd{1!s}.chain.pkl'.format(self.prefix, dd)
                         outputs_to_read.append(fn)
                 else:
                     # Only need to use "sorted" on the second time around
-                    outputs_to_read = \
-                        sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
+                    outputs_to_read = sorted(glob.glob(\
+                        '{!s}.dd*.chain.pkl'.format(self.prefix)))
                                 
                 full_chain = []
+                if rank == 0:
+                    print("Loading {!s}.dd*.chain.pkl...".format(self.prefix))
+                    t1 = time.time()
                 for fn in outputs_to_read:
                     if not os.path.exists(fn):
-                        print "Found no output: %s" % fn
+                        print("Found no output: {!s}".format(fn))
                         continue
+                    this_chain = read_pickled_chain(fn)
+                    full_chain.extend(this_chain)
                     
-                    if rank == 0:
-                        print "Loaded %s." % fn
-                    
-                    this_chain = read_pickled_chain(fn)                                    
-                    full_chain.extend(this_chain.copy())                    
-                    
-                full_chain = np.array(full_chain)    
-                    
-                self._chain = np.ma.array(full_chain, 
-                    mask=np.zeros_like(full_chain))
-
+                self._chain = np.ma.array(full_chain, mask=0)
+                
+                if rank == 0:
+                    t2 = time.time()
+                    print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
+                        self.prefix, t2 - t1))
             else:
                 self._chain = None            
 
@@ -555,7 +694,7 @@ class ModelSet(BlobFactory):
             i = 0
             fail = 0
             self._checkpoints = {}
-            fn = '%s.000.checkpt.pkl' % self.prefix
+            fn = '{!s}.000.checkpt.pkl'.format(self.prefix)
             while True:
             
                 if not os.path.exists(fn):
@@ -564,44 +703,68 @@ class ModelSet(BlobFactory):
                     if fail > 10:
                         break
                 else:
-                    with open(fn, 'rb') as f:
-                        kw = pickle.load(f)                 
-                    
-                    self._checkpoints[i] = kw
+                    self._checkpoints[i] =\
+                        read_pickle_file(fn, nloads=1, verbose=False)
             
                 i += 1
-                fn = '%s.%s.checkpt.pkl' % (self.prefix, str(i).zfill(3))
+                fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix,\
+                    str(i).zfill(3))
                 
         return self._checkpoints  
     
     @property
     def logL(self):
         if not hasattr(self, '_logL'):            
-            if os.path.exists('%s.logL.pkl' % self.prefix):
-                self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
+            if os.path.exists('{!s}.logL.pkl'.format(self.prefix)):
+                self._logL = \
+                    read_pickled_logL('{!s}.logL.pkl'.format(self.prefix))
                 
                 if self.mask.ndim == 2:
                     N = self.chain.shape[0]
                     mask1d = np.array([np.max(self.mask[i,:]) for i in range(N)])
                 else:
                     mask1d = self.mask
+                    
                 self._logL = np.ma.array(self._logL, mask=mask1d)
                 
-            elif glob.glob('%s.dd*.logL.pkl' % self.prefix):
+            elif os.path.exists('{!s}.000.logL.pkl'.format(self.prefix)):
+                i = 0
+                full_logL = []
+                full_mask = []
+                fn = '{!s}.000.logL.pkl'.format(self.prefix)
+                while True:
+            
+                    if not os.path.exists(fn):
+                        break
+            
+                    try:
+                        this_logL = read_pickled_logL(fn)
+                        full_logL.extend(this_logL.copy())
+                    except ValueError:
+                        print("Error loading {!s}.".format(fn))
+            
+                    i += 1
+                    fn = '{0!s}.{1!s}.logL.pkl'.format(self.prefix,\
+                        str(i).zfill(3))  
+            
+                self._logL = np.ma.array(full_logL, 
+                    mask=np.zeros_like(full_logL))    
+            
+            elif glob.glob('{!s}.dd*.logL.pkl'.format(self.prefix)):
                 if self.include_checkpoints is not None:
                     outputs_to_read = []
                     for output_num in self.include_checkpoints:
                         dd = str(output_num).zfill(4)
-                        fn = '%s.dd%s.logL.pkl' % (self.prefix, dd)
+                        fn = '{0!s}.dd{1!s}.logL.pkl'.format(self.prefix, dd)
                         outputs_to_read.append(fn)
                 else:
-                    outputs_to_read = \
-                        sorted(glob.glob('%s.dd*.logL.pkl' % self.prefix))
+                    outputs_to_read = sorted(glob.glob(\
+                        '{!s}.dd*.logL.pkl'.format(self.prefix)))
                 
                 full_chain = []
                 for fn in outputs_to_read:
                     if not os.path.exists(fn):
-                        print "Found no output: %s" % fn
+                        print("Found no output: {!s}".format(fn))
                         continue
                         
                     full_chain.extend(read_pickled_logL(fn))
@@ -631,8 +794,9 @@ class ModelSet(BlobFactory):
     @property
     def betas(self):
         if not hasattr(self, '_betas'):
-            if os.path.exists('%s.betas.pkl' % self.prefix):
-                self._betas = read_pickled_logL('%s.betas.pkl' % self.prefix)
+            if os.path.exists('{!s}.betas.pkl'.format(self.prefix)):
+                self._betas =\
+                    read_pickled_logL('{!s}.betas.pkl'.format(self.prefix))
             else:
                 self._betas = None
         
@@ -641,38 +805,34 @@ class ModelSet(BlobFactory):
     @property
     def fails(self):
         if not hasattr(self, '_fails'):
-            if os.path.exists('%s.fails.pkl' % self.prefix):
-                with open('%s.fails.pkl' % self.prefix, 'rb') as f:
-                    self._fails = pickle.load(f)
-            elif os.path.exists('%s.000.fail.pkl' % self.prefix):
+            if os.path.exists('{!s}.fails.pkl'.format(self.prefix)):
+                self._fails =\
+                    read_pickle_file('{!s}.fails.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
+            elif os.path.exists('{!s}.000.fail.pkl'.format(self.prefix)):
                 i = 0
                 fails = []
-                fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
+                fn =\
+                    '{0!s}.{1!s}.fail.pkl'.format(self.prefix, str(i).zfill(3))
                 while True:
                         
                     if not os.path.exists(fn):
                         break
             
-                    f = open(fn, 'rb')
-                    data = []
-                    while True:
-                        try:
-                            data.append(pickle.load(f))
-                        except EOFError:
-                            break
-                    f.close()
+                    data = read_pickle_file(fn, nloads=None, verbose=False)
                     
                     fails.extend(data)                 
             
                     i += 1
-                    fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
+                    fn = '{0!s}.{1!s}.fail.pkl'.format(self.prefix,\
+                        str(i).zfill(3))
                         
                 # So we don't have to stitch them together again.
                 # AVOIDING CONFUSION
                 #if rank == 0:
-                #    f = open('%s.fails.pkl' % self.prefix, 'wb')
-                #    pickle.dump(fails, f)
-                #    f.close()
+                #    write_pickle_file(fails,\
+                #        '{!s}.fails.pkl'.format(self.prefix), ndumps=1,\
+                #        open_mode='w', safe_mode=False, verbose=False)
                     
                 self._fails = fails    
                 
@@ -684,31 +844,26 @@ class ModelSet(BlobFactory):
     @property
     def timeouts(self):
         if not hasattr(self, '_timeouts'):
-            if os.path.exists('%s.timeout.pkl' % self.prefix):
-                with open('%s.timeout.pkl' % self.prefix, 'rb') as f:
-                    self._fails = pickle.load(f)
-            elif os.path.exists('%s.000.timeout.pkl' % self.prefix):
+            if os.path.exists('{!s}.timeout.pkl'.format(self.prefix)):
+                self._fails =\
+                    read_pickle_file('{!s}.timeout.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
+            elif os.path.exists('{!s}.000.timeout.pkl'.format(self.prefix)):
                 i = 0
                 timeout = []
-                fn = '%s.%s.timeout.pkl' % (self.prefix, str(i).zfill(3))
+                fn = '{0!s}.{1!s}.timeout.pkl'.format(self.prefix,\
+                    str(i).zfill(3))
                 while True:
     
                     if not os.path.exists(fn):
                         break
     
-                    f = open(fn, 'rb')
-                    data = []
-                    while True:
-                        try:
-                            data.append(pickle.load(f))
-                        except EOFError:
-                            break
-                    f.close()
-    
+                    data = read_pickle_file(fn, nloads=None, verbose=False)
                     timeout.extend(data)                 
     
                     i += 1
-                    fn = '%s.%s.timeout.pkl' % (self.prefix, str(i).zfill(3))
+                    fn = '{0!s}.{1!s}.timeout.pkl'.format(self.prefix,\
+                        str(i).zfill(3))
     
                 self._timeout = timeout    
     
@@ -737,10 +892,10 @@ class ModelSet(BlobFactory):
         sf = self.save_freq
         nw = self.nwalkers
         
-        assert num < nw, "Only %i walkers were used!" % nw
+        assert num < nw, "Only {} walkers were used!".format(nw)
         
-        steps_per_walker = self.chain.shape[0] / nw
-        nchunks = steps_per_walker / sf
+        steps_per_walker = self.chain.shape[0] // nw
+        nchunks = steps_per_walker // sf
         
         # "size" of each chunk in # of MCMC steps
         schunk = nw * sf 
@@ -787,14 +942,14 @@ class ModelSet(BlobFactory):
     
     #def _load(self, fn):
     #    if os.path.exists(fn):
-    #        return read_pickle_file(fn)
+    #        return read_pickle_file(fn, nloads=1, verbose=False)
     
     @property    
     def blob_redshifts_float(self):
         if not hasattr(self, '_blob_redshifts_float'):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
-                if type(redshift) is str:
+                if isinstance(redshift, basestring):
                     self._blob_redshifts_float.append(None)
                 else:
                     self._blob_redshifts_float.append(round(redshift, 3))
@@ -806,7 +961,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_blob_redshifts_float'):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
-                if type(redshift) is str:
+                if isinstance(redshift, basestring):
                     z = None
                 else:
                     z = redshift
@@ -860,7 +1015,7 @@ class ModelSet(BlobFactory):
         self._ax.add_patch(rect)
         self._ax.figure.canvas.draw()
         
-        print (lx, lx+dx, ly, ly+dy)
+        print('{0:f} {1:f} {2:f} {3:f}'.format(lx, lx+dx, ly, ly+dy))
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
     
@@ -871,7 +1026,7 @@ class ModelSet(BlobFactory):
                         
             par = pars
             k = list(self.parameters).index(par)
-            vals = np.sort(np.unique(self.chain[:,k]))
+            vals = self.unique_samples[k]
             
             slices = []
             for i, val in enumerate(vals):
@@ -885,17 +1040,15 @@ class ModelSet(BlobFactory):
                 else:
                     lo = np.mean([vals[i-1], val])  
                     hi = np.mean([vals[i+1], val])  
-                    
+
                 slices.append(self.Slice([lo, hi], [par]))
-            
+
             return vals, slices
         else:
             vals
             for par in pars:
                 k = list(self.parameters).index(par)
-                vals.append(np.sort(np.unique(self.chain[:,k])))
-                
-                
+                vals.append(np.sort(np.unique(self.chain[:,k])))    
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
         un_log=False, multiplier=1.):
@@ -940,13 +1093,13 @@ class ModelSet(BlobFactory):
         xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
             np.abs(data[pars[0]].data - x2) <= MP)
         xok_pre = np.logical_or(xok_, xok_MP)
-        
+
         unmasked = np.logical_not(data[pars[0]].mask == 1)
         xok = np.logical_and(xok_pre, unmasked)
 
         if Nd == 2:
             yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
-            yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP, 
+            yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP,
                 np.abs(data[pars[1]] - y2) <= MP)
             yok = np.logical_or(yok_, yok_MP)
             to_keep = np.logical_and(xok, yok)
@@ -954,23 +1107,26 @@ class ModelSet(BlobFactory):
             to_keep = np.array(xok)
 
         mask = np.logical_not(to_keep)
-        
+
         ##
         # CREATE NEW MODELSET INSTANCE
         ##
         model_set = ModelSet(self.prefix)
         
-        # Set the mask!
-        model_set.mask = np.logical_or(mask, self.mask)
-                
+        # Set the mask.
+        # Must this be 2-D?
+        mask2d = np.array([mask] * self.chain.shape[1]).T
+        
+        model_set.mask = np.logical_or(mask2d, self.mask)
+
         i = 0
-        while hasattr(self, 'slice_%i' % i):
+        while hasattr(self, 'slice_{}'.format(i)):
             i += 1
-    
-        setattr(self, 'slice_%i' % i, model_set)
-        
-        print "Saved result to slice_%i attribute." % i
-        
+
+        setattr(self, 'slice_{}'.format(i), model_set)
+
+        print("Saved result to slice_{} attribute.".format(i))
+
         return model_set
         
     def SliceByElement(self, to_keep):
@@ -981,13 +1137,14 @@ class ModelSet(BlobFactory):
         model_set = ModelSet(self.prefix)
         
         # Set the mask! 
-        arr = np.arange(self.chain.shape[0])
-        mask = np.ones_like(arr)
+        keep = np.zeros(self.chain.shape[0])
         for i in to_keep:
-            mask[arr == i] = 0
-        
-        model_set.mask = np.logical_or(mask, self.mask)
-        
+            keep[i] = 1
+                                
+        old_keep = np.logical_not(self.mask)[:,0]    
+                
+        model_set.mask = np.logical_not(np.logical_and(keep, old_keep))
+                
         return model_set                                       
         
     def SliceByParameters(self, to_keep):
@@ -1125,7 +1282,7 @@ class ModelSet(BlobFactory):
     def plot_info(self, value):
         self._plot_info = value
         
-    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='first', 
+    def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
         ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
@@ -1134,9 +1291,14 @@ class ModelSet(BlobFactory):
         if pars is None:
             pars = self.parameters
 
+        if N == 'all':
+            N = self.nwalkers
+
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars/ncols, ncols), fig=fig, 
-            padding=(0.3, 0.3), **mp_kwargs)
+        while (Npars / float(ncols)) % 1 != 0:
+            Npars += 1
+            
+        mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
 
         w = self._get_walker_subset(N, walkers)
 
@@ -1144,7 +1306,7 @@ class ModelSet(BlobFactory):
             loc = None
         elif best_fit == 'median':
             N = len(self.logL)
-            loc = np.sort(self.logL)[int(N / 2.)]
+            loc = np.sort(self.logL)[N // 2]
         elif best_fit == 'mode':
             loc = np.argmax(self.logL)
 
@@ -1154,12 +1316,14 @@ class ModelSet(BlobFactory):
             if loc is None:
                 continue
 
-            k = self.parameters.index(par)
-            mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
-                [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
-            
-        mp.fix_ticks()
-            
+            # Plot current maximum likelihood value
+            if par in self.parameters:
+                k = self.parameters.index(par)
+                mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
+                    [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
+            else:
+                pass
+                
         return mp           
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
@@ -1184,17 +1348,25 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
-        if type(walkers) is str:
+        if isinstance(walkers, basestring):
             assert N < self.nwalkers, \
-                "Only %i walkers available!" % self.nwalkers
+                "Only {} walkers available!".format(self.nwalkers)
 
             to_plot = self._get_walker_subset(N, walkers)
         else:
             to_plot = walkers
         
         for i in to_plot:
-            data, mask = self.get_walker(i)
-            ax.plot(data[:,self.parameters.index(par)], **kwargs)
+            data, elements = self.get_walker(i)
+            if par in self.parameters:
+                y = data[:,self.parameters.index(par)]        
+            else:
+                keep = elements[:,0]
+                tmp = self.ExtractData(par)[par]
+                y = tmp[keep == 1]
+                                                    
+            x = np.arange(1, len(y)+1)
+            ax.plot(x, y, **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -1214,9 +1386,9 @@ class ModelSet(BlobFactory):
         assert type(pars) in [list, tuple]
         par1, par2 = pars
         
-        if type(walkers) is str:
+        if isinstance(walkers, basestring):
             assert N < self.nwalkers, \
-                "Only %i walkers available!" % self.nwalkers
+                "Only {} walkers available!".format(self.nwalkers)
 
             to_plot = self._get_walker_subset(N, walkers)
         else:
@@ -1250,7 +1422,9 @@ class ModelSet(BlobFactory):
         return ax
         
     def _get_walker_subset(self, N=50, walkers='random'):
+
         to_plot = np.arange(self.nwalkers)
+        
         if walkers == 'random':
             np.random.shuffle(to_plot)
             slc = slice(0, N)
@@ -1336,7 +1510,8 @@ class ModelSet(BlobFactory):
                 
                 new_pop_num = i_Tasc[pop_num]
                 
-                new_loc = self.parameters.index('%s{%i}' % (prefix, new_pop_num))
+                new_loc = self.parameters.index('{0!s}{{{1}}}'.format(prefix,\
+                    new_pop_num))
                 
                 tmp_pars[new_loc] = self.chain[i,k]
 
@@ -1348,17 +1523,31 @@ class ModelSet(BlobFactory):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology()
+            self._cosm = Cosmology(**self.pf)
         
         return self._cosm
+        
+    @property
+    def derived_blob_ivars(self):
+        if not hasattr(self, '_derived_blob_ivars'):
+            junk = self.derived_blob_names
+        return self._derived_blob_ivars
 
     @property
     def derived_blob_names(self):
-        if hasattr(self, '_derived_blob_names'):
+        #if not hasattr(self, '_derived_blob_names'):
+        self._derived_blob_ivars = {}
+        self._derived_blob_names = []
+        fn = '{}.dbinfo.pkl'.format(self.prefix)
+        if not os.path.exists(fn):
             return self._derived_blob_names
             
-        #self._derived_blob_names = self.derived_blobs
-        
+        with open(fn, 'rb') as f:
+            ivars = pickle.load(f)
+            self._derived_blob_ivars.update(ivars)
+            for key in ivars:
+                self._derived_blob_names.append(key)
+                
         return self._derived_blob_names
         
     def set_constraint(self, add_constraint=False, **constraints):
@@ -1499,11 +1688,12 @@ class ModelSet(BlobFactory):
             adata = self.ExtractData(aux)[aux]
 
         if c is not None:
+
             _cdata = data[p[2]].squeeze()
             
             if operation is None:
                 cdata = _cdata
-            elif type(operation) is str:
+            elif isinstance(operation, basestring):
                 assert self.Nd > 2
                 
                 # There's gotta be a faster way to do this...
@@ -1525,7 +1715,7 @@ class ModelSet(BlobFactory):
                 cdata = np.zeros_like(_cdata)
                 for i, idnum in enumerate(np.unique(ids)):
                                         
-                    #if type(operation) is str:   
+                    #if isinstance(operation, basestring):   
                     tmp = _cdata[ids == idnum]
                     if operation == 'mean':
                         cdata[ids == idnum] = np.mean(tmp)
@@ -1560,34 +1750,13 @@ class ModelSet(BlobFactory):
         else:
             cdata = None
 
-        if line_plot:
-            # The ordering of the points doesn't matter
-            if sort_by == 'z' and (cdata is not None):
-                order = np.argsort(cdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                cdata = cdata[order]                    
-            elif sort_by == 'x':
-                order = np.argsort(xdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]
-            elif sort_by == 'y':
-                order = np.argsort(ydata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]            
-
-            func = ax.__getattribute__('plot')
-        else:
-            func = ax.__getattribute__('scatter')
+        # Seems unecessary...a method inherited from days past?
+        func = ax.__getattribute__('scatter')
             
         if filter_z is not None:
             _condition = np.isclose(cdata, filter_z)
             if not np.any(_condition):
-                print "No instances of %s=%.4g" % (p[2], filter_z)
+                print("No instances of {0!s}={1:.4g}".format(p[2], filter_z))
                 return
             
             xd = xdata[_condition]
@@ -1596,10 +1765,22 @@ class ModelSet(BlobFactory):
             
         else:
             _condition = None
-            xd = xdata
-            yd = ydata
-            cd = cdata
+            
+            mask = np.logical_or(xdata.mask == True, ydata.mask == True)
                         
+            if cdata is not None:
+                mask = np.logical_or(mask == True, cdata.mask == True)
+            
+            print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
+            
+            xd = xdata[mask == 0]
+            yd = ydata[mask == 0]
+            
+            if cdata is not None:
+                cd = cdata[mask == 0]
+            else:
+                cd = cdata
+
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
                 label=rung_label, label_on_top=rung_label_top, **kwargs)
@@ -1607,7 +1788,7 @@ class ModelSet(BlobFactory):
             scat = func(xd, yd, c=self.weights, **kwargs)
         elif line_plot:
             scat = func(xd, yd, **kwargs)
-        elif cdata is not None and (filter_z is None):
+        elif (cdata is not None) and (filter_z is None):
             scat = func(xd, yd, c=cd, **kwargs)
         else:
             scat = func(xd, yd, **kwargs)
@@ -1625,11 +1806,11 @@ class ModelSet(BlobFactory):
             cb = None
         
         self._scat = scat
-            
+
         # Might use this for slicing 
         self.plot_info = {'pars': pars, 'ivar': ivar,
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
-            
+
         # Make labels
         self.set_axis_labels(ax, p, take_log, un_log, cb)
 
@@ -1643,11 +1824,11 @@ class ModelSet(BlobFactory):
             return ax
         
     def _fix_tick_labels(self, ax):
-        tx = map(int, ax.get_xticks())
-        ax.set_xticklabels(map(str, tx))
+        tx = list(map(int, ax.get_xticks()))
+        ax.set_xticklabels(list(map(str, tx)))
         
-        ty = map(int, ax.get_yticks())
-        ax.set_yticklabels(map(str, ty))
+        ty = list(map(int, ax.get_yticks()))
+        ax.set_yticklabels(list(map(str, ty)))
         
         pl.draw()
         
@@ -1752,7 +1933,7 @@ class ModelSet(BlobFactory):
         ydata = self.ydata = data[pars[1]].compressed()
 
         # Organize into (x, y) pairs
-        points = zip(xdata, ydata)
+        points = list(zip(xdata, ydata))
 
         # Create polygon object
         point_collection = geometry.MultiPoint(list(points))
@@ -1764,7 +1945,8 @@ class ModelSet(BlobFactory):
         elif boundary_type == 'envelope':
             polygon = point_collection.envelope
         else:
-            raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
+            raise ValueError('Unrecognized boundary_type={!s}!'.format(\
+                boundary_type))        
 
         # Plot a Polygon using descartes
         if add_patch and (polygon is not None):
@@ -1785,7 +1967,7 @@ class ModelSet(BlobFactory):
                 try:
                     ax.add_collection(PatchCollection(patches, match_original=True))
                 except TypeError:
-                    print 'Patches:', patches
+                    print('Patches: {!s}'.format(patches))
 
             pl.draw()
 
@@ -1893,14 +2075,14 @@ class ModelSet(BlobFactory):
             Returns x-values corresponding to desired quartile range, i.e.,
             not really an error-bar.
         else:
-            tuple: (maximum likelihood value, negative error, positive error).
+            tuple: (maximum likelihood value, positive error, negative error).
         """
 
         to_hist = self.ExtractData(par, ivar=ivar, take_log=take_log, 
             multiplier=multiplier, un_log=un_log)
 
         # Need to weight results of non-MCMC runs explicitly
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -1956,15 +2138,16 @@ class ModelSet(BlobFactory):
             q1 = 100 * (1. - nu)
             q2 = 100
         else:
-            raise ValueError('Unrecognized option for \'limit\': %s' % limit)
+            raise ValueError('Unrecognized option for \'limit\': {!s}'.format(\
+                limit))
                                 
         # Do it already            
         lo, hi = np.percentile(tohist, (q1, q2))
                                 
         if (mu is not None) and (limit is None):
-            sigma = (mu - lo, hi - mu)
+            sigma = (hi - mu, mu - lo)
         else:
-            sigma = (lo, hi)
+            sigma = (hi, lo)
 
         return mu, np.array(sigma)
         
@@ -1989,7 +2172,7 @@ class ModelSet(BlobFactory):
         if not self.is_mcmc:
             self.set_constraint(**constraints)
         
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -2120,7 +2303,7 @@ class ModelSet(BlobFactory):
                     to_hist.append(val)
 
             else:
-                raise ValueError('Unrecognized parameter %s' % str(par))
+                raise ValueError('Unrecognized parameter {!s}'.format(par))
 
             if not bins:
                 continue
@@ -2162,14 +2345,14 @@ class ModelSet(BlobFactory):
         multiplier=1., remove_nas=False):
         """
         Extract data for subsequent analysis.
-        
+
         This means a few things:
          (1) Go retrieve data from native format without having to worry about
           all the indexing yourself.
          (2) [optionally] take the logarithm.
          (3) [optionally] apply multiplicative factors.
          (4) Create a mask that excludes all nans / infs.
-         
+
         Parameters
         ----------
         pars : list
@@ -2201,7 +2384,7 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-        
+                
         data = {}
         for k, par in enumerate(pars):
                                 
@@ -2223,6 +2406,11 @@ class ModelSet(BlobFactory):
                 # Take log, unless the parameter is already in log10
                 if take_log[k] and (not self.is_log[j]):
                     val = np.log10(val)
+               
+            elif par == 'logL':
+                val = self.logL
+            elif par == 'load':
+                val = self.load                        
                                         
             # Blobs are a little harder, might need new mask later.
             elif par in self.all_blob_names:
@@ -2234,29 +2422,28 @@ class ModelSet(BlobFactory):
                 else:
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
-                # Blobs are never stored as log10 of their true values
+                # Blobs are never stored as log10 of their true values         
                 val *= multiplier[k]
-                
-            elif par == 'load':
-                val = self.load
                 
             # Only derived blobs in this else block, yes?                        
             else:
                 
                 if re.search("\[", self.prefix):
-                    print "WARNING: filenames with brackets can cause problems for glob."
-                    print "       : replacing each occurence with '?'"
+                    print("WARNING: filenames with brackets can cause problems for glob.")
+                    print("       : replacing each occurence with '?'")
                     _pre = self.prefix.replace('[', '?').replace(']', '?')
                 else:
                     _pre = self.prefix
                 
-                cand = sorted(glob.glob('%s.*.%s.pkl' % (_pre, par)))
+                cand = sorted(glob.glob('{0!s}.*.{1!s}.pkl'.format(_pre, par)))
                 
                 if len(cand) == 0:
-                    cand = sorted(glob.glob('%s*.%s.pkl' % (_pre, par)))
+                    cand =\
+                        sorted(glob.glob('{0!s}*.{1!s}.pkl'.format(_pre, par)))
                 
                 if len(cand) == 0:
-                    raise IOError('No results for %s*.%s.pkl' % (self.prefix, par))
+                    raise IOError('No results for {0!s}*.{1!s}.pkl'.format(\
+                        self.prefix, par))
                 # Only one option: go for it.
                 elif len(cand) == 1:
                     fn = cand[0]
@@ -2273,12 +2460,11 @@ class ModelSet(BlobFactory):
                     else:
                         fn = cand[1]
                 else:
-                    print cand
-                    raise IOError('More than 2 options for %s*%s.pkl' % (self.prefix, par))
-                    
-                f = open(fn, 'rb')     
-                dat = pickle.load(f)
-                f.close()
+                    print('{!s}'.format(cand))
+                    raise IOError(('More than 2 options for ' +\
+                        '{0!s}*{1!s}.pkl').format(self.prefix, par))
+                
+                dat = read_pickle_file(fn, nloads=1, verbose=False)
                 
                 # What follows is real cludgey...sorry, future Jordan
                 nd = len(dat.shape) - 1
@@ -2292,31 +2478,34 @@ class ModelSet(BlobFactory):
                 # Right now this may only work with 1-D blobs...
                 if (nd == 2) and (ivar[k] is not None):
                     
-                    fn_md = '%s.dbinfo.pkl' % self.prefix
-                    f = open(fn_md, 'r')
-                    dbinfo = {}
-                    while True:
-                        try:
-                            dbinfo.update(pickle.load(f))
-                        except EOFError:
-                            break
-                    
-                    # Look up the independent variables for this DB
-                    ivars = dbinfo[par]
+                    fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)
+                    #dbinfo = {}
+                    #dbinfos =\
+                    #    read_pickle_file(fn_md, nloads=None, verbose=False)
+                    #for info in dbinfos:
+                    #    dbinfo.update(info)
+                    #del dbinfos
 
-                    for iv in ivars:                            
-                        arr = np.array(ivars[iv]).squeeze()
-                        if arr.shape == dat[0].shape:
-                            break
+                    # Look up the independent variables for this DB
+                    #ivars = dbinfo[par]
+                    ivars = self.derived_blob_ivars[par]
+
+                    i1 = np.argmin(np.abs(ivars[0] - ivar[k][0]))
+                    i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
                     
-                    loc = np.argmin(np.abs(arr - ivar[k]))
+                    #for iv in ivars:                            
+                    #    arr = np.array(iv).squeeze()
+                    #    if arr.shape == dat[0].shape:
+                    #        break
+                    #
+                    #loc = np.argmin(np.abs(arr - ivar[k]))
                 
-                    val = dat[:,loc]
+                    val = dat[:,i1,i2]
                 elif nd > 2:
                     raise NotImplementedError('help')
                 else:
                     val = dat
-                    
+                                
             # must handle log-ifying blobs separately
             if par not in self.parameters:
                 if take_log[k]:
@@ -2344,10 +2533,18 @@ class ModelSet(BlobFactory):
                 # we need to make sure that every blob element corresponding
                 # to those links are masked.
                 else:
-                    mask = np.zeros_like(val)
-                    for j, element in enumerate(self.mask):
-                        if np.all(element == 1):
-                            mask[j].fill(1)
+                    #print("hello, {}".format(self.mask[:,0].sum()))
+                    
+                    mask = self.mask[:,0]
+                    
+                    
+                    
+                    #mask = np.zeros_like(val)
+                    #for j, element in enumerate(self.mask[:,0]):
+                    #    if np.all(element == 1):
+                    #        mask[j].fill(1)
+                    #        
+                    #print(mask.sum())
             else:
                 mask = self.mask
 
@@ -2357,13 +2554,13 @@ class ModelSet(BlobFactory):
                 try:
                     data[par] = np.ma.array(val, mask=mask)
                 except np.ma.MaskError:
-                    print "MaskError encountered. Assuming mask=0."
-                        
+                    print("MaskError encountered. Assuming mask=0.")
+                    
                     data[par] = np.ma.array(val, mask=0)
 
         if remove_nas:
             to_remove = []
-            length = len(data[data.keys()[0]])
+            length = len(data[list(data.keys())[0]])
             for ilink in range(length):
                 for par in data:
                     elem = data[par][ilink]
@@ -2383,9 +2580,8 @@ class ModelSet(BlobFactory):
                             break
             for par in data:
                 data[par] = np.delete(data[par], to_remove, axis=0)
-            print ("%i of %i " % (len(to_remove),length,)) +\
-                  "chain elements ignored because of chain links with " +\
-                  "inf's/nan's."
+            print(("{0} of {1} chain elements ignored because of chain " +\
+                "links with inf's/nan's.").format(len(to_remove), length))
 
         return data
 
@@ -2595,7 +2791,7 @@ class ModelSet(BlobFactory):
         if 'labels' in kw:
             labels = kwargs['labels']
         else:
-            labels = {}
+            labels = self.custom_labels
             
         # Only make a new plot window if there isn't already one
         if ax is None:
@@ -2618,7 +2814,7 @@ class ModelSet(BlobFactory):
         binvec = self._set_bins(pars, to_hist, take_log, bins)
 
         # We might supply weights by-hand for ModelGrid calculations
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -2744,6 +2940,7 @@ class ModelSet(BlobFactory):
             if not gotax:
                 ax.set_xscale('linear')
                 ax.set_yscale('linear')
+                
             
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
@@ -2919,27 +3116,27 @@ class ModelSet(BlobFactory):
             if self.chain.shape[0] > zax.shape[0]:
                 xax = xax[0:self.blobs.shape[0]]
                 yax = yax[0:self.blobs.shape[0]]
-                print 'Looks like calculation was terminated after chain',
-                print 'was written to disk, but before blobs. How unlucky!'
-                print 'Applying cludge to ensure shape match...'
-            else:                
+                print("Looks like calculation was terminated after chain " +\
+                    "was written to disk but before blobs. How unlucky!")
+                print("Applying cludge to ensure shape match...")
+            else:
                 raise ValueError('Shape mismatch between blobs and chain!')    
-                
+
         if take_log[2]:
-            zax = np.log10(zax)    
-            
+            zax = np.log10(zax)
+
         z.pop(-1)
         ax = self.PosteriorPDF(pars, z=z, take_log=take_log, fill=False, 
             bins=bins, **kwargs)
-        
+
         # Pick out Nscat random points to plot
         mask = np.zeros_like(xax, dtype=bool)
         rand = np.arange(len(xax))
         np.random.shuffle(rand)
         mask[rand < Nscat] = True
-        
+
         if zbins is not None:
-            cmap_obj = eval('mpl.colorbar.cm.%s' % cmap)
+            cmap_obj = eval('mpl.colorbar.cm.{!s}'.format(cmap))
             #if take_log[2]:
             #    norm = mpl.colors.LogNorm(zbins, cmap_obj.N)
             #else:    
@@ -2993,7 +3190,7 @@ class ModelSet(BlobFactory):
         letters.extend([let*2 for let in list(string.ascii_lowercase)])
         
         
-        if type(panel) is str:
+        if isinstance(panel, basestring):
             panel = letters.index(panel)
         
         info = self.plot_info[panel]
@@ -3030,7 +3227,7 @@ class ModelSet(BlobFactory):
         bins=20,  scatter=False, polygons=False, 
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
         show_errors=False, label_panels=None, 
-        fix=True, skip_panels=[], mp_kwargs={},
+        fix=True, skip_panels=[], mp_kwargs={}, 
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3097,14 +3294,13 @@ class ModelSet(BlobFactory):
         ..note:: If you set take_log = True AND supply bins by hand, use the
             log10 values of the bins you want.
         
-            
         Returns
         -------
         ares.analysis.MultiPlot.MultiPanel instance. Also saves a bunch of 
         information to the `plot_info` attribute.
-        
+
         """    
-        
+
         # Grab data that will be histogrammed
         np_version = np.__version__.split('.')
         newer_than_one = (int(np_version[0]) > 1)
@@ -3299,9 +3495,10 @@ class ModelSet(BlobFactory):
                                 
                 self.plot_info[k]['input'] = (xin, yin)
 
+                mult = np.array([0.995, 1.005])
+
                 # Plot as dotted lines
                 if xin is not None:
-                    mult = np.array([0.995, 1.005])
                     mp.grid[k].plot([xin]*2, mult * np.array(mp.grid[k].get_ylim()), 
                         color='k',ls=':', zorder=20)
                 if yin is not None:
@@ -3332,19 +3529,19 @@ class ModelSet(BlobFactory):
                 continue
         
             if label_panels == 'upper left':
-                ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
+                ax.annotate('({!s})'.format(letters[ct]), (0.05, 0.95),
                     xycoords='axes fraction', ha='left', va='top')
             elif label_panels == 'upper right':
-                ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                ax.annotate('({!s})'.format(letters[ct]), (0.95, 0.95),
                     xycoords='axes fraction', ha='right', va='top')
             elif label_panels == 'upper center':
-                ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
+                ax.annotate('({!s})'.format(letters[ct]), (0.5, 0.95),
                     xycoords='axes fraction', ha='center', va='top')
             elif label_panels == 'lower right':
-                ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
-                    xycoords='axes fraction', ha='right', va='top')                
+                ax.annotate('({!s})'.format(letters[ct]), (0.95, 0.95),
+                    xycoords='axes fraction', ha='right', va='top')
             else:
-                print "WARNING: Uncrecognized label_panels option."
+                print("WARNING: Uncrecognized label_panels option.")
                 break
         
             ct += 1    
@@ -3403,7 +3600,8 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='mode', fill=True, samples=None, apply_dc=False, **kwargs):
+        best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
+        E_to_freq=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3424,6 +3622,10 @@ class ModelSet(BlobFactory):
                 # If LF data, plot z evolution of phi(MUV=-20)
                 ivar = [None, -20]
         
+        ivars : np.ndarray
+            If this is a derived blob, supply ivars by hand. Need to write
+            automated way of figuring this out.
+        
         percentile : bool, float    
             If not False, should be the confidence interval to plot, e.g, 0.68.
         use_best : bool
@@ -3432,9 +3634,9 @@ class ModelSet(BlobFactory):
         samples : int, str
             If 'all', will plot all realizations individually. If an integer,
             will plot only that many realizations, drawn randomly.
-            
+ 
         """
-        
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -3446,39 +3648,55 @@ class ModelSet(BlobFactory):
             q1 = 0.5 * 100 * (1. - percentile)    
             q2 = 100 * percentile + q1
             
-        if type(names) is str:
+        if isinstance(names, basestring):
             names = [names]
-            
-        max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())    
+
+        max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())
+                
         if samples is not None:
             if type(samples) == int:
                 samples = min(max_samples, samples)
-            
+                            
         # Step 1: figure out ivars  
-        info = self.blob_info(names[0])
-        nd = info[2]
-        
-        if nd == 1:
-            ivars = np.atleast_2d(self.blob_ivars[info[0]])
-        else:
-            ivars = self.blob_ivars[info[0]]
-        
+        try:
+            info = self.blob_info(names[0])
+            nd = info[2]
+        except KeyError:
+            print("WARNING: blob {} not found by `blob_info`.".format(names[0]))
+            print("       : Making some assumptions...")
+
+            if ivars is None:
+                ivars = self.get_ivars(names[0])
+            else:
+                if type(ivars) is str:
+                    ivars = np.array(self.get_ivars(ivars))
+                else:
+                    ivars = np.atleast_2d(ivars)    
+
+            nd = len(ivars)
+
+        if ivars is None:    
+            if nd == 1:
+                # This first case happens when reading from hdf5 since the
+                # blobs there aren't nested.
+                if info[0] is None:
+                    ivars = np.atleast_2d(self.blob_ivars[0])
+                else:    
+                    ivars = np.atleast_2d(self.blob_ivars[info[0]])
+            else:
+                assert len(names) == 1
+                if names[0] in self.derived_blob_names:
+                    ivars = self.derived_blob_ivars[names[0]]
+                else:
+                    ivars = self.blob_ivars[info[0]]
+
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
-                
-        # Grab the maximum likelihood point
-        if use_best and self.is_mcmc:
-            if best == 'median':
-                N = len(self.logL[skip:stop])
-                psorted = np.argsort(self.logL[skip:stop])
-                loc = psorted[int(N / 2.)]
-            else:
-                loc = np.argmax(self.logL[skip:stop])
                 
         ##
         # Real work starts here.
         ##
-        
+                        
         # First, read-in data from disk. Slice it up depending on if 
         # skip or stop were provided. Squeeze arrays to remove NaNs etc.
         
@@ -3486,8 +3704,8 @@ class ModelSet(BlobFactory):
         if nd == 1:
             
             # Read in the independent variable(s) and data itself
-            xarr = ivars[0]            
-        
+            xarr = ivars[0]     
+                    
             if len(names) == 1:
                 tmp = self.ExtractData(names[0], 
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
@@ -3500,19 +3718,49 @@ class ModelSet(BlobFactory):
                 
                 # In this case, xarr is 2-D. Need to be more careful...
                 assert use_best
+                                     
+            # Only keep runs where ALL elements are OK.
+            mask = np.all(yblob.mask == True, axis=1)
+            keep = np.array(np.logical_not(mask), dtype=int)
+            nans = np.any(np.isnan(yblob.data), axis=1)
+                                         
+            if skip is not None:
+                keep[0:skip] *= 0
+            if stop is not None:
+                keep[stop: ] *= 0
             
+            # Grab the maximum likelihood point
+            if use_best and self.is_mcmc:
+                if best == 'median':
+                    N = len(self.logL[keep == 1])
+                    psorted = np.argsort(self.logL[keep == 1])
+                    loc = psorted[int(N / 2.)]
+                else:
+                    loc = np.argmax(self.logL[keep == 1])
+                
+                print('loc={}'.format(loc), keep.sum(), keep.size)
+                
+            # A few NaNs ruin everything
+            if np.any(nans):
+                print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), names[0]))
+                keep[nans == 1] = 0
+                
             y = []
             for i, x in enumerate(xarr):
+                
+                # used to have compressed() here in a few places,
+                # but it can mess up the shape for plotting...why
+                # would certain channels get masked?
+                                
                 if (samples is not None):
-                    y.append(yblob[:,i].compressed())
+                    y.append(yblob[keep == 1,i]) 
                 elif (use_best and self.is_mcmc):
-                    y.append(yblob[:,i][skip:stop][loc])
+                    y.append(yblob[keep == 1,i][loc])
                 elif percentile:
-                    lo, hi = np.percentile(yblob[:,i][skip:stop].compressed(), 
-                        (q1, q2))
+                    lo, hi = np.percentile(yblob[keep == 1,i], (q1, q2))
                     y.append((lo, hi))
                 else:
-                    dat = data[:,i][skip:stop].compressed()
+                    dat = data[keep == 1,i]
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
 
@@ -3526,88 +3774,125 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                                   
+            
+            if type(multiplier) not in [list, np.ndarray, tuple]:
+                multiplier = [multiplier] * len(vector)
+                                                                      
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
-                
+                              
+                # Would be faster to pull this outside the loop                
                 tmp = self.ExtractData(names, ivar=[iv]*len(names),
-                    take_log=take_log, un_log=un_log, multiplier=multiplier)
+                    take_log=take_log, un_log=un_log, multiplier=[multiplier[i]])
                  
                 if len(names) == 1:
-                    yblob = tmp[names[0]].squeeze()
+                    yblob = tmp[names[0]]
                 else:    
-                    xblob = tmp[names[0]].squeeze()
-                    yblob = tmp[names[1]].squeeze() 
-                        
+                    xblob = tmp[names[0]]
+                    yblob = tmp[names[1]]
+
+                #keep = np.ones_like(yblob.shape[0])
+
+                mask = yblob.mask == True
+                keep = np.array(np.logical_not(mask), dtype=int)
+                nans = np.any(np.isnan(yblob.data)) 
+
+                if skip is not None:
+                    keep[0:skip] *= 0
+                if stop is not None:
+                    keep[stop: ] *= 0
+
+                # Grab the maximum likelihood point
+                if use_best and self.is_mcmc:
+                    if best == 'median':
+                        N = len(self.logL[keep == 1])
+                        psorted = np.argsort(self.logL[keep == 1])
+                        loc = psorted[int(N / 2.)]
+                    else:
+                        loc = np.argmax(self.logL[keep == 1])    
+                
+                if np.all(yblob[keep == 1].mask == 1):
+                    print("WARNING: elements all masked!")
+                    y.append(-np.inf)
+                    continue
+
                 if (use_best and self.is_mcmc):
                     #x.append(xblob[name][skip:stop][loc])        
-                    y.append(yblob[skip:stop][loc]) 
+                    y.append(yblob[loc]) 
                 elif samples is not None:
-                    y.append(yblob[skip:stop]) 
+                    y.append(yblob[keep == 1]) 
                 elif percentile:
-                    lo, hi = np.percentile(yblob[skip:stop].compressed(),
-                        (q1, q2))
-                    y.append((lo, hi))
+                    lo, hi = np.percentile(yblob[keep == 1], (q1, q2))
+                    y.append((lo, hi))                    
                 else:
-                    dat = yblob[skip:stop].compressed()
+                    dat = yblob[keep == 1]
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
 
         # This assumes scalar is z!
         if apply_dc:
-            xarr = self.dc.Mobs(scalar, xarr)
+            xarr = self.dust.Mobs(scalar, xarr)
 
         y = np.array(y)
-        
+                        
         # At this stage, shape of y is (Nsamples, xarr)?
 
         # Convert redshifts to frequencies    
         if z_to_freq:
             xarr = nu_0_mhz / (1. + xarr)
+            
+        if E_to_freq:
+            xarr = xarr * erg_per_ev / h_p
 
         ##
         # Do the actual plotting
         ##
-        
+                
         # Limit number of realizations
         if samples is not None:
             M = min(min(self.chain.shape[0], max_samples), len(y.T))            
             
             if samples == 'all':
-                elements = np.arange(0, M)
-            elif type(samples) == int:    
-                elements = np.random.randint(0, M, size=samples)
-            else:    
-                elements = samples
+                # Unmasked elements only
+                elements = np.argwhere(self.mask == 0).squeeze()
+                for i, element in enumerate(elements):
+                    ax.plot(xarr, y.T[i], **kwargs)
+            else:
+                # Choose randomly 
+                if type(samples) == int:    
+                    elements = np.random.randint(0, M, size=samples)
+                # Or take from list
+                else:    
+                    elements = samples
                 
-            for i, element in enumerate(range(M)):
-                if element not in elements:
-                    continue
-
-                ax.plot(xarr, y.T[element], **kwargs)
+                for element in range(M):
+                    if element not in elements:
+                        continue
+                        
+                    ax.plot(xarr, y.T[element], **kwargs)
   
         elif use_best and self.is_mcmc:
-            if take_log:
-                y = 10**y
 
             # Don't need to transpose in this case
             ax.plot(xarr, y, **kwargs)
         else:
         
-            if take_log:
-                y = 10**y
-            else:
-                # Where y is zero, set to small number?
-                zeros = np.argwhere(y == 0)
-                for element in zeros:
-                    y[element[0],element[1]] = 1e-15
+            #if not take_log:
+            #    # Where y is zero, set to small number?
+            #    zeros = np.argwhere(y == 0)
+            #    for element in zeros:
+            #        y[element[0],element[1]] = 1e-15
             
             if fill:
                 ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
             else:
-                ax.plot(xarr, y[0], **kwargs)
-                ax.plot(xarr, y[1], **kwargs)
+                ax.plot(xarr, y.T[0], **kwargs)
+                
+                if 'label' in kwargs:
+                    del kwargs['label']
+                
+                ax.plot(xarr, y.T[1], **kwargs)
 
         ax.set_ylabel(self.labeler.label(names[0]))
 
@@ -3705,7 +3990,7 @@ class ModelSet(BlobFactory):
         for i, z in enumerate(redshifts):
             
             # Skip turning points for banded plots
-            if type(z) == str and plot_bands:
+            if isinstance(z, basestring) and plot_bands:
                 continue
             
             # Only plot label once
@@ -3725,7 +4010,7 @@ class ModelSet(BlobFactory):
                 continue    
             
             # Error on redshift
-            if type(z) == str and not plot_bands:
+            if isinstance(z, basestring) and not plot_bands:
                 if blob == 'dTb':
                     mu_z, (z_err1, z_err2) = \
                         self.get_1d_error('nu', ivar=z, nu=like, bins=bins)
@@ -3800,7 +4085,6 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
-                
         data = self.ExtractData(pars, ivar=ivar)
         
         blob_vec = []
@@ -3810,7 +4094,19 @@ class ModelSet(BlobFactory):
         mu  = np.ma.mean(blob_vec, axis=1)
         cov = np.ma.cov(blob_vec)
 
-        return mu, cov    
+        return mu, cov
+
+    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None,\
+        cmap='RdBu_r'):
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
+        if ax is None:
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+
+        cax = ax.imshow(cov, interpolation='none', cmap=cmap)
+        cb = pl.colorbar(cax)
+
+        return ax, cb
         
     def AssembleParametersList(self, N=None, ids=None, include_bkw=False, 
         **update_kwargs):
@@ -3846,24 +4142,30 @@ class ModelSet(BlobFactory):
         all_kwargs = []
         for i, element in enumerate(self.chain):
             
-            if self.mask[i]:
+            if sum(self.mask[i]):
                 continue
             
             if ids is not None:
-                if (i != ids) or (i not in ids):
-                    continue
+                if type(ids) in [int, np.int64]:
+                    if (i != ids):
+                        continue
+                else:    
+                    if (i not in ids):
+                        continue
             elif N is not None:
                 if i >= N:
                     break
-                
+
             if include_bkw:
                 if ct == 0:
                     # Only print first time...could be thousands of iterations
-                    print "WARNING: Any un-pickleable kwargs will not have been saved in %s.binfo.pkl!" % self.prefix
+                    print(("WARNING: Any un-pickleable kwargs will not " +\
+                        "have been saved in {!s}.binfo.pkl!").format(\
+                        self.prefix))
                 kwargs = self.base_kwargs.copy()
             else:
                 kwargs = {}
-                
+
             for j, parameter in enumerate(self.parameters):
                 if type(self.chain) == np.ma.core.MaskedArray:
                     if self.is_log[j]:
@@ -3916,9 +4218,9 @@ class ModelSet(BlobFactory):
         """
 
         i, j, nd, dims = self.blob_info(name)
-        
+
         if (i is None) and (j is None):
-            f = h5py.File('%s.hdf5' % self.fn, 'r')
+            f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
             return f['blobs'][name].value
         
         blob = self.get_blob_from_disk(name)
@@ -3932,6 +4234,10 @@ class ModelSet(BlobFactory):
                 # Cludgey...
                 biv = np.array(self.blob_ivars[i]).squeeze()
                 k = np.argmin(np.abs(biv - ivar))
+                
+                if not np.allclose(biv[k], ivar):
+                    print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, ivar, biv[k])
+                
                 return blob[:,k]
         elif nd == 2:
             if ivar is None:
@@ -3940,24 +4246,46 @@ class ModelSet(BlobFactory):
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
             
+            if not np.allclose(self.blob_ivars[i][0][k1], ivar[0]):
+                print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
+                    ivar[0], self.blob_ivars[i][0][k1])
+            
+            
             if ivar[1] is None:
                 return blob[:,k1,:]
             else:
                 k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
+                
+                if self.blob_ivars[i][1][k2] != ivar[1]:
+                    print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
+                        ivar[1], self.blob_ivars[i][1][k2])
+                
                 return blob[:,k1,k2]    
     
-    def max_likelihood_parameters(self, method='median'):
+    def max_likelihood_parameters(self, method='mode', min_or_max='max'):
         """
         Return parameter values at maximum likelihood point.
+        
+        Parameters
+        ----------
+        method : str
+            median or mode
+            
         """
                     
         if method == 'median':
             N = len(self.logL)
             psorted = np.sort(self.logL)
-            iML = psorted[int(N / 2.)]
+            logL_med = psorted[int(N / 2.)]
+            iML = np.argmin(np.abs(self.logL - logL_med))
         else:
-            iML = np.argmax(self.logL)
-        
+            if min_or_max == 'max':
+                iML = np.argmax(self.logL)
+            else:
+                iML = np.argmin(self.logL)
+                
+        print('iML={}'.format(iML))
+                        
         self._max_like_pars = {}
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
@@ -3990,9 +4318,9 @@ class ModelSet(BlobFactory):
             Relates variables in `expr` to blobs. For example, 
             
             varmap = {'x': 'nu_D', 'y': 'nu_C'}
-        
+
         The remaining parameters are:
-        
+
         save : bool
             Save to disk? If not, just returns array.
         name : str
@@ -4001,46 +4329,46 @@ class ModelSet(BlobFactory):
         clobber : bool
             If file with same ``name`` exists, overwrite it?
 
-        """    
+        """
 
         if func is not None:
             data = self.ExtractData(fields)
             
             # Grab ivars
+            ivars_for_func = {}
             ivars = {}
             for key in data:
                 # Don't need ivars if we're manipulating parameters!
                 if key in self.parameters:
                     continue
-                    
+
                 # Might be a derived blob of derived blobs!
                 # Just err on the side of no ivars for now.  
-        
+
                 try: 
                     i, j, nd, size = self.blob_info(key)
+                    
+                    n = self.blob_ivarn[i]
+                    
                     ivars[key] = self.blob_ivars[i]
+                    
+                    for k, _name in enumerate(n):
+                        ivars_for_func[_name] = self.blob_ivars[i][k]
+                        
                 except KeyError:
+                    ivars_for_func[key] = None
                     ivars[key] = None
 
-            result = func(data, ivars)
-
+            result = func(data, ivars_for_func)
         else:
-        
-            blobs = varmap.values()
+            blobs = list(varmap.values())
             if ivar is not None:
                 iv = [ivar[blob] for blob in blobs]
             else:
-                iv = None    
-            
+                iv = None
+
             data = self.ExtractData(blobs, ivar=iv)
-            
-            # Assign data to variable names
-            for var in varmap.keys():
-                exec('%s = data[\'%s\']' % (var, varmap[var]))
-            
-            result = eval(expr)
-            
-            # Delete newly created local variables?
+            result = eval(expr, {var: data[varmap[var]] for var in varmap.keys()})
         
         if save:
             assert name is not None, "Must supply name for new blob!"
@@ -4048,16 +4376,16 @@ class ModelSet(BlobFactory):
             # First dimension is # of samples
             nd = len(result.shape) - 1
             
-            fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
+            fn = '{0!s}.blob_{1}d.{2!s}.pkl'.format(self.prefix, nd, name)
             
             if os.path.exists(fn) and (not clobber):
-                print '%s exists! Set clobber=True or remove by hand.' % fn
+                print(('{!s} exists! Set clobber=True or remove by ' +\
+                    'hand.').format(fn))
                 data = self.ExtractData(name)
                 return data[name]
         
-            f = open(fn, 'wb')
-            pickle.dump(result, f)
-            f.close()
+            write_pickle_file(result, fn, open_mode='w', ndumps=1,\
+                safe_mode=False, verbose=False)
             
             # 'data' contains all field used to derive this blob.
             # Shape of new blob must be the same
@@ -4072,42 +4400,48 @@ class ModelSet(BlobFactory):
                     ivars[key] = self.blob_ivars[i]
                 except KeyError:
                     ivars[key] = None
+                    
+            ##
+            # Need to save ivars under new blob name.
+            # Require ivars of component fields to be the same?
+            ##
             
-            # Save metadata about this derived blob
-            fn_md = '%s.dbinfo.pkl' % self.prefix
-            if (not os.path.exists(fn_md)) or clobber:                                                                     
-                f = open(fn_md, 'w')
-                pickle.dump({name: ivars}, f)
-                f.close()
+            ivars_f = {}
+            if len(ivars.keys()) == 1:
+                ivars_f[name] = ivars[ivars.keys()[0]]
             else:
-                f = open(fn_md, 'r')
-                while True:
-                    
-                    pdat = None
-                    
-                    try:
-                        pdat = pickle.load(f)
-                        if name in pdat:
-                            if pdat[name] == ivars:
-                                break
-                    except EOFError:
-                        break
-
-                f.close()
-
+                keys = ivars.keys()
+                for k in range(1, len(keys)):
+                    assert ivars[keys[k]] == ivars[keys[k-1]]
+                
+                ivars_f[name] = ivars[ivars.keys()[0]]
+                         
+            # Save metadata about this derived blob
+            fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)
+            
+            if (not os.path.exists(fn_md)) or clobber:
+                write_pickle_file(ivars_f, fn_md, open_mode='w',\
+                    ndumps=1, safe_mode=False, verbose=False)
+            else:
+                pdats = read_pickle_file(fn_md, nloads=None, verbose=False)
+                for pdat in pdats:
+                    if name in pdat:
+                        if pdat[name] == ivars_f[name]:
+                            break
                 if pdat is not None:
-                    f = open(fn_md, 'a')
-                    pickle.dump({name: ivars})
-                    f.close()
+                    write_pickle_file(ivars_f, fn_md, open_mode='a',\
+                        ndumps=1, safe_mode=False, verbose=False)
         
         return result
         
     def z_to_freq(self, clobber=False):
         for tp in list('BCD'):
-            self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
-                varmap={'x': 'z_%s' % tp}, name='nu_%s' % tp, clobber=clobber)
-            self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
-                varmap={'x': 'z_%sp' % tp}, name='nu_%sp' % tp, clobber=clobber)
+            self.DeriveBlob(expr='{:.5g} / (1. + x)'.format(nu_0_mhz),\
+                varmap={'x': 'z_{!s}'.format(tp)}, name='nu_{!s}'.format(tp),\
+                clobber=clobber)
+            self.DeriveBlob(expr='{:.5g} / (1. + x)'.format(nu_0_mhz),\
+                varmap={'x': 'z_{!s}p'.format(tp)},\
+                name='nu_{!s}p'.format(tp), clobber=clobber)
                 
     def RankModels(self, **kwargs):
         """
@@ -4150,15 +4484,16 @@ class ModelSet(BlobFactory):
         return sorter, new_kw, scores
         
     def export(self, pars, prefix=None, fn=None, ivar=None, path='.', 
-        fmt='hdf5', clobber=False):
+        fmt='hdf5', clobber=False, skip=0, stop=None):
         """
         Just a wrapper around `save' routine.
         """
         self.save(pars, prefix=prefix, fn=fn, ivar=ivar, 
-            path=path, fmt=fmt, clobber=clobber)
+            path=path, fmt=fmt, clobber=clobber, skip=skip, stop=stop)
         
     def save(self, pars, prefix=None, fn=None, ivar=None, path='.', fmt='hdf5', 
-        clobber=False, include_chain=True, restructure_grid=False):
+        clobber=False, include_chain=True, restructure_grid=False,
+        skip=0, stop=None):
         """
         Extract data from chain or blobs and output to separate file(s).
         
@@ -4191,13 +4526,15 @@ class ModelSet(BlobFactory):
             
             for par in pars:
                 if par in self.parameters:
-                    print "FYI: %s is a free parameter, so there's no need to include it explicitly." % par
+                    print(("FYI: {!s} is a free parameter, so there's no " +\
+                        "need to include it explicitly.").format(par))
 
         data = self.ExtractData(pars, ivar=ivar)
         
         if fn is None:
             assert prefix is not None
-            fn = '%s/%s.%s.%s' % (path,self.prefix, prefix, fmt)
+            fn =\
+                '{0!s}/{1!s}.{2!s}.{3!s}'.format(path,self.prefix, prefix, fmt)
         
         if os.path.exists(fn) and (not clobber):
             raise IOError('File exists! Set clobber=True to wipe it.')
@@ -4208,12 +4545,12 @@ class ModelSet(BlobFactory):
             assert have_h5py, "h5py import failed."
             
             f = h5py.File(fn, 'w')
-            
+
             if include_chain:
-                ds = f.create_dataset('chain', data=self.chain)
+                ds = f.create_dataset('chain', data=self.chain[skip:stop])
                 ds.attrs.create('names', data=self.parameters)
                 ds.attrs.create('is_log', data=self.is_log)
-                f.create_dataset('mask', data=self.mask)
+                f.create_dataset('mask', data=self.mask[skip:stop])
             else:
                 # raise a warning? eh.
                 pass
@@ -4227,8 +4564,8 @@ class ModelSet(BlobFactory):
                 else:
                     grp = f['blobs']
                 
-                dat = data[par]#[skip:stop:skim,Ellipsis]
-                ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                dat = data[par][skip:stop]#[skip:stop:skim,Ellipsis]
+                ds = grp.create_dataset(par, data=dat[self.mask[skip:stop] == 0])
                 
                 try:
                     i, j, nd, dims = self.blob_info(par)
@@ -4237,31 +4574,53 @@ class ModelSet(BlobFactory):
                         # This might cause problems if the ivars are real big.
                         ds.attrs.create('ivar', self.blob_ivars[i])
                 except KeyError:
-                    print "Missing ivar info for %s!" % par    
+                    print("Missing ivar info for {!s}!".format(par))    
                     
             f.close()
-            print "Wrote %s." % fn  
+            print("Wrote {!s}.".format(fn))  
                         
         else:
-            raise NotImplemented('Only support for hdf5 so far. Sorry!')
+            raise NotImplementedError('Only support for hdf5 so far. Sorry!')
             
         # Also make a copy of the info files with same prefix
         # since that's generally nice to have available.  
+
         # Well, it gives you a false sense of what data is available,
         # so sorry! Not doing that anymore.
-        #out = '%s/%s.%s.binfo.pkl' % (path, self.prefix, prefix)
-        #shutil.copy('%s.binfo.pkl' % self.prefix, out)
-        #print "Wrote %s." % out    
+        #out = '{0!s}/{1!s}.{2!s}.binfo.pkl'.format(path, self.prefix, prefix)
+        #shutil.copy('{!s}.binfo.pkl'.format(self.prefix), out)
+        #print "Wrote {!s}.".format(out)
         #
-        #out = '%s/%s.%s.pinfo.pkl' % (path, self.prefix, prefix)
-        #shutil.copy('%s.pinfo.pkl' % self.prefix, out)
-        #print "Wrote %s." % out
+        #out = '{0!s}/{1!s}.{2!s}.pinfo.pkl'.format(path, self.prefix, prefix)
+        #shutil.copy('{!s}.pinfo.pkl'.format(self.prefix), out)
+        #print "Wrote {!s}.".format(out)
         
+    @property
+    def custom_labels(self):
+        if not hasattr(self, '_custom_labels'):
+            self._custom_labels = {}
+        return self._custom_labels
+    
+    @custom_labels.setter
+    def custom_labels(self, value):
+    
+        assert type(value) is dict
+
+        if not hasattr(self, '_custom_labels'):
+            self._custom_labels = {}
+            
+        for key in value:
+            #if key not in self.parameters:
+            #    print("WARNING: custom_label for par `{}` no in parameters list.".format(key))
+        
+            self._custom_labels[key] = value[key]
+    
     @property
     def labeler(self):
         if not hasattr(self, '_labeler'):
             kw = self.base_kwargs if self.base_kwargs is not None else {}
-            self._labeler = Labeler(self.parameters, self.is_log, **kw)
+            self._labeler = Labeler(self.parameters, self.is_log, 
+                extra_labels=self.custom_labels, **kw)
         return self._labeler
         
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
@@ -4307,14 +4666,14 @@ class ModelSet(BlobFactory):
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-            
+
         # colorbar
         if cb is not None and len(pars) > 2:
             cb.set_label(labeler.label(pars[2], take_log=take_log[pars[2]], 
                 un_log=un_log[2]))
-        
+
         pl.draw()
-        
+
         return ax
 
     def _alpha_shape(self, points, alpha):

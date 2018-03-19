@@ -15,6 +15,7 @@ import re
 from .Toy import Toy
 from .Star import Star
 from .BlackHole import BlackHole
+from .SynthesisModel import SynthesisModel
 
 class Composite(object):
     """ Class for stitching together several radiation sources. """
@@ -42,7 +43,7 @@ class Composite(object):
         """ Construct list of RadiationSource class instances. """    
         
         sources = []
-        for i in xrange(self.Ns):
+        for i in range(self.Ns):
 
             sf = self.pf.copy()
                                                 
@@ -55,8 +56,12 @@ class Composite(object):
                 rs = BlackHole(**sf)
             elif sf['source_type'][i] == 'toy':
                 rs = Toy(**sf)
+            elif sf['source_type'][i] in ['cluster', 'galaxy']:
+                # Only difference is galaxies can have SFHs
+                rs = SynthesisModel(**sf)
             else:
-                msg = 'Unrecognized source_type: %s' % sf['source_type'][i]
+                msg = 'Unrecognized source_type: {!s}'.format(\
+                    sf['source_type'][i])
                 raise ValueError(msg)
             
             rs.grid = self.grid

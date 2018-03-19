@@ -39,13 +39,13 @@ default_blobs = (_blob_names, _blob_names)
 defaults = []
 
 for grp in pgroups:
-    defaults.append('%sParameters()' % grp)
+    defaults.append('{!s}Parameters()'.format(grp))
 
 def SetAllDefaults():
     pf = {'problem_type': 1}
     
     for pset in defaults:
-        exec('pf.update(%s)' % pset)
+        pf.update(eval('{!s}'.format(pset)))
         
     return pf
     
@@ -200,6 +200,8 @@ def PhysicsParameters():
     "collapse": 0,              # Referring to single-zone collapse
     "compton_scattering": 1,
     "recombination": 'B',
+    "exotic_heating": False,
+    'exotic_heating_func': None,
 
     "clumping_factor": 1,
 
@@ -209,6 +211,24 @@ def PhysicsParameters():
     "approx_Salpha": 1, # 1 = Salpha = 1
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
+
+    "approx_thermal_history": False,
+    "inits_Tk_p0": None,
+    "inits_Tk_p1": None,
+    "inits_Tk_p2": None,    # Set to -4/3 if thermal_hist = 'exp' to recover adiabatic cooling
+    "inits_Tk_p3": 0.0,
+    "inits_Tk_p4": np.inf,
+    "inits_Tk_p5": None,
+    "inits_Tk_dz": 1.,
+    
+    "Tbg": None,
+    "Tbg_p0": None,
+    "Tbg_p1": None,
+    "Tbg_p2": None,
+    "Tbg_p3": None,
+    "Tbg_p4": None,
+            
+    "spin_temperature_floor": None,
 
     # Lyman alpha sources
     "lya_nmax": 23,
@@ -236,7 +256,7 @@ def PhysicsParameters():
     'feedback_LW_Mmin_rtol': 0.0,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_sfrd_rtol': 1e-1,
-    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_atol': 0.0,
     'feedback_LW_sfrd_popid': None,
     'feedback_LW_zstart': None,
     'feedback_LW_mixup_freq': 5,
@@ -318,21 +338,21 @@ def DustParameters():
      'dustcorr_method': None,
 
      'dustcorr_beta': -2.,
-     
+
      # Only used if method is a list
      'dustcorr_ztrans': None,
-     
+
      # Intrinsic scatter in the AUV-beta relation
      'dustcorr_scatter_A': 0.0,
      # Intrinsic scatter in the beta-mag relation (gaussian)
      'dustcorr_scatter_B': 0.34,
-          
+
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
 
     }
-        
+
     pf.update(tmp)
     pf.update(rcParams)
 
@@ -443,7 +463,12 @@ def PopulationParameters():
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
+    "pop_MAR_interp": 'linear',
 
+    "pop_interp_MAR": 'linear',
+    "pop_interp_sfrd": 'cubic',
+    "pop_interp_lf": 'linear',
+    
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
@@ -489,6 +514,7 @@ def PopulationParameters():
     "pop_Emax": 3e4,
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
+    "pop_Enorm": None,
 
     "pop_Emin_xray": 2e2,
     
@@ -504,8 +530,8 @@ def PopulationParameters():
     "pop_Ja": None,
     "pop_Tk": None,
     "pop_xi": None,  
-    "pop_ne": None,  
-    
+    "pop_ne": None,
+
     # 
     "pop_ion_rate_cgm": None,
     "pop_ion_rate_igm": None,
@@ -513,11 +539,10 @@ def PopulationParameters():
 
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
-    "pop_k_heat_igm": None,
-    
+    "pop_k_heat_igm": None,    
 
     # Set time interval over which emission occurs
-    "pop_zform": 50.,
+    "pop_zform": 60.,
     "pop_zdead": 0.0,
 
     # Main parameters in our typical global 21-cm models
@@ -526,7 +551,7 @@ def PopulationParameters():
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
     "pop_sfr": None,
-    
+
     "pop_facc": 0.0,
     "pop_fsmooth": 1.0,
 
@@ -539,9 +564,15 @@ def PopulationParameters():
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
+    "pop_frd": None,
     "pop_fshock": 1.0,
+    
+    "pop_mdist": None,
+    "pop_age_res": 1.,
+    "pop_dlogM": 0.1,
 
     "pop_fobsc": 0.0,
+    "pop_fobsc_by_num": False,
 
     "pop_tab_z": None,
     "pop_tab_Mh": None,
@@ -571,11 +602,16 @@ def PopulationParameters():
     "pop_limit_logic": 'and', 
     
     "pop_time_ceil": None,
-    
+
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
+
+    # For BHs
+    "pop_bhmd": None,
+    "pop_bhard": None,
+    "pop_fseed": 1e-1,
 
     # Scales SFRD
     "pop_Nlw": 9690.,
@@ -601,9 +637,13 @@ def PopulationParameters():
     "pop_LE": None,
 
     # What radiation does this population emit?
-    # Should these be deprecated?
+    # These are passive fields
+    "pop_oir_src": False,
     "pop_lw_src": True,
     "pop_lya_src": True,
+    "pop_radio_src": False,
+    
+    # These are active fields (i.e., they change the IGMs properties)
     "pop_ion_src_cgm": True,
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
@@ -647,11 +687,8 @@ def PopulationParameters():
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
 
-    "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
-    
-    "pop_tau_Nz": 400,
-    
+        
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
@@ -661,7 +698,20 @@ def PopulationParameters():
     "pop_kwargs": {},
 
     "pop_test_param": None,
-
+    
+    # Utility
+    "pop_user_par0": None,
+    "pop_user_par1": None,
+    "pop_user_par2": None,
+    "pop_user_par3": None,
+    "pop_user_par4": None,
+    "pop_user_par5": None,
+    "pop_user_par6": None,
+    "pop_user_par7": None,
+    "pop_user_par8": None,
+    "pop_user_par9": None,
+    "pop_user_pmap": {},
+    
     }
 
     pf.update(tmp)
@@ -677,6 +727,9 @@ def SourceParameters():
     "source_position": 0.0,
     
     "source_sed_sharp_at": None,
+    
+    "source_sfr": 1.,
+    "source_fesc": 0.1,
     
     # only for schaerer2002 right now        
     "source_piecewise": True,
@@ -696,6 +749,7 @@ def SourceParameters():
 
     "source_Emin": 13.6,  
     "source_Emax": 1e2,  
+    "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     
@@ -718,18 +772,18 @@ def SourceParameters():
     "source_aging": True,
     
     # Stellar
-    "source_temperature": 1e5,  
+    "source_temperature": 1e5,
     "source_qdot": 5e48,
-    
+
     # SFH
     "source_sfh": None,
     "source_meh": None,
-    
+
     # BH
     "source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
-    
+
     # SIMPL
     "source_fsc": 0.1,
     "source_uponly": True,
@@ -900,10 +954,11 @@ def ControlParameters():
     'logdzDataDump': None,
     "stop_time": 500,
     
-    "initial_redshift": 50.,
+    "initial_redshift": 60.,
     "final_redshift": 5,
     "fallback_dz": 0.1, # only used when no other constraints 
     "kill_redshift": 0.0,
+    "first_light_redshift": 60.,
     
     "save_rate_coefficients": 1,
     
@@ -916,14 +971,19 @@ def ControlParameters():
     "solver_atol": 1e-8,
     "interp_tab": 'cubic',
     "interp_cc": 'linear',
+    "interp_rc": 'linear',
     "interp_Z": 'linear',
     "interp_hist": 'linear',
+    "interp_all": 'linear',  # backup
+    #"interp_sfrd": 'cubic',
+    #"interp_hmf": 'cubic',
+    "master_interp": None,    
     
     # Not implemented
     "extrap_Z": False,
 
     # Initialization
-    "load_ics": True,
+    "load_ics": 'cosmorec',
     "cosmological_ics": False,
     "load_sim": False,
 
@@ -957,6 +1017,7 @@ def ControlParameters():
     "blob_names": None,
     "blob_ivars": None,
     "blob_funcs": None,
+    "blob_kwargs": {},
 
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)
@@ -970,6 +1031,10 @@ def ControlParameters():
     "tau_arrays": None,
     "tau_prefix": tau_prefix,
     "tau_instance": None,
+    "tau_redshift_bins": 400,
+    "tau_approx": True,
+    "tau_Emin": 2e2,
+    "tau_Emax": 3e4,
 
     # Power spectrum stuff
     "powspec_logkmin": -3,
@@ -980,8 +1045,8 @@ def ControlParameters():
 
     "sam_dt": 1., # Myr
     "sam_dz": 2., # Usually good enough!
-    "sam_atol": 1e-8,
-    "sam_rtol": 1e-8,
+    "sam_atol": 1e-2,
+    "sam_rtol": 1e-2,
     
     # File format
     "preferred_format": 'npz',
@@ -1044,6 +1109,8 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
+    'tanh_scale_temp': 1.0,
+    'tanh_scale_freq': 1.0
     }
 
     pf.update(rcParams)
@@ -1058,6 +1125,7 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
+     'gaussian_bias_temp': 0
     }
     
     pf.update(rcParams)
@@ -1065,3 +1133,5 @@ def GaussianParameters():
     
     return pf
 
+
+    

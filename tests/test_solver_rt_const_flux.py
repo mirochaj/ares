@@ -45,10 +45,8 @@ def test(rtol=1e-2):
     # Numerical solution
     sim = ares.simulations.RaySegment(**pars)
     sim.run()
-    
-    anl = ares.analysis.RaySegment(sim)
-    
-    t, xHII = anl.CellEvolution(field='h_2')
+        
+    t, xHII = sim.CellEvolution(field='h_2')
     
     fig = pl.figure(1, figsize=(8, 12))
     ax1 = fig.add_subplot(211); ax2 = fig.add_subplot(212)
@@ -67,7 +65,7 @@ def test(rtol=1e-2):
     def xi(t, Gamma=Gamma):
         return 1. - C * np.exp(-Gamma * t)
     
-    xHII_anyl = np.array(map(xi, t))
+    xHII_anyl = np.array(list(map(xi, t)))
     ax1.scatter(t / s_per_yr, xHII_anyl, color='b', facecolors='none', s=100,
         label='analytic')
     ax1.legend(loc='upper left', fontsize=14)
@@ -82,7 +80,7 @@ def test(rtol=1e-2):
     ax2.set_ylabel(r'rel. error')
     
     pl.draw()
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()    
     
     assert np.allclose(xHII[mask], xHII_anyl[mask], rtol=rtol, atol=0)

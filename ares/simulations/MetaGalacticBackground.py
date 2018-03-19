@@ -13,19 +13,25 @@ Description:
 import os
 import time
 import scipy
-import pickle
 import numpy as np
 from ..static import Grid
 from ..util.Math import smooth
+from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
-    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c
+    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c, h_p, k_B
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 _scipy_ver = scipy.__version__.split('.')
 
@@ -64,8 +70,9 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     elif type(kwargs['feedback_LW_Mmin']) is FunctionType:
         f_M = kwargs['feedback_LW_Mmin']
     else:
-        raise NotImplementedError('Unrecognized Mmin option: %s' % kwargs['feedback_LW_Mmin'])
-        
+        raise NotImplementedError('Unrecognized Mmin option: {!s}'.format(\
+            kwargs['feedback_LW_Mmin']))
+    
     return f_M
         
 class MetaGalacticBackground(AnalyzeMGB):
@@ -132,14 +139,7 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         return rank
     
-    def extend(self, N):
-        """
-        Run this simulation for `N' more iterations.
-        """
-        
-        raise NotImplemented('sorry')
-    
-    def run(self, include_pops=None, igm_history=None):
+    def run(self, include_pops=None, xe=None):
         """
         Loop over populations, determine background intensity.
         
@@ -147,9 +147,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         ----------
         include_pops : list
             For internal use only!
-            
+
         """    
-                    
+
         # In this case, we can evolve all LW sources first, and wait 
         # to do other populations until the very end.
         if self.pf['feedback_LW'] and (include_pops is None):
@@ -157,12 +157,12 @@ class MetaGalacticBackground(AnalyzeMGB):
             include_pops = self._lwb_sources
         elif include_pops is None:
             include_pops = range(self.solver.Npops)
-        
+
         if not hasattr(self, '_data_'):
             self._data_ = {}
-        
-        for i, popid in enumerate(include_pops):            
-            z, fluxes = self.run_pop(popid=popid)
+
+        for i, popid in enumerate(include_pops):
+            z, fluxes = self.run_pop(popid=popid, xe=xe)
             self._data_[popid] = fluxes
                     
         # Each element of the history is series of lists.
@@ -179,9 +179,11 @@ class MetaGalacticBackground(AnalyzeMGB):
         ##
         if self._is_Mmin_converged(self._lwb_sources):
             self._has_fluxes = True
-            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
-            self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-            
+            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja, 
+                left=0.0, right=0.0)
+            self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw,
+                left=0.0, right=0.0)
+                        
             # Now that feedback is done, evolve all non-LW sources to get
             # final background.
             if include_pops == self._lwb_sources:
@@ -193,11 +195,12 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if hasattr(self, '_sfrd_bank') and self.count >= 2:
                     pid = self.pf['feedback_LW_sfrd_popid']
                     z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
-                    print "LWB cycle #%i complete: mean_err=%.2e, max_err=%.2e, z(max_err)=%.1f" \
-                        % (self.count, np.mean(self._sfrd_rerr[self._ok]), 
-                           np.max(self._sfrd_rerr[self._ok]), z_maxerr)
+                    print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
+                        "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
+                        self.count, np.mean(self._sfrd_rerr[self._ok]),\
+                        np.max(self._sfrd_rerr[self._ok]), z_maxerr))
                 else:
-                    print "LWB cycle #%i complete." % self.count
+                    print("LWB cycle #{} complete.".format(self.count))
                             
             self.reboot()
             self.run(include_pops=self._lwb_sources)
@@ -214,17 +217,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         _fluxes_today = []
         _energies_today = []
-        
-        if popids is None:
-            popids = range(self.pf.Npops)
-        else:
-            if type(popids) == int:
-                popids = [popids]
-        
-        for popid in popids:
-            
-            pop = self.pops[popid]
-            
+
+        for popid, pop in enumerate(self.pops):
             if not self.solver.solve_rte[popid]:
                 _fluxes_today.append(None)
                 _energies_today.append(None)
@@ -251,7 +245,32 @@ class MetaGalacticBackground(AnalyzeMGB):
             _fluxes_today.append(ft)
             
         return _energies_today, _fluxes_today
-                           
+    
+    def today_of_E(self, E):
+        """
+        Grab radiation background at a single energy at z=0.
+        """
+        nrg, fluxes = self.today
+        
+        flux = 0.0
+        for i, band in enumerate(nrg):
+            
+            if not (min(band) <= E <= max(band)):
+                continue
+                
+            flux += np.interp(E, band, fluxes[i])
+                
+        return flux   
+        
+    def temp_of_E(self, E):
+        """
+        Convert the z=0 background intensity to a temperature in K.
+        """
+        flux = self.today_of_E(E)
+        
+        freq = E * erg_per_ev / h_p
+        return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
+                               
     @property        
     def jsxb(self):
         if not hasattr(self, '_jsxb'):
@@ -314,7 +333,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         return self._lwb_sources_
                         
-    def run_pop(self, popid=0):
+    def run_pop(self, popid=0, xe=None):
         """
         Evolve radiation background in time.
 
@@ -330,7 +349,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         if self.solver.approx_all_pops:
             return None, None
-        
+            
+        if not self.pops[popid].pf['pop_solve_rte']:
+            return None, None
+
         t = 0.0
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
@@ -361,22 +383,22 @@ class MetaGalacticBackground(AnalyzeMGB):
             #if not pop.feels_feedback:
             #    continue
             #    
-            #if self.pf['pop_Tmin{%i}' % popid] is not None:
-            #    if self.pf['pop_Tmin{%i}' % popid] >= 1e4:
+            #if self.pf['pop_Tmin{{{}}}'.format(popid)] is not None:
+            #    if self.pf['pop_Tmin{{{}}}'.format(popid)] >= 1e4:
             #        continue
 
             #for key in to_del:
             #    try:
             #        delattr(pop, key)
             #    except AttributeError:
-            #        print "Attribute %s didn't exist." % key
+            #        print("Attribute {!s} didn't exist.".format(key))
             #        continue
             
             # Linked populations will get 
-            if type(self.pf['pop_Mmin{%i}' % popid]) is str:
+            if isinstance(self.pf['pop_Mmin{{{}}}'.format(popid)], basestring):
                 continue
                         
-            self.kwargs['pop_Mmin{%i}' % popid] = \
+            self.kwargs['pop_Mmin{{{}}}'.format(popid)] = \
                 np.interp(self.pops[popid].halos.z, self.z_unique, self._Mmin_now)
                             
             # Need to make sure, if any populations are linked to this Mmin,
@@ -411,6 +433,25 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         return self._history
         
+    @property
+    def _subgen(self):
+        if not hasattr(self, '_subgen_'):
+            self._subgen_ = {}
+            
+            for popid, pop in enumerate(self.pops):
+                gen = self.solver.generators[popid]
+                
+                if gen is None:
+                    self._subgen_[popid] = None
+                    continue
+                
+                if len(gen) == 1:
+                    self._subgen_[popid] = False
+                else:
+                    self._subgen_[popid] = True
+                    
+        return self._subgen_
+        
     def update_fluxes(self, popid=0):
         """
         Loop over flux generators and retrieve the next values.
@@ -433,10 +474,23 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         fluxes_by_band = []
 
+        needs_flattening = self._subgen[popid]
+        
         # For each population, the band is broken up into pieces
         for j, generator in enumerate(pop_generator):
-            z, f = generator.next()
-            fluxes_by_band.append(flatten_flux(f))
+            if generator is None:
+                fluxes_by_band.append(None)
+            else:    
+                z, f = next(generator)
+                
+                if not needs_flattening:
+                    fluxes_by_band.append(f)
+                    continue
+                
+                if z > self.pf['first_light_redshift']:
+                    fluxes_by_band.append(np.zeros_like(flatten_flux(f)))
+                else:
+                    fluxes_by_band.append(flatten_flux(f))
 
         return z, fluxes_by_band
 
@@ -459,32 +513,38 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.solver.approx_all_pops:
             kwargs['fluxes'] = [None] * self.solver.Npops
             return self.solver.update_rate_coefficients(z, **kwargs)
-                
+
         if not self._has_fluxes:
             self.run()
         
         if not self._has_coeff:
-            
+
             kw = kwargs.copy()
-            
+
             kw['return_rc'] = True
-            
+
             # This chunk only gets executed once
-            self._rc_tabs = [{} for i in xrange(self.solver.Npops)]
-            
+            self._rc_tabs = [{} for i in range(self.solver.Npops)]
             # very similar chunk of code lives in update_fluxes...
             # could structure better, but i'm tired.
             
-            fluxes = {i:None for i in xrange(self.solver.Npops)}
+            fluxes = {i:None for i in range(self.solver.Npops)}
             for i, pop_generator in enumerate(self.solver.generators):
                 
                 kw['zone'] = self.pops[i].zone
                 also = {}
                 for sp in self.grid.absorbers:
-                    also['%s_%s' % (self.pops[i].zone, sp)] = 1.0
+                    also['{0!s}_{1!s}'.format(self.pops[i].zone, sp)] = 1.0
                 kw.update(also)     
                 
-                zarr = self.solver.redshifts[i]
+                ##
+                # Be careful with toy models
+                ##
+                if pop_generator is None:
+                    zarr = self.z_unique
+                else:
+                    zarr = self.solver.redshifts[i]
+
                 Nz = len(zarr)
 
                 self._rc_tabs[i]['k_ion'] = np.zeros((Nz,
@@ -512,13 +572,13 @@ class MetaGalacticBackground(AnalyzeMGB):
                     # Get fluxes if need be
                     if pop_generator is None:
                         kw['fluxes'] = None
-                    else:
-                        self._rc_tabs[i]['Ja'][_iz] = self._f_Ja(redshift)
-                        self._rc_tabs[i]['Jlw'][_iz] = self._f_Jlw(redshift)
-                        
+                    else:                        
                         # Fluxes are in order of *descending* redshift!
                         fluxes[i] = self.history[i][Nz-_iz-1]
                         kw['fluxes'] = fluxes
+                        
+                    self._rc_tabs[i]['Ja'][_iz] = self._f_Ja(redshift)
+                    self._rc_tabs[i]['Jlw'][_iz] = self._f_Jlw(redshift)    
                         
                     # This routine expects fluxes to be a dictionary, with
                     # the keys being population ID # and the elements lists
@@ -535,7 +595,10 @@ class MetaGalacticBackground(AnalyzeMGB):
                         
             self._interp = [{} for i in xrange(self.solver.Npops)]
             for i, pop in enumerate(self.pops):
-                zarr = self.solver.redshifts[i]
+                if self.solver.redshifts[i] is None:
+                    zarr = self.z_unique
+                else:    
+                    zarr = self.solver.redshifts[i]
 
                 # Create functions
                 self._interp[i]['k_ion'] = \
@@ -546,23 +609,26 @@ class MetaGalacticBackground(AnalyzeMGB):
                     [None for _i in xrange(self.grid.N_absorbers)]
             
                 self._interp[i]['Ja'] = interp1d(zarr, 
-                    self._rc_tabs[i]['Ja'], 
+                    self._rc_tabs[i]['Ja'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)
                 self._interp[i]['Jlw'] = interp1d(zarr, 
-                    self._rc_tabs[i]['Jlw'], 
+                    self._rc_tabs[i]['Jlw'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)    
             
                 for j in xrange(self.grid.N_absorbers):
                     self._interp[i]['k_ion'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
+                            kind=self.pf['interp_all'], 
                             bounds_error=False, fill_value=0.0)    
                     self._interp[i]['k_heat'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
+                            kind=self.pf['interp_all'],
                             bounds_error=False, fill_value=0.0)    
                     
                     for k in xrange(self.grid.N_absorbers):
                         self._interp[i]['k_ion2'][j][k] = \
                             interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
+                                kind=self.pf['interp_all'],
                                 bounds_error=False, fill_value=0.0)
                      
             self._has_coeff = True  
@@ -598,7 +664,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                                 
                 # Convert to rate coefficient                
                 for j, absorber in enumerate(self.grid.absorbers):
-                    x = kwargs['%s_%s' % (pop.zone, absorber)]
+                    x = kwargs['{0!s}_{1!s}'.format(pop.zone, absorber)]
                     this_pop['k_ion'][0][j] /= x
                     
                     # No helium for cgm, at least not this carefully
@@ -620,16 +686,22 @@ class MetaGalacticBackground(AnalyzeMGB):
     @property
     def z_unique(self):
         if not hasattr(self, '_z_unique'):
-            _allz = [self.solver.redshifts[i] for i in xrange(self.solver.Npops)]
+            _allz = []
+            for i in range(self.solver.Npops):
+                if self.solver.redshifts[i] is None:
+                    continue
+
+                _allz.append(self.solver.redshifts[i])
+
             if sum([item is not None for item in _allz]) == 0:
                 dz = self.pf['fallback_dz']
                 self._z_unique = np.arange(self.pf['final_redshift'],
                     self.pf['initial_redshift']+dz, dz)
             else:
                 self._z_unique = np.unique(np.concatenate(_allz))
-                
-        return self._z_unique        
-                
+
+        return self._z_unique
+
     def get_uvb_tot(self, include_pops=None):
                 
         if include_pops is None:
@@ -665,12 +737,12 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
                 Mmin = pop.pf['pop_Mmin']
                 
-                if type(Mmin) is str:
+                if isinstance(Mmin, basestring):
                     self._LW_felt_by_.append(popid)
                     continue
                                 
                 Tmin = pop.pf['pop_Tmin']
-                if type(Tmin) is str:
+                if isinstance(Tmin, basestring):
                     pass
                 
                 if Mmin is None: 
@@ -781,7 +853,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     tlb_p = self.grid.cosm.LookbackTime(z, z2p) / s_per_myr
                     zdt = np.interp(dt, [tlb_p, tlb], [z2p, z2])
                     
-                    J = np.interp(zdt, zarr, Jlw)
+                    J = np.interp(zdt, zarr, Jlw, left=0.0, right=0.0)
                                             
                     break
                         
@@ -906,8 +978,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         converged = 1
         for quantity in ['Mmin', 'sfrd']:
             
-            rtol = self.pf['feedback_LW_%s_rtol' % quantity]
-            atol = self.pf['feedback_LW_%s_atol' % quantity]
+            rtol = self.pf['feedback_LW_{!s}_rtol'.format(quantity)]
+            atol = self.pf['feedback_LW_{!s}_atol'.format(quantity)]
 
             if rtol == atol == 0:
                 continue
@@ -932,7 +1004,6 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if atol > 0:
                     if err_abs.mean() < atol:
                         converged *= 1
-
             # More stringent: that all Mmin values must have converged independently            
             else:
                 # Be a little careful: zeros will throw this off.
@@ -955,20 +1026,12 @@ class MetaGalacticBackground(AnalyzeMGB):
                     
                 perfect = np.all(np.equal(pre[ok], post[ok]))
                 
-                # Nobody is perfect. Something is weird. Keep on keepin' on.
-                # This was happening at one point on iteration 3...
-                # maybe now it's OK.
-                if perfect:
-                    pass
-                    #print "Got a perfect iteration here! Count %i (%s)" \
-                    #    % (self.count, quantity)
-                        
-                    #converged *= 0
-                    # Remember: we're going to run through this all again
-                    # after we've converged since not all radiation
-                    # backgrounds are evolved on each LWB iteration.
-                    # So, this is guaranteed to happen once: on the final
-                    # iteration of every simulation.
+            perfect = np.all(np.equal(self._Mmin_pre, self._Mmin_now))
+            
+            # Nobody is perfect. Something is weird. Keep on keepin' on.
+            # This is happening at iteration 3 for some reason...
+            if perfect:
+                converged = False    
                 
         if not converged:
             self._Mmin_bank.append(self._Mmin_now.copy())
@@ -1013,13 +1076,16 @@ class MetaGalacticBackground(AnalyzeMGB):
         for i, redshift in enumerate(z):
             if not np.any(self.solver.solve_rte[popid]):
                 Ja[i] = self.solver.LymanAlphaFlux(redshift, popid=popid)
+                                
                 if self.pf['feedback_LW']:
                     Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
 
                 continue
+
             elif self.pf['secondary_lya'] and (self.pops[popid].is_src_ion_igm):
-                Ja[i] = self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
-                    popid=popid, fluxes={popid:flux[i]})
+                for k, sp in enumerate(self.grid.absorbers):
+                    Ja[i] += self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
+                        species=k, popid=popid, fluxes={popid:flux[i]})
 
             # Convert to energy units, and per eV to prep for integral
             LW_flux = flux[i,is_LW] * E[is_LW] * erg_per_ev / ev_per_hz
@@ -1062,20 +1128,23 @@ class MetaGalacticBackground(AnalyzeMGB):
             
         # First, get redshifts. If not run "thru run", then they will
         # be in descending order so flip 'em.
-        #if self._is_thru_run or self.pf['compute_fluxes_at_start']:
+
         z = self.solver.redshifts[popid]
         #else:
         #    # This may change on the fly due to sub-cycling and such
         #    z = np.array(self.all_z).T[popid][-1::-1]
 
         if flatten:
-            E = flatten_energies(self.solver.energies[popid])
+            E = np.array(flatten_energies(self.solver.energies[popid]))
 
             f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist):
                 fzflat = []
-                for j in xrange(len(self.solver.energies[popid])):
-                    fzflat.extend(flux[j])
+                for j in range(len(self.solver.energies[popid])):
+                    if not self.solver.solve_rte[popid][j]:
+                        fzflat.extend(np.zeros_like(self.solver.energies[popid][j]))
+                    else:
+                        fzflat.extend(flux[j])
 
                 f[i] = np.array(fzflat)
 
@@ -1113,8 +1182,8 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         """
 
-        fn_1 = '%s.fluxes.%s' % (prefix, suffix)
-        fn_2 = '%s.emissivities.%s' % (prefix, suffix)
+        fn_1 = '{0!s}.fluxes.{1!s}'.format(prefix, suffix)
+        fn_2 = '{0!s}.emissivities.{1!s}'.format(prefix, suffix)
 
         all_fn = [fn_1, fn_2]
 
@@ -1133,13 +1202,13 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if clobber:
                     os.remove(fn)
                 else:
-                    print '%s exists! Set clobber=True to overwrite.' % fn
+                    print(('{!s} exists! Set clobber=True to ' +\
+                        'overwrite.').format(fn))
                     continue
 
             if suffix == 'pkl':
-                f = open(fn, 'wb')
-                pickle.dump(data, f)
-                f.close()
+                write_pickle_file(data, fn, ndumps=1, open_mode='w',\
+                    safe_mode=False, verbose=False)
 
             elif suffix in ['hdf5', 'h5']:
                 raise NotImplementedError('no hdf5 support for this yet.')
@@ -1153,7 +1222,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             else:  
                 raise NotImplementedError('No ASCII support for this.')          
                 
-            print 'Wrote %s.' % fn
+            print('Wrote {!s}.'.format(fn))
     
     
     

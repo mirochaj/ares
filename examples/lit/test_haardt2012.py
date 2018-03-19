@@ -20,7 +20,7 @@ z, E, flux = hm12.MetaGalacticBackground()
 
 for redshift in [0, 3, 4, 5]:
     i = np.argmin(np.abs(redshift - z))
-    pl.loglog(E, flux[i], label=r'$z=%.3g$' % z[i])
+    pl.loglog(E, flux[i], label=r'$z={:.3g}$'.format(z[i]))
 
 pl.xlim(1e-1, 1e5)
 pl.ylim(1e-28, 1e-18)

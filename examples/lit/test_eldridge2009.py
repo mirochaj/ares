@@ -34,7 +34,7 @@ for i, binaries in enumerate([False, True]):
         k = np.argmin(np.abs(pop.times - t))
             
         ax1.loglog(pop.wavelengths, pop.data[:,k], color=colors[j],
-            label=r'$t=%i$ Myr, %s' % (pop.times[k], bin), ls=ls[i])
+            label=r'$t={0}$ Myr, {1!s}'.format(pop.times[k], bin), ls=ls[i])
         
 ax1.set_xlabel(ares.util.labels['lambda_AA'])
 ax1.set_ylabel(ares.util.labels['intensity_AA'])

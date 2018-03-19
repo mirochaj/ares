@@ -30,7 +30,7 @@ for i, logM in enumerate([0, 1, 2]):
     bh = ares.analysis.Source(src)
     
     ax = bh.PlotSpectrum(ls=ls[i], 
-        label=r'$M_{\bullet} = %i \ M_{\odot}$' % (10**logM))
+        label=r'$M_{\bullet} = {} \ M_{\odot}$'.format(int(10**logM)))
 
 ax.plot([10.2]*2, [1e-8, 1], color='r', ls='--')
 ax.plot([13.6]*2, [1e-8, 1], color='r', ls='--')

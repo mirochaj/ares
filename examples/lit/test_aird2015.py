@@ -30,7 +30,7 @@ for i, redshift in enumerate(z):
     lf_ldde1 = a15.LuminosityFunction(L, redshift)
     
     ax1.loglog(L, lf_ldde1, color=colors[i], ls='-', 
-        label=r'$z=%i$' % redshift)
+        label=r'$z={}$'.format(redshift))
     
 ax1.set_xlabel(r'$L_X$')    
 ax1.set_ylabel(r'$\phi(L_X)$')
@@ -56,7 +56,7 @@ models = np.array(models)
 
 
 pl.loglog(L, models, color = 'k', label = r'LDDE1-Hard Band')
-#pl.title('2-7 KeV LDDE1 at z ~ %.1f' % (z))
+#pl.title('2-7 KeV LDDE1 at z ~ {:.1f}'.format(z))
 #pl.ylim(10**-9.1, 10**-2)
 #ax1.set_xlabel(r'$L_X$')    
 #ax1.set_ylabel(r'$\phi(L_X)$')
@@ -73,7 +73,7 @@ for p, Lx in enumerate(L):
 models = np.array(models)
 
 pl.loglog(L, models, color = 'g', label = r'LDDE2-Hard Band')
-#pl.title('2-7 KeV LDDE2 at z ~ %.1f' % (z))
+#pl.title('2-7 KeV LDDE2 at z ~ {:.1f}'.format(z))
 #pl.ylim(10**-9.1, 10**-2)
 #ax1.set_xlabel(r'$L_X$')    
 #ax1.set_ylabel(r'$\phi(L_X)$')
@@ -100,7 +100,7 @@ models = np.array(models)
 
 
 pl.loglog(L, models, color = 'r', label = r'LDDE1-Soft Band')
-#pl.title('0.5-2 KeV LDDE1 at z ~ %.1f' % (z))
+#pl.title('0.5-2 KeV LDDE1 at z ~ {:.1f}'.format(z))
 #pl.ylim(10**-9.1, 10**-2)
 #ax1.set_xlabel(r'$L_X$')    
 #ax1.set_ylabel(r'$\phi(L_X)$')
@@ -122,7 +122,7 @@ models = np.array(models)
 
 
 pl.loglog(L, models, color = 'b', label = r'LDDE2-Soft Band')
-pl.title(r'Different models for $\phi(L_X)$ for soft and hard bands at $z$ ~ $%.1f$' % (z))
+pl.title(r'Different models for $\phi(L_X)$ for soft and hard bands at $z$ ~ ${:.1f}$'.format(z))
 pl.ylim(10**-9.1, 10**-2) 
 ax1.set_xlabel(r'$L_X$')    
 ax1.set_ylabel(r'$\phi(L_X)$')
@@ -344,20 +344,20 @@ for i in range(models):
     integrand = [] 
     for j in range(len(z)):
         x = lambda Lx: a15._LuminosityFunction_LDDE2_integrate(Lx, z[j],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[3], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[-2][i], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[2][i],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[1][i], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[9][i], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[6][i], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[7][i], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[-1][i], \
-        a15.qsolf_LDDE2_hardpars_integration.values()[-3][i],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[-6][i],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[5][i],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[-4][i],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[4][i],\
-        a15.qsolf_LDDE2_hardpars_integration.values()[0][i])
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[3], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[-2][i], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[2][i],\
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[1][i], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[9][i], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[6][i], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[7][i], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[-1][i], \
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[-3][i],\
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[-6][i],\
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[5][i],\
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[-4][i],\
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[4][i],\
+        list(a15.qsolf_LDDE2_hardpars_integration.values())[0][i])
         p, err = integrate.quad(x, 10**41, 10**46)
         integrand.append(p)
     integrand1.append(integrand)
@@ -423,7 +423,7 @@ for t in range(m):
 for i, j in enumerate(models):
     pl.loglog(L, models[i], color = 'r', alpha = 0.1)
     
-#pl.title('2-7 KeV LDDE1 at z ~ %.1f' % (z))
+#pl.title('2-7 KeV LDDE1 at z ~ {:.1f}'.format(z))
 #pl.ylim(10**-9.1, 10**-2)
 
 #ax3.set_xlabel(r'$L_X$')    
@@ -456,7 +456,7 @@ for t in range(m):
 for i, j in enumerate(models):
     pl.loglog(L, models[i], color = 'g', alpha = 0.1)
     
-#pl.title('2-7 KeV LDDE1 at z ~ %.1f' % (z))
+#pl.title('2-7 KeV LDDE1 at z ~ {:.1f}'.format(z))
 #pl.ylim(10**-9.1, 10**-2)
 #ax3.set_xlabel(r'$L_X$')    
 #ax3.set_ylabel(r'$\phi(L_X)$')
@@ -489,7 +489,7 @@ for t in range(m):
 for i, j in enumerate(models):
     
     pl.loglog(L, models[i], color = 'k', alpha = 0.1)
-#pl.title('0.5-2 KeV LDDE1 at z ~ %.1f' % (z))
+#pl.title('0.5-2 KeV LDDE1 at z ~ {:.1f}'.format(z))
 #pl.ylim(10**-9.1, 10**-2)
 #ax3.set_xlabel(r'$L_X$')    
 #ax3.set_ylabel(r'$\phi(L_X)$')
@@ -521,7 +521,7 @@ for t in range(m):
 for i, j in enumerate(models):
     
     pl.loglog(L, models[i], color = 'b', alpha = 0.1)
-pl.title(r'Different models for $\phi(L_X)$ for soft and hard bands at $z$ ~ $%.1f$' % (z))
+pl.title(r'Different models for $\phi(L_X)$ for soft and hard bands at $z$ ~ ${:.1f}$'.format(z))
 pl.ylim(10**-9.1, 10**-2) 
 ax3.set_xlabel(r'$L_X$')    
 ax3.set_ylabel(r'$\phi(L_X)$')

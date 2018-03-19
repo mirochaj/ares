@@ -11,15 +11,14 @@ Description:
 """
 
 import numpy as np
-from scipy.integrate import quad
+from .Source import Source
 from ares.physics import Cosmology
+from scipy.optimize import minimize
 from ..util.ReadData import read_lit
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz
-
-relevant_pars = ['pop_Z', 'pop_imf', 'pop_nebular', 'pop_ssp', 'pop_tsf']
 
 class DummyClass(object):
     def __init__(self, **kwargs):
@@ -50,7 +49,7 @@ class DummyClass(object):
                 
         return wave, data
         
-class SynthesisModel(object):
+class SynthesisModel(Source):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
                 
@@ -97,7 +96,7 @@ class SynthesisModel(object):
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
-            # erg / s / Hz      
+            # erg / s / Hz -> erg / s / eV
             if self.pf['source_rad_yield'] == 'from_sed':
                 self._sed_at_tsf = \
                     self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
@@ -106,6 +105,20 @@ class SynthesisModel(object):
                     
         return self._sed_at_tsf
 
+    @property
+    def dE(self):
+        if not hasattr(self, '_dE'):
+            tmp = np.abs(np.diff(self.energies))
+            self._dE = np.concatenate((tmp, [tmp[-1]]))
+        return self._dE
+
+    @property
+    def dndE(self):
+        if not hasattr(self, '_dndE'):
+            tmp = np.abs(np.diff(self.frequencies) / np.diff(self.energies))
+            self._dndE = np.concatenate((tmp, [tmp[-1]]))
+        return self._dndE
+    
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
@@ -150,7 +163,7 @@ class SynthesisModel(object):
         """
         if not hasattr(self, '_data'):
             
-            Zall = np.sort(self.metallicities.values())
+            Zall = np.sort(list(self.metallicities.values()))
                         
             # Check to see dimensions of tmp. Depending on if we're 
             # interpolating in Z, it might be multiple arrays.
@@ -194,6 +207,12 @@ class SynthesisModel(object):
                 # Gotta correct for that!
                 self._data[np.argwhere(np.isnan(self._data))] = 0.0
                 
+            # Normalize by SFR or cluster mass.    
+            if self.pf['source_ssp']:
+                self._data *= (self.pf['source_mass'] / 1e6)
+            else:    
+                self._data *= self.pf['source_sfr']
+                
         return self._data
     
     @property
@@ -202,9 +221,35 @@ class SynthesisModel(object):
             if self.pf['source_sed_by_Z'] is not None:
                 self._wavelengths, junk = self.pf['source_sed_by_Z']
             else:
-                self._wavelengths, junk = self.litinst._load(**self.pf)
+                data = self.data
             
         return self._wavelengths
+
+    @property
+    def Nfreq(self):
+        return len(self.energies)
+    
+    @property
+    def E(self):
+        if not hasattr(self, '_E'):
+            self._E = np.sort(self.energies)
+        return self._E
+
+    @property
+    def LE(self):
+        """
+        Should be dimensionless?
+        """
+        if not hasattr(self, '_LE'):
+            if self.pf['source_ssp']:
+                raise NotImplemented('No support for SSPs yet (due to t-dep)!')
+
+            _LE = self.sed_at_tsf * self.dE / self.Lbol_at_tsf
+            
+            s = np.argsort(self.energies)
+            self._LE = _LE[s]
+            
+        return self._LE
 
     @property
     def energies(self):
@@ -255,11 +300,6 @@ class SynthesisModel(object):
             for i in xrange(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
 
-            if self.pf['source_ssp']:
-                self._E_per_M /= 1e6
-            else:
-                pass
-
         return self._E_per_M
 
     @property
@@ -271,6 +311,29 @@ class SynthesisModel(object):
                     / np.diff(np.log(self.wavelengths))
 
         return self._uvslope
+        
+    def fit_uvslope(self, lam=1600, dlam=200):
+        
+        slc = np.logical_and(lam-dlam <= self.wavelengths, 
+                            self.wavelengths <= lam+dlam)
+        
+        _uvslope_fit = np.zeros_like(self.times)        
+        for i in range(self.times.size):
+            
+            logL = np.log(self.data[slc,i])
+            logw = np.log(self.wavelengths[slc])
+
+            model = lambda pars: pars[0] + pars[1] * logw
+
+            to_min = lambda x, *args: np.sum((model(x) - logL)**2)
+
+            res = minimize(to_min, np.array([42., -2.]))
+
+            a, b = res.x
+
+            _uvslope_fit[i] = b
+            
+        return _uvslope_fit    
     
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
@@ -291,19 +354,6 @@ class SynthesisModel(object):
             s = (avg - 1) / 2
             yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(dwavednu[j-s:j+s]))
         
-        # Current units: 
-        # if pop_ssp: 
-        #     erg / sec / Hz / (Msun / 1e6)
-        # else: 
-        #     erg / sec / Hz / (Msun / yr)
-
-        # to erg / s / A / Msun
-        if self.pf['source_ssp']:
-            yield_UV /= 1e6
-        # or erg / s / A / (Msun / yr)
-        else:
-            pass
-
         return yield_UV
 
     def LUV(self):
@@ -427,8 +477,25 @@ class SynthesisModel(object):
         erg_per_g = erg_per_msun_yr * s_per_yr / g_per_msun
         
         return erg_per_g
+        
+    @property
+    def Lbol_at_tsf(self):
+        if not hasattr(self, '_Lbol_at_tsf'):
+            self._Lbol_at_tsf = self.Lbol(self.pf['source_tsf'])
+        return self._Lbol_at_tsf
 
-    def IntegratedEmission(self, Emin, Emax, energy_units=False):
+    def Lbol(self, t):
+        """
+        Return bolometric luminosity at time `t`.
+        
+        Assume 1 Msun / yr SFR.
+        """
+        
+        L = self.IntegratedEmission(energy_units=True)
+        
+        return np.interp(t, self.times, L)
+
+    def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False):
         """
         Compute photons emitted integrated in some band for all times.
 
@@ -440,6 +507,11 @@ class SynthesisModel(object):
         """
 
         # Find band of interest -- should be more precise and interpolate
+        if Emin is None:
+            Emin = np.min(self.energies)
+        if Emax is None:
+            Emax = np.max(self.energies)
+            
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
         
@@ -462,7 +534,7 @@ class SynthesisModel(object):
         # else: photons / sec / (Msun / yr)
         
         return flux
-        
+                
     @property
     def Nion(self):
         if not hasattr(self, '_Nion'):

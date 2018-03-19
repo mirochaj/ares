@@ -14,7 +14,7 @@ import ares
 
 #
 ## INPUT
-helium = 1
+helium = 0
 dlogN = 0.05
 NE = 100
 ##
@@ -24,6 +24,6 @@ ptype = 2 + 10 * helium
 
 sim = ares.simulations.RaySegment(problem_type=ptype, 
     tables_discrete_gen=True, tables_energy_bins=NE, tables_dlogN=[dlogN]*3)
-sim.save_tables(prefix='bb_He_NE_%i_dlogN_%.2g' % (NE, dlogN))
+sim.save_tables(prefix='bb_He_NE_{0}_dlogN_{1:.2g}'.format(NE, dlogN))
 
 

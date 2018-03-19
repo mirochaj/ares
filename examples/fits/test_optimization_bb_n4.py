@@ -48,7 +48,7 @@ Eopt, LEopt = pars[0:sedop.nfreq], pars[sedop.nfreq:]
 Print optimal SED to screen, plot best fit Phi and Psi.
 """
 
-print Eopt, LEopt, np.sum(LEopt)
+print('{0!s} {1!s} {2!s}'.format(Eopt, LEopt, np.sum(LEopt)))
 
 best_phi = sedop.discrete_tabs(Eopt, LEopt)['logPhi_h_1']
 best_psi = sedop.discrete_tabs(Eopt, LEopt)['logPsi_h_1']

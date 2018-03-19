@@ -18,6 +18,12 @@ from .TurningPoints import TurningPoints
 from ..util.ParameterFile import par_info
 from ..physics.Constants import ev_per_hz, rhodot_cgs
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 class InlineAnalysis:
     def __init__(self, sim):
@@ -62,7 +68,7 @@ class InlineAnalysis:
         
         if not self.pf['tanh_model']:
             blob_names = []
-            for i in xrange(self.pf.Npops):
+            for i in range(self.pf.Npops):
                 
                 if hasattr(self.sim, 'pops'):
                     pop = self.sim.pops[i]
@@ -74,17 +80,17 @@ class InlineAnalysis:
                     pop = self.sim
                 
                 if self.pf.Npops > 1:
-                    suffix = '{%i}' % i
+                    suffix = '{{{}}}'.format(i)
                 else:
                     suffix = ''
                     
                 # Lyman-alpha emission                
                 if pop.pf['pop_lya_src']:
-                    blob_names.append('igm_Ja%s' % suffix)
+                    blob_names.append('igm_Ja{!s}'.format(suffix))
                     
                 # SFRD
                 if not pop.pf['tanh_model']:
-                    blob_names.append('sfrd%s' % suffix)
+                    blob_names.append('sfrd{!s}'.format(suffix))
                                 
                 species = ['h_1', 'he_1', 'he_2']
                 for j, sp1 in enumerate(species):
@@ -95,7 +101,7 @@ class InlineAnalysis:
                     if j > 0:
                         raise NotImplemented('need to fix this')    
                 
-                    blob_names.append('igm_%s' % sp1)
+                    blob_names.append('igm_{!s}'.format(sp1))
                     
                     if pop.pf['pop_ion_src_cgm'] and j == 0:
                         blob_names.append('cgm_k_ion')
@@ -123,11 +129,11 @@ class InlineAnalysis:
             tmp1.extend(blob_names)
         
         tmp11 = list(np.unique(tmp1))
-        names = map(str, tmp11)
+        names = list(map(str, tmp11))
         
         tmp2 = []
         for i, z in enumerate(_blob_redshifts):
-            if type(z) is str:
+            if isinstance(z, basestring):
                 tmp2.append(_blob_redshifts[i])
                 continue
                 
@@ -166,7 +172,7 @@ class InlineAnalysis:
 
             delay = self.pf['stop_delay']
             
-            for i in xrange(len(self.history['z'])):
+            for i in range(len(self.history['z'])):
                 if i < 10:
                     continue
 
@@ -186,7 +192,7 @@ class InlineAnalysis:
         for element in self.blob_redshifts:
             
             # Some "special" redshifts -- handle separately
-            if type(element) is str:
+            if isinstance(element, basestring):
                 if element in ['eor_midpt', 'eor_overlap']:
         
                     raise ValueError('For some reason, eor_midpt etc. are causing problems for emcee / pickling.')
@@ -275,7 +281,7 @@ class InlineAnalysis:
                         tmp.append(np.inf)
                         continue
 
-                    if (type(element)) == str and (element != 'trans'):
+                    if isinstance(element, basestring) and (element != 'trans'):
                         tmp.append(self.turning_points[element][-1])
                     else:
                         tmp.append(np.inf)
@@ -329,7 +335,7 @@ class InlineAnalysis:
             output.append(tmp)
 
         # Reshape output so it's (redshift x blobs)
-        self.blobs = np.array(zip(*output))
+        self.blobs = np.array(list(zip(*output)))
         
     def get_igm_quantity(self):
         pass    

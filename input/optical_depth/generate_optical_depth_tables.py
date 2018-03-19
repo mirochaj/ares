@@ -16,7 +16,7 @@ Note: This can be run in parallel, e.g.,
 
 import ares
 import numpy as np
-import os, time, pickle
+import os, time
 from ares.physics.Constants import E_LL, E_LyA
 
 try:
@@ -37,7 +37,7 @@ except ImportError:
 zf, zi = (5, 60)
 Emin = 2e2
 Emax = 3e4
-Nz = [2e3]
+Nz = [200]
 format = 'npz'        # 'hdf5' or 'pkl' or 'npz'
 helium = 1
 xavg = lambda z: 0.0  # neutral
@@ -57,7 +57,7 @@ pars = \
 
 for res in Nz:
 
-    pars.update({'pop_tau_Nz': res})
+    pars.update({'tau_redshift_bins': res})
 
     # Create OpticalDepth instance
     igm = ares.solvers.OpticalDepth(**pars)

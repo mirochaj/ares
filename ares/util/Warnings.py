@@ -38,24 +38,24 @@ gen_msg = 'WARNING: something wrong with solver.'
     
 def dt_error(grid, z, q, dqdt, new_dt, cell, method, msg=dt_msg):
     
-    print ""
-    print line(separator)
-    print line(msg)    
-    print line(separator)
+    print("")
+    print(line(separator))
+    print(line(msg))
+    print(line(separator))
     
-    print line(separator2)    
+    print(line(separator2))
     if new_dt <= 0:
-        print line("current dt  : %.4e" % new_dt)
+        print(line("current dt  : {0:.4e}".format(new_dt)))
     else:
-        print line("current dt  : NaN or inf")
+        print(line("current dt  : NaN or inf"))
                 
-    print line(separator2)
-    print line("method      : %s" % method)
-    print line("cell #      : %i" % cell)
+    print(line(separator2))
+    print(line("method      : {!s}".format(method)))
+    print(line("cell #      : {}".format(cell)))
     if z is not None:
-        print line("redshift    : %.4g" % z)
+        print(line("redshift    : {0:.4g}".format(z)))
 
-    print line(separator2)  
+    print(line(separator2))
      
     cols = ['value', 'derivative']
     
@@ -69,10 +69,10 @@ def dt_error(grid, z, q, dqdt, new_dt, cell, method, msg=dt_msg):
     # Print quantities and their rates of change
     tabulate(data, rows, cols, cwidth=12)  
 
-    print line(separator2)        
+    print(line(separator2))
 
-    print line(separator)
-    print ""
+    print(line(separator))
+    print("")
     
     sys.exit(1)
     
@@ -105,122 +105,143 @@ WARNING: The contents of `pop_constraints` will override the values of
 `pop_lf_Mstar`, `pop_lf_pstar`, and `pop_lf_alpha`. 
 """
 
+def not_a_restart(prefix, has_burn):
+    print("")
+    print(line(separator))
+    print(line("WARNING: This doesn't look like a restart:"))
+    print(line("{!s}.chain.pkl is empty!".format(prefix)))
+    
+    if not has_burn:
+        print(line("No burn-in data found. Continuing on as if from scratch."))
+    else:
+        print(line("Burn-in data found. Restarting from end of burn-in."))
+        
+    print(line(separator))    
+
 def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):    
-    print ""    
-    print line(separator)
-    print line('WARNING: optical depth table shape mismatch (in redshift)')    
-    print line(separator)        
+    print("")
+    print(line(separator))
+    print(line('WARNING: optical depth table shape mismatch (in redshift)'))
+    print(line(separator))
     
     if type(igm.tabname) is dict:
         which = 'dict'
     else:
         which = 'tab'
-        print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+        print(line("found       : {!s}".format(\
+            igm.tabname[igm.tabname.rfind('/')+1:])))
     
-    print line("zmin (pf)   : %g" % igm.pf['final_redshift'])
-    print line("zmin (%s)  : %g" % (which, ztab.min()))
-    print line("zmax (pf)   : %g" % igm.pf['pop_zform'])
-    print line("zmax (%s)  : %g" % (which, ztab.max()))
+    zmax_pop = min(igm.pf['pop_zform'], igm.pf['first_light_redshift'])
+    
+    print(line("zmin (pf)   : {0:g}".format(igm.pf['final_redshift'])))
+    print(line("zmin ({0})  : {1:g}".format(which, ztab.min())))
+    print(line("zmax (pf)   : {0:g}".format(zmax_pop)))
+    print(line("zmax ({0})  : {1:g}".format(which, ztab.max())))
 
     if not zmin_ok:
-        print line("this is OK  : we'll transition to an on-the-fly tau calculator at z=%.2g" % ztab.min())
+        print(line(("this is OK  : we'll transition to an on-the-fly tau " +\
+            "calculator at z={0:.2g}").format(ztab.min())))
         if (0 < igm.pf['EoR_xavg'] < 1):
-            print line("            : or whenever x > %.1e, whichever comes first" % igm.pf['EoR_xavg'])
+            print(line(("            : or whenever x > {0:.1e}, whichever " +\
+                "comes first").format(igm.pf['EoR_xavg'])))
 
-    print line(separator)
+    print(line(separator))
+    print("")
 
 def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):    
-    print ""    
-    print line(separator)
-    print line('WARNING: optical depth table shape mismatch (in photon energy)')    
-    print line(separator)        
+    print("")
+    print(line(separator))
+    print(line('WARNING: optical depth table shape mismatch (in photon ' +\
+        'energy)'))    
+    print(line(separator))        
     
     if type(tabname) is dict:
         which = 'dict'
     else:
         which = 'tab'
-        print line("found       : %s" % tabname[tabname.rfind('/')+1:])
+        print(line("found       : {!s}".format(\
+            tabname[tabname.rfind('/')+1:])))
     
-    print line("Emin (pf)   : %g" % pop.pf['pop_Emin'])
-    print line("Emin (%s)  : %g" % (which, Etab.min()))
-    print line("Emax (pf)   : %g" % pop.pf['pop_Emax'])
-    print line("Emax (%s)  : %g" % (which, Etab.max())) 
+    print(line("Emin (pf)   : {0:g}".format(pop.pf['pop_Emin'])))
+    print(line("Emin ({0})  : {1:g}".format(which, Etab.min())))
+    print(line("Emax (pf)   : {0:g}".format(pop.pf['pop_Emax'])))
+    print(line("Emax ({0})  : {1.g}".format(which, Etab.max())))
 
     if Etab.min() < pop.pf['pop_Emin']:
-        print line("this is OK  : we'll discard E < %.2e eV entries in table" \
-            % pop.pf['pop_Emin'])
+        print(line(("this is OK  : we'll discard E < {0:.2e} eV entries in " +\
+            "table").format(pop.pf['pop_Emin'])))
 
     if Etab.max() > pop.pf['pop_Emax']:
-        print line("this is OK  : we'll discard E > %.2e eV entries in table" \
-            % pop.pf['pop_Emax']) 
+        print(line(("this is OK  : we'll discard E > {0:.2e} eV entries in " +\
+            "table").format(pop.pf['pop_Emax'])))
 
-    print line(separator)
+    print(line(separator))
 
 def no_tau_table(urb):
-    print ""    
-    print line(separator)
-    print line('WARNING: no optical depth table found')    
-    print line(separator)        
-    print line("looking for : %s" % urb.tabname)
+    print("")
+    print(line(separator))
+    print(line('WARNING: no optical depth table found'))    
+    print(line(separator))
+    print(line("looking for : {!s}".format(urb.tabname)))
     if urb.pf['tau_prefix'] is not None:
-        print line("in          : %s" % urb.pf['tau_prefix'])
+        print(line("in          : {!s}".format(urb.pf['tau_prefix'])))
     elif ARES is not None:
-        print line("in          : %s/input/optical_depth" % ARES)
+        print(line("in          : {!s}/input/optical_depth".format(ARES)))
     else:
-        print line("in          : nowhere! set $ARES or tau_prefix")
+        print(line("in          : nowhere! set $ARES or tau_prefix"))
 
-    print line(separator)
-    print line("Generating a new table will take 5-10 minutes...")
+    print(line(separator))
+    print(line("Generating a new table will take 5-10 minutes..."))
 
-    print line(separator)
+    print(line(separator))
 
 def negative_SFRD(z, Tmin, fstar, dfcolldt, sfrd):
-    print ""
-    print line(separator)
-    print line('ERROR (SFRD < 0)')    
-    print line(separator)        
-    print line("z           : %.3g" % z)
-    print line("Tmin        : %.3e" % Tmin)
-    print line("fstar       : %.3e" % fstar)
-    print line("dfcoll / dt : %.3e" % dfcolldt)    
-    print line("SFRD        : %.3e" % sfrd)    
-    print line(separator)        
+    print("")
+    print(line(separator))
+    print(line('ERROR (SFRD < 0)'))
+    print(line(separator))
+    print(line("z           : {0:.3g}".format(z)))
+    print(line("Tmin        : {0:.3e}".format(Tmin)))
+    print(line("fstar       : {0:.3e}".format(fstar)))
+    print(line("dfcoll / dt : {0:.3e}".format(dfcolldt)))    
+    print(line("SFRD        : {0:.3e}".format(sfrd)))
+    print(line(separator))        
 
 def tau_quad(igm):
-    print ""
-    print line(separator)
-    print line('ERROR (SFRD < 0)')    
-    print line(separator)        
-    print line("z           : %.3g" % z)
-    print line("Tmin        : %.3e" % Tmin)
-    print line("fstar       : %.3e" % fstar)
-    print line("dfcoll / dt : %.3e" % dfcolldt)    
-    print line("SFRD        : %.3e" % sfrd)    
-    print line(separator)
+    print("")
+    print(line(separator))
+    print(line('ERROR (SFRD < 0)'))
+    print(line(separator))
+    print(line("z           : {0:.3g}".format(z)))
+    print(line("Tmin        : {0:.3e}".format(Tmin)))
+    print(line("fstar       : {0:.3e}".format(fstar)))
+    print(line("dfcoll / dt : {0:.3e}".format(dfcolldt)))    
+    print(line("SFRD        : {0:.3e}".format(sfrd)))
+    print(line(separator))
     
 def missing_hmf_tab(hmf):
-    print ""
-    print line(separator)
-    print line('WARNING: Could not find supplied hmf table.')    
-    print line(separator)    
+    print("")
+    print(line(separator))
+    print(line('WARNING: Could not find supplied hmf table.'))
+    print(line(separator))    
     
-    print line('Was looking for:')
-    print line('')
-    print line('    %s' % hmf.pf['hmf_table'])
+    print(line('Was looking for:'))
+    print(line(''))
+    print(line('    {!s}'.format(hmf.pf['hmf_table'])))
     
 
-    print line('')
-    print line('Will search for a suitable replacement in:')
-    print line('')
-    print line('    %s/input/hmf' % ARES)
-    print line('')
-    print line(separator)
-            
+    print(line(''))
+    print(line('Will search for a suitable replacement in:'))
+    print(line(''))
+    print(line('    {!s}/input/hmf'.format(ARES)))
+    print(line(''))
+    print(line(separator))
+
 def no_hmf(hmf):
-    print ""
-    print line(separator)
-    print line('ERROR: Cannot generate halo mass function')    
-    print line(separator)        
+    print("")
+    print(line(separator))
+    print(line('ERROR: Cannot generate halo mass function'))
+    print(line(separator))
 
     if not have_ARES_env:
         s = \
@@ -255,20 +276,20 @@ def no_hmf(hmf):
     snew_by_line = snew.split('\n')
     
     for l in snew_by_line:
-        print line(l)
+        print(line(l))
 
         
     if not (have_pycamb and have_hmf):
-        print line('')
-        print line('It looks like you\'re missing both hmf and pycamb.')
+        print(line(''))
+        print(line('It looks like you\'re missing both hmf and pycamb.'))
     elif not have_pycamb:
-        print line('')
-        print line('It looks like you\'re missing pycamb.')
+        print(line(''))
+        print(line('It looks like you\'re missing pycamb.'))
     elif not have_hmf:
-        print line('')
-        print line('It looks like you\'re missing hmf.')
-       
-    print line(separator)
+        print(line(''))
+        print(line('It looks like you\'re missing hmf.'))
+    
+    print(line(separator))
 
 
 modelgrid_loadbalance = ""

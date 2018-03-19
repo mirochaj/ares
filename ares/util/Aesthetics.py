@@ -15,13 +15,13 @@ from .ParameterFile import par_info
 
 # Load custom defaults    
 HOME = os.environ.get('HOME')
-if os.path.exists('%s/.ares/labels.py' % HOME):
-    f, filename, data = imp.find_module('labels', ['%s/.ares/' % HOME])
+if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
+    f, filename, data = imp.find_module('labels', ['{!s}/.ares/'.format(HOME)])
     custom_labels = imp.load_module('labels.py', f, filename, data).pf
 else:
     custom_labels = {}
     
-prefixes = ['igm_', 'cgm_']    
+prefixes = ['igm_', 'cgm_']
     
 #
 ## Common axis labels
@@ -73,7 +73,7 @@ labels.update(derived)
 labels_w_prefix = {}
 for prefix in prefixes:
     for key in labels:
-        labels_w_prefix['%s%s' % (prefix, key)] = labels[key]
+        labels_w_prefix['{0!s}{1!s}'.format(prefix, key)] = labels[key]
 
 labels.update(labels_w_prefix)
 
@@ -128,11 +128,14 @@ common = \
  
  'tau_e': r'$\tau_e$',
  'tau_tot': r'$\tau_e$', 
+ 'z_dec': r'$z_{\mathrm{dec}}$',
  
  'skewness_absorption': r'$\mu_{3, \mathrm{abs}}$',
  'kurtosis_absorption': r'$\mu_{4, \mathrm{abs}}$',
  'skewness_emission': r'$\mu_{3, \mathrm{em}}$',
  'kurtosis_emission': r'$\mu_{4, \mathrm{em}}$',
+ 
+ 'igm_initial_temperature': r'$T_0$',
 }    
 ##
 #
@@ -154,6 +157,7 @@ history_elements = \
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+ 'dlogTk_dlogt': r'$d\log T_K / d\log t$',
  
  'slope': r'$\delta^{\prime} T_b \ [\mathrm{mK} \ \mathrm{MHz}^{-1}]$',
  'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$', 
@@ -163,22 +167,22 @@ tp_parameters = {}
 hist_plus_derived = history_elements
 hist_plus_derived.update(derived)
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D', 'ZC']:        
+    for tp in ['A', 'B', 'C', 'D', 'ZC']:        
         if key in ['z', 'nu']:
-            tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s_{\mathrm{%s}}$' % (hist_plus_derived[key][0:-1], tp)
+            tp_parameters['{0!s}_{1!s}'.format(key, tp)] = \
+                r'{0!s}_{{\mathrm{{{1!s}}}}}$'.format(hist_plus_derived[key][0:-1], tp)
         else:
-            tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s(\nu_{\mathrm{%s}})$' % (hist_plus_derived[key][0:-1], tp)
+            tp_parameters['{0!s}_{1!s}'.format(key, tp)] = \
+                r'{0!s}(\nu_{{\mathrm{{{1!s}}}}})$'.format(hist_plus_derived[key][0:-1], tp)
 
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D']:        
+    for tp in ['A', 'B', 'C', 'D']:        
         if key in ['z', 'nu']:
-            tp_parameters['%s_%sp' % (key, tp)] = \
-                r'%s_{\mathrm{%s}}^{\prime}$' % (hist_plus_derived[key][0:-1], tp)
+            tp_parameters['{0!s}_{1!s}p'.format(key, tp)] = \
+                r'{0!s}_{{\mathrm{{{1!s}}}}}^{{\prime}}$'.format(hist_plus_derived[key][0:-1], tp)
         else:
-            tp_parameters['%s_%sp' % (key, tp)] = \
-                r'%s(\nu_{\mathrm{%s}}^{\prime})$' % (hist_plus_derived[key][0:-1], tp)
+            tp_parameters['{0!s}_{1!s}p'.format(key, tp)] = \
+                r'{0!s}(\nu_{{\mathrm{{{1!s}}}}}^{{\prime}})$'.format(hist_plus_derived[key][0:-1], tp)
 
 
 tanh_parameters = \
@@ -222,6 +226,7 @@ pop_parameters = \
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
  'pop_fstar': r'$f_{\ast}$',
  'pop_fobsc': r'$f_{\mathrm{obsc}}$',
+ 'fobsc': r'$f_{\mathrm{obsc}}$',
  'pop_acc_frac_stellar': r'$f_{\ast}^{\mathrm{acc}}$',
  'pop_acc_frac_metals': r'$f_Z^{\mathrm{acc}}$',
  'pop_acc_frac_gas': r'$f_g^{\mathrm{acc}}$',
@@ -274,7 +279,7 @@ def logify_str(s, sup=None):
     new_s = s_no_dollar
     
     if sup is not None:
-        new_s += '[%s]' % sup_scriptify_str(s)
+        new_s += '[{!s}]'.format(sup_scriptify_str(s))
         
     return r'$\mathrm{log}_{10}' + new_s + '$'
     
@@ -282,7 +287,7 @@ def undo_mathify(s):
     return str(s.replace('$', ''))
     
 def mathify_str(s):
-    return r'$%s$' % s    
+    return r'${!s}$'.format(s)    
             
 class Labeler(object):
     def __init__(self, pars, is_log=False, extra_labels={}, **kwargs):
@@ -318,14 +323,14 @@ class Labeler(object):
                 
     def _find_par(self, popid, phpid):
         kwarg = None
-        look_for_1 = '{%i}' % popid
-        look_for_2 = '[%i]' % phpid
+        look_for_1 = '{{{}}}'.format(popid)
+        look_for_2 = '[{}]'.format(phpid)
         for kwarg in self.base_kwargs:
             if phpid is not None:
-                if self.base_kwargs[kwarg] == 'pq[%i]' % phpid:
+                if self.base_kwargs[kwarg] == 'pq[{}]'.format(phpid):
                     break
                 
-        return kwarg.replace('{%i}' % popid, '')
+        return kwarg.replace('{{{}}}'.format(popid), '')
                 
     def label(self, par, take_log=False, un_log=False):
         """
@@ -350,7 +355,7 @@ class Labeler(object):
         _par = par        
         # Correct prefix is phpid is not None
         if phpid is not None:
-            s = 'pq[%i]' % phpid
+            s = 'pq[{}]'.format(phpid)
                 
             for _par in self.base_kwargs:
                 if self.base_kwargs[_par] != s:
@@ -362,13 +367,15 @@ class Labeler(object):
         units = self.units(prefix)
         
         label = None
-        
+                
         # Simplest case. Not popid, not a PQ, label found.
         if popid == phpid == None and (prefix in self.labels):
             label = self.labels[prefix]
         # Has pop ID number but is not a PQ, label found.
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
+        elif (popid is not None) and (phpid is None) and (prefix.strip('pop_') in self.labels):
+            label = self.labels[prefix.strip('pop_')]    
         # Has Pop ID, not a PQ, no label found.      
         elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
             try:
@@ -378,21 +385,22 @@ class Labeler(object):
         
             if hard is not None:    
                 # If all else fails, just typset the parameter decently
-                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
-                label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
-                    popid, phpid, parnum)    
+                label = prefix
+                #parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                #label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
+                #    popid, phpid, parnum)    
         # Is PQ, label found. Just need to parse []s.
         elif phpid is not None and (prefix in self.labels):
-            parnum = map(int, re.findall(r'\d+', par.replace('[%i]' % phpid,'')))
+            parnum = list(map(int, re.findall(r'\d+', par.replace('[{}]'.format(phpid),''))))
             if len(parnum) == 1:
-                label = r'$%s^{\mathrm{par}\ %i}$' % \
-                    (undo_mathify(self.labels[prefix]), parnum[0])
+                label = r'${0!s}^{{\mathrm{{par}}\ {1}}}$'.format(\
+                    undo_mathify(self.labels[prefix]), parnum[0])
             else:
-                label = r'$%s^{\mathrm{par}\ %i,%i}$' \
-                    % (undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
+                label = r'${0!s}^{{\mathrm{{par}}\ {1},{2}}}$'.format(\
+                    undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
         # Otherwise, just use number. Not worth the trouble right now.
         elif (popid is None) and (phpid is not None) and par.startswith('pq_'):
-            label = 'par %i' % (self.parameters.index(par))
+            label = 'par {}'.format(self.parameters.index(par))
             
         # Troubleshoot if label not found
         if label is None:         
@@ -401,18 +409,19 @@ class Labeler(object):
                 if prefix[4:] in self.labels:
                     label = self.labels[prefix[4:]]
             else:
-                label = r'$%s$' % (par.replace('_', '\_'))
-        
+                label = r'${!s}$'.format(par.replace('_', '\_'))
+
         if par in self.parameters: 
-            print par, take_log, self.is_log[par], un_log
-            if take_log:        
+            #print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
+            #    un_log))
+            if take_log:
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             elif self.is_log[par] and (not un_log):
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             else:
-                return label    
-        
+                return label
+
         return label
-        
+
         
     

@@ -10,10 +10,13 @@ Description: Setup priors etc. in some semi-automated way.
 
 """
 
-from .PriorSet import PriorSet
-from .Priors import UniformPrior
 from ..util.ParameterFile import par_info
 from ..util.SetDefaultPriorValues import *
+
+try:
+    from distpy import DistributionSet, UniformDistribution
+except ImportError:
+    pass
 
 class FitHelper(object):
     """
@@ -28,7 +31,7 @@ class FitHelper(object):
     @property
     def prior_set(self):
         if not hasattr(self, '_prior_set'):
-            self._prior_set = PriorSet()
+            self._prior_set = DistributionSet()
         return self._prior_set
     
     @property
@@ -55,7 +58,8 @@ class FitHelper(object):
             
             if par in default_priors:
                 prior, _is_log = default_priors[prior]
-                self.prior_set.add_prior(UniformPrior(prior), par)
+                distribution = UniformDistribution(*prior)
+                self.prior_set.add_distribution(distribution, par)
                 self.is_log.append(_is_log)
                 continue
                 
@@ -71,13 +75,13 @@ class FitHelper(object):
                                                 
             # Need to know function and independent variable
             parnum = int(par[11])
-            func = self.base_kwargs['pq_func[%i]' % pqid]
-            var  = self.base_kwargs['pq_func_var[%i]' % pqid]
+            func = self.base_kwargs['pq_func[{}]'.format(pqid)]
+            var  = self.base_kwargs['pq_func_var[{}]'.format(pqid)]
             
             # See if this is nested
             parent = None
             for kw in self.base_kwargs:
-                if self.base_kwargs[kw] == 'pq[%i]' % pqid:
+                if self.base_kwargs[kw] == 'pq[{}]'.format(pqid):
                     parent = kw
                     break
                         
@@ -87,15 +91,15 @@ class FitHelper(object):
             else:
                 pparnum = int(parent[11])
                 pprefix, ppopid, ppqid = par_info(parent)
-                pfunc = self.base_kwargs['pq_func[%i]' % ppqid]
-                pvar  = self.base_kwargs['pq_func_var[%i]' % ppqid]
+                pfunc = self.base_kwargs['pq_func[{}]'.format(ppqid)]
+                pvar  = self.base_kwargs['pq_func_var[{}]'.format(ppqid)]
             
             
             prior, _is_log = \
                 default_prior(func, var, parnum, pfunc, pvar, pparnum)
                         
             self.is_log.append(_is_log)
-            self.prior_set.add_prior(UniformPrior(*prior), par)
+            self.prior_set.add_distribution(UniformDistribution(*prior), par)
             
             
             

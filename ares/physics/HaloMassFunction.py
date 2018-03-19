@@ -10,12 +10,12 @@ Description:
 """
 
 import glob
-import pickle
 import os, re, sys
 import numpy as np
 from . import Cosmology
 from types import FunctionType
 from ..util import ParameterFile
+from ..util.Pickling import read_pickle_file, write_pickle_file
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..util.Misc import get_hg_rev
@@ -27,17 +27,17 @@ from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, m_H, k_B
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
-    
+
 try:
     from scipy.special import erfc
 except ImportError:
     pass
-    
+
 try:
     import h5py
 except ImportError:
     pass
-    
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -138,21 +138,23 @@ class HaloMassFunction(object):
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
             prefix = self.table_prefix(True)
-            fn = '%s/input/hmf/%s' % (ARES, prefix)
+            fn = '{0!s}/input/hmf/{1!s}'.format(ARES, prefix)
             # First, look for a perfect match
-            if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
-                self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
+            if os.path.exists('{0!s}.{1!s}'.format(fn,\
+                self.pf['preferred_format'])):
+                self.fn = '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
             # Next, look for same table different format
-            elif os.path.exists('%s.pkl' % fn):
-                self.fn = '%s.pkl' % fn
-            elif os.path.exists('%s.hdf5' % fn):
-                self.fn = '%s.hdf5' % fn   
-            elif os.path.exists('%s.npz' % fn):
-                self.fn = '%s.npz' % fn    
+            elif os.path.exists('{!s}.pkl'.format(fn)):
+                self.fn = '{!s}.pkl'.format(fn)
+            elif os.path.exists('{!s}.hdf5'.format(fn)):
+                self.fn = '{!s}.hdf5'.format(fn)
+            elif os.path.exists('{!s}.npz'.format(fn)):
+                self.fn = '{!s}.npz'.format(fn)
             else:
                 # Leave resolution blank, but enforce ranges
                 prefix = self.table_prefix()
-                candidates = glob.glob('%s/input/hmf/%s*' % (ARES, prefix))
+                candidates =\
+                    glob.glob('{0!s}/input/hmf/{1!s}*'.format(ARES, prefix))
 
                 if len(candidates) == 1:
                     self.fn = candidates[0]
@@ -171,7 +173,7 @@ class HaloMassFunction(object):
                     self.fn = None
                     for candidate in candidates:
                         _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
-                            map(int, re.findall(r'\d+', candidate))
+                            list(map(int, re.findall(r'\d+', candidate)))
                     
                         if (_logMmin > logMmin) or (_logMmax < logMmax):
                             continue
@@ -216,16 +218,7 @@ class HaloMassFunction(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(
-                omega_m_0=self.pf['omega_m_0'], 
-                omega_l_0=self.pf['omega_l_0'], 
-                omega_b_0=self.pf['omega_b_0'],  
-                hubble_0=self.pf['hubble_0'],  
-                helium_by_number=self.pf['helium_by_number'],
-                cmb_temp_0=self.pf['cmb_temp_0'],
-                approx_highz=self.pf['approx_highz'], 
-                sigma_8=self.pf['sigma_8'],
-                primordial_index=self.pf['primordial_index'])        
+            self._cosm = Cosmology(**self.pf)        
 
         return self._cosm
             
@@ -282,10 +275,11 @@ class HaloMassFunction(object):
             self.k = f['k']
             f.close()                        
         elif re.search('.pkl', self.fn):
-            f = open(self.fn, 'rb')
-            self.z = pickle.load(f)
-            self.logM = pickle.load(f)
+            loaded = read_pickle_file(self.fn, nloads=6, verbose=False)
+            (self.z, self.logM, self.fcoll_spline_2d) = loaded[0:3]
+            (self.dndm, self.ngtm, self.mgtm) = loaded[3:6]
             self.M = 10**self.logM
+
             self.fcoll_spline_2d = pickle.load(f)
             self.dndm = pickle.load(f)            
             self.ngtm = pickle.load(f)
@@ -400,7 +394,7 @@ class HaloMassFunction(object):
 
         if rank == 0:
             print_hmf(self)
-            print "\nComputing %s mass function..." % self.hmf_func    
+            print("\nComputing {!s} mass function...".format(self.hmf_func))    
 
         # Masses in hmf are in units of Msun * h
         self.M = self.MF.M / self.cosm.h70
@@ -472,8 +466,7 @@ class HaloMassFunction(object):
             else:
                 raise NotImplemented('No bias for non-PS non-ST MF yet!')
             
-            self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
-                        
+            self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3                
             self.growth_tab[i] = self.MF.growth_factor            
                                     
             pb.update(i)
@@ -564,7 +557,7 @@ class HaloMassFunction(object):
                 if type(self.pf['pop_Mmin']) is FunctionType:
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'](z))
                 else:    
-                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
+                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'][i])
                     
             if Mmax_of_z:
                 self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
@@ -630,7 +623,8 @@ class HaloMassFunction(object):
         self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
-            kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
+            kind=self.pf['hmf_interp'], 
+            bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
         
         return fcoll_spline, dfcolldz_spline, None
@@ -743,6 +737,14 @@ class HaloMassFunction(object):
         
         return np.squeeze(self.dfcolldz_spline(z))
         
+    @property
+    def _tab_MAR(self):
+        if not hasattr(self, '_tab_MAR_'):
+            pass
+            
+        return self._tab_MAR_
+            
+            
     def MAR_via_AM(self, z):
         """
         Compute mass accretion rate by abundance matching across redshift.
@@ -762,7 +764,8 @@ class HaloMassFunction(object):
         k = np.argmin(np.abs(z - self.z))
     
         if z not in self.z:
-            print "WARNING: Rounding to nearest redshift z=%.3g" % self.z[k]
+            print("WARNING: Rounding to nearest redshift z={0:.3g}".format(\
+                self.z[k]))
     
         # For some reason flipping the order is necessary for non-bogus results
         dn_gtm_1t = cumtrapz(self.dndlnm[k][-1::-1], 
@@ -795,8 +798,9 @@ class HaloMassFunction(object):
             
             mask = np.zeros_like(_MAR_tab)
             mask[np.isnan(_MAR_tab)] = 1
+            mask[_MAR_tab < 0] = 1
             _MAR_tab[mask == 1] = 0.
-            
+                        
             self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
             self._MAR_mask = mask    
             
@@ -851,6 +855,9 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
               
+    def CircularVelocity(self, M, z, mu=0.6):
+        return np.sqrt(G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
+              
     def MassFromVc(self, Vc, z):
         cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
@@ -878,6 +885,10 @@ class HaloMassFunction(object):
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
+    def DynamicalTime(self, M, z, mu=0.6):
+        return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
+            / G / M / g_per_msun)
+            
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
@@ -900,7 +911,7 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(map(self._tegmark, zarr))
+        Mmin_H2 = np.array(list(map(self._tegmark, zarr)))
                 
         #return np.maximum(Mmin_vbc, Mmin_H2)      
         return Mmin_vbc + Mmin_H2
@@ -933,11 +944,11 @@ class HaloMassFunction(object):
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))    
                 
-            return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
-                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+            return 'hmf_{0!s}_logM_{1!s}_{2}-{3}_z_{4!s}_{5}-{6}'.format(\
+                self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
         else:
-            return 'hmf_%s_logM_*_%i-%i_z_*_%i-%i' \
-                % (self.hmf_func, M1, M2, z1, z2) 
+            return 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3}-{4}'.format(\
+                self.hmf_func, M1, M2, z1, z2) 
                                
     def save_hmf(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
@@ -974,18 +985,20 @@ class HaloMassFunction(object):
         
         # Determine filename
         if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix(True), format)                
+            fn = '{0!s}/{1!s}.{2!s}'.format(destination,\
+                self.table_prefix(True), format)                
         else:
             if format not in fn:
-                print "Suffix of provided filename does not match chosen format."
-                print "Will go with format indicated by filename suffix."
+                print("Suffix of provided filename does not match chosen format.")
+                print("Will go with format indicated by filename suffix.")
         
         if os.path.exists(fn):
             if clobber:
-                os.system('rm -f %s' % fn)
+                os.system('rm -f {!s}'.format(fn))
             else:
-                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
-            
+                raise IOError(('File {!s} exists! Set clobber=True or ' +\
+                    'remove manually.').format(fn)) 
+        
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
@@ -1035,6 +1048,6 @@ class HaloMassFunction(object):
             pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
             
-        print 'Wrote %s.' % fn
+        print('Wrote {!s}.'.format(fn))
         return
         

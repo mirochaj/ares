@@ -41,7 +41,7 @@ def test(rtol=1e-2):
             ok = False
             break
             
-    assert ok, "Relative error between analytical and numerical solutions exceeds %.3g." % rtol        
+    assert ok, "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(rtol)
     
 if __name__ == '__main__':
     test()

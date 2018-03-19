@@ -12,13 +12,13 @@ Description: Container for hydrogen physics stuff.
 
 import scipy
 import numpy as np
-from scipy import interpolate
+from types import FunctionType
 from ..util.ReadData import _load_inits
-from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
+from ..util.Math import central_difference, interp1d
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
     k_B
-
+    
 try:
     from scipy.special import gamma
     g23 = gamma(2. / 3.)
@@ -31,7 +31,7 @@ except ImportError:
 _scipy_ver = scipy.__version__.split('.')
 
 # This keyword didn't exist until version 0.14 
-if float(_scipy_ver[1]) >= 0.14:
+if float(_scipy_ver[1]) >= 14:
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}
@@ -91,7 +91,7 @@ class Hydrogen(object):
     @property
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
-            self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
+            self._kappa_H_pre = interp1d(T_HH, kappa_HH, 
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
                 **_interp1d_kwargs)
 
@@ -100,7 +100,7 @@ class Hydrogen(object):
     @property
     def kappa_e_pre(self):
         if not hasattr(self, '_kappa_e_pre'):     
-            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
+            self._kappa_e_pre = interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
                 **_interp1d_kwargs)
 
@@ -127,14 +127,14 @@ class Hydrogen(object):
     @property
     def kH_hi(self):
         if not hasattr(self, '_kH_hi'):
-            self._kH_hi = np.array(map(self.kappa_H, self.Tk_hi_H))
+            self._kH_hi = np.array(list(map(self.kappa_H, self.Tk_hi_H)))
     
         return self._kH_hi
 
     @property
     def ke_hi(self):
         if not hasattr(self, '_ke_hi'):
-            self._ke_hi = np.array(map(self.kappa_e, self.Tk_hi_e))
+            self._ke_hi = np.array(list(map(self.kappa_e, self.Tk_hi_e)))
 
         return self._ke_hi
 
@@ -142,10 +142,9 @@ class Hydrogen(object):
     def _dlogkH_dlogT(self):  
         if not hasattr(self, '_dlogkH_dlogT_'):
             Tk_p_H, dkHdT = central_difference(self.Tk_hi_H, self.kH_hi)
-            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(map(self.kappa_H, Tk_p_H))
-            
-            _kH_spline = interpolate.interp1d(Tk_p_H, dlogkH_dlogT)
-            self._dlogkH_dlogT_ = lambda T: _kH_spline(T)
+            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(list(map(self.kappa_H, Tk_p_H)))            
+            _kH_spline = interp1d(Tk_p_H, dlogkH_dlogT)
+            self._dlogkH_dlogT = lambda T: _kH_spline(T)
             
         return self._dlogkH_dlogT_
         
@@ -153,10 +152,9 @@ class Hydrogen(object):
     def _dlogke_dlogT(self):
         if not hasattr(self, '_dlogke_dlogT_'):
             Tk_p_e, dkedT = central_difference(self.Tk_hi_e, self.ke_hi)
-            dlogke_dlogT = dkedT * Tk_p_e / np.array(map(self.kappa_e, Tk_p_e))
-            
-            _ke_spline = interpolate.interp1d(Tk_p_e, dlogke_dlogT)
-            self._dlogke_dlogT_ = lambda T: _ke_spline(T)
+            dlogke_dlogT = dkedT * Tk_p_e / np.array(list(map(self.kappa_e, Tk_p_e)))
+            _ke_spline = interp1d(Tk_p_e, dlogke_dlogT)
+            self._dlogke_dlogT = lambda T: _ke_spline(T)
     
         return self._dlogke_dlogT_
     
@@ -280,8 +278,29 @@ class Hydrogen(object):
         elif n == 30: return 0.3590
         else:
             raise ValueError('Only know frec for 2 <= n <= 30!')
+
+    @property    
+    def Tbg(self):
+        if not hasattr(self, '_Tbg'):
+            if self.pf['Tbg'] is not None:
+                if self.pf['Tbg'] == 'pl':
+                    p = self.Tbg_pars
+                    self._Tbg = lambda z: p[0] * ((1. + z) / (1. + p[1]))**p[2]
+                elif type(self.pf['Tbg']) is FunctionType:
+                    self._Tbg = self.pf['Tbg']
+                else:
+                    raise NotImplemented('help')
+            else:
+                self._Tbg = None
     
-    # Look at line 905 in astrophysics.cc of Jonathan's code
+        return self._Tbg
+    
+    @Tbg.setter
+    def Tbg(self, value):
+        """
+        Must be a function of redshift.
+        """
+        self._Tbg = value
     
     def _xc(self, z, Tk, xHII=0.0, ne=0.0, Ja=0.0):
         return self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
@@ -299,7 +318,20 @@ class Hydrogen(object):
     def _xc_eH(self, z, Tk, xHII=0.0, ne=0.0):
         return ne * self.kappa_e(Tk) * T_star / A10 / self.cosm.TCMB(z)
             
-    def CollisionalCouplingCoefficient(self, z, Tk, xHII=0.0, ne=0.0):
+    @property
+    def Tbg_pars(self):
+        if not hasattr(self, '_Tbg_pars'):
+            self._Tbg_pars = [self.pf['Tbg_p{}'.format(i)] for i in range(5)]
+        return self._Tbg_pars            
+        
+    #def Tref(self, z):
+    #    """
+    #    Compute background temperature.
+    #    """
+    #
+    #    return self.cosm.TCMB(z) + self.Tbg(z)
+
+    def CollisionalCouplingCoefficient(self, z, Tk, xHII=0.0, ne=0.0, Tr=0.0):
         """
         Parameters
         ----------
@@ -319,8 +351,10 @@ class Hydrogen(object):
         """
         sum_term = self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
             + ne * self.kappa_e(Tk)
+              
+        Tref = self.cosm.TCMB(z) + Tr
                 
-        return sum_term * T_star / A10 / self.cosm.TCMB(z)    
+        return sum_term * T_star / A10 / Tref
     
     def Ja_c(self, z):
         return (1. + z) / 1.81e11
@@ -366,14 +400,24 @@ class Hydrogen(object):
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
+        
+    @property
+    def Ts_floor(self):
+        if not hasattr(self, '_Ts_floor'):
+            self._Ts_floor = lambda z: 0.0
+        return self._Ts_floor
 
-    def Ts(self, z, Tk, Ja, xHII, ne):
+    @Ts_floor.setter
+    def Ts_floor(self, value):
+        self._Ts_floor = value
+
+    def Ts(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Short-hand for calling `SpinTemperature`.
         """
-        return self.SpinTemperature(z, Tk, Ja, xHII, ne)
+        return self.SpinTemperature(z, Tk, Ja, xHII, ne, Tr)
 
-    def SpinTemperature(self, z, Tk, Ja, xHII, ne):
+    def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Returns spin temperature of intergalactic hydrogen.
 
@@ -399,24 +443,28 @@ class Hydrogen(object):
         x_c = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
         x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         Tc = Tk
+        
+        Tref = self.cosm.TCMB(z) + Tr
 
-        return (1.0 + x_c + x_a) / \
-            (self.cosm.TCMB(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+        Ts = (1.0 + x_c + x_a) / \
+            (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
     
-    def dTb(self, z, xavg, Ts):
+        return np.maximum(Ts, self.Ts_floor(z=z))
+    
+    def dTb(self, z, xavg, Ts, Tr=0.0):
         """
         Short-hand for calling `DifferentialBrightnessTemperature`.
         """
-        return self.DifferentialBrightnessTemperature(z, xavg, Ts)
+        return self.DifferentialBrightnessTemperature(z, xavg, Ts, Tr)
         
     def T0(self, z):
         return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
         
-    def DifferentialBrightnessTemperature(self, z, xavg, Ts):
+    def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.
-        
+
         Parameters
         ----------
         z : float, np.ndarray
@@ -427,33 +475,30 @@ class Hydrogen(object):
             bulk IGM beyond.
         Ts : float, np.ndarray
             Spin temperature of intergalactic hydrogen.
-            
+
         Returns
         -------
         Differential brightness temperature in milli-Kelvin.
-        
+
         """
         
-        return self.T0(z) * (1. - xavg) * (1.0 - self.cosm.TCMB(z) / Ts)
-            
+        Tref = self.cosm.TCMB(z) + Tr
+        return 27. * (1. - xavg) * \
+            (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
+            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
+            (1.0 - Tref / Ts)
+    
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
             self._inits = _load_inits()
         return self._inits
-        
+
     def saturated_limit(self, z):
         return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
-        
-    def ne_floor(self, z):
-        return np.interp(z, self.inits['z'], self.inits['xe']) * self.cosm.nH(z)
-        
-    def Tk_floor(self, z):
-        return np.interp(z, self.inits['z'], self.inits['Tk'])
-        
-    def adiabatic_floor(self, z): 
-        Tk = self.Tk_floor(z)
+
+    def adiabatic_floor(self, z):
+        Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
-        
-               
+

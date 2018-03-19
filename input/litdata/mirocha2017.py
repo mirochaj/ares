@@ -44,8 +44,7 @@ _sed_soft = \
 _sed_soft['pop_sfr_model{2}'] = 'link:sfrd:0'
 _sed_soft['pop_alpha{2}'] = -2.5
 _sed_soft['pop_solve_rte{2}'] = True
-_sed_soft['pop_tau_Nz{2}'] = 1000
-_sed_soft['pop_approx_tau{2}'] = 'neutral'
+_sed_soft['tau_approx'] = 'neutral'
 
 _popII_updates = \
 {
@@ -89,7 +88,7 @@ popII_models = ['dpl'] + _all + ['strong_weak'] + ['early', 'strong_early']
 
 for e1 in _amp:
     for e2 in _timing:
-        popII_models.append('%s_%s' % (e1, e2))
+        popII_models.append('{0!s}_{1!s}'.format(e1, e2))
 
 popII_models.extend(['soft', 'soft_fall', 'soft_rise'])
 
@@ -162,8 +161,6 @@ _low = \
  'pop_logN{3}': -np.inf,
 
  'pop_solve_rte{3}': True,
- 'pop_tau_Nz{3}': 1e3,
- 'pop_approx_tau{3}': 'neutral',
 
  #'pop_Mmin{0}': 'link:Mmax_active:2',
 
@@ -300,6 +297,4 @@ dpl_blobs = \
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
  'blob_funcs': ['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax'],
 }
-
-
 

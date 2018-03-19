@@ -9,15 +9,14 @@ Created on: Thu Oct  4 12:59:46 2012
 Description: 
 
 """
-
-import pickle
 import numpy as np
 import re, scipy, os
 from ..util import labels
 import matplotlib.pyplot as pl
+from ..util.Stats import get_nu
+from ..util.Pickling import read_pickle_file
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
-from scipy.optimize import fsolve
 from ..physics.Constants import *
 from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
@@ -25,6 +24,12 @@ from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
 from mpl_toolkits.axes_grid import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
     
 try:
     import h5py
@@ -92,15 +97,15 @@ class MultiPhaseMedium(object):
             self.history = data.copy()
 
         # Read output of a simulation from disk
-        elif type(data) is str:
+        elif isinstance(data, basestring):
             self.prefix = data
             self._load_data(data, suffix)
 
         self.kwargs = kwargs
 
-    def _load_data(self, data, suffix='history'):
-        if os.path.exists('%s.%s.pkl' % (data, suffix)):
-            history = self._load_pkl(data, suffix)
+    def _load_data(self, data):
+        if os.path.exists('{!s}.history.pkl'.format(data)):
+            history = self._load_pkl(data)
         else:
             history = self._load_txt(data, suffix)
 
@@ -109,26 +114,25 @@ class MultiPhaseMedium(object):
 
     def _load_pf(self, data):        
         try:   
-            f = open('%s.parameters.pkl' % data, 'rb')
-            self.pf = pickle.load(f)
-            f.close()
-                
+            self.pf = read_pickle_file('{!s}.parameters.pkl'.format(data),\
+                nloads=1, verbose=False)                
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.}
-            print 'Error loading %s.parameters.pkl.' % data    
+            print('Error loading {!s}.parameters.pkl.'.format(data))
             
     def _load_txt(self, data, histsuffix):
         found = False
         for suffix in ['txt', 'dat']:
-            fn = '%s.%s.%s' % (data, histsuffix, suffix)
+            fn = '{0!s}.history.{1!s}'.format(data, suffix)
             if os.path.exists(fn):
                 found = True
                 break
                 
         if not found:
-            raise IOError('Couldn\'t find file of form %s.history*' % data)        
-                
+            raise IOError('Couldn\'t find file of form {!s}.history*'.format(\
+                data))
+        
         with open(fn, 'r') as f:
             cols = f.readline()[1:].split()
             
@@ -136,63 +140,25 @@ class MultiPhaseMedium(object):
         
         return {key:data[i] for i, key in enumerate(cols)}
 
-    def _load_pkl(self, data, suffix):
-                   
-        fn = '%s.%s.pkl' % (data, suffix)
-                         
-        chunks = 0
-        f = open(fn, 'rb')
-        while True:
-            try:
-                tmp = pickle.load(f)
-            except EOFError:
-                break
-            
+    def _load_pkl(self, data):
+        try:
             if not hasattr(self, '_suite'):
                 self._suite = []
-                
-            self._suite.append(tmp.copy())
-            chunks += 1
-        
-        f.close()
-        
-        if chunks == 0:
-            raise IOError('Empty history (%s.%s.pkl)' % (data, suffix))
-        else:    
-            history = self._suite[-1]
-                
-        try:
-            chunks = 0
-            f = open('%s.%s.pkl' % (data, suffix), 'rb')
-            while True:
-                try:
-                    tmp = pickle.load(f)
-                except EOFError:
-                    break
-                
-                if not hasattr(self, '_suite'):
-                    self._suite = []
-                    
-                self._suite.append(tmp.copy())
-                chunks += 1
-            
-            f.close()
-            
-            if chunks == 0:
-                raise IOError('Empty history (%s.history.pkl)' % data)
+            fn = '{!s}.history.pkl'.format(data)
+            loaded_chunks = read_pickle_file(fn, nloads=None, verbose=False)
+            self._suite.extend(loaded_chunks)
+            if len(loaded_chunks) == 0:
+                raise IOError('Empty history ({!s}.history.pkl)'.format(data))
             else:    
                 history = self._suite[-1]
-
         except IOError: 
             if re.search('pkl', data):
-                f = open(data, 'rb')
-                history = pickle.load(f)
-                f.close()
+                history = read_pickle_file(data, nloads=1, verbose=False)
             else:
                 import glob
-                fns = glob.glob('./%s.%s*' % (data, suffix))
+                fns = glob.glob('./{!s}.history*'.format(data))
                 if not fns:
-                    raise IOError('No files with prefix %s.' % data)
+                    raise IOError('No files with prefix {!s}.'.format(data))
                 else:
                     fn = fns[0]
                     
@@ -203,20 +169,14 @@ class MultiPhaseMedium(object):
                 history = {}
                 for i, col in enumerate(cols):
                     history[col] = _data[:,i]
-                f.close()  
+                f.close()
 
-        return history       
+        return history    
 
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-                omega_l_0=self.pf["omega_l_0"],
-                omega_b_0=self.pf["omega_b_0"], 
-                hubble_0=self.pf["hubble_0"],
-                helium_by_number=self.pf['helium_by_number'],
-                cmb_temp_0=self.pf["cmb_temp_0"],
-                approx_highz=self.pf["approx_highz"])
+            self._cosm = Cosmology(**self.pf)
             
         return self._cosm
 
@@ -239,8 +199,9 @@ class MultiPhaseMedium(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            with open('%s.blobs.pkl' % self.prefix) as f:
-                self._blobs = pickle.load(f)
+            self._blobs =\
+                read_pickle_file('{!s}.blobs.pkl'.format(self.prefix),\
+                nloads=1, verbose=False)
         return self._blobs
 
     def close(self):
@@ -437,7 +398,7 @@ class MultiPhaseMedium(object):
         ax_freq.set_xticks(znu_minor, minor=True)
         ax_freq.set_xlim(ax.get_xlim())
         
-        freq_labels = map(str, nu)
+        freq_labels = list(map(str, nu))
         
         # A bit hack-y
         for i, label in enumerate(freq_labels):
@@ -452,49 +413,7 @@ class MultiPhaseMedium(object):
         pl.draw()
         
         return ax_freq
-        
-    def add_time_axis(self, ax):
-        """
-        Take plot with redshift on x-axis and add top axis with corresponding 
-        time since Big Bang.
-        
-        This is crude at the moment -- should self-consistently solve for
-        age of the universe.
-        
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-        """
-        
-        age = 13.7 * 1e3 # Myr
-        
-        t = np.arange(100, 1e3, 100) # in Myr
-        t_minor = np.arange(0, 1e3, 50)[1::2]
-        
-        zt = map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t)
-        zt_minor = map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t_minor)
-        
-        ax_time = ax.twiny()
-        ax_time.set_xlabel(labels['t_myr'])        
-        ax_time.set_xticks(zt)
-        ax_time.set_xticks(zt_minor, minor=True)
-        ax_time.set_xlim(ax.get_xlim())
-        
-        # A bit hack-y
-        time_labels = map(str, map(int, t))
-        for i, label in enumerate(time_labels):
-            tnow = float(label)
-            if (tnow in [400, 600, 700]) or (tnow > 800):
-                time_labels[i] = ''    
-            
-        ax_time.set_xticklabels(time_labels)
-        
-        pl.draw()
-        
-        return ax_time
-        
+                
     def reverse_x_axis(self, ax, twinax=None):
         """
         By default, we plot quantities vs. redshift, ascending from left to 
@@ -505,8 +424,8 @@ class MultiPhaseMedium(object):
         ax.invert_xaxis()
         
         if twinax is None:
-            print "If you have a twinx axis, be sure to re-run add_time_axis or add_frequency_axis!"
-            print "OR: pass that axis object as a keyword argument to this function!"
+            print("If you have a twinx axis, be sure to re-run add_time_axis or add_frequency_axis!")
+            print("OR: pass that axis object as a keyword argument to this function!")
         else:
             twinax.invert_xaxis()
         
@@ -514,7 +433,7 @@ class MultiPhaseMedium(object):
         
     def add_tau_inset(self, ax, inset=None, width=0.25, height=0.15, loc=4,
             mu=0.055, sig1=0.009, padding=0.02, borderpad=1, 
-            ticklabels=None, fmt='%.2g', **kwargs):
+            ticklabels=None, **kwargs):
 
         sig2 = 2. * sig1
 
@@ -657,11 +576,11 @@ class MultiPhaseMedium(object):
         if element == 'h':
             if zone is None:
                 if self.pf['include_igm']:
-                    xe = self.history['igm_%s_2' % element]
+                    xe = self.history['igm_{!s}_2'.format(element)]
                 else:
                     xe = np.zeros_like(self.history['z'])
                 if self.pf['include_cgm']:
-                    xi = self.history['cgm_%s_2' % element]
+                    xi = self.history['cgm_{!s}_2'.format(element)]
                 else:
                     xi = np.zeros_like(self.history['z'])
                     
@@ -670,11 +589,11 @@ class MultiPhaseMedium(object):
                 to_plot = [xavg, xi, xe]
                 show = [show_xibar, show_xi, show_xe]
             else:
-                to_plot = [self.history['%s_%s_2' % (zone, element)]]
+                to_plot = [self.history['{0!s}_{1!s}_2'.format(zone, element)]]
                 show = [True] * 2           
 
         else:
-            to_plot = [self.history['igm_he_%i' % sp] for sp in [2,3]]
+            to_plot = [self.history['igm_he_{}'.format(sp)] for sp in [2,3]]
             show = [True] * 2
                
         if 'label' not in kwargs:
@@ -739,12 +658,12 @@ class MultiPhaseMedium(object):
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         
-        n1 = map(self.cosm.nH, self.history['z']) if species == 'h_1' \
-        else map(self.cosm.nHe, self.history['z'])
+        n1 = list(map(self.cosm.nH, self.history['z'])) if species == 'h_1' \
+        else list(map(self.cosm.nHe, self.history['z']))
         
-        n1 = np.array(n1) * np.array(self.history['igm_%s' % species])
+        n1 = np.array(n1) * np.array(self.history['igm_{!s}'.format(species)])
         
-        ratePrimary = np.array(self.history['igm_Gamma_%s' % species]) #* n1
+        ratePrimary = np.array(self.history['igm_Gamma_{!s}'.format(species)]) #* n1
         
         ax.semilogy(self.history['z'], ratePrimary, ls='-', **kwargs)
         
@@ -752,18 +671,18 @@ class MultiPhaseMedium(object):
         
         for donor in ['h_1', 'he_1', 'he_2']: 
             
-            field = 'igm_gamma_%s_%s' % (species, donor)
+            field = 'igm_gamma_{0!s}_{1!s}'.format(species, donor)
             
             if field not in self.history:
                 continue
                
-            n2 = map(self.cosm.nH, self.history['z']) if donor == 'h_1' \
-            else map(self.cosm.nHe, self.history['z'])
+            n2 = list(map(self.cosm.nH, self.history['z'])) if donor == 'h_1' \
+            else list(map(self.cosm.nHe, self.history['z']))
         
-            n2 = np.array(n2) * np.array(self.history['igm_%s' % donor])
+            n2 = np.array(n2) * np.array(self.history['igm_{!s}'.format(donor)])
         
             rateSecondary += \
-                np.array(self.history['igm_gamma_%s_%s' % (species, donor)]) * n2 / n1
+                np.array(self.history['igm_gamma_{0!s}_{1!s}'.format(species, donor)]) * n2 / n1
         
         ax.semilogy(self.history['z'], rateSecondary, ls='--')
         
@@ -948,7 +867,7 @@ class MultiPhaseMedium(object):
         """
 
         # Convert turning points to actual redshifts
-        if type(z) is str:
+        if isinstance(z, basestring):
             z = self.turning_points[z][0]
             
         # Redshift x blobs
@@ -960,7 +879,7 @@ class MultiPhaseMedium(object):
             
         return float(interp(z))
 
-def add_redshift_axis(ax, twin_ax=None):
+def add_redshift_axis(ax, twin_ax=None, zlim=80):
     """
     Take plot with frequency on x-axis and add top axis with corresponding 
     redshift.
@@ -972,21 +891,27 @@ def add_redshift_axis(ax, twin_ax=None):
     """    
 
     fig = ax.xaxis.get_figure()
-
-    z = np.arange(10, 110, 10)[-1::-1]
-    z_minor = np.arange(15, 80, 5)[-1::-1]
+    
+    if zlim > 100:
+        z = np.arange(20, zlim, 40)[-1::-1]
+        z_minor = np.arange(30, zlim, 20)[-1::-1]
+    else:    
+        z = np.arange(20, 110, 10)[-1::-1]
+        z_minor = np.arange(15, zlim, 5)[-1::-1]
+        
     nu = nu_0_mhz / (1. + z)
     nu_minor = nu_0_mhz / (1. + z_minor)
     
-    z_labels = map(str, z)
+    z_labels = list(map(str, z))
 
     # Add 25, 15 and 12, 8 to redshift labels
     z_labels.insert(-1, '15')
     z_labels.insert(-1, '12')
+    z_labels.insert(-1, '10')
     z_labels.extend(['8', '7', '6', '5'])
     #z_labels.insert(-5, '25')
 
-    z = np.array(map(int, z_labels))
+    z = np.array(list(map(int, z_labels)))
 
     nu = nu_0_mhz / (1. + z)
     nu_minor = nu_0_mhz / (1. + z_minor)
@@ -1005,7 +930,7 @@ def add_redshift_axis(ax, twin_ax=None):
         if label in ['40','50', '60', '70']:
             z_labels[i] = ''
 
-        if float(label) > 80:
+        if (float(label) > 80) and (zlim < 100):
             z_labels[i] = ''
 
     ax_z.set_xticklabels(z_labels)
@@ -1014,3 +939,59 @@ def add_redshift_axis(ax, twin_ax=None):
     pl.draw()
 
     return ax_z
+    
+def add_time_axis(ax, cosm, tlim=(0, 900), dt=100, dtm=50, tarr=None,
+    tarr_m=None, rotation=45):
+    """
+    Take plot with redshift on x-axis and add top axis with corresponding 
+    time since Big Bang.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.AxesSubplot instance
+    """
+    
+    
+    if tarr is None:
+        t = np.arange(tlim[0], tlim[1]+dt, dt) # in Myr
+        t_minor = np.arange(tlim[0], tlim[1]+dt, dtm)[1::2]
+    else:
+        t = tarr
+        t_minor = None
+    
+    _zt = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t))
+    _ztm = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t_minor))
+        
+    ft = nu_0_mhz / (1. + _zt)    
+    ftm = nu_0_mhz / (1. + _ztm)
+    zt = list(_zt)
+        
+    ax_time = ax.twiny()
+    #if t_minor is not None:
+    #    zt_minor = list(map(lambda tt: cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
+    #        np.inf), t_minor))
+    #    ax_time.set_xticks(zt_minor, minor=True)
+            
+    ax_time.set_xlabel(r'$t \ \left[\mathrm{Myr} \right]$')            
+
+    # A bit hack-y
+    time_labels = list(map(str, list(map(int, t))))
+    for i, label in enumerate(time_labels):
+        tnow = float(label)
+        if (dt is None) and (dtm is None):
+            if (tnow in [0,200,400,600,800]) or (tnow > 900):
+                time_labels[i] = ''    
+    
+    print(ft, time_labels)
+    print(ftm)
+    
+    ax_time.set_xticks(ft)
+    #ax_time.set_xticks(ftm, minor=True)
+                
+    ax_time.set_xticklabels(time_labels, rotation=rotation)
+    ax_time.set_xlim(ax.get_xlim())
+    
+    pl.draw()
+    
+    return ax_time
+

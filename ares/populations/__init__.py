@@ -1,2 +1,2 @@
-from .Halo import HaloPopulation
-from .GalaxyPopulation import GalaxyPopulation
+from ares.populations.Halo import HaloPopulation
+from ares.populations.GalaxyPopulation import GalaxyPopulation

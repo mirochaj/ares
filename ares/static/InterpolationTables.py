@@ -12,15 +12,16 @@ Description:
 
 import re
 import numpy as np
+from ..util.Math import interp1d
 from ..util.Math import LinearNDInterpolator
-from scipy.interpolate import interp1d, RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline
         
 spline_err = "interp_tab == cubic and there are infs in our table!"
 spline_err += "\nSpline interpolation is global, so any infs will render *all*"
 spline_err += "\ninterpolated values NaN. Try linear interpolation, or narrow"
 spline_err += "\nbounds of interpolation table."
 
-err_msg = lambda s: "%s\n\n# Table: %s" % (spline_err, s)
+err_msg = (lambda s: ("{0!s}\n\n# Table: {1!s}".format(spline_err, s)))
 
 class LookupTable:
     def __init__(self, pf, name, logN, table, logx=None, t=None):
@@ -75,7 +76,7 @@ class LookupTable:
         """
         
         # If we are beyond bounds of integral table, fix    
-        for i in xrange(self.Nd):
+        for i in range(self.Nd):
             logN[...,i][logN[...,i] < self.logNmin[i]] = self.logNmin[i]
             logN[...,i][logN[...,i] > self.logNmax[i]] = self.logNmax[i]
             
@@ -89,7 +90,7 @@ class LookupTable:
         elif self.D == 2:
             ax2 = self._extra_axis(logx, t)
             logresult = np.zeros_like(logN[...,0])
-            for i in xrange(logN.shape[0]):
+            for i in range(logN.shape[0]):
                 if self.adv_secondary_ionization and \
                     not (re.search('Wiggle', self.basename) or 
                     re.search('Hat', self.basename)):

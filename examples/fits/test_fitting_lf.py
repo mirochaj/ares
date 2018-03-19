@@ -110,7 +110,7 @@ t1 = time.time()
 fitter.run('test_lf', burn=0, steps=20, save_freq=1, clobber=True)
 t2 = time.time()
 
-print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)
+print("Run complete in {:.4g} minutes.\n".format((t2 - t1) / 60.))
 
 
 

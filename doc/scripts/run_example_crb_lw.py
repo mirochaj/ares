@@ -60,7 +60,7 @@ pop = mgb.pops[0]
 # Cosmologically-limited solution to the RTE
 # [Equation A1 in Mirocha (2014)]
 zi, zf = 40., 10.
-e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+e_nu = np.array([pop.Emissivity(zf, EE) for EE in E])
 e_nu *= (1. + zf)**4.5 / 4. / np.pi / pop.cosm.HubbleParameter(zf) / -1.5
 e_nu *= ((1. + zi)**-1.5 - (1. + zf)**-1.5)
 e_nu *= c * ev_per_hz

@@ -1,5 +1,5 @@
-from .Chemistry import Chemistry
-from .RadialField import RadialField
-from .OpticalDepth import OpticalDepth
-from .UniformBackground import UniformBackground
-from .FluctuatingBackground import FluctuatingBackground
+from ares.solvers.Chemistry import Chemistry
+from ares.solvers.RadialField import RadialField
+from ares.solvers.OpticalDepth import OpticalDepth
+from ares.solvers.UniformBackground import UniformBackground
+

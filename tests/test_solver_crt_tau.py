@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import c, ev_per_hz, erg_per_ev
 
-def test(tol=5e-2):
+def test(tol=1e-1):
 
     alpha = -2.
     beta = -6.
@@ -44,8 +44,8 @@ def test(tol=5e-2):
      'pop_EmaxNorm': 3e4,
      'pop_logN': -np.inf,
      'pop_solve_rte': True,
-     'pop_approx_tau': False,
-     'pop_tau_Nz': 1e2,
+     'tau_approx': False,
+     'tau_redshift_bins': 1e2,
     }
     
     colors = 'k', 'b'
@@ -53,7 +53,9 @@ def test(tol=5e-2):
         
         pars['include_He'] = include_He
         pars['approx_He'] = include_He
-        pars['pop_approx_tau'] = False
+        pars['tau_approx'] = False
+        pars['tau_Emin'] = pars['pop_Emin']
+        pars['tau_Emax'] = pars['pop_Emax']
     
         # Create OpticalDepth instance
         igm = ares.solvers.OpticalDepth(**pars)
@@ -73,7 +75,7 @@ def test(tol=5e-2):
         os.remove('tau_test.pkl')
         
         # Compare to transparent IGM solution
-        pars['pop_approx_tau'] = True
+        pars['tau_approx'] = True
         sim_2 = ares.simulations.MetaGalacticBackground(**pars)
         sim_2.run()
         
@@ -91,7 +93,7 @@ def test(tol=5e-2):
             igm.save(prefix='tau_test', suffix='pkl', clobber=True)
             
             pars['tau_table'] = 'tau_test.pkl'
-            pars['pop_approx_tau'] = False
+            pars['tau_approx'] = False
             sim_3 = ares.simulations.MetaGalacticBackground(**pars)
             sim_3.run()
         
@@ -110,7 +112,7 @@ def test(tol=5e-2):
             
             # Cosmologically-limited solution to the RTE
             # [Equation A1 in Mirocha (2014)]
-            f_an = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+            f_an = np.array([pop.Emissivity(zf, EE) for EE in E])
             f_an *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
                 / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
             f_an *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
@@ -124,10 +126,11 @@ def test(tol=5e-2):
     
             # Check analytic solution at *lowest* redshift
             diff = np.abs(f_an - f2[0]) / f_an
-    
+
+            # Check difference at lowest energy.
             # Loose tolerance in this example since tau table is coarse
             assert diff[0] < tol, \
-                "Relative error between analytical and numerical solutions exceeds %.3g." % tol
+                "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
     
         else:
             label = None
@@ -150,7 +153,7 @@ def test(tol=5e-2):
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
-    pl.savefig('%s.png' % __file__.rstrip('.py'))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()
     
 if __name__ == '__main__':

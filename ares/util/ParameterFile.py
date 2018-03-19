@@ -16,6 +16,12 @@ from .BackwardCompatibility import backward_compatibility
 from .CheckForParameterConflicts import CheckForParameterConflicts
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -23,7 +29,7 @@ try:
 except ImportError:
     rank = 0
 
-old_pars = ['fX', 'cX', 'fXh', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin']
+old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin']
 
 _cosmo_params = CosmologyParameters()
 
@@ -41,7 +47,7 @@ def bracketify(**kwargs):
             
         prefix = par.split(m.group(0))[0]
         
-        kw['%s{%i}' % (prefix, int(m.group(1)))] = kwargs[par]
+        kw['{0!s}{{{1}}}'.format(prefix, int(m.group(1)))] = kwargs[par]
     
     return kw
 
@@ -49,6 +55,10 @@ def pop_id_num(par):
     """
     Split apart parameter prefix and ID number.
     """
+    
+    # Spare us from using re.search if we can. 
+    if not (par.startswith('pop') or par.startswith('pq') or par.startswith('source')):
+        return par, None
         
     # Look for integers within curly braces
     m = re.search(r"\{([0-9])\}", par)
@@ -76,6 +86,7 @@ def par_info(par):
     if prefix1 is not None:
         m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
     else:
+        print('hey')
         m = None
         prefix1 = par
 
@@ -113,7 +124,7 @@ def count_properties(**kwargs):
     phpIDs = []
     for par in kwargs:
 
-        if type(kwargs[par]) is not str:
+        if not isinstance(kwargs[par], basestring):
             continue
 
         if kwargs[par][0:2] != 'pq':
@@ -147,7 +158,7 @@ def identify_pqs(**kwargs):
     
     for par in kwargs:
 
-        if type(kwargs[par]) is not str:
+        if not isinstance(kwargs[par], basestring):
             continue
 
         if (kwargs[par] != 'pq') and (kwargs[par][0:3] != 'pq['):
@@ -196,33 +207,49 @@ def get_pq_pars(par, pf):
     """
 
     prefix, popid, phpid = par_info(par)
-
+    
     pars = {}
     for key in pf:
-        if (pf.Npqs != 1):
-            if not re.search('\[%i\]' % phpid, key):
-                continue
-
+        
+        # If this isn't a PQ parameter, move on
         if key[0:2] != 'pq':
             continue
 
-        p, popid, phpid_ = par_info(key)    
+        # This is to prevent unset PQ parameters from causing
+        if not re.search('\[{}\]'.format(phpid), key):
+                        
+            if (pf.Npqs == 1):
+                # In this case, the default for this parameter will
+                # be found since PQs are listed in defaults without any
+                # ID number.
+                pass
+            else:
+                # In this case, no default will be found, so an error will
+                # get thrown unless we tag an ID on?
+                continue
 
+        # Break apart parameter name, pop ID number, and PQ ID number
+        p, popid, phpid_ = par_info(key)
+        
+        # If there's only one PQ, not having an ID number is OK. We'll just 
+        # grab whatever is in the parameter file already, which will be
+        # the default if nothing else was supplied.
         if (phpid is None) and (pf.Npqs == 1):
-            pars[p] = pf['%s' % p]          
+            pars[p] = pf['{!s}'.format(p)]
 
         # This means we probably have some parameters bracketed
         # and some not...should make it so this doesn't happen
         elif (phpid is not None) and (pf.Npqs == 1):
+            
             try:
-                pars[p] = pf['%s[%i]' % (p, phpid)]   
+                pars[p] = pf['{0!s}[{1}]'.format(p, phpid)]
             except KeyError:
                 # This means it's just default values
-                pars[p] = pf['%s' % p]   
-        else:    
-            pars[p] = pf['%s[%i]' % (p, phpid)]
+                pars[p] = pf['{!s}'.format(p)]
+        else:
+            pars[p] = pf['{0!s}[{1}]'.format(p, phpid)]
 
-    return pars    
+    return pars
     
 # All defaults
 defaults = SetAllDefaults()
@@ -232,12 +259,11 @@ defaults = SetAllDefaults()
 defaults_pop_dep = {}
 defaults_pop_indep = {}
 for key in defaults:
-    if re.search('pop_', key) or re.search('source_', key) or \
-       re.search('pq_', key):
+    if re.search('pop_', key) or re.search('source_', key): #or re.search('pq_', key):
         defaults_pop_dep[key] = defaults[key]
         continue
     
-    defaults_pop_indep[key] = defaults[key]    
+    defaults_pop_indep[key] = defaults[key]
 
 class ParameterFile(dict):
     def __init__(self, **kwargs):
@@ -248,8 +274,8 @@ class ParameterFile(dict):
         # Keep user-supplied kwargs as attribute 
         self._kwargs = kwargs.copy()
         
-        #print len(kwargs.keys()), len(defaults.keys())
-        #if len(kwargs.keys()) < 0.5 * len(defaults.keys()):
+        #print len(kwargs), len(defaults)
+        #if len(kwargs) < 0.5 * len(defaults):
         #    for par in self._kwargs:
         #        if par not in _cosmo_params:
         #            continue
@@ -257,7 +283,7 @@ class ParameterFile(dict):
         #        if self._kwargs[par] == _cosmo_params[par]:
         #            continue
         #        
-        #        print "WARNING: %s is cosmological parameter." % par
+        #        print "WARNING: {!s} is cosmological parameter.".format(par)
         #        print "       : Must update initial conditions and HMF tables!"
         
         
@@ -270,7 +296,8 @@ class ParameterFile(dict):
         if self.orphans:
             if (rank == 0) and self['verbose']:
                 for key in self.orphans:
-                    print "WARNING: %s is an `orphan` parameter." % key
+                    print("WARNING: {!s} is an `orphan` parameter.".format(\
+                        key))
 
     @property
     def Npops(self):
@@ -358,21 +385,36 @@ class ParameterFile(dict):
         # for each population
         else:
 
+            # First: make base parameter file that contains only parameters
+            # that are NOT population specific.
+            # Second: 
+
             # Can't add kwargs yet (all full of curly braces)
 
             # Only add non-pop-specific parameters from ProblemType defaults
             prb = ProblemType(kwargs['problem_type'])
             for par in defaults_pop_indep:
+                
+                # Just means this parameter is not default to the 
+                # problem type. 
                 if par not in prb:
                     continue
-
+                    
                 pf_base[par] = prb[par]
 
             # and kwargs
             for par in kwargs:
                 if par in defaults_pop_indep:
                     pf_base[par] = kwargs[par]
+                else:
                     
+                    # This is exclusively to handle the case where
+                    # we have a PQ that's NOT attached to a population.
+                    prefix, popid, phpid = par_info(par)
+                    
+                    if (phpid is not None) and (popid is None):
+                        pf_base[par] = kwargs[par]
+                        
             # We now have a parameter file containing all non-pop-specific
             # parameters, which we can use as a base for all pop-specific
             # parameter files.        
@@ -389,8 +431,10 @@ class ParameterFile(dict):
                     
                 # See if this parameter belongs to a particular population
                 # We DON'T care at this stage about []'s
+                #prefix, popid, phpid = par_info(par)
                 prefix, popid = pop_id_num(par)
-                if popid is None:
+                
+                if (popid is None):
                     # We already handled non-pop-specific parameters
                     continue
                     
@@ -400,7 +444,7 @@ class ParameterFile(dict):
                 # See if this parameter is linked to another population
                 # OR another parameter within the same population.
                 # The latter only occurs for PHPs.
-                if (type(kwargs[par]) is str):
+                if isinstance(kwargs[par], basestring):
                     prefix_link, popid_link, phpid_link = par_info(kwargs[par])
                     if (popid_link is None) and (phpid_link is None):
                         # Move-on: nothing to see here
@@ -410,7 +454,7 @@ class ParameterFile(dict):
                     if (phpid_link is None):
                         pass
                     # In this case, might have some intra-population link-age    
-                    elif kwargs[par] == 'pq[%i]' % phpid_link:
+                    elif kwargs[par] == 'pq[{}]'.format(phpid_link):
                         # This is the only false alarm I think
                         prefix_link, popid_link, phpid_link = None, None, None
                 else:
@@ -439,12 +483,12 @@ class ParameterFile(dict):
                 if phpid is None:
                     name = prefix
                 else:
-                    name = '%s[%i]' % (prefix, phpid)
+                    name = '{0!s}[{1}]'.format(prefix, phpid)
                     
                 if phpid_link is None:
                     name_link = prefix_link
                 else:
-                    name_link = '%s[%i]' % (prefix_link, phpid_link)
+                    name_link = '{0!s}[{1}]'.format(prefix_link, phpid_link)
             
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
@@ -461,13 +505,23 @@ class ParameterFile(dict):
         # Master parameter file    
         # Only tag ID number to pop or source parameters
         for i, poppf in enumerate(self.pfs):
-
+            
+            # Loop over all population parameters and add them to the
+            # master parameter file with their {ID}.
             for key in poppf:
                 
+                # Remember, `key` won't have any {}'s
+                
                 if self.Npops > 1 and key in defaults_pop_dep:
-                    self['%s{%i}' % (key, i)] = poppf[key]
+                    self['{0!s}{{{1}}}'.format(key, i)] = poppf[key]
                 else:
                     self[key] = poppf[key]
+                    
+        # Distribute 'master' parameters.
+                    
+                    
+                    
+                    
 
     def update_pq_pars(self, pfs_by_pop, **kwargs):
         # In a given population, there may be 1+ parameterized halo
@@ -484,7 +538,7 @@ class ParameterFile(dict):
             for key in php_defs:
                 del pf[key]
                 for k in range(len(phps[i])):
-                    pf['%s[%i]' % (key, k)] = php_defs[key]
+                    pf['{0!s}[{1}]'.format(key, k)] = php_defs[key]
 
         return pfs_by_pop
 
@@ -545,10 +599,6 @@ class ParameterFile(dict):
         Run through parsed parameter file looking for conflicts.
         """
         
-        if 'need_for_speed' in kwargs:
-            if kwargs['need_for_speed']:
-                return 
-
         try:
             verbose = kwargs['verbose']
         except KeyError:
@@ -570,7 +620,7 @@ class ParameterFile(dict):
                 continue 
             
             if verbose:
-                print 'WARNING: Unrecognized parameter: %s' % par        
+                print('WARNING: Unrecognized parameter: {!s}'.format(par))
     
         #conflicts = CheckForParameterConflicts(kwargs)
     

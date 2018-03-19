@@ -157,7 +157,7 @@ def _evolution_factor_ldde(z, L, **kwargs):
         eofz = _evolution_factor_pde(z, **kwargs)
     except ValueError:
         eofz = np.zeros_like(L)        
-        zcarr = np.array(map(lambda LL: _zc_of_L(LL, **kwargs), L))
+        zcarr = np.array([_zc_of_L(LL ,**kwargs) for LL in L])
         for i, zcval in enumerate(zcarr):
             kwargs['zc'] = zcval
             eofz[i] = _evolution_factor_pde(z, **kwargs)
@@ -200,8 +200,7 @@ def LuminosityFunction(L, z, **kwargs):
         NofL = _DoublePowerLaw(L, **kwargs)
         NofL *= _evolution_factor_ldde(z, L, **kwargs)         
     else:
-        raise ValueError('Unrecognized evolution model: %s' \
-            % kwargs['evolution'])
+        raise ValueError('Unrecognized evolution model: {!s}'.format(kwargs['evolution']))
     
     return NofL
     

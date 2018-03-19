@@ -103,7 +103,7 @@ The following parameters control the star-formation history of a population. See
 Radiation Fields
 ----------------
 ``pop_sed_model``
-    Treat the SED of this source population in detail?
+    Treat the SED of this source population in detail? If `True`, it means that we use parameters like ``pop_sed``, ``pop_Emin``, ``pop_Emax``, etc. in order to set the overall normalization of the emission. If False, parameters like ``pop_Nlw``, ``pop_Nion``, and ``pop_fX`` are used instead of ``pop_rad_yield``.
 
     See :doc:`uth_pop_radiation` for more information.
 

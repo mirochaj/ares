@@ -13,7 +13,12 @@ Description:
 import numpy as np
 from ..util import ParameterFile
 from .SynthesisModel import SynthesisModel
-from scipy.interpolate import Akima1DInterpolator, RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline
+
+try:
+    from scipy.interpolate import Akima1DInterpolator
+except ImportError:
+    pass
 
 class Galaxy(object):
     def __init__(self, **kwargs):
@@ -50,7 +55,7 @@ class Galaxy(object):
         if not hasattr(self, '_sfr_func_'):
             if self.pf['source_sfh'] is None:
                 self._sfr_func_ = lambda t: 1.0
-                print "Defaulting to 1 Msun/yr"
+                print("Defaulting to 1 Msun/yr")
             else:
                 self._sfr_func_ = self.pf['source_sfh']
                 
@@ -74,7 +79,8 @@ class Galaxy(object):
         if not hasattr(self, '_Z_func_'):
             if self.pf['source_meh'] is None:
                 self._Z_func_ = lambda t: self.pf['source_Z']
-                print "Defaulting to constant Z=%f" % self.pf['source_Z']
+                print("Defaulting to constant Z={0:f}".format(\
+                    self.pf['source_Z']))
             else:
                 self._Z_func_ = self.pf['source_meh']
     
@@ -92,7 +98,7 @@ class Galaxy(object):
             i_lam = np.argmin(np.abs(wavelength - self.src.wavelengths))
             
             if self.pf['source_meh'] is not None:                
-                Zarr = np.sort(self._synth_model.metallicities.values())
+                Zarr = np.sort(list(self._synth_model.metallicities.values()))
                 tarr = self._synth_model.times
                 
                 interp2d = RectBivariateSpline(Zarr, tarr, 
@@ -143,16 +149,16 @@ class Galaxy(object):
         
         # Loop over time
         for i_t1, t1 in enumerate(times):
-            
+
             if t1 == 0:
                 continue
-                
+
             # Light from new stars
             sed[i_t1] += interp_t(t0) * self.SFR(t1) * dt 
-            
+
             if not self.src.pf['source_aging']:
                 continue
-            
+
             # On each timestep, need to include new emission and 
             # the evolved emission from previous star formation
 
@@ -164,12 +170,12 @@ class Galaxy(object):
                         continue
                     if t2 >= t1:
                         break
-                    
+
                     # Light from old stars. Grab the SFR from the appropriate
                     # moment in the past, multiply by dt (to get mass formed),
                     # and add flux from those stars aged by t1-t2
                     sed[i_t1] += interp_t(t1-t2) * self.SFR(t2) * dt
-                                    
+
             elif band is not None:
                 raise NotImplemented('help')
                 

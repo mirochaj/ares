@@ -11,8 +11,18 @@ Description:
 """
 
 import numpy as np
-from scipy.interpolate import interp1d
 from ..physics.Constants import nu_0_mhz
+from scipy.interpolate import interp1d as interp1d_scipy
+
+def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
+    force_scipy=False, **kwargs):
+    if (kind == 'linear') and (not force_scipy):
+        return lambda xx: np.interp(xx, x, y)
+    elif (kind == 'cubic') or force_scipy: 
+        return interp1d_scipy(x, y, kind='cubic', bounds_error=bounds_error, 
+            fill_value=fill_value, **kwargs)
+    else:
+        raise NotImplemented("Don\'t understand interpolation method={}".format(method))
 
 def forward_difference(x, y):    
     """
@@ -78,10 +88,10 @@ def smooth(y, width, kernel='boxcar'):
     kern = np.zeros_like(y)
         
     if kernel == 'boxcar':
-        kern[kern.size/2 - s/2: kern.size/2 + s/2+1] = \
+        kern[kern.size//2 - s//2: kern.size//2 + s//2+1] = \
             np.ones(width) / float(width)
     elif kernel == 'gaussian':
-        x0 = kern.size / 2
+        x0 = kern.size // 2
         xx = np.arange(0, len(y))
         kern = np.exp(-0.5 * (xx - x0)**2 / width**2) / width / np.sqrt(2 * np.pi)
     else:
@@ -110,7 +120,7 @@ def take_derivative(z, field, wrt='z'):
     elif wrt == 'z':
         pass
     else:
-        print 'Unrecognized option for wrt.'
+        print('Unrecognized option for wrt.')
 
     # x-values must be monotonically increasing - fix dep. on 'wrt'
     if not np.all(np.diff(xp) > 0):
@@ -219,7 +229,7 @@ class LinearNDInterpolator:
         self.axes_min = np.array([np.min(axis) for axis in self.axes])
 
         tmp = np.zeros(self.Nd)
-        for i in xrange(self.Nd):
+        for i in range(self.Nd):
             if not np.allclose(self.daxes[i] - self.daxes[i][0], 
                 np.zeros_like(self.daxes[i])):
                 raise ValueError('Values must be evenly spaced!')
@@ -235,7 +245,7 @@ class LinearNDInterpolator:
     def _interp_2d(self, points):
         """ Interpolate in 2D. """
 
-        i_n, i_m = map(int, (points - self.axes_min) / self.daxes)
+        i_n, i_m = list(map(int, (points - self.axes_min) / self.daxes))
 
         x1 = self.axes[0][i_n]
         x2 = self.axes[0][i_n+1]
@@ -256,7 +266,7 @@ class LinearNDInterpolator:
 
     def _get_indices_3d(self, points):
         # Smaller indices
-        i_s, j_s, k_s = map(int, (points - self.axes_min) / self.daxes)
+        i_s, j_s, k_s = list(map(int, (points - self.axes_min) / self.daxes))
 
         # Bracketing coordinates
         if i_s < 0: 

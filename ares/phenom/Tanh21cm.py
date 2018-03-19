@@ -25,7 +25,7 @@ tanh_kwargs = TanhParameters()
 
 tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 
     'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz',
-    'tanh_bias_temp', 'tanh_bias_freq']
+    'tanh_bias_temp', 'tanh_bias_freq', 'tanh_scale_temp', 'tanh_scale_freq']
 
 def tanh_generic(z, zref, dz):
     return 0.5 * (np.tanh((zref - z) / dz) + 1.)
@@ -36,9 +36,9 @@ alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
 z_to_mhz = lambda z: nu_0_mhz / (1. + z)
 freq_to_z = lambda nu: nu_0_mhz / nu - 1.
 
-def shift_z(z, nu_bias):
-    nu = np.array(map(z_to_mhz, z))
-    nu += nu_bias
+def shift_z(z, nu_bias, nu_scale):
+    nu = np.array(list(map(z_to_mhz, z)))
+    nu = ((nu_scale * nu) + nu_bias)
 
     return freq_to_z(nu)
     
@@ -47,43 +47,21 @@ class Tanh21cm(object):
         self.pf = ParameterFile(**kwargs)
 
         # Cosmology class
-        self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-            omega_l_0=self.pf["omega_l_0"], 
-            omega_b_0=self.pf["omega_b_0"], 
-            hubble_0=self.pf["hubble_0"], 
-            helium_by_number=self.pf['helium_by_number'], 
-            cmb_temp_0=self.pf["cmb_temp_0"], 
-            approx_highz=self.pf["approx_highz"])
+        self.cosm = Cosmology(**self.pf)
         
         # Create instance of Hydrogen class
         self.hydr = Hydrogen(cosm=self.cosm, **kwargs)
 
-        if self.pf['load_ics']:
-            CR = _load_inits()
-            self.CR_TK = lambda z: np.interp(z, CR['z'], CR['Tk'])
-            self.CR_ne = lambda z: np.interp(100, CR['z'], CR['xe']) \
-                * self.cosm.nH(z)
-
-    def Tgas_adiabatic(self, z):
-        if self.pf['load_ics']:
-            return self.CR_TK(z)
-        else:    
-            # Cosmology.Tgas can't handle arrays
-            return self.cosm.TCMB(self.cosm.zdec) * (1. + z)**2 \
-                / (1. + self.cosm.zdec)**2
-                
     def dTgas_dz(self, z):
-        return derivative(self.Tgas_adiabatic, x0=z)
+        return derivative(self.cosm.Tgas, x0=z)
                 
     def electron_density(self, z):
-        if self.pf['load_ics']:
-            return self.CR_ne(z)
-        else:
-            return 0.0
+        return np.interp(z, self.cosm.thermal_history['z'], 
+            self.cosm.thermal_history['xe']) * self.cosm.nH(z)
         
     def temperature(self, z, Tref, zref, dz):
         return Tref * tanh_generic(z, zref=zref, dz=dz) \
-            + self.Tgas_adiabatic(z)
+            + self.cosm.Tgas(z)
 
     def ionized_fraction(self, z, xref, zref, dz):
         return xref * tanh_generic(z, zref=zref, dz=dz)
@@ -167,12 +145,12 @@ class Tanh21cm(object):
 
         # Unpack parameters
         Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x, \
-            bias_T, bias_freq = theta
+            bias_T, bias_freq, scale_T, scale_freq = theta
 
         Jref *= J21_num
 
         # Assumes z < zdec
-        Tgas = self.Tgas_adiabatic(z)
+        Tgas = self.cosm.Tgas(z)
         ne = self.electron_density(z)
 
         Ja = Jref * tanh_generic(z, zref=zref_J, dz=dz_J)
@@ -185,10 +163,10 @@ class Tanh21cm(object):
         # Brightness temperature
         dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
 
-        if bias_T != 0:
-            dTb += bias_T
-        if bias_freq != 0:
-            z = shift_z(z, bias_freq)
+        if (bias_T != 0) or (scale_T != 1):
+            dTb = ((scale_T * dTb) + bias_T)
+        if (bias_freq != 0) or (scale_freq != 1):
+            z = shift_z(z, bias_freq, scale_freq)
 
         # Save some stuff
         hist = \

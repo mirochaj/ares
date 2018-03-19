@@ -10,14 +10,20 @@ Description:
 
 """
 
-import pickle
 import numpy as np
 from ..util import labels
+from ..util.Pickling import read_pickle_file
 import matplotlib.pyplot as pl
 from scipy.integrate import trapz
 from ..util.ReadData import flatten_energies
 from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA, \
     sqdeg_per_std
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 class MetaGalacticBackground(object):
     def __init__(self, data=None, **kwargs):
@@ -37,7 +43,7 @@ class MetaGalacticBackground(object):
         elif type(data) == dict:
             self.pf = SetAllDefaults()
             self.history = data.copy()
-        elif type(data) is str:
+        elif isinstance(data, basestring):
             self.prefix = data
             
         self.kwargs = kwargs 
@@ -46,14 +52,14 @@ class MetaGalacticBackground(object):
     def fluxes(self):
         if not hasattr(self, '_fluxes'):
             self._redshifts_fl, self._energies_fl, self._fluxes = \
-                self._load_data('%s.fluxes.pkl' % self.prefix)
+                self._load_data('{!s}.fluxes.pkl'.format(self.prefix))
         return self._redshifts_fl, self._energies_fl, self._fluxes           
     
     @property
     def emissivities(self):
         if not hasattr(self, '_emissivities'):
             self._redshifts_em, self._energies_em, self._emissivities = \
-                self._load_data('%s.emissivities.pkl' % self.prefix)
+                self._load_data('{!s}.emissivities.pkl'.format(self.prefix))
                                 
         return self._redshifts_em, self._energies_em, self._emissivities
         
@@ -123,19 +129,17 @@ class MetaGalacticBackground(object):
         return z, Eflat, flat
                 
     def _load_data(self, fn):
-        f = open(fn, 'rb')
-        redshifts, energies, data = pickle.load(f)
-        f.close()
+        (redshifts, energies, data) =\
+            read_pickle_file(fn, nloads=1, verbose=False)
         
-        try:            
-            f = open('%s.parameters.pkl' % self.prefix, 'rb')
-            self.pf = pickle.load(f)
-            f.close()        
+        try:
+            parameters_fn = '{!s}.parameters.pkl'.format(self.prefix)
+            self.pf = read_pickle_file(parameters_fn, nloads=1, verbose=False)     
 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.}
-            print 'Error loading %s.parameters.pkl.' % data
+            print('Error loading {!s}.parameters.pkl.'.format(data))
 
         return redshifts, energies, data
         
@@ -386,7 +390,7 @@ class MetaGalacticBackground(object):
         ax_freq.set_xticks(znu_minor, minor=True)
         ax_freq.set_xlim(ax.get_xlim())
     
-        freq_labels = map(str, nu)
+        freq_labels = list(map(str, nu))
     
         # A bit hack-y
         for i, label in enumerate(freq_labels):
@@ -430,7 +434,7 @@ class MetaGalacticBackground(object):
                
         #ax_nrg.set_xticks(wave_minor, minor=True)
         
-        #ax_nrg.set_xticklabels(map(str, E))
+        #ax_nrg.set_xticklabels(list(map(str, E)))
         ax_nrg.set_xlim(ax.get_xlim())
         ax_nrg.set_xscale('log')
         

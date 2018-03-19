@@ -58,7 +58,7 @@ for i, fsc in enumerate(f_scatter):
         bh2 = rt1d.analyze.Source(bh_zebra)
         
         if j == 0:
-            label = r'$f_{\mathrm{sc}} = %g$' % fsc
+            label = r'$f_{\mathrm{sc}} = {:g}$'.format(fsc)
         else:
             label = None
             

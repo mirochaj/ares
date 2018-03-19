@@ -17,6 +17,12 @@ from scipy.integrate import cumtrapz
 from ..physics.Constants import sigma_T
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -31,10 +37,10 @@ logbx = lambda b, x: np.log10(x) / np.log10(b)
 def get_cmd_line_kwargs(argv):
     
     cmd_line_kwargs = {}
-    
+
     for arg in argv[1:]:
         pre, post = arg.split('=')
-        
+
         # Need to do some type-casting
         if post.isdigit():
             cmd_line_kwargs[pre] = int(post)
@@ -82,7 +88,7 @@ def sort(pf, prefix='spectrum', make_list=True, make_array=False):
             continue
 
         new_name = par.partition('_')[-1]
-        if (isinstance(pf[par], Iterable) and type(pf[par]) is not str) \
+        if (isinstance(pf[par], Iterable) and not isinstance(pf[par], basestring)) \
             or (not make_list):
             result[new_name] = pf[par]
         elif make_list:
