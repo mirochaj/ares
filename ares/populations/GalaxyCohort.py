@@ -1891,8 +1891,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     self._fstar = \
                         lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
                             * boost
-            
-                
+
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
 

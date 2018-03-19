@@ -664,3 +664,6 @@ class Population(object):
             on = np.logical_or(z <= self.zform, z >= self.zdead)
     
         return on
+        
+        
+        

@@ -244,11 +244,7 @@ sfe_parameters = \
 }
 
 for i in range(6):
-    sfe_parameters['php_Mfun_par{}'.format(i)] = r'$p_{{{}}}$'.format(i)
-    for j in range(6):
-        sfe_parameters['php_Mfun_par{0}_par{1}'.format(i,j)] =\
-            r'$p_{{{0},{1}}}$'.format(i,j)
-        
+    sfe_parameters['pq_func_par%i' % i] = r'$p_{%i}$' % i
 
 other = \
 {
