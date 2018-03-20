@@ -375,7 +375,7 @@ class Global21cm(AnalyzeGlobal21cm):
             
             self.history['dTb_no_radio'] = self.history['dTb'].copy()
             self.history['dTb'] = dTb
-            
+
         t2 = time.time()
 
         self.timer = t2 - t1

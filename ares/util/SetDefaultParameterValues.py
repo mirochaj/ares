@@ -684,6 +684,9 @@ def PopulationParameters():
     
     'pop_fXh': None,
     
+    'pop_frep': 1.0,
+    'pop_reproc': False,
+    
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
 

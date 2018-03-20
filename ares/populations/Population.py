@@ -11,10 +11,13 @@ Description:
 """
 
 import re
+import inspect
 import numpy as np
+from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
@@ -400,14 +403,14 @@ class Population(object):
                 self._Source_ = StarQS
             elif type(self.pf['pop_sed']) is FunctionType or \
                  inspect.ismethod(self.pf['pop_sed']) or \
-                 isinstance(self.pf['pop_sed'], interp1d):
+                 isinstance(self.pf['pop_sed'], interp1d_scipy):
                  self._Source_ = BlackHole
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])
-    
+
         return self._Source_
-    
+
     @property
     def src_kwargs(self):
         """
@@ -484,6 +487,10 @@ class Population(object):
                     
         return self._yield_per_sfr
     
+    @yield_per_sfr.setter
+    def yield_per_sfr(self, value):
+        self._yield_per_sfr = value
+        
     @property
     def is_fcoll_model(self):
         return self.pf['pop_sfr_model'].lower() == 'fcoll'

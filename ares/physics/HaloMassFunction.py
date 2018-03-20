@@ -244,7 +244,7 @@ class HaloMassFunction(object):
             self.z = f['z'].value
             self.logM = f['logM'].value
             self.M = 10**self.logM
-            #self.fcoll_tab = f['fcoll'].value
+            self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
 
             if self.pf['hmf_load_ps']:
@@ -264,7 +264,7 @@ class HaloMassFunction(object):
             self.z = f['z']
             self.logM = f['logM']
             self.M = 10**self.logM
-            #self.fcoll_tab = f['fcoll']
+            self.fcoll_tab = f['fcoll']
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
@@ -1006,13 +1006,13 @@ class HaloMassFunction(object):
             #f.create_dataset('fcoll', data=self.tab_fcoll_2d)
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
-            f.create_dataset('mgtm', data=self.mgtm)            
-            f.create_dataset('bias', data=self.bias_tab)            
+            f.create_dataset('mgtm', data=self.mgtm)        
+            f.create_dataset('bias', data=self.bias_tab)          
             f.create_dataset('psCDM', data=self.psCDM_tab)
             f.create_dataset('growth', data=self.growth_tab)
             f.create_dataset('sigma', data=self.sigma_tab)
             f.create_dataset('k', data=self.k)
-            f.create_dataset('hmf-version', data=hmf_v)         
+            f.create_dataset('hmf-version', data=hmf_v)
             f.close()
 
         elif format == 'npz':

@@ -21,6 +21,7 @@ from ..util.Math import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
 from ..util.ParameterFile import get_pq_pars, pop_id_num
+from scipy.interpolate import interp1d as interp1d_scipy
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
@@ -77,7 +78,7 @@ class GalaxyAggregate(HaloPopulation):
                     pars[key] = self.pf[prefix]
                 
                 self._sfrd_ = self.pf['pop_sfrd'](**pars)
-            elif isinstance(self.pf['pop_sfrd'], interp1d):
+            elif isinstance(self.pf['pop_sfrd'], interp1d_scipy):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif self.pf['pop_sfrd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
@@ -173,7 +174,7 @@ class GalaxyAggregate(HaloPopulation):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-
+        
         on = self.on(z)
         if not np.any(on):
             return z * on
@@ -186,7 +187,7 @@ class GalaxyAggregate(HaloPopulation):
                         
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr * on
-                
+               
         if not self.pf['pop_sed_model']:
             if (Emin, Emax) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
@@ -203,11 +204,17 @@ class GalaxyAggregate(HaloPopulation):
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
         if (Emax is None) or (Emin is None):
-            pass
+            if self.pf['pop_reproc']:
+                rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
         elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
-            rhoL *= self.pf['pop_fesc_LW']    
+            if self.pf['pop_reproc']:
+                fesc = (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
+            else:
+                fesc = self.pf['pop_fesc_LW']
+            
+            rhoL *= fesc
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
