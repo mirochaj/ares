@@ -113,6 +113,13 @@ def error_1D(x, y, nu=0.68, limit=None):
         PDF
     nu : float
         Integrate out until nu-% of the likelihood has been enclosed.
+        
+    Example
+    -------
+    For a Gaussian, should recover 1, 2, and 3 sigma easily:
+    >>> x = np.linspace(-20, 20, 10000)
+    >>> y = np.exp(-x**2 / 2. / 1.)
+    >>> print error_1D(x, y, 0.6827), error_1D(x, y, 0.9545), error_1D(x, y, 0.9973)
 
     Returns
     -------

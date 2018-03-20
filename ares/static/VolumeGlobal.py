@@ -817,7 +817,6 @@ class GlobalVolume(object):
                 integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                     * (self.E[popid][band] - E_th[1])
             
-            integrand = integrand
             integrand *= kw['fluxes'][popid][band] / E_th[species] / norm \
                 / ev_per_hz
         
@@ -856,13 +855,14 @@ class GlobalVolume(object):
     
         if not self.pf['secondary_lya']:
             return 0.0
-    
+
         if not pop.is_src_ion_igm:
             return 0.0
     
         species_str = species_i_to_str[species]
+        donor_str = species_i_to_str[donor]
         band = 0        
-    
+
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
     
@@ -875,12 +875,12 @@ class GlobalVolume(object):
             # Recall that flya is measured relative to fexc
             ##
     
+
             if kw['igm_e'] == 0:
                 flya = self.flya[popid][band][:,0] \
                      * self.fexc[popid][band][:,0]
     
             else:
-    
                 flya = 1.
                 for tab in [self.fexc, self.flya]:
     
@@ -908,7 +908,7 @@ class GlobalVolume(object):
         if self.approx_He:
             integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                 * (self._E[popid][band] - E_th[1])
-    
+
         # Must get back to intensity units
         integrand *= kw['fluxes'][popid][band] * flya / norm / E_LyA / ev_per_hz
 
@@ -926,7 +926,6 @@ class GlobalVolume(object):
             else:
                 e_ax = simps(integrand[0:imax] * self._E[popid][band][0:imax], 
                     x=self.logE[popid][band][0:imax]) * log10
-    
         else:
             imin = np.argmin(np.abs(self._E[popid][band] - pop.pf['pop_Emin']))
     

@@ -90,7 +90,7 @@ class Population(object):
             del kwargs['problem_type']
 
         self.pf = ParameterFile(**kwargs)
-        
+
         assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)
         
         self.grid = grid
@@ -167,6 +167,10 @@ class Population(object):
         return self._is_src_oir
 
     @property
+    def is_src_oir_fl(self):
+        return False
+
+    @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
             if self.pf['pop_sed_model']:
@@ -178,6 +182,10 @@ class Population(object):
                 self._is_src_radio = self.pf['pop_radio_src']
 
         return self._is_src_radio   
+    
+    @property
+    def is_src_radio_fl(self):
+        return False
     
     @property
     def is_src_lya(self):
@@ -297,19 +305,7 @@ class Population(object):
                 return self.pf['pop_lya_src']
 
         return self._is_src_lya
-
-    @property
-    def is_src_uv(self):
-        if not hasattr(self, '_is_src_uv'):
-            if self.pf['pop_sed_model']:
-                self._is_src_uv = \
-                    (self.pf['pop_Emax'] > E_LL) \
-                    and self.pf['pop_ion_src_cgm']
-            else:
-                self._is_src_uv = self.pf['pop_ion_src_cgm']        
-    
-        return self._is_src_uv    
-    
+        
     @property
     def is_src_xray(self):
         if not hasattr(self, '_is_src_xray'):
@@ -335,9 +331,13 @@ class Population(object):
                     (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
             else:
                 self._is_src_lw = False
-    
+                
         return self._is_src_lw    
 
+    @property
+    def is_src_lw_fl(self):
+        return False
+        
     @property
     def is_emissivity_separable(self):
         """
@@ -665,5 +665,143 @@ class Population(object):
     
         return on
         
+    @property
+    def _tab_Mmax_active(self):
+        """ most massive star-forming halo. """
+        if not hasattr(self, '_tab_Mmax_active_'):
+            self._tab_Mmax_active_ = np.zeros_like(self.halos.z)
+            for i, z in enumerate(self.halos.z):
+                lim = self.pf['pop_fstar_negligible']
+                fstar_max = self._tab_fstar[i].max()
+                immsfh = np.argmin(np.abs(self._tab_fstar[i] - fstar_max * lim))
+                self._tab_Mmax_active_[i] = self.halos.M[immsfh]
+        return self._tab_Mmax_active_
+    
+    @property
+    def Mmax_active(self):
+        if not hasattr(self, '_Mmax_active_'):
+            self._Mmax_active_ = \
+                lambda z: np.interp(z, self.halos.z, self._tab_Mmax_active)
+        return self._Mmax_active_
+    
+    def dMmin_dt(self, z):
+        """ Solar masses per year. """
+        return -1. * derivative(self.Mmin, z) * s_per_yr / self.cosm.dtdz(z)    
         
-        
+    @property
+    def M_atom(self):
+        if not hasattr(self, '_Matom'):
+            Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
+            self._Matom = np.array(map(Mvir, self.halos.z))
+        return self._Matom    
+    
+    @property
+    def Mmin(self):
+        if not hasattr(self, '_Mmin'):  
+            self._Mmin = lambda z: \
+                np.interp(z, self.halos.z, self._tab_Mmin)
+    
+        return self._Mmin
+    
+    @Mmin.setter
+    def Mmin(self, value):
+        if ismethod(value):
+            self._Mmin = value
+        else:
+            self._tab_Mmin = value
+            self._Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
+    
+    def Mmax(self, z):
+        # Doesn't have a setter because of how we do things in Composite.
+        # Long story.
+        return np.interp(z, self.halos.z, self._tab_Mmax)
+    
+    @property
+    def _tab_logMmin(self):
+        if not hasattr(self, '_tab_logMmin_'):
+            self._tab_logMmin_ = np.log(self._tab_Mmin)
+        return self._tab_logMmin_
+    
+    @property
+    def _tab_logMmax(self):
+        if not hasattr(self, '_tab_logMmax_'):
+            self._tab_logMmax_ = np.log(self._tab_Mmax)
+        return self._tab_logMmax_    
+    
+    @property
+    def _tab_Mmin(self):
+        if not hasattr(self, '_tab_Mmin_'):
+            # First, compute threshold mass vs. redshift
+            if self.pf['feedback_LW_guesses'] is not None:
+                guess = self._guess_Mmin()
+                if guess is not None:
+                    self._tab_Mmin = guess
+                    return self._tab_Mmin_
+    
+            if self.pf['pop_Mmin'] is not None:
+                if ismethod(self.pf['pop_Mmin']) or \
+                   type(self.pf['pop_Mmin']) == FunctionType:
+                    self._tab_Mmin_ = \
+                        np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                elif type(self.pf['pop_Mmin']) is np.ndarray:
+                    self._tab_Mmin_ = self.pf['pop_Mmin']
+                    assert self._tab_Mmin.size == self.halos.z.size
+                else:    
+                    self._tab_Mmin_ = self.pf['pop_Mmin'] \
+                        * np.ones(self.halos.Nz)
+            else:
+                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
+                    z, mu=self.pf['mu'])
+                self._tab_Mmin_ = np.array(map(Mvir, self.halos.z))
+    
+            self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
+    
+        return self._tab_Mmin_
+    
+    @_tab_Mmin.setter
+    def _tab_Mmin(self, value):
+        if ismethod(value):
+            self.Mmin = value
+            self._tab_Mmin_ = np.array(map(value, self.halos.z), dtype=float)
+        elif type(value) in [int, float, np.float64]:    
+            self._tab_Mmin_ = value * np.ones(self.halos.Nz) 
+        else:
+            self._tab_Mmin_ = value
+    
+        self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, s='min')
+    
+    @property    
+    def _tab_Mmin_floor(self):
+        if not hasattr(self, '_tab_Mmin_floor_'):
+            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.z)
+        return self._tab_Mmin_floor_
+    
+    def _apply_lim(self, arr, s='min', zarr=None):
+        out = None
+    
+        if zarr is None:
+            zarr = self.halos.z
+    
+        # Might need these if Mmin is being set dynamically
+        if self.pf['pop_M%s_ceil' % s] is not None:
+            out = np.minimum(arr, self.pf['pop_M%s_ceil'] % s)
+        if self.pf['pop_M%s_floor' % s] is not None:
+            out = np.maximum(arr, self.pf['pop_M%s_floor'] % s)
+        if self.pf['pop_T%s_ceil' % s] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_ceil' % s], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, zarr))
+            out = np.minimum(arr, _MofT)
+        if self.pf['pop_T%s_floor' % s] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_floor' % s], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, zarr))
+            out = np.maximum(arr, _MofT)
+    
+        if out is None:
+            out = arr.copy()
+    
+        if s == 'min':
+            out = np.maximum(out, self._tab_Mmin_floor)
+    
+        return out

@@ -18,10 +18,10 @@ from ..util.Math import interp1d
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
-    cm_per_mpc
+    cm_per_mpc, k_B
 
 class Cosmology(object):
-    def __init__(self, **kwargs):        
+    def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
                 
         self.omega_m_0 = self.pf['omega_m_0']
@@ -42,7 +42,7 @@ class Cosmology(object):
         self.h70 = self.pf['hubble_0']
         
         self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
-            * cm_per_mpc**3 / g_per_msun / self.h70**2
+            * cm_per_mpc**3 / g_per_msun #/ self.h70**2
         
         if self.pf['helium_by_number'] is None:
             self.helium_by_mass = self.Y = self.pf['helium_by_mass']
@@ -55,6 +55,7 @@ class Cosmology(object):
         
         self.g_per_baryon = self.g_per_b = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
+
         self.baryon_per_Msun = self.b_per_msun = g_per_msun / self.g_per_baryon
          
         # Decoupling (gas from CMB) redshift       
@@ -414,6 +415,7 @@ class Cosmology(object):
                 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
         integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)
+
         return c * quad(integrand, z0, z)[0] / self.hubble_0  
             
     def ProperRadialDistance(self, z0, z):

@@ -14,6 +14,7 @@ parallel, e.g.,
 """
 
 import ares
+import numpy as np
 
 ## INPUT
 fit = 'ST'
@@ -27,11 +28,15 @@ hmf_pars = \
  "hmf_zmin": 3.,
  "hmf_dz": 0.05,
  "hmf_zmax": 60.,
+ 'fft_scales': np.arange(1e-3, 1e3+1e-3, 1e-3),
+ 'mpowspec_dlogk': 0.01,
+ 'mpowspec_dlogr': 0.01,
 }
 ##
 
-hmf = ares.physics.HaloMassFunction(hmf_load=False, **hmf_pars)
+hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False, **hmf_pars)
 
-hmf.save_hmf(format=format, clobber=True)
+hmf.save_ps(format=format, clobber=False, checkpoint=True)
+
 
 

@@ -229,9 +229,18 @@ class Source(object):
         return self._logN
         
     @property
+    def sharp_points(self):
+        if not hasattr(self, '_sharp_points'):
+            if self.pf['source_sed_sharp_at'] is not None:
+                self._sharp_points = [self.pf['source_sed_sharp_at']]
+            else:
+                self._sharp_points = None
+            
+        return self._sharp_points    
+        
+    @property
     def _normL(self):
         if not hasattr(self, '_normL_'):
-            
             if self.pf['source_Enorm'] is not None:
                 En = self.pf['source_Enorm']
                 
@@ -247,8 +256,8 @@ class Source(object):
                     integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
                     self._normL_ = 1. / quad(integrand,
                         self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
-                
-        return self._normL_          
+                                
+        return self._normL_
 
     #def _load_spectrum(self):
     #    """ Modify a few parameters if spectrum_file provided. """
@@ -259,7 +268,7 @@ class Source(object):
     #        return
     #        
     #    # Read spectrum - expect hdf5 with (at least) E, LE, and t datasets.    
-    #    if re.search('.hdf5', fn):    
+    #    if re.search('.hdf5', fn):
     #        f = h5py.File(fn)
     #        try:
     #            self.pf['tables_times'] = f['t'].value
@@ -383,7 +392,8 @@ class Source(object):
         integrand = lambda EE: self.Spectrum(EE) * EE
         norm = lambda EE: self.Spectrum(EE)
         
-        return quad(integrand, Emin, Emax)[0] / quad(norm, Emin, Emax)[0]
+        return quad(integrand, Emin, Emax, points=self.sharp_points)[0] \
+             / quad(norm, Emin, Emax, points=self.sharp_points)[0]
         
     @property
     def qdot_bar(self):
@@ -407,7 +417,8 @@ class Source(object):
         i2 = lambda E: self.Spectrum(E) / E
     
         # Must convert units
-        final = quad(i1, Emin, Emax)[0] / quad(i2, Emin, Emax)[0]
+        final = quad(i1, Emin, Emax, points=self.sharp_points)[0] \
+              / quad(i2, Emin, Emax, points=self.sharp_points)[0]
     
         return final
     
@@ -424,7 +435,7 @@ class Source(object):
                     
                 self._sigma_bar_all[i] = self.Lbol \
                     * quad(integrand, self.grid.ioniz_thresholds[absorber], 
-                      self.Emax)[0] / self.qdot_bar[i] / erg_per_ev
+                      self.Emax, points=self.sharp_points)[0] / self.qdot_bar[i] / erg_per_ev
             
         return self._sigma_bar_all
     
@@ -436,28 +447,26 @@ class Source(object):
                 integrand = lambda x: self.Spectrum(x) \
                     * self.grid.bf_cross_sections[absorber](x)
                 self._sigma_tilde_all[i] = quad(integrand, 
-                    self.grid.ioniz_thresholds[absorber], self.Emax)[0] \
+                    self.grid.ioniz_thresholds[absorber], self.Emax,
+                    points=self.sharp_points)[0] \
                     / self.fLbol_ionizing[i]
         
         return self._sigma_tilde_all
         
-    def fLbol_ionizing(self, t=0):
+    @property
+    def fLbol_ionizing(self, absorber=0):
         """
         Fraction of bolometric luminosity emitted above all ionization
         thresholds.
         """
         if not hasattr(self, '_fLbol_ioniz_all'):
-            self._fLbol_ioniz_all = {}
+            self._fLbol_ioniz_all = np.zeros_like(self.grid.zeros_absorbers)
+            for i, absorber in enumerate(self.grid.absorbers):
+                self._fLbol_ioniz_all[i] = quad(self.Spectrum, 
+                    self.grid.ioniz_thresholds[absorber], self.Emax,
+                    points=self.sharp_points)[0]
                     
-        if t in self._fLbol_ioniz_all:
-            return self._fLbol_ioniz_all[t]
-
-        self._fLbol_ioniz_all[t] = np.zeros_like(self.grid.zeros_absorbers)
-        for i, absorber in enumerate(self.grid.absorbers):
-            self._fLbol_ioniz_all[t][i] = quad(lambda E: self.Spectrum(E, t), 
-                self.grid.ioniz_thresholds[absorber], self.Emax)[0]
-                    
-        return self._fLbol_ioniz_all[t]
+        return self._fLbol_ioniz_all
         
     @property
     def Gamma_bar(self):
@@ -597,10 +606,10 @@ class Source(object):
         else:
             f = lambda x: 1.0    
             
-        L = self.Lbol(t) * quad(lambda x: self.Spectrum(x, t=t) \
-            * f(x), Emin, Emax)[0] 
-        Q = self.Lbol(t) * quad(lambda x: self.Spectrum(x, t=t) \
-            * f(x) / x, Emin, Emax)[0] / erg_per_ev
+        L = self.Lbol * quad(lambda x: self.Spectrum(x) * f(x), Emin, Emax,
+            points=self.sharp_points)[0] 
+        Q = self.Lbol * quad(lambda x: self.Spectrum(x) * f(x) / x, Emin, 
+            Emax, points=self.sharp_points)[0] / erg_per_ev
                         
         return L / Q / erg_per_ev, Q            
 

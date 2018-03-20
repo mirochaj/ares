@@ -37,6 +37,7 @@ plpars = \
  'pop_solve_rte': True,
  'tau_redshift_bins': 400,
  
+ 'tau_redshift_bins': 400,
  'initial_redshift': 40.,
  'final_redshift': 10.,
 }

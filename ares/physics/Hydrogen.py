@@ -40,37 +40,37 @@ else:
 
 # H-H collisions.
 T_HH = \
-    [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, \
+    np.array([1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, \
      25.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, \
      90.0, 100.0, 200.0, 300.0, 500.0, 700.0, 1000.0, \
-     2000.0, 3000.0, 5000.0, 7000.0, 10000.0]
+     2000.0, 3000.0, 5000.0, 7000.0, 10000.0])
 
 kappa_HH = \
-    [1.38e-13, 1.43e-13, 2.71e-13, 6.60e-13, 1.47e-12, 2.88e-12, \
+    np.array([1.38e-13, 1.43e-13, 2.71e-13, 6.60e-13, 1.47e-12, 2.88e-12, \
      9.10e-12, 1.78e-11, 2.73e-11, 3.67e-11, 5.38e-11, 6.86e-11, \
      8.14e-11, 9.25e-11, 1.02e-10, 1.11e-10, 1.19e-10, 1.75e-10, \
      2.09e-10, 2.56e-10, 2.91e-10, 3.31e-10, 4.27e-10, 4.97e-10, \
-     6.03e-10, 6.87e-10, 7.87e-10]
+     6.03e-10, 6.87e-10, 7.87e-10])
             
 # H-e collisions.            
 T_He = \
-    [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 
+    np.array([1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 
      1000.0, 2000.0, 3000.0, 5000.0, 7000.0, 
-     10000.0, 15000.0, 20000.0]
+     10000.0, 15000.0, 20000.0])
         
 kappa_He = \
-    [2.39e-10, 3.37e-10, 5.30e-10, 7.46e-10, 1.05e-9, 1.63e-9, 
+    np.array([2.39e-10, 3.37e-10, 5.30e-10, 7.46e-10, 1.05e-9, 1.63e-9, 
      2.26e-9, 3.11e-9, 4.59e-9, 5.92e-9, 7.15e-9, 7.71e-9, 
-     8.17e-9, 8.32e-9, 8.37e-9, 8.29e-9, 8.11e-9]
-
-T_HH = np.array(T_HH)
-T_He = np.array(T_He)
+     8.17e-9, 8.32e-9, 8.37e-9, 8.29e-9, 8.11e-9])
+     
+tabulated_coeff = \
+    {'kappa_H': kappa_HH, 'kappa_e': kappa_He, 
+     'T_H': T_HH, 'T_e': T_He}
 
 l_LyA = h * c / E_LyA / erg_per_ev
 
 class Hydrogen(object):
     def __init__(self, cosm=None, **kwargs):
-        
         self.pf = ParameterFile(**kwargs)
 
         if cosm is None:
@@ -110,8 +110,8 @@ class Hydrogen(object):
     def Tk_hi_H(self):
         if not hasattr(self, '_Tk_hi_H'):
             self._Tk_hi_H = \
-                np.logspace(np.log10(self.tabulated_coeff['T_H'].min()),
-                np.log10(self.tabulated_coeff['T_H'].max()), 1000)
+                np.logspace(np.log10(tabulated_coeff['T_H'].min()),
+                np.log10(tabulated_coeff['T_H'].max()), 1000)
             
         return self._Tk_hi_H
         
@@ -119,8 +119,8 @@ class Hydrogen(object):
     def Tk_hi_e(self):
         if not hasattr(self, '_Tk_hi_e'):       
             self._Tk_hi_e = \
-                np.logspace(np.log10(self.tabulated_coeff['T_e'].min()),
-                np.log10(self.tabulated_coeff['T_e'].max()), 1000)
+                np.logspace(np.log10(tabulated_coeff['T_e'].min()),
+                np.log10(tabulated_coeff['T_e'].max()), 1000)
             
         return self._Tk_hi_e
 
@@ -139,26 +139,24 @@ class Hydrogen(object):
         return self._ke_hi
 
     @property
-    def dlogkH_dlogT(self):  
-        if not hasattr(self, '_dlogkH_dlogT'):
+    def _dlogkH_dlogT(self):  
+        if not hasattr(self, '_dlogkH_dlogT_'):
             Tk_p_H, dkHdT = central_difference(self.Tk_hi_H, self.kH_hi)
-            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(list(map(self.kappa_H, Tk_p_H)))
-            
+            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(list(map(self.kappa_H, Tk_p_H)))            
             _kH_spline = interp1d(Tk_p_H, dlogkH_dlogT)
-            self._dlogkH_dlogT = lambda T: _kH_spline(T)
+            self._dlogkH_dlogT_ = lambda T: _kH_spline(T)
             
-        return self._dlogkH_dlogT
+        return self._dlogkH_dlogT_
         
     @property
-    def dlogke_dlogT(self):
-        if not hasattr(self, '_dlogke_dlogT'):
+    def _dlogke_dlogT(self):
+        if not hasattr(self, '_dlogke_dlogT_'):
             Tk_p_e, dkedT = central_difference(self.Tk_hi_e, self.ke_hi)
             dlogke_dlogT = dkedT * Tk_p_e / np.array(list(map(self.kappa_e, Tk_p_e)))
-            
             _ke_spline = interp1d(Tk_p_e, dlogke_dlogT)
-            self._dlogke_dlogT = lambda T: _ke_spline(T)
+            self._dlogke_dlogT_ = lambda T: _ke_spline(T)
     
-        return self._dlogke_dlogT
+        return self._dlogke_dlogT_
     
     def _kappa(self, Tk, Tarr, spline):
         if Tk < Tarr[0]:
@@ -179,7 +177,7 @@ class Hydrogen(object):
             for i in range(len(Tk)):
                 tmp[i] = self._kappa(Tk[i], T_HH, self.kappa_H_pre)
             return tmp
-            
+
     def kappa_e(self, Tk):       
         """
         Rate coefficient for spin-exchange via H-electron collsions.
@@ -204,6 +202,40 @@ class Hydrogen(object):
 
     def zmax(self, z, n):
         return (1. + z) * (1. - (n + 1)**-2) / (1. - n**-2) - 1.
+    
+    def beta(self, z, Tk, xHII, ne, Ja):
+        return self.beta_d(z, Tk, xHII, ne, Ja)
+    
+    def beta_d(self, z, Tk, xHII, ne, Ja):
+        xc = self._xc(z, Tk, xHII, ne)
+        xt = self._xtot(z, Tk, xHII, ne, Ja)
+        return 1. + xc / (xt * (1. + xt))
+    
+    def beta_x(self, z, Tk, xHII, ne, Ja):
+        xt = self._xtot(z, Tk, Ja, xHII, ne)
+        
+        term2 = (self._xc_HH(z, Tk, xHII, ne) - self._xc_eH(z, Tk, xHII, ne)) \
+            / (xt * (1. + xt))
+        
+        return 1. + term2
+    
+    def beta_a(self, z, Tk, xHII, ne, Ja):
+        xa = self._xa(z, Tk, xHII, ne, Ja)
+        xt = self._xtot(z, Tk, xHII, ne, Ja)
+        return xa / (xt * (1. + xt))
+    
+    def beta_T(self, z, Tk, xHII, ne, Ja):
+        xt = self._xtot(z, Tk, xHII, ne, Ja)
+        xc_HH = self._xc_HH(z, Tk, xHII, ne)
+        xc_eH = self._xc_eH(z, Tk, xHII, ne)
+        Tcmb = self.cosm.TCMB(z)
+        
+        term1 = Tcmb / (Tk - Tcmb)
+        brackets = xc_eH * self._dlogke_dlogT(Tk) \
+                 + xc_HH * self._dlogkH_dlogT(Tk)
+        term2 = (1. / (xt * (1. + xt))) * brackets
+        
+        return term1 + term2
     
     def OnePhotonPerHatom(self, z):
         """
@@ -270,6 +302,22 @@ class Hydrogen(object):
         """
         self._Tbg = value
     
+    def _xc(self, z, Tk, xHII=0.0, ne=0.0, Ja=0.0):
+        return self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
+        
+    def _xa(self, z, Tk=None, xHII=0.0, ne=0.0, Ja=0.0):
+        return self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
+        
+    def _xtot(self, z, Tk, xHII=0.0, ne=0.0, Ja=0.0):
+        return self._xc(z, Tk, xHII, ne) + self._xa(z, Tk, xHII, ne, Ja)
+    
+    def _xc_HH(self, z, Tk, xHII=0.0, ne=0.0):
+        return self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
+            * T_star / A10 / self.cosm.TCMB(z)
+    
+    def _xc_eH(self, z, Tk, xHII=0.0, ne=0.0):
+        return ne * self.kappa_e(Tk) * T_star / A10 / self.cosm.TCMB(z)
+            
     @property
     def Tbg_pars(self):
         if not hasattr(self, '_Tbg_pars'):
@@ -283,7 +331,7 @@ class Hydrogen(object):
     #
     #    return self.cosm.TCMB(z) + self.Tbg(z)
 
-    def CollisionalCouplingCoefficient(self, z, Tk, xHII, ne, Tr=0.0):
+    def CollisionalCouplingCoefficient(self, z, Tk, xHII=0.0, ne=0.0, Tr=0.0):
         """
         Parameters
         ----------
@@ -308,12 +356,15 @@ class Hydrogen(object):
                 
         return sum_term * T_star / A10 / Tref
     
+    def Ja_c(self, z):
+        return (1. + z) / 1.81e11
+    
     def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None):
         """
         Return radiative coupling coefficient (i.e., Wouthuysen-Field effect).
         """
                 
-        return 1.81e11 * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / (1. + z)
+        return self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / self.Ja_c(z)
 
     def tauGP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
@@ -392,20 +443,24 @@ class Hydrogen(object):
         x_c = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
         x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         Tc = Tk
-
+        
         Tref = self.cosm.TCMB(z) + Tr
 
         Ts = (1.0 + x_c + x_a) / \
             (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
-
+    
         return np.maximum(Ts, self.Ts_floor(z=z))
-
-    def dTb(self, z, xHII, Ts, Tr=0.0):
+    
+    def dTb(self, z, xavg, Ts, Tr=0.0):
         """
         Short-hand for calling `DifferentialBrightnessTemperature`.
         """
-        return self.DifferentialBrightnessTemperature(z, xHII, Ts, Tr)
-
+        return self.DifferentialBrightnessTemperature(z, xavg, Ts, Tr)
+        
+    def T0(self, z):
+        return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
+            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
+        
     def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.

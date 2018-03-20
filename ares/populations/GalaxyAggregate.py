@@ -43,8 +43,6 @@ class GalaxyAggregate(HaloPopulation):
         HaloPopulation.__init__(self, **kwargs)
         #self.pf.update(**kwargs)
         
-        
-
     #def _sfrd_func(self, z):
     #    # This is a cheat so that the SFRD spline isn't constructed
     #    # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
@@ -137,6 +135,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD given by some function
         if self.is_link_sfrd:    
             # Already in the right units
+
             return self._sfrd(z) * on
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
@@ -154,9 +153,9 @@ class GalaxyAggregate(HaloPopulation):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
-    
-        return sfrd                               
-    
+
+        return sfrd                           
+                    
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -255,4 +254,7 @@ class GalaxyAggregate(HaloPopulation):
         
         return rhoL / (eV_per_phot * erg_per_ev)
     
+    def IonizingEfficiency(self, z):
+        return self.pf['pop_Nion'] * self.pf['pop_fesc'] * self.pf['pop_fstar']
+        
     
