@@ -19,7 +19,7 @@ def test():
     sim.run()
     sim.GlobalSignature()
     
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()
     
     # Make sure it's not a null signal.

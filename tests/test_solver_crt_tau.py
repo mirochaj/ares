@@ -153,7 +153,7 @@ def test(tol=1e-1):
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()
     
 if __name__ == '__main__':

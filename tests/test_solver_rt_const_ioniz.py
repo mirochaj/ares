@@ -61,7 +61,7 @@ def test():
     
     pl.legend(fontsize=14, loc='best')
 
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()
 
     assert True
