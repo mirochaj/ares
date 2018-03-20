@@ -244,14 +244,13 @@ sfe_parameters = \
 }
 
 for i in range(6):
-    sfe_parameters['pq_func_par%i' % i] = r'$p_{%i}$' % i
+    sfe_parameters['pq_func_par{}'.format(i)] = r'$p_{%i}$' % i
         
 powspec = \
 {
  'k': r'$k \ [\mathrm{cMpc}^{-1}]$',
  'dpow': r'$\overline{\delta T_b}^2 \Delta_{21}^2 \ \left[\mathrm{mK}^2 \right]$',
  'pow': r'$P(k)$',
-
 }
 other = \
 {
