@@ -216,25 +216,26 @@ class MetaGalacticBackground(AnalyzeMGB):
         This is just the second term of Eq. 25 in Mirocha (2014).
         """
         
-        _fluxes_today = []
-        _energies_today = []
-
-        for popid, pop in enumerate(self.pops):
-            if not self.solver.solve_rte[popid]:
-                _fluxes_today.append(None)
-                _energies_today.append(None)
-                continue
-                
-            z, E, flux = self.get_history(popid=popid, flatten=True)    
-            
-            
-            Et = E / (1. + z[0])
-            ft = flux[0] / (1. + z[0])**2 
-            
-            _energies_today.append(Et)
-            _fluxes_today.append(ft)
-            
-        return _energies_today, _fluxes_today
+        return self.flux_today()
+        
+        #_fluxes_today = []
+        #_energies_today = []
+        #
+        #for popid, pop in enumerate(self.pops):
+        #    if not self.solver.solve_rte[popid]:
+        #        _fluxes_today.append(None)
+        #        _energies_today.append(None)
+        #        continue
+        #        
+        #    z, E, flux = self.get_history(popid=popid, flatten=True)    
+        #    
+        #    Et = E / (1. + z[0])
+        #    ft = flux[0] / (1. + z[0])**2 
+        #    
+        #    _energies_today.append(Et)
+        #    _fluxes_today.append(ft)
+        #    
+        #return _energies_today, _fluxes_today
     
     def today_of_E(self, E):
         """
@@ -260,6 +261,43 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         freq = E * erg_per_ev / h_p
         return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
+    
+    def flux_today(self, zf=None, popids=None):
+        _fluxes_today = []
+        _energies_today = []
+                
+        if popids is None:
+            popids = range(len(self.pops))
+        if type(popids) not in [list, tuple, np.ndarray]:
+            popids = [popids]
+                        
+        # Loop over pops
+        for popid, pop in enumerate(self.pops):
+            
+            if popid not in popids:
+                continue
+                        
+            if not self.solver.solve_rte[popid]:
+                _fluxes_today.append(None)
+                _energies_today.append(None)
+                continue
+                
+            z, E, flux = self.get_history(popid=popid, flatten=True)    
+            
+            if zf is None:
+                k = 0
+            else:
+                k = np.argmin(np.abs(zf - z))
+            
+            Et = E / (1. + z[k])
+            ft = flux[k] / (1. + z[k])**2 
+            
+            _energies_today.append(Et)
+            _fluxes_today.append(ft)
+        
+        flatten_flux
+            
+        return flatten_energies(_energies_today), flatten_flux(_fluxes_today)
                                
     @property        
     def jsxb(self):
@@ -1127,12 +1165,15 @@ class MetaGalacticBackground(AnalyzeMGB):
         if flatten:
             E = np.array(flatten_energies(self.solver.energies[popid]))
 
+            # First loop is over redshift.
             f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist):
+                                
+                # Second loop is over sub-band
                 fzflat = []
                 for j in range(len(self.solver.energies[popid])):
                     if not self.solver.solve_rte[popid][j]:
-                        fzflat.extend(np.zeros_like(self.solver.energies[popid][j]))
+                        fzflat.extend(np.zeros_like(flatten_energies(self.solver.energies[popid][j])))
                     else:
                         fzflat.extend(flux[j])
 
@@ -1146,7 +1187,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             z_tr = z
             E_tr = self.solver.energies[popid]
             f_tr = hist[-1::-1][:]
-            
+
         # We've flipped the fluxes too since they are inherently in 
         # order of descending redshift.    
         return z_tr, E_tr, f_tr

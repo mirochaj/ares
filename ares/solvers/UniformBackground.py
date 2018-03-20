@@ -136,7 +136,7 @@ class UniformBackground(object):
                 
                 tmp = []                
                 for j, band in enumerate(self.bands_by_pop[i]):
-                    
+                                        
                     if band is None:
                         # When does this happen?
                         tmp.append(False)
@@ -147,6 +147,9 @@ class UniformBackground(object):
                        #if j == 0:
                        #    break
                     elif type(pop.pf['pop_solve_rte']) is tuple:
+                        
+                        # Want to make sure we don't have to be *exactly*
+                        # right.
                         
                         if band == pop.pf['pop_solve_rte']:
                             tmp.append(True)
@@ -159,6 +162,10 @@ class UniformBackground(object):
                             tmp.append(True)
                         else:
                             tmp.append(False)
+                    #elif type(pop.pf['pop_solve_rte']) is list:
+                    #    if band in pop.pf['pop_solve_rte']
+                    else:
+                        tmp.append(False)
                             
                 self._solve_rte.append(tmp)            
 
@@ -1116,7 +1123,6 @@ class UniformBackground(object):
                     
             Lbol = pop.Emissivity(z)        
             for ll in range(Nz):
-                #Lbol = pop.Emissivity(z[ll])
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:

@@ -251,11 +251,13 @@ class Source(object):
             else:
                 if self.intrinsic_hardening:
                     self._normL_ = 1. / quad(self._Intensity,
-                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                        self.pf['source_EminNorm'], 
+                        self.pf['source_EmaxNorm'], points=self.sharp_points)[0]
                 else:    
                     integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
                     self._normL_ = 1. / quad(integrand,
-                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                        self.pf['source_EminNorm'], 
+                        self.pf['source_EmaxNorm'], points=self.sharp_points)[0]
                                 
         return self._normL_
 
