@@ -99,10 +99,10 @@ def test(tol=1e-2):
     ax2.semilogy(z, flux[:,k] * E[k] * erg_per_ev, color='k', ls='--')
     
     pl.figure(1)
-    pl.savefig('{!s}_1.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}_1.png'.format(__file__[0:__file__.rfind('.')]))
     
     pl.figure(2)
-    pl.savefig('{!s}_2.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}_2.png'.format(__file__[0:__file__.rfind('.')]))
     
     pl.close('all')    
     

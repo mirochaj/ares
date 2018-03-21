@@ -359,7 +359,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 self.history['igm_Tk'], self.history['Ja'], 
                 self.history['igm_h_2'], self.history['igm_e'] * n_H, Tr)
 
-            if self.pf['spin_temperature_floor'] is not None:
+            if self.pf['floor_Ts']:
                 Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=zall))            
 
             # Compute volume-averaged ionized fraction
@@ -404,7 +404,7 @@ class Global21cm(AnalyzeGlobal21cm):
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
 
-            if self.pf['spin_temperature_floor'] is not None:
+            if self.pf['floor_Ts'] is not None:
                 Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=z))            
 
             # Compute volume-averaged ionized fraction

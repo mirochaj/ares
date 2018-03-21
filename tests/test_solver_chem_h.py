@@ -39,7 +39,7 @@ def test():
     pl.loglog(data['Tk'][0], data['h_1'][-1,:], color='k')
     pl.loglog(data['Tk'][0], data['h_2'][-1,:], color='k', ls='--')
     
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()    
     
     assert True

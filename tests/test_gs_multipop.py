@@ -39,6 +39,9 @@ def test():
     
     pl.draw()
     
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
+    pl.close()
+    
     assert True
     
 if __name__ == '__main__':

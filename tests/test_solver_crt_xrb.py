@@ -134,7 +134,7 @@ def test(tol = 1e-2):
     pl.show()
     for i in range(4):
         pl.figure(i)
-        pl.savefig('{0!s}_{1}.png'.format(__file__.rstrip('.py'), i))
+        pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))
     
     pl.close('all')    
     assert True

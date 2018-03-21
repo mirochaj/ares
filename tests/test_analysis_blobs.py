@@ -147,7 +147,7 @@ def test(Ns=500, Nd=4, prefix='test'):
     
     for i in range(1, 5):
         pl.figure(i)
-        pl.savefig('{0!s}_{1}.png'.format(__file__.rstrip('.py'), i))     
+        pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))     
     
     pl.close('all')
     
