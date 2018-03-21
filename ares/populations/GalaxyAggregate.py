@@ -21,6 +21,7 @@ from ..util.Math import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
 from ..util.ParameterFile import get_pq_pars, pop_id_num
+from scipy.interpolate import interp1d as interp1d_scipy
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
@@ -43,8 +44,6 @@ class GalaxyAggregate(HaloPopulation):
         HaloPopulation.__init__(self, **kwargs)
         #self.pf.update(**kwargs)
         
-        
-
     #def _sfrd_func(self, z):
     #    # This is a cheat so that the SFRD spline isn't constructed
     #    # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
@@ -79,7 +78,7 @@ class GalaxyAggregate(HaloPopulation):
                     pars[key] = self.pf[prefix]
                 
                 self._sfrd_ = self.pf['pop_sfrd'](**pars)
-            elif isinstance(self.pf['pop_sfrd'], interp1d):
+            elif isinstance(self.pf['pop_sfrd'], interp1d_scipy):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif self.pf['pop_sfrd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
@@ -137,6 +136,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD given by some function
         if self.is_link_sfrd:    
             # Already in the right units
+
             return self._sfrd(z) * on
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
@@ -154,9 +154,9 @@ class GalaxyAggregate(HaloPopulation):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
-    
-        return sfrd                               
-    
+
+        return sfrd                           
+                    
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -174,7 +174,7 @@ class GalaxyAggregate(HaloPopulation):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-
+        
         on = self.on(z)
         if not np.any(on):
             return z * on
@@ -187,7 +187,7 @@ class GalaxyAggregate(HaloPopulation):
                         
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr * on
-                
+               
         if not self.pf['pop_sed_model']:
             if (Emin, Emax) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
@@ -204,11 +204,17 @@ class GalaxyAggregate(HaloPopulation):
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
         if (Emax is None) or (Emin is None):
-            pass
+            if self.pf['pop_reproc']:
+                rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
         elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
-            rhoL *= self.pf['pop_fesc_LW']    
+            if self.pf['pop_reproc']:
+                fesc = (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
+            else:
+                fesc = self.pf['pop_fesc_LW']
+            
+            rhoL *= fesc
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
@@ -255,4 +261,7 @@ class GalaxyAggregate(HaloPopulation):
         
         return rhoL / (eV_per_phot * erg_per_ev)
     
+    def IonizingEfficiency(self, z):
+        return self.pf['pop_Nion'] * self.pf['pop_fesc'] * self.pf['pop_fstar']
+        
     

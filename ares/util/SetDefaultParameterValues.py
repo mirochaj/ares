@@ -22,7 +22,8 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum',
+    'Halo']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -363,7 +364,82 @@ def DustParameters():
     pf.update(rcParams)
 
     return pf
-    
+
+def PowerSpectrumParameters():
+    pf = {}
+
+    tmp = \
+    {     
+     'powspec_redshifts': np.arange(6, 20, 1),
+     'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
+
+     # Ultimately we'll interpolate beyond these
+     'powspec_dlogk': 0.1,
+     'powspec_dlogr': 0.1,
+     
+     'include_acorr': True,
+     'include_xcorr': False,
+     
+     'include_xcorr_wrt': None,
+     
+     'include_density_fl': True,
+     'include_ion_fl': True,
+     'include_temp_fl': False,
+     'include_lya_fl': False,
+     
+     'include_lya_lc': False,
+           
+     'include_bias': False,
+
+     "powspec_volfix": False,
+     "powspec_rescale_Qion": False,
+     "powspec_rescale_Qlya": False,
+     "powspec_rescale_Qhot": False,
+     "powspec_rescale_dTb": False,
+
+     "bubble_size": None,
+     "bubble_density": None,
+     
+     # Important that the number is at the end! ARES will interpret
+     # numbers within underscores as population ID numbers.
+     "bubble_shell_rsize_zone_0": None,
+     "bubble_shell_asize_zone_0": None,
+     "bubble_shell_ktemp_zone_0": None,
+     "bubble_shell_tpert_zone_0": None,
+     "bubble_shell_rsize_zone_1": None,
+     "bubble_shell_asize_zone_1": None,
+     "bubble_shell_ktemp_zone_1": None,
+     "bubble_shell_tpert_zone_1": None,
+     "bubble_shell_rsize_zone_2": None,
+     "bubble_shell_asize_zone_2": None,
+     "bubble_shell_ktemp_zone_2": None,
+     "bubble_shell_tpert_zone_2": None,
+     
+     "bubble_shell_include_xcorr": True,
+     
+
+     #"bubble_pod_size": None,
+     #"bubble_pod_size_rel": None,
+     #"bubble_pod_size_abs": None,
+     #"bubble_pod_size_func": None,
+     #"bubble_pod_temp": None,
+     #"bubble_pod_Nsc": 1e3,
+     
+     "powspec_lya_method": 'lpt',
+     "powspec_ion_method": None,  # unused
+     "powspec_temp_method": 'xset',  # or...'shell'
+     
+     #"powspec_lya_approx_sfr": 'exp',
+     
+     "bubble_shell_size_dist": None,
+     "bubble_size_dist": 'fzh04', # or FZH04, PC14
+    }
+
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf
+
 def PopulationParameters():
     """
     Parameters associated with populations of objects, which give rise to
@@ -420,6 +496,8 @@ def PopulationParameters():
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
+    
+    "pop_sed_sharp_at": None,
     
     # If pop_sed == 'user'
     "pop_E": None,
@@ -578,6 +656,12 @@ def PopulationParameters():
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
     
+    "pop_lya_fl": False,
+    "pop_ion_fl": False,
+    "pop_temp_fl": False,
+    "pop_one_halo_term": True,
+    "pop_two_halo_term": True,
+        
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_rad_yield": 2.6e39,
@@ -606,6 +690,9 @@ def PopulationParameters():
     "pop_Lh_scatter": 0.0,
     
     'pop_fXh': None,
+    
+    'pop_frep': 1.0,
+    'pop_reproc': False,
     
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
@@ -648,6 +735,8 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    "source_sed_sharp_at": None,
     
     "source_sfr": 1.,
     "source_fesc": 0.1,
@@ -786,9 +875,11 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
+    "hmf_load_ps": True,
+    "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,
-    
+
     # Table resolution
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
@@ -796,7 +887,7 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
-    
+
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
@@ -808,9 +899,14 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+    # For matter power spectrum
+    'mpowspec_dlogk': 0.1,
+    'mpowspec_dlogr': 0.1,
+    
+
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
-    
+
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
@@ -841,6 +937,19 @@ def CosmologyParameters():
     pf.update(rcParams)
 
     return pf
+    
+def HaloParameters():
+    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
+    pf = \
+    {
+     "halo_profile": 'nfw',
+     "halo_cmr": 'duffy',
+     "halo_delta": 200.,
+    }
+
+    pf.update(rcParams)
+
+    return pf    
     
 def ControlParameters():
     pf = \
@@ -895,7 +1004,15 @@ def ControlParameters():
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
-        
+    
+    "compute_fluxes_at_start": False,
+    
+    # k-space resolution
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2.,
+    "powspec_dlogk": 0.1,
+    "powspec_z": 10.,
+    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
@@ -929,6 +1046,14 @@ def ControlParameters():
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
 
+    # Power spectrum stuff
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2,
+    "powspec_dlogk": 0.5,    
+    "powspec_dlogr": 0.1,
+    "powspec_band": (11.2, 13.6),
+
+    "sam_dt": 1., # Myr
     "sam_dz": 2., # Usually good enough!
     "sam_atol": 1e-2,
     "sam_rtol": 1e-2,
@@ -964,7 +1089,8 @@ _sampling_parameters = \
  'output_freq_min': 30.,
  'output_freq_max': 200.,
  'output_freq_res': 1.,    
- 'output_dz': None,  # Redshift sampling    
+ 'output_dz': None,  # Redshift sampling 
+ 'output_redshifts': None,   
 }
 
 # Old != Deprecated

@@ -77,7 +77,7 @@ class HistoryContainer(dict):
 turning_points = ['D', 'C', 'B', 'A']
 
 class MultiPhaseMedium(object):
-    def __init__(self, data=None, **kwargs):
+    def __init__(self, data=None, suffix='history', **kwargs):
         """
         Initialize analysis object.
         
@@ -88,7 +88,7 @@ class MultiPhaseMedium(object):
             of the files containing the history/parameters.
 
         """
-                
+                                
         if data is None:
             return
 
@@ -99,7 +99,7 @@ class MultiPhaseMedium(object):
         # Read output of a simulation from disk
         elif isinstance(data, basestring):
             self.prefix = data
-            self._load_data(data)
+            self._load_data(data, suffix)
 
         self.kwargs = kwargs
 
@@ -107,22 +107,21 @@ class MultiPhaseMedium(object):
         if os.path.exists('{!s}.history.pkl'.format(data)):
             history = self._load_pkl(data)
         else:
-            history = self._load_txt(data)
-            
-        self._load_pf(data)    
+            history = self._load_txt(data, suffix)
+
+        self._load_pf(data)
         self.history = history
-            
+
     def _load_pf(self, data):        
         try:   
             self.pf = read_pickle_file('{!s}.parameters.pkl'.format(data),\
-                nloads=1, verbose=False)
-                
+                nloads=1, verbose=False)                
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.}
             print('Error loading {!s}.parameters.pkl.'.format(data))
             
-    def _load_txt(self, data):
+    def _load_txt(self, data, histsuffix):
         found = False
         for suffix in ['txt', 'dat']:
             fn = '{0!s}.history.{1!s}'.format(data, suffix)
@@ -170,9 +169,9 @@ class MultiPhaseMedium(object):
                 history = {}
                 for i, col in enumerate(cols):
                     history[col] = _data[:,i]
-                f.close()  
+                f.close()
 
-        return history       
+        return history    
 
     @property
     def cosm(self):
@@ -436,7 +435,7 @@ class MultiPhaseMedium(object):
             mu=0.055, sig1=0.009, padding=0.02, borderpad=1, 
             ticklabels=None, **kwargs):
 
-        sig2 = get_nu(sig1, 0.68, 0.95)
+        sig2 = 2. * sig1
 
         if inset is None:
             inset = self.add_inset(ax, inset=inset, width=width, height=height, 
@@ -480,7 +479,7 @@ class MultiPhaseMedium(object):
             inset.set_yticklabels([])
             
             if (lo is None and hi is None):
-                sig2 = get_nu(sig1, 0.68, 0.95)
+                sig2 = 2. * sig1
                 lo = mu-sig2-padding
                 hi = mu+sig2+padding
             

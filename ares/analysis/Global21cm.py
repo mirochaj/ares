@@ -307,7 +307,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             result.update(fixes)
             
             self._turning_points = result       
-            
+
             ## 
             # If there are multiple extrema (e.g, C and C'), fix order.
             ##

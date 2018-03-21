@@ -20,7 +20,7 @@ If you'd like to live on the bleeding edge, check out the ares-dev branch! Once 
     
     hg up ares-dev
 
-The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
+The `documentation <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
