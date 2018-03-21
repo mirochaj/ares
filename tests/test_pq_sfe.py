@@ -142,7 +142,7 @@ def test():
     pl.ylim(1e-4, 0.2)
     pl.legend(loc='upper left', fontsize=14)
     
-    pl.savefig('{!s}_2.png'.format(__file__.rstrip('.py')))     
+    pl.savefig('{!s}_2.png'.format(__file__[0:__file__.rfind('.')]))     
     pl.close()
     
 if __name__ == '__main__':

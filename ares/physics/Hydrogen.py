@@ -402,9 +402,25 @@ class Hydrogen(object):
         return E_LL * (1. - 1. / n**2)
         
     @property
+    def Ts_floor_pars(self):
+        if not hasattr(self, '_Ts_floor_pars'):
+            self._Ts_floor_pars = [self.pf['floor_Ts_p{}'.format(i)] for i in range(6)]
+        return self._Ts_floor_pars    
+        
+    @property
     def Ts_floor(self):
         if not hasattr(self, '_Ts_floor'):
-            self._Ts_floor = lambda z: 0.0
+            if not self.pf['floor_Ts']:
+                self._Ts_floor = lambda z: 0.0
+            else:
+                if self.pf['floor_Ts'] == 'pl':
+                    pars = self.Ts_floor_pars
+                    
+                    self._Ts_floor = lambda z: pars[0] * ((1. + z) / pars[1])**pars[2]
+                    
+                else:
+                    raise NotImplemented('sorry!')
+                    
         return self._Ts_floor
 
     @Ts_floor.setter

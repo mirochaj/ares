@@ -227,9 +227,16 @@ def PhysicsParameters():
     "Tbg_p2": None,
     "Tbg_p3": None,
     "Tbg_p4": None,
+    
+    # Ad hoc way to make a flattened signal
+    "floor_Ts": False,
+    "floor_Ts_p0": None,
+    "floor_Ts_p1": None,
+    "floor_Ts_p2": None,
+    "floor_Ts_p3": None,
+    "floor_Ts_p4": None,
+    "floor_Ts_p5": None,
             
-    "spin_temperature_floor": None,
-
     # Lyman alpha sources
     "lya_nmax": 23,
     

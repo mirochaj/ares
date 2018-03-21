@@ -368,7 +368,6 @@ class Population(object):
                 # Exceptions. Ideally, exotic_heating_func wouldn't make it
                 # to the population parameter files...
                 if (par == 'pop_fstar') or (not par.startswith('pop_')):
-                #if par in ['pop_fstar', 'exotic_heating_func', 'spin_temperature_floor']:
                     continue
                     
                 # Could just skip parameters that start with pop_    

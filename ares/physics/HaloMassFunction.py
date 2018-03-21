@@ -943,12 +943,16 @@ class HaloMassFunction(object):
             logMsize = int(logMsize)    
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))    
-                
-            return 'hmf_{0!s}_logM_{1!s}_{2}-{3}_z_{4!s}_{5}-{6}'.format(\
-                self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+             
+            s = 'hmf_{0!s}_logM_{1!s}_{2}-{3}_z_{4!s}_{5:.1f}-{6:.1f}'.format(\
+                self.hmf_func, logMsize, M1, M2, zsize, z1, z2)            
+                                
         else:
-            return 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3}-{4}'.format(\
+            
+            s = 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3:.1f}-{4:.1f}'.format(\
                 self.hmf_func, M1, M2, z1, z2) 
+                        
+        return s   
                                
     def save_hmf(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
