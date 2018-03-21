@@ -189,21 +189,6 @@ class MultiPhaseMedium(object):
                 # Set initial values for rate coefficients
                 parcel_igm.update_rate_coefficients(parcel_igm.grid.data, 
                     **self.rates_no_RT(parcel_igm.grid))
-                
-                if self.pf['spin_temperature_floor'] is not None:
-                    if type(self.pf['spin_temperature_floor']) == str:
-                        pars = get_pq_pars(self.pf['spin_temperature_floor'], 
-                            self.pf)
-                        parcel_igm.grid.hydr.Ts_floor = \
-                            ParameterizedQuantity(deps={}, raw_pf=self.pf,
-                                **pars)
-                                                        
-                    else:        
-                        Ts = self.pf['spin_temperature_floor']
-                        if type(Ts) is FunctionType:
-                            parcel_igm.grid.hydr.Ts_floor = lambda **kw: Ts(kw['z'])
-                        else:
-                            parcel_igm.grid.hydr.Ts_floor = lambda **kw: Ts
                     
                 self._parcels.append(parcel_igm)
                     
