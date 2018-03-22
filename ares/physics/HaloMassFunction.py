@@ -244,7 +244,7 @@ class HaloMassFunction(object):
             self.z = f['z'].value
             self.logM = f['logM'].value
             self.M = 10**self.logM
-            self.fcoll_tab = f['fcoll'].value
+            #self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
 
             if self.pf['hmf_load_ps']:
@@ -264,7 +264,7 @@ class HaloMassFunction(object):
             self.z = f['z']
             self.logM = f['logM']
             self.M = 10**self.logM
-            self.fcoll_tab = f['fcoll']
+            #self.fcoll_tab = f['fcoll']
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
@@ -357,15 +357,11 @@ class HaloMassFunction(object):
     def MF(self, value):
         self._MF = value     
 
-    #@property
-    #def fcoll_tab(self):
-    #    if not hasattr(self, '_fcoll_tab'):
-    #        self.build_fcoll_tab()
-    #    return self._fcoll_tab    
-    #
-    #@fcoll_tab.setter
-    #def fcoll_tab(self, value):
-    #    self._fcoll_tab = value
+    @property
+    def fcoll_tab(self):
+        if not hasattr(self, '_fcoll_tab'):                
+            self._fcoll_tab = self.mgtm / self.cosm.mean_density0
+        return self._fcoll_tab
 
     @property
     def cosmo_params(self):
@@ -408,7 +404,7 @@ class HaloMassFunction(object):
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
-        #fcoll_tab = np.zeros_like(self.dndm)
+        #self.fcoll_tab = np.zeros_like(self.dndm)
         
         # Extras
         self.bias_tab = np.zeros_like(self.dndm)
@@ -441,7 +437,7 @@ class HaloMassFunction(object):
              
             # Remember that mgtm and mean_density have factors of h**2
             # so we're OK here dimensionally
-            #fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
+            #self.fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
             
             # Eq. 3.53 and 3.54 in Steve's book
             #delta_b = 1. #?
@@ -478,9 +474,9 @@ class HaloMassFunction(object):
                 
         # Collect results!
         if size > 1:
-            #tmp1 = np.zeros_like(fcoll_tab)
-            #nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp1)
-            #_fcoll_tab = tmp1
+            #tmp1 = np.zeros_like(self.fcoll_tab)
+            #nothing = MPI.COMM_WORLD.Allreduce(self.fcoll_tab, tmp1)
+            #self.fcoll_tab = tmp1
             
             tmp2 = np.zeros_like(self.dndm)
             nothing = MPI.COMM_WORLD.Allreduce(self.dndm, tmp2)

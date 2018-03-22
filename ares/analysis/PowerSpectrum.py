@@ -92,8 +92,8 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         k = self.history['k']
 
         ps_s = 'ps_%s' % field
-        if dimensionless and ('%s_dl' % field in self.history):
-            ps = self.history['%s_dl' % field][iz]
+        if dimensionless and ('%s_dl' % ps_s in self.history):
+            ps = self.history['%s_dl' % ps_s][iz]
             if take_sqrt:
                 ps = np.sqrt(ps)
 
