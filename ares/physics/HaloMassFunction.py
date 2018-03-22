@@ -228,7 +228,7 @@ class HaloMassFunction(object):
             self.z = f['z'].value
             self.logM = f['logM'].value
             self.M = 10**self.logM
-            self.fcoll_tab = f['fcoll'].value
+            #self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
             self.ngtm = f['ngtm'].value
             self.mgtm = f['mgtm'].value
@@ -238,7 +238,7 @@ class HaloMassFunction(object):
             self.z = f['z']
             self.logM = f['logM']
             self.M = 10**self.logM
-            self.fcoll_tab = f['fcoll']
+            #self.fcoll_tab = f['fcoll']
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
@@ -300,17 +300,23 @@ class HaloMassFunction(object):
 
     @MF.setter
     def MF(self, value):
-        self._MF = value     
-
+        self._MF = value
+        
     @property
     def fcoll_tab(self):
-        if not hasattr(self, '_fcoll_tab'):
-            self.build_fcoll_tab()
-        return self._fcoll_tab    
+        if not hasattr(self, '_fcoll_tab'):                
+            self._fcoll_tab = self.mgtm / self.cosm.mean_density0
+        return self._fcoll_tab         
 
-    @fcoll_tab.setter
-    def fcoll_tab(self, value):
-        self._fcoll_tab = value
+    #@property
+    #def fcoll_tab(self):
+    #    if not hasattr(self, '_fcoll_tab'):
+    #        self.build_fcoll_tab()
+    #    return self._fcoll_tab    
+    #
+    #@fcoll_tab.setter
+    #def fcoll_tab(self, value):
+    #    self._fcoll_tab = value
 
     @property
     def cosmo_params(self):
@@ -813,7 +819,7 @@ class HaloMassFunction(object):
             f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
             f.create_dataset('logM', data=self.logM)
-            f.create_dataset('fcoll', data=self.fcoll_tab)
+            #f.create_dataset('fcoll', data=self.fcoll_tab)
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
             f.create_dataset('mgtm', data=self.mgtm)
@@ -822,7 +828,7 @@ class HaloMassFunction(object):
 
         elif format == 'npz':
             data = {'z': self.z, 'logM': self.logM, 
-                    'fcoll': self.fcoll_tab, 'dndm': self.dndm,
+                    'dndm': self.dndm,
                     'ngtm': self.ngtm, 'mgtm': self.mgtm,
                     'pars': {'growth_pars': self.growth_pars,
                              'transfer_pars': self.transfer_pars},

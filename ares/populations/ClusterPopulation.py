@@ -161,8 +161,6 @@ class ClusterPopulation(Population):
                 norm = np.trapz(hist, x=np.log10(self.Larr))
                 tot = np.trapz(self._tab_massfunc[i], x=self.Marr)
 
-                print i, tot / norm
-
                 self._tab_lf_[i] = hist * tot / norm
 
         return self._tab_lf_
