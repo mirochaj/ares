@@ -16,6 +16,10 @@ from scipy.interpolate import interp1d as interp1d_scipy
 
 def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
     force_scipy=False, **kwargs):
+    
+    if 'axis' in kwargs:
+        force_scipy = True
+    
     if (kind == 'linear') and (not force_scipy):
         return lambda xx: np.interp(xx, x, y)
     elif (kind == 'cubic') or force_scipy: 
