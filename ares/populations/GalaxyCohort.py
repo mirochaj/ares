@@ -497,9 +497,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         if not hasattr(self, '_SFRD'):
-            func = interp1d(self.halos.z, np.log(self._tab_sfrd_total), 
+            func = interp1d(self.halos.z, self._tab_sfrd_total, 
                 kind=self.pf['pop_interp_sfrd'])
-            self._SFRD = lambda z: np.exp(func(z))
+            self._SFRD = lambda z: func(z)
 
         return self._SFRD
         
