@@ -113,11 +113,19 @@ class ClusterPopulation(Population):
     #    if not hasattr(self, '_tab_agefunc_'):
     #        self._tab_agefunc_ = np.zeros((len(self.zarr), len(self.zarr)))
     #                
-    #                
+    #        
+    
+    @property
+    def _tab_rhoL(self):
+        if not hasattr(self, '_tab_rhoL_'):
+            lf = self._tab_lf
+        return self._tab_rhoL_
+            
     @property
     def _tab_lf(self):
         if not hasattr(self, '_tab_lf_'):
             self._tab_lf_ = np.zeros((len(self.zarr), len(self.Larr)))
+            self._tab_rhoL_ = np.zeros_like(self.zarr)
             
             dlogL = self.pf['pop_dlogM']
             edges = 10**np.arange(np.log10(self.Larr[0]) - 0.5 * dlogL,
@@ -160,8 +168,12 @@ class ClusterPopulation(Population):
                 # Norm to get total number right
                 norm = np.trapz(hist, x=np.log10(self.Larr))
                 tot = np.trapz(self._tab_massfunc[i], x=self.Marr)
+                lf = hist * tot / norm
 
-                self._tab_lf_[i] = hist * tot / norm
+                self._tab_lf_[i] = lf
+                
+                # Need to convert units.
+                self._tab_rhoL_[i] = np.trapz(lf, x=self.Larr)
 
         return self._tab_lf_
                 
@@ -170,11 +182,11 @@ class ClusterPopulation(Population):
         iz = np.argmin(np.abs(self.zarr - z))
         
         mags = self.mags(z=z)
+        
+        # Remember that this is a histogram in log10(L) bins.
         phi = self._tab_lf[iz]
-        
-        return mags, phi
-        
-        dLdmag = np.diff(self.Larr) / np.diff(mags)
+                
+        dLdmag = np.diff(np.log10(self.Larr)) / np.diff(mags)
         
         return mags[0:-1], phi[0:-1] * np.abs(dLdmag)
         
@@ -273,4 +285,40 @@ class ClusterPopulation(Population):
 
         return self._tab_L1600_
     
+    @property
+    def _rhoL(self):
+        if not hasattr(self, '_rhoL_'):
+            self._rhoL_ = interp1d(self.zarr, self._tab_rhoL,
+                kind=self.pf['pop_interp_sfrd'])
+        return self._rhoL_
+    
+    def Emissivity(self, z, E=None, Emin=None, Emax=None):
+        """
+        Compute the emissivity of this population as a function of redshift
+        and rest-frame photon energy [eV].
+    
+        Parameters
+        ----------
+        z : int, float
+    
+        Returns
+        -------
+        Emissivity in units of erg / s / c-cm**3 [/ eV]
+    
+        """
+    
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
+    
+        if self.is_emissivity_separable:
+            rho_L = self._rhoL(z)
+        else:
+            raise NotImplemented('help!')
+        
+        
+        if E is not None:
+            return rhoL * self.src.Spectrum(E) * on
+        else:
+            return rhoL * on
 
