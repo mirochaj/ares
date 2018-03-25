@@ -73,12 +73,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         exist (yet). The only special case is really L1600_per_sfr, since 
         that requires accessing a SynthesisModel.
         """
-                                        
+        
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         # This is in general pretty dangerous but I don't have any better
         # ideas right now. It makes debugging hard but it's SO convenient...
         if (name[0] == '_'):
+            if name.startswith('_tab'):
+                return self.__getattribute__(name)
+                
             raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
                     
         # This is the name of the thing as it appears in the parameter file.
@@ -1989,9 +1992,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         fb = self.cosm.fbar_over_fcdm
         
+        dtdz = -self.cosm.dtdz(z) / s_per_yr
+        
         # Splitting up the inflow. P = pristine, 
-        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        PIR = fb * self.MAR(z, Mh) * dtdz
+        NPIR = fb * self.MDR(z, Mh) * dtdz
         
         # Measured relative to baryonic inflow
         Mb = fb * Mh
@@ -2004,13 +2009,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             SFR = PIR * fstar
         else:
             fstar = 1e-10
-            SFR = -self.sfr(**kw) * self.cosm.dtdz(z) / s_per_yr
+            SFR = self.sfr(**kw) * dtdz
 
         # "Quiet" mass growth
         fsmooth = self.fsmooth(**kw)
 
         # Eq. 1: halo mass.
-        y1p = -1. * self.MGR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        y1p = self.MGR(z, Mh) * dtdz
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:
