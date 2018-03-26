@@ -75,6 +75,11 @@ class CompositePopulation(object):
                         
                     ct += 1    
             
+            assert ct < 2
+            
+            if ct == 0:
+                self.pops[i] = GalaxyPopulation(**pf)
+            
             # This is poor design, but things are setup such that only one
             # quantity can be linked. This is a way around that.
             for option in after_instance:
@@ -86,9 +91,6 @@ class CompositePopulation(object):
                     junk, linkto, linkee = pf[option].split(':')
                     to_copy[i] = int(linkee)
                     to_attribute[i] = linkto
-            
-            if ct == 0:
-                self.pops[i] = GalaxyPopulation(**pf)
 
         # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
@@ -111,7 +113,11 @@ class CompositePopulation(object):
                 self.pops[i]._tab_Mmin = self.pops[entry]._tab_Mmax_active
             elif to_quantity[i] in ['Mmax']:
                 self.pops[i] = GalaxyCohort(**tmp)
+                # You'll notice that we're assigning what appears to be an 
+                # array to something that is a function. Fear not! The setter
+                # for _tab_Mmin will sort this out.
                 self.pops[i]._tab_Mmin = self.pops[entry].Mmax
+                assert np.all(self.pops[i]._tab_Mmin <= self.pops[entry]._tab_Mmax)
             elif to_quantity[i] in after_instance:
                 continue
             else:

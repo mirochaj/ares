@@ -473,7 +473,7 @@ def PopulationParameters():
     "pop_MAR_interp": 'linear',
 
     "pop_interp_MAR": 'linear',
-    "pop_interp_sfrd": 'cubic',
+    "pop_interp_sfrd": 'linear',
     "pop_interp_lf": 'linear',
     
     "pop_tdyn": 1e7,
