@@ -173,6 +173,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         self._suite.append(self._data_.copy())
 
         count = self.count   # Just to make sure attribute exists
+        self._count += 1
         
         ## 
         # Feedback
@@ -191,16 +192,16 @@ class MetaGalacticBackground(AnalyzeMGB):
                 self.run(include_pops=self._not_lwb_sources)
             
         else:
-            if self.pf['verbose']:
-                if hasattr(self, '_sfrd_bank') and self.count >= 2:
-                    pid = self.pf['feedback_LW_sfrd_popid']
-                    z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
-                    print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
-                        "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
-                        self.count, np.mean(self._sfrd_rerr[self._ok]),\
-                        np.max(self._sfrd_rerr[self._ok]), z_maxerr))
-                else:
-                    print("LWB cycle #{} complete.".format(self.count))
+            if hasattr(self, '_sfrd_bank') and self.count >= 2:
+                pid = self.pf['feedback_LW_sfrd_popid']
+                z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
+                print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
+                    "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
+                    self.count, np.mean(self._sfrd_rerr[self._ok]),\
+                    np.max(self._sfrd_rerr[self._ok]), z_maxerr))
+                    
+            else:
+                print("LWB cycle #{} complete.".format(self.count))
                             
             self.reboot()
             self.run(include_pops=self._lwb_sources)
@@ -217,26 +218,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         """
         
         return self.flux_today()
-        
-        #_fluxes_today = []
-        #_energies_today = []
-        #
-        #for popid, pop in enumerate(self.pops):
-        #    if not self.solver.solve_rte[popid]:
-        #        _fluxes_today.append(None)
-        #        _energies_today.append(None)
-        #        continue
-        #        
-        #    z, E, flux = self.get_history(popid=popid, flatten=True)    
-        #    
-        #    Et = E / (1. + z[0])
-        #    ft = flux[0] / (1. + z[0])**2 
-        #    
-        #    _energies_today.append(Et)
-        #    _fluxes_today.append(ft)
-        #    
-        #return _energies_today, _fluxes_today
-    
+
     def today_of_E(self, E):
         """
         Grab radiation background at a single energy at z=0.
@@ -789,6 +771,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._LW_felt_by_    
     
     def _is_Mmin_converged(self, include_pops):
+        """
+        Compute UV background, Mmin, SFRD. Compare to last iteration.
+        """
 
         # Need better long-term fix: Lya sources aren't necessarily LW 
         # sources, if (for example) approx_all_pops = True. 
@@ -856,6 +841,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
                 self._ok = np.logical_and(gt0, self.pops[pid].halos.z > zmin)                
                 self._sfrd_rerr = err
+                
+                if not np.any(self._ok):
+                    raise ValueError("SFRD < 0!")
             
         self._Mmin_pre = np.maximum(self._Mmin_pre, 
             pop_fb.halos.Mmin_floor(zarr))    
@@ -936,6 +924,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         mfreq = self.pf['feedback_LW_mixup_freq']
         mdel = self.pf['feedback_LW_mixup_delay']
         
+        # Set Mmin for the next iteration
         if mfreq > 0 and self.count >= mdel and \
            (self.count - mdel) % mfreq == 0:
             _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
@@ -1061,9 +1050,12 @@ class MetaGalacticBackground(AnalyzeMGB):
             if perfect:
                 converged = False    
                 
+                if np.all(Jlw == 0):
+                    raise ValueError('LWB == 0. Did you mean to include LW feedback?')
+                
         if not converged:
             self._Mmin_bank.append(self._Mmin_now.copy())
-            self._Jlw_bank.append(Jlw)        
+            self._Jlw_bank.append(Jlw)
                 
         return converged
             

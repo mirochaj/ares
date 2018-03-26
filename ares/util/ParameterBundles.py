@@ -428,10 +428,12 @@ class ParameterBundle(dict):
         for key in other:
             if key in tmp and rank == 0:
                 
+                if tmp[key] == other[key]:
+                    continue
+                
                 if first_update:
                     header('Parameter Bundle')
-                    #print('#'*width)
-                    first_update = False
+                    first_update = False                
                 
                 msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
                     str(other[key]).ljust(12))
@@ -468,7 +470,7 @@ class ParameterBundle(dict):
         self._value = value
     
         for key in self.keys():
-            if not key.startswith('pop_'):
+            if not (key.startswith('pop_') or key.startswith('pq_')):
                 continue
             self[_add_pop_tag(key, value)] = self.pop(key)
                 
