@@ -403,14 +403,7 @@ def PopulationParameters():
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
-    # the pop_lf pars here might be deprecated
-    "pop_lf_z": None,
-    "pop_lf_M": None,
-    "pop_lf_Mstar": None,
-    "pop_lf_pstar": None,
-    "pop_lf_alpha": None,
-    "pop_lf_mags": None,
-
+    "pop_uvlf": None,
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,

@@ -227,7 +227,18 @@ class ParameterizedQuantity(object):
         elif func == 'pl':
             #print('{0} {1} {2} {3} {4}'.format(x, kwargs['z'], p0, p1, p2))
             f = self.p0 * (x / self.p1)**self.p2
+        elif func == 'schechter':
+            f = self.p0 * (x / self.p1)**self.p2 * np.exp(-(x / self.p1)) / self.p1
+        elif func == 'schechter_mags':
+            f = 0.4 * np.log(10.) * self.p0 \
+                * (10**(0.4 * (self.p1 - x)))**(self.p2+1.) \
+                * np.exp(-10**(0.4 * (self.p1 - x)))    
         # 'quadratic_lo' means higher order terms vanish when x << p3
+        elif func == 'linear':
+            f = self.p0 + self.p2 * (x - self.p1)
+        elif func == 'loglinear':
+            logf = self.p0 + self.p2 * (x - self.p1)
+            f = 10**logf
         elif func == 'quadratic_lo':
             f = self.p0 * (1. +  self.p1 * (x / self.p3) + self.p2 * (x / self.p3)**2)
         # 'quadratic_hi' means higher order terms vanish when x >> p3

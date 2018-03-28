@@ -89,7 +89,7 @@ class ModelGrid(ModelFit):
         ----------
         prefix : str
             File prefix of files ending in *.pkl to be read in.
-            
+
         """
         
         # Array of ones/zeros: has this model already been done?
@@ -575,9 +575,11 @@ class ModelGrid(ModelFit):
         if rank == 0:
             print("Starting {}-element model grid.".format(self.grid.size))
         
+        chain_exists = os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc))
+        
         # Kill this thing if we're about to delete files and we haven't 
         # set clobber=True        
-        if os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc)) and (not clobber):
+        if chain_exists and (not clobber):
             if not restart:
                 raise IOError(('{!s}*.pkl exists! Remove manually, set ' +\
                     'clobber=True, or set restart=True to append.').format(\
@@ -585,7 +587,7 @@ class ModelGrid(ModelFit):
               
         restart_actual = True      
         _restart_actual = np.zeros(size)
-        if not os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc)):
+        if restart and (not chain_exists):
             print(("This can't be a restart (for proc #{0}), {1!s}*.pkl " +\
                 "not found. Starting from scratch...").format(rank, prefix))
             # Note: this can occur if restarting with fewer processors
@@ -614,6 +616,9 @@ class ModelGrid(ModelFit):
             any_restart = bool(sum(_all_restart) > 0)            
         else:
             all_restart = any_restart = _all_restart = _restart_actual
+                
+        # If user says it's not a restart, it's not a restart.        
+        any_restart *= restart        
                 
         self.is_restart = any_restart        
                 
@@ -716,7 +721,7 @@ class ModelGrid(ModelFit):
             else:
                 print('Running {}-element model grid.'.format(self.grid.size))
             
-        # Make some blank files for data output                 
+        # Make some blank files for data output        
         self.prep_output_files(any_restart, clobber)
 
         # Dictionary for hmf tables
