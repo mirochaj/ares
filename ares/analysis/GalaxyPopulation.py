@@ -260,7 +260,12 @@ class GalaxyPopulation(object):
                 'mec':default_colors[source],
                 'fmt': default_markers[source],
                 'color':default_colors[source], 'capthick':2}
-                
+            
+            if 'label' not in kwargs:
+                kwargs['label'] = source
+            else:
+                label = kwargs['label']
+            
             kw.update(kwargs)
                 
             if AUV is not None:
@@ -276,9 +281,9 @@ class GalaxyPopulation(object):
                         source, data[source]['wavelength'], wavelength))
             #else:
             shift = 0.    
-              
+                          
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=np.inf, 
-                label=source, **kw)
+                **kw)
 
         if quantity == 'lf' and (not gotax):
             ax.set_xlim(-26.5, -10)
