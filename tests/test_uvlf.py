@@ -79,8 +79,13 @@ def test():
     
     # DPL SFE fit from my paper
     m16 = ares.util.ParameterBundle('mirocha2016:dpl')
-    pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
     
+    # Test suite doesn't download BPASS models, so supply L1600 by hand.
+    m16['pop_sed{0}'] = None
+    m16['pop_L1600_per_sfr{0}'] = 1.019e28
+    
+    # Make the population
+    pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
     
     ax1 = None
     ax2 = None
