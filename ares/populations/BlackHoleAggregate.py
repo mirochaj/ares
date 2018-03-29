@@ -35,7 +35,7 @@ class BlackHoleAggregate(HaloPopulation):
         Units = cgs
         """
         
-        bhfrd = self.pf['pop_fseed'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
+        bhfrd = self.pf['pop_bh_seed_eff'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
 
         return bhfrd
         
@@ -74,7 +74,7 @@ class BlackHoleAggregate(HaloPopulation):
 
             # y in units of Msun / cMpc^3 
             #Mh0 = #self.halos.Mmin(z0)     
-            rho_bh_0 = self.halos.fcoll_2d(z0, 5.) * self.pf['pop_fseed'] \
+            rho_bh_0 = self.halos.fcoll_2d(z0, 5.) * self.pf['pop_bh_seed_eff'] \
                 * self.cosm.rho_b_z0 * rho_cgs
             solver.set_initial_value(np.array([0.0]), z0)
 

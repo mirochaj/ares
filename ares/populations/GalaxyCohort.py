@@ -31,7 +31,8 @@ from .Population import normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz
+    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c
+    
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -1997,10 +1998,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        Mh, Mg, Mst, MZ, cMst = y
+        Mh, Mg, Mst, MZ, cMst, Mbh = y
 
         kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ,
-            'cMst': cMst}
+            'cMst': cMst, 'Mbh': Mbh}
 
         # Assume that MZ, Mg, and Mstell acquired *not* by smooth inflow
         # is same fraction of accreted mass as fractions in this halo
@@ -2008,9 +2009,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         fb = self.cosm.fbar_over_fcdm
         
-        dtdz = -self.cosm.dtdz(z) / s_per_yr
+        # Convert from s/dz to yr/dz
+        dtdz_s = -self.cosm.dtdz(z)
+        dtdz = dtdz_s / s_per_yr
         
-        # Splitting up the inflow. P = pristine, 
+        # Splitting up the inflow. P = pristine.
+        # Units = Msun / yr -> Msun / dz
         PIR = fb * self.MAR(z, Mh) * dtdz
         NPIR = fb * self.MDR(z, Mh) * dtdz
         
@@ -2064,10 +2068,38 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             y5p = SFR + NPIR * Sfrac
 
+        # Add BHs
+        if self.pf['pop_bh_form']:
+            if self.pf['pop_bh_facc'] is not None:
+                y6p = self.pf['pop_bh_facc'] * PIR
+            else:
+                
+                C = dtdz_s * 4.0 * np.pi * G * m_p / sigma_T / c
+                
+                if self.pf['pop_bh_seed_mass'] is not None:
+                    Mseed = self.pf['pop_bh_seed_mass']    
+                elif self.pf['pop_bh_seed_eff'] is not None:
+                    Mseed = self.pf['pop_bh_seed_eff'] * Mg
+                else:
+                    Mseed = self.pf['pop_bh_seed_ratio'] * Mmin
+                
+                # Form new BHs
+                if (Mh >= Mmin) and (Mbh == 0.0):
+                    y6p = Mseed * C
+                elif Mbh > 0:
+                    # Eddington-limited growth. Remember Mbh is really
+                    # just the accreted mass so we need to add in the seed mass.
+                    y6p = C * (Mbh + Mseed)
+                else:
+                    y6p = 0.0
+            
+        else:
+            y6p = 0.0    
+        
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
-
-        results = [y1p, y2p, y3p, y4p, y5p]
+        
+        results = [y1p, y2p, y3p, y4p, y5p, y6p]
         
         return np.array(results)
 
@@ -2145,6 +2177,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 self._constant_SFR = 0
         return self._constant_SFR
+        
+    @property
+    def constant_BHF(self):
+        pass
 
     @property
     def scaling_relations(self):
@@ -2344,7 +2380,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         
-        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Z', 't']
+        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'Z', 't']
                 
         zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
         zi = min(float(self.halos.z.max()), self.pf['initial_redshift'])
@@ -2462,9 +2498,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg0 = self.cosm.fbar_over_fcdm * M0
         MZ0 = 0.0
         Mst0 = 0.0
+        Mbh0 = 0.0
 
         # Initial stellar mass -> 0, initial halo mass -> Mmin
-        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0]), z0)
+        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, Mbh0]), z0)
 
         # Only used occasionally
         zmax = None
@@ -2481,6 +2518,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg_t = []
         Mst_t = []
         cMst_t = []
+        Mbh_t = []
         metals = []
         lbtime = []
         Ehist = []
@@ -2493,6 +2531,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
+            Mbh_t.append(solver.y[5])        
             
             z = redshifts[-1]
 
@@ -2644,11 +2683,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
         cMs = np.array(cMst_t)[-1::-1]
+        Mbh = np.array(Mbh_t)[-1::-1]
         tlb = np.array(lbtime)[-1::-1]
 
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
-            'zmax': zmax, 't': tlb}
+            'Mbh': Mbh, 'zmax': zmax, 't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 

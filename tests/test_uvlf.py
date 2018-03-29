@@ -79,8 +79,13 @@ def test():
     
     # DPL SFE fit from my paper
     m16 = ares.util.ParameterBundle('mirocha2016:dpl')
-    pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
     
+    # Test suite doesn't download BPASS models, so supply L1600 by hand.
+    m16['pop_sed{0}'] = None
+    m16['pop_L1600_per_sfr{0}'] = 1.019e28
+    
+    # Make the population
+    pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
     
     ax1 = None
     ax2 = None
@@ -94,13 +99,13 @@ def test():
         # Plot the Bouwens Schechter fit
         ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=z), color=colors[i], 
             ls='-', lw=1)
-        
+
         # My 2017 paper only looked at z > 6
         if z < 4.9:
             continue
-            
+
         ax2 = gpop.Plot(z=z, sources='bouwens2015', ax=ax2, color=colors[i], fig=2,
-            mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))        
+            mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
             
         # Plot the physical model fit
         ax2.semilogy(*pop_dpl.phi_of_M(z=z), color=colors[i], ls='-', lw=1)
