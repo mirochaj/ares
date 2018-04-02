@@ -2744,8 +2744,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # erg / s / cm**3
         if self.is_emissivity_scalable:
             rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
-            erg_per_phot = super(GalaxyCohort, 
-                self)._get_energy_per_photon(Emin, Emax) * erg_per_ev
+            erg_per_phot = self._get_energy_per_photon(Emin, Emax) * erg_per_ev
                                
             return rhoL / erg_per_phot
         else:

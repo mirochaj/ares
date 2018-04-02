@@ -739,10 +739,13 @@ class MultiPhaseMedium(object):
         #ax.plot([0, self.history['z'].min()], [tau.max() + tau_post]*2, **kwargs)
         
         if show_obs:
-            if obs_mu is not None:
+            if obs_mu is not None:            
+                sig2 = get_nu(obs_sigma, 0.68, 0.95)
+                ax.fill_between(ax.get_xlim(), [obs_mu-sig2]*2, 
+                    [obs_mu+sig2]*2, color='gray', alpha=0.2)
                 ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
-                    [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
-            
+                    [obs_mu+obs_sigma]*2, color='gray', alpha=0.5)
+                
             if annotate_obs:    
                 #ax.annotate(r'$1-\sigma$ constraint', 
                 #    [self.history['z'].min(), obs_mu], ha='left',

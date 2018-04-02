@@ -149,8 +149,12 @@ class Population(object):
     def affects_igm(self):
         if not hasattr(self, '_affects_igm'):
             self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
-        return self._affects_igm 
-
+        return self._affects_igm
+        
+    @property
+    def is_aging(self):
+        return self.pf['pop_aging']
+      
     @property
     def is_src_oir(self):
         if not hasattr(self, '_is_src_oir'):
@@ -355,6 +359,11 @@ class Population(object):
         """
 
         if not hasattr(self, '_is_emissivity_scalable'):
+            
+            if self.is_aging:
+                self._is_emissivity_scalable = False
+                return self._is_emissivity_scalable
+            
             self._is_emissivity_scalable = True
 
             if self.pf.Npqs == 0:
@@ -362,10 +371,11 @@ class Population(object):
 
             for par in self.pf.pqs:
     
-                # Exceptions. Ideally, exotic_heating_func wouldn't make it
-                # to the population parameter files...
-                if (par == 'pop_fstar') or (not par.startswith('pop_')):
+                # Exceptions.
+                if par not in ['pop_rad_yield', 'pop_fesc']:
                     continue
+                #if (par == 'pop_fstar') or (not par.startswith('pop_')):
+                #    continue
                     
                 # Could just skip parameters that start with pop_    
     
@@ -550,6 +560,9 @@ class Population(object):
     
         """
     
+        if self.is_aging:
+            raise AttributeError('This shouldn\'t happen! Aging of spectrum should be handled by pop itself.')
+    
         # If we're here, it means we need to use some SED info
     
         different_band = False
@@ -660,7 +673,7 @@ class Population(object):
             else:
                 on = 1
         else:
-            on = np.logical_or(z <= self.zform, z >= self.zdead)
+            on = np.logical_and(z <= self.zform, z >= self.zdead)
     
         return on
         

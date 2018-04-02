@@ -489,6 +489,7 @@ def PopulationParameters():
     "pop_frd": None,
     "pop_fshock": 1.0,
     
+    "pop_aging": False,
     "pop_mdist": None,
     "pop_age_res": 1.,
     "pop_dlogM": 0.1,
@@ -687,7 +688,7 @@ def SourceParameters():
     "source_rad_yield": 'from_sed',
     
     "source_degradation": None,      # Degrade spectra to this \AA resolution
-    "source_aging": True,
+    "source_aging": False,
     
     # Stellar
     "source_temperature": 1e5,
@@ -698,7 +699,7 @@ def SourceParameters():
     "source_meh": None,
 
     # BH
-    "source_mass": 1e5,
+    "source_mass": 1,         # Also normalizes ssp's, so set to 1 by default.
     "source_rmax": 1e3,
     "source_alpha": -1.5,
 
@@ -708,7 +709,6 @@ def SourceParameters():
     "source_dlogE": 0.1,
     
     "source_Lbol": None,
-    "source_mass": 10,  
     "source_fduty": 1.,
     
     "source_eta": 0.1,
