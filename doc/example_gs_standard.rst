@@ -79,20 +79,20 @@ To do simple parameter study, you could do something like:
 ::
 
     ax = None
-    for fX in [0.2, 1.]:
-        for fstar in [0.05, 0.1]:
+    for fX in [0.1, 1.]:
+        for fstar in [0.1, 0.5]:
             sim = ares.simulations.Global21cm(fX=fX, fstar=fstar)
             sim.run()
 
             # Plot the global signal
-            ax = sim.GlobalSignature(ax=ax,
+            ax, zax = sim.GlobalSignature(ax=ax,
                 label=r'$f_X=%.2g, f_{\ast}=%.2g$' % (fX, fstar))
                 
                 
     ax.legend(loc='lower right', fontsize=14) 
-    pl.draw()           
+    pl.savefig('ares_diy_param_study.png')
                 
-.. figure::  http://casa.colorado.edu/~mirochaj/docs/ares/ares_simple_param_study.png
+.. figure::  https://www.dropbox.com/s/ad3wanrtw07vaby/ares_diy_param_study.png?raw=1
    :align:   center
    :width:   600
 

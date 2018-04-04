@@ -4,46 +4,61 @@ test_gs_backcompat.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
-Created on: Fri Aug 12 12:57:41 PDT 2016
+Created on: Wed Apr  4 09:37:25 PDT 2018
 
-Description: Just checking to make sure the four parameter model works by
-varying fX and making sure the realizations are different.
+Description: Make sure changes in input parameters result in changes in 
+the signal! Also a test of backward compatibility.
 
 """
+
 
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
 
 def test():
-    data = []
-    ax = None
-    for fX in [0.2, 1.]:
-        sim = ares.simulations.Global21cm(problem_type=101, fX=fX)
-        sim.run()
-        
-        data.append((sim.history['z'], sim.history['dTb']))
-        
-        # Plot the global signal
-        ax, zax = sim.GlobalSignature(ax=ax,
-            label=r'$f_X={:.2g}$'.format(fX))
-        
-    ax.legend(loc='lower right', fontsize=14)
-    pl.draw()
-    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
-    pl.close()
+
+    oldp = ['fstar', 'fX', 'Tmin', 'Nion', 'Nlw']
+    newp = ['pop_fstar{0}', 'pop_rad_yield{1}', 'pop_Tmin{0}', 
+        'pop_rad_yield{2}', 'pop_rad_yield{0}']
+    oldv = [(0.05, 0.2), (0.1, 1.), (1e3, 1e4), (1e3, 1e4), (1e3, 1e4)]
+    newv = [(0.05, 0.2), (2.6e38, 2.6e39), (1e3, 1e4), (1e3, 1e4), (1e3, 1e4)]
     
-    # Most common problem: breaking backward compatibility means the 
-    # parameters aren't parsed, and have no affect on the signal. In this
-    # case, all models will be identical, so we need to check to make sure
-    # the parameters are having an effect.
+    pars = {'old': oldp, 'new': newp}
+    vals = {'old': oldv, 'new': newv}
     
-    for i in range(len(data) - 1):
-        
-        z1, T1 = data[i]
-        z2, T2 = data[i+1]
-        
-        assert np.any(T1 != T2), "Simulations yielded identical results!"
+    kw = ares.util.ParameterBundle('speed:careless')
     
+    for h, approach in enumerate(['new', 'old']):
+        ax = None
+        
+        for i, par in enumerate(pars[approach]):
+            
+            data = []
+            for val in vals[approach][i]:
+                p = {par:val}
+                p.update(kw)
+                sim = ares.simulations.Global21cm(**p)
+                sim.run()
+                #ax, zax = sim.GlobalSignature(ax=ax)
+                
+                data.append((sim.history['z'], sim.history['dTb']))
+                
+            for j in range(len(data) - 1):
+            
+                z1, T1 = data[j]
+                z2, T2 = data[j+1]
+                
+                # In this case, the sims were definitely different, since the
+                # only way to change the number of redshift points is through
+                # real-time timestep adjustment (driven by sources)
+                if T1.size != T2.size:
+                    continue
+                
+                neq = np.not_equal(T1, T2)
+            
+                assert np.any(neq), "Changes in par={} had no effect!".format(par)
+            
 if __name__ == '__main__':
-    test()
+    test()        
+    

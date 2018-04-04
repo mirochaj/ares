@@ -260,6 +260,9 @@ def ReionizationProblem(ptype):
         
         # Emits LW
         'pop_type{0}': 'galaxy',
+        'pop_sfr_model{0}': 'fcoll',
+        'pop_Tmin{0}': 1e4,
+        'pop_fstar{0}': 0.1,
         "pop_lya_src{0}": True,
         "pop_ion_src_cgm{0}": False,
         "pop_ion_src_igm{0}": False,
@@ -276,13 +279,13 @@ def ReionizationProblem(ptype):
         
         # Emits X-rays
         'pop_type{1}': 'galaxy',
+        'pop_sfr_model{1}': 'link:sfrd:0',
         "pop_lya_src{1}": False,
         "pop_ion_src_cgm{1}": False,
         "pop_ion_src_igm{1}": True,
         "pop_heat_src_cgm{1}": False,
         "pop_heat_src_igm{1}": True,
 
-        "pop_Tmin{1}": "pop_Tmin{0}",
         "pop_sed{1}": 'pl',
         "pop_alpha{1}": -1.5,
 
@@ -298,6 +301,7 @@ def ReionizationProblem(ptype):
         
         # Emits ionizing photons
         'pop_type{2}': 'galaxy',
+        'pop_sfr_model{2}': 'link:sfrd:0',
         "pop_lya_src{2}": False,
         "pop_ion_src_cgm{2}": True,
         "pop_ion_src_igm{2}": False,
@@ -306,7 +310,6 @@ def ReionizationProblem(ptype):
 
         "pop_fesc{2}": 0.1,
         
-        "pop_Tmin{2}": "pop_Tmin{0}",
         "pop_Emin{2}": 13.6,
         "pop_Emax{2}": 1e2,
         "pop_EminNorm{2}": 13.6,

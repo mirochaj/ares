@@ -1110,7 +1110,7 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-                    
+                                        
             Lbol = pop.Emissivity(z)        
             for ll in range(Nz):
                 #Lbol = pop.Emissivity(z[ll])
@@ -1137,13 +1137,18 @@ class UniformBackground(object):
                     fix = 1.
                 else:
                     b = band
-                    fix = 1. / pop._convert_band(*band)
-                
+                    
+                    # If aging population, is handled within the pop object.
+                    if not pop.is_aging:
+                        fix = 1. / pop._convert_band(*band)
+                    else:
+                        fix = 1.
+
                 # Setup interpolant
                 # If there's an attribute error here, it probably means
                 # is_emissivity_scalable isn't being set correctly.
                 rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
-                
+
                 if rho_L is None:
                     continue
 
@@ -1164,6 +1169,8 @@ class UniformBackground(object):
                         continue    
                     if redshift > self.pf['first_light_redshift']:
                         continue
+                            
+                    #print(pop.id_num, redshift, z.size, epsilon.shape, b)                
                                             
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
