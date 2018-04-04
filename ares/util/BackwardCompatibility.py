@@ -49,9 +49,9 @@ def backward_compatibility(ptype, **kwargs):
     Dictionary of parameters to subsequently be updated.
     
     """
-        
-    pf = {}    
-        
+    
+    pf = {}
+
     if ptype == 101:
         pf = {}
                 
@@ -70,13 +70,7 @@ def backward_compatibility(ptype, **kwargs):
         if par_supplied('fstar', **kwargs):
             for i in range(3):
                 pf['pop_fstar{{{}}}'.format(i)] = kwargs['fstar']
-        else:
-            for i in range(3):
-                if 'pop_fstar' in pf:
-                    pf['pop_fstar{{{}}}'.format(i)] = pf['pop_fstar']
-                else:
-                    pf['pop_fstar{{{}}}'.format(i)] = fstar_default    
-                
+
         if par_supplied('fesc', **kwargs):
             pf['pop_fesc{2}'] = kwargs['fesc']
         else:
@@ -140,5 +134,4 @@ def backward_compatibility(ptype, **kwargs):
     
     pf.update(fixes)
         
-                
     return pf
