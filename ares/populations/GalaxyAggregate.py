@@ -150,7 +150,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD computed via fcoll parameterization
         sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z) * on
     
-        if sfrd < 0:
+        if np.any(sfrd < 0):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
