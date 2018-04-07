@@ -96,6 +96,11 @@ class Source(object):
         """
         pass
         
+    
+    @property
+    def is_delta(self):
+        return self.pf['source_sed'] == 'delta'
+        
     def SourceOn(self, t):
         if t < self.tau:
             return True    
@@ -241,7 +246,9 @@ class Source(object):
     @property
     def _normL(self):
         if not hasattr(self, '_normL_'):
-            if self.pf['source_Enorm'] is not None:
+            if self.is_delta:
+                self._normL_ = 1. #/ self.pf['source_Emax']#/ self._Intensity(self.pf['source_Emax'])
+            elif self.pf['source_Enorm'] is not None:
                 En = self.pf['source_Enorm']
                 
                 if self.intrinsic_hardening:

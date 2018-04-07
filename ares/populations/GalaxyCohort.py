@@ -883,6 +883,47 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_Mst[z]
         
+    @property
+    def is_uvlf_parametric(self):
+        if not hasattr(self, '_is_uvlf_parametric'):
+            self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
+        return self._is_uvlf_parametric 
+        
+    def UVLF_M(self, MUV, z=None):
+        if self.is_uvlf_parametric:
+            return self.uvlf(MUV=MUV, z=z)
+        
+        ##
+        # Otherwise, standard SFE parameterized approach.
+        ##
+        
+        x_phi, phi = self.phi_of_M(z)
+
+        if ok.sum() == 0:
+            return -np.inf
+
+        # Setup interpolant
+        interp = interp1d(x_phi[ok], np.log10(phi[ok]), 
+            kind=self.pf['pop_interp_lf'],
+            bounds_error=False, fill_value=-np.inf)
+
+        phi_of_x = 10**interp(x)
+        
+    def UVLF_L(self, MUV, z=None):
+        x_phi, phi = self.phi_of_L(z)
+
+        ok = phi.mask == False
+        
+        if ok.sum() == 0:
+            return -np.inf
+
+        # Setup interpolant
+        interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), 
+            kind=self.pf['pop_interp_lf'],
+            bounds_error=False, fill_value=-np.inf)
+        
+        phi_of_x = 10**interp(np.log10(x))
+        
     def LuminosityFunction(self, z, x, mags=True):
         """
         Reconstructed luminosity function.
@@ -904,32 +945,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         if mags:
-            x_phi, phi = self.phi_of_M(z)
-
-            if ok.sum() == 0:
-                return -np.inf
-
-            # Setup interpolant
-            interp = interp1d(x_phi[ok], np.log10(phi[ok]), 
-                kind=self.pf['pop_interp_lf'],
-                bounds_error=False, fill_value=-np.inf)
-
-            phi_of_x = 10**interp(x)
+            phi_of_x = self.UVLF_M(x, z)
         else:
-
-            x_phi, phi = self.phi_of_L(z)
-
-            ok = phi.mask == False
-            
-            if ok.sum() == 0:
-                return -np.inf
-
-            # Setup interpolant
-            interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), 
-                kind=self.pf['pop_interp_lf'],
-                bounds_error=False, fill_value=-np.inf)
-            
-            phi_of_x = 10**interp(np.log10(x))
+            phi_of_x = self.UVLF_L(x, z)
 
         return phi_of_x
 

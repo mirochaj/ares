@@ -356,15 +356,15 @@ class UniformBackground(object):
             zf = pop.pf['final_redshift']
         if nz is None:
             nz = pop.pf['tau_redshift_bins']
-            
+
         x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), nz)
-        z = x - 1.   
+        z = x - 1.
         R = x[1] / x[0]
-                        
+
         # Loop over bands, build energy arrays
         tau_by_band = []
         energies_by_band = []
-        emissivity_by_band = []        
+        emissivity_by_band = []
         for j, band in enumerate(bands):
                         
             E0, E1 = band
@@ -415,7 +415,11 @@ class UniformBackground(object):
 
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
-                E = E0 * R**np.arange(N)
+                
+                if pop.src.is_delta:
+                    E = np.flip(E1 * R**-np.arange(N), 0)
+                else:    
+                    E = E0 * R**np.arange(N)
                                 
                 # Tabulate optical depth
                 if compute_tau and self.solve_rte[pop.id_num][j]:
@@ -785,9 +789,9 @@ class UniformBackground(object):
         # Possibly convert to energy flux units
         if kw['energy_units']:
             flux *= E * erg_per_ev
-    
+
         return flux
-    
+
     def AngleAveragedFluxSlice(self, z, E, zp, popid=0, **kwargs):
         """
         Compute flux at observed redshift z due to sources at higher redshift.
@@ -1102,10 +1106,20 @@ class UniformBackground(object):
         Nz, Nf = len(z), len(E)
 
         Inu = np.zeros(Nf)
-        for i in range(Nf): 
-            Inu[i] = pop.src.Spectrum(E[i])
+        
+        # Special case: delta function SED! Can't normalize a-priori without
+        # knowing binning, so we do it here.
+        if pop.src.is_delta:
+            # This is a little weird. Trapezoidal integration doesn't make 
+            # sense for a delta function, but it's what happens later, so
+            # insert a factor of a half now so we recover all the flux we 
+            # should.
+            Inu[-1] = 1. / (E[-1] - E[-2]) / 0.5
+        else:
+            for i in range(Nf): 
+                Inu[i] = pop.src.Spectrum(E[i])
 
-        # Convert to photon energy (well, something proportional to it)
+        # Convert to photon number (well, something proportional to it)
         Inu_hat = Inu / E
 
         # Now, redshift dependent parts    
@@ -1120,19 +1134,18 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-                    
-            Lbol = pop.Emissivity(z)        
+            Lbol = pop.Emissivity(z)
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:
-                            
+
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense 
             # to keep the different emissivity chunks separate.                                  
             for band in [(10.2, 13.6), (13.6, 24.6), None]:
-                                
+
                 if band is not None:
                     if pop.pf['pop_Emin'] > band[1]:
                         continue
@@ -1226,7 +1239,7 @@ class UniformBackground(object):
         ll = self._ll = L - 1
 
         otf = False
-        
+
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:
@@ -1253,14 +1266,16 @@ class UniformBackground(object):
                     + exp_term * ((c / four_pi) * xsq[ll+1] \
                     * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
                     + np.roll(flux, -1) / Rsq)
-                                    
-            # No higher energies for photons to redshift from.
+
+            # No higher energies for photons to redshift from, i.e.,
+            # photons had to have been injected to contribute here.
             # An alternative would be to extrapolate, and thus mimic a
-            # background spectrum that is not truncated at Emax
+            # background spectrum that is not truncated at Emax...that
+            # wouldn't make sense for sawtooth components, though.
             flux[-1] = 0.0
-                
+
             yield redshifts[ll], flux
-    
+
             # Increment redshift
             ll -= 1
             z = redshifts[ll]

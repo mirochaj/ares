@@ -479,15 +479,8 @@ def PopulationParameters():
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
-    # the pop_lf pars here might be deprecated
-    "pop_lf_z": None,
-    "pop_lf_M": None,
-    "pop_lf_Mstar": None,
-    "pop_lf_pstar": None,
-    "pop_lf_alpha": None,
-    "pop_lf_mags": None,
-
-    'pop_lf_Mmax': 1e15,
+    # Can parameterize the LF directly if we want.
+    "pop_uvlf": None,
 
     "pop_fduty": 1.0,
     "pop_focc": 1.0,
@@ -522,6 +515,11 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
+    
+    # Reserved for delta function sources
+    "pop_E": None,
+    "pop_LE": None,
+    
 
     "pop_Emin_xray": 2e2,
     
@@ -698,6 +696,7 @@ def PopulationParameters():
                            # treating background in approximate way
 
     "pop_solve_rte": False,
+    "pop_lya_permeable": False,
         
     # Pre-created splines
     "pop_fcoll": None,
@@ -755,6 +754,7 @@ def SourceParameters():
     
     "source_E": None,
     "source_LE": None,
+    
     "source_multigroup": False,
 
     "source_Emin": 13.6,  
@@ -793,6 +793,8 @@ def SourceParameters():
     "source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
+
+    "source_evolving": False,
 
     # SIMPL
     "source_fsc": 0.1,

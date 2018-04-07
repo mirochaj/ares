@@ -150,7 +150,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD computed via fcoll parameterization
         sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z) * on
     
-        if sfrd < 0:
+        if np.any(sfrd < 0):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
@@ -163,7 +163,10 @@ class GalaxyAggregate(HaloPopulation):
         and rest-frame photon energy [eV].
         
         ..note:: If `E` is not supplied, this is a luminosity density in the
-            (Emin, Emax) band.
+            (Emin, Emax) band. Otherwise, if E is supplied, or the SED is
+            a delta function, the result is a monochromatic luminosity. If
+            nothing is supplied, it's the luminosity density in the
+            reference band. 
         
         Parameters
         ----------
@@ -188,6 +191,9 @@ class GalaxyAggregate(HaloPopulation):
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr * on
                
+        ##
+        # Models based on photons / baryon
+        ##      
         if not self.pf['pop_sed_model']:
             if (Emin, Emax) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
@@ -200,8 +206,13 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 return rhoL * self.pf['pop_fX'] * self.pf['pop_cX'] \
                     / (g_per_msun / s_per_yr)
-                                                                
-        # Convert from reference band to arbitrary band
+        
+                            
+        ##                                                        
+        # Models based on SED. 
+        # Convert from reference band to user-supplied band
+        # and apply escape fractions.
+        ##
         rhoL *= self._convert_band(Emin, Emax)
         if (Emax is None) or (Emin is None):
             if self.pf['pop_reproc']:
