@@ -258,6 +258,27 @@ class UniformBackground(object):
         return self._redshifts
     
     @property
+    def effects_by_pop(self):
+        if not hasattr(self, '_effects_by_pop'):
+            self._effects_by_pop = [[] for i in xrange(self.Npops)]
+    
+            for i, pop in enumerate(self.pops):
+                bands = self.bands_by_pop[i]
+    
+                for j, band in enumerate(bands):
+                    if band is None:
+                        self.effects_by_pop[i].append(None)
+                        continue
+    
+                    if pop.zone == 'cgm' and band[1] <= E_LL:
+                        self._effects_by_pop[i].append(None)
+                        continue
+    
+                    self._effects_by_pop[i].append(pop.zone)
+    
+        return self._effects_by_pop
+    
+    @property
     def bands_by_pop(self):
         if not hasattr(self, '_bands_by_pop'):
             # Figure out which band each population emits in
@@ -590,6 +611,9 @@ class UniformBackground(object):
 
                 # Sum over bands
                 for k, band in enumerate(self.energies[i]):
+                    
+                    if self.effects_by_pop[i][k] is None:
+                        continue
                                         
                     # Still may not necessarily solve the RTE
                     if self.solve_rte[i][k]:
