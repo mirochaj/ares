@@ -199,11 +199,12 @@ class UniformBackground(object):
         
         bands = []
         
+        # Check for optical/IR
         if (Emin < E_LyA) and (Emax < E_LyA):
             bands.append((Emin, Emax))
             return bands
         
-        # Check for optical/IR
+        # Emission straddling Ly-a -- break off low energy chunk.
         if (Emin < E_LyA) and (Emax >= E_LyA):
             bands.append((Emin, E_LyA))
         
@@ -604,6 +605,10 @@ class UniformBackground(object):
 
                 # Sum over bands
                 for k, band in enumerate(self.energies[i]):
+                                        
+                    if 6.9 <= z <= 6.92 and popid == 0 and species == 0:
+                        print(z, j, k, self.solve_rte[i][k])
+                                            
                                         
                     # Still may not necessarily solve the RTE
                     if self.solve_rte[i][k]:
@@ -1016,6 +1021,8 @@ class UniformBackground(object):
             return norm * (1. + z)**3 * (1. + pop.pf['pop_frec_bar']) * \
                 rhoLW / dnu
 
+        raise ValueError('this should only be called if approx RTE')
+
         # Full calculation
         J = 0.0
                 
@@ -1139,7 +1146,7 @@ class UniformBackground(object):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:
-
+            
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense 
@@ -1194,7 +1201,7 @@ class UniformBackground(object):
         return epsilon
 
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,
-        flux0=None):
+        flux0=None, my_id=None, accept_photons=False):
         """
         Generic flux generator.
 
@@ -1222,7 +1229,23 @@ class UniformBackground(object):
                 
         # Shorthand
         zarr = redshifts
-
+        
+        # Remember what band I'm in and what Population I belong to.
+        popid, bandid = my_id
+                
+        # Should receive Ly-A? This is a bit hacky.            
+        receive_lya = self.pops[popid].pf['pop_lya_permeable'] \
+            and energies[-1] < E_LyA and abs(E_LyA - energies[-1]) < 0.2
+                
+        receive_lyn = (energies[0] == E_LyA) and self.pf['include_injected_lya']        
+                   
+        if receive_lyn:
+            narr = self.narr
+            En = self.grid.hydr.ELyn(narr)
+                                    
+        # Initialize flux-passing to zero
+        self._fluxes_from[(popid, bandid)] = energies[0], 0.0
+            
         #if tau is None:
         #    if type(energies) is list:
         #        tau = [np.zeros([redshifts.size, Earr.size]) \
@@ -1239,7 +1262,7 @@ class UniformBackground(object):
         ll = self._ll = L - 1
 
         otf = False
-
+        
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:
@@ -1266,14 +1289,62 @@ class UniformBackground(object):
                     + exp_term * ((c / four_pi) * xsq[ll+1] \
                     * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
                     + np.roll(flux, -1) / Rsq)
+      
+                ##
+                # Add Ly-a flux from cascades    
+                ##
+                if receive_lyn:
+                    
+                    # Loop over higher Ly-n lines, grab fluxes, * frec
+                    for i, k in enumerate(range(bandid, bandid+len(narr))):
+                                                                     
+                        # k is a band ID number
+                        # i is just an index
+                        _E, J = self._fluxes_from[(popid, k)]
+                    
+                        n = narr[i]
+                                        
+                        # This is Ly-a flux, which we've already got!
+                        if n == 2:
+                            continue
+                
+                        assert _E == En[i]
+                        
+                        Jn = self.grid.hydr.frec(n) * J
+                        flux[0] += Jn
+                        
+                    # Still need to set flux[-1] = 0!
+                    # Will happen below in 'else' bracket
+                
+                # This band receives Ly-a
+                if receive_lya and (not receive_lyn):
+                    # Note that this is redundant, the two will never
+                    # both be True. But, safety first, kids.
+                    
+                    if (bandid+1) in self._fluxes_from:
+                    
+                        # Inbound flux
+                        in_flux = self._fluxes_from[(popid, bandid+1)][1]
+                        
+                        ##
+                        # Very approximate at the moment. Could correct
+                        # for slight redshifting and dilution.
+                        ##
+                        flux[-1] = in_flux
+                    else:
+                        flux[-1] = 0.0
+                    
+                # Otherwise, can be no flux at highest energy, because SED
+                # is truncated and there's no where it could have come from.    
+                #elif not accept_photons:
+                elif energies[-1] != E_LyA:
+                    flux[-1] = 0.0
 
-            # No higher energies for photons to redshift from, i.e.,
-            # photons had to have been injected to contribute here.
-            # An alternative would be to extrapolate, and thus mimic a
-            # background spectrum that is not truncated at Emax...that
-            # wouldn't make sense for sawtooth components, though.
-            flux[-1] = 0.0
+                self._fluxes_from[my_id] = energies[0], flux[0]
 
+            ##
+            # Yield results, move on to next iteration
+            ##
             yield redshifts[ll], flux
 
             # Increment redshift
@@ -1283,34 +1354,37 @@ class UniformBackground(object):
             if ll == -1:
                 break
                 
-    def _compute_line_flux(self, fluxes):  
-        """
-        Compute emission in lines.
-        
-        ..note:: Includes Ly-a emission only at this point.
-        
-        Parameters
-        ----------
-        List of fluxes, for each sub-band in a sawtooth generator.
-        
-        """     
-        
-        line_flux = [np.zeros_like(fluxes[i]) for i in xrange(len(fluxes))]
+    #def _compute_line_flux(self, fluxes):  
+    #    """
+    #    Compute emission in lines.
+    #    
+    #    ..note:: Includes Ly-a emission only at this point.
+    #    
+    #    Parameters
+    #    ----------
+    #    List of fluxes, for each sub-band in a sawtooth generator.
+    #    
+    #    """     
+    #    
+    #    line_flux = [np.zeros_like(fluxes[i]) for i in xrange(len(fluxes))]
+    #
+    #    # Compute Lyman-alpha flux
+    #    if self.pf['include_injected_lya']:
+    #        line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
+    #    
+    #    return line_flux
 
-        # Compute Lyman-alpha flux
-        if self.pf['include_injected_lya']:
-            line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
-        
-        return line_flux
-
-    def _flux_generator_sawtooth(self, E, z, ehat, tau):
+    def _flux_generator_sawtooth(self, E, z, ehat, tau, my_id=None):
         """
         Create generators for the flux between all Lyman-n bands.
         """
 
+        imax = len(E) - 1
+
         gens = []
         for i, nrg in enumerate(E):
-            gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
+            gens.append(self._flux_generator_generic(nrg, z, ehat[i], 
+                tau[i], my_id=(my_id[0], my_id[1]+i), accept_photons=i!=imax))
 
         # Generator over redshift
         for i in xrange(z.size):  
@@ -1343,22 +1417,41 @@ class UniformBackground(object):
 
         # List of all intervals in rest-frame photon energy
         bands = self.bands_by_pop[popid]
-        
+                
+        ct = 0
         generators_by_band = []
         for i, band in enumerate(bands):
             if not self.solve_rte[popid][i]:
                 gen = None
+                ct += 1
             elif type(self.energies[popid][i]) is list:   
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
                     z=self.redshifts[popid], ehat=self.emissivities[popid][i],
-                    tau=self.tau[popid][i])                    
+                    tau=self.tau[popid][i], my_id=(popid,ct)) 
+                ct += len(self.energies[popid][i])
             else:        
+                
                 gen = self._flux_generator_generic(self.energies[popid][i],
                     self.redshifts[popid], self.emissivities[popid][i],
-                    tau=self.tau[popid][i])
+                    tau=self.tau[popid][i], my_id=(popid,ct))
+                ct += 1
 
             generators_by_band.append(gen)
-
+            
         return generators_by_band
         
+    @property    
+    def _fluxes_from(self):
+        """
+        For internal use only. 
+        
+        A storage container for fluxes to be passed from one generator to the
+        next, to create continuity between sub-bands.
+        
+        """
+        if not hasattr(self, '_fluxes_from_'):
+            self._fluxes_from_ = {}
+        
+        return self._fluxes_from_    
     
+        

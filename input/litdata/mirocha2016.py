@@ -23,7 +23,7 @@ dpl = \
  'pop_sed{0}': 'eldridge2009',
  'pop_binaries{0}': False,
  'pop_Z{0}': 0.02,
- 'pop_Emin{0}': 10.19,
+ 'pop_Emin{0}': 10.19,           # Problems when == E_LyA
  'pop_Emax{0}': 24.6,
  'pop_rad_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                                  # should make this automatic

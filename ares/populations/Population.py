@@ -195,7 +195,7 @@ class Population(object):
         if not hasattr(self, '_is_src_lya'):
             if self.pf['pop_sed_model']:
                 self._is_src_lya = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
             else:
                 self._is_src_lya = self.pf['pop_lya_src']
@@ -296,18 +296,6 @@ class Population(object):
                 self._is_src_uv = self.pf['pop_ion_src_cgm']
     
         return self._is_src_uv
-        
-    @property
-    def is_src_lya(self):
-        if not hasattr(self, '_is_src_lya'):
-            if self.pf['pop_sed_model']:
-                self._is_src_lya = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
-                    and self.pf['pop_lya_src']
-            else:
-                return self.pf['pop_lya_src']
-
-        return self._is_src_lya
         
     @property
     def is_src_xray(self):

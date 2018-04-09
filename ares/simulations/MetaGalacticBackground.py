@@ -289,11 +289,12 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Add the fluxes! Interpolate to common energy grid first.
         ##    
 
-        _f = []
-        _E = np.sort(np.concatenate(_energies_today))
+        _f = []        
+        _E = np.unique(np.concatenate(_energies_today))
         for i, flux in enumerate(_fluxes_today):
-            _f.append(np.interp(_E, _energies_today[i], flux))
-            
+            _f.append(np.interp(_E, _energies_today[i], flux, 
+                left=0.0, right=0.0))
+           
         f = np.sum(_f, axis=0)
          
         return _E, f 
@@ -1093,39 +1094,12 @@ class MetaGalacticBackground(AnalyzeMGB):
         if np.any(self.solver.solve_rte[popid]):
             z, E, flux = self.get_history(popid=popid, flatten=True)
             
-            if self.pf['secondary_lya'] and self.pops[popid].is_src_ion_igm:
+            if self.pops[popid].is_src_ion_igm and self.pf['secondary_lya']:
                 Ja = np.zeros_like(z) # placeholder
             elif self.pops[popid].is_src_lya:                                           
                 # Redshift is first dimension!
-                #if not self.pops[popid].pf['include_injected_lya']:
                 l = np.argmin(np.abs(E - E_LyA))
                 Ja = flux[:,l]
-                #else:
-                #    # Identify resonance line bins
-                #    narr = self.solver.narr
-                #    En = self.grid.hydr.ELyn(narr)
-                #                        
-                #    res = []
-                #    for i, n in enumerate(narr):
-                #        loc = np.argwhere(E == En[i])
-                #        if not loc:
-                #            res.append(None)
-                #        else:
-                #            res.append(int(loc))
-                #    
-                #    # Determine Ly-a flux as frec * J_n                               
-                #    Ja = np.zeros_like(flux[:,0])
-                #    for i, n in enumerate(narr):
-                #    
-                #        # Continuum photons included by default
-                #        #if n == 2 and max(E) > :
-                #        #    continue
-                #    
-                #        if res[i] is None:
-                #            continue
-                #    
-                #        Jn = self.solver.grid.hydr.frec(n) * flux[:,res[i]]
-                #        Ja += Jn
             else:
                 Ja = np.zeros_like(z)
                 
@@ -1154,7 +1128,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
                 continue
 
-            elif self.pf['secondary_lya'] and (self.pops[popid].is_src_ion_igm):
+            elif self.pops[popid].is_src_ion_igm and self.pf['secondary_lya']:
                 for k, sp in enumerate(self.grid.absorbers):
                     Ja[i] += self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
                         species=k, popid=popid, fluxes={popid:flux[i]})
@@ -1224,51 +1198,6 @@ class MetaGalacticBackground(AnalyzeMGB):
 
                 f[i] = np.array(fzflat)
 
-            ##
-            # Add in line emission from cascades. So far, just Ly-a included.
-            # Note that *reprocessed* Ly-a emission, i.e., from HII regions 
-            # will be included by default (i.e., before this point).
-            # In principle, two-photon emission could be added here as well.
-            ##
-            if pop.is_src_lya and pop.pf['pop_lya_permeable']:
-                narr = self.solver.narr
-                En = self.grid.hydr.ELyn(narr)
-                                    
-                # Identify resonance line bins                    
-                res = []
-                for j, n in enumerate(narr):
-                    loc = np.argwhere(E == En[j])
-                    if not loc:
-                        res.append(None)
-                    else:
-                        res.append(int(loc))
-                
-                i_lya = np.argwhere(E == En[0])
-                
-                ##
-                # If there's a Ly-a bin, augment it with cascades.
-                ##
-                if i_lya:
-
-                    i_lya = i_lya[0][0]
-                
-                    # Determine Ly-a flux as frec * J_n                               
-                    for j, n in enumerate(narr):
-                    
-                        # Continuum photons included by default
-                        if n == 2:
-                            continue
-                    
-                        if res[j] is None:
-                            continue
-                                            
-                        Jn = self.solver.grid.hydr.frec(n) * f[:,res[j]]
-                        
-                        f[:,i_lya] += Jn
-            
-            else:
-                i_lya = np.argwhere(E == self.solver.grid.hydr.ELyn(2))
-                        
             # "tr" = "to return"
             z_tr = z
             E_tr = E
@@ -1278,9 +1207,6 @@ class MetaGalacticBackground(AnalyzeMGB):
             E_tr = self.solver.energies[popid]
             f_tr = hist[-1::-1][:]
             
-            if self.pops[popid].pf['pop_lya_permeable']:
-                raise NotImplemented('help')
-
         # We've flipped the flux array too since they are internally kept in 
         # order of descending redshift.  
         return z_tr, E_tr, f_tr

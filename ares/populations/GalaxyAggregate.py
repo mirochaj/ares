@@ -206,8 +206,7 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 return rhoL * self.pf['pop_fX'] * self.pf['pop_cX'] \
                     / (g_per_msun / s_per_yr)
-        
-                            
+                                    
         ##                                                        
         # Models based on SED. 
         # Convert from reference band to user-supplied band

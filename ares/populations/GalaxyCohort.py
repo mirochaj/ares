@@ -346,7 +346,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
-            
+                        
             # Get an array for fesc
             if (Emin, Emax) == (13.6, 24.6):
             #if self.is_src_uv:
@@ -2708,7 +2708,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr, Mmin = fn
             
             if np.all(np.logical_or(np.isinf(Mmin), np.isnan(Mmin))):
-                print "Provided Mmin guesses are all infinite or NaN."
+                print("Provided Mmin guesses are all infinite or NaN.")
                 return None
             
             return np.interp(self.halos.z, zarr, Mmin)
