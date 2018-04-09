@@ -31,7 +31,7 @@ from .Population import normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz
+    k_B, h_p, erg_per_ev, ev_per_hz, E_LyA, E_LL
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -203,11 +203,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._N_per_Msun[(Emin, Emax)]
 
         # Otherwise, calculate what it should be
-        if (Emin, Emax) == (13.6, 24.6):
+        if (Emin, Emax) == (E_LL, 24.6):
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.M) \
                 * self.cosm.b_per_msun
-        elif (Emin, Emax) == (10.2, 13.6):
+        elif (Emin, Emax) == (E_LyA, E_LL):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.M) \
                 * self.cosm.b_per_msun
         else:
@@ -346,13 +346,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
-            
+                        
             # Get an array for fesc
-            if (Emin, Emax) == (13.6, 24.6):
+            if (Emin, Emax) == (E_LL, 24.6):
             #if self.is_src_uv:
                 fesc = lambda **kwargs: self.fesc(**kwargs)
             #elif (self.is_src_lw or self.is_src_lya):
-            elif (Emin, Emax) == (10.2, 13.6):
+            elif (Emin, Emax) == (E_LyA, E_LL):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None
@@ -461,9 +461,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # For all halos
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
         
-        if (Emin, Emax) == (13.6, 24.6):
+        if (Emin, Emax) == (E_LL, 24.6):
             fesc = self.fesc(z=z, Mh=self.halos.M)
-        elif (Emin, Emax) == (10.2, 13.6):
+        elif (Emin, Emax) == (E_LyA, E_LL):
             fesc = self.fesc_LW(z=z, Mh=self.halos.M)
         else:
             raise NotImplemented('help!')
@@ -883,6 +883,47 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_Mst[z]
         
+    @property
+    def is_uvlf_parametric(self):
+        if not hasattr(self, '_is_uvlf_parametric'):
+            self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
+        return self._is_uvlf_parametric 
+        
+    def UVLF_M(self, MUV, z=None):
+        if self.is_uvlf_parametric:
+            return self.uvlf(MUV=MUV, z=z)
+        
+        ##
+        # Otherwise, standard SFE parameterized approach.
+        ##
+        
+        x_phi, phi = self.phi_of_M(z)
+
+        if ok.sum() == 0:
+            return -np.inf
+
+        # Setup interpolant
+        interp = interp1d(x_phi[ok], np.log10(phi[ok]), 
+            kind=self.pf['pop_interp_lf'],
+            bounds_error=False, fill_value=-np.inf)
+
+        phi_of_x = 10**interp(x)
+        
+    def UVLF_L(self, MUV, z=None):
+        x_phi, phi = self.phi_of_L(z)
+
+        ok = phi.mask == False
+        
+        if ok.sum() == 0:
+            return -np.inf
+
+        # Setup interpolant
+        interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), 
+            kind=self.pf['pop_interp_lf'],
+            bounds_error=False, fill_value=-np.inf)
+        
+        phi_of_x = 10**interp(np.log10(x))
+        
     def LuminosityFunction(self, z, x, mags=True):
         """
         Reconstructed luminosity function.
@@ -904,32 +945,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         if mags:
-            x_phi, phi = self.phi_of_M(z)
-
-            if ok.sum() == 0:
-                return -np.inf
-
-            # Setup interpolant
-            interp = interp1d(x_phi[ok], np.log10(phi[ok]), 
-                kind=self.pf['pop_interp_lf'],
-                bounds_error=False, fill_value=-np.inf)
-
-            phi_of_x = 10**interp(x)
+            phi_of_x = self.UVLF_M(x, z)
         else:
-
-            x_phi, phi = self.phi_of_L(z)
-
-            ok = phi.mask == False
-            
-            if ok.sum() == 0:
-                return -np.inf
-
-            # Setup interpolant
-            interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), 
-                kind=self.pf['pop_interp_lf'],
-                bounds_error=False, fill_value=-np.inf)
-            
-            phi_of_x = 10**interp(np.log10(x))
+            phi_of_x = self.UVLF_L(x, z)
 
         return phi_of_x
 
@@ -1698,7 +1716,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             M = self.halos.M
             fesc = self.fesc(None, M)
             
-            dnu = (24.6 - 13.6) / ev_per_hz
+            dnu = (24.6 - E_LL) / ev_per_hz
 
             Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
             
@@ -1718,7 +1736,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_LLW_tab'):
             M = self.halos.M
                 
-            dnu = (13.6 - 10.2) / ev_per_hz
+            dnu = (E_LL - E_LyA) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
     
             Nlw_per_L1600 = self.Nlw(z=None, M=M) / (1. / dnu)
@@ -2550,10 +2568,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return z, results
 
     def _LuminosityDensity_LW(self, z):
-        return self.LuminosityDensity(z, Emin=10.2, Emax=13.6)
+        return self.LuminosityDensity(z, Emin=E_LyA, Emax=E_LL)
 
     def _LuminosityDensity_LyC(self, z):
-        return self.LuminosityDensity(z, Emin=13.6, Emax=24.6)
+        return self.LuminosityDensity(z, Emin=E_LL, Emax=24.6)
     
     def _LuminosityDensity_sXR(self, z):
         return self.LuminosityDensity(z, Emin=200., Emax=2e3)
@@ -2690,7 +2708,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr, Mmin = fn
             
             if np.all(np.logical_or(np.isinf(Mmin), np.isnan(Mmin))):
-                print "Provided Mmin guesses are all infinite or NaN."
+                print("Provided Mmin guesses are all infinite or NaN.")
                 return None
             
             return np.interp(self.halos.z, zarr, Mmin)

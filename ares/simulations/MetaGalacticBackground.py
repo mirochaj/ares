@@ -245,6 +245,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
     
     def flux_today(self, zf=None, popids=None):
+        """
+        Propage radiation background from `zf` to z=0 assuming optically
+        thin universe.
+        """
         _fluxes_today = []
         _energies_today = []
                 
@@ -253,17 +257,16 @@ class MetaGalacticBackground(AnalyzeMGB):
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
                         
-        # Loop over pops
+        ct = 0
+        # Loop over pops: assumes energy ranges are non-overlapping!
         for popid, pop in enumerate(self.pops):
             
             if popid not in popids:
                 continue
                         
             if not self.solver.solve_rte[popid]:
-                _fluxes_today.append(None)
-                _energies_today.append(None)
                 continue
-                
+
             z, E, flux = self.get_history(popid=popid, flatten=True)    
             
             if zf is None:
@@ -273,14 +276,29 @@ class MetaGalacticBackground(AnalyzeMGB):
             
             Et = E / (1. + z[k])
             ft = flux[k] / (1. + z[k])**2 
-            
+
             _energies_today.append(Et)
             _fluxes_today.append(ft)
-        
-        flatten_flux
+
+            ct += 1
+
+        if ct == 1:    
+            return np.array(_energies_today[0]), np.array(_fluxes_today[0])
             
-        return flatten_energies(_energies_today), flatten_flux(_fluxes_today)
-                               
+        ##
+        # Add the fluxes! Interpolate to common energy grid first.
+        ##    
+
+        _f = []        
+        _E = np.unique(np.concatenate(_energies_today))
+        for i, flux in enumerate(_fluxes_today):
+            _f.append(np.interp(_E, _energies_today[i], flux, 
+                left=0.0, right=0.0))
+           
+        f = np.sum(_f, axis=0)
+         
+        return _E, f 
+                
     @property        
     def jsxb(self):
         if not hasattr(self, '_jsxb'):
@@ -595,7 +613,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     # of fluxes in each (sub-) band.    
                     coeff = self.solver.update_rate_coefficients(redshift, 
                         popid=i, **kw)
-                    
+                                        
                     self._rc_tabs[i]['k_ion'][_iz,:] = \
                         coeff['k_ion'].copy()
                     self._rc_tabs[i]['k_ion2'][_iz,:] = \
@@ -713,9 +731,14 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._z_unique
 
     def get_uvb_tot(self, include_pops=None):
+        """
+        Sum the UV background (i.e., Ja, Jlw) over all populations.
+        """
                 
         if include_pops is None:
             include_pops = range(self.solver.Npops)
+        
+        #zarr = self.z_unique
         
         # Compute JLW to get estimate for Mmin^(k+1) 
         _allz = []
@@ -1062,28 +1085,31 @@ class MetaGalacticBackground(AnalyzeMGB):
     def get_uvb(self, popid):
         """
         Return Ly-a and LW background flux in units of erg/s/cm^2/Hz/sr.
+        
+        ..note:: This adds in line flux.
+        
         """
         
         # Approximate sources
         if np.any(self.solver.solve_rte[popid]):
             z, E, flux = self.get_history(popid=popid, flatten=True)
             
-            if self.pf['secondary_lya'] and self.pops[popid].is_src_ion_igm:
+            if self.pops[popid].is_src_ion_igm and self.pf['secondary_lya']:
                 Ja = np.zeros_like(z) # placeholder
-            else:
-                l = np.argmin(np.abs(E - E_LyA))     # should be 0
-                                                                
+            elif self.pops[popid].is_src_lya:                                           
                 # Redshift is first dimension!
+                l = np.argmin(np.abs(E - E_LyA))
                 Ja = flux[:,l]
-                        
+            else:
+                Ja = np.zeros_like(z)
+                
             # Find photons in LW band
             is_LW = np.logical_and(E >= 11.18, E <= E_LL)
-            
+
             dnu = (E_LL - 11.18) / ev_per_hz
-            
+
             # Need to do an integral to finish this one.
             Jlw = np.zeros_like(z)
-
         else:
             # Need a redshift array!
             z = self.z_unique
@@ -1102,7 +1128,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
                 continue
 
-            elif self.pf['secondary_lya'] and (self.pops[popid].is_src_ion_igm):
+            elif self.pops[popid].is_src_ion_igm and self.pf['secondary_lya']:
                 for k, sp in enumerate(self.grid.absorbers):
                     Ja[i] += self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
                         species=k, popid=popid, fluxes={popid:flux[i]})
@@ -1150,6 +1176,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         # be in descending order so flip 'em.
 
         z = self.solver.redshifts[popid]
+        pop = self.pops[popid]
         #else:
         #    # This may change on the fly due to sub-cycling and such
         #    z = np.array(self.all_z).T[popid][-1::-1]
@@ -1179,9 +1206,9 @@ class MetaGalacticBackground(AnalyzeMGB):
             z_tr = z
             E_tr = self.solver.energies[popid]
             f_tr = hist[-1::-1][:]
-
-        # We've flipped the fluxes too since they are inherently in 
-        # order of descending redshift.    
+            
+        # We've flipped the flux array too since they are internally kept in 
+        # order of descending redshift.  
         return z_tr, E_tr, f_tr
 
     def save(self, prefix, suffix='pkl', clobber=False):

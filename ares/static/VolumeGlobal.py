@@ -34,7 +34,7 @@ except ImportError:
     size = 1
 
 log10 = np.log(10.)
-E_th = np.array([13.6, 24.4, 54.4])
+E_th = np.array([E_LL, 24.6, 54.4])
 
 defkwargs = \
 {
@@ -592,7 +592,7 @@ class GlobalVolume(object):
             if not np.allclose(b[0], E_LL, atol=0.1, rtol=0):
                 return 0.0
         else:
-            b = [13.6, 24.6]
+            b = [E_LL, 24.6]
         
         if (not pop.is_src_ion_cgm) or (z > pop.zform):
             return 0.0
@@ -615,7 +615,7 @@ class GlobalVolume(object):
         else:
             weight = 1.0
             
-        Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
+        Qdot = pop.PhotonLuminosityDensity(z, Emin=E_LL, Emax=24.6)
         
         return weight * Qdot * (1. + z)**3
             

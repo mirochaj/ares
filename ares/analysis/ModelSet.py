@@ -2755,7 +2755,7 @@ class ModelSet(BlobFactory):
             Redshift, if any element of pars is a "blob" quantity.
         plot : bool
             Plot PDF?
-        nu : float, list
+        like : float, list
             If plot == False, return the nu-sigma error-bar.
             If color_by_like == True, list of confidence contours to plot.
         color_by_like : bool

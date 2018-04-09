@@ -17,8 +17,9 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from ..util.Warnings import no_lya_warning
 from scipy.interpolate import interp1d as interp1d_scipy
-from ..sources import Star, BlackHole, StarQS, SynthesisModel
+from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
 
@@ -195,8 +196,12 @@ class Population(object):
         if not hasattr(self, '_is_src_lya'):
             if self.pf['pop_sed_model']:
                 self._is_src_lya = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
+                    
+                if self.pf['pop_lya_src'] and (not self._is_src_lya):
+                    if abs(self.pf['pop_Emin'] - E_LyA) < 1.:
+                        no_lya_warning(self)
             else:
                 self._is_src_lya = self.pf['pop_lya_src']
     
@@ -298,18 +303,6 @@ class Population(object):
         return self._is_src_uv
         
     @property
-    def is_src_lya(self):
-        if not hasattr(self, '_is_src_lya'):
-            if self.pf['pop_sed_model']:
-                self._is_src_lya = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
-                    and self.pf['pop_lya_src']
-            else:
-                return self.pf['pop_lya_src']
-
-        return self._is_src_lya
-        
-    @property
     def is_src_xray(self):
         if not hasattr(self, '_is_src_xray'):
             if self.pf['pop_sed_model']:
@@ -394,6 +387,8 @@ class Population(object):
                 self._Source_ = Star
             elif self.pf['pop_sed'] in ['pl', 'mcd', 'simpl']:
                 self._Source_ = BlackHole
+            elif self.pf['pop_sed'] == 'delta':
+                self._Source_ = DeltaFunction
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:    
@@ -426,7 +421,7 @@ class Population(object):
                 return {}
     
             self._src_kwargs = {}
-            if self._Source in [Star, StarQS]:
+            if self._Source in [Star, StarQS, Toy, DeltaFunction]:
                 spars = StellarParameters()
                 for par in spars:
     
@@ -667,7 +662,7 @@ class Population(object):
             else:
                 on = 1
         else:
-            on = np.logical_or(z <= self.zform, z >= self.zdead)
+            on = np.logical_and(z <= self.zform, z >= self.zdead)
     
         return on
         

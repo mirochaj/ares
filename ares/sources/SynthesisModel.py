@@ -580,7 +580,7 @@ class SynthesisModel(Source):
         # Integrate (cumulatively) over time
         if self.pf['source_ssp']:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
-            return np.trapz(photons_per_b_t, x=self.times*s_per_myr) / 1e6
+            return np.trapz(photons_per_b_t, x=self.times*s_per_myr)
         # Take steady-state result
         else:
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \

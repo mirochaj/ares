@@ -512,7 +512,7 @@ def _rad_type(sim, fluctuations=False):
 
     return data, rows, cols        
                 
-def print_sim(sim):
+def print_sim(sim, mgb=False):
     """
     Print information about simulation to screen.
     
@@ -549,6 +549,10 @@ def print_sim(sim):
     
     data, rows, cols = _rad_type(sim, fluctuations=True)
     tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
+    
+    if mgb:
+        print("#" * width)
+        return
     
     print(line('-' * twidth))
     print(line('Physics'))
