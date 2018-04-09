@@ -11,8 +11,9 @@ formulae of Verner et al. 1996.
 """
 
 from numpy import sqrt
+from .Constants import E_LL
 
-E_th = [13.6, 24.6, 54.4]
+E_th = [E_LL, 24.6, 54.4]
 
 # HI is the first 7-element sub-array in 'params', HeI is the second, and 
 # HeII is the third.  In order, the coefficients in these arrays are:

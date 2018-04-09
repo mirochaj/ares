@@ -17,6 +17,7 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from ..util.Warnings import no_lya_warning
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
@@ -197,6 +198,10 @@ class Population(object):
                 self._is_src_lya = \
                     (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
+                    
+                if self.pf['pop_lya_src'] and (not self._is_src_lya):
+                    if abs(self.pf['pop_Emin'] - E_LyA) < 1.:
+                        no_lya_warning(self)
             else:
                 self._is_src_lya = self.pf['pop_lya_src']
     
@@ -657,7 +662,7 @@ class Population(object):
             else:
                 on = 1
         else:
-            on = np.logical_or(z <= self.zform, z >= self.zdead)
+            on = np.logical_and(z <= self.zform, z >= self.zdead)
     
         return on
         

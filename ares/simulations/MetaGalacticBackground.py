@@ -613,7 +613,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     # of fluxes in each (sub-) band.    
                     coeff = self.solver.update_rate_coefficients(redshift, 
                         popid=i, **kw)
-                    
+                                        
                     self._rc_tabs[i]['k_ion'][_iz,:] = \
                         coeff['k_ion'].copy()
                     self._rc_tabs[i]['k_ion2'][_iz,:] = \

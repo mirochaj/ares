@@ -52,8 +52,6 @@ ARES = os.getenv('ARES')
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
 
-E_th = np.array([13.6, 24.4, 54.4])
-
 # Put this stuff in utils
 defkwargs = \
 {
@@ -266,7 +264,28 @@ class UniformBackground(object):
         if not hasattr(self, '_redshifts'):
             bands = self.bands_by_pop
         return self._redshifts
-    
+        
+    @property
+    def effects_by_pop(self):
+        if not hasattr(self, '_effects_by_pop'):
+            self._effects_by_pop = [[] for i in xrange(self.Npops)]
+
+            for i, pop in enumerate(self.pops):
+                bands = self.bands_by_pop[i]
+
+                for j, band in enumerate(bands):
+                    if band is None:
+                        self.effects_by_pop[i].append(None)
+                        continue
+                    
+                    if pop.zone == 'cgm' and band[1] <= E_LL:
+                        self._effects_by_pop[i].append(None)
+                        continue
+                    
+                    self._effects_by_pop[i].append(pop.zone)
+
+        return self._effects_by_pop
+
     @property
     def bands_by_pop(self):
         if not hasattr(self, '_bands_by_pop'):
@@ -274,7 +293,7 @@ class UniformBackground(object):
             if self.approx_all_pops:
                 self._energies = [[None] for i in xrange(self.Npops)]
                 self._redshifts = [None for i in xrange(self.Npops)]
-                self._bands_by_pop = [[None] for i in xrange(self.Npops)]   
+                self._bands_by_pop = [[None] for i in xrange(self.Npops)]
             else:    
                 # Really just need to know if it emits ionizing photons, 
                 # or has any sawtooths we need to care about
@@ -283,13 +302,13 @@ class UniformBackground(object):
                 self._redshifts = []
                 for i, pop in enumerate(self.pops):
                     bands = self._get_bands(pop)
-                                        
-                    self._bands_by_pop.append(bands)   
-                    
+
+                    self._bands_by_pop.append(bands)
+
                     if (bands is None) or (not pop.pf['pop_solve_rte']):
                         z = nrg = ehat = tau = None
                     else:
-                        z, nrg, tau, ehat = self._set_grid(pop, bands)                        
+                        z, nrg, tau, ehat = self._set_grid(pop, bands)
 
                     self._energies.append(nrg)
                     self._redshifts.append(z)
@@ -604,11 +623,14 @@ class UniformBackground(object):
                     continue
 
                 # Sum over bands
-                for k, band in enumerate(self.energies[i]):
-                                        
-                    if 6.9 <= z <= 6.92 and popid == 0 and species == 0:
-                        print(z, j, k, self.solve_rte[i][k])
-                                            
+                for k, band in enumerate(self.energies[i]):             
+                    
+                    # Skip ahead if this *band* doesn't have the influence
+                    # of its parent population, i.e., UV populations
+                    # that emit Ly-a and LyC photons -- must make sure we
+                    # don't double count when computing ionization rate.
+                    if self.effects_by_pop[i][k] is None:
+                        continue
                                         
                     # Still may not necessarily solve the RTE
                     if self.solve_rte[i][k]:
@@ -616,8 +638,8 @@ class UniformBackground(object):
                             **kwargs)
                     else:
                         self._update_by_band_and_species(z, i, j, None, 
-                            **kwargs)                    
-
+                            **kwargs)    
+                            
         # Sum over sources
         self.k_ion_tot = np.sum(self.k_ion, axis=0)
         self.k_ion2_tot = np.sum(self.k_ion2, axis=0)
@@ -633,7 +655,9 @@ class UniformBackground(object):
         return to_return
 
     def _update_by_band_and_species(self, z, i, j, k, **kwargs):
-                
+        """
+        i, j, k = source, species, band.
+        """        
         if kwargs['zone'] in ['igm', 'both']:
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateIGM(z, species=j, popid=i,
@@ -648,9 +672,12 @@ class UniformBackground(object):
                     species=j, donor=h, popid=i, band=k, **kwargs)
     
         elif kwargs['zone'] in ['cgm', 'both']:
-            self.k_ion[i,0,j] += \
-                self.volume.IonizationRateCGM(z, species=j, popid=i,
+                        
+            Gamma = self.volume.IonizationRateCGM(z, species=j, popid=i,
                 band=k, **kwargs)
+                        
+            self.k_ion[i,0,j] += Gamma
+                
         
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
         """
@@ -925,7 +952,7 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=E_LyA, Emax=E_LL) \
                 * (E_LL - 11.18) / (E_LL - E_LyA)
 
             # Crude mean photon energy
@@ -1016,7 +1043,7 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=E_LyA, Emax=E_LL)
 
             return norm * (1. + z)**3 * (1. + pop.pf['pop_frec_bar']) * \
                 rhoLW / dnu
@@ -1151,7 +1178,7 @@ class UniformBackground(object):
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense 
             # to keep the different emissivity chunks separate.                                  
-            for band in [(10.2, 13.6), (13.6, 24.6), None]:
+            for band in [(E_LyA, E_LL), (E_LL, 24.6), None]:
 
                 if band is not None:
                     if pop.pf['pop_Emin'] > band[1]:

@@ -291,11 +291,15 @@ def no_hmf(hmf):
     
     print(line(separator))
 
-
 modelgrid_loadbalance = ""
 
-
-
+def no_lya_warning(pop):
+    print("")
+    print(line(separator))
+    print(line("WARNING: pop_Emin{} is just blue-ward of Ly-a.".format(pop.id_num)))
+    print(line("Reset to E_LyA (or just below) to ensure non-zero Ly-a background."))
+    print(line(separator))
+    print("")
 
 
 

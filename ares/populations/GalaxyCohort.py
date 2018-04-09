@@ -31,7 +31,7 @@ from .Population import normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz
+    k_B, h_p, erg_per_ev, ev_per_hz, E_LyA, E_LL
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -203,11 +203,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._N_per_Msun[(Emin, Emax)]
 
         # Otherwise, calculate what it should be
-        if (Emin, Emax) == (13.6, 24.6):
+        if (Emin, Emax) == (E_LL, 24.6):
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.M) \
                 * self.cosm.b_per_msun
-        elif (Emin, Emax) == (10.2, 13.6):
+        elif (Emin, Emax) == (E_LyA, E_LL):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.M) \
                 * self.cosm.b_per_msun
         else:
@@ -348,11 +348,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
                         
             # Get an array for fesc
-            if (Emin, Emax) == (13.6, 24.6):
+            if (Emin, Emax) == (E_LL, 24.6):
             #if self.is_src_uv:
                 fesc = lambda **kwargs: self.fesc(**kwargs)
             #elif (self.is_src_lw or self.is_src_lya):
-            elif (Emin, Emax) == (10.2, 13.6):
+            elif (Emin, Emax) == (E_LyA, E_LL):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None
@@ -461,9 +461,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # For all halos
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
         
-        if (Emin, Emax) == (13.6, 24.6):
+        if (Emin, Emax) == (E_LL, 24.6):
             fesc = self.fesc(z=z, Mh=self.halos.M)
-        elif (Emin, Emax) == (10.2, 13.6):
+        elif (Emin, Emax) == (E_LyA, E_LL):
             fesc = self.fesc_LW(z=z, Mh=self.halos.M)
         else:
             raise NotImplemented('help!')
@@ -1716,7 +1716,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             M = self.halos.M
             fesc = self.fesc(None, M)
             
-            dnu = (24.6 - 13.6) / ev_per_hz
+            dnu = (24.6 - E_LL) / ev_per_hz
 
             Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
             
@@ -1736,7 +1736,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_LLW_tab'):
             M = self.halos.M
                 
-            dnu = (13.6 - 10.2) / ev_per_hz
+            dnu = (E_LL - E_LyA) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
     
             Nlw_per_L1600 = self.Nlw(z=None, M=M) / (1. / dnu)
@@ -2568,10 +2568,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return z, results
 
     def _LuminosityDensity_LW(self, z):
-        return self.LuminosityDensity(z, Emin=10.2, Emax=13.6)
+        return self.LuminosityDensity(z, Emin=E_LyA, Emax=E_LL)
 
     def _LuminosityDensity_LyC(self, z):
-        return self.LuminosityDensity(z, Emin=13.6, Emax=24.6)
+        return self.LuminosityDensity(z, Emin=E_LL, Emax=24.6)
     
     def _LuminosityDensity_sXR(self, z):
         return self.LuminosityDensity(z, Emin=200., Emax=2e3)

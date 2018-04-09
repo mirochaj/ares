@@ -216,9 +216,9 @@ class GalaxyAggregate(HaloPopulation):
         if (Emax is None) or (Emin is None):
             if self.pf['pop_reproc']:
                 rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
-        elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
+        elif Emax > E_LL and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
-        elif Emax <= 13.6:
+        elif Emax <= E_LL:
             if self.pf['pop_reproc']:
                 fesc = (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
             else:
