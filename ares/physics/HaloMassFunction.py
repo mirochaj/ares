@@ -697,6 +697,24 @@ class HaloMassFunction(object):
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
+    def FilteringMass(self, z, mu=0.6):
+        """
+        Using fitting formulae in Naoz & Barkana (2007).
+        """
+        
+        LZ = np.log(1. + z)
+        
+        Om = self.cosm.OmegaMatter(z)
+        
+        B1 = -0.38 * Om**2 + 0.41 * Om - 0.16
+        B2 = 3.3 * Om**2 -3.38 * Om + 1.15
+        B3 = -9.64 * Om**2 + 9.75 * Om - 2.37
+        B4 = 9.8 * Om**2 - 10.68 * Om + 11.6
+        
+        LM = B1 * LZ**3 + B2 * LZ**2 + B3 * LZ + B4
+        
+        return np.exp(LM) / self.cosm.fbaryon
+    
     def DynamicalTime(self, M, z, mu=0.6):
         return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
             / G / M / g_per_msun)
@@ -715,6 +733,32 @@ class HaloMassFunction(object):
         return M
     
     def Mmin_floor(self, zarr):
+        """
+        Minimum mass in the absence of LW feedback.
+        
+        Set by Tegmark+ 1997 cooling argument, cosmological Jeans mass or 
+        filtering mass (from Naoz & Barkana 2007),
+        and (optionally) baryon-velocity streaming (from Fialkov+ 2014), 
+        taking the largest value of all supplied.
+        """
+        
+        Mfin = np.zeros_like(zarr)
+        
+        for element in self.pf['cosmological_Mmin']:
+            assert element in ['jeans', 'filtering', 'tegmark', 'streaming']
+
+        if 'tegmark' in self.pf['cosmological_Mmin']:
+            Mmin_H2 = self._tegmark(zarr)
+            Mfin = np.maximum(Mfin, Mmin_H2)
+            
+        if 'filtering' in self.pf['cosmological_Mmin']:
+            Mmin_F = self.FilteringMass(zarr)
+            Mfin = np.maximum(Mfin, Mmin_F)
+        
+        if 'jeans' in self.pf['cosmological_Mmin']:
+            Mmin_J = self.cosm.JeansMass(zarr)
+            Mfin = np.maximum(Mfin, Mmin_J)
+            
         if self.pf['feedback_streaming']:
             vbc = self.pf['feedback_vel_at_rec'] * (1. + zarr) / 1100.
             # Anastasia's "optimal fit"
@@ -723,10 +767,7 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(list(map(self._tegmark, zarr)))
-                
-        #return np.maximum(Mmin_vbc, Mmin_H2)      
-        return Mmin_vbc + Mmin_H2
+        return np.maximum(Mfin, Mmin_vbc)
       
     def table_prefix(self, with_size=False):
         """

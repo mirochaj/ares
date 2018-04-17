@@ -95,6 +95,10 @@ class Source(object):
         Print info like Nlw etc in various units!
         """
         pass
+    
+    @property
+    def is_delta(self):
+        return self.pf['source_sed'] == 'delta'    
         
     def SourceOn(self, t):
         if t < self.tau:

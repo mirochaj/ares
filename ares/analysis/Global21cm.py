@@ -466,8 +466,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         else:
             ax.scatter(self.history[xaxis][-1::-mask], 
                 self.history['dTb'][-1::-mask] * conv, **kwargs)
-                
-        zmax = self.pf["initial_redshift"]
+        
+        if zmax is None:        
+            zmax = self.pf["initial_redshift"]
+            
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
             else 5
         

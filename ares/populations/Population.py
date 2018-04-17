@@ -11,11 +11,13 @@ Description:
 """
 
 import re
+import inspect
 import numpy as np
+from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
-from ..sources import Star, BlackHole, StarQS, SynthesisModel
+from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
 
@@ -401,6 +403,8 @@ class Population(object):
                 self._Source_ = Star
             elif self.pf['pop_sed'] in ['pl', 'mcd', 'simpl']:
                 self._Source_ = BlackHole
+            elif self.pf['pop_sed'] == 'delta':
+                self._Source_ = DeltaFunction    
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:    
@@ -433,7 +437,7 @@ class Population(object):
                 return {}
     
             self._src_kwargs = {}
-            if self._Source in [Star, StarQS]:
+            if self._Source in [Star, StarQS, Toy, DeltaFunction]:
                 spars = StellarParameters()
                 for par in spars:
     

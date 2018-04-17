@@ -333,29 +333,30 @@ class Hydrogen(object):
 
         if self.approx_S == 0:
             raise NotImplementedError('Must use analytical formulae.')
-        if self.approx_S == 1:
-            return 1.0
+        elif self.approx_S == 1:
+            S = 1.0
         elif self.approx_S == 2:
-            return np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
+            S = np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
                 / (1. + 0.4 / Tk)
         elif self.approx_S == 3:
             gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
             alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.) # Eq. 20
             S = 1. - c1 * alpha + c2 * alpha**2 - 4. * alpha**3 / 3. # Eq. 19
-            return S
         else:
             raise NotImplementedError('approx_Sa must be in [1,2,3].')
+                
+        return np.maximum(S, 0.0)
 
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
-        
+
     @property
     def Ts_floor_pars(self):
         if not hasattr(self, '_Ts_floor_pars'):
             self._Ts_floor_pars = [self.pf['floor_Ts_p{}'.format(i)] for i in range(6)]
         return self._Ts_floor_pars    
-        
+
     @property
     def Ts_floor(self):
         if not hasattr(self, '_Ts_floor'):
@@ -463,3 +464,6 @@ class Hydrogen(object):
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
 
+    def dTb_no_astrophysics(self, z):
+        Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
+        return self.dTb(z, 0.0, Ts)

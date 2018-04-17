@@ -897,24 +897,23 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     fig = ax.xaxis.get_figure()
     
     if zlim > 100:
-        z = np.arange(20, zlim, 40)[-1::-1]
-        z_minor = np.arange(30, zlim, 20)[-1::-1]
+        
+        z = np.array([20, 40, 100, 400])[-1::-1]
+        #z = np.arange(20, zlim, 40)[-1::-1]
+        z_minor = np.arange(50, zlim, 50)[-1::-1]
+        highz_labels = ['20', '30', '40', '100', '400']
     else:    
-        z = np.arange(20, 110, 10)[-1::-1]
-        z_minor = np.arange(15, zlim, 5)[-1::-1]
+        z = np.array([20, 40, 60, 80])[-1::-1]
+        z_minor = np.arange(20, zlim, 10)[-1::-1]
+        highz_labels = ['30', '80']
         
     nu = nu_0_mhz / (1. + z)
     nu_minor = nu_0_mhz / (1. + z_minor)
     
-    z_labels = list(map(str, z))
+    #z_labels = list(map(str, z))
+    lowz_labels = map(str, [6, 8, 10, 12, 15])
 
-    # Add 25, 15 and 12, 8 to redshift labels
-    z_labels.insert(-1, '15')
-    z_labels.insert(-1, '12')
-    z_labels.insert(-1, '10')
-    z_labels.extend(['8', '7', '6', '5'])
-    #z_labels.insert(-5, '25')
-
+    z_labels = lowz_labels + highz_labels
     z = np.array(list(map(int, z_labels)))
 
     nu = nu_0_mhz / (1. + z)
@@ -930,12 +929,12 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     ax_z.set_xticks(nu_minor, minor=True)
 
     # A bit hack-y
-    for i, label in enumerate(z_labels):
-        if label in ['40','50', '60', '70']:
-            z_labels[i] = ''
-
-        if (float(label) > 80) and (zlim < 100):
-            z_labels[i] = ''
+    #for i, label in enumerate(z_labels):
+    #    if (zlim > 100) and (label not in highz_labels):
+    #        z_labels[i] = ''
+    #
+    #    if (float(label) > 80) and (zlim < 100):
+    #        z_labels[i] = ''
 
     ax_z.set_xticklabels(z_labels)
     ax_z.set_xlim(ax.get_xlim())

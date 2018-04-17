@@ -1177,10 +1177,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if ismethod(self.pf['pop_Mmin']) or \
                    type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
-                        np.array(list(map(self.pf['pop_Mmin'], self.halos.z)))
+                        np.array(map(self.pf['pop_Mmin'], self.halos.z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
                     self._tab_Mmin_ = self.pf['pop_Mmin']
                     assert self._tab_Mmin.size == self.halos.z.size
+                elif type(self.pf['pop_Mmin']) is str:
+                    if self.pf['pop_Mmin'] == 'jeans':
+                        self._tab_Mmin_ = \
+                            np.array(map(self.cosm.JeansMass, self.halos.z))
+                    elif self.pf['pop_Mmin'] == 'filtering':
+                        self._tab_Mmin_ = \
+                            np.array(map(self.halos.FilteringMass, self.halos.z))
+                    else:
+                        raise NotImplemented('help')
                 else:    
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones(self.halos.Nz)

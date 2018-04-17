@@ -37,7 +37,8 @@ except ImportError:
 zf, zi = (5, 60)
 Emin = 2e2
 Emax = 3e4
-Nz = [200]
+pin_Emin = False
+Nz = [400]
 format = 'npz'        # 'hdf5' or 'pkl' or 'npz'
 helium = 1
 xavg = lambda z: 0.0  # neutral
@@ -48,10 +49,12 @@ xavg = lambda z: 0.0  # neutral
 pars = \
 {
  'include_He': helium,
- 'pop_Emin': Emin,
- 'pop_Emax': Emax,
+ 'tau_Emin': Emin,
+ 'tau_Emax': Emax,
+ 'tau_Emin_pin': pin_Emin,
  'approx_He': helium,
  'initial_redshift': zi,
+ 'first_light_redshift': zi,
  'final_redshift': zf,
 }
 

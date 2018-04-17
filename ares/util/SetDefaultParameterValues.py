@@ -884,10 +884,11 @@ def ControlParameters():
     "load_ics": 'cosmorec',
     "cosmological_ics": False,
     "load_sim": False,
+    
+    "cosmological_Mmin": ['filtering', 'tegmark'],
 
     # Timestepping
     "max_timestep": 1.,
-    "min_timestep": 1e-8,
     "epsilon_dt": 0.05,
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
@@ -925,6 +926,7 @@ def ControlParameters():
     "tau_approx": True,
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
+    "tau_Emin_pin": True,
 
     "sam_dz": 2., # Usually good enough!
     "sam_atol": 1e-2,
