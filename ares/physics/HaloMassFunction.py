@@ -726,7 +726,8 @@ class HaloMassFunction(object):
             * np.exp(512. / T)
     
         to_min = lambda T: abs(fH2s(T) - fH2c(T)) 
-        Tcrit = fsolve(to_min, 2e3)[0]
+        Tgues = 500.
+        Tcrit = fsolve(to_min, Tgues)[0]
 
         M = self.VirialMass(Tcrit, z)
 
