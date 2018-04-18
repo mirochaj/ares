@@ -10,6 +10,7 @@ Description:
 
 """
 
+from .Toy import Toy
 from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
@@ -84,6 +85,8 @@ def GalaxyPopulation(**kwargs):
         return ParametricPopulation(**kwargs)
     elif model in ['bhmd']:
         return BlackHoleAggregate(**kwargs)
+    elif model in ['toy']:
+        return Toy(**kwargs)    
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
 

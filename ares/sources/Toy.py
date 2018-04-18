@@ -15,6 +15,46 @@ from .Source import Source
 from ..physics.Constants import erg_per_ev
 from ..util.SetDefaultParameterValues import SourceParameters
 
+class DeltaFunction(Source):
+    def __init__(self, **kwargs):
+        """ 
+        Create delta function radiation source object.
+        
+        Parameters
+        ----------
+        pf: dict
+            Full parameter file.
+        src_pars: dict
+            Contains source-specific parameters.
+        spec_pars: dict
+            Contains spectrum-specific parameters.
+            
+        """  
+        
+        self.pf = SourceParameters()
+        self.pf.update(kwargs)
+        
+        Source.__init__(self)
+        
+        assert self.pf['source_sed'] == 'delta', \
+            "Error: source is {}, should be delta!".format(self.pf['source_sed'])
+        
+        self.E = self.pf['source_Emax']
+
+    def SourceOn(self, t):
+        return True
+
+    def _Intensity(self, E=None, i=None, t=None):
+        """
+        Return quantity *proportional* to fraction of bolometric luminosity emitted
+        at photon energy E.  Normalization handled separately.
+        """
+        
+        if E != self.E:
+            return 0.0
+        else:
+            return 1.0    
+
 class Toy(Source):
     """ Class for creation and manipulation of toy-model radiation sources. """
     def __init__(self, **kwargs):

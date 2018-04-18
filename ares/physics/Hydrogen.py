@@ -13,6 +13,7 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
+from scipy.optimize import fsolve
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
@@ -25,6 +26,9 @@ try:
     g13 = gamma(1. / 3.)
     c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
     c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
+    
+    from scipy.special import airy, hyp2f1
+    
 except ImportError:
     pass
     
@@ -308,13 +312,55 @@ class Hydrogen(object):
                 
         return sum_term * T_star / A10 / Tref
     
-    def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None):
+    def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None, Tr=0.0):
         """
         Return radiative coupling coefficient (i.e., Wouthuysen-Field effect).
+        
+        .. note :: If approx_Sa > 3, will return x_a, S_a, and T_S, which are
+            determined iteratively.
+        
         """
-                
-        return 1.81e11 * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / (1. + z)
+        
+        if self.approx_S < 4:
+            return self.xalpha_tilde(z) * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja
 
+        ##
+        # Must solve iteratively.
+        ##
+        
+        # Hirata (2006)
+        if self.approx_S == 4:
+            xi = (1e-7 * self.tauGP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
+            a = lambda Ts: 1. - 0.0631789 / Tk + 0.115995 / Tk**2 \
+                - 0.401403 / Ts / Tk + 0.336463 / Ts / Tk**2
+            b = 1. + 2.98394 * xi + 1.53583 * xi**2 + 3.85289 * xi**3
+        
+            Sa = lambda Ts: a(Ts) / b
+            ne = 0.0 # fix
+            
+            #Tk = float(Tk)
+            
+            xc = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
+            xa = lambda Ts: self.xalpha_tilde(z) * Sa(Ts) * Ja
+            Tcmb = self.cosm.TCMB(z)
+            Trad = Tcmb + Tr
+            
+            Tr_inv = 1. / Trad
+            Tk_inv = 1. / Tk
+            Tc_inv = lambda Ts: Tk**-1. + 0.405535 / Tk / (Ts**-1. - Tk**-1.)
+            
+            Ts_inv = lambda Ts: (Tr_inv + xa(Ts) * Tc_inv(Ts) + xc * Tk_inv) \
+                   / (1. + xa(Ts) + xc)
+            
+            to_solve = lambda Ts: 1. / Ts - Ts_inv(Ts)
+    
+            x = fsolve(to_solve, Tcmb, full_output=True)            
+            Ts = x[0]
+                        
+            return xa(Ts), Sa(Ts), Ts
+        else:
+            raise NotImplemented('approx_Salpha>4 not currently supported!')  
+            
     def tauGP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
         return 1.5 * self.cosm.nH(z) * (1. - xHII) * l_LyA**3 * 50e6 \
@@ -326,36 +372,56 @@ class Hydrogen(object):
         """
         return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
 
-    def Sa(self, z=None, Tk=None, xHII=0.0):
+    def xalpha_tilde(self, z):
+        gamma = 5e7 # 50 MHz
+        return 8. * np.pi * l_LyA**2 * gamma * T_star \
+            / 9. / A10 / self.cosm.TCMB(z)
+
+    def Sa(self, z=None, Tk=None, xHII=0.0, Ts=None, Ja=0.0):
         """
         Account for line profile effects.
         """
 
         if self.approx_S == 0:
             raise NotImplementedError('Must use analytical formulae.')
-        if self.approx_S == 1:
-            return 1.0
+        elif self.approx_S == 1:
+            S = 1.0
         elif self.approx_S == 2:
-            return np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
+            S = np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
                 / (1. + 0.4 / Tk)
-        elif self.approx_S == 3:
+        elif int(self.approx_S) == 3:
             gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
             alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.) # Eq. 20
-            S = 1. - c1 * alpha + c2 * alpha**2 - 4. * alpha**3 / 3. # Eq. 19
-            return S
+            
+            # Gamma function approximation: Eq. 19
+            if self.approx_S % 1 != 0:
+                # c1 = 4. * np.pi / 3. / np.sqrt(3.) / Gamma(2/3)
+                # c2 = 8. * np.pi / 3. / np.sqrt(3.) / Gamma(1/3)
+                S = 1. - c1 * alpha + c2 * alpha**2 - 4. * alpha**3 / 3.
+            # Actual solution: Eq. 18
+            else:
+                Ai, Aip, Bi, Bip = airy(-2. * alpha / 3.**(1./3.))
+                F2 = hyp2f1(1., 4./3., 5./3., -8 * alpha**3 / 27.)
+                S = 1. - 4. * alpha \
+                    * (3.**(2./3.) * np.pi * Bi + 3 * alpha**2 * F2) / 9.
+            
+        elif self.approx_S == 4:
+            xa, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         else:
-            raise NotImplementedError('approx_Sa must be in [1,2,3].')
+            raise NotImplementedError('approx_Sa must be in [1,2,3,4].')
+                
+        return np.maximum(S, 0.0)
 
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
-        
+
     @property
     def Ts_floor_pars(self):
         if not hasattr(self, '_Ts_floor_pars'):
             self._Ts_floor_pars = [self.pf['floor_Ts_p{}'.format(i)] for i in range(6)]
         return self._Ts_floor_pars    
-        
+
     @property
     def Ts_floor(self):
         if not hasattr(self, '_Ts_floor'):
@@ -406,14 +472,18 @@ class Hydrogen(object):
         """
         
         x_c = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
-        x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
-        Tc = Tk
+        
+        if self.approx_S < 3:
+            x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr)
+            Tc = Tk
 
-        Tref = self.cosm.TCMB(z) + Tr
+            Tref = self.cosm.TCMB(z) + Tr
 
-        Ts = (1.0 + x_c + x_a) / \
-            (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
-
+            Ts = (1.0 + x_c + x_a) / \
+                (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+        else:
+            x_a, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr)
+                    
         return np.maximum(Ts, self.Ts_floor(z=z))
 
     def dTb(self, z, xHII, Ts, Tr=0.0):
@@ -463,3 +533,6 @@ class Hydrogen(object):
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
 
+    def dTb_no_astrophysics(self, z):
+        Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
+        return self.dTb(z, 0.0, Ts)

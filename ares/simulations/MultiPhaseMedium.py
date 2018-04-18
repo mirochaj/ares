@@ -251,9 +251,13 @@ class MultiPhaseMedium(object):
             
             if self.pf['include_cgm']:    
                 self.all_data_cgm.append(data_cgm.copy())
+            #else:
+            #    self.all_data_cgm = []
             
             if self.pf['include_igm']:
                 self.all_data_igm.append(data_igm.copy())  
+            #else:
+            #    self.all_data_igm = []   
                 
             if self.pf['save_rate_coefficients']:
                 if self.pf['include_cgm']:     
@@ -275,6 +279,8 @@ class MultiPhaseMedium(object):
             self.history_cgm = \
                 _sort_history(self.all_data_cgm, prefix='cgm_', squeeze=True)        
             self.history.update(self.history_cgm)
+        else:
+            self.history_cgm = {}
 
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
@@ -287,6 +293,8 @@ class MultiPhaseMedium(object):
                 self.rates_cgm = \
                     _sort_history(self.all_RCs_cgm, prefix='cgm_', squeeze=True)
                 self.history.update(self.rates_cgm)
+            else:
+                self.rates_cgm = {}
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
@@ -442,6 +450,7 @@ class MultiPhaseMedium(object):
 
         self.all_t = []
         self.all_data_igm = []
+        self.all_data_cgm = []
         self.all_z = list(z_inits[0:i_trunc])
         self.all_RCs_igm = [self.rates_no_RT(self.parcel_igm.grid)] * len(self.all_z)
         self.all_RCs_cgm = [self.rates_no_RT(self.parcel_igm.grid)] * len(self.all_z)
@@ -456,6 +465,8 @@ class MultiPhaseMedium(object):
                 
                 self.all_data_cgm[i]['n'] = \
                     self.parcel_cgm.grid.particle_density(cgm_data, self.all_z[i])
+        #else:
+        #    self.all_data_cgm = []
         
         if not self.pf['include_igm']:
             return

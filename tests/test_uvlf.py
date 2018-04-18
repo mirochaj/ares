@@ -99,11 +99,11 @@ def test():
         # Plot the Bouwens Schechter fit
         ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=z), color=colors[i], 
             ls='-', lw=1)
-
+    
         # My 2017 paper only looked at z > 6
         if z < 4.9:
             continue
-
+    
         ax2 = gpop.Plot(z=z, sources='bouwens2015', ax=ax2, color=colors[i], fig=2,
             mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
             
@@ -136,6 +136,13 @@ def test():
     
     pl.show()
     
+    pl.figure(1)
+    pl.savefig('{!s}_1.png'.format(__file__[0:__file__.rfind('.')]))
+    pl.close()
+    pl.figure(2)
+    pl.savefig('{!s}_2.png'.format(__file__[0:__file__.rfind('.')]))
+    pl.close()    
+        
     assert True
     
 if __name__ == '__main__':

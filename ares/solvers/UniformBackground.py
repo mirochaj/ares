@@ -426,8 +426,12 @@ class UniformBackground(object):
 
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
-                E = E0 * R**np.arange(N)
-                                
+                
+                if pop.src.is_delta:
+                    E = np.flip(E1 * R**-np.arange(N), 0)
+                else:    
+                    E = E0 * R**np.arange(N)
+                                                
                 # Tabulate optical depth
                 if compute_tau and self.solve_rte[pop.id_num][j]:
                     _z, _E, tau = self._set_tau(z, E, pop)                    
@@ -1116,8 +1120,16 @@ class UniformBackground(object):
         Nz, Nf = len(z), len(E)
 
         Inu = np.zeros(Nf)
-        for i in range(Nf): 
-            Inu[i] = pop.src.Spectrum(E[i])
+        
+        if pop.src.is_delta:
+            # This is a little weird. Trapezoidal integration doesn't make 
+            # sense for a delta function, but it's what happens later, so
+            # insert a factor of a half now so we recover all the flux we 
+            # should.
+            Inu[-1] = 1. / (E[-1] - E[-2]) / 0.5
+        else:
+            for i in range(Nf): 
+                Inu[i] = pop.src.Spectrum(E[i])
 
         # Convert to photon energy (well, something proportional to it)
         Inu_hat = Inu / E

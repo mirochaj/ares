@@ -34,7 +34,7 @@ class CompositePopulation(object):
         
         N = self.Npops = self.pf.Npops
         self.pfs = self.pf.pfs
-                                        
+
         self.BuildPopulationInstances()
         
     def BuildPopulationInstances(self):

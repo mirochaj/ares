@@ -248,10 +248,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         flux = 0.0
         for i, band in enumerate(nrg):
-            
+
             if not (min(band) <= E <= max(band)):
                 continue
-                
+
             flux += np.interp(E, band, fluxes[i])
                 
         return flux   
@@ -390,7 +390,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             
             # Linked populations will get 
             if isinstance(self.pf['pop_Mmin{{{}}}'.format(popid)], basestring):
-                continue
+                if self.pf['pop_Mmin{{{}}}'.format(popid)] not in self.pf['cosmological_Mmin']:
+                    continue
                         
             self.kwargs['pop_Mmin{{{}}}'.format(popid)] = \
                 np.interp(self.pops[popid].halos.z, self.z_unique, self._Mmin_now)

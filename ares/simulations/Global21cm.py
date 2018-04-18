@@ -144,7 +144,11 @@ class Global21cm(AnalyzeGlobal21cm):
                     data_igm['e'] * n_H)
 
             # Compute volume-averaged ionized fraction
-            QHII = self.all_data_cgm[i]['h_2']
+            if self.pf['include_cgm']:
+                QHII = self.all_data_cgm[i]['h_2']
+            else:
+                QHII = 0.0
+                
             xavg = QHII + (1. - QHII) * data_igm['h_2']        
 
             # Derive brightness temperature
@@ -275,9 +279,11 @@ class Global21cm(AnalyzeGlobal21cm):
             self.all_t.append(t)
             self.all_dTb.append(data_igm['dTb'][0])
             self.all_data_igm.append(data_igm.copy()) 
-            self.all_data_cgm.append(data_cgm.copy())
             self.all_RC_igm.append(rc_igm.copy()) 
-            self.all_RC_cgm.append(rc_cgm.copy())
+            
+            if self.pf['include_cgm']:
+                self.all_data_cgm.append(data_cgm.copy())
+                self.all_RC_cgm.append(rc_cgm.copy())
             
             # Automatically find turning points
             if self.pf['track_extrema']:
@@ -288,9 +294,13 @@ class Global21cm(AnalyzeGlobal21cm):
         
         self.history_igm = _sort_history(self.all_data_igm, prefix='igm_',
             squeeze=True)
-        self.history_cgm = _sort_history(self.all_data_cgm, prefix='cgm_',
-            squeeze=True)
-
+        
+        if self.pf['include_cgm']:
+            self.history_cgm = _sort_history(self.all_data_cgm, prefix='cgm_',
+                squeeze=True)
+        else:
+            self.history_cgm = {}
+                
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
         
@@ -408,7 +418,10 @@ class Global21cm(AnalyzeGlobal21cm):
                 Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=z))            
 
             # Compute volume-averaged ionized fraction
-            xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']
+            if self.pf['include_cgm']:
+                xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']
+            else:
+                xavg = data_igm['h_2']
 
             # Derive brightness temperature
             dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
