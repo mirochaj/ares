@@ -15,31 +15,37 @@ import numpy as np
 import matplotlib.pyplot as pl
 
 def test():
-    zarr = np.linspace(5, 40)
+    Tarr = np.logspace(-1, 2)
     
-    hydr1 = ares.physics.Hydrogen(approx_Salpha=1)
-    hydr2 = ares.physics.Hydrogen(approx_Salpha=2)
-    hydr3 = ares.physics.Hydrogen(approx_Salpha=3)
+    res = []
+    ls = ['-', '--', '--', ':', '-.']
+    labels = 'Chuzhoy+ \'05', 'Furlanetto & Pritchard \'06', None, 'Hirata \'06'
+    for i, method in enumerate([2,3,3.5,4]):
+        hydr = ares.physics.Hydrogen(approx_Salpha=method)
     
-    pl.plot(zarr, list(map(lambda z: 1. - hydr1.Sa(z, hydr1.cosm.Tgas(z)), zarr)), 
-        color='k', ls='-')
-    pl.plot(zarr, list(map(lambda z: 1. - hydr2.Sa(z, hydr2.cosm.Tgas(z)), zarr)), 
-        color='k', ls='--', label='Chuzhoy, Alvarez, & Shapiro \'05')
-    pl.plot(zarr, list(map(lambda z: 1. - hydr3.Sa(z, hydr3.cosm.Tgas(z)), zarr)), 
-        color='k', ls=':', label='Furlanetto & Pritchard \'06')   
-         
-    pl.ylim(0, 1.1)
-    pl.xlabel(r'$z$')
+        Sa = hydr.Sa(20., Tarr)
+        pl.plot(Tarr, 1 - Sa, color='k', ls=ls[i], label=labels[i])
+        res.append(Sa)
+     
+    pl.xlim(0.5, 100)
+    pl.ylim(1e-1, 1.1)
+    pl.xscale('log')
+    pl.yscale('log')
+    pl.xlabel(r'$T_K / \mathrm{K}$')
     pl.ylabel(r'$1-S_{\alpha}$')
-    pl.legend(loc='upper right', frameon=False, fontsize=14)
-    pl.annotate(r'assuming $T_k \propto (1+z)^2$', (0.05, 0.05), 
-        xycoords='axes fraction')
-        
+    pl.legend(loc='lower left', frameon=False, fontsize=14)
+     
     pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()    
-
-    assert True
+    
+    # Compare at T > 1 K
+    ok = Tarr > 1.
+    diff = np.abs(np.diff(res, axis=1))    
+    
+    # Just set to a level that I know is tight enough to pickup
+    # any errors we might accidentally introduce later.
+    assert np.all(diff.ravel() < 0.3)
 
 if __name__ == '__main__':
     test()
-    
+   

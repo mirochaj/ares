@@ -70,74 +70,74 @@ pars = \
  
 }
 
-def test():
+#def test():
 
-    mags = np.arange(-24, -10, 0.1)    
+mags = np.arange(-24, -10, 0.1)    
+
+# Schechter fit from B15
+pop_sch = ares.populations.GalaxyPopulation(**pars)
+
+# DPL SFE fit from my paper
+m16 = ares.util.ParameterBundle('mirocha2016:dpl')
+
+# Test suite doesn't download BPASS models, so supply L1600 by hand.
+m16['pop_sed{0}'] = None
+m16['pop_L1600_per_sfr{0}'] = 1.019e28
+
+# Make the population
+pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
+
+ax1 = None
+ax2 = None
+colors = 'b', 'g', 'gray', 'k', 'r'
+for i, z in enumerate(redshifts):
+ 
+    # Plot the data
+    ax1 = gpop.Plot(z=z, sources='bouwens2015', ax=ax1, color=colors[i],
+        mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
     
-    # Schechter fit from B15
-    pop_sch = ares.populations.GalaxyPopulation(**pars)
-    
-    # DPL SFE fit from my paper
-    m16 = ares.util.ParameterBundle('mirocha2016:dpl')
-    
-    # Test suite doesn't download BPASS models, so supply L1600 by hand.
-    m16['pop_sed{0}'] = None
-    m16['pop_L1600_per_sfr{0}'] = 1.019e28
-    
-    # Make the population
-    pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
-    
-    ax1 = None
-    ax2 = None
-    colors = 'b', 'g', 'gray', 'k', 'r'
-    for i, z in enumerate(redshifts):
-     
-        # Plot the data
-        ax1 = gpop.Plot(z=z, sources='bouwens2015', ax=ax1, color=colors[i],
-            mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
+    # Plot the Bouwens Schechter fit
+    ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=z), color=colors[i], 
+        ls='-', lw=1)
+
+    # My 2017 paper only looked at z > 6
+    if z < 4.9:
+        continue
+
+    ax2 = gpop.Plot(z=z, sources='bouwens2015', ax=ax2, color=colors[i], fig=2,
+        mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
         
-        # Plot the Bouwens Schechter fit
-        ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=z), color=colors[i], 
-            ls='-', lw=1)
+    # Plot the physical model fit
+    ax2.semilogy(*pop_dpl.phi_of_M(z=z), color=colors[i], ls='-', lw=1)
 
-        # My 2017 paper only looked at z > 6
-        if z < 4.9:
-            continue
 
-        ax2 = gpop.Plot(z=z, sources='bouwens2015', ax=ax2, color=colors[i], fig=2,
-            mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
-            
-        # Plot the physical model fit
-        ax2.semilogy(*pop_dpl.phi_of_M(z=z), color=colors[i], ls='-', lw=1)
+# Add z = 10 models and data from Oesch+ 2014
+ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=10.), color='m', 
+    ls=':', alpha=1, lw=1)
+ax2.semilogy(*pop_dpl.phi_of_M(z=10), color='m', ls=':', alpha=0.5)
     
+ax1 = gpop.Plot(z=10., sources='oesch2014', ax=ax1, color='m',
+    mec='m', label=r'$z\sim10$') 
+ax2 = gpop.Plot(z=10., sources='oesch2014', ax=ax2, color='m',
+    mec='m', label=r'$z\sim10$')       
+
+# Make nice
+ax1.legend(loc='lower right', fontsize=12, numpoints=1)
+ax2.legend(loc='lower right', fontsize=12, numpoints=1)
+
+ax1.set_title('Bouwens+ 2015 Fig. 15 (reproduced)', fontsize=12)
+ax2.set_title(r'Models from Mirocha+ 2017 (cal at $z \sim 6$ only)', 
+    fontsize=12)
+
+ax1.set_xlim(-24, -10)
+ax1.set_ylim(1e-7, 1)
+ax2.set_xlim(-24, -10)
+ax2.set_ylim(1e-7, 1)
+
+pl.show()
     
-    # Add z = 10 models and data from Oesch+ 2014
-    ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=10.), color='m', 
-        ls=':', alpha=1, lw=1)
-    ax2.semilogy(*pop_dpl.phi_of_M(z=10), color='m', ls=':', alpha=0.5)
-        
-    ax1 = gpop.Plot(z=10., sources='oesch2014', ax=ax1, color='m',
-        mec='m', label=r'$z\sim10$') 
-    ax2 = gpop.Plot(z=10., sources='oesch2014', ax=ax2, color='m',
-        mec='m', label=r'$z\sim10$')       
-    
-    # Make nice
-    ax1.legend(loc='lower right', fontsize=12, numpoints=1)
-    ax2.legend(loc='lower right', fontsize=12, numpoints=1)
-    
-    ax1.set_title('Bouwens+ 2015 Fig. 15 (reproduced)', fontsize=12)
-    ax2.set_title(r'Models from Mirocha+ 2017 (cal at $z \sim 6$ only)', 
-        fontsize=12)
-    
-    ax1.set_xlim(-24, -10)
-    ax1.set_ylim(1e-7, 1)
-    ax2.set_xlim(-24, -10)
-    ax2.set_ylim(1e-7, 1)
-    
-    pl.show()
-    
-    assert True
-    
-if __name__ == '__main__':
-    test()
-    
+#    assert True
+#    
+#if __name__ == '__main__':
+#    test()
+#    
