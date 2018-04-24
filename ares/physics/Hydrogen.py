@@ -473,7 +473,7 @@ class Hydrogen(object):
         
         x_c = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
         
-        if self.approx_S < 3:
+        if self.approx_S < 4:
             x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr)
             Tc = Tk
 

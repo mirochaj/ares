@@ -28,7 +28,7 @@ dpl = \
  'pop_rad_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                                  # should make this automatic
 
- 'pop_fesc{0}': 0.1,
+ 'pop_fesc{0}': 0.2,
  
  # Solve LWB!
  'pop_solve_rte{0}': (10.2, 13.6),
