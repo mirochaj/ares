@@ -353,10 +353,13 @@ class Hydrogen(object):
                    / (1. + xa(Ts) + xc)
             
             to_solve = lambda Ts: 1. / Ts - Ts_inv(Ts)
-    
+            
+            assert type(z) is not np.ndarray
+            assert type(Tk) is not np.ndarray
+        
             x = fsolve(to_solve, Tcmb, full_output=True)            
-            Ts = x[0]
-                        
+            Ts = float(x[0])
+                                    
             return xa(Ts), Sa(Ts), Ts
         else:
             raise NotImplemented('approx_Salpha>4 not currently supported!')  
@@ -473,7 +476,7 @@ class Hydrogen(object):
         
         x_c = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
         
-        if self.approx_S < 3:
+        if self.approx_S < 4:
             x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr)
             Tc = Tk
 

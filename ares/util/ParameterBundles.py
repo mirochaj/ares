@@ -428,6 +428,9 @@ class ParameterBundle(dict):
         for key in other:
             if key in tmp and rank == 0:
                 
+                if other[key] == tmp[key]:
+                    continue
+                
                 if first_update:
                     header('Parameter Bundle')
                     #print('#'*width)

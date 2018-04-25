@@ -712,26 +712,25 @@ class HaloMassFunction(object):
         B4 = 9.8 * Om**2 - 10.68 * Om + 11.6
         
         LM = B1 * LZ**3 + B2 * LZ**2 + B3 * LZ + B4
-        
+
         return np.exp(LM) / self.cosm.fbaryon
-    
+
     def DynamicalTime(self, M, z, mu=0.6):
         return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
             / G / M / g_per_msun)
             
-    def _tegmark(self, z):
-        fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
-        fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
+    def _fH2s(self, T):        
+        return 3.5e-4 * (T / 1e3)**1.52
+    def _fH2c(self, z, T):
+        return 1.6e-4 * ((1. + z) / 20.)**-1.5 \
             * (1. + (10. * (T / 1e3)**3.5) / (60. + (T / 1e3)**4))**-1. \
             * np.exp(512. / T)
-    
-        to_min = lambda T: abs(fH2s(T) - fH2c(T)) 
+            
+    def _tegmark(self, z):
+        to_min = lambda T: np.abs(self._fH2s(T) - self._fH2c(z, T)) 
         Tgues = 500.
         Tcrit = fsolve(to_min, Tgues)[0]
-
-        M = self.VirialMass(Tcrit, z)
-
-        return M
+        return self.VirialMass(Tcrit, z)
     
     def Mmin_floor(self, zarr):
         """
@@ -744,22 +743,23 @@ class HaloMassFunction(object):
         """
         
         Mfin = np.zeros_like(zarr)
+        Nz = zarr.size
         
         for element in self.pf['cosmological_Mmin']:
             assert element in ['jeans', 'filtering', 'tegmark', 'streaming']
 
         if 'tegmark' in self.pf['cosmological_Mmin']:
-            Mmin_H2 = self._tegmark(zarr)
+            Mmin_H2 = np.array([self._tegmark(zarr[i]) for i in range(Nz)])
             Mfin = np.maximum(Mfin, Mmin_H2)
             
         if 'filtering' in self.pf['cosmological_Mmin']:
             Mmin_F = self.FilteringMass(zarr)
             Mfin = np.maximum(Mfin, Mmin_F)
-        
+
         if 'jeans' in self.pf['cosmological_Mmin']:
             Mmin_J = self.cosm.JeansMass(zarr)
             Mfin = np.maximum(Mfin, Mmin_J)
-            
+
         if self.pf['feedback_streaming']:
             vbc = self.pf['feedback_vel_at_rec'] * (1. + zarr) / 1100.
             # Anastasia's "optimal fit"
@@ -767,9 +767,9 @@ class HaloMassFunction(object):
             Mmin_vbc = self.MassFromVc(Vcool, zarr)
         else:
             Mmin_vbc = np.zeros_like(zarr)
-        
+
         return np.maximum(Mfin, Mmin_vbc)
-      
+
     def table_prefix(self, with_size=False):
         """
         What should we name this table?
