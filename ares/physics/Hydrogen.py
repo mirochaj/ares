@@ -13,7 +13,7 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
-from scipy.optimize import fsolve
+from scipy.optimize import fsolve, minimize
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
@@ -312,7 +312,8 @@ class Hydrogen(object):
                 
         return sum_term * T_star / A10 / Tref
     
-    def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None, Tr=0.0):
+    def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None, Tr=0.0,
+        ne=0.0):
         """
         Return radiative coupling coefficient (i.e., Wouthuysen-Field effect).
         
@@ -330,36 +331,38 @@ class Hydrogen(object):
         
         # Hirata (2006)
         if self.approx_S == 4:
+            
+            # This will correctly cause a crash if Tk is an array
+            Tk = float(Tk)
+                        
             xi = (1e-7 * self.tauGP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
             a = lambda Ts: 1. - 0.0631789 / Tk + 0.115995 / Tk**2 \
                 - 0.401403 / Ts / Tk + 0.336463 / Ts / Tk**2
             b = 1. + 2.98394 * xi + 1.53583 * xi**2 + 3.85289 * xi**3
         
             Sa = lambda Ts: a(Ts) / b
-            ne = 0.0 # fix
-            
-            #Tk = float(Tk)
-            
-            xc = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
-            xa = lambda Ts: self.xalpha_tilde(z) * Sa(Ts) * Ja
+                        
+            xc = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne, Tr)
+            xa = lambda Ts: self.xalpha_tilde(z) * Sa(Ts) * float(Ja) * 1.
             Tcmb = self.cosm.TCMB(z)
             Trad = Tcmb + Tr
             
             Tr_inv = 1. / Trad
             Tk_inv = 1. / Tk
-            Tc_inv = lambda Ts: Tk**-1. + 0.405535 / Tk / (Ts**-1. - Tk**-1.)
+            Tc_inv = lambda Ts: Tk**-1. + 0.405535 * (Ts**-1. - Tk**-1.) / Tk
             
             Ts_inv = lambda Ts: (Tr_inv + xa(Ts) * Tc_inv(Ts) + xc * Tk_inv) \
                    / (1. + xa(Ts) + xc)
             
-            to_solve = lambda Ts: 1. / Ts - Ts_inv(Ts)
+            to_solve = lambda Ts: np.abs(1. / Ts / Ts_inv(Ts) - 1.)
             
             assert type(z) is not np.ndarray
-            assert type(Tk) is not np.ndarray
-        
-            x = fsolve(to_solve, Tcmb, full_output=True)            
-            Ts = float(x[0])
-                                    
+
+            to_solve = lambda Ts: np.abs(Ts * Ts_inv(Ts) - 1.)
+            
+            x = fsolve(to_solve, Tcmb, full_output=True, epsfcn=1e-3)  
+            Ts = abs(float(x[0]))
+            
             return xa(Ts), Sa(Ts), Ts
         else:
             raise NotImplemented('approx_Salpha>4 not currently supported!')  
@@ -376,6 +379,9 @@ class Hydrogen(object):
         return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
 
     def xalpha_tilde(self, z):
+        """
+        Equation 38 in Hirata (2006).
+        """
         gamma = 5e7 # 50 MHz
         return 8. * np.pi * l_LyA**2 * gamma * T_star \
             / 9. / A10 / self.cosm.TCMB(z)
@@ -477,7 +483,7 @@ class Hydrogen(object):
         x_c = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne)
         
         if self.approx_S < 4:
-            x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr)
+            x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
             Tc = Tk
 
             Tref = self.cosm.TCMB(z) + Tr
@@ -485,8 +491,8 @@ class Hydrogen(object):
             Ts = (1.0 + x_c + x_a) / \
                 (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
         else:
-            x_a, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr)
-                    
+            x_a, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
+                            
         return np.maximum(Ts, self.Ts_floor(z=z))
 
     def dTb(self, z, xHII, Ts, Tr=0.0):

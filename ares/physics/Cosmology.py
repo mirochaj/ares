@@ -185,7 +185,7 @@ class Cosmology(object):
                 return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
         elif self.pf['approx_thermal_history']:
             return np.interp(z, self.thermal_history['z'], 
-                        self.thermal_history['Tk'])
+                        self.thermal_history['Tk']) * 1.
             #if not hasattr(self, '_Tgas'):
             #    self._Tgas = interp1d(self.thermal_history['z'], 
             #        self.thermal_history['Tk'], kind='cubic',
@@ -198,7 +198,8 @@ class Cosmology(object):
                 self._Tgas = interp1d(self.inits['z'], self.inits['Tk'],
                     kind='cubic', bounds_error=False)
             
-            return self._Tgas(z)
+            # Make sure this is a float
+            return self._Tgas(z) * 1.
 
     @property
     def thermal_history(self):
