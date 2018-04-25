@@ -400,7 +400,7 @@ class MultiPhaseMedium(object):
                 self.parcel_igm.dt = dt
             if self.pf['include_cgm']:
                 self.parcel_cgm.dt = dt
-                                            
+            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
                 
     def _insert_inits(self):
