@@ -743,12 +743,13 @@ class HaloMassFunction(object):
         """
         
         Mfin = np.zeros_like(zarr)
+        Nz = zarr.size
         
         for element in self.pf['cosmological_Mmin']:
             assert element in ['jeans', 'filtering', 'tegmark', 'streaming']
 
         if 'tegmark' in self.pf['cosmological_Mmin']:
-            Mmin_H2 = self._tegmark(zarr)
+            Mmin_H2 = np.array([self._tegmark(zarr[i]) for i in range(Nz)])
             Mfin = np.maximum(Mfin, Mmin_H2)
             
         if 'filtering' in self.pf['cosmological_Mmin']:

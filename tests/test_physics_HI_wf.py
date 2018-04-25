@@ -23,7 +23,7 @@ def test():
     for i, method in enumerate([2,3,3.5,4]):
         hydr = ares.physics.Hydrogen(approx_Salpha=method)
     
-        Sa = hydr.Sa(20., Tarr)
+        Sa = np.array([hydr.Sa(20., Tarr[k]) for k in range(Tarr.size)])
         pl.plot(Tarr, 1 - Sa, color='k', ls=ls[i], label=labels[i])
         res.append(Sa)
      

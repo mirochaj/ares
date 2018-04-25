@@ -353,10 +353,13 @@ class Hydrogen(object):
                    / (1. + xa(Ts) + xc)
             
             to_solve = lambda Ts: 1. / Ts - Ts_inv(Ts)
-    
+            
+            assert type(z) is not np.ndarray
+            assert type(Tk) is not np.ndarray
+        
             x = fsolve(to_solve, Tcmb, full_output=True)            
-            Ts = x[0]
-                        
+            Ts = float(x[0])
+                                    
             return xa(Ts), Sa(Ts), Ts
         else:
             raise NotImplemented('approx_Salpha>4 not currently supported!')  

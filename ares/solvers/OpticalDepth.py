@@ -723,16 +723,12 @@ class OpticalDepth(object):
         Emin_ok = \
             (Etab.min() <= Epf.min()) or \
             np.allclose(Etab.min(), Epf.min())
-        #Emin_ok = True  
             
         # Results insensitive to Emax (so long as its relatively large)
         # so be lenient with this condition (100 eV or 1% difference
         # between parameter file and lookup table)
         Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
-        
-        print(Etab.min(), Epf.min(), Emin_ok)
-        print(Etab.max(), Epf.max(), Emax_ok)
-        
+
         # Check redshift bounds
         if not (zmax_ok and zmin_ok):
             if not zmax_ok:
