@@ -357,10 +357,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         ax.fill_between(self.history['nu'], dTb, 500 * np.ones_like(dTb),
             color='none', hatch='X', edgecolor='k', linewidth=0.0)
 
-        ax.set_xlim(xlim)    
+        ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         pl.draw()
-        
+
         return ax
         
     def AdiabaticFloor(self, ax, gap=None, temp_units='mk', **kwargs):
@@ -371,24 +371,27 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             conv = 1e-3
         else:
             conv = 1.
-        
+
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
-        
+
+        nu = self.history['nu']
+        dTb = dTb
+
         if kwargs == {}:
-            ax.fill_between(self.history['nu'], 
-                -500 * np.ones_like(dTb) * conv, dTb * conv, 
+            ax.fill_between(nu, 
+                -2e3 * np.ones_like(dTb) * conv, dTb * conv, 
                 color='none', hatch='X', edgecolor='k', linewidth=0.0)
         else:
             if gap is None:
-                ax.plot(self.history['nu'], dTb * conv, **kwargs)
+                ax.plot(nu, dTb * conv, **kwargs)
             else:
-                i1 = np.argmin(np.abs(self.history['nu'] - gap[0]))
-                i2 = np.argmin(np.abs(self.history['nu'] - gap[1]))
+                i1 = np.argmin(np.abs(nu - gap[0]))
+                i2 = np.argmin(np.abs(nu - gap[1]))
                 
-                ax.plot(self.history['nu'][0:i1], dTb[0:i1] * conv, **kwargs)
-                ax.plot(self.history['nu'][i2:], dTb[i2:] * conv, **kwargs)
-            
+                ax.plot(nu[0:i1], dTb[0:i1] * conv, **kwargs)
+                ax.plot(nu[i2:], dTb[i2:] * conv, **kwargs)
+
         ax.set_xlim(xlim)    
         ax.set_ylim(ylim)
             

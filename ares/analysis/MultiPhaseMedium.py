@@ -897,7 +897,7 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     fig = ax.xaxis.get_figure()
     
     if zlim > 100:
-        
+
         z = np.array([20, 40, 100, 400])[-1::-1]
         #z = np.arange(20, zlim, 40)[-1::-1]
         z_minor = np.arange(50, zlim, 50)[-1::-1]
@@ -907,11 +907,8 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
         z_minor = np.arange(20, zlim, 10)[-1::-1]
         highz_labels = ['30', '80']
         
-    nu = nu_0_mhz / (1. + z)
-    nu_minor = nu_0_mhz / (1. + z_minor)
-    
     #z_labels = list(map(str, z))
-    lowz_labels = map(str, [6, 8, 10, 12, 15])
+    lowz_labels = map(str, [6, 8, 10, 12, 15, 20])
 
     z_labels = lowz_labels + highz_labels
     z = np.array(list(map(int, z_labels)))

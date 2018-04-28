@@ -426,15 +426,20 @@ class BlobFactory(object):
         NOT a whole slew of them from an MCMC.
         """
         
-        found = False
-        for i in range(self.blob_groups):
-            for j, blob in enumerate(self.blob_names[i]):
-                if blob == name:
-                    found = True
-                    break
-
-            if blob == name:
-                break        
+        found = True
+        #for i in range(self.blob_groups):
+        #    for j, blob in enumerate(self.blob_names[i]):
+        #        if blob == name:
+        #            found = True
+        #            break
+        #
+        #    if blob == name:
+        #        break        
+        
+        try:
+            i, j, dims, shape = self.blob_info(name)
+        except KeyError:
+            found = False
 
         if not found:
             print("WARNING: blob={} not found. This should NOT happen!".format(name))
@@ -467,17 +472,36 @@ class BlobFactory(object):
             return float(self.blobs[i][j][k])
 
         elif self.blob_nd[i] == 2:
+            
+            if ivar is None:
+                return self.blobs[i][j]
+            
             assert len(ivar) == 2
             # also assert that both values are in self.blob_ivars!
             # Actually, we don't have to abide by that. As long as a function
             # is provided we can evaluate the blob anywhere (with interp)
-
+            
+            kl = []
             for n in range(2):
-                assert ivar[n] in self.blob_ivars[i][n]
+                
+                #if ivar[n] is None:
+                #    kl.append(slice(0,None))
+                #    continue
+                #    
+                assert ivar[n] in self.blob_ivars[i][n], \
+                    "{} not in ivars for blob={}".format(ivar[n], name)
 
+                #val = list(self.blob_ivars[i][n]).index(ivar[n])
+                #    
+                #kl.append(val)
+                
+                
             k = list(self.blob_ivars[i][0]).index(ivar[0])
             l = list(self.blob_ivars[i][1]).index(ivar[1])
 
+            #k, l = kl
+
+            #print(i,j,k,l)
             return float(self.blobs[i][j][k][l])
                         
     def _generate_blobs(self):

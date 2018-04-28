@@ -375,7 +375,7 @@ class ParameterizedQuantity(object):
         if self.ceil is not None:
             f = np.minimum(f, self.ceil)
         if self.floor is not None:
-            if type(self.floor) in [int, float]:
+            if type(self.floor) in [int, float, np.float64]:
                 f = np.maximum(f, self.floor)
             else:
                 f = np.maximum(f, self.floor(**kwargs))

@@ -49,7 +49,9 @@ aux_data = \
  #     [None],    
  #'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
  #   'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
- 
+ 'edges': ['http://loco.lab.asu.edu/download/792/',
+    'figure2_plotdata.csv', 
+    None]
 }
 
 if not os.path.exists('input'):
