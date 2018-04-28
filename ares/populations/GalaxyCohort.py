@@ -900,17 +900,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         x_phi, phi = self.phi_of_M(z)
     
+        ok = phi.mask == False
+
         if ok.sum() == 0:
             return -np.inf
     
-        # Setup interpolant
-        interp = interp1d(x_phi[ok], np.log10(phi[ok]), 
+        # Setup interpolant. x_phi is in descending, remember!
+        interp = interp1d(x_phi[ok][-1::-1], phi[ok][-1::-1], 
             kind=self.pf['pop_interp_lf'],
             bounds_error=False, fill_value=-np.inf)
     
-        phi_of_x = 10**interp(x)
+        phi_of_x = interp(MUV)
+        
+        return phi_of_x
     
-    def UVLF_L(self, MUV, z=None):
+    def UVLF_L(self, LUV, z=None):
         x_phi, phi = self.phi_of_L(z)
     
         ok = phi.mask == False
@@ -923,7 +927,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             kind=self.pf['pop_interp_lf'],
             bounds_error=False, fill_value=-np.inf)
     
-        phi_of_x = 10**interp(np.log10(x))
+        phi_of_x = 10**interp(np.log10(LUV))
+        
+        return phi_of_x
     
     def LuminosityFunction(self, z, x, mags=True):
         """
@@ -959,6 +965,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         NOT generally use-able!!!
         
         """
+                
         return self.SFR(z) * self.L1600_per_sfr(z=z, Mh=self.halos.M)
 
     def phi_of_L(self, z):
