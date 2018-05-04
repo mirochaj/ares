@@ -686,6 +686,7 @@ def SourceParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    "source_interpolant": None,
     
     "source_degradation": None,      # Degrade spectra to this \AA resolution
     "source_aging": False,

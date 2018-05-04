@@ -23,7 +23,7 @@ aux_data = \
  'hmf': ['{!s}/downloads'.format(ares_link),
     'hmf_ST_logM_1200_4-16_z_1141_3.0-60.0.npz',
     None],
- 'inits': ['{!s}/downloads'.format(ares_link), 
+ 'inits': ['{!s}/downloads'.format(ares_link),
      'initial_conditions.npz',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
@@ -49,8 +49,9 @@ aux_data = \
  #     [None],    
  #'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
  #   'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
- 'edges': ['http://loco.lab.asu.edu/download/792/',
-    'figure2_plotdata.csv', 
+ 'edges': ['http://loco.lab.asu.edu/download',
+    '790/figure1_plotdata.csv',
+    '792/figure2_plotdata.csv', 
     None]
 }
 
@@ -103,6 +104,11 @@ for i, direc in enumerate(to_download):
         fns = [aux_data[direc][1:-1][files[i]]]
         
     for fn in fns:
+         
+        if '/' in fn:
+            pre, _fn = fn.split('/') 
+        else:
+            _fn = fn    
             
         if os.path.exists(fn):
             if ('fresh' in options) or ('clean' in options):
@@ -117,18 +123,18 @@ for i, direc in enumerate(to_download):
         print("Downloading {0!s}/{1!s}...".format(web, fn))
         
         try:
-            urlretrieve('{0!s}/{1!s}'.format(web, fn), fn)
+            urlretrieve('{0!s}/{1!s}'.format(web, fn), _fn)
         except:
             print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
             continue
         
         # If it's not a tarball, move on
-        if not re.search('tar', fn):
+        if not re.search('tar', _fn):
             continue
             
         # Otherwise, unpack it
         try:
-            tar = tarfile.open(fn)
+            tar = tarfile.open(_fn)
             tar.extractall()
             tar.close()
         except:

@@ -203,7 +203,7 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', **kwargs)              
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
+        AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
         """
         Plot the luminosity function data at a given redshift.
@@ -261,7 +261,9 @@ class GalaxyPopulation(object):
                 'fmt': default_markers[source],
                 'color':default_colors[source], 'capthick':2}
             
-            if 'label' not in kwargs:
+            if not use_labels:
+                label = kwargs['label'] = None
+            elif ('label' not in kwargs):
                 kwargs['label'] = source
             else:
                 label = kwargs['label']
