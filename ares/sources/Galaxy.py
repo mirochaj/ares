@@ -95,7 +95,16 @@ class Galaxy(object):
         
         assert wavelength is not None or band is not None
         
+        if not hasattr(self, '_interpolants'):
+            self._interpolants = {}
+            
+        
+        interp_2d = None
+        
         if wavelength is not None:
+            
+            if wavelength in self._interpolants:
+                return self._interpolants[wavelength]
             
             i_lam = np.argmin(np.abs(wavelength - self.src.wavelengths))
             
@@ -103,13 +112,12 @@ class Galaxy(object):
                 Zarr = np.sort(list(self._synth_model.metallicities.values()))
                 tarr = self._synth_model.times
                 
-                interp2d = RectBivariateSpline(Zarr, tarr, 
+                interp_2d = RectBivariateSpline(Zarr, tarr, 
                     self._synth_model._data_all_Z[:,i_lam,:])
-                self._synth_interp = interp2d
                 
                 sed = []
                 for t in tarr:
-                    sed.append(float(interp2d(self.Z(t), t)))
+                    sed.append(float(interp_2d(self.Z(t), t)))
                 
                 sed = np.array(sed)
             else:
@@ -123,7 +131,9 @@ class Galaxy(object):
 
             interp_t = lambda t: np.exp(interp_logt.__call__(np.log(t)))
 
-            return interp_t
+            self._interpolants[wavelength] = interp_t, interp_2d
+
+            return interp_t, interp_2d
             
         elif band is not None:
             sed = np.zeros((self._tab_E.size, len(times)))
@@ -145,28 +155,56 @@ class Galaxy(object):
             print("dt < 1 might cause problems.")
                 
         # Setup interpolant for simple stellar population
-        interp_t = self.create_interpolant(times, band=band, 
+        interp_t, interp_Zt = self.create_interpolant(times, band=band, 
             wavelength=wavelength)
         
         # Must change if band is not None
         Nt = len(times)
         sed = np.zeros(Nt)
+        sfr = self.SFR(times)
         
         # Youngest stellar population we've got.
         t0 = min(times[times > 0])
         
         # Construct SED one time at a...time.
-        sfr = self.SFR(times)
-        L = interp_t(times)
         
-        # New stars only
-        sed += sfr * L[0] * dt
+        # Easier if metallicity not evolving.
+        if (self.pf['source_meh'] is None) or (not self.src.pf['source_aging']):
+            L = interp_t(times)
+            
+            # New stars only
+            sed += sfr * L[0] * dt
+                    
+            # If aging is being treated, must sum up luminosity from all
+            # past 'episodes' of star formation.            
+            if self.src.pf['source_aging']:
+                for j in range(1, Nt):
+                    sed[j] += np.sum(L[0:j][-1::-1] * sfr[0:j] * dt)
+        else:
+            # Will only make it here if a metal-enrichment history is provided
+            # AND sources are allowed to age.
+            
+            sfr = self.SFR(times)
+            
+            # Observed times
+            sed = np.zeros(len(times))
+            
+            # Loop over time (formation time)
+            for i_t1, t1 in enumerate(times):
+
+                if i_t1 == Nt - 1:
+                    continue
+                    
+                # Just get us an array of times from now till the end that
+                # has the right shape
+                ages = times[i_t1:] - t1
                 
-        # If aging is being treated, must sum up luminosity from all
-        # past 'episodes' of star formation.
-        if self.src.pf['source_aging']:
-            for j in range(1, Nt):
-                sed[j] += np.sum(L[0:j][-1::-1] * sfr[0:j] * dt)
-        
+                # Setup interpolant for stars formating right now that tells
+                # us their luminosity for all remaining times.
+                interp_new = interp1d(ages, interp_Zt(self.Z(t1), ages),
+                    kind='linear')
+                
+                sed[i_t1:] += interp_new(ages).squeeze() * sfr[i_t1] * dt           
+                
         self.sed = sed
         return sed
