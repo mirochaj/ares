@@ -13,8 +13,8 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
-from scipy.optimize import fsolve, minimize
 from ..util.ReadData import _load_inits
+from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
@@ -93,20 +93,22 @@ class Hydrogen(object):
              'T_H': T_HH, 'T_e': T_He}
 
     @property
-    def kappa_H_pre(self):
+    def kappa_H(self):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interp1d(T_HH, kappa_HH, 
-                kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                **_interp1d_kwargs)
+                kind=self.interp_method, bounds_error=False, 
+                fill_value=(kappa_HH[0], kappa_HH[-1]),
+                left=kappa_HH[0], right=kappa_HH[-1], **_interp1d_kwargs)
 
         return self._kappa_H_pre
 
     @property
-    def kappa_e_pre(self):
+    def kappa_e(self):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interp1d(T_He, kappa_He,
-                kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                **_interp1d_kwargs)
+                kind=self.interp_method, bounds_error=False, 
+                fill_value=(kappa_He[0], kappa_He[-1]),
+                left=kappa_He[0], right=kappa_He[-1], **_interp1d_kwargs)
 
         return self._kappa_e_pre
 
@@ -164,37 +166,38 @@ class Hydrogen(object):
     
         return self._dlogke_dlogT
     
-    def _kappa(self, Tk, Tarr, spline):
-        if Tk < Tarr[0]:
-            return spline(Tarr[0])
-        elif Tk > Tarr[-1]:
-            return spline(Tarr[-1])
-        else:
-            return spline(Tk)
+    #def _kappa(self, Tk, Tarr, spline):
+    #    if Tk < Tarr[0]:
+    #        return spline(Tarr[0])
+    #    elif Tk > Tarr[-1]:
+    #        return spline(Tarr[-1])
+    #    else:
+    #        return spline(Tk)
                                
-    def kappa_H(self, Tk):
-        """
-        Rate coefficient for spin-exchange via H-H collsions.
-        """
-        if type(Tk) in [int, float, np.float64]:            
-            return self._kappa(Tk, T_HH, self.kappa_H_pre)
-        else:
-            tmp = np.zeros_like(Tk)
-            for i in range(len(Tk)):
-                tmp[i] = self._kappa(Tk[i], T_HH, self.kappa_H_pre)
-            return tmp
+    #def kappa_H(self, Tk):
+    #    """
+    #    Rate coefficient for spin-exchange via H-H collsions.
+    #    """
+    #    return self.kappa_H_pre(Tk)
+        #if type(Tk) in [int, float, np.float64]:            
+        #    return self._kappa(Tk, T_HH, self.kappa_H_pre)
+        #else:
+        #    tmp = np.zeros_like(Tk)
+        #    for i in range(len(Tk)):
+        #        tmp[i] = self._kappa(Tk[i], T_HH, self.kappa_H_pre)
+        #    return tmp
             
-    def kappa_e(self, Tk):       
-        """
-        Rate coefficient for spin-exchange via H-electron collsions.
-        """                            
-        if type(Tk) in [int, float, np.float64]:
-            return self._kappa(Tk, T_He, self.kappa_e_pre)
-        else:
-            tmp = np.zeros_like(Tk)
-            for i in range(len(Tk)):
-                tmp[i] = self._kappa(Tk[i], T_He, self.kappa_e_pre)
-            return tmp
+    #def kappa_e(self, Tk):       
+    #    """
+    #    Rate coefficient for spin-exchange via H-electron collsions.
+    #    """                            
+    #    if type(Tk) in [int, float, np.float64]:
+    #        return self._kappa(Tk, T_He, self.kappa_e_pre)
+    #    else:
+    #        tmp = np.zeros_like(Tk)
+    #        for i in range(len(Tk)):
+    #            tmp[i] = self._kappa(Tk[i], T_He, self.kappa_e_pre)
+    #        return tmp
 
     def photon_energy(self, nu, nl=1):
         """
