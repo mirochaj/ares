@@ -1120,7 +1120,7 @@ class UniformBackground(object):
         Nz, Nf = len(z), len(E)
 
         Inu = np.zeros(Nf)
-        
+
         if pop.src.is_delta:
             # This is a little weird. Trapezoidal integration doesn't make 
             # sense for a delta function, but it's what happens later, so
@@ -1131,10 +1131,10 @@ class UniformBackground(object):
             for i in range(Nf): 
                 Inu[i] = pop.src.Spectrum(E[i])
 
-        # Convert to photon energy (well, something proportional to it)
+        # Convert to photon *number* (well, something proportional to it)
         Inu_hat = Inu / E
 
-        # Now, redshift dependent parts    
+        # Now, redshift dependent parts
         epsilon = np.zeros([Nz, Nf])
         
         #if Nf == 1:
@@ -1146,7 +1146,7 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-                                        
+
             Lbol = pop.Emissivity(z)        
             for ll in range(Nz):
                 #Lbol = pop.Emissivity(z[ll])
@@ -1282,6 +1282,13 @@ class UniformBackground(object):
 
                 # Equivalent to Eq. 25 in Mirocha (2014)
                 # Less readable, but faster!
+                
+                term1 = (c / four_pi) \
+                    * ((xsq[ll+1] * trapz_base) * ehat[ll])
+                term2 = exp_term * ((c / four_pi) * xsq[ll+1] \
+                    * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
+                    + np.roll(flux, -1) / Rsq)
+                            
                 flux = (c / four_pi) \
                     * ((xsq[ll+1] * trapz_base) * ehat[ll]) \
                     + exp_term * ((c / four_pi) * xsq[ll+1] \
@@ -1302,7 +1309,7 @@ class UniformBackground(object):
             if ll == -1:
                 break
                 
-    def _compute_line_flux(self, fluxes):  
+    def _compute_line_flux(self, fluxes):
         """
         Compute emission in lines.
         

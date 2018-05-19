@@ -41,7 +41,7 @@ plpars = \
  'final_redshift': 10.,
 }
 
-def test(tol = 1e-2):
+def test(tol=1e-2):
 
     assert alpha + beta != 1.5, "Analytic solution diverges for alpha+beta=3/2!"
     

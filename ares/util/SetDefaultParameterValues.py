@@ -437,6 +437,9 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
+    
+    # Artificially kill emission in some band.
+    "pop_Ekill": None,
 
     "pop_Emin_xray": 2e2,
     
@@ -671,6 +674,8 @@ def SourceParameters():
     "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
+    
+    "source_Ekill": None,
     
     "source_logN": -inf,
     "source_hardening": 'extrinsic',

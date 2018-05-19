@@ -79,13 +79,13 @@ To do simple parameter study, you could do something like:
 ::
 
     ax = None
-    for fX in [0.1, 1.]:
-        for fstar in [0.1, 0.5]:
+    for i, fX in enumerate([0.1, 1.]):
+        for j, fstar in enumerate([0.1, 0.5]):
             sim = ares.simulations.Global21cm(fX=fX, fstar=fstar)
             sim.run()
 
             # Plot the global signal
-            ax, zax = sim.GlobalSignature(ax=ax,
+            ax, zax = sim.GlobalSignature(ax=ax, z_ax=i==j==0,
                 label=r'$f_X=%.2g, f_{\ast}=%.2g$' % (fX, fstar))
                 
                 
