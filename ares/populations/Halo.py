@@ -77,7 +77,7 @@ class HaloPopulation(Population):
         if not hasattr(self, '_gf_spline'):
             gf = self.halos.growth_factor
             self._gf_spline = interp1d(self.halos.z, gf, 
-                kind='cubic', bounds_error=False)
+                kind='linear', bounds_error=False)
         
         return self._gf_spline
             

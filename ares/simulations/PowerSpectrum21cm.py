@@ -77,24 +77,6 @@ class PowerSpectrum21cm(AnalyzePS):
         """ Set global 21cm instance by hand. """
         self._gs = value
     
-    #@property
-    #def global_history(self):
-    #    if not hasattr(self, '_global_') 
-    
-    #@property
-    #def k(self):
-    #    if not hasattr(self, '_k'):
-    #        if self.pf['output_wavenumbers'] is not None:
-    #            self._k = self.pf['output_wavenumbers']
-    #            self._logk = np.log10(self._k)
-    #        else:
-    #            lkmin = self.pf['powspec_logkmin']
-    #            lkmax = self.pf['powspec_logkmax']
-    #            dlk = self.pf['powspec_dlogk']
-    #            self._logk = np.arange(lkmin, lkmax+dlk, dlk, dtype=float)
-    #            self._k = 10.**self._logk
-    #    return self._k
-        
     @property
     def field(self):
         if not hasattr(self, '_field'):
@@ -215,7 +197,7 @@ class PowerSpectrum21cm(AnalyzePS):
         self.R = R = self.pf['fft_scales']
         self.k = k = np.fft.fftfreq(R.size, step)
         logR = np.log(R)
-        
+
         k_mi, k_ma = k[k>0].min(), k.max()
         dlogk = self.pf['powspec_dlogk']
         k_pos = np.exp(np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk))
@@ -255,7 +237,7 @@ class PowerSpectrum21cm(AnalyzePS):
                         Nion += pop.pf['pop_Nion']
                         Nlya += pop.pf['pop_Nlw']
 
-                    zeta = np.maximum(zeta, 1.)    
+                    zeta = np.maximum(zeta, 1.)
 
                 if pop.is_src_heat_fl:
                     pass
@@ -266,7 +248,7 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # Only used if...powspec_lya_method==0?
             zeta_lya += zeta * (Nlya / Nion)
-            
+                        
             ##
             # Make scalar if it's a simple model
             ##
@@ -304,7 +286,11 @@ class PowerSpectrum21cm(AnalyzePS):
             QHII_gs = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['cgm_h_2'][-1::-1])
             
-            # Mean brightness temperature outside bubbles    
+            QHII_ff = self.field.BubbleFillingFactor(z, zeta,
+                rescale=self.pf['powspec_volfix'])
+            
+            # Mean brightness temperature outside bubbles  
+            # Currently not including xe effects  
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb'][-1::-1]) / (1. - QHII_gs)
 
@@ -327,10 +313,14 @@ class PowerSpectrum21cm(AnalyzePS):
             #    Qi = 0.
             
             if self.pf['include_ion_fl']:
-                Qi = self.field.BubbleFillingFactor(z, zeta)
-                #Qi = QHII_gs
+                if self.pf['powspec_force_Qi_gs']:
+                    Qi = QHII_gs
+                else:    
+                    Qi = self.field.BubbleFillingFactor(z, zeta)
             else:
-                Qi = 0.0
+                Qi = QHII_gs
+                
+            #Qi = np.mean([QHII_gs, self.field.BubbleFillingFactor(z, zeta)])    
                                                                 
             #xibar = np.interp(z, self.mean_history['z'][-1::-1],
             #    self.mean_history['cgm_h_2'][-1::-1])

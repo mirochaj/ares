@@ -103,25 +103,25 @@ class HaloModel(HaloMassFunction):
         # The extra factor of np.log(1 + c) - c / (1 + c)) comes in because
         # there's really a normalization factor of 4 pi rho_s r_s^3 / m, 
         # and m = 4 pi rho_s r_s^3 * the log term
-        norm = 1. / (np.log(1 + c) - c / (1 + c)) 
+        norm = 1. / (np.log(1 + c) - c / (1 + c))
 
         return norm * (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc))
-        
+
     def u_isl(self, k, m, z, rmax):
         """
         Normalized Fourier transform of an r^-2 profile.
-        
+
         rmax : int, float
             Effective horizon. Distance a photon can travel between
             Ly-beta and Ly-alpha.
-        
+
         """
-    
+
         asi, aco = sp.sici(rmax * k)
 
         return asi / rmax / k
-        
+
     def u_isl_exp(self, k, m, z, rmax, rstar): 
         return np.arctan(rstar * k) / rstar / k
     
@@ -294,17 +294,19 @@ class HaloModel(HaloMassFunction):
         return integral1 * integral2 * float(self.psCDM(z, k))
 
     def PowerSpectrum(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
-        Mmin_2=None):
+        Mmin_2=None, exact_z=True):
         
         # Tabulation only implemented for density PS at the moment.
         if self.pf['hmf_load_ps'] and (profile_1 is None):
             iz = np.argmin(np.abs(z - self.z))
-            assert abs(z - self.z[iz]) < 1e-2, \
-                'Supplied redshift (%g) not in table!' % z
-            if np.allclose(k, self.k_cr_pos):
-                return self.ps_dd[iz]
-            else:
-                return np.interp(np.log(k), log(self.k_cr_pos), self.ps_dd[iz])
+            if exact_z:
+                assert abs(z - self.z[iz]) < 1e-2, \
+                    'Supplied redshift (%g) not in table!' % z
+            if len(k) == len(self.k_cr_pos):
+                if np.allclose(k, self.k_cr_pos):
+                    return self.ps_dd[iz]
+                
+            return np.interp(np.log(k), np.log(self.k_cr_pos), self.ps_dd[iz])
                     
         if type(k) == np.ndarray:
             f1 = lambda kk: self.PS_OneHalo(z, kk, profile_1, Mmin_1, profile_2, 
@@ -438,22 +440,22 @@ class HaloModel(HaloMassFunction):
         k_sh = np.fft.fftshift(k)
         absk_sh = np.abs(k_sh)
         logk_sh = np.log(absk_sh)
-        
+
         # The frequency array has half the number of unique elements (plus 1)
-        # as the scales array. 
-        
+        # as the scales array.
+
         # Set up coarse grid for evaluation of halo model
         k_mi, k_ma = absk_sh[absk_sh>0].min(), absk_sh.max()
         dlogk = self.pf['mpowspec_dlogk']
         logk_cr_pos = np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk)
         self.k_cr_pos = np.exp(logk_cr_pos)
-                
+
         # Setup degraded scales array
         r_mi, r_ma = R.min(), R.max()
         dlogr = self.pf['mpowspec_dlogr']
         logR_cr = np.arange(np.log(r_mi), np.log(r_ma)+dlogr, dlogr)
         self.R_cr = R_cr = np.exp(logR_cr)
-        
+
         ct = 0
         
         _z = []

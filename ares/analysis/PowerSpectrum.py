@@ -241,7 +241,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             delta_B = self.history['delta_B_h'][iz]
             Q = self.history['Qh'][iz]
     
-        rho0 = self.cosm.mean_density0
+        rho0 = self.cosm.mean_density0 * self.cosm.fbaryon
         
         #R = ((M / rho0) * 0.75 / np.pi)**(1./3.)
         dvdr = 4. * np.pi * R**2        
@@ -296,7 +296,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
         dimensionless=True, show_gs=False, mp_kwargs={}, scatter=False,
-        scatter_kwargs={}, orientation='vertical', **kwargs):
+        scatter_kwargs={}, orientation='vertical', show_dd=False, **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
         """
@@ -327,6 +327,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             mp = ax
                     
         p = []
+        dd = []
         for i, z in enumerate(self.redshifts):
             if dimensionless and 'ps_21_dl' in self.history:
                 pow_z = self.history['ps_21_dl'][i]
@@ -335,6 +336,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
             p.append(np.interp(np.log(k), np.log(self.history['k']), pow_z))
             
+            if show_dd:
+                dd.append(np.interp(np.log(k), np.log(self.history['k']), 
+                    self.history['ps_dd'][i]))
+            
         p = np.array(p)
         
         if dimensionless and 'ps_21_dl' in self.history:
@@ -342,6 +347,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         elif dimensionless:
             norm = self.history['dTb0']**2
             ps = norm * p * k**3 / 2. / np.pi**2
+            
+            if show_dd:
+                ps_dd = norm * np.array(dd) * k**3 / 2. / np.pi**2
+                ps_dd *= (1. - self.history['Qi'])**2
         else:
             ps = p
         
@@ -354,6 +363,11 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ax1.scatter(self.redshifts, ps, **scatter_kwargs)
         else:
             ax1.plot(self.redshifts, ps, **kwargs)
+            
+        if show_dd:
+            if 'label' in kwargs:
+                del kwargs['label']
+            ax1.plot(self.redshifts, ps_dd, lw=1, **kwargs)    
             
         ax1.set_xlim(min(self.redshifts), max(self.redshifts))
         ax1.set_yscale('log')
@@ -418,6 +432,9 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
         split_by_scale=False, include_fields=['dd','xx','coco','21_s','21'],
         colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None):
+        """
+        Plot various constituent correlation functions (or power spectra).
+        """
         
         if mp is None:
             mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
@@ -499,9 +516,9 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
             if h == 0:
                 if real_space:
-                    ax.legend(loc='lower left', fontsize=14, ncol=2)
+                    ax.legend(loc='lower left', fontsize=14, ncol=1)
                 else:
-                    ax.legend(loc='lower right', fontsize=14, ncol=2)
+                    ax.legend(loc='lower right', fontsize=14, ncol=1)
                     
 
             if real_space:
@@ -511,7 +528,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 
             ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
                 ha='left', va='top')
-            ax.annotate(r'$\bar{Q}=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
+            ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
                 xycoords='axes fraction',
                 ha='right', va='top')
 

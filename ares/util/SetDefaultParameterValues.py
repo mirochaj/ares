@@ -386,9 +386,9 @@ def PowerSpectrumParameters():
      'include_ion_fl': True,
      'include_temp_fl': False,
      'include_lya_fl': False,
-     
+
      'include_lya_lc': False,
-           
+
      'include_bias': False,
 
      "powspec_volfix": False,
@@ -396,6 +396,8 @@ def PowerSpectrumParameters():
      "powspec_rescale_Qlya": False,
      "powspec_rescale_Qhot": False,
      "powspec_rescale_dTb": False,
+
+     "powspec_force_Qi_gs": True,
 
      "bubble_size": None,
      "bubble_density": None,

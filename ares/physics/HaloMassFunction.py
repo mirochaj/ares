@@ -52,11 +52,19 @@ try:
 except ImportError:
     have_hmf = False
     
+# Old versions of HMF
 try:
     import pycamb
     have_pycamb = True
 except ImportError:
     have_pycamb = False
+  
+if not have_pycamb:  
+    try:
+        import camb
+        have_pycamb = True
+    except ImportError:
+        have_pycamb = False    
 
 ARES = os.getenv("ARES")    
 
@@ -319,9 +327,13 @@ class HaloMassFunction(object):
     @property
     def transfer_pars(self):
         if not hasattr(self, '_transfer_pars'):
-            self._transfer_pars = \
-                {'transfer__k_per_logint': self.pf['hmf_transfer__k_per_logint'],
-                'transfer__kmax': self.pf['hmf_transfer__kmax']}
+            #self._transfer_pars = \
+            #    {'transfer__k_per_logint': self.pf['hmf_transfer__k_per_logint'],
+            #    'transfer__kmax': self.pf['hmf_transfer__kmax']}                     
+            #self._transfer_pars = {'k_per_logint': self.pf['hmf_transfer__k_per_logint'],
+            #    'kmax': np.log(self.pf['hmf_transfer__kmax'])}
+            self._transfer_pars = {}#{'hey': 'stupid'}
+            
         return self._transfer_pars
 
     @property
@@ -374,7 +386,7 @@ class HaloMassFunction(object):
         Build a lookup table for the halo mass function / collapsed fraction.
         
         Can be run in parallel.
-        """    
+        """
         
         self.logMmin_tab = self.pf['hmf_logMmin']
         self.logMmax_tab = self.pf['hmf_logMmax']
@@ -552,8 +564,10 @@ class HaloMassFunction(object):
             else:
                 if type(self.pf['pop_Mmin']) is FunctionType:
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'](z))
-                else:    
+                elif type(self.pf['pop_Mmin']) == np.ndarray:
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'][i])
+                else:
+                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
             if Mmax_of_z:
                 self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
@@ -693,6 +707,7 @@ class HaloMassFunction(object):
     @property
     def dlns_dlnm(self):
         if not hasattr(self, '_dlns_dlnm'):
+            print("Should have a lookup table for dlns_dlnm")
             self.MF.update(z=0)
             self._dlns_dlnm = self.MF._dlnsdlnm
         return self._dlns_dlnm

@@ -39,6 +39,7 @@ defs = \
  'shift_x': 0.0,
  'shift_y': 0.0,
  'active_panels': None,
+ 'force_square': False,
 }
 
 def add_master_legend(mp, exclude_panels=None, loc='upper center', 
