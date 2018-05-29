@@ -54,17 +54,18 @@ except ImportError:
     
 # Old versions of HMF
 try:
-    import pycamb
+    import camb
     have_pycamb = True
 except ImportError:
     have_pycamb = False
-  
-if not have_pycamb:  
+    
     try:
-        import camb
+        import pycamb
         have_pycamb = True
+        if int(hmf.__version__.split('.')[0]) >= 3:
+            print("For HMF v3 or greater, must use new 'camb' Python package.")
     except ImportError:
-        have_pycamb = False    
+        have_pycamb = False
 
 ARES = os.getenv("ARES")    
 
@@ -326,13 +327,10 @@ class HaloMassFunction(object):
         
     @property
     def transfer_pars(self):
-        if not hasattr(self, '_transfer_pars'):
-            #self._transfer_pars = \
-            #    {'transfer__k_per_logint': self.pf['hmf_transfer__k_per_logint'],
-            #    'transfer__kmax': self.pf['hmf_transfer__kmax']}                     
-            #self._transfer_pars = {'k_per_logint': self.pf['hmf_transfer__k_per_logint'],
-            #    'kmax': np.log(self.pf['hmf_transfer__kmax'])}
-            self._transfer_pars = {}#{'hey': 'stupid'}
+        if not hasattr(self, '_transfer_pars'):                   
+            self._transfer_pars = \
+               {'k_per_logint': self.pf['hmf_transfer_k_per_logint'],
+                'kmax': np.log(self.pf['hmf_transfer_kmax'])}
             
         return self._transfer_pars
 
@@ -354,12 +352,15 @@ class HaloMassFunction(object):
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
 
             # Initialize Perturbations class
+            
+            p = camb.CAMBparams()
+            p.set_matter_power(**self.transfer_pars)
 
             self._MF = MassFunction(Mmin=self.logMmin_tab, Mmax=self.logMmax_tab, 
                 dlog10m=self.dlogM, z=self.z[0], 
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
                 growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
-                n=self.cosm.primordial_index, transfer_params=self.transfer_pars,
+                n=self.cosm.primordial_index, transfer_params={"camb_params":p},
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
                 lnk_max=self.pf['hmf_lnk_max'])
                 
