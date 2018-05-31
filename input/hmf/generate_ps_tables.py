@@ -17,7 +17,7 @@ import ares
 import numpy as np
 
 ## INPUT
-fit = 'ST'
+fit = 'PS'
 format = 'npz'
 ##
 
@@ -26,15 +26,16 @@ hmf_pars = \
  "hmf_model": fit,
  "hmf_dlogM": 0.01,
  "hmf_zmin": 3.,
+ "hmf_logMmax": 18.,
  "hmf_dz": 0.05,
  "hmf_zmax": 60.,
  'fft_scales': np.arange(1e-3, 1e3+1e-3, 1e-3),
- 'mpowspec_dlogk': 0.01,
- 'mpowspec_dlogr': 0.01,
+ 'mpowspec_dlogk': 0.1,
+ 'mpowspec_dlogr': 0.1,
 }
 ##
 
-hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False, **hmf_pars)
+hmf = ares.physics.HaloModel.HaloModel(hmf_load=True, hmf_load_ps=False, **hmf_pars)
 
 hmf.save_ps(format=format, clobber=False, checkpoint=True)
 

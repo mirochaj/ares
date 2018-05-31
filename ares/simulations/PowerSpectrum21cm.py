@@ -187,6 +187,16 @@ class PowerSpectrum21cm(AnalyzePS):
                 self.pf['include_lya_fl']
         return self._include_con_fl
 
+    @property
+    def include_fluctuations(self):
+        if not hasattr(self, '_include_fl'):
+            self._include_fl = self.pf['include_ion_fl'] or \
+                self.pf['include_temp_fl'] or \
+                self.pf['include_density_fl'] or \
+                self.pf['include_lya_fl']
+            
+        return self._include_fl
+
     def step(self):
         """
         Generator for the power spectrum.
@@ -202,9 +212,12 @@ class PowerSpectrum21cm(AnalyzePS):
         dlogk = self.pf['powspec_dlogk']
         k_pos = np.exp(np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk))
 
-        self.k_pos = self.pops[0].halos.k_cr_pos
-        self.R_cr = self.pops[0].halos.R_cr
-        self.logR_cr = np.log(self.R_cr)
+        if self.include_fluctuations:
+            self.k_pos = self.pops[0].halos.k_cr_pos
+            self.R_cr = self.pops[0].halos.R_cr
+            self.logR_cr = np.log(self.R_cr)
+        else:
+            self.k_pos = self.R_cr = self.logR_cr = np.zeros(10)
 
         for i, z in enumerate(self.z):
 

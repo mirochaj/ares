@@ -22,7 +22,7 @@ from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
 from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
-from mpl_toolkits.axes_grid import inset_locator
+from mpl_toolkits.axes_grid1 import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
 try:
     # this runs with no issues in python 2 but raises error in python 3

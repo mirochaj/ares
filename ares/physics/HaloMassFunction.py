@@ -47,10 +47,13 @@ except ImportError:
     size = 1
 
 try:
+    import hmf
     from hmf import MassFunction
     have_hmf = True
+    hmf_vers = float(hmf.__version__[0])
 except ImportError:
     have_hmf = False
+    hmf_vers = 0
     
 # Old versions of HMF
 try:
@@ -328,9 +331,14 @@ class HaloMassFunction(object):
     @property
     def transfer_pars(self):
         if not hasattr(self, '_transfer_pars'):                   
-            self._transfer_pars = \
+            _transfer_pars = \
                {'k_per_logint': self.pf['hmf_transfer_k_per_logint'],
                 'kmax': np.log(self.pf['hmf_transfer_kmax'])}
+            
+            p = camb.CAMBparams()
+            p.set_matter_power(**_transfer_pars)    
+            
+            self._transfer_pars = {'camb_params': p}
             
         return self._transfer_pars
 
@@ -353,14 +361,13 @@ class HaloMassFunction(object):
 
             # Initialize Perturbations class
             
-            p = camb.CAMBparams()
-            p.set_matter_power(**self.transfer_pars)
+            
 
             self._MF = MassFunction(Mmin=self.logMmin_tab, Mmax=self.logMmax_tab, 
                 dlog10m=self.dlogM, z=self.z[0], 
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
                 growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
-                n=self.cosm.primordial_index, transfer_params={"camb_params":p},
+                n=self.cosm.primordial_index, transfer_params=self.transfer_pars,
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
                 lnk_max=self.pf['hmf_lnk_max'])
                 
@@ -406,7 +413,11 @@ class HaloMassFunction(object):
             print("\nComputing {!s} mass function...".format(self.hmf_func))    
 
         # Masses in hmf are in units of Msun * h
-        self.M = self.MF.M / self.cosm.h70
+        if hmf_vers < 3:
+            self.M = self.MF.M / self.cosm.h70
+        else:
+            self.M = self.MF.m / self.cosm.h70
+            
         self.logM = np.log10(self.M)
         self.lnM = np.log(self.M)
 

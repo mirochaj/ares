@@ -403,8 +403,10 @@ class OpticalDepth(object):
                 zi=self.pf['first_light_redshift'], zf=self.pf['final_redshift'], 
                 Emin=self.E0, Emax=self.E1)
     
-            # Create energy arrays
-            self.E = self.E0 * self.R**np.arange(self.N)
+            if self.pf['tau_Emin_pin']:
+                self.E = self.E0 * self.R**np.arange(self.N)
+            else:
+                self.E = np.flip(self.E1 * self.R**-np.arange(self.N), 0)
     
         # Frequency grid must be index-1-based.
         self.nn = np.arange(1, self.N+1)

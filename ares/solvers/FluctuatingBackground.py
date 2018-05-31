@@ -22,6 +22,8 @@ from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \
     s_per_myr, erg_per_ev, k_B, m_p, dnu
 
+root2 = np.sqrt(2.)
+
 class FluctuatingBackground(object):
     def __init__(self, grid=None, **kwargs):
         """
@@ -172,7 +174,7 @@ class FluctuatingBackground(object):
             else:
                 Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
 
-            Qi = min(Qi, 1.)
+            #Qi = min(Qi, 1.)
             #Qi = max(Qi, 0.)
             
         else:
@@ -328,21 +330,17 @@ class FluctuatingBackground(object):
 
         iz = np.argmin(np.abs(z - self.halos.z))
         s = self.sigma #* self.halos.growth_factor[iz]
-
-        Mmin = self.Mmin(z)
         
         # Variance on scale of smallest collapsed object
-    #    sigma_min = np.interp(Mmin, self.m, s)
-        sigma_min = np.interp(Mmin, self.halos.M, self.halos.sigma_0)
-        return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) * sigma_min
+        sigma_min = self.sigma_min(z, zeta)
+        
+        return self._delta_c(z) - root2 * self._K(zeta) * sigma_min
     
     def _B1(self, z, zeta=40.):
         iz = np.argmin(np.abs(z - self.halos.z))
         s = self.sigma #* self.halos.growth_factor[iz]
-        
-        Mmin = self.Mmin(z)
-        #sigma_min = np.interp(Mmin, self.m, s)
-        sigma_min = np.interp(Mmin, self.halos.M, self.halos.sigma_0)
+                
+        sigma_min = self.sigma_min(z, zeta)
         
         return self._K(zeta) / np.sqrt(2. * sigma_min**2)
     
@@ -363,16 +361,21 @@ class FluctuatingBackground(object):
         iz = np.argmin(np.abs(z - self.halos.z))
         D = self.halos.growth_factor[iz]
 
-        Mmin = self.Mmin(z)
-        sigma_min = np.interp(Mmin, self.halos.M, self.halos.sigma_0)
+        sigma_min = self.sigma_min(z, zeta)
+        #Mmin = self.Mmin(z)
+        #sigma_min = np.interp(Mmin, self.halos.M, self.halos.sigma_0)
 
-        delta = self._delta_c(z) # self.cosm.delta_c0
+        delta = self._delta_c(z)
 
         return delta - np.sqrt(2.) * self._K(zeta) \
             * np.sqrt(sigma_min**2 - self.sigma**2)
         
         #return self.cosm.delta_c0 - np.sqrt(2.) * self._K(zeta) \
         #    * np.sqrt(sigma_min**2 - s**2)
+
+    def sigma_min(self, z, zeta):
+        Mmin = self.Mmin(z)
+        return np.interp(Mmin, self.halos.M, self.halos.sigma_0)
 
     def BubblePodSizeDistribution(self, z, zeta):
         if self.pf['powspec_lya_method'] == 1:
@@ -408,10 +411,12 @@ class FluctuatingBackground(object):
             self._dlns_dlnm = np.interp(self.m, self.halos.M, self.halos.dlns_dlnm)
         
             bigm = self.m > self.halos.M.max()
-            slope = np.diff(np.log10(np.abs(self.halos.dlns_dlnm[-2:]))) \
-                  / np.diff(np.log10(self.halos.M[-2:]))
-            self._dlns_dlnm[bigm == 1] = self.halos.dlns_dlnm[-1] \
-                * (self.m[bigm == 1] / self.halos.M.max())**slope
+            if np.any(bigm):
+                print("WARNING: Extrapolating sigma to higher masses.")
+                slope = np.diff(np.log10(np.abs(self.halos.dlns_dlnm[-2:]))) \
+                      / np.diff(np.log10(self.halos.M[-2:]))
+                self._dlns_dlnm[bigm == 1] = self.halos.dlns_dlnm[-1] \
+                    * (self.m[bigm == 1] / self.halos.M.max())**slope
         
         return self._dlns_dlnm
 
@@ -438,13 +443,13 @@ class FluctuatingBackground(object):
             # Plus, this way, the sigma's from the HMF are OK.
             Mi = self.m
             # Comoving matter density
-            rho0 = self.cosm.mean_density0 * self.cosm.fbaryon
+            rho0 = self.cosm.mean_density0 #* self.cosm.fbaryon
             
             # Mean (over-)density of bubble material
             delta_B = self._B(z, zeta, zeta)
             
             # Radius of ionized regions as function of delta (mass)
-            Ri = ((Mi / rho0 / (1. + delta_B)) * 3. / 4. / np.pi)**(1./3.)
+            Ri = (3 * Mi / rho0 / (1. + delta_B) / 4. / np.pi)**(1./3.)
         
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and Mi are from using dlns instead of 
@@ -474,12 +479,11 @@ class FluctuatingBackground(object):
             
         B0 = self._B0(z, zeta_min)
         B1 = self._B1(z, zeta)
-        Bl = np.maximum(self.LinearBarrier(z, zeta, zeta_min), zeros)
+        Bl = self.LinearBarrier(z, zeta, zeta_min)
         p = (B0 / np.sqrt(2. * np.pi * S**3)) * np.exp(-0.5 * Bl**2 / S)
         
-        p = (B0 / np.sqrt(2. * np.pi * S**3)) \
-            * np.exp(-0.5 * B0**2 / S) * np.exp(-B0 * B1) * np.exp(-0.5 * B1**2 / S)
-
+        #p = (B0 / np.sqrt(2. * np.pi * S**3)) \
+        #    * np.exp(-0.5 * B0**2 / S) * np.exp(-B0 * B1) * np.exp(-0.5 * B1**2 / S)
         
         return p#np.maximum(p, zeros)
         
