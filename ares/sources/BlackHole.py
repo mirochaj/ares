@@ -84,8 +84,7 @@ class BlackHole(Source):
             pass
         elif isinstance(self.pf['source_sed'], basestring):
             from_lit = read_lit(self.pf['source_sed'])
-            src = from_lit.Source()
-            self._UserDefined = src.Spectrum
+            self._UserDefined = from_lit.Spectrum
         else:
             self._UserDefined = self.pf['source_sed']    
             

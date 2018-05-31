@@ -494,7 +494,22 @@ class Hydrogen(object):
             Ts = (1.0 + x_c + x_a) / \
                 (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
         else:
-            x_a, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
+            if type(z) == np.ndarray:
+                x_a = []; S = []; Ts = []
+                for i, red in enumerate(z):
+                    _xa, _S, _Ts = self.RadiativeCouplingCoefficient(z[i], 
+                        Ja[i], Tk[i], xHII[i], Tr[i], ne[i])
+                        
+                    x_a.append(_xa)
+                    S.append(_S)
+                    Ts.append(_Ts)
+                    
+                x_a = np.array(x_a)
+                S = np.array(S)
+                Ts = np.array(Ts)
+            else:    
+                x_a, S, Ts = self.RadiativeCouplingCoefficient(z, 
+                    Ja, Tk, xHII, Tr, ne)
                             
         return np.maximum(Ts, self.Ts_floor(z=z))
 
