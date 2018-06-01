@@ -23,14 +23,13 @@ energy distribution in full. A lengthy discussion of this can be found in
     
     sim = ares.simulations.RaySegment(problem_type=2)
     sim.run()
-    
-    anl = ares.analysis.RaySegment(sim.checkpoints)
-    
-    anl.PlotIonizationFrontEvolution(fig=1)
+        
+    sim.PlotIonizationFrontEvolution(fig=1)
 
     # Snapshots at 10 and 50 Myr
-    anl.IonizationProfile(fig=2, t=[10, 50])
-    anl.TemperatureProfile(fig=3, t=[10, 50])
+    ax = sim.RadialProfile('h_1', fig=2, t=[10, 50])
+    sim.RadialProfile('h_2', ax=ax, t=[10, 50], ls='--')
+    sim.RadialProfile('Tk', fig=3, t=[10, 50])
     
     
     
