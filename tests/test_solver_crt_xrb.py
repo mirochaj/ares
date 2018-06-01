@@ -33,12 +33,13 @@ plpars = \
  'pop_EminNorm': 2e2,
  'pop_EmaxNorm': 3e4,
  'pop_logN': -np.inf,
- #'approx_xrb': 0,
+
  'pop_solve_rte': True,
  'tau_redshift_bins': 400,
  
- 'initial_redshift': 40.,
- 'final_redshift': 10.,
+ 'initial_redshift': 60.,
+ 'final_redshift': 5.,
+ 
 }
 
 def test(tol=1e-2):

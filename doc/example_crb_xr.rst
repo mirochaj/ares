@@ -16,19 +16,19 @@ series of redshifts (:math:`10 \leq z \leq 40`):
      
      'pop_sed': 'pl',
      'pop_alpha': -1.5,
-     'pop_Emin': 1e2,
-     'pop_Emax': 5e4,
+     'pop_Emin': 2e2,
+     'pop_Emax': 3e4,
      'pop_EminNorm': 5e2,
      'pop_EmaxNorm': 8e3,
-     'pop_yield': 2.6e39,
-     'pop_yield_units': 'erg/s/sfr',
+     'pop_rad_yield': 2.6e39,
+     'pop_rad_yield_units': 'erg/s/sfr',
      
      # Solution method
      'pop_solve_rte': True,
-     'pop_tau_Nz': 400,
+     'tau_redshift_bins': 400,
 
-     'initial_redshift': 50.,
-     'final_redshift': 10.,
+     'initial_redshift': 60.,
+     'final_redshift': 5.,
     }
     
 To summarize these inputs, we've got:
@@ -78,7 +78,7 @@ Compare to the analytic solution, given by Equation A1 in `Mirocha (2014) <http:
 
     J_{\nu}(z) = \frac{c}{4\pi} \frac{\epsilon_{\nu}(z)}{H(z)} \frac{(1 + z)^{9/2-(\alpha + \beta)}}{\alpha+\beta-3/2} \times \left[(1 + z_i)^{\alpha+\beta-3/2} - (1 + z)^{\alpha+\beta-3/2}\right]
 
-with :math:`\alpha = -1.5`, :math:`\beta = 0`, :math:`z=10`, and :math:`z_i=40`,
+with :math:`\alpha = -1.5`, :math:`\beta = 0`, :math:`z=5`, and :math:`z_i=60`,
 
 ::
 
@@ -90,9 +90,9 @@ with :math:`\alpha = -1.5`, :math:`\beta = 0`, :math:`z=10`, and :math:`z_i=40`,
 
     # Compute cosmologically-limited solution
     e_nu = np.array(map(lambda E: pop.Emissivity(10., E), E))
-    e_nu *= c / 4. / np.pi / pop.cosm.HubbleParameter(10.) 
-    e_nu *= (1. + 10.)**6. / -3.
-    e_nu *= ((1. + 40.)**-3. - (1. + 10.)**-3.)
+    e_nu *= c / 4. / np.pi / pop.cosm.HubbleParameter(5.) 
+    e_nu *= (1. + 5.)**6. / -3.
+    e_nu *= ((1. + 60.)**-3. - (1. + 5.)**-3.)
     e_nu *= ev_per_hz
 
     # Plot it
@@ -106,7 +106,7 @@ To "turn on" bound-free absorption in the IGM, modify the dictionary of paramete
 
 ::
 
-    pars['pop_approx_tau'] = 'neutral'
+    pars['tau_approx'] = 'neutral'
 
 Now, initialize and run a new calculation:
 
@@ -123,20 +123,29 @@ and plot the result on the same axes:
 
     pl.loglog(E2, flux2[0] * E2 * erg_per_ev, color='k', ls=':')
     
+    pl.savefig('ares_crte_xr.png')
+
+.. figure::  https://www.dropbox.com/s/gpl3n2c3r8gwmd3/ares_crte_xr.png?raw=1
+   :align:   center
+   :width:   600
+
+   X-ray background spectrum, with (dotted) and without (solid) neutral absorption from the IGM. Analytic solution for optically-thin case in dashed blue.
+    
+    
 The behavior at low photon energies (:math:`h\nu \lesssim 0.3 \ \mathrm{keV}`)
 is an artifact that arises due to poor redshift resolution. This is a trade
 made for speed in solving the cosmological radiative transfer equation,
 discussed in detail in Section 3 of `Mirocha (2014)
 <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_. For more accurate
-calculations, you must enhance the redshift sampling using the ``pop_tau_Nz``
+calculations, you must enhance the redshift sampling using the ``tau_redshift_bins``
 parameter, e.g.,
 
 ::
 
-    pars['pop_tau_Nz'] = 500
+    pars['tau_redshift_bins'] = 500
 
-The optical depth lookup tables that ship with *ares* use ``pop_tau_Nz=400``
-as a default. If you run with ``pop_tau_Nz=500``, you should see some improvement in the soft X-ray spectrum. It'll take a few minutes to generate a new table. Run `$ARES/input/optical_depth/generate_optical_depth_tables.py` to make more!
+The optical depth lookup tables that ship with *ares* use ``tau_redshift_bins=400``
+as a default. If you run with ``tau_redshift_bins=500``, you should see some improvement in the soft X-ray spectrum. It'll take a few minutes to generate a new table. Run ``$ARES/input/optical_depth/generate_optical_depth_tables.py`` to make more!
 
 .. .. note :: Development of a dynamic optical depth calculation is underway, which can be turned on and off using the ``dynamic_tau`` parameter.
 
