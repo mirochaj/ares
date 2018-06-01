@@ -25,6 +25,7 @@ docs = \
  'example_galaxypop.rst',
  'example_crb_uv.rst',
  'example_crb_xr.rst', 
+ 'uth_pop_radiation.rst',
 ]
 
 for fn_rst in docs:
