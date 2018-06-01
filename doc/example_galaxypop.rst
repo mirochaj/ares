@@ -17,7 +17,7 @@ A few usual imports before we begin:
 
 A Simple GalaxyPopulation
 -------------------------
-The most common extension to simple models is to allow the star formation efficiency (SFE) to vary as a function of halo mass. This is motivated observationally by the mismatch in the shape of the galaxy luminosity function (LF) and dark matter halo mass function (HMF). In `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_, we adopted a double power-law form for the SFE, i.e., 
+The most common extension to simple models is to allow the star formation efficiency (SFE) to vary as a function of halo mass. This is motivated observationally by the mismatch in the shape of the galaxy luminosity function (LF) and dark matter halo mass function (HMF). In `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_, we adopted a double power-law form for the SFE, i.e., 
 
 .. math::
 
@@ -46,6 +46,10 @@ If you glance at the contents of ``pars``, you'll notice that the parameters tha
 
 .. note::
     You can access population objects used in a simulation via the ``pops`` attribute, which is a list of population objects that belongs to instances of  common simulation classes like ``Global21cm``, ``MetaGalacticBackground``, etc.
+
+::
+
+    
     
 Now, to generate a model for the luminosity function, simply define your redshift of interest and array of magnitudes (assumed to be rest-frame :math:`1600 \AA` AB magnitudes), and pass them to the aptly named ``LuminosityFunction`` function,
 
@@ -55,14 +59,15 @@ Now, to generate a model for the luminosity function, simply define your redshif
     MUV = np.linspace(-24, -10)
     lf = pop.LuminosityFunction(z, MUV)
     
+    pl.figure(1)
     pl.semilogy(MUV, lf)
     
 To compare to the observed galaxy luminosity function, we can use some convenience routines setup to easily access and plot measurements stored in the *ares* ``litdata`` module:
 
 ::
 
-    obslf = ares.analysis.ObservedLF()
-    obslf.Plot(z=z, round_z=0.3)
+    obslf = ares.analysis.GalaxyPopulation()
+    obslf.Plot(z=z, round_z=0.3, fig=2)
     
 The ``round_z`` makes it so that any dataset available in the range :math:`3.7 \leq z \leq 4.3`` gets included in the plot. To do this for multiple redshifts at the same time, you could do something like:
 
@@ -72,19 +77,18 @@ The ``round_z`` makes it so that any dataset available in the range :math:`3.7 \
     MUV = np.linspace(-24, -10)
 
     # Create a 1x3 panel plot, include all available data sources
-    mp = obslf.MultiPlot(redshifts, round_z=0.3, ncols=3, sources='all')
+    mp = obslf.MultiPlot(redshifts, round_z=0.3, ncols=3, sources='all', fig=3)
     
     for i, z in enumerate(redshifts):
 
-        # Grab panel ID number corresponding to this redshift.
-        j = obslf.redshifts_in_mp[i]
-
+        obslf.Plot(z=z, round_z=0.3, ax=mp.grid[i])
+        
         lf = pop.LuminosityFunction(z, MUV)
 
         # [optional] dust correction!
         Mobs = pop.dust.Mobs(z, MUV)
 
-        mp.grid[j].semilogy(Mobs, lf)
+        mp.grid[i].semilogy(Mobs, lf)
     
 
 To create the ``GalaxyPopulation`` used above by scratch, we could have just done:
@@ -109,12 +113,14 @@ To create the ``GalaxyPopulation`` used above by scratch, we could have just don
     
 Accretion Models
 ~~~~~~~~~~~~~~~~
-By default, *ares* will derive the mass accretion rate (MAR) onto halos from the HMF itself (see Section 2.2 of Furlanetto et al. for details). That is, ``pop_MAR='hmf'`` by default. There are also two other options:
+By default, *ares* will derive the mass accretion rate (MAR) onto halos from the HMF itself (see Section 2.2 of `Furlanetto et al. 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.472.1576F>`_. for details). That is, ``pop_MAR='hmf'`` by default. There are also two other options:
 
 * Plug-in your favorite mass accretion model as a lambda function, e.g., ``pop_MAR=lambda z, M: 1. * (M / 1e12)**1.1 * (1. + z)**2.5``.
 * Grab a model from ``litdata``. The median MAR from McBride et al. (2009) is included, and can used as ``pop_MAR='mcbride2009'``. If you'd like to add more options, use ``$ARES/input/litdata/mcbride2009.py`` as a guide.
 
 .. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in Sun \& Furlanetto (2016) is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
+
+See :doc:`uth_pop_halo` for more information.
 
    
 Parameterize a ParameterizedQuantity
@@ -164,6 +170,7 @@ To verify that this has worked, let's plot the SFE as a function of redshift:
     redshifts = [4,5,6]
     Mh = np.logspace(8, 13)
     
+    pl.figure(6)
     for z in redshifts:
         fstar = pop.SFE(z=z, Mh=Mh)
         pl.loglog(Mh, fstar)
@@ -231,8 +238,8 @@ Note that here we gave ID numbers for each PQ in square brackets, and attached t
     
     Mh = np.logspace(7, 13, 100)
     
-    pl.loglog(Mh, pop.SFE(4, Mh))
-    pl.loglog(Mh, pop.fesc(4, Mh))
+    pl.loglog(Mh, pop.SFE(z=4, Mh=Mh))
+    pl.loglog(Mh, pop.fesc(z=4, Mh=Mh))
 
 Currently, the following parameters are supported by the PQ protocol:
 
