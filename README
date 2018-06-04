@@ -1,4 +1,3 @@
-======
 *ares*
 ======
 The Accelerated Reionization Era Simulations (ARES) code was designed to
@@ -124,8 +123,8 @@ Additional contributions / corrections / suggestions from:
     
 - Geraint Harker
 - Jacob Jost (CU-Boulder)
-- `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
-- `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
+- Greg Salvesen (UCSB)
+- Adrian Liu (UC-Berkeley)
 - Jason Sun (Caltech)
 - Keith Tauscher (CU-Boulder)
 - Saurabh Singh (RRI)

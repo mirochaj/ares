@@ -469,12 +469,15 @@ class ParameterBundle(dict):
     def num(self, value):
         assert value % 1 == 0
         self._value = value
-    
+
+        if self.Npops > 1:
+            raise ValueError('This bundle has {} populations! Setting `num` is too dangerous.'.format(self.Npops))
+
         for key in self.keys():
-            if not key.startswith('pop_'):
+            if not (key.startswith('pop_') or key.startswith('pq_')):
                 continue
             self[_add_pop_tag(key, value)] = self.pop(key)
-                
+
     def tag_pq_id(self, par, num):
         """
         Find ParameterizedQuantity parameters and tag with `num`.
