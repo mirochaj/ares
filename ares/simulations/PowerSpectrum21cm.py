@@ -329,7 +329,8 @@ class PowerSpectrum21cm(AnalyzePS):
                 if self.pf['powspec_force_Qi_gs']:
                     Qi = QHII_gs
                 else:    
-                    Qi = self.field.BubbleFillingFactor(z, zeta)
+                    Qi = self.field.BubbleFillingFactor(z, zeta, 
+                        rescale=self.pf['powspec_rescale_Qion'])
             else:
                 Qi = QHII_gs
                 

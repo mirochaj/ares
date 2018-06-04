@@ -101,8 +101,6 @@ def parse_attribute(blob_name, obj_base):
 
         # Need to stop once we see parentheses
         
-        
-
     #if blob is None:
     #    blob = new_obj
         

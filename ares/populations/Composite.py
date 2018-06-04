@@ -13,9 +13,11 @@ class instances.
 import re
 import numpy as np
 from ..util import ParameterFile
+from ..util.Misc import get_attribute
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -49,6 +51,7 @@ class CompositePopulation(object):
         to_quantity = [None for i in range(self.Npops)]
         to_copy = [None for i in range(self.Npops)]
         to_attribute = [None for i in range(self.Npops)]
+        link_args = [[] for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
                         
             ct = 0            
@@ -88,9 +91,21 @@ class CompositePopulation(object):
                     continue
                 
                 if re.search('link', pf[option]):
-                    junk, linkto, linkee = pf[option].split(':')
+                    options = pf[option].split(':')
+                    
+                    if len(options) == 3:
+                        junk, linkto, linkee = options
+                        args = None
+                    elif len(options) == 4:
+                        junk, linkto, linkee, args = options
+                    else:
+                        raise ValueError('Wrong number of options supplied via link!')
+                    
                     to_copy[i] = int(linkee)
                     to_attribute[i] = linkto
+                    
+                    if args is not None:
+                        link_args[i] = map(float, args.split('-'))
 
         # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
@@ -134,8 +149,25 @@ class CompositePopulation(object):
 
             tmp = self.pfs[i].copy()
 
-            self.pops[i].yield_per_sfr = \
-                self.pops[entry].__getattribute__(to_attribute[i])
+            args = link_args[i]
+            
+            # If the attribute is just an attribute (i.e., no nesting)
+            if '.' not in to_attribute[i]:
+                self.pops[i].yield_per_sfr = \
+                    self.pops[entry].__getattribute__(to_attribute[i])
+            
+                continue
+                
+            ##    
+            # Nested attributes
+            ##
+            
+            # Recursively find the attribute we want
+            func = get_attribute(to_attribute[i], self.pops[entry])
+            
+            # This may need to be generalized if the nested attribute
+            # is not a function.
+            self.pops[i].yield_per_sfr = func(*args)
         
         
                         

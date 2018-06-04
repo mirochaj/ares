@@ -166,17 +166,12 @@ class FluctuatingBackground(object):
 
             dndlnm = dndm * Mi
 
-            # Remember, fstar is built-in to zeta, so we don't need a factor
-            # of fbaryon here.
             Qi_fc = zeta * self.halos.fcoll_2d(z, logM)
             if rescale:
                 Qi = Qi_fc
             else:
                 Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
 
-            #Qi = min(Qi, 1.)
-            #Qi = max(Qi, 0.)
-            
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
         

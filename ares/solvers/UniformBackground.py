@@ -1148,7 +1148,7 @@ class UniformBackground(object):
             # sense for a delta function, but it's what happens later, so
             # insert a factor of a half now so we recover all the flux we 
             # should.
-            Inu[-1] = 1. / (E[-1] - E[-2]) / 0.5
+            Inu[-1] = 1.
         else:
             for i in range(Nf): 
                 Inu[i] = pop.src.Spectrum(E[i])
@@ -1307,7 +1307,10 @@ class UniformBackground(object):
                 else:   
                     exp_term = np.exp(-np.roll(tau[ll], -1))
     
-                trapz_base = 0.5 * (zarr[ll+1] - zarr[ll])
+                if self.pops[popid].src.is_delta:
+                    trapz_base = 1.
+                else:
+                    trapz_base = 0.5 * (zarr[ll+1] - zarr[ll])
 
                 # Equivalent to Eq. 25 in Mirocha (2014)
                 # Less readable, but faster!

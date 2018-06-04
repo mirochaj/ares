@@ -468,6 +468,9 @@ class ParameterBundle(dict):
     def num(self, value):
         assert value % 1 == 0
         self._value = value
+        
+        if self.Npops > 1:
+            raise ValueError('This bundle has {} populations! Setting `num` is too dangerous.'.format(self.Npops))
     
         for key in self.keys():
             if not (key.startswith('pop_') or key.startswith('pq_')):
