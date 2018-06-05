@@ -67,6 +67,9 @@ and optionally,
 - `shapely <https://pypi.python.org/pypi/Shapely>`_
 - `descartes <https://pypi.python.org/pypi/descartes>`_
 
+
+.. note :: *ares* has been tested only with Python 2.7.x and Python 3.3.x.
+
 Quick Example
 --------------
 To generate a model for the global 21-cm signal, simply type: ::

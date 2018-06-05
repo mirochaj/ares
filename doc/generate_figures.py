@@ -21,6 +21,7 @@ except IndexError:
 docs = \
 [
  'example_gs_standard.rst',
+ 'example_gs_multipop.rst',
  'example_gs_phenomenological.rst',
  'example_galaxypop.rst',
  'example_crb_uv.rst',
