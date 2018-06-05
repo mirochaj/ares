@@ -2,7 +2,7 @@
 
 Including Population III Stars
 ==============================
-One of the generic results of using :doc:`example_galaxypop` is that they tend to produce strong late-time absorption troughs in the global 21-cm signal (this was the point of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_). Our interpretation was that deviations from these predictions could indicate "new" source populations, like Population III stars and their remnants. Indeed, we found some evidence that such objects introduce asymmetries in the global 21-cm signal (see `Mirocha et al., in review, <https://arxiv.org/abs/1710.02530>`_ for details). 
+One of the generic results of using :doc:`example_pop_galaxy` is that they tend to produce strong late-time absorption troughs in the global 21-cm signal (this was the point of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_). Our interpretation was that deviations from these predictions could indicate "new" source populations, like Population III stars and their remnants. Indeed, we found some evidence that such objects introduce asymmetries in the global 21-cm signal (see `Mirocha et al., in review, <https://arxiv.org/abs/1710.02530>`_ for details). 
 
 The PopIII stars in this paper are simple, and were designed to seamlessly integrate with *ares* while capturing the general behavior of more detailed models (e.g., `Mebane, Mirocha, \& Furlanetto, submitted <https://arxiv.org/abs/1710.02528>`_). This section will describe how to make use of these models yourself.
 
@@ -34,7 +34,7 @@ You'll notice that while the 'mirocha2016:dpl' bundle contains parameters for tw
 * `pop_rad_yield{3}`
     The X-ray production efficiency in PopIII halos (in :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}). 
     
-It is possible to use a halo mass-dependent prescription for the PopIII SFR if you'd like. In that case, you'll need to update ``pop_sfr_model{2}`` to be ``sfe-func``. See :doc:`example_galaxypop` for a reminder on how to do that.
+It is possible to use a halo mass-dependent prescription for the PopIII SFR if you'd like. In that case, you'll need to update ``pop_sfr_model{2}`` to be ``sfe-func``. See :doc:`example_pop_galaxy` for a reminder on how to do that.
 
 Note on Feedback
 ~~~~~~~~~~~~~~~~

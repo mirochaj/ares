@@ -14,7 +14,7 @@ Let's start with a PopII source population:
 
     pars = \
     {
-     'problem_type': 100,
+     'problem_type': 100,              # Blank slate global 21-cm signal calculation
 
      # Setup star formation
      'pop_Tmin{0}': 1e4,               # atomic cooling halos
@@ -49,6 +49,8 @@ Let's start with a PopII source population:
      
      'pop_sfr_model{1}': 'link:sfrd:0',
     }
+    
+.. note :: See :doc:`problem_types` for more information about why we chose ``problem_type=100`` here.    
     
 We might as well go ahead and run this to establish a baseline:
 
@@ -87,7 +89,7 @@ Now, we can simply reset the ID numbers and update a few important parameters:
     
     popIII_uv['pop_Tmin{2}'] = 300
     popIII_uv['pop_Tmax{2}'] = 1e4
-    popIII_uv['pop_rad_yield{0}'] = 1e43
+    popIII_uv['pop_rad_yield{2}'] = 1e43
     popIII_uv['pop_temperature{2}'] = 1e5
     popIII_uv['pop_fstar{2}'] = 1e-3
     
@@ -127,7 +129,7 @@ Note that the parameter file hangs onto the parameters of each population separa
 
     
 .. note :: These are very simple models for PopII and PopIII stars. For more 
-    sophisticated approaches, see :doc:`example_galaxypop` and
+    sophisticated approaches, see :doc:`example_pop_galaxy` and
     :doc:`example_popIII`.    
 
 

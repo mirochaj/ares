@@ -1,7 +1,7 @@
 :orphan:
 
-Physical Models for the Global 21-cm Signal
-===========================================
+Simple Physical Models for the Global 21-cm Signal
+===================================================
 To begin, first import ares:
 
 :: 

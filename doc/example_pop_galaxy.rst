@@ -15,8 +15,8 @@ A few usual imports before we begin:
     import matplotlib.pyplot as pl
 
 
-A Simple GalaxyPopulation
--------------------------
+A Simple Galaxy Population
+---------------------------
 The most common extension to simple models is to allow the star formation efficiency (SFE) to vary as a function of halo mass. This is motivated observationally by the mismatch in the shape of the galaxy luminosity function (LF) and dark matter halo mass function (HMF). In `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_, we adopted a double power-law form for the SFE, i.e., 
 
 .. math::
@@ -36,26 +36,23 @@ In general, the SFE curve must be calibrated to an observational dataset (see :d
     p = ares.util.ParameterBundle('mirocha2016:dpl')
     pars = p.pars_by_pop(0, strip_id=True)
     
-The second command extracts only the parameters associated with population #0, which is the stellar population in this calculation (population #1 is responsible for X-ray emission only). Passing ``strip_id=True`` removes all ID numbers from parameter names, e.g., ``pop_sfr_model{0}`` becomes ``pop_sfr_model``. The reason for doing that is so we can generate a single ``GalaxyPopulation`` instance, e.g.,
+The second command extracts only the parameters associated with population #0, which is the stellar population in this calculation (population #1 is responsible for X-ray emission only; see :doc:`example_gs_multipop` for more info on the approach to populations in *ares*). Passing ``strip_id=True`` removes all ID numbers from parameter names, e.g., ``pop_sfr_model{0}`` becomes ``pop_sfr_model``. The reason for doing that is so we can generate a single ``GalaxyPopulation`` instance, e.g.,
 
 ::
 
     pop = ares.populations.GalaxyPopulation(**pars)
     
-If you glance at the contents of ``pars``, you'll notice that the parameters that define the double power-law share a ``pq`` prefix. This is short for "parameterized quantity", and will be discussed more generally in the next major section.
+If you glance at the contents of ``pars``, you'll notice that the parameters that define the double power-law share a ``pq`` prefix. This is short for "parameterized quantity", and is discussed more generally on the page about :doc:`uth_pq`.
 
 .. note::
     You can access population objects used in a simulation via the ``pops`` attribute, which is a list of population objects that belongs to instances of  common simulation classes like ``Global21cm``, ``MetaGalacticBackground``, etc.
 
-::
 
-    
-    
 Now, to generate a model for the luminosity function, simply define your redshift of interest and array of magnitudes (assumed to be rest-frame :math:`1600 \AA` AB magnitudes), and pass them to the aptly named ``LuminosityFunction`` function,
 
 ::
 
-    z = 4
+    z = 6
     MUV = np.linspace(-24, -10)
     lf = pop.LuminosityFunction(z, MUV)
     
@@ -67,17 +64,28 @@ To compare to the observed galaxy luminosity function, we can use some convenien
 ::
 
     obslf = ares.analysis.GalaxyPopulation()
-    obslf.Plot(z=z, round_z=0.3, fig=2)
+    obslf.Plot(z=z, round_z=0.2)
+    pl.ylim(1e-8, 10)
+    pl.legend()
+    
+    pl.savefig('ares_pop_galaxy_lf6.png')
+    
+.. figure::  https://www.dropbox.com/s/9zcrikk2ptrb6dz/ares_pop_galaxy_lf6.png?raw=1
+   :align:   center
+   :width:   600
+
+   Simple galaxy evolution model with :math:`M_h`-dependent SFE compared to UV luminosity functions at :math:`z\sim 6`. Model calibrated only to the Bouwens et al. (2015) points.
+    
     
 The ``round_z`` makes it so that any dataset available in the range :math:`3.7 \leq z \leq 4.3`` gets included in the plot. To do this for multiple redshifts at the same time, you could do something like:
 
 ::
 
-    redshifts = [5,6,7]
+    redshifts = [5,6,7,8]
     MUV = np.linspace(-24, -10)
 
-    # Create a 1x3 panel plot, include all available data sources
-    mp = obslf.MultiPlot(redshifts, round_z=0.3, ncols=3, sources='all', fig=3)
+    # Create a 1x4 panel plot, include all available data sources
+    mp = obslf.MultiPlot(redshifts, round_z=0.3, ncols=4, sources='all', fig=2, mp_kwargs=dict(padding=(0.2,0.2)))
     
     for i, z in enumerate(redshifts):
 
@@ -90,8 +98,20 @@ The ``round_z`` makes it so that any dataset available in the range :math:`3.7 \
 
         mp.grid[i].semilogy(Mobs, lf)
     
+    obslf.add_master_legend(mp, ncol=3)
+    
+    pl.figure(2)
+    pl.savefig('ares_pop_galaxy_lf_allz.png')
 
-To create the ``GalaxyPopulation`` used above by scratch, we could have just done:
+
+.. figure::  https://www.dropbox.com/s/2g3mf2s7beeuuwj/ares_pop_galaxy_lf_allz.png?raw=1
+   :align:   center
+   :width:   1200
+
+   Simple galaxy evolution model with :math:`M_h`-dependent SFE compared to UV luminosity functions at :math:`5 \lesssim z \lesssim 8`. Again, model calibrated only to the Bouwens et al. (2015) points at :math:`z \sim 6`.
+    
+
+To create the ``GalaxyPopulation`` used above from scratch (i.e., without using parameter bundles), we could have just done:
 
 ::
 
@@ -116,72 +136,13 @@ Accretion Models
 By default, *ares* will derive the mass accretion rate (MAR) onto halos from the HMF itself (see Section 2.2 of `Furlanetto et al. 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.472.1576F>`_. for details). That is, ``pop_MAR='hmf'`` by default. There are also two other options:
 
 * Plug-in your favorite mass accretion model as a lambda function, e.g., ``pop_MAR=lambda z, M: 1. * (M / 1e12)**1.1 * (1. + z)**2.5``.
-* Grab a model from ``litdata``. The median MAR from McBride et al. (2009) is included, and can used as ``pop_MAR='mcbride2009'``. If you'd like to add more options, use ``$ARES/input/litdata/mcbride2009.py`` as a guide.
+* Grab a model from ``litdata``. The median MAR from McBride et al. (2009) is included (same as above equation), and can used as ``pop_MAR='mcbride2009'``. If you'd like to add more options, use ``$ARES/input/litdata/mcbride2009.py`` as a guide.
 
-.. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in Sun \& Furlanetto (2016) is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
+.. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in `Sun \& Furlanetto (2016) <http://adsabs.harvard.edu/abs/2016MNRAS.460..417S>`_ is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
 
 See :doc:`uth_pop_halo` for more information.
 
    
-Parameterize a ParameterizedQuantity
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-It is also possible to allow components of a ParameterizedQuantity to themselves be parameterized. For example, say we wanted to allow the normalization of the SFE to evolve with redshift, i.e.,
-
-.. math::
-
-    f_{\ast}(M_h) = \frac{2 f_{\ast,0} \left(\frac{1+z}{7}\right)^{\gamma_z}} {\left(\frac{M_h}{M_{\text{p}}} \right)^{\gamma_{\text{lo}}} + \left(\frac{M_h}{M_{\text{p}}}  \right)^{\gamma_{\text{hi}}}}
-    
-Starting from the pure ``dpl`` model above, we can make a few modifications:
-
-::
-    
-    # Extra multiplicative boost with redshift, par0 * (var / par1)**par2
-    pars = \
-    {
-     'pop_sfr_model': 'sfe-func',
-     'pop_sed': 'eldridge2009',
-
-     'pop_fstar': 'pq[0]',      # Give it an ID this time, since we'll add another
-     'pq_func[0]': 'dpl',       
-     
-     # NEW PARAMETERS
-     'pq_func_par0[0]': 'pq[1]',   # Note the change!
-     'pq_func[1]': 'pl',
-     'pq_func_var[1]': '1+z',
-     'pq_func_par0[1]': 0.05,
-     'pq_func_par1[1]': 7.,
-     'pq_func_par2[1]': 1.,    # This is gamma_z
-     #
-     
-     # Old parameters that we still need
-     'pq_func_par1[0]': 2.8e11,
-     'pq_func_par2[0]': 0.51,
-     'pq_func_par3[0]': -0.61,
-          
-    }
-    
-        
-To verify that this has worked, let's plot the SFE as a function of redshift:
-
-::
-
-    pop = ares.populations.GalaxyPopulation(**pars)
-    
-    redshifts = [4,5,6]
-    Mh = np.logspace(8, 13)
-    
-    pl.figure(6)
-    for z in redshifts:
-        fstar = pop.SFE(z=z, Mh=Mh)
-        pl.loglog(Mh, fstar)
-
-
-.. note:: The only method of ParameterizedQuantity objects ever called is the 
-    ``__call__`` method, which accepts ``**kwargs``. As a result, we must 
-    always supply arguments accordingly (i.e., supplying positional arguments 
-    only will not suffice), hence the ``z=z, Mh=Mh`` usage above.
-
-
 Dust
 ~~~~
 Correcting for reddening due to the presence of dust in star-forming galaxies can be extremely important, especially in massive galaxies. When calling upon the ``LuminosityFunction`` method as in the above example, be aware that **all magnitudes returned are not corrected for dust.** That has been implemented as a separate step, so that one can generate a physical model first and still have the option of changing the dust correction afterward.
@@ -202,58 +163,5 @@ Some common dust corrections can be accessed by name and passed in via the ``dus
 By default, *ares* will assume a constant :math:`\beta=-2`. However, in general this is a poor approximation: fainter galaxies are known to suffer less from dust reddening than bright galaxies. Simply set ``dustcorr_beta='bouwens2014'``, for example, to adopt the Bouwens et al. 2014 :math:`M_{\text{UV}}-\beta` relation.
 
 .. UPDATE Evolving dust
-
-
-Multiple Parameterized Quantities (PQs)
----------------------------------------
-In general, we can use the same approach outlined above to parameterize other quantities as a function of halo mass and/or redshift. For example, we can use a double power-law SFE model and set the escape fraction to be a step function in halo mass:
-
-::
-
-    pars = \
-    {
-     'pop_sfr_model': 'sfe-func',
-     'pop_sed': 'eldridge2009',
-
-     'pop_fstar': 'pq[0]',
-     'pq_func[0]': 'dpl',
-     'pq_func_par0[0]': 0.05,
-     'pq_func_par1[0]': 2.8e11,
-     'pq_func_par2[0]': 0.5,
-     'pq_func_par3[0]': -0.5,
-
-     'pop_fesc': 'pq[1]',
-     'pq_func[1]': 'astep',
-     'pq_func_par0[1]': 0.02,
-     'pq_func_par1[1]': 0.2,
-     'pq_func_par2[1]': 1e10,
-
-    }
-    
-Note that here we gave ID numbers for each PQ in square brackets, and attached the same string to each parameter specific to that quantity. To check the result:
-    
-::
-
-    pop = ares.populations.GalaxyPopulation(**pars)
-    
-    Mh = np.logspace(7, 13, 100)
-    
-    pl.loglog(Mh, pop.SFE(z=4, Mh=Mh))
-    pl.loglog(Mh, pop.fesc(z=4, Mh=Mh))
-
-Currently, the following parameters are supported by the PQ protocol:
-
-* ``pop_fstar``
-* ``pop_fesc``
-* ``pop_focc``
-
-Integrating Parameterized Quantities in *ares* Simulations
-----------------------------------------------------------
-
-
-
-
-
-
 
 

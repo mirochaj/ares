@@ -48,7 +48,7 @@ Extensions
     * :doc:`example_adv_RT_w_He`
     
 * Advanced source populations
-    * :doc:`example_galaxypop`
+    * :doc:`example_pop_galaxy`
     * :doc:`example_popIII`
     
 * Comparing to observational data
@@ -56,6 +56,6 @@ Extensions
 
 * Customization
     * :doc:`example_embed_ares`
+    * :doc:`uth_pq`
     
-.. * :doc:`example_customization`
 

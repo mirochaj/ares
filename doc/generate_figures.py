@@ -23,10 +23,12 @@ docs = \
  'example_gs_standard.rst',
  'example_gs_multipop.rst',
  'example_gs_phenomenological.rst',
- 'example_galaxypop.rst',
+ 'example_pop_galaxy.rst',
  'example_crb_uv.rst',
  'example_crb_xr.rst', 
+ 'example_pop_galaxy.rst',
  'uth_pop_radiation.rst',
+ 'uth_pq.rst',
 ]
 
 for fn_rst in docs:
@@ -35,7 +37,7 @@ for fn_rst in docs:
     if fn is not None:
         if fn_rst != fn:
             continue
-    
+        
     os.system('python $MODS/rst_to_py/rst_to_py.py {}'.format(fn_rst))
     
     fn_py = fn_rst.replace('rst', 'py')
