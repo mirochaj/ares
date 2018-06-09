@@ -80,6 +80,8 @@ def five_pt_stencil(x, y):
 def smooth(y, width, kernel='boxcar'):
     """
     Smooth 1-D function `y` using boxcar of width `kernel` (in pixels).
+    
+    Kernel options: 'boxcar' and 'gaussian'
     """
     
     assert width % 2 == 1

@@ -16,6 +16,7 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.special import erfinv
 from scipy.optimize import fsolve
+from ..physics.HaloModel import HaloModel
 from ..util.Math import LinearNDInterpolator
 from ..populations.Composite import CompositePopulation
 from ..physics.CrossSections import PhotoIonizationCrossSection
@@ -24,7 +25,7 @@ from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \
 
 root2 = np.sqrt(2.)
 
-class FluctuatingBackground(object):
+class Fluctuations(object):
     def __init__(self, grid=None, **kwargs):
         """
         Initialize a FluctuatingBackground object.
@@ -44,12 +45,12 @@ class FluctuatingBackground(object):
             self.grid = None
             self.cosm = Cosmology()
         
-    @property
-    def pops(self):
-        if not hasattr(self, '_pops'):
-            self._pops = CompositePopulation(**self._kwargs).pops
-    
-        return self._pops
+    #@property
+    #def pops(self):
+    #    if not hasattr(self, '_pops'):
+    #        self._pops = CompositePopulation(**self._kwargs).pops
+    #
+    #    return self._pops
             
     def _overlap_region(self, dr, R1, R2):
         """
@@ -110,7 +111,7 @@ class FluctuatingBackground(object):
                 return 0., 0.
             
             Mmin = self.Mmin(z)
-            iM = np.argmin(np.abs(Mmin * zeta - self.m))
+            iM = np.argmin(np.abs(Mmin * zeta - Mi))
 
             Vi = 4. * np.pi * Ri**3 / 3.   
             Vsh1 = 4. * np.pi * (Rh - Ri)**3 / 3.
@@ -126,19 +127,18 @@ class FluctuatingBackground(object):
             Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
             Qh = np.trapz(dndlnm[iM:] * Vsh1[iM:], x=np.log(Mi[iM:]))
             
-            if self.pf['powspec_rescale_Qion'] and self.pf['powspec_rescale_Qhot']:
-                norm = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
-                
-                corr = (norm / Qi)
-                Qh *= corr
+            #if self.pf['powspec_rescale_Qion'] and self.pf['powspec_rescale_Qhot']:
+            #    norm = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
+            #    
+            #    corr = (norm / Qi)
+            #    Qh *= corr
 
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
          
         return min(Qh, 1.), min(Qc, 1.)
 
-    def BubbleFillingFactor(self, z, zeta, zeta_lya=None, lya=False, 
-        rescale=False):
+    def BubbleFillingFactor(self, z, zeta, rescale=False):
 
         if self.pf['bubble_size_dist'] is None:
             Ri = self.pf['bubble_size']
@@ -172,158 +172,185 @@ class FluctuatingBackground(object):
             else:
                 Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
 
+                # This means reionization is over.
+                if self._B0(z, zeta) <= 0:
+                    return 1.
+                
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
+        
+        return min(Qi, 1.)
         
         # Grab heated phase to enforce BC
         #Rs = self.BubbleShellRadius(z, Ri)        
         #Vsh = 4. * np.pi * (Rs - Ri)**3 / 3.
         #Qh = np.trapz(dndm * Vsh * Mi, x=np.log(Mi))   
         
-        if lya and self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
-            Rc = self.BubblePodRadius(z, Ri, zeta, zeta_lya)
-            Vc = 4. * np.pi * (Rc - Ri)**3 / 3.
-            
-            if self.pf['powspec_rescale_Qlya']:
-                # This isn't actually correct since we care about fluxes
-                # not number of photons, but fine for now.
-                Qc = min(zeta_lya * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
-            else:
-                Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:]))
-
-            return min(Qc, 1.)
-
-        elif lya and self.pf['bubble_pod_size_func'] == 'fzh04':
-            return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
-        else:
-            return min(Qi, 1.)
-
-    def BubbleDensity(self, z, R=None, popid=0):
-        """
-        Compute the volume density of bubbles at redshift z of given radius.
-        """
-     
-        # Can separate size and density artificially
-        b_size = self.pf['bubble_size']
-        b_dens = self.pf['bubble_density']
+        #if lya and self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
+        #    Rc = self.BubblePodRadius(z, Ri, zeta, zeta_lya)
+        #    Vc = 4. * np.pi * (Rc - Ri)**3 / 3.
+        #    
+        #    if self.pf['powspec_rescale_Qlya']:
+        #        # This isn't actually correct since we care about fluxes
+        #        # not number of photons, but fine for now.
+        #        Qc = min(zeta_lya * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
+        #    else:
+        #        Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:]))
+        #        
+        #    return min(Qc, 1.)
+        #
+        #elif lya and self.pf['bubble_pod_size_func'] == 'fzh04':
+        #    return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
+        #else:
         
-        # This takes care of both dimensions
-        b_dist = pop.pf['pop_bubble_size_dist']
         
-        # In this case, compute the bubble size distribution from a 
-        # user-supplied function, the halo mass function, or excursion set 
-        if b_dist is not None:
-            assert R is not None        
-            
-            # Use a user-supplied function for the BSD
-            if type(b_dist) is FunctionType:
-                return b_dist(z, R)
-            # Otherwise, take from hmf or excursion set
-            elif type(b_dist) == 'hmf':
-                raise NotImplementedError('help')
-                # Eventually, distinct from HMF or from excursion set
-                # Assume     
-                halos = self.pops[0].halos
-                
-            else:
-                raise NotImplementedError('help')
 
-        # In this case, there is no bubble size distribution.
-        # The density of bubbles is either given as a constant, a user-defined
-        # function, or determined from the HMF.
-        else:
-
-            if type(b_dens) in [int, float]:
-                return b_dens
-            elif type(b_dens) is FunctionType:
-                return b_dens(z, R)
-            elif b_dens == 'hmf':
-                halos = pop.halos
-
-                logMmin = np.log10(self.Mmin(z))
-                n = LinearNDInterpolator([halos.z, halos.logM], halos.ngtm)
-
-                return n([z, logMmin])
-
-        raise ValueError('Somethings not right')
-        
+    #def BubbleDensity(self, z, R=None, popid=0):
+    #    """
+    #    Compute the volume density of bubbles at redshift z of given radius.
+    #    """
+    # 
+    #    # Can separate size and density artificially
+    #    b_size = self.pf['bubble_size']
+    #    b_dens = self.pf['bubble_density']
+    #    
+    #    # This takes care of both dimensions
+    #    b_dist = pop.pf['pop_bubble_size_dist']
+    #    
+    #    # In this case, compute the bubble size distribution from a 
+    #    # user-supplied function, the halo mass function, or excursion set 
+    #    if b_dist is not None:
+    #        assert R is not None        
+    #        
+    #        # Use a user-supplied function for the BSD
+    #        if type(b_dist) is FunctionType:
+    #            return b_dist(z, R)
+    #        # Otherwise, take from hmf or excursion set
+    #        elif type(b_dist) == 'hmf':
+    #            raise NotImplementedError('help')
+    #            # Eventually, distinct from HMF or from excursion set
+    #            # Assume     
+    #            halos = self.pops[0].halos
+    #            
+    #        else:
+    #            raise NotImplementedError('help')
+    #
+    #    # In this case, there is no bubble size distribution.
+    #    # The density of bubbles is either given as a constant, a user-defined
+    #    # function, or determined from the HMF.
+    #    else:
+    #
+    #        if type(b_dens) in [int, float]:
+    #            return b_dens
+    #        elif type(b_dens) is FunctionType:
+    #            return b_dens(z, R)
+    #        elif b_dens == 'hmf':
+    #            halos = pop.halos
+    #
+    #            logMmin = np.log10(self.Mmin(z))
+    #            n = LinearNDInterpolator([halos.z, halos.logM], halos.ngtm)
+    #
+    #            return n([z, logMmin])
+    #
+    #    raise ValueError('Somethings not right')
+      
     @property
-    def Mmin(self):
-        """
-        Stitch together the minimum mass as minimum over all populations.
-        """
-        if not hasattr(self, '_Mmin'):
-            Mmin_tab = np.ones_like(self.pops[0].halos.z) * np.inf
-            for pop in self.pops:
-                try:
-                    Mmin_tab = np.minimum(Mmin_tab, pop._tab_Mmin)
-                except AttributeError:
-                    Mmin_tab = np.minimum(Mmin_tab, 10**pop.halos.logM_min)
-            
-            self._Mmin = lambda z: np.interp(z, self.pops[0].halos.z, Mmin_tab)
+    def tab_Mmin(self):
+        if not hasattr(self, '_tab_Mmin'):
+            raise AttributeError('Must set Mmin by hand (right now)')
         
-        return self._Mmin
+        return self._tab_Mmin
+        
+    @tab_Mmin.setter
+    def tab_Mmin(self, value):
+        if type(value) is not np.ndarray:
+            value = np.ones_like(self.halos.tab_z) * value
+        else:
+            assert value.size == self.halos.tab_z.size
+            
+        self._tab_Mmin = value
+        
+    def Mmin(self, z):
+        return np.interp(z, self.halos.tab_z, self.tab_Mmin)
+        
+    #@property
+    #def Mmin(self):
+    #    """
+    #    Stitch together the minimum mass as minimum over all populations.
+    #    """
+    #    if not hasattr(self, '_Mmin'):
+    #        Mmin_tab = np.ones_like(self.pops[0].halos.z) * np.inf
+    #        for pop in self.pops:
+    #            try:
+    #                Mmin_tab = np.minimum(Mmin_tab, pop._tab_Mmin)
+    #            except AttributeError:
+    #                Mmin_tab = np.minimum(Mmin_tab, 10**pop.halos.logM_min)
+    #        
+    #        self._Mmin = lambda z: np.interp(z, self.pops[0].halos.z, Mmin_tab)
+    #    
+    #    return self._Mmin
                 
-    def mean_bubble_bias(self, z, zeta, zeta_lya, term):
+    def bubble_bias(self, z, zeta):
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        s = self.sigma
+        S = s**2
+
+        return 1. + ((self._B(z, zeta, zeta)**2 / S - (1. / self._B0(z, zeta))) \
+            / self._growth_factor(z))
+
+    def mean_bubble_bias(self, z, zeta, term='ii'):
+        """
+        Note that we haven't yet divided by QHII!
+        """
         Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
-                
+    
         if ('h' in term) or ('c' in term) and self.pf['powspec_temp_method'] == 'shell':
             Rh, Rc = self.BubbleShellRadius(z, Ri)
             R = Rh
         else:
             R = Ri
-        
+    
         V = 4. * np.pi * R**3 / 3.
-        
+    
         Mmin = self.Mmin(z) * zeta
-        iM = np.argmin(np.abs(Mmin - self.m))
+        iM = np.argmin(np.abs(Mmin - self.m * self.cosm.fbaryon))
         bHII = self.bubble_bias(z, zeta)
-
-        return np.trapz(dndm[iM:] * V[iM:] * bHII[iM:] * Mi[iM:],
-            x=np.log(Mi[iM:]))
-
-    def bubble_bias(self, z, zeta):
-        iz = np.argmin(np.abs(z - self.halos.z))
-        s = self.sigma #* self.halos.growth_factor[iz]
-
-        Mmin = self.Mmin(z) * zeta
-
-        #return 1. + self._B0(z, zeta)**2 / s**2 \
-        #    / self.LinearBarrier(z, zeta, zeta * Mmin)
-        return 1. + ((self._B(z, zeta, zeta)**2 / s**2 - (1. / self._B0(z, zeta))) \
-            / self.halos.growth_factor[iz])
-
-    def excess_probability(self, z, r, data, zeta, zeta_lya, term='ii'):
+        
+        #tmp = dndm[iM:]
+        #print(z, len(tmp[np.isnan(tmp)]), len(bHII[np.isnan(bHII)]))
+    
+        imax = int(min(np.argwhere(np.isnan(Ri))))
+    
+        return np.trapz(dndm[iM:imax] * V[iM:imax] * bHII[iM:imax] * Mi[iM:imax],
+            x=np.log(Mi[iM:imax]))
+    
+    def excess_probability(self, z, r, Q, zeta, term='ii'):
         """
         This is the excess probability that a point is ionized given that 
         we already know another point (at distance r) is ionized.
         """
 
-        if term == 'ii':
-            Q = data['Qi']
-        elif term == 'cc':
-            Q = data['Qc']
-        else: 
-            Q = data['Qh']
 
+        # Function of bubble mass (bubble size)
         bHII = self.bubble_bias(z, zeta)
-        bbar = self.mean_bubble_bias(z, zeta, zeta_lya, term) / Q
+        bbar = self.mean_bubble_bias(z, zeta, term) / Q
 
-        # Should there be a baryon fraction multiplier here?
-        xi_dd = np.interp(np.log(r), np.log(data['dr']), data['cf_dd'])
+        xi_dd = np.intepr(r, self.halos.tab_R, self.halos.tab_cf_mm[iz])
 
-        return np.maximum(bHII * bbar * xi_dd, 0.0)
+        return bHII * bbar * xi_dd
 
     def _K(self, zeta):
         return erfinv(1. - (1. / zeta))
     
-    def _delta_c(self, z, popid=0):
-        pop = self.pops[popid]
-        return self.cosm.delta_c0 / pop.growth_factor(z)
+    def _growth_factor(self, z):
+        return np.interp(z, self.halos.tab_z, self.halos.tab_growth)
+    
+    def _delta_c(self, z):
+        return self.cosm.delta_c0 / self._growth_factor(z)
 
     def _B0(self, z, zeta=40.):
 
-        iz = np.argmin(np.abs(z - self.halos.z))
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.sigma #* self.halos.growth_factor[iz]
         
         # Variance on scale of smallest collapsed object
@@ -332,19 +359,22 @@ class FluctuatingBackground(object):
         return self._delta_c(z) - root2 * self._K(zeta) * sigma_min
     
     def _B1(self, z, zeta=40.):
-        iz = np.argmin(np.abs(z - self.halos.z))
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.sigma #* self.halos.growth_factor[iz]
                 
         sigma_min = self.sigma_min(z, zeta)
         
         return self._K(zeta) / np.sqrt(2. * sigma_min**2)
     
-    def _B(self, z, zeta, zeta_min):
-        return self.LinearBarrier(z, zeta, zeta_min)
+    def _B(self, z, zeta, zeta_min=None):
+        return self.LinearBarrier(z, zeta, zeta_min=None)
         
-    def LinearBarrier(self, z, zeta, zeta_min):
-        iz = np.argmin(np.abs(z - self.halos.z))
+    def LinearBarrier(self, z, zeta, zeta_min=None):
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.sigma #/ self.halos.growth_factor[iz]
+        
+        if zeta_min is None:
+            zeta_min = zeta
         
         return self._B0(z, zeta_min) + self._B1(z, zeta) * s**2
     
@@ -353,7 +383,7 @@ class FluctuatingBackground(object):
         Full barrier.
         """
         
-        iz = np.argmin(np.abs(z - self.halos.z))
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
         D = self.halos.growth_factor[iz]
 
         sigma_min = self.sigma_min(z, zeta)
@@ -370,7 +400,7 @@ class FluctuatingBackground(object):
 
     def sigma_min(self, z, zeta):
         Mmin = self.Mmin(z)
-        return np.interp(Mmin, self.halos.M, self.halos.sigma_0)
+        return np.interp(Mmin, self.halos.tab_M, self.halos.tab_sigma)
 
     def BubblePodSizeDistribution(self, z, zeta):
         if self.pf['powspec_lya_method'] == 1:
@@ -383,40 +413,61 @@ class FluctuatingBackground(object):
     @property
     def m(self):
         if not hasattr(self, '_m'):
-            self._m = 10**np.arange(5, 18.05, 0.01)
+            self._m = 10**np.arange(5, 18.01, 0.01)
         return self._m
 
     @property
     def sigma(self):
         if not hasattr(self, '_sigma'):
-            self._sigma = np.interp(self.m, self.halos.M, self.halos.sigma_0)
+            self._sigma = np.interp(self.m, self.halos.tab_M, self.halos.tab_sigma)
             
             # Crude but chill it's temporary
-            bigm = self.m > self.halos.M.max()
-            slope = np.diff(np.log10(self.halos.sigma_0[-2:])) \
-                  / np.diff(np.log10(self.halos.M[-2:]))
-            self._sigma[bigm == 1] = self.halos.sigma_0[-1] \
-                * (self.m[bigm == 1] / self.halos.M.max())**slope
+            bigm = self.m > self.halos.tab_M.max()
+            if np.any(bigm):
+                print("WARNING: Extrapolating sigma to higher masses.")
+            
+                slope = np.diff(np.log10(self.halos.tab_sigma[-2:])) \
+                      / np.diff(np.log10(self.halos.tab_M[-2:]))
+                self._sigma[bigm == 1] = self.halos.tab_sigma[-1] \
+                    * (self.m[bigm == 1] / self.halos.tab_M.max())**slope
             
         return self._sigma
         
     @property
     def dlns_dlnm(self):
         if not hasattr(self, '_dlns_dlnm'):
-            self._dlns_dlnm = np.interp(self.m, self.halos.M, self.halos.dlns_dlnm)
+            self._dlns_dlnm = np.interp(self.m, self.halos.tab_M, self.halos.tab_dlnsdlnm)
         
-            bigm = self.m > self.halos.M.max()
+            bigm = self.m > self.halos.tab_M.max()
             if np.any(bigm):
-                print("WARNING: Extrapolating sigma to higher masses.")
-                slope = np.diff(np.log10(np.abs(self.halos.dlns_dlnm[-2:]))) \
-                      / np.diff(np.log10(self.halos.M[-2:]))
-                self._dlns_dlnm[bigm == 1] = self.halos.dlns_dlnm[-1] \
-                    * (self.m[bigm == 1] / self.halos.M.max())**slope
+                print("WARNING: Extrapolating dlns_dlnm to higher masses.")
+                slope = np.diff(np.log10(np.abs(self.halos.tab_dlnsdlnm[-2:]))) \
+                      / np.diff(np.log10(self.halos.tab_M[-2:]))
+                self._dlns_dlnm[bigm == 1] = self.halos.tab_dlnsdlnm[-1] \
+                    * (self.m[bigm == 1] / self.halos.tab_M.max())**slope
         
         return self._dlns_dlnm
 
 
     def BubbleSizeDistribution(self, z, zeta):
+        """
+        Compute the ionized bubble size distribution.
+        
+        Parameters
+        ----------
+        z: int, float
+            Redshift of interest.
+        zeta : int, float, np.ndarray
+            Ionizing efficiency.
+            
+        Returns
+        -------
+        Tuple containing (in order) the bubble radii, masses, and the
+        differential bubble size distribution. Each is an array of length
+        self.halos.tab_M, i.e., with elements corresponding to the masses
+        used to compute the variance of the density field.
+            
+        """
 
         #if not hasattr(self, '_bsd_cache'):
         #    self._bsd_cache = {}
@@ -424,33 +475,44 @@ class FluctuatingBackground(object):
         #if z in self._bsd_cache:
         #    Ri, Mi, dndm = self._bsd_cache[(z,lya)]
            
+        # Comoving matter density
+        rho0_m = self.cosm.mean_density0
+        rho0_b = rho0_m * self.cosm.fbaryon 
+           
         if self.pf['bubble_size_dist'] is None:
             if self.pf['bubble_density'] is not None:
                 Ri = self.pf['bubble_size']
-                Mi = (4. * np.pi * Rb**3 / 3.) * self.cosm.mean_density0
+                Mi = (4. * np.pi * Rb**3 / 3.) * rho0_m
                 dndm = self.pf['bubble_density']
             else:
                 raise NotImplementedError('help')
+        
+        elif self.pf['bubble_size_dist'].lower() == 'hmf':
+            Mi = self.halos.tab_M * zeta
+            Ri = (3. * Mi / rho0_b / (1. + delta_B) / 4. / np.pi)**(1./3.)
+            dndm = self.halos.dndm
         
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             # Just use array of halo mass as array of ionized region masses.
             # Arbitrary at this point, just need an array of masses.
             # Plus, this way, the sigma's from the HMF are OK.
-            Mi = self.m
-            # Comoving matter density
-            rho0 = self.cosm.mean_density0 #* self.cosm.fbaryon
-            
+            Mi = self.m * self.cosm.fbaryon
+                        
             # Mean (over-)density of bubble material
             delta_B = self._B(z, zeta, zeta)
             
             # Radius of ionized regions as function of delta (mass)
-            Ri = (3 * Mi / rho0 / (1. + delta_B) / 4. / np.pi)**(1./3.)
+            Ri = (3. * Mi / rho0_b / (1. + delta_B) / 4. / np.pi)**(1./3.)
         
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and Mi are from using dlns instead of 
             # dS (where S=s^2)
-            dndm = rho0 * self.pcross(z, zeta) * 2 * np.abs(self.dlns_dlnm) \
+            dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.dlns_dlnm) \
                 * self.sigma**2 / Mi**2
+                
+            # Reionization is over!
+            if self._B0(z, zeta) <= 0:
+                dndm = np.zeros_like(dndm)
                 
         else:
             raise NotImplementedError('Unrecognized option: %s' % self.pf['bubble_size_dist'])
@@ -485,7 +547,7 @@ class FluctuatingBackground(object):
     @property
     def halos(self):
         if not hasattr(self, '_halos'):
-            self._halos = self.pops[0].halos
+            self._halos = HaloModel(**self.pf)
         return self._halos
         
     @property
@@ -686,7 +748,7 @@ class FluctuatingBackground(object):
         if term not in self._cache_jp_[z]:
             return None
         else:
-            return self._cache_jp_[z]
+            return self._cache_jp_[z][term]
         
     def _cache_Vo(self, sep, Ri, Rh, Rc):
         if not hasattr(self, '_cache_Vo_'):
@@ -695,10 +757,9 @@ class FluctuatingBackground(object):
         if sep not in self._cache_Vo_:
             self._cache_Vo_[sep] = self.overlap_volumes(sep, Ri, Rh, Rc)
 
-        return self._cache_Vo_[sep]    
+        return self._cache_Vo_[sep]
     
-    def JointProbability(self, z, dr, zeta, Tprof=None, term='ii', data=None,
-        zeta_lya=None):
+    def JointProbability(self, z, dr, zeta, Q=None, Tprof=None, term='ii'):
         """
         Compute the joint probability that two points are ionized, heated, etc.
 
@@ -737,8 +798,15 @@ class FluctuatingBackground(object):
                                                                 
         # Minimum bubble size            
         Mmin = self.Mmin(z) * zeta
-        iM = np.argmin(np.abs(self.m - Mmin))
-        iz = np.argmin(np.abs(z - self.halos.z))
+        iM = np.argmin(np.abs(Mi - Mmin))
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        
+        # Grab the matter power spectrum
+        xi_dd = self.halos.tab_cf_mm[iz]
+        
+        # If volume filling factor not supplied, compute it.
+        if Q is None:
+            Q = self.BubbleFillingFactor(z, zeta)
         
         # Loop over scales
         B1 = np.zeros(dr.size)
@@ -752,8 +820,7 @@ class FluctuatingBackground(object):
         
             # For two-halo terms, need bias of sources.
             if self.pf['include_bias']:
-                ep = self.excess_probability(z, sep, data, zeta, zeta_lya, 
-                    term)
+                ep = self.excess_probability(z, sep, Q, zeta, term)
             else:
                 ep = np.zeros_like(self.m)
         
@@ -768,7 +835,7 @@ class FluctuatingBackground(object):
             # as the region where a single source is not enough (Vss_ne)
             ##
             if term == 'ii':
-                Vo = all_V[0]#self.overlap_region_sphere(sep, Ri)
+                Vo = all_V[0]
         
                 Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
                 Vss_ne_2 = Vss_ne_1
@@ -794,16 +861,15 @@ class FluctuatingBackground(object):
                 
                 Vss_ne_1 = Vss_ne_2 = np.zeros_like(Ri)
         
-                xi_dd = data['cf_dd'][i]
-                bh = self.halos.bias_of_M(z)
+                bh = self.halos.Bias(z)
                 bb = self.bubble_bias(z, zeta)
                 
                 Vi = 4. * np.pi * Ri**3 / 3.
                 
-                dndm_h = self.halos.dndm[iz]
-                iM_h = np.argmin(np.abs(self.m - self.Mmin(z)))
+                dndm_h = self.halos.tab_dndm[iz]
+                iM_h = np.argmin(np.abs(Mi - self.Mmin(z)))
                 
-                _prob_i_d = dndm * bb * xi_dd * Vi * Mi
+                _prob_i_d = dndm * bb * xi_dd[i] * Vi * Mi
                 prob_i_d = np.trapz(_prob_i_d[iM:], x=np.log(Mi[iM:]))
                 
                 #_Pout = bh * dndm_h
@@ -915,13 +981,12 @@ class FluctuatingBackground(object):
                 #xi_dd = data['xi_dd_c'][i]
                 #
                 #bHII = self.bubble_bias(z, zeta)
-                
-                xi_dd = data['cf_dd'][i]
-                bh = self.halos.bias_of_M(z)
+                                
+                bh = self.halos.Bias(z)
                 bb = self.bubble_bias(z, zeta)
                 
                 Vi = 4. * np.pi * (Rh - Ri)**3 / 3.
-                _prob_i_d = dndm * bb * xi_dd * Vi * Mi
+                _prob_i_d = dndm * bb * xi_dd[i] * Vi * Mi
                 prob_i_d = np.trapz(_prob_i_d[iM:], x=np.log(Mi[iM:]))
                 
                 Pout = prob_i_d #+ data['Qh']
@@ -937,7 +1002,7 @@ class FluctuatingBackground(object):
         
             # Compute the one-bubble term
             integrand1 = dndm * Vo
-        
+                     
             exp_int1 = np.exp(-np.trapz(integrand1[iM:] * Mi[iM:],
                 x=np.log(Mi[iM:])))
         
@@ -962,42 +1027,101 @@ class FluctuatingBackground(object):
             ##
             P2 = exp_int1 * (1. - exp_int2) * (1. - exp_int2_ex)
             #P2 = exp_int1 * np.log(exp_int2) * np.log(exp_int2_ex)
-        
-            B1[i] = P1
-            #B2[i] = min(max(P2, 0.0), 1.0)
-                        
-            if limiter is not None:
-                Q = data['Q%s' % limiter]
-            else:
-                Q = 0.
-        
-            if term in ['id', 'hd']:
-                #BT[i] = P1 - Pin
-                
-                BT[i] = Pin + Pout #- P1
-
-                if limiter is not None:
-                    if Q >= 0.5:
-                        BT[i] = Pin                
-
-                continue
             
-            BT[i] = P1 #+ P2
-            if i == 0:
-                print("PS: cut P2 out of power spectrum")
-            # Add optional correction to ensure limiting behavior?        
-           #if (limiter is not None) and self.pf['powspec_volfix']:
-           #    if Q < 0.5:
-           #        BT[i] = max(P1 + P2, 0.0)
-           #    else:
-           #        BT[i] = max((1. - Q) * P1 + Q**2, 0.0)    
-           #    
-           ## Or don't
-           #BT[i] = max(P1 + P2, 0.0)
+            B1[i] = P1
+            B2[i] = P2
+        
+            #if term in ['id', 'hd']:
+            #    #BT[i] = P1 - Pin
+            #    
+            #    BT[i] = Pin + Pout #- P1
+            #
+            #    if limiter is not None:
+            #        if Q >= 0.5:
+            #            BT[i] = Pin                
+            #
+            #    continue
+            
+            BT[i] = P1 + P2
+            #if i == 0:
+            #    print("PS: cut P2 out of power spectrum")
+            
+            
+            
+            #else:   
+            #    BT[i] = max(P1 + P2, 0.0)
                     
         self._cache_jp_[z][term] = BT, B1, B2
         
         return BT, B1, B2
 
 
+    def CorrelationFunction(self, z, zeta, Q=None, term='ii', rescale=False):
+        """
+        Compute the correlation function of some general term.
+        
+        """
+        
+        if Q is None:
+            Q = self.BubbleFillingFactor(z, zeta, rescale)
+        
+        if term == 'mm':
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            return self.halos.tab_cf_mm[iz]
+        
+        elif term == 'ii':
+        
+            jp_ii, jp_ii_1, jp_ii_2 = \
+                self.JointProbability(z, self.halos.tab_R, zeta, Q)
+                
+            # Add optional correction to ensure limiting behavior?        
+            if self.pf['powspec_volfix']:
+                if Q < 0.5:
+                    ev_ii = np.maximum(jp_ii_1 + jp_ii_2, 0.0)
+                else:
+                    ev_ii = np.maximum((1. - Q) * jp_ii_1 + Q**2, 0.0)    
+            
+            else:    
+                ev_ii = jp_ii
+                            
+            return ev_ii - Q**2
+            
+        elif term == '21':
+            
+            xi_ii = self.CorrelationFunction(z, zeta, term='ii', 
+                rescale=rescale)
+            xi_mm = self.CorrelationFunction(z, zeta, term='mm', 
+                rescale=rescale)
+            xi_im = 0.0
+            
+            xbar = (1. - Q)
+            
+            xi_21 = xi_ii * (1. + xi_mm) + xbar**2 * xi_mm + \
+                xi_im * (xi_im + 2. * xbar)
+            
+            return xi_21
+        
+        else:
+            raise NotImplemented('help')
+            
+            
+    def PowerSpectrum(self, z, zeta, Q=None, term='ii', rescale=False, 
+        cf=None, R=None):
+        
+        if cf is None:
+            cf = self.CorrelationFunction(z, zeta, Q=Q, term=term, 
+                rescale=rescale)
+        else:
+            
+            if R is None:
+                R = self.halos.tab_R
+            
+            assert cf.size == R.size
+            print('Correlation function supplied. Neglecting all other parameters.')    
+            
+        # Integrate over R
+        func = lambda k: self.halos._integrand_FT_3d_to_1d(cf, k, R)
+          
+        return np.array([np.trapz(func(k) * R, x=np.log(R)) \
+            for k in self.halos.tab_k]) / 2. / np.pi
         

@@ -243,7 +243,6 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     
         rho0 = self.cosm.mean_density0 * self.cosm.fbaryon
         
-        #R = ((M / rho0) * 0.75 / np.pi)**(1./3.)
         dvdr = 4. * np.pi * R**2        
         dmdr = rho0 * (1. + delta_B) * dvdr
         dmdlnr = dmdr * R
@@ -263,14 +262,14 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ax.set_xlabel(r'$R \ [\mathrm{Mpc}]$')
             ax.set_ylabel(r'$Q^{-1} V \ dn/dlnR$')
             ax.set_yscale('linear')
-            ax.set_ylim(0, 1)
+            ax.set_ylim(0, 0.7) # Split difference between FZH04 and PC14
 
         pl.draw()
 
         return ax
 
     def BubbleFillingFactor(self, ax=None, fig=1, force_draw=False, 
-        **kwargs):  
+        **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
         """
@@ -471,17 +470,21 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     x_ch_1, ps_ch_1 = self._split_cf(redshift, s+'_1')
                     x_ch_2, ps_ch_2 = self._split_cf(redshift, s+'_2')
 
+                ct = 0
                 for j, chunk in enumerate(ps_ch):
                     if np.all(chunk < 0):
                         lw = 1
                     else:
                         lw = 3
 
-                    if j == 0:
+                    if ct == 0 and (lw == 3 or (j == len(ps_ch) - 1)):
                         if real_space:
                             label = r'$\xi_{%s}$' % cf
                         else:
                             label = r'$P_{%s}$' % cf
+                            
+                        ct += 1    
+                        
                     else:
                         label = None
 
@@ -492,9 +495,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     
                     ax.loglog(x_ch[j], np.abs(chunk) * mult, color=colors[i], 
                         ls='-', alpha=0.5, lw=lw, label=label)
+                                                
                         
                 # Plot one- and two-halo terms separately as dashed/dotted lines        
-                if split_by_scale and ('%s_1' % s in self.history.keys()):
+                if split_by_scale and ('{}_1'.format(s) in self.history.keys()):
 
                     ls = ['--', ':']
                     xlist = [x_ch_1, x_ch_2]

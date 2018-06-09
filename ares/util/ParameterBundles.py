@@ -365,9 +365,11 @@ _Bundles = \
 }
 
 class ParameterBundle(dict):
-    def __init__(self, bundle=None, id_num=None, bset=None, **kwargs):
+    def __init__(self, bundle=None, id_num=None, bset=None, verbose=True,
+        **kwargs):
         self.bundle = bundle
         self.kwargs = kwargs
+        self.verbose = verbose
         
         if bset is None:
             self.bset = _Bundles
@@ -435,14 +437,15 @@ class ParameterBundle(dict):
                     header('Parameter Bundle')
                     first_update = False                
                 
-                msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
-                    str(other[key]).ljust(12))
-                msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
-                print(line('{0} [{1}]'.format(msg1, msg2)))
+                if self.verbose:
+                    msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
+                        str(other[key]).ljust(12))
+                    msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                    print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]
 
-        if not first_update:
+        if (not first_update) and self.verbose:
             print('#'*width)
             
         return ParameterBundle(**tmp)
@@ -668,12 +671,17 @@ class ParameterBundle(dict):
 
 
 _PB = ParameterBundle
-_uv_pop = _PB('pop:fcoll', id_num=0) + _PB('sed:uv', id_num=0)
-_xr_pop = _PB('pop:fcoll', id_num=1) + _PB('sed:xray', id_num=1)
+_uv_pop = _PB('pop:fcoll', id_num=0, verbose=0) \
+        + _PB('sed:uv',    id_num=0, verbose=0)
+_xr_pop = _PB('pop:fcoll', id_num=1, verbose=0) \
+        + _PB('sed:xray',  id_num=1, verbose=0)
 
-_gs_4par = _PB('pop:fcoll', id_num=0) + _PB('sed:lw', id_num=0) \
-         + _PB('pop:fcoll', id_num=1) + _PB('sed:lyc', id_num=1) \
-         + _PB('pop:fcoll', id_num=2) + _PB('sed:xray', id_num=2)
+_gs_4par = _PB('pop:fcoll', id_num=0, verbose=0) \
+         + _PB('sed:lw',    id_num=0, verbose=0) \
+         + _PB('pop:fcoll', id_num=1, verbose=0) \
+         + _PB('sed:lyc',   id_num=1, verbose=0) \
+         + _PB('pop:fcoll', id_num=2, verbose=0) \
+         + _PB('sed:xray',  id_num=2, verbose=0)
          
          
 # Build a template four-parameter model
@@ -686,7 +694,7 @@ _uv = _PB('src:toy-ion')
 _uv.num = 2
 _uv.link_sfrd_to = 0
          
-_gs_4par = _lw + _xr + _uv         
+_gs_4par = _lw + _xr + _uv
 
 _tanh_sim = {'problem_type': 100, 'tanh_model': True,
     'output_frequencies': np.arange(30., 201.)}

@@ -33,14 +33,14 @@ class CompositePopulation(object):
         """
         Initialize a CompositePopulation object, i.e., a list of *Population instances.
         """
-        
+
         self.pf = ParameterFile(**kwargs)
-        
+
         N = self.Npops = self.pf.Npops
         self.pfs = self.pf.pfs
-                                        
+
         self.BuildPopulationInstances()
-        
+
     def BuildPopulationInstances(self):
         """
         Construct list of *Population class instances.
@@ -53,7 +53,7 @@ class CompositePopulation(object):
         to_attribute = [None for i in range(self.Npops)]
         link_args = [[] for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
-                        
+
             ct = 0            
             # Only link options that are OK at this stage.
             for option in allowed_options:

@@ -371,11 +371,11 @@ def PowerSpectrumParameters():
     tmp = \
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
-     'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
+     #'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
 
      # Ultimately we'll interpolate beyond these
      'powspec_dlogk': 0.1,
-     'powspec_dlogr': 0.1,
+     'powspec_dlogR': 0.1,
      
      'include_acorr': True,
      'include_xcorr': False,
@@ -392,12 +392,13 @@ def PowerSpectrumParameters():
      'include_bias': False,
 
      "powspec_volfix": False,
-     "powspec_rescale_Qion": False,
+     
      "powspec_rescale_Qlya": False,
      "powspec_rescale_Qhot": False,
      "powspec_rescale_dTb": False,
 
-     "powspec_force_Qi_gs": True,
+     "powspec_force_Qi_fcoll": False,
+     "powspec_force_Qi_gs": False,
 
      "bubble_size": None,
      "bubble_density": None,
@@ -877,6 +878,7 @@ def HaloMassFunctionParameters():
     {
     "hmf_model": 'ST',
     
+    
     "hmf_instance": None,
     "hmf_load": True,
     "hmf_load_ps": True,
@@ -886,7 +888,7 @@ def HaloMassFunctionParameters():
 
     # Table resolution
     "hmf_logMmin": 4,
-    "hmf_logMmax": 16,
+    "hmf_logMmax": 18,
     "hmf_dlogM": 0.01,
     "hmf_zmin": 3,
     "hmf_zmax": 60,
@@ -904,9 +906,12 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_trunc": False,
     
     # For matter power spectrum
-    'mpowspec_dlogk': 0.1,
-    'mpowspec_dlogr': 0.1,
-    
+    'mpowspec_dlnk': 0.05,
+    'mpowspec_dlnR': 0.05,
+    'mpowspec_lnk_min': -8.,
+    'mpowspec_lnk_max': 8.,
+    'mpowspec_lnR_min': -8.,
+    'mpowspec_lnR_max': 8.,
 
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',

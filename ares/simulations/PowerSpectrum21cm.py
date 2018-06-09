@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from .Global21cm import Global21cm
+from ..physics.HaloModel import HaloModel
 from ..solvers import FluctuatingBackground
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
@@ -81,8 +82,13 @@ class PowerSpectrum21cm(AnalyzePS):
     def field(self):
         if not hasattr(self, '_field'):
             self._field = FluctuatingBackground(**self.kwargs)
-                
         return self._field
+        
+    @property
+    def HM(self):
+        if not hasattr(self, '_HM'):
+            self._HM = HaloModel(**self.pf)
+        return self._HM
 
     def run(self): 
         """
@@ -203,21 +209,12 @@ class PowerSpectrum21cm(AnalyzePS):
         """
 
         step = np.diff(self.pf['fft_scales'])[0]
-
-        self.R = R = self.pf['fft_scales']
-        self.k = k = np.fft.fftfreq(R.size, step)
-        logR = np.log(R)
-
-        k_mi, k_ma = k[k>0].min(), k.max()
-        dlogk = self.pf['powspec_dlogk']
-        k_pos = np.exp(np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk))
-
+        
         if self.include_fluctuations:
-            self.k_pos = self.pops[0].halos.k_cr_pos
-            self.R_cr = self.pops[0].halos.R_cr
-            self.logR_cr = np.log(self.R_cr)
+            self.k = self.pops[0].halos.k
+            self.R = self.pops[0].halos.R
         else:
-            self.k_pos = self.R_cr = self.logR_cr = np.zeros(10)
+            self.k = self.R = np.zeros(10)
 
         for i, z in enumerate(self.z):
 
@@ -300,12 +297,17 @@ class PowerSpectrum21cm(AnalyzePS):
                 self.gs.history['cgm_h_2'][-1::-1])
             
             QHII_ff = self.field.BubbleFillingFactor(z, zeta,
-                rescale=self.pf['powspec_volfix'])
+                rescale=self.pf['powspec_force_Qi_fcoll'])
             
             # Mean brightness temperature outside bubbles  
             # Currently not including xe effects  
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
-                self.gs.history['dTb'][-1::-1]) / (1. - QHII_gs)
+                self.gs.history['dTb'][-1::-1])
+                
+            if QHII_ff < 1:
+                Tbar /= (1. - QHII_ff)
+            else:
+                Tbar = 0.0    
 
 
             #Qi = xibar
@@ -330,7 +332,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     Qi = QHII_gs
                 else:    
                     Qi = self.field.BubbleFillingFactor(z, zeta, 
-                        rescale=self.pf['powspec_rescale_Qion'])
+                        rescale=self.pf['powspec_force_Qi_fcoll'])
             else:
                 Qi = QHII_gs
                 
@@ -352,9 +354,7 @@ class PowerSpectrum21cm(AnalyzePS):
             data['z'] = z
             
             data['zeta'] = zeta
-            
-            logr = np.log(self.R)
-            
+                        
             ##
             # Density fluctuations
             ##
@@ -362,14 +362,13 @@ class PowerSpectrum21cm(AnalyzePS):
                 
                 # k may be different for 21-cm and matter power spectra!
                 
-                ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
+                ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k)
                 
                 # PS is positive so it's OK to log-ify it
-                data['ps_dd'] = np.exp(np.interp(np.log(np.abs(self.k)),
-                    np.log(self.k_pos), np.log(ps_dd)))
+                data['ps_dd'] = ps_dd
                 
                 # If this isn't tabulated, need to send in full dr array
-                cf_c = self.pops[0].halos.CorrelationFunction(z, self.R_cr)
+                cf_dd = self.pops[0].halos.CorrelationFunction(z, self.R, ps_dd)
                 
                 # Need finer-grain resolution for this. Leave correlation
                 # function in linear units for interpolation because it will 
@@ -377,13 +376,13 @@ class PowerSpectrum21cm(AnalyzePS):
                 # to account for the dispersal of power into negative 
                 # frequencies. We should do this inside PS-tabulation in the
                 # future.
-                data['cf_dd'] = np.interp(logr, np.log(self.R_cr), cf_c)
+                data['cf_dd'] = cf_dd
                 
                 #data['cf_dd'][0:10] = 0
                 #data['cf_dd'][-10:] = 0
                 
             else:
-                data['cf_dd'] = data['ps_dd'] = np.zeros_like(R)
+                data['cf_dd'] = data['ps_dd'] = np.zeros_like(self.R)
 
             ##    
             # Ionization fluctuations
@@ -392,34 +391,33 @@ class PowerSpectrum21cm(AnalyzePS):
                 R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta)
             
                 p_ii, p_ii_1, p_ii_2 = self.field.JointProbability(z, 
-                    self.R_cr, zeta, term='ii', Tprof=None, data=data,
+                    self.R, zeta, term='ii', Tprof=None, data=data,
                     zeta_lya=zeta_lya)
                 
                 # Interpolate onto fine grid
-                data['jp_ii'] = np.interp(logR, self.logR_cr, p_ii)
-                data['jp_ii_1'] = np.interp(logR, self.logR_cr, p_ii_1)
-                data['jp_ii_2'] = np.interp(logR, self.logR_cr, p_ii_2)
+                data['jp_ii']   = p_ii#np.interp(logR, self.logR_cr, p_ii)
+                data['jp_ii_1'] = p_ii_1#np.interp(logR, self.logR_cr, p_ii_1)
+                data['jp_ii_2'] = p_ii_2#np.interp(logR, self.logR_cr, p_ii_2)
 
-                data['ev_ii'] = data['jp_ii']
+                # In this case, JP and EV are identical.
+                data['ev_ii']   = data['jp_ii']
                 data['ev_ii_1'] = data['jp_ii_1']
                 data['ev_ii_2'] = data['jp_ii_2']
 
                 # Dimensions here are set by mass-sampling in HMF table
-                data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
+                data.update({'R_b': R_b, 'M_b': M_b, 'bsd': bsd})
                 data['delta_B'] = self.field._B(z, zeta, zeta)
             else:
-                p_ii = data['jp_ii'] = data['ev_ii'] = np.zeros_like(R)
-                data['ev_ii_1'] = data['ev_ii_2'] = np.zeros_like(R)
+                p_ii = data['jp_ii'] = data['ev_ii'] = np.zeros_like(self.R)
+                data['ev_ii_1'] = data['ev_ii_2'] = np.zeros_like(self.R)
 
             ##
             # Temperature fluctuations                
             ##
-            
-            
-            
-            data['ev_coco'] = np.zeros_like(R)
-            data['ev_coco_1'] = np.zeros_like(R)
-            data['ev_coco_2'] = np.zeros_like(R)
+                        
+            data['ev_coco']   = np.zeros_like(self.R)
+            data['ev_coco_1'] = np.zeros_like(self.R)
+            data['ev_coco_2'] = np.zeros_like(self.R)
             if self.pf['include_temp_fl']:
                 
                 zeta_X = 40.
@@ -439,10 +437,10 @@ class PowerSpectrum21cm(AnalyzePS):
                 else:
                     raise NotImplemented('help')
                 
-                data['avg_C'] = 0.0
-                data['jp_hc'] = np.zeros_like(R)
-                data['jp_hc_1'] = np.zeros_like(R)
-                data['jp_hc_2'] = np.zeros_like(R)
+                data['avg_C']   = 0.0
+                data['jp_hc']   = np.zeros_like(self.R)
+                data['jp_hc_1'] = np.zeros_like(self.R)
+                data['jp_hc_2'] = np.zeros_like(self.R)
 
                 data['Qc'] = 0.0
                 data['Cc'] = 0.0
@@ -500,12 +498,9 @@ class PowerSpectrum21cm(AnalyzePS):
                         self.R_cr, zeta_, term=ss, Tprof=None, data=data,
                         zeta_lya=zeta_lya)
                     
-                    data['jp_{}'.format(ss)] = \
-                        np.interp(logR, self.logR_cr, p_tot)
-                    data['jp_{}_1'.format(ss)] = \
-                        np.interp(logR, self.logR_cr, p_1h)
-                    data['jp_{}_2'.format(ss)] = \
-                        np.interp(logR, self.logR_cr, p_2h)
+                    data['jp_{}'.format(ss)]   = p_tot #np.interp(logR, self.logR_cr, p_tot)
+                    data['jp_{}_1'.format(ss)] = p_1h  #np.interp(logR, self.logR_cr, p_1h)
+                    data['jp_{}_2'.format(ss)] = p_2h  #np.interp(logR, self.logR_cr, p_2h)
                                         
                     if self.pf['powspec_temp_method'] == 'lpt' or ii == 1:
                         C = (Tcmb / (Ts - Tcmb)) * delta_T[ii]
@@ -544,7 +539,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     #data['jp_hc']
             
             else:
-                p_hh = data['jp_hh'] = np.zeros_like(R)
+                p_hh = data['jp_hh'] = np.zeros_like(self.R)
                 data['Ch'] = Ch = 0.0
                 data['Qh'] = Qh = 0.0
                 data['avg_Ch'] = 0.0
@@ -603,22 +598,22 @@ class PowerSpectrum21cm(AnalyzePS):
                 #    for kpos in self.k_pos])
                  
                 #ps_aa = ps_ad   
-                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl, Mmin(z)) \
-                    for kpos in self.k_pos])
+                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, k, uisl, Mmin(z)) \
+                    for k in self.k])
                 #ps_aa_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin) \
                 #    for kpos in self.k_pos])
                 #ps_aa_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin) \
                 #    for kpos in self.k_pos])    
 
                 # Interpolate back to fine grid before FFTing
-                data['ps_aa'] = np.exp(np.interp(np.log(np.abs(self.k)), 
-                    np.log(self.k_pos), np.log(ps_aa)))
+                data['ps_aa'] = ps_aa#np.exp(np.interp(np.log(np.abs(self.k)), 
+                    #np.log(self.k_pos), np.log(ps_aa)))
                 #data['ps_aa_1'] = np.exp(np.interp(np.log(np.abs(self.k)), 
                 #    np.log(self.k_pos), np.log(ps_aa_1)))
                 #data['ps_aa_2'] = np.exp(np.interp(np.log(np.abs(self.k)), 
                 #    np.log(self.k_pos), np.log(ps_aa_2)))
 
-                data['cf_aa'] = np.fft.ifft(data['ps_aa']).real
+                data['cf_aa'] = self.pops[0].halos.CorrelationFunction()
 
                 data['ev_aa'] = data['cf_aa']
 
@@ -858,7 +853,7 @@ class PowerSpectrum21cm(AnalyzePS):
             # MODIFY CORRELATION FUNCTION depending on Ts fluctuations
             ##    
             
-            if (self.pf['include_temp_fl'] or self.pf['include_lya_fl']):
+            if self.include_con_fl:
 
                 ##
                 # Let's start with low-order terms and build up from there.
