@@ -31,12 +31,17 @@ pars = \
  "hmf_zmax": 60,
  "hmf_dz": 0.05,
  
- 'mpowspec_dlnk': 0.05,
- 'mpowspec_dlnR': 0.05,
- 'mpowspec_lnk_min': -8.,
- 'mpowspec_lnk_max': 8.,
- 'mpowspec_lnR_min': -8.,
- 'mpowspec_lnR_max': 8.,
+ 
+ "mps_zmin": 6,
+ "mps_zmax": 20,
+ "mps_dz": 0.5,
+ 
+ 'mps_dlnk': 0.01,
+ 'mps_dlnR': 0.01,
+ 'mps_lnk_min': -8.,
+ 'mps_lnk_max': 8.,
+ 'mps_lnR_min': -8.,
+ 'mps_lnR_max': 8.,
 }
 ##
 

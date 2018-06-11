@@ -5,7 +5,9 @@ import re
 import pickle
 import numpy as np
 import scipy.special as sp
+from types import FunctionType
 from scipy.integrate import quad
+from scipy.interpolate import interp1d, Akima1DInterpolator
 from ..util.ProgressBar import ProgressBar
 from .Constants import rho_cgs, c, cm_per_mpc
 from .HaloMassFunction import HaloMassFunction
@@ -186,7 +188,7 @@ class HaloModel(HaloMassFunction):
         Compute the one halo term of the halo model for given input profile.
         """
 
-        iz = np.argmin(np.abs(z - self.tab_z))
+        iz = np.argmin(np.abs(z - self.tab_z_ps))
 
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_1 is None:
@@ -237,7 +239,7 @@ class HaloModel(HaloMassFunction):
         
         """
         
-        iz = np.argmin(np.abs(z - self.tab_z))
+        iz = np.argmin(np.abs(z - self.tab_z_ps))
 
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_1 is None:
@@ -298,9 +300,9 @@ class HaloModel(HaloMassFunction):
         
         # Tabulation only implemented for density PS at the moment.
         if self.pf['hmf_load_ps'] and (profile_1 is None):
-            iz = np.argmin(np.abs(z - self.tab_z))
+            iz = np.argmin(np.abs(z - self.tab_z_ps))
             if exact_z:
-                assert abs(z - self.tab_z[iz]) < 1e-2, \
+                assert abs(z - self.tab_z_ps[iz]) < 1e-2, \
                     'Supplied redshift (%g) not in table!' % z
             if len(k) == len(self.tab_k):
                 if np.allclose(k, self.tab_k):
@@ -358,7 +360,7 @@ class HaloModel(HaloMassFunction):
         # Load from table
         ##
         if self.pf['hmf_load_ps'] and load:
-            iz = np.argmin(np.abs(z - self.tab_z))
+            iz = np.argmin(np.abs(z - self.tab_z_ps))
             assert abs(z - self.z[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
             assert np.allclose(dr, self.R_cr)
@@ -379,23 +381,71 @@ class HaloModel(HaloMassFunction):
             k = self.tab_k
             Pofk = self.PowerSpectrum(z, self.tab_k)
         
-        # Integrate over k        
-        func = lambda R: self._integrand_iFT_3d_to_1d(Pofk, k, R)
-        
-        if type(R) in [int, float]:
-            return np.trapz(func(R) * k, x=np.log(k)) / 2. / np.pi
-        else:    
-            return np.array([np.trapz(func(R) * k, x=np.log(k)) \
-                for R in self.tab_R]) / 2. / np.pi
+        return self.InverseFT3D(R, Pofk, k)
+    
+    def InverseFT3D(self, R, ps, k=None, damp=None,
+        epsabs=1e-6, epsrel=1e-6, limit=500):
+        """
+    
+        """
+        assert type(R) == np.ndarray
+    
+        if (type(ps) == FunctionType) or isinstance(ps, interp1d) \
+           or isinstance(ps, Akima1DInterpolator):
+            k = ps.x
+        elif type(ps) == np.ndarray:
+            # Setup interpolant
+    
+            assert k is not None, "Must supply k vector as well!"
+
+            #if interpolant == 'akima':
+            #    ps = Akima1DInterpolator(k, ps)
+            #elif interpolant == 'cubic':
+            ps = interp1d(k, ps, kind='cubic', assume_sorted=True,
+                bounds_error=False, fill_value=0.0)
                 
+        else:       
+            raise ValueError('Do not understand type of `ps`.')
+    
+        # Loop over R and perform integral    
+        cf = np.zeros_like(R)
+        for i, RR in enumerate(R):
+            
+            if damp is not None:
+                integrand_unweighted = lambda kk: kk**2 * ps(kk)  \
+                     * np.exp(-kk / damp) / kk / RR
+            else:
+                # Leave sin(k*R) out -- that's the 'weight' for scipy.
+                integrand_unweighted = lambda kk: kk**2 * ps(kk) / kk / RR
+                
+            cf[i] = quad(integrand_unweighted, k.min(), k.max(), 
+                epsrel=epsrel, epsabs=epsabs, limit=limit,
+                weight='sin', wvar=RR)[0]
+    
+        # Our FT convention        
+        cf /= 2 * np.pi        
+    
+        return cf
+    
+    def FT3D(self, k, cf, R=None, damp=None):
+        """
+        Perform a 3-D Fourier transform assuming fluctuations described by
+        input correlation function are isotropic.
+        """
+    
+        # Just use the routine above and swap k and R. 
+        # Undo the 2 * np.pi factor applied by the backward transform.
+        return 2 * np.pi * self.InverseFT3D(k, cf, R, damp)
+    
+    
     @property            
     def tab_k(self):
         """
-        k-vector constructed from mpowspec parameters.
+        k-vector constructed from mps parameters.
         """
         if not hasattr(self, '_tab_k'):
-            dlogk = self.pf['mpowspec_dlnk']
-            kmi, kma = self.pf['mpowspec_lnk_min'], self.pf['mpowspec_lnk_max']
+            dlogk = self.pf['mps_dlnk']
+            kmi, kma = self.pf['mps_lnk_min'], self.pf['mps_lnk_max']
             logk = np.arange(kmi, kma+dlogk, dlogk)
             self._tab_k = np.exp(logk)
         
@@ -408,15 +458,34 @@ class HaloModel(HaloMassFunction):
     @property
     def tab_R(self):
         """
-        R-vector constructed from mpowspec parameters.
+        R-vector constructed from mps parameters.
         """
         if not hasattr(self, '_tab_R'):        
-            dlogR = self.pf['mpowspec_dlnR']
-            Rmi, Rma = self.pf['mpowspec_lnR_min'], self.pf['mpowspec_lnR_max']
+            dlogR = self.pf['mps_dlnR']
+            Rmi, Rma = self.pf['mps_lnR_min'], self.pf['mps_lnR_max']
             logR = np.arange(Rmi, Rma+dlogR, dlogR)
             self._tab_R = np.exp(logR)
             
         return self._tab_R
+        
+    @property
+    def tab_z_ps(self):
+        """
+        Redshift array -- different than HMF redshifts!
+        """
+        if not hasattr(self, '_tab_z_ps'):        
+            zmin = self.pf['mps_zmin']
+            zmax = self.pf['mps_zmax']
+            dz = self.pf['mps_dz']
+            
+            Nz = int(round(((zmax - zmin) / dz) + 1, 1))
+            self._tab_z_ps = np.linspace(zmin, zmax, Nz)
+    
+        return self._tab_z_ps    
+        
+    @tab_z_ps.setter
+    def tab_z_ps(self, value):
+        self._tab_z_ps = value    
         
     @tab_R.setter
     def tab_R(self, value):
@@ -447,7 +516,7 @@ class HaloModel(HaloMassFunction):
     
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')
-            self.tab_z = f['tab_z'].value
+            self.tab_z_ps = f['tab_z_ps'].value
             self.tab_R = f['tab_R'].value
             self.tab_k = f['tab_k'].value
             self.tab_ps_mm = f['tab_ps_mm'].value
@@ -455,7 +524,7 @@ class HaloModel(HaloMassFunction):
             f.close()
         elif re.search('.npz', fn):
             f = np.load(fn)
-            self.tab_z = f['tab_z']
+            self.tab_z_ps = f['tab_z_ps']
             self.tab_R = f['tab_R']
             self.tab_k = f['tab_k']
             self.tab_ps_mm = f['tab_ps_mm']
@@ -463,7 +532,7 @@ class HaloModel(HaloMassFunction):
             f.close()                        
         elif re.search('.pkl', fn):
             f = open(fn, 'rb')
-            self.tab_z = pickle.load(f)
+            self.tab_z_ps = pickle.load(f)
             self.tab_R = pickle.load(f)
             self.tab_k = pickle.load(f)
             self.tab_ps_mm = pickle.load(f)
@@ -487,15 +556,16 @@ class HaloModel(HaloMassFunction):
         """
         
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+
+        z1, z2 = self.pf['mps_zmin'], self.pf['mps_zmax']
         
-        dlogk = self.pf['mpowspec_dlnk']
-        kmi, kma = self.pf['mpowspec_lnk_min'], self.pf['mpowspec_lnk_max']
+        dlogk = self.pf['mps_dlnk']
+        kmi, kma = self.pf['mps_lnk_min'], self.pf['mps_lnk_max']
         #logk = np.arange(kmi, kma+dlogk, dlogk)
         #karr = np.exp(logk)
         
-        dlogR = self.pf['mpowspec_dlnR']
-        Rmi, Rma = self.pf['mpowspec_lnR_min'], self.pf['mpowspec_lnR_max']
+        dlogR = self.pf['mps_dlnR']
+        Rmi, Rma = self.pf['mps_lnR_min'], self.pf['mps_lnR_max']
         #logR = np.arange(np.log(Rmi), np.log(Rma)+dlogR, dlogR)
         #Rarr = np.exp(logR)
         
@@ -503,8 +573,8 @@ class HaloModel(HaloMassFunction):
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz']) + 1
+            zsize = ((self.pf['mps_zmax'] - self.pf['mps_zmin']) \
+                / self.pf['mps_dz']) + 1
 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)
@@ -523,7 +593,7 @@ class HaloModel(HaloMassFunction):
         Tabulate the matter power spectrum as a function of redshift and k.
         """
         
-        pb = ProgressBar(len(self.tab_z), 'ps_dd')
+        pb = ProgressBar(len(self.tab_z_ps), 'ps_dd')
         pb.start()
 
         # Lists to store any checkpoints that are found        
@@ -564,9 +634,9 @@ class HaloModel(HaloMassFunction):
             elif os.path.exists(fn):
                 os.remove(fn)
                             
-        self.tab_ps_mm = np.zeros((len(self.tab_z), len(self.tab_k)))
-        self.tab_cf_mm = np.zeros((len(self.tab_z), len(self.tab_R)))
-        for i, z in enumerate(self.tab_z):
+        self.tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
+        self.tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
+        for i, z in enumerate(self.tab_z_ps):
         
             if i % size != rank:
                 continue
@@ -591,9 +661,10 @@ class HaloModel(HaloMassFunction):
             # real-space scales) to do FFT and obtain correlation function
             self.tab_ps_mm[i] = self.PowerSpectrum(z, self.tab_k)
                  
-            # Once we have correlation function, degrade it to coarse grid.
-            self.tab_cf_mm[i] = self.CorrelationFunction(z, self.tab_R, 
-                self.tab_ps_mm[i])
+            # Compute correlation function at native resolution to save time
+            # later.
+            self.tab_cf_mm[i] = self.InverseFT3D(self.tab_R, self.tab_ps_mm[i],
+                self.tab_k)
             
             pb.update(i)
                         
@@ -678,7 +749,7 @@ class HaloModel(HaloMassFunction):
     
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
-            f.create_dataset('tab_z', data=self.tab_z)
+            f.create_dataset('tab_z_ps', data=self.tab_z_ps)
             f.create_dataset('tab_R', data=self.tab_R)
             f.create_dataset('tab_k', data=self.tab_k)
             f.create_dataset('tab_ps_mm', data=self.tab_ps_mm)
@@ -687,7 +758,7 @@ class HaloModel(HaloMassFunction):
             f.close()
     
         elif format == 'npz':
-            data = {'tab_z': self.tab_z, 
+            data = {'tab_z_ps': self.tab_z_ps, 
                     'tab_R': self.tab_R,
                     'tab_k': self.tab_k,
                     'tab_ps_mm': self.tab_ps_mm,
@@ -703,7 +774,7 @@ class HaloModel(HaloMassFunction):
         # Otherwise, pickle it!    
         else:   
             f = open(fn, 'wb')
-            pickle.dump(self.tab_z, f)
+            pickle.dump(self.tab_z_ps, f)
             pickle.dump(self.tab_R, f)
             pickle.dump(self.tab_k, f)
             pickle.dump(self.tab_ps_mm, f)

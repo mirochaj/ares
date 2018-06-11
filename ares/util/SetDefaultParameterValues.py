@@ -371,14 +371,14 @@ def PowerSpectrumParameters():
     tmp = \
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
-     #'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
 
      # Ultimately we'll interpolate beyond these
-     'powspec_dlogk': 0.1,
-     'powspec_dlogR': 0.1,
+     'powspec_dlnk': 0.1,
+     'powspec_dlnR': 0.1,
      
      'include_acorr': True,
      'include_xcorr': False,
+     'include_bias': True,
      
      'include_xcorr_wrt': None,
      
@@ -388,8 +388,6 @@ def PowerSpectrumParameters():
      'include_lya_fl': False,
 
      'include_lya_lc': False,
-
-     'include_bias': False,
 
      "powspec_volfix": False,
      
@@ -430,7 +428,7 @@ def PowerSpectrumParameters():
      
      "powspec_lya_method": 'lpt',
      "powspec_ion_method": None,  # unused
-     "powspec_temp_method": 'xset',  # or...'shell'
+     "powspec_temp_method": 'shell',  # or...'shell'
      
      #"powspec_lya_approx_sfr": 'exp',
      
@@ -906,12 +904,16 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_trunc": False,
     
     # For matter power spectrum
-    'mpowspec_dlnk': 0.05,
-    'mpowspec_dlnR': 0.05,
-    'mpowspec_lnk_min': -8.,
-    'mpowspec_lnk_max': 8.,
-    'mpowspec_lnR_min': -8.,
-    'mpowspec_lnR_max': 8.,
+    "mps_zmin": 6,
+    "mps_zmax": 20,
+    "mps_dz": 0.5,
+    
+    'mps_dlnk': 0.01,
+    'mps_dlnR': 0.01,
+    'mps_lnk_min': -8.,
+    'mps_lnk_max': 8.,
+    'mps_lnR_min': -8.,
+    'mps_lnR_max': 8.,
 
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
