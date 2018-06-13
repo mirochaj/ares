@@ -370,33 +370,41 @@ def PowerSpectrumParameters():
 
     tmp = \
     {     
-     'powspec_redshifts': np.arange(6, 20, 1),
-
-     # Ultimately we'll interpolate beyond these
-     'powspec_dlnk': 0.1,
-     'powspec_dlnR': 0.1,
+    
+     'ps_output_z': np.arange(6, 20, 1),
      
-     'include_acorr': True,
-     'include_xcorr': False,
-     'include_bias': True,
+     "ps_output_k": np.exp(np.arange(-8, 8, 0.2)),
+     "ps_output_lnkmin": -3,
+     "ps_output_lnkmax": 3,
+     "ps_output_dlnk": 0.5,
      
-     'include_xcorr_wrt': None,
+     "ps_output_R": None,
+     "ps_output_lnRmin": -6.5,
+     "ps_output_lnRmax": 5.,
+     "ps_output_dlnR": 0.1,
      
-     'include_density_fl': True,
-     'include_ion_fl': True,
-     'include_temp_fl': False,
-     'include_lya_fl': False,
-
-     'include_lya_lc': False,
-
-     "powspec_volfix": False,
+     'ps_include_acorr': True,
+     'ps_include_xcorr': False,
+     'ps_include_bias': True,
      
-     "powspec_rescale_Qlya": False,
-     "powspec_rescale_Qhot": False,
-     "powspec_rescale_dTb": False,
+     'ps_include_xcorr_wrt': None,
+     
+     'ps_include_21cm': True,
+     'ps_include_density': True,
+     'ps_include_ion': True,
+     'ps_include_temp': False,
+     'ps_include_lya': False,
 
-     "powspec_force_Qi_fcoll": False,
-     "powspec_force_Qi_gs": False,
+     #'include_lya_lc': False,
+
+     "ps_volfix": False,
+     
+     "ps_rescale_Qlya": False,
+     "ps_rescale_Qhot": False,
+     "ps_rescale_dTb": False,
+
+     "ps_force_QHII_fcoll": False,
+     "ps_force_QHII_gs": False,
 
      "bubble_size": None,
      "bubble_density": None,
@@ -426,9 +434,9 @@ def PowerSpectrumParameters():
      #"bubble_pod_temp": None,
      #"bubble_pod_Nsc": 1e3,
      
-     "powspec_lya_method": 'lpt',
-     "powspec_ion_method": None,  # unused
-     "powspec_temp_method": 'shell',  # or...'shell'
+     "ps_lya_method": 'lpt',
+     "ps_ion_method": None,  # unused
+     "ps_temp_method": 'shell',  # or...'shell'
      
      #"powspec_lya_approx_sfr": 'exp',
      
@@ -658,6 +666,7 @@ def PopulationParameters():
     "pop_lya_fl": False,
     "pop_ion_fl": False,
     "pop_temp_fl": False,
+    
     "pop_one_halo_term": True,
     "pop_two_halo_term": True,
         
@@ -1018,12 +1027,6 @@ def ControlParameters():
     
     "compute_fluxes_at_start": False,
     
-    # k-space resolution
-    "powspec_logkmin": -3,
-    "powspec_logkmax": 2.,
-    "powspec_dlogk": 0.1,
-    "powspec_z": 10.,
-    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
@@ -1056,13 +1059,6 @@ def ControlParameters():
     "tau_approx": True,
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
-
-    # Power spectrum stuff
-    "powspec_logkmin": -3,
-    "powspec_logkmax": 2,
-    "powspec_dlogk": 0.5,    
-    "powspec_dlogr": 0.1,
-    "powspec_band": (11.2, 13.6),
 
     "sam_dt": 1., # Myr
     "sam_dz": 2., # Usually good enough!

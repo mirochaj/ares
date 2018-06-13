@@ -16,7 +16,7 @@ parallel, e.g.,
 import ares
 
 ## INPUT
-fit = 'PS'
+fit = 'ST'
 format = 'npz'
 ##
 
@@ -33,6 +33,6 @@ hmf_pars = \
 
 hmf = ares.physics.HaloMassFunction(hmf_load=False, **hmf_pars)
 
-hmf.SaveHMF(format=format, clobber=True)
+hmf.SaveHMF(format=format, clobber=False)
 
 

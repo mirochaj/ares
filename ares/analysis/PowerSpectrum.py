@@ -139,7 +139,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         return ax
 
-    def CorrelationFunction(self, z, field='xx', ax=None, fig=1, 
+    def CorrelationFunction(self, z, field='ii', ax=None, fig=1, 
         force_draw=False, **kwargs):
         """
         Plot correlation function of input fields.
@@ -175,13 +175,13 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
-    
+
         if ax.get_xlabel() == '':  
             ax.set_xlabel(r'$r \ [\mathrm{cMpc}]$', fontsize='x-large')
-    
-        if ax.get_ylabel() == '':    
+
+        if ax.get_ylabel() == '':
             s = r'$\xi_{%s}$' % field
-            ax.set_ylabel(s, fontsize='x-large')    
+            ax.set_ylabel(s, fontsize='x-large')
     
         if 'label' in kwargs:
             if kwargs['label'] is not None:
@@ -222,22 +222,22 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         if region == 'i':
             
-            if 'R_b' not in self.history:
+            if 'r_i' not in self.history:
                 return
             
-            R = self.history['R_b'][iz]
-            M = self.history['M_b'][iz]
-            bsd = self.history['bsd'][iz]
+            R = self.history['r_i'][iz]
+            M = self.history['m_i'][iz]
+            bsd = self.history['n_i'][iz]
             delta_B = self.history['delta_B'][iz]
             Q = self.history['Qi'][iz]
         else:
             
-            if 'R_h' not in self.history:
+            if 'r_h' not in self.history:
                 return
             
-            R = self.history['R_h'][iz]
-            M = self.history['M_h'][iz]
-            bsd = self.history['bsd_h'][iz]
+            R = self.history['r_i'][iz]
+            M = self.history['m_i'][iz]
+            bsd = self.history['n_i'][iz]
             delta_B = self.history['delta_B_h'][iz]
             Q = self.history['Qh'][iz]
     
@@ -295,9 +295,14 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
         dimensionless=True, show_gs=False, mp_kwargs={}, scatter=False,
-        scatter_kwargs={}, orientation='vertical', show_dd=False, **kwargs):
+        scatter_kwargs={}, rescale=True, orientation='vertical', show_dd=False, 
+        **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
+        
+        Parameters
+        ----------
+
         """
         
         if ax is None:
@@ -337,14 +342,15 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
             if show_dd:
                 dd.append(np.interp(np.log(k), np.log(self.history['k']), 
-                    self.history['ps_dd'][i]))
+                    self.history['ps_mm'][i]))
             
         p = np.array(p)
         
-        if dimensionless and 'ps_21_dl' in self.history:
+        if dimensionless and ('ps_21_dl' in self.history):
             ps = p
         elif dimensionless:
             norm = self.history['dTb0']**2
+
             ps = norm * p * k**3 / 2. / np.pi**2
             
             if show_dd:
@@ -429,7 +435,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         #return dr_ch, chunks
             
     def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
-        split_by_scale=False, include_fields=['dd','xx','coco','21_s','21'],
+        split_by_scale=False, include_fields=['mm','ii','coco','21_s','21'],
         colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None):
         """
         Plot various constituent correlation functions (or power spectra).

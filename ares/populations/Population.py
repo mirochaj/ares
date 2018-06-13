@@ -215,7 +215,7 @@ class Population(object):
             if not self.is_src_lya:
                 pass
             else:
-                if self.pf['pop_lya_fl'] and self.pf['include_lya_fl']:
+                if self.pf['pop_lya_fl'] and self.pf['ps_include_lya']:
                     self._is_src_lya_fl = True
     
         return self._is_src_lya_fl
@@ -257,7 +257,7 @@ class Population(object):
             if not self.is_src_ion:
                 pass
             else:
-                if self.pf['pop_ion_fl'] and self.pf['include_ion_fl']:
+                if self.pf['pop_ion_fl'] and self.pf['ps_include_ion']:
                     self._is_src_ion_fl = True
     
         return self._is_src_ion_fl    
@@ -285,7 +285,7 @@ class Population(object):
             if not self.is_src_heat:
                 pass
             else:
-                if self.pf['pop_temp_fl'] and self.pf['include_temp_fl']:
+                if self.pf['pop_temp_fl'] and self.pf['ps_include_temp']:
                     self._is_src_heat_fl = True
     
         return self._is_src_heat_fl
@@ -671,7 +671,7 @@ class Population(object):
     def Mmin(self):
         if not hasattr(self, '_Mmin'):  
             self._Mmin = lambda z: \
-                np.interp(z, self.halos.z, self._tab_Mmin)
+                np.interp(z, self.halos.tab_z, self._tab_Mmin)
     
         return self._Mmin
         
@@ -689,17 +689,17 @@ class Population(object):
                 if ismethod(self.pf['pop_Mmin']) or \
                    type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
-                        np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                        np.array(map(self.pf['pop_Mmin'], self.halos.tab_z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
                     self._tab_Mmin_ = self.pf['pop_Mmin']
-                    assert self._tab_Mmin.size == self.halos.z.size
+                    assert self._tab_Mmin.size == self.halos.tab_z.size
                 else:    
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
-                        * np.ones(self.halos.Nz)
+                        * np.ones(self.halos.tab_z.size)
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
-                self._tab_Mmin_ = np.array(map(Mvir, self.halos.z))
+                self._tab_Mmin_ = np.array(map(Mvir, self.halos.tab_z))
     
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
     
@@ -713,7 +713,7 @@ class Population(object):
         out = None
     
         if zarr is None:
-            zarr = self.halos.z
+            zarr = self.halos.tab_z
     
         # Might need these if Mmin is being set dynamically
         if self.pf['pop_M%s_ceil' % s] is not None:
@@ -744,5 +744,5 @@ class Population(object):
     @property    
     def _tab_Mmin_floor(self):
         if not hasattr(self, '_tab_Mmin_floor_'):
-            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.z)
+            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.tab_z)
         return self._tab_Mmin_floor_    

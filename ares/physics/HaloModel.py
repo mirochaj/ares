@@ -308,7 +308,7 @@ class HaloModel(HaloMassFunction):
                 if np.allclose(k, self.tab_k):
                     return self.tab_ps_mm[iz]
                 
-            return np.interp(np.log(k), np.log(self.k), self.tab_ps_mm[iz])
+            return np.interp(k, self.tab_k, self.tab_ps_mm[iz])
                     
         if type(k) == np.ndarray:
             f1 = lambda kk: self.PS_OneHalo(z, kk, profile_1, Mmin_1, profile_2, 
@@ -323,26 +323,6 @@ class HaloModel(HaloMassFunction):
             return self.PS_OneHalo(z, k, profile_1, Mmin_1, profile_2, Mmin_2) \
                  + self.PS_TwoHalo(z, k, profile_1, Mmin_1, profile_2, Mmin_2)
     
-    def _integrand_iFT_3d_to_1d(self, P, k, R):
-        """
-        For an isotropic field, the 3-D Fourier transform can be simplified
-        to a 1-D integral with this integrand.
-        
-        Parameters
-        ----------
-        P : 1-D array
-            Power spectrum of the field as a function of k
-        k : 1-D array
-            Corresponding set of wavenumbers.
-        R : int, float
-            Scale (in real space) of interest.
-            
-        """
-        return k**2 * P * np.sin(k * R) / k / R
-        
-    def _integrand_FT_3d_to_1d(self, cf, k, R): 
-        return R**2 * cf * np.sin(k * R) / k / R
-        
     def CorrelationFunction(self, z, R, k=None, Pofk=None, load=True):
         """
         Compute the correlation function of the matter power spectrum.
@@ -361,10 +341,13 @@ class HaloModel(HaloMassFunction):
         ##
         if self.pf['hmf_load_ps'] and load:
             iz = np.argmin(np.abs(z - self.tab_z_ps))
-            assert abs(z - self.z[iz]) < 1e-2, \
+            assert abs(z - self.tab_z_ps[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
-            assert np.allclose(dr, self.R_cr)
-            return self.cf_dd[iz]
+            if len(R) == len(self.tab_R):
+                assert np.allclose(R, self.tab_R)
+                return self.tab_cf_mm[iz]
+                
+            return np.interp(R, self.tab_R, self.tab_cf_mm[iz])
         
         ##
         # Compute from scratch

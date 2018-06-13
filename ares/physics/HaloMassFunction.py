@@ -135,10 +135,10 @@ class HaloMassFunction(object):
         self.hmf_analytic = self.pf['hmf_analytic']
         
         # Verify that Tmax is set correctly
-        if self.pf['pop_Tmax'] is not None:
-            if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
-                assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
-                    "Tmax must exceed Tmin!"
+        #if self.pf['pop_Tmax'] is not None:
+        #    if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
+        #        assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
+        #            "Tmax must exceed Tmin!"
                 
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.tab_name is None):
@@ -518,7 +518,7 @@ class HaloMassFunction(object):
         self.fcoll_Tmin = np.zeros_like(self.tab_z)
         self.dndm_Mmin = np.zeros_like(self.tab_z)
         self.dndm_Mmax = np.zeros_like(self.tab_z)
-        for i, z in enumerate(self.z):
+        for i, z in enumerate(self.tab_z):
             if self.pf['pop_Mmin'] is None:
                 self.logM_min[i] = np.log10(self.VirialMass(Tmin, z, mu=mu))
             else:
@@ -536,20 +536,20 @@ class HaloMassFunction(object):
                     
             # For boundary term
             if Mmin_of_z:
-                self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 
-                    np.log10(self.dndm[i,:]))
+                self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], 
+                    np.log10(self.tab_M), np.log10(self.tab_dndm[i,:]))
 
             self.fcoll_Tmin[i] = self.fcoll_2d(z, self.logM_min[i])
 
         # Main term: rate of change in collapsed fraction in halos that were
         # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
-            central_difference(self.z, self.fcoll_Tmin)
+            central_difference(self.tab_z, self.fcoll_Tmin)
 
         # Compute boundary term(s)
         if Mmin_of_z:
             self.ztab, dMmindz = \
-                central_difference(self.z, 10**self.logM_min)
+                central_difference(self.tab_z, 10**self.logM_min)
 
             bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
                 * dMmindz / self.cosm.mean_density0
@@ -558,7 +558,7 @@ class HaloMassFunction(object):
 
         if Mmax_of_z:
             self.ztab, dMmaxdz = \
-                central_difference(self.z, 10**self.logM_max)
+                central_difference(self.tab_z, 10**self.logM_max)
         
             bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
                 * dMmaxdz / self.cosm.mean_density0
@@ -584,7 +584,7 @@ class HaloMassFunction(object):
         self.dfcolldz_tab *= -1.
 
         if return_fcoll:
-            fcoll_spline = interp1d(self.z, self.fcoll_Tmin, 
+            fcoll_spline = interp1d(self.tab_z, self.fcoll_Tmin, 
                 kind=self.pf['hmf_interp'], bounds_error=False,
                 fill_value=0.0)
         else:
@@ -718,9 +718,9 @@ class HaloMassFunction(object):
     
         """
             
-        k = np.argmin(np.abs(z - self.z))
+        k = np.argmin(np.abs(z - self.tab_z))
     
-        if z not in self.z:
+        if z not in self.tab_z:
             print("WARNING: Rounding to nearest redshift z={0:.3g}".format(\
                 self.tab_z[k]))
     
@@ -738,7 +738,7 @@ class HaloMassFunction(object):
             self.lnM[-1::-1])[-1::-1])
     
         # Compute time difference between z bins
-        dz = self.z[k] - self.z[k-1]
+        dz = self.tab_z[k] - self.tab_z[k-1]
         dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
     
         return np.maximum((M_2 - self.M) / dt, 0.0)
@@ -767,7 +767,7 @@ class HaloMassFunction(object):
     def MAR_func(self):
         if not hasattr(self, '_MAR_func'):
             
-            spl = RectBivariateSpline(self.z, np.log10(self.tab_M),
+            spl = RectBivariateSpline(self.tab_z, np.log10(self.tab_M),
                 self.tab_MAR_CND, kx=3, ky=3)
                         
             self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()

@@ -486,7 +486,7 @@ def _rad_type(sim, fluctuations=False):
 
         tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
 
-        suffix = ['_fl', '']
+        suffix = ['', '']
         for j, fl in enumerate([True, False]):
             if fl != fluctuations:
                 continue

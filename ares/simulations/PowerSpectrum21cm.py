@@ -1,9 +1,9 @@
 import os
 import pickle
 import numpy as np
+from ..static import Fluctuations
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
-from ..solvers import FluctuatingBackground
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import cm_per_mpc, c, s_per_yr
@@ -62,10 +62,14 @@ class PowerSpectrum21cm(AnalyzePS):
         if not hasattr(self, '_pf'):
             self._pf = ParameterFile(**self.kwargs)
         return self._pf
-
+    
     @pf.setter
     def pf(self, value):
         self._pf = value
+
+    #@property
+    #def pf(self):
+    #    return self.gs.pf
 
     @property
     def gs(self):
@@ -81,14 +85,21 @@ class PowerSpectrum21cm(AnalyzePS):
     @property
     def field(self):
         if not hasattr(self, '_field'):
-            self._field = FluctuatingBackground(**self.kwargs)
+            self._field = Fluctuations(**self.kwargs)
         return self._field
         
     @property
-    def HM(self):
-        if not hasattr(self, '_HM'):
-            self._HM = HaloModel(**self.pf)
-        return self._HM
+    def halos(self):
+        if not hasattr(self, '_halos'):
+            self._halos = self.pops[0].halos
+        return self._halos
+
+    @property
+    def z(self):
+        if not hasattr(self, '_z'):
+            self._z = np.array(np.sort(self.pf['ps_output_z'])[-1::-1], 
+                dtype=np.float64)
+        return self._z    
 
     def run(self): 
         """
@@ -99,9 +110,6 @@ class PowerSpectrum21cm(AnalyzePS):
         Nothing: sets `history` attribute.
 
         """
-
-        self.z = np.array(np.sort(self.pf['powspec_redshifts'])[-1::-1], 
-            dtype=np.float64)
 
         N = self.z.size
         pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'], 
@@ -123,99 +131,106 @@ class PowerSpectrum21cm(AnalyzePS):
 
         pb.finish()
         
-        self._data_pp = all_ps
+        self.all_ps = all_ps
         
-        kmi, kma = self.k[self.k>0].min(), self.k[self.k>0].max()
-        dlogk = self.pf['powspec_dlogk']
-        rmi, rma = self.R.min(), self.R.max()
-        dlogr = self.pf['powspec_dlogr']
-
-        # Aren't these just self.k_cr, self.R_cr?
-        kfin = np.exp(np.arange(np.log(kmi), np.log(kma)+dlogk, dlogk))
-        rfin = np.exp(np.arange(np.log(rmi), np.log(rma)+dlogr, dlogr))
-
-        # Re-organize to look like Global21cm outputs, i.e., dictionary
-        # with one key per quantity of interest, and in this case a 2-D
-        # array of shape (z, k)
-        data_proc = {}
+        hist = {}
         for key in keys:
             
-            if key in ['k', 'R', 'k_cr', 'R_cr']:
-                continue
-
-            down_sample = False
-            twod = False
-            if type(all_ps[0][key]) == np.ndarray:
-                twod = True
-
-                if ('cf' in key) or ('jp' in key) or ('ev' in key):
-                    xfin = rfin
-                    x = self.R
-                    mask = Ellipsis
-                    size = rfin.size
-                    down_sample = True
-                elif 'ps' in key:
-                    xfin = kfin
-                    mask = self.k > 0
-                    x = self.k
-                    size = kfin.size
-                    # Already down-sampled?
-                    down_sample = True
-                else:
-                    size = all_ps[i][key].size
-
-            # Second dimension is k or R
-            if twod:
-                tmp = np.zeros((len(self.z), size))
+            is2d_k = key.startswith('ps')
+            is2d_R = key.startswith('jp') or key.startswith('ev') \
+                  or key.startswith('cf') \
+                  or (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
+            
+            if is2d_k:
+                tmp = np.zeros((len(self.z), len(self.k)))
+            elif is2d_R:
+                tmp = np.zeros((len(self.z), len(self.R)))
             else:
                 tmp = np.zeros_like(self.z)
-                
-            for i, z in enumerate(self.z):
             
-                # Downsample otherwise plotting takes forever later.
-                if twod and down_sample:
-                    tmp[i] = np.interp(np.log(xfin), np.log(x[mask]), 
-                        all_ps[i][key].real[mask])
-                else:
-                    tmp[i] = all_ps[i][key]
+            for i, z in enumerate(self.z):
+                tmp[i] = all_ps[i][key]
                 
-            data_proc[key] = tmp
+            hist[key] = tmp
         
-        data_proc['k'] = kfin
-        data_proc['R'] = rfin
-        
-        self.history = data_proc
+        self.history = hist
+        self.history['z'] = self.z
+        self.history['k'] = self.k
+        self.history['R'] = self.R
     
     @property
-    def include_con_fl(self):
-        if not hasattr(self, '_include_con_fl'):
-            self._include_con_fl = self.pf['include_temp_fl'] or \
-                self.pf['include_lya_fl']
-        return self._include_con_fl
+    def ps_include_contrast(self):
+        if not hasattr(self, '_ps_include_contrast'):
+            self._ps_include_contrast = self.pf['ps_include_temp'] or \
+                self.pf['ps_include_lya']
+        return self._ps_include_contrast
 
     @property
-    def include_fluctuations(self):
-        if not hasattr(self, '_include_fl'):
-            self._include_fl = self.pf['include_ion_fl'] or \
-                self.pf['include_temp_fl'] or \
-                self.pf['include_density_fl'] or \
-                self.pf['include_lya_fl']
+    def k(self):
+        """
+        Wavenumbers to output power spectra. 
+        
+        .. note :: Can be far more crude than native resolution of 
+            matter power spectrum.
             
-        return self._include_fl
-
+        """
+        
+        if not hasattr(self, '_k'):
+            if self.pf['ps_output_k'] is not None:
+                self._k = self.pf['ps_output_k']
+            else:
+                lnk1 = self.pf['ps_output_lnkmin']
+                lnk2 = self.pf['ps_output_lnkmin']
+                dlnk = self.pf['ps_output_dlnk']
+                self._k = np.exp(np.arange(lnk1, lnk2+dlnk, dlnk))
+        
+        return self._k
+        
+    @property
+    def R(self):
+        """
+        Scales on which to compute correlation functions.
+        
+        .. note :: Can be more crude than native resolution of matter
+            power spectrum, however, unlike `self.k`, the resolution of 
+            this quantity matters when converting back to power spectra, 
+            since that operation requires an integral over R.
+            
+        """
+        if not hasattr(self, '_R'):
+            if self.pf['ps_output_R'] is not None:
+                self._R = self.pf['ps_output_R']
+            else:
+                lnR1 = self.pf['ps_output_lnRmin']
+                lnR2 = self.pf['ps_output_lnRmax']
+                dlnR = self.pf['ps_output_dlnR']
+                #lnR = np.log(self.halos.tab_R)
+                
+                self._R = np.exp(np.arange(lnR1, lnR2+dlnR, dlnR))
+            
+        return self._R
+        
+    @property
+    def tab_Mmin(self):
+        if not hasattr(self, '_tab_Mmin'):
+            self._tab_Mmin = np.ones_like(self.halos.tab_z) * np.inf
+            for j, pop in enumerate(self.pops):                    
+                self._tab_Mmin = np.minimum(self._tab_Mmin, pop._tab_Mmin)
+    
+        return self._tab_Mmin
+        
+    @property
+    def tab_zeta(self):
+        pass    
+    
     def step(self):
         """
         Generator for the power spectrum.
         """
 
-        step = np.diff(self.pf['fft_scales'])[0]
+        # Set a few things before we get moving.
+        self.field.tab_Mmin = self.tab_Mmin    
         
-        if self.include_fluctuations:
-            self.k = self.pops[0].halos.k
-            self.R = self.pops[0].halos.R
-        else:
-            self.k = self.R = np.zeros(10)
-
         for i, z in enumerate(self.z):
 
             data = {}
@@ -226,12 +241,12 @@ class PowerSpectrum21cm(AnalyzePS):
             ##          
             
             # Prepare for the general case of Mh-dependent things
-            Nion = np.zeros_like(self.field.halos.M)
-            Nlya = np.zeros_like(self.field.halos.M)
-            fXcX = np.zeros_like(self.field.halos.M)
-            zeta_ion = zeta = np.zeros_like(self.field.halos.M)
-            zeta_lya = np.zeros_like(self.field.halos.M)
-            zeta_X = np.zeros_like(self.field.halos.M)
+            Nion = np.zeros_like(self.halos.tab_M)
+            Nlya = np.zeros_like(self.halos.tab_M)
+            fXcX = np.zeros_like(self.halos.tab_M)
+            zeta_ion = zeta = np.zeros_like(self.halos.tab_M)
+            zeta_lya = np.zeros_like(self.halos.tab_M)
+            zeta_X = np.zeros_like(self.halos.tab_M)
             #Tpro = None
             for j, pop in enumerate(self.pops):
                 pop_zeta = pop.IonizingEfficiency(z=z)
@@ -240,7 +255,7 @@ class PowerSpectrum21cm(AnalyzePS):
 
                     if type(pop_zeta) is tuple:
                         _Mh, _zeta = pop_zeta
-                        zeta += np.interp(self.field.halos.M, _Mh, _zeta)
+                        zeta += np.interp(self.halos.tab_M, _Mh, _zeta)
                         Nion += pop.src.Nion
                     else:
                         zeta += pop_zeta
@@ -256,7 +271,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     Nlya += pop.pf['pop_Nlw']
                     #Nlya += pop.src.Nlw
 
-            # Only used if...powspec_lya_method==0?
+            # Only used if...ps_lya_method==0?
             zeta_lya += zeta * (Nlya / Nion)
                         
             ##
@@ -296,24 +311,24 @@ class PowerSpectrum21cm(AnalyzePS):
             QHII_gs = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['cgm_h_2'][-1::-1])
             
-            QHII_ff = self.field.BubbleFillingFactor(z, zeta,
-                rescale=self.pf['powspec_force_Qi_fcoll'])
+            QHII_fc = self.field.BubbleFillingFactor(z, zeta,
+                rescale=True)
             
             # Mean brightness temperature outside bubbles  
             # Currently not including xe effects  
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb'][-1::-1])
                 
-            if QHII_ff < 1:
-                Tbar /= (1. - QHII_ff)
+            if QHII_fc < 1:
+                Tbar /= (1. - QHII_fc)
             else:
-                Tbar = 0.0    
+                Tbar = 0.0
 
 
             #Qi = xibar
 
             #if self.pf['include_ion_fl']:
-            #    if self.pf['powspec_rescale_Qion']:
+            #    if self.pf['ps_rescale_Qion']:
             #        xibar = min(np.interp(z, self.pops[0].halos.z,
             #            self.pops[0].halos.fcoll_Tmin) * zeta, 1.)
             #        Qi = xibar
@@ -327,14 +342,19 @@ class PowerSpectrum21cm(AnalyzePS):
             #else:
             #    Qi = 0.
             
-            if self.pf['include_ion_fl']:
-                if self.pf['powspec_force_Qi_gs']:
+            if self.pf['ps_include_ion']:
+                if self.pf['ps_force_QHII_gs']:
                     Qi = QHII_gs
                 else:    
                     Qi = self.field.BubbleFillingFactor(z, zeta, 
-                        rescale=self.pf['powspec_force_Qi_fcoll'])
+                        rescale=self.pf['ps_force_QHII_fcoll'])
             else:
                 Qi = QHII_gs
+                
+            if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
+                rescale_Q = True
+            else:
+                rescale_Q = False
                 
             #Qi = np.mean([QHII_gs, self.field.BubbleFillingFactor(z, zeta)])    
                                                                 
@@ -346,71 +366,82 @@ class PowerSpectrum21cm(AnalyzePS):
             xbar = 1. - xibar
             data['Qi'] = Qi
             data['xibar'] = xibar
+            data['dTb0'] = Tbar
             
-            data['k'] = k
-            data['dr'] = self.R
-            data['dr_cr'] = self.R_cr
-            data['k_cr'] = self.k_pos
-            data['z'] = z
+            ##
+            # Compute correlation functions and power spectra
+            ##            
+            if self.pf['ps_include_density']:
+                data['cf_mm'] = self.halos.CorrelationFunction(z, self.R)
+                data['ps_mm'] = self.halos.PowerSpectrum(z, self.k)
             
-            data['zeta'] = zeta
-                        
-            ##
-            # Density fluctuations
-            ##
-            if self.pf['include_density_fl'] and self.pf['include_acorr']:
+            if self.pf['ps_include_ion']:
                 
-                # k may be different for 21-cm and matter power spectra!
+                R, M, N = self.field.BubbleSizeDistribution(z, zeta)
                 
-                ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k)
+                data['n_i'] = np.interp(self.R, R, N)
+                data['m_i'] = np.interp(self.R, R, M)
+                data['r_i'] = self.R
                 
-                # PS is positive so it's OK to log-ify it
-                data['ps_dd'] = ps_dd
+                data['delta_B'] = np.interp(data['m_i'], self.field.m, 
+                    self.field._B(z, zeta))
                 
-                # If this isn't tabulated, need to send in full dr array
-                cf_dd = self.pops[0].halos.CorrelationFunction(z, self.R, ps_dd)
+                print("Q(z={}) = {}".format(z, Qi))
                 
-                # Need finer-grain resolution for this. Leave correlation
-                # function in linear units for interpolation because it will 
-                # be negative on large scales. Also, need a factor of two
-                # to account for the dispersal of power into negative 
-                # frequencies. We should do this inside PS-tabulation in the
-                # future.
-                data['cf_dd'] = cf_dd
-                
-                #data['cf_dd'][0:10] = 0
-                #data['cf_dd'][-10:] = 0
-                
-            else:
-                data['cf_dd'] = data['ps_dd'] = np.zeros_like(self.R)
-
-            ##    
-            # Ionization fluctuations
-            ##
-            if self.pf['include_ion_fl'] and self.pf['include_acorr']:
-                R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta)
+                data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
+                    self.field.JointProbability(z, zeta, 
+                        R=self.R, term='ii', Q=Qi,
+                        rescale=rescale_Q)
+                data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
+                    R=self.R, term='ii', Q=Qi,
+                    rescale=rescale_Q)
+                data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
+                    data['cf_ii'], self.R)
             
-                p_ii, p_ii_1, p_ii_2 = self.field.JointProbability(z, 
-                    self.R, zeta, term='ii', Tprof=None, data=data,
-                    zeta_lya=zeta_lya)
-                
-                # Interpolate onto fine grid
-                data['jp_ii']   = p_ii#np.interp(logR, self.logR_cr, p_ii)
-                data['jp_ii_1'] = p_ii_1#np.interp(logR, self.logR_cr, p_ii_1)
-                data['jp_ii_2'] = p_ii_2#np.interp(logR, self.logR_cr, p_ii_2)
+            if self.pf['ps_include_temp']:
+                Rh = 0.0
+                data['cf_cc'] = self.field.CorrelationFunction(z, zeta, 
+                    R=self.R, term='cc', Rh=Rh,
+                    rescale=rescale_Q)
+                data['ps_cc'] = self.field.PowerSpectrumFromCF(self.k, 
+                    data['cf_cc'], self.R)
+            
+            
+            """
+            If temperature fluctuations are on, construct a dictionary
+            to pass to CorrelationFunction here (with Rh etc.)
+            """
+              
+            if self.pf['ps_include_21cm']:
+                # These routines will tap into the cache to retrieve 
+                # the (already-computed) values for cf_ii, cf_TT, etc.
+                data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
+                    R=self.R, term='21', Q=Qi,
+                    rescale=rescale_Q, 
+                    include_xcorr=self.pf['ps_include_xcorr'],
+                    include_ion=self.pf['ps_include_ion'],
+                    include_temp=self.pf['ps_include_temp'],
+                    include_lya=self.pf['ps_include_lya'],
+                    include_21cm=self.pf['ps_include_21cm'])
+                data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 
+                    data['cf_21'], self.R)
+                    
+            yield z, data
+            
+            
+            continue
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 
-                # In this case, JP and EV are identical.
-                data['ev_ii']   = data['jp_ii']
-                data['ev_ii_1'] = data['jp_ii_1']
-                data['ev_ii_2'] = data['jp_ii_2']
-
-                # Dimensions here are set by mass-sampling in HMF table
-                data.update({'R_b': R_b, 'M_b': M_b, 'bsd': bsd})
-                data['delta_B'] = self.field._B(z, zeta, zeta)
-            else:
-                p_ii = data['jp_ii'] = data['ev_ii'] = np.zeros_like(self.R)
-                data['ev_ii_1'] = data['ev_ii_2'] = np.zeros_like(self.R)
-
+            
             ##
             # Temperature fluctuations                
             ##
@@ -422,13 +453,13 @@ class PowerSpectrum21cm(AnalyzePS):
                 
                 zeta_X = 40.
                 
-                if self.pf['powspec_temp_method'] == 'shell':
+                if self.pf['ps_temp_method'] == 'shell':
                     assert self.pf['include_ion_fl'], \
                         "Can only do temp_method='shell' if include_ion_fl=1!"
                 
                     Q = self.field.BubbleShellFillingFactor(z, zeta)
                     
-                elif self.pf['powspec_temp_method'] == 'xset':
+                elif self.pf['ps_temp_method'] == 'xset':
                     R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta_X)
                     data.update({'R_h': R_b, 'M_h': M_b, 'bsd_h':bsd})
                     data['delta_B_h'] = self.field._B(z, zeta_X, zeta_X)
@@ -450,7 +481,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 suffixes = 'h', 'c'
                 for ii in range(3):
 
-                    if self.pf['powspec_temp_method'] == 'xset' and ii > 0:
+                    if self.pf['ps_temp_method'] == 'xset' and ii > 0:
                         continue       
 
                     ztemp = self.pf['bubble_shell_ktemp_zone_{}'.format(ii)]
@@ -489,7 +520,7 @@ class PowerSpectrum21cm(AnalyzePS):
 
                     # Compute the joint probability.
                     # Either hh, hc, or cc
-                    if self.pf['powspec_temp_method'] == 'xset':
+                    if self.pf['ps_temp_method'] == 'xset':
                         zeta_ = zeta_X
                     else:
                         zeta_ = zeta
@@ -502,7 +533,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     data['jp_{}_1'.format(ss)] = p_1h  #np.interp(logR, self.logR_cr, p_1h)
                     data['jp_{}_2'.format(ss)] = p_2h  #np.interp(logR, self.logR_cr, p_2h)
                                         
-                    if self.pf['powspec_temp_method'] == 'lpt' or ii == 1:
+                    if self.pf['ps_temp_method'] == 'lpt' or ii == 1:
                         C = (Tcmb / (Ts - Tcmb)) * delta_T[ii]
                         
                         data['ev_coco'] += C**2 * data['jp_{}'.format(ss)]
@@ -617,7 +648,7 @@ class PowerSpectrum21cm(AnalyzePS):
 
                 data['ev_aa'] = data['cf_aa']
 
-                if self.pf['powspec_lya_method'] == 'lpt':
+                if self.pf['ps_lya_method'] == 'lpt':
                     #C = (Tcmb * (Tk - Ts)) / (Tk * (Ts - Tcmb)) #+ 1.
                     C = (Ts / (Ts - Tcmb)) * ((Tk - Tcmb) / Tk)
                     data['ev_coco'] += (C - 1)**2 * xa**2 * (1. + data['ev_aa'])
@@ -665,8 +696,8 @@ class PowerSpectrum21cm(AnalyzePS):
             # Cross-terms between ionization and contrast.
             # Should be under xcorr
             ##
-            if self.include_con_fl and self.pf['include_ion_fl']:
-                if self.pf['include_temp_fl']:
+            if self.ps_include_contrast and self.pf['ps_include_ion']:
+                if self.pf['ps_include_temp']:
                     p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z,
                         self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
                     data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
@@ -695,29 +726,29 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # Cross-correlations
             ##
-            if self.pf['include_xcorr']:
+            if self.pf['ps_include_xcorr']:
 
                 ##
                 # Cross-terms with density and (ionization, contrast)
                 ##
-                if self.pf['include_xcorr_wrt'] is None:
+                if self.pf['ps_include_xcorr_wrt'] is None:
                     do_xcorr_xd = True
                     do_xcorr_cd = True
                 else:
-                    do_xcorr_xd = (self.pf['include_xcorr_wrt'] is not None) and \
-                       ('density' in self.pf['include_xcorr_wrt']) and \
-                       ('ionization' in self.pf['include_xcorr_wrt'])
+                    do_xcorr_xd = (self.pf['ps_include_xcorr_wrt'] is not None) and \
+                       ('density' in self.pf['ps_include_xcorr_wrt']) and \
+                       ('ionization' in self.pf['ps_include_xcorr_wrt'])
                 
-                    do_xcorr_cd = (self.pf['include_xcorr_wrt'] is not None) and \
-                       ('density' in self.pf['include_xcorr_wrt']) and \
-                       ('contrast' in self.pf['include_xcorr_wrt'])
+                    do_xcorr_cd = (self.pf['ps_include_xcorr_wrt'] is not None) and \
+                       ('density' in self.pf['ps_include_xcorr_wrt']) and \
+                       ('contrast' in self.pf['ps_include_xcorr_wrt'])
                     
                 
                 if do_xcorr_xd:
 
                     # Cross-correlation terms...
                     # Density-ionization cross correlation
-                    if (self.pf['include_density_fl'] and self.pf['include_ion_fl']):
+                    if (self.pf['ps_include_density'] and self.pf['ps_include_ion']):
                         p_id, p_id_1, p_id_2 = self.field.JointProbability(z, 
                             self.R_cr, zeta, term='id', data=data,
                             zeta_lya=zeta_lya)
@@ -756,7 +787,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 if do_xcorr_cd:
                     # Cross-correlation terms...
                     # Density-contrast cross correlation
-                    if self.pf['include_density_fl'] and self.include_con_fl:
+                    if self.pf['ps_include_density'] and self.ps_include_contrast:
                         p_cd, p_cd_1, p_cd_2 = self.field.JointProbability(z, 
                             self.R_cr, zeta, term='hd', data=data,
                             zeta_lya=zeta_lya)
