@@ -1,7 +1,7 @@
 :orphan:
 
-Physical Models for the Global 21-cm Signal
-===========================================
+Simple Physical Models for the Global 21-cm Signal
+===================================================
 To begin, first import ares:
 
 :: 
@@ -46,9 +46,9 @@ is inherited by the ``ares.simulations.Global21cm`` class:
 
 ::
    
-    sim.GlobalSignature()
-    
-.. figure::  http://casa.colorado.edu/~mirochaj/docs/ares/basic_21cm.png
+    sim.GlobalSignature(fig=2)
+
+.. figure::  https://www.dropbox.com/s/gkbc0e15namryh3/ares_gs_default.png?raw=1
    :align:   center
    :width:   600
    
@@ -58,7 +58,8 @@ If you'd like to save the results to disk, do something like:
 
 ::
 
-    sim.save('test_21cm')
+    sim.save('test_21cm', clobber=True)
+    pl.savefig('ares_gs_default.png')
     
 which saves the contents of ``sim.history`` at all time snapshots to the file ``test_21cm.history.pkl`` and the parameters used in the model in ``test_21cm.parameters.pkl``.
 
@@ -79,20 +80,20 @@ To do simple parameter study, you could do something like:
 ::
 
     ax = None
-    for fX in [0.1, 1.]:
-        for fstar in [0.1, 0.5]:
+    for i, fX in enumerate([0.1, 1.]):
+        for j, fstar in enumerate([0.1, 0.5]):
             sim = ares.simulations.Global21cm(fX=fX, fstar=fstar)
             sim.run()
 
             # Plot the global signal
-            ax, zax = sim.GlobalSignature(ax=ax,
+            ax, zax = sim.GlobalSignature(ax=ax, fig=3, z_ax=i==j==0,
                 label=r'$f_X=%.2g, f_{\ast}=%.2g$' % (fX, fstar))
                 
                 
     ax.legend(loc='lower right', fontsize=14) 
-    pl.savefig('ares_diy_param_study.png')
+    pl.savefig('ares_gs_diy_param_study.png')
                 
-.. figure::  https://www.dropbox.com/s/ad3wanrtw07vaby/ares_diy_param_study.png?raw=1
+.. figure::  https://www.dropbox.com/s/m0no9b8ynvhc18y/ares_gs_diy_param_study.png?raw=1
    :align:   center
    :width:   600
 

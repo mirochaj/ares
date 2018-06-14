@@ -568,6 +568,10 @@ class Source(object):
         eV\ :sup:`-1`\.
 
         """   
+        
+        if self.pf['source_Ekill'] is not None:
+            if self.pf['source_Ekill'][0] <= E <= self.pf['source_Ekill'][1]:
+                return 0.0
                 
         return self._normL * self._Intensity(E, t=t)
         

@@ -19,7 +19,7 @@ def test():
     
     res = []
     ls = ['-', '--', '--', ':', '-.']
-    labels = 'Chuzhoy+ \'05', 'Furlanetto & Pritchard \'06', None, 'Hirata \'06'
+    labels = 'Chuzhoy+ \'05', 'Furlanetto \& Pritchard \'06', None, 'Hirata \'06'
     for i, method in enumerate([2,3,3.5,4]):
         hydr = ares.physics.Hydrogen(approx_Salpha=method)
     

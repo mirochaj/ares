@@ -80,6 +80,8 @@ dpl = \
  'final_redshift': 5.,
 }
 
+base = dpl
+
 _floor_specific = \
 {
  'pq_val_floor{0}[0]': 0.005,
@@ -232,7 +234,6 @@ fobsc = \
  'pq_func_par0{0}[13]': 1.0,  
  'pq_func_par1{0}[13]': 7.,
  'pq_func_par2{0}[13]': 0.,   # power-law index!
- 
 }
 
 

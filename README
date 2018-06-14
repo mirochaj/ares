@@ -1,4 +1,3 @@
-======
 *ares*
 ======
 The Accelerated Reionization Era Simulations (ARES) code was designed to
@@ -68,6 +67,9 @@ and optionally,
 - `shapely <https://pypi.python.org/pypi/Shapely>`_
 - `descartes <https://pypi.python.org/pypi/descartes>`_
 
+
+.. note :: *ares* has been tested only with Python 2.7.x and Python 3.3.x.
+
 Quick Example
 --------------
 To generate a model for the global 21-cm signal, simply type: ::
@@ -124,8 +126,8 @@ Additional contributions / corrections / suggestions from:
     
 - Geraint Harker
 - Jacob Jost (CU-Boulder)
-- `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
-- `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
+- Greg Salvesen (UCSB)
+- Adrian Liu (UC-Berkeley)
 - Jason Sun (Caltech)
 - Keith Tauscher (CU-Boulder)
 - Saurabh Singh (RRI)

@@ -2929,7 +2929,6 @@ class ModelSet(BlobFactory):
                 ax.set_xscale('linear')
                 ax.set_yscale('linear')
                 
-            
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
 
@@ -2938,15 +2937,15 @@ class ModelSet(BlobFactory):
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-        
+    
         pl.draw()
-        
+
         return ax
-              
+
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, fill=True, 
         inline_labels=False, manual=None, cax=None, use_colorbar=True, 
-        cb_kwargs={}, **kwargs):         
+        cb_kwargs={}, **kwargs):
         """
         Draw contours that are NOT associated with confidence levels.
         

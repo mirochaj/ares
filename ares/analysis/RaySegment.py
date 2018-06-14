@@ -17,6 +17,7 @@ import matplotlib.pyplot as pl
 from ..static.Grid import Grid
 from ..physics.Constants import *
 from .MultiPlot import MultiPanel
+from ..util.SetDefaultParameterValues import *
 from .MultiPhaseMedium import HistoryContainer
 
 try:
@@ -48,6 +49,8 @@ class RaySegment(object):
         if data is None:
             return
 
+        # Not sure why we need the isinstance here but not in 
+        # MultiPhaseMedium
         elif type(data) == dict:
             self.pf = SetAllDefaults()
             self.history = data.copy()
@@ -313,7 +316,7 @@ class RaySegment(object):
             mp = mp    
             hadmp = True
         else: 
-            mp = MultiPanel(fig=fig, dims=(2, 1))
+            mp = MultiPanel(fig=fig, dims=(2, 1), padding=(0, 0.1))
 
         if anl: 
             mp.grid[1].plot(self.t / self.trec, self.ranl, ls='-', color='k')
@@ -342,9 +345,9 @@ class RaySegment(object):
                 mp.grid[1].set_xticklabels(np.arange(0, round(maxt), 0.25))
                 mp.grid[0].set_xticklabels(np.arange(0, round(maxt), 0.25))
         
-                mp.fix_ticks()
-        
         pl.draw()
+        
+        #mp.fix_ticks()
             
         return mp
             

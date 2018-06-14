@@ -236,3 +236,19 @@ def tau_CMB(sim):
     
     return zarr, tau_all_z
 
+def get_attribute(s, ob):
+    """
+    Break apart a string `s` and recursively fetch attributes from object `ob`.
+    """
+    spart = s.partition('.')
+
+    f = ob
+    for part in spart:
+        if part == '.':
+            continue
+
+        f = f.__getattribute__(part)
+
+    return f
+
+

@@ -2,24 +2,6 @@
 
 Including Helium in 1-D Radiative Transfer Calculations
 =======================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Test #2 from the Radiative Transfer Comparison Project (`Iliev et al. 2006
 <http://adsabs.harvard.edu/abs/2006MNRAS.371.1057I>`_).
 
@@ -49,28 +31,26 @@ Now, we initialize an instance of the appropriate analysis class:
 
 ::
     
-    anl = ares.analysis.RaySegment(sim.checkpoints)
-
 and have a look at the temperature profile at 10, 30, and 100 Myr,
 
 ::
     
-    ax1 = anl.RadialProfile('Tk', t=[10, 30, 100])
+    ax1 = sim.RadialProfile('Tk', t=[10, 30, 100])
 
 radial profiles of the hydrogen species fractions,
 
 ::
 
-    ax2 = anl.RadialProfile('h_1', t=[10, 30, 100], fig=2)
-    anl.RadialProfile('h_2', t=[10, 30, 100], ax=ax2, ls='--')
+    ax2 = sim.RadialProfile('h_1', t=[10, 30, 100], fig=2)
+    sim.RadialProfile('h_2', t=[10, 30, 100], ax=ax2, ls='--')
 
 and the species fractions for helium:
 
 ::
 
-    ax3 = anl.RadialProfile('he_1', t=[10, 30, 100], fig=3)
-    anl.RadialProfile('he_2', t=[10, 30, 100], ax=ax3, ls='--')
-    anl.RadialProfile('he_3', t=[10, 30, 100], ax=ax3, ls=':')
+    ax3 = sim.RadialProfile('he_1', t=[10, 30, 100], fig=3)
+    sim.RadialProfile('he_2', t=[10, 30, 100], ax=ax3, ls='--')
+    sim.RadialProfile('he_3', t=[10, 30, 100], ax=ax3, ls=':')
     
 
     

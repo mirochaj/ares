@@ -13,10 +13,9 @@ Here, we'll provide a brief description of each parameter.
  * :doc:`params_populations`
  * :doc:`params_hmf`
  * :doc:`params_control`
- * :doc:`params_cosmology`
- 
-.. * :doc:`params_sources` 
-.. * :doc:`params_spectrum`
+ * :doc:`params_cosmology` 
+ * :doc:`params_sources` 
+ * :doc:`params_pq`
  
 For relatively complex calculations it can be difficult to know / remember which parameters are needed. Because of this, a convenience object called the `ParameterBundle` was introduced in June of 2016 to package together sets of commonly-used parameters and values. See the following page for more information on creating and using these objects:
 

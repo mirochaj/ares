@@ -15,7 +15,7 @@ from .ModelSet import ModelSet
 from ..util.Aesthetics import Labeler
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import add_redshift_axis
-from mpl_toolkits.axes_grid import inset_locator
+from mpl_toolkits.axes_grid1 import inset_locator
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring

@@ -15,6 +15,7 @@ from .Star import _Planck
 from .Source import Source
 from types import FunctionType
 from scipy.integrate import quad
+from ..util.Math import interp1d
 from ..util.ReadData import read_lit
 from ..util.SetDefaultParameterValues import BlackHoleParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
@@ -84,8 +85,11 @@ class BlackHole(Source):
             pass
         elif isinstance(self.pf['source_sed'], basestring):
             from_lit = read_lit(self.pf['source_sed'])
-            src = from_lit.Source()
-            self._UserDefined = src.Spectrum
+            self._UserDefined = from_lit.Spectrum
+        elif type(self.pf['source_sed']) in [np.ndarray, tuple, list]:
+            E, LE = self.pf['source_sed']
+            tmp = interp1d(E, LE, kind='cubic')
+            self._UserDefined = lambda E, t: tmp.__call__(E)
         else:
             self._UserDefined = self.pf['source_sed']    
             
@@ -199,11 +203,22 @@ class BlackHole(Source):
         N = (ma - mi) / dlogE + 1
         Earr = 10**np.arange(mi, ma+dlogE, dlogE)
         
-        gf = [self._GreensFunctionSIMPL(EE, E) for EE in Earr]
-        integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
-        
-        nout = (1.0 - fsc) * nin(E) + fsc \
-            * np.trapz(integrand, dx=dlogE) * np.log(10.)
+        if type(E) is np.ndarray:
+            nout = []
+            for nrg in E:
+                gf = [self._GreensFunctionSIMPL(EE, nrg) for EE in Earr]
+                integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
+                
+                nout.append((1.0 - fsc) * nin(nrg) + fsc \
+                    * np.trapz(integrand, dx=dlogE) * np.log(10.))
+                    
+            nout = np.array(nout)        
+        else:
+            gf = [self._GreensFunctionSIMPL(EE, E) for EE in Earr]
+            integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
+            
+            nout = (1.0 - fsc) * nin(E) + fsc \
+                * np.trapz(integrand, dx=dlogE) * np.log(10.)
          
         # Output spectrum
         return nout * E
@@ -249,11 +264,18 @@ class BlackHole(Source):
             self.r_out = self.pf['source_rmax'] * self._GravitationalRadius(self.M)
             self.T_in = self._DiskInnermostTemperature(self.M)
             self.T_out = self._DiskTemperature(self.M, self.r_out)
-                    
-        integrand = lambda T: (T / self.T_in)**(-11. / 3.) \
-            * _Planck(E, T) / self.T_in
+        
+        integrand = lambda T, nrg: (T / self.T_in)**(-11. / 3.) \
+            * _Planck(nrg, T) / self.T_in
             
-        return quad(integrand, self.T_out, self.T_in)[0]
+        if type(E) == np.ndarray:
+            result = \
+                np.array([quad(lambda T: integrand(T, nrg), 
+                    self.T_out, self.T_in)[0] for nrg in E])
+        else:
+            result = quad(lambda T: integrand(T, E), self.T_out, self.T_in)[0]
+            
+        return result
 
     def SourceOn(self, t):
         """ See if source is on. Provide t in code units. """        
@@ -278,7 +300,7 @@ class BlackHole(Source):
         Return quantity *proportional* to fraction of bolometric luminosity 
         emitted at photon energy E.  Normalization handled separately.
         """
-                        
+                                
         if self.pf['source_sed'] == 'pl': 
             Lnu = self._PowerLaw(E, t)    
         elif self.pf['source_sed'] == 'mcd':

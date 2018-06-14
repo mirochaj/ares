@@ -922,7 +922,8 @@ class ModelGrid(ModelFit):
 
         # You. shall. not. pass.
         # Maybe unnecessary?
-        MPI.COMM_WORLD.Barrier()
+        if size > 1:
+            MPI.COMM_WORLD.Barrier()
         
         t2 = time.time()
 
@@ -972,7 +973,9 @@ class ModelGrid(ModelFit):
         if not hasattr(self, '_assignments'):
             if hasattr(self, 'grid'):
                 if self.grid.structured:
-                    raise AttributeError('Must set assignments by hand')
+                    self._structured_balance(method=0)
+                    return     
+
             self._unstructured_balance(method=0)
             
         return self._assignments

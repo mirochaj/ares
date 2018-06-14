@@ -2,6 +2,8 @@
 
 Non-Equilibrium Chemistry
 =========================
+This example shows some of the inner-workings of the chemical network and solver using a simple hydrogen-only test problem in an isothermal medium.
+
 To begin, first import a few things:
 
 :: 
@@ -16,7 +18,7 @@ Let's initialize a grid of 64 cells:
 ::
         
     # Initialize grid object
-    grid = ares.static.Grid(dims=64)
+    grid = ares.static.Grid(grid_cells=64)
     
 So far, this ``grid`` object only knows how many cells it has. To give it
 some physical properties, we'll call several setter routines:
@@ -27,8 +29,8 @@ some physical properties, we'll call several setter routines:
     grid.set_physics(isothermal=True)
     grid.set_chemistry(include_He=False)
     grid.set_density(nH=1.)
-    grid.set_ionization(state='neutral')  
-    grid.set_temperature(T)
+    grid.set_ionization()  
+    grid.set_temperature(np.logspace(3, 5, 64))
     
 The above commands initialize the grid to be isothermal, composed of hydrogen
 only, with a density of 1 hydrogen atom per cubic centimeter, initialized to 
@@ -85,8 +87,7 @@ Now, to actually run the thing:
 
     pb.finish()   
     
-All of this work is done for you each time you call ``ares.simulations.Global21cm``
-and ``ares.simulations.RaySegment``.    
+All of this work is done for you each time you call ``ares.simulations.Global21cm`` and ``ares.simulations.RaySegment``.    
     
 To visualize the results:
 

@@ -138,7 +138,7 @@ Check that we got our blobs:
 
 .. Example: 2-D blobs
 .. ------------------
-.. Now, let's track slightly more complex blobs. For example, if you're running models of galaxy populations (see :doc:`example_galaxypop`), you might want to save the galaxy luminosity function at a series of magnitudes *and* a series of redshifts. 
+.. Now, let's track slightly more complex blobs. For example, if you're running models of galaxy populations (see :doc:`example_pop_galaxy`), you might want to save the galaxy luminosity function at a series of magnitudes *and* a series of redshifts. 
 
 .. ::
 .. 

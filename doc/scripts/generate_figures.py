@@ -14,8 +14,7 @@ import matplotlib.pyplot as pl
 
 scripts = \
 [
- 'run_example_crb_lw.py',
-
+ 'example_galaxypop.rst'
 ]
 
 

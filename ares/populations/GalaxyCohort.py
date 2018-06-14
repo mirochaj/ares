@@ -535,28 +535,28 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         return self._SMD
     
-    @property
-    def MGR(self):
-        """
-        Mass growth rate of halos of mass M at redshift z.
-    
-        ..note:: This is the *DM* mass accretion rate. To obtain the baryonic 
-            accretion rate, multiply by Cosmology.fbaryon.
-            
-        """
-        if not hasattr(self, '_MAR'):
-            if self.pf['pop_MAR'] is None:
-                self._MAR = None
-            elif type(self.pf['pop_MAR']) is FunctionType:
-                self._MAR = self.pf['pop_MAR']
-            elif self.pf['pop_MAR'] == 'pl':
-                raise NotImplemented('do this')
-            elif self.pf['pop_MAR'] == 'hmf':
-                self._MAR = self.halos.MAR_func
-            else:
-                self._MAR = read_lit(self.pf['pop_MAR'], verbose=self.pf['verbose']).MAR
-
-        return self._MAR
+    #@property
+    #def MGR(self):
+    #    """
+    #    Mass growth rate of halos of mass M at redshift z.
+    #
+    #    ..note:: This is the *DM* mass accretion rate. To obtain the baryonic 
+    #        accretion rate, multiply by Cosmology.fbaryon.
+    #        
+    #    """
+    #    if not hasattr(self, '_MAR'):
+    #        if self.pf['pop_MAR'] is None:
+    #            self._MAR = None
+    #        elif type(self.pf['pop_MAR']) is FunctionType:
+    #            self._MAR = self.pf['pop_MAR']
+    #        elif self.pf['pop_MAR'] == 'pl':
+    #            raise NotImplemented('do this')
+    #        elif self.pf['pop_MAR'] == 'hmf':
+    #            self._MAR = self.halos.MAR_func
+    #        else:
+    #            self._MAR = read_lit(self.pf['pop_MAR'], verbose=self.pf['verbose']).MAR
+    #
+    #    return self._MAR
         
     def MAR(self, z, Mh):
         return np.maximum(self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh), 0.)
@@ -2039,8 +2039,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
         Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
         Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
-                
-        if self.pf['pop_sfr'] is None:
+        
+        if not self.pf['pop_star_formation']:
+            fstar = SFR = 0.0
+        elif self.pf['pop_sfr'] is None:
             fstar = self.SFE(**kw)
             SFR = PIR * fstar
         else:
@@ -2085,7 +2087,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             y5p = SFR + NPIR * Sfrac
 
         # Add BHs
-        if self.pf['pop_bh_form']:
+        if self.pf['pop_bh_formation']:
             if self.pf['pop_bh_facc'] is not None:
                 y6p = self.pf['pop_bh_facc'] * PIR
             else:

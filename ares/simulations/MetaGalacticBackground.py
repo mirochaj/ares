@@ -221,24 +221,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         This is just the second term of Eq. 25 in Mirocha (2014).
         """
         
-        _fluxes_today = []
-        _energies_today = []
-
-        for popid, pop in enumerate(self.pops):
-            if not self.solver.solve_rte[popid]:
-                _fluxes_today.append(None)
-                _energies_today.append(None)
-                continue
-                
-            z, E, flux = self.get_history(popid=popid, flatten=True)    
-                
-            Et = E / (1. + z[0])
-            ft = flux[0] / (1. + z[0])**2
-            
-            _energies_today.append(Et)
-            _fluxes_today.append(ft)
-            
-        return _energies_today, _fluxes_today
+        return self.flux_today()
     
     def today_of_E(self, E):
         """
@@ -264,7 +247,62 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         freq = E * erg_per_ev / h_p
         return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
-                               
+                    
+    def flux_today(self, zf=None, popids=None):
+        """
+        Propage radiation background from `zf` to z=0 assuming optically
+        thin universe.
+        """
+        _fluxes_today = []
+        _energies_today = []
+    
+        if popids is None:
+            popids = range(len(self.pops))
+        if type(popids) not in [list, tuple, np.ndarray]:
+            popids = [popids]
+    
+        ct = 0
+        # Loop over pops: assumes energy ranges are non-overlapping!
+        for popid, pop in enumerate(self.pops):
+    
+            if popid not in popids:
+                continue
+    
+            if not self.solver.solve_rte[popid]:
+                continue
+    
+            z, E, flux = self.get_history(popid=popid, flatten=True)    
+    
+            if zf is None:
+                k = 0
+            else:
+                k = np.argmin(np.abs(zf - z))
+    
+            Et = E / (1. + z[k])
+            ft = flux[k] / (1. + z[k])**2 
+    
+            _energies_today.append(Et)
+            _fluxes_today.append(ft)
+    
+            ct += 1
+    
+        if ct == 1:    
+            return np.array(_energies_today[0]), np.array(_fluxes_today[0])
+    
+        ##
+        # Add the fluxes! Interpolate to common energy grid first.
+        ##    
+    
+        _f = []        
+        _E = np.unique(np.concatenate(_energies_today))
+        for i, flux in enumerate(_fluxes_today):
+            _f.append(np.interp(_E, _energies_today[i], flux, 
+                left=0.0, right=0.0))
+    
+        f = np.sum(_f, axis=0)
+    
+        return _E, f                    
+                           
     @property        
     def jsxb(self):
         if not hasattr(self, '_jsxb'):

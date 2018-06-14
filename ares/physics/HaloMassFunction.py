@@ -47,16 +47,27 @@ except ImportError:
     size = 1
 
 try:
+    import hmf
     from hmf import MassFunction
     have_hmf = True
+    hmf_vers = float(hmf.__version__[0])
 except ImportError:
     have_hmf = False
-    
+    hmf_vers = 0
+
 try:
-    import pycamb
+    import camb
     have_pycamb = True
 except ImportError:
     have_pycamb = False
+
+    try:
+        import pycamb
+        have_pycamb = True
+        if int(hmf.__version__.split('.')[0]) >= 3:
+            print("For HMF v3 or greater, must use new 'camb' Python package.")
+    except ImportError:
+        have_pycamb = False
 
 ARES = os.getenv("ARES")    
 
@@ -265,9 +276,20 @@ class HaloMassFunction(object):
     @property
     def transfer_pars(self):
         if not hasattr(self, '_transfer_pars'):
-            self._transfer_pars = \
-                {'transfer__k_per_logint': self.pf['hmf_transfer__k_per_logint'],
-                'transfer__kmax': self.pf['hmf_transfer__kmax']}
+            if hmf_vers < 2:
+                self._transfer_pars = \
+                {'transfer__k_per_logint': self.pf['hmf_transfer_k_per_logint'],
+                 'transfer__kmax': self.pf['hmf_transfer_kmax']}
+            else:
+                _transfer_pars = \
+                   {'k_per_logint': self.pf['hmf_transfer_k_per_logint'],
+                    'kmax': np.log(self.pf['hmf_transfer_kmax'])}
+
+                p = camb.CAMBparams()
+                p.set_matter_power(**_transfer_pars)
+
+                self._transfer_pars = {'camb_params': p}
+                     
         return self._transfer_pars
 
     @property
@@ -868,7 +890,7 @@ class HaloMassFunction(object):
             f.create_dataset('hmf-version', data=hmf_v)
             f.close()
 
-        elif format == 'npz':
+        elif format in ['npz', 'npy']:
             data = {'z': self.z, 'logM': self.logM, 
                     'dndm': self.dndm,
                     'ngtm': self.ngtm, 'mgtm': self.mgtm,

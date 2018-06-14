@@ -437,6 +437,9 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
+    
+    # Artificially kill emission in some band.
+    "pop_Ekill": None,
 
     "pop_Emin_xray": 2e2,
     
@@ -482,6 +485,8 @@ def PopulationParameters():
     'pop_acc_frac_stellar': 1.0,
     'pop_acc_frac_gas': 1.0,
     'pop_metal_retention': 1.0,
+
+    "pop_star_formation": True,
 
     "pop_sfe": None,
     "pop_mlf": None,
@@ -532,7 +537,7 @@ def PopulationParameters():
     "pop_sfrd_units": 'msun/yr/mpc^3',
 
     # For BHs
-    "pop_bh_form": False,
+    "pop_bh_formation": False,
     "pop_bh_md": None,
     "pop_bh_ard": None,
     "pop_bh_seed_ratio": 1e-3,
@@ -609,6 +614,7 @@ def PopulationParameters():
                            # treating background in approximate way
 
     "pop_solve_rte": False,
+    "pop_lya_permeable": False,
         
     # Pre-created splines
     "pop_fcoll": None,
@@ -632,7 +638,6 @@ def PopulationParameters():
     "pop_user_par8": None,
     "pop_user_par9": None,
     "pop_user_pmap": {},
-    
     }
 
     pf.update(tmp)
@@ -672,6 +677,8 @@ def SourceParameters():
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     
+    "source_Ekill": None,
+    
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
 
@@ -686,6 +693,7 @@ def SourceParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    "source_interpolant": None,
     
     "source_degradation": None,      # Degrade spectra to this \AA resolution
     "source_aging": False,
@@ -799,8 +807,8 @@ def HaloMassFunctionParameters():
     'hmf_dlnk': 1e-2,
     'hmf_lnk_min': -20.,
     'hmf_lnk_max': 10.,
-    'hmf_transfer__k_per_logint': 11.,
-    'hmf_transfer__kmax': 100., # hmf default value is 5
+    'hmf_transfer_k_per_logint': 11,
+    'hmf_transfer_kmax': 100., # hmf default value is 5
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,

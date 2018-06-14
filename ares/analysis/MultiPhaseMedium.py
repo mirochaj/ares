@@ -22,7 +22,7 @@ from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
 from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
-from mpl_toolkits.axes_grid import inset_locator
+from mpl_toolkits.axes_grid1 import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -901,14 +901,14 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
         z = np.array([20, 40, 100, 400])[-1::-1]
         #z = np.arange(20, zlim, 40)[-1::-1]
         z_minor = np.arange(50, zlim, 50)[-1::-1]
-        highz_labels = ['20', '30', '40', '100', '400']
+        highz_labels = ['20', '30', '100']
     else:    
         z = np.array([20, 40, 60, 80])[-1::-1]
         z_minor = np.arange(20, zlim, 10)[-1::-1]
         highz_labels = ['30', '80']
         
     #z_labels = list(map(str, z))
-    lowz_labels = map(str, [6, 8, 10, 12, 15, 20])
+    lowz_labels = list(map(str, [6, 8, 10, 12, 15, 20]))
 
     z_labels = lowz_labels + highz_labels
     z = np.array(list(map(int, z_labels)))

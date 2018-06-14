@@ -203,7 +203,7 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', **kwargs)              
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
+        AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
         """
         Plot the luminosity function data at a given redshift.
@@ -261,11 +261,14 @@ class GalaxyPopulation(object):
                 'fmt': default_markers[source],
                 'color':default_colors[source], 'capthick':2}
             
-            if 'label' not in kwargs:
-                kwargs['label'] = source
+            if not use_labels:
+                label = None
+            elif ('label' not in kwargs):
+                label = source
             else:
                 label = kwargs['label']
             
+            kw['label'] = label
             kw.update(kwargs)
                 
             if AUV is not None:
@@ -382,9 +385,7 @@ class GalaxyPopulation(object):
         
         if gotmp:
             return mp
-        
-        mp.fix_ticks(rotate_x=45)
-                
+                        
         for i, z in enumerate(redshifts):
             k = mp.elements.ravel()[i]
             ax = mp.grid[k]
@@ -392,8 +393,6 @@ class GalaxyPopulation(object):
             if quantity == 'lf':
                 ax.set_xlim(-24, xmax)
                 ax.set_ylim(1e-7, ymax)
-                ax.set_xticks(np.arange(-20, 5, 5), minor=False)
-                ax.set_xticks(np.arange(-23, -1, 2), minor=True)
                 ax.set_yscale('log', nonposy='clip')  
                 ax.set_ylabel('')
             else:
@@ -406,6 +405,8 @@ class GalaxyPopulation(object):
             mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         else:
             mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+            
+        pl.show()    
             
         return mp
             

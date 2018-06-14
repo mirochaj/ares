@@ -37,13 +37,13 @@ Now, let's set some parameters that define the properties of the source populati
      'pop_Emax': 1e2,
      'pop_EminNorm': 13.6,
      'pop_EmaxNorm': 1e2,
-     'pop_yield': 1e57,
-     'pop_yield_units': 'photons/msun',
+     'pop_rad_yield': 1e57,
+     'pop_rad_yield_units': 'photons/msun',
 
      # Solution method
      'pop_solve_rte': True,
      'lya_nmax': 8,
-     'pop_tau_Nz': 400,
+     'tau_redshift_bins': 400,
 
      'initial_redshift': 40,
      'final_redshift': 10,
@@ -113,6 +113,15 @@ Add some axis labels if you'd like:
 
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux_E'])
+    
+    pl.savefig('ares_crte_uv.png')
+    
+.. figure::  https://www.dropbox.com/s/tfoxqegbii60ys5/ares_crte_uv.png?raw=1
+   :align:   center
+   :width:   600
+
+   Sawtooth modulation of the UV background compared to optically-thin solution (solid).
+    
     
 .. note :: In reality, the ionizing background before reionization should be heavily damped. This example is unphysical in some sense because while it treats the opacity of HI and HeI Lyman lines (which produce the sawtooth modulation) it ignores the continuum opacity at energies above 13.6 eV. This will be treated more carefully by setting ``pop_approx_tau='neutral'`` in the :doc:`example_crb_xr` example.
 

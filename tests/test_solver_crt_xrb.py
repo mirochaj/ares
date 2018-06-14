@@ -33,15 +33,16 @@ plpars = \
  'pop_EminNorm': 2e2,
  'pop_EmaxNorm': 3e4,
  'pop_logN': -np.inf,
- #'approx_xrb': 0,
+
  'pop_solve_rte': True,
  'tau_redshift_bins': 400,
  
  'initial_redshift': 40.,
  'final_redshift': 10.,
+ 
 }
 
-def test(tol = 1e-2):
+def test(tol=1e-2):
 
     assert alpha + beta != 1.5, "Analytic solution diverges for alpha+beta=3/2!"
     
@@ -138,7 +139,7 @@ def test(tol = 1e-2):
     
     pl.close('all')    
     assert True
-
+    
 if __name__ == '__main__':
     test()
 

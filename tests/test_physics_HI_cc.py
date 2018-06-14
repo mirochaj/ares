@@ -16,11 +16,12 @@ from ares.physics import Hydrogen
 
 def test():
 
-    hydr = Hydrogen()
+    hydr = Hydrogen(interp_cc='cubic')
     hydr2 = Hydrogen(interp_cc='linear')
     
-    # Relevant temperature range
-    T = np.logspace(0, 4, 500)
+    # Relevant temperature range + a little bit to make sure our interpolation
+    # bounds are obeyed.
+    T = np.logspace(-0.5, 4.5, 500)
     
     fig1 = pl.figure(1)#; fig2 = pl.figure(2)
     ax1 = fig1.add_subplot(111)#; ax2 = fig2.add_subplot(111)
@@ -38,18 +39,16 @@ def test():
         label=r'$\kappa_{10}^{\mathrm{eH}}$') 
     
     # Linear fallback option
-    ax1.loglog(T, hydr2.kappa_H(T), color = 'b', ls = '-')
-    ax1.loglog(T, hydr2.kappa_e(T), color = 'b', ls = '--') 
+    ax1.loglog(T, hydr2.kappa_H(T), color = 'b', ls = '-', lw=3, alpha=0.6)
+    ax1.loglog(T, hydr2.kappa_e(T), color = 'b', ls = '--', lw=3, alpha=0.6) 
         
     # Tidy up
-    ax1.set_xlim(1, 1e4)
+    ax1.set_xlim(0.3, 3e4)
     ax1.set_ylim(1e-13, 2e-8)
     ax1.set_xlabel(r'$T \ (\mathrm{K})$')
     ax1.set_ylabel(r'$\kappa \ (\mathrm{cm}^3 \mathrm{s}^{-1})$')
     ax1.legend(loc = 'lower right', frameon = False)
-    ax1.annotate('Points from Zygelman (2005)', (1.5, 1e-8), ha='left', va='top',
-        fontsize=14)
-    ax1.annotate('Lines are spline fit to points', (1.5, 5e-9), ha='left', va='top',
+    ax1.annotate('Points from Zygelman (2005)', (0.5, 1e-8), ha='left', va='top',
         fontsize=14)
     
     pl.draw()

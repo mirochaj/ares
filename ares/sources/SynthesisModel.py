@@ -214,7 +214,10 @@ class SynthesisModel(Source):
             if self.pf['source_ssp']:
                 # The factor of a million is built-in to the lookup tables
                 self._data *= self.pf['source_mass'] / 1e6
+                if hasattr(self, '_data_all_Z'):
+                    self._data_all_Z *= self.pf['source_mass'] / 1e6
             else:    
+                #raise NotImplemented('is this ok?')
                 self._data *= self.pf['source_sfr']
                 
         return self._data
