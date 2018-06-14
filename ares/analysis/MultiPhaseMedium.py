@@ -908,7 +908,7 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
         highz_labels = ['30', '80']
         
     #z_labels = list(map(str, z))
-    lowz_labels = map(str, [6, 8, 10, 12, 15, 20])
+    lowz_labels = list(map(str, [6, 8, 10, 12, 15, 20]))
 
     z_labels = lowz_labels + highz_labels
     z = np.array(list(map(int, z_labels)))
