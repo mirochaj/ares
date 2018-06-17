@@ -25,6 +25,8 @@ except ImportError:
     rank = 0
     size = 1
     
+four_pi = 4 * np.pi    
+    
 ARES = os.getenv("ARES")    
 
 class HaloModel(HaloMassFunction):
@@ -366,10 +368,11 @@ class HaloModel(HaloMassFunction):
         
         return self.InverseFT3D(R, Pofk, k)
     
-    def InverseFT3D(self, R, ps, k=None, damp=None,
-        epsabs=1e-6, epsrel=1e-6, limit=500):
+    def InverseFT3D(self, R, ps, k=None, kmin=None, kmax=None,
+        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False):
         """
-    
+        Take a power spectrum and perform the inverse (3-D) FT to recover
+        a correlation function.
         """
         assert type(R) == np.ndarray
     
@@ -384,44 +387,94 @@ class HaloModel(HaloMassFunction):
             #if interpolant == 'akima':
             #    ps = Akima1DInterpolator(k, ps)
             #elif interpolant == 'cubic':
-            ps = interp1d(k, ps, kind='cubic', assume_sorted=True,
+            
+            ps = interp1d(np.log(k), ps, kind='cubic', assume_sorted=True,
                 bounds_error=False, fill_value=0.0)
+            
+            #_ps = interp1d(np.log(k), np.log(ps), kind='cubic', assume_sorted=True,
+            #    bounds_error=False, fill_value=-np.inf)
+            #    
+            #ps = lambda k: np.exp(_ps.__call__(np.log(k)))   
                 
         else:       
             raise ValueError('Do not understand type of `ps`.')
     
+        if kmin is None:
+            kmin = k.min()
+        if kmax is None:
+            kmax = k.max()
+            
+        norm = 1. / ps(np.log(kmax))
+            
         # Loop over R and perform integral    
         cf = np.zeros_like(R)
         for i, RR in enumerate(R):
             
-            if damp is not None:
-                integrand_unweighted = lambda kk: kk**2 * ps(kk)  \
-                     * np.exp(-kk / damp) / kk / RR
-            else:
-                # Leave sin(k*R) out -- that's the 'weight' for scipy.
-                integrand_unweighted = lambda kk: kk**2 * ps(kk) / kk / RR
+            # Leave sin(k*R) out -- that's the 'weight' for scipy.
+            integrand = lambda kk: norm * four_pi * kk**2 * ps(np.log(kk)) \
+                / kk / RR
                 
-            cf[i] = quad(integrand_unweighted, k.min(), k.max(), 
+            cf[i] = quad(integrand_unweighted, kmin, kmax,
                 epsrel=epsrel, epsabs=epsabs, limit=limit,
-                weight='sin', wvar=RR)[0]
+                weight='sin', wvar=RR)[0] / norm
     
         # Our FT convention        
-        cf /= 2 * np.pi        
+        cf /= (2 * np.pi)
     
         return cf
     
-    def FT3D(self, k, cf, R=None, damp=None):
+    def FT3D(self, k, cf, R=None, Rmin=None, Rmax=None,
+        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False):
         """
-        Perform a 3-D Fourier transform assuming fluctuations described by
-        input correlation function are isotropic.
+        This is nearly identical to the inverse transform function above,
+        I just got tired of having to remember to swap meanings of the
+        k and R variables. Sometimes clarity is better than minimizing 
+        redundancy.
         """
+        assert type(k) == np.ndarray
     
-        # Just use the routine above and swap k and R. 
-        # Undo the 2 * np.pi factor applied by the backward transform.
-        return 2 * np.pi * self.InverseFT3D(k, cf, R, damp)
+        if (type(cf) == FunctionType) or isinstance(cf, interp1d) \
+           or isinstance(cf, Akima1DInterpolator):
+            R = cf.x
+        elif type(cf) == np.ndarray:
+            # Setup interpolant
     
+            assert R is not None, "Must supply R vector as well!"
+
+            #if interpolant == 'akima':
+            #    ps = Akima1DInterpolator(k, ps)
+            #elif interpolant == 'cubic':
+            cf = interp1d(np.log(R), cf, kind='cubic', assume_sorted=True,
+                bounds_error=False, fill_value=0.0)                
+                
+        else:       
+            raise ValueError('Do not understand type of `ps`.')
     
-    @property            
+        if Rmin is None:
+            Rmin = R.min()
+        if Rmax is None:
+            Rmax = R.max()    
+    
+        norm = 1. / cf(np.log(Rmin))
+        
+        # Loop over k and perform integral    
+        ps = np.zeros_like(k)
+        for i, kk in enumerate(k):
+
+            # Leave sin(k*R) out -- that's the 'weight' for scipy.
+            # Note the minus sign.
+            integrand = lambda RR: norm * four_pi * RR**2 * cf(np.log(RR)) \
+                / kk / RR            
+
+            # Use 'chebmo' to save Chebyshev moments and pass to next integral?
+            ps[i] = quad(integrand, Rmin, Rmax,
+                epsrel=epsrel, epsabs=epsabs, limit=limit,
+                weight='sin', wvar=kk)[0] / norm
+    
+        # Our FT convention: do nothing!
+        return np.abs(ps)
+    
+    @property
     def tab_k(self):
         """
         k-vector constructed from mps parameters.
@@ -565,7 +618,7 @@ class HaloModel(HaloMassFunction):
             zsize = int(round(zsize, 1))
                 
             # Should probably save NFW information etc. too
-            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnr_%.2f_lnk_%.1f-%.1f_dlnk_%.2f' \
+            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnr_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
                    Rmi, Rma, dlogR, kmi, kma, dlogk)
         else:

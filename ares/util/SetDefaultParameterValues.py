@@ -379,8 +379,8 @@ def PowerSpectrumParameters():
      "ps_output_dlnk": 0.5,
      
      "ps_output_R": None,
-     "ps_output_lnRmin": -6.5,
-     "ps_output_lnRmax": 5.,
+     "ps_output_lnRmin": -8.,
+     "ps_output_lnRmax": 8.,
      "ps_output_dlnR": 0.1,
      
      'ps_include_acorr': True,
@@ -394,10 +394,14 @@ def PowerSpectrumParameters():
      'ps_include_ion': True,
      'ps_include_temp': False,
      'ps_include_lya': False,
-
+     
+     'ps_assume_saturated': False,
+     
+     'ps_split_transform': False,
+     
      #'include_lya_lc': False,
 
-     "ps_volfix": False,
+     "ps_volfix": True,
      
      "ps_rescale_Qlya": False,
      "ps_rescale_Qhot": False,

@@ -17,7 +17,7 @@ import ares
 import numpy as np
 
 ## INPUT
-fit = 'ST'
+fit = 'PS'
 format = 'npz'
 ##
 
@@ -33,11 +33,11 @@ pars = \
  
  
  "mps_zmin": 6,
- "mps_zmax": 20,
- "mps_dz": 0.5,
+ "mps_zmax": 13,
+ "mps_dz": 1.,
  
- 'mps_dlnk': 0.01,
- 'mps_dlnR': 0.01,
+ 'mps_dlnk': 0.005,
+ 'mps_dlnR': 0.005,
  'mps_lnk_min': -10.,
  'mps_lnk_max': 10.,
  'mps_lnR_min': -10.,

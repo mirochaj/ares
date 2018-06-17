@@ -132,7 +132,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             else:
                 ax.set_ylabel(labels['pow'], fontsize='x-large')
                          
-        ax.set_xlim(1e-2, 10)
+        ax.set_xlim(1e-2, 1e1)
         ax.set_ylim(1e-3, 1e4)
 
         pl.draw()
@@ -524,7 +524,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                                 color=colors[i], ls=ls[hh], alpha=0.5, lw=lw)
 
 
-            if h == 0:
+            if h == len(redshifts) - 1:
                 if real_space:
                     ax.legend(loc='lower left', fontsize=14, ncol=1)
                 else:
@@ -591,7 +591,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     ax.loglog(dr_ch[j], np.abs(chunk), color=colors[i], 
                         ls='-', alpha=0.5, lw=lw, label=label)
 
-            if h == 0:
+            if h == len(redshifts) - 1:
                 ax.legend(loc='lower left', fontsize=14)
 
             if real_space:
@@ -677,7 +677,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     ax.loglog(dr_ch[j], y, color=colors[i],
                         ls=ls[i], alpha=0.5, lw=lw, label=label)
             
-            if h == 0:
+            if h == len(redshifts) - 1:
                 ax.legend(loc='lower left', fontsize=14)
                 
             ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',

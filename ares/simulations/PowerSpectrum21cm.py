@@ -138,13 +138,15 @@ class PowerSpectrum21cm(AnalyzePS):
             
             is2d_k = key.startswith('ps')
             is2d_R = key.startswith('jp') or key.startswith('ev') \
-                  or key.startswith('cf') \
-                  or (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
+                  or key.startswith('cf')
+            is2d_B = (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
             
             if is2d_k:
                 tmp = np.zeros((len(self.z), len(self.k)))
             elif is2d_R:
                 tmp = np.zeros((len(self.z), len(self.R)))
+            elif is2d_B:
+                tmp = np.zeros((len(self.z), len(all_ps[0]['r_i'])))
             else:
                 tmp = np.zeros_like(self.z)
             
@@ -343,26 +345,24 @@ class PowerSpectrum21cm(AnalyzePS):
             #    Qi = 0.
             
             if self.pf['ps_include_ion']:
-                if self.pf['ps_force_QHII_gs']:
-                    Qi = QHII_gs
-                else:    
-                    Qi = self.field.BubbleFillingFactor(z, zeta, 
-                        rescale=self.pf['ps_force_QHII_fcoll'])
+                #if self.pf['ps_force_QHII_gs']:
+                #    Qi = xibar = QHII_gs
+                #else:    
+                Qi = xibar = self.field.MeanIonizedFraction(z, zeta)
             else:
-                Qi = QHII_gs
+                Qi = xibar = QHII_gs
                 
-            if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
-                rescale_Q = True
-            else:
-                rescale_Q = False
+            #if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
+            #    rescale_Q = True
+            #else:
+            #    rescale_Q = False
                 
             #Qi = np.mean([QHII_gs, self.field.BubbleFillingFactor(z, zeta)])    
                                                                 
             #xibar = np.interp(z, self.mean_history['z'][-1::-1],
             #    self.mean_history['cgm_h_2'][-1::-1])
                 
-            xibar = Qi    
-                
+                                
             xbar = 1. - xibar
             data['Qi'] = Qi
             data['xibar'] = xibar
@@ -377,34 +377,30 @@ class PowerSpectrum21cm(AnalyzePS):
             
             if self.pf['ps_include_ion']:
                 
-                R, M, N = self.field.BubbleSizeDistribution(z, zeta)
+                Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, zeta)
                 
-                data['n_i'] = np.interp(self.R, R, N)
-                data['m_i'] = np.interp(self.R, R, M)
-                data['r_i'] = self.R
-                
-                data['delta_B'] = np.interp(data['m_i'], self.field.m, 
-                    self.field._B(z, zeta))
-                
-                print("Q(z={}) = {}".format(z, Qi))
-                
+                data['n_i'] = Ni
+                data['m_i'] = Mi
+                data['r_i'] = Ri
+                data['delta_B'] = self.field._B(z, zeta)
+                                
                 data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
                     self.field.JointProbability(z, zeta, 
-                        R=self.R, term='ii', Q=Qi,
-                        rescale=rescale_Q)
+                        R=self.R, term='ii')
                 data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='ii', Q=Qi,
-                    rescale=rescale_Q)
+                    R=self.R, term='ii')
                 data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
                     data['cf_ii'], self.R)
             
             if self.pf['ps_include_temp']:
-                Rh = 0.0
-                data['cf_cc'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='cc', Rh=Rh,
-                    rescale=rescale_Q)
-                data['ps_cc'] = self.field.PowerSpectrumFromCF(self.k, 
-                    data['cf_cc'], self.R)
+                Rh = 2 * Ri
+                
+                
+                
+                data['cf_hh'] = self.field.CorrelationFunction(z, zeta, 
+                    R=self.R, term='hh', Rh=Rh)
+                data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
+                    data['cf_hh'], self.R)
             
             
             """
@@ -416,8 +412,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 # These routines will tap into the cache to retrieve 
                 # the (already-computed) values for cf_ii, cf_TT, etc.
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='21', Q=Qi,
-                    rescale=rescale_Q, 
+                    R=self.R, term='21',  
                     include_xcorr=self.pf['ps_include_xcorr'],
                     include_ion=self.pf['ps_include_ion'],
                     include_temp=self.pf['ps_include_temp'],
