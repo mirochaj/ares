@@ -97,13 +97,15 @@ class ClusterPopulation(Population):
         Un-normalized.
         """
         
-        iz = np.argmin(np.abs(kwargs['z'] - self.zarr))
+        return self._mdist(**kwargs)
         
-        frd = np.array([self.FRD(z=z) for z in self.zarr])
-        mdist = np.array([self._mdist(z=z, M=kwargs['M']) for z in self.zarr])
-        y = frd * mdist / self._mdist_norm
-
-        return np.trapz(y[iz:], x=self.tarr[iz:])
+        #iz = np.argmin(np.abs(kwargs['z'] - self.zarr))
+        #
+        #frd = np.array([self.FRD(z=z) for z in self.zarr])
+        #mdist = np.array([self._mdist(z=z, M=kwargs['M']) for z in self.zarr])
+        #y = frd * mdist / self._mdist_norm
+        #
+        #return np.trapz(y[iz:], x=self.tarr[iz:])
 
     @property
     def _tab_massfunc(self):

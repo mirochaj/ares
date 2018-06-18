@@ -35,8 +35,8 @@ Currently, *ares* can handle both the *starburst99* original dataset and the *BP
     
 or, to create more useful objects for handling these data, ::
 
-    s99 = ares.populations.SynthesisModel(pop_sed='leitherer1999')
-    bpass = ares.populations.SynthesisModel(pop_sed='eldridge2009')
+    s99 = ares.sources.SynthesisModel(source_sed='leitherer1999')
+    bpass = ares.sources.SynthesisModel(source_sed='eldridge2009')
 
 The spectra for these models are stored in the exact same way to facilitate comparison and uniform use throughout *ares*. The most important attributes are ``wavelengths`` (or ``energies`` or ``frequencies``), ``times``, and ``data`` (a 2-D array with shape (``wavelengths``, ``times``)). So, to compare the spectra for continuous star formation in the steady-state limit (*ares* assumes continuous star formation by default), you could do: ::
 
