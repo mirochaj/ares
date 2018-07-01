@@ -325,9 +325,9 @@ class ClusterPopulation(Population):
             if not self.is_aging:
                 y = np.interp(0.0, self.src.times, yield_per_M)
                 N = np.interp(0.0, self.src.times, erg_per_phot)
-                self._tab_rho_L_[i] = np.trapz(self._tab_Nc_[i,:,0] * self.tab_M * y, 
+                self._tab_rho_L_[i] = np.trapz(self._tab_Nc[i,:,0] * self.tab_M * y, 
                     x=self.tab_M)
-                self._tab_rho_N_[i] = np.trapz(self._tab_Nc_[i,:,0] * self.tab_M * N,
+                self._tab_rho_N_[i] = np.trapz(self._tab_Nc[i,:,0] * self.tab_M * N,
                     x=self.tab_M)
                 continue    
             
@@ -349,7 +349,7 @@ class ClusterPopulation(Population):
                 y = np.interp(age, self.src.times, yield_per_M)
                 N = np.interp(age, self.src.times, erg_per_phot)
                 
-                Mc = self._tab_Nc_[i,:,k] * self.tab_M                        
+                Mc = self._tab_Nc[i,:,k] * self.tab_M                        
                                         
                 self._tab_rho_L_[i] += np.trapz(Mc * y, x=self.tab_M)
                 self._tab_rho_N_[i] += np.trapz(Mc * N, x=self.tab_M)

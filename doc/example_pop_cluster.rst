@@ -63,7 +63,7 @@ Let's construct a dictionary of parameters that describes a simple population of
      'pq_func[0]': 'lognormal',
      'pq_func_var[0]': 'M',
      'pq_func_par0[0]': 1.0,
-     'pq_func_par1[0]': np.log10(1e5), # i.e., xi=0
+     'pq_func_par1[0]': np.log10(1e5), # i.e., xi=1
      'pq_func_par2[0]': 0.5,
      
      # Cluster MF resolution and range
@@ -145,4 +145,5 @@ For a discussion of the shape of the GC luminosity function, see, e.g., `Boylan-
 
 Using Star Clusters in *ares* Simulations
 -----------------------------------------
-Will write a few notes on this soon!
+A good place to start here is the example on :doc:`example_gs_multipop`. In this example, one could simply replace the PopIII source population with a globular cluster population, being sure to include the X-ray emission from GCs as a separate source population. It would also be wise to upgrade the simple PopII source prescription in that example with :doc:`example_pop_galaxy`, since the use of GCs implies an interest in luminosity functions at high-:math:`z`.
+
