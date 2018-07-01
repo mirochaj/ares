@@ -90,39 +90,60 @@ Some initial guesses (optional: will draw initial walker positions from priors b
      'pq_func_par3{0}[0]': -0.5,
     }
     
-Initialize the fitter object, and go!
+Initialize the fitter object:
 
 ::
             
     # Initialize a fitter object and give it the data to be fit
-    fitter = ares.inference.FitGalaxyPopulation(**base_pars)
+    fitter_lf = ares.inference.FitGalaxyPopulation(**base_pars)
     
-    fitter.parameters = free_pars
-    fitter.is_log = is_log
-    fitter.prior_set = ps
-
-    # Setup # of walkers and initial guesses for them
-    fitter.nwalkers = 192 
-
     # The data can also be provided more explicitly
-    fitter.data = 'bouwens2015'
+    fitter_lf.data = 'bouwens2015'
     
-    fitter.jitter = [0.1] * len(free_pars)
-    fitter.guesses = guesses 
+    # Establish the object to which we'll pass parameters
+    from ares.populations.GalaxyCohort import GalaxyCohort
+    fitter_lf.simulator = GalaxyCohort
     
-    fitter.runsim = False
+Now, in earlier versions of *ares*, we would have set a few other attributes (which we'll now do below) and then executed ``fitter.run`` with some keyword arguments. But, now, to enable multi-wavelength fitting, we first create a master fitter object:
+
+::
+
+    fitter = ares.inference.ModelFit(**base_pars)
+    fitter.add_fitter(fitter_lf)
+    
+and then set remaining attributes that establish the free parameters, initial guesses for walkers, number of walkers, etc.,
+
+::    
+    
+    # A few speed-ups
     fitter.save_hmf = True  # cache HMF for a speed-up!
     fitter.save_psm = True  # cache source SED model (e.g., BPASS, S99)
     
     # Setting this flag to False will make *ares* generate new files for each checkpoint. 
     # 2-D blobs can get large, so this allows us to just download a single
     # snapshot or two if we'd like (useful if running on remote machine)
-    fitter.checkpoint_append = False
+    fitter.checkpoint_append = False    
+    
+    fitter.parameters = free_pars
+    fitter.is_log = is_log
+    fitter.prior_set = ps
+    
+    # Setup # of walkers and initial guesses for them
+    fitter.nwalkers = 192
+    
+    fitter.jitter = [0.1] * len(fitter.parameters)
+    fitter.guesses = guesses
     
     # Run the thing
     fitter.run('test_lfcal', burn=20, steps=100, save_freq=20, clobber=True)
 
 This will take awhile. For something quick, reduce the number of walkers and/or number of steps.
 
+.. note :: To simultaneously fit luminosity functions and other quantities, 
+    one can create separate ``fitter`` objects and simply add them to the fit 
+    using the ``fitter.add_fitter`` method, which is essentially just a list    
+    of objects that have their own likelihoods.
+
 See :doc:`example_mcmc_analysis` for general instructions for dealing with the outputs of MCMC calculations.
 
+.. Change this to use Schechter parameters so it can be run quickly?

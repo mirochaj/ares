@@ -231,7 +231,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_'):
             self._tab_MAR_ = \
                 np.array([self.MAR(self.halos.z[i], self.halos.M) \
-                    for i in range(self.halos.Nz)]) 
+                    for i in range(self.halos.z.size)]) 
                     
             self._tab_MAR_ = np.maximum(self._tab_MAR_, 0.0)
             
@@ -242,7 +242,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
                 np.array([self.MAR(self.halos.z[i], self._tab_Mmin[i]) \
-                    for i in range(self.halos.Nz)])                    
+                    for i in range(self.halos.z.size)])                    
         return self._tab_MAR_at_Mmin_ 
     
     @property
@@ -251,7 +251,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_nh_at_Mmin_ = \
                 np.array([self._spline_nh(self.halos.z[i], 
                     np.log(self._tab_Mmin[i])) \
-                    for i in range(self.halos.Nz)]).squeeze()
+                    for i in range(self.halos.z.size)]).squeeze()
         return self._tab_nh_at_Mmin_
         
     @property
@@ -381,7 +381,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         self._yield_per_sfr_for_rho[(Emin, Emax)] = yield_per_sfr
 
-        tab = np.zeros(self.halos.Nz)
+        tab = np.zeros(self.halos.z.size)
         for i, z in enumerate(self.halos.z):
 
             if z > self.zform:
@@ -457,7 +457,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if (Emin, Emax) in self._rho_N:    
             return self._rho_N[(Emin, Emax)](z)
             
-        tab = np.zeros(self.halos.Nz)
+        tab = np.ones_like(self.halos.z)
         
         # For all halos
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
@@ -1199,7 +1199,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         raise NotImplemented('help')
                 else:    
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
-                        * np.ones(self.halos.Nz)
+                        * np.ones_like(self.halos.z)
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
@@ -1215,7 +1215,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self.Mmin = value
             self._tab_Mmin_ = np.array(list(map(value, self.halos.z)), dtype=float)
         elif type(value) in [int, float, np.float64]:    
-            self._tab_Mmin_ = value * np.ones(self.halos.Nz) 
+            self._tab_Mmin_ = value * np.ones_like(self.halos.z)
         else:
             self._tab_Mmin_ = value
             
@@ -1334,7 +1334,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     else:
                         self._tab_Mmax_ = extra * self._tab_Mmin
                 else:    
-                    self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones(self.halos.Nz)
+                    self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones_like(self.halos.z)
             elif self.pf['pop_Tmax'] is not None:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
                     z, mu=self.pf['mu'])
@@ -1351,7 +1351,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @_tab_Mmax.setter
     def _tab_Mmax(self, value):
         if type(value) in [int, float, np.float64]:    
-            self._tab_Mmax_ = value * np.ones(self.halos.Nz) 
+            self._tab_Mmax_ = value * np.ones_like(self.halos.z)
         else:
             self._tab_Mmax_ = value
         
@@ -1366,7 +1366,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
         if not hasattr(self, '_tab_sfr_'):            
-            self._tab_sfr_ = np.zeros([self.halos.Nz, self.halos.Nm])
+            self._tab_sfr_ = np.zeros([self.halos.z.size, self.halos.M.size])
 
             for i, z in enumerate(self.halos.z):
                 
@@ -1406,12 +1406,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def _tab_nh_active(self):
         if not hasattr(self, '_tab_nh_active_'):
-            self._tab_nh_active_ = np.zeros(self.halos.Nz)
+            self._tab_nh_active_ = np.ones_like(self.halos.z)
 
             # Loop from high-z to low-z
             for k, z in enumerate(self.halos.z[-1::-1]):
 
-                i = self.halos.Nz - k - 1
+                i = self.halos.z.size - k - 1
                 
                 if not self.pf['pop_sfr_above_threshold']:
                     break
@@ -1637,12 +1637,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         if not hasattr(self, '_tab_sfrd_total_'):
-            self._tab_sfrd_total_ = np.zeros(self.halos.Nz)
+            self._tab_sfrd_total_ = np.ones_like(self.halos.z)
 
             # Loop from high-z to low-z
             for k, z in enumerate(self.halos.z[-1::-1]):
 
-                i = self.halos.Nz - k - 1
+                i = self.halos.z.size - k - 1
                 
                 if not self.pf['pop_sfr_above_threshold']:
                     break
@@ -1774,7 +1774,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if (Mlo, Mhi) in self._sfrd_within.keys():
             return self._sfrd_within[(Mlo, Mhi)](z)
         
-        _sfrd_tab = np.zeros(self.halos.Nz)
+        _sfrd_tab = np.ones_like(self.halos.z)
 
         for i, zz in enumerate(self.halos.z):
             
@@ -1833,7 +1833,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
             
-            self._LLyC_tab = np.zeros([self.halos.Nz, self.halos.Nm])
+            self._LLyC_tab = np.zeros([self.halos.z.size, self.halos.M.size])
             
             for i, z in enumerate(self.halos.z):
                 self._LLyC_tab[i] = self.L1600_tab[i] * Nion_per_L1600 \
@@ -1855,7 +1855,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Nlw_per_L1600 = self.Nlw(z=None, M=M) / (1. / dnu)
             fesc_LW = self.fesc_LW(z=None, M=M)
     
-            self._LLW_tab = np.zeros([self.halos.Nz, self.halos.Nm])
+            self._LLW_tab = np.zeros([self.halos.z.size, self.halos.M.size])
     
             for i, z in enumerate(self.halos.z):
                 self._LLW_tab[i] = self.L1600_tab[i] * Nlw_per_L1600

@@ -30,7 +30,7 @@ _gs_ext.append('tau_e')
 _gs_ext.append('z_dec')
 _gs_ext.append('Tk_dec')
 
-_def_z = ('z', np.arange(5, 51, 0.1))
+_def_z = ('z', np.arange(5, 61, 0.1))
 _late_z = ('z', np.arange(3, 20, 0.1))
 _z_from_freq = ('z', nu_0_mhz / np.arange(25., 210, 1.)[-1::-1] - 1.)
 

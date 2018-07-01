@@ -866,7 +866,7 @@ class ModelGrid(ModelFit):
                 del p, chain, blobs
                 gc.collect()
                 continue
-                
+
             # Not all processors will hit the final checkpoint exactly, 
             # which can make collective I/O difficult. Hence the existence
             # of the will_hit_final_checkpoint and wont_hit_final_checkpoint
