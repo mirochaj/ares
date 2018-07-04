@@ -3,29 +3,12 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 from .Global21cm import Global21cm
+from ..util.Misc import split_by_sign
 from scipy.interpolate import interp1d
 from ..physics.Constants import nu_0_mhz
 from matplotlib.ticker import ScalarFormatter 
 from ..analysis.BlobFactory import BlobFactory
 from .MultiPhaseMedium import MultiPhaseMedium
-
-def split_by_sign(x, y):
-    """
-    Split apart a correlation function into its positive and negative
-    chunks.
-    """
-
-    splitter = np.diff(np.sign(y))
-        
-    if np.all(splitter == 0):
-        ych = [y]
-        xch = [x]
-    else:
-        splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
-        ych = np.split(y, splits)
-        xch = np.split(x, splits)
-        
-    return xch, ych
 
 # Distinguish between mean history and fluctuations?
 class PowerSpectrum(MultiPhaseMedium,BlobFactory):
@@ -294,7 +277,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         return ax
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
-        dimensionless=True, show_gs=False, mp_kwargs={}, scatter=False,
+        dimensionless=True, show_gs=False, mp_kwargs={}, scatter=True,
         scatter_kwargs={}, rescale=True, orientation='vertical', show_dd=False, 
         **kwargs):
         """
@@ -358,7 +341,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 ps_dd *= (1. - self.history['Qi'])**2
         else:
             ps = p
-        
+                
         if show_gs or isinstance(ax, MultiPanel):
             ax1 = mp.grid[0]
         else:
@@ -535,7 +518,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 ax.set_ylim(1e-7, 10)
             else:
                 ax.set_ylim(1e-7, 1e3)
-                
+                    
             ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
                 ha='left', va='top')
             ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
@@ -595,10 +578,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 ax.legend(loc='lower left', fontsize=14)
 
             if real_space:
-                ax.set_ylim(1e-7, 10)     
+                ax.set_ylim(1e-7, 100)     
             else:
                 ax.set_ylim(1e-7, 1e3)     
-        
+                
         if real_space:
             mp.grid[mp.upperleft].set_ylabel(r'$\xi_{\mathrm{auto}}$')
         
@@ -607,14 +590,14 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         else:
             mp.grid[mp.upperleft].set_ylabel(labels['dpow'])
                 
-            
-
         for i in range(len(redshifts)):
             if real_space:
                 mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+                mp.grid[i].set_xlim(1e-2, 3e3)
             else:
                 mp.grid[i].set_xlabel(r'$k \ [\mathrm{cMpc}^{-1}]$')
-
+                mp.grid[i].set_xlim(1e-2, 10)
+            
         #mp.fix_ticks()
         pl.show()
         

@@ -31,24 +31,31 @@ pars = \
  "hmf_zmax": 60,
  "hmf_dz": 0.05,
  
- 
  "mps_zmin": 6,
- "mps_zmax": 13,
- "mps_dz": 1.,
+ "mps_zmax": 20,
+ "mps_dz": 0.5,
  
- 'mps_dlnk': 0.005,
- 'mps_dlnR': 0.005,
+ 'mps_dlnk': 0.001,
+ 'mps_dlnR': 0.001,
  'mps_lnk_min': -10.,
  'mps_lnk_max': 10.,
  'mps_lnR_min': -10.,
  'mps_lnR_max': 10.,
 }
+
+kwargs = \
+{
+ 'split_by_scale': True,
+ 'epsrel': 1e-8,
+ 'epsabs': 1e-8,
+}
+
 ##
 
 hmf = ares.physics.HaloModel.HaloModel(hmf_load=True, hmf_load_ps=False, 
     **pars)
 
-hmf.SavePS(format=format, clobber=False, checkpoint=True)
+hmf.SavePS(format=format, clobber=False, checkpoint=True, **kwargs)
 
 
 

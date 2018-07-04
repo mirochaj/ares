@@ -373,21 +373,24 @@ def PowerSpectrumParameters():
     
      'ps_output_z': np.arange(6, 20, 1),
      
-     "ps_output_k": np.exp(np.arange(-8, 8, 0.2)),
-     "ps_output_lnkmin": -3,
-     "ps_output_lnkmax": 3,
-     "ps_output_dlnk": 0.5,
+     "ps_output_k": None,
+     "ps_output_lnkmin": -4.6,
+     "ps_output_lnkmax": 1.,
+     "ps_output_dlnk": 0.2,
      
      "ps_output_R": None,
      "ps_output_lnRmin": -8.,
      "ps_output_lnRmax": 8.,
-     "ps_output_dlnR": 0.1,
+     "ps_output_dlnR": 0.01,
      
      'ps_include_acorr': True,
      'ps_include_xcorr': False,
      'ps_include_bias': True,
      
      'ps_include_xcorr_wrt': None,
+     
+     # Save all individual pieces that make up 21-cm PS?
+     "ps_output_components": False,
      
      'ps_include_21cm': True,
      'ps_include_density': True,
@@ -398,6 +401,8 @@ def PowerSpectrumParameters():
      'ps_assume_saturated': False,
      
      'ps_split_transform': False,
+     'ps_fht_rtol': 1e-5,
+     'ps_fht_atol': 1e-5,
      
      #'include_lya_lc': False,
 
@@ -418,15 +423,15 @@ def PowerSpectrumParameters():
      "bubble_shell_rsize_zone_0": None,
      "bubble_shell_asize_zone_0": None,
      "bubble_shell_ktemp_zone_0": None,
-     "bubble_shell_tpert_zone_0": None,
-     "bubble_shell_rsize_zone_1": None,
-     "bubble_shell_asize_zone_1": None,
-     "bubble_shell_ktemp_zone_1": None,
-     "bubble_shell_tpert_zone_1": None,
-     "bubble_shell_rsize_zone_2": None,
-     "bubble_shell_asize_zone_2": None,
-     "bubble_shell_ktemp_zone_2": None,
-     "bubble_shell_tpert_zone_2": None,
+     #"bubble_shell_tpert_zone_0": None,
+     #"bubble_shell_rsize_zone_1": None,
+     #"bubble_shell_asize_zone_1": None,
+     #"bubble_shell_ktemp_zone_1": None,
+     #"bubble_shell_tpert_zone_1": None,
+     #"bubble_shell_rsize_zone_2": None,
+     #"bubble_shell_asize_zone_2": None,
+     #"bubble_shell_ktemp_zone_2": None,
+     #"bubble_shell_tpert_zone_2": None,
      
      "bubble_shell_include_xcorr": True,
      
@@ -918,8 +923,8 @@ def HaloMassFunctionParameters():
     
     # For matter power spectrum
     "mps_zmin": 6,
-    "mps_zmax": 20,
-    "mps_dz": 0.5,
+    "mps_zmax": 30,
+    "mps_dz": 0.25,
     
     'mps_dlnk': 0.01,
     'mps_dlnR': 0.01,

@@ -25,6 +25,13 @@ except ImportError:
     rank = 0
     size = 1
     
+try:
+    import hankel
+    have_hankel = True
+    from hankel import HankelTransform, SymmetricFourierTransform
+except ImportError:
+    have_hankel = False
+    
 four_pi = 4 * np.pi    
     
 ARES = os.getenv("ARES")    
@@ -369,7 +376,8 @@ class HaloModel(HaloMassFunction):
         return self.InverseFT3D(R, Pofk, k)
     
     def InverseFT3D(self, R, ps, k=None, kmin=None, kmax=None,
-        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False):
+        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False,
+        method='clenshaw-curtis', use_pb=False, suppression=np.inf):
         """
         Take a power spectrum and perform the inverse (3-D) FT to recover
         a correlation function.
@@ -405,26 +413,97 @@ class HaloModel(HaloMassFunction):
             kmax = k.max()
             
         norm = 1. / ps(np.log(kmax))
+        
+        ## 
+        # Use Steven Murray's `hankel` package to do the transform
+        ##
+        if method == 'ogata':
+            assert have_hankel, "hankel package required for this!"
             
-        # Loop over R and perform integral    
+            integrand = lambda kk: four_pi * kk**2 * norm * ps(np.log(kk)) \
+                * np.exp(-kk * R / suppression)
+            ht = HankelTransform(nu=0, N=k.size, h=0.001)
+            
+            #integrand = lambda kk: ps(np.log(kk)) * norm
+            #ht = SymmetricFourierTransform(3, N=k.size, h=0.001)
+            
+            #print(ht.integrate(integrand))
+            cf = ht.transform(integrand, k=R, ret_err=False, inverse=True) / norm
+
+            return cf / (2. * np.pi)**3
+        else:
+            pass
+            # Otherwise, do it by-hand.
+        
+            
+        ##
+        # Optional progress bar
+        ##
+        pb = ProgressBar(R.size, use=self.pf['progress_bar'] * use_pb, 
+            name='ps(k)->cf(R)')
+              
+        # Loop over R and perform integral
         cf = np.zeros_like(R)
         for i, RR in enumerate(R):
             
+            if not pb.has_pb:
+                pb.start()              
+            
+            pb.update(i)
+            
             # Leave sin(k*R) out -- that's the 'weight' for scipy.
             integrand = lambda kk: norm * four_pi * kk**2 * ps(np.log(kk)) \
-                / kk / RR
+                * np.exp(-kk * RR / suppression) / kk / RR
+            
+            if method == 'clenshaw-curtis':
+                    
+                if split_by_scale:
+                    kcri = np.exp(ps.x[np.argmin(np.abs(np.exp(ps.x) - 1. / RR))])
+                    
+                    # Integral over small k is easy
+                    lowk = np.exp(ps.x) <= kcri
+                    klow = np.exp(ps.x[lowk == 1])
+                    plow = ps.y[lowk == 1]
+                    sinc = np.sin(RR * klow) / klow / RR
+                    integ = norm * four_pi * klow**2 * plow * sinc \
+                        * np.exp(-klow * RR / suppression)
+                    cf[i] = np.trapz(integ * klow, x=np.log(klow)) / norm
+                    
+                    kstart = kcri
+                    
+                    #print(RR, 1. / RR, kcri, lowk.sum(), ps.x.size - lowk.sum())
+                    #
+                    #if lowk.sum() < 1000 and lowk.sum() % 100 == 0:
+                    #    import matplotlib.pyplot as pl
+                    #    
+                    #    pl.figure(2)
+                    #    
+                    #    sinc = np.sin(RR * k) / k / RR
+                    #    pl.loglog(k, integrand(k) * sinc, color='k')
+                    #    pl.loglog([kcri]*2, [1e-4, 1e4], color='y')
+                    #    raw_input('<enter>')
+                    
+                else:
+                    kstart = kmin
+                    
+                # Add in the wiggly part
+                cf[i] += quad(integrand, kstart, kmax,
+                    epsrel=epsrel, epsabs=epsabs, limit=limit,
+                    weight='sin', wvar=RR)[0] / norm
                 
-            cf[i] = quad(integrand_unweighted, kmin, kmax,
-                epsrel=epsrel, epsabs=epsabs, limit=limit,
-                weight='sin', wvar=RR)[0] / norm
+            else:
+                raise NotImplemented('help')  
+    
+        pb.finish()
     
         # Our FT convention        
-        cf /= (2 * np.pi)
+        cf /= (2 * np.pi)**3
     
         return cf
     
-    def FT3D(self, k, cf, R=None, Rmin=None, Rmax=None,
-        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False):
+    def FT3D(self, k, cf, R=None, Rmin=None, Rmax=None, 
+        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False,
+        method='clenshaw-curtis', use_pb=False, suppression=np.inf):
         """
         This is nearly identical to the inverse transform function above,
         I just got tired of having to remember to swap meanings of the
@@ -457,21 +536,82 @@ class HaloModel(HaloMassFunction):
     
         norm = 1. / cf(np.log(Rmin))
         
+        if method == 'ogata':
+            assert have_hankel, "hankel package required for this!"
+            
+            integrand = lambda RR: four_pi * R**2 * norm * cf(np.log(RR)) 
+            ht = HankelTransform(nu=0, N=k.size, h=0.1)
+            
+            #integrand = lambda kk: ps(np.log(kk)) * norm
+            #ht = SymmetricFourierTransform(3, N=k.size, h=0.001)
+            
+            #print(ht.integrate(integrand))
+            ps = ht.transform(integrand, k=k, ret_err=False, inverse=False) / norm
+
+            return ps
+            
+        ##
+        # Optional progress bar
+        ##
+        pb = ProgressBar(R.size, use=self.pf['progress_bar'] * use_pb, 
+            name='cf(R)->ps(k)')
+        
         # Loop over k and perform integral    
         ps = np.zeros_like(k)
         for i, kk in enumerate(k):
+            
+            if not pb.has_pb:
+                pb.start()              
+            
+            pb.update(i)
+            
+            if method == 'clenshaw-curtis':
+                
+                # Leave sin(k*R) out -- that's the 'weight' for scipy.
+                # Note the minus sign.
+                integrand = lambda RR: norm * four_pi * RR**2 * cf(np.log(RR)) \
+                    * np.exp(-kk * RR / suppression) / kk / RR
+                
+                if split_by_scale:
+                    Rcri = np.exp(cf.x[np.argmin(np.abs(np.exp(cf.x) - 1. / kk))])
+                    
+                    # Integral over small k is easy
+                    lowR = np.exp(cf.x) <= Rcri
+                    Rlow = np.exp(cf.x[lowR == 1])
+                    clow = cf.y[lowR == 1]
+                    sinc = np.sin(kk * Rlow) / Rlow / kk
+                    integ = norm * four_pi * Rlow**2 * clow * sinc \
+                        * np.exp(-kk * Rlow / suppression)
+                    ps[i] = np.trapz(integ * Rlow, x=np.log(Rlow)) / norm
+                    
+                    Rstart = Rcri
+                    
+                    #if lowR.sum() < 1000 and lowR.sum() % 100 == 0:
+                    #    import matplotlib.pyplot as pl
+                    #    
+                    #    pl.figure(2)
+                    #    
+                    #    sinc = np.sin(kk * R) / kk / R
+                    #    pl.loglog(R, integrand(R) * sinc, color='k')
+                    #    pl.loglog([Rcri]*2, [1e-4, 1e4], color='y')
+                    #    raw_input('<enter>')
+                                        
+                else:
+                    Rstart = Rmin
+                    
+                
+                # Use 'chebmo' to save Chebyshev moments and pass to next integral?
+                ps[i] += quad(integrand, Rstart, Rmax,
+                    epsrel=epsrel, epsabs=epsabs, limit=limit,
+                    weight='sin', wvar=kk)[0] / norm
 
-            # Leave sin(k*R) out -- that's the 'weight' for scipy.
-            # Note the minus sign.
-            integrand = lambda RR: norm * four_pi * RR**2 * cf(np.log(RR)) \
-                / kk / RR            
-
-            # Use 'chebmo' to save Chebyshev moments and pass to next integral?
-            ps[i] = quad(integrand, Rmin, Rmax,
-                epsrel=epsrel, epsabs=epsabs, limit=limit,
-                weight='sin', wvar=kk)[0] / norm
+                
+            else:
+                raise NotImplemented('help')
     
-        # Our FT convention: do nothing!
+        pb.finish()
+        
+        # 
         return np.abs(ps)
     
     @property
@@ -618,13 +758,28 @@ class HaloModel(HaloMassFunction):
             zsize = int(round(zsize, 1))
                 
             # Should probably save NFW information etc. too
-            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnr_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
+            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnR_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
                    Rmi, Rma, dlogR, kmi, kma, dlogk)
         else:
             raise NotImplementedError('help')
 
-    def TabulatePS(self, clobber=False, checkpoint=True):
+    def tab_prefix_ps_check(self, with_size=True):
+        """
+        A version of the prefix to be used only for checkpointing.
+        
+        This just means take the full prefix and hack out the bit with the
+        redshift interval.
+        """
+        
+        prefix = self.tab_prefix_ps(with_size)
+        
+        iz = prefix.find('_z_')
+        iR = prefix.find('_lnR_')
+        
+        return prefix[0:iz] + prefix[iR:]
+
+    def TabulatePS(self, clobber=False, checkpoint=True, **ftkwargs):
         """
         Tabulate the matter power spectrum as a function of redshift and k.
         """
@@ -640,8 +795,8 @@ class HaloModel(HaloMassFunction):
             if (not os.path.exists('tmp')):
                 os.mkdir('tmp')
 
-            fn = 'tmp/{}.{}.pkl'.format(self.tab_prefix_ps(True), 
-                str(rank).zfill(3))    
+            pref = self.tab_prefix_ps_check(True)
+            fn = 'tmp/{}.{}.pkl'.format(pref, str(rank).zfill(3))    
                 
             if os.path.exists(fn) and (not clobber):
                                 
@@ -664,17 +819,51 @@ class HaloModel(HaloMassFunction):
                     _cf.append(tmp[2])
                 
                 if _z != []:
-                    print "Processor {} loaded checkpoints for z={}-{}".format(rank, 
-                        min(_z), max(_z))
+                    print "Processor {} loaded checkpoints for z={}".format(rank, _z)
             
             elif os.path.exists(fn):
                 os.remove(fn)
+                
+                
+        # Must collect checkpoints so we don't re-run something another
+        # processor did!
+        if size > 1 and _z != []:
+            _zdone = MPI.COMM_WORLD.reduce(_z, root=0)
+            zdone = MPI.COMM_WORLD.bcast(_zdone, root=0)
+        else:
+            zdone = []
+            
+        # Setup assignments
+        assignments = []
+        for k, z in enumerate(self.tab_z_ps):
+            if z in zdone:
+                continue
+    
+            assignments.append(z)    
+        
+        my_assignments = []
+        for k, z in enumerate(assignments):
+            if k % size != rank:
+                continue
+            
+            my_assignments.append(z)
+            
+        if size > 1:
+            if len(assignments) % size != 0:
+                print("Uneven load: {} redshifts and {} processors!".format(len(assignments), size))
                             
         self.tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
         self.tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
         for i, z in enumerate(self.tab_z_ps):
         
-            if i % size != rank:
+            #if i % size != rank:
+            #    continue
+            
+            # Done but not by me!
+            #if (z in zdone) and (z not in _z):
+            #    continue
+            
+            if z not in my_assignments:
                 continue
             
             ##
@@ -692,6 +881,7 @@ class HaloModel(HaloMassFunction):
             ##
             # Calculate from scratch
             ##                
+            print("Processor {} generating z={} PS and CF...".format(rank, z))
 
             # Must interpolate back to fine grid (uniformly sampled 
             # real-space scales) to do FFT and obtain correlation function
@@ -700,7 +890,7 @@ class HaloModel(HaloMassFunction):
             # Compute correlation function at native resolution to save time
             # later.
             self.tab_cf_mm[i] = self.InverseFT3D(self.tab_R, self.tab_ps_mm[i],
-                self.tab_k)
+                self.tab_k, **ftkwargs)
             
             pb.update(i)
                         
@@ -726,7 +916,7 @@ class HaloModel(HaloMassFunction):
         # Done!    
 
     def SavePS(self, fn=None, clobber=True, destination=None, format='npz',
-        checkpoint=True):
+        checkpoint=True, **ftkwargs):
         """
         Save matter power spectrum table to HDF5 or binary (via pickle).
     
@@ -762,7 +952,7 @@ class HaloModel(HaloMassFunction):
                 raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
 
         # Do this first! (Otherwise parallel runs will be garbage)
-        self.TabulatePS(clobber=clobber, checkpoint=checkpoint)
+        self.TabulatePS(clobber=clobber, checkpoint=checkpoint, **ftkwargs)
 
         if rank > 0:
             return

@@ -182,7 +182,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 self._k = self.pf['ps_output_k']
             else:
                 lnk1 = self.pf['ps_output_lnkmin']
-                lnk2 = self.pf['ps_output_lnkmin']
+                lnk2 = self.pf['ps_output_lnkmax']
                 dlnk = self.pf['ps_output_dlnk']
                 self._k = np.exp(np.arange(lnk1, lnk2+dlnk, dlnk))
         
@@ -283,7 +283,27 @@ class PowerSpectrum21cm(AnalyzePS):
                 zeta = zeta[0]
             if np.all(np.diff(zeta_lya) == 0):
                 zeta_lya = zeta_lya[0]
-
+                
+                
+            ##
+            # Figure out scaling from ionized regions to heated regions.
+            # Right now, only constant (relative) scaling is allowed.
+            ##    
+            if self.pf['ps_include_temp']:
+                if self.pf['bubble_shell_rsize_zone_0'] is not None:
+                    Rh = lambda R: R * (1. + self.pf['bubble_shell_rsize_zone_0'])
+                    Th = self.pf["bubble_shell_ktemp_zone_0"]
+                else:
+                    raise NotImplemented('help')    
+                
+                
+                self.Rh = Rh
+                self.Th = Th
+                
+            else:
+                Rh = lambda R: None    
+                Th = None
+                
             ##
             # First: some global quantities we'll need
             ##
@@ -299,6 +319,10 @@ class PowerSpectrum21cm(AnalyzePS):
             xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
             xc = self.hydr.CollisionalCouplingCoefficient(z, Tk)
             xt = xa + xc
+            
+            # Won't be terribly meaningful if temp fluctuations are off.
+            C = self.field.TempToContrast(z, Th, Ts)
+            data['C'] = C
             
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.
@@ -325,7 +349,6 @@ class PowerSpectrum21cm(AnalyzePS):
                 Tbar /= (1. - QHII_fc)
             else:
                 Tbar = 0.0
-
 
             #Qi = xibar
 
@@ -373,12 +396,17 @@ class PowerSpectrum21cm(AnalyzePS):
             ##            
             if self.pf['ps_include_density']:
                 data['cf_mm'] = self.halos.CorrelationFunction(z, self.R)
-                data['ps_mm'] = self.halos.PowerSpectrum(z, self.k)
+
+                # These resolutions will be different! All that matters is that
+                # the CF has high resolution since we must integrate over it.
+                if self.pf['ps_output_components']:
+                    data['ps_mm'] = self.halos.PowerSpectrum(z, self.k)
             
+            # Ionization fluctuations
             if self.pf['ps_include_ion']:
-                
+
                 Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, zeta)
-                
+
                 data['n_i'] = Ni
                 data['m_i'] = Mi
                 data['r_i'] = Ri
@@ -389,37 +417,51 @@ class PowerSpectrum21cm(AnalyzePS):
                         R=self.R, term='ii')
                 data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
                     R=self.R, term='ii')
-                data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
-                    data['cf_ii'], self.R)
+                
+                if self.pf['ps_output_components']:
+                    data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
+                        data['cf_ii'], self.R, 
+                        split_by_scale=self.pf['ps_split_transform'])
             
+            # Temperature fluctuations
             if self.pf['ps_include_temp']:
-                Rh = 2 * Ri
+                data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
+                    R=self.R, term='hh', Rh=Rh(Ri), Ts=Ts, Th=Th)
+                data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
+                    R=self.R, term='ih', Rh=Rh(Ri), Ts=Ts, Th=Th)
                 
-                
-                
-                data['cf_hh'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='hh', Rh=Rh)
-                data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
-                    data['cf_hh'], self.R)
+                if self.pf['ps_output_components']:   
+                    data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
+                        data['cf_hh'], self.R, 
+                        split_by_scale=self.pf['ps_split_transform'],
+                        epsrel=self.pf['ps_fht_rtol'],
+                        epsabs=self.pf['ps_fht_atol']) 
+                    data['ps_ih'] = self.field.PowerSpectrumFromCF(self.k, 
+                        data['cf_ih'], self.R, 
+                        split_by_scale=self.pf['ps_split_transform'],
+                        epsrel=self.pf['ps_fht_rtol'],
+                        epsabs=self.pf['ps_fht_atol'])    
             
             
-            """
-            If temperature fluctuations are on, construct a dictionary
-            to pass to CorrelationFunction here (with Rh etc.)
-            """
-              
+            ##
+            # 21-cm fluctuations
+            ##
             if self.pf['ps_include_21cm']:
+                
                 # These routines will tap into the cache to retrieve 
                 # the (already-computed) values for cf_ii, cf_TT, etc.
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='21',  
+                    R=self.R, term='21', Ts=Ts, Rh=Rh(Ri), Th=Th,
                     include_xcorr=self.pf['ps_include_xcorr'],
                     include_ion=self.pf['ps_include_ion'],
                     include_temp=self.pf['ps_include_temp'],
                     include_lya=self.pf['ps_include_lya'],
                     include_21cm=self.pf['ps_include_21cm'])
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 
-                    data['cf_21'], self.R)
+                    data['cf_21'], self.R, 
+                    split_by_scale=self.pf['ps_split_transform'],
+                    epsrel=self.pf['ps_fht_rtol'],
+                    epsabs=self.pf['ps_fht_atol'])
                     
             yield z, data
             
@@ -865,13 +907,15 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # Short-hand
             xi_xx = data['cf_xx']
-            xi_dd = data['cf_dd'] * (1. + xc / (xt * (1. + xt)))**2
+            xi_dd = data['cf_dd'] #* (1. + xc / (xt * (1. + xt)))**2
             xi_xd = data['cf_xd']
             xi_CC = data['cf_coco']
 
             # This is Eq. 11 in FZH04
-            data['cf_21_s'] = xi_xx * (1. + xi_dd) + xbar**2 * xi_dd + \
+            cf_psi = xi_xx * (1. + xi_dd) + xbar**2 * xi_dd + \
                 xi_xd * (xi_xd + 2. * xbar)
+            
+            data['cf_psi'] = cf_psi
                 
             # The temperature fluctuations just aren't beating the density...
 
@@ -924,17 +968,17 @@ class PowerSpectrum21cm(AnalyzePS):
                 # Need to make sure this doesn't get saved at native resolution!
                 #data['phi_u'] = phi_u
                     
-                data['cf_21'] = data['cf_21_s'] + phi_u #\
+                data['cf_21'] = cf_psi + phi_u #\
                     #- 2. * xbar * avg_xC
                     
-                Cbar = 1.#data['avg_C']
-                data['cf_21'] = xi_CC * (1. + xi_dd) + Cbar**2 * xi_dd #+ \
-                    #xi_Cd* (xi_Cd + 2. * Cbar)    
+               # Cbar = 1.#data['avg_C']
+               # data['cf_21'] = xi_CC * (1. + xi_dd) + Cbar**2 * xi_dd #+ \
+            #        #xi_Cd* (xi_Cd + 2. * Cbar)    
                     
                     
                     
             else:
-                data['cf_21'] = data['cf_21_s']
+                data['cf_21'] = cf_psi
 
             #data['cf_21'][0:10] = 0
             #data['cf_21'][-10:] = 0

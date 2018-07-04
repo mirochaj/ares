@@ -71,9 +71,15 @@ class Fluctuations(object):
             self._IV = np.vectorize(self._overlap_region)
         return self._IV(*args)
     
+    def intersectional_volume(self, dr, R1, R2):
+        return self.IV(dr, R1, R2)
+    
     def overlap_volumes(self, dr, R1, R2, R3):
         """
-        This will yield 6 terms.
+        Overlap volumes, i.e., volumes in which a source affects two points
+        in different ways. For example, V11 is the volume in which a source
+        ionizes both points (at separation `dr`), V12 is the volume in which
+        a source ionizes one point and heats the other, and so on.
     
         In this order: V11, V12, V13, V22, V23, V33
         """
@@ -88,13 +94,17 @@ class Fluctuations(object):
         V13 = 2 * IV(dr, R1, R3) - 2 * IV(dr, R1, R2)
     
         V22 = IV(dr, R2, R2) - 2. * IV(dr, R1, R2) + IV(dr, R1, R1)
+        
         V23 = 2. * IV(dr, R2, R3) - IV(dr, R2, R2) \
             - 2. * IV(dr, R1, R3) + 2. * IV(dr, R1, R2) - IV(dr, R1, R1)
         V33 = IV(dr, R3, R3) - 2. * IV(dr, R2, R3) + IV(dr, R2, R2)
 
         return V11, V12, V13, V22, V23, V33
     
-    def BubbleShellFillingFactor(self, z, zeta):
+    def BubbleShellFillingFactor(self, z, zeta, Rh):
+        """
+        
+        """
         if self.pf['bubble_size_dist'] is None:
             R_b = self.pf['bubble_size']
             V_b = 4. * np.pi * R_b**3 / 3.
@@ -103,28 +113,37 @@ class Fluctuations(object):
             Qh = 1. - np.exp(-n_b * V_b)
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
-
-            Rh, Rc = self.BubbleShellRadius(z, Ri)
+            Q = self.MeanIonizedFraction(z, zeta)
             
-            if np.logical_and(np.all(Rh == 0), np.all(Rc == 0)):
-                return 0., 0.
-            
-            Mmin = self.Mmin(z)
-            iM = np.argmin(np.abs(Mmin * zeta - Mi))
-
-            Vi = 4. * np.pi * Ri**3 / 3.   
-            Vsh1 = 4. * np.pi * (Rh - Ri)**3 / 3.
-            
-            dndlnm = dndm * Mi
-            
-            if np.all(Rc == 0):
-                Vsh2 = Qc = 0.0
+            if type(Rh) is np.ndarray:
+                assert np.allclose(np.diff(Rh / Ri), 0.0), \
+                    "No support for absolute scaling of hot bubbles yet."
+                    
+                Qh = Q * ((Rh[0] - Ri[0]) / Ri[0])**3
+                    
+                return np.minimum(Qh, 1. - Q)
             else:
-                Vsh2 = 4. * np.pi * (Rc - Rh)**3 / 3.
-                Qc = np.trapz(dndlnm[iM:] * Vsh2[iM:], x=np.log(Mi[iM:]))
+                Qh = 0.
             
-            Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
-            Qh = np.trapz(dndlnm[iM:] * Vsh1[iM:], x=np.log(Mi[iM:]))
+            #if np.logical_and(np.all(Rh == 0), np.all(Rc == 0)):
+            #    return 0.
+            #
+            #Mmin = self.Mmin(z)
+            #iM = np.argmin(np.abs(Mmin * zeta - Mi))
+            #
+            #Vi = 4. * np.pi * Ri**3 / 3.   
+            #Vsh1 = 4. * np.pi * (Rh - Ri)**3 / 3.
+            #
+            #dndlnm = dndm * Mi
+            #
+            #if np.all(Rc == 0):
+            #    Vsh2 = Qc = 0.0
+            #else:
+            #    Vsh2 = 4. * np.pi * (Rc - Rh)**3 / 3.
+            #    Qc = np.trapz(dndlnm[iM:] * Vsh2[iM:], x=np.log(Mi[iM:]))
+            #
+            #Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
+            #Qh = np.trapz(dndlnm[iM:] * Vsh1[iM:], x=np.log(Mi[iM:]))
             
             #if self.pf['powspec_rescale_Qion'] and self.pf['powspec_rescale_Qhot']:
             #    norm = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
@@ -135,7 +154,7 @@ class Fluctuations(object):
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
          
-        return min(Qh, 1.), min(Qc, 1.)
+        #return min(Qh, 1.), min(Qc, 1.)
 
     @property
     def bsd_model(self):
@@ -209,7 +228,7 @@ class Fluctuations(object):
         #elif lya and self.pf['bubble_pod_size_func'] == 'fzh04':
         #    return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
         #else:
-        
+                
     @property
     def tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin'):
@@ -240,18 +259,18 @@ class Fluctuations(object):
         return 1. + ((self._B(z, zeta, zeta)**2 / S - (1. / self._B0(z, zeta))) \
             / self._growth_factor(z))
 
-    def mean_bubble_bias(self, z, zeta, term='ii', Q=None, rescale=False):
+    def mean_bubble_bias(self, z, zeta, term='ii'):
         """
         Note that we haven't yet divided by QHII!
         """
         
-        Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta, rescale=rescale)
+        Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
     
-        if ('h' in term) or ('c' in term) and self.pf['powspec_temp_method'] == 'shell':
-            Rh, Rc = self.BubbleShellRadius(z, Ri)
-            R = Rh
-        else:
-            R = Ri
+        #if ('h' in term) or ('c' in term) and self.pf['powspec_temp_method'] == 'shell':
+        #    Rh, Rc = self.BubbleShellRadius(z, Ri)
+        #    R = Rh
+        #else:
+        R = Ri
     
         V = 4. * np.pi * R**3 / 3.
     
@@ -286,7 +305,6 @@ class Fluctuations(object):
         """
         
         # For 'hh' term, should we modify R? Probably a small effect...
-        
         Q = self.BubbleFillingFactor(z, zeta)
         
         # Function of bubble mass (bubble size)
@@ -558,69 +576,7 @@ class Fluctuations(object):
     def get_Nion(self, z, Ri):
         return 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 \
             * self.cosm.nH(z) / 3.
-    
-    def BubbleShellRadius(self, z, Ri, T1=None, T2=None):
-        """
-        Given a bubble radius (or array of them), convert to size of
-        heated regions.
-        """
-        
-        ##
-        # If we made it here, we're doing something fancy.
-        ##
-        
-        if not self.pf['ps_include_temp']:
-            return np.zeros_like(Ri), np.zeros_like(Ri)
-
-        if self.pf['powspec_temp_method'] == 'xset':
-            return Ri, np.zeros_like(Ri)
-
-        #if self.pf['bubble_shell_size_func'] == 'mfp':
-        #
-        #    sigma = PhotoIonizationCrossSection(self.Emin_X, species=0)
-        #    lmfp_p = 1. / self.cosm.nH(z) / sigma / cm_per_mpc
-        #    lmfp_c = lmfp_p * (1. + z)
-        #    
-        #    # Return value expected to be shell *radius*, not thickness, so
-        #    # add bubble size back in.
-        #    return Ri + lmfp_c
-        #    
-        #elif self.pf['bubble_shell_size_func'] == 'const':
-        #    Nlyc = 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 * self.cosm.nH(z) / 3.
-        #    NX   = 1e-4 * Nlyc
-        #    
-        #    nrg_flux = NX * self.Emin_X * erg_per_ev
-        #    Jx = nrg_flux * 0.2 
-        #    
-        #    #Rh = Ri \
-        #    #   + (3 * Jx / self.cosm.adiabatic_cooling_rate(z) / 4. / np.pi)**(1./3.) \
-        #    #   * (1. + z) / cm_per_mpc
-        #
-        #    return Rh
-
-        #else:
-        #    raise NotImplemented('help')
-
-        # Just scale the heated region relative to the ionized region
-        # in an even simpler way.
-
-        to_ret = []
-        for ii in range(2):
             
-            if self.pf['bubble_shell_ktemp_zone_{}'.format(ii)] is None and \
-               self.pf['bubble_shell_tpert_zone_{}'.format(ii)] is None:
-                val = 0.0
-            elif self.pf['bubble_shell_rsize_zone_{}'.format(ii)] is not None:
-                val = Ri * (1. + self.pf['bubble_shell_rsize_zone_{}'.format(ii)])
-            elif self.pf['bubble_shell_asize_zone_{}'.format(ii)] is not None:
-                val = Ri + self.pf['bubble_shell_asize_zone_{}'.format(ii)]
-            else:
-                val = 0.0
-                
-            to_ret.append(val)
-            
-        return to_ret
-
     def BubblePodRadius(self, z, Ri, zeta=40., zeta_lya=1.):
         """
         Calling this a 'pod' since it may one day contain multiple bubbles.
@@ -819,11 +775,13 @@ class Fluctuations(object):
         #if Q == 1:
         #    return np.ones(R.size), np.zeros(R.size), np.ones(R.size)
         
+        # Remember, we scaled the BSD so that these two things are equal
+        # by construction.
         xibar = Q = self.MeanIonizedFraction(z, zeta)
         
+        # If reionization is over, don't waste our time!
         if xibar == 1:
             return np.ones(R.size), np.zeros(R.size), np.ones(R.size)
-            
         
         # Can convert to joint probability of the neutral fraction if we want.
         if term == 'nn':
@@ -832,17 +790,7 @@ class Fluctuations(object):
         # Some stuff we need
         Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
         
-        if type(Rh) is np.ndarray:
-            assert np.allclose(np.diff(Rh / Ri), 0.0), \
-                "No support for absolute scaling of hot bubbles yet."
-                        
-            Qh = Q * (Rh[0] / Ri[0])**3
-        else:
-            Qh = 0.
-        
-        #Rh, Rc = self.BubbleShellRadius(z, Ri)
-        #Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
-        #    zeta_lya=zeta_lya)
+        Qh = self.BubbleShellFillingFactor(z, zeta, Rh)
                 
         # Minimum bubble size            
         Mmin = self.Mmin(z) * zeta
@@ -876,12 +824,12 @@ class Fluctuations(object):
         
             # For two-halo terms, need bias of sources.
             if self.pf['ps_include_bias']:
-                if term == 'ii': 
-                    ep = self.excess_probability(z, zeta, sep, term)
-                elif term == 'hh':
-                    ep = self.excess_probability(z, zeta, sep, term)
-                else:
-                    ep = np.zeros_like(self.m)
+                ep = self.excess_probability(z, zeta, sep, term)
+                #elif term == 'hh':
+                #    # Undo normalization by ionized volume filling factor!
+                #    ep = self.excess_probability(z, zeta, sep, term) #* Q / Qh
+                #else:
+                #    ep = np.zeros_like(self.m)
                     #raise NotImplemented('help')    
             else:
                 ep = np.zeros_like(self.m)
@@ -916,30 +864,79 @@ class Fluctuations(object):
                 #    limiter = None
                 #elif self.pf['powspec_temp_method'] == 'shell':    
                 
+                Vii = all_V[0]
+                _integrand1 = dndm * Vii
+                
+                _exp_int1 = np.exp(-simps(_integrand1[iM:] * Mi[iM:],
+                    x=np.log(Mi[iM:])))
+                _P1 = (1. - _exp_int1)
+                
+                # Region in which two points are heated by the same source
                 Vo = all_V[3]
                 
-                Vt = 4. * np.pi * Rh**3 / 3.
+                # These are functions of mass
                 Vh = 4. * np.pi * (Rh - Ri)**3 / 3.
+                                
                 
+                                
                 # Subtract off region of the intersection HH volume
                 # in which source 1 would do *anything* to point 2.
                 #Vss_ne_1 = Vh - (Vo - self.IV(sep, Ri, Rh) + all_V[0])
+                Vss_ne_1 = Vh - Vo #- all_V[0] - all_V[1]
                  
-                Vss_ne_1 = Vh - Vo
+                #Vss_ne_1 = Vh - Vo
                 Vss_ne_2 = Vss_ne_1 
-                                
+                                                
                 # At this point, single source might heat one pt ionize other
                 
                 #self.IV(sep, Rh, Rc)
                 
                 
-                
-                
                 #Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. \
                 #         - 0.5 * all_V[1] - all_V[0]
                 # Why the factor of 1/2? all_V[0] needed?
+                
+                integrand1 = dndm * Vo
+                
+                # Undo BSD kludge
+                #integrand1 *= np.log(1. - Qh) / Q
+                
+                
+
+                exp_int1 = np.exp(-simps(integrand1[iM:] * Mi[iM:],
+                    x=np.log(Mi[iM:])))
+                P1 = (1. - exp_int1)
+                #P1 = simps(integrand1[iM:] * Mi[iM:], x=np.log(Mi[iM:]))
+
+                #print(sep, P1 / P1_2)
+
+                # Start chugging along on two-bubble term   
+                if np.any(Vss_ne_1 < 0):
+                    N = sum(Vss_ne_1 < 0)
+                    print('R={}: Vss_ne_1 < 0 {} / {} times'.format(sep, N, len(Rh)))
+
+                integrand2_1 = dndm * np.abs(Vss_ne_1)
+                integrand2_2 = dndm * np.abs(Vss_ne_2)
+                #
+                #integrand2_1 *= np.log(1. - Qh) / Q
+                #integrand2_2 *= np.log(1. - Qh) / Q
+
+                int1 = simps(integrand2_1[iM:] * Mi[iM:], 
+                    x=np.log(Mi[iM:]))        
+                int2 = simps(integrand2_2[iM:] * Mi[iM:] * corr[iM:], 
+                    x=np.log(Mi[iM:]))
+
+                exp_int2 = np.exp(-int1)
+                exp_int2_ex = np.exp(-int2)
+
+
+                P2 = (1. - exp_int2) * (1. - exp_int2_ex) * (1. - P1)
+
+                B1[i] = P1
+                B2[i] = P2
                          
                 
+                continue    
 
             elif term == 'im':
                 Vo = all_V[0]
@@ -1017,7 +1014,7 @@ class Fluctuations(object):
         
             elif term == 'hc':
                 Vo = all_V[-2]
-        
+
                 # One point in cold shell of one bubble, another in
                 # heated shell of completely separate bubble.
                 # Need to be a little careful here!
@@ -1026,21 +1023,25 @@ class Fluctuations(object):
                 Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
                          - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc)) \
                          - self.IV(sep, Rh, Rc)
-                                            
+
                 limiter = None
-        
+
             elif term == 'ih':
                 #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
                 #    self.overlap_region_shell(sep, Ri, Rh)
                 #Vo = 2. * Vo_sh_r2 - Vo_sh_r3
                 Vo = all_V[1]
-                                    
-                Vss_ne_1 = 4. * np.pi * Ri**3 / 3. \
-                         - self.IV(sep, Ri, Rh)
-                Vss_ne_2 = 4. * np.pi * (Rh - Ri)**3 / 3. \
-                         - self.IV(sep, Ri, Rh)
+                
+                Vi = 4. * np.pi * Ri**3 / 3.
+                Vh = 4. * np.pi * (Rh - Ri)**3 / 3.
+
+                # Volume in which I ionize but don't heat (or ionize) the other pt.
+                Vss_ne_1 = Vi - self.IV(sep, Ri, Rh)
+                         
+                # Volume in which I heat but don't ionize (or heat) the other pt.
+                # Same as hh term?
+                Vss_ne_2 = Vh - self.IV(sep, Ri, Rh)
         
-                limiter = None
                 
             elif term == 'ic':
                 Vo = all_V[2]
@@ -1048,8 +1049,6 @@ class Fluctuations(object):
                          - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
                 Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
                          - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
-                
-                limiter = None
             
             elif term == 'hd':
                 Vo = all_V[3]
@@ -1099,12 +1098,12 @@ class Fluctuations(object):
                                 
             # Start chugging along on two-bubble term   
             
-            if np.any(Vss_ne_1 < 0):
-                print('Vss_ne_1 ={} at R={}'.format(Vss_ne_1, sep))
-            #else:
-            #    print('Vss_ne_1 =OK at R={}'.format(sep))
-            if np.any(Vss_ne_2 < 0):     
-                print('Vss_ne_2 < 0 at', sep)
+            #if np.any(Vss_ne_1 < 0):
+            #    print('Vss_ne_1 ={} at R={}'.format(Vss_ne_1, sep))
+            ##else:
+            ##    print('Vss_ne_1 =OK at R={}'.format(sep))
+            #if np.any(Vss_ne_2 < 0):     
+            #    print('Vss_ne_2 < 0 at', sep)
                              
             integrand2_1 = dndm * Vss_ne_1
             integrand2_2 = dndm * Vss_ne_2
@@ -1132,7 +1131,7 @@ class Fluctuations(object):
 
 
     def CorrelationFunction(self, z, zeta=None, R=None, term='ii', 
-        Rh=0.0, Rc=0.0, Th=500., Tc=1., 
+        Rh=0.0, Rc=0.0, Th=500., Tc=1., Ts=None,
         assume_saturated=True, include_xcorr=False, include_ion=True,
         include_temp=False, include_lya=False, include_density=True,
         include_21cm=True):
@@ -1142,6 +1141,7 @@ class Fluctuations(object):
         """
         
         Q = self.MeanIonizedFraction(z, zeta)
+        Qh = self.BubbleShellFillingFactor(z, zeta, Rh)
         
         if R is None:
             use_R_tab = True
@@ -1150,18 +1150,7 @@ class Fluctuations(object):
             use_R_tab = False    
             
         Tcmb = self.cosm.TCMB(z)
-        Tgas = self.cosm.Tgas(z)   
-        
-        if type(Rh) == np.ndarray:
-            
-            Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
-            
-            assert np.allclose(np.diff(Rh / Ri), 0.0), \
-                "No support for absolute scaling of hot bubbles yet."
-                        
-            Qh = np.minimum(Q * (Rh[0] / Ri[0])**3, 1-Q)
-        else:
-            Qh = 0 
+        Tgas = self.cosm.Tgas(z)           
        
         ##
         # Check cache for match
@@ -1197,12 +1186,6 @@ class Fluctuations(object):
         # Ionization correlation function
         ##
         elif term == 'ii':
-            
-            #if not include_ion:
-            #    cf = np.zeros_like(R)    
-            #    self._cache_cf_[z][term] = R, cf
-            #    return cf
-            
             jp_ii, jp_ii_1, jp_ii_2 = \
                 self.JointProbability(z, zeta, R=R, term='ii')
                                 
@@ -1214,23 +1197,18 @@ class Fluctuations(object):
                     ev_ii = (1. - Q) * jp_ii_1 + Q**2
             else:    
                 ev_ii = jp_ii
-                                                
+    
             cf = ev_ii - Q**2
-        
+            
         ##
         # Ionization-density cross correlation function
         ##
         elif term == 'im':
-            
-            #if (not include_xcorr) or (not include_ion) or (not include_density):
-            #    cf = np.zeros_like(R)
-            #    self._cache_cf_[z][term] = R, cf
-            #    return cf
-            
+            raise NotImplemented('fix me please')
             jp_ii, jp_ii_1, jp_ii_2 = \
                 self.JointProbability(z, zeta, R, Q, term='ii')
 
-            jp, jp_1h, jp_2h = \
+            jp_im, jp_im_1, jp_im_2 = \
                 self.JointProbability(z, zeta, R, Q, term='im')
         
             # Add optional correction to ensure limiting behavior?        
@@ -1249,33 +1227,11 @@ class Fluctuations(object):
         # Temperature correlation function
         ##    
         elif term == 'hh':
-            
-            #if not include_temp:
-            #    cf = np.zeros_like(R)    
-            #    self._cache_cf_[z][term] = R, cf
-            #    return cf
-            
+
             jp_hh, jp_hh_1, jp_hh_2 = \
                 self.JointProbability(z, zeta, R=R, term='hh', Rh=Rh)
-                
-            Tref = Tgas # Should be <Ts>
-            delta_T = Tref / Th - 1.
-                
-            #if ii <= 1:
             
-            # Contrast of hot regions.
-            C = (Tcmb / (Th - Tcmb)) * delta_T \
-                 / (1. + delta_T)
-            Csq = C**2
-            
-            # Do we want Qh here not including ionized regions?
-            Cav = Qh * C
-            
-            print(z, Cav)
-            
-            ev_hh = Csq * jp_hh
-            
-            cf = ev_hh - Qh**2
+            C = self.TempToContrast(z, Th, Ts)
             
             #else:
             #    # Remember, this is for the hot/cold term
@@ -1284,36 +1240,57 @@ class Fluctuations(object):
             #    C = np.sqrt(C)    
             
                 
-                
-                
-                
-                
-                
-                
-                
             # Add optional correction to ensure limiting behavior?        
-            #if self.pf['ps_volfix']:
-            #    if Q < 0.5:
-            #        ev_ii = jp_ii_1 + jp_ii_2
-            #    else:
-            #        ev_ii = (1. - Q) * jp_ii_1 + Q**2
-            #else:    
-            #    ev_ii = jp_ii
+            if self.pf['ps_volfix']:
+                if (Qh < 0.5) and (Q < 0.5):
+                    ev_hh = (jp_hh_1 + jp_hh_2) * C**2
+                else:
+                    ev_hh = (1. - Qh) * jp_hh_1 * C**2 + C**2 * Qh**2
+            else:    
+                ev_hh = jp_hh * C**2 * Qh**2
                            
             #ev_hh = jp_hh               
             #                        
             #cf = ev_hh - Qh**2
             
+            cf = ev_hh - Qh**2 * C**2
+            
+        ##
+        # Ionization-heating cross-correlation function
+        ##    
+        elif term == 'ih':
+            jp, jp_1, jp_2 = \
+                self.JointProbability(z, zeta, R=R, term='ih', Rh=Rh)
+        
+            C = self.TempToContrast(z, Th, Ts)
+        
+            #else:
+            #    # Remember, this is for the hot/cold term
+            #    Csq = (Tcmb / (Tk - Tcmb)) * delta_T[0] * delta_T[1] \
+            #        / (1. + delta_T[0]) / (1. + delta_T[1])
+            #    C = np.sqrt(C)    
+        
+        
+            # Add optional correction to ensure limiting behavior?        
+            if self.pf['ps_volfix']:
+                if (Qh < 0.5) and (Q < 0.5):
+                    ev = (jp_1 + jp_2) * C
+                else:
+                    ev = (1. - Qh) * jp_1 * C + Qh * Q * C
+            else:    
+                ev = jp * C + Qh * Q * C
+        
+            #ev_hh = jp_hh               
+            #                        
+            #cf = ev_hh - Qh**2
+        
+            cf = ev - Q * C * Qh
+        
         
         ##
         # 21-cm correlation function
         ##  
         elif term == '21':
-            
-            if not include_21cm:
-                cf = np.zeros_like(R)    
-                self._cache_cf_[z][term] = R, cf
-                return cf
             
             # Ionization-ionization correlation function
             xi_ii = self.CorrelationFunction(z, zeta, R=R, term='ii')
@@ -1332,65 +1309,82 @@ class Fluctuations(object):
                 xi_im = xi_nm = 0.0
             
             xbar = (1. - Q)
-                        
-            xi_21 = xi_nn * (1. + xi_mm) + xbar**2 * xi_mm + \
-                xi_nm * (xi_nm + 2. * xbar)
+            
+            # This is the solution in the saturated limit.
+            # If the correlations vanish, e.g., on large scales, we should
+            # recover the matter power CF * xbar**2            
+            xi_psi = xi_nn * (1. + xi_mm) + xbar**2 * xi_mm \
+                   + xi_nm * (xi_nm + 2. * xbar)
             
             if include_temp or include_lya:
+            
+                # Mean contrast of heated regions
+                C = self.TempToContrast(z, Th, Ts)
+                Cbar = C * Qh
+                
+                # Hot-hot correlation function
+                xi_hh = self.CorrelationFunction(z, zeta, R=R, term='hh', 
+                    Rh=Rh, Ts=Ts, Th=Th)
+                
+                # Ionized-heated correlation function
+                xi_ih = self.CorrelationFunction(z, zeta, R=R, term='ih', 
+                    Rh=Rh, Ts=Ts, Th=Th)    
+            
+                # Convert to neutral-heated correlation function
+                # <xC'> = <(1-x_i)C'> = <C'> - <x_i C'> 
+                #       = Cbar - (xi_ih + Q * Cbar)
+                #xi_nh = Cbar - (xi_ih + Cbar * Q)
+                xxC = Cbar - (xi_ih + Cbar * Q)
+                
+                
+                # On large scales, this is Cbar * xbar...uh oh
+                
+                # Should <C> = 0?
             
                 # The two easiest terms in the unsaturated limit are those
                 # not involving the density, <x x' C'> and <x x' C C'>.
                 # Under the binary field(s) approach, we can just write
                 # each of these terms down
-                ev_xi_cop = data['Ch'] * data['jp_ih'] \
-                          + data['Ch'] * data['jp_ic']
-                          
-                          
-                          
                 
-                ev_cd = data['ev_dco']
-                ev_cc = data['ev_coco']
-                ev_xx = 1. - 2. * xibar + data['ev_ii']
-                ev_xc = data['avg_C'] - ev_xi_cop
-                #ev_xxc = xbar * data['avg_C'] - ev_xi_cop
-                #ev_xxcc = ev_xx * ev_cc + avg_xC**2 + ev_xc**2
-                ev_xxc = 0.0
-                ev_xxcc = ev_cc * (1. + xi_dd)
-                ev_xxcd = ev_cd
+                # This is the <x x' C C'> term, assumes fields are ~Gaussian.
+                # My (current) Eq. 47
+                #xxCC = 2 * ((xi_nn + xbar**2) * (xi_hh + Cbar**2) \
+                #       + xbar**2 + (xi_nh + xbar**2 * Cbar**2))
+                xxCC = xi_hh + Cbar**2       
+                       
+                # On large scales, this is 
+                # = 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
+
+                # The <xx'C'> term is just <x><C>
+                xxC = xbar * Cbar
                 
-                # <x x'>
-                data['ev_xx'] = ev_xx
+                phi = xxCC + xxC #\
+                    #- 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
                 
-                # <x C'>
-                data['ev_xc'] = ev_xc
+                # In R -> inf limit, we recover:
+                # 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar**2 * Cbar**2 + xbar * Cbar)
+
                 
-                # <x x' C>
-                data['ev_xxc'] = ev_xxc
-                
-                # <x x' C C'>
-                data['ev_xxcc'] = ev_xxcc
-                
-                # <x x' C d'>
-                data['ev_xxcd'] = ev_xxcd
-                
-                # Eq. 33 in write-up
-                phi_u = 2. * ev_xxc + ev_xxcc + 2. * ev_xxcd
-                                
+                # Could include more cross terms...
+
                 # Need to make sure this doesn't get saved at native resolution!
                 #data['phi_u'] = phi_u
-                    
-                data['cf_21'] = data['cf_21_s'] + phi_u #\
-                    #- 2. * xbar * avg_xC
-                    
-                Cbar = 1.#data['avg_C']
-                data['cf_21'] = xi_CC * (1. + xi_dd) + Cbar**2 * xi_dd #+ \
-                    #xi_Cd* (xi_Cd + 2. * Cbar)
-                
-                
+
+                xi_21 = xi_psi + phi
+
+                #Cbar = 1.#data['avg_C']
+                #data['cf_21'] = xi_CC * (1. + xi_dd) + Cbar**2 * xi_dd #+ \
+                #    #xi_Cd* (xi_Cd + 2. * Cbar)
+            else:
+                xi_21 = xi_psi
+
             cf = xi_21
-        
+
         else:
             raise NotImplemented('help')
+        
+        #if term not in ['21', 'mm']:
+        #    cf /= (2. * np.pi)**3
         
         self._cache_cf_[z][term] = R, cf
         
@@ -1415,9 +1409,37 @@ class Fluctuations(object):
    #       
    #     return np.array([np.trapz(func(k) * R, x=np.log(R)) \
    #         for k in self.halos.tab_k]) / 2. / np.pi
-    
-    def CorrelationFunctionFromPS(self, R, ps, k=None):
-        return self.halos.InverseFT3D(R, ps, k)
-    def PowerSpectrumFromCF(self, k, cf, R=None, Rmin=None):
-        return self.halos.FT3D(k, cf, R, Rmin=Rmin)    
+   
+    def TempToContrast(self, z, Th=None, Ts=None):
+        
+        if Th is None:
+            return 0.0
+        
+        Tcmb = self.cosm.TCMB(z)
+        Tgas = self.cosm.Tgas(z)
+        
+        if Ts is None:
+            print("Assuming Ts=Tgas(unheated).")
+            Ts = Tgas
+        
+        delta_T = Ts / Th - 1.
+            
+        #if ii <= 1:
+
+        # Contrast of hot regions.
+        return (Tcmb / (Th - Tcmb)) * delta_T / (1. + delta_T)
+
+    def CorrelationFunctionFromPS(self, R, ps, k=None, split_by_scale=False,
+        kmin=None, epsrel=1-8, epsabs=1e-8, method='clenshaw-curtis', 
+        use_pb=False, suppression=np.inf):
+        return self.halos.InverseFT3D(R, ps, k, kmin=kmin, 
+            epsrel=epsrel, epsabs=epsabs, use_pb=use_pb,
+            split_by_scale=split_by_scale, method=method, suppression=suppression)
+            
+    def PowerSpectrumFromCF(self, k, cf, R=None, split_by_scale=False,
+        Rmin=None, epsrel=1-8, epsabs=1e-8, method='clenshaw-curtis',
+        use_pb=False, suppression=np.inf):
+        return self.halos.FT3D(k, cf, R, Rmin=Rmin, 
+            epsrel=epsrel, epsabs=epsabs, use_pb=use_pb,
+            split_by_scale=split_by_scale, method=method, suppression=suppression)
         

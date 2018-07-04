@@ -251,3 +251,22 @@ def get_attribute(s, ob):
         
     return f
 
+def split_by_sign(x, y):
+    """
+    Split apart an array into its positive and negative chunks.
+    """
+
+    splitter = np.diff(np.sign(y))
+
+    if np.all(splitter == 0):
+        ych = [y]
+        xch = [x]
+    else:
+        splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+        ych = np.split(y, splits)
+        xch = np.split(x, splits)
+
+    return xch, ych
+    
+    
+
