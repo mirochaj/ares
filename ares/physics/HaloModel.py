@@ -824,16 +824,18 @@ class HaloModel(HaloMassFunction):
             elif os.path.exists(fn):
                 os.remove(fn)
                 
-                
         # Must collect checkpoints so we don't re-run something another
         # processor did!
         if size > 1 and _z != []:
             _zdone = MPI.COMM_WORLD.reduce(_z, root=0)
             zdone = MPI.COMM_WORLD.bcast(_zdone, root=0)
+            _zdone_by = MPI.COMM_WORLD.reduce([rank] * len(_z), root=0)
+            zdone_by = MPI.COMM_WORLD.bcast(_zdone_by, root=0)
         else:
             zdone = []
+            zdone_by = []
             
-        # Setup assignments
+        # Figure out what redshift still need to be done by somebody
         assignments = []
         for k, z in enumerate(self.tab_z_ps):
             if z in zdone:
@@ -841,6 +843,7 @@ class HaloModel(HaloMassFunction):
     
             assignments.append(z)    
         
+        # Split up the work among processors
         my_assignments = []
         for k, z in enumerate(assignments):
             if k % size != rank:
@@ -850,34 +853,19 @@ class HaloModel(HaloMassFunction):
             
         if size > 1:
             if len(assignments) % size != 0:
-                print("Uneven load: {} redshifts and {} processors!".format(len(assignments), size))
+                print("WARNING: Uneven load: {} redshifts and {} processors!".format(len(assignments), size))
                             
         self.tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
         self.tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
         for i, z in enumerate(self.tab_z_ps):
-        
-            #if i % size != rank:
-            #    continue
             
             # Done but not by me!
-            #if (z in zdone) and (z not in _z):
-            #    continue
-            
+            if (z in zdone) and (z not in _z):
+                continue
+                        
             if z not in my_assignments:
                 continue
             
-            ##
-            # Load checkpoint, if one exists.
-            ##
-            if z in _z:
-                
-                j = _z.index(z)
-                self.tab_ps_mm[i] = _ps[j]
-                self.tab_cf_mm[i] = _cf[j]
-
-                pb.update(i)
-                continue
-
             ##
             # Calculate from scratch
             ##                
@@ -902,6 +890,35 @@ class HaloModel(HaloMassFunction):
                 #print("Processor {} wrote checkpoint for z={}".format(rank, z))
             
         pb.finish()
+        
+        # Grab checkpoints before writing to disk
+        for i, z in enumerate(self.tab_z_ps):
+        
+            # Done but not by me! If not for this, Allreduce would sum
+            # solutions from different processors.
+            if (z in zdone) and (z not in _z):
+                continue
+            
+            # Two processors did the same redshift (backward compatibility)
+            if zdone.count(z) > 1:
+                done_by = []
+                for ii, zz in enumerate(zdone):
+                    if zz != z:
+                        continue
+                    done_by.append(zdone_by[ii])    
+                    
+                if rank != done_by[0]:
+                    continue
+                                
+            ##
+            # Load checkpoint, if one exists.
+            ##
+            if z in _z:
+                
+                j = _z.index(z)
+                self.tab_ps_mm[i] = _ps[j]
+                self.tab_cf_mm[i] = _cf[j]
+
 
         # Collect results!
         if size > 1:
@@ -953,7 +970,7 @@ class HaloModel(HaloMassFunction):
 
         # Do this first! (Otherwise parallel runs will be garbage)
         self.TabulatePS(clobber=clobber, checkpoint=checkpoint, **ftkwargs)
-
+                
         if rank > 0:
             return
     

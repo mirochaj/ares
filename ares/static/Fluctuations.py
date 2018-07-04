@@ -1334,7 +1334,7 @@ class Fluctuations(object):
                 # <xC'> = <(1-x_i)C'> = <C'> - <x_i C'> 
                 #       = Cbar - (xi_ih + Q * Cbar)
                 #xi_nh = Cbar - (xi_ih + Cbar * Q)
-                xxC = Cbar - (xi_ih + Cbar * Q)
+                xxC = Cbar - xi_ih
                 
                 
                 # On large scales, this is Cbar * xbar...uh oh
