@@ -176,7 +176,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             _Z = self._sam_data['Z'][slc]
         else:
             # guaranteed to be a grid point?    
-            k = np.argmin(np.abs(self.halos.z - z))
+            k = np.argmin(np.abs(self.halos.tab_z - z))
 
             _smhm = self._sam_data['Ms'][slc,k]  / self._sam_data['Mh'][slc,k]
             _mask = np.isfinite(smhm)
@@ -221,7 +221,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _spline_nh(self):
         if not hasattr(self, '_spline_nh_'):
             self._spline_nh_ = \
-                RectBivariateSpline(self.halos.z, self.halos.lnM, 
+                RectBivariateSpline(self.halos.tab_z, self.halos.lnM, 
                     self.halos.dndm)
         return self._spline_nh_
     
@@ -229,7 +229,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_MAR(self):
         if not hasattr(self, '_tab_MAR_'):
             self._tab_MAR_ = \
-                np.array([self.MAR(self.halos.z[i], self.halos.M) \
+                np.array([self.MAR(self.halos.tab_z[i], self.halos.M) \
                     for i in xrange(self.halos.Nz)]) 
                     
             self._tab_MAR_ = np.maximum(self._tab_MAR_, 0.0)
@@ -240,7 +240,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_MAR_at_Mmin(self):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
-                np.array([self.MAR(self.halos.z[i], self._tab_Mmin[i]) \
+                np.array([self.MAR(self.halos.tab_z[i], self._tab_Mmin[i]) \
                     for i in xrange(self.halos.Nz)])                    
         return self._tab_MAR_at_Mmin_ 
     
@@ -248,7 +248,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_nh_at_Mmin(self):
         if not hasattr(self, '_tab_nh_at_Mmin_'):
             self._tab_nh_at_Mmin_ = \
-                np.array([self._spline_nh(self.halos.z[i], 
+                np.array([self._spline_nh(self.halos.tab_z[i], 
                     np.log(self._tab_Mmin[i])) \
                     for i in xrange(self.halos.Nz)]).squeeze()
         return self._tab_nh_at_Mmin_
@@ -257,7 +257,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_fstar_at_Mmin(self):
         if not hasattr(self, '_tab_fstar_at_Mmin_'):
             self._tab_fstar_at_Mmin_ = \
-                self.SFE(z=self.halos.z, Mh=self._tab_Mmin)
+                self.SFE(z=self.halos.tab_z, Mh=self._tab_Mmin)
         return self._tab_fstar_at_Mmin_
 
     @property
@@ -269,7 +269,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         if not hasattr(self, '_tab_sfrd_at_threshold_'):
             if not self.pf['pop_sfr_cross_threshold']:
-                self._tab_sfrd_at_threshold_ = np.zeros_like(self.halos.z)
+                self._tab_sfrd_at_threshold_ = np.zeros_like(self.halos.tab_z)
                 return self._tab_sfrd_at_threshold_
 
             # Model: const SFR in threshold-crossing halos.    
@@ -277,14 +277,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_sfrd_at_threshold_ = self.pf['pop_sfr'] \
                     * self._tab_nh_at_Mmin * self._tab_Mmin
             else:
-                active = 1. - self.fsup(z=self.halos.z) 
+                active = 1. - self.fsup(z=self.halos.tab_z) 
                 self._tab_sfrd_at_threshold_ = active * self._tab_eta \
                     * self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
                     * self._tab_fstar_at_Mmin * self._tab_Mmin \
                     * self._tab_nh_at_Mmin \
-                    * self.focc(z=self.halos.z, Mh=self._tab_Mmin)
+                    * self.focc(z=self.halos.tab_z, Mh=self._tab_Mmin)
                             
-            #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * self.dMmin_dt(self.halos.z)    
+            #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * self.dMmin_dt(self.halos.tab_z)    
 
             self._tab_sfrd_at_threshold_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
@@ -293,7 +293,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # be included in the star-formation of some other population.
             if np.isfinite(self.pf['pop_sfr_cross_upto_Tmin']):
                 Tlim = self.pf['pop_sfr_cross_upto_Tmin']
-                Mlim = self.halos.VirialMass(T=Tlim, z=self.halos.z)
+                Mlim = self.halos.VirialMass(T=Tlim, z=self.halos.tab_z)
 
                 mask = self.halos.Mmin < Mlim
                 self._tab_sfrd_at_threshold_ *= mask
@@ -381,7 +381,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         self._yield_per_sfr_for_rho[(Emin, Emax)] = yield_per_sfr
 
         tab = np.zeros(self.halos.Nz)
-        for i, z in enumerate(self.halos.z):
+        for i, z in enumerate(self.halos.tab_z):
 
             if z > self.zform:
                 continue      
@@ -419,14 +419,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         if self.pf['pop_sfr_cross_threshold']:
             
-            y = yield_per_sfr(z=self.halos.z, Mh=self._tab_Mmin)
+            y = yield_per_sfr(z=self.halos.tab_z, Mh=self._tab_Mmin)
             
             if self.pf['pop_sfr'] is not None:
                 thresh = self.pf['pop_sfr'] \
                     * self._tab_nh_at_Mmin * self._tab_Mmin \
                     * y / s_per_yr / cm_per_mpc**3
             else:
-                active = 1. - self.fsup(z=self.halos.z)  
+                active = 1. - self.fsup(z=self.halos.tab_z)  
                 thresh = active * self._tab_eta * \
                     self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
                     * self._tab_fstar_at_Mmin * self._tab_Mmin \
@@ -435,7 +435,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
             tab += thresh
         
-        self._rho_L[(Emin, Emax)] = interp1d(self.halos.z, tab, 
+        self._rho_L[(Emin, Emax)] = interp1d(self.halos.tab_z, tab, 
             kind=self.pf['pop_interp_sfrd'])
     
         return self._rho_L[(Emin, Emax)]
@@ -468,7 +468,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             raise NotImplemented('help!')
     
-        for i, z in enumerate(self.halos.z):
+        for i, z in enumerate(self.halos.tab_z):
             integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
                 * N_per_Msun * fesc
     
@@ -480,7 +480,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         tab *= 1. / s_per_yr / cm_per_mpc**3
         
-        self._rho_N[(Emin, Emax)] = interp1d(self.halos.z, tab, 
+        self._rho_N[(Emin, Emax)] = interp1d(self.halos.tab_z, tab, 
             kind=self.pf['pop_interp_sfrd'])
     
         return self._rho_N[(Emin, Emax)](z)
@@ -497,7 +497,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         if not hasattr(self, '_SFRD'):
-            func = interp1d(self.halos.z, self._tab_sfrd_total, 
+            func = interp1d(self.halos.tab_z, self._tab_sfrd_total, 
                 kind=self.pf['pop_interp_sfrd'])
             self._SFRD = lambda z: func(z)
 
@@ -514,7 +514,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
     
         if not hasattr(self, '_nactive'):
-            self._nactive = interp1d(self.halos.z, self._tab_nh_active, 
+            self._nactive = interp1d(self.halos.tab_z, self._tab_nh_active, 
                 kind=self.pf['pop_interp_sfrd'])
     
         return self._nactive
@@ -526,10 +526,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
     
         if not hasattr(self, '_SMD'):
-            dtdz = np.array(list(map(self.cosm.dtdz, self.halos.z)))
+            dtdz = np.array(list(map(self.cosm.dtdz, self.halos.tab_z)))
             self._smd_tab = cumtrapz(self._tab_sfrd_total[-1::-1] * dtdz[-1::-1], 
-                dx=np.abs(np.diff(self.halos.z[-1::-1])), initial=0.)[-1::-1]
-            self._SMD = interp1d(self.halos.z, self._smd_tab, 
+                dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
+            self._SMD = interp1d(self.halos.tab_z, self._smd_tab, 
                 kind=self.pf['pop_interp_sfrd'])
     
         return self._SMD
@@ -585,13 +585,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if source is not None:
             src = read_lit(source, verbose=self.pf['verbose'])
 
-            i = np.argmin(np.abs(z - self.halos.z))
+            i = np.argmin(np.abs(z - self.halos.tab_z))
 
             # Integrand: convert MAR from DM MAR to total matter MAR
             integ = self.halos.dndlnm[i] \
                 * src.MAR(z, self.halos.M) / self.cosm.fcdm
 
-            Mmin = np.interp(z, self.halos.z, self.Mmin)
+            Mmin = np.interp(z, self.halos.tab_z, self.Mmin)
             j1 = np.argmin(np.abs(Mmin - self.halos.M))
             if Mmin > self.halos.M[j1]:
                 j1 -= 1
@@ -625,11 +625,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             MAR = super(GalaxyCohort, self).MAR_via_AM(z)
                     
         # Grab redshift
-        k = np.argmin(np.abs(z - self.halos.z))
+        k = np.argmin(np.abs(z - self.halos.tab_z))
 
         integ = self.halos.dndlnm[k] * MAR / self.cosm.fcdm
 
-        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        Mmin = np.interp(z, self.halos.tab_z, self.Mmin)
         j1 = np.argmin(np.abs(Mmin - self.halos.M))
         if Mmin > self.halos.M[j1]:
             j1 -= 1    
@@ -642,7 +642,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def eta(self):
         if not hasattr(self, '_eta'):
-            self._eta = lambda z: np.interp(z, self.halos.z, self._tab_eta)
+            self._eta = lambda z: np.interp(z, self.halos.tab_z, self._tab_eta)
         return self._eta
 
     @property
@@ -660,11 +660,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
             if self.pf['pop_MAR_conserve_norm']:
                 
-                _rhs = np.zeros_like(self.halos.z)
-                _lhs = np.zeros_like(self.halos.z)
-                self._tab_eta_ = np.ones_like(self.halos.z)
+                _rhs = np.zeros_like(self.halos.tab_z)
+                _lhs = np.zeros_like(self.halos.tab_z)
+                self._tab_eta_ = np.ones_like(self.halos.tab_z)
 
-                for i, z in enumerate(self.halos.z):
+                for i, z in enumerate(self.halos.tab_z):
 
                     # eta = rhs / lhs
 
@@ -701,7 +701,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     self._tab_eta_[i] = rhs / lhs
                         
             else:
-                self._tab_eta_ = np.ones_like(self.halos.z)
+                self._tab_eta_ = np.ones_like(self.halos.tab_z)
     
         return self._tab_eta_
         
@@ -716,8 +716,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # If Mh is None, it triggers use of _tab_sfr, which spans all
         # halo masses in self.halos.M
         if Mh is None:
-            k = np.argmin(np.abs(z - self.halos.z))
-            if abs(z - self.halos.z[k]) < ztol:
+            k = np.argmin(np.abs(z - self.halos.tab_z))
+            if abs(z - self.halos.tab_z[k]) < ztol:
                 return self._tab_sfr[k]
             else:
                 Mh = self.halos.M
@@ -728,7 +728,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # in cases where we just want to know the SFR at a few redshifts
             # and/or halo masses. But, we're rarely doing such things.
             if not hasattr(self, '_spline_sfr'):
-                self._spline_sfr = RectBivariateSpline(self.halos.z, 
+                self._spline_sfr = RectBivariateSpline(self.halos.tab_z, 
                     self.halos.M, self._tab_sfr)
             
             return self._spline_sfr(z, Mh).squeeze()
@@ -847,7 +847,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mh = data['Mh']
         Ms = data['Ms']
         
-        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0,
+        dndm_func = interp1d(self.halos.tab_z, self.halos.dndm[:,:-1], axis=0,
             kind=self.pf['pop_interp_lf'])
         dndm_z = dndm_func(z)
 
@@ -860,11 +860,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         dMh_dlogMs = dMh_dMs * Ms[0:-1]
         
         # Only return stuff above Mmin
-        Mmin = np.interp(z, self.halos.z, self._tab_Mmin)
+        Mmin = np.interp(z, self.halos.tab_z, self._tab_Mmin)
         if self.pf['pop_Tmax'] is None:
             Mmax = self.pf['pop_lf_Mmax']
         else:
-            Mmax = np.interp(z, self.halos.z, self._tab_Mmax)
+            Mmax = np.interp(z, self.halos.tab_z, self._tab_Mmax)
         
         i_min = np.argmin(np.abs(Mmin - self.halos.M))
         i_max = np.argmin(np.abs(Mmax - self.halos.M))
@@ -987,7 +987,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         logL_Lh = np.log(Lh)
         
-        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0,
+        dndm_func = interp1d(self.halos.tab_z, self.halos.dndm[:,:-1], axis=0,
             kind=self.pf['pop_interp_lf'])
 
         dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.M[0:-1])
@@ -1002,7 +1002,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         dMh_dlogLh = dMh_dLh * Lh[0:-1]
         
         # Only return stuff above Mmin
-        Mmin = np.interp(z, self.halos.z, self._tab_Mmin)
+        Mmin = np.interp(z, self.halos.tab_z, self._tab_Mmin)
         Mmax = self.pf['pop_lf_Mmax']
         
         i_min = np.argmin(np.abs(Mmin - self.halos.M))
@@ -1103,8 +1103,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmax_active(self):
         """ most massive star-forming halo. """
         if not hasattr(self, '_tab_Mmax_active_'):
-            self._tab_Mmax_active_ = np.zeros_like(self.halos.z)
-            for i, z in enumerate(self.halos.z):
+            self._tab_Mmax_active_ = np.zeros_like(self.halos.tab_z)
+            for i, z in enumerate(self.halos.tab_z):
                 lim = self.pf['pop_fstar_negligible']
                 fstar_max = self._tab_fstar[i].max()
                 immsfh = np.argmin(np.abs(self._tab_fstar[i] - fstar_max * lim))
@@ -1115,7 +1115,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def Mmax_active(self):
         if not hasattr(self, '_Mmax_active_'):
             self._Mmax_active_ = \
-                lambda z: np.interp(z, self.halos.z, self._tab_Mmax_active)
+                lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmax_active)
         return self._Mmax_active_
         
     def dMmin_dt(self, z):
@@ -1124,20 +1124,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.
         # Long story.
-        return np.interp(z, self.halos.z, self._tab_Mmax)
+        return np.interp(z, self.halos.tab_z, self._tab_Mmax)
         
     @property
     def M_atom(self):
         if not hasattr(self, '_Matom'):
             Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
-            self._Matom = np.array(map(Mvir, self.halos.z))
+            self._Matom = np.array(map(Mvir, self.halos.tab_z))
         return self._Matom    
     
     @property
     def Mmin(self):
         if not hasattr(self, '_Mmin'):  
             self._Mmin = lambda z: \
-                np.interp(z, self.halos.z, self._tab_Mmin)
+                np.interp(z, self.halos.tab_z, self._tab_Mmin)
     
         return self._Mmin
     
@@ -1147,12 +1147,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._Mmin = value
         else:
             self._tab_Mmin = value
-            self._Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
+            self._Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
     
     def Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.
         # Long story.
-        return np.interp(z, self.halos.z, self._tab_Mmax)
+        return np.interp(z, self.halos.tab_z, self._tab_Mmax)
     
     @property
     def _tab_logMmin(self):
@@ -1180,17 +1180,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if ismethod(self.pf['pop_Mmin']) or \
                    type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
-                        np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                        np.array(map(self.pf['pop_Mmin'], self.halos.tab_z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
                     self._tab_Mmin_ = self.pf['pop_Mmin']
-                    assert self._tab_Mmin.size == self.halos.z.size
+                    assert self._tab_Mmin.size == self.halos.tab_z.size
                 else:    
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones(self.halos.Nz)
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
-                self._tab_Mmin_ = np.array(map(Mvir, self.halos.z))
+                self._tab_Mmin_ = np.array(map(Mvir, self.halos.tab_z))
     
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
     
@@ -1200,7 +1200,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmin(self, value):
         if ismethod(value):
             self.Mmin = value
-            self._tab_Mmin_ = np.array(map(value, self.halos.z), dtype=float)
+            self._tab_Mmin_ = np.array(map(value, self.halos.tab_z), dtype=float)
         elif type(value) in [int, float, np.float64]:    
             self._tab_Mmin_ = value * np.ones(self.halos.Nz) 
         else:
@@ -1211,7 +1211,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property    
     def _tab_Mmin_floor(self):
         if not hasattr(self, '_tab_Mmin_floor_'):
-            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.z)
+            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.tab_z)
         return self._tab_Mmin_floor_
     
     def _apply_lim(self, arr, s='min', zarr=None):
@@ -1222,7 +1222,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         out = None
     
         if zarr is None:
-            zarr = self.halos.z
+            zarr = self.halos.tab_z
     
         # Might need these if Mmin is being set dynamically
         if self.pf['pop_M%s_ceil' % s] is not None:
@@ -1298,8 +1298,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Moft_zi = lambda z: np.interp(z, zform, new_data['Mh'])
                 
                 # For each redshift, determine Mmax.
-                Mmax = np.zeros_like(self.halos.z)
-                for i, z in enumerate(self.halos.z):
+                Mmax = np.zeros_like(self.halos.tab_z)
+                for i, z in enumerate(self.halos.tab_z):
                     
                     # If we've specified a maximum initial mass halo, and
                     # we're at a redshift before that halo hits its limit.
@@ -1313,13 +1313,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                                                 
             elif self.pf['pop_Mmax'] is not None:
                 if type(self.pf['pop_Mmax']) is FunctionType:
-                    _tab_Mmax_ = np.array(list(map(self.pf['pop_Mmax'], self.halos.z)))
+                    _tab_Mmax_ = np.array(list(map(self.pf['pop_Mmax'], self.halos.tab_z)))
                 elif type(self.pf['pop_Mmax']) is tuple:
                     extra = self.pf['pop_Mmax'][0]
                     assert self.pf['pop_Mmax'][1] == 'Mmin'
 
                     if type(extra) is FunctionType:
-                        _tab_Mmax_ = np.array(list(map(extra, self.halos.z))) \
+                        _tab_Mmax_ = np.array(list(map(extra, self.halos.tab_z))) \
                             * self._tab_Mmin
                     else:
                         _tab_Mmax_ = extra * self._tab_Mmin
@@ -1328,10 +1328,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_Tmax'] is not None:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
                     z, mu=self.pf['mu'])
-                _tab_Mmax_ = np.array(list(map(Mvir, self.halos.z)))
+                _tab_Mmax_ = np.array(list(map(Mvir, self.halos.tab_z)))
             else:
                 # A suitably large number for (I think) any purpose
-                _tab_Mmax_ = 1e18 * np.ones_like(self.halos.z)
+                _tab_Mmax_ = 1e18 * np.ones_like(self.halos.tab_z)
          
             _tab_Mmax_ = self._apply_lim(_tab_Mmax_, s='max')                        
             _tab_Mmax_ = np.maximum(_tab_Mmax_, self._tab_Mmin)
@@ -1361,7 +1361,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_sfr_'):            
             self._tab_sfr_ = np.zeros([self.halos.Nz, self.halos.Nm])
 
-            for i, z in enumerate(self.halos.z):
+            for i, z in enumerate(self.halos.tab_z):
                 
                 if z > self.zform:
                     continue
@@ -1394,7 +1394,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def SFRD_at_threshold(self):
         if not hasattr(self, '_SFRD_at_threshold'):
             self._SFRD_at_threshold = \
-                lambda z: np.interp(z, self.halos.z, self._tab_sfrd_at_threshold)
+                lambda z: np.interp(z, self.halos.tab_z, self._tab_sfrd_at_threshold)
         return self._SFRD_at_threshold
         
     @property
@@ -1403,7 +1403,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_nh_active_ = np.zeros(self.halos.Nz)
 
             # Loop from high-z to low-z
-            for k, z in enumerate(self.halos.z[-1::-1]):
+            for k, z in enumerate(self.halos.tab_z[-1::-1]):
 
                 i = self.halos.Nz - k - 1
                 
@@ -1529,7 +1529,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_sfrd_total_ = np.zeros(self.halos.Nz)
 
             # Loop from high-z to low-z
-            for k, z in enumerate(self.halos.z[-1::-1]):
+            for k, z in enumerate(self.halos.tab_z[-1::-1]):
 
                 i = self.halos.Nz - k - 1
                 
@@ -1663,7 +1663,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         _sfrd_tab = np.zeros(self.halos.Nz)
 
-        for i, zz in enumerate(self.halos.z):
+        for i, zz in enumerate(self.halos.tab_z):
             
             if not self.pf['pop_sfr_above_threshold']:
                 break
@@ -1700,7 +1700,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             
         _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
-        _sfrd_func = lambda zz: np.interp(zz, self.halos.z, _sfrd_tab)
+        _sfrd_func = lambda zz: np.interp(zz, self.halos.tab_z, _sfrd_tab)
         
         if type(Mlo) != np.ndarray:
             self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
@@ -1722,7 +1722,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             self._LLyC_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             
-            for i, z in enumerate(self.halos.z):
+            for i, z in enumerate(self.halos.tab_z):
                 self._LLyC_tab[i] = self.L1600_tab[i] * Nion_per_L1600 \
                     * fesc
             
@@ -1744,7 +1744,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
             self._LLW_tab = np.zeros([self.halos.Nz, self.halos.Nm])
     
-            for i, z in enumerate(self.halos.z):
+            for i, z in enumerate(self.halos.tab_z):
                 self._LLW_tab[i] = self.L1600_tab[i] * Nlw_per_L1600
     
                 mask = self.halos.M >= self._tab_Mmin[i]
@@ -1788,7 +1788,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         / ((1. / self.pf['pop_fstar_max']) + self.pf['pop_mlf'])
                 elif self.pf['pop_mlf'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
-                    Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
+                    Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
                 
                     self._mlf_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                         self.pf, **pars)
@@ -1803,7 +1803,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 elif self.pf['pop_fstar'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
                                         
-                    Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
+                    Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
                     self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                         self.pf, **pars)
                     
@@ -1859,7 +1859,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_fstar_'):
             self._tab_fstar_ = np.zeros_like(self.halos.dndm)
     
-            for i, z in enumerate(self.halos.z):    
+            for i, z in enumerate(self.halos.tab_z):    
                 if i > 0 and self.constant_SFE:
                     self._tab_fstar_[i,:] = self._tab_fstar_[0]
                     continue
@@ -2177,14 +2177,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             assert z is not None
             
-            zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+            zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
 
             if self.pf['sam_dz'] is not None:
-                zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+                zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
             else:
                 zfreq = 1
 
-            zarr = self.halos.z[self.halos.z >= zf][::zfreq]
+            zarr = self.halos.tab_z[self.halos.tab_z >= zf][::zfreq]
                         
             new_data = self._sort_sam(z, zarr, data)            
                           
@@ -2252,17 +2252,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Z', 't']
                 
-        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
-        zi = min(float(self.halos.z.max()), self.pf['initial_redshift'])
+        zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
+        zi = min(float(self.halos.tab_z.max()), self.pf['initial_redshift'])
         
         if self.pf['sam_dz'] is not None:
-            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
         else:
             zfreq = 1
 
         # Setup redshift arrays. 
-        in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= zi)
-        zarr = self.halos.z[in_range][::zfreq]
+        in_range = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= zi)
+        zarr = self.halos.tab_z[in_range][::zfreq]
         
         # Store results as 2-D array in (zform, znow)
         results = {key:np.zeros([zarr.size]*2) for key in keys}
@@ -2319,13 +2319,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         """
 
-        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+        zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
 
         if self.pf['sam_dz'] is not None:
             dz = self.pf['sam_dz']
-            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
         else:
-            dz = np.diff(self.halos.z)[0]
+            dz = np.diff(self.halos.tab_z)[0]
             zfreq = 1
 
         solver = ode(self._SAM).set_integrator('lsoda', nsteps=1e4, 
@@ -2350,18 +2350,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         # Our results don't depend on this, unless SFE depends on z
         if (z0 is None) and (M0 == 0):
-            z0 = self.halos.z.max()
+            z0 = self.halos.tab_z.max()
             M0 = self._tab_Mmin[-1]
         elif (M0 <= 1):
-            M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
+            M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
         elif (M0 > 1):
             if z0 >= self.pf['initial_redshift']:
-                M0 = np.interp(z0, self.halos.z, M0 * self._tab_Mmin)
+                M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
             else:
-                M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
+                M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
 
-        in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
-        zarr = self.halos.z[in_range][::zfreq]
+        in_range = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+        zarr = self.halos.tab_z[in_range][::zfreq]
         Nz = zarr.size
         
         # Boundary conditions (pristine halo)
@@ -2711,7 +2711,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 print("Provided Mmin guesses are all infinite or NaN.")
                 return None
             
-            return np.interp(self.halos.z, zarr, Mmin)
+            return np.interp(self.halos.tab_z, zarr, Mmin)
         
         # HARD CODING FOR NOW
         blob_name = 'popIII_Mmin'
@@ -2740,7 +2740,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         best = np.argmin(score)
                 
-        return np.interp(self.halos.z, zarr, Mmin[best])
+        return np.interp(self.halos.tab_z, zarr, Mmin[best])
    
     def _guess_Mmin(self):
         """
@@ -2763,7 +2763,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 print("Provided Mmin guesses are all infinite or NaN.")
                 return None
             
-            return np.interp(self.halos.z, zarr, Mmin)
+            return np.interp(self.halos.tab_z, zarr, Mmin)
         
         # HARD CODING FOR NOW
         blob_name = 'popIII_Mmin'
@@ -2792,7 +2792,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         best = np.argmin(score)
                 
-        return np.interp(self.halos.z, zarr, Mmin[best])
+        return np.interp(self.halos.tab_z, zarr, Mmin[best])
         
     def save(self, prefix=None, fn=None, fmt='npz'):
         """

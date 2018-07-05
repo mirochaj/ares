@@ -897,7 +897,7 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
-    "hmf_load_ps": True,
+    "hmf_load_ps": False,
     "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,
@@ -923,15 +923,15 @@ def HaloMassFunctionParameters():
     
     # For matter power spectrum
     "mps_zmin": 6,
-    "mps_zmax": 30,
-    "mps_dz": 0.25,
+    "mps_zmax": 25,
+    "mps_dz": 0.5,
     
-    'mps_dlnk': 0.01,
-    'mps_dlnR': 0.01,
-    'mps_lnk_min': -8.,
-    'mps_lnk_max': 8.,
-    'mps_lnR_min': -8.,
-    'mps_lnR_max': 8.,
+    'mps_dlnk': 0.001,
+    'mps_dlnR': 0.001,
+    'mps_lnk_min': -10.,
+    'mps_lnk_max': 10.,
+    'mps_lnR_min': -10.,
+    'mps_lnR_max': 10.,
 
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',

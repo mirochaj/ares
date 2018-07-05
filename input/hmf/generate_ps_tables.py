@@ -32,7 +32,7 @@ pars = \
  "hmf_dz": 0.05,
  
  "mps_zmin": 6,
- "mps_zmax": 20,
+ "mps_zmax": 25,
  "mps_dz": 0.5,
  
  'mps_dlnk': 0.001,
