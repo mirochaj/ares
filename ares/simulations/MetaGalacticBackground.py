@@ -194,7 +194,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             if hasattr(self, '_sfrd_bank') and self.count >= 2:
                 pid = self.pf['feedback_LW_sfrd_popid']
-                z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
+                z_maxerr = self.pops[pid].halos.tab_z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
                 print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
                     "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
                     self.count, np.mean(self._sfrd_rerr[self._ok]),\
@@ -427,7 +427,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 continue
                         
             self.kwargs['pop_Mmin{{{}}}'.format(popid)] = \
-                np.interp(self.pops[popid].halos.z, self.z_unique, self._Mmin_now)
+                np.interp(self.pops[popid].halos.tab_z, self.z_unique, self._Mmin_now)
                             
             # Need to make sure, if any populations are linked to this Mmin,
             # that they get updated too.
@@ -781,7 +781,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if Mmin is None: 
                     T = Tmin
                 else:
-                    T = pop.halos.VirialTemperature(Mmin, pop.halos.z,
+                    T = pop.halos.VirialTemperature(Mmin, pop.halos.tab_z,
                         self.pf['mu'])
                 
                 if type(T) in [float, int, np.float64]:
@@ -862,10 +862,18 @@ class MetaGalacticBackground(AnalyzeMGB):
                 zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
                 err = np.abs(pre - now) / now
                 
-                self._ok = np.logical_and(gt0, self.pops[pid].halos.z > zmin)                
+                self._ok = np.logical_and(gt0, self.pops[pid].halos.tab_z > zmin)                
                 self._sfrd_rerr = err
                 
                 if not np.any(self._ok):
+                    
+                    import matplotlib.pyplot as pl
+                    
+                    pl.semilogy(self.pops[pid].halos.tab_z, pre, ls='-')
+                    pl.semilogy(self.pops[pid].halos.tab_z, now, ls='--')
+                    
+                    neg = now < 0
+                    print(pid, now.size, neg.sum(), now)
                     raise ValueError("SFRD < 0!")
             
         self._Mmin_pre = np.maximum(self._Mmin_pre, 
@@ -920,7 +928,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             nh *= cm_per_mpc**3
             
             # Interpolate to same redshift array as fluxes
-            nh = np.interp(zarr, pop.halos.z, nh)
+            nh = np.interp(zarr, pop.halos.tab_z, nh)
             
             # Compute typical separation of halos
             ravg = nh**(-1./3.)
@@ -1054,7 +1062,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
 
                 pid = self.pf['feedback_LW_sfrd_popid']
-                zarr = self.pops[pid].halos.z
+                zarr = self.pops[pid].halos.tab_z
 
                 if quantity == 'sfrd':
                     ok = np.logical_and(gt0, zarr > zmin)

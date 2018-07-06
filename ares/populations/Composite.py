@@ -132,7 +132,10 @@ class CompositePopulation(object):
                 # array to something that is a function. Fear not! The setter
                 # for _tab_Mmin will sort this out.
                 self.pops[i]._tab_Mmin = self.pops[entry].Mmax
-                assert np.all(self.pops[i]._tab_Mmin <= self.pops[entry]._tab_Mmax)
+                
+                ok = self.pops[i]._tab_Mmin <= self.pops[entry]._tab_Mmax
+
+                assert np.all(ok)
             elif to_quantity[i] in after_instance:
                 continue
             else:

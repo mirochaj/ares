@@ -726,22 +726,22 @@ class HaloMassFunction(object):
     
         # For some reason flipping the order is necessary for non-bogus results
         dn_gtm_1t = cumtrapz(self.tab_dndlnm[k][-1::-1], 
-            x=self.lnM[-1::-1], initial=0.)[-1::-1]
+            x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
         dn_gtm_2t = cumtrapz(self.tab_dndlnm[k-1][-1::-1], 
-            x=self.lnM[-1::-1], initial=0.)[-1::-1]
+            x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
     
         dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
         dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
     
         # Need to reverse arrays so that interpolants are in ascending order
         M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
-            self.lnM[-1::-1])[-1::-1])
+            np.log(self.tab_M)[-1::-1])[-1::-1])
     
         # Compute time difference between z bins
         dz = self.tab_z[k] - self.tab_z[k-1]
         dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
     
-        return np.maximum((M_2 - self.M) / dt, 0.0)
+        return np.maximum((M_2 - self.tab_M) / dt, 0.0)
         
     @property
     def tab_MAR_CND(self):
@@ -767,7 +767,7 @@ class HaloMassFunction(object):
     def MAR_func(self):
         if not hasattr(self, '_MAR_func'):
             
-            spl = RectBivariateSpline(self.tab_z, np.log10(self.tab_M),
+            spl = RectBivariateSpline(self.tab_z, np.log(self.tab_M),
                 self.tab_MAR_CND, kx=3, ky=3)
                         
             self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
