@@ -322,7 +322,7 @@ class PowerSpectrum21cm(AnalyzePS):
             
             # Won't be terribly meaningful if temp fluctuations are off.
             C = self.field.TempToContrast(z, Th, Ts)
-            data['C'] = C
+            data['c'] = C
             
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.

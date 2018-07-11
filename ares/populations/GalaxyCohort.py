@@ -1565,7 +1565,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     # should be gone forever.
                     
                     if z < self.pf['initial_redshift']:
-                        break
+                        continue
                     else:
                         continue
                     

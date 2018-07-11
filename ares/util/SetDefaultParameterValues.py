@@ -383,6 +383,8 @@ def PowerSpectrumParameters():
      "ps_output_lnRmax": 8.,
      "ps_output_dlnR": 0.01,
      
+     'ps_use_wick': False,
+     
      'ps_include_acorr': True,
      'ps_include_xcorr': False,
      'ps_include_bias': True,
@@ -394,6 +396,7 @@ def PowerSpectrumParameters():
      
      'ps_include_21cm': True,
      'ps_include_density': True,
+     'ps_include_density_xcorr': False,
      'ps_include_ion': True,
      'ps_include_temp': False,
      'ps_include_lya': False,
@@ -897,7 +900,7 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
-    "hmf_load_ps": False,
+    "hmf_load_ps": True,
     "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,

@@ -116,7 +116,8 @@ class Fluctuations(object):
             Q = self.MeanIonizedFraction(z, zeta)
             
             if type(Rh) is np.ndarray:
-                assert np.allclose(np.diff(Rh / Ri), 0.0), \
+                nz = Ri > 0
+                assert np.allclose(np.diff(Rh[nz==1] / Ri[nz==1]), 0.0), \
                     "No support for absolute scaling of hot bubbles yet."
                     
                 Qh = Q * ((Rh[0] - Ri[0]) / Ri[0])**3
@@ -320,7 +321,7 @@ class Fluctuations(object):
 
         #if term == 'ii':
         return bHII * bbar * xi_dd
-        #elif term == 'im':
+        #elif term == 'id':
         #    return bHII * bbar * xi_dd 
         #else:
         #    raise NotImplemented('help!')
@@ -369,8 +370,8 @@ class Fluctuations(object):
         Full barrier.
         """
         
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
-        D = self.halos.growth_factor[iz]
+        #iz = np.argmin(np.abs(z - self.halos.tab_z))
+        #D = self.halos.growth_factor[iz]
 
         sigma_min = self.sigma_min(z, zeta)
         #Mmin = self.Mmin(z)
@@ -692,7 +693,7 @@ class Fluctuations(object):
         if term not in self._cache_jp_[z]:
             return None
         else:
-            print("Loaded P_{} at z={} from cache.".format(term, z))
+            #print("Loaded P_{} at z={} from cache.".format(term, z))
             return self._cache_jp_[z][term]
         
     def _cache_cf(self, z, term):
@@ -705,7 +706,7 @@ class Fluctuations(object):
         if term not in self._cache_cf_[z]:
             return None
         else:
-            print("Loaded xi_{} at z={} from cache.".format(term, z))
+            #print("Loaded xi_{} at z={} from cache.".format(term, z))
             return self._cache_cf_[z][term]    
     
     def _cache_ps(self, z, term):
@@ -718,7 +719,7 @@ class Fluctuations(object):
         if term not in self._cache_ps_[z]:
             return None
         else:
-            print("Loaded ps_{} at z={} from cache.".format(term, z))
+            #print("Loaded ps_{} at z={} from cache.".format(term, z))
             return self._cache_ps_[z][term]        
     
     def _cache_Vo(self, sep, Ri, Rh, Rc):
@@ -729,8 +730,105 @@ class Fluctuations(object):
             self._cache_Vo_[sep] = self.overlap_volumes(sep, Ri, Rh, Rc)
 
         return self._cache_Vo_[sep]
+        
+    def _cache_p(self, z, term):
+        if not hasattr(self, '_cache_p_'):
+            self._cache_p_ = {}
     
-    def JointProbability(self, z, zeta, R, term='ii', Rh=0.0, Rc=0.0):
+        if z not in self._cache_p_:
+            self._cache_p_[z] = {}
+    
+        if term not in self._cache_p_[z]:
+            return None
+        else:
+            return self._cache_p_[z][term]
+    
+    def ExpectationValue(self, z, zeta, term='i', Rh=0.0, Th=500.0, Ts=None):
+        """
+        Compute the probability that a point is something.
+        
+        These are the one point terms in brackets, e.g., <x>, <x delta>, etc.
+        """
+        
+        ##
+        # Check cache for match
+        ##
+        cached_result = self._cache_p(z, term)
+        
+        if cached_result is not None:
+            return cached_result
+        
+        ##
+        # Otherwise, get to it.
+        ##
+        if term == 'i':
+            val = self.MeanIonizedFraction(z, zeta)
+        elif term == 'n':
+            val = 1. - self.ExpectationValue(z, zeta, term='i', Rh=Rh)
+        elif term == 'h':
+            assert Rh is not None
+            Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
+            val = Qh
+        elif term.strip() == 'i*h':
+            assert Rh is not None
+            Qi = self.MeanIonizedFraction(z, zeta)
+            Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
+            val = Qh * Qi # implicit * 1
+        elif term.strip() == 'i*c':
+            assert Rh is not None
+            c = self.TempToContrast(z, Th, Ts)
+            Qi = self.MeanIonizedFraction(z, zeta)
+            Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
+            val = Qh * Qi * c
+        elif term == 'c':
+            Qh = self.BubbleShellFillingFactor(z, zeta, Rh)
+            c = self.TempToContrast(z, Th, Ts)            
+            val = c * Qh
+        elif term == 'i*d':
+            if self.pf['ps_include_density_xcorr']:
+                avg_xi = self.ExpectationValue(z, zeta, term='i')
+                val = avg_xi * self._B0(z, zeta)
+            else:
+                val = 0.0
+        elif term == 'n*d':
+            val = -self.ExpectationValue(z, zeta, term='i*d')
+        elif term == 'n*c':
+            c = self.TempToContrast(z, Th, Ts)
+            avg_x = self.ExpectationValue(z, zeta, term='n')
+            val = avg_x * c
+        elif term == 'n*d*c':
+            if self.pf['ps_include_density_xcorr']:
+                raise NotImplemented('help')    
+            else:
+                val = 0.0
+        elif term == 'psi':
+            # <psi> = <x (1 + d)> = <x> + <xd> = 1 - <x_i> + <d> - <x_i d>
+            #       = 1 - <x_i> - <x_i d>
+            
+            avg_xd = self.ExpectationValue(z, zeta, term='n*d')            
+            val = self.ExpectationValue(z, zeta, term='n') + avg_xd
+
+        elif term == 'phi':
+            # <phi> = <psi * (1 + c)> = <psi> + <psi * c>
+            # <phi * c> = <x * c> + <x * c * d>
+            
+            avg_psi = self.ExpectationValue(z, zeta, term='psi')
+            
+            avg_xcd = self.ExpectationValue(z, zeta, term='n*d*c')            
+            avg_xc = self.ExpectationValue(z, zeta, term='n*c')
+            avg_psi_c = avg_xc + avg_xcd
+                            
+            val = avg_psi + avg_psi_c
+                    
+        else:
+            raise ValueError('Don\' know how to handle <{}>'.format(term))
+        
+        self._cache_p_[z][term] = val
+        
+        return val
+        
+    def JointProbability(self, z, zeta, R, term='ii', Rh=0.0, R3=0.0, 
+        Th=500.0, Ts=None):
         """
         Compute the joint probability that two points are ionized, heated, etc.
 
@@ -742,6 +840,10 @@ class Fluctuations(object):
         R : np.ndarray
             Array of scales to consider.
         term : str
+        
+        Returns
+        -------
+        Tuple: total, one-source, two-source contributions to joint probability.
 
         """
         
@@ -768,25 +870,149 @@ class Fluctuations(object):
             print("interpolating jp_{}".format(ii))
             return np.interp(R, _R, _jp), np.interp(R, _R, _jp1), np.interp(R, _R, _jp2)
         
-        # If volume filling factor not supplied, compute it.
-        #if Q is None:
-        #    Q = self.BubbleFillingFactor(z, zeta, rescale)
-            
-        #if Q == 1:
-        #    return np.ones(R.size), np.zeros(R.size), np.ones(R.size)
-        
         # Remember, we scaled the BSD so that these two things are equal
         # by construction.
         xibar = Q = self.MeanIonizedFraction(z, zeta)
         
+        Rzeros = np.zeros_like(R)
+        
         # If reionization is over, don't waste our time!
         if xibar == 1:
-            return np.ones(R.size), np.zeros(R.size), np.ones(R.size)
+            return np.ones(R.size), Rzeros, Rzeros
+                
+        ##
+        # Check for derived quantities like psi, phi
+        ##
+        if term == 'psi':
+            # <psi psi'> = <x (1 + d) x' (1 + d')> = <xx'(1+d)(1+d')>
+            #            = <xx'(1 + d + d' + dd')>
+            #            = <xx'> + 2<xx'd> + <xx'dd'>
+            
+            xx, xx1, xx2 = self.JointProbability(z, zeta, R=R, term='nn')
+            dd = self.JointProbability(z, zeta, R, term='dd')
+            
+            if self.pf['ps_include_density_xcorr']:
+                avg_x = self.ExpectationValue(z, zeta, term='n')
+                xd, xd1, xd2 = self.JointProbability(z, zeta, R=R, term='nd')
+                xxd = avg_x * xd
+            else:
+                xd = xxd = 0.0
+            
+            avg_xd = self.ExpectationValue(z, zeta, term='n*d')
+            xxdd, xxdd1, xxdd2 = self.JointProbability(z, zeta, R=R, term='xxdd')
+            
+            jp = xx + 2 * xxd + xxdd
+            jp1 = np.zeros_like(xx1)
+            jp2 = np.zeros_like(xx)
+            
+            return jp, jp1, jp2
+                
+        elif term == 'phi':
+            Phi, junk1, junk2 = self.JointProbability(z, zeta, R, term='Phi',
+                Rh=Rh, Ts=Ts, Th=Th)
+            jp_psi, jp_psi1, jp_psi2 = self.JointProbability(z, zeta, R,
+                term='psi', Rh=Rh, Ts=Ts, Th=Th)
+            avg_psi = self.ExpectationValue(z, zeta, term='psi')
+            avg_phi = self.ExpectationValue(z, zeta, term='phi', 
+                Rh=Rh, Ts=Ts, Th=Th)
+
+            return jp_psi + Phi - (avg_phi**2 - avg_psi**2), \
+                Rzeros, Rzeros
+
+        elif term == 'Phi':
+            avg_c = self.ExpectationValue(z, zeta, term='c', 
+                Rh=Rh, Ts=Ts, Th=Th)
+
+            jp_xxc, jp_xxc1, jp_xxc2 = \
+                self.JointProbability(z, zeta, R, term='xxc',
+                Rh=Rh, Ts=Ts, Th=Th)
+            jp_xxcc, jp_xxcc1, jp_xxcc2 = \
+                self.JointProbability(z, zeta, R, term='xxcc',
+                Rh=Rh, Ts=Ts, Th=Th)
         
-        # Can convert to joint probability of the neutral fraction if we want.
-        if term == 'nn':
-            return 1. - 2. * Q + self.JointProbability(z, zeta, R, term='ii')
+            Phi = 2. * (jp_xxc + jp_xxcc)
         
+            return Phi, Rzeros, Rzeros        
+            
+        elif term == 'cc':
+            jp_hh, jp_hh1, jp_hh2 = \
+                self.JointProbability(z, zeta, R, term='hh',
+                Rh=Rh, Ts=Ts, Th=Th)
+            c = self.TempToContrast(z, Th, Ts)
+            
+            return jp_hh * c**2, jp_hh1 * c**2, jp_hh2 * c**2    
+          
+        elif term == 'ic':
+            jp_ih, jp_ih1, jp_ih2 = \
+                self.JointProbability(z, zeta, R, term='ih',
+                Rh=Rh, Ts=Ts, Th=Th)
+            c = self.TempToContrast(z, Th, Ts)
+            
+            jp_ih = jp_ih1 = jp_ih2 = Rzeros
+            
+            return jp_ih * c, jp_ih1 * c, jp_ih2 * c  
+                
+        elif term == 'xxc':
+            #c = self.TempToContrast(z, Th, Ts)
+            avg_xc = self.ExpectationValue(z, zeta, term='n*c', 
+                Rh=Rh, Ts=Ts, Th=Th)
+            jp_ic, jp_ic1, jp_ic2 = \
+                self.JointProbability(z, zeta, R, term='ic',
+                Rh=Rh, Ts=Ts, Th=Th)
+            
+            return avg_xc - jp_ic, Rzeros, Rzeros
+            
+        elif term == 'xxcc':
+            xx, xx1, xx2 = self.JointProbability(z, zeta, R, term='nn')
+            cc, cc1, cc2 = self.JointProbability(z, zeta, R, term='cc')
+            
+            c = self.TempToContrast(z, Th, Ts)
+            avg_x = self.ExpectationValue(z, zeta, term='n')
+            avg_c = self.ExpectationValue(z, zeta, term='c')
+            
+            #if self.pf['ps_include_density_xcorr']:
+            xc, xc1, xc2 = self.JointProbability(z, zeta, R, term='nc')
+            avg_xc = self.ExpectationValue(z, zeta, term='n*c')
+            #else:
+            #    xc = avg_xc = 0.0
+            
+            if self.pf['ps_use_wick']:        
+                xxcc = xx * cc + 2 * avg_xc + xc**2
+            else:
+                # Use binary model.            
+                xxcc = cc
+                
+            return xxcc, Rzeros, Rzeros
+            
+        elif term == 'xxdd':
+            xx, xx1, xx2 = self.JointProbability(z, zeta, R, term='nn')
+            dd = self.JointProbability(z, zeta, R, term='dd')
+            avg_x = self.ExpectationValue(z, zeta, term='n')
+            
+            if self.pf['ps_use_wick']:
+                xd, xd1, xd2 = self.JointProbability(z, zeta, R, term='nd')
+                avg_xd = self.ExpectationValue(z, zeta, term='n*d')
+                xxdd = xx * dd + 2 * avg_xd + xd**2
+                
+                return xxdd, Rzeros, Rzeros
+            else:
+                # Use binary model.            
+                return dd * avg_x**2, Rzeros, Rzeros
+                
+        elif term == 'dd':
+            # Equivalent to correlation function since <d> = 0
+            return self.spline_cf_mm(z)(np.log(R))#, np.zeros_like(R), np.zeros_like(R)
+        elif term == 'nd':
+            idt, id1, id2 = self.JointProbability(z, zeta, R, term='id')
+            return -idt, -id1, -id2
+        elif term == 'nn':                                                         
+            ii, ii1, ii2 = self.JointProbability(z, zeta, R, term='ii')
+            return 1. - 2. * Q + ii, 1. - 2. * Q + ii1, 1. - 2. * Q + ii2
+        elif term == 'nc':  
+            avg_c = self.ExpectationValue(z, zeta, term='c')                                                       
+            ic, ic1, ic2 = self.JointProbability(z, zeta, R, term='ic')
+            return avg_c - ic, avg_c - ic1, avg_c - ic2
+            
         # Some stuff we need
         Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
         
@@ -800,7 +1026,13 @@ class Fluctuations(object):
         iz_hmf = np.argmin(np.abs(z - self.halos.tab_z))
         
         # Grab the matter power spectrum
-        xi_dd = self.halos.tab_cf_mm[iz]
+        if R.size == self.halos.tab_R.size:
+            if np.allclose(R, self.halos.tab_R):
+                xi_dd = self.halos.tab_cf_mm[iz]
+            else:
+                xi_dd = self.spline_cf_mm(z)(np.log(R))
+        else:
+            xi_dd = self.spline_cf_mm(z)(np.log(R))        
         
         # Loop over scales
         B1 = np.zeros(R.size)
@@ -820,7 +1052,7 @@ class Fluctuations(object):
             # Yields: V11, V12, V13, V22, V23, V33            
             # Remember: these radii arrays depend on redshift (through delta_B)
             
-            all_V = self.overlap_volumes(sep, Ri, Rh, Rc)
+            all_V = self.overlap_volumes(sep, Ri, Rh, R3)
         
             # For two-halo terms, need bias of sources.
             if self.pf['ps_include_bias']:
@@ -913,13 +1145,10 @@ class Fluctuations(object):
                 # Start chugging along on two-bubble term   
                 if np.any(Vss_ne_1 < 0):
                     N = sum(Vss_ne_1 < 0)
-                    print('R={}: Vss_ne_1 < 0 {} / {} times'.format(sep, N, len(Rh)))
+                    print('R={}: Vss_ne_1 (hh) < 0 {} / {} times'.format(sep, N, len(Rh)))
 
                 integrand2_1 = dndm * np.abs(Vss_ne_1)
                 integrand2_2 = dndm * np.abs(Vss_ne_2)
-                #
-                #integrand2_1 *= np.log(1. - Qh) / Q
-                #integrand2_2 *= np.log(1. - Qh) / Q
 
                 int1 = simps(integrand2_1[iM:] * Mi[iM:], 
                     x=np.log(Mi[iM:]))        
@@ -928,17 +1157,21 @@ class Fluctuations(object):
 
                 exp_int2 = np.exp(-int1)
                 exp_int2_ex = np.exp(-int2)
-
-
+                
                 P2 = (1. - exp_int2) * (1. - exp_int2_ex) * (1. - P1)
 
                 B1[i] = P1
-                B2[i] = P2
+                B2[i] = min(P2, Qh**2)
+                # Must correct for the fact that Qi+Qh<=1
                          
-                
                 continue    
 
-            elif term == 'im':
+            elif term == 'id':
+                
+                if not self.pf['ps_include_density_xcorr']:
+                    B1[i] = B2[i] = 0
+                    continue
+                    
                 Vo = all_V[0]
                 
                 delta_B = self._B(z, zeta)
@@ -990,8 +1223,8 @@ class Fluctuations(object):
                 #    Vss_ne_2 = Vss_ne_1
                 #else:
                 Vo = all_V[-1]
-                Vss_ne_1 = 4. * np.pi * (Rc - Rh)**3 / 3. \
-                         - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc))
+                Vss_ne_1 = 4. * np.pi * (R3 - Rh)**3 / 3. \
+                         - (self.IV(sep, R3, R3) - self.IV(sep, Rh, R3))
                 Vss_ne_2 = Vss_ne_1
             
                 
@@ -1012,19 +1245,19 @@ class Fluctuations(object):
         
                 limiter = None
         
-            elif term == 'hc':
-                Vo = all_V[-2]
-
-                # One point in cold shell of one bubble, another in
-                # heated shell of completely separate bubble.
-                # Need to be a little careful here!
-                Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. \
-                         - self.IV(sep, Rh, Rc)
-                Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
-                         - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc)) \
-                         - self.IV(sep, Rh, Rc)
-
-                limiter = None
+            #elif term == 'hc':
+            #    Vo = all_V[-2]
+            #
+            #    # One point in cold shell of one bubble, another in
+            #    # heated shell of completely separate bubble.
+            #    # Need to be a little careful here!
+            #    Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. \
+            #             - self.IV(sep, Rh, Rc)
+            #    Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
+            #             - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc)) \
+            #             - self.IV(sep, Rh, Rc)
+            #
+            #    limiter = None
 
             elif term == 'ih':
                 #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
@@ -1042,13 +1275,17 @@ class Fluctuations(object):
                 # Same as hh term?
                 Vss_ne_2 = Vh - self.IV(sep, Ri, Rh)
         
+                if np.any(Vss_ne_2 < 0):
+                    N = sum(Vss_ne_2 < 0)
+                    print('R={}: Vss_ne_2 (ih) < 0 {} / {} times'.format(sep, N, len(Rh)))
+            
                 
-            elif term == 'ic':
-                Vo = all_V[2]
-                Vss_ne_1 = 4. * np.pi * Ri**3 / 3. \
-                         - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
-                Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
-                         - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
+            #elif term == 'ic':
+            #    Vo = all_V[2]
+            #    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. \
+            #             - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
+            #    Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
+            #             - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
             
             elif term == 'hd':
                 Vo = all_V[3]
@@ -1131,7 +1368,7 @@ class Fluctuations(object):
 
 
     def CorrelationFunction(self, z, zeta=None, R=None, term='ii', 
-        Rh=0.0, Rc=0.0, Th=500., Tc=1., Ts=None,
+        Rh=0.0, R3=0.0, Th=500., Tc=1., Ts=None,
         assume_saturated=True, include_xcorr=False, include_ion=True,
         include_temp=False, include_lya=False, include_density=True,
         include_21cm=True):
@@ -1180,7 +1417,8 @@ class Fluctuations(object):
             if use_R_tab:
                 cf = self.halos.tab_cf_mm[iz]
             else:
-                cf = np.interp(R, self.halos.tab_R, self.halos.tab_cf_mm[iz])
+                cf = np.interp(np.log(R), np.log(self.halos.tab_R), 
+                    self.halos.tab_cf_mm[iz])
 
         ##
         # Ionization correlation function
@@ -1198,18 +1436,19 @@ class Fluctuations(object):
             else:    
                 ev_ii = jp_ii
     
-            cf = ev_ii - Q**2
+            ev_i = self.ExpectationValue(z, zeta, term='i')
+            cf = ev_ii - ev_i**2
             
         ##
         # Ionization-density cross correlation function
         ##
-        elif term == 'im':
-            raise NotImplemented('fix me please')
+        elif term == 'id':
+            #raise NotImplemented('fix me please')
             jp_ii, jp_ii_1, jp_ii_2 = \
                 self.JointProbability(z, zeta, R, Q, term='ii')
 
             jp_im, jp_im_1, jp_im_2 = \
-                self.JointProbability(z, zeta, R, Q, term='im')
+                self.JointProbability(z, zeta, R, Q, term='id')
         
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
@@ -1222,16 +1461,34 @@ class Fluctuations(object):
         
             # Equivalent to correlation function in this case.
             cf = ev - Q * np.min(self._B0(z, zeta))
-        
+
         ##
         # Temperature correlation function
-        ##    
+        ##
         elif term == 'hh':
-
             jp_hh, jp_hh_1, jp_hh_2 = \
                 self.JointProbability(z, zeta, R=R, term='hh', Rh=Rh)
             
-            C = self.TempToContrast(z, Th, Ts)
+            if self.pf['ps_volfix']:
+                if (Qh < 0.5) and (Q < 0.5):
+                    ev_hh = jp_hh_1 + jp_hh_2
+                else:
+                    # Should this 1-Qh factor be 1-Qh-Qi?
+                    ev_hh = (1. - Qh) * jp_hh_1 + Qh**2
+            else:    
+                ev_hh = jp_hh 
+            
+            ev_h = self.ExpectationValue(z, zeta, term='h')
+            cf = ev_hh - h**2
+            
+        # c = contrast, instead of 'c' for cold, use '3' for zone 3 (later)    
+        elif term == 'cc':
+            jp_cc, jp_cc_1, jp_cc_2 = \
+                self.JointProbability(z, zeta, R=R, term='cc', Rh=Rh)
+            
+            c = self.TempToContrast(z, Th, Ts)
+            
+            ev_c = self.ExpectationValue(z, zeta, term='c')
             
             #else:
             #    # Remember, this is for the hot/cold term
@@ -1243,17 +1500,13 @@ class Fluctuations(object):
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
                 if (Qh < 0.5) and (Q < 0.5):
-                    ev_hh = (jp_hh_1 + jp_hh_2) * C**2
+                    ev_cc = (jp_cc_1 + jp_cc_2)
                 else:
-                    ev_hh = (1. - Qh) * jp_hh_1 * C**2 + C**2 * Qh**2
+                    ev_hh = (1. - Qh) * jp_cc_1 + ev_c**2
             else:    
-                ev_hh = jp_hh * C**2 * Qh**2
+                ev_cc = jp_cc
                            
-            #ev_hh = jp_hh               
-            #                        
-            #cf = ev_hh - Qh**2
-            
-            cf = ev_hh - Qh**2 * C**2
+            cf = ev_cc - ev_c**2
             
         ##
         # Ionization-heating cross-correlation function
@@ -1290,51 +1543,88 @@ class Fluctuations(object):
         ##
         # 21-cm correlation function
         ##  
-        elif term == '21':
+        elif term in ['21', 'phi', 'psi']:
+            
+            ev_2pt = self.JointProbability(z, zeta, R=R, term='psi')
+            ev_1pt = self.ExpectationValue(z, zeta, term='psi')
+            
+            cf_psi = ev_2pt - ev_1pt**2
             
             # Ionization-ionization correlation function
-            xi_ii = self.CorrelationFunction(z, zeta, R=R, term='ii')
-            
-            # Correlation function in neutral fraction same by linearity.
-            xi_nn = xi_ii
-            
-            # Matter correlation function    
-            xi_mm = self.CorrelationFunction(z, zeta, R=R, term='mm')
+            #xi_ii = self.CorrelationFunction(z, zeta, R=R, term='ii')
+            #
+            ## Correlation function in neutral fraction same by linearity.
+            #xi_nn = xi_ii
+            #
+            ## Matter correlation function    
+            #xi_mm = self.CorrelationFunction(z, zeta, R=R, term='mm')
+            #    
+            #if include_xcorr:
+            #    #raise NotImplemented('help')
+            #    xi_im = self.CorrelationFunction(z, zeta, R=R, term='id')
+            #    xi_nm = -xi_im    
+            #else:
+            #    xi_im = xi_nm = 0.0
+            #
+            #xbar = (1. - Q)
+            #
+            ## This is the solution in the saturated limit.
+            ## If the correlations vanish, e.g., on large scales, we should
+            ## recover the matter power CF * xbar**2            
+            #xi_psi = xi_nn * (1. + xi_mm) + xbar**2 * xi_mm \
+            #       + xi_nm * (xi_nm + 2. * xbar)
+            #
+            ##
+            # Temperature fluctuations
+            ##
+            if (include_temp or include_lya) and term in ['phi', '21']:
                 
-            if include_xcorr:
-                #raise NotImplemented('help')
-                xi_im = self.CorrelationFunction(z, zeta, R=R, term='im')
-                xi_nm = -xi_im    
-            else:
-                xi_im = xi_nm = 0.0
+                Phi = self.JointProbabilty(z, zeta, R=R, term='Phi',
+                    Rh=Rh, Ts=Ts, Th=Th)
+                avg_psi = self.ExpectationValue(z, zeta, term='psi')
+                avg_phi = self.ExpectationValue(z, zeta, term='phi', 
+                    Rh=Rh, Ts=Ts, Th=Th)        
+                    
+                cf_21 = cf_phi = cf_psi + Phi - (avg_phi - avg_psi**2)
+                
+                ##
+                # <phi phi'> = a lot
+                # <phi> <phi'> = <psi> <psi'> + 2 <psi><psi C> + <psi C>^2
+                ##
             
-            xbar = (1. - Q)
-            
-            # This is the solution in the saturated limit.
-            # If the correlations vanish, e.g., on large scales, we should
-            # recover the matter power CF * xbar**2            
-            xi_psi = xi_nn * (1. + xi_mm) + xbar**2 * xi_mm \
-                   + xi_nm * (xi_nm + 2. * xbar)
-            
-            if include_temp or include_lya:
+                ##
+                # Gather Poisson term first.
+                ##
             
                 # Mean contrast of heated regions
-                C = self.TempToContrast(z, Th, Ts)
-                Cbar = C * Qh
-                
-                # Hot-hot correlation function
-                xi_hh = self.CorrelationFunction(z, zeta, R=R, term='hh', 
-                    Rh=Rh, Ts=Ts, Th=Th)
-                
-                # Ionized-heated correlation function
-                xi_ih = self.CorrelationFunction(z, zeta, R=R, term='ih', 
-                    Rh=Rh, Ts=Ts, Th=Th)    
-            
-                # Convert to neutral-heated correlation function
-                # <xC'> = <(1-x_i)C'> = <C'> - <x_i C'> 
-                #       = Cbar - (xi_ih + Q * Cbar)
-                #xi_nh = Cbar - (xi_ih + Cbar * Q)
-                xxC = Cbar - xi_ih
+                #avg_x = self.ExpectationValue(z, zeta, term='n')
+                #avg_C = self.ExpectationValue(z, zeta, term='c', Rh=Rh,
+                #    Th=Th, Ts=Ts)
+                #
+                #avg_psi = avg_x # neglecting <x_i d> right now
+                #
+                #avg_del_C = 0.0#self.ExpectationValue(z, zeta, term='Cd')
+                #avg_psi_C = avg_C + avg_del_C
+                #                
+                #avg_phi_sq = avg_psi**2 + 2 * avg_psi * avg_psi_C + avg_psi_C**2
+                #
+                ###
+                ## On to the two point terms
+                ###
+                #
+                ## Hot-hot correlation function
+                #xi_hh = self.CorrelationFunction(z, zeta, R=R, term='hh', 
+                #    Rh=Rh, Ts=Ts, Th=Th)
+                #
+                ## Ionized-heated correlation function
+                #xi_ih = self.CorrelationFunction(z, zeta, R=R, term='ih', 
+                #    Rh=Rh, Ts=Ts, Th=Th)    
+                #
+                ## Convert to neutral-heated correlation function
+                ## <xC'> = <(1-x_i)C'> = <C'> - <x_i C'> 
+                ##       = Cbar - (xi_ih + Q * Cbar)
+                ##xi_nh = Cbar - (xi_ih + Cbar * Q)
+                #xxC = avg_C - xi_ih
                 
                 
                 # On large scales, this is Cbar * xbar...uh oh
@@ -1350,15 +1640,15 @@ class Fluctuations(object):
                 # My (current) Eq. 47
                 #xxCC = 2 * ((xi_nn + xbar**2) * (xi_hh + Cbar**2) \
                 #       + xbar**2 + (xi_nh + xbar**2 * Cbar**2))
-                xxCC = xi_hh + Cbar**2       
-                       
-                # On large scales, this is 
-                # = 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
-
-                # The <xx'C'> term is just <x><C>
-                xxC = xbar * Cbar
-                
-                phi = xxCC + xxC #\
+                #xxCC = xi_hh + avg_C**2       
+                #       
+                ## On large scales, this is 
+                ## = 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
+                #
+                ## The <xx'C'> term is just <x><C>
+                ##xxC = avg_x * avg_C
+                #
+                #Phi = xxCC + xxC #\
                     #- 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
                 
                 # In R -> inf limit, we recover:
@@ -1369,16 +1659,17 @@ class Fluctuations(object):
 
                 # Need to make sure this doesn't get saved at native resolution!
                 #data['phi_u'] = phi_u
+                
+                
 
-                xi_21 = xi_psi + phi
-
-                #Cbar = 1.#data['avg_C']
-                #data['cf_21'] = xi_CC * (1. + xi_dd) + Cbar**2 * xi_dd #+ \
-                #    #xi_Cd* (xi_Cd + 2. * Cbar)
+                #xi_phi = xi_psi + Phi - (avg_phi_sq - avg_psi**2)
+                
+                # Kludge to guarantee convergence
+                #xi_21 = xi_phi #- Phi[-1]
             else:
-                xi_21 = xi_psi
+                cf_21 = cf_psi
 
-            cf = xi_21
+            cf = cf_21
 
         else:
             raise NotImplemented('help')
@@ -1410,7 +1701,7 @@ class Fluctuations(object):
    #     return np.array([np.trapz(func(k) * R, x=np.log(R)) \
    #         for k in self.halos.tab_k]) / 2. / np.pi
    
-    def TempToContrast(self, z, Th=None, Ts=None):
+    def TempToContrast(self, z, Th=500., Ts=None):
         
         if Th is None:
             return 0.0

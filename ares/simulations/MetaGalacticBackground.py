@@ -852,7 +852,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.pf['feedback_LW_sfrd_popid'] is not None:
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:
-                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total]
+                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total.copy()]
             else:
                 self._sfrd_bank.append(self.pops[pid]._tab_sfrd_total.copy())
                 pre = self._sfrd_bank[-2] * rhodot_cgs
@@ -862,15 +862,27 @@ class MetaGalacticBackground(AnalyzeMGB):
                 zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
                 err = np.abs(pre - now) / now
                 
-                self._ok = np.logical_and(gt0, self.pops[pid].halos.tab_z > zmin)                
+                # no memory of why this necessary
+                zrange_ok = self.pops[pid].halos.tab_z > zmin
+                
+                self._ok = np.logical_and(gt0, zrange_ok)
                 self._sfrd_rerr = err
                 
                 if not np.any(self._ok):
                     
                     import matplotlib.pyplot as pl
                     
+                    pl.figure(1)
                     pl.semilogy(self.pops[pid].halos.tab_z, pre, ls='-')
                     pl.semilogy(self.pops[pid].halos.tab_z, now, ls='--')
+                    
+                    #print(self._Mmin_bank[-1])
+                    pl.figure(2)
+                    pl.semilogy(self.pops[0].halos.tab_z, self.pops[0]._tab_Mmin, ls='-', color='k', alpha=0.5)
+                    pl.semilogy(self.pops[0].halos.tab_z, self.pops[0]._tab_Mmax, ls='-', color='b', alpha=0.5)
+                    pl.semilogy(self.pops[1].halos.tab_z, self.pops[1]._tab_Mmin, ls='--', color='k', alpha=0.5)
+                    pl.semilogy(self.pops[1].halos.tab_z, self.pops[1]._tab_Mmax, ls='--', color='b', alpha=0.5)
+                    #pl.semilogy(self.z_unique, self._Mmin_bank[-1], ls='--')
                     
                     neg = now < 0
                     print(pid, now.size, neg.sum(), now)
