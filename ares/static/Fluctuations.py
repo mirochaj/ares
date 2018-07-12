@@ -743,7 +743,13 @@ class Fluctuations(object):
         else:
             return self._cache_p_[z][term]
     
-    def ExpectationValue(self, z, zeta, term='i', Rh=0.0, Th=500.0, Ts=None):
+    #def ExpectationValue1pt(self, z, zeta, term='ii', Rh=0.0, Th=500.0, Ts=None):
+    #    return self.ExpectationValue(z, zeta, term, Rh, Th, Ts)
+    #
+    #def ExpectationValue2pt(self, z, zeta, term, Rh, Th, Ts):
+    #    return self.JointProbability(z, zeta, term, Rh, Th, Ts)
+        
+    def ExpectationValue1pt(self, z, zeta, term='i', Rh=0.0, Th=500.0, Ts=None):
         """
         Compute the probability that a point is something.
         
@@ -764,40 +770,49 @@ class Fluctuations(object):
         if term == 'i':
             val = self.MeanIonizedFraction(z, zeta)
         elif term == 'n':
-            val = 1. - self.ExpectationValue(z, zeta, term='i', Rh=Rh)
+            val = 1. - self.ExpectationValue1pt(z, zeta, term='i', Rh=Rh)
         elif term == 'h':
             assert Rh is not None
             Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
             val = Qh
         elif term.strip() == 'i*h':
-            assert Rh is not None
-            Qi = self.MeanIonizedFraction(z, zeta)
-            Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
-            val = Qh * Qi # implicit * 1
-        elif term.strip() == 'i*c':
-            assert Rh is not None
+            val = 0.0
+            #if not self.pf['ps_include_xcorr_ion_hot']:
+            #    val = 0.0
+            #else:
+            #    assert Rh is not None
+            #    Qi = self.MeanIonizedFraction(z, zeta)
+            #    Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
+            #    val = 0.0#Qh * Qi # implicit * 1
+        elif term.strip() == 'n*h':
             c = self.TempToContrast(z, Th, Ts)
-            Qi = self.MeanIonizedFraction(z, zeta)
-            Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
-            val = Qh * Qi * c
+            val = Qh * c
+        elif term.strip() == 'i*c':
+            # In binary model, ionized points have c=0, c>0 points have i=False
+            #assert Rh is not None
+            #c = self.TempToContrast(z, Th, Ts)
+            #Qi = self.MeanIonizedFraction(z, zeta)
+            #Qh = self.BubbleShellFillingFactor(z, zeta, Rh) 
+            val = 0.0#Qh * Qi * c
         elif term == 'c':
             Qh = self.BubbleShellFillingFactor(z, zeta, Rh)
             c = self.TempToContrast(z, Th, Ts)            
             val = c * Qh
         elif term == 'i*d':
-            if self.pf['ps_include_density_xcorr']:
-                avg_xi = self.ExpectationValue(z, zeta, term='i')
+            if self.pf['ps_include_xcorr_ion_rho']:
+                avg_xi = self.ExpectationValue1pt(z, zeta, term='i')
                 val = avg_xi * self._B0(z, zeta)
             else:
                 val = 0.0
         elif term == 'n*d':
-            val = -self.ExpectationValue(z, zeta, term='i*d')
-        elif term == 'n*c':
+            val = -self.ExpectationValue1pt(z, zeta, term='i*d')
+        elif term.strip() == 'n*c':
             c = self.TempToContrast(z, Th, Ts)
-            avg_x = self.ExpectationValue(z, zeta, term='n')
-            val = avg_x * c
-        elif term == 'n*d*c':
-            if self.pf['ps_include_density_xcorr']:
+            Qh = self.BubbleShellFillingFactor(z, zeta, Rh)
+            #avg_x = self.ExpectationValue(z, zeta, term='n')
+            val = c * Qh
+        elif term.strip() == 'n*d*c':
+            if self.pf['ps_include_xcorr_ion_rho'] and self.pf['ps_include_xcorr_ion_hot']:
                 raise NotImplemented('help')    
             else:
                 val = 0.0
@@ -805,17 +820,17 @@ class Fluctuations(object):
             # <psi> = <x (1 + d)> = <x> + <xd> = 1 - <x_i> + <d> - <x_i d>
             #       = 1 - <x_i> - <x_i d>
             
-            avg_xd = self.ExpectationValue(z, zeta, term='n*d')            
-            val = self.ExpectationValue(z, zeta, term='n') + avg_xd
+            avg_xd = self.ExpectationValue1pt(z, zeta, term='n*d')            
+            val = self.ExpectationValue1pt(z, zeta, term='n') + avg_xd
 
         elif term == 'phi':
             # <phi> = <psi * (1 + c)> = <psi> + <psi * c>
-            # <phi * c> = <x * c> + <x * c * d>
+            #       = <x * c> + <x * c * d>
             
-            avg_psi = self.ExpectationValue(z, zeta, term='psi')
+            avg_psi = self.ExpectationValue1pt(z, zeta, term='psi')
             
-            avg_xcd = self.ExpectationValue(z, zeta, term='n*d*c')            
-            avg_xc = self.ExpectationValue(z, zeta, term='n*c')
+            avg_xcd = self.ExpectationValue1pt(z, zeta, term='n*d*c')            
+            avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c')
             avg_psi_c = avg_xc + avg_xcd
                             
             val = avg_psi + avg_psi_c
@@ -826,12 +841,14 @@ class Fluctuations(object):
         self._cache_p_[z][term] = val
         
         return val
-        
-    def JointProbability(self, z, zeta, R, term='ii', Rh=0.0, R3=0.0, 
+    
+    def ExpectationValue2pt(self, z, zeta, R, term='ii', Rh=0.0, R3=0.0, 
         Th=500.0, Ts=None):
         """
-        Compute the joint probability that two points are ionized, heated, etc.
-
+        Essentially a wrapper around JointProbability that scales
+        terms like <cc'>, <xc'>, etc., from their component probabilities
+        <hh'>, <ih'>, etc.
+        
         Parameters
         ----------
         z : int, float
@@ -844,17 +861,10 @@ class Fluctuations(object):
         Returns
         -------
         Tuple: total, one-source, two-source contributions to joint probability.
-
+        
+        
         """
         
-        if term[0] != term[1]:
-            is_xcorr = True
-        else:
-            is_xcorr = False
-            
-        if self.pf['bubble_size_dist'].lower() != 'fzh04':
-            raise NotImplemented('Only know fzh04 BSD so far!')
-
         ##
         # Check cache for match
         ##
@@ -879,7 +889,7 @@ class Fluctuations(object):
         # If reionization is over, don't waste our time!
         if xibar == 1:
             return np.ones(R.size), Rzeros, Rzeros
-                
+        
         ##
         # Check for derived quantities like psi, phi
         ##
@@ -887,132 +897,140 @@ class Fluctuations(object):
             # <psi psi'> = <x (1 + d) x' (1 + d')> = <xx'(1+d)(1+d')>
             #            = <xx'(1 + d + d' + dd')>
             #            = <xx'> + 2<xx'd> + <xx'dd'>
-            
-            xx, xx1, xx2 = self.JointProbability(z, zeta, R=R, term='nn')
-            dd = self.JointProbability(z, zeta, R, term='dd')
-            
-            if self.pf['ps_include_density_xcorr']:
-                avg_x = self.ExpectationValue(z, zeta, term='n')
-                xd, xd1, xd2 = self.JointProbability(z, zeta, R=R, term='nd')
-                xxd = avg_x * xd
-            else:
-                xd = xxd = 0.0
-            
-            avg_xd = self.ExpectationValue(z, zeta, term='n*d')
-            xxdd, xxdd1, xxdd2 = self.JointProbability(z, zeta, R=R, term='xxdd')
-            
+        
+            xx, xx1, xx2 = self.ExpectationValue2pt(z, zeta, R=R, term='nn')
+            dd = self.ExpectationValue2pt(z, zeta, R, term='dd')
+        
+            avg_x = self.ExpectationValue1pt(z, zeta, term='n')
+            xd, xd1, xd2 = self.ExpectationValue2pt(z, zeta, R=R, term='nd')
+            xxd = avg_x * xd
+        
+            avg_xd = self.ExpectationValue1pt(z, zeta, term='n*d')
+            xxdd, xxdd1, xxdd2 = self.ExpectationValue2pt(z, zeta, R=R, term='xxdd')
+        
             jp = xx + 2 * xxd + xxdd
             jp1 = np.zeros_like(xx1)
             jp2 = np.zeros_like(xx)
-            
+        
             return jp, jp1, jp2
-                
+        
         elif term == 'phi':
-            Phi, junk1, junk2 = self.JointProbability(z, zeta, R, term='Phi',
+            Phi, junk1, junk2 = self.ExpectationValue2pt(z, zeta, R, term='Phi',
                 Rh=Rh, Ts=Ts, Th=Th)
-            jp_psi, jp_psi1, jp_psi2 = self.JointProbability(z, zeta, R,
+            ev_psi, ev_psi1, ev_psi2 = self.ExpectationValue2pt(z, zeta, R,
                 term='psi', Rh=Rh, Ts=Ts, Th=Th)
-            avg_psi = self.ExpectationValue(z, zeta, term='psi')
-            avg_phi = self.ExpectationValue(z, zeta, term='phi', 
+            avg_psi = self.ExpectationValue1pt(z, zeta, term='psi')
+            avg_phi = self.ExpectationValue1pt(z, zeta, term='phi', 
                 Rh=Rh, Ts=Ts, Th=Th)
-
-            return jp_psi + Phi - (avg_phi**2 - avg_psi**2), \
-                Rzeros, Rzeros
-
+        
+            return ev_psi + Phi, Rzeros, Rzeros
+        
         elif term == 'Phi':
-            avg_c = self.ExpectationValue(z, zeta, term='c', 
+            avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
                 Rh=Rh, Ts=Ts, Th=Th)
-
+        
             jp_xxc, jp_xxc1, jp_xxc2 = \
-                self.JointProbability(z, zeta, R, term='xxc',
+                self.ExpectationValue2pt(z, zeta, R, term='xxc',
                 Rh=Rh, Ts=Ts, Th=Th)
             jp_xxcc, jp_xxcc1, jp_xxcc2 = \
-                self.JointProbability(z, zeta, R, term='xxcc',
+                self.ExpectationValue2pt(z, zeta, R, term='xxcc',
                 Rh=Rh, Ts=Ts, Th=Th)
         
             Phi = 2. * (jp_xxc + jp_xxcc)
         
             return Phi, Rzeros, Rzeros        
-            
+        
         elif term == 'cc':
             jp_hh, jp_hh1, jp_hh2 = \
-                self.JointProbability(z, zeta, R, term='hh',
+                self.ExpectationValue2pt(z, zeta, R, term='hh',
                 Rh=Rh, Ts=Ts, Th=Th)
             c = self.TempToContrast(z, Th, Ts)
-            
+        
             return jp_hh * c**2, jp_hh1 * c**2, jp_hh2 * c**2    
-          
+        
         elif term == 'ic':
             jp_ih, jp_ih1, jp_ih2 = \
-                self.JointProbability(z, zeta, R, term='ih',
+                self.ExpectationValue2pt(z, zeta, R, term='ih',
                 Rh=Rh, Ts=Ts, Th=Th)
             c = self.TempToContrast(z, Th, Ts)
-            
-            jp_ih = jp_ih1 = jp_ih2 = Rzeros
-            
+        
             return jp_ih * c, jp_ih1 * c, jp_ih2 * c  
-                
+        
         elif term == 'xxc':
-            #c = self.TempToContrast(z, Th, Ts)
-            avg_xc = self.ExpectationValue(z, zeta, term='n*c', 
+            # <xx'c> = ...
+            avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c', 
                 Rh=Rh, Ts=Ts, Th=Th)
             jp_ic, jp_ic1, jp_ic2 = \
-                self.JointProbability(z, zeta, R, term='ic',
+                self.ExpectationValue2pt(z, zeta, R, term='ic',
                 Rh=Rh, Ts=Ts, Th=Th)
-            
+        
             return avg_xc - jp_ic, Rzeros, Rzeros
-            
+        
         elif term == 'xxcc':
-            xx, xx1, xx2 = self.JointProbability(z, zeta, R, term='nn')
-            cc, cc1, cc2 = self.JointProbability(z, zeta, R, term='cc')
-            
+            xx, xx1, xx2 = self.ExpectationValue2pt(z, zeta, R, term='nn')
+            cc, cc1, cc2 = self.ExpectationValue2pt(z, zeta, R, term='cc',
+                Rh=Rh, Ts=Ts, Th=Th)
+        
             c = self.TempToContrast(z, Th, Ts)
-            avg_x = self.ExpectationValue(z, zeta, term='n')
-            avg_c = self.ExpectationValue(z, zeta, term='c')
-            
+            avg_x = self.ExpectationValue1pt(z, zeta, term='n')
+            avg_c = self.ExpectationValue1pt(z, zeta, term='c',
+                Rh=Rh, Ts=Ts, Th=Th)
+        
             #if self.pf['ps_include_density_xcorr']:
-            xc, xc1, xc2 = self.JointProbability(z, zeta, R, term='nc')
-            avg_xc = self.ExpectationValue(z, zeta, term='n*c')
+            xc, xc1, xc2 = self.ExpectationValue2pt(z, zeta, R, term='nc',
+                Rh=Rh, Ts=Ts, Th=Th)
+            avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
+                Rh=Rh, Ts=Ts, Th=Th)
             #else:
             #    xc = avg_xc = 0.0
-            
+        
             if self.pf['ps_use_wick']:        
                 xxcc = xx * cc + 2 * avg_xc + xc**2
             else:
                 # Use binary model.            
                 xxcc = cc
-                
+        
             return xxcc, Rzeros, Rzeros
-            
+        
         elif term == 'xxdd':
-            xx, xx1, xx2 = self.JointProbability(z, zeta, R, term='nn')
-            dd = self.JointProbability(z, zeta, R, term='dd')
-            avg_x = self.ExpectationValue(z, zeta, term='n')
-            
+            xx, xx1, xx2 = self.ExpectationValue2pt(z, zeta, R, term='nn')
+            dd = self.ExpectationValue2pt(z, zeta, R, term='dd')
+            avg_x = self.ExpectationValue1pt(z, zeta, term='n')
+        
             if self.pf['ps_use_wick']:
-                xd, xd1, xd2 = self.JointProbability(z, zeta, R, term='nd')
-                avg_xd = self.ExpectationValue(z, zeta, term='n*d')
+                xd, xd1, xd2 = self.ExpectationValue2pt(z, zeta, R, term='nd')
+                avg_xd = self.ExpectationValue1pt(z, zeta, term='n*d')
                 xxdd = xx * dd + 2 * avg_xd + xd**2
-                
+        
                 return xxdd, Rzeros, Rzeros
             else:
                 # Use binary model.            
                 return dd * avg_x**2, Rzeros, Rzeros
-                
+        
         elif term == 'dd':
             # Equivalent to correlation function since <d> = 0
             return self.spline_cf_mm(z)(np.log(R))#, np.zeros_like(R), np.zeros_like(R)
         elif term == 'nd':
-            idt, id1, id2 = self.JointProbability(z, zeta, R, term='id')
+            idt, id1, id2 = self.ExpectationValue2pt(z, zeta, R, term='id')
             return -idt, -id1, -id2
         elif term == 'nn':                                                         
-            ii, ii1, ii2 = self.JointProbability(z, zeta, R, term='ii')
+            ii, ii1, ii2 = self.ExpectationValue2pt(z, zeta, R, term='ii')
             return 1. - 2. * Q + ii, 1. - 2. * Q + ii1, 1. - 2. * Q + ii2
         elif term == 'nc':  
-            avg_c = self.ExpectationValue(z, zeta, term='c')                                                       
-            ic, ic1, ic2 = self.JointProbability(z, zeta, R, term='ic')
+            avg_c = self.ExpectationValue1pt(z, zeta, term='c')                                                       
+            ic, ic1, ic2 = self.ExpectationValue2pt(z, zeta, R, term='ic',
+                Rh=Rh, Ts=Ts, Th=Th)
             return avg_c - ic, avg_c - ic1, avg_c - ic2
-            
+        elif term == 'nh':  
+            avg_c = self.ExpectationValue1pt(z, zeta, term='h') 
+            ih, ih1, ih2 = self.ExpectationValue2pt(z, zeta, R, term='ih',
+                Rh=Rh, Ts=Ts, Th=Th)
+            return avg_c - ih, avg_c - ih1, avg_c - ih2
+
+        ##    
+        # On to fundamental quantities
+        ##
+        
         # Some stuff we need
         Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
         
@@ -1147,8 +1165,8 @@ class Fluctuations(object):
                     N = sum(Vss_ne_1 < 0)
                     print('R={}: Vss_ne_1 (hh) < 0 {} / {} times'.format(sep, N, len(Rh)))
 
-                integrand2_1 = dndm * np.abs(Vss_ne_1)
-                integrand2_2 = dndm * np.abs(Vss_ne_2)
+                integrand2_1 = dndm * Vss_ne_1
+                integrand2_2 = dndm * Vss_ne_2
 
                 int1 = simps(integrand2_1[iM:] * Mi[iM:], 
                     x=np.log(Mi[iM:]))        
@@ -1168,7 +1186,7 @@ class Fluctuations(object):
 
             elif term == 'id':
                 
-                if not self.pf['ps_include_density_xcorr']:
+                if not self.pf['ps_include_xcorr_ion_rho']:
                     B1[i] = B2[i] = 0
                     continue
                     
@@ -1215,35 +1233,35 @@ class Fluctuations(object):
                 
                 continue
                                                                     
-            elif term == 'cc':
-                
-                #if self.pf['powspec_lya_method'] > 0:
-                #    Vo = self.IV(sep, Rc, Rc)
-                #    Vss_ne_1 = 4. * np.pi * Rc**3 / 3. - Vo
-                #    Vss_ne_2 = Vss_ne_1
-                #else:
-                Vo = all_V[-1]
-                Vss_ne_1 = 4. * np.pi * (R3 - Rh)**3 / 3. \
-                         - (self.IV(sep, R3, R3) - self.IV(sep, Rh, R3))
-                Vss_ne_2 = Vss_ne_1
-            
-                
-                #if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
-                #    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                #        self.overlap_region_shell(sep, np.maximum(Ri, Rh), Rc)
-                #    
-                #    Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
-                #    
-                #    Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
-                #elif self.pf['bubble_pod_size_func'] == 'approx_sfh':
-                #    raise NotImplemented('sorry!')
-                #elif self.pf['bubble_pod_size_func'] == 'fzh04':
-                #    Vo = self.overlap_region_sphere(sep, Rc)
-                #    Vss_ne = 4. * np.pi * Rc**3 / 3. - Vo
-                #else:
-                #    raise NotImplemented('sorry!')
-        
-                limiter = None
+            #elif term == 'cc':
+            #    
+            #    #if self.pf['powspec_lya_method'] > 0:
+            #    #    Vo = self.IV(sep, Rc, Rc)
+            #    #    Vss_ne_1 = 4. * np.pi * Rc**3 / 3. - Vo
+            #    #    Vss_ne_2 = Vss_ne_1
+            #    #else:
+            #    Vo = all_V[-1]
+            #    Vss_ne_1 = 4. * np.pi * (R3 - Rh)**3 / 3. \
+            #             - (self.IV(sep, R3, R3) - self.IV(sep, Rh, R3))
+            #    Vss_ne_2 = Vss_ne_1
+            #
+            #    
+            #    #if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
+            #    #    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+            #    #        self.overlap_region_shell(sep, np.maximum(Ri, Rh), Rc)
+            #    #    
+            #    #    Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
+            #    #    
+            #    #    Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
+            #    #elif self.pf['bubble_pod_size_func'] == 'approx_sfh':
+            #    #    raise NotImplemented('sorry!')
+            #    #elif self.pf['bubble_pod_size_func'] == 'fzh04':
+            #    #    Vo = self.overlap_region_sphere(sep, Rc)
+            #    #    Vss_ne = 4. * np.pi * Rc**3 / 3. - Vo
+            #    #else:
+            #    #    raise NotImplemented('sorry!')
+            #
+            #    limiter = None
         
             #elif term == 'hc':
             #    Vo = all_V[-2]
@@ -1260,6 +1278,12 @@ class Fluctuations(object):
             #    limiter = None
 
             elif term == 'ih':
+                
+                if not self.pf['ps_include_xcorr_ion_hot']:
+                    B1[i] = 0.0
+                    B2[i] = Qh * Q
+                    continue
+                
                 #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
                 #    self.overlap_region_shell(sep, Ri, Rh)
                 #Vo = 2. * Vo_sh_r2 - Vo_sh_r3
@@ -1342,8 +1366,8 @@ class Fluctuations(object):
             #if np.any(Vss_ne_2 < 0):     
             #    print('Vss_ne_2 < 0 at', sep)
                              
-            integrand2_1 = dndm * Vss_ne_1
-            integrand2_2 = dndm * Vss_ne_2
+            integrand2_1 = dndm * np.abs(Vss_ne_1)
+            integrand2_2 = dndm * np.abs(Vss_ne_2)
                     
             int1 = simps(integrand2_1[iM:] * Mi[iM:], 
                 x=np.log(Mi[iM:]))        
@@ -1355,23 +1379,23 @@ class Fluctuations(object):
             
              
             P2 = (1. - exp_int2) * (1. - exp_int2_ex) * (1. - P1)
-                        
+                           
+            if term == 'ih':
+                P2 = min(P2, Qh * Q)                
+                            
             B1[i] = P1
             B2[i] = P2            
             
         # Replace two-halo term with a power-law all the way down?
         BT = B1 + B2
-       
+        
         self._cache_jp_[z][term] = R, BT, B1, B2
         
         return BT, B1, B2
 
 
     def CorrelationFunction(self, z, zeta=None, R=None, term='ii', 
-        Rh=0.0, R3=0.0, Th=500., Tc=1., Ts=None,
-        assume_saturated=True, include_xcorr=False, include_ion=True,
-        include_temp=False, include_lya=False, include_density=True,
-        include_21cm=True):
+        Rh=0.0, R3=0.0, Th=500., Tc=1., Ts=None):
         """
         Compute the correlation function of some general term.
         
@@ -1408,7 +1432,7 @@ class Fluctuations(object):
         ##
         if term == 'mm':
             
-            if not include_density:
+            if not self.pf['ps_include_density']:
                 cf = np.zeros_like(R)    
                 self._cache_cf_[z][term] = R, cf
                 return cf
@@ -1425,7 +1449,7 @@ class Fluctuations(object):
         ##
         elif term == 'ii':
             jp_ii, jp_ii_1, jp_ii_2 = \
-                self.JointProbability(z, zeta, R=R, term='ii')
+                self.ExpectationValue2pt(z, zeta, R=R, term='ii')
                                 
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
@@ -1436,7 +1460,7 @@ class Fluctuations(object):
             else:    
                 ev_ii = jp_ii
     
-            ev_i = self.ExpectationValue(z, zeta, term='i')
+            ev_i = self.ExpectationValue1pt(z, zeta, term='i')
             cf = ev_ii - ev_i**2
             
         ##
@@ -1445,10 +1469,10 @@ class Fluctuations(object):
         elif term == 'id':
             #raise NotImplemented('fix me please')
             jp_ii, jp_ii_1, jp_ii_2 = \
-                self.JointProbability(z, zeta, R, Q, term='ii')
+                self.ExpectationValue2pt(z, zeta, R, Q, term='ii')
 
             jp_im, jp_im_1, jp_im_2 = \
-                self.JointProbability(z, zeta, R, Q, term='id')
+                self.ExpectationValue2pt(z, zeta, R, Q, term='id')
         
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
@@ -1467,7 +1491,8 @@ class Fluctuations(object):
         ##
         elif term == 'hh':
             jp_hh, jp_hh_1, jp_hh_2 = \
-                self.JointProbability(z, zeta, R=R, term='hh', Rh=Rh)
+                self.ExpectationValue2pt(z, zeta, R=R, term='hh', 
+                    Rh=Rh, Ts=Ts, Th=Th)
             
             if self.pf['ps_volfix']:
                 if (Qh < 0.5) and (Q < 0.5):
@@ -1478,17 +1503,20 @@ class Fluctuations(object):
             else:    
                 ev_hh = jp_hh 
             
-            ev_h = self.ExpectationValue(z, zeta, term='h')
-            cf = ev_hh - h**2
+            ev_h = self.ExpectationValue1pt(z, zeta, term='h',
+                Rh=Rh, Ts=Ts, Th=Th)
+            cf = ev_hh - ev_h**2
             
         # c = contrast, instead of 'c' for cold, use '3' for zone 3 (later)    
         elif term == 'cc':
             jp_cc, jp_cc_1, jp_cc_2 = \
-                self.JointProbability(z, zeta, R=R, term='cc', Rh=Rh)
+                self.ExpectationValue2pt(z, zeta, R=R, term='cc', 
+                    Rh=Rh, Ts=Ts, Th=Th)
             
             c = self.TempToContrast(z, Th, Ts)
             
-            ev_c = self.ExpectationValue(z, zeta, term='c')
+            ev_c = self.ExpectationValue1pt(z, zeta, term='c',
+                Rh=Rh, Ts=Ts, Th=Th)
             
             #else:
             #    # Remember, this is for the hot/cold term
@@ -1513,31 +1541,22 @@ class Fluctuations(object):
         ##    
         elif term == 'ih':
             jp, jp_1, jp_2 = \
-                self.JointProbability(z, zeta, R=R, term='ih', Rh=Rh)
-        
-            C = self.TempToContrast(z, Th, Ts)
-        
-            #else:
-            #    # Remember, this is for the hot/cold term
-            #    Csq = (Tcmb / (Tk - Tcmb)) * delta_T[0] * delta_T[1] \
-            #        / (1. + delta_T[0]) / (1. + delta_T[1])
-            #    C = np.sqrt(C)    
-        
-        
+                self.ExpectationValue2pt(z, zeta, R=R, term='ih',
+                    Rh=Rh, Ts=Ts, Th=Th)
+                
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
                 if (Qh < 0.5) and (Q < 0.5):
-                    ev = (jp_1 + jp_2) * C
+                    ev_2pt = jp_1 + jp_2
                 else:
-                    ev = (1. - Qh) * jp_1 * C + Qh * Q * C
+                    ev_2pt = (1. - Qh) * jp_1 + Qh * Q
             else:    
-                ev = jp * C + Qh * Q * C
+                ev_2pt = jp + Qh * Q
         
-            #ev_hh = jp_hh               
-            #                        
-            #cf = ev_hh - Qh**2
-        
-            cf = ev - Q * C * Qh
+            ev_1pt = self.ExpectationValue1pt(z, zeta, term='i*h', 
+                Rh=Rh, Ts=Ts, Th=Th)
+
+            cf = ev_2pt - ev_1pt
         
         
         ##
@@ -1545,132 +1564,31 @@ class Fluctuations(object):
         ##  
         elif term in ['21', 'phi', 'psi']:
             
-            ev_2pt = self.JointProbability(z, zeta, R=R, term='psi')
-            ev_1pt = self.ExpectationValue(z, zeta, term='psi')
+            ev_2pt, ev_2pt_1, ev_2pt_2 = \
+                self.ExpectationValue2pt(z, zeta, R=R, term='psi')
+            avg_psi = self.ExpectationValue1pt(z, zeta, term='psi')
             
-            cf_psi = ev_2pt - ev_1pt**2
-            
-            # Ionization-ionization correlation function
-            #xi_ii = self.CorrelationFunction(z, zeta, R=R, term='ii')
-            #
-            ## Correlation function in neutral fraction same by linearity.
-            #xi_nn = xi_ii
-            #
-            ## Matter correlation function    
-            #xi_mm = self.CorrelationFunction(z, zeta, R=R, term='mm')
-            #    
-            #if include_xcorr:
-            #    #raise NotImplemented('help')
-            #    xi_im = self.CorrelationFunction(z, zeta, R=R, term='id')
-            #    xi_nm = -xi_im    
-            #else:
-            #    xi_im = xi_nm = 0.0
-            #
-            #xbar = (1. - Q)
-            #
-            ## This is the solution in the saturated limit.
-            ## If the correlations vanish, e.g., on large scales, we should
-            ## recover the matter power CF * xbar**2            
-            #xi_psi = xi_nn * (1. + xi_mm) + xbar**2 * xi_mm \
-            #       + xi_nm * (xi_nm + 2. * xbar)
-            #
+            cf_psi = ev_2pt - avg_psi**2
+
             ##
             # Temperature fluctuations
             ##
+            include_temp = self.pf['ps_include_temp']
+            include_lya =  self.pf['ps_include_lya']
             if (include_temp or include_lya) and term in ['phi', '21']:
                 
-                Phi = self.JointProbabilty(z, zeta, R=R, term='Phi',
+                Phi, Phi1, Phi2 = self.ExpectationValue2pt(z, zeta, R=R, 
+                    term='Phi', Rh=Rh, Ts=Ts, Th=Th)
+                avg_phi = self.ExpectationValue1pt(z, zeta, term='phi', 
                     Rh=Rh, Ts=Ts, Th=Th)
-                avg_psi = self.ExpectationValue(z, zeta, term='psi')
-                avg_phi = self.ExpectationValue(z, zeta, term='phi', 
-                    Rh=Rh, Ts=Ts, Th=Th)        
                     
-                cf_21 = cf_phi = cf_psi + Phi - (avg_phi - avg_psi**2)
+                cf_21 = cf_psi + Phi - (avg_phi**2 - avg_psi**2)
                 
-                ##
-                # <phi phi'> = a lot
-                # <phi> <phi'> = <psi> <psi'> + 2 <psi><psi C> + <psi C>^2
-                ##
-            
-                ##
-                # Gather Poisson term first.
-                ##
-            
-                # Mean contrast of heated regions
-                #avg_x = self.ExpectationValue(z, zeta, term='n')
-                #avg_C = self.ExpectationValue(z, zeta, term='c', Rh=Rh,
-                #    Th=Th, Ts=Ts)
-                #
-                #avg_psi = avg_x # neglecting <x_i d> right now
-                #
-                #avg_del_C = 0.0#self.ExpectationValue(z, zeta, term='Cd')
-                #avg_psi_C = avg_C + avg_del_C
-                #                
-                #avg_phi_sq = avg_psi**2 + 2 * avg_psi * avg_psi_C + avg_psi_C**2
-                #
-                ###
-                ## On to the two point terms
-                ###
-                #
-                ## Hot-hot correlation function
-                #xi_hh = self.CorrelationFunction(z, zeta, R=R, term='hh', 
-                #    Rh=Rh, Ts=Ts, Th=Th)
-                #
-                ## Ionized-heated correlation function
-                #xi_ih = self.CorrelationFunction(z, zeta, R=R, term='ih', 
-                #    Rh=Rh, Ts=Ts, Th=Th)    
-                #
-                ## Convert to neutral-heated correlation function
-                ## <xC'> = <(1-x_i)C'> = <C'> - <x_i C'> 
-                ##       = Cbar - (xi_ih + Q * Cbar)
-                ##xi_nh = Cbar - (xi_ih + Cbar * Q)
-                #xxC = avg_C - xi_ih
-                
-                
-                # On large scales, this is Cbar * xbar...uh oh
-                
-                # Should <C> = 0?
-            
-                # The two easiest terms in the unsaturated limit are those
-                # not involving the density, <x x' C'> and <x x' C C'>.
-                # Under the binary field(s) approach, we can just write
-                # each of these terms down
-                
-                # This is the <x x' C C'> term, assumes fields are ~Gaussian.
-                # My (current) Eq. 47
-                #xxCC = 2 * ((xi_nn + xbar**2) * (xi_hh + Cbar**2) \
-                #       + xbar**2 + (xi_nh + xbar**2 * Cbar**2))
-                #xxCC = xi_hh + avg_C**2       
-                #       
-                ## On large scales, this is 
-                ## = 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
-                #
-                ## The <xx'C'> term is just <x><C>
-                ##xxC = avg_x * avg_C
-                #
-                #Phi = xxCC + xxC #\
-                    #- 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar * Cbar + xbar**2 * Cbar**2)
-                
-                # In R -> inf limit, we recover:
-                # 2 * (xbar**2 * Cbar**2 + xbar**2 + xbar**2 * Cbar**2 + xbar * Cbar)
-
-                
-                # Could include more cross terms...
-
-                # Need to make sure this doesn't get saved at native resolution!
-                #data['phi_u'] = phi_u
-                
-                
-
-                #xi_phi = xi_psi + Phi - (avg_phi_sq - avg_psi**2)
-                
-                # Kludge to guarantee convergence
-                #xi_21 = xi_phi #- Phi[-1]
             else:
                 cf_21 = cf_psi
 
             cf = cf_21
-
+            
         else:
             raise NotImplemented('help')
         

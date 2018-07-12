@@ -413,7 +413,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['delta_B'] = self.field._B(z, zeta)
                                 
                 data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
-                    self.field.JointProbability(z, zeta, 
+                    self.field.ExpectationValue2pt(z, zeta, 
                         R=self.R, term='ii')
                 data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
                     R=self.R, term='ii')
@@ -451,12 +451,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 # These routines will tap into the cache to retrieve 
                 # the (already-computed) values for cf_ii, cf_TT, etc.
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='21', Ts=Ts, Rh=Rh(Ri), Th=Th,
-                    include_xcorr=self.pf['ps_include_xcorr'],
-                    include_ion=self.pf['ps_include_ion'],
-                    include_temp=self.pf['ps_include_temp'],
-                    include_lya=self.pf['ps_include_lya'],
-                    include_21cm=self.pf['ps_include_21cm'])
+                    R=self.R, term='21', Ts=Ts, Rh=Rh(Ri), Th=Th)
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 
                     data['cf_21'], self.R, 
                     split_by_scale=self.pf['ps_split_transform'],
@@ -562,7 +557,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     else:
                         zeta_ = zeta
 
-                    p_tot, p_1h, p_2h = self.field.JointProbability(z, 
+                    p_tot, p_1h, p_2h = self.field.ExpectationValue2pt(z, 
                         self.R_cr, zeta_, term=ss, Tprof=None, data=data,
                         zeta_lya=zeta_lya)
                     
@@ -734,8 +729,8 @@ class PowerSpectrum21cm(AnalyzePS):
             # Should be under xcorr
             ##
             if self.ps_include_contrast and self.pf['ps_include_ion']:
-                if self.pf['ps_include_temp']:
-                    p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z,
+                if self.pf['ps_include_temp'] and self.pf['ps_include_xcorr_ion_hot']:
+                    p_ih, p_ih_1, p_ih_2 = self.field.ExpectationValue2pt(z,
                         self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
                     data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
                     data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
@@ -744,7 +739,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     data['jp_ih'] = np.zeros_like(R)
                     
                 #if self.pf['include_lya_fl']:
-                #    p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
+                #    p_ic, p_ic_1, p_ic_2 = self.field.ExpectationValue2pt(z, 
                 #        self.R_cr, zeta, term='ic', data=data, 
                 #        zeta_lya=zeta_lya)
                 #    data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
@@ -772,21 +767,16 @@ class PowerSpectrum21cm(AnalyzePS):
                     do_xcorr_xd = True
                     do_xcorr_cd = True
                 else:
-                    do_xcorr_xd = (self.pf['ps_include_xcorr_wrt'] is not None) and \
-                       ('density' in self.pf['ps_include_xcorr_wrt']) and \
-                       ('ionization' in self.pf['ps_include_xcorr_wrt'])
+                    do_xcorr_xd = self.pf['ps_include_xcorr_ion_rho']
                 
-                    do_xcorr_cd = (self.pf['ps_include_xcorr_wrt'] is not None) and \
-                       ('density' in self.pf['ps_include_xcorr_wrt']) and \
-                       ('contrast' in self.pf['ps_include_xcorr_wrt'])
-                    
+                    do_xcorr_cd = self.pf['ps_include_xcorr_hot_rho']
                 
                 if do_xcorr_xd:
 
                     # Cross-correlation terms...
                     # Density-ionization cross correlation
                     if (self.pf['ps_include_density'] and self.pf['ps_include_ion']):
-                        p_id, p_id_1, p_id_2 = self.field.JointProbability(z, 
+                        p_id, p_id_1, p_id_2 = self.field.ExpectationValue2pt(z, 
                             self.R_cr, zeta, term='id', data=data,
                             zeta_lya=zeta_lya)
                         data['jp_id'] = np.interp(logR, self.logR_cr, p_id)
@@ -794,7 +784,7 @@ class PowerSpectrum21cm(AnalyzePS):
                         #    * self.field._B(z, zeta, zeta)
                         data['ev_id'] = data['jp_id']
                          
-                        #p_ii, p_ii_1, p_ii_2 = self.field.JointProbability(z, 
+                        #p_ii, p_ii_1, p_ii_2 = self.field.ExpectationValue2pt(z, 
                         #    self.R_cr, zeta, term='ii', data=data,
                         #    zeta_lya=zeta_lya)
                         #data['jp_in'] = np.interp(logR, self.logR_cr, p_in)
@@ -802,7 +792,7 @@ class PowerSpectrum21cm(AnalyzePS):
                         
                         
                         
-                        #p_in, p_in_1, p_in_2 = self.field.JointProbability(z, 
+                        #p_in, p_in_1, p_in_2 = self.field.ExpectationValue2pt(z, 
                         #    self.R_cr, zeta, term='in', data=data,
                         #    zeta_lya=zeta_lya)
                         #data['jp_in'] = np.interp(logR, self.logR_cr, p_in)
@@ -825,7 +815,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     # Cross-correlation terms...
                     # Density-contrast cross correlation
                     if self.pf['ps_include_density'] and self.ps_include_contrast:
-                        p_cd, p_cd_1, p_cd_2 = self.field.JointProbability(z, 
+                        p_cd, p_cd_1, p_cd_2 = self.field.ExpectationValue2pt(z, 
                             self.R_cr, zeta, term='hd', data=data,
                             zeta_lya=zeta_lya)
                         data['jp_dco'] = data['Ch'] \
@@ -845,14 +835,14 @@ class PowerSpectrum21cm(AnalyzePS):
                 ##  
                 #if self.include_con_fl and self.pf['include_density_fl']:
                 #    #if self.pf['include_temp_fl']:
-                #    #    p_dh = self.field.JointProbability(z, self.R_cr, 
+                #    #    p_dh = self.field.ExpectationValue2pt(z, self.R_cr, 
                 #    #        zeta, term='dh', data=data)
                 #    #    data['jp_dh'] = np.interp(R, self.R_cr, p_dh)
                 #    #else:
                 #    #    data['jp_dh'] = np.zeros_like(R)
                 #    #
                 #    #if self.pf['include_lya_fl']:
-                #    #    p_dc = self.field.JointProbability(z, self.R_cr, 
+                #    #    p_dc = self.field.ExpectationValue2pt(z, self.R_cr, 
                 #    #        zeta, term='dc', data=data, zeta_lya=zeta_lya)
                 #    #    data['jp_dc'] = np.interp(R, self.R_cr, p_dc)
                 #    #else:

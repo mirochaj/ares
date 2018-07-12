@@ -396,7 +396,13 @@ def PowerSpectrumParameters():
      
      'ps_include_21cm': True,
      'ps_include_density': True,
-     'ps_include_density_xcorr': False,
+     
+     # Binary model switches
+     'ps_include_xcorr_ion_rho': False,
+     'ps_include_xcorr_hot_rho': False,
+     'ps_include_xcorr_ion_hot': False,
+
+     
      'ps_include_ion': True,
      'ps_include_temp': False,
      'ps_include_lya': False,
