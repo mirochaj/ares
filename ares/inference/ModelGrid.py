@@ -971,12 +971,12 @@ class ModelGrid(ModelFit):
     @property
     def assignments(self):
         if not hasattr(self, '_assignments'):
-            if hasattr(self, 'grid'):
-                if self.grid.structured:
-                    self._structured_balance(method=0)
-                    return     
+            #if hasattr(self, 'grid'):
+            #    if self.grid.structured:
+            #        self._structured_balance(method=0)
+            #        return     
 
-            self._unstructured_balance(method=0)
+            self.LoadBalance()
             
         return self._assignments
             
@@ -1030,7 +1030,7 @@ class ModelGrid(ModelFit):
 
     def _balance_via_sorting(self, par):    
         pass
-
+            
     def LoadBalance(self, method=0, par=None):
         
         if self.grid.structured:
@@ -1043,11 +1043,11 @@ class ModelGrid(ModelFit):
         if rank == 0:
 
             order = list(np.arange(size))
-            self.assignments = []
+            self._assignments = []
             while len(self.assignments) < self.grid.size:
-                self.assignments.extend(order)
+                self._assignments.extend(order)
                 
-            self.assignments = np.array(self.assignments[0:self.grid.size])
+            self._assignments = np.array(self._assignments[0:self.grid.size])
             
             if size == 1:
                 self.LB = 0
@@ -1055,11 +1055,11 @@ class ModelGrid(ModelFit):
             
             # Communicate assignments to workers
             for i in range(1, size):    
-                MPI.COMM_WORLD.Send(self.assignments, dest=i, tag=10*i)    
+                MPI.COMM_WORLD.Send(self._assignments, dest=i, tag=10*i)    
 
         else:
-            self.assignments = np.empty(self.grid.size, dtype=np.int)    
-            MPI.COMM_WORLD.Recv(self.assignments, source=0,  
+            self._assignments = np.empty(self.grid.size, dtype=np.int)    
+            MPI.COMM_WORLD.Recv(self._assignments, source=0,  
                 tag=10*rank)
                    
         self.LB = 0
@@ -1088,7 +1088,7 @@ class ModelGrid(ModelFit):
         self.LB = method
         
         if size == 1:
-            self.assignments = np.zeros(self.grid.shape, dtype=int)
+            self._assignments = np.zeros(self.grid.shape, dtype=int)
             return
             
         if method in [1, 2]:
@@ -1120,13 +1120,13 @@ class ModelGrid(ModelFit):
                 k += 1
 
             # Communicate results
-            self.assignments = np.zeros(self.grid.shape, dtype=int)
-            MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)
+            self._assignments = np.zeros(self.grid.shape, dtype=int)
+            MPI.COMM_WORLD.Allreduce(tmp_assignments, self._assignments)
                         
         # Load balance over expensive axis    
         elif method in [1, 2]:
             
-            self.assignments = np.zeros(self.grid.shape, dtype=int)
+            self._assignments = np.zeros(self.grid.shape, dtype=int)
                         
             slc = [slice(0,None,1) for i in range(self.grid.Nd)]
             
@@ -1147,15 +1147,15 @@ class ModelGrid(ModelFit):
                 slc[par_i] = i
                 
                 if method == 1:
-                    self.assignments[slc] = k \
-                        * np.ones_like(self.assignments[slc], dtype=int)
+                    self._assignments[slc] = k \
+                        * np.ones_like(self._assignments[slc], dtype=int)
                 
                     # Cycle through processor numbers    
                     k += 1
                     if k == size:
                         k = 0
                 elif method == 2:
-                    tmp = np.ones_like(self.assignments[slc], dtype=int)
+                    tmp = np.ones_like(self._assignments[slc], dtype=int)
                     
                     leftovers = tmp.size % size
                     
@@ -1165,7 +1165,7 @@ class ModelGrid(ModelFit):
                         # This could be a little more efficient
                         arr = np.concatenate((arr, assign[0:leftovers]))
                         
-                    self.assignments[slc] = np.reshape(arr, tmp.size)
+                    self._assignments[slc] = np.reshape(arr, tmp.size)
                 else:
                     raise ValueError('No method={}!'.format(method))
 
@@ -1181,8 +1181,8 @@ class ModelGrid(ModelFit):
                 arr = np.random.randint(low=0, high=size, size=self.grid.size)
                 buff = np.reshape(arr, self.grid.dims)
                             
-            self.assignments = np.zeros(self.grid.dims, dtype=int)
-            nothing = MPI.COMM_WORLD.Allreduce(buff, self.assignments)
+            self._assignments = np.zeros(self.grid.dims, dtype=int)
+            nothing = MPI.COMM_WORLD.Allreduce(buff, self._assignments)
                         
         else:
             raise ValueError('No method={}!'.format(method))

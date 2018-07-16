@@ -61,8 +61,8 @@ Let’s take the reionization redshift, ``tanh_xz0``, and duration, ``tanh_xdz``
 
 ::
 
-    z0 = np.arange(6, 12, 0.1)
-    dz = np.arange(0.1, 8.1, 0.1)
+    z0 = np.arange(6, 12.2, 0.2)
+    dz = np.arange(0.2, 8.2, 0.2)
     
 Now, we just set the ``axes`` attribute to a dictionary containing the array of values for each parameter:
 
@@ -92,13 +92,13 @@ and, for example, plot the 2-d parameter space with points color-coded by ``tau_
 
 ::
 
-    anl.Scatter(anl.parameters, c='tau_e')
+    ax1 = anl.Scatter(anl.parameters, c='tau_e', fig=1)
     
 or instead, the position of the emission maximum with the same color coding:
 
 ::
 
-    anl.Scatter(['z_D', 'igm_dTb_D'], c='tau_e', fig=2)
+    ax2 = anl.Scatter(['z_D', 'igm_dTb_D'], c='tau_e', fig=2)
     
 See :doc:`example_grid_analysis` for more information.
 

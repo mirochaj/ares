@@ -39,8 +39,8 @@ class ClusterPopulation(Population):
             self._magsys = MagnitudeSystem(**self.pf)
         return self._magsys
         
-    def LuminosityDensity(self):
-        pass
+    #def LuminosityDensity(self):
+    #    pass
         
     def _sfrd_func(self, z):
         # This is a cheat so that the SFRD spline isn't constructed
