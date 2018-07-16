@@ -20,6 +20,7 @@ except IndexError:
 
 docs = \
 [
+ 'example_grid.rst',
  'example_gs_standard.rst',
  'example_gs_multipop.rst',
  'example_gs_phenomenological.rst',
