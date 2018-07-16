@@ -367,6 +367,10 @@ class ModelGrid(ModelFit):
                     
         return self._reuse_splines
     
+    @reuse_splines.setter
+    def reuse_splines(self, value):
+        self._reuse_splines = value
+    
     @property
     def tricks(self):
         if not hasattr(self, '_tricks'):
