@@ -527,9 +527,9 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 ax.set_ylim(1e-7, 10)
             else:
                 if dimensionless:
-                    ax.set_ylim(1e-7, 1e3)
-                else:    
                     ax.set_ylim(1e-4, 1e5)
+                else:    
+                    ax.set_ylim(1e-7, 1e3)
                     
             ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
                 ha='left', va='top')

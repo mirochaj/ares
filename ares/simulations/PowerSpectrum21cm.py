@@ -375,6 +375,11 @@ class PowerSpectrum21cm(AnalyzePS):
             else:
                 Qi = xibar = QHII_gs
                 
+            if self.pf['ps_include_temp']:
+                Qh = self.field.BubbleShellFillingFactor(z, zeta, Rh=Rh)
+            else:
+                Qh = 0.
+                
             #if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
             #    rescale_Q = True
             #else:
@@ -388,6 +393,7 @@ class PowerSpectrum21cm(AnalyzePS):
                                 
             xbar = 1. - xibar
             data['Qi'] = Qi
+            data['Qh'] = Qh
             data['xibar'] = xibar
             data['dTb0'] = Tbar
             
@@ -414,9 +420,9 @@ class PowerSpectrum21cm(AnalyzePS):
                                 
                 data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
                     self.field.ExpectationValue2pt(z, zeta, 
-                        R=self.R, term='ii')
+                        R=self.R, term='ii', Rh=Rh(Ri), Th=Th, Ts=Ts)
                 data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='ii')
+                    R=self.R, term='ii', Rh=Rh(Ri), Th=Th, Ts=Ts)
                 
                 if self.pf['ps_output_components']:
                     data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
