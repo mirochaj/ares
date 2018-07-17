@@ -396,6 +396,9 @@ def PowerSpectrumParameters():
      
      'ps_include_21cm': True,
      'ps_include_density': True,
+     'ps_include_ion': True,
+     'ps_include_temp': False,
+     'ps_include_lya': False,
      
      # Binary model switches
      'ps_include_xcorr_ion_rho': False,
@@ -403,13 +406,11 @@ def PowerSpectrumParameters():
      'ps_include_xcorr_ion_hot': False,
 
      
-     'ps_include_ion': True,
-     'ps_include_temp': False,
-     'ps_include_lya': False,
+     
      
      'ps_assume_saturated': False,
      
-     'ps_split_transform': False,
+     'ps_split_transform': True,
      'ps_fht_rtol': 1e-5,
      'ps_fht_atol': 1e-5,
      
@@ -420,9 +421,6 @@ def PowerSpectrumParameters():
      "ps_rescale_Qlya": False,
      "ps_rescale_Qhot": False,
      "ps_rescale_dTb": False,
-
-     "ps_force_QHII_fcoll": False,
-     "ps_force_QHII_gs": False,
 
      "bubble_size": None,
      "bubble_density": None,

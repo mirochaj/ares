@@ -46,7 +46,8 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         return self._gs
         
     def PowerSpectrum(self, z, field='21', ax=None, fig=1,
-        force_draw=False, dimensionless=True, take_sqrt=False, **kwargs):
+        force_draw=False, dimensionless=True, take_sqrt=False, 
+        scatter=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -94,7 +95,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         else:
             ps = self.history[ps_s][iz]
         
-        ax.loglog(k, ps, **kwargs)
+        if scatter:
+            ax.scatter(k, ps, **kwargs)
+        else:
+            ax.loglog(k, ps, **kwargs)
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
@@ -419,7 +423,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
     def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
         split_by_scale=False, include_fields=['mm','ii','coco','21_s','21'],
-        colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None):
+        colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None, dimensionless=True):
         """
         Plot various constituent correlation functions (or power spectra).
         """
@@ -434,10 +438,15 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         else:
             prefix = 'ps'  
             x = self.history['k']
-
+            
         for h, redshift in enumerate(redshifts):
 
             iz = np.argmin(np.abs(redshift - self.redshifts))
+            
+            if real_space or (not dimensionless):
+                norm = 1.
+            else:
+                norm = self.history['dTb0'][iz]**2
             
             # Auto correlations in top row, cross terms on bottom
             # z=8 on top, z=12 on bottom
@@ -480,7 +489,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     if real_space:
                         mult = 1.
                     else:
-                        mult = x_ch[j]**3 / 2. / np.pi**2
+                        mult = norm * x_ch[j]**3 / 2. / np.pi**2
                     
                     ax.loglog(x_ch[j], np.abs(chunk) * mult, color=colors[i], 
                         ls='-', alpha=0.5, lw=lw, label=label)
@@ -517,7 +526,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             if real_space:
                 ax.set_ylim(1e-7, 10)
             else:
-                ax.set_ylim(1e-7, 1e3)
+                if dimensionless:
+                    ax.set_ylim(1e-7, 1e3)
+                else:    
+                    ax.set_ylim(1e-4, 1e5)
                     
             ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
                 ha='left', va='top')

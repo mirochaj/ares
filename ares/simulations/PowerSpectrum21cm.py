@@ -427,8 +427,12 @@ class PowerSpectrum21cm(AnalyzePS):
             if self.pf['ps_include_temp']:
                 data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
                     R=self.R, term='hh', Rh=Rh(Ri), Ts=Ts, Th=Th)
-                data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
-                    R=self.R, term='ih', Rh=Rh(Ri), Ts=Ts, Th=Th)
+                
+                if self.pf['ps_include_xcorr_ion_hot']:
+                    data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
+                        R=self.R, term='ih', Rh=Rh(Ri), Ts=Ts, Th=Th)
+                else:
+                    data['cf_ih'] = np.zeros_like(self.R)
                 
                 if self.pf['ps_output_components']:   
                     data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
@@ -436,12 +440,13 @@ class PowerSpectrum21cm(AnalyzePS):
                         split_by_scale=self.pf['ps_split_transform'],
                         epsrel=self.pf['ps_fht_rtol'],
                         epsabs=self.pf['ps_fht_atol']) 
-                    data['ps_ih'] = self.field.PowerSpectrumFromCF(self.k, 
-                        data['cf_ih'], self.R, 
-                        split_by_scale=self.pf['ps_split_transform'],
-                        epsrel=self.pf['ps_fht_rtol'],
-                        epsabs=self.pf['ps_fht_atol'])    
-            
+                    if self.pf['ps_include_xcorr_ion_hot']:    
+                        data['ps_ih'] = self.field.PowerSpectrumFromCF(self.k, 
+                            data['cf_ih'], self.R, 
+                            split_by_scale=self.pf['ps_split_transform'],
+                            epsrel=self.pf['ps_fht_rtol'],
+                            epsabs=self.pf['ps_fht_atol'])    
+                            
             
             ##
             # 21-cm fluctuations
