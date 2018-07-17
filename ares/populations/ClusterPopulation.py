@@ -21,6 +21,7 @@ from ..util.Math import interp1d
 from .Population import Population
 from ..util import MagnitudeSystem
 from ..util.ParameterFile import get_pq_pars
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, s_per_myr, ev_per_hz, g_per_msun, \
     cm_per_mpc
@@ -81,7 +82,7 @@ class ClusterPopulation(Population):
                 self._frd_ = self.pf['pop_frd']
             elif inspect.ismethod(self.pf['pop_frd']):
                 self._frd_ = self.pf['pop_frd']
-            elif isinstance(self.pf['pop_frd'], interp1d):
+            elif isinstance(self.pf['pop_frd'], interp1d_scipy):
                 self._frd_ = self.pf['pop_frd']  
             elif self.pf['pop_frd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_frd'], self.pf)
@@ -426,7 +427,7 @@ class ClusterPopulation(Population):
             elif self.pf['pop_mdist'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_mdist'], self.pf)
                 self._mdist_ = ParameterizedQuantity(**pars)    
-            elif isinstance(self.pf['pop_mdist'], interp1d):
+            elif isinstance(self.pf['pop_mdist'], interp1d_scipy):
                 self._mdist_ = self.pf['pop_mdist']
             else:
                 raise NotImplemented('help')
