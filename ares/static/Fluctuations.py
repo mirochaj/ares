@@ -341,8 +341,8 @@ class Fluctuations(object):
         if R < self.halos.tab_R.min():
             print("R too small")
         if R > self.halos.tab_R.max():
-            print("R too big")    
-        
+            print("R too big")
+
         xi_dd = self.spline_cf_mm(z)(np.log(R))
 
         #if term == 'ii':
@@ -463,7 +463,6 @@ class Fluctuations(object):
                     * (self.m[bigm == 1] / self.halos.tab_M.max())**slope
         
         return self._dlns_dlnm
-
 
     def BubbleSizeDistribution(self, z, zeta, rescale=True):
         """
@@ -748,12 +747,25 @@ class Fluctuations(object):
             #print("Loaded ps_{} at z={} from cache.".format(term, z))
             return self._cache_ps_[z][term]        
     
+    @property
+    def is_Rh_const(self):
+        if not hasattr(self, '_is_Rh_const'):
+            self._is_Rh_const = False
+        return self._is_Rh_const
+        
+    @is_Rh_const.setter
+    def is_Rh_const(self, value):
+        self._is_Rh_const = value
+    
     def _cache_Vo(self, z):
         if not hasattr(self, '_cache_Vo_'):
             self._cache_Vo_ = {}
 
         if z in self._cache_Vo_:
             return self._cache_Vo_[z]
+        
+        if self.is_Rh_const and len(self._cache_Vo_.keys()) > 0:
+            return self._cache_Vo_[self._cache_Vo_.keys()[0]]
 
         return None
         
@@ -763,6 +775,9 @@ class Fluctuations(object):
     
         if z in self._cache_IV_:
             return self._cache_IV_[z]
+            
+        if self.is_Rh_const and len(self._cache_IV_.keys()) > 0:
+            return self._cache_IV_[self._cache_IV_.keys()[0]]    
     
         return None    
         
@@ -983,7 +998,7 @@ class Fluctuations(object):
                 Rh=Rh, R3=R3, Th=Th, Ts=Ts)
             c = self.TempToContrast(z, Th, Ts)
         
-            return jp_hh * c**2, jp_hh1 * c**2, jp_hh2 * c**2    
+            return jp_hh * c**2, jp_hh1 * c**2, jp_hh2 * c**2
         
         elif term == 'ic':
             jp_ih, jp_ih1, jp_ih2 = \
@@ -1009,7 +1024,6 @@ class Fluctuations(object):
             cc, cc1, cc2 = self.ExpectationValue2pt(z, zeta, R, term='cc',
                 Rh=Rh, R3=R3, Th=Th, Ts=Ts)
         
-            c = self.TempToContrast(z, Th, Ts)
             avg_x = self.ExpectationValue1pt(z, zeta, term='n')
             avg_c = self.ExpectationValue1pt(z, zeta, term='c',
                 Rh=Rh, R3=R3, Th=Th, Ts=Ts)
@@ -1141,13 +1155,10 @@ class Fluctuations(object):
             # over bubble mass, which we then integrate over to get a total
             # probability. The shape of every quantity should be `self.m`.
             ##
-            
-            
-            # Could do this once externally, i.e., not for each term.
-            
-            # Yields: V11, V12, V13, V22, V23, V33            
+                        
+            # Yields: V11, V12, V13, V22, V23, V33
             # Remember: these radii arrays depend on redshift (through delta_B)
-            all_V = all_OV_z[i,:,:]
+            all_V = all_OV_z[i]
             all_IV = all_IV_z[i]
         
             # For two-halo terms, need bias of sources.
@@ -1393,7 +1404,7 @@ class Fluctuations(object):
         
         """
         
-        Q = self.MeanIonizedFraction(z, zeta)
+        Qi = self.MeanIonizedFraction(z, zeta)
         Qh = self.BubbleShellFillingFactor(z, zeta, Rh)
         
         if R is None:
@@ -1463,10 +1474,10 @@ class Fluctuations(object):
                                 
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
-                if Q < 0.5:
+                if Qi < 0.5:
                     ev_ii = jp_ii_1 + jp_ii_2
                 else:
-                    ev_ii = (1. - Q) * jp_ii_1 + Q**2
+                    ev_ii = (1. - Qi) * jp_ii_1 + Qi**2
             else:    
                 ev_ii = jp_ii
     
@@ -1480,16 +1491,16 @@ class Fluctuations(object):
         elif term == 'id':
             #raise NotImplemented('fix me please')
             jp_ii, jp_ii_1, jp_ii_2 = \
-                self.ExpectationValue2pt(z, zeta, R, Q, term='ii',
+                self.ExpectationValue2pt(z, zeta, R, term='ii',
                 Rh=Rh, R3=R3, Th=Th, Ts=Ts)
 
             jp_im, jp_im_1, jp_im_2 = \
-                self.ExpectationValue2pt(z, zeta, R, Q, term='id',
+                self.ExpectationValue2pt(z, zeta, R, term='id',
                 Rh=Rh, R3=R3, Th=Th, Ts=Ts)
         
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
-                if Q < 0.5:
+                if Qi < 0.5:
                     ev = jp_1h + jp_2h
                 else:
                     ev = jp_1h #- jp_ii_1
@@ -1497,7 +1508,7 @@ class Fluctuations(object):
                 ev = jp
         
             # Equivalent to correlation function in this case.
-            cf = ev - Q * np.min(self._B0(z, zeta))
+            cf = ev - Qi * np.min(self._B0(z, zeta))
 
         ##
         # Temperature correlation function
@@ -1513,7 +1524,7 @@ class Fluctuations(object):
                     Rh=Rh, R3=R3, Th=Th, Ts=Ts)
             
             if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Q < 0.5):
+                if (Qh < 0.5):
                     ev_hh = jp_hh_1 + jp_hh_2
                 else:
                     # Should this 1-Qh factor be 1-Qh-Qi?
@@ -1535,9 +1546,7 @@ class Fluctuations(object):
             jp_cc, jp_cc_1, jp_cc_2 = \
                 self.ExpectationValue2pt(z, zeta, R=R, term='cc', 
                     Rh=Rh, R3=R3, Th=Th, Ts=Ts)
-            
-            c = self.TempToContrast(z, Th, Ts)
-            
+                        
             ev_c = self.ExpectationValue1pt(z, zeta, term='c',
                 Rh=Rh, Ts=Ts, Th=Th)
             
@@ -1550,10 +1559,10 @@ class Fluctuations(object):
                 
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Q < 0.5):
-                    ev_cc = (jp_cc_1 + jp_cc_2)
+                if (Qh < 0.5) and (Qi < 0.5):
+                    ev_cc = jp_cc_1 + jp_cc_2
                 else:
-                    ev_cc = (1. - Qh) * jp_cc_1 + ev_c**2
+                    ev_cc = (1. - Qi) * jp_cc_1 + ev_c**2
             else:    
                 ev_cc = jp_cc
                            
@@ -1574,12 +1583,12 @@ class Fluctuations(object):
                 
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Q < 0.5):
+                if (Qh < 0.5) and (Qi < 0.5):
                     ev_2pt = jp_1 + jp_2
                 else:
-                    ev_2pt = (1. - Qh) * jp_1 + Qh * Q
+                    ev_2pt = (1. - Qh) * jp_1 + Qh * Qi
             else:    
-                ev_2pt = jp + Qh * Q
+                ev_2pt = jp + Qh * Qi
         
             ev_1pt = self.ExpectationValue1pt(z, zeta, term='i*h', 
                 Rh=Rh, Ts=Ts, Th=Th)
@@ -1593,12 +1602,12 @@ class Fluctuations(object):
 
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Q < 0.5):
+                if (Qh < 0.5) and (Qi < 0.5):
                     ev_2pt = jp_1 + jp_2
                 else:
-                    ev_2pt = (1. - Qh) * jp_1 + Qh * Q
+                    ev_2pt = (1. - Qh) * jp_1 + Qh * Qi
             else:    
-                ev_2pt = jp + Qh * Q
+                ev_2pt = jp + Qh * Qi
         
             ev_1pt = self.ExpectationValue1pt(z, zeta, term='i*c', 
                 Rh=Rh, Ts=Ts, Th=Th)

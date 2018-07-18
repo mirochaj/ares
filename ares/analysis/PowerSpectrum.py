@@ -423,7 +423,8 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
     def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
         split_by_scale=False, include_fields=['mm','ii','coco','21_s','21'],
-        colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None, dimensionless=True):
+        colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None, dimensionless=True,
+        **kwargs):
         """
         Plot various constituent correlation functions (or power spectra).
         """
@@ -431,6 +432,9 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         if mp is None:
             mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
                 padding=(0.25, 0.15), **mp_kwargs)
+            gotmp = False
+        else:
+            gotmp = True
             
         if real_space:
             prefix = 'cf'
@@ -491,7 +495,12 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     else:
                         mult = norm * x_ch[j]**3 / 2. / np.pi**2
                     
-                    ax.loglog(x_ch[j], np.abs(chunk) * mult, color=colors[i], 
+                    if 'color' in kwargs:
+                        c = kwargs['color']
+                    else:
+                        c = colors[i]
+                        
+                    ax.loglog(x_ch[j], np.abs(chunk) * mult, color=c, 
                         ls='-', alpha=0.5, lw=lw, label=label)
                                                 
                         
@@ -513,7 +522,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                                 mult = xlist[hh][j]**3 / 2. / np.pi**2
                                 
                             ax.loglog(xlist[hh][j], np.abs(chunk) * mult, 
-                                color=colors[i], ls=ls[hh], alpha=0.5, lw=lw)
+                                color=c, ls=ls[hh], alpha=0.5, lw=lw)
 
 
             if h == len(redshifts) - 1:
@@ -530,12 +539,13 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     ax.set_ylim(1e-4, 1e5)
                 else:    
                     ax.set_ylim(1e-7, 1e3)
-                    
-            ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
-                ha='left', va='top')
-            ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
-                xycoords='axes fraction',
-                ha='right', va='top')
+            
+            if not gotmp:        
+                ax.annotate(r'$z=%.1f$' % redshift, (0.05, 0.95), xycoords='axes fraction',
+                    ha='left', va='top')
+                ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
+                    xycoords='axes fraction',
+                    ha='right', va='top')
 
             if not include_xcorr:
                 continue
@@ -582,8 +592,13 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                             
                     else:
                         label = None
-
-                    ax.loglog(dr_ch[j], np.abs(chunk), color=colors[i], 
+                    
+                    if 'color' in kwargs:
+                        c = kwargs['color']
+                    else:
+                        c = colors[i]
+                    
+                    ax.loglog(dr_ch[j], np.abs(chunk), color=c, 
                         ls='-', alpha=0.5, lw=lw, label=label)
 
             if h == len(redshifts) - 1:

@@ -293,7 +293,10 @@ class PowerSpectrum21cm(AnalyzePS):
                 if self.pf['bubble_shell_rsize_zone_0'] is not None:
                     Rh = lambda R: R * (1. + self.pf['bubble_shell_rsize_zone_0'])
                     Th = self.pf["bubble_shell_ktemp_zone_0"]
+                    self.field.is_Rh_const = True
                 else:
+                    # If Rh = Rh(z), must re-compute overlap volumes on each
+                    # step. Should set attribute if this is the case.
                     raise NotImplemented('help')    
                 
                 
@@ -345,11 +348,6 @@ class PowerSpectrum21cm(AnalyzePS):
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb'][-1::-1])
                 
-            if QHII_fc < 1:
-                Tbar /= (1. - QHII_fc)
-            else:
-                Tbar = 0.0
-
             #Qi = xibar
 
             #if self.pf['include_ion_fl']:
@@ -374,12 +372,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 Qi = xibar = self.field.MeanIonizedFraction(z, zeta)
             else:
                 Qi = xibar = QHII_gs
-                
-            if self.pf['ps_include_temp']:
-                Qh = self.field.BubbleShellFillingFactor(z, zeta, Rh=Rh)
-            else:
-                Qh = 0.
-                
+                                
             #if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
             #    rescale_Q = True
             #else:
@@ -390,10 +383,13 @@ class PowerSpectrum21cm(AnalyzePS):
             #xibar = np.interp(z, self.mean_history['z'][-1::-1],
             #    self.mean_history['cgm_h_2'][-1::-1])
                 
+            if Qi < 1:
+                Tbar /= (1. - Qi)
+            else:
+                Tbar = 0.0
                                 
             xbar = 1. - xibar
             data['Qi'] = Qi
-            data['Qh'] = Qh
             data['xibar'] = xibar
             data['dTb0'] = Tbar
             
@@ -431,6 +427,9 @@ class PowerSpectrum21cm(AnalyzePS):
             
             # Temperature fluctuations
             if self.pf['ps_include_temp']:
+                
+                Qh = self.field.BubbleShellFillingFactor(z, zeta, Rh=Rh(Ri))
+                
                 data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
                     R=self.R, term='hh', Rh=Rh(Ri), Ts=Ts, Th=Th)
                 
@@ -452,7 +451,10 @@ class PowerSpectrum21cm(AnalyzePS):
                             split_by_scale=self.pf['ps_split_transform'],
                             epsrel=self.pf['ps_fht_rtol'],
                             epsabs=self.pf['ps_fht_atol'])    
-                            
+            else:
+                Qh = 0.0
+                
+            data['Qh'] = Qh                
             
             ##
             # 21-cm fluctuations

@@ -411,8 +411,8 @@ def PowerSpectrumParameters():
      'ps_assume_saturated': False,
      
      'ps_split_transform': True,
-     'ps_fht_rtol': 1e-5,
-     'ps_fht_atol': 1e-5,
+     'ps_fht_rtol': 1e-4,
+     'ps_fht_atol': 1e-4,
      
      #'include_lya_lc': False,
 
