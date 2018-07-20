@@ -114,6 +114,8 @@ or instead, the position of the emission maximum with the same color coding:
    :width:   600
 
    Models in a 2-D parameter space of the :math:`tanh` reionization parameters, with points color-coded by the redshift and brightness temperature of the global 21-cm emission maximum ("turning point D").
+   
+.. note :: In general, you may want to save ``'z_C'`` and ``'dTb_C'``, i.e., the location of the global 21-cm absorption feature. But, in this case since we've only varied parameters of the ionization history, that point will not change and so saving it as a blob is unnecessary. 
     
 See :doc:`example_grid_analysis` for more information.
 

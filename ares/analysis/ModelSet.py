@@ -3842,7 +3842,9 @@ class ModelSet(BlobFactory):
             
             if samples == 'all':
                 # Unmasked elements only
-                elements = np.argwhere(self.mask == 0).squeeze()
+                mask1d = np.sum(self.mask, axis=1)
+                elements = np.argwhere(mask1d == 0).squeeze()
+                                
                 for i, element in enumerate(elements):
                     ax.plot(xarr, y.T[i], **kwargs)
             else:

@@ -510,10 +510,15 @@ class ModelGrid(ModelFit):
         
         failct = 0
         sim = self.simulator(**p)
+        
+        if self.debug:
+            sim.run()
+            blobs = sim.blobs
                         
         try:
-            sim.run()            
-            blobs = copy.deepcopy(sim.blobs)
+            if not self.debug:
+                sim.run()            
+                blobs = copy.deepcopy(sim.blobs)
         except RuntimeError:
             write_pickle_file(kw, '{0!s}.{1!s}.timeout.pkl'.format(\
                 self.prefix, str(rank).zfill(3)), ndumps=1, open_mode='a',\
@@ -546,6 +551,17 @@ class ModelGrid(ModelFit):
         del sim    
             
         return blobs, failct
+        
+    @property
+    def debug(self):
+        if not hasattr(self, '_debug'):
+            self._debug = False
+        return self._debug
+    
+    @debug.setter
+    def debug(self, value):
+        assert type(value) in [int, bool]
+        self._debug = value
     
     def run(self, prefix, clobber=False, restart=False, save_freq=500,
         use_pb=True, use_checks=True, long_run=False, exit_after=None):
