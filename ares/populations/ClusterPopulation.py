@@ -372,20 +372,27 @@ class ClusterPopulation(Population):
             
         return self._rho_L[(Emin, Emax)]
                 
-    def LuminosityFunction(self, z):
+    def LuminosityFunction(self, z, x=None, mags=True):
         
         iz = np.argmin(np.abs(self.tab_zobs - z))
         
-        mags = self.mags(z=z)
-        phi = self._tab_lf[iz]
+        _mags = self.mags(z=z)
+        _phi = self._tab_lf[iz]
                 
         if self.is_aging:        
-            dLdmag = np.diff(self.Larr) / np.diff(mags)
-            return mags[0:-1], phi[0:-1] * np.abs(dLdmag)
-        else:
-            dMdmag = np.diff(self.tab_M) / np.diff(mags)
-            return mags[0:-1], phi[0:-1] * np.abs(dMdmag)
+            dLdmag = np.diff(self.Larr) / np.diff(_mags)
+            phi = _phi[0:-1] * np.abs(dLdmag)
             
+            #return mags[0:-1], phi[0:-1] * np.abs(dLdmag)
+        else:
+            dMdmag = np.diff(self.tab_M) / np.diff(_mags)
+            phi = _phi[0:-1] * np.abs(dMdmag)
+            #return mags[0:-1], phi[0:-1] * np.abs(dMdmag)
+        
+        if x is not None:
+            return x, np.interp(x, _mags[0:-1][-1::-1], phi[-1::-1])
+        else:
+            return _mags[0:-1], phi
                     
     def rho_GC(self, z):
         mags, phi = self.LuminosityFunction(z)
