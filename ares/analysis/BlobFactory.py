@@ -392,11 +392,14 @@ class BlobFactory(object):
             else:
                 try:
                     self._generate_blobs()
-                except AttributeError:
-                    self._blobs =\
+                except AttributeError as e:
+                    if hasattr(self, 'prefix'):
+                        self._blobs =\
                         read_pickle_file('{!s}.blobs.pkl'.format(self.prefix),\
                         nloads=1, verbose=False)
-                    
+                    else:
+                        raise AttributeError(e)
+                        
         return self._blobs
         
     def get_ivars(self, name):

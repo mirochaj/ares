@@ -373,6 +373,29 @@ class ClusterPopulation(Population):
         return self._rho_L[(Emin, Emax)]
                 
     def LuminosityFunction(self, z, x=None, mags=True):
+        """
+        Compute UV luminosity function at redshift `z`.
+        
+        Parameters
+        ----------
+        x : int, float, array [optional]
+            Magnitudes at which to output the luminosity function.
+            If None, will return magnitude grid used internally, set
+            by mass resolution for cluster mass function and 
+            age resolution (set by pop_age_res).
+        mags : bool
+            Must be True for now.
+            
+        Returns
+        -------
+        if x is None:
+            Returns tuple of (magnitudes, luminosity function)
+        else:
+            Returns luminosity function at supplied magnitudes `x`.
+            
+        """
+        
+        assert mags
         
         iz = np.argmin(np.abs(self.tab_zobs - z))
         
@@ -390,7 +413,7 @@ class ClusterPopulation(Population):
             #return mags[0:-1], phi[0:-1] * np.abs(dMdmag)
         
         if x is not None:
-            return x, np.interp(x, _mags[0:-1][-1::-1], phi[-1::-1])
+            return np.interp(x, _mags[0:-1][-1::-1], phi[-1::-1])
         else:
             return _mags[0:-1], phi
                     
