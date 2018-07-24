@@ -62,7 +62,7 @@ Now, we set the parameters to be varied in the fit and whether or not to explore
     fitter.parameters = ['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz']
     fitter.is_log = [False]*4
     
-as well as the priors on the parameters, which in this case we'll take to be uninformative over a relatively broad range (to do this we need Keith Tauscher's `distpy <https://bitbucket.org/ktausch/distpy>` package):
+as well as the priors on the parameters, which in this case we'll take to be uninformative over a relatively broad range (to do this we need Keith Tauscher's `distpy <https://bitbucket.org/ktausch/distpy>`_ package):
 
 ::
 

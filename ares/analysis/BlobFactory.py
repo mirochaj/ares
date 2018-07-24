@@ -194,7 +194,7 @@ class BlobFactory(object):
                         self._blob_ivars.append([])
                         
                         for l, pair in enumerate(element):
-                            
+                                                        
                             assert type(pair) in [list, tuple], \
                                 "Must supply blob_ivars as (variable, values)!"        
                             

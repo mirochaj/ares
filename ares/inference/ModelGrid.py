@@ -627,7 +627,10 @@ class ModelGrid(ModelFit):
             _tmp = np.zeros(size)
             MPI.COMM_WORLD.Allreduce(_restart_np1, _tmp)
             fewer_procs = sum(_tmp) >= size
-            
+        else:
+            pass
+            # Can't have fewer procs than 1!
+                
         # Need to communicate results of restart_actual across all procs
         if size > 1:
             _all_restart = np.zeros(size)
@@ -657,16 +660,19 @@ class ModelGrid(ModelFit):
             
             # Figure out what models have been run by *any* processor
             # in the old grid.
-            if self.grid.structured:
-                tmp = np.zeros(self.grid.shape)
-                MPI.COMM_WORLD.Allreduce(done, tmp)
-                self.done = np.minimum(tmp, 1)
+            if size > 1:
+                if self.grid.structured:
+                    tmp = np.zeros(self.grid.shape)
+                    MPI.COMM_WORLD.Allreduce(done, tmp)
+                    self.done = np.minimum(tmp, 1)
+                else:
+                    # In this case, self.done is just an integer.
+                    # And apparently, we don't need to know which models are done?
+                    tmp = np.array([0])
+                    MPI.COMM_WORLD.Allreduce(done, tmp)
+                    self.done = tmp[0]
             else:
-                # In this case, self.done is just an integer.
-                # And apparently, we don't need to know which models are done?
-                tmp = np.array([0])
-                MPI.COMM_WORLD.Allreduce(done, tmp)
-                self.done = tmp[0]
+                self.done = done        
                 
             # Find outputs from processors beyond those that we're currently
             # using. 
@@ -725,7 +731,8 @@ class ModelGrid(ModelFit):
                 print(("Update               : {0} models down, {1} to " +\
                     "go.").format(Ndone, Ntot - Ndone))
             
-            MPI.COMM_WORLD.Barrier()
+            if size > 1:
+                MPI.COMM_WORLD.Barrier()
             
             # Is everybody done?
             if np.all(self.done == 1):
