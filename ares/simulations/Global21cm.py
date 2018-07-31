@@ -145,7 +145,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
             # Compute volume-averaged ionized fraction
             QHII = self.all_data_cgm[i]['h_2']
-            xavg = QHII + (1. - QHII) * data_igm['h_2']        
+            xavg = QHII + (1. - QHII) * data_igm['h_2']
 
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)

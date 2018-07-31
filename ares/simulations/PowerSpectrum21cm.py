@@ -264,7 +264,7 @@ class PowerSpectrum21cm(AnalyzePS):
                         Nion += pop.pf['pop_Nion']
                         Nlya += pop.pf['pop_Nlw']
 
-                    zeta = np.maximum(zeta, 1.)
+                    zeta = np.maximum(zeta, 1.) # why?
 
                 if pop.is_src_heat_fl:
                     pass
@@ -275,7 +275,7 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # Only used if...ps_lya_method==0?
             zeta_lya += zeta * (Nlya / Nion)
-                        
+                                    
             ##
             # Make scalar if it's a simple model
             ##
@@ -291,20 +291,20 @@ class PowerSpectrum21cm(AnalyzePS):
             ##    
             if self.pf['ps_include_temp']:
                 if self.pf['bubble_shell_rsize_zone_0'] is not None:
-                    Rh = lambda R: R * (1. + self.pf['bubble_shell_rsize_zone_0'])
+                    R_s = lambda R: R * (1. + self.pf['bubble_shell_rsize_zone_0'])
                     Th = self.pf["bubble_shell_ktemp_zone_0"]
-                    self.field.is_Rh_const = True
+                    self.field.is_Rs_const = True
                 else:
-                    # If Rh = Rh(z), must re-compute overlap volumes on each
+                    # If R_s = R_s(z), must re-compute overlap volumes on each
                     # step. Should set attribute if this is the case.
                     raise NotImplemented('help')    
                 
                 
-                self.Rh = Rh
+                self.R_s = R_s
                 self.Th = Th
                 
             else:
-                Rh = lambda R: None    
+                R_s = lambda R: None    
                 Th = None
                 
             ##
@@ -346,7 +346,7 @@ class PowerSpectrum21cm(AnalyzePS):
             # Mean brightness temperature outside bubbles  
             # Currently not including xe effects  
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
-                self.gs.history['dTb'][-1::-1])
+                self.gs.history['dTb'][-1::-1] / (1. - self.gs.history['cgm_h_2'][-1::-1]))
                 
             #Qi = xibar
 
@@ -416,26 +416,35 @@ class PowerSpectrum21cm(AnalyzePS):
                                 
                 data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
                     self.field.ExpectationValue2pt(z, zeta, 
-                        R=self.R, term='ii', Rh=Rh(Ri), Th=Th, Ts=Ts)
+                        R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
                 data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='ii', Rh=Rh(Ri), Th=Th, Ts=Ts)
+                    R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
+                    
+                if self.pf['ps_include_xcorr_ion_rho']:
+                    data['cf_id'] = self.field.CorrelationFunction(z, zeta, 
+                        R=self.R, term='id', R_s=R_s(Ri), Th=Th, Ts=Ts)
                 
                 if self.pf['ps_output_components']:
                     data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
                         data['cf_ii'], self.R, 
                         split_by_scale=self.pf['ps_split_transform'])
             
+                    if self.pf['ps_include_xcorr_ion_rho']:
+                        data['ps_id'] = self.field.PowerSpectrumFromCF(self.k, 
+                            data['cf_id'], self.R, 
+                            split_by_scale=self.pf['ps_split_transform'])
+                
             # Temperature fluctuations
             if self.pf['ps_include_temp']:
                 
-                Qh = self.field.BubbleShellFillingFactor(z, zeta, Rh=Rh(Ri))
+                Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
                 
                 data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
-                    R=self.R, term='hh', Rh=Rh(Ri), Ts=Ts, Th=Th)
+                    R=self.R, term='hh', R_s=R_s(Ri), Ts=Ts, Th=Th)
                 
                 if self.pf['ps_include_xcorr_ion_hot']:
                     data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
-                        R=self.R, term='ih', Rh=Rh(Ri), Ts=Ts, Th=Th)
+                        R=self.R, term='ih', R_s=R_s(Ri), Ts=Ts, Th=Th)
                 else:
                     data['cf_ih'] = np.zeros_like(self.R)
                 
@@ -464,7 +473,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 # These routines will tap into the cache to retrieve 
                 # the (already-computed) values for cf_ii, cf_TT, etc.
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='21', Ts=Ts, Rh=Rh(Ri), Th=Th)
+                    R=self.R, term='21', Ts=Ts, R_s=R_s(Ri), Th=Th)
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 
                     data['cf_21'], self.R, 
                     split_by_scale=self.pf['ps_split_transform'],

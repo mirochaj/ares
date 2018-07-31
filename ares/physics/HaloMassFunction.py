@@ -837,6 +837,9 @@ class HaloMassFunction(object):
         return 10**fsolve(func, x0=7.)[0]
             
     def MeanDensity(self, M, z, mu=0.6):
+        """
+        Mean density in g / cm^3.
+        """
         V = 4. * np.pi * self.VirialRadius(M, z, mu)**3 / 3.
         return (M / V) * g_per_msun / cm_per_kpc**3
 

@@ -404,8 +404,9 @@ def PowerSpectrumParameters():
      'ps_include_xcorr_ion_rho': False,
      'ps_include_xcorr_hot_rho': False,
      'ps_include_xcorr_ion_hot': False,
-
      
+     'ps_include_3pt': True,
+     'ps_include_4pt': True,
      
      
      'ps_assume_saturated': False,

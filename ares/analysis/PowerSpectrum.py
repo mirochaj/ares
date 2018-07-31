@@ -363,7 +363,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
         ax1.set_xlim(min(self.redshifts), max(self.redshifts))
         ax1.set_yscale('log')
-        ax1.set_xlim(6, 30)
+        ax1.set_xlim(6, 20)
         ax1.set_ylim(1e-2, 1e4)
         
         if (not gotax):
@@ -376,7 +376,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
         if show_gs:
             self.gs.GlobalSignature(ax=mp.grid[1], xaxis='z', **kwargs)
-            mp.grid[1].set_xlim(6, 30)
+            mp.grid[1].set_xlim(6, 20)
             
             if orientation == 'vertical' and (not gotax):
                 mp.grid[1].set_xticklabels([])
@@ -500,8 +500,13 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     else:
                         c = colors[i]
                         
+                    if 'ls' in kwargs and (not split_by_scale):
+                        _ls = kwargs['ls']
+                    else:
+                        _ls = '-'
+                        
                     ax.loglog(x_ch[j], np.abs(chunk) * mult, color=c, 
-                        ls='-', alpha=0.5, lw=lw, label=label)
+                        ls=_ls, alpha=0.5, lw=lw, label=label)
                                                 
                         
                 # Plot one- and two-halo terms separately as dashed/dotted lines        

@@ -272,6 +272,13 @@ class GalaxyAggregate(HaloPopulation):
         return rhoL / (eV_per_phot * erg_per_ev)
     
     def IonizingEfficiency(self, z):
-        return self.pf['pop_Nion'] * self.pf['pop_fesc'] * self.pf['pop_fstar']
+        """
+        This is not quite the standard definition of zeta. It has an extra 
+        factor of fbaryon since fstar is implemented throughout the rest of 
+        the code as an efficiency wrt baryonic inflow, not matter inflow.
+        """
+        zeta = self.pf['pop_Nion'] * self.pf['pop_fesc'] \
+            * self.pf['pop_fstar'] #* self.cosm.fbaryon
+        return zeta
         
     
