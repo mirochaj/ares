@@ -14,7 +14,7 @@ Here, we'll focus on the global signal application.
     
 Fitting the Global 21-cm Spectrum
 ---------------------------------
-A fast model that yields semi-realistic global 21-cm signals is one which treats the Lyman-:math:`\alpha`, ionization, and thermal histories as a tanh functions (see `Harker et al. 2016 <http://adsabs.harvard.edu/abs/2016MNRAS.455.3829H>`_), so that's what we'll use in this example. 
+A fast model that yields semi-realistic global 21-cm signals is one which treats the Lyman-:math:`\alpha`, ionization, and thermal histories as tanh functions (see `Harker et al. 2016 <http://adsabs.harvard.edu/abs/2016MNRAS.455.3829H>`_), so that's what we'll use in this example. 
 
 First, define the parameters that remain unchanged from model to model (mostly abstracted away by ``problem_type=101`` and ``tanh_model=True`` settings), including some metadata blobs:
 
@@ -102,7 +102,7 @@ and run the fit:
 
 This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_analysis` to proceed with inspecting the above dataset.
 
-.. note :: For a simple model like the :math:`tanh`, this fitting will be slower to run through *ares* due to the overhead of initializing objects and performing the analysis (like finding extrema) in real time. For more sophisticated models, this overhead is dwarfed by the cost of each simulation.
+.. note :: For a simple model like the tanh, this fitting will be slower to run through *ares* due to the overhead of initializing objects and performing the analysis (like finding extrema) in real time. For more sophisticated models, this overhead is dwarfed by the cost of each simulation, and for the complex blobs, the built-in machinery for I/O is very useful. If all you're interested in is phenomenological fits, then it'll be much faster to simply write your own wrappers around *emcee*.
 
 Hopefully you recover a signal with a peak at 80 MHz and -100 mK, but beware that this will be nowhere near converged, so the plots won't be pretty unless you increase the number of steps, walkers, or both.
 

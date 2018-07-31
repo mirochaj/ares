@@ -100,6 +100,9 @@ To do simple parameter study, you could do something like:
    Four realizations of the global 21-cm signal, varying the normalization of
    the :math:`L_X`-SFR relation and the star formation efficiency. 
                 
+These parameters, along with ``Tmin``, ``Nlw``, and ``Nion`` round out the simplest parameterization of the signal (that I'm aware of) that's tied to cosmology/galaxy formation in any way. It's of course highly simplified, in that it treats galaxies in a very average sense. For more sophisticated models, check out :doc:`example_pop_galaxy`.
+                
+                
 Check out :doc:`params_populations` for a listing of the most common parameters that govern the properties of source populations, and :doc:`example_grid` for examples of how to run and analyze large grids of models more easily. The key advantage of using the built-in model grid runner is having *ares* automatically store any information from each calculation that you deem desirable, and store it in a format amenable to the built-in analysis routines.
 
 
