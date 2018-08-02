@@ -415,7 +415,7 @@ def PowerSpectrumParameters():
      'ps_fht_rtol': 1e-4,
      'ps_fht_atol': 1e-4,
      
-     #'include_lya_lc': False,
+     'ps_include_lya_lc': False,
 
      "ps_volfix": True,
      

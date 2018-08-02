@@ -196,13 +196,13 @@ class HaloModel(HaloMassFunction):
         """
         Compute the one halo term of the halo model for given input profile.
         """
-
-        iz = np.argmin(np.abs(z - self.tab_z_ps))
+        
+        iz = np.argmin(np.abs(z - self.tab_z))
 
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_1 is None:
             profile_1 = self.u_nfw
-        
+            
         prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
             
         if profile_2 is None:
@@ -211,20 +211,20 @@ class HaloModel(HaloMassFunction):
             prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
 
         dndlnm = self.tab_dndm[iz,:] * self.tab_M
-        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+        rho_bar = self.cosm.mean_density0
 
         if Mmin_1 is None:
             fcoll_1 = 1.
             iM_1 = 0
         else:
-            fcoll_1 = self.fcoll_Tmin[iz]
+            fcoll_1 = self.fcoll_2d(z, np.log10(Mmin_1))#self.fcoll_Tmin[iz]
             iM_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
         
         if Mmin_2 is None:
             fcoll_2 = 1.
             iM_2 = 0
         else:
-            fcoll_2 = self.fcoll_Tmin[iz]
+            fcoll_2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
             iM_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
         
         iM = max(iM_1, iM_2)
@@ -248,12 +248,12 @@ class HaloModel(HaloMassFunction):
         
         """
         
-        iz = np.argmin(np.abs(z - self.tab_z_ps))
-
+        iz = np.argmin(np.abs(z - self.tab_z))
+        
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_1 is None:
             profile_1 = self.u_nfw
-        
+            
         prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
             
         if profile_2 is None:
@@ -276,7 +276,7 @@ class HaloModel(HaloMassFunction):
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
             correction_1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         else:
-            fcoll_1 = self.fcoll_Tmin[iz]
+            fcoll_1 = self.fcoll_2d(z, np.log10(Mmin_1))#self.fcoll_Tmin[iz]
             iM_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
             correction_1 = 0.0
                     
@@ -286,7 +286,7 @@ class HaloModel(HaloMassFunction):
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
             correction_2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         else:
-            fcoll_2 = self.fcoll_Tmin[iz]
+            fcoll_2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
             iM_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
             correction_2 = 0.0
 

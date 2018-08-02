@@ -426,16 +426,20 @@ class PowerSpectrum21cm(AnalyzePS):
                 
                 if self.pf['ps_output_components']:
                     data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
-                        data['cf_ii'], self.R, 
+                        data['cf_ii'], self.R,
                         split_by_scale=self.pf['ps_split_transform'])
             
                     if self.pf['ps_include_xcorr_ion_rho']:
                         data['ps_id'] = self.field.PowerSpectrumFromCF(self.k, 
                             data['cf_id'], self.R, 
                             split_by_scale=self.pf['ps_split_transform'])
-                
+            else:
+                Ri = Mi = Ni = None
+                    
             # Temperature fluctuations
             if self.pf['ps_include_temp']:
+                
+                assert self.pf['ps_include_ion']
                 
                 Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
                 
@@ -463,6 +467,12 @@ class PowerSpectrum21cm(AnalyzePS):
             else:
                 Qh = 0.0
                 
+                
+            # Ly-a fluctuations
+            if self.pf['ps_include_lya']:
+                pass
+                
+                
             data['Qh'] = Qh                
             
             ##
@@ -473,7 +483,8 @@ class PowerSpectrum21cm(AnalyzePS):
                 # These routines will tap into the cache to retrieve 
                 # the (already-computed) values for cf_ii, cf_TT, etc.
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='21', Ts=Ts, R_s=R_s(Ri), Th=Th)
+                    R=self.R, term='21', Ts=Ts, R_s=R_s(Ri), Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.k)
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 
                     data['cf_21'], self.R, 
                     split_by_scale=self.pf['ps_split_transform'],
