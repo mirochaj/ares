@@ -147,7 +147,7 @@ def _compute_blob_prior(sim, priors_B):
     return np.log(like)
     
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
-    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters):
+    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters, debug):
 
     #write_memory('1')
 
@@ -184,9 +184,15 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
+    
+    if debug:
+        sim.run()
+        blobs = sim.blobs
 
     try:
-        sim.run()
+        if not debug:
+            sim.run()            
+            blobs = copy.deepcopy(sim.blobs)
     except ValueError:
         print(kwargs)
         del sim, kw, kwargs
@@ -1097,6 +1103,17 @@ class ModelFit(FitBase):
             open_mode='w', safe_mode=False, verbose=False)
         del tmp
         
+    @property
+    def debug(self):
+        if not hasattr(self, '_debug'):
+            self._debug = False
+        return self._debug
+    
+    @debug.setter
+    def debug(self, value):
+        assert type(value) in [int, bool]
+        self._debug = value    
+        
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, reboot=False):
         """
@@ -1216,8 +1233,15 @@ class ModelFit(FitBase):
             try:
                 hmf = sim.halos
             except AttributeError:
-                hmf = sim.pops[0].halos
-            
+                hmf = None
+                for pop in sim.pops:
+                    if hasattr(pop, 'halos'):
+                        hmf = pop.halos
+                        break
+                        
+            if hmf is None:
+                raise AttributeError('No `hmf` attributes available!')
+                
             self.base_kwargs['hmf_instance'] = hmf    
             
             if hmf is not None:
@@ -1253,7 +1277,7 @@ class ModelFit(FitBase):
         args = [self.prefix, self.parameters, self.is_log, self.prior_set_P, 
             self.prior_set_B, self.blank_blob, 
             self.base_kwargs, self.checkpoint_by_proc, 
-            self.simulator, self.fitters]
+            self.simulator, self.fitters, self.debug]
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, loglikelihood, pool=self.pool, args=args)
