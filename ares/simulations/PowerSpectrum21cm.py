@@ -376,10 +376,12 @@ class PowerSpectrum21cm(AnalyzePS):
             #xibar = np.interp(z, self.mean_history['z'][-1::-1],
             #    self.mean_history['cgm_h_2'][-1::-1])
                 
-            if Qi < 1:
-                Tbar /= (1. - Qi)
-            else:
+            # Avoid divide by zeros when reionization is over
+            if Qi == 1:
                 Tbar = 0.0
+                #Tbar /= (1. - xibar)
+            #else:
+            #    Tbar = 0.0
                                 
             xbar = 1. - xibar
             data['Qi'] = Qi
