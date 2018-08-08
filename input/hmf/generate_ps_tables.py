@@ -32,8 +32,8 @@ pars = \
  "hmf_dz": 0.05,
  
  "mps_zmin": 6,
- "mps_zmax": 20,
- "mps_dz": 2,
+ "mps_zmax": 21,
+ "mps_dz": 1,
  
  'mps_dlnk': 0.001,
  'mps_dlnR': 0.001,

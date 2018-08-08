@@ -253,7 +253,7 @@ class PowerSpectrum21cm(AnalyzePS):
             for j, pop in enumerate(self.pops):
                 pop_zeta = pop.IonizingEfficiency(z=z)
 
-                if pop.is_src_ion_fl:
+                if pop.is_src_ion:
 
                     if type(pop_zeta) is tuple:
                         _Mh, _zeta = pop_zeta
@@ -266,10 +266,10 @@ class PowerSpectrum21cm(AnalyzePS):
 
                     zeta = np.maximum(zeta, 1.) # why?
 
-                if pop.is_src_heat_fl:
+                if pop.is_src_heat:
                     pass
 
-                if pop.is_src_lya_fl:
+                if pop.is_src_lya:
                     Nlya += pop.pf['pop_Nlw']
                     #Nlya += pop.src.Nlw
 
@@ -348,8 +348,6 @@ class PowerSpectrum21cm(AnalyzePS):
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb'][-1::-1] / (1. - self.gs.history['cgm_h_2'][-1::-1]))
                 
-            #Qi = xibar
-
             #if self.pf['include_ion_fl']:
             #    if self.pf['ps_rescale_Qion']:
             #        xibar = min(np.interp(z, self.pops[0].halos.z,
@@ -365,13 +363,8 @@ class PowerSpectrum21cm(AnalyzePS):
             #else:
             #    Qi = 0.
             
-            if self.pf['ps_include_ion']:
-                #if self.pf['ps_force_QHII_gs']:
-                #    Qi = xibar = QHII_gs
-                #else:    
-                Qi = xibar = self.field.MeanIonizedFraction(z, zeta)
-            else:
-                Qi = xibar = QHII_gs
+            Qi = self.field.MeanIonizedFraction(z, zeta)
+            xibar = QHII_gs
                                 
             #if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
             #    rescale_Q = True
