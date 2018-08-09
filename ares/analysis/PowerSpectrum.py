@@ -364,7 +364,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         ax1.set_xlim(min(self.redshifts), max(self.redshifts))
         ax1.set_yscale('log')
         ax1.set_xlim(6, 20)
-        ax1.set_ylim(1e-2, 1e4)
+        ax1.set_ylim(1e-4, 1e4)
         
         if (not gotax):
             ax1.set_xlabel(r'$z$')

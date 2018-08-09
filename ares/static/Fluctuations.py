@@ -284,17 +284,6 @@ class Fluctuations(object):
     def Mmin(self, z):
         return np.interp(z, self.halos.tab_z, self.tab_Mmin)
 
-    def bubble_bias(self, z, zeta):
-        """
-        Eq. 9.24 in Loeb & Furlanetto (2013).
-        """
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.sigma
-        S = s**2
-
-        return 1. + ((self._B(z, zeta, zeta)**2 / S - (1. / self._B0(z, zeta))) \
-            / self._growth_factor(z))
-
     def mean_halo_bias(self, z):
         bias = self.halos.Bias(z)
         
@@ -308,10 +297,20 @@ class Fluctuations(object):
     
         #return simps(M_h * dndm_h * bias, x=np.log(M_h)) \
         #    / simps(M_h * dndm_h, x=np.log(M_h))
+        
+    def bubble_bias(self, z, zeta):
+        """
+        Eq. 9.24 in Loeb & Furlanetto (2013) or Eq. 22 in FZH04.
+        """
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        s = self.sigma
+        S = s**2
+    
+        return 1. + ((self._B(z, zeta, zeta) / S - (1. / self._B0(z, zeta))) \
+            / self._growth_factor(z))    
 
     def mean_bubble_bias(self, z, zeta, term='ii'):
         """
-        Note that we haven't yet divided by QHII!
         """
                 
         R, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
@@ -332,8 +331,9 @@ class Fluctuations(object):
             
         #imax = int(min(np.argwhere(np.isnan(R_b))))
     
+        Qi = self.MeanIonizedFraction(z, zeta)
         return simps(dndm_b[iM:] * V[iM:] * bHII[iM:] * M_b[iM:],
-            x=np.log(M_b[iM:]))
+            x=np.log(M_b[iM:])) / Qi
     
     #def delta_bubble_mass_weighted(self, z, zeta):
     #    if self._B0(z, zeta) <= 0:
@@ -375,11 +375,11 @@ class Fluctuations(object):
    #    if self._B0(z, zeta) <= 0:
    #        return 0.
    #            
-   #    R_b, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)   
+   #    R_b, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)  
    #    Vi = 4. * np.pi * R_b**3 / 3.
    #         
    #    Mmin = self.Mmin(z) * zeta
-   #    iM = np.argmin(np.abs(Mmin - self.m))    
+   #    iM = np.argmin(np.abs(Mmin - self.m))
    #    B = self._B(z, zeta)
    #    rho0 = self.cosm.mean_density0
    #    
@@ -423,7 +423,7 @@ class Fluctuations(object):
         
         # Function of bubble mass (bubble size)
         bHII = self.bubble_bias(z, zeta)
-        bbar = self.mean_bubble_bias(z, zeta, term) / Q
+        bbar = self.mean_bubble_bias(z, zeta, term)
         
         if R < self.halos.tab_R.min():
             print("R too small")
@@ -834,7 +834,7 @@ class Fluctuations(object):
             if self.pf['ps_include_xcorr_ion_rho']: 
                 Qi = self.MeanIonizedFraction(z, zeta)
                 del_i = self.delta_bubble_vol_weighted(z, zeta)
-                
+
                 if term == 'i*d':
                     val = Qi * del_i
                 else:
@@ -842,7 +842,7 @@ class Fluctuations(object):
             else:
                 val = 0.0
         elif term in ['id', 'nd']:
-            val = 0.0        
+            val = 0.0
         elif term.strip() == 'i*h':
             assert R_s is not None
             Qi = self.MeanIonizedFraction(z, zeta)
@@ -1140,12 +1140,12 @@ class Fluctuations(object):
             #
             #    return xxdd, Rzeros, Rzeros
             #else:
-                # xxdd = <xx'dd'> = <dd'(1 - x_i - x_i' + x_i x_i')>
-                #      = <dd'> + <x_i x_i' dd'> - 2 <x_i dd'>
-
-                # NOTE: if not for the kludge we are applying, we could 
-                # simply return xx * dd
-
+            # xxdd = <xx'dd'> = <dd'(1 - x_i - x_i' + x_i x_i')>
+            #      = <dd'> + <x_i x_i' dd'> - 2 <x_i dd'>
+            
+            # NOTE: if not for the kludge we are applying, we could 
+            # simply return xx * dd
+            
             idd, idd1, idd2 = self.ExpectationValue2pt(z, zeta, R, term='idd',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
             iidd, iidd1, iidd2 = self.ExpectationValue2pt(z, zeta, R, term='iidd',
@@ -1431,7 +1431,6 @@ class Fluctuations(object):
             ##    
             elif term.count('d') > 0:
                 
-                
                 if not self.pf['ps_include_xcorr_ion_rho']:
                     # These terms will remain zero
                     if term.count('d') == 1:
@@ -1465,7 +1464,7 @@ class Fluctuations(object):
                 bb = self.bubble_bias(z, zeta)
                 xi_dd_r = self.spline_cf_mm(z)(np.log(sep))
                 
-                bb_bar = self.mean_bubble_bias(z, zeta) / Qi
+                bb_bar = self.mean_bubble_bias(z, zeta)
                 ep_bh = bh * bb_bar * xi_dd_r
 
                 # Mean density of halos (mass is arbitrary)
@@ -1507,9 +1506,45 @@ class Fluctuations(object):
                         * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
                     
                     P1[i] = _P1
-                    P2[i] = _P2 + delta_n_bar * (1. - Qi) * Qi
+                    P2[i] = _P2 \
+                          + delta_n_bar * (1. - Qi) * Qi
+                    
+                    #P1[i] = P2[i] = 0.
                     
                     # Add in "minihalos" term?
+                    
+                elif term == 'idd':
+                    # Second point can be ionized or neutral.
+                                        
+                    #_P1 = _P_ii_1[i] * delta_b_bar
+                    #B = self._B(z, zeta)
+                    _P1 = _P_ii_1[i] * delta_b_bar**2
+                    
+                    # Probability that only the first point is ionized
+                    # ...then more stuff
+                    #_P2_1 = (1. - _P_ii_1[i]) \
+                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
+                    #    * delta_b_bar
+                    #_P2_2 = delta_b_bar \
+                    #    * self.get_prob(z, M_h, dndm_h, 0.0, Vvir, False, ep)
+                    
+                    _P2 = (1. - _P_ii_1[i]) \
+                        * delta_b_bar**2 \
+                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
+                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
+                    
+                    
+                    P1[i] = _P1
+                    P2[i] = _P2 \
+                          + delta_b_bar * delta_n_bar * (1. - Qi) * Qi
+                    
+                    # + delta_n_bar * (1. - Qi) * Qi?
+                    
+                    #P2[i] = - 2. * Qi * xi_dd
+                    
+                    #P1[i] = _P_ii_1[i] * delta_b_bar**2
+                    ##P2[i] = _P2_1 * (_P2_2 - self.fcoll_vol(z) * delta_h)
+                    #P2[i] = _P_ii_2[i] * delta_b_bar**2    
                 
                 elif term == 'iid':
                     # This is like the 'id' term except the second point
@@ -1527,43 +1562,11 @@ class Fluctuations(object):
                         #* self.get_prob(z, M_h, dndm_h, Mmin_h, Vvir, False, ep_bb)
 
                     P1[i] = _P1
-                    P2[i] = _P2 + delta_n_bar * (1. - Qi) * Qi
+                    P2[i] = _P2
 
-                elif term == 'idd':
-                    # Second point can be ionized or neutral.
-                                        
-                    #_P1 = _P_ii_1[i] * delta_b_bar
-                    #B = self._B(z, zeta)
-                    _P1 = delta_b_bar**2 \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vo, True)
-                    
-                    # Probability that only the first point is ionized
-                    # ...then more stuff
-                    #_P2_1 = (1. - _P_ii_1[i]) \
-                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                    #    * delta_b_bar
-                    #_P2_2 = delta_b_bar \
-                    #    * self.get_prob(z, M_h, dndm_h, 0.0, Vvir, False, ep)
-                    
-                    _P2 = (1. - _P_ii_1[i]) \
-                        * delta_b_bar**2 \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
-                    
-                    
-                    P1[i] = _P1
-                    P2[i] = _P2 + delta_b_bar * delta_n_bar * (1. - Qi) * Qi
-                    
-                    # + delta_n_bar * (1. - Qi) * Qi?
-                    
-                    #P2[i] = - 2. * Qi * xi_dd
-                    
-                    #P1[i] = _P_ii_1[i] * delta_b_bar**2
-                    ##P2[i] = _P2_1 * (_P2_2 - self.fcoll_vol(z) * delta_h)
-                    #P2[i] = _P_ii_2[i] * delta_b_bar**2
-                    
-                    
+                                    
                 elif term == 'iidd':
+                    #continue
                     P1[i] = _P_ii_1[i] * xi_dd[i]
                     P2[i] = _P_ii_2[i] * xi_dd[i]
                     
@@ -1605,55 +1608,55 @@ class Fluctuations(object):
         # To ensure vanishing fluctuations as R->inf, must
         # augment <x_i x_i' d d'> term.
         if self.pf['ps_include_xcorr_ion_rho']:
+            PT = P1 + P2
             if term == 'iidd':
                 
                 kludge = 0.0
                 if self.pf['ps_include_ion']:
                     avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
+                                            
                     kludge += avg_id**2
                     if self.pf['ps_use_wick']:
                         idt, id1, id2 = \
                             self.ExpectationValue2pt(z, zeta, R, term='id')
-                        kludge += avg_id**2 + idt**2
+                        kludge += idt**2
                     
-                PT = P1 + P2 + kludge
-        
-            else:
-                pass
+                PT += kludge
+                        
         
         ##
         # This needs more thought.
         ##
-        if self.pf['ps_volfix']:
-            if (term == 'ii') and (Qi >= 0.5):
-                PT = (1. - Qi) * P1 + Qi**2
-            elif term in ['id']:
-                if (Qi >= 0.5):
-                    PT = P1 + P2
-                else:
-                    PT = (1. - Qi) * P1
-            elif term in ['idd']:
-                if (Qi >= 0.5):
-                    PT = P1 + P2
-                else:
-                    PT = (1. - Qi) * P1
-            elif term == 'iidd':
-                
-                kludge = 0.0
-                if self.pf['ps_include_ion']:
-                    avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
-                    kludge += avg_id**2
-                    if self.pf['ps_use_wick']:
-                        idt, id1, id2 = \
-                            self.ExpectationValue2pt(z, zeta, R, term='id')
-                        kludge += avg_id**2 + idt**2
-                    
-                print(kludge)
-                    
-                if Qi < 0.5:
-                    PT = _P_ii * xi_dd + kludge
-                else:
-                    PT = (1. - Qi) * P1
+        #if self.pf['ps_volfix']:
+        #    if (term == 'ii') and (Qi >= 0.5):
+        #        PT = (1. - Qi) * P1 + Qi**2
+        #    elif term in ['id']:
+        #        if (Qi >= 0.5):
+        #            PT = P1 + P2
+        #        else:
+        #            PT = (1. - Qi) * P1
+        #    elif term in ['idd']:
+        #        if (Qi >= 0.5):
+        #            PT = P1 + P2
+        #        else:
+        #            PT = (1. - Qi) * P1
+        #    elif term == 'iidd':
+        #        
+        #        kludge = 0.0
+        #        if self.pf['ps_include_ion']:
+        #            avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
+        #            kludge += avg_id**2
+        #            if self.pf['ps_use_wick']:
+        #                idt, id1, id2 = \
+        #                    self.ExpectationValue2pt(z, zeta, R, term='id')
+        #                kludge += avg_id**2 + idt**2
+        #            
+        #        print(kludge)
+        #            
+        #        if Qi < 0.5:
+        #            PT = _P_ii * xi_dd + kludge
+        #        else:
+        #            PT = (1. - Qi) * P1
             
         else:
             PT = P1 + P2
