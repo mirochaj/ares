@@ -551,6 +551,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
                     xycoords='axes fraction',
                     ha='right', va='top')
+                    
+                ax.annotate(r'$\bar{Q}_h=%.2f$' % self.history['Qh'][iz], (0.95, 0.88), 
+                    xycoords='axes fraction',
+                    ha='right', va='top')    
 
             if not include_xcorr:
                 continue

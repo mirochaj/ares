@@ -391,640 +391,134 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # Compute correlation functions and power spectra
             ##            
-            if self.pf['ps_include_density']:
-                data['cf_mm'] = self.halos.CorrelationFunction(z, self.R)
-
-                # These resolutions will be different! All that matters is that
-                # the CF has high resolution since we must integrate over it.
-                if self.pf['ps_output_components']:
-                    data['ps_mm'] = self.halos.PowerSpectrum(z, self.k)
-            
-            # Ionization fluctuations
+            #if self.pf['ps_include_density']:
+            #    data['cf_mm'] = self.halos.CorrelationFunction(z, self.R)
+            #
+            #    # These resolutions will be different! All that matters is that
+            #    # the CF has high resolution since we must integrate over it.
+            #    if self.pf['ps_output_components']:
+            #        data['ps_mm'] = self.halos.PowerSpectrum(z, self.k)
+            #
+            ## Ionization fluctuations
             if self.pf['ps_include_ion']:
-
+            
                 Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, zeta)
-
+            
                 data['n_i'] = Ni
                 data['m_i'] = Mi
                 data['r_i'] = Ri
                 data['delta_B'] = self.field._B(z, zeta)
-                                
-                data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
-                    self.field.ExpectationValue2pt(z, zeta, 
-                        R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
-                data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
-                    
-                if self.pf['ps_include_xcorr_ion_rho']:
-                    data['cf_id'] = self.field.CorrelationFunction(z, zeta, 
-                        R=self.R, term='id', R_s=R_s(Ri), Th=Th, Ts=Ts)
-                
-                if self.pf['ps_output_components']:
-                    data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
-                        data['cf_ii'], self.R,
-                        split_by_scale=self.pf['ps_split_transform'])
+            else:
+                Ri = Mi = Ni = None    
             
-                    if self.pf['ps_include_xcorr_ion_rho']:
-                        data['ps_id'] = self.field.PowerSpectrumFromCF(self.k, 
-                            data['cf_id'], self.R, 
-                            split_by_scale=self.pf['ps_split_transform'])
-            else:
-                Ri = Mi = Ni = None
-                    
-            # Temperature fluctuations
+            #                    
+            #    data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
+            #        self.field.ExpectationValue2pt(z, zeta, 
+            #            R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
+            #    data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
+            #        R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
+            #        
+            #    if self.pf['ps_include_xcorr_ion_rho']:
+            #        data['cf_id'] = self.field.CorrelationFunction(z, zeta, 
+            #            R=self.R, term='id', R_s=R_s(Ri), Th=Th, Ts=Ts)
+            #    
+            #    if self.pf['ps_output_components']:
+            #        data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
+            #            data['cf_ii'], self.R,
+            #            split_by_scale=self.pf['ps_split_transform'])
+            #
+            #        if self.pf['ps_include_xcorr_ion_rho']:
+            #            data['ps_id'] = self.field.PowerSpectrumFromCF(self.k, 
+            #                data['cf_id'], self.R, 
+            #                split_by_scale=self.pf['ps_split_transform'])
+            #else:
+            #    Ri = Mi = Ni = None
+            #        
+            ## Temperature fluctuations
+            #if self.pf['ps_include_temp']:
+            #    
+            #    assert self.pf['ps_include_ion']
+            #    
+            #    Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
+            #    
+            #    data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
+            #        R=self.R, term='hh', R_s=R_s(Ri), Ts=Ts, Th=Th)
+            #    
+            #    if self.pf['ps_include_xcorr_ion_hot']:
+            #        data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
+            #            R=self.R, term='ih', R_s=R_s(Ri), Ts=Ts, Th=Th)
+            #    else:
+            #        data['cf_ih'] = np.zeros_like(self.R)
+            #    
+            #    #if self.pf['ps_output_components']:   
+            #    #    data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
+            #    #        data['cf_hh'], self.R, 
+            #    #        split_by_scale=self.pf['ps_split_transform'],
+            #    #        epsrel=self.pf['ps_fht_rtol'],
+            #    #        epsabs=self.pf['ps_fht_atol']) 
+            #    #    if self.pf['ps_include_xcorr_ion_hot']:    
+            #    #        data['ps_ih'] = self.field.PowerSpectrumFromCF(self.k, 
+            #    #            data['cf_ih'], self.R, 
+            #    #            split_by_scale=self.pf['ps_split_transform'],
+            #    #            epsrel=self.pf['ps_fht_rtol'],
+            #    #            epsabs=self.pf['ps_fht_atol'])    
+            #else:
+            #    Qh = 0.0
+            #    
+            #    
+            
             if self.pf['ps_include_temp']:
-                
-                assert self.pf['ps_include_ion']
-                
                 Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
-                
-                data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
-                    R=self.R, term='hh', R_s=R_s(Ri), Ts=Ts, Th=Th)
-                
-                if self.pf['ps_include_xcorr_ion_hot']:
-                    data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
-                        R=self.R, term='ih', R_s=R_s(Ri), Ts=Ts, Th=Th)
-                else:
-                    data['cf_ih'] = np.zeros_like(self.R)
-                
-                if self.pf['ps_output_components']:   
-                    data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
-                        data['cf_hh'], self.R, 
-                        split_by_scale=self.pf['ps_split_transform'],
-                        epsrel=self.pf['ps_fht_rtol'],
-                        epsabs=self.pf['ps_fht_atol']) 
-                    if self.pf['ps_include_xcorr_ion_hot']:    
-                        data['ps_ih'] = self.field.PowerSpectrumFromCF(self.k, 
-                            data['cf_ih'], self.R, 
-                            split_by_scale=self.pf['ps_split_transform'],
-                            epsrel=self.pf['ps_fht_rtol'],
-                            epsabs=self.pf['ps_fht_atol'])    
+                data['Qh'] = Qh    
             else:
-                Qh = 0.0
+                data['Qh'] = 0.0
+                
+            #    
+            ## Ly-a fluctuations
+            #if self.pf['ps_include_lya']:
+            #    pass
                 
                 
-            # Ly-a fluctuations
-            if self.pf['ps_include_lya']:
-                pass
-                
-                
-            data['Qh'] = Qh                
+            
             
             ##
             # 21-cm fluctuations
             ##
-            if self.pf['ps_include_21cm']:
-                
-                # These routines will tap into the cache to retrieve 
-                # the (already-computed) values for cf_ii, cf_TT, etc.
-                data['cf_21'] = self.field.CorrelationFunction(z, zeta, 
-                    R=self.R, term='21', Ts=Ts, R_s=R_s(Ri), Th=Th,
+            if self.pf['ps_include_21cm']:                
+                #print(z, Ts, Th, Tk, R_s(Ri[0])/Ri[0])
+
+                data['cf_21'] = self.field.CorrelationFunction(z, zeta=zeta, 
+                    R=self.R, term='21', R_s=R_s(Ri), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
+                    
+                # Always compute the 21-cm power spectrum. Individual power
+                # spectra can be saved by setting ps_save_components=True.
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 
                     data['cf_21'], self.R, 
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])
                     
+            # Should just do the above, and then loop over whatever is in 
+            # the cache and save also. If ps_save_components is True, then
+            # FT everything we haven't already. 
+            for term in ['mm', 'ii', 'hh', 'ih', 'cc']:
+                # Should change suffix to _ev
+                result = self.field._cache_jp(z, term)
+                
+                if result is None:
+                    continue
+                    
+                _cf = self.field.CorrelationFunction(z, zeta=zeta, 
+                    R=self.R, term=term, R_s=R_s(Ri), Ts=Ts, Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.k)
+                data['cf_{}'.format(term)] = _cf.copy()
+                
+                if not self.pf['ps_output_components']:
+                    pass
+                    
             yield z, data
             
-            
-            continue
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-
-            
-            ##
-            # Temperature fluctuations                
-            ##
-                        
-            data['ev_coco']   = np.zeros_like(self.R)
-            data['ev_coco_1'] = np.zeros_like(self.R)
-            data['ev_coco_2'] = np.zeros_like(self.R)
-            if self.pf['include_temp_fl']:
-                
-                zeta_X = 40.
-                
-                if self.pf['ps_temp_method'] == 'shell':
-                    assert self.pf['include_ion_fl'], \
-                        "Can only do temp_method='shell' if include_ion_fl=1!"
-                
-                    Q = self.field.BubbleShellFillingFactor(z, zeta)
-                    
-                elif self.pf['ps_temp_method'] == 'xset':
-                    R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta_X)
-                    data.update({'R_h': R_b, 'M_h': M_b, 'bsd_h':bsd})
-                    data['delta_B_h'] = self.field._B(z, zeta_X, zeta_X)
-                    
-                    Q = [self.field.BubbleFillingFactor(z, zeta_X), 0.0, 0.0]
-                else:
-                    raise NotImplemented('help')
-                
-                data['avg_C']   = 0.0
-                data['jp_hc']   = np.zeros_like(self.R)
-                data['jp_hc_1'] = np.zeros_like(self.R)
-                data['jp_hc_2'] = np.zeros_like(self.R)
-
-                data['Qc'] = 0.0
-                data['Cc'] = 0.0
-                                
-                tem = []
-                delta_T = []
-                suffixes = 'h', 'c'
-                for ii in range(3):
-
-                    if self.pf['ps_temp_method'] == 'xset' and ii > 0:
-                        continue       
-
-                    ztemp = self.pf['bubble_shell_ktemp_zone_{}'.format(ii)]
-
-                    if ztemp == 'mean':
-                        ztemp = Tk
-                    elif ztemp == 'cold':
-                        ztemp = self.cosm.Tgas(z)
-                    elif ztemp is None:
-                        if self.pf['bubble_shell_tpert_zone_{}'.format(ii)] is None:
-                            ztemp = None
-                        else:
-                            ztemp = Tk * (1. + self.pf['bubble_shell_tpert_zone_{}'.format(ii)])
-                    
-                    tem.append(ztemp)
-                                                            
-                    if ztemp is None:
-                        continue
-                                                     
-                    if ii <= 1:
-                        if ztemp is None:
-                            continue
-                            
-                        s = suffixes[ii]
-                        ss = suffixes[ii] + suffixes[ii]
-                        data['Q{}'.format(s)] = Q[ii]
-                        
-                        delta_T.append(ztemp / Tk - 1.)
-                        
-                    else:
-                        s = 'hc'
-                        ss = 'hc'
-
-                        if tem[1] is None:
-                            continue
-
-                    # Compute the joint probability.
-                    # Either hh, hc, or cc
-                    if self.pf['ps_temp_method'] == 'xset':
-                        zeta_ = zeta_X
-                    else:
-                        zeta_ = zeta
-
-                    p_tot, p_1h, p_2h = self.field.ExpectationValue2pt(z, 
-                        self.R_cr, zeta_, term=ss, Tprof=None, data=data,
-                        zeta_lya=zeta_lya)
-                    
-                    data['jp_{}'.format(ss)]   = p_tot #np.interp(logR, self.logR_cr, p_tot)
-                    data['jp_{}_1'.format(ss)] = p_1h  #np.interp(logR, self.logR_cr, p_1h)
-                    data['jp_{}_2'.format(ss)] = p_2h  #np.interp(logR, self.logR_cr, p_2h)
-                                        
-                    if self.pf['ps_temp_method'] == 'lpt' or ii == 1:
-                        C = (Tcmb / (Ts - Tcmb)) * delta_T[ii]
-                        
-                        data['ev_coco'] += C**2 * data['jp_{}'.format(ss)]
-                        #data['ev_coco_1'] += C**2 * data['jp_{}_1'.format(ss)]
-                        #data['ev_coco_2'] += C**2 * data['jp_{}_2'.format(ss)]
-                    else:
-                        
-                        # Tk is really Ts, but we're assuming for now
-                        # that coupling is strong. Might overestimate 
-                        # fluctuations slightly at early times.
-                        if ii <= 1:
-                            C = (Tcmb / (Tk - Tcmb)) * delta_T[ii] \
-                                / (1. + delta_T[ii])
-                            Csq = C**2
-                        else:
-                            # Remember, this is for the hot/cold term
-                            Csq = (Tcmb / (Tk - Tcmb)) * delta_T[0] * delta_T[1] \
-                                / (1. + delta_T[0]) / (1. + delta_T[1])
-                            C = np.sqrt(C)
-    
-                        data['ev_coco'] += Csq * data['jp_{}'.format(ss)]
-                        data['ev_coco_1'] += Csq * data['jp_{}_1'.format(ss)]
-                        data['ev_coco_2'] += Csq * data['jp_{}_2'.format(ss)]
-                                                                                
-                    data['C{}'.format(s)] = C
-                    #data['Q{}'.format(s)] = Q[ii]
-                    if ii <= 1:
-                        data['avg_C{}'.format(s)] = Q[ii] * C
-                    data['avg_C'] += Q[ii] * C
-                
-                    #if not self.pf['bubble_shell_include_xcorr']:
-                    #    continue
-                
-                    #data['jp_hc']
-            
-            else:
-                p_hh = data['jp_hh'] = np.zeros_like(self.R)
-                data['Ch'] = Ch = 0.0
-                data['Qh'] = Qh = 0.0
-                data['avg_Ch'] = 0.0
-                data['avg_C'] = 0.0
-
-            ##
-            # Lyman-alpha fluctuations                
-            ##    
-            if self.pf['include_lya_fl']:                
-
-
-                Jc = self.hydr.Ja_c(z)
-                                
-                #data['Ca'] = C
-                data['Qa'] = 0.
-                
-                #data['avg_C'] += C * Qa
-
-                Mmin = lambda zz: self.pops[0].Mmin(zz)
-
-                # Horizon set by distance photon can travel between n=3 and n=2
-                zmax = self.hydr.zmax(z, 3)
-                rmax = self.cosm.ComovingRadialDistance(z, zmax) / cm_per_mpc
-                
-                if self.pf['include_lya_lc']:
-                    
-                    # Use specific mass accretion rate of Mmin halo
-                    # to get characteristic halo growth time. This is basically
-                    # independent of mass so it should be OK to just pick Mmin.
-                    
-                    if type(self.pf['include_lya_lc']) is float:
-                        a = lambda zz: self.pf['include_lya_lc']
-                    else:
-                    
-                        #oot = lambda zz: self.pops[0].dfcolldt(z) / self.pops[0].halos.fcoll_2d(zz, np.log10(Mmin(zz)))
-                        #a = lambda zz: (1. / oot(zz)) / pop.cosm.HubbleTime(zz)                        
-                        oot = lambda zz: self.pops[0].halos.MAR_func(zz, Mmin(zz)) / Mmin(zz) / s_per_yr
-                        a = lambda zz: (1. / oot(zz)) / pop.cosm.HubbleTime(zz)
-                    
-                    tstar = lambda zz: a(zz) * self.cosm.HubbleTime(zz)
-                    rstar = c * tstar(z) * (1. + z) / cm_per_mpc
-                    uisl = lambda kk, mm, zz: self.pops[0].halos.u_isl_exp(kk, mm, zz, rmax, rstar)
-                else:
-                    uisl = lambda kk, mm, zz: self.pops[0].halos.u_isl(kk, mm, zz, rmax)
-                
-                #uisl = self.field.halos.FluxProfileFT
-                
-                unfw = lambda kk, mm, zz: self.pops[0].halos.u_nfw(kk, mm, zz) 
-
-                #ps_aa = self.pops[0].halos.PowerSpectrum(z, self.k_pos, uisl)
-                #ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl, Mmin(z), unfw, Mmin(z)) \
-                #    for kpos in self.k_pos])
-                #ps_ad_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin, unfw, Mmin) \
-                #    for kpos in self.k_pos])
-                #ps_ad_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin, unfw, Mmin) \
-                #    for kpos in self.k_pos])
-                 
-                #ps_aa = ps_ad   
-                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, k, uisl, Mmin(z)) \
-                    for k in self.k])
-                #ps_aa_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin) \
-                #    for kpos in self.k_pos])
-                #ps_aa_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin) \
-                #    for kpos in self.k_pos])    
-
-                # Interpolate back to fine grid before FFTing
-                data['ps_aa'] = ps_aa#np.exp(np.interp(np.log(np.abs(self.k)), 
-                    #np.log(self.k_pos), np.log(ps_aa)))
-                #data['ps_aa_1'] = np.exp(np.interp(np.log(np.abs(self.k)), 
-                #    np.log(self.k_pos), np.log(ps_aa_1)))
-                #data['ps_aa_2'] = np.exp(np.interp(np.log(np.abs(self.k)), 
-                #    np.log(self.k_pos), np.log(ps_aa_2)))
-
-                data['cf_aa'] = self.pops[0].halos.CorrelationFunction()
-
-                data['ev_aa'] = data['cf_aa']
-
-                if self.pf['ps_lya_method'] == 'lpt':
-                    #C = (Tcmb * (Tk - Ts)) / (Tk * (Ts - Tcmb)) #+ 1.
-                    C = (Ts / (Ts - Tcmb)) * ((Tk - Tcmb) / Tk)
-                    data['ev_coco'] += (C - 1)**2 * xa**2 * (1. + data['ev_aa'])
-                    data['ev_coco'] -= (C - 1) * xa
-                    #data['ev_coco'] += 1.
-            
-                    data['Ca'] = C
-
-                    # Really average contrast perturbation
-                    data['avg_C'] = 0.0 # we don't know this
-
-                else:
-
-                    #data['ev_coco'] += xa**2 * (Ts / (Ts - Tcmb))**2 \
-                    #    * (1. - Tcmb / Tk)**2 * (1. + data['ev_aa']) 
-
-                    data['ev_coco'] += (1. / (1. + xa))**2 *  data['ev_aa']
-
-                    #data['ev_coco'] += data['beta_a']**2 * data['ev_aa'] + 1.
-                    
-                    #if xa < 1:
-                    #    data['ev_coco'] += xa**2 * (Ts / (Ts - Tcmb))**2 \
-                    #        * (1. - Tcmb / Tk)**2 * (1. + data['ev_aa'])
-                    #else:    
-                    #    data['ev_coco'] += (Ts / (Ts - Tcmb))**2 \
-                    #        * (1. - Tcmb / Tk)**2 #* (1. + data['ev_aa'])    
-                            
-                    #data['ev_coco'] -= (C - 1) * xa
-                    
-                    
-                    #raise NotImplemented('help')
-
-                    #data['ev_coco'] += data['jp_aa'] * C**2 + 1.
-                                
-                #data['jp_{}'.format(ss)] = \
-                #    np.interp(logR, self.logR_cr, p_tot)
-                
-            #else:
-            #    data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
-            #        np.zeros_like(R)
-            #    data['Cc'] = data['Qc'] = Cc = Qc = 0.0
-            #    data['avg_Cc'] = 0.0
-                
-            ##
-            # Cross-terms between ionization and contrast.
-            # Should be under xcorr
-            ##
-            if self.ps_include_contrast and self.pf['ps_include_ion']:
-                if self.pf['ps_include_temp'] and self.pf['ps_include_xcorr_ion_hot']:
-                    p_ih, p_ih_1, p_ih_2 = self.field.ExpectationValue2pt(z,
-                        self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
-                    data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
-                    data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
-                    data['jp_ih_2'] = np.interp(logR, self.logR_cr, p_ih_2)
-                else:
-                    data['jp_ih'] = np.zeros_like(R)
-                    
-                #if self.pf['include_lya_fl']:
-                #    p_ic, p_ic_1, p_ic_2 = self.field.ExpectationValue2pt(z, 
-                #        self.R_cr, zeta, term='ic', data=data, 
-                #        zeta_lya=zeta_lya)
-                #    data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
-                #    data['jp_ic_1'] = np.interp(logR, self.logR_cr, p_ic_1)
-                #    data['jp_ic_2'] = np.interp(logR, self.logR_cr, p_ic_2)
-                #else:
-                data['jp_ic'] = np.zeros_like(R)
-                        
-                data['ev_ico'] = data['Ch'] * data['jp_ih'] \
-                               + data['Cc'] * data['jp_ic']
-            else:
-                data['jp_ih'] = np.zeros_like(k)
-                data['jp_ic'] = np.zeros_like(k)
-                data['ev_ico'] = np.zeros_like(k)    
-                        
-            ##
-            # Cross-correlations
-            ##
-            if self.pf['ps_include_xcorr']:
-
-                ##
-                # Cross-terms with density and (ionization, contrast)
-                ##
-                if self.pf['ps_include_xcorr_wrt'] is None:
-                    do_xcorr_xd = True
-                    do_xcorr_cd = True
-                else:
-                    do_xcorr_xd = self.pf['ps_include_xcorr_ion_rho']
-                
-                    do_xcorr_cd = self.pf['ps_include_xcorr_hot_rho']
-                
-                if do_xcorr_xd:
-
-                    # Cross-correlation terms...
-                    # Density-ionization cross correlation
-                    if (self.pf['ps_include_density'] and self.pf['ps_include_ion']):
-                        p_id, p_id_1, p_id_2 = self.field.ExpectationValue2pt(z, 
-                            self.R_cr, zeta, term='id', data=data,
-                            zeta_lya=zeta_lya)
-                        data['jp_id'] = np.interp(logR, self.logR_cr, p_id)
-                        #data['jp_id'] = data['jp_ii'] \
-                        #    * self.field._B(z, zeta, zeta)
-                        data['ev_id'] = data['jp_id']
-                         
-                        #p_ii, p_ii_1, p_ii_2 = self.field.ExpectationValue2pt(z, 
-                        #    self.R_cr, zeta, term='ii', data=data,
-                        #    zeta_lya=zeta_lya)
-                        #data['jp_in'] = np.interp(logR, self.logR_cr, p_in)
-                        
-                        
-                        
-                        
-                        #p_in, p_in_1, p_in_2 = self.field.ExpectationValue2pt(z, 
-                        #    self.R_cr, zeta, term='in', data=data,
-                        #    zeta_lya=zeta_lya)
-                        #data['jp_in'] = np.interp(logR, self.logR_cr, p_in)
-                        #
-                        #delta_i = self.field._B0(z, zeta)
-                        #
-                        #b = self.field._B(z, zeta, zeta)
-                        #delta_i = np.trapz()
-                        #
-                        #data['ev_id'] = data['jp_ii'] * delta_i
-                        #    #data['jp_in'] * delta_i
-                        
-                        
-                    else:
-                        data['jp_id'] = data['ev_id'] = np.zeros_like(k)
-                else:
-                    data['jp_id'] = data['ev_id'] = np.zeros_like(k)        
-
-                if do_xcorr_cd:
-                    # Cross-correlation terms...
-                    # Density-contrast cross correlation
-                    if self.pf['ps_include_density'] and self.ps_include_contrast:
-                        p_cd, p_cd_1, p_cd_2 = self.field.ExpectationValue2pt(z, 
-                            self.R_cr, zeta, term='hd', data=data,
-                            zeta_lya=zeta_lya)
-                        data['jp_dco'] = data['Ch'] \
-                            * np.interp(logR, self.logR_cr, p_cd)
-                        
-                        #data['jp_dco'] = data['jp_hh'] * data['Ch'] \
-                        #    * self.field._B(z, zeta, zeta)
-                        data['ev_dco'] = data['jp_dco']
-                    else:
-                        data['jp_dco'] = data['ev_dco'] = np.zeros_like(k)
-                else:
-                    data['jp_dco'] = data['ev_dco'] = np.zeros_like(k)   
-
-                   
-                ##
-                # Cross-terms between density and contrast
-                ##  
-                #if self.include_con_fl and self.pf['include_density_fl']:
-                #    #if self.pf['include_temp_fl']:
-                #    #    p_dh = self.field.ExpectationValue2pt(z, self.R_cr, 
-                #    #        zeta, term='dh', data=data)
-                #    #    data['jp_dh'] = np.interp(R, self.R_cr, p_dh)
-                #    #else:
-                #    #    data['jp_dh'] = np.zeros_like(R)
-                #    #
-                #    #if self.pf['include_lya_fl']:
-                #    #    p_dc = self.field.ExpectationValue2pt(z, self.R_cr, 
-                #    #        zeta, term='dc', data=data, zeta_lya=zeta_lya)
-                #    #    data['jp_dc'] = np.interp(R, self.R_cr, p_dc)
-                #    #else:
-                #    #    data['jp_dc'] = np.zeros_like(R)
-                #    #
-                #    #data['ev_dco'] = data['Ch'] * data['jp_ih'] \
-                #    #               + data['Cc'] * data['jp_ic']
-                #    
-                #    data['ev_dco'] = data['ev_ico'] * data['ev_id'] # times delta
-                #    
-                #else:
-                #    data['jp_dh'] = np.zeros_like(k)
-                #    data['jp_dc'] = np.zeros_like(k)
-                #    data['ev_dco'] = np.zeros_like(k)                        
-                    
-            else:
-                # Density cross-terms
-                p_id = data['jp_id'] = data['ev_id'] = np.zeros_like(k)
-                p_dh = data['jp_dh'] = data['ev_dh'] = np.zeros_like(k)
-                p_dc = data['jp_dc'] = data['ev_dc'] = np.zeros_like(k)
-                data['jp_dco'] = data['ev_dco'] = np.zeros_like(k)
-                
-                #p_ih = data['jp_ih'] = data['ev_ih'] = np.zeros_like(k)
-                #p_hc = data['jp_hc'] = data['ev_hc'] = np.zeros_like(k)
-                #p_ic = data['jp_ic'] = data['ev_ic'] = np.zeros_like(k)
-                #
-                #data['ev_ico'] = np.zeros_like(k)
-                #
-
-            ##
-            # Construct correlation functions from expectation values
-            ##
-
-            # Correlation function of ionized fraction and neutral fraction
-            # are equivalent.
-            data['cf_xx']   = data['ev_ii']   - xibar**2
-            data['cf_xx_1'] = data['ev_ii_1'] - xibar**2
-            data['cf_xx_2'] = data['ev_ii_2'] - xibar**2
-            
-            # Minus sign difference for cross term with density.
-            data['cf_xd'] = -data['ev_id']
-            
-            # Construct correlation function (just subtract off exp. value sq.)
-            data['cf_coco']   = data['ev_coco']   - data['avg_C']**2
-            data['cf_coco_1'] = data['ev_coco_1'] - data['avg_C']**2
-            data['cf_coco_2'] = data['ev_coco_2'] - data['avg_C']**2
-            
-            # Correlation between neutral fraction and contrast fields
-            data['cf_xco'] = data['avg_C'] - data['ev_ico']
-            
-            data['cf_dco'] = data['ev_dco']
-
-            # Short-hand
-            xi_xx = data['cf_xx']
-            xi_dd = data['cf_dd'] #* (1. + xc / (xt * (1. + xt)))**2
-            xi_xd = data['cf_xd']
-            xi_CC = data['cf_coco']
-
-            # This is Eq. 11 in FZH04
-            cf_psi = xi_xx * (1. + xi_dd) + xbar**2 * xi_dd + \
-                xi_xd * (xi_xd + 2. * xbar)
-            
-            data['cf_psi'] = cf_psi
-                
-            # The temperature fluctuations just aren't beating the density...
-
-            ##
-            # MODIFY CORRELATION FUNCTION depending on Ts fluctuations
-            ##    
-            
-            if self.include_con_fl:
-
-                ##
-                # Let's start with low-order terms and build up from there.
-                ##
-                
-                avg_xC = 0.0#data['avg_C'] # ??
-
-                # The two easiest terms in the unsaturated limit are those
-                # not involving the density, <x x' C'> and <x x' C C'>.
-                # Under the binary field(s) approach, we can just write
-                # each of these terms down
-                ev_xi_cop = data['Ch'] * data['jp_ih'] + data['Ch'] * data['jp_ic']
-                
-                ev_cd = data['ev_dco']
-                ev_cc = data['ev_coco']
-                ev_xx = 1. - 2. * xibar + data['ev_ii']
-                ev_xc = data['avg_C'] - ev_xi_cop
-                #ev_xxc = xbar * data['avg_C'] - ev_xi_cop
-                #ev_xxcc = ev_xx * ev_cc + avg_xC**2 + ev_xc**2
-                ev_xxc = 0.0
-                ev_xxcc = ev_cc * (1. + xi_dd)
-                ev_xxcd = ev_cd
-                
-                # <x x'>
-                data['ev_xx'] = ev_xx
-                
-                # <x C'>
-                data['ev_xc'] = ev_xc
-                
-                # <x x' C>
-                data['ev_xxc'] = ev_xxc
-
-                # <x x' C C'>
-                data['ev_xxcc'] = ev_xxcc
-                
-                # <x x' C d'>
-                data['ev_xxcd'] = ev_xxcd
-                
-                # Eq. 33 in write-up
-                phi_u = 2. * ev_xxc + ev_xxcc + 2. * ev_xxcd
-                                
-                # Need to make sure this doesn't get saved at native resolution!
-                #data['phi_u'] = phi_u
-                    
-                data['cf_21'] = cf_psi + phi_u #\
-                    #- 2. * xbar * avg_xC
-                    
-               # Cbar = 1.#data['avg_C']
-               # data['cf_21'] = xi_CC * (1. + xi_dd) + Cbar**2 * xi_dd #+ \
-            #        #xi_Cd* (xi_Cd + 2. * Cbar)    
-                    
-                    
-                    
-            else:
-                data['cf_21'] = cf_psi
-
-            #data['cf_21'][0:10] = 0
-            #data['cf_21'][-10:] = 0
-            
-            
-            data['dTb0'] = Tbar
-            data['ps_21'] = np.fft.fft(data['cf_21'])
-            data['ps_21_s'] = np.fft.fft(data['cf_21_s'])
-            
-            # Save 21-cm PS as one and two-halo terms also
-
-            # These correlation functions are in order of ascending 
-            # (real-space) scale.
-            data['ps_xx'] = np.fft.fft(data['cf_xx'])
-            data['ps_xx_1'] = np.fft.fft(data['cf_xx_1'])
-            data['ps_xx_2'] = np.fft.fft(data['cf_xx_2'])
-            data['ps_coco'] = np.fft.fft(data['cf_coco'])
-            data['ps_coco_1'] = np.fft.fft(data['cf_coco_1'])
-            data['ps_coco_2'] = np.fft.fft(data['cf_coco_2'])
-            
-            # These are all going to get downsampled before the end.
-            
-            # Might need to downsample in real-time to limit memory
-            # consumption.
-            
-
-            yield z, data
-
     def save(self, prefix, suffix='pkl', clobber=False, fields=None):
         """
         Save results of calculation. Pickle parameter file dict.

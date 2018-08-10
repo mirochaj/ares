@@ -68,12 +68,16 @@ class Fluctuations(object):
              + 2. * dr * R2 + 6. * R1 * R2 - 3. * R2**2) / 12. / dr
         
         if type(Vo) == np.ndarray:
+            # Small-scale vs. large Scale
             SS = dr <= R2 - R1
             LS = dr >= R1 + R2
             Vo[LS == 1] = 0.0
             
-            if np.any(SS):
+            #if np.any(SS):
+            if type(R1) == np.ndarray:
                 Vo[SS == 1] = 4. * np.pi * R1[SS == 1]**3 / 3.
+            else:
+                Vo[SS == 1] = 4. * np.pi * R1**3 / 3.
             
         return Vo
         
@@ -150,16 +154,16 @@ class Fluctuations(object):
             Qh = 1. - np.exp(-n_b * V_b)
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             R_b, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
-            Q = self.MeanIonizedFraction(z, zeta)
+            Qi = self.MeanIonizedFraction(z, zeta)
             
             if type(R_s) is np.ndarray:
                 nz = R_b > 0
                 assert np.allclose(np.diff(R_s[nz==1] / R_b[nz==1]), 0.0), \
                     "No support for absolute scaling of hot bubbles yet."
                     
-                Qh = Q * ((R_s[0] - R_b[0]) / R_b[0])**3
+                Qh = Qi * ((R_s[0]**3 - R_b[0]**3) / R_b[0]**3)
                     
-                return np.minimum(Qh, 1. - Q)
+                return np.minimum(Qh, 1. - Qi)
             else:
                 return 0.0
             
@@ -849,13 +853,14 @@ class Fluctuations(object):
             Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
             val = Qh * Qi # implicit * 1
         elif term.strip() == 'n*h':
-            c = self.TempToContrast(z, Th, Ts)
-            val = Qh * c
+            # <xh> = <h> - <x_i h> = <h>
+            c = self.TempToContrast(z, Th=Th, Ts=Ts)
+            val = Qh #* c
         elif term.strip() == 'i*c':
             val = 0.0 # in binary model this is always true
             
             #if self.pf['ps_include_xcorr_ion_hot']:
-            #    c = self.TempToContrast(z, Th, Ts)
+            #    c = self.TempToContrast(z, Th=Th, Ts=Ts)
             #    Qi = self.MeanIonizedFraction(z, zeta)
             #    Qh = self.BubbleShellFillingFactor(z, zeta, R_s) 
             #    val = Qh * Qi * c
@@ -866,13 +871,13 @@ class Fluctuations(object):
                 
         elif term == 'c':
             Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
-            c = self.TempToContrast(z, Th, Ts)            
+            c = self.TempToContrast(z, Th=Th, Ts=Ts)
             val = c * Qh
         elif term.strip() == 'n*c':
             # <xc> = <c> - <x_i c> 
             #      = <c> in binary framework
             #if self.pf['ps_include_xcorr_ion_hot']: 
-            c = self.TempToContrast(z, Th, Ts)
+            c = self.TempToContrast(z, Th=Th, Ts=Ts)
             Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
             #avg_x = self.ExpectationValue(z, zeta, term='n')
             val = c * Qh
@@ -1066,7 +1071,7 @@ class Fluctuations(object):
                 jp_hh, jp_hh1, jp_hh2 = \
                     self.ExpectationValue2pt(z, zeta, R, term='hh',
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk)
-                c = self.TempToContrast(z, Th, Ts)
+                c = self.TempToContrast(z, Th=Th, Ts=Ts)
                 
                 result += jp_hh * c**2
                 
@@ -1082,7 +1087,7 @@ class Fluctuations(object):
         
         elif term == 'ic':
             
-            #c = self.TempToContrast(z, Th, Ts)
+            #c = self.TempToContrast(z, Th=Th, Ts=Ts)
             avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
             
@@ -1093,17 +1098,19 @@ class Fluctuations(object):
                 self.ExpectationValue2pt(z, zeta, R, term='ih',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
         
-            return jp_ih * avg_c, jp_ih1 * avg_c, jp_ih2 * avg_c
+            c = self.TempToContrast(z, Th=Th, Ts=Ts)
+            return jp_ih * c, jp_ih1 * c, jp_ih2 * c
         
         elif term in ['xxc', 'nnc']:
             
             # Even without correlations in ionization and temperature,
-            # this term is non-zero.
+            # this term is non-zero
             if not self.pf['ps_include_3pt']:
                 return Rzeros, Rzeros, Rzeros
             
             # <xx'c> = <c(1 - x_i - x_i' + x_i x_i')>
             #        = <c> - <x_i c> - <x_i c'> + <x_i x_i' c>
+            #        = <c> - <x_i c'> in binary model
             avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
             avg_ic = self.ExpectationValue1pt(z, zeta, term='i*c', 
@@ -1137,9 +1144,6 @@ class Fluctuations(object):
             iicc, iicc1, iicc2 = self.ExpectationValue2pt(z, zeta, R, term='iicc',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
             icc, icc1, icc2 = self.ExpectationValue2pt(z, zeta, R, term='icc',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-                
-            cc, cc1, cc2 = self.ExpectationValue2pt(z, zeta, R, term='cc',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
                 
             xxcc = iicc - 2. * icc + cc
@@ -1257,7 +1261,7 @@ class Fluctuations(object):
         
         delta_b_bar = self.delta_bubble_vol_weighted(z, zeta)
         delta_n_bar = -delta_b_bar * Qi / (1. - Qi)
-                
+
         # M_bnimum bubble size            
         Mmin = self.Mmin(z) * zeta
         iM = np.argmin(np.abs(M_b - Mmin))
@@ -1271,9 +1275,9 @@ class Fluctuations(object):
                 #    print(sep, R_b[0], R_s[0], R_b.size, R_s.size, R3.size)
                 all_OV_z[i,:,:] = \
                     np.array(self.overlap_volumes(sep, R_b, R_s, R3))
-            
+
             self._cache_Vo_[z] = all_OV_z.copy()
-            
+
             #print("Generated z={} overlap_volumes".format(z))
            
         #else:    
@@ -1324,12 +1328,6 @@ class Fluctuations(object):
             # For two-halo terms, need bias of sources.
             if self.pf['ps_include_bias']:
                 ep = self.excess_probability(z, zeta, sep, term)
-                #elif term == 'hh':
-                #    # Undo normalization by ionized volume filling factor!
-                #    ep = self.excess_probability(z, zeta, sep, term) #* Q / Qh
-                #else:
-                #    ep = np.zeros_like(self.m)
-                    #raise NotImplemented('help')    
             else:
                 ep = np.zeros_like(self.m)
 
@@ -1371,6 +1369,12 @@ class Fluctuations(object):
                 P1[i] = _P1
                 P2[i] = _P2
                 
+                #if i == len(R) - 1:
+                #    print('-'*30)
+                #    print('ii')
+                #    print(Qi**2, _P2)
+                #    print('-'*30)
+                
             elif term == 'hh':
                 
                 #Vii = all_V[0]
@@ -1384,16 +1388,16 @@ class Fluctuations(object):
                 Vo = all_V[3]
                 
                 # These are functions of mass
-                V1 = 4. * np.pi * R_b**3
-                V2 = 4. * np.pi * R_s**3
+                V1 = 4. * np.pi * R_b**3 / 3.
+                V2 = 4. * np.pi * R_s**3 / 3.
                 Vh = 4. * np.pi * (R_s**3 - R_b**3) / 3.
                                                                 
                 # Subtract off region of the intersection HH volume
                 # in which source 1 would do *anything* to point 2.
                 #Vss_ne_1 = Vh - (Vo - self.IV(sep, R_b, R_s) + all_V[0])
-                zeros = np.zeros_like(R_b)
                 #Vne1 = Vne2 = Vh - Vo
-                Vne1 =  V2 - all_IV[2] - (V1 - all_IV[1])
+                # For ionization, this is just Vi - Vo
+                Vne1 = V2 - all_IV[2] - (V1 - all_IV[1])
                 #Vne1 =  V2 - self.IV(sep, R_s, R_s) - (V1 - self.IV(sep, R_b, R_s))
                 Vne2 = Vne1
                 
@@ -1401,26 +1405,51 @@ class Fluctuations(object):
                 
                 #_P1, _P2 = self.get_prob(z, zeta, Vo, Vne1, Vne2, corr, term)
                 
-                _P1 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vo, True)
-                
+                _P1 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vo, True)                
                 _P2 = (1. - _P1) \
                     * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
                     * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne2, True, ep)
-                                                                
+                
+                
+                #if i == len(R) - 1:
+                #    print('-'*30)
+                #    print('hh')
+                #    print(Qh**2, _P2, _P1)
+                #    print(V1[0], V2[0], Vh[0], Vo[0], all_V[0][0], all_V[3][0])
+                #    print(Vne1[0], R_s[0] / R_b[0], V2[0] / V1[0], Vh[0] / V1[0])
+                #    print(ep[-1])
+                #    #print((V1 - all_V[0]) / V1)
+                #    #print(Vh / V1)
+                #    #print(Vo / V1)
+                #    #print(Vne1 / V1)
+                #    print('-'*30)                                           
+                #                   
+                #    raw_input('<enter>')                    
+                                                                                                      
                 # Start chugging along on two-bubble term   
                 if np.any(Vne1 < 0):
                     N = sum(Vne1 < 0)
                     print('R={}: Vss_ne_1 (hh) < 0 {} / {} times'.format(sep, N, len(R_s)))
 
+                #P1[i] = _P1
+                #P2[i] = _P2
+
+                # Must correct for the fact that Qi+Qh<=1
                 P1[i] = _P1
                 P2[i] = min(_P2, Qh**2)
-                # Must correct for the fact that Qi+Qh<=1
+                
+                if np.any(_P2 < 0):
+                    print("negative _P2!", sep)
+                
+                #if P2[i] < 0:
+                #    P2[i] = Qh**2
+                
 
             elif term == 'ih':
                 
                 if not self.pf['ps_include_xcorr_ion_hot']:
                     P1[i] = 0.0
-                    P2[i] = Qh * Q
+                    P2[i] = Qh * Qi
                     continue
                 
                 #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
@@ -1455,7 +1484,7 @@ class Fluctuations(object):
                     * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne2, True, ep)
                 
                 P1[i] = _P1
-                P2[i] = min(_P2, Qh * Q)
+                P2[i] = min(_P2, Qh * Qi)
             
             elif term == 'iicc':
                 continue
@@ -1789,31 +1818,41 @@ class Fluctuations(object):
         ##  
         if term in ['21', 'phi', 'psi']:
             
-            ev_2pt, ev_2pt_1, ev_2pt_2 = \
-                self.ExpectationValue2pt(z, zeta, R=R, term='psi',
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-            avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
-                R_s=R_s, Th=Th, Ts=Ts)
+            if term in ['21', 'phi']:
+                ev_2pt, ev_2pt_1, ev_2pt_2 = \
+                    self.ExpectationValue2pt(z, zeta, R=R, term='phi',
+                        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+                avg_phi = self.ExpectationValue1pt(z, zeta, term='phi',
+                    R_s=R_s, Th=Th, Ts=Ts)
             
-            cf_psi = ev_2pt - avg_psi**2
+                cf_21 = ev_2pt - avg_phi**2
+            
+            else:
+                ev_2pt, ev_2pt_1, ev_2pt_2 = \
+                    self.ExpectationValue2pt(z, zeta, R=R, term='psi',
+                        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+                avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
+                    R_s=R_s, Th=Th, Ts=Ts)
+                
+                cf_psi = ev_2pt - avg_psi**2
 
             ##
             # Temperature fluctuations
             ##
-            include_temp = self.pf['ps_include_temp']
-            include_lya =  self.pf['ps_include_lya']
-            if (include_temp or include_lya) and term in ['phi', '21']:
-                
-                Phi, Phi1, Phi2 = self.ExpectationValue2pt(z, zeta, R=R, 
-                    term='Phi', R_s=R_s, Ts=Ts, Th=Th, Tk=Tk, Ja=Ja, k=k)
-                avg_phi = self.ExpectationValue1pt(z, zeta, term='phi', 
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                    
-                cf_21 = cf_psi + Phi - (avg_phi**2 - avg_psi**2)
-                                
-            else:
-                cf_21 = cf_psi
-
+            #include_temp = self.pf['ps_include_temp']
+            #include_lya =  self.pf['ps_include_lya']
+            #if (include_temp or include_lya) and term in ['phi', '21']:
+            #    
+            #    Phi, Phi1, Phi2 = self.ExpectationValue2pt(z, zeta, R=R, 
+            #        term='Phi', R_s=R_s, Ts=Ts, Th=Th)
+            #    avg_phi = self.ExpectationValue1pt(z, zeta, term='phi', 
+            #        R_s=R_s, Th=Th, Ts=Ts)#, Tk=Tk, Ja=Ja, R3=R3)
+            #        
+            #    cf_21 = cf_psi + Phi - (avg_phi**2 - avg_psi**2)
+            #                    
+            #else:
+            #    cf_21 = cf_psi
+            #
             cf = cf_21
         elif term == 'nn':                                                         
             cf = -self.CorrelationFunction(z, zeta, R, term='ii',
@@ -1907,18 +1946,19 @@ class Fluctuations(object):
                 self.ExpectationValue2pt(z, zeta, R=R, term='hh', 
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts)
             
-            if self.pf['ps_volfix']:
-                if (Qh < 0.5):
-                    ev_hh = jp_hh_1 + jp_hh_2
-                else:
-                    # Should this 1-Qh factor be 1-Qh-Qi?
-                    ev_hh = (1. - Qh) * jp_hh_1 + Qh**2
-            else:    
-                ev_hh = jp_hh 
+            #if self.pf['ps_volfix']:
+            #    if (Qh < 0.5):
+            #        ev_hh = jp_hh_1 + jp_hh_2
+            #    else:
+            #        # Should this 1-Qh factor be 1-Qh-Qi?
+            #        ev_hh = (1. - Qh) * jp_hh_1 + Qh**2
+            #else:    
+            #    ev_hh = jp_hh 
             
+            # Should just be Qh
             ev_h = self.ExpectationValue1pt(z, zeta, term='h',
                 R_s=R_s, Ts=Ts, Th=Th)
-            cf = ev_hh - ev_h**2
+            cf = jp_hh - ev_h**2
                         
         # c = contrast, instead of 'c' for cold, use '3' for zone 3 (later)    
         elif term == 'cc':
@@ -1927,7 +1967,7 @@ class Fluctuations(object):
                 self._cache_cf_[z][term] = R, cf
                 return cf
                 
-            jp_cc, jp_cc_1, jp_cc_2 = \
+            ev_cc, ev_cc_1, ev_cc_2 = \
                 self.ExpectationValue2pt(z, zeta, R=R, term='cc', 
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
                         
@@ -1942,13 +1982,13 @@ class Fluctuations(object):
             
                 
             # Add optional correction to ensure limiting behavior?        
-            if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Qi < 0.5):
-                    ev_cc = jp_cc_1 + jp_cc_2
-                else:
-                    ev_cc = (1. - Qi) * jp_cc_1 + ev_c**2
-            else:    
-                ev_cc = jp_cc
+            #if self.pf['ps_volfix']:
+            #    if (Qh < 0.5) and (Qi < 0.5):
+            #        ev_cc = jp_cc_1 + jp_cc_2
+            #    else:
+            #        ev_cc = (1. - Qi) * jp_cc_1 + ev_c**2
+            #else:    
+            #    ev_cc = jp_cc
                            
             cf = ev_cc - ev_c**2
             
@@ -1961,23 +2001,25 @@ class Fluctuations(object):
                 self._cache_cf_[z][term] = R, cf
                 return cf
                 
-            jp, jp_1, jp_2 = \
+            ev_2pt, ev_1, ev_2 = \
                 self.ExpectationValue2pt(z, zeta, R=R, term='ih',
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts)
                 
             # Add optional correction to ensure limiting behavior?        
-            if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Qi < 0.5):
-                    ev_2pt = jp_1 + jp_2
-                else:
-                    ev_2pt = (1. - Qh) * jp_1 + Qh * Qi
-            else:    
-                ev_2pt = jp + Qh * Qi
+            #if self.pf['ps_volfix']:
+            #    if (Qh < 0.5) and (Qi < 0.5):
+            #        ev_2pt = jp_1 + jp_2
+            #    else:
+            #        ev_2pt = (1. - Qh) * jp_1 + Qh * Qi
+            #else:    
+            #    ev_2pt = jp + Qh * Qi
         
-            ev_1pt = self.ExpectationValue1pt(z, zeta, term='i*h', 
+            ev_1pt_i = self.ExpectationValue1pt(z, zeta, term='i', 
                 R_s=R_s, Ts=Ts, Th=Th)
+            ev_1pt_h = self.ExpectationValue1pt(z, zeta, term='h', 
+                R_s=R_s, Ts=Ts, Th=Th)    
 
-            cf = ev_2pt - ev_1pt
+            cf = ev_2pt - ev_1pt_i * ev_1pt_h
 
         elif term == 'ic':
             ev_2pt, ev_1, ev_2 = \
