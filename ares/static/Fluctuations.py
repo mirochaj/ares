@@ -852,21 +852,32 @@ class Fluctuations(object):
             c = self.TempToContrast(z, Th, Ts)
             val = Qh * c
         elif term.strip() == 'i*c':
-            # In binary model, ionized points have c=0, c>0 points have i=False
-            #assert R_s is not None
-            c = self.TempToContrast(z, Th, Ts)
-            Qi = self.MeanIonizedFraction(z, zeta)
-            Qh = self.BubbleShellFillingFactor(z, zeta, R_s) 
-            val = Qh * Qi * c
+            val = 0.0 # in binary model this is always true
+            
+            #if self.pf['ps_include_xcorr_ion_hot']:
+            #    c = self.TempToContrast(z, Th, Ts)
+            #    Qi = self.MeanIonizedFraction(z, zeta)
+            #    Qh = self.BubbleShellFillingFactor(z, zeta, R_s) 
+            #    val = Qh * Qi * c
+            ## In binary model, ionized points have c=0, c>0 points have i=False
+            ##assert R_s is not None
+            #else:
+            #    val = 0.0
+                
         elif term == 'c':
             Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
             c = self.TempToContrast(z, Th, Ts)            
             val = c * Qh
         elif term.strip() == 'n*c':
+            # <xc> = <c> - <x_i c> 
+            #      = <c> in binary framework
+            #if self.pf['ps_include_xcorr_ion_hot']: 
             c = self.TempToContrast(z, Th, Ts)
             Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
             #avg_x = self.ExpectationValue(z, zeta, term='n')
             val = c * Qh
+            #else:
+            #val = 0.0
         elif term.strip() == 'n*d*c':
             if self.pf['ps_include_xcorr_ion_rho'] and self.pf['ps_include_xcorr_ion_hot']:
                 print("assuming <xdc>=0")
@@ -886,14 +897,18 @@ class Fluctuations(object):
 
         elif term in ['phi']:
             # <phi> = <psi * (1 + c)> = <psi> + <psi * c>
-            #       = <x * c> + <x * c * d>
-            
-            avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
-                R_s=R_s, Th=Th, Ts=Ts)
+            #
+            # <psi * c> = <x * c> + <x * c * d>
+            #           = <c> - <x_i c> + <x * c * d>
             
             avg_xcd = self.ExpectationValue1pt(z, zeta, term='n*d*c',
-                R_s=R_s, Th=Th, Ts=Ts)            
+                R_s=R_s, Th=Th, Ts=Ts)
+                
+            # Equivalent to <c> in binary field model.            
             avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
+                R_s=R_s, Th=Th, Ts=Ts)
+            
+            avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
                 R_s=R_s, Th=Th, Ts=Ts)
             avg_psi_c = avg_xc + avg_xcd
             
@@ -1029,17 +1044,17 @@ class Fluctuations(object):
             if not (self.pf['ps_include_temp'] or self.pf['ps_include_lya']):
                 return Rzeros, Rzeros, Rzeros
             
-            avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+            #avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
+            #    R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
         
-            jp_xxc, jp_xxc1, jp_xxc2 = \
+            ev_xxc, ev_xxc1, ev_xxc2 = \
                 self.ExpectationValue2pt(z, zeta, R, term='xxc',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja, k=k)
-            jp_xxcc, jp_xxcc1, jp_xxcc2 = \
+            ev_xxcc, ev_xxcc1, ev_xxcc2 = \
                 self.ExpectationValue2pt(z, zeta, R, term='xxcc',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja, k=k)
         
-            Phi = 2. * jp_xxc + jp_xxcc
+            Phi = 2. * ev_xxc + ev_xxcc
         
             return Phi, Rzeros, Rzeros        
         
@@ -1050,7 +1065,7 @@ class Fluctuations(object):
             
                 jp_hh, jp_hh1, jp_hh2 = \
                     self.ExpectationValue2pt(z, zeta, R, term='hh',
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+                    R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk)
                 c = self.TempToContrast(z, Th, Ts)
                 
                 result += jp_hh * c**2
@@ -1058,7 +1073,7 @@ class Fluctuations(object):
             if self.pf['ps_include_lya']:
                 ev_aa, ev_aa1, ev_aa2 = \
                     self.ExpectationValue2pt(z, zeta, R, term='aa',
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts, k=k)
+                    R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, k=k)
                 xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
                 
                 result += ev_aa / (1. + xa)**2
@@ -1066,26 +1081,43 @@ class Fluctuations(object):
             return result, Rzeros, Rzeros
         
         elif term == 'ic':
+            
+            #c = self.TempToContrast(z, Th, Ts)
+            avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+            
+            if not self.pf['ps_include_xcorr_ion_hot']:
+                return Qi * avg_c * Rones, Rzeros, Rzeros
+            
             jp_ih, jp_ih1, jp_ih2 = \
                 self.ExpectationValue2pt(z, zeta, R, term='ih',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-            c = self.TempToContrast(z, Th, Ts)
         
-            return jp_ih * c, jp_ih1 * c, jp_ih2 * c  
+            return jp_ih * avg_c, jp_ih1 * avg_c, jp_ih2 * avg_c
         
         elif term in ['xxc', 'nnc']:
             
+            # Even without correlations in ionization and temperature,
+            # this term is non-zero.
             if not self.pf['ps_include_3pt']:
                 return Rzeros, Rzeros, Rzeros
             
-            # <xx'c> = ...
-            avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c', 
+            # <xx'c> = <c(1 - x_i - x_i' + x_i x_i')>
+            #        = <c> - <x_i c> - <x_i c'> + <x_i x_i' c>
+            avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-            jp_ic, jp_ic1, jp_ic2 = \
+            avg_ic = self.ExpectationValue1pt(z, zeta, term='i*c', 
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+            ev_ic, ev_ic1, ev_ic2 = \
                 self.ExpectationValue2pt(z, zeta, R, term='ic',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-        
-            return avg_xc - jp_ic, Rzeros, Rzeros
+            #ev_iic, ev_iic1, ev_iic2 = \
+            #    self.ExpectationValue2pt(z, zeta, R, term='iic',
+            #    R_s=R_s, R3=R3, Th=Th, Ts=Ts)    
+            ev_iic = 0.0
+            
+            return avg_c - avg_ic - ev_ic + ev_iic, Rzeros, Rzeros
+            #return avg_xc - ev_ic, Rzeros, Rzeros
         
         elif term == 'xxcc':
             if not self.pf['ps_include_4pt']:
@@ -1096,28 +1128,22 @@ class Fluctuations(object):
             cc, cc1, cc2 = self.ExpectationValue2pt(z, zeta, R, term='cc',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja, k=k)
 
-            
-
             #if self.pf['ps_include_density_xcorr']:
             
             #else:
             #    xc = avg_xc = 0.0
 
-            if self.pf['ps_use_wick']:
-                avg_x = self.ExpectationValue1pt(z, zeta, term='n')
-                avg_c = self.ExpectationValue1pt(z, zeta, term='c',
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-                    
-                xc, xc1, xc2 = self.ExpectationValue2pt(z, zeta, R, term='nc',
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-                avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
-                    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-                    
-                xxcc = xx * cc + 2 * avg_xc + xc**2
-            else:
-                # Use binary model.            
-                xxcc = cc
-        
+            #if self.pf['ps_use_wick']:
+            iicc, iicc1, iicc2 = self.ExpectationValue2pt(z, zeta, R, term='iicc',
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+            icc, icc1, icc2 = self.ExpectationValue2pt(z, zeta, R, term='icc',
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+                
+            cc, cc1, cc2 = self.ExpectationValue2pt(z, zeta, R, term='cc',
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+                
+            xxcc = iicc - 2. * icc + cc
+            
             return xxcc, Rzeros, Rzeros
         
         elif term in ['xxdd', 'nndd']:
@@ -1268,10 +1294,15 @@ class Fluctuations(object):
         ##
         # Handy
         ##
-        if term != 'ii':
+        if self.pf['ps_include_ion'] and (term != 'ii'):
             _P_ii, _P_ii_1, _P_ii_2 = \
                 self.ExpectationValue2pt(z, zeta, R, term='ii', 
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+        
+        #if self.pf['ps_include_temp'] and (term != 'hh'):
+        #    _P_hh, _P_hh_1, _P_hh_2 = \
+        #        self.ExpectationValue2pt(z, zeta, R, term='hh', 
+        #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
         
         # Loop over scales
         P1 = np.zeros(R.size)
@@ -1426,6 +1457,16 @@ class Fluctuations(object):
                 P1[i] = _P1
                 P2[i] = min(_P2, Qh * Q)
             
+            elif term == 'iicc':
+                continue
+                #P1[i] = _P_ii_1[i] * _P_hh_1[i] * avg_c**2
+                #P2[i] = _P_ii_2[i] * _P_hh_2[i] * avg_c**2
+                
+            elif term == 'icc':
+                continue
+                #P1[i] = _P_ii_1[i] * _P_hh_1[i] * avg_c**2
+                #P2[i] = _P_ii_2[i] * _P_hh_2[i] * avg_c**2    
+            
             ## 
             # Density stuff from here down
             ##    
@@ -1500,16 +1541,15 @@ class Fluctuations(object):
                     #
                     _P1 = _P_ii_1[i] * delta_b_bar
                     #P2[i] = _P2_1 * (_P2_2 - self.fcoll_vol(z) * delta_h)
-                    #P2[i] = _P_ii_2[i] * delta_b_bar #- (1. - _P_ii_2[i] - _P_ii_1[i]) * delta_n_bar
-                    _P2 = (1. - _P_ii_1[i]) * delta_b_bar \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
+                    _P2 = _P_ii_2[i] * delta_b_bar #- (1. - _P_ii_2[i] - _P_ii_1[i]) * delta_n_bar
+                    #_P2 = (1. - _P_ii_1[i]) * delta_b_bar \
+                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
+                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
                     
                     P1[i] = _P1
-                    P2[i] = _P2 \
-                          + delta_n_bar * (1. - Qi) * Qi
+                    P2[i] = _P2 + delta_n_bar * (1. - Qi) * Qi
                     
-                    #P1[i] = P2[i] = 0.
+                    #print(sep, np.abs(delta_n_bar * (1. - Qi) * Qi) / np.abs(_P2))
                     
                     # Add in "minihalos" term?
                     
@@ -1570,6 +1610,7 @@ class Fluctuations(object):
                     P1[i] = _P_ii_1[i] * xi_dd[i]
                     P2[i] = _P_ii_2[i] * xi_dd[i]
                     
+                  
 
             #elif term == 'hd':
             #    Vo = all_V[3]
@@ -1598,7 +1639,7 @@ class Fluctuations(object):
             #    limiter = None
                 
             else:
-                raise NotImplemented('No method in place to compute <{}\'>'.format(term))
+                raise NotImplementedError('No method in place to compute <{}\'>'.format(term))
         
         ##
         # Kludges!
@@ -1607,21 +1648,41 @@ class Fluctuations(object):
         
         # To ensure vanishing fluctuations as R->inf, must
         # augment <x_i x_i' d d'> term.
-        if self.pf['ps_include_xcorr_ion_rho']:
-            PT = P1 + P2
-            if term == 'iidd':
-                
-                kludge = 0.0
-                if self.pf['ps_include_ion']:
-                    avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
-                                            
-                    kludge += avg_id**2
-                    if self.pf['ps_use_wick']:
-                        idt, id1, id2 = \
-                            self.ExpectationValue2pt(z, zeta, R, term='id')
-                        kludge += idt**2
+        kludge = 0.0
+        
+        #if self.pf['ps_include_xcorr_ion_rho']:
+            
+        if term == 'iidd':
+            
+            
+            if self.pf['ps_include_ion']:
+                avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
+                                        
+                kludge += avg_id**2
+                if self.pf['ps_use_wick']:
+                    idt, id1, id2 = \
+                        self.ExpectationValue2pt(z, zeta, R, term='id')
+                    kludge += idt**2
+              
+        #if self.pf['ps_include_xcorr_ion_hot']:
+        #elif term == 'iicc':
+        #    print('hello')
+        #    avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
+        #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+        #    avg_c = self.ExpectationValue1pt(z, zeta, term='c',
+        #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+        #    kludge += avg_c**2 #- Qi**2 * avg_c**2 #- 2 * Qi**2 * avg_c
+        
+        #elif term == 'iicc':
+        #    #avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
+        #    #    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+        #    avg_c = self.ExpectationValue1pt(z, zeta, term='c',
+        #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+        #    kludge += avg_c**2 - Qi**2 * avg_c**2 - 2 * Qi**2 * avg_c
+              
+        PT = P1 + P2      
                     
-                PT += kludge
+        PT += kludge
                         
         
         ##
@@ -1658,9 +1719,7 @@ class Fluctuations(object):
         #        else:
         #            PT = (1. - Qi) * P1
             
-        else:
-            PT = P1 + P2
-        
+
         self._cache_jp_[z][term] = R, PT, P1, P2
         
         return PT, P1, P2
@@ -1921,18 +1980,18 @@ class Fluctuations(object):
             cf = ev_2pt - ev_1pt
 
         elif term == 'ic':
-            jp, jp_1, jp_2 = \
+            ev_2pt, ev_1, ev_2 = \
                 self.ExpectationValue2pt(z, zeta, R=R, term='ic',
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts)
 
             # Add optional correction to ensure limiting behavior?        
-            if self.pf['ps_volfix']:
-                if (Qh < 0.5) and (Qi < 0.5):
-                    ev_2pt = jp_1 + jp_2
-                else:
-                    ev_2pt = (1. - Qh) * jp_1 + Qh * Qi
-            else:    
-                ev_2pt = jp + Qh * Qi
+            #if self.pf['ps_volfix']:
+            #    if (Qh < 0.5) and (Qi < 0.5):
+            #        ev_2pt = jp_1 + jp_2
+            #    else:
+            #        ev_2pt = (1. - Qh) * jp_1 + Qh * Qi
+            #else:    
+            #    ev_2pt = jp + Qh * Qi
         
             ev_1pt = self.ExpectationValue1pt(z, zeta, term='i*c', 
                 R_s=R_s, Ts=Ts, Th=Th)
