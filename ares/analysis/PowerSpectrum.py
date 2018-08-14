@@ -47,7 +47,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
     def PowerSpectrum(self, z, field='21', ax=None, fig=1,
         force_draw=False, dimensionless=True, take_sqrt=False, 
-        scatter=False, **kwargs):
+        scatter=False, renorm=None, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -83,7 +83,12 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         elif dimensionless:
             if field == '21':
-                norm = self.history['dTb0'][iz]**2
+                if renorm is None:
+                    dTb0 = self.history['dTb0_2'][iz]
+                else:
+                    dTb0 = renorm[iz]
+                    
+                norm = dTb0**2
             else:
                 print "dunno norm for field=%s" % field
                 norm = 1.
@@ -282,7 +287,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
         dimensionless=True, show_gs=False, mp_kwargs={}, scatter=True,
-        scatter_kwargs={}, rescale=True, orientation='vertical', show_dd=False, 
+        scatter_kwargs={}, renorm=None, orientation='vertical', show_dd=False, 
         **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
@@ -336,7 +341,12 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         if dimensionless and ('ps_21_dl' in self.history):
             ps = p
         elif dimensionless:
-            norm = self.history['dTb0']**2
+            if renorm is None:
+                dTb0 = self.history['dTb0_2']
+            else:
+                dTb0 = renorm
+                
+            norm = dTb0**2
 
             ps = norm * p * k**3 / 2. / np.pi**2
             

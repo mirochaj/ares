@@ -217,7 +217,7 @@ def PhysicsParameters():
     "inits_Tk_p1": None,
     "inits_Tk_p2": None,    # Set to -4/3 if thermal_hist = 'exp' to recover adiabatic cooling
     "inits_Tk_p3": 0.0,
-    "inits_Tk_p4": np.inf,
+    "inits_Tk_p4": inf,
     "inits_Tk_p5": None,
     "inits_Tk_dz": 1.,
     
@@ -399,6 +399,7 @@ def PowerSpectrumParameters():
      'ps_include_ion': True,
      'ps_include_temp': False,
      'ps_include_lya': False,
+     'ps_lya_cut': inf,
      
      # Binary model switches
      'ps_include_xcorr_ion_rho': False,
@@ -408,6 +409,8 @@ def PowerSpectrumParameters():
      'ps_include_3pt': True,
      'ps_include_4pt': True,
      
+     'ps_correct_gs_ion': True,
+     'ps_correct_gs_temp': True,     
      
      'ps_assume_saturated': False,
      
@@ -418,7 +421,7 @@ def PowerSpectrumParameters():
      'ps_include_lya_lc': False,
 
      "ps_volfix": True,
-     
+
      "ps_rescale_Qlya": False,
      "ps_rescale_Qhot": False,
      "ps_rescale_dTb": False,
@@ -428,6 +431,7 @@ def PowerSpectrumParameters():
      
      # Important that the number is at the end! ARES will interpret
      # numbers within underscores as population ID numbers.
+     "bubble_shell_rvol_zone_0": None,
      "bubble_shell_rsize_zone_0": None,
      "bubble_shell_asize_zone_0": None,
      "bubble_shell_ktemp_zone_0": None,
@@ -491,7 +495,7 @@ def PopulationParameters():
     
     "pop_sfr_above_threshold": True,
     "pop_sfr_cross_threshold": True,
-    "pop_sfr_cross_upto_Tmin": np.inf,
+    "pop_sfr_cross_upto_Tmin": inf,
         
     # Mass accretion rate
     "pop_MAR": 'hmf',

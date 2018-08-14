@@ -159,13 +159,6 @@ class PowerSpectrum21cm(AnalyzePS):
         self.history['z'] = self.z
         self.history['k'] = self.k
         self.history['R'] = self.R
-    
-    @property
-    def ps_include_contrast(self):
-        if not hasattr(self, '_ps_include_contrast'):
-            self._ps_include_contrast = self.pf['ps_include_temp'] or \
-                self.pf['ps_include_lya']
-        return self._ps_include_contrast
 
     @property
     def k(self):
@@ -290,15 +283,28 @@ class PowerSpectrum21cm(AnalyzePS):
             # Right now, only constant (relative) scaling is allowed.
             ##    
             if self.pf['ps_include_temp']:
-                if self.pf['bubble_shell_rsize_zone_0'] is not None:
-                    R_s = lambda R: R * (1. + self.pf['bubble_shell_rsize_zone_0'])
-                    Th = self.pf["bubble_shell_ktemp_zone_0"]
-                    self.field.is_Rs_const = True
+                
+                fvol = self.pf["bubble_shell_rvol_zone_0"]
+                frad = self.pf['bubble_shell_rsize_zone_0']
+                
+                assert (fvol == True) + (frad == True) <= 1
+                
+                if fvol is not None:
+                    assert frad is None
+                    frad = ((1. + fvol)**(1./3.) - 1.)
+                elif frad is not None:
+                    pass
+                    #R_s = lambda R: R * (1. + frad)
                 else:
                     # If R_s = R_s(z), must re-compute overlap volumes on each
                     # step. Should set attribute if this is the case.
                     raise NotImplemented('help')    
                 
+                R_s = lambda R: R * (1. + frad)
+                
+                # Must be constant, for now.
+                self.field.is_Rs_const = True
+                Th = self.pf["bubble_shell_ktemp_zone_0"]
                 
                 self.R_s = R_s
                 self.Th = Th
@@ -337,16 +343,56 @@ class PowerSpectrum21cm(AnalyzePS):
                 func = self.hydr.__getattribute__('beta_%s' % f1)
                 data['beta_%s' % f1] = func(z, Tk, xHII, ne, Ja)
             
-            QHII_gs = np.interp(z, self.gs.history['z'][-1::-1], 
+            Qi_gs = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['cgm_h_2'][-1::-1])
             
-            QHII_fc = self.field.BubbleFillingFactor(z, zeta,
-                rescale=True)
+            # Ionization fluctuations
+            if self.pf['ps_include_ion']:
             
-            # Mean brightness temperature outside bubbles  
-            # Currently not including xe effects  
-            Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
-                self.gs.history['dTb'][-1::-1] / (1. - self.gs.history['cgm_h_2'][-1::-1]))
+                Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, zeta)
+            
+                data['n_i'] = Ni
+                data['m_i'] = Mi
+                data['r_i'] = Ri
+                data['delta_B'] = self.field._B(z, zeta)
+            else:
+                Ri = Mi = Ni = None    
+            
+            Qi = self.field.MeanIonizedFraction(z, zeta)
+            
+            Qi_bff = self.field.BubbleFillingFactor(z, zeta)
+            
+            xibar = Qi_gs                
+                            
+            #print(z, Qi_bff, Qi, xibar, Qi_bff / Qi)
+                            
+            if self.pf['ps_include_temp']:
+                Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
+                data['Qh'] = Qh
+            else:
+                data['Qh'] = Qh = 0.0
+            
+            # Interpolate global signal onto new (coarser) redshift grid.
+            dTb_ps = np.interp(z, self.gs.history['z'][-1::-1], 
+                self.gs.history['dTb'][-1::-1])
+                
+            data['dTb0'] = dTb_ps
+                
+            ##
+            # Correct for fraction of ionized and heated volume!
+            ##
+            data['dTb0_1'] = dTb_ps * (1. - Qi) / (1. - Qi_gs)
+            
+            if self.pf['ps_include_temp']:
+                data['dTb0_2'] = (1 - Qh - Qi) * dTb_ps \
+                    + Qh * self.hydr.dTb(z, 0.0, Th)
+                               
+                #data['dTb0_2'] = data['dTb0_1'] * (1. - Qh) 
+                #    + Qh * self.hydr.dTb(z, 0.0, Th) - data['dTb0_1']
+            else:
+                data['dTb0_2'] = data['dTb0_1']
+                
+            
                 
             #if self.pf['include_ion_fl']:
             #    if self.pf['ps_rescale_Qion']:
@@ -363,8 +409,7 @@ class PowerSpectrum21cm(AnalyzePS):
             #else:
             #    Qi = 0.
             
-            Qi = self.field.MeanIonizedFraction(z, zeta)
-            xibar = QHII_gs
+            
                                 
             #if self.pf['ps_force_QHII_gs'] or self.pf['ps_force_QHII_fcoll']:
             #    rescale_Q = True
@@ -379,113 +424,18 @@ class PowerSpectrum21cm(AnalyzePS):
             # Avoid divide by zeros when reionization is over
             if Qi == 1:
                 Tbar = 0.0
-                #Tbar /= (1. - xibar)
-            #else:
-            #    Tbar = 0.0
+            else:
+                Tbar = data['dTb0_2']
                                 
             xbar = 1. - xibar
             data['Qi'] = Qi
             data['xibar'] = xibar
             data['dTb0'] = Tbar
-            
-            ##
-            # Compute correlation functions and power spectra
-            ##            
-            #if self.pf['ps_include_density']:
-            #    data['cf_mm'] = self.halos.CorrelationFunction(z, self.R)
-            #
-            #    # These resolutions will be different! All that matters is that
-            #    # the CF has high resolution since we must integrate over it.
-            #    if self.pf['ps_output_components']:
-            #        data['ps_mm'] = self.halos.PowerSpectrum(z, self.k)
-            #
-            ## Ionization fluctuations
-            if self.pf['ps_include_ion']:
-            
-                Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, zeta)
-            
-                data['n_i'] = Ni
-                data['m_i'] = Mi
-                data['r_i'] = Ri
-                data['delta_B'] = self.field._B(z, zeta)
-            else:
-                Ri = Mi = Ni = None    
-            
-            #                    
-            #    data['jp_ii'], data['jp_ii_1h'], data['jp_ii_2h'] = \
-            #        self.field.ExpectationValue2pt(z, zeta, 
-            #            R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
-            #    data['cf_ii'] = self.field.CorrelationFunction(z, zeta, 
-            #        R=self.R, term='ii', R_s=R_s(Ri), Th=Th, Ts=Ts)
-            #        
-            #    if self.pf['ps_include_xcorr_ion_rho']:
-            #        data['cf_id'] = self.field.CorrelationFunction(z, zeta, 
-            #            R=self.R, term='id', R_s=R_s(Ri), Th=Th, Ts=Ts)
-            #    
-            #    if self.pf['ps_output_components']:
-            #        data['ps_ii'] = self.field.PowerSpectrumFromCF(self.k, 
-            #            data['cf_ii'], self.R,
-            #            split_by_scale=self.pf['ps_split_transform'])
-            #
-            #        if self.pf['ps_include_xcorr_ion_rho']:
-            #            data['ps_id'] = self.field.PowerSpectrumFromCF(self.k, 
-            #                data['cf_id'], self.R, 
-            #                split_by_scale=self.pf['ps_split_transform'])
-            #else:
-            #    Ri = Mi = Ni = None
-            #        
-            ## Temperature fluctuations
-            #if self.pf['ps_include_temp']:
-            #    
-            #    assert self.pf['ps_include_ion']
-            #    
-            #    Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
-            #    
-            #    data['cf_hh'] = self.field.CorrelationFunction(z, zeta,
-            #        R=self.R, term='hh', R_s=R_s(Ri), Ts=Ts, Th=Th)
-            #    
-            #    if self.pf['ps_include_xcorr_ion_hot']:
-            #        data['cf_ih'] = self.field.CorrelationFunction(z, zeta,
-            #            R=self.R, term='ih', R_s=R_s(Ri), Ts=Ts, Th=Th)
-            #    else:
-            #        data['cf_ih'] = np.zeros_like(self.R)
-            #    
-            #    #if self.pf['ps_output_components']:   
-            #    #    data['ps_hh'] = self.field.PowerSpectrumFromCF(self.k, 
-            #    #        data['cf_hh'], self.R, 
-            #    #        split_by_scale=self.pf['ps_split_transform'],
-            #    #        epsrel=self.pf['ps_fht_rtol'],
-            #    #        epsabs=self.pf['ps_fht_atol']) 
-            #    #    if self.pf['ps_include_xcorr_ion_hot']:    
-            #    #        data['ps_ih'] = self.field.PowerSpectrumFromCF(self.k, 
-            #    #            data['cf_ih'], self.R, 
-            #    #            split_by_scale=self.pf['ps_split_transform'],
-            #    #            epsrel=self.pf['ps_fht_rtol'],
-            #    #            epsabs=self.pf['ps_fht_atol'])    
-            #else:
-            #    Qh = 0.0
-            #    
-            #    
-            
-            if self.pf['ps_include_temp']:
-                Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
-                data['Qh'] = Qh    
-            else:
-                data['Qh'] = 0.0
-                
-            #    
-            ## Ly-a fluctuations
-            #if self.pf['ps_include_lya']:
-            #    pass
-                
-                
-            
-            
+                        
             ##
             # 21-cm fluctuations
             ##
             if self.pf['ps_include_21cm']:                
-                #print(z, Ts, Th, Tk, R_s(Ri[0])/Ri[0])
 
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta=zeta, 
                     R=self.R, term='21', R_s=R_s(Ri), Ts=Ts, Th=Th,
