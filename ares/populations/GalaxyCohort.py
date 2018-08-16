@@ -2110,9 +2110,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     y6p = C * (Mbh + Mseed)
                 else:
                     y6p = 0.0
-            
+
         else:
-            y6p = 0.0    
+            y6p = 0.0
         
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
