@@ -24,7 +24,7 @@ hmf_pars = \
 {
  "hmf_model": fit,
  "hmf_dlogM": 0.01,
- "hmf_zmin": 3.,
+ "hmf_zmin": 1.,
  "hmf_dz": 0.05,
  "hmf_zmax": 60.,
 }
@@ -33,6 +33,6 @@ hmf_pars = \
 hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
     hmf_load=False, **hmf_pars)
 
-hmf.save(format=format)
+hmf.SaveHMF(format=format)
 
 

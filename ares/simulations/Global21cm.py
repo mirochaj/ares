@@ -535,7 +535,7 @@ class Global21cm(AnalyzeGlobal21cm):
             
             if self.pf['feedback_LW_sfrd_popid'] is not None:
                 pid = self.pf['feedback_LW_sfrd_popid']
-                write_pickle_file((self.medium.field.pops[pid].halos.z,\
+                write_pickle_file((self.medium.field.pops[pid].halos.tab_z,\
                     self.medium.field._sfrd_bank), '{!s}.sfrd.pkl'.format(\
                     prefix), ndumps=1, open_mode='w', safe_mode=False,\
                     verbose=self.pf['verbose'])

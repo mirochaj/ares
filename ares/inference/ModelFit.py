@@ -134,8 +134,9 @@ def _compute_blob_prior(sim, priors_B):
             
             ivar = sim.get_ivars(key)[0]
             
+            # Interpolate to find value of blob at point where prior is set
             val = np.interp(md[1], ivar, blob)
-            zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
+            #zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
                                     
             # Should check ivarn too just to be safe
             
