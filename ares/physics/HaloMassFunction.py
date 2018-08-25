@@ -236,6 +236,10 @@ class HaloMassFunction(object):
             if self.pf['hmf_load']:
                 self._load_hmf()
 
+        if name not in self.__dict__:
+            s = "May need to run 'python remote.py fresh hmf' or check hmf_* parameters."
+            raise KeyError("HMF table element {} not found. {}".format(name, s))
+                
         return self.__dict__[name]
 
     def _load_hmf(self):
@@ -531,8 +535,8 @@ class HaloMassFunction(object):
                     
             if Mmax_of_z:
                 self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
-                self.dndm_Mmax[i] = 10**np.interp(self.logM_min[i], self.logM, 
-                    np.log10(self.dndm[i,:]))
+                self.dndm_Mmax[i] = 10**np.interp(self.logM_min[i], np.log10(self.tab_M), 
+                    np.log10(self.tab_dndm[i,:]))
                     
             # For boundary term
             if Mmin_of_z:
@@ -899,6 +903,13 @@ class HaloMassFunction(object):
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
         z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
         
+        # Just use integer redshift bounds please.
+        assert z1 % 1 == 0
+        assert z2 % 1 == 0
+        
+        z1 = int(z1)
+        z2 = int(z2)
+        
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
@@ -910,12 +921,12 @@ class HaloMassFunction(object):
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))    
              
-            s = 'hmf_{0!s}_logM_{1!s}_{2}-{3}_z_{4!s}_{5}-{6}'.format(\
+            s = 'hmf_{0!s}_logM_{1}_{2}-{3}_z_{4}_{5}-{6}'.format(\
                 self.hmf_func, logMsize, M1, M2, zsize, z1, z2)            
                                 
         else:
             
-            s = 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3:.1f}-{4:.1f}'.format(\
+            s = 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3}-{4}'.format(\
                 self.hmf_func, M1, M2, z1, z2) 
                         
         return s   
@@ -943,20 +954,16 @@ class HaloMassFunction(object):
             hmf_v = hmf.__version__
         except AttributeError:
             hmf_v = 'unknown'
-        
-        # Do this first! (Otherwise parallel runs will be garbage)
-        self.TabulateHMF()    
-        
-        if rank > 0:
-            return
-        
+            
         if destination is None:
             destination = '.'
         
         # Determine filename
         if fn is None:
             fn = '{0!s}/{1!s}.{2!s}'.format(destination,\
-                self.tab_prefix_hmf(True), format)                
+                self.tab_prefix_hmf(True), format)    
+            if rank == 0:
+                print("Will save HMF to file {}".format(fn))            
         else:
             if format not in fn:
                 print("Suffix of provided filename does not match chosen format.")
@@ -967,7 +974,15 @@ class HaloMassFunction(object):
                 os.system('rm -f {!s}'.format(fn))
             else:
                 raise IOError(('File {!s} exists! Set clobber=True or ' +\
-                    'remove manually.').format(fn)) 
+                    'remove manually.').format(fn))    
+        
+        # Do this first! (Otherwise parallel runs will be garbage)
+        self.TabulateHMF()    
+        
+        if rank > 0:
+            return
+        
+        
         
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
