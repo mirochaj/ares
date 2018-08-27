@@ -11,6 +11,8 @@ Description:
 """
 
 from __future__ import print_function
+
+import glob
 import numpy as np
 from ..util import get_hg_rev
 from ..util.Stats import get_nu
@@ -185,7 +187,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
-    
+        
     if debug:
         sim.run()
         blobs = sim.blobs
@@ -1015,13 +1017,18 @@ class ModelFit(FitBase):
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
                 'binfo', 'setup', 'load', 'fail', 'timeout']:
-                os.system('rm -f {0!s}.{1!s}.pkl'.format(self.prefix, suffix))
-                os.system('rm -f {0!s}.*.{1!s}.pkl'.format(self.prefix,\
-                    suffix))
-            os.system('rm -f {!s}.prior_set.hdf5'.format(self.prefix))
+                os.remove('{0!s}.{1!s}.pkl'.format(self.prefix, suffix))
+                
+                for _fn in glob.glob('{0!s}.*.{1!s}.pkl'.format(self.prefix,\
+                    suffix)):
+                    os.remove(_fn)
+                    
+            os.remove('{!s}.prior_set.hdf5'.format(self.prefix))
             # These suffixes have their own suffixes
-            os.system('rm -f {!s}.blob_*.pkl'.format(self.prefix))
-            os.system('rm -f {!s}.*.blob_*.pkl'.format(self.prefix))
+            for _fn in glob.glob('{!s}.blob_*.pkl'.format(self.prefix)):
+                os.remove(_fn)
+            for _fn in glob.glob('{!s}.*.blob_*.pkl'.format(self.prefix)):
+                os.remove(_fn)
         # Each processor gets its own fail file
         f = open('{!s}.fail.pkl'.format(prefix_by_proc), 'wb')
         f.close()

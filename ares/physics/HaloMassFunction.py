@@ -971,7 +971,7 @@ class HaloMassFunction(object):
         
         if os.path.exists(fn):
             if clobber:
-                os.system('rm -f {!s}'.format(fn))
+                os.remove(fn)
             else:
                 raise IOError(('File {!s} exists! Set clobber=True or ' +\
                     'remove manually.').format(fn))    

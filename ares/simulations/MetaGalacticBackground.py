@@ -228,16 +228,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         Grab radiation background at a single energy at z=0.
         """
         nrg, fluxes = self.today
-        
-        flux = 0.0
-        for i, band in enumerate(nrg):
-
-            if not (min(band) <= E <= max(band)):
-                continue
-
-            flux += np.interp(E, band, fluxes[i])
-                
-        return flux   
+    
+        return np.interp(E, nrg, fluxes)
         
     def temp_of_E(self, E):
         """

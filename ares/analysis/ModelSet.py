@@ -3842,11 +3842,11 @@ class ModelSet(BlobFactory):
             
             if samples == 'all':
                 # Unmasked elements only
-                mask1d = np.sum(self.mask, axis=1)
-                elements = np.argwhere(mask1d == 0).squeeze()
-                                
-                for i, element in enumerate(elements):
-                    ax.plot(xarr, y.T[i], **kwargs)
+                #mask1d = np.sum(self.mask, axis=1)
+                #elements = np.argwhere(mask1d == 0).squeeze()
+                                                     
+                for i, element in enumerate(y.T):
+                    ax.plot(xarr, element, **kwargs)
             else:
                 # Choose randomly 
                 if type(samples) == int:    
