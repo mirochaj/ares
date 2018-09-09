@@ -1017,16 +1017,19 @@ class ModelFit(FitBase):
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
                 'binfo', 'setup', 'load', 'fail', 'timeout']:
-                if os.path.exists(_fn):
-                    os.remove('{0!s}.{1!s}.pkl'.format(self.prefix, suffix))
                 
-                for _fn in glob.glob('{0!s}.*.{1!s}.pkl'.format(self.prefix,\
+                _fn1 = '{0!s}.{1!s}.pkl'.format(self.prefix, suffix)
+                
+                if os.path.exists(_fn1):
+                    os.remove(_fn1)
+                
+                for _fn2 in glob.glob('{0!s}.*.{1!s}.pkl'.format(self.prefix,\
                     suffix)):
                     
-                    if os.path.exists(_fn):
-                        os.remove(_fn)
+                    if os.path.exists(_fn2):
+                        os.remove(_fn2)
             
-            if os.path.exists(_fn):        
+            if os.path.exists('{!s}.prior_set.hdf5'.format(self.prefix)):        
                 os.remove('{!s}.prior_set.hdf5'.format(self.prefix))
                 
             # These suffixes have their own suffixes
