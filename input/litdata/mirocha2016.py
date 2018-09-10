@@ -77,7 +77,7 @@ dpl = \
  'cgm_recombination': 'B',
  'clumping_factor': 3.,
  #'smooth_derivative': 0.5,
- 'final_redshift': 5.,
+ 'final_redshift': 5,
 }
 
 base = dpl

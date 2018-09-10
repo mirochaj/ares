@@ -35,9 +35,9 @@ To have a look at the mass function at a few redshifts, you could do something l
     import matplotlib.pyplot as pl
     
     for z in [4, 6, 10]:
-        i = np.argmin(np.abs(z - pop.halos.z))
+        i = np.argmin(np.abs(z - pop.halos.tab_z))
         
-        pl.loglog(pop.halos.M, pop.halos.dndm[i,:])
+        pl.loglog(pop.halos.tab_M, pop.halos.tab_dndm[i,:])
         
     # Tighten up, since high-mass end will stretch out y-axis a lot    
     pl.ylim(1e-25, 10)
@@ -59,14 +59,14 @@ For a quick sanity check, you could re-derive :math:`f_{\mathrm{coll}}` from the
 ::
     
     # Arbitrarily choose a minimum mass of 10^8 Msun
-    i = np.argmin(np.abs(pop.halos.M - 1e8))
+    i = np.argmin(np.abs(pop.halos.tab_M - 1e8))
     
-    pl.semilogy(pop.halos.z, pop.halos.fcoll_tab[:,i])
+    pl.semilogy(pop.halos.tab_z, pop.halos.tab_fcoll[:,i])
     
     # Compute it ourselves
-    integrand = pop.halos.M[i:] * pop.halos.dndm[:,i:]
-    fcoll = np.trapz(integrand, x=pop.halos.M[i:], axis=1) / pop.cosm.mean_density0
-    pl.semilogy(pop.halos.z, fcoll, ls='--', lw=3)
+    integrand = pop.halos.tab_M[i:] * pop.halos.tab_dndm[:,i:]
+    fcoll = np.trapz(integrand, x=pop.halos.tab_M[i:], axis=1) / pop.cosm.mean_density0
+    pl.semilogy(pop.halos.tab_z, fcoll, ls='--', lw=3)
 
 Notice that we carry around the mean matter density at :math:`z=0` in an instance of the Cosmology class, which hangs off of the population object in the ``cosm`` attribute. It has units of :math:`M_{\odot} \ \mathrm{cMpc}^{-3}`, so we did not need to do any unit conversions.
 

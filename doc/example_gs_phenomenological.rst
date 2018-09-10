@@ -26,11 +26,9 @@ Now, you might say "I could have done that myself extremely easily." You'd be ri
         
 In the remaining sections we'll cover different ways to parameterize the signal.
 
-Parameterizing the IGM
+Parameterizing the IGM 
 ----------------------
 Whereas the Gaussian absorption model makes no link between the brightness temperature and the underlying quantities of interest (ionization history, etc.), the tanh model first models :math:`J_{\alpha}(z)`, :math:`T_K(z)`, and :math:`x_i(z)`, and from those histories produces :math:`\delta T_b(z)`.
-
-However, 
 
 Now, let's assemble a set of parameters that will generate a global 21-cm signal using ParameterizedQuantity objects for each main piece: the thermal, ionization, and Ly-:math:`\alpha` histories. We'll assume that the thermal and ionization histories are *tanh* functions, but take the Ly-:math:`\alpha` background evolution to be a power-law in redshift:
 

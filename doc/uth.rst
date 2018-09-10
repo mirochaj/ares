@@ -7,6 +7,7 @@ Parameters, Fields, and Data Structures
 * :doc:`params`
 * :doc:`fields`
 * :doc:`inits_tables`
+* :doc:`uth_pq`
 
 .. Radiation Sources
 .. -----------------

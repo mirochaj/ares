@@ -57,5 +57,5 @@ Extensions
 * Customization
     * :doc:`example_embed_ares`
     * :doc:`uth_pq`
-    
+    * :doc:`uth_pop_new`
 

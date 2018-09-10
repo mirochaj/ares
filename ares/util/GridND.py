@@ -640,7 +640,7 @@ class GridND(defaultdict):
         rw = 'w'
         if os.path.exists(fn):
             if clobber:
-                os.system('rm -f {!s}'.format(fn))
+                os.remove(fn)
                 print("Over-writing contents of {!s}.".format(fn))
                 rw = 'w'
             else:

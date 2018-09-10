@@ -21,6 +21,7 @@ from ..util.Math import interp1d
 from .Population import Population
 from ..util import MagnitudeSystem
 from ..util.ParameterFile import get_pq_pars
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, s_per_myr, ev_per_hz, g_per_msun, \
     cm_per_mpc
@@ -39,8 +40,8 @@ class ClusterPopulation(Population):
             self._magsys = MagnitudeSystem(**self.pf)
         return self._magsys
         
-    def LuminosityDensity(self):
-        pass
+    #def LuminosityDensity(self):
+    #    pass
         
     def _sfrd_func(self, z):
         # This is a cheat so that the SFRD spline isn't constructed
@@ -70,7 +71,7 @@ class ClusterPopulation(Population):
     @property
     def _frd(self):
         """
-        Formation rate density in # of clusters / Myr / cMpc^3.
+        Formation rate density in # of clusters / yr / cMpc^3.
         """
         if not hasattr(self, '_frd_'):
             if self.pf['pop_frd'] is None:
@@ -81,7 +82,7 @@ class ClusterPopulation(Population):
                 self._frd_ = self.pf['pop_frd']
             elif inspect.ismethod(self.pf['pop_frd']):
                 self._frd_ = self.pf['pop_frd']
-            elif isinstance(self.pf['pop_frd'], interp1d):
+            elif isinstance(self.pf['pop_frd'], interp1d_scipy):
                 self._frd_ = self.pf['pop_frd']  
             elif self.pf['pop_frd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_frd'], self.pf)
@@ -94,34 +95,45 @@ class ClusterPopulation(Population):
                 
     def MassFunction(self, **kwargs):
         """
-        Un-normalized.
+        Return the normalized mass function at redshift z, which includes
+        clusters formed at all z' > z.
         """
-        
-        iz = np.argmin(np.abs(kwargs['z'] - self.zarr))
-        
-        frd = np.array([self.FRD(z=z) for z in self.zarr])
-        mdist = np.array([self._mdist(z=z, M=kwargs['M']) for z in self.zarr])
-        y = frd * mdist / self._mdist_norm
 
-        return np.trapz(y[iz:], x=self.tarr[iz:])
+        iz = np.argmin(np.abs(kwargs['z'] - self.tab_zobs))    
+            
+        frd = np.array([self.FRD(z=z) for z in self.tab_zobs[:iz]])
+        
+        # (redshift, mass)
+        mdist = np.array([self._mdist(z=z, M=kwargs['M']) \
+            for z in self.tab_zobs[:iz]]) * self._mdist_norm
+
+        y = np.zeros_like(kwargs['M'])
+        for i, m in enumerate(kwargs['M']):
+            _y = frd * 1e6 * mdist[:,i]
+            # Integrate over time for clusters of this mass.
+            # Note: we don't not allow clusters to lose mass.
+            y[i] = np.trapz(_y, x=self.tab_ages[:iz])
+
+        return y
 
     @property
     def _tab_massfunc(self):
         if not hasattr(self, '_tab_massfunc_'):
-            self._tab_massfunc_ = np.zeros((len(self.zarr), len(self.Marr)))
+            self._tab_massfunc_ = np.zeros((len(self.tab_zobs), len(self.tab_M)))
             
             # Loop over formation redshifts.
-            for i, z in enumerate(self.zarr):
+            for i, z in enumerate(self.tab_zobs):
                 
                 frd = np.array([self.FRD(z=zz) \
-                    for zz in self.zarr[i:]]) * 1e6 # since tarr in Myr
-                mdist = np.array([self._mdist(z=zz, M=self.Marr) \
-                    for zz in self.zarr[i:]]) / self._mdist_norm
+                    for zz in self.tab_zobs[i:]])
+                mdist = np.array([self._mdist(z=zz, M=self.tab_M) \
+                    for zz in self.tab_zobs[i:]]) * self._mdist_norm
                 
-                for j, M in enumerate(self.Marr):
-                    #self._tab_agefunc_[i,i:] = self.ages
+                for j, M in enumerate(self.tab_M):
+                    #self._tab_agefunc_[i,i:] = self.tab_ages
                     self._tab_massfunc_[i,j] = np.trapz(frd * mdist[:,j], 
-                        x=self.tarr[i:])
+                        x=self.tarr[i:] * 1e6)
+                    # 1e6 since tarr in Myr and FRD in yr^-1
                 
                     # Luminosity function integrates along age, not mass.
                     #self._tab_lumfunc[i,i:] = np.trapz()
@@ -131,7 +143,7 @@ class ClusterPopulation(Population):
     #@property
     #def _tab_agefunc(self):
     #    if not hasattr(self, '_tab_agefunc_'):
-    #        self._tab_agefunc_ = np.zeros((len(self.zarr), len(self.zarr)))
+    #        self._tab_agefunc_ = np.zeros((len(self.tab_zobs), len(self.tab_zobs)))
     #                
     #        
     
@@ -152,38 +164,49 @@ class ClusterPopulation(Population):
         if not hasattr(self, '_tab_lf_'):
             
             if self.is_aging:
-                self._tab_lf_ = np.zeros((len(self.zarr), len(self.Larr)))
+                self._tab_lf_ = np.zeros((len(self.tab_zobs), len(self.Larr)))
             else:
-                self._tab_lf_ = np.zeros((len(self.zarr), len(self.Marr)))
+                self._tab_lf_ = np.zeros((len(self.tab_zobs), len(self.tab_M)))
                                             
-            dt = self.pf['pop_age_res']
-            dz_all = np.diff(self.zarr)
+            # Convert to years
+            dt = self.pf['pop_age_res'] * 1e6
                         
-            # Number of clusters as a function of (zobs, age, mass)
-            self._tab_Nc_ = np.zeros((len(self.zarr), len(self.Marr), 
-                len(self.zarr)))
+            # Number of clusters as a function of (zobs, mass, age)
+            # Age is young to old.
+            self._tab_Nc_ = np.zeros((len(self.tab_zobs), len(self.tab_M), 
+                len(self.tab_ages)))
                 
-            self._tab_ages = np.zeros((len(self.zarr), len(self.Marr),
-                len(self.zarr)))
+            # Luminosities of these clusters.
+            self._tab_Lc_ = np.zeros((len(self.tab_zobs), len(self.tab_M),
+                len(self.tab_ages)))
             
             # These are observed redshifts, so we must integrate over
             # all higher redshifts to get the luminosity function.
-            for i, z in enumerate(self.zarr):
+            for i, z in enumerate(self.tab_zobs):
              
-                if i == len(self.zarr) - 2:
+                if i == len(self.tab_zobs) - 2:
                     # Do this
                     break
                                                 
                 # If we're not allowing this population to age, 
-                # things get a lot easier.
+                # things get a lot easier. The luminosity function is just
+                # the mass function normalized by the time-integrated FRD.
                 if not self.is_aging:         
-                    self._tab_lf_[i] = self.FRD(z=z) * dt * 1e6 \
-                        * self._mdist(z=z, M=self.Marr)
-                                     
+                    
+                    frd = self.FRD(z=z)
+                    mdist = self._mdist(z=z, M=self.tab_M) * self._mdist_norm
+                    
+                    # Off by a redshift grid pt? i.e., should be pt corresponding
+                    # to dt after they start forming.
+                    self._tab_Nc_[i,:,0] = frd * dt * mdist
+                    self._tab_lf_[i,:] = self._tab_Nc_[i,:,0]
+                                                                     
                     continue
                 
                 ##
-                # If we're here, it means this population can age
+                # If we're here, it means this population can age.
+                # Our goal is to compute the number of clusters as a function
+                # of mass and age.
                 ##
                 
                 # At this redshift of observation, we're seeing clusters of
@@ -192,33 +215,58 @@ class ClusterPopulation(Population):
                 # birth redshift to get the UV luminosity now.
                     
                 # First, calculate number of clusters as a function of 
-                # mass (luminosity) and age.
+                # mass and age.
                 
-                zarr = self.zarr[0:i+1]       
-                frd =  self.FRD(z=zarr)
-                mdist = np.array([self._mdist(z=z, M=self.Marr) for z in zarr])
-                                                                
-                # Integral (sum) over differential redshift elements
-                # to obtain number of clusters formed in each redshift interval
-                Nc_of_M_z = frd * dt * 1e6 * mdist.T #* np.diff(dz_all)[0:i+1]
-                # This has shape (M, z)
-                 
-                self._tab_Nc_[i,:,0:i+1] = Nc_of_M_z
+                # Redshifts at which clusters have formed so far
+                zform = self.tab_zobs[0:i+1]
+                # Formation rate density at those redshifts
+                frd  = self.FRD(z=zform)
+                
+                # This is a unity-normalized mass function as a function
+                # of redshift, with shape (z[form:obs], tab_M)
+                mdist = np.array([self._mdist(z=z, M=self.tab_M) \
+                    for z in zform]) * self._mdist_norm
+                # This is now (num formation redshifts, mass)
                                                                                 
-                # Age distribution of clusters formed at z.
-                zpre = self.zarr[0:i]
-                
-                # Age of all clusters formed between now and first formation
-                # redshift.
-                ages = dt * np.arange(len(zarr))[-1::-1]
-                                                
-                L = np.interp(ages, self.ages, self._tab_L1600)
-                                                    
-                # For each source population formed at z > znow, determine
-                # luminosity (as function of age) and scale by mass.
-                Lnow = np.array([L[k] * self.Marr \
-                    for k in range(len(ages))]).T
+                # Number of clusters at this zobs (index i), as a function
+                # of mass and age
+                self._tab_Nc_[i,:,0:i+1] = frd * dt * mdist.T
+                        
+                # This has shape (M, z)
+                                                                         
+                # Ages of all clusters formed between now and first formation
+                # redshift. Reverse order since large age means high 
+                # formation redshift, i.e., these are in descending order.
+                ages = self.tab_ages[0:i+1][-1::-1]
+                        
+                # Specific luminosities of clusters as a function of age. 
+                # Will weight by mass in a sec
+                L = np.interp(ages, self.tab_ages, self._tab_L1600)
+                                
+                tmax = self.tarr[i] - self.tarr[0]
+                                
+                # Need to normalize such that the integral of
+                # the LF is guaranteed to equal the total number of GCs.
+                # This means integrating over mass and summing up over 
+                # all ages. That's what `Nc` is for.                
+                                
+                # Save results
+                Nc = 0.0
+                for j, age in enumerate(ages):
                     
+                    if age > tmax:
+                        continue
+                        
+                    # We store as a function of ascending age, but the
+                    # FRD and luminosities are sorted by zform, i.e., 
+                    # descending age.
+                    k = np.argmin(np.abs(age - self.tab_ages))    
+                        
+                    self._tab_Nc_[i,:,k] = frd[j] * dt * mdist[j,:]    
+                    self._tab_Lc_[i,:,k] = L[j] * self.tab_M
+                    
+                    Nc += np.trapz(self._tab_Nc[i,:,k], x=self.tab_M, axis=0)    
+                                                    
                 # At this point, we have an array Nc_of_M_z that represents
                 # the number of clusters as a function of (mass, age).
                 # So, we convert from age to luminosity, weight by mass, 
@@ -227,13 +275,17 @@ class ClusterPopulation(Population):
                 # It seems odd to histogram here, but I think we must, since
                 # mass and age can combine to produce a continuum of 
                 # luminosities, i.e., we can't just integrate along one 
-                # dimension.    
+                # dimension.
+                                    
+                weight = self._tab_Nc_[i].flatten()                  
                     
                 # Histogram: number of clusters in given luminosity bins.
-                lf, bin_e = np.histogram(Lnow.flatten(), bins=self.Larr_e,
-                    weights=Nc_of_M_z.flatten())
-
-                self._tab_lf_[i] = lf
+                lf, bin_e = np.histogram(self._tab_Lc_[i].flatten(),
+                    bins=self.Larr_e, weights=weight, density=True)
+                    
+                # Prior to this point, `lf` is normalized to integrate
+                # to unity since we set density=True
+                self._tab_lf_[i] = lf * Nc
                 
         return self._tab_lf_
         
@@ -262,117 +314,109 @@ class ClusterPopulation(Population):
         # at each age.
         
         # This is in [erg / s / g]. Must convert to Msun.
-        tmp = self.src.rad_yield(Emin, Emax) * g_per_msun
-        yield_per_M = np.interp(self.ages, self.src.times, tmp)
-        
-        tmp = self.src.erg_per_phot(Emin, Emax)
-        erg_per_phot = np.interp(self.ages, self.src.times, tmp)
-        
-        #Lmin = np.log10(self.Marr.min() * yield_per_M.min())
-        #Lmax = np.log10(self.Marr.max() * yield_per_M.max())
-        #Larr = np.logspace(Lmin, Lmax, self.Larr.size)
-        #
-        #dlogL = np.diff(np.log10(Larr))[0]
-        #edges = 10**np.arange(np.log10(Larr[0]) - 0.5 * dlogL,
-        #            np.log10(Larr[-1]) + 0.5 * dlogL, dlogL)
-        
-        #dLdL = np.diff(self.Larr) / np.diff(Larr)
+        yield_per_M = self.src.rad_yield(Emin, Emax) * g_per_msun
+        erg_per_phot = self.src.erg_per_phot(Emin, Emax)
     
-        dt = self.pf['pop_age_res']
-    
-        _tab_rho_L_ = np.zeros_like(self.zarr)
-        _tab_rho_N_ = np.zeros_like(self.zarr)
-        
+        self._tab_rho_L_ = np.zeros_like(self.tab_zobs)
+        self._tab_rho_N_ = np.zeros_like(self.tab_zobs)
+                
         # Loop over redshift
-        for i, z in enumerate(self.zarr):
-            
-            # Should have shape (Marr, len(zarr[0:i+1]))                  
-            Nc = self._tab_Nc[i,:,0:i+1]
+        for i, z in enumerate(self.tab_zobs):
             
             if not self.is_aging:
-                _tab_rho_L_[i] = yield_per_M[0] * self.FRD(z=z) * np.mean(self.Marr)
-                continue
-
-            if i == 0:
-                continue
-
-            if i == len(self.zarr) - 2:
-                # Do this
-                break
-
-            zarr = self.zarr[0:i+1]    
-            zpre = zarr[0:-1]
-
-            ages = dt * np.arange(len(zarr))[-1::-1]
+                y = np.interp(0.0, self.src.times, yield_per_M)
+                N = np.interp(0.0, self.src.times, erg_per_phot)
+                self._tab_rho_L_[i] = np.trapz(self._tab_Nc[i,:,0] * self.tab_M * y, 
+                    x=self.tab_M)
+                self._tab_rho_N_[i] = np.trapz(self._tab_Nc[i,:,0] * self.tab_M * N,
+                    x=self.tab_M)
+                continue    
+            
+            # This is complicated because objects with the same luminosity
+            # will have different spectra at different ages. Basically
+            # need to repeat LF calculation...?
+            
+            ages = self.tab_ages[0:i+1][-1::-1]                            
+            tmax = self.tarr[i] - self.tarr[0]
                                         
-            L = np.interp(ages, self.ages, yield_per_M)
-            N = np.interp(ages, self.ages, yield_per_M / erg_per_phot)
+            # Save results
+            for j, age in enumerate(ages):
+                
+                if age > tmax:
+                    continue
+                                    
+                k = np.argmin(np.abs(age - self.tab_ages))                       
                                         
-            # Compute the emissivity as an integral over the LF.
-            # Be careful since conversion factor is age-dependent.
-            Larr = np.array([L[k] * self.Marr \
-                for k in range(len(ages))]).T    
-
-            dlogL = self.pf['pop_dlogM']
-                            
-            edges = 10**np.arange(np.log10(Larr.min()) - 0.5 * dlogL,
-                        np.log10(Larr.max()) + 0.5 * dlogL, dlogL)
-                        
-            # Compute LF
-            lf, bin_e = np.histogram(Larr.flatten(), bins=edges,
-                weights=Nc.flatten())
-                        
-            Lnow = rebin(edges)
-                        
-            # Compute luminosity density.
-            _tab_rho_L_[i] = np.trapz(lf * Lnow, dx=dlogL)
-            
-            Narr = np.array([N[k] * self.Marr \
-                for k in range(len(ages))]).T
-            
-            edges = 10**np.arange(np.log10(Narr.min()) - 0.5 * dlogL,
-                        np.log10(Narr.max()) + 0.5 * dlogL, dlogL)
-
-            # Compute luminosity density in units of photon number.            
-            lf, bin_e = np.histogram(Narr.flatten(), bins=edges,
-                weights=Nc.flatten())
-            
-            Nnow = rebin(edges)
-            
-            # Photon number as well.
-            _tab_rho_N_[i] = np.trapz(lf * Nnow, dx=dlogL)
-        
+                y = np.interp(age, self.src.times, yield_per_M)
+                N = np.interp(age, self.src.times, erg_per_phot)
+                
+                Mc = self._tab_Nc[i,:,k] * self.tab_M                        
+                                        
+                self._tab_rho_L_[i] += np.trapz(Mc * y, x=self.tab_M)
+                self._tab_rho_N_[i] += np.trapz(Mc * N, x=self.tab_M)
         
         # Not as general as it could be right now...
         if (Emin, Emax) == (13.6, 24.6):
-            _tab_rho_L_ *= self.pf['pop_fesc']
-            _tab_rho_N_ *= self.pf['pop_fesc']
+            self._tab_rho_L_ *= self.pf['pop_fesc']
+            self._tab_rho_N_ *= self.pf['pop_fesc']
             
-        self._rho_L[(Emin, Emax)] = interp1d(self.zarr[-1::-1], 
-            _tab_rho_L_[-1::-1] / cm_per_mpc**3,
+        self._rho_L[(Emin, Emax)] = interp1d(self.tab_zobs[-1::-1], 
+            self._tab_rho_L_[-1::-1] / cm_per_mpc**3,
             kind=self.pf['pop_interp_sfrd'], bounds_error=False,
             fill_value=0.0)
         
-        self._rho_N[(Emin, Emax)] = interp1d(self.zarr[-1::-1], 
-            _tab_rho_N_[-1::-1] / cm_per_mpc**3,
+        self._rho_N[(Emin, Emax)] = interp1d(self.tab_zobs[-1::-1], 
+            self._tab_rho_N_[-1::-1] / cm_per_mpc**3,
             kind=self.pf['pop_interp_sfrd'], bounds_error=False,
             fill_value=0.0)
             
         return self._rho_L[(Emin, Emax)]
                 
-    def LuminosityFunction(self, z):
+    def LuminosityFunction(self, z, x=None, mags=True):
+        """
+        Compute UV luminosity function at redshift `z`.
         
-        iz = np.argmin(np.abs(self.zarr - z))
+        Parameters
+        ----------
+        x : int, float, array [optional]
+            Magnitudes at which to output the luminosity function.
+            If None, will return magnitude grid used internally, set
+            by mass resolution for cluster mass function and 
+            age resolution (set by pop_age_res).
+        mags : bool
+            Must be True for now.
+            
+        Returns
+        -------
+        if x is None:
+            Returns tuple of (magnitudes, luminosity function)
+        else:
+            Returns luminosity function at supplied magnitudes `x`.
+            
+        """
         
-        mags = self.mags(z=z)
+        assert mags
         
-        # Remember that this is a histogram in log10(L) bins.
-        phi = self._tab_lf[iz]
+        iz = np.argmin(np.abs(self.tab_zobs - z))
+        
+        _mags = self.mags(z=z)
+        _phi = self._tab_lf[iz]
                 
-        dLdmag = np.diff(np.log10(self.Larr)) / np.diff(mags)
+        if self.is_aging:        
+            dLdmag = np.diff(self.Larr) / np.diff(_mags)
+            phi = _phi[0:-1] * np.abs(dLdmag)
+            
+            #return mags[0:-1], phi[0:-1] * np.abs(dLdmag)
+        else:
+            dMdmag = np.diff(self.tab_M) / np.diff(_mags)
+            phi = _phi[0:-1] * np.abs(dMdmag)
+            #return mags[0:-1], phi[0:-1] * np.abs(dMdmag)
         
-        return mags[0:-1], phi[0:-1] * np.abs(dLdmag)
-        
+        if x is not None:
+            return np.interp(x, _mags[0:-1][-1::-1], phi[-1::-1])
+        else:
+            return _mags[0:-1], phi
+                    
     def rho_GC(self, z):
         mags, phi = self.LuminosityFunction(z)
         
@@ -384,9 +428,20 @@ class ClusterPopulation(Population):
             ##
             # Wont' work if mdist is redshift-dependent.
             ## HELP
-            self._mdist_norm_ = np.trapz(self._mdist(M=self.Marr), x=self.Marr)
+            integ = self._mdist(M=self.tab_M) * self.tab_M
+            self._mdist_norm_ = 1. / np.trapz(integ, x=np.log(self.tab_M))
     
         return self._mdist_norm_
+        
+    def test(self):
+        """
+        Integrate GCLF and make sure we recover FRD * dt.
+        """
+        integ = self._mdist(M=self.tab_M) * self._mdist_norm
+        
+        total = np.trapz(integ * self.tab_M, x=np.log(self.tab_M))
+        
+        print(total)
     
     @property
     def _mdist(self):
@@ -402,7 +457,7 @@ class ClusterPopulation(Population):
             elif self.pf['pop_mdist'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_mdist'], self.pf)
                 self._mdist_ = ParameterizedQuantity(**pars)    
-            elif isinstance(self.pf['pop_mdist'], interp1d):
+            elif isinstance(self.pf['pop_mdist'], interp1d_scipy):
                 self._mdist_ = self.pf['pop_mdist']
             else:
                 raise NotImplemented('help')
@@ -420,17 +475,20 @@ class ClusterPopulation(Population):
             # in which case the luminosity is easily related to mass function.
             
             if self.is_aging:
-                Lmin = np.log10(self.Marr.min() * self._tab_L1600.min())
-                Lmax = np.log10(self.Marr.max() * self._tab_L1600.max())
+                Lmin = np.log10(self.tab_M.min() * self._tab_L1600.min())
+                Lmax = np.log10(self.tab_M.max() * self._tab_L1600.max())
                 dlogL = self.pf['pop_dlogM']
                 self._Larr = 10**np.arange(Lmin, Lmax+dlogL, dlogL)
             else:
-                self._Larr = self._tab_L1600[0] * self.Marr
+                self._Larr = self._tab_L1600[0] * self.tab_M
                 
         return self._Larr
         
     @property
     def Larr_e(self):
+        """
+        Array of luminosity bin edges.
+        """
         if not hasattr(self, '_Larr_e'):
             dlogL = self.pf['pop_dlogM']
             edges = 10**np.arange(np.log10(self.Larr[0]) - 0.5 * dlogL,
@@ -444,60 +502,63 @@ class ClusterPopulation(Population):
         return self.magsys.L_to_MAB(self.Larr, z=z)
         
     @property
-    def Marr(self):
-        if not hasattr(self, '_Marr'):
+    def tab_M(self):
+        if not hasattr(self, '_tab_M'):
             lMmin = np.log10(self.pf['pop_Mmin'])
             lMmax = np.log10(self.pf['pop_Mmax'])
             dlogM = self.pf['pop_dlogM']
-            self._Marr = 10**np.arange(lMmin, lMmax+dlogM, dlogM)
+            self._tab_M = 10**np.arange(lMmin, lMmax+dlogM, dlogM)
         
-        return self._Marr
+        return self._tab_M
         
     def Mavg(self, z):
-        pdf = self._mdist(z=z, M=self.Marr)
-        norm = np.trapz(pdf, x=self.Marr)
+        pdf = self._mdist(z=z, M=self.tab_M) * self._mdist_norm
         
-        return np.trapz(pdf * self.Marr, x=self.Marr) / norm
+        return np.trapz(pdf * self.tab_M, x=self.tab_M)
         
     @property
-    def zarr(self):
-        if not hasattr(self, '_zarr'):
-            ages = self.ages
-        return self._zarr
+    def tab_zobs(self):
+        if not hasattr(self, '_tab_zobs'):
+            ages = self.tab_ages
+        return self._tab_zobs
     
     @property
     def tarr(self):
-        if not hasattr(self, '_zarr'):
-            ages = self.ages
+        """
+        Array of times (since Big Bang) corresponding to observed redshifts.
+        """
+        if not hasattr(self, '_tarr'):
+            ages = self.tab_ages
         return self._tarr
 
     @property
-    def ages(self):
+    def tab_ages(self):
         """
         Array of ages corresponding to redshifts at which we tabulate LF.
         """
-        if not hasattr(self, '_ages'):
+        if not hasattr(self, '_tab_ages'):
             zf = self.pf['final_redshift']
             ti = self.cosm.t_of_z(self.zform) / s_per_myr
             tf = self.cosm.t_of_z(zf) / s_per_myr
+
             # Time since Big Bang
             dt = self.pf['pop_age_res']
             self._tarr = np.arange(ti, tf+2*dt, dt)
-            self._zarr = self.cosm.z_of_t(self._tarr * s_per_myr)
+            self._tab_zobs = self.cosm.z_of_t(self._tarr * s_per_myr)
 
-            if self._zarr[-1] > zf:
-                self._zarr[-1] = zf
+            if self._tab_zobs[-1] > zf:
+                self._tab_zobs[-1] = zf
                 self._tarr[-1] = self.cosm.t_of_z(zf) / s_per_myr
 
-            # Of clusters formed at corresponding element of zarr
-            self._ages = self._tarr - ti
+            # Of clusters formed at corresponding element of tab_zobs
+            self._tab_ages = self._tarr - ti
 
-        return self._ages
+        return self._tab_ages
 
     @property
     def _tab_L1600(self):
         if not hasattr(self, '_tab_L1600_'):
-            self._tab_L1600_ = np.interp(self.ages, self.src.times,
+            self._tab_L1600_ = np.interp(self.tab_ages, self.src.times,
                 self.src.L_per_SFR_of_t())
 
         return self._tab_L1600_
@@ -558,7 +619,6 @@ class ClusterPopulation(Population):
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
-
 
     def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
         """

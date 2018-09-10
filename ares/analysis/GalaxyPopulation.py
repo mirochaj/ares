@@ -1,6 +1,6 @@
 """
 
-ObservedLF.py
+GalaxyPopulation.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA

@@ -11,6 +11,8 @@ Description:
 """
 
 from __future__ import print_function
+
+import glob
 import numpy as np
 from ..util import get_hg_rev
 from ..util.Stats import get_nu
@@ -134,8 +136,9 @@ def _compute_blob_prior(sim, priors_B):
             
             ivar = sim.get_ivars(key)[0]
             
+            # Interpolate to find value of blob at point where prior is set
             val = np.interp(md[1], ivar, blob)
-            zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
+            #zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
                                     
             # Should check ivarn too just to be safe
             
@@ -147,7 +150,7 @@ def _compute_blob_prior(sim, priors_B):
     return np.log(like)
     
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
-    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters):
+    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters, debug):
 
     #write_memory('1')
 
@@ -184,9 +187,18 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
-
-    try:
+        
+    if debug:
+        print("Processor {} simulation starting: {}".format(rank, time.ctime()))
         sim.run()
+        print("Processor {} simulation complete: {}".format(rank, time.ctime()))
+        blobs = sim.blobs
+        print("Processor {} generated blobs    : {}".format(rank, time.ctime()))
+        
+    try:
+        if not debug:
+            sim.run()            
+            blobs = copy.deepcopy(sim.blobs)
     except ValueError:
         print(kwargs)
         del sim, kw, kwargs
@@ -1008,13 +1020,29 @@ class ModelFit(FitBase):
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
                 'binfo', 'setup', 'load', 'fail', 'timeout']:
-                os.system('rm -f {0!s}.{1!s}.pkl'.format(self.prefix, suffix))
-                os.system('rm -f {0!s}.*.{1!s}.pkl'.format(self.prefix,\
-                    suffix))
-            os.system('rm -f {!s}.prior_set.hdf5'.format(self.prefix))
+                
+                _fn1 = '{0!s}.{1!s}.pkl'.format(self.prefix, suffix)
+                
+                if os.path.exists(_fn1):
+                    os.remove(_fn1)
+                
+                for _fn2 in glob.glob('{0!s}.*.{1!s}.pkl'.format(self.prefix,\
+                    suffix)):
+                    
+                    if os.path.exists(_fn2):
+                        os.remove(_fn2)
+            
+            if os.path.exists('{!s}.prior_set.hdf5'.format(self.prefix)):        
+                os.remove('{!s}.prior_set.hdf5'.format(self.prefix))
+                
             # These suffixes have their own suffixes
-            os.system('rm -f {!s}.blob_*.pkl'.format(self.prefix))
-            os.system('rm -f {!s}.*.blob_*.pkl'.format(self.prefix))
+            for _fn in glob.glob('{!s}.blob_*.pkl'.format(self.prefix)):
+                if os.path.exists(_fn):
+                    os.remove(_fn)
+            for _fn in glob.glob('{!s}.*.blob_*.pkl'.format(self.prefix)):
+                if os.path.exists(_fn):
+                    os.remove(_fn)
+                    
         # Each processor gets its own fail file
         f = open('{!s}.fail.pkl'.format(prefix_by_proc), 'wb')
         f.close()
@@ -1096,6 +1124,17 @@ class ModelFit(FitBase):
         write_pickle_file(tmp, '{!s}.binfo.pkl'.format(self.prefix), ndumps=1,\
             open_mode='w', safe_mode=False, verbose=False)
         del tmp
+        
+    @property
+    def debug(self):
+        if not hasattr(self, '_debug'):
+            self._debug = False
+        return self._debug
+    
+    @debug.setter
+    def debug(self, value):
+        assert type(value) in [int, bool]
+        self._debug = value    
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, reboot=False):
@@ -1216,8 +1255,15 @@ class ModelFit(FitBase):
             try:
                 hmf = sim.halos
             except AttributeError:
-                hmf = sim.pops[0].halos
-            
+                hmf = None
+                for pop in sim.pops:
+                    if hasattr(pop, 'halos'):
+                        hmf = pop.halos
+                        break
+                        
+            if hmf is None:
+                raise AttributeError('No `hmf` attributes available!')
+                
             self.base_kwargs['hmf_instance'] = hmf    
             
             if hmf is not None:
@@ -1253,7 +1299,7 @@ class ModelFit(FitBase):
         args = [self.prefix, self.parameters, self.is_log, self.prior_set_P, 
             self.prior_set_B, self.blank_blob, 
             self.base_kwargs, self.checkpoint_by_proc, 
-            self.simulator, self.fitters]
+            self.simulator, self.fitters, self.debug]
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, loglikelihood, pool=self.pool, args=args)

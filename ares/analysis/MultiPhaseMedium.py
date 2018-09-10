@@ -940,39 +940,38 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
 
     return ax_z
     
-def add_time_axis(ax, cosm, tlim=(0, 900), dt=100, dtm=50, tarr=None,
-    tarr_m=None, rotation=45):
+def add_time_axis(ax, cosm, tlim=(100, 900), dt=200, dtm=50, tarr=None,
+    tarr_m=None, rotation=0):
     """
     Take plot with redshift on x-axis and add top axis with corresponding 
     time since Big Bang.
-    
+
     Parameters
     ----------
     ax : matplotlib.axes.AxesSubplot instance
     """
     
-    
     if tarr is None:
         t = np.arange(tlim[0], tlim[1]+dt, dt) # in Myr
-        t_minor = np.arange(tlim[0], tlim[1]+dt, dtm)[1::2]
+        t_minor = np.arange(tlim[0]-dtm, tlim[1]+dtm, dtm)
     else:
         t = tarr
         t_minor = None
-    
+
     _zt = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t))
     _ztm = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t_minor))
-        
-    ft = nu_0_mhz / (1. + _zt)    
+
+    ft = nu_0_mhz / (1. + _zt)
     ftm = nu_0_mhz / (1. + _ztm)
     zt = list(_zt)
-        
+
     ax_time = ax.twiny()
-    #if t_minor is not None:
-    #    zt_minor = list(map(lambda tt: cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-    #        np.inf), t_minor))
-    #    ax_time.set_xticks(zt_minor, minor=True)
-            
-    ax_time.set_xlabel(r'$t \ \left[\mathrm{Myr} \right]$')            
+   #if t_minor is not None:
+   #    zt_minor = list(map(lambda tt: cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
+   #        np.inf), t_minor))
+   #    ax_time.set_xticks(zt_minor, minor=True)
+
+    ax_time.set_xlabel(r'$t \ \left[\mathrm{Myr} \right]$')
 
     # A bit hack-y
     time_labels = list(map(str, list(map(int, t))))
@@ -980,13 +979,13 @@ def add_time_axis(ax, cosm, tlim=(0, 900), dt=100, dtm=50, tarr=None,
         tnow = float(label)
         if (dt is None) and (dtm is None):
             if (tnow in [0,200,400,600,800]) or (tnow > 900):
-                time_labels[i] = ''    
+                time_labels[i] = ''
     
     print(ft, time_labels)
     print(ftm)
     
     ax_time.set_xticks(ft)
-    #ax_time.set_xticks(ftm, minor=True)
+    ax_time.set_xticks(ftm, minor=True)
                 
     ax_time.set_xticklabels(time_labels, rotation=rotation)
     ax_time.set_xlim(ax.get_xlim())

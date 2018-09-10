@@ -137,7 +137,10 @@ class Population(object):
             elif (not self.affects_cgm) and (not self.affects_igm):
                 self._zone = None
             else:
-                raise ValueError("Populations should only affect one zone!")
+                s = "Populations should only affect one zone!"
+                s += "In general, UV sources should have pop_ion_src_cgm=True "
+                s += "while X-ray sources should have pop_*src_igm=True."
+                raise ValueError(s)
                 
         return self._zone    
         

@@ -233,10 +233,14 @@ class Global21cm(AnalyzeGlobal21cm):
             return    
 
         # Need to generate radiation backgrounds first.
-        self.medium.field.run()
-        self._f_Ja = self.medium.field._f_Ja
-        self._f_Jlw = self.medium.field._f_Jlw
-
+        if self.pf['radiative_transfer']:
+            self.medium.field.run()
+            self._f_Ja  = self.medium.field._f_Ja
+            self._f_Jlw = self.medium.field._f_Jlw
+        else:
+            self._f_Ja  = lambda z: 0.0 
+            self._f_Jlw = lambda z: 0.0
+            
         # Start timer
         t1 = time.time()
             
@@ -535,7 +539,7 @@ class Global21cm(AnalyzeGlobal21cm):
             
             if self.pf['feedback_LW_sfrd_popid'] is not None:
                 pid = self.pf['feedback_LW_sfrd_popid']
-                write_pickle_file((self.medium.field.pops[pid].halos.z,\
+                write_pickle_file((self.medium.field.pops[pid].halos.tab_z,\
                     self.medium.field._sfrd_bank), '{!s}.sfrd.pkl'.format(\
                     prefix), ndumps=1, open_mode='w', safe_mode=False,\
                     verbose=self.pf['verbose'])

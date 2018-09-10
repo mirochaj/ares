@@ -54,22 +54,22 @@ class BlackHoleAggregate(HaloPopulation):
     def _BHMD(self):
         if not hasattr(self, '_BHMD_'):
             
-            z0 = self.halos.z.max()
-            zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+            z0 = self.halos.tab_z.max()
+            zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
             
             if self.pf['sam_dz'] is not None:
                 dz = self.pf['sam_dz']
-                zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+                zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
             else:
-                dz = np.diff(self.halos.z)[0]
+                dz = np.diff(self.halos.tab_z)[0]
                 zfreq = 1
    
             # Initialize solver
             solver = ode(self._BHGRD).set_integrator('lsoda', nsteps=1e4, 
                 atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
                 
-            in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
-            zarr = self.halos.z[in_range][::zfreq]
+            in_range = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+            zarr = self.halos.tab_z[in_range][::zfreq]
             Nz = zarr.size
 
             # y in units of Msun / cMpc^3 

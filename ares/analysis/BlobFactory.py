@@ -179,26 +179,32 @@ class BlobFactory(object):
                     self._blob_ivars = []
                     raw = self.pf['blob_ivars']
                     
-                    assert type(raw) in [list, tuple], \
-                        "Must supply blob_ivars as (variable, values)!"
-
                     # k corresponds to ivar group
                     for k, element in enumerate(raw):
+                        
                         if element is None:
                             self._blob_ivarn.append(None)
                             self._blob_ivars.append(None)
                             continue
-                        else:    
-                            self._blob_ivarn.append([])
-                            self._blob_ivars.append([])
-
+                            
+                        # Must make list because could be multi-dimensional
+                        # blob, i.e., just appending to blob_ivars won't 
+                        # cut it.
+                        self._blob_ivarn.append([])
+                        self._blob_ivars.append([])
+                        
                         for l, pair in enumerate(element):
+                                                        
+                            assert type(pair) in [list, tuple], \
+                                "Must supply blob_ivars as (variable, values)!"        
+                            
                             self._blob_ivarn[k].append(pair[0])
                             self._blob_ivars[k].append(pair[1])
                                         
             else:
                 self._blob_names = names
                 self._blob_ivars = [None] * len(names)
+
 
             self._blob_nd = []
             self._blob_dims = []
@@ -386,11 +392,14 @@ class BlobFactory(object):
             else:
                 try:
                     self._generate_blobs()
-                except AttributeError:
-                    self._blobs =\
+                except AttributeError as e:
+                    if hasattr(self, 'prefix'):
+                        self._blobs =\
                         read_pickle_file('{!s}.blobs.pkl'.format(self.prefix),\
                         nloads=1, verbose=False)
-                    
+                    else:
+                        raise AttributeError(e)
+                        
         return self._blobs
         
     def get_ivars(self, name):

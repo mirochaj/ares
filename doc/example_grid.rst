@@ -10,6 +10,7 @@ Before we start, the few usual imports:
 
     import ares
     import numpy as np
+    import matploblib.pyplot as pl
     
 Efficient Example: :math:`tanh` model for the global 21-cm signal
 -----------------------------------------------------------------
@@ -61,8 +62,8 @@ Let’s take the reionization redshift, ``tanh_xz0``, and duration, ``tanh_xdz``
 
 ::
 
-    z0 = np.arange(6, 12, 0.1)
-    dz = np.arange(0.1, 8.1, 0.1)
+    z0 = np.arange(6, 12.2, 0.2)
+    dz = np.arange(0.2, 8.2, 0.2)
     
 Now, we just set the ``axes`` attribute to a dictionary containing the array of values for each parameter:
 
@@ -92,13 +93,29 @@ and, for example, plot the 2-d parameter space with points color-coded by ``tau_
 
 ::
 
-    anl.Scatter(anl.parameters, c='tau_e')
+    ax1 = anl.Scatter(anl.parameters, c='tau_e', fig=1)
+    pl.savefig('tanh_2d_tau.png')
+    
+.. figure::  https://www.dropbox.com/s/ooslry1h8ing2mm/ares_tanh_2d_tau.png?raw=1
+   :align:   center
+   :width:   600
+
+   Models in a 2-D parameter space of the :math:`tanh` reionization parameters, with points color-coded by the CMB optical depth, :math:`\tau_e`.
     
 or instead, the position of the emission maximum with the same color coding:
 
 ::
 
-    anl.Scatter(['z_D', 'igm_dTb_D'], c='tau_e', fig=2)
+    ax2 = anl.Scatter(['z_D', 'dTb_D'], c='tau_e', fig=2)
+    pl.savefig('tanh_2d_D.png')
+  
+.. figure::  https://www.dropbox.com/s/8oafsmw1vr15you/ares_tanh_2d_D.png?raw=1
+   :align:   center
+   :width:   600
+
+   Models in a 2-D parameter space of the :math:`tanh` reionization parameters, with points color-coded by the redshift and brightness temperature of the global 21-cm emission maximum ("turning point D").
+   
+.. note :: In general, you may want to save ``'z_C'`` and ``'dTb_C'``, i.e., the location of the global 21-cm absorption feature. But, in this case since we've only varied parameters of the ionization history, that point will not change and so saving it as a blob is unnecessary. 
     
 See :doc:`example_grid_analysis` for more information.
 

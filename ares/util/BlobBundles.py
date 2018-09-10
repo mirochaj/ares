@@ -30,7 +30,7 @@ _gs_ext.append('tau_e')
 _gs_ext.append('z_dec')
 _gs_ext.append('Tk_dec')
 
-_def_z = ('z', np.arange(5, 51, 0.1))
+_def_z = ('z', np.arange(5, 61, 0.1))
 _late_z = ('z', np.arange(3, 20, 0.1))
 _z_from_freq = ('z', nu_0_mhz / np.arange(25., 210, 1.)[-1::-1] - 1.)
 
@@ -79,9 +79,9 @@ for _name in _rc_base:
                     
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None,
     'blob_kwargs': None}
-_rates = {'blob_names':_gs_rates, 'blob_ivars': _def_z, 
+_rates = {'blob_names':_gs_rates, 'blob_ivars': [_def_z], 
     'blob_funcs': _rc_funcs, 'blob_kwargs': None}
-_history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None,
+_history = {'blob_names':_gs_hist,'blob_ivars': [_def_z],'blob_funcs': None,
     'blob_kwargs': None}
 _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f,
     'blob_kwargs': None}
@@ -89,13 +89,13 @@ _runtime = {'blob_names': ['count', 'timer', 'rank'],
     'blob_ivars': None, 'blob_funcs': None, 'blob_kwargs': None}
 
 _He = {'blob_names':['igm_he_1', 'igm_he_2', 'igm_he_3'], 
-       'blob_ivars': _def_z,  
+       'blob_ivars': [_def_z],  
        'blob_funcs': None,
        'blob_kwargs': None}
 
 # Not a great default way of doing this, since we may have multiple populations, etc.
 _sfrd = {'blob_names': ['sfrd{0}', 'smd{0}'],
-         'blob_ivars': _def_z,
+         'blob_ivars': [_def_z],
          'blob_funcs': ['pops[0].SFRD', 'pops[0].SMD'],
          'blob_kwargs': [None, None]}
 
@@ -106,7 +106,7 @@ _Nion = {'blob_names': ['Ndot'],
 
 
 _emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
-          'blob_ivars': _def_z,
+          'blob_ivars': [_def_z],
           'blob_funcs': ['pops[0]._LuminosityDensity_LW',
                          'pops[0]._LuminosityDensity_LyC',
                          'pops[0]._LuminosityDensity_sXR',
