@@ -43,14 +43,6 @@ class GalaxyAggregate(HaloPopulation):
         HaloPopulation.__init__(self, **kwargs)
         #self.pf.update(**kwargs)
         
-        
-
-    #def _sfrd_func(self, z):
-    #    # This is a cheat so that the SFRD spline isn't constructed
-    #    # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
-    #    
-    #    return self.SFRD(z)    
-    
     @property
     def _sfrd(self):
         if not hasattr(self, '_sfrd_'):
@@ -79,17 +71,21 @@ class GalaxyAggregate(HaloPopulation):
                     pars[key] = self.pf[prefix]
                 
                 self._sfrd_ = self.pf['pop_sfrd'](**pars)
+            elif type(self.pf['pop_sfrd']) is tuple:
+                z, sfrd = self.pf['pop_sfrd']
+                
+                assert np.all(np.diff(z) > 0), "Redshifts must be ascending."
+                                
+                sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
+                interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_interp_sfrd'],
+                    bounds_error=False, fill_value=-np.inf)
+                    
+                self._sfrd_ = lambda **kw: np.exp(interp(kw['z']))
             elif isinstance(self.pf['pop_sfrd'], interp1d):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif self.pf['pop_sfrd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
                 self._sfrd_ = ParameterizedQuantity(**pars)
-            elif type(self.pf['pop_sfrd']) is tuple:
-                z, sfrd = self.pf['pop_sfrd']
-                sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
-                interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_interp_sfrd'],
-                    bounds_error=False, fill_value=-np.inf)
-                self._sfrd_ = lambda **kw: np.exp(interp(kw['z']))
             else:
                 tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
@@ -155,7 +151,17 @@ class GalaxyAggregate(HaloPopulation):
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
     
-        return sfrd                               
+        return sfrd
+        
+    def _frd_func(self, z):
+        return self.FRD(z)
+    
+    def FRD(self, z):
+        """
+        In the odd units of stars / cm^3 / s.
+        """
+        
+        return self.SFRD(z) / self.pf['pop_mass'] / g_per_msun
     
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """

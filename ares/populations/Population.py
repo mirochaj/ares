@@ -512,6 +512,10 @@ class Population(object):
     def is_link_sfrd(self):
         if re.search('link:sfrd', self.pf['pop_sfr_model']):
             return True
+        # For BHs right now...
+        elif self.pf['pop_frd'] is not None:
+            if re.search('link:frd', self.pf['pop_frd']):
+                return True    
         return False  
     
     @property
