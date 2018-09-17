@@ -33,7 +33,7 @@ def load(model='faint_galaxies'):
     ps = np.array(ps)
     QHII = np.array(QHII)
     
-    return {'z': z, 'k': k[0], 'ps_21_dl': ps, 'dTb': dTb, 'QHII': QHII}
+    return {'z': z, 'k': k[0], 'ps_21_dl': ps, 'dTb': dTb, 'Qi': QHII}
 
     
 

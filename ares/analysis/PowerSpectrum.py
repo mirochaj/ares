@@ -159,12 +159,44 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         iz = np.argmin(np.abs(z - self.redshifts))
     
         cf_s = 'cf_%s' % field
-        cf = self.history[cf_s][iz]
+        
+        if field not in self.history:
+            # Short-cuts
+            if field == 'ii':
+                cf = -self.history['cf_xx'][iz]    
+            elif field == 'xx':
+                cf = self.history['cf_ii'][iz]
+            elif field == 'xd':
+                cf = -self.history['cf_id'][iz]    
+            elif field == 'mm':
+                cf = self.history['cf_dd'][iz]    
+            else:
+                raise KeyError('Field `{}` not found in history.'.format(field))
+        else:    
+            cf = self.history[cf_s][iz]
         
         R = self.history['R']
         
-        ax.loglog(R, cf, **kwargs)
+        x_ch, cf_chunks = split_by_sign(R, cf)
     
+        ct = 0
+        for j, chunk in enumerate(cf_chunks):
+            if np.all(chunk < 0):
+                lw = 1
+            else:
+                lw = 3
+        
+            tmp = kwargs.copy()
+            tmp['lw'] = lw
+            
+            if ct == 0 and 'label' in kwargs:
+                tmp['label'] = kwargs['label']
+            else:
+                tmp['label'] = None
+        
+            ax.loglog(x_ch[j], np.abs(chunk), **tmp)
+            ct += 1
+        
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
 
@@ -406,7 +438,11 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         """
         
         iz = np.argmin(np.abs(z - self.redshifts))
-        data = self.history[key][iz]
+        
+        if type(key) is str:
+            data = self.history[key][iz]
+        else:
+            data = key
         
         if 'cf' in key:
             x = self.history['R']
@@ -441,7 +477,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
         if mp is None:
             mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
-                padding=(0.25, 0.15), **mp_kwargs)
+                padding=(0.25, 0.15), fig=fig, **mp_kwargs)
             gotmp = False
         else:
             gotmp = True

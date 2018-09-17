@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+from types import FunctionType
 from ..static import Fluctuations
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
@@ -151,6 +152,9 @@ class PowerSpectrum21cm(AnalyzePS):
                 tmp = np.zeros_like(self.z)
             
             for i, z in enumerate(self.z):
+                if key not in all_ps[i].keys():
+                    continue
+                    
                 tmp[i] = all_ps[i][key]
                 
             hist[key] = tmp
@@ -278,6 +282,8 @@ class PowerSpectrum21cm(AnalyzePS):
                 zeta_lya = zeta_lya[0]
                 
                 
+            self.zeta = zeta    
+                
             ##
             # Figure out scaling from ionized regions to heated regions.
             # Right now, only constant (relative) scaling is allowed.
@@ -287,30 +293,38 @@ class PowerSpectrum21cm(AnalyzePS):
                 fvol = self.pf["bubble_shell_rvol_zone_0"]
                 frad = self.pf['bubble_shell_rsize_zone_0']
                 
-                assert (fvol == True) + (frad == True) <= 1
+                assert (fvol is not None) + (frad is not None) <= 1
                 
                 if fvol is not None:
                     assert frad is None
-                    frad = ((1. + fvol)**(1./3.) - 1.)
+                    
+                    # Assume independent variable is redshift for now.
+                    if type(fvol) is FunctionType:
+                        frad = lambda z: (1. + fvol(z))**(1./3.) - 1.
+                        self.field.is_Rs_const = False
+                    else:
+                        frad = lambda z: (1. + fvol)**(1./3.) - 1.
+                        
                 elif frad is not None:
-                    pass
-                    #R_s = lambda R: R * (1. + frad)
+                    if type(frad) is FunctionType:
+                        self.field.is_Rs_const = False
+                    else:
+                        frad = lambda z: frad
                 else:
                     # If R_s = R_s(z), must re-compute overlap volumes on each
                     # step. Should set attribute if this is the case.
-                    raise NotImplemented('help')    
+                    raise NotImplemented('help')
                 
-                R_s = lambda R: R * (1. + frad)
+                R_s = lambda R, z: R * (1. + frad(z))
                 
                 # Must be constant, for now.
-                self.field.is_Rs_const = True
                 Th = self.pf["bubble_shell_ktemp_zone_0"]
                 
                 self.R_s = R_s
                 self.Th = Th
                 
             else:
-                R_s = lambda R: None    
+                R_s = lambda R, z: None    
                 Th = None
                 
             ##
@@ -330,7 +344,7 @@ class PowerSpectrum21cm(AnalyzePS):
             xt = xa + xc
             
             # Won't be terribly meaningful if temp fluctuations are off.
-            C = self.field.TempToContrast(z, Th, Ts)            
+            C = self.field.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)            
             data['c'] = C
             
             # Assumes strong coupling. Mapping between temperature 
@@ -367,7 +381,7 @@ class PowerSpectrum21cm(AnalyzePS):
             #print(z, Qi_bff, Qi, xibar, Qi_bff / Qi)
                             
             if self.pf['ps_include_temp']:
-                Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri))
+                Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri,z))
                 data['Qh'] = Qh
             else:
                 data['Qh'] = Qh = 0.0
@@ -375,13 +389,16 @@ class PowerSpectrum21cm(AnalyzePS):
             # Interpolate global signal onto new (coarser) redshift grid.
             dTb_ps = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb'][-1::-1])
+            
+            xavg_gs = np.interp(z, self.gs.history['z'][-1::-1], 
+                self.gs.history['xavg'][-1::-1])
                 
             data['dTb0'] = dTb_ps
                 
             ##
             # Correct for fraction of ionized and heated volume!
             ##
-            data['dTb0_1'] = dTb_ps * (1. - Qi) / (1. - Qi_gs)
+            data['dTb0_1'] = dTb_ps * (1. - Qi) / (1. - xavg_gs)
             
             if self.pf['ps_include_temp']:
                 data['dTb0_2'] = (1 - Qh - Qi) * dTb_ps \
@@ -430,7 +447,8 @@ class PowerSpectrum21cm(AnalyzePS):
             xbar = 1. - xibar
             data['Qi'] = Qi
             data['xibar'] = xibar
-            data['dTb0'] = Tbar
+            data['dTb0'] = Tbar            
+            data['dTb_bulk'] = dTb_ps / (1. - xavg_gs)
                         
             ##
             # 21-cm fluctuations
@@ -438,7 +456,7 @@ class PowerSpectrum21cm(AnalyzePS):
             if self.pf['ps_include_21cm']:                
 
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta=zeta, 
-                    R=self.R, term='21', R_s=R_s(Ri), Ts=Ts, Th=Th,
+                    R=self.R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
                     
                 # Always compute the 21-cm power spectrum. Individual power
@@ -452,20 +470,33 @@ class PowerSpectrum21cm(AnalyzePS):
             # Should just do the above, and then loop over whatever is in 
             # the cache and save also. If ps_save_components is True, then
             # FT everything we haven't already. 
-            for term in ['mm', 'ii', 'hh', 'ih', 'cc']:
+            for term in ['dd', 'ii', 'hh', 'ih', 'cc', 'id']:
                 # Should change suffix to _ev
-                result = self.field._cache_jp(z, term)
+                jp_1 = self.field._cache_jp(z, term)
+                cf_1 = self.field._cache_cf(z, term)
                 
-                if result is None:
+                if jp_1 is None and cf_1 is None:
                     continue
-                    
+                        
                 _cf = self.field.CorrelationFunction(z, zeta=zeta, 
-                    R=self.R, term=term, R_s=R_s(Ri), Ts=Ts, Th=Th,
+                    R=self.R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
+                        
                 data['cf_{}'.format(term)] = _cf.copy()
                 
                 if not self.pf['ps_output_components']:
-                    pass
+                    continue
+                    
+                data['ps_{}'.format(term)] = \
+                    self.field.PowerSpectrumFromCF(self.k, 
+                    data['cf_{}'.format(term)], self.R, 
+                    split_by_scale=self.pf['ps_split_transform'],
+                    epsrel=self.pf['ps_fht_rtol'],
+                    epsabs=self.pf['ps_fht_atol'])    
+                
+            # Always save the matter correlation function.        
+            data['cf_dd'] = self.field.CorrelationFunction(z, zeta=zeta, 
+                term='dd', R=self.R)
                     
             yield z, data
             
