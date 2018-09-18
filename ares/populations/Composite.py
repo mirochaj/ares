@@ -17,6 +17,8 @@ from ..util.Misc import get_attribute
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
+from .BlackHoleAggregate import BlackHoleAggregate
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -25,7 +27,7 @@ except:
     basestring = str
 
 after_instance = ['pop_rad_yield']
-allowed_options = ['pop_sfr_model', 'pop_Mmin']
+allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd']
 
 class CompositePopulation(object):
     def __init__(self, **kwargs):
@@ -119,6 +121,9 @@ class CompositePopulation(object):
             if to_quantity[i] in ['sfrd', 'emissivity']:
                 self.pops[i] = GalaxyAggregate(**tmp)
                 self.pops[i]._sfrd = self.pops[entry]._sfrd_func
+            elif to_quantity[i] in ['frd']:
+                self.pops[i] = BlackHoleAggregate(**tmp)
+                self.pops[i]._frd = self.pops[entry]._frd_func
             elif to_quantity[i] in ['sfe', 'fstar']:
                 self.pops[i] = GalaxyCohort(**tmp)
                 self.pops[i]._fstar = self.pops[entry].SFE

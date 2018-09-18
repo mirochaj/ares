@@ -27,25 +27,64 @@ class BlackHoleAggregate(HaloPopulation):
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
         HaloPopulation.__init__(self, **kwargs)
+        
+    @property
+    def _frd(self):
+        if not hasattr(self, '_frd_'):
+            pass
 
+        return self._frd_    
+    
+    @_frd.setter
+    def _frd(self, value):
+        self._frd_ = value
+        
+    def _frd_func(self, z):
+        # This is a cheat so that the FRD spline isn't constructed
+        # until CALLED. Used only for linking.                        
+        return self.FRD(z)
+        
     def FRD(self, z):
         """
         Compute BH formation rate density.
         
-        Units = cgs
+        Units = cgs 
+        
+        A bit odd to have this in mass units (would rather #/time/vol) but
+        for the fcoll model one doesn't need to invoke a BH mass, hence
+        the difference between the linked FRD model and the fcoll model below.
+        
         """
         
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
+        
+        # SFRD given by some function
+        if self.is_link_sfrd:
+            # _frd is in # / cm^3 / s, so we convert to g / cm^3 / s
+            return self._frd(z) * on * self.pf['pop_mass'] * g_per_msun \
+                * self.pf['pop_bh_seed_eff']
+        
+        # Otherwise, use dfcolldt model (all we know right now).
         bhfrd = self.pf['pop_bh_seed_eff'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
 
         return bhfrd
         
+    @property
+    def Ledd_1Msun(self):
+        # Multiply by BH mass density to get luminosity in erg/s
+        return self.pf['pop_eta'] * 4.0 * np.pi * G * g_per_msun * m_p \
+            * c / sigma_T
+    
     def _BHGRD(self, z, rho_bh):
         """
         rho_bh in Msun / cMpc^3.
         """
 
         new = self.FRD(z) * rho_cgs
-        old = rho_bh[0] * 4.0 * np.pi * G * m_p / sigma_T / c
+        old = self.pf['pop_fduty'] \
+            * rho_bh[0] * 4.0 * np.pi * G * m_p / sigma_T / c / self.pf['pop_eta']
                     
         # In Msun / cMpc^3 / dz
         return -np.array([new + old]) * self.cosm.dtdz(z)#(new + old) * self.cosm.dtdz(z)
@@ -73,9 +112,13 @@ class BlackHoleAggregate(HaloPopulation):
             Nz = zarr.size
 
             # y in units of Msun / cMpc^3 
-            #Mh0 = #self.halos.Mmin(z0)     
-            rho_bh_0 = self.halos.fcoll_2d(z0, 5.) * self.pf['pop_bh_seed_eff'] \
-                * self.cosm.rho_b_z0 * rho_cgs
+            #Mh0 = #self.halos.Mmin(z0) 
+            #if self.is_link_sfrd:
+            #    rho_bh_0 = 1e-10
+            #else:        
+            #    rho_bh_0 = self.halos.fcoll_2d(z0, 5.) * self.pf['pop_bh_seed_eff'] \
+            #        * self.cosm.rho_b_z0 * rho_cgs
+                    
             solver.set_initial_value(np.array([0.0]), z0)
 
             zflip = zarr[-1::-1]
@@ -83,16 +126,12 @@ class BlackHoleAggregate(HaloPopulation):
             rho_bh = []
             redshifts = []
             for i in range(Nz):
-                                
-                #print zarr[-1::-1][i], solver.y[0], M_dot(zarr[-1::-1][i], solver.y[0]), rho_dot(zarr[-1::-1][i], solver.y[0])
-                
-                #print(zflip[i], solver.y[0], solver.t, solver.t-dz)
-                
+                                                                
                 redshifts.append(zflip[i])
                 rho_bh.append(solver.y[0])
                 
                 z = redshifts[-1]
-                                
+                                            
                 solver.integrate(solver.t-dz)
                 
             z = np.array(redshifts)[-1::-1]
@@ -117,7 +156,6 @@ class BlackHoleAggregate(HaloPopulation):
         """
         
         return self._BHMD(z)
-        
 
     def ARD(self, z):
         """
@@ -125,13 +163,8 @@ class BlackHoleAggregate(HaloPopulation):
         """
         
         tacc = self.pf['pop_eta'] * t_edd / self.pf['pop_fduty']
-        return self.FRD(z) + self.BHMD(z) / tacc
-        
-    def Lbol(self, z):
-        bhmd = self.BHMD(z)
-        return self.pf['pop_eta'] * 4.0 * np.pi * G * bhmd * g_per_msun * m_p \
-            * c / sigma_T
-        
+        return self.BHMD(z) / tacc
+
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -161,11 +194,10 @@ class BlackHoleAggregate(HaloPopulation):
                 return 0.0    
     
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
-        Ledd = self.Lbol(z) * self.pf['pop_rad_yield']
-        rhoL = self.BHMD(z) * Ledd * on
-        
+        rhoL = on * self.Ledd_1Msun * self.BHMD(z) / g_per_msun
+                
         ## Convert from reference band to arbitrary band
-        #rhoL *= self._convert_band(Emin, Emax)
+        rhoL *= self._convert_band(Emin, Emax)
         #if (Emax is None) or (Emin is None):
         #    pass
         #elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
