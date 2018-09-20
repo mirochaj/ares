@@ -17,6 +17,8 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from ..util import MagnitudeSystem
+from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
@@ -115,7 +117,19 @@ class Population(object):
 
     @id_num.setter
     def id_num(self, value):
-        self._id_num = int(value)    
+        self._id_num = int(value)
+        
+    @property
+    def dust(self):
+        if not hasattr(self, '_dust'):
+            self._dust = DustCorrection(**self.pf)
+        return self._dust
+    
+    @property
+    def magsys(self):
+        if not hasattr(self, '_magsys'):
+            self._magsys = MagnitudeSystem(**self.pf)
+        return self._magsys    
     
     @property
     def cosm(self):

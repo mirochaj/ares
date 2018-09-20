@@ -499,6 +499,8 @@ def PopulationParameters():
     "pop_age_res": 1.,
     "pop_dlogM": 0.1,
 
+    "pop_histories": None,
+
     "pop_fobsc": 0.0,
     "pop_fobsc_by_num": False,
 
