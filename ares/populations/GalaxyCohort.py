@@ -27,6 +27,7 @@ from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
+from ..util.Stats import bin_c2e, bin_e2c
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
@@ -1211,6 +1212,37 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, s='min')
             
+    @property
+    def _tab_n_Mmin(self):
+        """
+        Number of objects in each Mmin bin. Only use this for setting
+        up Ensemble objects?
+        """
+        if not hasattr(self, '_tab_n_Mmin_'):
+            
+            # Need to setup spline for n(>M)                        
+            log10_ngtm = np.log10(self.halos.tab_ngtm)
+            log10_ngtm[np.isinf(log10_ngtm)] = -50.
+            
+            # Integrate this first, then interpolate?
+            _spl = RectBivariateSpline(self.halos.tab_z, 
+                np.log10(self.halos.tab_M), log10_ngtm)
+             
+            spl = lambda z, log10M: 10**_spl(z, log10M).squeeze()
+                
+            # Interpolate halo abundances onto Mmin axis.
+            ngtm_Mmin = np.array([spl(self.halos.tab_z[i],
+                np.log10(self._tab_Mmin)[i]) \
+                    for i in range(self.halos.tab_z.size)])
+
+            # Compute rate at which new halos are being formed.
+            _zarr, dnnewdz = central_difference(self.halos.tab_z, ngtm_Mmin)
+            dz = -np.diff(self.halos.tab_z)[0]
+            
+            self._tab_n_Mmin_ = np.concatenate(([0], dnnewdz * dz, [0]))
+        
+        return self._tab_n_Mmin_    
+
     @property    
     def _tab_Mmin_floor(self):
         if not hasattr(self, '_tab_Mmin_floor_'):
@@ -2404,6 +2436,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         """
         
+        if hasattr(self, '_trajectories'):
+            return self._trajectories
+        
         
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'nh', 'Z', 't']
                 
@@ -2445,6 +2480,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zmax.append(_results['zmax'])
 
         results['zmax'] = np.array(zmax)
+        
+        self._trajectories = np.array(zform), results
 
         return np.array(zform), results
         
@@ -2500,18 +2537,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_time_limit'] == 0:
             has_t_limit = False
         if self.pf['pop_bind_limit'] == 0:
-            has_e_limit = False    
-                
+            has_e_limit = False
+
         ##
         # Outputs have shape (z, z)
         ##
-        
+
+        n0 = 0.0
+
         # Our results don't depend on this, unless SFE depends on z
         if (z0 is None) and (M0 == 0):
             z0 = self.halos.tab_z.max()
             M0 = self._tab_Mmin[-1]
         elif (M0 <= 1):
-            M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
+            
+            # If we're treating a continuum of halos.
+            M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)            
+
+            iz = np.argmin(np.abs(z0 - self.halos.tab_z))
+
+            if np.allclose(z0, self.halos.tab_z[iz]):
+                n0 = self._tab_n_Mmin[iz]
+            else:
+                print('hay problemas!')
+            
         elif (M0 > 1):
             if z0 >= self.pf['initial_redshift']:
                 M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
@@ -2528,13 +2577,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mst0 = 0.0
         Mbh0 = 0.0
         
-        # Must cast to float
-        dndm0 = self.halos.dndm_spline_2d(z0, np.log10(M0)).squeeze()
-                
-        # Total # density of halos with this common formation redshift
-        dlog10M = np.log10(self.halos.tab_M[1] / self.halos.tab_M[0])
-        n0 = dndm0 * M0 * dlog10M #* np.log(10.)
-
         # Initial stellar mass -> 0, initial halo mass -> Mmin
         solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, Mbh0]), z0)
 
@@ -2574,7 +2616,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             z = redshifts[-1]
             
-
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
 

@@ -500,6 +500,9 @@ def PopulationParameters():
     "pop_dlogM": 0.1,
 
     "pop_histories": None,
+    "pop_guide_pop": None,
+    "pop_thin_hist": False,
+    "pop_scatter_sfr": 0.0,
 
     "pop_fobsc": 0.0,
     "pop_fobsc_by_num": False,

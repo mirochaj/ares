@@ -629,8 +629,14 @@ class HaloMassFunction(object):
     @property
     def dndm_spline_2d(self):
         if not hasattr(self, '_dndm_spline_2d'):
-            self._dndm_spline_2d = RectBivariateSpline(self.tab_z, 
-                np.log10(self.tab_M), self.tab_dndm, kx=3, ky=3)
+            log10tab = np.log10(self.tab_dndm)
+            log10tab[np.isinf(log10tab)] = -100.
+            
+            _dndm_spline_2d = RectBivariateSpline(self.tab_z, 
+                np.log10(self.tab_M), log10tab, kx=3, ky=3)
+            
+            self._dndm_spline_2d = lambda z, logM: 10**_dndm_spline_2d(z, logM).squeeze()
+                
         return self._dndm_spline_2d    
 
     def Bias(self, z):
