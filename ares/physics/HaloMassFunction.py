@@ -718,7 +718,6 @@ class HaloMassFunction(object):
                 
         return self._tab_MAR
             
-            
     def _MAR_CND(self, z):
         """
         Compute mass accretion rate by abundance matching across redshift.
@@ -737,27 +736,36 @@ class HaloMassFunction(object):
             
         k = np.argmin(np.abs(z - self.tab_z))
     
+        # Shouldn't happen.
         if z not in self.tab_z:
             print("WARNING: Rounding to nearest redshift z={0:.3g}".format(\
                 self.tab_z[k]))
     
-        # For some reason flipping the order is necessary for non-bogus results
-        dn_gtm_1t = cumtrapz(self.tab_dndlnm[k][-1::-1], 
-            x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
-        dn_gtm_2t = cumtrapz(self.tab_dndlnm[k-1][-1::-1], 
-            x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
-    
-        dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
-        dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
-    
-        # Need to reverse arrays so that interpolants are in ascending order
-        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
-            np.log(self.tab_M)[-1::-1])[-1::-1])
+        # Flipping the order is necessary because number density is 
+        # declining with mass.
+        #dn_gtm_1t = cumtrapz(self.tab_dndlnm[k,-1::-1], 
+        #    x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
+        #dn_gtm_2t = cumtrapz(self.tab_dndlnm[k-1,-1::-1], 
+        #    x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
+        
+        #dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
+        #dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
+            
+        # Grab cumulative mass function 
+        ngtm_1 = self.tab_ngtm[k]
+        ngtm_2 = self.tab_ngtm[k-1]
+        
+        # Need to reverse arrays so that interpolants are in ascending order.
+        # Here, we're just saying: what mass halo has the same cumulative
+        # number density at z' < z?
+        M_2 = np.exp(np.interp(np.log(ngtm_1[-1::-1]), np.log(ngtm_2[-1::-1]), 
+            np.log(self.tab_M)[-1::-1])[-1::-1])            
     
         # Compute time difference between z bins
         dz = self.tab_z[k] - self.tab_z[k-1]
         dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
     
+        #return (M_2 - self.tab_M) / dt
         return np.maximum((M_2 - self.tab_M) / dt, 0.0)
         
     @property
@@ -784,10 +792,13 @@ class HaloMassFunction(object):
     def MAR_func(self):
         if not hasattr(self, '_MAR_func'):
             
+            tab = np.log(self.tab_MAR_CND)
+            tab[np.isinf(tab)] = -20
+            
             spl = RectBivariateSpline(self.tab_z, np.log(self.tab_M),
-                self.tab_MAR_CND, kx=3, ky=3)
+                tab, kx=3, ky=3)
                         
-            self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
+            self._MAR_func = lambda z, M: np.exp(spl(z, np.log(M)).squeeze())
         
         return self._MAR_func
                                                    

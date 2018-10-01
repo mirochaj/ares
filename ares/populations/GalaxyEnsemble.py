@@ -54,10 +54,17 @@ class GalaxyEnsemble(HaloPopulation):
         sfr = self.histories['SFR'][:,iz]
         w = self.histories['w'][:,iz]
         
+        # Really this is the number of galaxies that formed in a given
+        # differential redshift slice.
+        
+        #Mh = self.histories['Mh'][:,iz]
+        
+        #dw = np.diff(_w) / np.diff(Mh)
+        
         # The 'bins' in the first dimension have some width...
         
         return np.sum(sfr * w) / rhodot_cgs
-        #return np.trapz(sfr, x=w) / rhodot_cgs
+        #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
 
     @property
     def histories(self):
@@ -94,6 +101,7 @@ class GalaxyEnsemble(HaloPopulation):
 
                 sfr_raw = traj_all['SFR']
                 nh_raw = traj_all['nh']
+                Mh_raw = traj_all['Mh']
 
                 # Could optionally thin out the bins to allow more diversity.
                 thin = self.pf['pop_thin_hist']
@@ -107,12 +115,14 @@ class GalaxyEnsemble(HaloPopulation):
                     # Remember: first dimension is the SFH identity.
                     sfr = np.tile(sfr_raw, (int(thin), 1))
                     nh = np.tile(nh_raw, (int(thin), 1)) / float(thin)
+                    Mh = np.tile(Mh_raw, (int(thin), 1)) / float(thin)
 
                     assert sfr.shape[0] == sfr_raw.shape[0] * int(thin)
 
                 else:
                     sfr = sfr_raw.copy()
                     nh = nh_raw.copy()
+                    Mh = Mh_raw.copy()
 
 
                 # Allow scatter in the star formation rate.
@@ -126,7 +136,7 @@ class GalaxyEnsemble(HaloPopulation):
                 # SFR = (zform, time (but really redshift))
                 # So, halo identity is wrapped up in axis=0
                 # In Cohort, formation time defines initial mass and trajectory (in full)
-                histories = {'z': zall, 'w': nh, 'SFR': sfr}
+                histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh}
                 
                 # Things to add: metal-enrichment history (MEH)
                 #              : ....anything else?

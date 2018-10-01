@@ -2141,7 +2141,7 @@ class ModelSet(BlobFactory):
         
     def _get_1d_kwargs(self, **kw):
         
-        for key in ['labels', 'colors', 'linestyles']:
+        for key in ['labels', 'colors', 'linestyles', 'cmap']:
         
             if key in kw:
                 kw.pop(key)

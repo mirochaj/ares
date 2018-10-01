@@ -131,15 +131,14 @@ Additional contributions / corrections / suggestions from:
 - Greg Salvesen
 - Adrian Liu
 - Saurabh Singh
-- Krishma Singal
 - Rick Mebane
+- Krishma Singal
 - Donald Trinh
 - Omar Ruiz Macias
 - Arnab Chakraborty
 - Madhurima Choudhury
 - Saul Kohn
 - Aurel Schneider
-- Ranita Jain
 - Kristy Fu
 - Garett Lopez
 - Ranita Jana

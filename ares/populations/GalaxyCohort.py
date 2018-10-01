@@ -698,7 +698,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Star formation rate at redshift z in a halo of mass Mh.
         
-        If Mh is not supplied
+        P.S. When you plot this, don't freak out if the slope changes at Mmin.
+        It's because all masses below this (and above Mmax) are just set to 
+        zero, so it looks like a slope change for line plots since it's
+        trying to connect to a point at SFR=Mh=0.
         
         """
         
@@ -720,10 +723,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # in cases where we just want to know the SFR at a few redshifts
             # and/or halo masses. But, we're rarely doing such things.
             if not hasattr(self, '_spline_sfr'):
-                self._spline_sfr = RectBivariateSpline(self.halos.tab_z, 
-                    self.halos.tab_M, self._tab_sfr)
+                log10sfr = np.log10(self._tab_sfr)
+                log10sfr[np.isinf(log10sfr)] = -20.
+                
+                _spline_sfr = RectBivariateSpline(self.halos.tab_z, 
+                    np.log10(self.halos.tab_M), log10sfr)
+                
+                def func(z, log10M):
+                    sfr = 10**_spline_sfr(z, log10M).squeeze()
+                    
+                    M = 10**log10M
+                    if type(sfr) is np.ndarray:
+                        sfr[M < self.Mmin(z)] = 1e-20
+                        sfr[M > self.Mmax(z)] = 1e-20
+                    else:
+                        if M < self.Mmin(z):
+                            return 1e-20
+                        if M > self.Mmax(z):
+                            return 1e-20
+                        
+                    return sfr
+                
+                self._spline_sfr = func
             
-            return self._spline_sfr(z, Mh).squeeze()
+            return self._spline_sfr(z, np.log10(Mh))
             
         #return self.cosm.fbar_over_fcdm * self.MAR(z, Mh) * self.eta(z) \
         #    * self.SFE(z=z, Mh=Mh)
@@ -897,11 +920,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return -np.inf
     
         # Setup interpolant. x_phi is in descending, remember!
-        interp = interp1d(x_phi[ok][-1::-1], phi[ok][-1::-1], 
+        interp = interp1d(x_phi[ok][-1::-1], np.log10(phi[ok][-1::-1]), 
             kind=self.pf['pop_interp_lf'],
             bounds_error=False, fill_value=-np.inf)
     
-        phi_of_x = interp(MUV)
+        phi_of_x = 10**interp(MUV)
         
         return phi_of_x
     
@@ -1224,10 +1247,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             log10_ngtm = np.log10(self.halos.tab_ngtm)
             log10_ngtm[np.isinf(log10_ngtm)] = -50.
             
-            # Integrate this first, then interpolate?
             _spl = RectBivariateSpline(self.halos.tab_z, 
                 np.log10(self.halos.tab_M), log10_ngtm)
-             
             spl = lambda z, log10M: 10**_spl(z, log10M).squeeze()
                 
             # Interpolate halo abundances onto Mmin axis.
@@ -1235,12 +1256,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 np.log10(self._tab_Mmin)[i]) \
                     for i in range(self.halos.tab_z.size)])
 
-            # Compute rate at which new halos are being formed.
-            _zarr, dnnewdz = central_difference(self.halos.tab_z, ngtm_Mmin)
-            dz = -np.diff(self.halos.tab_z)[0]
+            # Number of halos in this Mmin bin is just the difference
+            # in N(M>Mmin) between two redshift steps.
+            # Remember, though, that ngtm_Mmin is in *descending* order
+            # since it rises with redshift, hence the flip and flip-back.
+            n_new = np.concatenate((np.diff(ngtm_Mmin[-1::-1])[-1::-1], [0]))
             
-            self._tab_n_Mmin_ = np.concatenate(([0], dnnewdz * dz, [0]))
-        
+            # Stick all halos at initial_redshift into the first
+            # Mmin bin, subtract off this number from all other bins.
+            # Can't imagine this would be important...
+            #n_Mmin = ngtm_Mmin[-1]
+            n_new[-1] = ngtm_Mmin[-1]
+
+            self._tab_n_Mmin_ = n_new
+
         return self._tab_n_Mmin_    
 
     @property    
@@ -1385,6 +1414,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ..note:: Units are Msun/yr.
             
         This does NOT set the SFR to zero in halos with M < Mmin or M > Mmax!    
+        Doing so screws up spline fitting in SFR
 
         """
         if not hasattr(self, '_tab_sfr_'):            
@@ -1394,6 +1424,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                 if z > self.zform:
                     continue
+                
                 #if (z < self.zdead) or (z < self.pf['final_redshift']):
                 #    break
                 # Should be a little careful here: need to go one or two
@@ -1410,11 +1441,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             * self._tab_MAR[i] * self._tab_fstar[i]
 
                     # zero-out star-formation in halos below our threshold
-                    ok = self.halos.tab_M >= self._tab_Mmin[i]
-                    self._tab_sfr_[i] *= ok
-                    # zero-out star-formation in halos above our threshold
-                    ok = self.halos.tab_M <= self._tab_Mmax[i]
-                    self._tab_sfr_[i] *= ok
+                    #ok = self.halos.tab_M > self._tab_Mmin[i]
+                    #self._tab_sfr_[i] *= ok
+                    ## zero-out star-formation in halos above our threshold
+                    #ok = self.halos.tab_M < self._tab_Mmax[i]
+                    #self._tab_sfr_[i] *= ok
 
         return self._tab_sfr_
 
@@ -2611,7 +2642,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
             Mbh_t.append(solver.y[5])  
-            sfr_t.append(self.SFR(z=zarr[-1::-1][i], Mh=solver.y[0]))   
+            sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
             nh_t.append(n0)   
             
             z = redshifts[-1]

@@ -1137,7 +1137,7 @@ class ModelFit(FitBase):
         self._debug = value    
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500, reboot=False):
+        save_freq=500, reboot=False, recenter=False):
         """
         Run MCMC.
 
@@ -1307,6 +1307,13 @@ class ModelFit(FitBase):
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
         pos = self.prep_output_files(restart, clobber)
+        
+        # Optional re-centering of walkers
+        if restart and recenter:
+            print("Recentering walkers...")
+            mlpt = pos[np.argmax(prob)]
+            pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
+        
         
         state = None #np.random.RandomState(self.seed)
                         
