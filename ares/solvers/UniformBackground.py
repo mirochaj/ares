@@ -260,7 +260,7 @@ class UniformBackground(object):
     @property
     def effects_by_pop(self):
         if not hasattr(self, '_effects_by_pop'):
-            self._effects_by_pop = [[] for i in xrange(self.Npops)]
+            self._effects_by_pop = [[] for i in range(self.Npops)]
     
             for i, pop in enumerate(self.pops):
                 bands = self.bands_by_pop[i]
