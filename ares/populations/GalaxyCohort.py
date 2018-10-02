@@ -997,6 +997,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             if z in self._phi_of_L:
                 return self._phi_of_L[z]
+            for red in self._phi_of_L:
+                if np.allclose(red, z):
+                    return self._phi_of_L[red]    
 
         fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))
         
@@ -1071,6 +1074,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             if z in self._phi_of_M:
                 return self._phi_of_M[z]
+            for red in self._phi_of_M:
+                if np.allclose(red, z):
+                    return self._phi_of_M[red]
 
         Lh, phi_of_L = self.phi_of_L(z)
 
@@ -1821,15 +1827,25 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Compute SFRD within given mass range, [Mlo, Mhi].
         """
         
-        if not hasattr(self, '_sfrd_within'):
-            self._sfrd_within = {}
-            
-        if (Mlo, Mhi) in self._sfrd_within.keys():
-            return self._sfrd_within[(Mlo, Mhi)](z)
+        #if not hasattr(self, '_sfrd_within'):
+        #    self._sfrd_within = {}
+        #    
+        #if (Mlo, Mhi) in self._sfrd_within.keys():
+        #    return self._sfrd_within[(Mlo, Mhi)](z)
         
         _sfrd_tab = np.ones_like(self.halos.tab_z)
+        
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        
+        exact_match = False
+        if np.allclose(self.halos.tab_z[iz], z):
+            exact_match = True
 
         for i, zz in enumerate(self.halos.tab_z):
+            
+            if exact_match:
+                if i != iz:
+                    continue
             
             if not self.pf['pop_sfr_above_threshold']:
                 break
@@ -1859,6 +1875,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             _sfrd_tab[i] = np.trapz(integrand[ilo:ihi+1], 
                 x=np.log(self.halos.tab_M[ilo:ihi+1]))
+        
+        if exact_match:
+            return _sfrd_tab[iz]
                                         
         if self.pf['pop_sfr_cross_threshold'] and type(Mlo) is str:
             if (Mlo == 'Mmin'):
@@ -1867,7 +1886,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         _sfrd_func = lambda zz: np.interp(zz, self.halos.tab_z, _sfrd_tab)
-        
+                
         if type(Mlo) != np.ndarray:
             self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
         

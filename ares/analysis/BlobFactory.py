@@ -537,6 +537,8 @@ class BlobFactory(object):
                                                 
             this_group = []
             for j, key in enumerate(element):
+                
+                print(element, key)
                                                                                                                                                                                                                                                                                                                                                                                                      
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
