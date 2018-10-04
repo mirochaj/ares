@@ -100,6 +100,7 @@ class GalaxyEnsemble(HaloPopulation):
                 zall, traj_all = guide.Trajectories()
 
                 sfr_raw = traj_all['SFR']
+                mar_raw = traj_all['MAR']
                 nh_raw = traj_all['nh']
                 Mh_raw = traj_all['Mh']
 
@@ -114,6 +115,7 @@ class GalaxyEnsemble(HaloPopulation):
 
                     # Remember: first dimension is the SFH identity.
                     sfr = np.tile(sfr_raw, (int(thin), 1))
+                    mar = np.tile(mar_raw, (int(thin), 1))
                     nh = np.tile(nh_raw, (int(thin), 1)) / float(thin)
                     Mh = np.tile(Mh_raw, (int(thin), 1)) / float(thin)
 
@@ -121,9 +123,9 @@ class GalaxyEnsemble(HaloPopulation):
 
                 else:
                     sfr = sfr_raw.copy()
+                    mar = mar_raw.copy()
                     nh = nh_raw.copy()
                     Mh = Mh_raw.copy()
-
 
                 # Allow scatter in the star formation rate.
                 sigma = self.pf['pop_scatter_sfr']
@@ -136,7 +138,8 @@ class GalaxyEnsemble(HaloPopulation):
                 # SFR = (zform, time (but really redshift))
                 # So, halo identity is wrapped up in axis=0
                 # In Cohort, formation time defines initial mass and trajectory (in full)
-                histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh}
+                histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh,
+                    'MAR': mar}
                 
                 # Things to add: metal-enrichment history (MEH)
                 #              : ....anything else?
@@ -271,29 +274,11 @@ class GalaxyEnsemble(HaloPopulation):
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
         # spikes where L==0, all L==0 elements should be a contiguous chunk.
-        Misinf = np.isinf(MAB)
-        Misok  = np.logical_not(Misinf)
-
-        #assert min(x) <= min(MAB[Misok])
-        #assert max(x) >= max(MAB[Misok])
-
-        #if np.any(Misinf):
-        #    k = np.max(np.argwhere(Misinf)) + 1
-        #else:
-        #    k = 0
+        Misok = L > 0
                     
         hist, bin_edges = np.histogram(MAB[Misok==1], 
             weights=w[Misok==1], 
             bins=bin_c2e(x), density=True)
-
-        # Need to be more careful with this, since some halos have 0 luminosity.
-        # If no aging, could just filter out SFR=0 halos, but in general,
-        # that won't be correct.
-        #if self.pf['pop_aging']:
-        #    on = np.ones_like(w)
-        #else:    
-        #    on = sfr > 0
-        # Don't need to do this with iz:,iz: slicing
         
         N = np.sum(w)
             

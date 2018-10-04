@@ -706,102 +706,136 @@ class HaloMassFunction(object):
         """
         
         return np.squeeze(self.dfcolldz_spline(z))
+
+    def _run_CND(self, iz, iM=0):
+        """
+        "Evolve" a halo through time (assuming fixed number density).
+        """
         
-    @property
+        M = np.zeros(self.tab_z.size)
+        
+        m_1 = self.tab_M[iM]
+        for j in range(iz, 1, -1):
+            
+            # Find the cumulative number density of objects with m >= m_1
+            ngtm_1 = np.exp(np.interp(np.log(m_1), np.log(self.tab_M), 
+                np.log(self.tab_ngtm[j])))
+            # Find n(>M) at next timestep.
+            ngtm_2 = self.tab_ngtm[j-1,:]
+            # Interpolate n(>M;z) onto n(>M,z'<z)
+            m_2 = np.exp(np.interp(np.log(ngtm_1),
+                np.log(ngtm_2[-1::-1]),
+                np.log(self.tab_M[-1::-1])))
+            
+            M[j] = m_2
+
+            m_1 = m_2
+        
+        return M        
+        
+    @property    
+    def tab_traj(self):
+        """
+        For halos with M=self.tab_M at some redshift, find mass at later z.
+        """
+        if not hasattr(self, '_tab_traj'):
+
+            MM = np.zeros((self.tab_z.size+self.tab_M.size, self.tab_z.size))
+
+            for i in range(self.tab_z.size-1, 0, -1):
+                MM[i] = self._run_CND(i,0)
+                
+            # Find trajectories for more massive halos with zform=zfirst    
+            for i in range(1, self.tab_M.size):
+                MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
+                                                    
+            self._tab_traj = MM
+
+        # The first dimension is halo identity, the first self.tab_z.size
+        # elements are halos with M=self.tab_M[0], the next self.tab_M.size
+        # elements are halos with M=self.tab_M and formation redshifts
+        # equal to self.tab_z[-1]. The second dimension is a series
+        # of masses at corresponding redshifts in self.tab_z.
+
+        return self._tab_traj
+    
+    @property    
     def tab_MAR(self):
         if not hasattr(self, '_tab_MAR'):
+                    
+            # Differentiate trajectories, interpolate to common mass, redshift grid.
             
-            if self.pf['pop_MAR'] == 'hmf':
-                self._tab_MAR = self.tab_MAR_CND
-            else:
-                raise NotImplemented('help!')
+            
+            #arr = np.zeros_like(self._tab_traj)
+            
+            dtdz = self.cosm.dtdz(self.tab_z)[1:-1]
+            
+            # Step 0: Compute dMdt for each history.
+            # Step 1: Interpolate dMdt onto tab_M grid.
+            tab_dMdt_of_z = np.zeros((self.tab_traj.shape[0], self.tab_z.size))
+            tab_dMdt_of_M = np.zeros((self.tab_traj.shape[0], self.tab_M.size))
+            for i, hist in enumerate(self.tab_traj):
+                # 'hist' is the trajectory of a halo
                 
-        return self._tab_MAR
-            
-    def _MAR_CND(self, z):
-        """
-        Compute mass accretion rate by abundance matching across redshift.
-    
-        Parameters
-        ----------
-        z : int, float
-            Redshift.
-    
-        Returns
-        -------
-        Array of mass accretion rates, each element corresponding to the halo
-        masses in self.M.
-    
-        """
-            
-        k = np.argmin(np.abs(z - self.tab_z))
-    
-        # Shouldn't happen.
-        if z not in self.tab_z:
-            print("WARNING: Rounding to nearest redshift z={0:.3g}".format(\
-                self.tab_z[k]))
-    
-        # Flipping the order is necessary because number density is 
-        # declining with mass.
-        #dn_gtm_1t = cumtrapz(self.tab_dndlnm[k,-1::-1], 
-        #    x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
-        #dn_gtm_2t = cumtrapz(self.tab_dndlnm[k-1,-1::-1], 
-        #    x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
-        
-        #dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
-        #dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
-            
-        # Grab cumulative mass function 
-        ngtm_1 = self.tab_ngtm[k]
-        ngtm_2 = self.tab_ngtm[k-1]
-        
-        # Need to reverse arrays so that interpolants are in ascending order.
-        # Here, we're just saying: what mass halo has the same cumulative
-        # number density at z' < z?
-        M_2 = np.exp(np.interp(np.log(ngtm_1[-1::-1]), np.log(ngtm_2[-1::-1]), 
-            np.log(self.tab_M)[-1::-1])[-1::-1])            
-    
-        # Compute time difference between z bins
-        dz = self.tab_z[k] - self.tab_z[k-1]
-        dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
-    
-        #return (M_2 - self.tab_M) / dt
-        return np.maximum((M_2 - self.tab_M) / dt, 0.0)
-        
-    @property
-    def tab_MAR_CND(self):
-        """
-        Tabulated halo mass accretion rates assuming evolution at 
-        constant number density (CND).
-        """
-        if not hasattr(self, '_tab_MAR_CND'):            
-            _MAR_tab = np.ones_like(self.tab_dndm)
+                # Remember that mass increases as z decreases, so we flip
+                
+                z, dmdz = central_difference(self.tab_z, hist)
+                
+                mofz = hist[1:-1] * 1
+                                
+                # Interpolate accretion rates onto common mass grid
+                dmdt = dmdz[-1::-1] * s_per_yr / -dtdz[-1::-1]
+                _interp1 = interp1d(np.log(mofz[-1::-1]), np.log(dmdt), 
+                    kind='linear', bounds_error=False, fill_value=0.0)
+                _interp2 = interp1d(np.log(z[-1::-1]), np.log(dmdt), 
+                    kind='linear', bounds_error=False, fill_value=0.0)
+                dmdt_rg1 = np.exp(_interp1(np.log(self.tab_M)))
+                dmdt_rg2 = np.exp(_interp2(np.log(self.tab_z)))
+                                
+                tab_dMdt_of_M[i,:] = dmdt_rg1
+                tab_dMdt_of_z[i,:] = dmdt_rg2
+
+            # Convert from trajectories to (z, Mh) table.
+            arr = np.zeros((self.tab_z.size, self.tab_M.size))    
             for i, z in enumerate(self.tab_z):
-                _MAR_tab[i] = self._MAR_CND(z)
-            
-            mask = np.zeros_like(_MAR_tab)
-            mask[np.isnan(_MAR_tab)] = 1
-            mask[_MAR_tab < 0] = 1
-            _MAR_tab[mask == 1] = 0.
+
+                # At what redshift does an object of a particular mass have 
+                # this MAR?
+                
+                # At this redshift, all objects have some mass. Find it!
+                M = self.tab_traj[:,i]
+                Mdot = tab_dMdt_of_z[:,i]
+                
+                ok = np.logical_and(M > 0, np.isfinite(M))
+                
+                if ok.sum() == 0:
+                    continue
+                
+                #if i % 100 == 0:
+                #    pl.loglog(M, Mdot)
+                
+                arr[i] = np.exp(np.interp(np.log(self.tab_M), np.log(M[ok==1]), 
+                    np.log(Mdot[ok==1])))
+                
+            self._tab_MAR = arr
                         
-            self._tab_MAR_CND = np.ma.array(_MAR_tab, mask=mask)
-        
-        return self._tab_MAR_CND
+        return self._tab_MAR
         
     @property
     def MAR_func(self):
         if not hasattr(self, '_MAR_func'):
+            mask = np.isfinite(self.tab_MAR)
             
-            tab = np.log(self.tab_MAR_CND)
-            tab[np.isinf(tab)] = -20
+            tab = np.log(self._tab_MAR)
+            bad = np.logical_or(np.isnan(self.tab_MAR), np.isinf(tab))
+            tab[bad==1] = -50
             
-            spl = RectBivariateSpline(self.tab_z, np.log(self.tab_M),
-                tab, kx=3, ky=3)
-                        
-            self._MAR_func = lambda z, M: np.exp(spl(z, np.log(M)).squeeze())
+            _MAR_func = RectBivariateSpline(self.tab_z, np.log(self.tab_M), tab)
+                
+            self._MAR_func = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
         
         return self._MAR_func
-                                                   
+                                                                  
     def VirialTemperature(self, M, z, mu=0.6):
         """
         Compute virial temperature corresponding to halo of given mass and

@@ -5,7 +5,9 @@ from ares.physics.Constants import nu_0_mhz, h_p, erg_per_ev
 ##
 # All need this!
 ##
-base = PB(**dpl) + PB(**dflex) + PB('dust:var_beta')
+base = PB(verbose=0, **dpl) \
+     + PB(verbose=0, **dflex) \
+     + PB(verbose=0, 'dust:var_beta')
 
 lf = \
 {

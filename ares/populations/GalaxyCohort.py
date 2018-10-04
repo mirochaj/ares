@@ -28,7 +28,8 @@ from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
 from ..util.Stats import bin_c2e, bin_e2c
-from ..util.Math import central_difference, interp1d_wrapper, interp1d
+from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
+    LinearNDInterpolator
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c
@@ -806,7 +807,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Marr, phi = self.SMF(z)
         return np.interp(Mh, Marr, phi)
         
-    def SurfaceDensity(self, z, mag=None, dz=1.):
+    def SurfaceDensity(self, z, mag=None, dz=1., dtheta=1.):
         """
         
         Returns
@@ -829,7 +830,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mobs = self.dust.Mobs(z, mags) + 48.6
         
         # Compute the volume of the shell we're looking at
-        vol = self.cosm.ProjectedVolume(z, angle=1., dz=dz)
+        vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
         
         Ngal = phi * vol
         
@@ -1251,12 +1252,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             # Need to setup spline for n(>M)                        
             log10_ngtm = np.log10(self.halos.tab_ngtm)
-            log10_ngtm[np.isinf(log10_ngtm)] = -50.
+            not_ok = np.isinf(log10_ngtm)
+            ok = np.logical_not(not_ok)
             
+            log10_ngtm[ok==0] = -40.
+    
             _spl = RectBivariateSpline(self.halos.tab_z, 
-                np.log10(self.halos.tab_M), log10_ngtm)
+               np.log10(self.halos.tab_M), log10_ngtm)
             spl = lambda z, log10M: 10**_spl(z, log10M).squeeze()
-                
+
             # Interpolate halo abundances onto Mmin axis.
             ngtm_Mmin = np.array([spl(self.halos.tab_z[i],
                 np.log10(self._tab_Mmin)[i]) \
@@ -1265,14 +1269,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Number of halos in this Mmin bin is just the difference
             # in N(M>Mmin) between two redshift steps.
             # Remember, though, that ngtm_Mmin is in *descending* order
-            # since it rises with redshift, hence the flip and flip-back.
-            n_new = np.concatenate((np.diff(ngtm_Mmin[-1::-1])[-1::-1], [0]))
-            
-            # Stick all halos at initial_redshift into the first
-            # Mmin bin, subtract off this number from all other bins.
-            # Can't imagine this would be important...
-            #n_Mmin = ngtm_Mmin[-1]
-            n_new[-1] = ngtm_Mmin[-1]
+            # since it rises with redshift, hence the minus sign.
+            n_new = np.concatenate((-np.diff(ngtm_Mmin), [0.0]))
 
             self._tab_n_Mmin_ = n_new
 
@@ -2490,7 +2488,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._trajectories
         
         
-        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'nh', 'Z', 't']
+        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'MAR', 'nh', 
+            'Z', 't']
                 
         zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
         zi = min(float(self.halos.tab_z.max()), self.pf['initial_redshift'])
@@ -2516,15 +2515,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # If M0 is 0, assume it's the minimum mass at this redshift.
             _zarr, _results = self.RunSAM(z0=z, M0=M0)
 
-            # Need to splice into the right elements of 2-D array
+            # Need to splice into the right elements of 2-D array.
+            # SAM is run from zform to final_redshift, so only a subset
+            # of elements in the 2-D table are filled.
             for key in keys:
                 dat = _results[key].copy()
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat
-                
-                # Must keep in mind that different redshifts have different
-                # halo mass-gridding effectively
-
+            
             zform.append(z)
             
             zmax.append(_results['zmax'])
@@ -2647,6 +2645,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         cMst_t = []
         Mbh_t = []
         sfr_t = []
+        mar_t = []
         nh_t = []
         metals = []
         lbtime = []
@@ -2662,6 +2661,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             cMst_t.append(solver.y[4])
             Mbh_t.append(solver.y[5])  
             sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
+            mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
             nh_t.append(n0)   
             
             z = redshifts[-1]
@@ -2816,12 +2816,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         cMs = np.array(cMst_t)[-1::-1]
         Mbh = np.array(Mbh_t)[-1::-1]
         SFR = np.array(sfr_t)[-1::-1]
+        MAR = np.array(mar_t)[-1::-1]
         nh = np.array(nh_t)[-1::-1]
         tlb = np.array(lbtime)[-1::-1]
 
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
-            'Mbh': Mbh, 'SFR': SFR, 'nh': nh, 'zmax': zmax, 't': tlb}
+            'Mbh': Mbh, 'SFR': SFR, 'MAR': MAR, 'nh': nh, 'zmax': zmax, 
+            't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 

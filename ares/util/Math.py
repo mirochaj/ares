@@ -144,7 +144,7 @@ def take_derivative(z, field, wrt='z'):
 
     return z, np.interp(z, xp, fp)    
 
-class LinearNDInterpolator:
+class LinearNDInterpolator(object):
     def __init__(self, axes, data, fill_values=None):
         """
         Create linear interpolation object.
