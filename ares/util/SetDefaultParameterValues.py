@@ -270,11 +270,11 @@ def PhysicsParameters():
     'feedback_LW_guesses': None,
     'feedback_LW_guesses_from': None,
     'feedback_LW_guesses_perfect': False,
-    
+        
     # Assume that uniform background only emerges gradually as 
     # the typical separation of halos becomes << Hubble length
     "feedback_LW_ramp": 0,
-    
+        
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
 
@@ -294,13 +294,13 @@ def PhysicsParameters():
     'feedback_tau_Mmin_uponly': False,
     'feedback_tau_Mmin_smooth': False,
     
-    'feedback_EoR': None,
-    'feedback_EoR_Tcut': 1e4,
-    'feedback_EoR_rtol': 0.,
-    'feedback_EoR_atol': 1.,
-    'feedback_EoR_mean_err': False,
-    'feedback_EoR_Mmin_uponly': False,
-    'feedback_EoR_Mmin_smooth': False,
+    'feedback_ion': None,
+    'feedback_ion_Tcut': 1e4,
+    'feedback_ion_rtol': 0.,
+    'feedback_ion_atol': 1.,
+    'feedback_ion_mean_err': False,
+    'feedback_ion_Mmin_uponly': False,
+    'feedback_ion_Mmin_smooth': False,
 
     }
 
@@ -494,7 +494,12 @@ def PopulationParameters():
     "pop_frd": None,
     "pop_fshock": 1.0,
     
+    # For GalaxyEnsemble
     "pop_aging": False,
+    "pop_enrichment": False,
+    "pop_quench": False,
+    
+    # For Clusters
     "pop_mdist": None,
     "pop_age_res": 1.,
     "pop_dlogM": 0.1,
@@ -502,7 +507,9 @@ def PopulationParameters():
     "pop_histories": None,
     "pop_guide_pop": None,
     "pop_thin_hist": False,
+    "pop_scatter_mar": 0.0,
     "pop_scatter_sfr": 0.0,
+    "pop_scatter_sfe": 0.0,
 
     "pop_fobsc": 0.0,
     "pop_fobsc_by_num": False,
@@ -803,7 +810,7 @@ def HaloMassFunctionParameters():
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
     "hmf_dlogM": 0.01,
-    "hmf_zmin": 3,
+    "hmf_zmin": 0,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
     

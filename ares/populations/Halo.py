@@ -114,6 +114,7 @@ class HaloPopulation(Population):
             elif self.pf['pop_MAR'] == 'pl':
                 raise NotImplemented('do this')
             elif self.pf['pop_MAR'] == 'hmf':
+                # Would be nice if this were a pointer...
                 self._MAR = self.halos.MAR_func
             else:
                 self._MAR = read_lit(self.pf['pop_MAR'], 

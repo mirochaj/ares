@@ -261,9 +261,10 @@ class HaloMassFunction(object):
                 self.tab_sigma = f['tab_sigma'].value
                 self.tab_dlnsdlnm = f['tab_dlnsdlnm'].value
 
-            # Axes these?
             self.tab_ngtm = f['tab_ngtm'].value
             self.tab_mgtm = f['tab_mgtm'].value
+            if 'tab_MAR' in f:
+                self.tab_MAR = f['tab_MAR'].value
             self.tab_growth = f['tab_growth'].value
             
             f.close()
@@ -274,6 +275,8 @@ class HaloMassFunction(object):
             self.tab_dndm = f['tab_dndm']
             self.tab_ngtm = f['tab_ngtm']
             self.tab_mgtm = f['tab_mgtm']
+            if 'tab_MAR' in f:
+                self.tab_MAR = f['tab_MAR']
             self.tab_growth = f['tab_growth']
             self.tab_sigma = f['tab_sigma']
             self.tab_dlnsdlnm = f['tab_dlnsdlnm']
@@ -297,6 +300,7 @@ class HaloMassFunction(object):
             self.tab_dndm = pickle.load(f)            
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
+            self.tab_MAR = pickle.load(f)
             
             if self.pf['hmf_load_ps']:
                 self.bias_tab = pickle.load(f)
@@ -786,9 +790,9 @@ class HaloMassFunction(object):
                 # Interpolate accretion rates onto common mass grid
                 dmdt = dmdz[-1::-1] * s_per_yr / -dtdz[-1::-1]
                 _interp1 = interp1d(np.log(mofz[-1::-1]), np.log(dmdt), 
-                    kind='linear', bounds_error=False, fill_value=0.0)
+                    kind='linear', bounds_error=False, fill_value=-np.inf)
                 _interp2 = interp1d(np.log(z[-1::-1]), np.log(dmdt), 
-                    kind='linear', bounds_error=False, fill_value=0.0)
+                    kind='linear', bounds_error=False, fill_value=-np.inf)
                 dmdt_rg1 = np.exp(_interp1(np.log(self.tab_M)))
                 dmdt_rg2 = np.exp(_interp2(np.log(self.tab_z)))
                                 
@@ -806,7 +810,7 @@ class HaloMassFunction(object):
                 M = self.tab_traj[:,i]
                 Mdot = tab_dMdt_of_z[:,i]
                 
-                ok = np.logical_and(M > 0, np.isfinite(M))
+                ok = np.logical_and(Mdot > 0, np.isfinite(M))
                 
                 if ok.sum() == 0:
                     continue
@@ -821,12 +825,19 @@ class HaloMassFunction(object):
                         
         return self._tab_MAR
         
+    @tab_MAR.setter
+    def tab_MAR(self, value):
+        self._tab_MAR = value
+        
+    def MAR_func(self, z, M):
+        return self.MAR_func_(z, M)
+        
     @property
-    def MAR_func(self):
-        if not hasattr(self, '_MAR_func'):
+    def MAR_func_(self):
+        if not hasattr(self, '_MAR_func_'):
             mask = np.isfinite(self.tab_MAR)
             
-            tab = np.log(self._tab_MAR)
+            tab = np.log(self.tab_MAR)
             bad = np.logical_or(np.isnan(self.tab_MAR), np.isinf(tab))
             tab[bad==1] = -50
             
@@ -1049,6 +1060,7 @@ class HaloMassFunction(object):
             f.create_dataset('tab_dndm', data=self.tab_dndm)
             f.create_dataset('tab_ngtm', data=self.tab_ngtm)
             f.create_dataset('tab_mgtm', data=self.tab_mgtm)        
+            f.create_dataset('tab_MAR', data=self.tab_MAR)
             f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
             f.create_dataset('tab_growth', data=self.tab_growth)
             f.create_dataset('tab_sigma', data=self.tab_sigma)
@@ -1062,6 +1074,7 @@ class HaloMassFunction(object):
                     'tab_dndm': self.tab_dndm,
                     'tab_ngtm': self.tab_ngtm, 
                     'tab_mgtm': self.tab_mgtm,
+                    'tab_MAR': self.tab_MAR,
                     'tab_growth': self.tab_growth,
                     'tab_ps_lin': self.tab_ps_lin,
                     'tab_sigma': self.tab_sigma,
@@ -1080,6 +1093,7 @@ class HaloMassFunction(object):
             pickle.dump(self.tab_dndm, f)
             pickle.dump(self.tab_ngtm, f)
             pickle.dump(self.tab_mgtm, f)
+            pickle.dump(self.tab_MAR, f)
             pickle.dump(self.tab_ps_lin, f)
             pickle.dump(self.tab_sigma, f)
             pickle.dump(self.tab_dlnsdlnm, f)

@@ -513,6 +513,24 @@ class Population(object):
             self._yield_per_sfr = normalize_sed(self)
                     
         return self._yield_per_sfr
+        
+    @property
+    def is_deterministic(self):
+        if not hasattr(self, '_is_deterministic'):
+            self._is_deterministic = True
+            
+            sigma_sfr = self.pf['pop_scatter_sfr']
+            sigma_sfe = self.pf['pop_scatter_sfe']
+            sigma_mar = self.pf['pop_scatter_mar']
+            
+            if self.pf['pop_sfr_model'] == 'ensemble':
+                if sigma_sfr + sigma_sfe + sigma_mar > 0:
+                    self._is_deterministic = False
+                
+                if self.pf['feedback_ion'] or self.pf['feedback_LW']:
+                    self._is_deterministic = False                    
+                
+        return self._is_deterministic
     
     @property
     def is_fcoll_model(self):
