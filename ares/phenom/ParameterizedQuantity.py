@@ -191,10 +191,10 @@ class ParameterizedQuantity(object):
 
             # It's possible that a parameter will itself be a PQ object.            
             if isinstance(par, basestring):
-                         
+
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
-                                
+
                 val = PQ.__call__(**kwargs)
                 
                 setattr(self, 'p{}'.format(i), val)

@@ -277,6 +277,8 @@ class HaloMassFunction(object):
             self.tab_mgtm = f['tab_mgtm']
             if 'tab_MAR' in f:
                 self.tab_MAR = f['tab_MAR']
+            if 'tab_Mmin_floor' in f:
+                self.tab_Mmin_floor = f['tab_Mmin_floor']
             self.tab_growth = f['tab_growth']
             self.tab_sigma = f['tab_sigma']
             self.tab_dlnsdlnm = f['tab_dlnsdlnm']
@@ -301,6 +303,7 @@ class HaloMassFunction(object):
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
             self.tab_MAR = pickle.load(f)
+            self.tab_Mmin_floor = pickle.load(f)
             
             if self.pf['hmf_load_ps']:
                 self.bias_tab = pickle.load(f)
@@ -385,8 +388,8 @@ class HaloMassFunction(object):
     @property
     def tab_dndlnm(self):
         if not hasattr(self, '_tab_dndlnm'):
-            self._dndlnm = self.tab_M * self.tab_dndm        
-        return self._dndlnm
+            self._tab_dndlnm = self.tab_M * self.tab_dndm        
+        return self._tab_dndlnm
 
     @property
     def tab_fcoll(self):
@@ -767,6 +770,14 @@ class HaloMassFunction(object):
     def tab_MAR(self):
         if not hasattr(self, '_tab_MAR'):
                     
+            if not self._is_loaded:
+                if self.pf['hmf_load']:
+                    self._load_hmf()
+                    if hasattr(self, '_tab_MAR'):
+                        return self._tab_MAR
+                    
+            print("Generating MAR...")
+                    
             # Differentiate trajectories, interpolate to common mass, redshift grid.
             
             
@@ -843,9 +854,9 @@ class HaloMassFunction(object):
             
             _MAR_func = RectBivariateSpline(self.tab_z, np.log(self.tab_M), tab)
                 
-            self._MAR_func = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
+            self._MAR_func_ = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
         
-        return self._MAR_func
+        return self._MAR_func_
                                                                   
     def VirialTemperature(self, M, z, mu=0.6):
         """
@@ -927,7 +938,30 @@ class HaloMassFunction(object):
     def DynamicalTime(self, M, z, mu=0.6):
         return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
             / G / M / g_per_msun)
+    
+    @property
+    def tab_Mmin_floor(self):
+        if not hasattr(self, '_tab_Mmin_floor'):
+            if not self._is_loaded:
+                if self.pf['hmf_load']:
+                    self._load_hmf()
+                    if hasattr(self, '_tab_Mmin_floor'):
+                        return self._tab_Mmin_floor
+                        
+            self._tab_Mmin_floor = np.array(map(self._tegmark, self.tab_z))
+        return self._tab_Mmin_floor
             
+    @tab_Mmin_floor.setter
+    def tab_Mmin_floor(self, value):
+        assert len(value) == len(self.tab_z)
+        self._tab_Mmin_floor = value
+            
+    @property        
+    def Tegmark(self):
+        if not hasattr(self, '_Tegmark'):
+            self._Tegmark = lambda z: np.interp(z, self.tab_z, self.tab_Mmin_floor)
+        return self._Tegmark
+        
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
@@ -950,10 +984,10 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(list(map(self._tegmark, zarr)))
+        Mmin_H2 = np.array(list(map(self.Tegmark, zarr)))
                 
-        #return np.maximum(Mmin_vbc, Mmin_H2)      
-        return Mmin_vbc + Mmin_H2
+        return np.maximum(Mmin_vbc, Mmin_H2)      
+        #return Mmin_vbc + Mmin_H2
       
     def tab_prefix_hmf(self, with_size=False):
         """
@@ -1061,6 +1095,7 @@ class HaloMassFunction(object):
             f.create_dataset('tab_ngtm', data=self.tab_ngtm)
             f.create_dataset('tab_mgtm', data=self.tab_mgtm)        
             f.create_dataset('tab_MAR', data=self.tab_MAR)
+            f.create_dataset('tab_Mmin_floor', data=self.tab_Mmin_floor)
             f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
             f.create_dataset('tab_growth', data=self.tab_growth)
             f.create_dataset('tab_sigma', data=self.tab_sigma)
@@ -1075,6 +1110,7 @@ class HaloMassFunction(object):
                     'tab_ngtm': self.tab_ngtm, 
                     'tab_mgtm': self.tab_mgtm,
                     'tab_MAR': self.tab_MAR,
+                    'tab_Mmin_floor': self.tab_Mmin_floor,
                     'tab_growth': self.tab_growth,
                     'tab_ps_lin': self.tab_ps_lin,
                     'tab_sigma': self.tab_sigma,
@@ -1094,6 +1130,7 @@ class HaloMassFunction(object):
             pickle.dump(self.tab_ngtm, f)
             pickle.dump(self.tab_mgtm, f)
             pickle.dump(self.tab_MAR, f)
+            pickle.dump(self.tab_Mmin_floor, f)
             pickle.dump(self.tab_ps_lin, f)
             pickle.dump(self.tab_sigma, f)
             pickle.dump(self.tab_dlnsdlnm, f)
