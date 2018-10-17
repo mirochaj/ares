@@ -1450,6 +1450,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 mask[self.halos.tab_z > self.zform] = True
                 mask[self.halos.tab_z < self.zdead] = True
                 self._tab_sfr_mask_ = mask
+                
+                # Why am I getting a NaN?
+                isnan = np.isnan(self._tab_sfr_)
+                
+                if isnan.sum() > 1:
+                    raise ValueError('Nans!')
+                
+                self._tab_sfr_[isnan] = 0.
                                 
                 return self._tab_sfr_
 
@@ -1819,6 +1827,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Just a wrapper around self.fstar.
         """
+        
+        if hasattr(self, '_tab_fstar_'):
+            k = np.argmin(np.abs(kwargs['z'] - self.halos.tab_z))
+            if abs(kwargs['z'] - self.halos.tab_z[k]) < ztol:
+                return np.exp(np.interp(np.log(kwargs['Mh']), np.log(self.halos.tab_M),
+                    np.log(self._tab_fstar[k])))
+            else:
+                print(kwargs['z'], self.halos.tab_z[k])
+        
         return self.fstar(**kwargs)
         
     @property

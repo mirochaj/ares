@@ -776,7 +776,7 @@ class HaloMassFunction(object):
                     if hasattr(self, '_tab_MAR'):
                         return self._tab_MAR
                     
-            print("Generating MAR...")
+            print("Generating MAR. This is slow. What are you up to?")
                     
             # Differentiate trajectories, interpolate to common mass, redshift grid.
             
