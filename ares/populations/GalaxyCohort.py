@@ -1828,14 +1828,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Just a wrapper around self.fstar.
         """
         
-        if hasattr(self, '_tab_fstar_'):
-            k = np.argmin(np.abs(kwargs['z'] - self.halos.tab_z))
-            if abs(kwargs['z'] - self.halos.tab_z[k]) < ztol:
-                return np.exp(np.interp(np.log(kwargs['Mh']), np.log(self.halos.tab_M),
-                    np.log(self._tab_fstar[k])))
-            else:
-                print(kwargs['z'], self.halos.tab_z[k])
-        
         return self.fstar(**kwargs)
         
     @property
