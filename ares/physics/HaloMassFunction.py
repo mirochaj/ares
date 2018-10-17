@@ -984,7 +984,7 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(list(map(self.Tegmark, zarr)))
+        Mmin_H2 = self.Tegmark(zarr)
                 
         return np.maximum(Mmin_vbc, Mmin_H2)      
         #return Mmin_vbc + Mmin_H2

@@ -21,8 +21,11 @@ from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, k_B, m_p
 
 class Cosmology(object):
-    def __init__(self, **kwargs):        
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, **kwargs):        
+        if pf is not None:
+            self.pf = pf
+        else:
+            self.pf = ParameterFile(**kwargs)
                 
         self.omega_m_0 = self.pf['omega_m_0']
         self.omega_b_0 = self.pf['omega_b_0']

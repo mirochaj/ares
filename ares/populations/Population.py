@@ -128,14 +128,14 @@ class Population(object):
     @property
     def magsys(self):
         if not hasattr(self, '_magsys'):
-            self._magsys = MagnitudeSystem(**self.pf)
+            self._magsys = MagnitudeSystem(cosm=self.cosm, **self.pf)
         return self._magsys    
     
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
             if self.grid is None:
-                self._cosm = Cosmology(**self.pf)
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
             else:
                 self._cosm = grid.cosm
                 

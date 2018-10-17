@@ -667,14 +667,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     _rhs[i] = rhs
 
                     _tab_eta_[i] = rhs / lhs
+                    
+                # Re-shape to be (z, Mh)    
+                self._tab_eta_ = np.reshape(np.tile(_tab_eta_, self.halos.tab_M.size), 
+                    (self.halos.tab_z.size, self.halos.tab_M.size))
                         
             else:
-                _tab_eta_ = np.ones_like(self.halos.tab_z)
-                
-            # Re-shape to be (z, Mh)    
-            self._tab_eta_ = np.reshape(np.tile(_tab_eta_, self.halos.tab_M.size), 
-                (self.halos.tab_z.size, self.halos.tab_M.size))
-    
+                self._tab_eta_ = np.ones_like(self.halos.tab_dndm)
+                    
         return self._tab_eta_
         
     def SFR(self, z, Mh=None):
@@ -1406,20 +1406,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ..note:: Units are Msun/yr.
             
         This does NOT set the SFR to zero in halos with M < Mmin or M > Mmax!    
-        Doing so screws up spline fitting in SFR
+        Doing so screws up spline fitting in SFR...but if we don't need the
+        SFR function for anything...shouldn't we just do it?
 
         """
-        if not hasattr(self, '_tab_sfr_'):              
+        if not hasattr(self, '_tab_sfr_'):
             
             if self.pf['pop_sfr_model'] == 'sfr-func':
                 self._tab_sfr_ = \
-                    np.zeros([self.halos.tab_z.size, self.halos.tab_M.size])    
+                    np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
             else:   
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \
                     * self.halos.tab_MAR * self._tab_fstar
-                self._tab_sfr_[self.halos.tab_z > self.zform,:] = 0.0
-                self._tab_sfr_[self.halos.tab_z < self.zdead,:] = 0.0
                 
                 # Mmin is like tab_z, make it like (z, M)
                 # M is like tab_M, make it like (z, M)
@@ -1430,6 +1429,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 self._tab_sfr_[M < Mmin] = 0.0
                 self._tab_sfr_[M > Mmax] = 0.0
+                self._tab_sfr_[self.halos.tab_z > self.zform,:] = 0.0
+                self._tab_sfr_[self.halos.tab_z < self.zdead,:] = 0.0
                 
                 return self._tab_sfr_
 
