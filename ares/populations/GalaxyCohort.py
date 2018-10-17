@@ -371,6 +371,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         self._yield_per_sfr_for_rho[(Emin, Emax)] = yield_per_sfr
 
+        ok = ~self._tab_sfr_mask
         tab = np.zeros(self.halos.tab_z.size)
         for i, z in enumerate(self.halos.tab_z):
 
@@ -396,7 +397,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 kw = {'z': z, 'Mh': self.halos.tab_M}
 
             integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * yield_per_sfr(**kw)
+                * yield_per_sfr(**kw) * ok[i]
 
             _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
             _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
@@ -459,9 +460,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             raise NotImplemented('help!')
     
+        ok = ~self._tab_sfr_mask
         for i, z in enumerate(self.halos.tab_z):
             integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * N_per_Msun * fesc
+                * N_per_Msun * fesc * ok[i]
     
             tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
             cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
@@ -698,7 +700,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             k = np.argmin(np.abs(z - self.halos.tab_z))
                         
             if abs(z - self.halos.tab_z[k]) < ztol:
-                return self._tab_sfr[k]
+                return self._tab_sfr[k] * ~self._tab_sfr_mask[k]
             else:
                 Mh = self.halos.tab_M
                     
@@ -710,28 +712,32 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # and/or halo masses. But, we're rarely doing such things.
             if not hasattr(self, '_spline_sfr'):
                 log10sfr = np.log10(self._tab_sfr)
-                log10sfr[np.isinf(log10sfr)] = -20.
+                # Filter zeros since we're going log10
+                log10sfr[np.isinf(log10sfr)] = -20
+                log10sfr[np.isnan(log10sfr)] = -20
                 
                 _spline_sfr = RectBivariateSpline(self.halos.tab_z, 
                     np.log10(self.halos.tab_M), log10sfr)
                 
+                #func = lambda z, log10M: 10**_spline_sfr(z, log10M).squeeze()
+                
                 def func(z, log10M):
                     sfr = 10**_spline_sfr(z, log10M).squeeze()
-                    
+
                     M = 10**log10M
                     if type(sfr) is np.ndarray:
-                        sfr[M < self.Mmin(z)] = 1e-20
-                        sfr[M > self.Mmax(z)] = 1e-20
+                        sfr[M < self.Mmin(z)] = 0.0
+                        sfr[M > self.Mmax(z)] = 0.0
                     else:
                         if M < self.Mmin(z):
-                            return 1e-20
+                            return 0.0
                         if M > self.Mmax(z):
-                            return 1e-20
-                        
+                            return 0.0
+
                     return sfr
                 
                 self._spline_sfr = func
-            
+                        
             return self._spline_sfr(z, np.log10(Mh))
         
         return self.cosm.fbar_over_fcdm * self.MAR(z, Mh) * self.eta(z) \
@@ -1399,6 +1405,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_Mmax_ = value
         
     @property
+    def _tab_sfr_mask(self):
+        if not hasattr(self, '_tab_sfr_mask_'):
+            sfr = self._tab_sfr
+        return self._tab_sfr_mask_
+        
+    @property
     def _tab_sfr(self):
         """
         SFR as a function of redshift and halo mass.
@@ -1427,11 +1439,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
                         (self.halos.tab_z.size, self.halos.tab_M.size))    
 
-                self._tab_sfr_[M < Mmin] = 0.0
-                self._tab_sfr_[M > Mmax] = 0.0
-                self._tab_sfr_[self.halos.tab_z > self.zform,:] = 0.0
-                self._tab_sfr_[self.halos.tab_z < self.zdead,:] = 0.0
+                #self._tab_sfr_[M < Mmin] = 0.0
+                #self._tab_sfr_[M > Mmax] = 0.0
+                #self._tab_sfr_[self.halos.tab_z > self.zform,:] = 0.0
+                #self._tab_sfr_[self.halos.tab_z < self.zdead,:] = 0.0
                 
+                mask = np.zeros_like(self._tab_sfr_, dtype=bool)
+                mask[M < Mmin] = True
+                mask[M > Mmax] = True
+                mask[self.halos.tab_z > self.zform] = True
+                mask[self.halos.tab_z < self.zdead] = True
+                self._tab_sfr_mask_ = mask
+                                
                 return self._tab_sfr_
 
             for i, z in enumerate(self.halos.tab_z):
@@ -1593,7 +1612,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_sfrd_total_'):
             Nz = self.halos.tab_z.size
             
-            integrand = self._tab_sfr * self.halos.tab_dndlnm #\
+            ok = ~self._tab_sfr_mask
+            integrand = self._tab_sfr * self.halos.tab_dndlnm * ok#\
                 #* self.focc(z=z, Mh=self.halos.tab_M)
                 
             # Mask out elements with for M < Mmin and M > Mmax.
@@ -1620,7 +1640,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             lo_i = np.argmax(lo_mask, axis=1)
             lo_M = self.halos.tab_M[lo_i]
             
-            sfr = self._tab_sfr
+            # Grab unmasked SFR array so we get intra-bin correction right.
+            sfr = self._tab_sfr # no * ok
             num = self.halos.tab_dndlnm
             Mmin = self._tab_Mmin
             
@@ -1640,7 +1661,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_sfrd_total_ = np.trapz(integrand * lo_mask * hi_mask, 
                 x=np.log(self.halos.tab_M), axis=1) \
                 + lo_corr + hi_corr
-                
+
             self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3    
             
             return self._tab_sfrd_total_
@@ -1697,6 +1718,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if np.allclose(self.halos.tab_z[iz], z):
             exact_match = True
 
+        ok = ~self._tab_sfr_mask
         for i, zz in enumerate(self.halos.tab_z):
             
             if exact_match:
@@ -1712,7 +1734,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 continue    
 
             integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * self.focc(z=zz, Mh=self.halos.tab_M)
+                * self.focc(z=zz, Mh=self.halos.tab_M) * ok[i]
             
             if is_mag:
                 _Mlo = self.Mh_of_MUV(zz, Mlo)
@@ -2343,8 +2365,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'MAR', 'nh', 
             'Z', 't']
                 
-        zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
-        zi = min(float(self.halos.tab_z.max()), self.pf['initial_redshift'])
+        zf = max(float(self.halos.tab_z.min()), self.zdead)
+        zi = min(float(self.halos.tab_z.max()), self.zform)
         
         if self.pf['sam_dz'] is not None:
             zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
@@ -2413,7 +2435,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         """
 
-        zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
+        zf = max(float(self.halos.tab_z.min()), self.zdead)
 
         if self.pf['sam_dz'] is not None:
             dz = self.pf['sam_dz']
@@ -2656,7 +2678,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             solver.integrate(solver.t-dz)
 
         if zmax is None:
-            zmax = self.pf['final_redshift']
+            zmax = self.zdead
 
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1
