@@ -251,7 +251,7 @@ class GalaxyEnsemble(HaloPopulation):
             if sigma_sfe > 0:
                 sfe += self.noise_lognormal(sfe, sigma_sfe)
                 
-            mar = self.tile(mar_raw, thin)    
+            mar = self.tile(mar_raw, thin)
             if sigma_mar > 0:
                 mar += self.noise_lognormal(mar, sigma_mar)
                 sfr = sfe * mar * self.cosm.fbar_over_fcdm
@@ -265,17 +265,16 @@ class GalaxyEnsemble(HaloPopulation):
             
             # Artificial SF shutdown option.
             if self.pf['pop_quench']:
+                
+                k = np.argmin(np.abs(zall - 6.))
+                
                 for i, hist in enumerate(sfr):
-                    if not np.any(hist >= 10):
+                    if Mh[i,k] >= guide.Mmin(6.):
                         continue
                     
-                    j = int(max(np.argwhere(hist >= 10)))
-                    
-                    #print(i, j)
-                    
-                    sfr[i,0:j] = 0.0
-                        
-                    #print('Quenching zf={} at z<={}'.format(zall[i], zall[j]))    
+                    sfr[i,0:k] = 0.0
+                       
+                   #print('Quenching zf={} at z<={}'.format(zall[i], zall[j]))    
 
             # SFR = (zform, time (but really redshift))
             # So, halo identity is wrapped up in axis=0

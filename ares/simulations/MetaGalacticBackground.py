@@ -252,7 +252,10 @@ class MetaGalacticBackground(AnalyzeMGB):
             popids = range(len(self.pops))
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
-    
+            
+        if zf is not None:
+            raise NotImplemented('need to fix this now that today_only option in place')    
+                
         ct = 0
         # Loop over pops: assumes energy ranges are non-overlapping!
         for popid, pop in enumerate(self.pops):
@@ -263,15 +266,17 @@ class MetaGalacticBackground(AnalyzeMGB):
             if not self.solver.solve_rte[popid]:
                 continue
     
-            z, E, flux = self.get_history(popid=popid, flatten=True)    
-    
+            # Much faster to only read in first redshift element in this case.
+            z, E, flux = self.get_history(popid=popid, flatten=True, 
+                today_only=True)
+            
             if zf is None:
                 k = 0
             else:
                 k = np.argmin(np.abs(zf - z))
-    
+            
             Et = E / (1. + z[k])
-            ft = flux[k] / (1. + z[k])**2 
+            ft = flux[k] / (1. + z[k])**2
     
             _energies_today.append(Et)
             _fluxes_today.append(ft)
@@ -738,6 +743,12 @@ class MetaGalacticBackground(AnalyzeMGB):
         _f_Ja = []
         _f_Jlw = []
         for i, popid in enumerate(include_pops):
+            
+            if not (self.pops[popid].is_src_lw or self.pops[popid].is_src_lya):
+                _allz.append(self.solver.redshifts[popid])
+                _f_Jlw.append(lambda z: 0.0)
+                _f_Ja.append(lambda z: 0.0)
+                continue
                         
             _z, _Ja, _Jlw = self.get_uvb(popid)
             
@@ -1128,7 +1139,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         return z, Ja, Jlw
 
-    def get_history(self, popid=0, flatten=False):
+    def get_history(self, popid=0, flatten=False, today_only=False):
         """
         Grab data associated with a single population.
 
@@ -1164,6 +1175,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         # be in descending order so flip 'em.
 
         z = self.solver.redshifts[popid]
+        zflip = z[-1::-1]
+        zmin = min(z)
         #else:
         #    # This may change on the fly due to sub-cycling and such
         #    z = np.array(self.all_z).T[popid][-1::-1]
@@ -1172,7 +1185,14 @@ class MetaGalacticBackground(AnalyzeMGB):
             E = np.array(flatten_energies(self.solver.energies[popid]))
 
             f = np.zeros([len(z), E.size])
+            
+            # Looping over redshift?
             for i, flux in enumerate(hist):
+                
+                if today_only:
+                    if zflip[i] != zmin:
+                        continue
+                
                 fzflat = []
                 for j in range(len(self.solver.energies[popid])):
                     if not self.solver.solve_rte[popid][j]:
@@ -1181,7 +1201,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                         fzflat.extend(flux[j])
 
                 f[i] = np.array(fzflat)
-
+                
             # "tr" = "to return"
             z_tr = z
             E_tr = E

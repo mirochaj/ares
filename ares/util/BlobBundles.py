@@ -119,7 +119,7 @@ _cxrb = {'blob_names': ['jsxb', 'jhxb'],
          'blob_kwargs': [None] * 2}
 
 _blob_n1 = ['galaxy_lf']
-_blob_n2 = ['SFE']
+_blob_n2 = ['fstar']
 _blob_n3 = ['sfrd_above_MUV']
 _blob_i1 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9, 
     8., 9., 10., 10.4, 11., 12., 15.])),
