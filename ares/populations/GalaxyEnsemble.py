@@ -84,6 +84,10 @@ class GalaxyEnsemble(HaloPopulation):
         else:
             return new
     
+    def noise_normal(self, arr, sigma):
+        noise = np.random.normal(scale=sigma, size=arr.size)
+        return np.reshape(noise, arr.shape)
+    
     def noise_lognormal(self, arr, sigma):
         lognoise = np.random.normal(scale=sigma, size=arr.size)        
         noise = 10**(np.log10(arr) + np.reshape(lognoise, arr.shape))
@@ -157,6 +161,7 @@ class GalaxyEnsemble(HaloPopulation):
             sigma_sfr = self.pf['pop_scatter_sfr']
             sigma_sfe = self.pf['pop_scatter_sfe']
             sigma_mar = self.pf['pop_scatter_mar']
+            sigma_env = self.pf['pop_scatter_env']
                         
             # Just read in histories in this case.
             if type(hist) is dict:
@@ -244,7 +249,7 @@ class GalaxyEnsemble(HaloPopulation):
             if sigma_sfr > 0:
                 assert have_sfr
                 assert not (self.pf['pop_scatter_sfe'] or self.pf['pop_scatter_mar'])                
-                sfr += self.noise_lognormal(sfr, sigma_sfr)            
+                sfr += self.noise_lognormal(sfr, sigma_sfr)
             
             # Can add SFE scatter too    
             sfe = self.tile(sfe_raw, thin)
@@ -252,6 +257,10 @@ class GalaxyEnsemble(HaloPopulation):
                 sfe += self.noise_lognormal(sfe, sigma_sfe)
                 
             mar = self.tile(mar_raw, thin)
+            
+            if sigma_env > 0:
+                mar *= (1. + self.noise_normal(mar, sigma_env))
+                
             if sigma_mar > 0:
                 mar += self.noise_lognormal(mar, sigma_mar)
                 sfr = sfe * mar * self.cosm.fbar_over_fcdm
@@ -260,16 +269,17 @@ class GalaxyEnsemble(HaloPopulation):
                     sfr = sfe * mar * self.cosm.fbar_over_fcdm 
             
             
+            
             # Things to add: metal-enrichment history (MEH)
             #              : ....anything else?
             
             # Artificial SF shutdown option.
             if self.pf['pop_quench']:
                 
-                k = np.argmin(np.abs(zall - 6.))
+                k = np.argmin(np.abs(zall - 8.))
                 
                 for i, hist in enumerate(sfr):
-                    if Mh[i,k] >= guide.Mmin(6.):
+                    if Mh[i,k] >= guide.Mmin(8.):
                         continue
                     
                     sfr[i,0:k] = 0.0

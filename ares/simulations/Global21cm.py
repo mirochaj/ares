@@ -58,7 +58,7 @@ class Global21cm(AnalyzeGlobal21cm):
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)
-            
+                        
     #def __del__(self):
     #    print("Killing it! Processor={}".format(rank))
                     

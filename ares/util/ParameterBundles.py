@@ -327,7 +327,6 @@ _careless = \
  'tau_redshift_bins': 200,
 }
 
-
 _insane = \
 {
  'epsilon_dt': 0.2,

@@ -24,7 +24,7 @@ from ..util.SetDefaultParameterValues import MultiPhaseParameters
 _mpm_defs = MultiPhaseParameters()
 
 class MultiPhaseMedium(object):
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
         """
         Initialize a MultiPhaseMedium object.
         
@@ -34,9 +34,13 @@ class MultiPhaseMedium(object):
         ``include_cgm=False`` or ``include_igm=False``.
         
         """
-   
-        self.kwargs = kwargs
         
+        if pf is not None:
+            self.pf = pf
+            print('got pf')
+            
+        self.kwargs = kwargs
+                
     @property
     def pf(self):
         if not hasattr(self, '_pf'):
@@ -49,6 +53,11 @@ class MultiPhaseMedium(object):
             inits = self.inits
             
         return self._pf
+        
+    @pf.setter
+    def pf(self, val):
+        self._pf = val
+        inits = self.inits
         
     @property
     def inits(self):
@@ -84,11 +93,11 @@ class MultiPhaseMedium(object):
     def field(self):
         if not hasattr(self, '_field'):
             if self.pf['include_igm']:
-                self._field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
-                    **self.kwargs)
+                self._field = MetaGalacticBackground(pf=self.pf, 
+                    grid=self.parcel_igm.grid, **self.kwargs)
             else:
-                self._field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
-                    **self.kwargs)
+                self._field = MetaGalacticBackground(pf=self.pf,
+                    grid=self.parcel_cgm.grid, **self.kwargs)
                 
         return self._field
         

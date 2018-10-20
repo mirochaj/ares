@@ -989,7 +989,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if z in self._phi_of_L:
                 return self._phi_of_L[z]
             for red in self._phi_of_L:
-                if np.allclose(red, z):
+                if abs(red - z) < ztol:
                     return self._phi_of_L[red]
         
         fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))
@@ -1005,7 +1005,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         iz = np.argmin(np.abs(z - self.halos.tab_z))
         
-        if z == self.halos.tab_z[iz]:
+        if abs(z - self.halos.tab_z[iz]) < ztol:
             dndm = self.halos.tab_dndm[iz,:-1]
         else:
             dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1], 
@@ -1608,6 +1608,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._tab_nh_active_
         
+    def intra_bin_corr(self, z, arr):
+        raise NotImplemented('help')
+        lo_corr = np.zeros_like(self.halos.tab_z)
+        
+        # Construct array of masses, all of which are the grid pt just
+        # above Mmin at the corresponding redshift.
+        lo_i = np.argmax(lo_mask, axis=1)
+        lo_M = self.halos.tab_M[lo_i]
+        
+        # Grab unmasked SFR array so we get intra-bin correction right.
+        sfr = self._tab_sfr # no * ok
+        num = self.halos.tab_dndlnm
+        Mmin = self._tab_Mmin
+        
+        b = np.log(lo_M) - np.log(self._tab_Mmin)
+        y1 = np.array([sfr[i,lo_i[i]] * num[i,lo_i[i]] for i in range(Nz)])
+        y2 = np.array([np.interp(Mmin[i], self.halos.tab_M, 
+            sfr[i,:] * num[i,:]) for i in range(Nz)])
+        
+        lo_corr = 0.5 * b * (y1 + y2)
+                    
+        # Insensitive to this so leave it out for now.
+        hi_corr = np.zeros_like(self.halos.tab_z)
+        
     @property
     def _tab_sfrd_total(self):
         """
@@ -1621,8 +1645,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Nz = self.halos.tab_z.size
             
             ok = ~self._tab_sfr_mask
-            integrand = self._tab_sfr * self.halos.tab_dndlnm * ok#\
-                #* self.focc(z=z, Mh=self.halos.tab_M)
+            integrand = ok * self._tab_sfr * self.halos.tab_dndlnm * self._tab_focc
                 
             # Mask out elements with for M < Mmin and M > Mmax.
             lo_mask = np.ones_like(integrand, dtype=bool)
@@ -1636,7 +1659,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Figure out if there's anywhere where Mmin and Mmax fall within
             # the same mass bin.
             same_bin = np.logical_and(~lo_mask, ~hi_mask)
-            if same_bin.sum():
+            if same_bin.sum() > 0:
                 raise NotImplemented('help')    
                 
             # Add in bit of SFRD corresponding to fractional bin contribution
@@ -1707,6 +1730,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
             return self._sfrd_above_MUV_tab[(z, MUV)]
     
+    @property        
+    def _tab_focc(self):
+        if not hasattr(self, '_tab_focc_'):
+            yy, xx = self._tab_Mz
+            self._tab_focc_ = self.focc(z=xx, Mh=yy)
+        return self._tab_focc_
+    
     def SFRD_within(self, z, Mlo, Mhi=None, is_mag=False):
         """
         Compute SFRD within given mass range, [Mlo, Mhi].
@@ -1718,39 +1748,29 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         #if (Mlo, Mhi) in self._sfrd_within.keys():
         #    return self._sfrd_within[(Mlo, Mhi)](z)
         
-        _sfrd_tab = np.ones_like(self.halos.tab_z)
+        #_sfrd_tab = np.ones_like(self.halos.tab_z)
         
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        if is_mag:
+            _Mlo = self.Mh_of_MUV(z, Mlo)
+        # Crudely for now
+        elif Mlo == 'Mmin':
+            _Mlo = self.Mmin(z)
+        else:
+            _Mlo = Mlo
         
-        exact_match = False
-        if np.allclose(self.halos.tab_z[iz], z):
+        # Check for exact match
+        iz = np.argmin(np.abs(z - self.halos.tab_z))    
+        if abs(self.halos.tab_z[iz] - z) < ztol:
             exact_match = True
+        else:
+            exact_match = False
+            raise NotImplemented('help')
 
         ok = ~self._tab_sfr_mask
-        for i, zz in enumerate(self.halos.tab_z):
-            
-            if exact_match:
-                if i != iz:
-                    continue
-            
-            if not self.pf['pop_sfr_above_threshold']:
-                break
-
-            if zz > self.zform:
-                continue
-            elif zz < self.zdead:
-                continue    
-
-            integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * self.focc(z=zz, Mh=self.halos.tab_M) * ok[i]
-            
-            if is_mag:
-                _Mlo = self.Mh_of_MUV(zz, Mlo)
-            # Crudely for now
-            elif Mlo == 'Mmin':
-                _Mlo = self.Mmin(zz)
-            else:
-                _Mlo = Mlo
+        integrand = ok * self._tab_sfr * self.halos.tab_dndlnm * self._tab_focc        
+        
+        # Have everything we need.
+        if exact_match:
             
             ilo = np.argmin(np.abs(self.halos.tab_M - _Mlo))
                     
@@ -1758,25 +1778,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 ihi = self.halos.tab_M.size
             else:
                 ihi = np.argmin(np.abs(self.halos.tab_M - Mhi))
-            
-            _sfrd_tab[i] = np.trapz(integrand[ilo:ihi+1], 
+                        
+            _sfrd_tab = np.trapz(integrand[iz,ilo:ihi+1], 
                 x=np.log(self.halos.tab_M[ilo:ihi+1]))
-        
-        if exact_match:
-            return _sfrd_tab[iz]
-                                        
-        if self.pf['pop_sfr_cross_threshold'] and type(Mlo) is str:
-            if (Mlo == 'Mmin'):
-                _sfrd_tab += self._tab_sfrd_at_threshold_
-                            
-        _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
-
-        _sfrd_func = lambda zz: np.interp(zz, self.halos.tab_z, _sfrd_tab)
                 
-        if type(Mlo) != np.ndarray:
-            self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
+            # Should do the intra-bin correction here.
+                
+            _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
         
-        return _sfrd_func(z)
+            return _sfrd_tab
+            
+        #_sfrd_func = lambda zz: np.interp(zz, self.halos.tab_z, _sfrd_tab)
+                
+        #if type(Mlo) != np.ndarray:
+        #    self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
+        
+        #return _sfrd_func(z)
 
     @property
     def LLyC_tab(self):
@@ -1930,9 +1947,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     #    return derivative(logphi, np.log10(L), dx=0.1)    
     
     @property
+    def _tab_Mz(self):
+        if not hasattr(self, '_tab_Mz_'):
+            yy, xx = np.meshgrid(self.halos.tab_M, self.halos.tab_z)
+            self._tab_Mz_ = yy, xx
+        return self._tab_Mz_
+    
+    @property
     def _tab_fstar(self):
         if not hasattr(self, '_tab_fstar_'):
-            yy, xx = np.meshgrid(self.halos.tab_M, self.halos.tab_z)
+            yy, xx = self._tab_Mz
             # Should be like tab_dndm
             self._tab_fstar_ = self.SFE(z=xx, Mh=yy)
         return self._tab_fstar_

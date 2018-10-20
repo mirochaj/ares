@@ -71,7 +71,7 @@ defkwargs = \
 }       
 
 class UniformBackground(object):
-    def __init__(self, grid=None, **kwargs):
+    def __init__(self, pf=None, grid=None, **kwargs):
         """
         Initialize a UniformBackground object.
         
@@ -88,7 +88,11 @@ class UniformBackground(object):
         """
                 
         self._kwargs = kwargs.copy()
-        self.pf = ParameterFile(**kwargs)
+        
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
         
         # Some useful physics modules
         if grid is not None:
@@ -96,7 +100,7 @@ class UniformBackground(object):
             self.cosm = grid.cosm
         else:
             self.grid = None
-            self.cosm = Cosmology(**self.pf)
+            self.cosm = Cosmology(pf=self.pf, **self.pf)
 
         self._set_integrator()
         
@@ -109,7 +113,7 @@ class UniformBackground(object):
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, **self.pf)
+            self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
 
         return self._hydr
 
@@ -238,7 +242,7 @@ class UniformBackground(object):
     @property
     def pops(self):
         if not hasattr(self, '_pops'):
-            self._pops = CompositePopulation(**self._kwargs).pops
+            self._pops = CompositePopulation(pf=self.pf, **self._kwargs).pops
             
         return self._pops
 
@@ -1311,6 +1315,8 @@ class UniformBackground(object):
                     + exp_term * (c_over_four_pi * xsq[ll+1] \
                     * trapz_base * ehat_r[ll] \
                     + np.concatenate((flux[1:], [0])) / Rsq)
+                    #+ np.roll(flux, -1) / Rsq)
+                    
                                                                         
                 ##
                 # Add Ly-a flux from cascades    

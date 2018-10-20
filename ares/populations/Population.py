@@ -493,7 +493,10 @@ class Population(object):
     def src(self):
         if not hasattr(self, '_src'):
             if self.pf['pop_psm_instance'] is not None:
+                # Should phase this out for more generate approach below.
                 self._src = self.pf['pop_psm_instance']
+            elif self.pf['pop_src_instance'] is not None:
+                self._src = self.pf['pop_src_instance']
             elif self._Source is not None:
                 try:
                     self._src = self._Source(**self.src_kwargs)

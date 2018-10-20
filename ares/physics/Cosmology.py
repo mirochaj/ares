@@ -469,12 +469,12 @@ class Cosmology(object):
             
         """
         
-        d_cm = self.ComovingRadialDistance(0., 8.)
+        d_cm = self.ComovingRadialDistance(0., z)
         angle_rad = (np.pi / 180.) * angle
         
         dA = angle_rad * d_cm
         
-        dldz = quad(self.ComovingLineElement, z-0.5 * dz, z + 0.5 * dz)[0]
+        dldz = quad(self.ComovingLineElement, z-0.5*dz, z+0.5*dz)[0]
         
         return dA**2 * dldz / cm_per_mpc**3
     

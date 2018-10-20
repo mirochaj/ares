@@ -76,16 +76,21 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     return f_M
         
 class MetaGalacticBackground(AnalyzeMGB):
-    def __init__(self, grid=None, **kwargs):
+    def __init__(self, pf=None, grid=None, **kwargs):
         """
         Initialize a MetaGalacticBackground object.    
         """
         
+        self.kwargs = kwargs
+        
+        if pf is None:
+            self.pf = ParameterFile(**self.kwargs)
+        else:
+            self.pf = pf
+        
         self._grid = grid
         self._has_fluxes = False
-        self._has_coeff = False
-        
-        self.kwargs = kwargs
+        self._has_coeff = False        
         
         if not hasattr(self, '_suite'):
             self._suite = []
@@ -94,12 +99,17 @@ class MetaGalacticBackground(AnalyzeMGB):
     def pf(self):
         if not hasattr(self, '_pf'):
             self._pf = ParameterFile(**self.kwargs)
-        return self._pf        
+        return self._pf
+        
+    @pf.setter        
+    def pf(self, val):
+        self._pf = val
             
     @property
     def solver(self):
         if not hasattr(self, '_solver'):
-            self._solver = UniformBackground(grid=self.grid, **self.kwargs)
+            self._solver = UniformBackground(pf=self.pf, grid=self.grid, 
+                **self.kwargs)
         return self._solver
         
     @property

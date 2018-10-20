@@ -223,7 +223,7 @@ class HaloMassFunction(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
 
         return self._cosm
             

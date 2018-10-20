@@ -24,7 +24,7 @@ from ..util.ParameterFile import get_pq_pars, pop_id_num
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
-from ..util import ParameterFile, MagnitudeSystem, ProgressBar
+from ..util import ParameterFile, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL

@@ -340,13 +340,13 @@ class Grid(object):
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, **self.pf)
+            self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
         return self._hydr    
             
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm            
                 
     def set_properties(self, **kwargs):
@@ -405,7 +405,7 @@ class Grid(object):
     def set_cosmology(self, **kwargs):
         
         self.zi = self.pf['initial_redshift']
-        self._cosm = Cosmology(**self.pf)        
+        self._cosm = Cosmology(pf=self.pf, **self.pf)        
         
     def set_chemistry(self, include_He=False):
         """
