@@ -119,7 +119,7 @@ _cxrb = {'blob_names': ['jsxb', 'jhxb'],
          'blob_kwargs': [None] * 2}
 
 _blob_n1 = ['galaxy_lf']
-_blob_n2 = ['fstar']
+_blob_n2 = ['fstar', 'SFR']
 _blob_n3 = ['sfrd_above_MUV']
 _blob_i1 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9, 
     8., 9., 10., 10.4, 11., 12., 15.])),
@@ -130,7 +130,7 @@ _blob_i2 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9,
 _blob_i3 = [_late_z, ('MUV', np.array([-17, -15, -12, -10]))]
     
 _blob_f1 = ['pops[0].LuminosityFunction']
-_blob_f2 = ['pops[0].SFE']
+_blob_f2 = ['pops[0].SFE', 'pops[0].SFR']
 _blob_f3 = ['pops[0].SFRD_above_MUV']
 
 _lf = \
