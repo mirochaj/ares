@@ -280,6 +280,27 @@ def correlation_matrix(cov):
 
     return rho
 
+def bin_e2c(bins):
+    """
+    Convert bin edges to bin centers.
+    """
+    dx = np.diff(bins)
+    assert np.allclose(np.diff(dx), 0), "Binning is non-uniform!"
+    dx = dx[0]
+    
+    return 0.5 * (bins[1:] + bins[:-1])
+
+def bin_c2e(bins):
+    """
+    Convert bin centers to bin edges.
+    """
+    dx = np.diff(bins)
+    assert np.allclose(np.diff(dx), 0), "Binning is non-uniform!"
+    dx = dx[0]
+    
+    return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
+    
+
 def rebin(bins):
     """
     Take in an array of bin edges and convert them to bin centers.        

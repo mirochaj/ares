@@ -184,29 +184,29 @@ class ParameterizedQuantity(object):
             x = np.maximum(x, self.var_floor)
 
         logx = np.log10(x)
-
+        
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars):
 
             # It's possible that a parameter will itself be a PQ object.            
             if isinstance(par, basestring):
-                         
+
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
-                                
+
                 val = PQ.__call__(**kwargs)
                 
                 setattr(self, 'p{}'.format(i), val)
-                
+
             elif type(par) == tuple:
                 f, v, mult = par
-                
+
                 if isinstance(mult, basestring):
                     m = self.pf[mult]
                 else:
                     m = mult
-                
+
                 if f in self.deps:
                     val = m * self.deps[f](kwargs[v])
                 elif type(f) is FunctionType:
@@ -218,7 +218,7 @@ class ParameterizedQuantity(object):
                     
             else:
                 setattr(self, 'p{}'.format(i), par)
-
+        
         # Actually execute the function
         if func == 'lognormal':
             f = self.p0 * np.exp(-(logx - self.p1)**2 / 2. / self.p2**2)
@@ -268,10 +268,12 @@ class ParameterizedQuantity(object):
         elif func == 'plexp':
             f = self.p0 * (x / self.p1)**self.p2 * np.exp(-(x / self.p3)**self.p4)
         elif func == 'dpl':
-            f = 2. * self.p0 / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3)
+            xx = x / self.p1
+            f = 2. * self.p0 / (xx**-self.p2 + xx**-self.p3)
         elif func == 'dpl_arbnorm':
+            xx = x / self.p1
             normcorr = (((self.p4 / self.p1)**-self.p2 + (self.p4 / self.p1)**-self.p3))
-            f = self.p0 * normcorr / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3)
+            f = self.p0 * normcorr / (xx**-self.p2 + xx**-self.p3)
         elif func == 'ddpl':
             f = 2. * self.p0 / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3) \
               + 2. * self.p4 / ((x / self.p5)**-self.p6 + (x / self.p5)**-self.p7)
@@ -370,7 +372,7 @@ class ParameterizedQuantity(object):
         elif func == 'user':
             f = self.pf['pq_func_fun'](**kwargs)
         else:
-            raise NotImplementedError('Don\'t know how to treat {!s} function!'.format(func))
+            raise NotImplementedError('Don\'t know how to treat {!s} function!'.format(func))    
 
         if self.ceil is not None:
             f = np.minimum(f, self.ceil)
@@ -379,7 +381,7 @@ class ParameterizedQuantity(object):
                 f = np.maximum(f, self.floor)
             else:
                 f = np.maximum(f, self.floor(**kwargs))
-        
+                        
         return f
               
 

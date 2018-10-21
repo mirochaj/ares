@@ -112,7 +112,7 @@ class OpticalDepth(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm
     
     def OpticalDepth(self):
@@ -471,7 +471,8 @@ class OpticalDepth(object):
             if re.search('pkl', fn):
                 data = read_pickle_file(fn, nloads=1, verbose=False)
             else:
-                data = dict(np.load(fn))
+                data = np.load(fn)
+                data = dict(data)
                 # For some reason Python 3 doesn't like this.
                 #f = open(fn, 'r')
                 #data = dict(np.load(f))

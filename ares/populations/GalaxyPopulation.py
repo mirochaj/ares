@@ -81,6 +81,8 @@ def GalaxyPopulation(**kwargs):
         return GalaxyAggregate(**kwargs)
     elif model in ['frd-func']:
         return ClusterPopulation(**kwargs)
+    elif model in ['ensemble']:
+        return GalaxyEnsemble(**kwargs)
     elif model in ['rates']:
         return ParametricPopulation(**kwargs)
     elif model in ['bhmd']:

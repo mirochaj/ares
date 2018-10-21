@@ -288,15 +288,16 @@ class ParameterFile(dict):
         
         # Fix up everything
         self._parse(**kwargs)
-        
+                
         # Check for stuff that'll break...stuff
-        self._check_for_conflicts(**kwargs)
+        if self['debug']:
+            self._check_for_conflicts(**kwargs)
         
-        if self.orphans:
-            if (rank == 0) and self['verbose']:
-                for key in self.orphans:
-                    print("WARNING: {!s} is an `orphan` parameter.".format(\
-                        key))
+            if self.orphans:
+                if (rank == 0) and self['verbose']:
+                    for key in self.orphans:
+                        print("WARNING: {!s} is an `orphan` parameter.".format(\
+                            key))
 
     @property
     def Npops(self):
@@ -308,7 +309,7 @@ class ParameterFile(dict):
             tmp.update(self._kwargs)
 
             self._Npops = count_populations(**tmp)
-
+            
         return self._Npops
 
     @property

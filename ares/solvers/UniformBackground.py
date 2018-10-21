@@ -51,6 +51,7 @@ ARES = os.getenv('ARES')
 
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
+c_over_four_pi = c / four_pi
 
 E_th = np.array([13.6, 24.4, 54.4])
 
@@ -70,7 +71,7 @@ defkwargs = \
 }       
 
 class UniformBackground(object):
-    def __init__(self, grid=None, **kwargs):
+    def __init__(self, pf=None, grid=None, **kwargs):
         """
         Initialize a UniformBackground object.
         
@@ -87,7 +88,11 @@ class UniformBackground(object):
         """
                 
         self._kwargs = kwargs.copy()
-        self.pf = ParameterFile(**kwargs)
+        
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
         
         # Some useful physics modules
         if grid is not None:
@@ -95,7 +100,7 @@ class UniformBackground(object):
             self.cosm = grid.cosm
         else:
             self.grid = None
-            self.cosm = Cosmology(**self.pf)
+            self.cosm = Cosmology(pf=self.pf, **self.pf)
 
         self._set_integrator()
         
@@ -108,7 +113,7 @@ class UniformBackground(object):
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, **self.pf)
+            self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
 
         return self._hydr
 
@@ -237,7 +242,7 @@ class UniformBackground(object):
     @property
     def pops(self):
         if not hasattr(self, '_pops'):
-            self._pops = CompositePopulation(**self._kwargs).pops
+            self._pops = CompositePopulation(pf=self.pf, **self._kwargs).pops
             
         return self._pops
 
@@ -260,7 +265,7 @@ class UniformBackground(object):
     @property
     def effects_by_pop(self):
         if not hasattr(self, '_effects_by_pop'):
-            self._effects_by_pop = [[] for i in xrange(self.Npops)]
+            self._effects_by_pop = [[] for i in range(self.Npops)]
     
             for i, pop in enumerate(self.pops):
                 bands = self.bands_by_pop[i]
@@ -1273,6 +1278,13 @@ class UniformBackground(object):
 
         otf = False
         
+        # Pre-roll some stuff
+        tau_r = np.roll(tau, -1, axis=1)
+        ehat_r = np.roll(np.roll(ehat, -1, axis=0), -1, axis=1)
+        # Won't matter that we carried the first element to the end because
+        # the incoming flux in that bin is always zero.
+        
+        
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:
@@ -1287,9 +1299,9 @@ class UniformBackground(object):
                     
                 if otf:
                     exp_term = np.exp(-np.roll(tau, -1))
-                else:   
-                    exp_term = np.exp(-np.roll(tau[ll], -1))
-                
+                else:
+                    exp_term = np.exp(-tau_r[ll])
+                    
                 # Special case: delta function SED
                 if self.pops[popid].src.is_delta:
                     trapz_base = 1.
@@ -1298,12 +1310,14 @@ class UniformBackground(object):
 
                 # Equivalent to Eq. 25 in Mirocha (2014)
                 # Less readable, but faster!  
-                flux = (c / four_pi) \
+                flux = c_over_four_pi \
                     * ((xsq[ll+1] * trapz_base) * ehat[ll]) \
-                    + exp_term * ((c / four_pi) * xsq[ll+1] \
-                    * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
-                    + np.roll(flux, -1) / Rsq)
-                                    
+                    + exp_term * (c_over_four_pi * xsq[ll+1] \
+                    * trapz_base * ehat_r[ll] \
+                    + np.concatenate((flux[1:], [0])) / Rsq)
+                    #+ np.roll(flux, -1) / Rsq)
+                    
+                                                                        
                 ##
                 # Add Ly-a flux from cascades    
                 ##
@@ -1360,7 +1374,7 @@ class UniformBackground(object):
             # An alternative would be to extrapolate, and thus mimic a
             # background spectrum that is not truncated at Emax
             flux[-1] = 0.0
-                
+                                
             yield redshifts[ll], flux
     
             # Increment redshift

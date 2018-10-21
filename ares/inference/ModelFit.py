@@ -25,6 +25,7 @@ import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
 from types import FunctionType#, InstanceType # InstanceType not in Python3
 from ..analysis.BlobFactory import BlobFactory
+from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
@@ -591,14 +592,17 @@ class ModelFit(FitBase):
         self._save_hmf = value
     
     @property 
-    def save_psm(self):
-        if not hasattr(self, '_save_psm'):
-            self._save_psm = True
-        return self._save_psm
+    def save_src(self):
+        if not hasattr(self, '_save_src'):
+            # False by default since this is a little riskier in that we
+            # *can* vary SED parameters, but haven't yet implemented HMF
+            # variations.
+            self._save_src = False
+        return self._save_src
     
-    @save_psm.setter
-    def save_psm(self, value):
-        self._save_psm = value    
+    @save_src.setter
+    def save_src(self, value):
+        self._save_src = value    
     
     @property
     def prior_set_P(self):
@@ -1095,7 +1099,9 @@ class ModelFit(FitBase):
             if re.search('hmf_instance', key):
                 to_axe.append(key)
             if re.search('pop_psm_instance', key):
-                to_axe.append(key)        
+                to_axe.append(key)       
+            if re.search('pop_src_instance', key):
+                to_axe.append(key)     
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
             
@@ -1137,7 +1143,7 @@ class ModelFit(FitBase):
         self._debug = value    
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500, reboot=False):
+        save_freq=500, reboot=False, recenter=False):
         """
         Run MCMC.
 
@@ -1245,7 +1251,7 @@ class ModelFit(FitBase):
         
         # Speed-up tricks
         
-        if self.save_hmf or self.save_psm:
+        if self.save_hmf or self.save_src:
             sim = self.simulator(**self.base_kwargs)
             
         if self.save_hmf:
@@ -1269,30 +1275,41 @@ class ModelFit(FitBase):
             if hmf is not None:
                 print("Saved HaloMassFunction instance to limit I/O.")
             
-        if self.save_psm:
-            assert 'pop_psm_instance' not in self.base_kwargs
-            
+        if self.save_src:
+            # This maybe is unnecessary?
+            #assert 'pop_psm_instance' not in self.base_kwargs
+                        
             try:
-                psm = sim.src
-                idnum = None
+                srcs = [sim.src]
+                ids = [None]
             except AttributeError:
-                psm = None
-                idnum = 0
-                for idnum, pop in enumerate(sim.pops):
-                    if pop.pf['pop_sed'] in ['eldridge2009', 'leitherer1999']:
-                        psm = pop.src
-                        break
-            
-            if idnum is None:
-                self.base_kwargs['pop_psm_instance'] = psm
-                assert 'pop_Z' not in self.parameters, 'help'
-            else:                     
-                self.base_kwargs['pop_psm_instance{{{}}}'.format(idnum)] = psm
-                assert 'pop_Z{{{}}}'.format(idnum) not in self.parameters, 'help'
-            
-            if psm is not None:
-                print("Saved SynthesisModel instance to limit I/O.")
-        
+                srcs = [pop.src for pop in sim.pops]
+                ids = range(len(srcs))
+
+            for idnum, src in enumerate(srcs):
+
+                if ids[idnum] is None:
+                    sid = ''
+                else:
+                    sid = '{{{}}}'.format(idnum)
+
+                if isinstance(src, SynthesisModel):
+                    assert 'pop_Z{}'.format(sid) not in self.parameters
+                    print("Saved SynthesisModel instance for population #{} to limit I/O.".format(idnum))
+
+                elif isinstance(src, BlackHole):
+                    assert 'pop_mass{}'.format(sid) not in self.parameters
+                    assert 'pop_eta{}'.format(sid) not in self.parameters
+                    assert 'pop_fduty{}'.format(sid) not in self.parameters
+                    assert 'pop_alpha{}'.format(sid) not in self.parameters
+                    assert 'pop_logN{}'.format(sid) not in self.parameters
+                    assert 'pop_fsc{}'.format(sid) not in self.parameters
+                    
+                    print("Saved BlackHole instance for population #{} to limit I/O.".format(idnum))
+                    
+                    
+                self.base_kwargs['pop_src_instance{}'.format(sid)] = src
+                            
         ##
         # Initialize sampler
         ##
@@ -1307,6 +1324,13 @@ class ModelFit(FitBase):
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
         pos = self.prep_output_files(restart, clobber)
+        
+        # Optional re-centering of walkers
+        if restart and recenter:
+            print("Recentering walkers...")
+            mlpt = pos[np.argmax(prob)]
+            pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
+        
         
         state = None #np.random.RandomState(self.seed)
                         

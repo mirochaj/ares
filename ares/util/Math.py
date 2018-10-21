@@ -27,6 +27,9 @@ def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
         for kwarg in ['left', 'right']:
             if kwarg in kwargs:
                 kw[kwarg] = kwargs[kwarg]
+            else:
+                kw[kwarg] = fill_value
+                
         return lambda xx: np.interp(xx, x, y, **kw)
     elif (kind == 'cubic') or force_scipy: 
         for kwarg in ['left', 'right']:
@@ -144,7 +147,7 @@ def take_derivative(z, field, wrt='z'):
 
     return z, np.interp(z, xp, fp)    
 
-class LinearNDInterpolator:
+class LinearNDInterpolator(object):
     def __init__(self, axes, data, fill_values=None):
         """
         Create linear interpolation object.

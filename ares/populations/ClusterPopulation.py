@@ -19,7 +19,6 @@ from types import FunctionType
 from ..util.Stats import rebin
 from ..util.Math import interp1d
 from .Population import Population
-from ..util import MagnitudeSystem
 from ..util.ParameterFile import get_pq_pars
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
@@ -33,12 +32,6 @@ class ClusterPopulation(Population):
         if not hasattr(self, '_dust'):
             self._dust = DustCorrection(**self.pf)
         return self._dust
-    
-    @property
-    def magsys(self):
-        if not hasattr(self, '_magsys'):
-            self._magsys = MagnitudeSystem(**self.pf)
-        return self._magsys
         
     #def LuminosityDensity(self):
     #    pass

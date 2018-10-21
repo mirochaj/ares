@@ -21,8 +21,11 @@ from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, k_B, m_p
 
 class Cosmology(object):
-    def __init__(self, **kwargs):        
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, **kwargs):        
+        if pf is not None:
+            self.pf = pf
+        else:
+            self.pf = ParameterFile(**kwargs)
                 
         self.omega_m_0 = self.pf['omega_m_0']
         self.omega_b_0 = self.pf['omega_b_0']
@@ -466,12 +469,12 @@ class Cosmology(object):
             
         """
         
-        d_cm = self.ComovingRadialDistance(0., 8.)
+        d_cm = self.ComovingRadialDistance(0., z)
         angle_rad = (np.pi / 180.) * angle
         
         dA = angle_rad * d_cm
         
-        dldz = quad(self.ComovingLineElement, z-0.5 * dz, z + 0.5 * dz)[0]
+        dldz = quad(self.ComovingLineElement, z-0.5*dz, z+0.5*dz)[0]
         
         return dA**2 * dldz / cm_per_mpc**3
     

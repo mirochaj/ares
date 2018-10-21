@@ -73,13 +73,16 @@ T_He = np.array(T_He)
 l_LyA = h * c / E_LyA / erg_per_ev
 
 class Hydrogen(object):
-    def __init__(self, cosm=None, **kwargs):
+    def __init__(self, pf=None, cosm=None, **kwargs):
         
-        self.pf = ParameterFile(**kwargs)
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
 
         if cosm is None:
             from .Cosmology import Cosmology
-            self.cosm = Cosmology(**self.pf)
+            self.cosm = Cosmology(pf=self.pf, **self.pf)
         else:
             self.cosm = cosm
             

@@ -2141,7 +2141,7 @@ class ModelSet(BlobFactory):
         
     def _get_1d_kwargs(self, **kw):
         
-        for key in ['labels', 'colors', 'linestyles']:
+        for key in ['labels', 'colors', 'linestyles', 'cmap']:
         
             if key in kw:
                 kw.pop(key)
@@ -4297,8 +4297,8 @@ class ModelSet(BlobFactory):
             each field in ``data``.
         fields : list, tuple
             List of quantities required by ``func``.
-            
-        OR the second two:    
+
+        OR the second two:
             
         expr : str
             For example, 'x - y'

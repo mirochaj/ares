@@ -30,12 +30,15 @@ after_instance = ['pop_rad_yield']
 allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd']
 
 class CompositePopulation(object):
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
         """
         Initialize a CompositePopulation object, i.e., a list of *Population instances.
         """
         
-        self.pf = ParameterFile(**kwargs)
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
         
         N = self.Npops = self.pf.Npops
         self.pfs = self.pf.pfs

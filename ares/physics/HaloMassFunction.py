@@ -223,7 +223,7 @@ class HaloMassFunction(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
 
         return self._cosm
             
@@ -261,9 +261,10 @@ class HaloMassFunction(object):
                 self.tab_sigma = f['tab_sigma'].value
                 self.tab_dlnsdlnm = f['tab_dlnsdlnm'].value
 
-            # Axes these?
             self.tab_ngtm = f['tab_ngtm'].value
             self.tab_mgtm = f['tab_mgtm'].value
+            if 'tab_MAR' in f:
+                self.tab_MAR = f['tab_MAR'].value
             self.tab_growth = f['tab_growth'].value
             
             f.close()
@@ -274,6 +275,10 @@ class HaloMassFunction(object):
             self.tab_dndm = f['tab_dndm']
             self.tab_ngtm = f['tab_ngtm']
             self.tab_mgtm = f['tab_mgtm']
+            if 'tab_MAR' in f:
+                self.tab_MAR = f['tab_MAR']
+            if 'tab_Mmin_floor' in f:
+                self.tab_Mmin_floor = f['tab_Mmin_floor']
             self.tab_growth = f['tab_growth']
             self.tab_sigma = f['tab_sigma']
             self.tab_dlnsdlnm = f['tab_dlnsdlnm']
@@ -297,6 +302,8 @@ class HaloMassFunction(object):
             self.tab_dndm = pickle.load(f)            
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
+            self.tab_MAR = pickle.load(f)
+            self.tab_Mmin_floor = pickle.load(f)
             
             if self.pf['hmf_load_ps']:
                 self.bias_tab = pickle.load(f)
@@ -381,8 +388,8 @@ class HaloMassFunction(object):
     @property
     def tab_dndlnm(self):
         if not hasattr(self, '_tab_dndlnm'):
-            self._dndlnm = self.tab_M * self.tab_dndm        
-        return self._dndlnm
+            self._tab_dndlnm = self.tab_M * self.tab_dndm        
+        return self._tab_dndlnm
 
     @property
     def tab_fcoll(self):
@@ -625,6 +632,19 @@ class HaloMassFunction(object):
     @fcoll_spline_2d.setter
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
+        
+    @property
+    def dndm_spline_2d(self):
+        if not hasattr(self, '_dndm_spline_2d'):
+            log10tab = np.log10(self.tab_dndm)
+            log10tab[np.isinf(log10tab)] = -100.
+            
+            _dndm_spline_2d = RectBivariateSpline(self.tab_z, 
+                np.log10(self.tab_M), log10tab, kx=3, ky=3)
+            
+            self._dndm_spline_2d = lambda z, logM: 10**_dndm_spline_2d(z, logM).squeeze()
+                
+        return self._dndm_spline_2d    
 
     def Bias(self, z):
                 
@@ -693,91 +713,151 @@ class HaloMassFunction(object):
         """
         
         return np.squeeze(self.dfcolldz_spline(z))
+
+    def _run_CND(self, iz, iM=0):
+        """
+        "Evolve" a halo through time (assuming fixed number density).
+        """
         
-    @property
+        M = np.zeros(self.tab_z.size)
+        
+        m_1 = self.tab_M[iM]
+        for j in range(iz, 1, -1):
+            
+            # Find the cumulative number density of objects with m >= m_1
+            ngtm_1 = np.exp(np.interp(np.log(m_1), np.log(self.tab_M), 
+                np.log(self.tab_ngtm[j])))
+            # Find n(>M) at next timestep.
+            ngtm_2 = self.tab_ngtm[j-1,:]
+            # Interpolate n(>M;z) onto n(>M,z'<z)
+            m_2 = np.exp(np.interp(np.log(ngtm_1),
+                np.log(ngtm_2[-1::-1]),
+                np.log(self.tab_M[-1::-1])))
+            
+            M[j] = m_2
+
+            m_1 = m_2
+        
+        return M        
+        
+    @property    
+    def tab_traj(self):
+        """
+        For halos with M=self.tab_M at some redshift, find mass at later z.
+        """
+        if not hasattr(self, '_tab_traj'):
+
+            MM = np.zeros((self.tab_z.size+self.tab_M.size, self.tab_z.size))
+
+            for i in range(self.tab_z.size-1, 0, -1):
+                MM[i] = self._run_CND(i,0)
+                
+            # Find trajectories for more massive halos with zform=zfirst    
+            for i in range(1, self.tab_M.size):
+                MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
+                                                    
+            self._tab_traj = MM
+
+        # The first dimension is halo identity, the first self.tab_z.size
+        # elements are halos with M=self.tab_M[0], the next self.tab_M.size
+        # elements are halos with M=self.tab_M and formation redshifts
+        # equal to self.tab_z[-1]. The second dimension is a series
+        # of masses at corresponding redshifts in self.tab_z.
+
+        return self._tab_traj
+    
+    @property    
     def tab_MAR(self):
         if not hasattr(self, '_tab_MAR'):
+                    
+            if not self._is_loaded:
+                if self.pf['hmf_load']:
+                    self._load_hmf()
+                    if hasattr(self, '_tab_MAR'):
+                        return self._tab_MAR
+                    
+            print("Generating MAR. This is slow. What are you up to?")
+                    
+            # Differentiate trajectories, interpolate to common mass, redshift grid.
             
-            if self.pf['pop_MAR'] == 'hmf':
-                self._tab_MAR = self.tab_MAR_CND
-            else:
-                raise NotImplemented('help!')
+            
+            #arr = np.zeros_like(self._tab_traj)
+            
+            dtdz = self.cosm.dtdz(self.tab_z)[1:-1]
+            
+            # Step 0: Compute dMdt for each history.
+            # Step 1: Interpolate dMdt onto tab_M grid.
+            tab_dMdt_of_z = np.zeros((self.tab_traj.shape[0], self.tab_z.size))
+            tab_dMdt_of_M = np.zeros((self.tab_traj.shape[0], self.tab_M.size))
+            for i, hist in enumerate(self.tab_traj):
+                # 'hist' is the trajectory of a halo
                 
-        return self._tab_MAR
-            
-            
-    def _MAR_CND(self, z):
-        """
-        Compute mass accretion rate by abundance matching across redshift.
-    
-        Parameters
-        ----------
-        z : int, float
-            Redshift.
-    
-        Returns
-        -------
-        Array of mass accretion rates, each element corresponding to the halo
-        masses in self.M.
-    
-        """
-            
-        k = np.argmin(np.abs(z - self.tab_z))
-    
-        if z not in self.tab_z:
-            print("WARNING: Rounding to nearest redshift z={0:.3g}".format(\
-                self.tab_z[k]))
-    
-        # For some reason flipping the order is necessary for non-bogus results
-        dn_gtm_1t = cumtrapz(self.tab_dndlnm[k][-1::-1], 
-            x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
-        dn_gtm_2t = cumtrapz(self.tab_dndlnm[k-1][-1::-1], 
-            x=np.log(self.tab_M[-1::-1]), initial=0.)[-1::-1]
-    
-        dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
-        dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
-    
-        # Need to reverse arrays so that interpolants are in ascending order
-        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
-            np.log(self.tab_M)[-1::-1])[-1::-1])
-    
-        # Compute time difference between z bins
-        dz = self.tab_z[k] - self.tab_z[k-1]
-        dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
-    
-        return np.maximum((M_2 - self.tab_M) / dt, 0.0)
-        
-    @property
-    def tab_MAR_CND(self):
-        """
-        Tabulated halo mass accretion rates assuming evolution at 
-        constant number density (CND).
-        """
-        if not hasattr(self, '_tab_MAR_CND'):            
-            _MAR_tab = np.ones_like(self.tab_dndm)
+                # Remember that mass increases as z decreases, so we flip
+                
+                z, dmdz = central_difference(self.tab_z, hist)
+                
+                mofz = hist[1:-1] * 1
+                                
+                # Interpolate accretion rates onto common mass grid
+                dmdt = dmdz[-1::-1] * s_per_yr / -dtdz[-1::-1]
+                _interp1 = interp1d(np.log(mofz[-1::-1]), np.log(dmdt), 
+                    kind='linear', bounds_error=False, fill_value=-np.inf)
+                _interp2 = interp1d(np.log(z[-1::-1]), np.log(dmdt), 
+                    kind='linear', bounds_error=False, fill_value=-np.inf)
+                dmdt_rg1 = np.exp(_interp1(np.log(self.tab_M)))
+                dmdt_rg2 = np.exp(_interp2(np.log(self.tab_z)))
+                                
+                tab_dMdt_of_M[i,:] = dmdt_rg1
+                tab_dMdt_of_z[i,:] = dmdt_rg2
+
+            # Convert from trajectories to (z, Mh) table.
+            arr = np.zeros((self.tab_z.size, self.tab_M.size))    
             for i, z in enumerate(self.tab_z):
-                _MAR_tab[i] = self._MAR_CND(z)
-            
-            mask = np.zeros_like(_MAR_tab)
-            mask[np.isnan(_MAR_tab)] = 1
-            mask[_MAR_tab < 0] = 1
-            _MAR_tab[mask == 1] = 0.
+
+                # At what redshift does an object of a particular mass have 
+                # this MAR?
+                
+                # At this redshift, all objects have some mass. Find it!
+                M = self.tab_traj[:,i]
+                Mdot = tab_dMdt_of_z[:,i]
+                
+                ok = np.logical_and(Mdot > 0, np.isfinite(M))
+                
+                if ok.sum() == 0:
+                    continue
+                
+                #if i % 100 == 0:
+                #    pl.loglog(M, Mdot)
+                
+                arr[i] = np.exp(np.interp(np.log(self.tab_M), np.log(M[ok==1]), 
+                    np.log(Mdot[ok==1])))
+                
+            self._tab_MAR = arr
                         
-            self._tab_MAR_CND = np.ma.array(_MAR_tab, mask=mask)
+        return self._tab_MAR
         
-        return self._tab_MAR_CND
+    @tab_MAR.setter
+    def tab_MAR(self, value):
+        self._tab_MAR = value
+        
+    def MAR_func(self, z, M):
+        return self.MAR_func_(z, M)
         
     @property
-    def MAR_func(self):
-        if not hasattr(self, '_MAR_func'):
+    def MAR_func_(self):
+        if not hasattr(self, '_MAR_func_'):
+            mask = np.isfinite(self.tab_MAR)
             
-            spl = RectBivariateSpline(self.tab_z, np.log(self.tab_M),
-                self.tab_MAR_CND, kx=3, ky=3)
-                        
-            self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
+            tab = np.log(self.tab_MAR)
+            bad = np.logical_or(np.isnan(self.tab_MAR), np.isinf(tab))
+            tab[bad==1] = -50
+            
+            _MAR_func = RectBivariateSpline(self.tab_z, np.log(self.tab_M), tab)
+                
+            self._MAR_func_ = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
         
-        return self._MAR_func
-                                                   
+        return self._MAR_func_
+                                                                  
     def VirialTemperature(self, M, z, mu=0.6):
         """
         Compute virial temperature corresponding to halo of given mass and
@@ -858,7 +938,30 @@ class HaloMassFunction(object):
     def DynamicalTime(self, M, z, mu=0.6):
         return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
             / G / M / g_per_msun)
+    
+    @property
+    def tab_Mmin_floor(self):
+        if not hasattr(self, '_tab_Mmin_floor'):
+            if not self._is_loaded:
+                if self.pf['hmf_load']:
+                    self._load_hmf()
+                    if hasattr(self, '_tab_Mmin_floor'):
+                        return self._tab_Mmin_floor
+                        
+            self._tab_Mmin_floor = np.array(map(self._tegmark, self.tab_z))
+        return self._tab_Mmin_floor
             
+    @tab_Mmin_floor.setter
+    def tab_Mmin_floor(self, value):
+        assert len(value) == len(self.tab_z)
+        self._tab_Mmin_floor = value
+            
+    @property        
+    def Tegmark(self):
+        if not hasattr(self, '_Tegmark'):
+            self._Tegmark = lambda z: np.interp(z, self.tab_z, self.tab_Mmin_floor)
+        return self._Tegmark
+        
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
@@ -881,10 +984,10 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(list(map(self._tegmark, zarr)))
+        Mmin_H2 = self.Tegmark(zarr)
                 
-        #return np.maximum(Mmin_vbc, Mmin_H2)      
-        return Mmin_vbc + Mmin_H2
+        return np.maximum(Mmin_vbc, Mmin_H2)      
+        #return Mmin_vbc + Mmin_H2
       
     def tab_prefix_hmf(self, with_size=False):
         """
@@ -991,6 +1094,8 @@ class HaloMassFunction(object):
             f.create_dataset('tab_dndm', data=self.tab_dndm)
             f.create_dataset('tab_ngtm', data=self.tab_ngtm)
             f.create_dataset('tab_mgtm', data=self.tab_mgtm)        
+            f.create_dataset('tab_MAR', data=self.tab_MAR)
+            f.create_dataset('tab_Mmin_floor', data=self.tab_Mmin_floor)
             f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
             f.create_dataset('tab_growth', data=self.tab_growth)
             f.create_dataset('tab_sigma', data=self.tab_sigma)
@@ -1004,6 +1109,8 @@ class HaloMassFunction(object):
                     'tab_dndm': self.tab_dndm,
                     'tab_ngtm': self.tab_ngtm, 
                     'tab_mgtm': self.tab_mgtm,
+                    'tab_MAR': self.tab_MAR,
+                    'tab_Mmin_floor': self.tab_Mmin_floor,
                     'tab_growth': self.tab_growth,
                     'tab_ps_lin': self.tab_ps_lin,
                     'tab_sigma': self.tab_sigma,
@@ -1022,6 +1129,8 @@ class HaloMassFunction(object):
             pickle.dump(self.tab_dndm, f)
             pickle.dump(self.tab_ngtm, f)
             pickle.dump(self.tab_mgtm, f)
+            pickle.dump(self.tab_MAR, f)
+            pickle.dump(self.tab_Mmin_floor, f)
             pickle.dump(self.tab_ps_lin, f)
             pickle.dump(self.tab_sigma, f)
             pickle.dump(self.tab_dlnsdlnm, f)

@@ -74,12 +74,12 @@ def test(tol=1e-2):
             label=label)
             
         Ef, ff = mgb.today
-        flux_today = ff[0] * Ef[0] * erg_per_ev / sqdeg_per_std**2
-        Eok = np.logical_and(Ef[0] >= 5e2, Ef[0] <= 2e3)
-        ax4.loglog(Ef[0], flux_today)
+        flux_today = ff * Ef * erg_per_ev / sqdeg_per_std**2
+        Eok = np.logical_and(Ef >= 5e2, Ef <= 2e3)
+        ax4.loglog(Ef, flux_today)
         
         # Find integrated 0.5-2 keV flux
-        sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[0][Eok])
+        sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[Eok])
         ax4.annotate(r'$j_x = {:.2e}$'.format(sxb), (0.95, 0.95), xycoords='axes fraction',
             ha='right', va='top')
         

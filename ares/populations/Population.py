@@ -17,6 +17,8 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from ..util import MagnitudeSystem
+from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
@@ -115,13 +117,25 @@ class Population(object):
 
     @id_num.setter
     def id_num(self, value):
-        self._id_num = int(value)    
+        self._id_num = int(value)
+        
+    @property
+    def dust(self):
+        if not hasattr(self, '_dust'):
+            self._dust = DustCorrection(**self.pf)
+        return self._dust
+    
+    @property
+    def magsys(self):
+        if not hasattr(self, '_magsys'):
+            self._magsys = MagnitudeSystem(cosm=self.cosm, **self.pf)
+        return self._magsys    
     
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
             if self.grid is None:
-                self._cosm = Cosmology(**self.pf)
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
             else:
                 self._cosm = grid.cosm
                 
@@ -388,7 +402,7 @@ class Population(object):
                     self._is_emissivity_scalable = False
                     break
     
-                for i in xrange(self.pf.Npqs):
+                for i in range(self.pf.Npqs):
                     pn = '{0!s}[{1}]'.format(par,i)
                     if pn not in self.pf:
                         continue
@@ -479,7 +493,10 @@ class Population(object):
     def src(self):
         if not hasattr(self, '_src'):
             if self.pf['pop_psm_instance'] is not None:
+                # Should phase this out for more generate approach below.
                 self._src = self.pf['pop_psm_instance']
+            elif self.pf['pop_src_instance'] is not None:
+                self._src = self.pf['pop_src_instance']
             elif self._Source is not None:
                 try:
                     self._src = self._Source(**self.src_kwargs)
@@ -499,6 +516,24 @@ class Population(object):
             self._yield_per_sfr = normalize_sed(self)
                     
         return self._yield_per_sfr
+        
+    @property
+    def is_deterministic(self):
+        if not hasattr(self, '_is_deterministic'):
+            self._is_deterministic = True
+            
+            sigma_sfr = self.pf['pop_scatter_sfr']
+            sigma_sfe = self.pf['pop_scatter_sfe']
+            sigma_mar = self.pf['pop_scatter_mar']
+            
+            if self.pf['pop_sfr_model'] == 'ensemble':
+                if sigma_sfr + sigma_sfe + sigma_mar > 0:
+                    self._is_deterministic = False
+                
+                if self.pf['feedback_ion'] or self.pf['feedback_LW']:
+                    self._is_deterministic = False                    
+                
+        return self._is_deterministic
     
     @property
     def is_fcoll_model(self):

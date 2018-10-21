@@ -63,12 +63,6 @@ class SynthesisModel(Source):
                 
         return self._litinst
     
-    @property
-    def cosm(self):
-        if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
-        return self._cosm
-        
     def AveragePhotonEnergy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
