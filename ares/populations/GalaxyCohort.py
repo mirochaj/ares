@@ -628,7 +628,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Prepare to compute eta
         if not hasattr(self, '_tab_eta_'):
         
-            if self.pf['pop_MAR_conserve_norm']:
+            if self.pf['pop_MAR_corr'] == 'integral':
                 
                 _rhs = np.zeros_like(self.halos.tab_z)
                 _lhs = np.zeros_like(self.halos.tab_z)
@@ -673,6 +673,45 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 # Re-shape to be (z, Mh)    
                 self._tab_eta_ = np.reshape(np.tile(_tab_eta_, self.halos.tab_M.size), 
                     (self.halos.tab_z.size, self.halos.tab_M.size))
+                       
+            elif self.pf['pop_MAR_corr'] == 'slope':
+                        
+                # In this case, we have the same shape as _tab_MAR
+                self._tab_eta_ = np.ones_like(self.halos.tab_MAR)
+                                
+                # Compute power-law slope as function of mass at all redshifts.
+                # Prevent dramatic deviations from this slope, and instead
+                # extrapolate from high-mass end downward.
+                logM = np.log(self.halos.tab_M)
+                logMAR = np.log(self.halos.tab_MAR)
+                
+                alpha = np.diff(logMAR, axis=1) / np.diff(logM)
+                self._tab_alpha = alpha
+                
+                Ms = self.halos.tab_M.size - 1
+                
+                # Figure out where alpha < 0, use slope well above this 
+                # juncture to extrapolate.
+                negative = np.zeros_like(self.halos.tab_z)
+                for i in range(self.halos.tab_z.size):
+                    huge = np.argwhere(alpha[i,:-5] > 2.)
+                    if not np.any(huge):
+                        continue
+                        
+                    ilt0 = int(huge[-1])    
+
+                    # Extrapolate
+                    _Msafe = min(self.halos.tab_M[ilt0] * 10, 1e13)
+                    iM = np.argmin(np.abs(_Msafe - self.halos.tab_M))
+                    Msafe = self.halos.tab_M[iM]
+                                        
+                    new = self.halos.tab_MAR[i,iM] \
+                        * (self.halos.tab_M / Msafe)**alpha[i,iM]
+                     
+                    # Only apply extrapolation at low mass    
+                    self._tab_eta_[i,0:iM] = \
+                        new[0:iM] / self.halos.tab_MAR[i,0:iM]
+                                    
                         
             else:
                 self._tab_eta_ = np.ones_like(self.halos.tab_dndm)

@@ -380,7 +380,7 @@ class GalaxyPopulation(object):
             if gotmp:
                 continue
                 
-            ax.annotate(r'$z \sim {}$'.format(round(z, 0)), (_xannot, 0.95), 
+            ax.annotate(r'$z \sim {}$'.format(round(z, 1)), (_xannot, 0.95), 
                 ha=annotate_z, va='top', xycoords='axes fraction')
         
         if gotmp:

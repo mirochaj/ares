@@ -94,7 +94,7 @@ class GalaxyEnsemble(HaloPopulation):
         return np.reshape(noise, arr.shape)
         
     def gen_kelson(self, guide, thin):
-        dt = 10.
+        dt = self.pop_update_dt
         t = np.arange(30., 2000+dt)[-1::-1]
         z = self.cosm.z_of_t(t * s_per_myr)
         N = z.size
@@ -318,6 +318,46 @@ class GalaxyEnsemble(HaloPopulation):
         
         # This is (zform, z'). Can neglect zform < z'.
         return np.sum(self.histories['SFR'][:,iz:] * dt_r, axis=1)
+        
+    def RunSAM(self):
+        """
+        Run models. If deterministic, will just return pre-determined
+        histories. Otherwise, will do some time integration.
+        """
+        
+        hist = self.histories
+        
+        # If histories are deterministic, we're done.
+        if self.is_deterministic:
+            return hist
+            
+        raise NotImplemented('help')
+        
+        # At this point, need to know about time-stepping. Constant, or
+        # based on properties of galaxies?
+        
+        # Maybe should rename 'histories' attribute.
+        
+        dt = self.pf['pop_update_dt']
+        
+        if type(dt) == 'dynamical':
+            
+            raise NotImplemented('help')
+        
+            # Should we setup a time grid so that we resolve the shortest
+            # dynamical time with two grid points?
+        
+            # Also, in this case, don't use global SFE. Invoke cluster mass
+            # function?
+            
+        
+        else:
+            pass
+            # Numeric
+            
+        
+        
+        
         
     def StellarMassFunction(self, z):
         """

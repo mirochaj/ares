@@ -393,8 +393,9 @@ def PopulationParameters():
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
-    "pop_MAR_conserve_norm": False,
+    #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
+    "pop_MAR_corr": None,
 
     "pop_interp_MAR": 'linear',
     "pop_interp_sfrd": 'linear',
@@ -511,6 +512,8 @@ def PopulationParameters():
     "pop_scatter_mar": 0.0,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
+    
+    "pop_update_dt": 10.,
 
     "pop_fobsc": 0.0,
     "pop_fobsc_by_num": False,
