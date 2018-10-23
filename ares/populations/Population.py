@@ -520,6 +520,11 @@ class Population(object):
     @property
     def is_deterministic(self):
         if not hasattr(self, '_is_deterministic'):
+            
+            if self.pf['pop_is_deterministic'] is not None:
+                self._is_deterministic = self.pf['pop_is_deterministic']
+                return self._is_deterministic
+            
             self._is_deterministic = True
             
             sigma_sfr = self.pf['pop_scatter_sfr']

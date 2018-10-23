@@ -512,7 +512,9 @@ def PopulationParameters():
     "pop_scatter_mar": 0.0,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
+    "pop_scatter_env": 0.0,
     
+    "pop_is_deterministic": None,
     "pop_update_dt": 10.,
 
     "pop_fobsc": 0.0,

@@ -68,7 +68,11 @@ class GalaxyEnsemble(HaloPopulation):
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
 
     def tile(self, arr, thin, renorm=False):
-        
+        """
+        Expand an array to `thin` times its size. Group elements such that
+        neighboring bundls of `thin` elements are objects that formed
+        at the same redshift.
+        """
         if arr is None:
             return None
         
@@ -77,7 +81,7 @@ class GalaxyEnsemble(HaloPopulation):
 
         assert thin % 1 == 0
 
-        new = np.tile(arr, (int(thin), 1)) 
+        new = np.tile(arr, (int(thin), 1)).T
         
         if renorm:
             return new / float(thin)
@@ -94,7 +98,7 @@ class GalaxyEnsemble(HaloPopulation):
         return np.reshape(noise, arr.shape)
         
     def gen_kelson(self, guide, thin):
-        dt = self.pop_update_dt
+        dt = self.pf['pop_update_dt']
         t = np.arange(30., 2000+dt)[-1::-1]
         z = self.cosm.z_of_t(t * s_per_myr)
         N = z.size
@@ -291,6 +295,9 @@ class GalaxyEnsemble(HaloPopulation):
             # In Cohort, formation time defines initial mass and trajectory (in full)
             histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh,
                 'MAR': mar, 'SFE': sfe}
+                
+            # Add in formation redshifts to match shape (useful after thinning)
+            histories['zform'] = self.tile(zall, thin)
                             
             self.tab_z = zall
             self._histories = histories
@@ -319,6 +326,47 @@ class GalaxyEnsemble(HaloPopulation):
         # This is (zform, z'). Can neglect zform < z'.
         return np.sum(self.histories['SFR'][:,iz:] * dt_r, axis=1)
         
+    def get_timestamps(self, zform):
+        """
+        For a halo forming at z=zform, return series of time and redshift
+        steps based on halo dynamical time or other.
+        """
+        
+        t0 = self.cosm.t_of_z(zform) / s_per_yr
+        tf = self.cosm.t_of_z(0) / s_per_yr
+        
+        if self.pf['pop_update_dt'] == 'dynamical':
+            t = t0
+            steps_t = [t0]           # time since Big Bang
+            steps_z = [zform]
+            while t < tf:
+                z = self.cosm.z_of_t(t * s_per_yr)
+                _tdyn = self.halos.DynamicalTime(1e10, z) / s_per_yr
+            
+                if t + _tdyn > tf:
+                    steps_t.append(self.cosm.t_of_z(0.) / s_per_yr)
+                    steps_z.append(0.)
+                    break
+            
+                steps_t.append(t+_tdyn)
+                steps_z.append(self.cosm.z_of_t((t+_tdyn) * s_per_yr))
+                t += _tdyn
+                
+            steps_t = np.array(steps_t)
+            steps_z = np.array(steps_z)
+                
+        else:
+            dt = self.pf['pop_update_dt'] * 1e6     
+            steps_t = np.arange(t0, tf+dt, dt)
+            
+            # Correct last timestep to make sure final timestamp == tf
+            if steps_t[-1] > tf:
+                steps_t[-1] = tf
+            
+            steps_z = np.array(map(self.cosm.z_of_t, steps_t * s_per_yr))
+            
+        return steps_t, steps_z
+        
     def RunSAM(self):
         """
         Run models. If deterministic, will just return pre-determined
@@ -330,34 +378,132 @@ class GalaxyEnsemble(HaloPopulation):
         # If histories are deterministic, we're done.
         if self.is_deterministic:
             return hist
-            
-        raise NotImplemented('help')
-        
+                    
         # At this point, need to know about time-stepping. Constant, or
         # based on properties of galaxies?
         
         # Maybe should rename 'histories' attribute.
+
+        zarr = hist['z']    
+        all_zform = hist['zform']
         
-        dt = self.pf['pop_update_dt']
+        # Useful to have a uniform grid for output?
+        zform_max = max(all_zform)
+        tbig, zbig = self.get_timestamps(zform_max)
         
-        if type(dt) == 'dynamical':
+        # 
+        Mh = np.zeros((len(all_zform), tbig.size))
+        Mg_tot = np.zeros((len(all_zform), tbig.size))
+        Mg_c = np.zeros((len(all_zform), tbig.size))
+        Mg_h = np.zeros((len(all_zform), tbig.size))
+        MZ_tot = np.zeros((len(all_zform), tbig.size))
+        Ms = np.zeros((len(all_zform), tbig.size))
+        SFR = np.zeros((len(all_zform), tbig.size))
+        zobs = np.zeros_like(Ms)
+        mask = np.zeros_like(Ms)
+        
+        # One of these output arrays could eventually have a third dimension
+        # for wavelength. Well...we do synthesis after the fact, so no.
+        
+        # Results arrays don't have 1:1 mapping between index:time.
+        # Deal with it!
+        
+        # Shortcuts
+        guide = self.pf['pop_guide_pop']
+        fbar = self.cosm.fbar_over_fcdm 
+        
+        # Loop over formation redshifts, run the show.
+        for i, zform in enumerate(all_zform):
+            t, z = self.get_timestamps(zform)
             
-            raise NotImplemented('help')
-        
-            # Should we setup a time grid so that we resolve the shortest
-            # dynamical time with two grid points?
-        
-            # Also, in this case, don't use global SFE. Invoke cluster mass
-            # function?
+            tdyn = self.halos.DynamicalTime(1e10, z) / s_per_yr
+            k = t.size
             
-        
-        else:
-            pass
-            # Numeric
+            # Grab the things that we can't modify (too much)
+            _Mh = np.interp(z, zarr, hist['Mh'][i,:])
+            _MAR = np.interp(z, zarr, hist['MAR'][i,:])
             
-        
-        
-        
+            # May have use for this.
+            _SFE = guide.SFE(z=z, Mh=_Mh)
+
+            zobs[i,:k] = z.copy()
+            
+            # Unused time elements (corresponding to z > zform)
+            mask[i,k:] = 1
+            
+            # Do star formation or whatever
+            Mh[i,:k] = _Mh
+            
+            jmax = t.size - 1
+            
+            Mg_h[i,0] = 0.0
+            Mg_c[i,0] = fbar * _Mh[0]
+            Mg_tot[i,0] = fbar * _Mh[0]
+            for j, _t in enumerate(t):
+                                
+                if j == jmax:
+                    break
+                
+                dt = t[j+1] - _t
+                
+                D_Mg_tot = fbar * (_Mh[j+1] - _Mh[j])
+  
+                fstar = _SFE[j]
+                
+                _sfr_new = D_Mg_tot * fstar / dt
+                _sfr_res = Mg_c[i,j] * 0.02 / dt
+                
+                SFR[i,j] = _sfr_new
+                
+                ##
+                # UPDATES FOR NEXT TIMESTEP
+                ##
+                
+                # Is gas cold or hot?
+                n_to_c = 1.#np.random.rand()  # new gas -> cold
+                c_to_h = 0.0#np.random.rand()  # turning cold -> hot
+                h_to_c = 0.0#np.random.rand()  # turning hot  -> cold
+                                
+                # How to make function of global galaxy properties, potentially
+                # on past timestep?
+                
+                # Impart fractional change
+                # Simplest model: increase or decrease.
+                
+                
+                Mg_c[i,j+1] = Mg_c[i,j] * (1. - c_to_h) \
+                            + Mg_h[i,j] * h_to_c \
+                            + D_Mg_tot  * n_to_c
+                Mg_h[i,j+1] = Mg_h[i,j] * (1. - h_to_c) \
+                            + Mg_c[i,j] * c_to_h \
+                            + D_Mg_tot  * (1. - n_to_c)
+                
+                # Total gas mass
+                Mg_tot[i,j+1] = Mg_tot[i,j] - SFR[i,j] * dt + D_Mg_tot
+                
+                # Stellar mass
+                Ms[i,j+1] = Ms[i,j] + SFR[i,j] * dt # no losses yet
+                
+                # Metal mass
+                MZ_tot[i,j+1] = 0.0
+                
+                
+        results = \
+        {
+         'Mh': Mh,
+         'zform': all_zform,
+         'zobs': zobs,
+         'mask': mask,
+         'SFR': SFR,
+         'Mg_c': Mg_c,
+         'Mg_h': Mg_h,
+         'Mg_tot': Mg_tot,
+         'Ms': Ms,
+        }
+                
+                
+        return results
+
         
     def StellarMassFunction(self, z):
         """
