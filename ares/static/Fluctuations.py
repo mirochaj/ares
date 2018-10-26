@@ -71,9 +71,9 @@ class Fluctuations(object):
             # Small-scale vs. large Scale
             SS = dr <= R2 - R1
             LS = dr >= R1 + R2
-            Vo[LS == 1] = 0.0
             
-            #if np.any(SS):
+            Vo[LS == 1] = 0.0
+
             if type(R1) == np.ndarray:
                 Vo[SS == 1] = 4. * np.pi * R1[SS == 1]**3 / 3.
             else:
@@ -171,18 +171,30 @@ class Fluctuations(object):
             
             if type(R_s) is np.ndarray:
                 nz = R_b > 0
-                assert np.allclose(np.diff(R_s[nz==1] / R_b[nz==1]), 0.0), \
-                    "No support for absolute scaling of hot bubbles yet."
-
-                fvol = (R_s[0] / R_b[0])**3 - 1.
                 
-                Qh = Qi * fvol
+                const_rsize = np.allclose(np.diff(R_s[nz==1] / R_b[nz==1]), 0.0)
                 
-                if (Qh > (1. - Qi)): #or Qh > 0.5: #or Qi > 0.5:
+                if const_rsize:
+                    fvol = (R_s[0] / R_b[0])**3 - 1.
+                    
+                    Qh = Qi * fvol
+                    
+                else:
+                    
+                    V = 4. * np.pi * (R_s**3 - R_b**3) / 3.
+                   
+                    Mmin = self.Mmin(z) * zeta
+                   
+                    Qh = self.get_prob(z, M_b, dndm_b, Mmin, V, 
+                        exp=False, ep=0.0, Mmax=None)
+                    
+                    #raise NotImplemented("No support for absolute scaling of hot bubbles yet.")
+                    
+                if (Qh > (1. - Qi) * 1.): #or Qh > 0.5: #or Qi > 0.5:
                     self.heating_ongoing = 0
-
-                Qh = np.minimum(Qh, 1. - Qi)
-                                    
+                
+                Qh = np.minimum(Qh, 1. - Qi)    
+                                                    
                 return Qh    
                 
             else:
@@ -260,7 +272,7 @@ class Fluctuations(object):
             Vi = 4. * np.pi * R_b**3 / 3.
                         
             iM = np.argmin(np.abs(Mmin - M_b))
-            Qi = simps(dndm_b[iM:] * M_b[iM:] * Vi[iM:], x=np.log(M_b[iM:]))
+            Qi = np.trapz(dndm_b[iM:] * M_b[iM:] * Vi[iM:], x=np.log(M_b[iM:]))
                         
             # This means reionization is over.
             if self.bsd_model == 'fzh04':
@@ -362,7 +374,7 @@ class Fluctuations(object):
     
         Qi = self.MeanIonizedFraction(z, zeta)
         
-        return simps(dndm_b[iM:] * V[iM:] * bHII[iM:] * M_b[iM:],
+        return np.trapz(dndm_b[iM:] * V[iM:] * bHII[iM:] * M_b[iM:],
             x=np.log(M_b[iM:])) / Qi
     
     #def delta_bubble_mass_weighted(self, z, zeta):
@@ -398,7 +410,7 @@ class Fluctuations(object):
         iM = np.argmin(np.abs(Mmin - self.m))    
         B = self._B(z, zeta)
         
-        return simps(B[iM:] * dndm_b[iM:] * Vi[iM:] * M_b[iM:], 
+        return np.trapz(B[iM:] * dndm_b[iM:] * Vi[iM:] * M_b[iM:], 
             x=np.log(M_b[iM:]))
     
    #def mean_bubble_overdensity(self, z, zeta):
@@ -428,7 +440,7 @@ class Fluctuations(object):
             
         dndm_h = self.halos.tab_dndm[iz_h]
     
-        return simps(M_h * dndm_h, x=np.log(M_h))
+        return np.trapz(M_h * dndm_h, x=np.log(M_h))
         
     def spline_cf_mm(self, z):
         if not hasattr(self, '_spline_cf_mm_'):
@@ -495,7 +507,7 @@ class Fluctuations(object):
         return self._K(zeta) / np.sqrt(2. * sigma_min**2)
     
     def _B(self, z, zeta, zeta_min=None):
-        return self.LinearBarrier(z, zeta, zeta_min=None)
+        return self.LinearBarrier(z, zeta, zeta_min=zeta_min)
         
     def LinearBarrier(self, z, zeta, zeta_min=None):
         iz = np.argmin(np.abs(z - self.halos.tab_z))
@@ -551,7 +563,7 @@ class Fluctuations(object):
     def sigma(self):
         if not hasattr(self, '_sigma'):
             self._sigma = np.interp(self.m, self.halos.tab_M, self.halos.tab_sigma)
-            
+
             # Crude but chill it's temporary
             bigm = self.m > self.halos.tab_M.max()
             if np.any(bigm):
@@ -660,7 +672,7 @@ class Fluctuations(object):
         if (not reionization_over) and rescale:
             Mmin = self.Mmin(z) * zeta
             iM = np.argmin(np.abs(M_b - Mmin))
-            Qi = simps(dndm[iM:] * Vi[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
+            Qi = np.trapz(dndm[iM:] * Vi[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
             xibar = self.MeanIonizedFraction(z, zeta)
                         
             dndm *= -np.log(1. - xibar) / Qi
@@ -1051,6 +1063,7 @@ class Fluctuations(object):
             return ev2pt, ev2pt_1, ev2pt_2
         
         elif term in ['phi', '21']:
+            
             Phi, junk1, junk2 = self.ExpectationValue2pt(z, zeta, R, term='Phi',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja, k=k)
                             
@@ -1186,20 +1199,17 @@ class Fluctuations(object):
             avg_x = self.ExpectationValue1pt(z, zeta, term='n',
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
 
-            #if self.pf['ps_use_wick']:
-            #    xd, xd1, xd2 = self.ExpectationValue2pt(z, zeta, R, term='nd',
-            #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-            #    avg_xd = self.ExpectationValue1pt(z, zeta, term='n*d',
-            #        R_s=R_s, Th=Th, Ts=Ts)
-            #    xxdd = xx * dd + 2 * avg_xd + xd**2
-            #
-            #    return xxdd, Rzeros, Rzeros
-            #else:
+            if self.pf['ps_use_wick']:
+                xd, xd1, xd2 = self.ExpectationValue2pt(z, zeta, R, term='nd',
+                    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
+                avg_xd = self.ExpectationValue1pt(z, zeta, term='n*d',
+                    R_s=R_s, Th=Th, Ts=Ts)
+                xxdd = xx * dd + 2 * avg_xd + xd**2
+            
+                return xxdd, Rzeros, Rzeros
+                
             # xxdd = <xx'dd'> = <dd'(1 - x_i - x_i' + x_i x_i')>
             #      = <dd'> + <x_i x_i' dd'> - 2 <x_i dd'>
-            
-            # NOTE: if not for the kludge we are applying, we could 
-            # simply return xx * dd
             
             idd, idd1, idd2 = self.ExpectationValue2pt(z, zeta, R, term='idd',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
@@ -1276,6 +1286,7 @@ class Fluctuations(object):
         
         # Some stuff we need
         R_b, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
+        V_b = 4. * np.pi * R_b**3 / 3.
         
         if R_s is None:
             R_s = np.zeros_like(R_b)
@@ -1372,7 +1383,7 @@ class Fluctuations(object):
             if term == 'ii':
                 
                 Vo = all_V[0]
-                Vi = 4. * np.pi * R_b**3 / 3.
+                Vi = V_b#4. * np.pi * R_b**3 / 3.
                             
                 # Subtract off more volume if heating is ON.
                 #if self.pf['ps_include_temp']:
@@ -1395,16 +1406,16 @@ class Fluctuations(object):
                     
                 _P1 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vo, True)
                 
+                
                 _P2_1 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True)
                 _P2_2 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vne2, True, ep)
                 
                 _P2 = (1. - _P1) * _P2_1 * _P2_2
-                                
-                
-                
+                                                
                 if self.pf['ps_volfix'] and Qi > 0.5:
-                    P1[i] = (1. - Qi) * _P1
-                    P2[i] = Qi**2
+                    P1[i] = _P1
+                    P2[i] = (1. - P1[i]) * _P2_1**2
+                                        
                 else:
                     P1[i] = _P1
                     P2[i] = _P2
@@ -1465,7 +1476,7 @@ class Fluctuations(object):
                     P1[i] = _P1
                     P2[i] = _P2
                 else:
-                    P1[i] = 0.#_P1 * (1. - Qh - Qi)
+                    P1[i] = _P1 * (1. - Qh - Qi)
                     P2[i] = Qh**2
 
             elif term == 'ih':
@@ -1518,7 +1529,7 @@ class Fluctuations(object):
                     P1[i] = _P1
                     P2[i] = _P2
                 else:
-                    P1[i] = 0.0
+                    P1[i] = _P1 * (1. - Qh - Qi)
                     P2[i] = Qh * Qi
             
             elif term == 'iicc':
@@ -1538,7 +1549,7 @@ class Fluctuations(object):
                 
                 if not self.pf['ps_include_xcorr_ion_rho']:
                     # These terms will remain zero
-                    if term.count('d') == 1:
+                    if term.count('d') > 0:
                         break
                 
                 ##
@@ -1565,9 +1576,10 @@ class Fluctuations(object):
                 
                 # Bias of bubbles and halos
                 ##
+                db = self._B(z, zeta)
                 bh = self.halos.Bias(z)
                 bb = self.bubble_bias(z, zeta)
-                xi_dd_r = self.spline_cf_mm(z)(np.log(sep))
+                xi_dd_r = xi_dd[i]#self.spline_cf_mm(z)(np.log(sep))
                 
                 bb_bar = self.mean_bubble_bias(z, zeta)
                 ep_bh = bh * bb_bar * xi_dd_r
@@ -1611,45 +1623,76 @@ class Fluctuations(object):
                     #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
                     
                     P1[i] = _P1
-                    P2[i] = _P2 + delta_n_bar * (1. - Qi) * Qi
+                    P2[i] = _P2 - delta_b_bar * Qi**2 #+ delta_n_bar * (1. - Qi) * Qi
+                    # Just make sure <d> = 0
                     
                     #print(sep, np.abs(delta_n_bar * (1. - Qi) * Qi) / np.abs(_P2))
                     
                     # Add in "minihalos" term?
                     
                 elif term == 'idd':
-                    # Second point can be ionized or neutral.
+                    #continue
                                         
-                    #_P1 = _P_ii_1[i] * delta_b_bar
-                    #B = self._B(z, zeta)
                     _P1 = _P_ii_1[i] * delta_b_bar**2
                     
-                    # Probability that only the first point is ionized
-                    # ...then more stuff
-                    #_P2_1 = (1. - _P_ii_1[i]) \
-                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                    #    * delta_b_bar
-                    #_P2_2 = delta_b_bar \
-                    #    * self.get_prob(z, M_h, dndm_h, 0.0, Vvir, False, ep)
-                    
-                    _P2 = (1. - _P_ii_1[i]) \
-                        * delta_b_bar**2 \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
-                    
-                    
+                    #_P2 = _P_ii_2[i] * delta_b_bar**2 \
+                    #    + Qi * (1. - _P_ii_1[i]) * delta_b_bar * delta_n_bar \
+                    #    - Qi**2 * delta_b_bar**2
+                    #
                     P1[i] = _P1
-                    P2[i] = _P2 \
-                          + delta_b_bar * delta_n_bar * (1. - Qi) * Qi
+                    P2[i] = Qi * xi_dd[i]
                     
-                    # + delta_n_bar * (1. - Qi) * Qi?
+                    continue
                     
-                    #P2[i] = - 2. * Qi * xi_dd
+                    # Two-pt term (both points ionized)
+                    idd_ii = np.zeros(self.m.size)
+                    # Two-pt term (one pt neutral)
+                    idd_in = np.zeros(self.m.size)
                     
-                    #P1[i] = _P_ii_1[i] * delta_b_bar**2
-                    ##P2[i] = _P2_1 * (_P2_2 - self.fcoll_vol(z) * delta_h)
-                    #P2[i] = _P_ii_2[i] * delta_b_bar**2    
-                
+                    Rhal = self.halos.VirialRadius(self.m, z)
+                    Vh = 4. * np.pi * Rhal**3 / 3.
+                    Vb = 4. * np.pi * R_b**3 / 3.
+                    
+                    # 'bh' is halo bias, 'bb' is bubble bias
+                    # 'dh' is halo density, 'db' is bubble density
+                    db = self._B(z, zeta)
+                    dh = 1.7
+                    
+                    # Convert from dm to dd
+                    #dmdd = np.diff(self.m) / np.diff(db)
+                    #dmdd = np.concatenate(([0], dmdd))
+                    
+
+                    ok = self.m >= Mmin
+                    for k, d1 in enumerate(db):
+                        #if not ok[k]:
+                        #    continue
+                            
+                        ep_ii = bb[k] * bb * xi_dd[i]
+                        #ep_in = bb[k] * bh * xi_dd[i]
+                        
+                        # Volume weighting?
+                        integ_ii = db[k] * dndm_b[k] * Vb[k] \
+                              * db * dndm_b * Vb \
+                              * (1. + ep_ii)
+                        
+                        idd_ii[k] = np.trapz(integ_ii[iM:] * self.m[iM:], 
+                            x=np.log(self.m[iM:]))
+                        
+                        
+                        #idd_in[k] = np.trapz(grand[iM:] * db[iM:], 
+                        #   x=np.log(db[iM:]))    
+                                                                                                            
+                    _P2 = _P_ii_2[i]  \
+                        * np.trapz(integ_ii[iM:] * self.m[iM:], x=np.log(self.m[iM:])) \
+
+                        #M_h = self.halos.tab_M
+                        #iz_h = np.argmin(np.abs(z - self.halos.tab_z))
+                        #iM_h = np.argmin(np.abs(self.Mmin(z) - M_h))
+
+                    P1[i] = _P1 
+                    P2[i] = _P2 - Qi**2 *  delta_b_bar**2
+                    
                 elif term == 'iid':
                     # This is like the 'id' term except the second point
                     # has to be ionized. 
@@ -1658,23 +1701,60 @@ class Fluctuations(object):
                     #B = self._B(z, zeta)
                     #_P1 = delta_b_bar \
                      #   * self.get_prob(z, M_b, dndm_b, Mmin_b, Vo, True) \
+                     
+
+                    _P2 = _P_ii_2[i] * delta_b_bar
                         
 
-                    _P2 = (1. - _P_ii_1[i]) * delta_b_bar \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                        * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
-                        #* self.get_prob(z, M_h, dndm_h, Mmin_h, Vvir, False, ep_bb)
+                    #_P2 = (1. - _P_ii_1[i]) * delta_b_bar \
+                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
+                    #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
+                    #    #* self.get_prob(z, M_h, dndm_h, Mmin_h, Vvir, False, ep_bb)
 
                     P1[i] = _P1
                     P2[i] = _P2
-
                                     
                 elif term == 'iidd':
-                    #continue
-                    P1[i] = _P_ii_1[i] * xi_dd[i]
-                    P2[i] = _P_ii_2[i] * xi_dd[i]
+                                                            
+                    P1[i] = _P_ii_1[i] * delta_b_bar**2
                     
-                  
+                    # Might have to actually do a double integral here.
+                    
+                    iidd_2 = np.zeros(self.m.size)
+                                        
+                    # Convert from dm to dd
+                    #dmdd = np.diff(self.m) / np.diff(db)
+                    #dmdd = np.concatenate(([0], dmdd))                    
+                    
+                    for k, d1 in enumerate(db):
+                            
+                    
+                        exc = bb[k] * bb * xi_dd[i]
+                        
+                        grand = db[k] * dndm_b[k] * V_b[k] \
+                              * db * dndm_b * V_b \
+                              * (1. + exc)
+                              
+                        #if np.isfinite(db[k]):
+                        #    import matplotlib.pyplot as pl
+                        #    pl.loglog(self.m[iM:], grand[iM:] * self.m[iM:])  
+                        #    raw_input('<enter>')
+                            
+                        #print(k, d1)    
+                            
+                        iidd_2[k] = np.trapz(grand[iM:] * self.m[iM:], 
+                            x=np.log(self.m[iM:]))
+                                                                                                            
+                    P2[i] = _P_ii_2[i]  \
+                        * np.trapz(iidd_2[iM:] * self.m[iM:], 
+                            x=np.log(self.m[iM:]))
+                    
+                    # 1-D    
+                    #grand = db * dndm_b * V_b
+                    #P2[i] = _P_ii_2[i]  \
+                    #    * simps(grand[iM:] * self.m[iM:], 
+                    #        x=np.log(self.m[iM:]))**2
+
 
             #elif term == 'hd':
             #    Vo = all_V[3]
@@ -1712,55 +1792,21 @@ class Fluctuations(object):
         
         # To ensure vanishing fluctuations as R->inf, must
         # augment <x_i x_i' d d'> term.
-        kludge = 0.0
-        
-        #if self.pf['ps_include_xcorr_ion_rho']:
-            
-        if term == 'iidd':
-            
-            if self.pf['ps_include_ion']:
-                avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
-
-                kludge += avg_id**2
-                if self.pf['ps_use_wick']:
-                    idt, id1, id2 = \
-                        self.ExpectationValue2pt(z, zeta, R, term='id')
-                    kludge += idt**2
+        #kludge = 0.0
+        #
+        ##if self.pf['ps_include_xcorr_ion_rho']:
+        #    
+        #if term == 'iidd':
+        #    
+        #    if self.pf['ps_include_ion']:
+        #        avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
+        #
+        #        #kludge += avg_id**2
+        #        if self.pf['ps_use_wick']:
+        #            idt, id1, id2 = \
+        #                self.ExpectationValue2pt(z, zeta, R, term='id')
+        #            #kludge += idt**2
                     
-        if term == 'iicc':
-            
-            #
-            # Shouldn't need this!
-            #
-            
-            # If there are no ionization-density cross correlations, this
-            # term will get nixed by avg_xd below.
-            if self.pf['ps_include_ion']:
-                avg_x = self.ExpectationValue1pt(z, zeta, term='n', 
-                    Ts=Ts, Tk=Tk, Th=Th, Ja=Ja)
-                avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
-                    Ts=Ts, Tk=Tk, Th=Th, Ja=Ja)
-                #avg_xd = self.ExpectationValue1pt(z, zeta, term='n*d')
-                #
-                #kludge += 2 * avg_xd * avg_c
-                
-                avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
-                    R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                avg_ic = self.ExpectationValue1pt(z, zeta, term='i*c',
-                    R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                avg_xcd = self.ExpectationValue1pt(z, zeta, term='n*d*c',
-                    R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
-                    R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                avg_psi_c = avg_xc + avg_xcd
-                
-                A_iicc = avg_psi_c**2 + 2 * avg_psi * avg_psi_c \
-                    - 2 * avg_c + 2 * avg_ic - avg_c**2
-                
-                #kludge += A_iicc#avg_psi_c**2 + 2. * avg_x * (avg_xc - avg_c) - avg_c**2
-    
-        
-
         #if self.pf['ps_include_xcorr_ion_hot']:
         #elif term == 'iicc':
         #    print('hello')
@@ -1769,21 +1815,13 @@ class Fluctuations(object):
         #    avg_c = self.ExpectationValue1pt(z, zeta, term='c',
         #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
         #    kludge += avg_c**2 #- Qi**2 * avg_c**2 #- 2 * Qi**2 * avg_c
-        
-        #elif term == 'iicc':
-        #    #avg_xc = self.ExpectationValue1pt(z, zeta, term='n*c',
-        #    #    R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-        #    avg_c = self.ExpectationValue1pt(z, zeta, term='c',
-        #        R_s=R_s, R3=R3, Th=Th, Ts=Ts)
-        #    kludge += avg_c**2 - Qi**2 * avg_c**2 - 2 * Qi**2 * avg_c
-              
-                    
+
         PT = P1 + P2
         
         #if (term == 'hh') and (Qh > 0.5):
         #    PT -= P2
                     
-        PT += kludge
+        #PT += kludge
                         
         self._cache_jp_[z][term] = R, PT, P1, P2
         
@@ -1805,7 +1843,7 @@ class Fluctuations(object):
         # One-source term
         integrand = dndm * V * (1. + ep)
                  
-        integr = simps(integrand[iM:iM2] * M[iM:iM2], x=np.log(M[iM:iM2])) 
+        integr = np.trapz(integrand[iM:iM2] * M[iM:iM2], x=np.log(M[iM:iM2])) 
         
         # Exponentiate?
         if exp:
@@ -1831,6 +1869,9 @@ class Fluctuations(object):
             R = self.halos.tab_R
         else:
             use_R_tab = False    
+            
+        if Qi == 1:
+            return np.zeros_like(R)    
             
         Tcmb = self.cosm.TCMB(z)
         Tgas = self.cosm.Tgas(z)           
@@ -1989,7 +2030,7 @@ class Fluctuations(object):
             # Add optional correction to ensure limiting behavior?        
             if self.pf['ps_volfix']:
                 #if Qi < 0.5:
-                ev = jp_im_1 + jp_im_2
+                ev = jp_im
                 #else:
                 #    ev = jp_im_1 - jp_ii_1
             else:    
@@ -2193,6 +2234,10 @@ class Fluctuations(object):
     def CorrelationFunctionFromPS(self, R, ps, k=None, split_by_scale=False,
         kmin=None, epsrel=1-8, epsabs=1e-8, method='clenshaw-curtis', 
         use_pb=False, suppression=np.inf):
+        
+        if np.all(ps == 0):
+            return np.zeros_like(R)
+        
         return self.halos.InverseFT3D(R, ps, k, kmin=kmin, 
             epsrel=epsrel, epsabs=epsabs, use_pb=use_pb,
             split_by_scale=split_by_scale, method=method, suppression=suppression)
@@ -2200,6 +2245,10 @@ class Fluctuations(object):
     def PowerSpectrumFromCF(self, k, cf, R=None, split_by_scale=False,
         Rmin=None, epsrel=1-8, epsabs=1e-8, method='clenshaw-curtis',
         use_pb=False, suppression=np.inf):
+        
+        if np.all(cf == 0):
+            return np.zeros_like(k)
+        
         return self.halos.FT3D(k, cf, R, Rmin=Rmin, 
             epsrel=epsrel, epsabs=epsabs, use_pb=use_pb,
             split_by_scale=split_by_scale, method=method, suppression=suppression)

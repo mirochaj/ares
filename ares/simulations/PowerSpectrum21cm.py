@@ -288,8 +288,17 @@ class PowerSpectrum21cm(AnalyzePS):
             # Figure out scaling from ionized regions to heated regions.
             # Right now, only constant (relative) scaling is allowed.
             ##    
-            if self.pf['ps_include_temp']:
+            asize = self.pf['bubble_shell_asize_zone_0']
+            if self.pf['ps_include_temp'] and asize is not None:
                 
+                self.field.is_Rs_const = False
+                
+                if type(asize) is FunctionType:
+                    R_s = lambda R, z: R + asize(z)
+                else:    
+                    R_s = lambda R, z: R + asize
+                
+            elif self.pf['ps_include_temp']:
                 fvol = self.pf["bubble_shell_rvol_zone_0"]
                 frad = self.pf['bubble_shell_rsize_zone_0']
                 
@@ -317,15 +326,17 @@ class PowerSpectrum21cm(AnalyzePS):
                 
                 R_s = lambda R, z: R * (1. + frad(z))
                 
-                # Must be constant, for now.
-                Th = self.pf["bubble_shell_ktemp_zone_0"]
-                
-                self.R_s = R_s
-                self.Th = Th
                 
             else:
                 R_s = lambda R, z: None    
                 Th = None
+                
+            # Must be constant, for now.
+            Th = self.pf["bubble_shell_ktemp_zone_0"]
+            
+            self.R_s = R_s
+            self.Th = Th
+                
                 
             ##
             # First: some global quantities we'll need
@@ -346,6 +357,8 @@ class PowerSpectrum21cm(AnalyzePS):
             # Won't be terribly meaningful if temp fluctuations are off.
             C = self.field.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)            
             data['c'] = C
+            data['Ts'] = Ts
+            data['Tk'] = Tk
             
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.
@@ -394,21 +407,25 @@ class PowerSpectrum21cm(AnalyzePS):
                 self.gs.history['xavg'][-1::-1])
                 
             data['dTb0'] = dTb_ps
-                
+            
+            data['dTb_bulk'] = np.interp(z, self.gs.history['z'][-1::-1], 
+                self.gs.history['dTb_bulk'][-1::-1])
+
+            
             ##
             # Correct for fraction of ionized and heated volume!
             ##
-            data['dTb0_1'] = dTb_ps * (1. - Qi) / (1. - xavg_gs)
+            data['dTb0_1'] = data['dTb_bulk'] * (1. - Qi)
             
             if self.pf['ps_include_temp']:
-                data['dTb0_2'] = (1 - Qh - Qi) * dTb_ps \
+                data['dTb0_2'] = (1 - Qh - Qi) * data['dTb_bulk'] \
                     + Qh * self.hydr.dTb(z, 0.0, Th)
                                
                 #data['dTb0_2'] = data['dTb0_1'] * (1. - Qh) 
                 #    + Qh * self.hydr.dTb(z, 0.0, Th) - data['dTb0_1']
             else:
                 data['dTb0_2'] = data['dTb0_1']
-                
+            
             
                 
             #if self.pf['include_ion_fl']:
@@ -458,7 +475,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta=zeta, 
                     R=self.R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
-                    
+                                        
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k, 

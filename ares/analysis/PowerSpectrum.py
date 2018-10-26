@@ -84,7 +84,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         elif dimensionless:
             if field == '21':
                 if renorm is None:
-                    dTb0 = self.history['dTb0_2'][iz]
+                    dTb0 = self.history['dTb_bulk'][iz]
                 else:
                     dTb0 = renorm[iz]
                     
@@ -160,12 +160,18 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     
         cf_s = 'cf_%s' % field
         
-        if field not in self.history:
+        if cf_s not in self.history:
             # Short-cuts
             if field == 'ii':
-                cf = -self.history['cf_xx'][iz]    
+                if 'cf_ii' in self.history:
+                    cf = self.history['cf_ii'][iz]
+                else:    
+                    cf = -self.history['cf_xx'][iz]    
             elif field == 'xx':
-                cf = self.history['cf_ii'][iz]
+                if 'cf_xx' in self.history:
+                    cf = self.history['cf_xx'][iz]
+                else:    
+                    cf = self.history['cf_ii'][iz]
             elif field == 'xd':
                 cf = -self.history['cf_id'][iz]    
             elif field == 'mm':
@@ -374,7 +380,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ps = p
         elif dimensionless:
             if renorm is None:
-                dTb0 = self.history['dTb0_2']
+                dTb0 = self.history['dTb_bulk']
             else:
                 dTb0 = renorm
                 
@@ -496,7 +502,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             if real_space or (not dimensionless):
                 norm = 1.
             else:
-                norm = self.history['dTb0'][iz]**2
+                norm = self.history['dTb_bulk'][iz]**2
             
             # Auto correlations in top row, cross terms on bottom
             # z=8 on top, z=12 on bottom
