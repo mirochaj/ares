@@ -1495,7 +1495,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 isnan = np.isnan(self._tab_sfr_)
 
                 if isnan.sum() > 1:
-                    raise ValueError('Nans!')
+                    print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
+                    #raise ValueError('Nans!')
                 
                 self._tab_sfr_[isnan] = 0.
                                 

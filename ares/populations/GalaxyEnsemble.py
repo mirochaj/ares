@@ -16,7 +16,7 @@ from .GalaxyCohort import GalaxyCohort
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util import ProgressBar
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr
-#from scipy.interpolate import RectBivariateSpline
+from scipy.integrate import quad
 
 class GalaxyEnsemble(HaloPopulation):
     
@@ -148,162 +148,150 @@ class GalaxyEnsemble(HaloPopulation):
         
         return np.array(sfr)
         
-    def _gen_deterministic_history(self):
-        pass
+    def _gen_deterministic_histories(self):
+                    
+        hist = self.pf['pop_histories']
+        guide = self.pf['pop_guide_pop']
+        thin = self.pf['pop_thin_hist']
         
-    def _gen_SAMlike_history(self):
-        pass
-                
-    @property
-    def histories(self):
-        if not hasattr(self, '_histories'):
-            
-            hist = self.pf['pop_histories']
-            guide = self.pf['pop_guide_pop']
-            thin = self.pf['pop_thin_hist']
-            
-            sigma_sfr = self.pf['pop_scatter_sfr']
-            sigma_sfe = self.pf['pop_scatter_sfe']
-            sigma_mar = self.pf['pop_scatter_mar']
-            sigma_env = self.pf['pop_scatter_env']
-                        
-            # Just read in histories in this case.
-            if type(hist) is dict:
-            
-                raw = hist
-                
-                zall = raw['z']
-                self.tab_z = raw['z']
-                self._histories = raw
-                
-                assert ('SFR' in raw) or ('MAR' in raw)
+        sigma_sfr = self.pf['pop_scatter_sfr']
+        sigma_sfe = self.pf['pop_scatter_sfe']
+        sigma_mar = self.pf['pop_scatter_mar']
+        sigma_env = self.pf['pop_scatter_env']
                     
-            # In this case, some building is required. 
-            elif hist == 'kelson':
-                
-                # If we're thinning, will update SFRs later.
-                zall, raw = self.gen_kelson(guide, thin)
-                
-                self.tab_z = zall
-                self._histories = raw
-                return raw
-                
-            else:
-
-                assert isinstance(guide, GalaxyCohort)
-
-                # Is this going to be MCMC-able? No...
-                # How can we enable scatter to be free parameters without
-                # running into circular import?
-                # Well, as long as the guide pop doesn't change, we can 
-                # parameterize the scatter.
-
-                zall, raw = guide.Trajectories()
-                
-
-            have_sfr = False
-            if ('SFR' in raw) and (sigma_sfe == sigma_mar == 0):
-                sfr_raw = raw['SFR']
-                have_sfr = True
-            else:
-                assert 'MAR' in raw
+        # Just read in histories in this case.
+        if type(hist) is dict:
+        
+            raw = hist
             
-            if 'MAR' in raw:
-                mar_raw = raw['MAR']
-                
-            ##
-            # May need to construct SFRs from MARs
-            ##
-            if not have_sfr:
-                
-                
-                # Need to decide whether to use SFE from guide population
-                # or PQ or to generate from some distribution.
-                
-                # zall is 1-D, Mh is 2-D (zform, zobs)
-                sfe_raw = guide.SFE(z=zall, Mh=raw['Mh'])
-            else:    
-                sfe_raw = None
-                
-                #if 'MAR' in raw and hist != 'kelson':
-                #    raise KeyError('Have MAR and SFR. Whaddya wanna do?')
-                
-            nh_raw = raw['nh']
-            Mh_raw = raw['Mh']
+            zall = raw['z']
+            self.tab_z = raw['z']
+            self._histories = raw
             
-            # Could optionally thin out the bins to allow more diversity.
-            if thin > 0:
-                # Doesn't really make sense to do this unless we're
-                # adding some sort of stochastic effects.
-            
-                # Remember: first dimension is the SFH identity.                
-                nh = self.tile(nh_raw, thin, True)
-                Mh = self.tile(Mh_raw, thin)
-            else:
-                nh = nh_raw.copy()
-                Mh = Mh_raw.copy()
-            
-            ##
-            # Allow scatter in things
-            ##            
-            # Just adding scatter in SFR
-            if have_sfr:
-                sfr = self.tile(sfr_raw, thin)
-            
-            if sigma_sfr > 0:
-                assert have_sfr
-                assert not (self.pf['pop_scatter_sfe'] or self.pf['pop_scatter_mar'])                
-                sfr += self.noise_lognormal(sfr, sigma_sfr)
-            
-            # Can add SFE scatter too    
-            sfe = self.tile(sfe_raw, thin)
-            if sigma_sfe > 0:
-                sfe += self.noise_lognormal(sfe, sigma_sfe)
+            assert ('SFR' in raw) or ('MAR' in raw)
                 
-            mar = self.tile(mar_raw, thin)
+        # In this case, some building is required. 
+        elif hist == 'kelson':
             
-            if sigma_env > 0:
-                mar *= (1. + self.noise_normal(mar, sigma_env))
-                
-            if sigma_mar > 0:
-                mar += self.noise_lognormal(mar, sigma_mar)
-                sfr = sfe * mar * self.cosm.fbar_over_fcdm
-            else:
-                if not have_sfr:
-                    sfr = sfe * mar * self.cosm.fbar_over_fcdm 
+            # If we're thinning, will update SFRs later.
+            zall, raw = self.gen_kelson(guide, thin)
             
-            
-            
-            # Things to add: metal-enrichment history (MEH)
-            #              : ....anything else?
-            
-            # Artificial SF shutdown option.
-            if self.pf['pop_quench']:
-                
-                k = np.argmin(np.abs(zall - 8.))
-                
-                for i, hist in enumerate(sfr):
-                    if Mh[i,k] >= guide.Mmin(8.):
-                        continue
-                    
-                    sfr[i,0:k] = 0.0
-                       
-                   #print('Quenching zf={} at z<={}'.format(zall[i], zall[j]))    
-
-            # SFR = (zform, time (but really redshift))
-            # So, halo identity is wrapped up in axis=0
-            # In Cohort, formation time defines initial mass and trajectory (in full)
-            histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh,
-                'MAR': mar, 'SFE': sfe}
-                
-            # Add in formation redshifts to match shape (useful after thinning)
-            histories['zform'] = self.tile(zall, thin)
-                            
             self.tab_z = zall
-            self._histories = histories
-    
-                            
-        return self._histories
+            self._histories = raw
+            return raw
+            
+        else:
+        
+            assert isinstance(guide, GalaxyCohort)
+        
+            # Is this going to be MCMC-able? No...
+            # How can we enable scatter to be free parameters without
+            # running into circular import?
+            # Well, as long as the guide pop doesn't change, we can 
+            # parameterize the scatter.
+        
+            zall, raw = guide.Trajectories()
+            
+        
+        have_sfr = False
+        if ('SFR' in raw) and (sigma_sfe == sigma_mar == 0):
+            sfr_raw = raw['SFR']
+            have_sfr = True
+        else:
+            assert 'MAR' in raw
+        
+        if 'MAR' in raw:
+            mar_raw = raw['MAR']
+            
+        ##
+        # May need to construct SFRs from MARs
+        ##
+        if not have_sfr:
+            
+            
+            # Need to decide whether to use SFE from guide population
+            # or PQ or to generate from some distribution.
+            
+            # zall is 1-D, Mh is 2-D (zform, zobs)
+            sfe_raw = guide.SFE(z=zall, Mh=raw['Mh'])
+        else:    
+            sfe_raw = None
+            
+            #if 'MAR' in raw and hist != 'kelson':
+            #    raise KeyError('Have MAR and SFR. Whaddya wanna do?')
+            
+        nh_raw = raw['nh']
+        Mh_raw = raw['Mh']
+        
+        # Could optionally thin out the bins to allow more diversity.
+        if thin > 0:
+            # Doesn't really make sense to do this unless we're
+            # adding some sort of stochastic effects.
+        
+            # Remember: first dimension is the SFH identity.                
+            nh = self.tile(nh_raw, thin, True)
+            Mh = self.tile(Mh_raw, thin)
+        else:
+            nh = nh_raw.copy()
+            Mh = Mh_raw.copy()
+        
+        ##
+        # Allow scatter in things
+        ##            
+        # Just adding scatter in SFR
+        if have_sfr:
+            sfr = self.tile(sfr_raw, thin)
+        
+        if sigma_sfr > 0:
+            assert have_sfr
+            assert not (self.pf['pop_scatter_sfe'] or self.pf['pop_scatter_mar'])                
+            sfr += self.noise_lognormal(sfr, sigma_sfr)
+        
+        # Can add SFE scatter too    
+        sfe = self.tile(sfe_raw, thin)
+        if sigma_sfe > 0:
+            sfe += self.noise_lognormal(sfe, sigma_sfe)
+            
+        mar = self.tile(mar_raw, thin)
+        
+        if sigma_env > 0:
+            mar *= (1. + self.noise_normal(mar, sigma_env))
+            
+        if sigma_mar > 0:
+            mar += self.noise_lognormal(mar, sigma_mar)
+            sfr = sfe * mar * self.cosm.fbar_over_fcdm
+        else:
+            if not have_sfr:
+                sfr = sfe * mar * self.cosm.fbar_over_fcdm 
+        
+        
+        
+        # Things to add: metal-enrichment history (MEH)
+        #              : ....anything else?
+        
+        # Artificial SF shutdown option.
+        if self.pf['pop_quench']:
+            
+            k = np.argmin(np.abs(zall - 8.))
+            
+            for i, hist in enumerate(sfr):
+                if Mh[i,k] >= guide.Mmin(8.):
+                    continue
+                
+                sfr[i,0:k] = 0.0
+                   
+               #print('Quenching zf={} at z<={}'.format(zall[i], zall[j]))    
+        
+        # SFR = (zform, time (but really redshift))
+        # So, halo identity is wrapped up in axis=0
+        # In Cohort, formation time defines initial mass and trajectory (in full)
+        histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh,
+            'MAR': mar, 'SFE': sfe}
+            
+        # Add in formation redshifts to match shape (useful after thinning)
+        histories['zform'] = self.tile(zall, thin)
+                        
+        return histories
         
     def get_Ms(self, z):
         iz = np.argmin(np.abs(z - self.tab_z))
@@ -367,17 +355,57 @@ class GalaxyEnsemble(HaloPopulation):
             
         return steps_t, steps_z
         
+    @property
+    def histories(self):
+        if not hasattr(self, '_histories'):
+            self._histories = self.RunSAM()
+        return self._histories
+        
     def RunSAM(self):
         """
         Run models. If deterministic, will just return pre-determined
         histories. Otherwise, will do some time integration.
         """
         
-        hist = self.histories
-        
-        # If histories are deterministic, we're done.
         if self.is_deterministic:
-            return hist
+            return self._gen_deterministic_histories()
+        else:
+            return self._gen_indeterminate_histories()
+         
+    def cmf(self, M):
+        # Allow ParameterizedQuantity here
+        pass
+            
+    @property
+    def tab_cmf(self):
+        if not hasattr(self, '_tab_cmf'):
+            pass
+        
+    def _gen_indeterminate_histories(self):
+        ####
+        ####
+        def mf(M, beta=-2., Mmin=100.):    
+            return (M / Mmin)**beta * np.exp(-Mmin / M)
+        
+        #def mf(M):
+        #    return np.exp(-(M - 2e4)**2 / 2 / 1e4**2)
+        
+        #def mf(M):
+        #    return np.exp(-(np.log10(M) - 4.)**2 / 2. / 0.5**2)                           
+        
+        f_cdf = lambda M: quad(mf, 0, M)[0] / quad(mf, 0, np.inf)[0]    
+        
+        M = np.logspace(1, 5, 1000) 
+        pdf = np.array(map(mf, M))
+        cdf = np.array(map(f_cdf, M))    
+        
+        Mstell_med = quad(lambda MM: mf(MM) * MM, 0, np.inf)[0] / quad(lambda MM: mf(MM), 0, np.inf)[0]
+        ####
+        ####
+        
+     
+        
+        hist = self._gen_deterministic_histories()
                     
         # At this point, need to know about time-stepping. Constant, or
         # based on properties of galaxies?
@@ -400,6 +428,7 @@ class GalaxyEnsemble(HaloPopulation):
         Ms = np.zeros((len(all_zform), tbig.size))
         SFR = np.zeros((len(all_zform), tbig.size))
         zobs = np.zeros_like(Ms)
+        tobs = np.zeros_like(Ms)
         mask = np.zeros_like(Ms)
         
         # One of these output arrays could eventually have a third dimension
@@ -427,6 +456,7 @@ class GalaxyEnsemble(HaloPopulation):
             _SFE = guide.SFE(z=z, Mh=_Mh)
 
             zobs[i,:k] = z.copy()
+            tobs[i,:k] = t.copy()
             
             # Unused time elements (corresponding to z > zform)
             mask[i,k:] = 1
@@ -453,23 +483,48 @@ class GalaxyEnsemble(HaloPopulation):
                 _sfr_new = D_Mg_tot * fstar / dt
                 _sfr_res = Mg_c[i,j] * 0.02 / dt
                 
-                SFR[i,j] = _sfr_new
+                #SFR[i,j] = _sfr_res#max(_sfr_new * (1. + np.random.normal(scale=0.5)), 0)
                 
+                #f_cl = np.random.rand()
+                f_cl = 0.02 # I would think this is an absolute maximum...unles
+                # star formation really (usually) proceeds until it can't.
+                
+                N = int(Mg_c[i,j] * f_cl / Mstell_med)
+                _N = np.random.poisson(lam=N)
+                
+                # Incorporate newly accreted gas into this estimate?
+                # super-efficient means we use up all the reservoir AND
+                # some new gas
+                
+                if N > 1e5:
+                    SFR[i,j] = _sfr_res
+                else:    
+                
+                    r = np.random.rand(_N)
+                    masses = 10**np.interp(np.log10(r), np.log10(cdf), np.log10(M))
+                    
+                    #masses = [Mstell_med] * N
+                    
+                    # This happens occasionally!
+                    #if np.sum(masses) > Mg_c[i,j] * 0.02:
+                    #    print('hey', i, z[j], _N)
+                    
+                    SFR[i,j] = min(np.sum(masses), Mg_c[i,j] * f_cl) / dt
+                                
                 ##
                 # UPDATES FOR NEXT TIMESTEP
                 ##
                 
                 # Is gas cold or hot?
                 n_to_c = 1.#np.random.rand()  # new gas -> cold
-                c_to_h = 0.0#np.random.rand()  # turning cold -> hot
-                h_to_c = 0.0#np.random.rand()  # turning hot  -> cold
+                c_to_h = 0.#np.random.rand()  # turning cold -> hot
+                h_to_c = 0.#np.random.rand()  # turning hot  -> cold
                                 
                 # How to make function of global galaxy properties, potentially
                 # on past timestep?
                 
                 # Impart fractional change
                 # Simplest model: increase or decrease.
-                
                 
                 Mg_c[i,j+1] = Mg_c[i,j] * (1. - c_to_h) \
                             + Mg_h[i,j] * h_to_c \
@@ -493,6 +548,7 @@ class GalaxyEnsemble(HaloPopulation):
          'Mh': Mh,
          'zform': all_zform,
          'zobs': zobs,
+         'tobs': tobs,
          'mask': mask,
          'SFR': SFR,
          'Mg_c': Mg_c,
