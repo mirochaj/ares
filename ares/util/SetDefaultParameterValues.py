@@ -954,7 +954,7 @@ def ControlParameters():
     "tau_Emax": 3e4,
     "tau_Emin_pin": True,
 
-    "sam_dz": 2., # Usually good enough!
+    "sam_dz": None, # Usually good enough!
     "sam_atol": 1e-2,
     "sam_rtol": 1e-2,
     
