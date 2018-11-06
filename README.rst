@@ -3,9 +3,7 @@
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a 
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
-global radiation background calculator. If you use ARES in paper please reference 
-`Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_ and provide a
-link to `this page <https://bitbucket.org/mirochaj/ares>`_ as a footnote.
+global radiation background calculator. 
 
 A few papers on how it works:
 
@@ -25,6 +23,15 @@ The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progres
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
+   
+Citation
+--------
+If you use ARES in paper please reference `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_ 
+if it's an application of the global 21-cm modeling machinery and 
+`Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_ if you use the 1-D radiative 
+transfer and/or SED optimization. Either way, please also provide a link 
+to `this page <https://bitbucket.org/mirochaj/ares>`_ as a footnote.
+ 
 
 Getting started
 ---------------------
