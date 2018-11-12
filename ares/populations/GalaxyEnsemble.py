@@ -455,6 +455,7 @@ class GalaxyEnsemble(HaloPopulation):
         Mg_c = np.zeros((len(all_zform), tbig.size))
         Mg_h = np.zeros((len(all_zform), tbig.size))
         MZ_tot = np.zeros((len(all_zform), tbig.size))
+        MD_tot = np.zeros((len(all_zform), tbig.size))
         Ms = np.zeros((len(all_zform), tbig.size))
         SFR = np.zeros((len(all_zform), tbig.size))
         Np = np.zeros((len(all_zform), tbig.size))
@@ -477,6 +478,8 @@ class GalaxyEnsemble(HaloPopulation):
         for i, zform in enumerate(all_zform):
             t, z = self.get_timestamps(zform)
             
+            print(zform, len(t))
+            
             tdyn = self.halos.DynamicalTime(1e10, z) / s_per_yr
             k = t.size
             
@@ -493,11 +496,9 @@ class GalaxyEnsemble(HaloPopulation):
             # Unused time elements (corresponding to z > zform)
             mask[i,k:] = 1
             
-            # Do star formation or whatever
-            Mh[i,:k] = _Mh
-            
             jmax = t.size - 1
             
+            Mh[i,0] = _Mh[0]            
             Mg_h[i,0] = 0.0
             Mg_c[i,0] = fbar * _Mh[0]
             Mg_tot[i,0] = fbar * _Mh[0]
@@ -508,8 +509,10 @@ class GalaxyEnsemble(HaloPopulation):
                 
                 dt = t[j+1] - _t
                 
-                D_Mg_tot = max(fbar * (_Mh[j+1] - _Mh[j]), 0.)
-  
+                # Use _MAR or _Mh here? Should be solving for Mh!
+                this_MAR = _MAR[j] #(_MAR[j+1]+_MAR[j]) * 0.5
+                D_Mg_tot = max(fbar * this_MAR * dt, 0.)
+    
                 fstar = _SFE[j]
                 
                 fgmc = 0.1
@@ -524,13 +527,15 @@ class GalaxyEnsemble(HaloPopulation):
                 # star formation really (usually) proceeds until it can't.
                 
                 if np.isnan(D_Mg_tot):
-                    print(zform, j)
                     continue
                                         
-                N = int(D_Mg_tot * fstar / self.Mcl)
-                #N = int((_sfr_new + _sfr_res) * dt / self.Mcl)
-                    
-                _N = N#np.random.poisson(lam=N)
+                #N = int(D_Mg_tot * fstar / self.Mcl)
+                N = int((_sfr_new + _sfr_res) * dt / self.Mcl)
+                
+                if self.pf['pop_poisson']: 
+                    _N = np.random.poisson(lam=N)
+                else:
+                    _N = N
                 
                 Np[i,j] = N
                 Na[i,j] = _N
@@ -538,40 +543,66 @@ class GalaxyEnsemble(HaloPopulation):
                 # Incorporate newly accreted gas into this estimate?
                 # super-efficient means we use up all the reservoir AND
                 # some new gas
+                if self.pf['pop_poisson']:
+                    
+                    print('hey poisson')
                 
-                SFR[i,j] = _sfr_new
+                    if N > 1e2:
+                        print('N huge')
+                        SFR[i,j] = _sfr_new
+                        masses = _sfr_new * dt * np.ones(N) / float(N)
+                    else:    
+                        print('N small')
+                        r = np.random.rand(_N)
+                        masses = 10**np.interp(np.log10(r), np.log10(self.tab_cdf), 
+                            np.log10(self.tab_Mcl))
+                            
+                        # Cap SFR so it can't exceed 0.02 * Mgc / dt?
+                        SFR[i,j] = min(np.sum(masses), Mg_c[i,j] * f_cl * fgmc) / dt        
+                else:
+                    #print('not poisson')
+                    #masses = self.Mcl * np.ones(N)
+                    #SFR[i,j] = _sfr_new
                 
-                #if N > 1e5:
-                #    SFR[i,j] = _sfr_new
-                #else:    
-                #
-                #    r = np.random.rand(_N)
-                #    masses = 10**np.interp(np.log10(r), np.log10(self.tab_cdf), 
-                #        np.log10(self.tab_Mcl))
-                #    
-                #    masses = self.Mcl * np.ones(N)
-                #    
-                #    # This happens occasionally!
-                #    #if np.sum(masses) > Mg_c[i,j] * 0.02:
-                #    #    print('hey', i, z[j], _N)
-                #    
-                #    # Cap SFR so it can't exceed 0.02 * Mgc / dt?
-                #    SFR[i,j] = min(np.sum(masses), Mg_c[i,j] * f_cl * fgmc) / dt
+                # This happens occasionally!
+                #if np.sum(masses) > Mg_c[i,j] * 0.02:
+                #    print('hey', i, z[j], _N)
+                
+                
+                                
+                
+                    if self.pf['pop_sf_via_inflow']:
+                        SFR[i,j] += _sfr_new
+                    elif self.pf['pop_sf_via_reservoir']:
+                        SFR[i,j] += _sfr_res
+                                
+                                
+                                
+                                
                                 
                 ##
                 # UPDATES FOR NEXT TIMESTEP
                 ##
                 
                 # Is gas cold or hot?
-                n_to_c = 1.#np.random.rand()  # new gas -> cold
-                c_to_h = 0.#np.random.rand()  # turning cold -> hot
-                h_to_c = 0.#np.random.rand()  # turning hot  -> cold
-                                
+                if self.pf['pop_bcycling'] == 'random':
+                    n_to_c = np.random.rand()
+                    c_to_h = np.random.rand()
+                    h_to_c = np.random.rand()
+                elif self.pf['pop_bcycling'] == False:    
+                    n_to_c = 1.  # new gas -> cold
+                    c_to_h = 0.  # turning cold -> hot
+                    h_to_c = 0.  # turning hot  -> cold
+                else:
+                    raise NotImplemented('help')
+                    
                 # How to make function of global galaxy properties, potentially
                 # on past timestep?
                 
                 # Impart fractional change
                 # Simplest model: increase or decrease.
+                
+                Mh[i,j+1]   = Mh[i,j] + _MAR[j] * dt
                 
                 Mg_c[i,j+1] = Mg_c[i,j] * (1. - c_to_h) \
                             + Mg_h[i,j] * h_to_c \
@@ -588,6 +619,9 @@ class GalaxyEnsemble(HaloPopulation):
                 
                 # Metal mass
                 MZ_tot[i,j+1] = 0.0
+                
+                # Dust mass
+                MD_tot[i,j+1] = 0.0
                 
                 
         results = \

@@ -516,7 +516,13 @@ def PopulationParameters():
     
     "pop_is_deterministic": None,
     "pop_update_dt": 10.,
-
+    
+    # Cluster-centric model
+    "pop_poisson": False,
+    "pop_bcycling": False,
+    "pop_sf_via_inflow": True,
+    "pop_sf_via_reservior": False,
+    
     "pop_fobsc": 0.0,
     "pop_fobsc_by_num": False,
 

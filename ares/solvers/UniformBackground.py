@@ -1311,7 +1311,7 @@ class UniformBackground(object):
                 # Equivalent to Eq. 25 in Mirocha (2014)
                 # Less readable, but faster!  
                 flux = c_over_four_pi \
-                    * ((xsq[ll+1] * trapz_base) * ehat[ll]) \
+                    * ((xsq[ll] * trapz_base) * ehat[ll]) \
                     + exp_term * (c_over_four_pi * xsq[ll+1] \
                     * trapz_base * ehat_r[ll] \
                     + np.concatenate((flux[1:], [0])) / Rsq)
