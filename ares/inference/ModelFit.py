@@ -201,7 +201,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
             sim.run()            
             blobs = copy.deepcopy(sim.blobs)
     except ValueError:
-        print(kwargs)
+        print('FAILURE: ', kwargs)
         del sim, kw, kwargs
         gc.collect()
         return -np.inf, blank_blob

@@ -702,9 +702,13 @@ class Population(object):
             return self._eV_per_phot[(Emin, Emax)]
     
         if Emin < self.pf['pop_Emin']:
-            print("WARNING: Emin < pop_Emin")
+            print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+                "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
+                self.id_num))
         if Emax > self.pf['pop_Emax']:
-            print("WARNING: Emax > pop_Emax")
+            print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+                "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
+                self.id_num))
     
         if self.sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
