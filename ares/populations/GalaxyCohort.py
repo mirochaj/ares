@@ -528,7 +528,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._SMD
         
     def MAR(self, z, Mh):
-        return np.maximum(self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh), 0.)
+        return self.eta(z, Mh) * np.maximum(self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh), 0.)
     
     def MDR(self, z, Mh):
         # Mass "delivery" rate
@@ -612,7 +612,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def eta(self):
         if not hasattr(self, '_eta'):
-            self._eta = lambda z: np.interp(z, self.halos.tab_z, self._tab_eta)
+            if self._tab_eta.ndim == 1:
+                self._eta = lambda z, Mh=None: np.interp(z, self.halos.tab_z, self._tab_eta)
+            else:
+                _eta = RectBivariateSpline(self.halos.tab_z, 
+                    np.log10(self.halos.tab_M), self._tab_eta)
+                self._eta = lambda z, Mh: _eta(z, np.log10(Mh)).squeeze()
+                    
         return self._eta
 
     @property
@@ -628,7 +634,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Prepare to compute eta
         if not hasattr(self, '_tab_eta_'):
         
-            if self.pf['pop_MAR_conserve_norm']:
+            if self.pf['pop_MAR_corr'] == 'integral':
                 
                 _rhs = np.zeros_like(self.halos.tab_z)
                 _lhs = np.zeros_like(self.halos.tab_z)
@@ -673,6 +679,45 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 # Re-shape to be (z, Mh)    
                 self._tab_eta_ = np.reshape(np.tile(_tab_eta_, self.halos.tab_M.size), 
                     (self.halos.tab_z.size, self.halos.tab_M.size))
+                       
+            elif self.pf['pop_MAR_corr'] == 'slope':
+                        
+                # In this case, we have the same shape as _tab_MAR
+                self._tab_eta_ = np.ones_like(self.halos.tab_MAR)
+                                
+                # Compute power-law slope as function of mass at all redshifts.
+                # Prevent dramatic deviations from this slope, and instead
+                # extrapolate from high-mass end downward.
+                logM = np.log(self.halos.tab_M)
+                logMAR = np.log(self.halos.tab_MAR)
+                
+                alpha = np.diff(logMAR, axis=1) / np.diff(logM)
+                self._tab_alpha = alpha
+                
+                Ms = self.halos.tab_M.size - 1
+                
+                # Figure out where alpha < 0, use slope well above this 
+                # juncture to extrapolate.
+                negative = np.zeros_like(self.halos.tab_z)
+                for i in range(self.halos.tab_z.size):
+                    huge = np.argwhere(alpha[i,:-5] > 2.)
+                    if not np.any(huge):
+                        continue
+                        
+                    ilt0 = int(huge[-1])    
+
+                    # Extrapolate
+                    _Msafe = min(self.halos.tab_M[ilt0] * 10, 1e13)
+                    iM = np.argmin(np.abs(_Msafe - self.halos.tab_M))
+                    Msafe = self.halos.tab_M[iM]
+                                        
+                    new = self.halos.tab_MAR[i,iM] \
+                        * (self.halos.tab_M / Msafe)**alpha[i,iM]
+                     
+                    # Only apply extrapolation at low mass    
+                    self._tab_eta_[i,0:iM] = \
+                        new[0:iM] / self.halos.tab_MAR[i,0:iM]
+                                    
                         
             else:
                 self._tab_eta_ = np.ones_like(self.halos.tab_dndm)
@@ -1437,25 +1482,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
                 Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
                 M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
-                        (self.halos.tab_z.size, self.halos.tab_M.size))    
+                        (self.halos.tab_z.size, self.halos.tab_M.size))
 
-                #self._tab_sfr_[M < Mmin] = 0.0
-                #self._tab_sfr_[M > Mmax] = 0.0
-                #self._tab_sfr_[self.halos.tab_z > self.zform,:] = 0.0
-                #self._tab_sfr_[self.halos.tab_z < self.zdead,:] = 0.0
-                
                 mask = np.zeros_like(self._tab_sfr_, dtype=bool)
                 mask[M < Mmin] = True
                 mask[M > Mmax] = True
                 mask[self.halos.tab_z > self.zform] = True
                 mask[self.halos.tab_z < self.zdead] = True
                 self._tab_sfr_mask_ = mask
-                
+
                 # Why am I getting a NaN?
                 isnan = np.isnan(self._tab_sfr_)
-                
+
                 if isnan.sum() > 1:
-                    raise ValueError('Nans!')
+                    print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
+                    #raise ValueError('Nans!')
                 
                 self._tab_sfr_[isnan] = 0.
                                 
@@ -1645,7 +1686,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Nz = self.halos.tab_z.size
             
             ok = ~self._tab_sfr_mask
-            integrand = ok * self._tab_sfr * self.halos.tab_dndlnm * self._tab_focc
+            integrand = ok * self._tab_sfr * self.halos.tab_dndlnm \
+                * self._tab_focc
                 
             # Mask out elements with for M < Mmin and M > Mmax.
             lo_mask = np.ones_like(integrand, dtype=bool)

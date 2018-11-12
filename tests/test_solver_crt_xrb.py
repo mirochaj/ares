@@ -105,6 +105,8 @@ def test(tol=1e-2):
             
             diff = np.abs(flux_anl - flux_num) / flux_anl
             
+            # Only use softest X-ray bin since this is where error should
+            # be worst.            
             assert diff[0] < tol, \
                 "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
         

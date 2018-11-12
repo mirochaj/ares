@@ -120,10 +120,10 @@ If you encounter problems with installation or running simple scripts, first che
 Contributors
 ------------
 
-Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (UCLA) 
+Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (UCLA)
 
 Additional contributions / corrections / suggestions from:
-    
+
 - Geraint Harker
 - Jason Sun 
 - Keith Tauscher
@@ -142,4 +142,5 @@ Additional contributions / corrections / suggestions from:
 - Kristy Fu
 - Garett Lopez
 - Ranita Jana
+- Daniel Meinert
 

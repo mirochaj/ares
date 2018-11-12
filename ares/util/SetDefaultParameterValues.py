@@ -393,8 +393,9 @@ def PopulationParameters():
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
-    "pop_MAR_conserve_norm": False,
+    #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
+    "pop_MAR_corr": None,
 
     "pop_interp_MAR": 'linear',
     "pop_interp_sfrd": 'linear',
@@ -511,7 +512,17 @@ def PopulationParameters():
     "pop_scatter_mar": 0.0,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
-
+    "pop_scatter_env": 0.0,
+    
+    "pop_is_deterministic": None,
+    "pop_update_dt": 10.,
+    
+    # Cluster-centric model
+    "pop_poisson": False,
+    "pop_bcycling": False,
+    "pop_sf_via_inflow": True,
+    "pop_sf_via_reservior": False,
+    
     "pop_fobsc": 0.0,
     "pop_fobsc_by_num": False,
 
@@ -949,7 +960,7 @@ def ControlParameters():
     "tau_Emax": 3e4,
     "tau_Emin_pin": True,
 
-    "sam_dz": 2., # Usually good enough!
+    "sam_dz": None, # Usually good enough!
     "sam_atol": 1e-2,
     "sam_rtol": 1e-2,
     
