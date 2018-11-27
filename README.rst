@@ -12,6 +12,12 @@ A few papers on how it works:
 - Parameter inference: `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_.
 - Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
 
+And some applications:
+
+- `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_
+- `Schneider (2018) <http://adsabs.harvard.edu/abs/2018PhRvD..98f3021S>`_
+- `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_
+
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 

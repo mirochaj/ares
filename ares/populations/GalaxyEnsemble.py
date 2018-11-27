@@ -290,8 +290,10 @@ class GalaxyEnsemble(HaloPopulation):
         # SFR = (zform, time (but really redshift))
         # So, halo identity is wrapped up in axis=0
         # In Cohort, formation time defines initial mass and trajectory (in full)
-        histories = {'z': zall, 'w': nh, 'SFR': sfr, 'Mh': Mh,
-            'MAR': mar, 'SFE': sfe, 'nh': nh}
+        zobs = np.array([zall] * nh.shape[0])
+        histories = {'z': zall, 'zobs': zobs, 'w': nh, 'SFR': sfr, 'Mh': Mh,
+            'MAR': mar, 'SFE': sfe, 'nh': nh, 
+            'Mg_c': Mh, 'Mg_h': Mh}
             
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zform'] = self.tile(zall, thin)
@@ -478,9 +480,9 @@ class GalaxyEnsemble(HaloPopulation):
         for i, zform in enumerate(all_zform):
             t, z = self.get_timestamps(zform)
             
-            print(zform, len(t))
+            #print(zform, len(t))
             
-            tdyn = self.halos.DynamicalTime(1e10, z) / s_per_yr
+            #tdyn = self.halos.DynamicalTime(1e10, z) / s_per_yr
             k = t.size
             
             # Grab the things that we can't modify (too much)
@@ -497,6 +499,19 @@ class GalaxyEnsemble(HaloPopulation):
             mask[i,k:] = 1
             
             jmax = t.size - 1
+            
+            # Sure would be nice to eliminate the following loop.
+            # Can only do that if there's no randomness that depends on
+            # previous timesteps.
+            
+            # This can go faster...
+            if self.pf['pop_bcycling'] == False:
+                # Really want an internal feedback determinism switch.
+                pass
+            
+            
+            
+            
             
             Mh[i,0] = _Mh[0]            
             Mg_h[i,0] = 0.0
@@ -722,8 +737,9 @@ class GalaxyEnsemble(HaloPopulation):
                     # For each unique object (or object bin), sum emission
                     # over past episodes of star formation.
                     
-                    L[k] = np.trapz(L_per_msun * self.histories['SFR'][k,iz:],
-                        dx=dt[0:-1])
+                    L[k] = np.sum(L_per_msun * self.histories['SFR'][k,iz:] * dt)
+                    #L[k] = np.trapz(L_per_msun * self.histories['SFR'][k,iz:],
+                    #    dx=dt[0:-1])
                         
             else:
                 # In this case, the time-stepping is different for each 
@@ -768,7 +784,7 @@ class GalaxyEnsemble(HaloPopulation):
                     if len(ages) == 0:
                         print('ages has no elements!', k)
                         continue
-                    
+                                        
                     # Need to be careful about interpolating within last
                     # dynamical time.
 
