@@ -383,6 +383,7 @@ def PowerSpectrumParameters():
      "ps_output_lnRmax": 8.,
      "ps_output_dlnR": 0.01,
      
+     'ps_linear_pert': False,
      'ps_use_wick': False,
      
      'ps_include_acorr': True,
@@ -408,7 +409,7 @@ def PowerSpectrumParameters():
      
      'ps_include_3pt': True,
      'ps_include_4pt': True,
-     
+          
      'ps_correct_gs_ion': True,
      'ps_correct_gs_temp': True,     
      
@@ -935,8 +936,10 @@ def HaloMassFunctionParameters():
     
     # For matter power spectrum
     "mps_zmin": 6,
-    "mps_zmax": 25,
+    "mps_zmax": 30,
     "mps_dz": 0.5,
+    
+    "mps_linear": False,
     
     'mps_dlnk': 0.001,
     'mps_dlnR': 0.001,

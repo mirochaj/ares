@@ -235,7 +235,7 @@ class HaloMassFunction(object):
         if name not in self.__dict__.keys():
             if self.pf['hmf_load']:
                 self._load_hmf()
-
+        
         return self.__dict__[name]
 
     def _load_hmf(self):
@@ -419,7 +419,7 @@ class HaloMassFunction(object):
         # Will setup an array of masses
         MF = self._MF
 
-        # Masses in hmf are in units of Msun * h
+        # Masses in hmf are in units of Msun / h
         if hmf_vers < 3:
             self.tab_M = self._MF.M / self.cosm.h70
         else:
@@ -442,18 +442,17 @@ class HaloMassFunction(object):
             
             if i > 0:
                 self._MF.update(z=z)
-                
+
             if i % size != rank:
                 continue
-                
 
             # Has units of h**4 / cMpc**3 / Msun
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
             self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
             self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
              
-            self.tab_ps_lin[i] = self._MF.power / self.cosm.h70**3                
-            self.tab_growth[i] = self._MF.growth_factor            
+            self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3                
+            self.tab_growth[i] = self._MF.growth_factor * 1.            
                                     
             pb.update(i)
             
