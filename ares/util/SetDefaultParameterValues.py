@@ -520,6 +520,7 @@ def PopulationParameters():
     # Cluster-centric model
     "pop_poisson": False,
     "pop_bcycling": False,
+    "pop_internal_feedback": False,
     "pop_sf_via_inflow": True,
     "pop_sf_via_reservior": False,
     
