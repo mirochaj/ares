@@ -290,8 +290,9 @@ def plot_by_chunk(x, y, ax, **kwargs):
         
         if i == (len(yy) - 1) and (not applied_label):
             apply_label = True
+            
                 
-        ax.loglog(xx[i], np.abs(yy[i]), lw=3 if pos else 1, 
+        ax.loglog(xx[i], np.abs(yy[i]), lw=3 if pos else 1,
             label=label if apply_label else None, **kwargs)
     
         if apply_label:

@@ -433,6 +433,7 @@ def PowerSpectrumParameters():
      # Important that the number is at the end! ARES will interpret
      # numbers within underscores as population ID numbers.
      "bubble_shell_rvol_zone_0": None,
+     "bubble_shell_rdens_zone_0": None,
      "bubble_shell_rsize_zone_0": None,
      "bubble_shell_asize_zone_0": None,
      "bubble_shell_ktemp_zone_0": None,
