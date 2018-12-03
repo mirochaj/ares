@@ -298,6 +298,9 @@ class GalaxyEnsemble(HaloPopulation):
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zform'] = self.tile(zall, thin)
                         
+        self.tab_z = zall
+        self._histories = raw                
+                        
         return histories
         
     def get_Ms(self, z):
@@ -503,15 +506,13 @@ class GalaxyEnsemble(HaloPopulation):
             # Sure would be nice to eliminate the following loop.
             # Can only do that if there's no randomness that depends on
             # previous timesteps.
+            # Note 12.03. Should eliminate 'i' loop since all galaxies
+            # are independent.
             
             # This can go faster...
             if self.pf['pop_bcycling'] == False:
                 # Really want an internal feedback determinism switch.
                 pass
-            
-            
-            
-            
             
             Mh[i,0] = _Mh[0]            
             Mg_h[i,0] = 0.0
@@ -655,12 +656,14 @@ class GalaxyEnsemble(HaloPopulation):
          'Na': Na,
          'Np': Np,
         }
-                
+        
+        self.tab_z = all_zform
+        self._histories = results
                 
         return results
 
         
-    def StellarMassFunction(self, z):
+    def StellarMassFunction(self, z, bins=None):
         """
         Could do a cumulative sum to get all stellar masses in one pass. 
         
@@ -670,8 +673,24 @@ class GalaxyEnsemble(HaloPopulation):
         iz = np.argmin(np.abs(z - self.tab_z))
         
         Ms = self.get_Ms(z)
+        
+        Mh = self.histories['Mh'][:,iz]
+        nh = self.histories['w'][:,iz]
+        
+        # Need to re-bin
+        #dMh_dMs = np.diff(Mh) / np.diff(Ms)
+        #rebin = np.concatenate((dMh_dMs, [dMh_dMs[-1]]))
+        
+        if bins is None:
+            bin_e = np.arange(6., 13., 0.1)
+        else:
+            bin_e = bins
+            
+        bin_c = bin_e2c(bin_e)
 
-        return Ms, self.histories['w'][:,iz]
+        phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
+    
+        return 10**bin_c, phi
         
     def SMHM(self, z):
         iz = np.argmin(np.abs(z - self.tab_z))

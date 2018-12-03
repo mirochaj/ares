@@ -18,6 +18,7 @@ A few papers on how it works:
 - Population III star formation: `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_
 
 Plus some more applications:
+
 - `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_
 - `Schneider (2018) <http://adsabs.harvard.edu/abs/2018PhRvD..98f3021S>`_
 - `Tauscher et al. (2017) <http://adsabs.harvard.edu/abs/2018ApJ...853..187T>`_

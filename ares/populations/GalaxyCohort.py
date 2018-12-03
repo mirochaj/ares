@@ -839,9 +839,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Mg'])
         
-    def StellarMassFunction(self, z, Mh):
-        Marr, phi = self.SMF(z)
-        return np.interp(Mh, Marr, phi)
+    def StellarMassFunction(self, z):
+        """
+        Return stellar mass function (duh).
+        """
+        zall, traj_all = self.Trajectories()
+        iz = np.argmin(np.abs(z - zall))
+        Ms = traj_all['Ms'][:,iz]
+        Mh = traj_all['Mh'][:,iz]
+        nh = traj_all['nh'][:,iz]
+        
+        dMh_dMs = np.diff(Mh) / np.diff(Ms)
+        rebin = np.concatenate((dMh_dMs, [dMh_dMs[-1]]))
+        
+        return Ms, nh * rebin
         
     def SurfaceDensity(self, z, mag=None, dz=1., dtheta=1.):
         """
@@ -887,53 +898,53 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             return Mobs, cgal
 
-    def SMF(self, z):
-        if not hasattr(self, '_phi_of_Mst'):
-            self._phi_of_Mst = {}
-        else:
-            if z in self._phi_of_Mst:
-                return self._phi_of_Mst[z]
-
-        zform, data = self.scaling_relations_sorted(z)
-
-        Mh = data['Mh']
-        Ms = data['Ms']
-        
-        dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1], axis=0,
-            kind=self.pf['pop_interp_lf'])
-        dndm_z = dndm_func(z)
-
-        # Interpolate dndm to same Mh grid as SAM
-        dndm_sam = np.interp(Mh, self.halos.tab_M[0:-1], dndm_z)
-
-        dndm = dndm_sam * self.focc(z=z, Mh=Mh)
-        dMh_dMs = np.diff(Mh) / np.diff(Ms)
-                
-        dMh_dlogMs = dMh_dMs * Ms[0:-1]
-        
-        # Only return stuff above Mmin
-        Mmin = np.interp(z, self.halos.tab_z, self._tab_Mmin)
-        if self.pf['pop_Tmax'] is None:
-            Mmax = self.pf['pop_lf_Mmax']
-        else:
-            Mmax = np.interp(z, self.halos.tab_z, self._tab_Mmax)
-        
-        i_min = np.argmin(np.abs(Mmin - self.halos.tab_M))
-        i_max = np.argmin(np.abs(Mmax - self.halos.tab_M))
-
-        phi_of_Ms = dndm[0:-1] * dMh_dlogMs
-
-        above_Mmin = Mh >= Mmin
-        below_Mmax = Mh <= Mmax
-        ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
-        mask = self.mask = np.logical_not(ok)
-
-        mass = np.ma.array(Ms[:-1], mask=mask)
-        phi = np.ma.array(phi_of_Ms, mask=mask, fill_value=tiny_phi)
-
-        self._phi_of_Mst[z] = mass, phi
-
-        return self._phi_of_Mst[z]
+    #def SMF(self, z):
+    #    if not hasattr(self, '_phi_of_Mst'):
+    #        self._phi_of_Mst = {}
+    #    else:
+    #        if z in self._phi_of_Mst:
+    #            return self._phi_of_Mst[z]
+    #
+    #    zform, data = self.Trajectories()#self.scaling_relations_sorted(z)
+    #
+    #    Mh = data['Mh']
+    #    Ms = data['Ms']
+    #    
+    #    dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1], axis=0,
+    #        kind=self.pf['pop_interp_lf'])
+    #    dndm_z = dndm_func(z)
+    #
+    #    # Interpolate dndm to same Mh grid as SAM
+    #    dndm_sam = np.interp(Mh, self.halos.tab_M[0:-1], dndm_z)
+    #
+    #    dndm = dndm_sam * self.focc(z=z, Mh=Mh)
+    #    dMh_dMs = np.diff(Mh) / np.diff(Ms)
+    #            
+    #    dMh_dlogMs = dMh_dMs * Ms[0:-1]
+    #    
+    #    # Only return stuff above Mmin
+    #    Mmin = np.interp(z, self.halos.tab_z, self._tab_Mmin)
+    #    if self.pf['pop_Tmax'] is None:
+    #        Mmax = self.pf['pop_lf_Mmax']
+    #    else:
+    #        Mmax = np.interp(z, self.halos.tab_z, self._tab_Mmax)
+    #    
+    #    i_min = np.argmin(np.abs(Mmin - self.halos.tab_M))
+    #    i_max = np.argmin(np.abs(Mmax - self.halos.tab_M))
+    #
+    #    phi_of_Ms = dndm[0:-1] * dMh_dlogMs
+    #
+    #    above_Mmin = Mh >= Mmin
+    #    below_Mmax = Mh <= Mmax
+    #    ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
+    #    mask = self.mask = np.logical_not(ok)
+    #
+    #    mass = np.ma.array(Ms[:-1], mask=mask)
+    #    phi = np.ma.array(phi_of_Ms, mask=mask, fill_value=tiny_phi)
+    #
+    #    self._phi_of_Mst[z] = mass, phi
+    #
+    #    return self._phi_of_Mst[z]
         
     @property
     def is_uvlf_parametric(self):
@@ -2011,7 +2022,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             raise NotImplementedError('No SAM with nz={}'.format(\
                 self.pf['pop_sam_nz']))
-                        
+                
+    def _SAM_jac(self, z, y):
+        if self.pf['pop_sam_nz'] == 1:
+            return self._SAM_1z_jac(z, y)
+        elif self.pf['pop_sam_nz'] == 2:
+            return self._SAM_2z_jac(z, y)
+        else:
+            raise NotImplementedError('No SAM with nz={}'.format(\
+                self.pf['pop_sam_nz']))                
+            
     def _SAM_1z(self, z, y):
         """
         Simple semi-analytic model for the components of galaxies.
@@ -2140,7 +2160,138 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         results = [y1p, y2p, y3p, y4p, y5p, y6p]
         
         return np.array(results)
-
+        
+    def _SAM_1z_jac(self, z, y):
+        """
+        Jacobian for _SAM_1z
+        """
+    
+        print('jac!', z, y)
+    
+        Mh, Mg, Mst, MZ, cMst, Mbh = y
+    
+        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ,
+            'cMst': cMst, 'Mbh': Mbh}
+    
+        # Assume that MZ, Mg, and Mstell acquired *not* by smooth inflow
+        # is same fraction of accreted mass as fractions in this halo
+        # right now
+    
+        fb = self.cosm.fbar_over_fcdm
+    
+        # Convert from s/dz to yr/dz
+        dtdz_s = -self.cosm.dtdz(z)
+        dtdz = dtdz_s / s_per_yr
+    
+        # Splitting up the inflow. P = pristine.
+        # Units = Msun / yr -> Msun / dz
+        PIR = fb * self.MAR(z, Mh) * dtdz
+        NPIR = fb * self.MDR(z, Mh) * dtdz
+        #PIR = lambda _Mh: fb * self.MAR(z, _Mh) * dtdz
+        #NPIR = lambda _Mh: fb * self.MDR(z, _Mh) * dtdz
+        #
+        # Measured relative to baryonic inflow
+        Mb = fb * Mh
+        Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
+        Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
+        Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
+    
+        # Need SFR per dz
+        #if not self.pf['pop_star_formation']:
+        #    fstar = SFR = 0.0
+        #elif self.pf['pop_sfr'] is None:
+        #    fstar = lambda _Mh: self.SFE(z=kw['z'], Mh=_Mh)
+        #    SFR = lambda _Mh: PIR(_Mh) * fstar(_Mh)
+        #else:
+        #    fstar = 1e-10
+        #    SFR = lambda _Mh: self.sfr(z=kw['z'], Mh=_Mh) * dtdz
+    
+        # Need SFR per dz
+        if not self.pf['pop_star_formation']:
+            fstar = SFR = 0.0
+        elif self.pf['pop_sfr'] is None:
+            fstar = self.SFE(**kw)
+            SFR = PIR * fstar
+        else:
+            fstar = 1e-10
+            SFR = self.sfr(**kw) * dtdz
+    
+        # "Quiet" mass growth
+        fsmooth = self.fsmooth(**kw)
+    
+        # Eq. 1: halo mass.
+        _y1p = lambda _Mh: self.MGR(z, _Mh) * dtdz
+        y1p = derivative(_y1p, Mh)
+    
+        # Eq. 2: gas mass
+        if self.pf['pop_sfr'] is None:
+            y2p = PIR * (1. - SFR/PIR) + NPIR * Gfrac
+        else:
+            y2p = PIR * (1. - fstar) + NPIR * Gfrac
+            
+        #_yp = lambda _Mh: self.MGR(z, _Mh) * dtdz
+        #y2p = derivative(_yp2, Mh)
+        
+        # Add option of parameterized stifling of gas supply, and
+        # ejection of gas.
+    
+        if self._done_setting_Mmax:
+            Mmax = self.Mmax(z)
+        else:
+            Mmax = np.inf
+    
+        # Eq. 3: stellar mass
+        Mmin = self.Mmin(z)
+        if (Mh < Mmin) or (Mh > Mmax):
+            y3p = SFR = 0.
+        else:
+            y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
+    
+        # Eq. 4: metal mass -- constant return per unit star formation for now
+        y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
+            * (1. - self.pf['pop_mass_escape']) \
+            + NPIR * Zfrac
+    
+        if (Mh < Mmin) or (Mh > Mmax):
+            y5p = 0.
+        else:
+            y5p = SFR + NPIR * Sfrac
+    
+        # Add BHs
+        if self.pf['pop_bh_formation']:
+            if self.pf['pop_bh_facc'] is not None:
+                y6p = self.pf['pop_bh_facc'] * PIR
+            else:
+    
+                C = dtdz_s * 4.0 * np.pi * G * m_p / sigma_T / c
+    
+                if self.pf['pop_bh_seed_mass'] is not None:
+                    Mseed = self.pf['pop_bh_seed_mass']    
+                elif self.pf['pop_bh_seed_eff'] is not None:
+                    Mseed = self.pf['pop_bh_seed_eff'] * Mg
+                else:
+                    Mseed = self.pf['pop_bh_seed_ratio'] * Mmin
+    
+                # Form new BHs
+                if (Mh >= Mmin) and (Mbh == 0.0):
+                    y6p = Mseed * C
+                elif Mbh > 0:
+                    # Eddington-limited growth. Remember Mbh is really
+                    # just the accreted mass so we need to add in the seed mass.
+                    y6p = C * (Mbh + Mseed)
+                else:
+                    y6p = 0.0
+    
+        else:
+            y6p = 0.0
+    
+        # Remember that we're building a matrix. Columns:
+        # [Mh, Mg, Mst, MZ, cMst, Mbh]
+        # First, for testing, just do diagonal elements.
+        results = [y1p, 0.0, 0.0, 0.0, 0.0, 0.0]
+    
+        return np.diag(results)    
+    
     def _SAM_2z(self, z, y):
         raise NotImplemented('Super not done with this!')
         
@@ -2421,6 +2572,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _ScalingRelationsGeneralSFE(self, M0=0):
         return self.Trajectories(M0)
         
+    @property
+    def _trajectories(self):
+        if not hasattr(self, '_trajectories_'):
+            raise AttributeError('Must set by hand or run `Trajectories`.')
+        return self._trajectories_    
+            
+    @_trajectories.setter
+    def _trajectories(self, value):
+        self._trajectories_ = value
+        
     def Trajectories(self, M0=0):
         """
         In this case, the formation time of a halo matters.
@@ -2477,6 +2638,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zmax.append(_results['zmax'])
 
         results['zmax'] = np.array(zmax)
+        results['z'] = np.array(zform)
         
         self._trajectories = np.array(zform), results
 
@@ -2519,13 +2681,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             dz = np.diff(self.halos.tab_z)[0]
             zfreq = 1
 
-        solver = ode(self._SAM).set_integrator('lsoda', nsteps=1e4, 
-            atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
+        # jac=self._SAM_jac
+        solver = ode(self._SAM).set_integrator('lsoda', 
+            nsteps=1e4, atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'],
+            with_jacobian=False)
         
         # Criteria used to kill a population.    
-        has_e_limit = self.pf['pop_bind_limit'] is not None    
-        has_T_limit = self.pf['pop_temp_limit'] is not None    
-        has_t_limit = self.pf['pop_time_limit'] is not None    
+        has_e_limit = self.pf['pop_bind_limit'] is not None
+        has_T_limit = self.pf['pop_temp_limit'] is not None
+        has_t_limit = self.pf['pop_time_limit'] is not None
         has_m_limit = self.pf['pop_mass_limit'] is not None
         has_a_limit = self.pf['pop_abun_limit'] is not None
         
