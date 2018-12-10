@@ -359,6 +359,9 @@ class PowerSpectrum21cm(AnalyzePS):
             data['c'] = C
             data['Ts'] = Ts
             data['Tk'] = Tk
+            data['xa'] = xa
+            data['Ja'] = Ja
+            
             
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.

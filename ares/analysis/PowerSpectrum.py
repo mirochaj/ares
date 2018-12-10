@@ -84,7 +84,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         elif dimensionless:
             if field == '21':
                 if renorm is None:
-                    dTb0 = self.history['dTb_bulk'][iz]
+                    dTb0 = self.history['dTb0_1'][iz]
                 else:
                     dTb0 = renorm[iz]
                     
@@ -380,7 +380,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ps = p
         elif dimensionless:
             if renorm is None:
-                dTb0 = self.history['dTb_bulk']
+                dTb0 = self.history['dTb0_1']
             else:
                 dTb0 = renorm
                 
@@ -502,7 +502,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             if real_space or (not dimensionless):
                 norm = 1.
             else:
-                norm = self.history['dTb_bulk'][iz]**2
+                norm = self.history['dTb0_1'][iz]**2
             
             # Auto correlations in top row, cross terms on bottom
             # z=8 on top, z=12 on bottom
