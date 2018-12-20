@@ -409,28 +409,31 @@ class PowerSpectrum21cm(AnalyzePS):
             xavg_gs = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['xavg'][-1::-1])
                 
-            data['dTb0'] = dTb_ps
+            data['dTb'] = dTb_ps
             
             data['dTb_bulk'] = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb_bulk'][-1::-1])
 
             
             ##
-            # Correct for fraction of ionized and heated volume!
-            ##
-            data['dTb0_1'] = data['dTb_bulk'] * (1. - Qi)
-            
+            # Correct for fraction of ionized and heated volumes
+            # and densities!
+            ##            
             if self.pf['ps_include_temp']:
-                data['dTb0_2'] = (1 - Qh - Qi) * data['dTb_bulk'] \
+                data['dTb_vcorr'] = (1 - Qh - Qi) * data['dTb_bulk'] \
                     + Qh * self.hydr.dTb(z, 0.0, Th)
-                               
-                #data['dTb0_2'] = data['dTb0_1'] * (1. - Qh) 
-                #    + Qh * self.hydr.dTb(z, 0.0, Th) - data['dTb0_1']
             else:
-                data['dTb0_2'] = data['dTb0_1']
+                data['dTb_vcorr'] = data['dTb_bulk'] * (1. - Qi)
             
-            
+            if self.pf['ps_include_xcorr_ion_rho']:
+                pass
+            if self.pf['ps_include_xcorr_ion_hot']:
+                pass
                 
+            # Just for now    
+            data['dTb0'] = data['dTb']
+            data['dTb0_2'] = data['dTb0_1'] = data['dTb_vcorr']
+            
             #if self.pf['include_ion_fl']:
             #    if self.pf['ps_rescale_Qion']:
             #        xibar = min(np.interp(z, self.pops[0].halos.z,
