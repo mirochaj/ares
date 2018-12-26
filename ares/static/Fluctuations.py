@@ -266,6 +266,9 @@ class Fluctuations(object):
         Relative density != relative over-density.
         """
         
+        if not self.pf['ps_include_temp']:
+            return 0.0
+        
         delta_i_bar = self.delta_bubble_vol_weighted(z, zeta)
 
         rdens = self.pf["bubble_shell_rdens_zone_0"]
@@ -278,8 +281,16 @@ class Fluctuations(object):
         
         delta_i_bar = self.delta_bubble_vol_weighted(z, zeta)
         delta_h_bar = self.delta_shell(z, zeta)
+        
+        if self.pf['ps_igm_model'] == 2:
+            delta_hal_bar = self.mean_halo_overdensity(z)
+            Qhal = self.Qhal(z, Mmax=self.Mmin(z))
+        else:
+            Qhal = 0.0
+            delta_hal_bar = 0.0
                 
-        return -(delta_i_bar * Qi + delta_h_bar * Qh) / (1. - Qi - Qh)
+        return -(delta_i_bar * Qi + delta_h_bar * Qh + delta_hal_bar * Qhal) \
+            / (1. - Qi - Qh - Qhal)
 
     def BubbleFillingFactor(self, z, zeta, rescale=True):
         """
@@ -829,7 +840,7 @@ class Fluctuations(object):
         if term not in self._cache_cf_[z]:
             return None
         else:
-            #print("Loaded xi_{} at z={} from cache.".format(term, z))
+            #print("Loaded cf_{} at z={} from cache.".format(term, z))
             return self._cache_cf_[z][term]    
     
     def _cache_ps(self, z, term):
@@ -861,8 +872,8 @@ class Fluctuations(object):
         if z in self._cache_Vo_:
             return self._cache_Vo_[z]
         
-        if self.is_Rs_const and len(self._cache_Vo_.keys()) > 0:
-            return self._cache_Vo_[self._cache_Vo_.keys()[0]]
+        #if self.is_Rs_const and len(self._cache_Vo_.keys()) > 0:
+        #    return self._cache_Vo_[self._cache_Vo_.keys()[0]]
 
         return None
         
@@ -873,8 +884,8 @@ class Fluctuations(object):
         if z in self._cache_IV_:
             return self._cache_IV_[z]
             
-        if self.is_Rs_const and len(self._cache_IV_.keys()) > 0:
-            return self._cache_IV_[self._cache_IV_.keys()[0]]    
+        #if self.is_Rs_const and len(self._cache_IV_.keys()) > 0:
+        #    return self._cache_IV_[self._cache_IV_.keys()[0]]    
     
         return None    
         
@@ -895,7 +906,7 @@ class Fluctuations(object):
         rho_h = self.halos.MeanDensity(1e8, z) * cm_per_mpc**3 / g_per_msun
         return rho_h / self.cosm.mean_density0 - 1.
         
-    def fcoll_vol(self, z, Mmin=0.0, Mmax=None):
+    def Qhal(self, z, Mmin=None, Mmax=None):
         """
         This may not be quite right, since we just integrate over the mass
         range we have....
@@ -908,10 +919,22 @@ class Fluctuations(object):
         Rvir = self.halos.VirialRadius(M_h, z) / 1e3 # Convert to Mpc
         Vvir = 4. * np.pi * Rvir**3 / 3.
         
-        if Mmin > 0:
-            raise NotImplemented('hey!')
+        if Mmin is not None:
+            imin = np.argmin(np.abs(M_h - Mmin))
+        else:
+            imin = 0
         
-        return 1. - np.exp(-np.trapz(dndm_h * Vvir * M_h, x=np.log(M_h)))
+        if Mmax is not None:
+            imax = np.argmin(np.abs(M_h - Mmax))
+        else:
+            imax = None  
+        
+        integ = dndm_h * Vvir * M_h
+        
+        Q_hal = 1. - np.exp(-np.trapz(integ[imin:imax], 
+            x=np.log(M_h[imin:imax])))
+        
+        return Q_hal
         
         #return self.get_prob(z, M_h, dndm_h, Mmin, Vvir, exp=False, ep=0.0, 
         #    Mmax=Mmax)
@@ -939,19 +962,31 @@ class Fluctuations(object):
         
         Qi = self.MeanIonizedFraction(z, zeta)
         Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
-        Qb = 1. - Qi - Qh
+        
+        if self.pf['ps_igm_model'] == 2:
+            Qhal = self.Qhal(z, Mmax=self.Mmin(z))
+            del_hal = self.mean_halo_overdensity(z)
+        else:
+            Qhal = 0.0
+            del_hal = 0.0
+
+        Qb = 1. - Qi - Qh - Qhal
         Tcmb = self.cosm.TCMB(z)
         del_i = self.delta_bubble_vol_weighted(z, zeta)
         del_h = self.delta_shell(z, zeta)
         del_b = self.BulkDensity(z, zeta, R_s)
         ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-        cb = Tcmb / Ts
+        
+        if Ts is not None:
+            cb = Tcmb / Ts
+        else:
+            cb = 0.0
         
         ##
         # Otherwise, get to it.
         ##
         if term == 'b':
-            val = 1. - Qi - Qh
+            val = 1. - Qi - Qh - Qhal
         elif term == 'i':
             val = Qi
         elif term == 'n':
@@ -964,7 +999,6 @@ class Fluctuations(object):
         elif term in ['n*d', 'i*d']:
             # <xd> = <(1-x_i)d> = <d> - <x_i d> = - <x_i d>
             if self.pf['ps_include_xcorr_ion_rho']:
-                del_i = self.delta_bubble_vol_weighted(z, zeta)
 
                 if term == 'i*d':
                     val = Qi * del_i
@@ -1012,31 +1046,14 @@ class Fluctuations(object):
             val = 0.0
         elif term.strip() == 'n*h':
             # <xh> = <h> - <x_i h> = <h>
-            c = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
             val = Qh
         elif term.strip() == 'i*c':
             val = 0.0   
         elif term == 'c':
-            ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-            ci = self.BubbleContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
             val = ch * Qh + cb * Qb 
         elif term.strip() == 'n*c':
             # <xc> = <c> - <x_i c> 
-            ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-            ci = self.BubbleContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-            Qh = self.BubbleShellFillingFactor(z, zeta, R_s)
             val = ch * Qh 
-        elif term.strip() == 'n*d*c':
-            # <xdc> = <dc> - <x_i d c>
-            if self.pf['ps_include_xcorr_ion_rho'] and self.pf['ps_include_xcorr_ion_hot']:
-                del_i = self.delta_bubble_vol_weighted(z, zeta)                
-                ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-                ci = self.BubbleContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-                avg_cd = self.ExpectationValue1pt(z, zeta, term='c*d', 
-                    R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                val = avg_cd - ci * del_i * Qi
-            else:
-                val = 0.0
         elif term == 'psi':
             # <psi> = <x (1 + d)> = <x> + <xd> = 1 - <x_i> + <d> - <x_i d>
             #       = 1 - <x_i> - <x_i d>
@@ -1092,14 +1109,16 @@ class Fluctuations(object):
             #val = avg_psi + avg_psi_c 
         
         elif term == '21':
+            # dTb = T0 * (1 + d21) = T0 * xHI * (1 + d) = T0 * psi
+            # so  d21 = psi - 1
             if self.pf['ps_include_temp']:
                 avg_phi = self.ExpectationValue1pt(z, zeta, term='phi',
                     R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                val = 1. - avg_phi    
+                val = avg_phi - 1.
             else:
                 avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
                     R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                val = 1. - avg_psi
+                val = avg_psi - 1.
         elif term == 'o':
             avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
@@ -1117,11 +1136,42 @@ class Fluctuations(object):
                     
         else:
             raise ValueError('Don\' know how to handle <{}>'.format(term))
-        
+                
         self._cache_p_[z][term] = val
         
         return val
-    
+                
+    @property
+    def _getting_basics(self):
+        if not hasattr(self, '_getting_basics_'):
+            self._getting_basics_ = False
+        return self._getting_basics_
+                
+    def get_basics(self, z, zeta, R, R_s, Th, Ts, Tk, Ja):
+        
+        self._getting_basics_ = True
+        
+        basics = {}
+        for term in ['ii', 'ih', 'ib', 'hh', 'hb', 'bb']:
+            cache = self._cache_jp(z, term)
+            
+            if cache is None and term != 'bb':
+                P, P1, P2 = self.ExpectationValue2pt(z, zeta, 
+                    R=R, term=term, R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+            elif cache is None and term == 'bb':
+                P = 1. - (basics['ii'][0] + 2 * basics['ib'][0]
+                  + 2 * basics['ih'][0] + basics['hh'][0] + 2 * basics['hb'][0])
+                P1 = P2 = np.zeros_like(P)  
+                self._cache_jp_[z][term] = R, P, np.zeros_like(P), np.zeros_like(P)
+            else:
+                P, P1, P2 = cache[1:]
+                
+            basics[term] = P, P1, P2
+            
+        self._getting_basics_ = False    
+            
+        return basics    
+            
     def ExpectationValue2pt(self, z, zeta, R, term='ii', R_s=None, R3=None, 
         Th=500.0, Ts=None, Tk=None, Ja=None, k=None):
         """
@@ -1148,17 +1198,17 @@ class Fluctuations(object):
         ##
         # Check cache for match
         ##
-        cached_result = self._cache_jp(z, term)
-
-        if cached_result is not None:
-            _R, _jp, _jp1, _jp2 = cached_result
-            
-            if _R.size == R.size:
-                if np.allclose(_R, R):
-                    return cached_result[1:]
-
-            print("interpolating jp_{}".format(ii))
-            return np.interp(R, _R, _jp), np.interp(R, _R, _jp1), np.interp(R, _R, _jp2)
+        #cached_result = self._cache_jp(z, term)
+        #
+        #if cached_result is not None:
+        #    _R, _jp, _jp1, _jp2 = cached_result
+        #    
+        #    if _R.size == R.size:
+        #        if np.allclose(_R, R):
+        #            return cached_result[1:]
+        #
+        #    print("interpolating jp_{}".format(ii))
+        #    return np.interp(R, _R, _jp), np.interp(R, _R, _jp1), np.interp(R, _R, _jp2)
 
         # Remember, we scaled the BSD so that these two things are equal
         # by construction.
@@ -1233,86 +1283,28 @@ class Fluctuations(object):
                 return ev2pt, Rzeros, Rzeros
                 
             # also iid, iidd
+            
+        if not self.pf['ps_include_temp']:
+            if ('c' in term) or ('h' in term):
+                return Rzeros, Rzeros, Rzeros
+                
         
-        if z not in self._done:
-            self._done[z] = []
-            
-        if term not in self._done:
-            self._done[z].append(term)
-            
         ##
         # Handy
         ##
-        if z in self._cache_jp_:
-                        
-            if 'ii' in self._cache_jp_[z]:
-                _R, _P_ii, _P_ii_1, _P_ii_2 = self._cache_jp_[z]['ii']
+        if not self._getting_basics:        
+            basics = self.get_basics(z, zeta, R, R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+        
+            if term in basics:
+                return basics[term]
+        
+            _P_ii, _P_ii_1, _P_ii_2 = basics['ii']
+            _P_hh, _P_hh_1, _P_hh_2 = basics['hh']
+            _P_bb, _P_bb_1, _P_bb_2 = basics['bb']
+            _P_ih, _P_ih_1, _P_ih_2 = basics['ih']
+            _P_ib, _P_ib_1, _P_ib_2 = basics['ib']
+            _P_hb, _P_hb_1, _P_hb_2 = basics['hb']
                 
-                if term == 'ii':    
-                    return _P_ii, _P_ii_1, _P_ii_2
-                
-            elif term != 'ii' and 'ii' not in self._done[z]:
-                _P_ii, _P_ii_1, _P_ii_2 = self.ExpectationValue2pt(z, zeta, 
-                    R=R, term='ii', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                                
-            if 'hh' in self._cache_jp_[z]:
-                _R, _P_hh, _P_hh_1, _P_hh_2 = self._cache_jp_[z]['hh']
-                
-                if term == 'hh':    
-                    return _P_hh, _P_hh_1, _P_hh_2
-                    
-            elif term != 'hh' and 'hh' not in self._done[z]:
-                _P_hh, _P_hh_1, _P_hh_2 = self.ExpectationValue2pt(z, zeta, 
-                    R=R, term='hh', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)        
-                                
-            elif not self.pf['ps_include_temp']:
-                _P_hh = _P_hh_1 = _P_hh_2 = Rzeros
-                                
-            if 'ih' in self._cache_jp_[z]:
-                _R, _P_ih, _P_ih_1, _P_ih_2 = self._cache_jp_[z]['ih']
-                
-                if term == 'ih':
-                    return _P_ih, _P_ih_1, _P_ih_2
-                        
-            elif term != 'ih' and 'ih' not in self._done[z]:
-                _P_ih, _P_ih_1, _P_ih_2 = self.ExpectationValue2pt(z, zeta, 
-                    R=R, term='ih', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                
-            elif not self.pf['ps_include_temp']:
-                _P_ih = _P_ih_1 = _P_ih_2 = Rzeros    
-                
-            if 'ib' in self._cache_jp_[z]:
-                _R, _P_ib, _P_ib_1, _P_ib_2 = self._cache_jp_[z]['ib']
-                
-                if term == 'ib':
-                    return _P_ib, _P_ib_1, _P_ib_2
-                    
-            elif term != 'ib' and 'ib' not in self._done[z]:
-                _P_ib, _P_ib_1, _P_ib_2 = self.ExpectationValue2pt(z, zeta, 
-                    R=R, term='ib', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                                    
-            if 'hb' in self._cache_jp_[z]:
-                _R, _P_hb, _P_hb_1, _P_hb_2 = self._cache_jp_[z]['hb']
-                
-                if term == 'hb':
-                    return _P_hb, _P_hb_1, _P_hb_2
-                
-            elif term != 'hb' and 'hb' not in self._done[z]:
-                _P_hb, _P_hb_1, _P_hb_2 = self.ExpectationValue2pt(z, zeta, 
-                    R=R, term='hb', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-            
-            elif not self.pf['ps_include_temp']:
-                _P_ib = _P_ib_1 = _P_ib_2 = Rzeros
-                    
-            if 'bb' in self._cache_jp_[z]:
-                _R, _P_bb, _P_bb_1, _P_bb_2 = self._cache_jp_[z]['bb']
-                
-                if term == 'bb':
-                    return _P_bb, _P_bb_1, _P_bb_2
-                    
-            elif term != 'bb' and 'bb' not in self._done[z]:
-                _P_bb, _P_bb_1, _P_bb_2 = self.ExpectationValue2pt(z, zeta, 
-                    R=R, term='bb', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)                
                 
         ##
         # Check for derived quantities like psi, phi
@@ -1356,7 +1348,7 @@ class Fluctuations(object):
             ev2pt = dd + ii - 2. * di + iidd - 2. * (idd - iid) \
                   + 1. - 2 * Qi - 2 * ev_id_1
             
-            self._cache_jp_[z][term] = R, ev2pt, ev2pt_1, ev2pt_2
+            #self._cache_jp_[z][term] = R, ev2pt, ev2pt_1, ev2pt_2
         
             return ev2pt, ev2pt_1, ev2pt_2
         
@@ -1369,6 +1361,10 @@ class Fluctuations(object):
             return ev_psi + ev_oo, ev_psi1 + ev_oo1, ev_psi2 + ev_oo2
         
         elif term == '21':
+            # dTb = T0 * (1 + d21) = T0 * psi
+            # d21 = psi - 1
+            # <d21 d21'> = <(psi - 1)(psi' - 1)> 
+            #            = <psi psi'> - 2 <psi> + 1
             if self.pf['ps_include_temp']:            
                 # New formalism
                 # <phi phi'> = <psi psi'> + 2 <psi psi' c> + <psi psi' c c'>
@@ -1386,10 +1382,6 @@ class Fluctuations(object):
                 avg_psi = self.ExpectationValue1pt(z, zeta, term='psi',
                     R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
                 ev21 = ev_psi + 1. - 2. * avg_psi
-            
-            print("'phi' still unfinished")
-            
-            
             
             
             #raise NotImplemented('still working!')
@@ -1418,29 +1410,29 @@ class Fluctuations(object):
         
             return ev2pt, Rzeros, Rzeros
             
-        elif term == 'bb':
-            ev_ii, one, two = self.ExpectationValue2pt(z, zeta, R,
-                term='ii', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-            ev_ib, one, two = self.ExpectationValue2pt(z, zeta, R,
-                term='ib', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                
-            if self.pf['ps_include_temp']:
-                ev_ih, one, two = self.ExpectationValue2pt(z, zeta, R,
-                    term='ih', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                ev_hh, one, two = self.ExpectationValue2pt(z, zeta, R,
-                    term='hh', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                ev_hb, one, two = self.ExpectationValue2pt(z, zeta, R,
-                    term='hb', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-            else:
-                ev_ih = ev_hh = ev_hb = 0.0  
-             
-            #return (1. - Qi - Qh)**2 * Rones, Rzeros, Rzeros
-            
-            ev_bb = 1. - (ev_ii + 2 * ev_ib + 2 * ev_ih + ev_hh + 2 * ev_hb)
-            
-            self._cache_jp_[z][term] = R, ev_bb, Rzeros, Rzeros
-            
-            return ev_bb, Rzeros, Rzeros    
+        #elif term == 'bb':
+        #    ev_ii, one, two = self.ExpectationValue2pt(z, zeta, R,
+        #        term='ii', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+        #    ev_ib, one, two = self.ExpectationValue2pt(z, zeta, R,
+        #        term='ib', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+        #        
+        #    if self.pf['ps_include_temp']:
+        #        ev_ih, one, two = self.ExpectationValue2pt(z, zeta, R,
+        #            term='ih', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+        #        ev_hh, one, two = self.ExpectationValue2pt(z, zeta, R,
+        #            term='hh', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+        #        ev_hb, one, two = self.ExpectationValue2pt(z, zeta, R,
+        #            term='hb', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+        #    else:
+        #        ev_ih = ev_hh = ev_hb = 0.0  
+        #     
+        #    #return (1. - Qi - Qh)**2 * Rones, Rzeros, Rzeros
+        #    
+        #    ev_bb = 1. - (ev_ii + 2 * ev_ib + 2 * ev_ih + ev_hh + 2 * ev_hb)
+        #    
+        #    self._cache_jp_[z][term] = R, ev_bb, Rzeros, Rzeros
+        #    
+        #    return ev_bb, Rzeros, Rzeros    
                 
         # <psi psi' c> = <cdd'> - 2 <cdi'> - 2 <ci'dd>
         elif term == 'ppc':
@@ -1475,149 +1467,33 @@ class Fluctuations(object):
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)    
                 
             return cc + 2*ccd + ccdd, Rzeros, Rzeros    
-            
-        elif term == 'cc':
-            
-            result = Rzeros.copy()
-            if self.pf['ps_include_temp']:                
-                result += _P_hh * ch**2 + 2 * _P_hb * ch * cb + _P_bb * cb**2
-                
-            if self.pf['ps_include_lya']:
-                xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
-                
-                if xa < self.pf['ps_lya_cut']:
-                    ev_aa, ev_aa1, ev_aa2 = \
-                        self.ExpectationValue2pt(z, zeta, R, term='aa',
-                            R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, k=k, Ja=Ja)
-                
-                    Tcmb = self.cosm.TCMB(z)
-                    result += ev_aa / (1. + xa)**2
-                
-            return result, Rzeros, Rzeros
         
-        elif term == 'ic':
-            if not self.pf['ps_include_xcorr_ion_hot']:
-                return (Qi**2 * ci + Qh * Qi * ch) * Rones, Rzeros, Rzeros
-            
-            ev = _P_ih * ch + _P_ib * cb
-            
-            return ev, Rzeros, Rzeros
-        
-        elif term == 'icc':
-            ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-            ci = self.BubbleContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
-            ev_ii, ev_ii1, ev_ii2 = self.ExpectationValue2pt(z, zeta, R=R, 
-                term='ii', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-            ev_ih, ev_ih1, ev_ih2 = self.ExpectationValue2pt(z, zeta, R=R, 
-                term='ih', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-                
-            return ev_ii * ci**2 + ev_ih * ch * ci, Rzeros, Rzeros
-        
-        elif term == 'iidd' and self.pf['ps_use_wick']:
-            
-            ev_ii, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
-                term='ii')
-            ev_dd, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
-                term='dd')
-            ev_id, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
-                term='id')    
-            
-            #if self.pf['ps_include_ion']:
-            avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
-            
-            idt, id1, id2 = \
-                self.ExpectationValue2pt(z, zeta, R, term='id')
-            
-            return ev_ii * ev_dd + ev_id**2 + avg_id**2, Rzeros, Rzeros
-            
-        elif term == 'cd':
-            if not self.pf['ps_include_xcorr_hot_rho']:
-                return Rzeros, Rzeros, Rzeros
-                
-            ev = _P_ih * ch * delta_i_bar \
-               + _P_ib * cb * delta_i_bar \
-               + _P_hh * ch * delta_h_bar \
-               + _P_hb * ch * delta_b_bar \
-               + _P_hb * cb * delta_h_bar \
-               + _P_bb * cb * delta_b_bar
-            
-            return ev, Rzeros, Rzeros
-            
-        elif term == 'ccdd' and self.pf['ps_use_wick']:
-            
-            ev_cc, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
-                term='cc')
-            ev_dd, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
-                term='dd')
-            ev_cd, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
-                term='cd')    
-            
-            #if self.pf['ps_include_ion']:
-            avg_cd = self.ExpectationValue1pt(z, zeta, term='c*d')
-            
-            cdt, cd1, cd2 = \
-                self.ExpectationValue2pt(z, zeta, R, term='cd')
-            
-            return ev_cc * ev_dd + ev_cd**2 + avg_cd**2, Rzeros, Rzeros    
-        
-        elif term == 'mm':
+        elif term in ['mm', 'dd']:
             # Equivalent to correlation function since <d> = 0
             return self.spline_cf_mm(z)(np.log(R)), np.zeros_like(R), np.zeros_like(R)
-        elif term == 'dd':
-            dd = _P_ii * delta_i_bar**2 \
-               + _P_hh * delta_h_bar**2 \
-               + _P_bb * delta_b_bar**2 \
-               + 2 * _P_ih * delta_i_bar * delta_h_bar \
-               + 2 * _P_ib * delta_i_bar * delta_b_bar \
-               + 2 * _P_hb * delta_h_bar * delta_b_bar
-               
-            return dd, Rzeros, Rzeros
-            
-        elif term == 'aa':
-            aa = self.CorrelationFunction(z, zeta, R, term='aa',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja, k=k)
-                
-            return aa, Rzeros, Rzeros
         
+        #elif term == 'dd':
+        #    dd = _P_ii * delta_i_bar**2 \
+        #       + _P_hh * delta_h_bar**2 \
+        #       + _P_bb * delta_b_bar**2 \
+        #       + 2 * _P_ih * delta_i_bar * delta_h_bar \
+        #       + 2 * _P_ib * delta_i_bar * delta_b_bar \
+        #       + 2 * _P_hb * delta_h_bar * delta_b_bar
+        #       
+        #    return dd, Rzeros, Rzeros
+            
         ##
-        # BUNCHA TEMPERATURE-DENSITY STUFF BELOW
+        # For 3-zone IGM, can compute everything from permutations of
+        # i, h, and b.
         ##
-        elif term == 'ccd':
-            ev = _P_hh * ch**2 * delta_h_bar \
-               + _P_hb * ch * cb * delta_h_bar \
-               + _P_hb * ch * cb * delta_b_bar \
-               + _P_bb * cb**2 * delta_b_bar
-               
-            return ev, Rzeros, Rzeros
-        # <c d x_i'>
-        elif term == 'cdip':
-            ev = _P_ih * delta_h_bar * ch + _P_ib * delta_b_bar * cb
+        if self.pf['ps_igm_model'] == 1 and not self._getting_basics:
+            return self.ThreeZoneModel(z, zeta, R=R, term=term,
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             
-            return ev, Rzeros, Rzeros
             
-        # <c d d' x_i'>
-        elif term == 'cddip':
-            ev = _P_ih * delta_i_bar * delta_h_bar * ch \
-               + _P_ib * delta_i_bar * delta_b_bar * cb
-        
-            return ev, Rzeros, Rzeros    
-        
-        elif term == 'cdpip':
-            ev = _P_ih * delta_i_bar * ch \
-               + _P_ib * delta_i_bar * cb
-        
-            return ev, Rzeros, Rzeros    
-        
-        # Wick's theorem approach above
-        elif term == 'ccdd':
-            ev = _P_hh * delta_h_bar**2 * ch**2 \
-               + 2 * _P_hb * delta_h_bar * ch * delta_b_bar * cb \
-               + _P_bb * delta_b_bar**2 * cb**2
-            
-            return ev, Rzeros, Rzeros
         
         ##    
-        # On to fundamental quantities
+        # On to things we must be more careful with.
         ##
         
         # Minimum bubble size            
@@ -1658,7 +1534,7 @@ class Fluctuations(object):
         else:
             f_h = 1.       
                 
-        dR = np.diff(10**bin_c2e(np.log(R)))#np.concatenate((np.diff(R), [np.diff(R)[-1]]))  
+        #dR = np.diff(10**bin_c2e(np.log(R)))#np.concatenate((np.diff(R), [np.diff(R)[-1]]))  
         #dR = 10**np.arange(np.log(R).min(), np.log(R).max() + 2 * dlogR, dlogR)    
                 
         # Loop over scales
@@ -1818,9 +1694,11 @@ class Fluctuations(object):
                 # zeta * fcoll.
                                                    
                 # Start chugging along on two-bubble term   
-                if np.any(Vne1 < 1e-8):
-                    N = sum(Vne1 < 1e-8)
-                    print('R={}: Vss_ne_1 (hh) < 0 {} / {} times'.format(sep, N, len(R_s)))
+                if np.any(Vne1 < 1e-12):
+                    N = sum(Vne1 < 1e-12)
+                    print('z={}, R={}: Vss_ne_1 (hh) < 0 {} / {} times'.format(z, sep, N, len(R_s)))
+                    #print(Vne1[Vne1 < 1e-12])
+                    print(np.all(V_ioh > V_i), np.all(V_ioh > all_IV[2]), all_IV[2][-1], all_IV[1][-1])
                 
                 # Must correct for the fact that Qi+Qh<=1
                 if self.heating_ongoing:
@@ -1923,7 +1801,18 @@ class Fluctuations(object):
             iM_h = np.argmin(np.abs(self.Mmin(z) - M_h))
             dndm_h = self.halos.tab_dndm[iz_hmf]
             fcoll_h = self.halos.tab_fcoll[iz_hmf,iM_h]
-            fcoll_V = self.fcoll_vol(z)
+            
+            # Luminous halos, i.e., Mh > Mmin
+            Q_lhal = self.Qhal(z, Mmin=Mmin)
+            # Dark halos, i.e., those outside bubbles
+            
+            Q_dhal = self.Qhal(z, Mmax=Mmin)
+            # All halos
+            Q_hal = self.Qhal(z)
+            
+            # Since integration must be perfect
+            Q_dhal = Q_hal - Q_lhal
+                        
             R_hal = self.halos.VirialRadius(M_h, z) / 1e3 # Convert to Mpc
             V_hal = four_pi * R_hal**3 / 3.
             
@@ -1939,12 +1828,14 @@ class Fluctuations(object):
             ep_bh = bh * bb_bar * xi_dd_r
             exc = bh_bar * bb_bar * xi_dd_r 
             
-            
             # Mean density of halos (mass is arbitrary)
-            dh_avg = self.mean_halo_overdensity(z)
-            nh_avg = self.mean_halo_abundance(z)
+            delta_hal_bar = self.mean_halo_overdensity(z)
+            nhal_avg = self.mean_halo_abundance(z)
             
-            dnih_avg = -dh_avg * fcoll_V / (1. - fcoll_V)
+            # <d> = 0 = <d_i> * Qi + <d_hal> * Q_hal + <d_nohal> * Q_nh
+            # Problem is Q_hal and Q_i are not mutually exclusive. 
+            # Actually: they are inclusive! At least above Mmin.
+            delta_nothal_bar = -delta_hal_bar * Q_hal / (1. - Q_hal)
             
             avg_c = self.ExpectationValue1pt(z, zeta, term='c', 
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
@@ -1965,195 +1856,164 @@ class Fluctuations(object):
                 ##
                                     
                 # Actually think about halos
-                if self.pf['ps_include_xcorr_ion_rho'] == 1:
                     
-                    # <x_i d'> = \int d' f(d; x_i=1) f(x_i=1) f(d'; d) dd'
-                    # Crux is f(d'; d): could be 3-d integral in general.
-                                    
-                    # Loop over bubble density.
-                    #ixd_inner = np.zeros(self.m.size)
-                    #for k, d1 in enumerate(db):
-                    #    
-                    #    # Excess probability of halo with mass mh
-                    #    # given bubble nearby 
-                    #    exc = 0.0#bh * bb[k] * xi_dd_r
-                    #    
-                    #    #Ph = np.minimum(Ph, 1.)
-                    #    
-                    #    # <d> = fcoll_V * dh + Qi * di + rest
-                    #    #Pn = 1. - Ph
-                    #    #if sep < R_i[k]:
-                    #    #    dn = d1
-                    #    #else:
-                    #    #dn = delta_n_bar
-                    #
-                    #    # How to guarantee that <x_i d'> -> 0 on L.S.?
-                    #    # Is the key formalizing whether we're at the 
-                    #    # center of the bubble or not?
-                    #    integ = dndm_h * V_h * (1. + exc)
-                    #
-                    #    # Don't truncate at Mmin! Don't need star-forming
-                    #    # galaxy, just need mass.
-                    #    ixd_inner[k] = np.trapz(integ * M_h, x=np.log(M_h))
-                     
+                # <x_i d'> = \int d' f(d; x_i=1) f(x_i=1) f(d'; d) dd'
+                # Crux is f(d'; d): could be 3-d integral in general.
+                                
+                # Loop over bubble density.
+                #ixd_inner = np.zeros(self.m.size)
+                #for k, d1 in enumerate(db):
+                #    
+                #    # Excess probability of halo with mass mh
+                #    # given bubble nearby 
+                #    exc = 0.0#bh * bb[k] * xi_dd_r
+                #    
+                #    #Ph = np.minimum(Ph, 1.)
+                #    
+                #    # <d> = fcoll_V * dh + Qi * di + rest
+                #    #Pn = 1. - Ph
+                #    #if sep < R_i[k]:
+                #    #    dn = d1
+                #    #else:
+                #    #dn = delta_n_bar
+                #
+                #    # How to guarantee that <x_i d'> -> 0 on L.S.?
+                #    # Is the key formalizing whether we're at the 
+                #    # center of the bubble or not?
+                #    integ = dndm_h * V_h * (1. + exc)
+                #
+                #    # Don't truncate at Mmin! Don't need star-forming
+                #    # galaxy, just need mass.
+                #    ixd_inner[k] = np.trapz(integ * M_h, x=np.log(M_h))
+                 
+                
+                
+                #_integrand = dndm_h * (M_h / rho_bar) * bh
+                #fcorr = 1. - np.trapz(_integrand * M_h, x=np.log(M_h))
+                
+                # Just halos *outside* bubbles
+                hal = np.trapz(dndm_h[:iM_h] * V_hal[:iM_h] * (1. + ep_bh[:iM_h]) * M_h[:iM_h],
+                    x=np.log(M_h[:iM_h]))
+                bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:], 
+                    x=np.log(self.m[iM:]))
                     
-                    
-                    #_integrand = dndm_h * (M_h / rho_bar) * bh
-                    #fcorr = 1. - np.trapz(_integrand * M_h, x=np.log(M_h))
-                                             
-                    hal = np.trapz(dndm_h * V_hal * (1. + exc) * M_h,
-                        x=np.log(M_h))
-                    bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:], 
-                        x=np.log(self.m[iM:]))
-                        
-                    P_id = (1. - np.exp(-bub)) * (1. - np.exp(-hal))
-                    
-                    P2[i] = P_id * delta_d_bar + P_ib * dnih_avg
-                                                
-                    #P2[i] = Phal * dh_avg + np.exp(-hal) * dnih_avg
-            
-                    #P2[i] += np.exp(-hal) * dnih_avg * Qi
-                    
-                    #P2[i] += _P_in[i] * delta_n_bar
-                    
-                    #raise NotImplemented('sorry man')
-                # Assume medium with two densities.
-                elif self.pf['ps_include_xcorr_ion_rho'] == 2:
-                    P2[i] = _P_ii[i] * delta_i_bar \
-                          + _P_ih[i] * delta_h_bar \
-                          + _P_ib[i] * delta_b_bar
-                    
-                else:
-                    raise NotImplemented('help')
+                P_ihal = (1. - np.exp(-bub)) * (1. - np.exp(-hal))
+                
+                #P2[i] = P_ihal * delta_hal_bar + _P_ib[i] * delta_b_bar
+                P1[i] = _P_ii_1[i] * delta_i_bar
+                P2[i] = _P_ii_2[i] * delta_i_bar + _P_ib[i] * delta_b_bar \
+                      + P_ihal * delta_hal_bar
+                                            
+                #P2[i] = Phal * dh_avg + np.exp(-hal) * dnih_avg
+                
+                #P2[i] += np.exp(-hal) * dnih_avg * Qi
+                
+                #P2[i] += _P_in[i] * delta_n_bar
+                            
+            elif term in ['cd', 'cdip']:
+                continue
                         
             elif term == 'idd':
                 
-                if self.pf['ps_include_xcorr_ion_rho'] == 1:
-                    exc = bh_bar * bb_bar * xi_dd_r
-                                             
-                    hal = np.trapz(dndm_h * V_h * (1. + exc) * M_h,
-                        x=np.log(M_h))
-                    bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:], 
-                        x=np.log(self.m[iM:]))
-                                                
-                    P2[i] = ((1. - np.exp(-hal)) * dh_avg + np.exp(-hal) * dnih_avg) \
-                          * (1. - np.exp(-bub)) * delta_i_bar
-                                                        
-                elif self.pf['ps_include_xcorr_ion_rho'] == 2:
-                                        
-                    P2[i] = _P_ii[i] * delta_i_bar**2 \
-                          + _P_ih[i] * delta_i_bar * delta_h_bar \
-                          + _P_ib[i] * delta_i_bar * delta_b_bar
+                hal = np.trapz(dndm_h[:iM_h] * V_hal[:iM_h] * (1. + ep_bh[:iM_h]) * M_h[:iM_h],
+                    x=np.log(M_h[:iM_h]))
+                bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:], 
+                    x=np.log(self.m[iM:]))
                     
-                    continue
-                    
-                    
-                    _P1 = _P_ii_1[i] * delta_i_bar**2
-                    
-                    #_P2 = _P_ii_2[i] * delta_i_bar**2 \
-                    #    + Qi * (1. - _P_ii_1[i]) * delta_i_bar * delta_n_bar \
-                    #    - Qi**2 * delta_i_bar**2
-                    #
-                    P1[i] = _P1
-                    
-                    #P2[i] = Qi * xi_dd[i] # There's gonna be a bias here
-                    #P2[i] = _P_ii_2[i] * delta_i_bar**2 - Qi**2 * delta_i_bar**2
-                    
-                    #continue
-                    
-                    idd_ii = np.zeros(self.m.size)
-                    idd_in = np.zeros(self.m.size)
-                    
-                    # Convert from dm to dd
-                    #dmdd = np.diff(self.m) / np.diff(db)
-                    #dmdd = np.concatenate(([0], dmdd))                    
-                    
-                    # Should be able to speed this up
-                    
-                    for k, d1 in enumerate(db):
-                            
-                    
-                        exc = bb[k] * bb * xi_dd_r
-                        
-                        grand = db[k] * dndm_b[k] * V_i[k] \
-                              * db * dndm_b * V_i \
-                              * (1. + exc)
-                            
-                        idd_ii[k] = np.trapz(grand[iM:] * self.m[iM:], 
-                            x=np.log(self.m[iM:]))
-                        
-                        #exc_in = bb[k] * bh * xi_dd_r
-                        #                        
-                        #grand_in = db[k] * dndm_b[k] * V_i[k] #\
-                        #      #* dh * dndm_h * Vvir \
-                        #      #* (1. + exc_in)
-                        #
-                        #idd_in[k] = np.trapz(grand_in[iM_h:] * M_h[iM_h:], 
-                        #    x=np.log(M_h[iM_h:]))
-                        
-                    #idd_in = np.trapz(db[iM:] * dndm_b[iM:] * V_i[iM:] * delta_n_bar * self.m[iM:],
-                    #    x=np.log(self.m[iM:]))  
-                        
-                                                                                               
-                    P2[i] = _P_ii_2[i]  \
-                        * np.trapz(idd_ii[iM:] * self.m[iM:], 
-                            x=np.log(self.m[iM:]))
-                    
-                    # Another term for <x_i x'> possibility. Doesn't really
-                    # fall into the one bubble two bubble language, so just
-                    # sticking it in P2.
-                    # Assumes neutral phase is at cosmic mean neutral density
-                    # Could generalize...
-                    P2[i] += _P_ib[i] * delta_i_bar * delta_b_bar
-                    
-                    # We're neglecting overdensities by just using the 
-                    # mean neutral density 
-                            
-                    continue
+                P_ihal = (1. - np.exp(-bub)) * (1. - np.exp(-hal))
                 
-                else:
-                    raise NotImplemented('help')
+                #P2[i] = P_ihal * delta_hal_bar + _P_ib[i] * delta_b_bar
+                P1[i] = _P_ii_1[i] * delta_i_bar**2
+                P2[i] = _P_ii_2[i] * delta_i_bar**2 \
+                      + _P_ib[i] * delta_b_bar * delta_i_bar\
+                      + P_ihal * delta_hal_bar * delta_i_bar
+
+                #exc = bh_bar * bb_bar * xi_dd_r
+                #                         
+                #hal = np.trapz(dndm_h * V_hal * (1. + exc) * M_h,
+                #    x=np.log(M_h))
+                #bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:], 
+                #    x=np.log(self.m[iM:]))
+                #                            
+                #P2[i] = ((1. - np.exp(-hal)) * delta_hal_bar 
+                #      + np.exp(-hal) * delta_nothal_bar) \
+                #      * (1. - np.exp(-bub)) * delta_i_bar
+                                                    
+                
+                    
+                #_P1 = _P_ii_1[i] * delta_i_bar**2
+                #
+                ##_P2 = _P_ii_2[i] * delta_i_bar**2 \
+                ##    + Qi * (1. - _P_ii_1[i]) * delta_i_bar * delta_n_bar \
+                ##    - Qi**2 * delta_i_bar**2
+                ##
+                #P1[i] = _P1
+                #
+                ##P2[i] = Qi * xi_dd[i] # There's gonna be a bias here
+                ##P2[i] = _P_ii_2[i] * delta_i_bar**2 - Qi**2 * delta_i_bar**2
+                #
+                ##continue
+                #
+                #idd_ii = np.zeros(self.m.size)
+                #idd_in = np.zeros(self.m.size)
+                #
+                ## Convert from dm to dd
+                ##dmdd = np.diff(self.m) / np.diff(db)
+                ##dmdd = np.concatenate(([0], dmdd))                    
+                #
+                ## Should be able to speed this up
+                #
+                #for k, d1 in enumerate(db):
+                #        
+                #
+                #    exc = bb[k] * bb * xi_dd_r
+                #    
+                #    grand = db[k] * dndm_b[k] * V_i[k] \
+                #          * db * dndm_b * V_i \
+                #          * (1. + exc)
+                #        
+                #    idd_ii[k] = np.trapz(grand[iM:] * self.m[iM:], 
+                #        x=np.log(self.m[iM:]))
+                #    
+                #    #exc_in = bb[k] * bh * xi_dd_r
+                #    #                        
+                #    #grand_in = db[k] * dndm_b[k] * V_i[k] #\
+                #    #      #* dh * dndm_h * Vvir \
+                #    #      #* (1. + exc_in)
+                #    #
+                #    #idd_in[k] = np.trapz(grand_in[iM_h:] * M_h[iM_h:], 
+                #    #    x=np.log(M_h[iM_h:]))
+                #    
+                ##idd_in = np.trapz(db[iM:] * dndm_b[iM:] * V_i[iM:] * delta_n_bar * self.m[iM:],
+                ##    x=np.log(self.m[iM:]))  
+                #    
+                #                                                                           
+                #P2[i] = _P_ii_2[i]  \
+                #    * np.trapz(idd_ii[iM:] * self.m[iM:], 
+                #        x=np.log(self.m[iM:]))
+                #
+                ## Another term for <x_i x'> possibility. Doesn't really
+                ## fall into the one bubble two bubble language, so just
+                ## sticking it in P2.
+                ## Assumes neutral phase is at cosmic mean neutral density
+                ## Could generalize...
+                #P2[i] += _P_ib[i] * delta_i_bar * delta_b_bar
+                #
+                ## We're neglecting overdensities by just using the 
+                ## mean neutral density 
+                #        
+                #continue
                 
             elif term == 'iid':
             
                 # This is like the 'id' term except the second point
                 # has to be ionized. 
-                
-                if self.pf['ps_include_xcorr_ion_rho'] == 1:
-                    pass
-                elif self.pf['ps_include_xcorr_ion_rho'] == 2:
-            
-                    _P1 = _P_ii_1[i] * delta_i_bar
-                    #B = self._B(z, zeta)
-                    #_P1 = delta_i_bar \
-                     #   * self.get_prob(z, M_b, dndm_b, Mmin_b, Vo, True) \
-                     
-                    _P2 = _P_ii_2[i] * delta_i_bar
-                        
-                #_P2 = (1. - _P_ii_1[i]) * delta_i_bar \
-                #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True) \
-                #    * self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True, ep)
-                #    #* self.get_prob(z, M_h, dndm_h, Mmi\n_h, Vvir, False, ep_bb)
-            
-                    P1[i] = _P1
-                    P2[i] = _P2
-                else:
-                    raise NotImplemented('help')    
-
+                P2[i] = _P_ii[i] * delta_i_bar
             elif term == 'iidd':
-                               
-                if self.pf['ps_use_wick']:
-                    break
-                
-                if self.pf['ps_include_xcorr_ion_rho'] == 1:
-                    pass
-                elif self.pf['ps_include_xcorr_ion_rho'] == 2:
-                    P1[i] = _P_ii_1[i] * delta_i_bar**2
-                    P2[i] = _P_ii_2[i] * delta_i_bar**2
-                    continue
-                else:
-                    raise NotImplemented('help')
-                
+
+                P2[i] = _P_ii[i] * delta_i_bar**2
+
+                continue
                 
                 # Might have to actually do a double integral here.
                 
@@ -2215,56 +2075,27 @@ class Fluctuations(object):
             #    P2[i] = _P2  
             #
             elif term == 'cdd':
+
+                raise NotImplemented('help')
+                hal = np.trapz(dndm_h * V_hal * (1. + exc) * M_h,
+                    x=np.log(M_h))
+                hot = np.trapz(dndm_b[iM:] * Vsh[iM:] * self.m[iM:], 
+                    x=np.log(self.m[iM:]))
+                hoi = np.trapz(dndm_b[iM:] * Vsh_sph[iM:] * self.m[iM:], 
+                    x=np.log(self.m[iM:]))    # 'hot or ionized'
+                # One point in shell, other point in halo
+                # One point ionized, other point in halo
+                # Q. Halos exist only in ionized regions?
                 
-                # Method one treats halo field explicitly
-                if not self.pf['ps_include_xcorr_hot_rho']:
-                    break
-                elif self.pf['ps_include_xcorr_hot_rho'] == 1:
-                    raise NotImplemented('help')
-                    hal = np.trapz(dndm_h * V_h * (1. + exc) * M_h,
-                        x=np.log(M_h))
-                    hot = np.trapz(dndm_b[iM:] * Vsh[iM:] * self.m[iM:], 
-                        x=np.log(self.m[iM:]))
-                    hoi = np.trapz(dndm_b[iM:] * Vsh_sph[iM:] * self.m[iM:], 
-                        x=np.log(self.m[iM:]))    # 'hot or ionized'
-                    # One point in shell, other point in halo
-                    # One point ionized, other point in halo
-                    # Q. Halos exist only in ionized regions?
-                elif self.pf['ps_include_xcorr_hot_rho'] == 2:
-
-                    ex_hh = _P_hh[i] * delta_h_bar**2 * ch
-                    # One point ionized, other point in shell
-                    ex_ih = _P_ih[i] * delta_i_bar * delta_h_bar * ch
-                    # One point ionized, other point in bulk IGM
-                    ex_ib = _P_ib[i] * delta_i_bar * delta_b_bar * cb
-                    # One point in shell, other point in bulk IGM
-                    ex_hb = _P_hb[i] * delta_h_bar * delta_b_bar * ch \
-                          + _P_hb[i] * delta_h_bar * delta_b_bar * cb
-
-                    ex_bb = _P_bb[i] * delta_b_bar**2 * cb
-            
-                    P2[i] = ex_ih + ex_ib + ex_hb + ex_hh + ex_bb
-                else:
-                    raise NotImplemented('help')
-            
             elif term == 'ccdd':
-                
-                # Already done above
-                if self.pf['ps_use_wick']:
-                    break
-                
-                if not self.pf['ps_include_xcorr_hot_rho']:
-                    break    
-                elif self.pf['ps_include_xcorr_hot_rho'] == 1:
-                    raise NotImplemented('help')    
-                elif self.pf['ps_include_xcorr_hot_rho'] == 2: 
+                raise NotImplemented('help')    
 
-                    # Add in bulk IGM correction.
-                    # Add routines for calculating 'ib' and 'hb'?
-                    P2[i] = _P_hh[i] * delta_h_bar**2 \
-                          + _P_bb[i] * delta_h_bar**2 \
-                          + _P_hb[i] * delta_h_bar * delta_b_bar
-                    continue
+                # Add in bulk IGM correction.
+                # Add routines for calculating 'ib' and 'hb'?
+                P2[i] = _P_hh[i] * delta_h_bar**2 \
+                      + _P_bb[i] * delta_h_bar**2 \
+                      + _P_hb[i] * delta_h_bar * delta_b_bar
+                continue
             
                 # Might have to actually do a double integral here.
             
@@ -2298,9 +2129,204 @@ class Fluctuations(object):
         ##
         PT = P1 + P2
         
-        self._cache_jp_[z][term] = R, PT, P1, P2
+        if term in ['ii', 'hh', 'ih', 'ib', 'hb', 'bb']:
+            if term not in self._cache_jp_[z]:
+                self._cache_jp_[z][term] = R, PT, P1, P2
         
         return PT, P1, P2
+                
+    def ThreeZoneModel(self, z, zeta, R, term='ii', R_s=None, R3=None, 
+        Th=500.0, Ts=None, Tk=None, Ja=None, k=None):
+        """
+        Model in which IGM partitioned into three phases: ionized, hot, bulk.
+        
+        .. note :: If ps_include_temp==False, this is just a two-zone model 
+            since there is no heated phase in this limit.
+        """
+        
+        if not self._getting_basics:        
+            basics = self.get_basics(z, zeta, R, R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+            
+            if term in basics:
+                return basics[term]
+            
+            _P_ii, _P_ii_1, _P_ii_2 = basics['ii']
+            _P_hh, _P_hh_1, _P_hh_2 = basics['hh']
+            _P_bb, _P_bb_1, _P_bb_2 = basics['bb']
+            _P_ih, _P_ih_1, _P_ih_2 = basics['ih']
+            _P_ib, _P_ib_1, _P_ib_2 = basics['ib']
+            _P_hb, _P_hb_1, _P_hb_2 = basics['hb']
+        
+        Rzeros = np.zeros_like(R)    
+        delta_i_bar = self.delta_bubble_vol_weighted(z, zeta)
+        delta_h_bar = self.delta_shell(z, zeta)
+        delta_b_bar = self.BulkDensity(z, zeta, R_s)    
+        
+        Tcmb = self.cosm.TCMB(z)
+        ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
+        if Ts is None:
+            cb = 0.0
+        else:    
+            cb = Tcmb / Ts
+            
+        ##
+        # On to derived quantities
+        ##
+        if term == 'cc':
+            
+            result = Rzeros.copy()
+            if self.pf['ps_include_temp']:                
+                result += _P_hh * ch**2 + 2 * _P_hb * ch * cb + _P_bb * cb**2
+                
+            if self.pf['ps_include_lya']:
+                xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
+                
+                if xa < self.pf['ps_lya_cut']:
+                    ev_aa, ev_aa1, ev_aa2 = \
+                        self.ExpectationValue2pt(z, zeta, R, term='aa',
+                            R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, k=k, Ja=Ja)
+                
+                    Tcmb = self.cosm.TCMB(z)
+                    result += ev_aa / (1. + xa)**2
+                
+            return result, Rzeros, Rzeros
+        
+        elif term == 'ic':
+            if not self.pf['ps_include_xcorr_ion_hot']:
+                return (Qi**2 * ci + Qh * Qi * ch) * Rones, Rzeros, Rzeros
+            
+            ev = _P_ih * ch + _P_ib * cb
+            
+            return ev, Rzeros, Rzeros
+        
+        elif term == 'icc':
+            ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
+            ci = self.BubbleContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
+            ev_ii, ev_ii1, ev_ii2 = self.ExpectationValue2pt(z, zeta, R=R, 
+                term='ii', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+            ev_ih, ev_ih1, ev_ih2 = self.ExpectationValue2pt(z, zeta, R=R, 
+                term='ih', R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+                
+            return ev_ii * ci**2 + ev_ih * ch * ci, Rzeros, Rzeros
+        
+        elif term == 'iidd':
+            
+            if self.pf['ps_use_wick']:    
+                ev_ii, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
+                    term='ii')
+                ev_dd, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
+                    term='dd')
+                ev_id, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
+                    term='id')    
+                
+                #if self.pf['ps_include_ion']:
+                avg_id = self.ExpectationValue1pt(z, zeta, term='i*d')
+                
+                idt, id1, id2 = \
+                    self.ExpectationValue2pt(z, zeta, R, term='id')
+                
+                return ev_ii * ev_dd + ev_id**2 + avg_id**2, Rzeros, Rzeros
+            else:
+                return _P_ii * delta_i_bar**2, Rzeros, Rzeros
+        
+        elif term == 'id':
+            P = _P_ii * delta_i_bar \
+              + _P_ih * delta_h_bar \
+              + _P_ib * delta_b_bar
+            return P, Rzeros, Rzeros
+        elif term == 'iid':
+            return _P_ii * delta_i_bar, Rzeros, Rzeros
+        elif term == 'idd':
+            P = _P_ii * delta_i_bar**2 \
+              + _P_ih * delta_i_bar * delta_h_bar \
+              + _P_ib * delta_i_bar * delta_b_bar
+            return P, Rzeros, Rzeros
+        elif term == 'cd':
+            if not self.pf['ps_include_xcorr_hot_rho']:
+                return Rzeros, Rzeros, Rzeros
+                
+            ev = _P_ih * ch * delta_i_bar \
+               + _P_ib * cb * delta_i_bar \
+               + _P_hh * ch * delta_h_bar \
+               + _P_hb * ch * delta_b_bar \
+               + _P_hb * cb * delta_h_bar \
+               + _P_bb * cb * delta_b_bar
+            
+            return ev, Rzeros, Rzeros
+            
+        elif term == 'ccdd' and self.pf['ps_use_wick']:
+            
+            ev_cc, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
+                term='cc')
+            ev_dd, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
+                term='dd')
+            ev_cd, one_pt, two_pt = self.ExpectationValue2pt(z, zeta, R, 
+                term='cd')    
+            
+            #if self.pf['ps_include_ion']:
+            avg_cd = self.ExpectationValue1pt(z, zeta, term='c*d')
+            
+            cdt, cd1, cd2 = \
+                self.ExpectationValue2pt(z, zeta, R, term='cd')
+            
+            return ev_cc * ev_dd + ev_cd**2 + avg_cd**2, Rzeros, Rzeros    
+                        
+        elif term == 'aa':
+            aa = self.CorrelationFunction(z, zeta, R, term='aa',
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja, k=k)
+                
+            return aa, Rzeros, Rzeros
+        
+        ##
+        # BUNCHA TEMPERATURE-DENSITY STUFF BELOW
+        ##
+        elif term == 'ccd':
+            ev = _P_hh * ch**2 * delta_h_bar \
+               + _P_hb * ch * cb * delta_h_bar \
+               + _P_hb * ch * cb * delta_b_bar \
+               + _P_bb * cb**2 * delta_b_bar
+               
+            return ev, Rzeros, Rzeros
+        elif term == 'cdd':
+            ev = _P_ih * ch * delta_i_bar * delta_h_bar \
+               + _P_ib * cb * delta_i_bar * delta_b_bar \
+               + _P_hh * ch * delta_h_bar**2 \
+               + _P_hb * ch * delta_h_bar * delta_b_bar \
+               + _P_hb * cb * delta_h_bar * delta_b_bar \
+               + _P_bb * cb * delta_b_bar**2
+               
+            return ev, Rzeros, Rzeros
+            
+        # <c d x_i'>
+        elif term == 'cdip':
+            ev = _P_ih * delta_h_bar * ch + _P_ib * delta_b_bar * cb
+            
+            return ev, Rzeros, Rzeros
+            
+        # <c d d' x_i'>
+        elif term == 'cddip':
+            ev = _P_ih * delta_i_bar * delta_h_bar * ch \
+               + _P_ib * delta_i_bar * delta_b_bar * cb
+        
+            return ev, Rzeros, Rzeros    
+        
+        elif term == 'cdpip':
+            ev = _P_ih * delta_i_bar * ch \
+               + _P_ib * delta_i_bar * cb
+        
+            return ev, Rzeros, Rzeros    
+        
+        # Wick's theorem approach above
+        elif term == 'ccdd':
+            ev = _P_hh * delta_h_bar**2 * ch**2 \
+               + 2 * _P_hb * delta_h_bar * ch * delta_b_bar * cb \
+               + _P_bb * delta_b_bar**2 * cb**2
+            
+            return ev, Rzeros, Rzeros
+        
+        else:
+            raise NotImplementedError('No model for term={} in ThreeZoneModel.'.format(term))
+        
         
     def get_prob(self, z, M, dndm, Mmin, V, exp=True, ep=0.0, Mmax=None):
         """
@@ -2364,7 +2390,7 @@ class Fluctuations(object):
                     return _cf
             
             return np.interp(R, _R, _cf)
- 
+        
         ##
         # 21-cm correlation function
         ##  
@@ -2387,7 +2413,7 @@ class Fluctuations(object):
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             
             cf_psi = ev_2pt - avg_psi**2
-            
+                        
             ##
             # Temperature fluctuations
             ##
@@ -2407,7 +2433,12 @@ class Fluctuations(object):
             else:
                 cf_21 = cf_psi
 
-            cf = cf_21
+            if term == '21':
+                cf = cf_21
+            elif term == 'phi':
+                cf = cf_21
+            elif term == 'psi':
+                cf = cf_psi
             
         elif term == 'nn':                                                         
             cf = -self.CorrelationFunction(z, zeta, R, term='ii',
@@ -2646,7 +2677,7 @@ class Fluctuations(object):
         #if term not in ['21', 'mm']:
         #    cf /= (2. * np.pi)**3
         
-        self._cache_cf_[z][term] = R, cf
+        self._cache_cf_[z][term] = R, cf.copy()
         
         return cf
             

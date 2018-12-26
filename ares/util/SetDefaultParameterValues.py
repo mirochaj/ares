@@ -386,6 +386,8 @@ def PowerSpectrumParameters():
      'ps_linear_pert': False,
      'ps_use_wick': False,
      
+     'ps_igm_model': 1, # 1=3-zone IGM, 2=other
+     
      'ps_include_acorr': True,
      'ps_include_xcorr': False,
      'ps_include_bias': True,

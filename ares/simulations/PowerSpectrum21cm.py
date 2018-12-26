@@ -1,4 +1,5 @@
 import os
+import copy
 import pickle
 import numpy as np
 from types import FunctionType
@@ -120,7 +121,7 @@ class PowerSpectrum21cm(AnalyzePS):
         for i, (z, data) in enumerate(self.step()):
 
             # Do stuff
-            all_ps.append(data)
+            all_ps.append(data.copy())
 
             if i == 0:
                 keys = data.keys()
@@ -141,7 +142,7 @@ class PowerSpectrum21cm(AnalyzePS):
             is2d_R = key.startswith('jp') or key.startswith('ev') \
                   or key.startswith('cf')
             is2d_B = (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
-            
+                        
             if is2d_k:
                 tmp = np.zeros((len(self.z), len(self.k)))
             elif is2d_R:
@@ -157,7 +158,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     
                 tmp[i] = all_ps[i][key]
                 
-            hist[key] = tmp
+            hist[key] = tmp.copy()
         
         self.history = hist
         self.history['z'] = self.z
@@ -363,6 +364,7 @@ class PowerSpectrum21cm(AnalyzePS):
             data['Ja'] = Ja
             
             
+            
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.
             #Ts = Tk
@@ -408,7 +410,7 @@ class PowerSpectrum21cm(AnalyzePS):
             
             xavg_gs = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['xavg'][-1::-1])
-                
+                                
             data['dTb'] = dTb_ps
             
             data['dTb_bulk'] = np.interp(z, self.gs.history['z'][-1::-1], 
@@ -476,8 +478,8 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # 21-cm fluctuations
             ##
-            if self.pf['ps_include_21cm']:                
-
+            if self.pf['ps_include_21cm']:
+                
                 data['cf_21'] = self.field.CorrelationFunction(z, zeta=zeta, 
                     R=self.R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
@@ -489,16 +491,16 @@ class PowerSpectrum21cm(AnalyzePS):
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])
-                    
+                                        
             # Should just do the above, and then loop over whatever is in 
             # the cache and save also. If ps_save_components is True, then
             # FT everything we haven't already. 
-            for term in ['dd', 'ii', 'hh', 'ih', 'cc', 'id']:
+            for term in ['dd', 'ii', 'id', 'psi', 'phi']:
                 # Should change suffix to _ev
                 jp_1 = self.field._cache_jp(z, term)
                 cf_1 = self.field._cache_cf(z, term)
                 
-                if jp_1 is None and cf_1 is None:
+                if (jp_1 is None and cf_1 is None) and (term not in ['psi', 'phi', 'oo']):
                     continue
                         
                 _cf = self.field.CorrelationFunction(z, zeta=zeta, 
