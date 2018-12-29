@@ -174,8 +174,8 @@ class MultiPanel(object):
 
         self.panel_size_rel = self.pane_size / self.panel_size
 
-        self.share_x = self.padding[1] <= 0.05
-        self.share_y = self.padding[0] <= 0.05        
+        self.share_x = self.padding[1] <= 0.2
+        self.share_y = self.padding[0] <= 0.2       
         self.share_all = self.share_x and self.share_y
 
         self.dx = self.shift_x

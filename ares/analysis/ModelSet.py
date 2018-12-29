@@ -3588,7 +3588,7 @@ class ModelSet(BlobFactory):
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
-        E_to_freq=False, **kwargs):
+        E_to_freq=False, is_logx=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3831,6 +3831,9 @@ class ModelSet(BlobFactory):
             
         if E_to_freq:
             xarr = xarr * erg_per_ev / h_p
+            
+        if is_logx:
+            xarr = 10**xarr    
 
         ##
         # Do the actual plotting

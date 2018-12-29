@@ -590,6 +590,16 @@ class ModelFit(FitBase):
     @save_hmf.setter
     def save_hmf(self, value):
         self._save_hmf = value
+        
+    @property 
+    def save_hist(self):
+        if not hasattr(self, '_save_hist'):
+            self._save_hist = True
+        return self._save_hist
+    
+    @save_hist.setter
+    def save_hist(self, value):
+        self._save_hist = value    
     
     @property 
     def save_src(self):
@@ -878,7 +888,7 @@ class ModelFit(FitBase):
         if type(value) in [int, float]:
             self._jitter = np.ones(len(self.parameters)) * value
         else:
-            assert (len(value) == len(self.parameters)), jitter_shape_error 
+            assert (len(value) == len(self.parameters)), 'jitter has the wrong shape!' 
                 
             self._jitter = np.array(value)
             
@@ -1275,6 +1285,13 @@ class ModelFit(FitBase):
             if hmf is not None:
                 print("Saved HaloMassFunction instance to limit I/O.")
             
+        if self.save_hist and type(self.base_kwargs['pop_histories']) == str:
+            hist = sim.load()
+            self.base_kwargs['pop_histories'] = hist
+            
+            if hist is not None:
+                print("Saved halo histories to limit I/O.")
+            
         if self.save_src:
             # This maybe is unnecessary?
             #assert 'pop_psm_instance' not in self.base_kwargs
@@ -1287,6 +1304,9 @@ class ModelFit(FitBase):
                 ids = range(len(srcs))
 
             for idnum, src in enumerate(srcs):
+
+                # Just to trigger I/O
+                data = src.data
 
                 if ids[idnum] is None:
                     sid = ''

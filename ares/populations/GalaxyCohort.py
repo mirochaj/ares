@@ -612,7 +612,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def eta(self):
         if not hasattr(self, '_eta'):
-            if self._tab_eta.ndim == 1:
+            if np.all(self._tab_eta == 1):
+                self._eta = lambda z, Mh=None: 1.  
+            elif self._tab_eta.ndim == 1:
                 self._eta = lambda z, Mh=None: np.interp(z, self.halos.tab_z, self._tab_eta)
             else:
                 _eta = RectBivariateSpline(self.halos.tab_z, 
@@ -839,7 +841,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Mg'])
         
-    def StellarMassFunction(self, z):
+    def StellarMassFunction(self, z, bins=None, units='dex'):
         """
         Return stellar mass function (duh).
         """
@@ -849,11 +851,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mh = traj_all['Mh'][:,iz]
         nh = traj_all['nh'][:,iz]
         
-        dMh_dMs = np.diff(Mh) / np.diff(Ms)
-        rebin = np.concatenate((dMh_dMs, [dMh_dMs[-1]]))
+        if bins is None:
+            bin = 0.1
+            bin_e = np.arange(6., 13.+bin, bin)
+        else:
+            dx = np.diff(bins)
+            assert np.all(np.diff(dx) == 0)
+            bin = dx[0]
+            bin_e = bins
+            
+        bin_c = bin_e2c(bin_e)
+
+        phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)                
         
-        return Ms, nh * rebin
+        if units == 'dex':
+            # Convert to dex**-1 units
+            phi /= bin
+        else:
+            raise NotImplemented('help')
         
+        if bins is None:
+            return 10**bin_c, phi
+        else:
+            return phi
+
     def SurfaceDensity(self, z, mag=None, dz=1., dtheta=1.):
         """
         
@@ -2598,8 +2619,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._trajectories
         
         
-        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'MAR', 'nh', 
-            'Z', 't']
+        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'SFE', 'MAR', 
+            'nh', 'Z', 't']
                 
         zf = max(float(self.halos.tab_z.min()), self.zdead)
         zi = min(float(self.halos.tab_z.max()), self.zform)
@@ -2758,6 +2779,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         cMst_t = []
         Mbh_t = []
         sfr_t = []
+        sfe_t = []
         mar_t = []
         nh_t = []
         metals = []
@@ -2774,6 +2796,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             cMst_t.append(solver.y[4])
             Mbh_t.append(solver.y[5])  
             sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
+            sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
             nh_t.append(n0)   
             
@@ -2929,14 +2952,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         cMs = np.array(cMst_t)[-1::-1]
         Mbh = np.array(Mbh_t)[-1::-1]
         SFR = np.array(sfr_t)[-1::-1]
+        SFE = np.array(sfe_t)[-1::-1]
         MAR = np.array(mar_t)[-1::-1]
         nh = np.array(nh_t)[-1::-1]
         tlb = np.array(lbtime)[-1::-1]
 
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
-            'Mbh': Mbh, 'SFR': SFR, 'MAR': MAR, 'nh': nh, 'zmax': zmax, 
-            't': tlb}
+            'Mbh': Mbh, 'SFR': SFR, 'SFE': SFE, 'MAR': MAR, 'nh': nh, 
+            'zmax': zmax, 't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 
