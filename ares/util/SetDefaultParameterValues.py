@@ -242,7 +242,8 @@ def PhysicsParameters():
     "rate_source": 'fk94', # fk94, option for development here
     
     # Feedback parameters
-
+    
+    
     # LW
     'feedback_clear_solver': True,
     
@@ -525,7 +526,7 @@ def PopulationParameters():
     "pop_sf_via_reservior": False,
     
     "pop_fobsc": 0.0,
-    "pop_fobsc_by_num": False,
+    "pop_fobsc_by": None, # or 'age' or 'lum'
 
     "pop_tab_z": None,
     "pop_tab_Mh": None,
@@ -616,6 +617,7 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
+    "pop_dust_yield": 0.1,
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
@@ -962,8 +964,8 @@ def ControlParameters():
     "tau_Emin_pin": True,
 
     "sam_dz": None, # Usually good enough!
-    "sam_atol": 1e-2,
-    "sam_rtol": 1e-2,
+    "sam_atol": 1e-4,
+    "sam_rtol": 1e-4,
     
     # File format
     "preferred_format": 'npz',

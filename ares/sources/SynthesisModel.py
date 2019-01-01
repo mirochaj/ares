@@ -344,21 +344,33 @@ class SynthesisModel(Source):
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
     
+    def _cache_L(self, wave):
+        if not hasattr(self, '_cache_L_'):
+            self._cache_L_ = {}
+            
+        if wave in self._cache_L_:
+            return self._cache_L_[wave]
+        
+        return None
+    
     def L_per_SFR_of_t(self, wave=1600., avg=1):
         """
         UV luminosity per unit SFR.
         """
+        
+        cached_result = self._cache_L(wave)
+        
+        if cached_result is not None:
+            return cached_result
                 
         j = np.argmin(np.abs(wave - self.wavelengths))
-        
-        dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
-        
+                
         if avg == 1:
-            yield_UV = self.data[j,:] * np.abs(dwavednu[j])
+            yield_UV = self.data[j,:] * np.abs(self.dwdn[j])
         else:
             assert avg % 2 != 0, "avg must be odd"
             s = (avg - 1) / 2
-            yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(dwavednu[j-s:j+s]))
+            yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
         
         # Current units: 
         # if pop_ssp: 
@@ -372,6 +384,8 @@ class SynthesisModel(Source):
         ## or erg / s / A / (Msun / yr)
         #else:
         #    pass
+        
+        self._cache_L_[wave] = yield_UV
             
         return yield_UV
     

@@ -3,20 +3,21 @@
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a 
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
-global radiation background calculator.
+global radiation background calculator. 
 
 A few papers on how it works:
 
 - 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
 - Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_.
-- Parameter inference: `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_.
-- Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
+- Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
+- Population III star formation: `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_
 
-And some applications:
+Plus some more applications:
 
 - `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_
 - `Schneider (2018) <http://adsabs.harvard.edu/abs/2018PhRvD..98f3021S>`_
-- `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_
+- `Tauscher et al. (2017) <http://adsabs.harvard.edu/abs/2018ApJ...853..187T>`_
+- `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_
 
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
@@ -29,6 +30,15 @@ The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progres
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
+   
+Citation
+--------
+If you use ARES in paper please reference `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_ 
+if it's an application of the global 21-cm modeling machinery and 
+`Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_ if you use the 1-D radiative 
+transfer and/or SED optimization. Either way, please also provide a link 
+to `this page <https://bitbucket.org/mirochaj/ares>`_ as a footnote.
+ 
 
 Getting started
 ---------------------

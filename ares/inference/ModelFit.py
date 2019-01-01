@@ -154,7 +154,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters, debug):
 
     #write_memory('1')
-
+    
     kwargs = {}
     for i, par in enumerate(parameters):
 
@@ -590,6 +590,16 @@ class ModelFit(FitBase):
     @save_hmf.setter
     def save_hmf(self, value):
         self._save_hmf = value
+        
+    @property 
+    def save_hist(self):
+        if not hasattr(self, '_save_hist'):
+            self._save_hist = True
+        return self._save_hist
+    
+    @save_hist.setter
+    def save_hist(self, value):
+        self._save_hist = value    
     
     @property 
     def save_src(self):
@@ -878,7 +888,7 @@ class ModelFit(FitBase):
         if type(value) in [int, float]:
             self._jitter = np.ones(len(self.parameters)) * value
         else:
-            assert (len(value) == len(self.parameters)), jitter_shape_error 
+            assert (len(value) == len(self.parameters)), 'jitter has the wrong shape!' 
                 
             self._jitter = np.array(value)
             
@@ -1251,7 +1261,7 @@ class ModelFit(FitBase):
         
         # Speed-up tricks
         
-        if self.save_hmf or self.save_src:
+        if self.save_hmf or self.save_src or self.save_hist:
             sim = self.simulator(**self.base_kwargs)
             
         if self.save_hmf:
@@ -1274,6 +1284,13 @@ class ModelFit(FitBase):
             
             if hmf is not None:
                 print("Saved HaloMassFunction instance to limit I/O.")
+            
+        if self.save_hist and type(self.base_kwargs['pop_histories']) == str:
+            hist = sim.load()
+            self.base_kwargs['pop_histories'] = hist
+            
+            if hist is not None:
+                print("Saved halo histories to limit I/O.")
             
         if self.save_src:
             # This maybe is unnecessary?
