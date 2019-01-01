@@ -526,7 +526,7 @@ def PopulationParameters():
     "pop_sf_via_reservior": False,
     
     "pop_fobsc": 0.0,
-    "pop_fobsc_by": 'num', # or 'age' or 'lum'
+    "pop_fobsc_by": None, # or 'age' or 'lum'
 
     "pop_tab_z": None,
     "pop_tab_Mh": None,

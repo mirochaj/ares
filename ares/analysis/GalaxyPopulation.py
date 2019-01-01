@@ -395,17 +395,20 @@ class GalaxyPopulation(object):
                 ax.set_ylim(1e-7, ymax)
                 ax.set_yscale('log', nonposy='clip')  
                 ax.set_ylabel('')
+                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
             else:
                 ax.set_xscale('log')
                 ax.set_xlim(1e6, 1e12)
                 ax.set_ylim(1e-7, ymax)
                 ax.set_yscale('log', nonposy='clip')                      
-    
+                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+        
         if show_ylabel:
             if quantity == 'lf':
                 mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
             else:
                 mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        
             
         pl.show()    
             
