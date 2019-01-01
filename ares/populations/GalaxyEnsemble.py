@@ -183,6 +183,28 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             sfr[i] = sfr[i-1] * np.random.lognormal(mean=0., sigma=sigma)
         
         return np.array(sfr)
+    
+    @property    
+    def tab_scatter_mar(self):
+        if not hasattr(self, '_tab_scatter_mar'):            
+            self._tab_scatter_mar = np.random.normal(scale=sigma, 
+                size=np.product(self.tab_shape))
+        return self._tab_scatter_mar
+    
+    @tab_scatter_mar.setter
+    def tab_scatter_mar(self, value):
+        assert value.shape == self.tab_shape
+        self._tab_scatter_mar = value
+        
+    @property
+    def tab_shape(self):
+        if not hasattr(self, '_tab_shape'):
+            raise AttributeError('help')
+        return self._tab_shape
+    
+    @tab_shape.setter
+    def tab_shape(self, value):
+        self._tab_shape = value
         
     def _gen_halo_histories(self):
         """
@@ -204,7 +226,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             zall, raw = self.guide.Trajectories()
             print('Done with halo trajectories.')
         else:
-            print("Loaded halo trajectories.")
             zall = raw['z']        
         
         self.raw = raw
@@ -213,7 +234,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         mar_raw = raw['MAR']    
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
-        
+                
         # Could optionally thin out the bins to allow more diversity.
         if thin > 0:
             # Doesn't really make sense to do this unless we're
@@ -225,6 +246,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             nh = nh_raw.copy()
             Mh = Mh_raw.copy()
+        
+        self.tab_shape = Mh.shape
         
         ##
         # Allow scatter in things
@@ -260,7 +283,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # In Cohort, formation time defines initial mass and trajectory (in full)
         zobs = np.array([zall] * nh.shape[0])
         histories = {'zuni': zall, 'zobs': zobs, 'Mh': Mh,
-            'MAR': mar, 'SFE': sfe, 'nh': nh}
+            'MAR': mar, 'nh': nh}
             
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zform'] = self.tile(zall, thin)
@@ -433,8 +456,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             tall = self.tab_t[-1::step]
             zobs = halos['zobs']
-            tobs = np.array([tall] * halos['nh'].shape[0])
-            #tobs = self.cosm.t_of_z(zobs) / s_per_yr
+            #tobs = np.array([tall] * halos['nh'].shape[0])
+            tobs = tall#self.cosm.t_of_z(zobs) / s_per_yr
         else:
             native_sampling = False
             tall, zall = self.get_timestamps(zform_max)
@@ -452,7 +475,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Nz = len(zall)
             _Mh = halos['Mh'][:,-1::step]
             _MAR = halos['MAR'][:,-1::step]
-            _SFE = halos['SFE'][:,-1::step]
+            _SFE = self.guide.SFE(z=zall, Mh=_Mh)#halos['SFE'][:,-1::step]
             shape = halos['nh'].shape
 
             fbar = self.cosm.fbar_over_fcdm 
@@ -476,7 +499,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 #Mh0 = _Mh[:,0]
                 Mh0 = self.guide.Mmin(zall)
                 _fill = np.zeros((_MAR.shape[0], 1))
-                Mh = Mh0 + np.concatenate((_fill, _Mint), axis=1)
+                #Mh = Mh0 + np.concatenate((_fill, _Mint), axis=1)
                 
                 Mh = _Mh
                 
@@ -939,7 +962,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         continue
                         
                     # Ages of stellar populations formed at each z' > z
-                    ages = tarr[k] - tarr
+                    ages = (tarr[k] - tarr) / 1e6
                                                         
                     dz = self.tab_dz
                     
@@ -1040,7 +1063,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 dz = np.diff(zarr[0:imax+1])
                 
                 # In order to get ages, need to invoke current redshift.
-                _ages = tnow - tarr[0:imax+1]
+                _ages = (tnow - tarr[0:imax+1]) / 1e6
                 # Hack out elements beyond current observed redshift 
                 ages = _ages[0:inow+1]
                                     
@@ -1060,7 +1083,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     #        for age in ages]
                     #L_per_msun = np.array(L_per_msun)
                 else:        
-                    L_per_msun = np.interp(ages / 1e6, self.src.times, 
+                    L_per_msun = np.interp(ages, self.src.times, 
                         self.src.L_per_SFR_of_t(wave))
                 
                 _w = np.ones_like(L_per_msun)
@@ -1148,7 +1171,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_lf(z, x)
         if cached_result is not None:
             return cached_result
-            
+                        
         # Care required!
         if self.pf['pop_aging']:   
             
@@ -1161,10 +1184,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 # Array of times corresponding to all z' > z.
                 tarr = self.tab_t[iz:]
-                #tarr = self.cosm.t_of_z(zarr) / s_per_myr
                 
                 # Ages of stellar populations formed at each z' > z
-                ages = tarr[0] - tarr
+                ages = (tarr[0] - tarr) / 1e6
                                 
                 dz = self.tab_dz
                 
@@ -1217,12 +1239,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # In this case, the time-stepping is different for each 
                 # trajectory. 
                 #tnow = self.cosm.t_of_z(z) / s_per_yr
+                znow = self.tab_z[iz]
                 tnow = self.tab_t[iz]
                 
                 # In this case, can do some stuff up-front.
                 if self.pf['pop_update_dt'].startswith('native'):
                     native_sampling = True
-                    all_tarr = self.histories['tobs'][0][-1::-1] 
+                    all_tarr = self.histories['tobs'][-1::-1]
                     all_zarr = self.histories['zobs'][0][-1::-1]
                     all_dt = np.diff(all_tarr)
                     all_dz = np.diff(all_zarr)
@@ -1238,6 +1261,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
                 # Loop over all objects.
                 L = np.zeros_like(self.histories['zobs'][:,0])
+                #corr = np.ones_like(L)
                 for k in range(self.histories['zobs'].shape[0]):
                     
                     # This galaxy formed after redshift of interest.
@@ -1250,8 +1274,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     # First redshift element is zform, arrays are filled until
                     # object(s) reach z=0 (i.e., not necessarily the last element
                     # of the array).
-                    
-                    
                     
                     if not native_sampling:
                         tarr = self.histories['tobs'][k] # [yr]
@@ -1288,10 +1310,26 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         dz = np.diff(zarr[0:imax+1])
                     
                     # In order to get ages, need to invoke current redshift.
-                    _ages = tnow - tarr[0:imax+1]
+                    _ages = (tnow - tarr[0:imax+1]) / 1e6
                     # Hack out elements beyond current observed redshift 
                     ages = _ages[0:inow+1]
-                                        
+                    
+                    ## 
+                    # Optional: obscuration
+                    ##
+                    if self.pf['pop_fobsc'] in [0, None]:
+                        corr = 1.
+                    else:
+                        _M = self.histories['Mh'][k]
+                        
+                        # Means obscuration refers to fractional dimming of individual 
+                        # objects
+                        if self.pf['pop_fobsc_by'] == 'lum':
+                            fobsc = self.guide.fobsc(z=znow, Mh=_M[iz])
+                            corr = (1. - fobsc)
+                        else:
+                            raise NotImplemented('help')
+                                 
                     #print(k, z, tnow / 1e7, ages / 1e7)
                     #raw_input('<enter>')
                     
@@ -1324,9 +1362,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         #        for age in ages]
                         #L_per_msun = np.array(L_per_msun)        
                     else:        
-                        L_per_msun = np.interp(ages / 1e6, times, 
+                        L_per_msun = np.interp(ages, times, 
                             self.src.L_per_SFR_of_t(wave))
-
+                            
+                            
+                    L_per_msun *= corr
+                            
                     #_w = np.ones_like(L_per_msun)
                     
                     if not native_sampling:

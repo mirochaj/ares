@@ -154,7 +154,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters, debug):
 
     #write_memory('1')
-
+    
     kwargs = {}
     for i, par in enumerate(parameters):
 
@@ -1261,7 +1261,7 @@ class ModelFit(FitBase):
         
         # Speed-up tricks
         
-        if self.save_hmf or self.save_src:
+        if self.save_hmf or self.save_src or self.save_hist:
             sim = self.simulator(**self.base_kwargs)
             
         if self.save_hmf:
@@ -1304,9 +1304,6 @@ class ModelFit(FitBase):
                 ids = range(len(srcs))
 
             for idnum, src in enumerate(srcs):
-
-                # Just to trigger I/O
-                data = src.data
 
                 if ids[idnum] is None:
                     sid = ''

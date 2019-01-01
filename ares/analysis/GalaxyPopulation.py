@@ -285,7 +285,7 @@ class GalaxyPopulation(object):
             #else:
             shift = 0.    
                           
-            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=np.inf, 
+            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
 
         if quantity == 'lf' and (not gotax):
@@ -314,7 +314,7 @@ class GalaxyPopulation(object):
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
         quantity='lf', annotate_z='left', mp=None, sources_except=[], 
-        mp_kwargs={}, **kwargs):
+        mp_kwargs={}, show_ylabel=True, **kwargs):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -400,11 +400,12 @@ class GalaxyPopulation(object):
                 ax.set_xlim(1e6, 1e12)
                 ax.set_ylim(1e-7, ymax)
                 ax.set_yscale('log', nonposy='clip')                      
-            
-        if quantity == 'lf':
-            mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        else:
-            mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+    
+        if show_ylabel:
+            if quantity == 'lf':
+                mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+            else:
+                mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
             
         pl.show()    
             

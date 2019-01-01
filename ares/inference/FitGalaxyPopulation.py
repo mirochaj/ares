@@ -140,8 +140,7 @@ class loglikelihood(LogLikelihood):
                     # Compute LF
                     p = pop.LuminosityFunction(z=z, x=M, mags=True)
                 elif quantity == 'smf':
-                    M = xdat
-                    p = pop.StellarMassFunction(z, M)                
+                    p = pop.StellarMassFunction(z, M)
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))

@@ -1068,11 +1068,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             for red in self._phi_of_L:
                 if abs(red - z) < ztol:
                     return self._phi_of_L[red]
-        
-        fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))
-        
+                
         Lh = self.Lh(z)
                 
+        fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))        
         # Means obscuration refers to fractional dimming of individual 
         # objects
         if not self.pf['pop_fobsc_by_num']:
