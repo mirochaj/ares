@@ -522,8 +522,9 @@ def PopulationParameters():
     "pop_poisson": False,
     "pop_bcycling": False,
     "pop_internal_feedback": False,
-    "pop_sf_via_inflow": True,
-    "pop_sf_via_reservior": False,
+    "pop_delay_feedback": 0.0,
+    "pop_force_equilibrium": np.inf,
+    
     
     "pop_fobsc": 0.0,
     "pop_fobsc_by": None, # or 'age' or 'lum'
