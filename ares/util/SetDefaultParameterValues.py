@@ -475,6 +475,7 @@ def PopulationParameters():
 
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    'pop_fstar_cloud': 0.015,  # cloud-scale star formation efficiency
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
@@ -524,7 +525,7 @@ def PopulationParameters():
     "pop_internal_feedback": False,
     "pop_delay_feedback": 0.0,
     "pop_force_equilibrium": np.inf,
-    
+    "pop_stochastic": False,
     
     "pop_fobsc": 0.0,
     "pop_fobsc_by": None, # or 'age' or 'lum'

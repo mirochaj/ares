@@ -287,6 +287,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zform'] = self.tile(zall, thin)
+        
+        histories['z'] = zall
+        histories['t'] = np.array(map(self.cosm.t_of_z, zall)) / s_per_myr
                         
         self.tab_z = zall
                         
@@ -437,11 +440,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Ms = 0.0
         N_sn = 0
         
+        fstar_gmc = self.pf['pop_fstar_cloud']
+        
         if self.pf['pop_delay_feedback']:
             Efb = E_SN * 1.
             print('Preemptive feedback', Efb >= E_h)
         else:
             Efb = 0.0
+        
+        Mavg = 1e-1
+        fsn = 1e-2
+        NSN_per_M = fsn / Mavg
         
         # Form clusters until we use all the gas or blow it all out.    
         while Efb < E_h:
@@ -450,11 +459,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Mc = np.interp(r, self.tab_cdf, self.tab_Mcl)
 
             # Poisson-ify the SN feedback
-            Mavg = 1e-1
-            fsn = 1e-2
+            
             
             # Expected number of SNe if we were forming lots of clusters.
-            lam = Mc * fsn / Mavg
+            lam = Mc * NSN_per_M
 
             Nsn = np.random.poisson(lam)
                                     
@@ -463,7 +471,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             #gas_avail = (Mr * fc_r[i] + Ma * fc_i[i]) #* fstar
             gas_limited = False
-            if Ms + Mc >= Mg:                
+            if Ms + Mc >= Mg * fstar_gmc:                
                 gas_limited = True
                 break
             
@@ -478,19 +486,28 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Only increment energy injection now if we're assuming
             # instantaneous feedback.
             if not self.pf['pop_delay_feedback']:
-                Efb += 1e51 * Nsn
+                Efb += 1e51 * Nsn * 1.0
 
         return Ms, N_sn
         
     def _gen_galaxy_history(self, halo, zobs=0):
         """
-        Evolve a single galaxy in time. Only gets called if not deterministic.
+        Evolve a single galaxy in time. 
+        
+        Parameters
+        ----------
+        halo : dict
+            Contains growth history of the halo of interest in order of
+            *ascending redshift*. Must contain (at least) 'z', 't', 'Mh',
+            and 'nh' keys.
+        
         """
         
         # Grab key pieces of info
         z = halo['z'][-1::-1]
         t = halo['t'][-1::-1]
         Mh_s = halo['Mh'][-1::-1]
+        nh = halo['nh'][-1::-1]
         
         # Short-hand
         fb = self.cosm.fbar_over_fcdm
@@ -503,6 +520,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         SFR = np.zeros_like(Mh_s)
         Ms  = np.zeros_like(Mh_s)
+        Msc = np.zeros_like(Mh_s)
         Mg  = np.zeros_like(Mh_s)
         E_SN  = np.zeros_like(Mh_s)
         N_SN  = np.zeros_like(Mh_s)
@@ -536,7 +554,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             dt = (t[i+1] - t[i]) * 1e6
 
-
             if z[i] == zform:
                 Mg[i] = fb * _Mh
 
@@ -545,13 +562,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
             E_h = self.halos.BindingEnergy(_Mh, z[i])
             
+            Mavg = 1e-1
+            fsn = 1e-2
+            NSN_per_M = fsn / Mavg
+            
             ##
             # Override switch to smooth inflow-driven star formation model.s
             ##
             if E_h > (1e51 * self.pf['pop_force_equilibrium']):
-                SFR[i] = SFR_s[i]
-                Ms[i+1]  = 0.5 * (SFR[i] + SFR[i-1]) * dt
-                Mg[i+1]  = Mg[i] + Macc - Ms[i+1]
+                # Assume 1e51 * SNR * dt = 1e51 * SFR * SN/Mstell * dt = E_h
+                # SFR = E_h / 1e51 / (SN/Ms) / dt
+                SFR[i]  = E_h / 1e51 / NSN_per_M / dt
+                Ms[i+1] = 0.5 * (SFR[i] + SFR[i-1]) * dt
+                Mg[i+1] = Mg[i] + Macc - Ms[i+1]
                 continue
             
             ##
@@ -573,20 +596,32 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFR[i]   = Mnew / dt
             Ms[i+1]  = Mnew # just the stellar mass *formed this step*
             Mg[i+1]  = Mg[i] + Macc - Mnew
-
+            Msc[i+1] = Msc[i] + Mnew
         
-        data = {'SFR': SFR, 'Mg': Mg, 'Ms': Ms, 'z': z, 't': t}       
+        keep = np.ones_like(z)#np.logical_and(z > zobs, z <= zform)
+        
+        data = \
+         { 
+          'SFR': SFR[keep==1], 
+          'MAR': MAR_s[keep==1],
+          'Mg': Mg[keep==1], 
+          'Ms': Msc[keep==1], 
+          'Mh': Mh_s[keep==1], 
+          'nh': nh[keep==1],
+          'z': z[keep==1], 
+          't': t[keep==1]
+         }       
                 
         return data
         
-    def _gen_galaxy_histories(self):     
+    def _gen_galaxy_histories(self, zstop=0):     
         """
         Take halo histories and paint on galaxy histories in some way.
         """
         
         # First, grab halos
         halos = self._gen_halo_histories()
-                                                        
+        
         # Array of unique redshifts
         zarr = halos['zuni']  
         
@@ -594,6 +629,38 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         all_zform = halos['zform']#[0]
         
         nh = halos['nh']
+        
+        ## 
+        # Stochastic model
+        ##
+        if self.pf['pop_stochastic']:
+            
+            fields = ['SFR', 'MAR', 'Mg', 'Ms', 'Mh', 'nh']
+            num = halos['Mh'].shape[0]
+            
+            hist = {key:np.zeros_like(halos['Mh']) for key in fields}
+            
+            for i in range(num):                
+                #halo = {key:halos[key][i] for key in keys}
+                halo = {'t': halos['t'], 'z': halos['z'],
+                    'Mh': halos['Mh'][i], 'nh': halos['nh'][i]}
+                data = self._gen_galaxy_history(halo, zstop)
+                
+                for key in fields:
+                    hist[key][i] = data[key]
+        
+            hist['z'] = halos['z']
+            hist['t'] = halos['t']
+        
+            flip = {key:hist[key][-1::-1] for key in hist.keys()}
+        
+            self.histories = flip
+            return flip                                            
+        
+        
+        ##
+        # Simpler models
+        ##
         
         # Useful to have a uniform grid for output?
         zform_max = max(all_zform)
@@ -1094,20 +1161,35 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     def SpectralSynthesis(self, hist, zobs=None, wave=1600., weights=1):
         """
-        Yield spectrum for a single object.
+        Yield spectrum for a single galaxy.
         
-        note: need to generalize SAM so that single object run is possible.
+        Parameters
+        ----------
+        hist : dict
+            Dictionary containing the trajectory of a single object. Most
+            importantly, must contain 'SFR', as a function of *increasing
+            time*, stored in the key 't'.
+            
+        For example, hist could be the output of a call to _gen_galaxy_history.
+            
         """
                 
         if zobs is None:
-            iz = None
+            izobs = None
         else:
-            iz = np.argmin(np.abs(zobs - hist['z']))
+            izobs = np.argmin(np.abs(zobs - hist['z']))
         
+        # Must be supplied in increasing time order, decreasing redshift.
         assert np.all(np.diff(hist['t']) >= 0)
-        
-        SFR = hist['SFR'][:iz]
-        
+                        
+        #if not np.any(hist['SFR'] > 0):
+        #    print('nipped this in the bud')
+        #    return hist['t'], hist['z'], np.zeros_like(hist['z'])
+        #
+        izform = 0#min(np.argwhere(hist['Mh'] > 0))[0]
+                
+        print('SS', zobs, izform, izobs, hist['z'][izform], hist['z'][izobs])
+                
         ##
         # First. Simple case without stellar population aging.
         ##
@@ -1116,23 +1198,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 "Should not have pop_ssp==True if pop_aging==False."
             
             L_per_sfr = self.src.L_per_sfr(wave)
-            return L_per_sfr * SFR
+            return L_per_sfr * hist['SFR'][izform:izobs+1]
         
         ##
         # Second. Harder case where aging is allowed.
         ##          
         assert self.pf['pop_ssp']
-        
-        # Birth redshift
-        ib = min(np.argwhere(SFR > 0))[0]
-        SFR = SFR[ib:iz]
-        
-        tarr = hist['t'][ib:iz] # in Myr
-        zarr = hist['z'][ib:iz]
+                
+        # SFH        
+        SFR  = hist['SFR'][izform:izobs+1]
+        tarr = hist['t'][izform:izobs+1] # in Myr
+        zarr = hist['z'][izform:izobs+1]
         dt = np.diff(tarr) * 1e6
         
+        
+        #if SFR[np.argmin(hist['z'][izform:izobs+1] - 10.)] > 1e-2:
+        #    import matplotlib.pyplot as pl
+        #    pl.figure(10)
+        #    pl.semilogy(zarr, SFR)
+        #    raw_input('<enter>')
+        
+        
         ages = np.abs(tarr[-1] - tarr)
-          
+                  
         if self.pf['pop_enrichment']:
             raise NotImplementedError('help')
             Z = self.histories['Z']
@@ -1407,6 +1495,87 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_lf(z, x)
         if cached_result is not None:
             return cached_result
+        
+        # These are kept in ascending redshift order just to make life 
+        # difficult.
+        raw = self.histories
+                        
+        keys = raw.keys()
+        Nt = raw['t'].size
+        Nh = raw['Mh'].shape[0]
+        
+        izobs = np.argmin(np.abs(raw['z'] - z))
+        
+        Lt = np.zeros((Nh, izobs+1))
+        for i in range(Nh):
+            
+            if not np.any(raw['Mh'][i] > 0):
+                print('hey', i)
+                continue
+                
+                
+            print('halo', i, raw['z'])
+                            
+            #hist = {key:raw[key][i] for key in keys}
+            hist = {'t': raw['t'], 'z': raw['z'],
+                'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i]}
+
+            izform = 0#min(np.argwhere(raw['Mh'][i][-1::-1] > 0))[0]
+            
+            # Must supply in time-ascending order
+            zarr, tarr, _L = self.SpectralSynthesis(hist, 
+                zobs=z, wave=wave)
+
+            Lt[i,izform+1:] = _L
+        
+        # Grab number of halos from last timestep.
+        w = raw['nh'][:,-1]
+                        
+                        
+        # Just hack out the luminosity *now*.
+        L = Lt[:,-1]               
+        MAB = self.magsys.L_to_MAB(L, z=z)
+        
+        
+
+        #w *= 1. / np.diff(MAB)
+        
+        # Need to modify weights, since the mapping from Mh -> L -> mag
+        # is not linear.
+        #w *= np.diff(self.histories['Mh'][:,iz]) / np.diff(L)
+        
+        # Should assert that max(MAB) is < max(MAB)
+        
+        # If L=0, MAB->inf. Hack these elements off if they exist.
+        # This should be a clean cut, i.e., there shouldn't be random
+        # spikes where L==0, all L==0 elements should be a contiguous chunk.
+        Misok = L > 0
+        
+        if type(x) != np.ndarray:
+            _x = np.arange(-28, 0.0, 0.2)
+        else:
+            _x = x    
+        
+        hist, bin_edges = np.histogram(MAB[Misok==1], 
+            weights=w[Misok==1], 
+            bins=bin_c2e(_x), density=True)
+                
+        bin_c = bin_e2c(bin_edges)
+        
+        N = np.sum(w)
+        
+        phi = hist * N
+        
+        self._cache_lf_[z] = bin_c, phi
+        
+        return self._cache_lf(z, x)                
+                        
+                        
+                        
+        ############
+        ############
+        
+                    
                         
         # Care required!
         if self.pf['pop_aging']:   
