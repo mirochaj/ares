@@ -517,7 +517,7 @@ def PopulationParameters():
     "pop_scatter_env": 0.0,
     
     "pop_is_deterministic": None,
-    "pop_update_dt": 10.,
+    "pop_update_dt": 'native',
     
     # Cluster-centric model
     "pop_poisson": False,
