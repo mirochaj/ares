@@ -361,7 +361,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if self.pf['pop_guide_pop'] is not None:
                 self._guide = self.pf['pop_guide_pop']
             else:
-                self._guide = GalaxyCohort(**self.pf)        
+                tmp = self.pf.copy()
+                tmp['pop_ssp'] = False
+                self._guide = GalaxyCohort(**tmp)
         
         return self._guide
          
@@ -637,7 +639,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             for i in range(num):                
                 #halo = {key:halos[key][i] for key in keys}
-                halo = {'t': halos['t'], 'z': halos['z'],
+                halo = {'t': halos['t'], 'z': halos['z'], 'zthin': halos['zthin'],
                     'Mh': halos['Mh'][i], 'nh': halos['nh'][i]}
                 data = self._gen_galaxy_history(halo, zstop)
                 
@@ -927,9 +929,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #    return hist['t'], hist['z'], np.zeros_like(hist['z'])
         #
         izform = 0#min(np.argwhere(hist['Mh'] > 0))[0]
-                
-        print('SS', zobs, izform, izobs, hist['z'][izform], hist['z'][izobs])
-                
+                                
         ##
         # First. Simple case without stellar population aging.
         ##
@@ -971,217 +971,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
         return zarr, tarr, np.cumsum(L_per_msun[0:-1] * SFR[0:-1] * dt)
           
-          
-          
-        ###
-        ### OLD OLD OLD OLD
-        ###  
-                 
-        if self.is_deterministic:
-                 
-            zarr = self.tab_z[iz:]
-            
-            # Array of times corresponding to all z' > z.
-            tarr = self.tab_t[iz:]
-            
-            # Ages of stellar populations formed at each z' > z
-            ages = (tarr[0] - tarr) / 1e6
-                            
-            dz = self.tab_dz
-            
-            # Eventually shouldn't be necessary
-            #assert np.allclose(dz, self.pf['sam_dz']), \
-            #    "dz={}, sam_dz={}".format(dz, self.pf['sam_dz'])
-            
-            # in years
-            dt = dz * self.cosm.dtdz(zarr) / s_per_yr
-            
-            # Is this all just an exercise in careful binning?
-            # Also, within a bin, if we assume a constant SFR, there could
-            # be a non-negligible age gradient....ugh.
-                                        
-            
-            if self.pf['pop_enrichment']:
-                Z = self.histories['Z']
-                
-                print('hey', ages.shape, Z.shape)
-                L_per_msun = self.L_of_Z_t(wave)(np.log10(ages),
-                    np.log10(Z))
-                
-                
-            else:    
-                L_per_msun = np.interp(ages, self.src.times, 
-                    self.src.L_per_SFR_of_t(wave))
-            
-            # Note: for SSP, this is in [erg/s/Msun]    
-            
-            # Conceptually, at this observed redshift, for all sources
-            # with a unique identity (in simplest case: formation redshift)
-            # we must sum over the ages present in those galaxies.
-            
-            # Also: must use burst model for star formation, which leads
-            # to complication with fact that we defined a set of SFHs...
-            # maybe only once we add some noise.
-            
-            # Shape = formation redshifts or ID
-            L = np.zeros_like(self.histories['SFR'][:,0])
-            for k in range(self.histories['SFR'].shape[0]):
-                # For each unique object (or object bin), sum emission
-                # over past episodes of star formation.
-        
-                L[k] = np.sum(L_per_msun * self.histories['SFR'][k,iz:] * dt)
-                #L[k] = np.trapz(L_per_msun * self.histories['SFR'][k,iz:],
-                #    dx=dt[0:-1])
-                    
-        else:
-            iz = np.argmin(np.abs(z - self.tab_z))   
-            # In this case, the time-stepping is different for each 
-            # trajectory. 
-            #tnow = self.cosm.t_of_z(z) / s_per_yr
-            znow = self.tab_z[iz]
-            tnow = self.tab_t[iz]
-            
-            # In this case, can do some stuff up-front.
-            if self.pf['pop_update_dt'].startswith('native'):
-                native_sampling = True
-                all_tarr = self.histories['tobs'][-1::-1]
-                all_zarr = self.histories['zobs'][0][-1::-1]
-                all_dt = np.diff(all_tarr)
-                all_dz = np.diff(all_zarr)
-                all_SFR = self.histories['SFR'][:,-1::-1]
-                imax = len(all_tarr)
-                inow = np.argmin(np.abs(all_tarr - tnow))
-                if all_tarr[inow] < tnow:
-                    inow += 1
-            else:
-                native_sampling = False                                    
-                
-            times = self.src.times    
-                
-            # Loop over all objects.
-            L = np.zeros_like(self.histories['zobs'][:,0])
-            #corr = np.ones_like(L)
-            for k in range(self.histories['zobs'].shape[0]):
-                
-                # This galaxy formed after redshift of interest.
-                if not native_sampling:
-                    if np.all(self.histories['zobs'][k] < z):
-                        print('should this only happen for non-native dt?')
-                        continue
-                
-                # In ascending time, descending redshift.
-                # First redshift element is zform, arrays are filled until
-                # object(s) reach z=0 (i.e., not necessarily the last element
-                # of the array).
-                
-                if not native_sampling:
-                    tarr = self.histories['tobs'][k] # [yr]
-                    zarr = self.histories['zobs'][k]
-                    SFR  = self.histories['SFR'][k]
-                    Z = np.maximum(self.histories['Z'][k], 1e-3)
-                    
-                    if not np.all(np.diff(tarr) > 0):
-                        tarr = tarr[-1::-1]
-                        zarr = zarr[-1::-1]
-                        SFR  = SFR[-1::-1]   
-                        
-                    _imax = np.argwhere(tarr == 0)
-                    if len(_imax) > 0:
-                        imax = min(_imax[0]) - 1
-                    else:
-                        imax = len(tarr)    
-                        
-                    inow = np.argmin(np.abs(tarr - tnow))
-                    if tarr[inow] < tnow:
-                        inow += 1    
-                          
-                else:
-                    tarr = all_tarr
-                    zarr = all_zarr
-                    SFR = all_SFR[k]
-                                            
-                # Avoid diff-ing on each iteration if we can
-                if native_sampling:
-                    dt = all_dt[0:imax+1]
-                    dz = all_dz[0:imax+1]
-                else:
-                    dt = np.diff(tarr[0:imax+1])
-                    dz = np.diff(zarr[0:imax+1])
-                
-                # In order to get ages, need to invoke current redshift.
-                _ages = (tnow - tarr[0:imax+1]) / 1e6
-                # Hack out elements beyond current observed redshift 
-                ages = _ages[0:inow+1]
-                
-                ## 
-                # Optional: obscuration
-                ##
-                if self.pf['pop_fobsc'] in [0, None]:
-                    corr = 1.
-                else:
-                    _M = self.histories['Mh'][k]
-                    
-                    # Means obscuration refers to fractional dimming of individual 
-                    # objects
-                    if self.pf['pop_fobsc_by'] == 'lum':
-                        fobsc = self.guide.fobsc(z=znow, Mh=_M[iz])
-                        corr = (1. - fobsc)
-                    else:
-                        raise NotImplemented('help')
-                             
-                #print(k, z, tnow / 1e7, ages / 1e7)
-                #raw_input('<enter>')
-                
-                if len(ages) == 0:
-                    print('ages has no elements!', k)
-                    continue
-                                    
-                # Need to be careful about interpolating within last
-                # dynamical time.
-                if self.pf['pop_enrichment']:
-        
-                   #L_per_msun = self.L_of_Z_t(wave)(np.log10(ages), 
-                   #    np.log10(Z[0:inow+1]))
-                        
-                    # spline wants output to be 2-D.
-                    # we just have a time series of (ages, Z)
-                    # sooo....
-                    
-                    logA = np.log10(ages)
-                    logZ = np.log10(Z[0:inow+1])
-                    
-                    spl = self.L_of_Z_t(wave)
-                    L_per_msun = [spl(logA[w], logZ[w]).squeeze() \
-                        for w in range(logA.size)]
-                    L_per_msun = np.array(L_per_msun)
-                        
-                    
-                    #\
-                    ##    [self.L_of_Z_t(wave)(np.log10(age), np.log10(Z)) \
-                    #        for age in ages]
-                    #L_per_msun = np.array(L_per_msun)        
-                else:        
-                    L_per_msun = np.interp(ages, times, 
-                        self.src.L_per_SFR_of_t(wave))
-                        
-                        
-                L_per_msun *= corr
-                        
-                #_w = np.ones_like(L_per_msun)
-                
-                if not native_sampling:
-                    raise NotImplemented('Do we need to modify weight for last time bin?')
-                
-                #_w[-1] = (tarr[inow+1] - tnow) / dt[-1]
-                #print(k, dt[0:inow-1], _w, L_per_msun, self.histories['SFR'][k,0:inow])
-        
-                # Fix last chunk of weights?
-        
-                #L[k] = np.trapz(L_per_msun * SFR[0:inow+1],
-                #    dx=dt[0:inow])
-                L[k] = np.sum(L_per_msun * SFR[0:inow+1] * dt[0:inow+1])
-                            
-        return L
         
     def _cache_lf(self, z, x):
         if not hasattr(self, '_cache_lf_'):
@@ -1245,16 +1034,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         izobs = np.argmin(np.abs(raw['z'] - z))
         
         Lt = np.zeros((Nh, izobs+1))
+        corr = np.ones_like(Lt)
         for i in range(Nh):
-            
+                        
             if not np.any(raw['Mh'][i] > 0):
                 print('hey', i)
                 continue
                 
-                
-            print('halo', i, raw['z'])
-                            
-            #hist = {key:raw[key][i] for key in keys}
             hist = {'t': raw['t'], 'z': raw['z'],
                 'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i]}
 
@@ -1265,18 +1051,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zobs=z, wave=wave)
 
             Lt[i,izform+1:] = _L
-        
+            
+            ## 
+            # Optional: obscuration
+            ##
+            if self.pf['pop_fobsc'] in [0, 0.0, None]:
+                pass
+            else:
+                _M = raw['Mh'][i,izform:izobs+1]
+                
+                # Means obscuration refers to fractional dimming of individual 
+                # objects
+                if self.pf['pop_fobsc_by'] == 'lum':
+                    fobsc = self.guide.fobsc(z=zarr, Mh=_M)                    
+                    corr[i] = (1. - fobsc)
+                else:
+                    raise NotImplemented('help')
+            
         # Grab number of halos from last timestep.
         w = raw['nh'][:,-1]
                         
-                        
         # Just hack out the luminosity *now*.
-        L = Lt[:,-1]               
+        L = Lt[:,-1] * corr[:,-1]
+        
         MAB = self.magsys.L_to_MAB(L, z=z)
-        
-        
-
-        #w *= 1. / np.diff(MAB)
         
         # Need to modify weights, since the mapping from Mh -> L -> mag
         # is not linear.
@@ -1308,282 +1106,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_lf(z, x)                
                         
-                        
-                        
-        ############
-        ############
-        
-                    
-                        
-        # Care required!
-        if self.pf['pop_aging']:   
-            
-            assert self.pf['pop_ssp']
-                     
-            if self.is_deterministic:
-                iz = np.argmin(np.abs(z - self.tab_z))         
-                     
-                zarr = self.tab_z[iz:]
-                
-                # Array of times corresponding to all z' > z.
-                tarr = self.tab_t[iz:]
-                
-                # Ages of stellar populations formed at each z' > z
-                ages = (tarr[0] - tarr) / 1e6
-                                
-                dz = self.tab_dz
-                
-                # Eventually shouldn't be necessary
-                #assert np.allclose(dz, self.pf['sam_dz']), \
-                #    "dz={}, sam_dz={}".format(dz, self.pf['sam_dz'])
-                
-                # in years
-                dt = dz * self.cosm.dtdz(zarr) / s_per_yr
-                
-                # Is this all just an exercise in careful binning?
-                # Also, within a bin, if we assume a constant SFR, there could
-                # be a non-negligible age gradient....ugh.
-                                            
-                
-                if self.pf['pop_enrichment']:
-                    Z = self.histories['Z']
-                    
-                    print('hey', ages.shape, Z.shape)
-                    L_per_msun = self.L_of_Z_t(wave)(np.log10(ages),
-                        np.log10(Z))
-                    
-                    
-                else:    
-                    L_per_msun = np.interp(ages, self.src.times, 
-                        self.src.L_per_SFR_of_t(wave))
-                
-                # Note: for SSP, this is in [erg/s/Msun]    
-                
-                # Conceptually, at this observed redshift, for all sources
-                # with a unique identity (in simplest case: formation redshift)
-                # we must sum over the ages present in those galaxies.
-                
-                # Also: must use burst model for star formation, which leads
-                # to complication with fact that we defined a set of SFHs...
-                # maybe only once we add some noise.
-                
-                # Shape = formation redshifts or ID
-                L = np.zeros_like(self.histories['SFR'][:,0])
-                for k in range(self.histories['SFR'].shape[0]):
-                    # For each unique object (or object bin), sum emission
-                    # over past episodes of star formation.
-
-                    L[k] = np.sum(L_per_msun * self.histories['SFR'][k,iz:] * dt)
-                    #L[k] = np.trapz(L_per_msun * self.histories['SFR'][k,iz:],
-                    #    dx=dt[0:-1])
-                        
-            else:
-                iz = np.argmin(np.abs(z - self.tab_z))   
-                # In this case, the time-stepping is different for each 
-                # trajectory. 
-                #tnow = self.cosm.t_of_z(z) / s_per_yr
-                znow = self.tab_z[iz]
-                tnow = self.tab_t[iz]
-                
-                # In this case, can do some stuff up-front.
-                if self.pf['pop_update_dt'].startswith('native'):
-                    native_sampling = True
-                    all_tarr = self.histories['tobs'][-1::-1]
-                    all_zarr = self.histories['zobs'][0][-1::-1]
-                    all_dt = np.diff(all_tarr)
-                    all_dz = np.diff(all_zarr)
-                    all_SFR = self.histories['SFR'][:,-1::-1]
-                    imax = len(all_tarr)
-                    inow = np.argmin(np.abs(all_tarr - tnow))
-                    if all_tarr[inow] < tnow:
-                        inow += 1
-                else:
-                    native_sampling = False                                    
-                    
-                times = self.src.times    
-                    
-                # Loop over all objects.
-                L = np.zeros_like(self.histories['zobs'][:,0])
-                #corr = np.ones_like(L)
-                for k in range(self.histories['zobs'].shape[0]):
-                    
-                    # This galaxy formed after redshift of interest.
-                    if not native_sampling:
-                        if np.all(self.histories['zobs'][k] < z):
-                            print('should this only happen for non-native dt?')
-                            continue
-                    
-                    # In ascending time, descending redshift.
-                    # First redshift element is zform, arrays are filled until
-                    # object(s) reach z=0 (i.e., not necessarily the last element
-                    # of the array).
-                    
-                    if not native_sampling:
-                        tarr = self.histories['tobs'][k] # [yr]
-                        zarr = self.histories['zobs'][k]
-                        SFR  = self.histories['SFR'][k]
-                        Z = np.maximum(self.histories['Z'][k], 1e-3)
-                        
-                        if not np.all(np.diff(tarr) > 0):
-                            tarr = tarr[-1::-1]
-                            zarr = zarr[-1::-1]
-                            SFR  = SFR[-1::-1]   
-                            
-                        _imax = np.argwhere(tarr == 0)
-                        if len(_imax) > 0:
-                            imax = min(_imax[0]) - 1
-                        else:
-                            imax = len(tarr)    
-                            
-                        inow = np.argmin(np.abs(tarr - tnow))
-                        if tarr[inow] < tnow:
-                            inow += 1    
-                              
-                    else:
-                        tarr = all_tarr
-                        zarr = all_zarr
-                        SFR = all_SFR[k]
-                                                
-                    # Avoid diff-ing on each iteration if we can
-                    if native_sampling:
-                        dt = all_dt[0:imax+1]
-                        dz = all_dz[0:imax+1]
-                    else:
-                        dt = np.diff(tarr[0:imax+1])
-                        dz = np.diff(zarr[0:imax+1])
-                    
-                    # In order to get ages, need to invoke current redshift.
-                    _ages = (tnow - tarr[0:imax+1]) / 1e6
-                    # Hack out elements beyond current observed redshift 
-                    ages = _ages[0:inow+1]
-                    
-                    ## 
-                    # Optional: obscuration
-                    ##
-                    if self.pf['pop_fobsc'] in [0, None]:
-                        corr = 1.
-                    else:
-                        _M = self.histories['Mh'][k]
-                        
-                        # Means obscuration refers to fractional dimming of individual 
-                        # objects
-                        if self.pf['pop_fobsc_by'] == 'lum':
-                            fobsc = self.guide.fobsc(z=znow, Mh=_M[iz])
-                            corr = (1. - fobsc)
-                        else:
-                            raise NotImplemented('help')
-                                 
-                    #print(k, z, tnow / 1e7, ages / 1e7)
-                    #raw_input('<enter>')
-                    
-                    if len(ages) == 0:
-                        print('ages has no elements!', k)
-                        continue
-                                        
-                    # Need to be careful about interpolating within last
-                    # dynamical time.
-                    if self.pf['pop_enrichment']:
-
-                       #L_per_msun = self.L_of_Z_t(wave)(np.log10(ages), 
-                       #    np.log10(Z[0:inow+1]))
-                            
-                        # spline wants output to be 2-D.
-                        # we just have a time series of (ages, Z)
-                        # sooo....
-                        
-                        logA = np.log10(ages)
-                        logZ = np.log10(Z[0:inow+1])
-                        
-                        spl = self.L_of_Z_t(wave)
-                        L_per_msun = [spl(logA[w], logZ[w]).squeeze() \
-                            for w in range(logA.size)]
-                        L_per_msun = np.array(L_per_msun)
-                            
-                        
-                        #\
-                        ##    [self.L_of_Z_t(wave)(np.log10(age), np.log10(Z)) \
-                        #        for age in ages]
-                        #L_per_msun = np.array(L_per_msun)        
-                    else:        
-                        L_per_msun = np.interp(ages, times, 
-                            self.src.L_per_SFR_of_t(wave))
-                            
-                            
-                    L_per_msun *= corr
-                            
-                    #_w = np.ones_like(L_per_msun)
-                    
-                    if not native_sampling:
-                        raise NotImplemented('Do we need to modify weight for last time bin?')
-                    
-                    #_w[-1] = (tarr[inow+1] - tnow) / dt[-1]
-                    #print(k, dt[0:inow-1], _w, L_per_msun, self.histories['SFR'][k,0:inow])
-
-                    # Fix last chunk of weights?
-
-                    #L[k] = np.trapz(L_per_msun * SFR[0:inow+1],
-                    #    dx=dt[0:inow])
-                    L[k] = np.sum(L_per_msun * SFR[0:inow+1] * dt[0:inow+1])
-
-                self._L = L
-                        
-            # First dimension is formation redshift, second is redshift/time.
-            # As long as we're not destroying halos, just take last timestep.
-            w = self.histories['nh'][:,0]
-
-        else:
-            
-            assert not self.pf['pop_ssp'], \
-                "Should not have pop_ssp==True if pop_aging==False."
-            
-            # All star formation rates at this redshift, 'marginalizing' over
-            # formation redshift.
-            iz = np.argmin(np.abs(z - self.tab_z))
-            sfr = self.histories['SFR'][:,iz]
-
-            # Note: if we knew ahead of time that this was a Cohort population,
-            # we could replace ':' with 'iz:' in this slice, since we need
-            # not consider objects with formation redshifts < current redshift.
-            L_per_sfr = self.src.L_per_sfr(wave)
-            L = L_per_sfr * sfr
-
-            # First dimension is formation redshift, second is redshift
-            # at which we've got some SFR.
-            w = self.histories['nh'][:,iz]
-
-        MAB = self.magsys.L_to_MAB(L, z=z)
-
-        #w *= 1. / np.diff(MAB)
-
-        # Need to modify weights, since the mapping from Mh -> L -> mag
-        # is not linear.
-        #w *= np.diff(self.histories['Mh'][:,iz]) / np.diff(L)
-
-        # Should assert that max(MAB) is < max(MAB)
-        
-        # If L=0, MAB->inf. Hack these elements off if they exist.
-        # This should be a clean cut, i.e., there shouldn't be random
-        # spikes where L==0, all L==0 elements should be a contiguous chunk.
-        Misok = L > 0
-        
-        if type(x) != np.ndarray:
-            _x = np.arange(-28, -5.8, 0.2)
-        else:
-            _x = x    
-                                        
-        hist, bin_edges = np.histogram(MAB[Misok==1], 
-            weights=w[Misok==1], 
-            bins=bin_c2e(_x), density=True)
-        
-        bin_c = bin_e2c(bin_edges)
-                    
-        N = np.sum(w)
-        
-        phi = hist * N
-        
-        self._cache_lf_[z] = bin_c, phi
-        
-        return self._cache_lf(z, x)
         
     def MainSequence(self, z):
         """

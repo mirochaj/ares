@@ -516,13 +516,9 @@ def PopulationParameters():
     "pop_scatter_sfe": 0.0,
     "pop_scatter_env": 0.0,
     
-    "pop_is_deterministic": None,
     "pop_update_dt": 'native',
     
     # Cluster-centric model
-    "pop_poisson": False,
-    "pop_bcycling": False,
-    "pop_internal_feedback": False,
     "pop_delay_feedback": 0.0,
     "pop_force_equilibrium": np.inf,
     "pop_stochastic": False,
