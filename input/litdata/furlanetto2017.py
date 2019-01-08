@@ -8,6 +8,7 @@ energy = \
  'pop_fstar_max': 0.1,            # fstar <= this value
  
  # SFE (through mass loading factor)
+ 'pop_sfr_model': 'mlf-func',
  'pop_mlf': 'pq[0]',
  'pq_func[0]': 'pl',
  'pq_func_var[0]': 'Mh',

@@ -15,6 +15,7 @@ from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
 _input = os.getenv('ARES') + '/input/bpass_v1/SEDS'
+_input2 = os.getenv('ARES') + '/input/bpass_v1/starsmodels'
 
 metallicities = \
 {
@@ -100,4 +101,46 @@ def _load(**kwargs):
         data *= Lsun
 
     return wavelengths, data
+    
+        
+def _load_tracks(**kwargs):
+    
+    Zvals = np.sort(list(metallicities.values()))
+    
+    Z = kwargs['source_Z']
+    Zstr = str(Z).split('.')[1]
+    while len(Zstr) < 3:
+        Zstr += '0'
+    
+    prefix = 'newspec.z{}'.format(Zstr)
+    
+    masses   = []
+    all_data = {}
+    for fn in os.listdir(_input2):
+        if not fn.startswith(prefix):
+            continue
             
+        m = float(fn.split(prefix)[1][1:])
+        masses.append(m)
+        
+        raw = np.loadtxt(_input2 + '/' + fn, unpack=True)
+        
+        all_data[m] = {}
+        all_data[m]['t'] = raw[0]
+        all_data[m]['age'] = raw[1]
+        all_data[m]['logR'] = raw[2]
+        all_data[m]['logT'] = raw[3]
+        all_data[m]['logL'] = raw[4]
+        all_data[m]['M'] = raw[5]
+        all_data[m]['MHe'] = raw[6]
+        all_data[m]['MCO'] = raw[7]
+        
+        # Read contents of file.
+        
+    masses = np.array(masses)
+    
+    all_data['masses'] = np.sort(masses)
+    
+    return all_data
+    
+    

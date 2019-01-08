@@ -434,6 +434,9 @@ def PopulationParameters():
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
     
+    # Feedback for single-stars
+    "pop_sn_coupling": 0.1,
+    
     "pop_sfh": False,             # account for SFH in spectrum modeling
 
     # Option of setting Z, t, or just supplying SSP table?

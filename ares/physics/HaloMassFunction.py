@@ -430,7 +430,7 @@ class HaloMassFunction(object):
         # Will setup an array of masses
         MF = self._MF
 
-        # Masses in hmf are in units of Msun * h
+        # Masses in hmf are really Msun / h
         if hmf_vers < 3:
             self.tab_M = self._MF.M / self.cosm.h70
         else:
@@ -871,7 +871,7 @@ class HaloMassFunction(object):
             
         """    
         
-        return 1.98e4 * (mu / 0.6) * (M / self.cosm.h70 / 1e8)**(2. / 3.) * \
+        return 1.98e4 * (mu / 0.6) * (M * self.cosm.h70 / 1e8)**(2. / 3.) * \
             (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) /
             self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(1. / 3.) * \
             ((1. + z) / 10.)
@@ -897,13 +897,16 @@ class HaloMassFunction(object):
         Equation 24 in Barkana & Loeb (2001).
         """
         
-        return 0.784 * (M / self.cosm.h70 / 1e8)**(1. / 3.) \
+        return 0.784 * (M * self.cosm.h70 / 1e8)**(1. / 3.) \
             * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
               
     def CircularVelocity(self, M, z, mu=0.6):
         return np.sqrt(G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
+    
+    def EscapeVelocity(self, z, M, mu=0.6):
+        return np.sqrt(2. * G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
               
     def MassFromVc(self, Vc, z):
         cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \

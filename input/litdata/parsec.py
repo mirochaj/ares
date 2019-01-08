@@ -8,10 +8,13 @@ cols = ['Zini', 'Age', 'Mini', 'Mass', 'logL', 'logTe', 'logg', 'label',
     'Y', 'Xc', 'Xn', 'Xo', 'Cexcess', 'Z', 'mbolmag', 'Umag', 'Bmag', 'Vmag',
     'Rmag', 'Imag', 'Jmag', 'Hmag', 'Kmag']
 
-def _load(fn, Marr):
+def _load_tracks(**kwargs):
     """
     Load file `fn` and assume mass grid `Marr`.
     """
+    
+    fn = kwargs['source_tracks_fn']
+    Marr = kwargs['source_imf_bins']
     
     raw = np.loadtxt(_input+fn, unpack=True)
     

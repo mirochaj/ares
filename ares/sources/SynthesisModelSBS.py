@@ -38,21 +38,26 @@ class SynthesisModelSBS(Source):
         self.pf = ParameterFile(**kwargs)
         
         self.fcore = 6e-3 * 0.74
-        
-        self.log10Mmin = self.pf['source_imf_bins'].min()
-        self.log10Mmax = self.pf['source_imf_bins'].max()
-        self.dlog10M = np.diff(self.pf['source_imf_bins'])[0]
-        self.Mmin = 10**self.log10Mmin
-        self.Mmax = 10**self.log10Mmax
-        self.dM = np.diff(self.pf['source_imf_bins'])[0]
+
         self.aging = self.pf['source_stellar_aging']
+        
+    def __getattr__(self, name):
+        if (name[0] == '_'):
+            if name.startswith('_tab'):
+                return self.__getattribute__(name)
+                
+            raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
+                
+        poke = self.Ms
+        
+        return self.__dict__[name]
+        
     @property
     def tracks(self):
         if not hasattr(self, '_tracks'):
-            if self.pf['source_tracks'] == 'parsec':
-                mod = read_lit('parsec')
-                self._tracks = mod._load(self.pf['source_tracks_fn'], 
-                    self.masses)
+            if self.pf['source_tracks'] in ['parsec', 'eldridge2009']:
+                mod = read_lit(self.pf['source_tracks'])
+                self._tracks = mod._load_tracks(**self.pf)
             elif self.pf['source_tracks'] is not None:
                 raise NotImplemented('help')
             else:
@@ -61,18 +66,23 @@ class SynthesisModelSBS(Source):
         return self._tracks
         
     @property
-    def _tab_life(self):
+    def tab_life(self):
         if not hasattr(self, '_tab_life_'):
             assert self.tracks is not None
-            
-            self._tab_life_ = np.zeros_like(self.masses)
-            for i, mass in enumerate(self.masses):
-                ages = self.tracks['Age'][i]
-                alive = np.logical_and(np.isfinite(ages), ages > 0)
-                self._tab_life_[i] = ages[min(np.argwhere(~alive))-1]
-            
+
+            self._tab_life_ = np.zeros_like(self.Ms)
+            for i, mass in enumerate(self.Ms):
+                
+                if self.pf['source_tracks'] == 'eldridge2009':
+                    tracks = self.tracks[mass]
+                    self._tab_life_[i] = max(tracks['age']) / 1e6
+                else:   
+                    ages = self.tracks['Age'][i]
+                    alive = np.logical_and(np.isfinite(ages), ages > 0)
+                    self._tab_life_[i] = ages[min(np.argwhere(~alive))-1]
+
         return self._tab_life_
-        
+
     @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
@@ -99,10 +109,43 @@ class SynthesisModelSBS(Source):
         return self._times
     
     @property
-    def masses(self):
-        if not hasattr(self, '_masses'):
-            self._masses = 10**self.pf['source_imf_bins']
-        return self._masses
+    def Ms(self):
+        if not hasattr(self, '_Ms'):
+            if self.pf['source_tracks'] == 'eldridge2009':
+                self._Ms = self.tracks['masses']
+            else:
+                self._Ms = 10**self.pf['source_imf_bins']
+                
+            self.log10Mmin = np.log10(self._Ms).min()        
+            self.log10Mmax = np.log10(self._Ms).max()        
+            self.dlog10M = np.diff(np.log10(self._Ms))[0]    
+            self.Mmin = 10**self.log10Mmin                           
+            self.Mmax = 10**self.log10Mmax
+            
+            # kludgey. Interpolate to uniform grid?
+            self.dM = np.concatenate((np.diff(self._Ms), [0]))
+                
+        return self._Ms
+        
+    @property
+    def Ms_e(self):
+        """
+        Bin edges.
+        """
+        
+        if not hasattr(self, '_Ms_e'):
+            dM = np.diff(self.Ms)
+            
+            if np.allclose(np.diff(dM), 0):
+                self._Ms_e = bin_c2e(self.Ms)
+            else:
+                # Be more careful for non-uniform binning.    
+                #assert self.pf['source_tracks'] == 'eldridge2009'
+                raise NotImplemented('help')
+                
+                    
+        return self._Ms_e        
+            
     
     def load(self):
         raise NotImplemented('help')
@@ -129,7 +172,7 @@ class SynthesisModelSBS(Source):
         if self.tracks is not None:
             if not self.aging:
                 # Just use MS luminosity
-                logL = np.interp(M, self.masses, self.tracks['logL'][:,0])
+                logL = np.interp(M, self.Ms, self.tracks['logL'][:,0])
                 return Lsun * 10**logL
             else:
                 raise NotImplemented('help')
@@ -148,28 +191,28 @@ class SynthesisModelSBS(Source):
         else:
             return 32e3 * Lsun * M
         
-    def lum(self, M):
-        if not hasattr(self, '_lum_func'):
-            self._lum_func = np.vectorize(self._lum)
-        return self._lum_func(M)
-        
-    def age(self, M):
-        if self.tracks is not None:
-            return np.interp(M, self.masses, self._tab_life)
-        # If 'tracks' is not None, must tabulate this.
-        
-        return self.fcore * M * g_per_msun * c**2 / self.lum(M) / s_per_myr
- 
-    def temp(self, M):
-        if self.tracks is not None:
-            if not self.aging:
-                # Just use MS luminosity
-                logT = np.interp(M, self.masses, self.tracks['logTe'][:,0])
-                return 10**logT
-            else:
-                raise NotImplemented('help')
-                
-        return Tsun * (M**2.5)**0.25
+    #def lum(self, M):
+    #    if not hasattr(self, '_lum_func'):
+    #        self._lum_func = np.vectorize(self._lum)
+    #    return self._lum_func(M)
+    #    
+    #def age(self, M):
+    #    if self.tracks is not None:
+    #        return np.interp(M, self.masses, self._tab_life)
+    #    # If 'tracks' is not None, must tabulate this.
+    #    
+    #    return self.fcore * M * g_per_msun * c**2 / self.lum(M) / s_per_myr
+    #
+    #def temp(self, M):
+    #    if self.tracks is not None:
+    #        if not self.aging:
+    #            # Just use MS luminosity
+    #            logT = np.interp(M, self.masses, self.tracks['logT'][:,0])
+    #            return 10**logT
+    #        else:
+    #            raise NotImplemented('help')
+    #            
+    #    return Tsun * (M**2.5)**0.25
         
     @property
     def dldn(self):
@@ -201,34 +244,49 @@ class SynthesisModelSBS(Source):
             dndl = np.diff(n_edges) / np.diff(l_edges)
             
             if self.tracks is not None and self.aging:
-                self._tab_Ls = np.zeros((self.masses.size, 
+                self._tab_Ls = np.zeros((self.Ms.size, 
                     self.wavelengths.size, self.times.size))
             else:
-                self._tab_Ls = np.zeros((self.masses.size, 
+                self._tab_Ls = np.zeros((self.Ms.size, 
                     self.wavelengths.size))
-            
-                
-            for i, mass in enumerate(self.masses):
-                
-                if self.tracks is not None and self.aging:
-                    pass
+                    
+            if self.tracks is not None:
+
+                if self.pf['source_tracks'] == 'eldridge2009':
+                    if self.aging:
+                        k = slice(0,None,1)
+                    else:   
+                        k = 0
+                    
+                    A = [self.tracks[m]['age'][k] \
+                        for m in self.tracks['masses']]
+                    T = [10**self.tracks[m]['logT'][k] \
+                        for m in self.tracks['masses']]
+                    L = [Lsun * 10**self.tracks[m]['logL'][k] \
+                        for m in self.tracks['masses']]    
                 else:    
+                    T = 10**self.tracks['logTe'][:,0]
+                    L = Lsun * 10**self.tracks['logL'][:,0]
+            else:
+                T = self.temp(self.Ms)
+                L = self.lum(self.Ms)
                 
-                    T = self.temp(mass)
-                    L = self.lum(mass)
+            for i, mass in enumerate(self.Ms):
+                            
+                if self.aging:    
+                                                        
+                    Loft = np.interp(self.times, A[i] / 1e6, L[i], right=0.)
+                    Toft = np.interp(self.times, A[i] / 1e6, T[i], right=0.)
                     
-                    tot = quad(lambda EE: _Planck(EE, T), 0., np.inf)[0]
-                    spec = self.Spectrum(self.energies, T) / erg_per_ev / tot
+                    tot = quad(lambda EE: _Planck(EE, Toft[0]), 0., np.inf)[0]
+                    spec = self.Spectrum(self.energies, Toft[0]) / erg_per_ev / tot
                     
-                    # Damp UV emission from cooler stars?
-                    corr = np.ones_like(spec)
-                    
-                    #if T < 1e4:
-                    #    corr[self.wavelengths < 2e3] = 0
-                    
-                    spec *= corr
-                    
-                    self._tab_Ls[i,:] = L * spec * dedn * np.abs(dndl) 
+                    self._tab_Ls[i] = Loft * spec[:,None] * dedn[:,None] \
+                        * np.abs(dndl)[:,None]
+                else:    
+                    tot = quad(lambda EE: _Planck(EE, T[i]), 0., np.inf)[0]
+                    spec = self.Spectrum(self.energies, T[i]) / erg_per_ev / tot
+                    self._tab_Ls[i] = L[i] * spec * dedn * np.abs(dndl) 
             
         return self._tab_Ls    
             
@@ -242,35 +300,45 @@ class SynthesisModelSBS(Source):
         
         """         
         if not hasattr(self, '_data'):
-            ages = self.age(self.masses)
+            
+            if self.pf['source_tracks'] == 'eldridge2009':
+                ages = self.tab_life
+            else:    
+                ages = self.age(self.Ms)
+            
             self._data = np.zeros((self.wavelengths.size, self.times.size))
             for i, t in enumerate(self.times):
                 
-                alive = np.array(ages > t, dtype=int)
+                
+                if self.aging:
+                    # (mass, wavelength, time)
+                    Ls = self.tab_Ls[:,:,i]
+                else:
+                    alive = np.array(ages > t, dtype=int)
+                    Ls = self.tab_Ls * alive[:,None]
                 
                 #if self.tracks is not None:
                 #    corr = 
                 #    corr = np.array(ages > t, dtype=int)
                 #else:
                 #    corr = np.ones_like(ages)
-                    
+                
                 # Recall that 'tab_L_ms' is 2-D, (mass, wavelength) if
                 # not using stellar tracks, 3-D otherwise (mass, wavelength, time)
-                L_per_dM = self.tab_imf[:,None] * alive[:,None] \
-                         * self.tab_Ls
+                L_per_dM = self.tab_imf[:,None] * Ls
 
-                self._data[:,i] = np.sum(L_per_dM * self.dM, axis=0) / 1e6
+                self._data[:,i] = np.sum(L_per_dM * self.dM[:,None], axis=0) / 1e6
 
         return self._data
 
     def ngtm(self, m):
-        return 1. - 10**np.interp(np.log10(m), np.log10(self.masses), np.log10(self.tab_imf_cdf))
+        return 1. - 10**np.interp(np.log10(m), np.log10(self.Ms), np.log10(self.tab_imf_cdf))
         
     def mgtm(self, m):
-        cdf_by_m = cumtrapz(self.tab_imf * self.masses**2, x=np.log(self.masses), initial=0.) \
-            / np.trapz(self.tab_imf * self.masses**2, x=np.log(self.masses))
+        cdf_by_m = cumtrapz(self.tab_imf * self.Ms**2, x=np.log(self.Ms), initial=0.) \
+            / np.trapz(self.tab_imf * self.Ms**2, x=np.log(self.Ms))
         
-        return 1. - np.interp(m, self.masses, cdf_by_m)
+        return 1. - np.interp(m, self.Ms, cdf_by_m)
 
     @property
     def tab_imf(self):
@@ -284,19 +352,21 @@ class SynthesisModelSBS(Source):
                 a = -2.35
                 norm = (self.Mmax**(a + 2.) - self.Mmin**(a + 2.)) / (a + 2.)
                 xi_0 = 1e6 / norm
-                self._tab_imf = xi_0 * self.masses**a
+                self._tab_imf = xi_0 * self.Ms**a
             elif self.pf['source_imf'] == 'kroupa':
                 m1 = 0.08; m2 = 0.5
                 a0 = -0.3; a1 = -1.3; a2 = -2.3
                                                 
                 # Integrating to 10^6 Msun, hence two extra powers of M.                
                 norm = ((m1**(a0 + 2.) - self.Mmin**(a0 + 2.)) / (a0 + 2.)) \
-                     + (m1**a1 / m1**a2) * ((m2**(a1 + 2.) - m1**(a1 + 2.)) / (a1 + 2.)) \
-                     + (m1**a1 / m1**a2) * (m2**a1 / m2**a2) * ((self.Mmax**(a2 + 2.) - m2**(a2 + 2.)) / (a2 + 2.))
+                     + (m1**a1 / m1**a2) \
+                     * ((m2**(a1 + 2.) - m1**(a1 + 2.)) / (a1 + 2.)) \
+                     + (m1**a1 / m1**a2) * (m2**a1 / m2**a2) \
+                     * ((self.Mmax**(a2 + 2.) - m2**(a2 + 2.)) / (a2 + 2.))
                      
-                _m0 = self.masses[self.masses < m1]
-                _m1 = self.masses[np.logical_and(self.masses >= m1, self.masses < m2)]
-                _m2 = self.masses[self.masses >= m2]     
+                _m0 = self.Ms[self.Ms < m1]
+                _m1 = self.Ms[np.logical_and(self.Ms >= m1, self.Ms < m2)]
+                _m2 = self.Ms[self.Ms >= m2]     
                      
                 n0 = self._n0 = 1e6 / norm
                 n1 = self._n1 = n0 * m1**a1 / m1**a2
@@ -325,7 +395,7 @@ class SynthesisModelSBS(Source):
             # Doing this precisely is really important, so be careful!
             if self.pf['source_imf'] in ['salpeter', 2.35]:
                 norm = (self.Mmin**-1.35 - self.Mmax**-1.35) / 1.35
-                self._tab_imf_cdf = 1. - (self.masses**-1.35 - self.Mmax**-1.35) \
+                self._tab_imf_cdf = 1. - (self.Ms**-1.35 - self.Mmax**-1.35) \
                     / 1.35 / norm
             elif self.pf['source_imf'] in ['kroupa']:
                 
@@ -335,9 +405,9 @@ class SynthesisModelSBS(Source):
                 m1 = 0.08; m2 = 0.5
                 a0 = -0.3; a1 = -1.3; a2 = -2.3
                 
-                _m0 = self.masses[self.masses < m1]
-                _m1 = self.masses[np.logical_and(self.masses >= m1, self.masses < m2)]
-                _m2 = self.masses[self.masses >= m2]
+                _m0 = self.Ms[self.Ms < m1]
+                _m1 = self.Ms[np.logical_and(self.Ms >= m1, self.Ms < m2)]
+                _m2 = self.Ms[self.Ms >= m2]
                 
                 # Integrate up stars over all ranges.
                 norm = self._n0 * ((m1**(a0 + 1.) - self.Mmin**(a0 + 1.)) / (a0 + 1.)) \
@@ -356,8 +426,8 @@ class SynthesisModelSBS(Source):
                 self._tab_imf_cdf = np.concatenate((_tot0, _tot1, _tot2)) / _tot2[-1]
                 
             else:    
-                self._tab_imf_cdf = cumtrapz(self.tab_imf, x=self.masses, initial=0.) \
-                    / np.trapz(self.tab_imf * self.masses, x=np.log(self.masses))
+                self._tab_imf_cdf = cumtrapz(self.tab_imf, x=self.Ms, initial=0.) \
+                    / np.trapz(self.tab_imf * self.Ms, x=np.log(self.Ms))
 
         return self._tab_imf_cdf
     
@@ -368,7 +438,7 @@ class SynthesisModelSBS(Source):
         return self._nsn_per_m
     
     def draw_stars(self, N):
-        return np.interp(np.random.rand(N), self.tab_imf_cdf, self.masses)
+        return np.interp(np.random.rand(N), self.tab_imf_cdf, self.Ms)
             
             
             

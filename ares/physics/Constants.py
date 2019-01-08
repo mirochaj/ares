@@ -96,6 +96,7 @@ nu_0_mhz = nu_0 / 1e6
 # solar luminosity
 Lsun = 3.828e33
 Tsun = 5778.
+Rsun = 695508. * cm_per_km
 
 # Helium
 m_He = m_HeI = 2.0 * (m_p + m_n + m_e)
