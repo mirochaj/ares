@@ -423,6 +423,9 @@ def PopulationParameters():
     # For synthesis models
     "pop_Z": 0.02,
     "pop_imf": 2.35,
+    "pop_tracks": None,
+    "pop_tracks_fn": None,
+    "pop_stellar_aging": False,
     "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_psm_instance": None,
@@ -521,7 +524,11 @@ def PopulationParameters():
     # Cluster-centric model
     "pop_delay_feedback": 0.0,
     "pop_force_equilibrium": np.inf,
-    "pop_stochastic": False,
+    "pop_sample_imf": False,
+    "pop_sample_cmf": False,
+    "pop_imf": 'salpeter',
+    "pop_imf_bins": None,#np.arange(0.1, 150.01, 0.01),  # bin centers
+    "pop_cmf": None,
     
     "pop_fobsc": 0.0,
     "pop_fobsc_by": None, # or 'age' or 'lum'
@@ -711,6 +718,9 @@ def SourceParameters():
     "source_sfh": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
+    "source_tracks": None,
+    "source_tracks_fn": None,
+    "source_stellar_aging": False,
     "source_nebular": False,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
@@ -719,6 +729,9 @@ def SourceParameters():
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
     "source_interpolant": None,
+    
+    # Log masses
+    "source_imf_bins": np.arange(-1, 2.52, 0.02),  # bin centers
     
     "source_degradation": None,      # Degrade spectra to this \AA resolution
     "source_aging": False,
@@ -798,6 +811,9 @@ def SynthesisParameters():
     "source_sed": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
+    "source_tracks": None,
+    "source_tracks_fn": None,
+    "source_stellar_aging": False,
     "source_nebular": False,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
