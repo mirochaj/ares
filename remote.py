@@ -19,9 +19,8 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 #]
 #
 
-_bpass_v1_links = ['2/files/sed_bpass_z{!s}_tar.gz'.format(Z) \
+_bpass_v1_links = ['sed_bpass_z{!s}_tar.gz'.format(Z) \
     for Z in ['001', '004', '008', '020', '040']]
-_bpass_v1_links.append('1/files/starsmodels_tar.gz')
 
 aux_data = \
 {
@@ -48,7 +47,10 @@ aux_data = \
  #   'UVB.out', 
  #   'emissivity.out', 
  #   None],
- 'bpass_v1': ['http://bpass.auckland.ac.nz/'] + _bpass_v1_links + [None],
+ 'bpass_v1': ['http://bpass.auckland.ac.nz/2/files'] + _bpass_v1_links + [None],
+ 'bpass_v1_stars': ['http://bpass.auckland.ac.nz/1/files',
+    'starsmodels_tar.gz',
+    None],
  #'bpass_v2': ['https://drive.google.com/file/d/'] + \
  #    ['bpassv2-imf{}-300tar.gz'.format(IMF) for IMF in [100, 135]] + \
  #     [None],    
@@ -111,7 +113,7 @@ for i, direc in enumerate(to_download):
     for fn in fns:
          
         if '/' in fn:
-            pre, _fn = fn.split('/') 
+            _fn = fn[fn.rfind('/')+1:]#fn.split('/') 
         else:
             _fn = fn    
             

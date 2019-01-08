@@ -15,7 +15,7 @@ from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
 _input = os.getenv('ARES') + '/input/bpass_v1/SEDS'
-_input2 = os.getenv('ARES') + '/input/bpass_v1/starsmodels'
+_input2 = os.getenv('ARES') + '/input/bpass_v1_stars/'
 
 metallicities = \
 {
