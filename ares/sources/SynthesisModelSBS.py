@@ -440,5 +440,44 @@ class SynthesisModelSBS(Source):
     def draw_stars(self, N):
         return np.interp(np.random.rand(N), self.tab_imf_cdf, self.Ms)
             
+    #def tab_sn_dtd(self):
+    #    """
+    #    Delay time distribution.
+    #    """
+    #    if not hasattr(self, '_tab_sn_dtd'):
+    #        self._tab_sn_dtd = np.zeros_like(self.times)
+    #        
+    #        self.tab_life self.tab_imf
+
+    @property
+    def max_sn_delay(self):
+        if not hasattr(self, '_max_sn_delay'):
+            self._max_sn_delay = float(self.tab_life[self.Ms == 8.])
+        return self._max_sn_delay
             
+    @property        
+    def avg_sn_delay(self):
+        if not hasattr(self, '_avg_sn_delay'):
+            ok = self.Ms >= 8.
+            top = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1], 
+                x=self.Ms[ok==1])
+                
+            bot = np.trapz(self.tab_imf[ok==1], x=self.Ms[ok==1])
+            
+            self._avg_sn_delay = top / bot
+        
+        return self._avg_sn_delay
+        
+    #@property        
+    #def var_sn_delay(self):
+    #    if not hasattr(self, '_var_sn_delay'):
+    #        ok = self.Ms >= 8.
+    #        top = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1], 
+    #            x=self.Ms[ok==1])
+    #
+    #        bot = np.trapz(self.tab_imf[ok==1], x=self.Ms[ok==1])
+    #
+    #        self._avg_sn_delay = top / bot
+    #
+    #    return self._avg_sn_delay    
             

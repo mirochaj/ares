@@ -3376,7 +3376,8 @@ class ModelSet(BlobFactory):
                     xin = yin = None
                     
                 # 1-D PDFs on the diagonal    
-                if k in mp.diag and oned:
+                diag = mp.diag if mp.diag is not None else []
+                if k in diag and oned:
 
                     # Grab array to be histogrammed
                     try:
