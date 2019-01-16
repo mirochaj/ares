@@ -6,7 +6,7 @@ In March of 2018, the EDGES collaboration reported an anamolously-strong absorpt
 
 In *ares*, we have not included any specific models of dark matter. However, in `Mirocha \& Furlanetto (2019) <http://adsabs.harvard.edu/abs/2019MNRAS.483.1980M>`_ we explored two general possibilities:
 
-- A parametric ``excess cooling'' model, in which the thermal history at very high redshift is allowed to depart from the predictions of standard recombination codes in :math:`\Lambda \text{CDM}` cosmologies.
+- A parametric "excess cooling" model, in which the thermal history at very high redshift is allowed to depart from the predictions of standard recombination codes in :math:`\Lambda \text{CDM}` cosmologies.
 - An astrophysically-generated radio background, whose strength scales with the star formation of galaxies as :math:`L_R \propto f_R \text{SFR}`. The parameter :math:`f_R` was left as a free parameter.
  
 In this section, we will show how to run these models within *ares*.
@@ -103,7 +103,18 @@ If you want to use the exact models presented in `Mirocha \& Furlanetto (2019) <
    :align:   center
    :width:   600
 
-   Various ``excess cooling'' models for the global 21-cm signal compared to the EDGES 78 MHz signal(s).
+   Various "excess cooling" models for the global 21-cm signal compared to the EDGES 78 MHz signal(s).
+    
+The main free parameters in this model are:
+
+* ``pop_Tmin{0}``: The minimum virial temperature of star-forming halos [Kelvin].
+* ``pop_Z{0}``: Metallicity assumed for stellar models (BPASS v1.0 by default).
+* ``pop_fesc{0}``: Escape fraction of ionizing radiation.
+* ``pop_fstar{0}``: Efficiency of star formation. Actually many parameters, see :doc:`uth_pq` to decipher the relevant parameters (e.g., ``pq_func_par0{0}[0]``, ``pq_func_par1{0}[0]``, etc.)
+* ``pop_rad_yield{1}``: The normalization of the X-ray luminosity SFR relation [:math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr})^{-1}`]
+* ``pop_alpha{1}``: Spectral index of X-ray emission.
+* ``pop_logN{1}``: Typical column density of hydrogen in galaxies that hardens intrinsic X-ray spectrum [:math:`\log_{10} \mathrm{cm}^{-2}`]
+
     
 
 	

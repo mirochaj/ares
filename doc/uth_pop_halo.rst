@@ -18,13 +18,13 @@ To initialize a halo population on its own (i.e., without any information about 
     
 This class is inherited by almost every other kind of source population available in *ares*. Its most important attribute is simply called `halos`, and itself is an instance of the ``HaloMassFunction`` class, which does the heavy lifting. The attributes you're most likely to need access to are:
 
-+ ``'z'``
++ ``'tab_z'``
     The array of redshifts over which we have tabulated the HMF.
-+ ``'M'``
++ ``'tab_M'``
     The array of masses over which we have tabulated the HMF.    
-+ ``'dndm'``
++ ``'tab_dndm'``
     The differential halo mass function, i.e., number of halos per mass bin, :math:`dn/dm`. Note that the shape should be ``(len(z), ``len(M))``.
-+ ``'fcoll_tab'``
++ ``'tab_fcoll'``
     Fraction of matter in collapsed halos as a function of redshift and lower limit of integration (see below).
     
 To have a look at the mass function at a few redshifts, you could do something like:
