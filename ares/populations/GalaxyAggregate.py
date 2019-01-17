@@ -28,7 +28,7 @@ from ..sources import Star, BlackHole, StarQS, SynthesisModel
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
+    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL, k_B
     
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']    
 tiny_sfrd = 1e-15    
@@ -281,4 +281,9 @@ class GalaxyAggregate(HaloPopulation):
             * self.pf['pop_fstar'] #* self.cosm.fbaryon
         return zeta
         
+    def HeatingEfficiency(self, z):
+        uconn = s_per_yr * self.cosm.g_per_b / g_per_msun
+        zeta_x = self.pf['pop_fXh'] * self.pf['pop_rad_yield'] * uconn \
+               * (2. / 3. / k_B / self.pf['ps_saturated'] / self.cosm.TCMB(z))
     
+        return zeta_x

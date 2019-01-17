@@ -28,12 +28,15 @@ def load(model='faint_galaxies'):
         ps.append(y)
         
     z = np.array(z)
-    dTb = np.array(dTb)
-    k = np.array(k)
-    ps = np.array(ps)
-    QHII = np.array(QHII)
     
-    return {'z': z, 'k': k[0], 'ps_21_dl': ps, 'dTb': dTb, 'Qi': QHII}
+    s = np.argsort(z)
+    
+    dTb = np.array(dTb)[s]
+    k = np.array(k)[s]
+    ps = np.array(ps)[s]
+    QHII = np.array(QHII)[s]
+    
+    return {'z': z[s], 'k': k[0], 'ps_21_dl': ps, 'dTb': dTb, 'Qi': QHII}
 
     
 

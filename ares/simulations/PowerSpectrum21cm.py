@@ -250,7 +250,7 @@ class PowerSpectrum21cm(AnalyzePS):
             #Tpro = None
             for j, pop in enumerate(self.pops):
                 pop_zeta = pop.IonizingEfficiency(z=z)
-
+                
                 if pop.is_src_ion:
 
                     if type(pop_zeta) is tuple:
@@ -265,7 +265,8 @@ class PowerSpectrum21cm(AnalyzePS):
                     zeta = np.maximum(zeta, 1.) # why?
 
                 if pop.is_src_heat:
-                    pass
+                    pop_zeta_X = pop.HeatingEfficiency(z=z)
+                    zeta_X += pop_zeta_X
 
                 if pop.is_src_lya:
                     Nlya += pop.pf['pop_Nlw']
@@ -273,16 +274,20 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # Only used if...ps_lya_method==0?
             zeta_lya += zeta * (Nlya / Nion)
-                                    
+                                                                        
             ##
             # Make scalar if it's a simple model
             ##
             if np.all(np.diff(zeta) == 0):
                 zeta = zeta[0]
+            if np.all(np.diff(zeta_X) == 0):
+                zeta_X = zeta_X[0]    
             if np.all(np.diff(zeta_lya) == 0):
                 zeta_lya = zeta_lya[0]
                 
-                
+            self.field.zeta = zeta
+            self.field.zeta_X = zeta_X
+                            
             self.zeta = zeta    
                 
             ##
@@ -299,7 +304,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 else:    
                     R_s = lambda R, z: R + asize
                 
-            elif self.pf['ps_include_temp']:
+            elif self.pf['ps_include_temp'] and self.pf['ps_include_ion']:
                 fvol = self.pf["bubble_shell_rvol_zone_0"]
                 frad = self.pf['bubble_shell_rsize_zone_0']
                 
@@ -381,25 +386,25 @@ class PowerSpectrum21cm(AnalyzePS):
             # Ionization fluctuations
             if self.pf['ps_include_ion']:
             
-                Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, zeta)
+                Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, ion=True)
             
                 data['n_i'] = Ni
                 data['m_i'] = Mi
                 data['r_i'] = Ri
-                data['delta_B'] = self.field._B(z, zeta)
+                data['delta_B'] = self.field._B(z, ion=True)
             else:
                 Ri = Mi = Ni = None    
             
-            Qi = self.field.MeanIonizedFraction(z, zeta)
+            Qi = self.field.MeanIonizedFraction(z)
             
-            Qi_bff = self.field.BubbleFillingFactor(z, zeta)
+            Qi_bff = self.field.BubbleFillingFactor(z)
             
             xibar = Qi_gs                
                             
             #print(z, Qi_bff, Qi, xibar, Qi_bff / Qi)
                             
             if self.pf['ps_include_temp']:
-                Qh = self.field.BubbleShellFillingFactor(z, zeta, R_s=R_s(Ri,z))
+                Qh = self.field.BubbleShellFillingFactor(z, R_s=R_s(Ri,z))
                 data['Qh'] = Qh
             else:
                 data['Qh'] = Qh = 0.0
@@ -480,7 +485,7 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             if self.pf['ps_include_21cm']:
                 
-                data['cf_21'] = self.field.CorrelationFunction(z, zeta=zeta, 
+                data['cf_21'] = self.field.CorrelationFunction(z,
                     R=self.R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
                                         
@@ -503,7 +508,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 if (jp_1 is None and cf_1 is None) and (term not in ['psi', 'phi', 'oo']):
                     continue
                         
-                _cf = self.field.CorrelationFunction(z, zeta=zeta, 
+                _cf = self.field.CorrelationFunction(z, 
                     R=self.R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
                     Tk=Tk, Ja=Ja, k=self.k)
                         
@@ -520,7 +525,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     epsabs=self.pf['ps_fht_atol'])    
                 
             # Always save the matter correlation function.        
-            data['cf_dd'] = self.field.CorrelationFunction(z, zeta=zeta, 
+            data['cf_dd'] = self.field.CorrelationFunction(z, 
                 term='dd', R=self.R)
                     
             yield z, data

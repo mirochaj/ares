@@ -411,6 +411,9 @@ def PowerSpectrumParameters():
      
      'ps_include_3pt': True,
      'ps_include_4pt': True,
+     
+     'ps_temp_model': 1,  # 1=Bubble shells, 2=FZH04
+     'ps_saturated': 10.,
           
      'ps_correct_gs_ion': True,
      'ps_correct_gs_temp': True,     
@@ -461,7 +464,6 @@ def PowerSpectrumParameters():
      
      "ps_lya_method": 'lpt',
      "ps_ion_method": None,  # unused
-     "ps_temp_method": 'shell',  # or...'shell'
      
      #"powspec_lya_approx_sfr": 'exp',
      
