@@ -276,13 +276,24 @@ class Fluctuations(object):
         logM = np.log10(Mmin)
         
         if ion:
+            if not self.pf['ps_include_ion']:
+                return 0.0
+                
             zeta = self.zeta
+            
+            return np.minimum(1.0, zeta * self.halos.fcoll_2d(z, logM))
         else:
             if not self.pf['ps_include_temp']:
                 return 0.0
             zeta = self.zeta_X
-        
-        return np.minimum(1.0, zeta * self.halos.fcoll_2d(z, logM))
+            
+            # Assume that each heated region contains the same volume
+            # of fully-ionized material.
+            Qi = self.MeanIonizedFraction(z, ion=True)
+                    
+            Qh = zeta * self.halos.fcoll_2d(z, logM) - Qi        
+                    
+            return np.minimum(1.0 - Qi, Qh)
 
     def delta_shell(self, z):
         """
@@ -500,10 +511,16 @@ class Fluctuations(object):
             
         #imax = int(min(np.argwhere(np.isnan(R_i))))
     
-        if ion:
+        if ion and self.pf['ps_include_ion']:
             Qi = self.MeanIonizedFraction(z)
+        elif ion and not self.pf['ps_include_ion']:
+            raise NotImplemented('help')
+        elif (not ion) and self.pf['ps_include_temp']:
+            Qi = self.MeanIonizedFraction(z, ion=False)
+        elif ion and self.pf['ps_include_temp']:
+            Qi = self.MeanIonizedFraction(z, ion=False)    
         else:
-            Qi = self.MeanIonizedFraction(z, ion=False, )#self.BubbleShellFillingFactor(z, None)
+            raise NotImplemented('help')
                 
         return np.trapz(dndm_b[iM:] * V[iM:] * bHII[iM:] * M_b[iM:],
             x=np.log(M_b[iM:])) / Qi
@@ -529,7 +546,7 @@ class Fluctuations(object):
             return 0.0
         
         if not self.pf['ps_include_xcorr_ion_rho']:
-            return 0.0    
+            return 0.0
             
         if ion:
             zeta = self.zeta
@@ -544,7 +561,7 @@ class Fluctuations(object):
     
         Mmin = self.Mmin(z) * zeta
         iM = np.argmin(np.abs(Mmin - self.m))
-        B = self._B(z, zeta)
+        B = self._B(z, ion=ion)
         
         return np.trapz(B[iM:] * dndm_b[iM:] * V_i[iM:] * M_b[iM:], 
             x=np.log(M_b[iM:]))
@@ -776,7 +793,14 @@ class Fluctuations(object):
             zeta = self.zeta
         else:
             zeta = self.zeta_X
-
+            
+        if ion and not self.pf['ps_include_ion']:
+            R_i = M_b = dndm = np.zeros_like(self.m)
+            return R_i, M_b, dndm
+        if (not ion) and not self.pf['ps_include_temp']:
+            R_i = M_b = dndm = np.zeros_like(self.m)    
+            return R_i, M_b, dndm
+            
         reionization_over = False 
            
         # Comoving matter density
@@ -824,6 +848,7 @@ class Fluctuations(object):
             if self._B0(z, ion) <= 0:
                 reionization_over = True
                 dndm = np.zeros_like(dndm)
+                            
             #elif Q is not None:
             #    if Q == 1:
             #        reionization_over = True
@@ -1045,7 +1070,7 @@ class Fluctuations(object):
             return cached_result
         
         Qi = self.MeanIonizedFraction(z)
-        Qh = self.MeanIonizedFraction(z, ion=False)#self.BubbleShellFillingFactor(z, R_s)
+        Qh = self.MeanIonizedFraction(z, ion=False)
         
         if self.pf['ps_igm_model'] == 2:
             Qhal = self.Qhal(z, Mmax=self.Mmin(z))
@@ -1205,6 +1230,7 @@ class Fluctuations(object):
                     R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
                 val = avg_psi - 1.
         elif term == 'o':
+            # <omega>^2 = <psi * c>^2 - 2 <psi> <psi * c>
             avg_psi = self.ExpectationValue1pt(z, term='psi',
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             avg_psi_c = self.ExpectationValue1pt(z, term='pc',
@@ -1243,7 +1269,6 @@ class Fluctuations(object):
             
             if self.pf['ps_include_temp'] and self.pf['ps_temp_model'] == 2:
                 Qi = self.MeanIonizedFraction(z)
-                #Qh = self.BubbleShellFillingFactor(z, R_s)
                 Qh = self.MeanIonizedFraction(z, ion=False)
                 
                 if term == 'ih':
@@ -1261,6 +1286,11 @@ class Fluctuations(object):
                     P1 = P2 = np.zeros_like(R)
                     basics[term] = P, P1, P2
                     continue
+                #elif term == 'bb':
+                #    P = (1. - Qi - Qh)**2 * np.ones_like(R)
+                #    P1 = P2 = np.zeros_like(R)
+                #    basics[term] = P, P1, P2
+                #    continue    
                 
             if cache is None and term != 'bb':
                 P, P1, P2 = self.ExpectationValue2pt(z, 
@@ -1301,7 +1331,7 @@ class Fluctuations(object):
         
         
         """
-        
+                
         ##
         # Check cache for match
         ##
@@ -1360,12 +1390,7 @@ class Fluctuations(object):
         R_i, M_b, dndm_b = self.BubbleSizeDistribution(z)
         V_i = 4. * np.pi * R_i**3 / 3.
         
-        if R_s is None:
-            R_s = np.zeros_like(R_i)
-            V_h = np.zeros_like(R_i)
-            V_ioh = V_i
-            zeta_X = 0.0
-        else:
+        if self.pf['ps_include_temp']:
             if self.pf['ps_temp_model'] == 1:
                 V_h = 4. * np.pi * (R_s**3 - R_i**3) / 3.
                 V_ioh = 4. * np.pi * R_s**3 / 3.
@@ -1379,6 +1404,14 @@ class Fluctuations(object):
                 V_ioh = 4. * np.pi * R_s**3 / 3.
             else:
                 raise NotImplemented('help')    
+        else:
+            zeta_X = 0
+        
+        if R_s is None:
+            R_s = np.zeros_like(R_i)
+            V_h = np.zeros_like(R_i)
+            V_ioh = V_i
+            zeta_X = 0.0
         
         if R3 is None:
             R3 = np.zeros_like(R_i)
@@ -1401,7 +1434,9 @@ class Fluctuations(object):
                 ev2pt = Qi**2 * xi_dd
                 self._cache_jp_[z][term] = R, ev2pt, Rzeros, Rzeros
                 return ev2pt, Rzeros, Rzeros
-                
+            #elif 'i' in term:
+            #    #self._cache_jp_[z][term] = R, Rzeros, Rzeros, Rzeros
+            #    return Rzeros, Rzeros, Rzeros
             # also iid, iidd
             
         if not self.pf['ps_include_temp']:
@@ -1467,7 +1502,7 @@ class Fluctuations(object):
             
             ev2pt = dd + ii - 2. * di + iidd - 2. * (idd - iid) \
                   + 1. - 2 * Qi - 2 * ev_id_1
-            
+                            
             #self._cache_jp_[z][term] = R, ev2pt, ev2pt_1, ev2pt_2
         
             return ev2pt, ev2pt_1, ev2pt_2
@@ -1562,22 +1597,22 @@ class Fluctuations(object):
             avg_cd = self.ExpectationValue1pt(z, term='c*d', 
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             cd, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='cd',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)    
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             ci, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='ic',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             cdd, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='cdd',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja) 
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             cdip, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='cdip',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja) 
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             cddip, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='cddip',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)        
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             cdpip, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='cdpip',
-                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)    
-            
+                R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
+
             ppc = avg_c + cd - ci - cdpip + avg_cd + cdd - cdip - cddip
-            
+
             return ppc, Rzeros, Rzeros
-            
+
         elif term == 'ppcc':
             ccdd, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='ccdd',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
@@ -1586,7 +1621,7 @@ class Fluctuations(object):
             ccd, _j1, _j2 = self.ExpectationValue2pt(z, R=R, term='ccd',
                 R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)    
                 
-            return cc + 2*ccd + ccdd, Rzeros, Rzeros    
+            return cc + 2 * ccd + ccdd, Rzeros, Rzeros    
         
         elif term in ['mm', 'dd']:
             # Equivalent to correlation function since <d> = 0
@@ -1648,7 +1683,8 @@ class Fluctuations(object):
         Mmin_h = self.Mmin(z)
         Mmin_s = self.Mmin(z) * zeta_X
                                 
-        if term in ['hh', 'ih', 'ib', 'hb'] and self.pf['ps_temp_model'] == 1:
+        if term in ['hh', 'ih', 'ib', 'hb'] and self.pf['ps_temp_model'] == 1 \
+            and self.pf['ps_include_temp']:
             Qh_int = self.get_prob(z, M_s, dndm_s, Mmin, V_h, 
                 exp=False, ep=0.0, Mmax=None)
             f_h = -np.log(1. - Qh) / Qh_int
@@ -1678,7 +1714,14 @@ class Fluctuations(object):
             # For two-halo terms, need bias of sources.
             if self.pf['ps_include_bias']:
                 # Should modify for temp_model==2
-                ep = self.excess_probability(z, sep, ion=True)
+                if self.pf['ps_include_temp']:
+                    if self.pf['ps_temp_model'] == 2 and 'h' in term:
+                        _ion = False
+                    else:
+                        _ion = True
+                else:
+                    _ion = True
+                ep = self.excess_probability(z, sep, ion=_ion)
             else:
                 ep = np.zeros_like(self.m)
 
@@ -1775,7 +1818,6 @@ class Fluctuations(object):
                     Phgh = self.get_prob(z, M_b, dndm_b * f_h, Mmin_b, Vne2, True, ep)
                     Pigh = self.get_prob(z, M_b, dndm_b, Mmin_b, V2ii, True, ep)
                     
-                    
                     #P1[i] = P1_hN 
                     #ih2 = _P_ih_2[i]
                     #hh2 = _P_hh_2[i]
@@ -1821,8 +1863,11 @@ class Fluctuations(object):
                     _P2_1 = self.get_prob(z, M_s, dndm_s, Mmin_s, Vne1, True)
                     _P2_2 = self.get_prob(z, M_s, dndm_s, Mmin_s, Vne2, True, ep)
                 
+                    #_P2_1 -= Qi
+                    #_P2_1 -= Qi
+                
                     _P2 = (1. - _P1) * _P2_1 * _P2_2
-                                                
+                                                                    
                     #if self.pf['ps_volfix'] and Qi > 0.5:
                     #    P1[i] = _P1
                     #    P2[i] = (1. - P1[i]) * _P2_1**2
@@ -2346,7 +2391,6 @@ class Fluctuations(object):
         delta_h_bar = self.delta_shell(z)
         delta_b_bar = self.BulkDensity(z, R_s)   
         Qi = self.MeanIonizedFraction(z)
-        #Qh = self.BubbleShellFillingFactor(z, R_s) 
         Qh = self.MeanIonizedFraction(z, ion=False)
         
         Tcmb = self.cosm.TCMB(z)
@@ -2551,7 +2595,6 @@ class Fluctuations(object):
         """
         
         Qi = self.MeanIonizedFraction(z)
-        #Qh = self.BubbleShellFillingFactor(z, R_s)
         Qh = self.MeanIonizedFraction(z, ion=False)
         
         if R is None:
@@ -2894,6 +2937,8 @@ class Fluctuations(object):
    #         for k in self.halos.tab_k]) / 2. / np.pi
    
     def BubbleContrast(self, z, Th=500., Tk=None, Ts=None, Ja=None):
+        return 0.0
+        
         Tcmb = self.cosm.TCMB(z)
         Tgas = self.cosm.Tgas(z)
         
@@ -2918,6 +2963,9 @@ class Fluctuations(object):
         Find value of 'contrast' fluctuation given mean temperature Tk and
         assumed kinetic temperature of heated regions, Th.
         """
+        
+        if self.pf['ps_temp_model'] == 2:
+            return 1. / self.pf['ps_saturated']
         
         if Th is None:
             return 0.0

@@ -404,7 +404,8 @@ class PowerSpectrum21cm(AnalyzePS):
             #print(z, Qi_bff, Qi, xibar, Qi_bff / Qi)
                             
             if self.pf['ps_include_temp']:
-                Qh = self.field.BubbleShellFillingFactor(z, R_s=R_s(Ri,z))
+                # R_s=R_s(Ri,z)
+                Qh = self.field.MeanIonizedFraction(z, ion=False)
                 data['Qh'] = Qh
             else:
                 data['Qh'] = Qh = 0.0
