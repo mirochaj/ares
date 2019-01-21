@@ -440,45 +440,57 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._tab_imf_mc = 10**self.src.pf['source_imf_bins']
         return self._tab_imf_mc
         
-    def _gen_stars(self, z, Mh, Mg, Nsn=0.0, now=False, dt=None):
+    def _gen_stars(self, idnum, Mh, Mg):
         """
         Take draws from cluster mass function until stopping criterion met.
         
         Return the amount of mass formed in this burst.
         """
         
+        z = self._arr_z[idnum]
+        t = self._arr_t[idnum]
+        dt = (self._arr_t[idnum+1] - self._arr_t[idnum]) # in Myr
+        
         E_h = self.halos.BindingEnergy(Mh, z)
         
         # Statistical approach from here on out.
         Ms = 0.0
+        
+        # Number of supernovae from stars formed previously
+        N_SN_p = self._arr_SN[idnum] * 1.
+        # Number of supernovae from stars formed in this timestep.
+        N_SN_0 = 0.  
+        
         N_MS_now = 0
-        N_SN_next = 0
         m_edg = self.tab_imf_me
         m_cen = self.tab_imf_mc
         imf = np.zeros_like(m_cen)
         
         fstar_gmc = self.pf['pop_fstar_cloud']
         
-        delay_fb = self.pf['pop_delay_feedback']
+        delay_fb_sne = self.pf['pop_delay_sne_feedback']
+        delay_fb_rad = self.pf['pop_delay_rad_feedback']
                             
-        if not delay_fb: 
-            N_SN = 0
-            
         vesc = self.halos.EscapeVelocity(z, Mh) # cm/s
                         
         # Form clusters until we use all the gas or blow it all out.    
         ct = 0
         Mw = 0.0
-        while (Mw + Ms) < Mg:
+        Mw_rad = 0.0
+        while (Mw + Mw_rad + Ms) < Mg:
             
             r = np.random.rand()
             Mc = np.interp(r, self.tab_cdf, self.tab_Mcl)
-
-            #if Ms + Mc + Mw >= Mg:
-            #    break
-
-            #print(Efb / E_h, (Ms + Mc) / (Mg * fstar_gmc))
-
+            
+            # If proposed cluster would take up all the rest of our 
+            # gas (and then some), don't let it happen.
+            if Ms + Mc + Mw >= Mg:
+                break
+            
+            ##
+            # First things first. Figure out the IMF in this cluster.
+            ##
+                
             # Means we're doing cheap spectral synthesis.
             if self.pf['pop_sample_imf']:
                 # For now, just scale UV luminosity with Nsn?
@@ -515,55 +527,137 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 N_MS = np.random.poisson(lam)
                 hist = 0.0
                 
-                # If using delayed feedback, need some sense of the spread
-                # in delay times.
-                
-                
-                
-                
-                #print(Nsn)
-                         
-            #gas_avail = (Mr * fc_r[i] + Ma * fc_i[i]) #* fstar
-            
+            ##
+            # Now, take stars and let them feedback on gas.
+            ##    
+
             ## 
             # Increment stuff
             ##      
             Ms += Mc
             imf += hist
-            N_MS_now += N_MS
             
-            if delay_fb:
-                N_SN = Nsn
-                N_SN_next += N_MS
-                
-                # If some stars will blow up within this timestep, we need
-                # to account for their feedback now! Argh.
-                #if 
-                
-                
-            else:
-                N_SN += N_MS
+            # Move along.
+            if N_MS == 0:
+                ct += 1
+                continue
             
-            Mw = 2 * N_SN * 1e51 * self.pf['pop_sn_coupling'] \
-                   / vesc**2 / g_per_msun
-                                                
+            ## 
+            # Can delay feedback or inject it instantaneously.
+            ##
+            if delay_fb_sne == 0:
+                N_SN_0 += N_MS  
+            elif delay_fb_sne == 1:
+                ##
+                # SNe all happen at average delay time from formation.
+                ##
+                
+                if self.pf['pop_sample_imf']:
+                    raise NotImplemented('help')
+
+                # In Myr
+                avg_delay = self._stars.avg_sn_delay
+                
+                # Inject right now if timestep is long.
+                if dt > avg_delay:
+                    N_SN_0 += N_MS     
+                else:
+                    # Figure out when these guys will blow up.
+                    #N_SN_next += N_MS
+                    
+                    tnow = self._arr_t[idnum]
+                    tfut = self._arr_t[idnum:]
+                                            
+                    iSNe = np.argmin(np.abs((tfut - tnow) - avg_delay))
+                    #if self._arr_t[idnum+iSNe] < avg_delay:
+                    #    iSNe += 1
+                    
+                    print('hey 2', self._arr_t[idnum+iSNe] - tnow)
+                    
+                    self._arr_SN[idnum+iSNe] += N_MS                    
+                                        
+            elif delay_fb_sne == 2:
+                ##
+                # Actually spread SNe out over time according to DTD.
+                ##
+                delays = self._stars.draw_delays(N_MS)
+                
+                tnow = self._arr_t[idnum]
+                tfut = self._arr_t[idnum:]
+                
+                # Could be more precise since closest index may be
+                # slightly shorter than delay time.
+                iSNe = np.array([np.argmin(np.abs((tfut - tnow) - delay)) \
+                    for delay in delays])
+                
+                # Add SNe one by one.
+                for _iSNe in iSNe:
+                    self._arr_SN[idnum+_iSNe] += 1    
+                
+                # Must make some of the SNe happen NOW!
+                N_SN_0 += sum(iSNe == 0)
+                
+            ##
+            # Make a wind
+            ##        
+            Mw = 2 * (N_SN_0 + N_SN_p) * 1e51 * self.pf['pop_coupling_sne'] \
+               / vesc**2 / g_per_msun
+               
+            ##                                 
             # Stabilize with some radiative feedback?
-            #Mw += 2 * Nsn * 1e48 / vesc**2 / g_per_msun
+            if self.pf['pop_feedback_rad']:
+                
+                # Remember, (mass, wavelength, time [maybe])
+                Ls = self._stars.tab_Ls
+                Ly = self._stars.wavelengths < 912.
+                Lall = Ls[:,Ly==1]
+                
+                # Make sure we account for finite timestep.
+                corr = self._stars.tab_life / dt
+                
+                # Mask out low-mass stuff? Only because we're scaling by N_MS
+                massive = self._stars.Ms >= 8.
+                                
+                # Need to integrate over wavelength, still function of mass.
+                LUV = np.trapz(Lall, x=self._stars.wavelengths[Ly==1],
+                    axis=1)
+                
+                # Pick UV-weighted typical mass?
+                #MUV = np.trapz(self._stars.tab_imf[massive==1] * Lall[massive==1], 
+                #    x=self._stars.Ms)  
+                  
+                  
+                Lavg = np.trapz(LUV[massive==1] * corr[massive==1] * self._stars.tab_imf[massive==1], 
+                    x=self._stars.Ms[massive==1]) \
+                     / np.trapz(self._stars.tab_imf[massive==1], 
+                    x=self._stars.Ms[massive==1])
+                    
+                Lab = Lavg * N_MS
+                    
+                E_rad = Lab * N_MS * dt * 1e6 * s_per_yr
+                                
+                #print(z, 2 * E_rad / vesc**2 / g_per_msun / Mw)
+                
+                Mw_rad += 2 * E_rad * self.pf['pop_coupling_rad'] \
+                    / vesc**2 / g_per_msun
             
-            if delay_fb and Nsn == 0 and Ms >= fstar_gmc * Mg:
-                print('SORRY', ct)
-                break
+            
+            #if Ms >= fstar_gmc * Mg:
+            #    break
+            
+            #if delay_fb and N_SN_p == 0 and Ms >= fstar_gmc * Mg:
+            #    #print('SORRY', ct)
+            #    break
             
             
             # Count clusters    
             ct += 1    
             
-        # Compare N_SN with and without cluster sampling?
-        lam = Ms * self._stars.nsn_per_m
-        print('cluster sampling effect:', N_SN / lam)
-            
-                        
-        return Ms, Mw, N_SN_next, imf
+        ##
+        # Back outside loop over clusters.
+        ##    
+                                    
+        return Ms, Mw, imf
         
     def _gen_galaxy_history(self, halo, zobs=0):
         """
@@ -584,6 +678,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Mh_s = halo['Mh'][-1::-1]
         MAR = halo['MAR'][-1::-1]
         nh = halo['nh'][-1::-1]
+        
+        self._arr_t = t
+        self._arr_z = z
+        self._arr_SN = np.zeros_like(t)
+        self._arr_LU = np.zeros_like(t)
         
         # Short-hand
         fb = self.cosm.fbar_over_fcdm
@@ -617,7 +716,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         SFR_s = fb * SFE_s * MAR_s
         
         # in Myr
-        delay_fb = self.pf['pop_delay_feedback']
+        delay_fb = self.pf['pop_delay_sne_feedback']
         
         ###
         ## THIS SHOULD ONLY HAPPEN WHEN NOT DETERMINISTIC
@@ -633,9 +732,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
             if i == Nt - 1:
                 break    
-                
+            
+            # In years    
             dt = (t[i+1] - t[i]) * 1e6
-
+            
             if z[i] == zform:
                 Mg[i] = fb * _Mh
 
@@ -653,7 +753,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if E_h > (1e51 * self.pf['pop_force_equilibrium']):
                 # Assume 1e51 * SNR * dt = 1e51 * SFR * SN/Mstell * dt = E_h
                 
-                eta = 2. * self.pf['pop_sn_coupling'] * 1e51 * NSN_per_M \
+                eta = 2. * self.pf['pop_coupling_sne'] * 1e51 * NSN_per_M \
                     / g_per_msun / vesc**2
                                 
                 # SFR = E_h / 1e51 / (SN/Ms) / dt
@@ -661,57 +761,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Ms[i+1] = 0.5 * (SFR[i] + SFR[i-1]) * dt
                 Mg[i+1] = Mg[i] + Macc - Ms[i+1]
                 continue
-            
-            
-            now = t[i+1] - t[i] > delay_fb * 1e6
-            
+                        
             ##
             # FORM STARS!
             ##
-            #if delay_fb > 0 and ct < 200:
-            #    eta = 2. * self.pf['pop_sn_coupling'] * 1e51 * self._stars.nsn_per_m \
-            #        / g_per_msun / vesc**2
-            #        
-            #    _Mnew = 1e3
-            #    _Mw = eta * _Mnew   
-            #    _Nsn = _Mnew * self._stars.nsn_per_m
-            #    _imf = 0.0
-            #    #_Mnew = fb * Mg[i] / (1. + eta) * dt / 1e8
-            #    #_Mw = eta * _Mnew
-            #    #_Nsn = _Mnew * self._stars.nsn_per_m
-            #    #_imf = 0.
-            #    print('hello!')
-            #    
-            #else:    
-            _Mnew, _Mw, _Nsn, _imf = \
-                self._gen_stars(z[i], _Mh, Mg[i] + Macc, Nsn[i], now)
+            _Mnew, _Mw, _imf = \
+                self._gen_stars(i, _Mh, Mg[i] + Macc)
             
             # Flag this step as bursty.
             bursty[i] = 1
-            
-            # Spread out the SNe in time.    
-            if delay_fb:
-                if self.pf['pop_sample_imf']:
-                    raise NotImplemented('help')
-                else:
-                    spread = 0.1#self._stars.avg_sn_delay    
-                    j = max(np.argmin(np.abs(t - (t[i] + spread))), i+1)
-                    # Spread evenly over typical delay time.
-                    Nsn[i:j+1] += _Nsn / float(j - i)
-                    # Weight by delay time distribution? Ignores stochasticity...
-                    # Just interpolate DTD onto t - t[i]
-                    
-            else:
-                Nsn[i] = _Nsn
-                
-            
-
-            #print('hist', z[i], i, j, _Mw, t[j] - t[i], delay_fb)
-            
-            # Track this no matter what. _gen_stars will only use it
-            # if delay_fb == True.
-            #Nsn[j] += _Nsn
-            #E_SN[j] += 1e51 * _Nsn
                             
             # Save SFR. Set Ms, Mg for next iteration.
             SFR[i]   = _Mnew / dt

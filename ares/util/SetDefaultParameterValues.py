@@ -435,7 +435,8 @@ def PopulationParameters():
     "pop_sed_by_Z": None,
     
     # Feedback for single-stars
-    "pop_sn_coupling": 0.1,
+    "pop_coupling_sne": 0.1,
+    "pop_coupling_rad": 0.1,
     
     "pop_sfh": False,             # account for SFH in spectrum modeling
 
@@ -525,7 +526,10 @@ def PopulationParameters():
     "pop_update_dt": 'native',
     
     # Cluster-centric model
-    "pop_delay_feedback": 0.0,
+    "pop_feedback_rad": False,
+    "pop_feedback_sne": False,
+    "pop_delay_rad_feedback": 0.0,
+    "pop_delay_sne_feedback": 0.0,
     "pop_force_equilibrium": np.inf,
     "pop_sample_imf": False,
     "pop_sample_cmf": False,

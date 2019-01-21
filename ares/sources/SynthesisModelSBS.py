@@ -227,10 +227,15 @@ class SynthesisModelSBS(Source):
 
         return self._dldn
 
+    @property
+    def tab_Lint(self):
+        if not hasattr(self, '_tab_Lint'):
+            pass
+            
     @property    
     def tab_Ls(self):
         """
-        Tabulate spectra of stars.
+        Tabulated spectra of stars.
         
         Units: erg/s/A
         """
@@ -270,11 +275,11 @@ class SynthesisModelSBS(Source):
             else:
                 T = self.temp(self.Ms)
                 L = self.lum(self.Ms)
-                
+
             for i, mass in enumerate(self.Ms):
-                            
+
                 if self.aging:    
-                                                        
+
                     Loft = np.interp(self.times, A[i] / 1e6, L[i], right=0.)
                     Toft = np.interp(self.times, A[i] / 1e6, T[i], right=0.)
                     
@@ -287,8 +292,8 @@ class SynthesisModelSBS(Source):
                     tot = quad(lambda EE: _Planck(EE, T[i]), 0., np.inf)[0]
                     spec = self.Spectrum(self.energies, T[i]) / erg_per_ev / tot
                     self._tab_Ls[i] = L[i] * spec * dedn * np.abs(dndl) 
-            
-        return self._tab_Ls    
+
+        return self._tab_Ls
             
     @property
     def data(self):
@@ -454,6 +459,12 @@ class SynthesisModelSBS(Source):
         if not hasattr(self, '_max_sn_delay'):
             self._max_sn_delay = float(self.tab_life[self.Ms == 8.])
         return self._max_sn_delay
+    
+    @property
+    def min_sn_delay(self):
+        if not hasattr(self, '_min_sn_delay'):
+            self._min_sn_delay = float(self.tab_life[-1])
+        return self._min_sn_delay    
             
     @property        
     def avg_sn_delay(self):
@@ -467,6 +478,25 @@ class SynthesisModelSBS(Source):
             self._avg_sn_delay = top / bot
         
         return self._avg_sn_delay
+    
+    @property
+    def tab_dtd_cdf(self):
+        if not hasattr(self, '_tab_dtd_cdf'):
+            ok = self.Ms >= 8.
+            top = cumtrapz(self.tab_life[ok==1] * self.tab_imf[ok==1] \
+                * self.Ms[ok==1], x=np.log(self.Ms[ok==1]), initial=0.0)
+                
+            bot = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1] \
+                * self.Ms[ok==1], x=np.log(self.Ms[ok==1]))
+            
+            self._tab_dtd_cdf = top / bot
+            
+        return self._tab_dtd_cdf
+            
+    def draw_delays(self, N):
+        ok = self.Ms >= 8.
+        return np.interp(np.random.rand(N), self.tab_dtd_cdf, 
+            self.tab_life[ok==1])
         
     #@property        
     #def var_sn_delay(self):

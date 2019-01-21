@@ -50,7 +50,7 @@ Extensions
 * Advanced source populations
     * :doc:`example_pop_galaxy`
     * :doc:`example_popIII`
-	* :doc:`example_edges`
+    * :doc:`example_edges`
     
 * Comparing to observational data
     * :doc:`example_litdata`
