@@ -795,7 +795,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if Mmin is None: 
                     T = Tmin
                 else:
-                    T = pop.halos.VirialTemperature(Mmin, pop.halos.tab_z,
+                    T = pop.halos.VirialTemperature(pop.halos.tab_z, Mmin,
                         self.pf['mu'])
                 
                 if type(T) in [float, int, np.float64]:
@@ -999,7 +999,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Instance of a population that "feels" the feedback.
         # Just need access to a few HMF routines.
-        Mmin_ceil = pop_fb.halos.VirialMass(Tcut, zarr)
+        Mmin_ceil = pop_fb.halos.VirialMass(zarr, Tcut)
 
         # Final answer.
         Mmin = np.minimum(_Mmin_next, Mmin_ceil)

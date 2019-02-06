@@ -413,6 +413,15 @@ class GalaxyPopulation(object):
         pl.show()    
             
         return mp
+        
+    def PlotScalingRelations(self, include=['SMHM', 'MZR', 'MS'], ncols=None):
+        """
+        
+        """
+        pass
+        
+    def PlotTrajectories(self):
+        pass
             
     def annotated_legend(self, ax, loc=(0.95, 0.05), sources='all'):   
         """

@@ -228,9 +228,16 @@ class SynthesisModelSBS(Source):
         return self._dldn
 
     @property
-    def tab_Lint(self):
-        if not hasattr(self, '_tab_Lint'):
-            pass
+    def tab_LUV(self):
+        if not hasattr(self, '_tab_LUV'):
+            Ls = self.tab_Ls
+            Ly = self.wavelengths <= 912.
+            Lall = Ls[:,Ly==1]
+            
+            # Still function of mass
+            self._tab_LUV = np.trapz(Lall, x=self.wavelengths[Ly==1], axis=1)
+            
+        return self._tab_LUV
             
     @property    
     def tab_Ls(self):

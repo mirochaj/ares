@@ -531,7 +531,7 @@ class HaloMassFunction(object):
         self.dndm_Mmax = np.zeros_like(self.tab_z)
         for i, z in enumerate(self.tab_z):
             if self.pf['pop_Mmin'] is None:
-                self.logM_min[i] = np.log10(self.VirialMass(Tmin, z, mu=mu))
+                self.logM_min[i] = np.log10(self.VirialMass(z, Tmin, mu=mu))
             else:
                 if type(self.pf['pop_Mmin']) is FunctionType:
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'](z))
@@ -541,7 +541,7 @@ class HaloMassFunction(object):
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
             if Mmax_of_z:
-                self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
+                self.logM_max[i] = np.log10(self.VirialMass(z, self.pf['pop_Tmax'], mu=mu))        
                 self.dndm_Mmax[i] = 10**np.interp(self.logM_min[i], np.log10(self.tab_M), 
                     np.log10(self.tab_dndm[i,:]))
                     
@@ -696,7 +696,7 @@ class HaloMassFunction(object):
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
                  - np.squeeze(self.fcoll_spline_2d(z, self.logMmax_ceil))
         elif self.pf['pop_Tmax'] is not None:
-            logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
+            logMmax = np.log10(self.VirialMass(z, self.pf['pop_Tmax'], 
                 mu=self.pf['mu']))
                 
             if logMmin >= logMmax:
@@ -840,6 +840,20 @@ class HaloMassFunction(object):
     def tab_MAR(self, value):
         self._tab_MAR = value
         
+    @property
+    def tab_MAR_delayed(self):
+        if not hasattr(self, '_tab_MAR_delayed'):
+            tdyn = self.DynamicalTime(self.tab_z)
+            
+            MAR = self.tab_MAR
+            
+            
+            
+        return self._tab_MAR_delayed    
+            
+            
+        
+        
     def MAR_func(self, z, M):
         return self.MAR_func_(z, M)
         
@@ -858,7 +872,7 @@ class HaloMassFunction(object):
         
         return self._MAR_func_
                                                                   
-    def VirialTemperature(self, M, z, mu=0.6):
+    def VirialTemperature(self, z, M, mu=0.6):
         """
         Compute virial temperature corresponding to halo of given mass and
         collapse redshift.
@@ -876,7 +890,7 @@ class HaloMassFunction(object):
             self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(1. / 3.) * \
             ((1. + z) / 10.)
         
-    def VirialMass(self, T, z, mu=0.6):
+    def VirialMass(self, z, T, mu=0.6):
         """
         Compute virial mass corresponding to halo of given virial temperature 
         and collapse redshift.
@@ -889,7 +903,7 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**-0.5 \
             * ((1. + z) / 10.)**-1.5
                 
-    def VirialRadius(self, M, z, mu=0.6):
+    def VirialRadius(self, z, M, mu=0.6):
         """
         Compute virial radius corresponding to halo of given virial mass 
         and collapse redshift.
@@ -902,44 +916,48 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
               
-    def CircularVelocity(self, M, z, mu=0.6):
-        return np.sqrt(G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
+    def CircularVelocity(self, z, M, mu=0.6):
+        return np.sqrt(G * M * g_per_msun / self.VirialRadius(z, M, mu) / cm_per_kpc)
     
     def EscapeVelocity(self, z, M, mu=0.6):
-        return np.sqrt(2. * G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
+        return np.sqrt(2. * G * M * g_per_msun / self.VirialRadius(z, M, mu) / cm_per_kpc)
               
-    def MassFromVc(self, Vc, z):
+    def MassFromVc(self, z, Vc):
         cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
         return (1e8 / self.cosm.h70) \
             *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
             
-    def BindingEnergy(self, M, z, mu=0.6):
-        return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu)) \
+    def BindingEnergy(self, z, M, mu=0.6):
+        return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(z, M, mu)) \
             * self.cosm.fbaryon / cm_per_kpc
             
     def MassFromEb(self, z, Eb, mu=0.6):
         # Could do this analytically but I'm lazy
-        func = lambda M: abs(np.log10(self.BindingEnergy(10**M, z=z, mu=mu)) - np.log10(Eb))
+        func = lambda M: abs(np.log10(self.BindingEnergy(z, 10**M, mu=mu)) - np.log10(Eb))
         return 10**fsolve(func, x0=7.)[0]
             
-    def MeanDensity(self, M, z, mu=0.6):
+    def MeanDensity(self, z, M, mu=0.6):
         """
         Mean density in g / cm^3.
         """
-        V = 4. * np.pi * self.VirialRadius(M, z, mu)**3 / 3.
+        V = 4. * np.pi * self.VirialRadius(z, M, mu)**3 / 3.
         return (M / V) * g_per_msun / cm_per_kpc**3
 
-    def JeansMass(self, M, z, mu=0.6):
-        rho = self.MeanDensity(M, z, mu)
-        T = self.VirialTemperature(M, z, mu)
+    def JeansMass(self, z, M, mu=0.6):
+        rho = self.MeanDensity(z, M, mu)
+        T = self.VirialTemperature(z, M, mu)
         cs = np.sqrt(k_B * T / m_H)
         
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
-    def DynamicalTime(self, M, z, mu=0.6):
-        return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
+    def DynamicalTime(self, z, M=1e12, mu=0.6):
+        """
+        Doesn't actually depend on mass, just need to plug something in
+        so we don't crash.
+        """
+        return np.sqrt(self.VirialRadius(z, M, mu)**3 * cm_per_kpc**3 \
             / G / M / g_per_msun)
     
     @property
@@ -974,7 +992,7 @@ class HaloMassFunction(object):
         to_min = lambda T: abs(fH2s(T) - fH2c(T)) 
         Tcrit = fsolve(to_min, 2e3)[0]
 
-        M = self.VirialMass(Tcrit, z)
+        M = self.VirialMass(z, Tcrit)
 
         return M
     
@@ -983,7 +1001,7 @@ class HaloMassFunction(object):
             vbc = self.pf['feedback_vel_at_rec'] * (1. + zarr) / 1100.
             # Anastasia's "optimal fit"
             Vcool = np.sqrt(3.714**2 + (4.015 * vbc)**2)
-            Mmin_vbc = self.MassFromVc(Vcool, zarr)
+            Mmin_vbc = self.MassFromVc(zarr, Vcool)
         else:
             Mmin_vbc = np.zeros_like(zarr)
         

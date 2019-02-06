@@ -397,6 +397,7 @@ def PopulationParameters():
     #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
     "pop_MAR_corr": None,
+    "pop_MAR_delay": None,
 
     "pop_interp_MAR": 'linear',
     "pop_interp_sfrd": 'linear',
@@ -433,10 +434,6 @@ def PopulationParameters():
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
-    
-    # Feedback for single-stars
-    "pop_coupling_sne": 0.1,
-    "pop_coupling_rad": 0.1,
     
     "pop_sfh": False,             # account for SFH in spectrum modeling
 
@@ -482,7 +479,7 @@ def PopulationParameters():
 
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
-    'pop_fstar_cloud': 0.015,  # cloud-scale star formation efficiency
+    'pop_fstar_cloud': 1.,  # cloud-scale star formation efficiency
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
@@ -536,6 +533,13 @@ def PopulationParameters():
     "pop_imf": 'salpeter',
     "pop_imf_bins": None,#np.arange(0.1, 150.01, 0.01),  # bin centers
     "pop_cmf": None,
+    
+    # Feedback for single-stars
+    "pop_coupling_sne": 0.1,
+    "pop_coupling_rad": 0.1,
+    
+    # Baryon cycling
+    "pop_multiphase": False,
     
     "pop_fobsc": 0.0,
     "pop_fobsc_by": None, # or 'age' or 'lum'

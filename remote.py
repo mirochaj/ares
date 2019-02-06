@@ -21,6 +21,7 @@ aux_data = \
  'hmf': ['{!s}/downloads'.format(ares_link),
     'hmf_ST_logM_1200_4-16_z_1141_3-60.npz',
     'hmf_ST_logM_1200_4-16_z_1201_0-60.npz',
+    'hmf_Tinker10_logM_1200_4-16_z_1201_0-60.npz',
     None],
  'inits': ['{!s}/downloads'.format(ares_link),
      'initial_conditions.npz',

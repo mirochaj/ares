@@ -309,7 +309,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             steps_z = [zform]
             while t < tf:
                 z = self.cosm.z_of_t(t * s_per_yr)
-                _tdyn = self.halos.DynamicalTime(1e10, z) / s_per_yr
+                _tdyn = self.halos.DynamicalTime(z, 1e10) / s_per_yr
             
                 if t + _tdyn > tf:
                     steps_t.append(self.cosm.t_of_z(0.) / s_per_yr)
@@ -440,7 +440,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._tab_imf_mc = 10**self.src.pf['source_imf_bins']
         return self._tab_imf_mc
         
-    def _gen_stars(self, idnum, Mh, Mg):
+    def _gen_stars(self, idnum, Mh):
         """
         Take draws from cluster mass function until stopping criterion met.
         
@@ -451,15 +451,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         t = self._arr_t[idnum]
         dt = (self._arr_t[idnum+1] - self._arr_t[idnum]) # in Myr
         
-        E_h = self.halos.BindingEnergy(Mh, z)
+        E_h = self.halos.BindingEnergy(z, Mh)
         
         # Statistical approach from here on out.
         Ms = 0.0
         
+        Mg = self._arr_Mg_c[idnum] * 1.
+        
         # Number of supernovae from stars formed previously
         N_SN_p = self._arr_SN[idnum] * 1.
+        E_UV_p = self._arr_UV[idnum] * 1.
         # Number of supernovae from stars formed in this timestep.
-        N_SN_0 = 0.  
+        N_SN_0 = 0. 
+        E_UV_0 = 0. 
         
         N_MS_now = 0
         m_edg = self.tab_imf_me
@@ -477,14 +481,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ct = 0
         Mw = 0.0
         Mw_rad = 0.0
-        while (Mw + Mw_rad + Ms) < Mg:
+        while (Mw + Mw_rad + Ms) < Mg * fstar_gmc:
             
             r = np.random.rand()
             Mc = np.interp(r, self.tab_cdf, self.tab_Mcl)
             
             # If proposed cluster would take up all the rest of our 
             # gas (and then some), don't let it happen.
-            if Ms + Mc + Mw >= Mg:
+            if (Ms + Mc + Mw) >= Mg:
                 break
             
             ##
@@ -605,51 +609,58 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                
             ##                                 
             # Stabilize with some radiative feedback?
-            if self.pf['pop_feedback_rad']:
-                
-                # Remember, (mass, wavelength, time [maybe])
-                Ls = self._stars.tab_Ls
-                Ly = self._stars.wavelengths < 912.
-                Lall = Ls[:,Ly==1]
-                
-                # Make sure we account for finite timestep.
-                corr = self._stars.tab_life / dt
-                
-                # Mask out low-mass stuff? Only because we're scaling by N_MS
+            ##
+            if not self.pf['pop_feedback_rad']:
+                ct += 1
+                continue
+                 
+            ##
+            # Dump in UV from 'average' massive star.
+            ##
+            if self.pf['pop_delay_rad_feedback'] == 0:
+            
+                # Mask out low-mass stuff? Only because scaling by N_MS
                 massive = self._stars.Ms >= 8.
-                                
-                # Need to integrate over wavelength, still function of mass.
-                LUV = np.trapz(Lall, x=self._stars.wavelengths[Ly==1],
-                    axis=1)
                 
-                # Pick UV-weighted typical mass?
-                #MUV = np.trapz(self._stars.tab_imf[massive==1] * Lall[massive==1], 
-                #    x=self._stars.Ms)  
+                LUV = self._stars.tab_LUV
                   
-                  
-                Lavg = np.trapz(LUV[massive==1] * corr[massive==1] * self._stars.tab_imf[massive==1], 
+                Lavg = np.trapz(LUV[massive==1] * self._stars.tab_imf[massive==1], 
                     x=self._stars.Ms[massive==1]) \
                      / np.trapz(self._stars.tab_imf[massive==1], 
                     x=self._stars.Ms[massive==1])
+                   
+                life = self._stars.tab_life 
+                tavg = np.trapz(life[massive==1] * self._stars.tab_imf[massive==1], 
+                    x=self._stars.Ms[massive==1]) \
+                     / np.trapz(self._stars.tab_imf[massive==1], 
+                    x=self._stars.Ms[massive==1])    
                     
-                Lab = Lavg * N_MS
-                    
-                E_rad = Lab * N_MS * dt * 1e6 * s_per_yr
+                corr = np.minimum(tavg / dt, 1.)
+                                    
+                E_UV_0 += Lavg * N_MS * dt * corr * 1e6 * s_per_yr
                                 
                 #print(z, 2 * E_rad / vesc**2 / g_per_msun / Mw)
                 
-                Mw_rad += 2 * E_rad * self.pf['pop_coupling_rad'] \
+                Mw_rad += 2 * (E_UV_0 + E_UV_p) * self.pf['pop_coupling_rad'] \
                     / vesc**2 / g_per_msun
             
-            
-            #if Ms >= fstar_gmc * Mg:
-            #    break
-            
-            #if delay_fb and N_SN_p == 0 and Ms >= fstar_gmc * Mg:
-            #    #print('SORRY', ct)
-            #    break
-            
-            
+            elif self.pf['pop_delay_rad_feedback'] >= 1:
+                raise NotImplemented('help')
+                
+                delays = self._stars.draw_delays(N_MS)
+                
+                tnow = self._arr_t[idnum]
+                tfut = self._arr_t[idnum:]
+                
+                # Could be more precise since closest index may be
+                # slightly shorter than delay time.
+                iSNe = np.array([np.argmin(np.abs((tfut - tnow) - delay)) \
+                    for delay in delays])
+                
+                # Add SNe one by one.
+                for _iSNe in iSNe:
+                    self._arr_SN[idnum+_iSNe] += 1
+                
             # Count clusters    
             ct += 1    
             
@@ -658,6 +669,21 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##    
                                     
         return Ms, Mw, imf
+        
+    def deposit_in(self, tnow, delay):
+        """
+        Determin index of time-array in which to deposit some gas, energy,
+        etc., given current time and requested delay.
+        """
+        
+        inow = np.argmin(np.abs(tnow - self._arr_t))
+        
+        tfut = self._arr_t[inow:]
+                                
+        ifut = np.argmin(np.abs((tfut - tnow) - delay))
+                
+        return inow + ifut
+        
         
     def _gen_galaxy_history(self, halo, zobs=0):
         """
@@ -681,8 +707,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         self._arr_t = t
         self._arr_z = z
+        
         self._arr_SN = np.zeros_like(t)
-        self._arr_LU = np.zeros_like(t)
+        self._arr_UV = np.zeros_like(t)
+        self._arr_Mg_c = np.zeros_like(t)
+        self._arr_Mg_t = np.zeros_like(t)
         
         # Short-hand
         fb = self.cosm.fbar_over_fcdm
@@ -696,7 +725,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         SFR = np.zeros_like(Mh_s)
         Ms  = np.zeros_like(Mh_s)
         Msc = np.zeros_like(Mh_s)
-        Mg  = np.zeros_like(Mh_s)
+        #Mg_t  = np.zeros_like(Mh_s)
+        #Mg_c = np.zeros_like(Mh_s)
         Mw  = np.zeros_like(Mh_s)
         E_SN  = np.zeros_like(Mh_s)
         Nsn  = np.zeros_like(Mh_s)
@@ -715,8 +745,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             for k in range(Nt)])
         SFR_s = fb * SFE_s * MAR_s
         
+        # Some characteristic timescales...
+        tdyn = self.halos.DynamicalTime(z) / s_per_myr
+        
         # in Myr
         delay_fb = self.pf['pop_delay_sne_feedback']
+        
         
         ###
         ## THIS SHOULD ONLY HAPPEN WHEN NOT DETERMINISTIC
@@ -737,22 +771,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             dt = (t[i+1] - t[i]) * 1e6
             
             if z[i] == zform:
-                Mg[i] = fb * _Mh
-
-            # Gas we will accrete on this timestep
-            Macc = fb * 0.5 * (MAR[i+1] + MAR[i]) * dt #* fc_i[i]
-        
-            E_h = self.halos.BindingEnergy(_Mh, z[i])
-            vesc = self.halos.EscapeVelocity(z[i], _Mh)
-            
-            NSN_per_M = self._stars.nsn_per_m
+                self._arr_Mg_t[i] = fb * _Mh
+                
+            # Determine gas supply
+            if self.pf['pop_multiphase']:
+                ifut = self.deposit_in(t[i], tdyn[i])
+                self._arr_Mg_c[ifut] = self._arr_Mg_t[i] * 1
+            else:
+                self._arr_Mg_c[i] = self._arr_Mg_t[i] * 1
+                    
+            E_h = self.halos.BindingEnergy(z[i], _Mh)
             
             ##
             # Override switch to smooth inflow-driven star formation model.s
             ##
             if E_h > (1e51 * self.pf['pop_force_equilibrium']):
-                # Assume 1e51 * SNR * dt = 1e51 * SFR * SN/Mstell * dt = E_h
+                vesc = self.halos.EscapeVelocity(z[i], _Mh)
+                NSN_per_M = self._stars.nsn_per_m
                 
+                # Assume 1e51 * SNR * dt = 1e51 * SFR * SN/Mstell * dt = E_h
                 eta = 2. * self.pf['pop_coupling_sne'] * 1e51 * NSN_per_M \
                     / g_per_msun / vesc**2
                                 
@@ -765,8 +802,45 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             ##
             # FORM STARS!
             ##
-            _Mnew, _Mw, _imf = \
-                self._gen_stars(i, _Mh, Mg[i] + Macc)
+            
+            # Gas we will accrete on this timestep
+            Macc = fb * 0.5 * (MAR[i+1] + MAR[i]) * dt
+            
+            # What fraction of gas is in a phase amenable to star formation?
+            if self.pf['pop_multiphase']:
+                ifut = self.deposit_in(t[i], tdyn[i])
+                self._arr_Mg_c[ifut] += Macc
+            else:
+                # New gas available to me right away in this model.
+                self._arr_Mg_c[i] += Macc
+                
+            ##
+            # Here we go.
+            ##    
+            _Mnew, _Mw, _imf = self._gen_stars(i, _Mh)    
+
+            self._arr_Mg_t[i+1] = \
+                max(self._arr_Mg_t[i] + Macc - _Mnew - _Mw, 0.)
+ 
+            # Deal with cold gas.    
+            if self.pf['pop_multiphase']:    
+                #pass
+                # Add remaining cold gas to reservoir for next timestep?
+                # Keep gas hot for longer?
+                # Subtract wind from cold gas reservoir?
+                # Question is, do we feedback on gas that's already hot,
+                # or gas that was "on deck" to form stars?
+                
+                #ifut = self.deposit_in(t[i], tdyn[i])
+                #
+                #self._arr_Mg_c[i:ifut] -= _Mw / (float(ifut - i))
+                
+                if self._arr_Mg_c[i+1] < 0:
+                    print("Correcting for negative mass.", z[i])
+                    self._arr_Mg_c[i+1] = 0
+                
+            #else:    
+            #    self._arr_Mg_c[i+1] = self._arr_Mg_t[i+1]
             
             # Flag this step as bursty.
             bursty[i] = 1
@@ -775,7 +849,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFR[i]   = _Mnew / dt
             imf[i]   = _imf
             Ms[i+1]  = _Mnew # just the stellar mass *formed this step*
-            Mg[i+1]  = max(Mg[i] + Macc - _Mnew - _Mw, 0.)
             Msc[i+1] = Msc[i] + _Mnew
             
             ct += 1
@@ -785,9 +858,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         data = \
         { 
-         'SFR': SFR[keep==1], 
+         'SFR': SFR[keep==1],
          'MAR': MAR_s[keep==1],
-         'Mg': Mg[keep==1], 
+         'Mg': self._arr_Mg_t[keep==1], 
+         'Mg_c':self._arr_Mg_c[keep==1], 
          'Ms': Msc[keep==1], # *cumulative* stellar mass!
          'Mh': Mh_s[keep==1], 
          'nh': nh[keep==1],
@@ -1005,7 +1079,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             bin_c = np.arange(6., 13.+bin, bin)
         else:
             dx = np.diff(bins)
-            assert np.all(np.diff(dx) == 0)
+            assert np.allclose(np.diff(dx), 0)
             bin = dx[0]
             bin_c = bins
             
@@ -1026,10 +1100,52 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_smf(z, bins)
         
-    def SMHM(self, z):
-        iz = np.argmin(np.abs(z - self.tab_z))
+    def SMHM(self, z, bins=None):
+        iz = np.argmin(np.abs(z - self.histories['z']))
         
-        return self.histories['Ms'][:,iz], self.histories['Mh'][:,iz]
+        Ms = self.histories['Ms'][:,iz]
+        Mh = self.histories['Mh'][:,iz]
+        logMh = np.log10(Mh)
+        
+        fstar_raw = Ms / Mh
+        
+        if (bins is None) or (type(bins) is not np.ndarray):
+            bin = 0.1
+            bin_c = np.arange(6., 13.+bin, bin)
+        else:
+            dx = np.diff(bins)
+            assert np.allclose(np.diff(dx), 0)
+            bin = dx[0]
+            bin_c = bins
+            
+        bin_e = bin_c2e(bin_c)
+        
+        std = []
+        fstar = []
+        for i, lo in enumerate(bin_e):
+            if i == len(bin_e) - 1:
+                break
+                
+            hi = bin_e[i+1]
+                
+            ok = np.logical_and(logMh >= lo, logMh < hi)
+            ok = np.logical_and(ok, Mh > 0)
+            
+            f = np.log10(fstar_raw[ok==1])
+            
+            if f.size == 0:
+                std.append(-np.inf)
+                fstar.append(-np.inf)
+                continue
+                        
+            #spread = np.percentile(f, (16., 84.))
+            #
+            #print(i, np.mean(f), spread, np.std(f))
+            
+            std.append(np.std(f))
+            fstar.append(np.mean(f))
+        
+        return bin_c, np.array(fstar), np.array(std)
         
     def L_of_Z_t(self, wave):
         
@@ -1114,7 +1230,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 "Should not have pop_ssp==True if pop_aging==False."
             
             L_per_sfr = self.src.L_per_sfr(wave)
-            return L_per_sfr * hist['SFR'][izform:izobs+1]
+            return hist['t'][izform:izobs+1], hist['z'][izform:izobs+1], \
+                L_per_sfr * hist['SFR'][izform:izobs+1]
         
         ##
         # Second. Harder case where aging is allowed.

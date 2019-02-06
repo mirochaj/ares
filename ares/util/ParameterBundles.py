@@ -433,7 +433,8 @@ class ParameterBundle(dict):
                     continue
                 
                 if first_update:
-                    header('Parameter Bundle')
+                    if self.verbose:
+                        header('Parameter Bundle')
                     #print('#'*width)
                     first_update = False
                 
