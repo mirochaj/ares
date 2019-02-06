@@ -398,7 +398,7 @@ class GlobalVolume(object):
         ===============
         relevant kwargs
         ===============
-        xray_flux : np.ndarray
+        fluxes : np.ndarray
             Array of fluxes corresponding to photon energies in self.igm.E.
         return_rc : bool
             Return actual heating rate, or rate coefficient for heating?

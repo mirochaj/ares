@@ -209,7 +209,7 @@ class GasParcel(object):
             # Evolve by dt
             self.data = self.chem.Evolve(self.data, t=t, dt=self.dt, 
                 **self.rate_coefficients)
-            
+                
             t += self.dt 
 
             # Figure out next dt based on max allowed change in evolving fields

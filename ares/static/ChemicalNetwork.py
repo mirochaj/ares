@@ -165,6 +165,9 @@ class ChemicalNetwork(object):
  
         # Store results here
         dqdt = {field:0.0 for field in self.grid.evolving_fields}
+        
+        # Correct for H/He abundances
+        acorr = {'h_1': 1., 'he_1': y, 'he_2': y}
 
         ##
         # Secondary ionization (of hydrogen)
@@ -175,7 +178,8 @@ class ChemicalNetwork(object):
             for j, donor in enumerate(self.absorbers):
                 elem = self.grid.parents_by_ion[donor]
 
-                term = k_ion2[0,j] * x[donor] / x['h_1']
+                term = k_ion2[0,j] * (x[donor] / x['h_1']) \
+                     * (acorr[donor] / acorr['h_1'])
                 gamma_HI += term
               
         ##
@@ -222,10 +226,12 @@ class ChemicalNetwork(object):
                 for j, donor in enumerate(self.absorbers):
                     elem = self.grid.parents_by_ion[donor]
                 
-                    term1 = k_ion2[1,j] * x[donor] / x['he_1']
+                    term1 = k_ion2[1,j] * (x[donor] / x['he_1']) \
+                          * (acorr[donor] / acorr['he_1'])
                     gamma_HeI += term1
                     
-                    term2 = k_ion2[2,j] * x[donor] / x['he_2']
+                    term2 = k_ion2[2,j] * (x[donor] / x['he_2']) \
+                          * (acorr[donor] / acorr['he_2'])
                     gamma_HeII += term2
             
             ##
@@ -356,6 +362,9 @@ class ChemicalNetwork(object):
         else:
             y = 0.0
             n_He = 0.0
+            
+        # Correct for H/He abundances
+        acorr = {'h_1': 1., 'he_1': y, 'he_2': y}    
         
         xe = n_e / n_H
 
@@ -388,7 +397,8 @@ class ChemicalNetwork(object):
         
             for j, donor in enumerate(self.absorbers):
                 elem = self.grid.parents_by_ion[donor]
-                term = k_ion2[0,j] * x[donor] / x['h_1']
+                term = k_ion2[0,j] * (x[donor] / x['h_1']) \
+                     * (acorr[donor] / acorr['h_1'])
                 gamma_HI += term    
         
         ##
@@ -432,10 +442,12 @@ class ChemicalNetwork(object):
                 for j, donor in enumerate(self.absorbers):
                     elem = self.grid.parents_by_ion[donor]
                 
-                    term1 = k_ion2[1,j] * x[donor] / x['he_1']
+                    term1 = k_ion2[1,j] * (x[donor] / x['he_1']) \
+                          * (acorr[donor] / acorr['he_1'])
                     gamma_HeI += term1
                     
-                    term2 = k_ion2[2,j] * x[donor] / x['he_2']
+                    term2 = k_ion2[2,j] * (x[donor] / x['he_2']) \
+                          * (acorr[donor] / acorr['he_2'])
                     gamma_HeII += term2
             
             # HeI by HeI
