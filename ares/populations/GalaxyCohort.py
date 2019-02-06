@@ -284,7 +284,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # be included in the star-formation of some other population.
             if np.isfinite(self.pf['pop_sfr_cross_upto_Tmin']):
                 Tlim = self.pf['pop_sfr_cross_upto_Tmin']
-                Mlim = self.halos.VirialMass(T=Tlim, z=self.halos.tab_z)
+                Mlim = self.halos.VirialMass(z=self.halos.tab_z, T=Tlim)
 
                 mask = self.Mmin < Mlim
                 self._tab_sfrd_at_threshold_ *= mask
@@ -1225,7 +1225,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def M_atom(self):
         if not hasattr(self, '_Matom'):
-            Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
+            Mvir = lambda z: self.halos.VirialMass(z, 1e4, mu=self.pf['mu'])
             self._Matom = np.array(list(map(Mvir, self.halos.tab_z)))
         return self._Matom    
 
@@ -1293,8 +1293,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones_like(self.halos.tab_z)
             else:
-                self._tab_Mmin_ = self.halos.VirialMass(self.pf['pop_Tmin'],
-                    self.halos.tab_z, mu=self.pf['mu'])
+                self._tab_Mmin_ = self.halos.VirialMass(
+                    self.halos.tab_z, self.pf['pop_Tmin'], mu=self.pf['mu'])
                 
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
                 
@@ -1364,13 +1364,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_M{!s}_floor'.format(s)] is not None:
             out = np.maximum(arr, self.pf['pop_M{!s}_floor'.format(s)])
         if self.pf['pop_T{!s}_ceil'.format(s)] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_ceil'.format(s)], 
-                z, mu=self.pf['mu'])
+            _f = lambda z: self.halos.VirialMass(z, 
+                self.pf['pop_T{!s}_ceil'.format(s)], mu=self.pf['mu'])
             _MofT = np.array(list(map(_f, zarr)))
             out = np.minimum(arr, _MofT)
         if self.pf['pop_T{!s}_floor'.format(s)] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_floor'.format(s)], 
-                z, mu=self.pf['mu'])
+            _f = lambda z: self.halos.VirialMass(z, 
+                self.pf['pop_T{!s}_floor'.format(s)], mu=self.pf['mu'])
             _MofT = np.array(list(map(_f, zarr)))
             out = np.maximum(arr, _MofT)
 
@@ -1461,8 +1461,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 else:    
                     self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones_like(self.halos.tab_z)
             elif self.pf['pop_Tmax'] is not None:
-                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
-                    z, mu=self.pf['mu'])
+                Mvir = lambda z: self.halos.VirialMass(z, self.pf['pop_Tmax'], 
+                    mu=self.pf['mu'])
                 self._tab_Mmax_ = np.array(list(map(Mvir, self.halos.tab_z)))
             else:
                 # A suitably large number for (I think) any purpose
@@ -1504,9 +1504,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_sfr_ = \
                     np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
             else:   
-                self._tab_sfr_ = self._tab_eta \
-                    * self.cosm.fbar_over_fcdm \
-                    * self.halos.tab_MAR * self._tab_fstar
+                
+                if self.pf['pop_MAR_delay'] == 'tdyn':
+                    # Create mapping from tab_z to tab_z + delta z(tdyn)
+                    self._tab_sfr_ = self._tab_eta \
+                        * self.cosm.fbar_over_fcdm \
+                        * self.halos.tab_MAR_delayed * self._tab_fstar                    
+                elif self.pf['pop_MAR_delay'] is None:
+                    self._tab_sfr_ = self._tab_eta \
+                        * self.cosm.fbar_over_fcdm \
+                        * self.halos.tab_MAR * self._tab_fstar
+                else:
+                    raise NotImplemented('help')
                 
                 # Mmin is like tab_z, make it like (z, M)
                 # M is like tab_M, make it like (z, M)
@@ -1970,9 +1979,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
                     self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                         self.pf, **pars)
-                    
+
                     self._update_pq_registry('fstar', self._fstar_inst)    
-                    
+
                     self._fstar = \
                         lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
                             * boost
@@ -2633,7 +2642,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zarr = self.halos.tab_z[in_range][::zfreq]
         results = {key:np.zeros([zarr.size]*2) for key in keys}
                 
-        zmax = []                        
+        zmax = []
         zform = []
                 
         for i, z in enumerate(zarr):
@@ -2855,7 +2864,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # be satisfied *at the formation time*, which cannot (by definition)
             # occur for time or mass-limited sources.
             if has_T_limit:
-                Mtemp = self.halos.VirialMass(self.pf['pop_temp_limit'], z)
+                Mtemp = self.halos.VirialMass(z, self.pf['pop_temp_limit'])
                                 
                 if solver.y[0] >= Mtemp:
                     zmax_T = np.interp(Mtemp, Mh_t[-2:], redshifts[-2:])
@@ -2863,7 +2872,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if has_e_limit and (zmax_e is None):
                 
                 Eblim = self.pf['pop_bind_limit']
-                Ebnow = self.halos.BindingEnergy(Mh_t[-1], redshifts[-1])
+                Ebnow = self.halos.BindingEnergy(redshifts[-1], Mh_t[-1])
                 Ehist.append(Ebnow)
 
                 if (Ebnow >= Eblim):

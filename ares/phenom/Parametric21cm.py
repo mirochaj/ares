@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from types import FunctionType
 from ..util import ParameterFile
 from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
@@ -42,6 +43,10 @@ class Parametric21cm(object):
         
         # Now, possibly make an attribute
         if name not in self.__dict__.keys(): 
+                        
+            if type(self.pf[full_name]) is FunctionType:
+                self.__dict__[name] = self.pf[full_name]
+                return self.__dict__[name]
             
             is_php = self.pf[full_name][0:2] == 'pq'
             

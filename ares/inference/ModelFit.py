@@ -594,7 +594,7 @@ class ModelFit(FitBase):
     @property 
     def save_hist(self):
         if not hasattr(self, '_save_hist'):
-            self._save_hist = True
+            self._save_hist = False
         return self._save_hist
     
     @save_hist.setter

@@ -39,3 +39,4 @@ input/starburst99/data/README
 *.backup
 doc/example_*.py
 *.csv
+.pytest_cache/*

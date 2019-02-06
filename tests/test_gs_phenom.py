@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import numpy as np
 import matplotlib.pyplot as pl
 
 def test():
@@ -23,11 +24,24 @@ def test():
     sim2.run()
     sim2.GlobalSignature(ax=ax, label='gaussian')
     
+    p = \
+     {
+      'parametric_model': True,
+      'pop_Ja': lambda z: 1e-2 * ((1. + z) / 10.)**-4.,
+      'pop_Tk': lambda z: 1e2 * (1. - np.exp(-(15. / z)**4)),
+      'pop_xi': lambda z: 1. - np.exp(-(10. / z)**4),
+     }
+     
+    sim3 = ares.simulations.Global21cm(**p)
+    sim3.run()
+    sim3.GlobalSignature(ax=ax, label='parameterized')
+    
+    
     ax.legend(loc='lower right', fontsize=14)
     pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()        
-        
-    assert True
     
+assert True
+
 if __name__ == "__main__":
     test()
