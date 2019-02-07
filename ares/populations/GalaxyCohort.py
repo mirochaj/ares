@@ -1503,64 +1503,54 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.pf['pop_sfr_model'] == 'sfr-func':
                 self._tab_sfr_ = \
                     np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+                
+                for i, z in enumerate(self.halos.tab_z):
+
+                    if z > self.zform:
+                        continue
+
+                    if z < self.zdead:
+                        continue
+                    
+                    # Should be a little careful here: need to go one or two
+                    # steps past edge to avoid interpolation problems in SFRD.
+
+                    # SF fueld by accretion onto halos already above threshold
+                    #if self.pf['pop_sfr_above_threshold']:
+                
+                    if self.pf['pop_sfr_model'] == 'sfr-func':
+                        self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.tab_M)
+                    else:                            
+                        raise ValueError('shouldnt happen.')
+                
             else:   
-                
-                if self.pf['pop_MAR_delay'] == 'tdyn':
-                    # Create mapping from tab_z to tab_z + delta z(tdyn)
-                    self._tab_sfr_ = self._tab_eta \
-                        * self.cosm.fbar_over_fcdm \
-                        * self.halos.tab_MAR_delayed * self._tab_fstar                    
-                elif self.pf['pop_MAR_delay'] is None:
-                    self._tab_sfr_ = self._tab_eta \
-                        * self.cosm.fbar_over_fcdm \
-                        * self.halos.tab_MAR * self._tab_fstar
-                else:
-                    raise NotImplemented('help')
-                
-                # Mmin is like tab_z, make it like (z, M)
-                # M is like tab_M, make it like (z, M)
-                Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
-                Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
-                M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
-                        (self.halos.tab_z.size, self.halos.tab_M.size))
+                self._tab_sfr_ = self._tab_eta \
+                    * self.cosm.fbar_over_fcdm \
+                    * self.halos.tab_MAR * self._tab_fstar
 
-                mask = np.zeros_like(self._tab_sfr_, dtype=bool)
-                mask[M < Mmin] = True
-                mask[M > Mmax] = True
-                mask[self.halos.tab_z > self.zform] = True
-                mask[self.halos.tab_z < self.zdead] = True
-                self._tab_sfr_mask_ = mask
+            # Mmin is like tab_z, make it like (z, M)
+            # M is like tab_M, make it like (z, M)
+            Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
+            Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
+            M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
+                    (self.halos.tab_z.size, self.halos.tab_M.size))
 
-                # Why am I getting a NaN?
-                isnan = np.isnan(self._tab_sfr_)
+            mask = np.zeros_like(self._tab_sfr_, dtype=bool)
+            mask[M < Mmin] = True
+            mask[M > Mmax] = True
+            mask[self.halos.tab_z > self.zform] = True
+            mask[self.halos.tab_z < self.zdead] = True
+            self._tab_sfr_mask_ = mask
 
-                if isnan.sum() > 1:
-                    print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
-                    #raise ValueError('Nans!')
-                
-                self._tab_sfr_[isnan] = 0.
+            # Why am I getting a NaN?
+            isnan = np.isnan(self._tab_sfr_)
+
+            if isnan.sum() > 1:
+                print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
+                #raise ValueError('Nans!')
+            
+            self._tab_sfr_[isnan] = 0.
                                 
-                return self._tab_sfr_
-
-            for i, z in enumerate(self.halos.tab_z):
-
-                if z > self.zform:
-                    continue
-
-                if z < self.zdead:
-                    continue
-
-                # Should be a little careful here: need to go one or two
-                # steps past edge to avoid interpolation problems in SFRD.
-
-                # SF fueld by accretion onto halos already above threshold
-                #if self.pf['pop_sfr_above_threshold']:
-                
-                if self.pf['pop_sfr_model'] == 'sfr-func':
-                    self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.tab_M)
-                else:                            
-                    raise ValueError('shouldnt happen.')
-
         return self._tab_sfr_
 
     @property
@@ -1944,7 +1934,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
-            
+                            
             assert self.pf['pop_sfr'] is None
 
             if self.pf['pop_calib_L1600'] is not None:
@@ -2804,9 +2794,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             cMst_t.append(solver.y[4])
             Mbh_t.append(solver.y[5])  
             sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
-            sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
             nh_t.append(n0)   
+            
+            if 'sfe' in self.pf['pop_sfr_model']:
+                sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             
             z = redshifts[-1]
             
@@ -2899,9 +2891,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                                 / s_per_yr / 1e6
                         
                             zmax_e = np.interp(tlim,
-                                [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
-                        
-            
+                                [lbtime_myr_prev, lbtime_myr], redshifts[-2:])            
             
             # Once zmax is set, keep solving the rate equations but don't adjust
             # zmax.
