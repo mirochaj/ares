@@ -483,20 +483,21 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         else:
             xticks = np.arange(0, 250, 50)
             xticks_minor = np.arange(10, 200, 10)
+        
+        # Some elements deemed objects when run through pipelines...
+        dTb = np.array(self.history['dTb'], dtype=float)
 
         if ymin is None and yscale == 'linear':
-            ymin = max(min(min(self.history['dTb'][np.isfinite(self.history['dTb'])]), 
-                ax.get_ylim()[0]), -500)
+            ymin = max(min(min(dTb[np.isfinite(dTb)]), ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
             for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500, -550, -600]:
                 if val <= ymin:
                     ymin = int(val)
                     break
-    
+        
         if ymax is None:
-            ymax = max(max(self.history['dTb'][np.isfinite(self.history['dTb'])]), 
-                ax.get_ylim()[1])
+            ymax = max(max(dTb[np.isfinite(dTb)]), ax.get_ylim()[1])
     
         if yscale == 'linear':
             if (not gotax) or force_draw:

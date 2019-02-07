@@ -278,14 +278,14 @@ Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
 csfr_blobs = \
 {
  'blob_names': ['popII_sfrd_tot', 'popIII_sfrd_tot', 
-                'popII_sfrd_bc',  'popIII_sfrd_bc', 
                 'popII_Mmin', 'popIII_Mmin',
                 'popII_Mmax', 'popIII_Mmax',
                 'popII_nh', 'popIII_nh'],
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_threshold',
-    'pops[2].SFRD_at_threshold', 'pops[0].Mmin', 'pops[2].Mmin',
+ 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 
+    'pops[0].Mmin', 'pops[2].Mmin',
     'pops[0].Mmax', 'pops[2].Mmax', 'pops[0].nactive', 'pops[2].nactive'],
+ 'blob_kwargs': [None] * 8,
 }
 
 csfe_blobs = csfr_blobs
@@ -293,8 +293,8 @@ csff_blobs = csfr_blobs
 
 dpl_blobs = \
 {
- 'blob_names': ['popII_sfrd_tot', 'popII_Mmin', 'popII_Mmax'],
- 'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax'],
+ 'blob_names': [['popII_sfrd_tot', 'popII_Mmin', 'popII_Mmax']],
+ 'blob_ivars': [('z', np.arange(5, 60.1, 0.1))],
+ 'blob_funcs': [['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax']],
 }
 
