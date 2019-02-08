@@ -45,7 +45,7 @@ class Cosmology(object):
         self.h70 = self.pf['hubble_0']
         
         self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
-            * cm_per_mpc**3 / g_per_msun / self.h70**2
+            * cm_per_mpc**3 / g_per_msun #/ self.h70**2
         
         if self.pf['helium_by_number'] is None:
             self.helium_by_mass = self.Y = self.pf['helium_by_mass']
@@ -58,6 +58,7 @@ class Cosmology(object):
         
         self.g_per_baryon = self.g_per_b = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
+
         self.baryon_per_Msun = self.b_per_msun = g_per_msun / self.g_per_baryon
          
         # Decoupling (gas from CMB) redshift       
@@ -418,6 +419,7 @@ class Cosmology(object):
                 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
         integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)
+
         return c * quad(integrand, z0, z)[0] / self.hubble_0  
             
     def ProperRadialDistance(self, z0, z):

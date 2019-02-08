@@ -13,10 +13,13 @@ Description:
 import re
 import inspect
 import numpy as np
+from inspect import ismethod
 from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from ..util.Warnings import no_lya_warning
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..util import MagnitudeSystem
 from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
@@ -94,7 +97,7 @@ class Population(object):
             del kwargs['problem_type']
 
         self.pf = ParameterFile(**kwargs)
-        
+
         assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)
         
         self.grid = grid
@@ -190,6 +193,10 @@ class Population(object):
         return self._is_src_oir
 
     @property
+    def is_src_oir_fl(self):
+        return False
+
+    @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
             if self.pf['pop_sed_model']:
@@ -203,12 +210,20 @@ class Population(object):
         return self._is_src_radio   
     
     @property
+    def is_src_radio_fl(self):
+        return False
+    
+    @property
     def is_src_lya(self):
         if not hasattr(self, '_is_src_lya'):
             if self.pf['pop_sed_model']:
                 self._is_src_lya = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
+                    
+                if self.pf['pop_lya_src'] and (not self._is_src_lya):
+                    if abs(self.pf['pop_Emin'] - E_LyA) < 1.:
+                        no_lya_warning(self)
             else:
                 self._is_src_lya = self.pf['pop_lya_src']
     
@@ -221,7 +236,7 @@ class Population(object):
             if not self.is_src_lya:
                 pass
             else:
-                if self.pf['pop_lya_fl'] and self.pf['include_lya_fl']:
+                if self.pf['pop_lya_fl'] and self.pf['ps_include_lya']:
                     self._is_src_lya_fl = True
     
         return self._is_src_lya_fl
@@ -263,7 +278,7 @@ class Population(object):
             if not self.is_src_ion:
                 pass
             else:
-                if self.pf['pop_ion_fl'] and self.pf['include_ion_fl']:
+                if self.pf['pop_ion_fl'] and self.pf['ps_include_ion']:
                     self._is_src_ion_fl = True
     
         return self._is_src_ion_fl    
@@ -291,7 +306,7 @@ class Population(object):
             if not self.is_src_heat:
                 pass
             else:
-                if self.pf['pop_temp_fl'] and self.pf['include_temp_fl']:
+                if self.pf['pop_temp_fl'] and self.pf['ps_include_temp']:
                     self._is_src_heat_fl = True
     
         return self._is_src_heat_fl
@@ -309,30 +324,6 @@ class Population(object):
     
         return self._is_src_uv
         
-    @property
-    def is_src_lya(self):
-        if not hasattr(self, '_is_src_lya'):
-            if self.pf['pop_sed_model']:
-                self._is_src_lya = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
-                    and self.pf['pop_lya_src']
-            else:
-                return self.pf['pop_lya_src']
-
-        return self._is_src_lya
-
-    @property
-    def is_src_uv(self):
-        if not hasattr(self, '_is_src_uv'):
-            if self.pf['pop_sed_model']:
-                self._is_src_uv = \
-                    (self.pf['pop_Emax'] > E_LL) \
-                    and self.pf['pop_ion_src_cgm']
-            else:
-                self._is_src_uv = self.pf['pop_ion_src_cgm']        
-    
-        return self._is_src_uv    
-    
     @property
     def is_src_xray(self):
         if not hasattr(self, '_is_src_xray'):
@@ -358,9 +349,13 @@ class Population(object):
                     (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
             else:
                 self._is_src_lw = False
-    
+                
         return self._is_src_lw    
 
+    @property
+    def is_src_lw_fl(self):
+        return False
+        
     @property
     def is_emissivity_separable(self):
         """
@@ -430,14 +425,14 @@ class Population(object):
                 self._Source_ = StarQS
             elif type(self.pf['pop_sed']) is FunctionType or \
                  inspect.ismethod(self.pf['pop_sed']) or \
-                 isinstance(self.pf['pop_sed'], interp1d):
+                 isinstance(self.pf['pop_sed'], interp1d_scipy):
                  self._Source_ = BlackHole
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])
-    
+
         return self._Source_
-    
+
     @property
     def src_kwargs(self):
         """
@@ -540,6 +535,10 @@ class Population(object):
                 
         return self._is_deterministic
     
+    @yield_per_sfr.setter
+    def yield_per_sfr(self, value):
+        self._yield_per_sfr = value
+        
     @property
     def is_fcoll_model(self):
         return self.pf['pop_sfr_model'].lower() == 'fcoll'
@@ -731,6 +730,83 @@ class Population(object):
             on = np.logical_and(z <= self.zform, z >= self.zdead)
     
         return on
+    
+    @property
+    def Mmin(self):
+        if not hasattr(self, '_Mmin'):  
+            self._Mmin = lambda z: \
+                np.interp(z, self.halos.tab_z, self._tab_Mmin)
+    
+        return self._Mmin
         
+    @property
+    def _tab_Mmin(self):
+        if not hasattr(self, '_tab_Mmin_'):
+            # First, compute threshold mass vs. redshift
+            if self.pf['feedback_LW_guesses'] is not None:
+                guess = self._guess_Mmin()
+                if guess is not None:
+                    self._tab_Mmin = guess
+                    return self._tab_Mmin_
+    
+            if self.pf['pop_Mmin'] is not None:
+                if ismethod(self.pf['pop_Mmin']) or \
+                   type(self.pf['pop_Mmin']) == FunctionType:
+                    self._tab_Mmin_ = \
+                        np.array(map(self.pf['pop_Mmin'], self.halos.tab_z))
+                elif type(self.pf['pop_Mmin']) is np.ndarray:
+                    self._tab_Mmin_ = self.pf['pop_Mmin']
+                    assert self._tab_Mmin.size == self.halos.tab_z.size
+                else:    
+                    self._tab_Mmin_ = self.pf['pop_Mmin'] \
+                        * np.ones(self.halos.tab_z.size)
+            else:
+                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
+                    z, mu=self.pf['mu'])
+                self._tab_Mmin_ = np.array(map(Mvir, self.halos.tab_z))
+    
+            self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
+    
+        return self._tab_Mmin_
         
-        
+    def _apply_lim(self, arr, s='min', zarr=None):
+        """
+        Adjust Mmin or Mmax so that Mmax > Mmin and/or obeys user-defined 
+        floor and ceiling.
+        """
+        out = None
+    
+        if zarr is None:
+            zarr = self.halos.tab_z
+    
+        # Might need these if Mmin is being set dynamically
+        if self.pf['pop_M%s_ceil' % s] is not None:
+            out = np.minimum(arr, self.pf['pop_M%s_ceil'] % s)
+        if self.pf['pop_M%s_floor' % s] is not None:
+            out = np.maximum(arr, self.pf['pop_M%s_floor'] % s)
+        if self.pf['pop_T%s_ceil' % s] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_ceil' % s], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, zarr))
+            out = np.minimum(arr, _MofT)
+        if self.pf['pop_T%s_floor' % s] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_floor' % s], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, zarr))
+            out = np.maximum(arr, _MofT)
+    
+        if out is None:
+            out = arr.copy()
+    
+        # Impose a physically-motivated floor to Mmin as a last resort,
+        # by default this will be the Tegmark+ limit.
+        if s == 'min':
+            out = np.maximum(out, self._tab_Mmin_floor)
+
+        return out    
+
+    @property    
+    def _tab_Mmin_floor(self):
+        if not hasattr(self, '_tab_Mmin_floor_'):
+            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.tab_z)
+        return self._tab_Mmin_floor_    

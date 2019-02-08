@@ -170,12 +170,8 @@ class ModelSet(BlobFactory):
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
 
-    #@property
-    #def derived_blobs(self):
-    #    if not hasattr(self, '_derived_blobs'):
-    #        self._derived_blobs = DQ(self)
-    #    return self._derived_blobs
-            
+        self.derived_blobs = DQ(self)
+
         #try:
         #    self._fix_up()
         #except AttributeError:
@@ -489,6 +485,13 @@ class ModelSet(BlobFactory):
         return self._unique_samples
     
     @property
+    def unique_samples(self):
+        if not hasattr(self, '_unique_samples'):
+            self._unique_samples = \
+                [np.unique(self.chain[:,i].data) for i in range(self.Nd)]
+        return self._unique_samples
+    
+    @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
             self._include_checkpoints = None
@@ -617,6 +620,14 @@ class ModelSet(BlobFactory):
                 self._chain = np.ma.array(chain, mask=mask2d)
                 f.close()
 
+            elif os.path.exists('%s.hdf5' % self.prefix):
+                f = h5py.File('%s.hdf5' % self.prefix)
+                chain = f['chain'].value
+                mask = f['mask'].value
+                self.mask = np.array([mask] * chain.shape[1]).T
+                self._chain = np.ma.array(chain, mask=self.mask)
+                f.close()
+
             # If each "chunk" gets its own file.
             elif glob.glob('{!s}.dd*.chain.pkl'.format(self.prefix)):
                 
@@ -660,7 +671,8 @@ class ModelSet(BlobFactory):
         
         Returns
         -------
-        Lists of walker ID numbers. First, the good walkers, then the bad.
+        Lists of walker ID numbers. First, the good walkers, then the bad, as
+        well as the mask itself.
         """
         
         bad_walkers = []
@@ -1677,6 +1689,7 @@ class ModelSet(BlobFactory):
             adata = self.ExtractData(aux)[aux]
 
         if c is not None:
+
             _cdata = data[p[2]].squeeze()
             
             if operation is None:
@@ -2743,7 +2756,7 @@ class ModelSet(BlobFactory):
             Redshift, if any element of pars is a "blob" quantity.
         plot : bool
             Plot PDF?
-        nu : float, list
+        like : float, list
             If plot == False, return the nu-sigma error-bar.
             If color_by_like == True, list of confidence contours to plot.
         color_by_like : bool
@@ -4193,7 +4206,7 @@ class ModelSet(BlobFactory):
         cb = pl.colorbar(cax)
 
         return ax
-        
+
     def get_blob(self, name, ivar=None):
         """
         Extract an array of values for a given quantity.
@@ -4209,9 +4222,9 @@ class ModelSet(BlobFactory):
             Independent variables a given blob may depend on.
             
         """
-                        
+
         i, j, nd, dims = self.blob_info(name)
-        
+
         if (i is None) and (j is None):
             f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
             return f['blobs'][name].value
@@ -4537,7 +4550,7 @@ class ModelSet(BlobFactory):
             assert have_h5py, "h5py import failed."
             
             f = h5py.File(fn, 'w')
-            
+
             if include_chain:
                 ds = f.create_dataset('chain', data=self.chain[skip:stop])
                 ds.attrs.create('names', data=self.parameters)
@@ -4576,6 +4589,7 @@ class ModelSet(BlobFactory):
             
         # Also make a copy of the info files with same prefix
         # since that's generally nice to have available.  
+
         # Well, it gives you a false sense of what data is available,
         # so sorry! Not doing that anymore.
         #out = '{0!s}/{1!s}.{2!s}.binfo.pkl'.format(path, self.prefix, prefix)
@@ -4605,7 +4619,6 @@ class ModelSet(BlobFactory):
             #    print("WARNING: custom_label for par `{}` no in parameters list.".format(key))
         
             self._custom_labels[key] = value[key]
-    
     
     @property
     def labeler(self):

@@ -17,22 +17,21 @@ import ares
 
 ## INPUT
 fit = 'ST'
-format = 'npz'
+fmt = 'npz'
 ##
 
 hmf_pars = \
 {
  "hmf_model": fit,
  "hmf_dlogM": 0.01,
- "hmf_zmin": 0.,
+ "hmf_logMmax": 18,
  "hmf_dz": 0.05,
- "hmf_zmax": 60.,
+ "hmf_zmin": 0., 
+ "hmf_zmax": 60,
 }
 ##
 
-hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
-    hmf_load=False, **hmf_pars)
-
-hmf.SaveHMF(format=format)
+hmf = ares.physics.HaloMassFunction(hmf_load=False, **hmf_pars)
+hmf.SaveHMF(format=fmt)
 
 

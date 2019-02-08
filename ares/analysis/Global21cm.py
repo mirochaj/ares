@@ -307,7 +307,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             result.update(fixes)
             
             self._turning_points = result       
-            
+
             ## 
             # If there are multiple extrema (e.g, C and C'), fix order.
             ##
@@ -729,7 +729,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         return self.Width(max_fraction, peak_relative, to_freq)
 
     def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True,
-        absorption=True):
+        absorption=True, dark_ages=False):
         """
         Return a measurement of the width of the absorption or emission signal.
 
@@ -749,20 +749,30 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             
         .. note :: With default parameters, this function returns the 
             full-width at half-maximum (FWHM) of the absorption signal.
-            
+ 
         """
-        
+
         if absorption:
-            tp = 'C'
+            if dark_ages:
+                tp = 'A'
+            else:    
+                tp = 'C'
         else:
             tp = 'D'
         
-        if tp not in self.turning_points:
-            return -np.inf
+        if tp == 'A':
+            z_pt = self.z_A
+            n_pt = self.nu_A
+            T_pt = self.dTb_A
+        else:
+                
+        
+        #if tp not in self.turning_points:
+        #    return -np.inf
 
-        z_pt = self.turning_points[tp][0]
-        n_pt = nu_0_mhz / (1. + z_pt)
-        T_pt = self.turning_points[tp][1]
+            z_pt = self.turning_points[tp][0]
+            n_pt = nu_0_mhz / (1. + z_pt)
+            T_pt = self.turning_points[tp][1]
         
         if not np.isfinite(z_pt):
             return -np.inf
@@ -785,7 +795,11 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             return -np.inf
                         
         # Need to restrict range to avoid double-valued-ness...? Might as well.
-        if absorption:
+        if dark_ages:
+            i_hi = np.argmin(np.abs(z - max(z)))
+            
+            print(i_max, i_hi, z[i_max], z[i_hi])
+        elif absorption:
             if 'B' in self.turning_points:
                 if np.isfinite(self.turning_points['B'][0]):
                     i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))

@@ -1,3 +1,4 @@
+from ares.sources.Toy import Toy
 from ares.sources.Star import Star
 from ares.sources.StarQS import StarQS
 from ares.sources.Galaxy import Galaxy

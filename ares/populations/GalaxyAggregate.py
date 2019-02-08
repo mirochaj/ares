@@ -21,13 +21,14 @@ from ..util.Math import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
 from ..util.ParameterFile import get_pq_pars, pop_id_num
+from scipy.interpolate import interp1d as interp1d_scipy
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
 from ..util import ParameterFile, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
+    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL, k_B
     
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']    
 tiny_sfrd = 1e-15    
@@ -133,6 +134,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD given by some function
         if self.is_link_sfrd:    
             # Already in the right units
+
             return self._sfrd(z) * on
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
@@ -150,7 +152,7 @@ class GalaxyAggregate(HaloPopulation):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
-    
+
         return sfrd
         
     def _frd_func(self, z):
@@ -163,13 +165,17 @@ class GalaxyAggregate(HaloPopulation):
         
         return self.SFRD(z) / self.pf['pop_mass'] / g_per_msun
     
+>>>>>>> merge rev
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
         
         ..note:: If `E` is not supplied, this is a luminosity density in the
-            (Emin, Emax) band.
+            (Emin, Emax) band. Otherwise, if E is supplied, or the SED is
+            a delta function, the result is a monochromatic luminosity. If
+            nothing is supplied, it's the luminosity density in the
+            reference band. 
         
         Parameters
         ----------
@@ -180,7 +186,7 @@ class GalaxyAggregate(HaloPopulation):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-
+        
         on = self.on(z)
         if not np.any(on):
             return z * on
@@ -193,7 +199,10 @@ class GalaxyAggregate(HaloPopulation):
                         
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr * on
-                
+               
+        ##
+        # Models based on photons / baryon
+        ##      
         if not self.pf['pop_sed_model']:
             if (Emin, Emax) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
@@ -206,15 +215,25 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 return rhoL * self.pf['pop_fX'] * self.pf['pop_cX'] \
                     / (g_per_msun / s_per_yr)
-                                                                
-        # Convert from reference band to arbitrary band
+                                    
+        ##                                                        
+        # Models based on SED. 
+        # Convert from reference band to user-supplied band
+        # and apply escape fractions.
+        ##
         rhoL *= self._convert_band(Emin, Emax)
         if (Emax is None) or (Emin is None):
-            pass
-        elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
+            if self.pf['pop_reproc']:
+                rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
+        elif Emax > E_LL and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
-        elif Emax <= 13.6:
-            rhoL *= self.pf['pop_fesc_LW']    
+        elif Emax <= E_LL:
+            if self.pf['pop_reproc']:
+                fesc = (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
+            else:
+                fesc = self.pf['pop_fesc_LW']
+            
+            rhoL *= fesc
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
@@ -261,4 +280,19 @@ class GalaxyAggregate(HaloPopulation):
         
         return rhoL / (eV_per_phot * erg_per_ev)
     
+    def IonizingEfficiency(self, z):
+        """
+        This is not quite the standard definition of zeta. It has an extra 
+        factor of fbaryon since fstar is implemented throughout the rest of 
+        the code as an efficiency wrt baryonic inflow, not matter inflow.
+        """
+        zeta = self.pf['pop_Nion'] * self.pf['pop_fesc'] \
+            * self.pf['pop_fstar'] #* self.cosm.fbaryon
+        return zeta
+        
+    def HeatingEfficiency(self, z):
+        uconn = s_per_yr * self.cosm.g_per_b / g_per_msun
+        zeta_x = self.pf['pop_fXh'] * self.pf['pop_rad_yield'] * uconn \
+               * (2. / 3. / k_B / self.pf['ps_saturated'] / self.cosm.TCMB(z))
     
+        return zeta_x

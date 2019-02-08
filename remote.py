@@ -27,7 +27,12 @@ aux_data = \
      'initial_conditions.npz',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
+<<<<<<< working copy
+||||||| base
+    'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
+=======
     'optical_depth_H_400x862_z_5-60_logE_2.3-4.5.npz',
+>>>>>>> merge rev
     'optical_depth_He_200x429_z_5-60_logE_2.3-4.5.npz',
     'optical_depth_He_400x862_z_5-60_logE_2.3-4.5.npz',
     'optical_depth_He_1000x2158_z_5-60_logE_2.3-4.5.npz',

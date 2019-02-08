@@ -48,9 +48,9 @@ class Star(Source):
             Number of photons emitted in the range ``(EminNorm, EmaxNorm)``
         source_lifetime : int, float
             Source will switch off after this amount of time [Myr]
-        
+
         """  
-        
+
         self.pf = ParameterFile(**kwargs)#StellarParameters()
         #self.pf.update(kwargs)
         Source.__init__(self)

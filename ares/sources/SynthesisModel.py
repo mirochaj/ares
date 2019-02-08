@@ -298,13 +298,8 @@ class SynthesisModel(Source):
         """
         if not hasattr(self, '_E_per_M'):
             self._E_per_M = np.zeros_like(self.data)
-            for i in range(self.times.size):
+            for i in xrange(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
-
-            #if self.pf['source_ssp']:
-            #    self._E_per_M /= 1e6
-            #else:
-            #    pass
 
         return self._E_per_M
 
@@ -312,7 +307,7 @@ class SynthesisModel(Source):
     def uvslope(self):
         if not hasattr(self, '_uvslope'):
             self._uvslope = np.zeros_like(self.data)
-            for i in range(self.times.size):
+            for i in xrange(self.times.size):
                 self._uvslope[1:,i] = np.diff(np.log(self.data[:,i])) \
                     / np.diff(np.log(self.wavelengths))
 
@@ -380,24 +375,17 @@ class SynthesisModel(Source):
         #     erg / sec / Hz / Msun
         # else: 
         #     erg / sec / Hz / (Msun / yr)
-                    
-        # to erg / s / A / Msun
-        #if self.pf['source_ssp']:
-        #    yield_UV /= 1e6
-        ## or erg / s / A / (Msun / yr)
-        #else:
-        #    pass
-        
+
         self._cache_L_[wave] = yield_UV
             
         return yield_UV
-    
+
     def LUV(self):
         return self.L_per_SFR_of_t()[-1]
-        
+
     @property
     def L1600_per_sfr(self):
-        return self.L_per_sfr()   
+        return self.L_per_sfr()
         
     def L_per_sfr(self, wave=1600., avg=1):
         """
@@ -469,7 +457,7 @@ class SynthesisModel(Source):
         
         # Count up the photons in each spectral bin for all times
         photons_per_b_t = np.zeros_like(self.times)
-        for i in range(self.times.size):
+        for i in xrange(self.times.size):
             photons_per_b_t[i] = np.trapz(self.emissivity_per_sfr[i1:i0,i], 
                 x=x[i1:i0])
                 
@@ -557,7 +545,7 @@ class SynthesisModel(Source):
 
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
-        for i in range(self.times.size):
+        for i in xrange(self.times.size):
             if energy_units:
                 integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]
             else:

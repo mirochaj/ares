@@ -15,7 +15,6 @@ from __future__ import print_function
 import glob
 import numpy as np
 from ..util import get_hg_rev
-from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
@@ -28,7 +27,7 @@ from ..analysis.BlobFactory import BlobFactory
 from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
+from ..util.Stats import Gauss1D, GaussND, rebin
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
@@ -1177,7 +1176,6 @@ class ModelFit(FitBase):
         """
                 
         self.prefix = prefix
-        
         if rank == 0:
             if os.path.exists('{!s}.chain.pkl'.format(prefix)) and (not clobber):
                 if not restart:
@@ -1233,7 +1231,6 @@ class ModelFit(FitBase):
 
                 if emcee_mpipool:
                     self.pool.wait()
-                    
                 if not reboot:
                     sys.exit(0)
                 

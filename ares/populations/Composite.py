@@ -44,7 +44,7 @@ class CompositePopulation(object):
         self.pfs = self.pf.pfs
 
         self.BuildPopulationInstances()
-        
+
     def BuildPopulationInstances(self):
         """
         Construct list of *Population class instances.
@@ -57,9 +57,9 @@ class CompositePopulation(object):
         to_attribute = [None for i in range(self.Npops)]
         link_args = [[] for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
-    
             ct = 0            
             # Only link options that are OK at this stage.
+
             for option in allowed_options:
     
                 if (pf[option] is None) or (not isinstance(pf[option], basestring)):
@@ -110,14 +110,14 @@ class CompositePopulation(object):
     
                     if args is not None:
                         link_args[i] = map(float, args.split('-'))
-    
+
         # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
             if entry is None:
                 continue
     
             tmp = self.pfs[i].copy()
-    
+            
             if self.pops[i] is not None:
                 raise ValueError('Only one link allowed right now!')
     
@@ -139,7 +139,10 @@ class CompositePopulation(object):
                 # array to something that is a function. Fear not! The setter
                 # for _tab_Mmin will sort this out.
                 self.pops[i]._tab_Mmin = self.pops[entry].Mmax
-                assert np.all(self.pops[i]._tab_Mmin <= self.pops[entry]._tab_Mmax)
+                
+                ok = self.pops[i]._tab_Mmin <= self.pops[entry]._tab_Mmax
+
+                assert np.all(ok)
             elif to_quantity[i] in after_instance:
                 continue
             else:
@@ -148,7 +151,7 @@ class CompositePopulation(object):
         # Set ID numbers (mostly for debugging purposes)
         for i, pop in enumerate(self.pops):
             pop.id_num = i
-    
+
         # Posslible few last things that occur after Population objects made
         for i, entry in enumerate(to_copy):
             if entry is None:
@@ -176,6 +179,4 @@ class CompositePopulation(object):
             # is not a function.
             self.pops[i].yield_per_sfr = func(*args)
     
-    
-    
-    
+

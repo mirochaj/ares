@@ -94,7 +94,7 @@ class Toy(Source):
         Return quantity *proportional* to fraction of bolometric luminosity emitted
         at photon energy E.  Normalization handled separately.
         """
-
+    
         return self.LE
 
     def _NormalizeSpectrum(self):

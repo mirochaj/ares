@@ -37,9 +37,10 @@ except ImportError:
 zf, zi = (5, 60)
 Emin = 2e2
 Emax = 3e4
+Nz = [200]
 pin_Emin = True
 Nz = [400]
-format = 'npz'        # 'hdf5' or 'pkl' or 'npz'
+fmt = 'npz'        # 'hdf5' or 'pkl' or 'npz'
 helium = 0
 xavg = lambda z: 0.0  # neutral
 ##
@@ -70,6 +71,6 @@ for res in Nz:
     
     # Tabulate tau
     tau = igm.TabulateOpticalDepth()
-    igm.save(suffix=format, clobber=True)
+    igm.save(suffix=fmt, clobber=True)
 
     

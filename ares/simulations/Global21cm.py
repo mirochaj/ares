@@ -154,6 +154,7 @@ class Global21cm(AnalyzeGlobal21cm):
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
             self.all_data_igm[i]['dTb'] = float(Tb)
+            self.all_data_igm[i]['dTb_bulk'] = float(Tb)
             self.all_data_igm[i]['Ts'] = Ts
             dTb.append(Tb)
 
@@ -194,6 +195,9 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.pf['output_frequencies'] is not None:
             nu = self.pf['output_frequencies']
             z = nu_0_mhz / nu - 1.
+        elif self.pf['output_redshifts'] is not None:
+            z = self.pf['output_redshifts']
+            nu = nu_0_mhz / (1. + z)
         elif self.pf['output_dz'] is not None:
             z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
                 self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]
@@ -246,8 +250,9 @@ class Global21cm(AnalyzeGlobal21cm):
             
         tf = self.medium.tf
         self.medium._insert_inits()
-        
-        pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'])
+
+        pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'], 
+            name='gs-21cm')
 
         # Lists for data in general
         self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \
@@ -277,7 +282,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 pb.start()
                         
             pb.update(t)
-                    
+                                        
             # Save data
             self.all_z.append(z)
             self.all_t.append(t)
@@ -323,6 +328,8 @@ class Global21cm(AnalyzeGlobal21cm):
         #    # Fix Ja in history
         
         self.history['dTb'] = self.history['igm_dTb']
+        self.history['dTb_bulk'] = self.history['igm_dTb_bulk']
+        
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
         self.history['Jlw'] = self.history['igm_Jlw']
@@ -386,6 +393,9 @@ class Global21cm(AnalyzeGlobal21cm):
             self.history['dTb_no_radio'] = self.history['dTb'].copy()
             self.history['dTb'] = dTb
             
+            self.history['dTb_bulk'] = \
+               self.medium.parcel_igm.grid.hydr.dTb(zall, 0.0, Ts, Tr)
+
         t2 = time.time()
 
         self.timer = t2 - t1
@@ -408,7 +418,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
         """
 
-        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
+        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():
 
             Ja = np.atleast_1d(self._f_Ja(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
@@ -429,9 +439,11 @@ class Global21cm(AnalyzeGlobal21cm):
 
             # Derive brightness temperature
             dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
+            dTb_b = self.medium.parcel_igm.grid.hydr.dTb(z, 0.0, Ts)
 
             # Add derived fields to data
-            data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja, 'Jlw': Jlw})
+            data_igm.update({'Ts': Ts, 'dTb': dTb, 'dTb_bulk': dTb_b, 
+                'Ja': Ja, 'Jlw': Jlw})
 
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
@@ -510,7 +522,7 @@ class Global21cm(AnalyzeGlobal21cm):
             print('', file=f)
 
             # Now, the data
-            for i in range(len(self.history[key])):
+            for i in xrange(len(self.history[key])):
                 s = ''
 
                 for key in self.history:

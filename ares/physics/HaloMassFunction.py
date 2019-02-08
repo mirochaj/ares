@@ -224,9 +224,9 @@ class HaloMassFunction(object):
     def cosm(self):
         if not hasattr(self, '_cosm'):
             self._cosm = Cosmology(pf=self.pf, **self.pf)
-
         return self._cosm
             
+
     def __getattr__(self, name):
         
         if (name[0] == '_'):
@@ -239,7 +239,7 @@ class HaloMassFunction(object):
         if name not in self.__dict__:
             s = "May need to run 'python remote.py fresh hmf' or check hmf_* parameters."
             raise KeyError("HMF table element {} not found. {}".format(name, s))
-                
+
         return self.__dict__[name]
 
     def _load_hmf(self):
@@ -248,6 +248,7 @@ class HaloMassFunction(object):
         if self._is_loaded:
             return     
                             
+
         if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
             self.tab_z = f['tab_z'].value
@@ -266,8 +267,10 @@ class HaloMassFunction(object):
             if 'tab_MAR' in f:
                 self.tab_MAR = f['tab_MAR'].value
             self.tab_growth = f['tab_growth'].value
+
             
             f.close()
+
         elif re.search('.npz', self.tab_name):
             f = np.load(self.tab_name)
             self.tab_z = f['tab_z']
@@ -284,6 +287,7 @@ class HaloMassFunction(object):
             self.tab_dlnsdlnm = f['tab_dlnsdlnm']
             self.tab_ps_lin = f['tab_ps_lin']
             self.tab_k_lin = f['tab_k_lin']
+
             f.close()                        
         elif re.search('.pkl', self.tab_name):
             
@@ -325,7 +329,7 @@ class HaloMassFunction(object):
             raise IOError('Unrecognized format for hmf_table.')    
                 
         self._is_loaded = True
-        
+                
     @property
     def pars_cosmo(self):
         return {'Om0':self.cosm.omega_m_0,
@@ -337,6 +341,11 @@ class HaloMassFunction(object):
         if not hasattr(self, '_pars_growth'):
             self._pars_growth = {'dlna': self.pf['hmf_dlna']}
         return self._pars_growth
+
+    def pars_cosmo(self):
+        return {'Om0':self.cosm.omega_m_0,
+                'Ob0':self.cosm.omega_b_0,
+                'H0':self.cosm.h70*100}    
         
     @property
     def pars_transfer(self):
@@ -366,7 +375,7 @@ class HaloMassFunction(object):
             # at the boundaries.
             zmin = max(self.pf['hmf_zmin'] - 2 * dz, 0)
             zmax = self.pf['hmf_zmax'] + 2 * dz
-            
+
             Nz = int(round(((zmax - zmin) / dz) + 1, 1))
             self.tab_z = np.linspace(zmin, zmax, Nz)             
 
@@ -398,6 +407,7 @@ class HaloMassFunction(object):
         return self._tab_fcoll
 
     @property
+                                
     def tab_bias(self):
         if not hasattr(self, '_tab_bias'):
             self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
@@ -453,33 +463,28 @@ class HaloMassFunction(object):
             
             if i > 0:
                 self._MF.update(z=z)
-                
+
             if i % size != rank:
                 continue
-                
 
             # Has units of h**4 / cMpc**3 / Msun
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
             self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
             self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
              
-            self.tab_ps_lin[i] = self._MF.power / self.cosm.h70**3                
-            self.tab_growth[i] = self._MF.growth_factor            
+            self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3                
+            self.tab_growth[i] = self._MF.growth_factor * 1.            
                                     
             pb.update(i)
             
         pb.finish()
-        
+
         # All processors will have this.
         self.tab_sigma = self._MF._sigma_0
         self.tab_dlnsdlnm = self._MF._dlnsdlnm
                 
         # Collect results!
         if size > 1:
-            #tmp1 = np.zeros_like(self.fcoll_tab)
-            #nothing = MPI.COMM_WORLD.Allreduce(self.fcoll_tab, tmp1)
-            #self.fcoll_tab = tmp1
-            
             tmp2 = np.zeros_like(self.tab_dndm)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_dndm, tmp2)
             self.tab_dndm = tmp2
@@ -491,16 +496,22 @@ class HaloMassFunction(object):
             tmp4 = np.zeros_like(self.tab_mgtm)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_mgtm, tmp4)
             self.tab_mgtm = tmp4
-            
+
             tmp6 = np.zeros_like(self.tab_ps_lin)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_ps_lin, tmp6)
             self.tab_ps_lin = tmp6
-            
+        
             tmp7 = np.zeros_like(self.tab_growth)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_growth, tmp7)
             self.tab_growth = tmp7
         
         # Done!    
+            
+    @property
+    def logM_min(self):
+        if not hasattr(self, '_logM_min'):
+            self.build_1d_splines(Tmin=self.pf['pop_Tmin'], mu=self.pf['mu'])
+        return self._logM_min
             
     @property
     def fcoll_Tmin(self):
@@ -632,19 +643,6 @@ class HaloMassFunction(object):
     @fcoll_spline_2d.setter
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
-        
-    @property
-    def dndm_spline_2d(self):
-        if not hasattr(self, '_dndm_spline_2d'):
-            log10tab = np.log10(self.tab_dndm)
-            log10tab[np.isinf(log10tab)] = -100.
-            
-            _dndm_spline_2d = RectBivariateSpline(self.tab_z, 
-                np.log10(self.tab_M), log10tab, kx=3, ky=3)
-            
-            self._dndm_spline_2d = lambda z, logM: 10**_dndm_spline_2d(z, logM).squeeze()
-                
-        return self._dndm_spline_2d    
 
     def Bias(self, z):
                 
@@ -667,6 +665,24 @@ class HaloMassFunction(object):
             raise NotImplemented('No bias for non-PS non-ST MF yet!')
     
         return bias
+    
+    @property
+    def LinearPS(self):
+        """
+        Interpolant for the linear matter power spectrum.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        lnk : int, float
+            Nature log of the wavenumber of interest.
+            
+        """
+        if not hasattr(self, '_LinearPS'):
+            self._LinearPS = RectBivariateSpline(self.tab_z, 
+                np.log(self.tab_k_lin), self.tab_ps_lin, kx=3, ky=3)
+        return self._LinearPS
     
     @property
     def LinearPS(self):
@@ -719,6 +735,7 @@ class HaloMassFunction(object):
         "Evolve" a halo through time (assuming fixed number density).
         """
         
+<<<<<<< working copy
         M = np.zeros(self.tab_z.size)
         
         m_1 = self.tab_M[iM]
@@ -733,7 +750,7 @@ class HaloMassFunction(object):
             m_2 = np.exp(np.interp(np.log(ngtm_1),
                 np.log(ngtm_2[-1::-1]),
                 np.log(self.tab_M[-1::-1])))
-            
+
             M[j] = m_2
 
             m_1 = m_2
@@ -780,11 +797,8 @@ class HaloMassFunction(object):
                     
             # Differentiate trajectories, interpolate to common mass, redshift grid.
             
-            
-            #arr = np.zeros_like(self._tab_traj)
-            
             dtdz = self.cosm.dtdz(self.tab_z)[1:-1]
-            
+
             # Step 0: Compute dMdt for each history.
             # Step 1: Interpolate dMdt onto tab_M grid.
             tab_dMdt_of_z = np.zeros((self.tab_traj.shape[0], self.tab_z.size))
@@ -840,20 +854,6 @@ class HaloMassFunction(object):
     def tab_MAR(self, value):
         self._tab_MAR = value
         
-    @property
-    def tab_MAR_delayed(self):
-        if not hasattr(self, '_tab_MAR_delayed'):
-            tdyn = self.DynamicalTime(self.tab_z)
-            
-            MAR = self.tab_MAR
-            
-            
-            
-        return self._tab_MAR_delayed    
-            
-            
-        
-        
     def MAR_func(self, z, M):
         return self.MAR_func_(z, M)
         
@@ -861,7 +861,7 @@ class HaloMassFunction(object):
     def MAR_func_(self):
         if not hasattr(self, '_MAR_func_'):
             mask = np.isfinite(self.tab_MAR)
-            
+
             tab = np.log(self.tab_MAR)
             bad = np.logical_or(np.isnan(self.tab_MAR), np.isinf(tab))
             tab[bad==1] = -50
@@ -1078,16 +1078,14 @@ class HaloMassFunction(object):
             hmf_v = hmf.__version__
         except AttributeError:
             hmf_v = 'unknown'
-            
+
         if destination is None:
             destination = '.'
         
         # Determine filename
         if fn is None:
             fn = '{0!s}/{1!s}.{2!s}'.format(destination,\
-                self.tab_prefix_hmf(True), format)    
-            if rank == 0:
-                print("Will save HMF to file {}".format(fn))            
+                self.tab_prefix_hmf(True), format)
         else:
             if format not in fn:
                 print("Suffix of provided filename does not match chosen format.")
@@ -1110,6 +1108,7 @@ class HaloMassFunction(object):
         
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
+<<<<<<< working copy
             f.create_dataset('tab_z', data=self.tab_z)
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_dndm', data=self.tab_dndm)
