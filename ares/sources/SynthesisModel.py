@@ -313,7 +313,10 @@ class SynthesisModel(Source):
 
         return self._uvslope
         
-    def fit_uvslope(self, lam=1600, dlam=200):
+    def fit_uvslope(self, lam=1600, dlam=200, data=None):
+        
+        if data is None:
+            data = self.data
         
         slc = np.logical_and(lam-dlam <= self.wavelengths, 
                             self.wavelengths <= lam+dlam)
@@ -321,7 +324,7 @@ class SynthesisModel(Source):
         _uvslope_fit = np.zeros_like(self.times)        
         for i in range(self.times.size):
             
-            logL = np.log(self.data[slc,i])
+            logL = np.log(data[slc,i])
             logw = np.log(self.wavelengths[slc])
 
             model = lambda pars: pars[0] + pars[1] * logw

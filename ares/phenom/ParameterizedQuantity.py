@@ -269,7 +269,7 @@ class ParameterizedQuantity(object):
             f = self.p0 * (x / self.p1)**self.p2 * np.exp(-(x / self.p3)**self.p4)
         elif func == 'dpl':
             xx = x / self.p1
-            f = 2. * self.p0 / (xx**-self.p2 + xx**-self.p3)
+            f = 2. * self.p0 / (xx**-self.p2 + xx**-self.p3)            
         elif func == 'dpl_arbnorm':
             xx = x / self.p1
             normcorr = (((self.p4 / self.p1)**-self.p2 + (self.p4 / self.p1)**-self.p3))
@@ -381,7 +381,7 @@ class ParameterizedQuantity(object):
                 f = np.maximum(f, self.floor)
             else:
                 f = np.maximum(f, self.floor(**kwargs))
-                        
+                                
         return f
               
 

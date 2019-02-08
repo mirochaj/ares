@@ -86,8 +86,8 @@ def _fignum_to_figname():
     
 fig_num, fig_prefix = _fignum_to_figname()
     
-def _figure_name(pop_Z=0.04, pop_imf=2.35, pop_nebular=False, pop_ssp=True, 
-    **kwargs):
+def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False, 
+    source_ssp=True, **kwargs):
     """
     Only built for figures 1-12 right now.
     
@@ -103,36 +103,36 @@ def _figure_name(pop_Z=0.04, pop_imf=2.35, pop_nebular=False, pop_ssp=True,
     mask = np.ones_like(options)
     
     # Can't be odd
-    if pop_ssp:
+    if source_ssp:
         mask[options % 2 == 0] = 0
     else:
         mask[options % 2 == 1] = 0
     
     # Can't be > 6
-    if pop_nebular:
+    if source_nebular:
         mask[options > 6] = 0
     else:
         mask[options <= 6] = 0
     
-    if pop_imf == 2.35:
+    if source_imf == 2.35:
         for i in options:
             if i not in [1,2,7,8]:
                 mask[i-1] *= 0
-    elif pop_imf == 3.3:
+    elif source_imf == 3.3:
         for i in options:
             if i not in [3,4,9,10]:
                 mask[i-1] *= 0  
-    elif pop_imf == 30:
+    elif source_imf == 30:
         for i in options:
             if i not in [5,6,11,12]:
                 mask[i-1] *= 0
                       
     Zvals = list(metallicities.values())
     
-    if pop_Z not in Zvals:
+    if source_Z not in Zvals:
         raise ValueError('Unrecognized metallicity.')
         
-    Z_suffix = list(metallicities.keys())[Zvals.index(pop_Z)]
+    Z_suffix = list(metallicities.keys())[Zvals.index(source_Z)]
     
     if mask.sum() > 1:
         raise ValueError('Ambiguous SED.')
@@ -148,12 +148,12 @@ def _load(**kwargs):
     """
     Zvals = np.sort(list(metallicities.values()))
             
-    if kwargs['pop_Z'] not in Zvals:
+    if kwargs['source_Z'] not in Zvals:
         
         data = []
         for Z in Zvals:
             tmp = kwargs.copy()
-            tmp['pop_Z'] = Z
+            tmp['source_Z'] = Z
             fn = _figure_name(**tmp)
             _data = _reader(fn)
             data.append(_data[:,1:])

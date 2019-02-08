@@ -276,7 +276,7 @@ def PhysicsParameters():
     # Assume that uniform background only emerges gradually as 
     # the typical separation of halos becomes << Hubble length
     "feedback_LW_ramp": 0,
-        
+            
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
 
@@ -473,6 +473,7 @@ def PopulationParameters():
     #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
     "pop_MAR_corr": None,
+    "pop_MAR_delay": None,
 
     "pop_interp_MAR": 'linear',
     "pop_interp_sfrd": 'linear',
@@ -502,6 +503,9 @@ def PopulationParameters():
     # For synthesis models
     "pop_Z": 0.02,
     "pop_imf": 2.35,
+    "pop_tracks": None,
+    "pop_tracks_fn": None,
+    "pop_stellar_aging": False,
     "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_psm_instance": None,
@@ -558,6 +562,7 @@ def PopulationParameters():
 
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    'pop_fstar_cloud': 1.,  # cloud-scale star formation efficiency
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
@@ -598,15 +603,26 @@ def PopulationParameters():
     "pop_scatter_sfe": 0.0,
     "pop_scatter_env": 0.0,
     
-    "pop_is_deterministic": None,
-    "pop_update_dt": 10.,
+    "pop_update_dt": 'native',
     
     # Cluster-centric model
-    "pop_poisson": False,
-    "pop_bcycling": False,
-    "pop_internal_feedback": False,
-    "pop_sf_via_inflow": True,
-    "pop_sf_via_reservior": False,
+    "pop_feedback_rad": False,
+    "pop_feedback_sne": False,
+    "pop_delay_rad_feedback": 0.0,
+    "pop_delay_sne_feedback": 0.0,
+    "pop_force_equilibrium": np.inf,
+    "pop_sample_imf": False,
+    "pop_sample_cmf": False,
+    "pop_imf": 'salpeter',
+    "pop_imf_bins": None,#np.arange(0.1, 150.01, 0.01),  # bin centers
+    "pop_cmf": None,
+    
+    # Feedback for single-stars
+    "pop_coupling_sne": 0.1,
+    "pop_coupling_rad": 0.1,
+    
+    # Baryon cycling
+    "pop_multiphase": False,
     
     "pop_fobsc": 0.0,
     "pop_fobsc_by": None, # or 'age' or 'lum'
@@ -808,6 +824,9 @@ def SourceParameters():
     "source_sfh": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
+    "source_tracks": None,
+    "source_tracks_fn": None,
+    "source_stellar_aging": False,
     "source_nebular": False,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
@@ -816,6 +835,9 @@ def SourceParameters():
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
     "source_interpolant": None,
+    
+    # Log masses
+    "source_imf_bins": np.arange(-1, 2.52, 0.02),  # bin centers
     
     "source_degradation": None,      # Degrade spectra to this \AA resolution
     "source_aging": False,
@@ -897,6 +919,9 @@ def SynthesisParameters():
     "source_sed": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
+    "source_tracks": None,
+    "source_tracks_fn": None,
+    "source_stellar_aging": False,
     "source_nebular": False,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,

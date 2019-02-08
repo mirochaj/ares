@@ -40,3 +40,4 @@ input/eos
 *.backup
 doc/example_*.py
 *.csv
+.pytest_cache/*

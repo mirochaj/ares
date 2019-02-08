@@ -553,7 +553,7 @@ class MultiPhaseMedium(object):
         return ax
         
     def IonizationHistory(self, ax=None, zone=None, element='h', 
-        fig=1, scatter=False, 
+        fig=1, scatter=False, show_xhe_3=False,
         mask=5, show_xi=True, show_xe=True, show_xibar=False, 
         show_legend=False, **kwargs):
         """
@@ -591,7 +591,9 @@ class MultiPhaseMedium(object):
             else:
                 to_plot = [self.history['{0!s}_{1!s}_2'.format(zone, element)]]
                 show = [True] * 2           
-
+                if show_xhe_3:
+                    to_plot.append(self.history['{0!s}_{1!s}_3'.format(zone, element)])
+                    show.append(True)
         else:
             to_plot = [self.history['igm_he_{}'.format(sp)] for sp in [2,3]]
             show = [True] * 2

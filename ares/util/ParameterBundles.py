@@ -433,8 +433,10 @@ class ParameterBundle(dict):
                     continue
                 
                 if first_update:
-                    header('Parameter Bundle')
-                    first_update = False                
+                    if self.verbose:
+                        header('Parameter Bundle')
+                    #print('#'*width)
+                    first_update = False
                 
                 if self.verbose:
                     msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 

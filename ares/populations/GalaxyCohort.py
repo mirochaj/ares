@@ -278,7 +278,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # be included in the star-formation of some other population.
             if np.isfinite(self.pf['pop_sfr_cross_upto_Tmin']):
                 Tlim = self.pf['pop_sfr_cross_upto_Tmin']
-                Mlim = self.halos.VirialMass(T=Tlim, z=self.halos.tab_z)
+                Mlim = self.halos.VirialMass(z=self.halos.tab_z, T=Tlim)
 
                 mask = self.Mmin < Mlim
                 self._tab_sfrd_at_threshold_ *= mask
@@ -1223,7 +1223,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def M_atom(self):
         if not hasattr(self, '_Matom'):
-            Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
+            Mvir = lambda z: self.halos.VirialMass(z, 1e4, mu=self.pf['mu'])
             self._Matom = np.array(list(map(Mvir, self.halos.tab_z)))
         return self._Matom    
     
@@ -1291,8 +1291,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones_like(self.halos.tab_z)
             else:
-                self._tab_Mmin_ = self.halos.VirialMass(self.pf['pop_Tmin'],
-                    self.halos.tab_z, mu=self.pf['mu'])
+                self._tab_Mmin_ = self.halos.VirialMass(
+                    self.halos.tab_z, self.pf['pop_Tmin'], mu=self.pf['mu'])
                 
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
     
@@ -1361,19 +1361,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr = self.halos.tab_z
 
         # Might need these if Mmin is being set dynamically
-        if self.pf['pop_M%s_ceil' % s] is not None:
-            out = np.minimum(arr, self.pf['pop_M%s_ceil'] % s)
-        if self.pf['pop_M%s_floor' % s] is not None:
-            out = np.maximum(arr, self.pf['pop_M%s_floor'] % s)
-        if self.pf['pop_T%s_ceil' % s] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_ceil' % s], 
-                z, mu=self.pf['mu'])
-            _MofT = np.array(map(_f, zarr))
+        if self.pf['pop_M{!s}_ceil'.format(s)] is not None:
+            out = np.minimum(arr, self.pf['pop_M{!s}_ceil'.format(s)])
+        if self.pf['pop_M{!s}_floor'.format(s)] is not None:
+            out = np.maximum(arr, self.pf['pop_M{!s}_floor'.format(s)])
+        if self.pf['pop_T{!s}_ceil'.format(s)] is not None:
+            _f = lambda z: self.halos.VirialMass(z, 
+                self.pf['pop_T{!s}_ceil'.format(s)], mu=self.pf['mu'])
+            _MofT = np.array(list(map(_f, zarr)))
             out = np.minimum(arr, _MofT)
-        if self.pf['pop_T%s_floor' % s] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_floor' % s], 
-                z, mu=self.pf['mu'])
-            _MofT = np.array(map(_f, zarr))
+        if self.pf['pop_T{!s}_floor'.format(s)] is not None:
+            _f = lambda z: self.halos.VirialMass(z, 
+                self.pf['pop_T{!s}_floor'.format(s)], mu=self.pf['mu'])
+            _MofT = np.array(list(map(_f, zarr)))
             out = np.maximum(arr, _MofT)
     
         if out is None:
@@ -1462,8 +1462,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 else:    
                     self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones_like(self.halos.tab_z)
             elif self.pf['pop_Tmax'] is not None:
-                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
-                    z, mu=self.pf['mu'])
+                Mvir = lambda z: self.halos.VirialMass(z, self.pf['pop_Tmax'], 
+                    mu=self.pf['mu'])
                 self._tab_Mmax_ = np.array(list(map(Mvir, self.halos.tab_z)))
             else:
                 # A suitably large number for (I think) any purpose
@@ -1504,54 +1504,54 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.pf['pop_sfr_model'] == 'sfr-func':
                 self._tab_sfr_ = \
                     np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+                
+                for i, z in enumerate(self.halos.tab_z):
+
+                    if z > self.zform:
+                        continue
+
+                    if z < self.zdead:
+                        continue
+                    
+                    # Should be a little careful here: need to go one or two
+                    # steps past edge to avoid interpolation problems in SFRD.
+
+                    # SF fueld by accretion onto halos already above threshold
+                    #if self.pf['pop_sfr_above_threshold']:
+                
+                    if self.pf['pop_sfr_model'] == 'sfr-func':
+                        self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.tab_M)
+                    else:                            
+                        raise ValueError('shouldnt happen.')
+                
             else:   
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \
                     * self.halos.tab_MAR * self._tab_fstar
-                
-                # Mmin is like tab_z, make it like (z, M)
-                # M is like tab_M, make it like (z, M)
-                Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
-                Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
-                M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
-                        (self.halos.tab_z.size, self.halos.tab_M.size))
 
-                mask = np.zeros_like(self._tab_sfr_, dtype=bool)
-                mask[M < Mmin] = True
-                mask[M > Mmax] = True
-                mask[self.halos.tab_z > self.zform] = True
-                mask[self.halos.tab_z < self.zdead] = True
-                self._tab_sfr_mask_ = mask
+            # Mmin is like tab_z, make it like (z, M)
+            # M is like tab_M, make it like (z, M)
+            Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
+            Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
+            M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
+                    (self.halos.tab_z.size, self.halos.tab_M.size))
 
-                # Why am I getting a NaN?
-                isnan = np.isnan(self._tab_sfr_)
+            mask = np.zeros_like(self._tab_sfr_, dtype=bool)
+            mask[M < Mmin] = True
+            mask[M > Mmax] = True
+            mask[self.halos.tab_z > self.zform] = True
+            mask[self.halos.tab_z < self.zdead] = True
+            self._tab_sfr_mask_ = mask
 
-                if isnan.sum() > 1:
-                    print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
-                    #raise ValueError('Nans!')
-                
-                self._tab_sfr_[isnan] = 0.
+            # Why am I getting a NaN?
+            isnan = np.isnan(self._tab_sfr_)
+
+            if isnan.sum() > 1:
+                print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
+                #raise ValueError('Nans!')
+            
+            self._tab_sfr_[isnan] = 0.
                                 
-                return self._tab_sfr_
-
-            for i, z in enumerate(self.halos.tab_z):
-
-                if z > self.zform:
-                    continue
-
-                if z < self.zdead:
-                    continue
-
-                # Should be a little careful here: need to go one or two
-                # steps past edge to avoid interpolation problems in SFRD.
-
-                # SF fueld by accretion onto halos already above threshold
-                
-                if self.pf['pop_sfr_model'] == 'sfr-func':
-                    self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.tab_M)
-                else:                            
-                    raise ValueError('shouldnt happen.')
-
         return self._tab_sfr_
 
     @property
@@ -1742,7 +1742,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                 res.append(self._sfrd_above_MUV_tab[(z, limit)])
     
-            return np.array(res)    
+            return np.array(res)
     
         else:
             
@@ -1888,7 +1888,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
-            
+                            
             assert self.pf['pop_sfr'] is None
 
             if self.pf['pop_calib_L1600'] is not None:
@@ -1921,9 +1921,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
                     self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                         self.pf, **pars)
-                    
+
                     self._update_pq_registry('fstar', self._fstar_inst)    
-                    
+
                     self._fstar = \
                         lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
                             * boost
@@ -2591,7 +2591,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zarr = self.halos.tab_z[in_range][::zfreq]
         results = {key:np.zeros([zarr.size]*2) for key in keys}
                 
-        zmax = []                        
+        zmax = []
+        zform = []
                 
         # Loop over all (formation) redshifts
         for i, z in enumerate(zarr):
@@ -2749,9 +2750,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             cMst_t.append(solver.y[4])
             Mbh_t.append(solver.y[5])  
             sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
-            sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
             nh_t.append(n0)   
+            
+            if 'sfe' in self.pf['pop_sfr_model']:
+                sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             
             z = redshifts[-1]
             
@@ -2809,7 +2812,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # be satisfied *at the formation time*, which cannot (by definition)
             # occur for time or mass-limited sources.
             if has_T_limit:
-                Mtemp = self.halos.VirialMass(self.pf['pop_temp_limit'], z)
+                Mtemp = self.halos.VirialMass(z, self.pf['pop_temp_limit'])
                                 
                 if solver.y[0] >= Mtemp:
                     zmax_T = np.interp(Mtemp, Mh_t[-2:], redshifts[-2:])
@@ -2817,7 +2820,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if has_e_limit and (zmax_e is None):
                 
                 Eblim = self.pf['pop_bind_limit']
-                Ebnow = self.halos.BindingEnergy(Mh_t[-1], redshifts[-1])
+                Ebnow = self.halos.BindingEnergy(redshifts[-1], Mh_t[-1])
                 Ehist.append(Ebnow)
 
                 if (Ebnow >= Eblim):
@@ -2844,9 +2847,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                                 / s_per_yr / 1e6
                         
                             zmax_e = np.interp(tlim,
-                                [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
-                        
-            
+                                [lbtime_myr_prev, lbtime_myr], redshifts[-2:])            
             
             # Once zmax is set, keep solving the rate equations but don't adjust
             # zmax.

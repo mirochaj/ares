@@ -24,14 +24,14 @@ pl.semilogy(zarr, pop.fcoll(zarr), color='k', lw=3, alpha=0.5)
 
 new_fcoll = []
 
-j = np.argmin(np.abs(pop.halos.M - 1e8))
+j = np.argmin(np.abs(pop.halos.tab_M - 1e8))
 
 for z in zarr:
     i = np.argmin(np.abs(pop.halos.z - z))
-    fcoll_mgtm1 = pop.halos.mgtm[i,j] / pop.halos.MF.mean_density0
+    fcoll_mgtm1 = pop.halos.tab_mgtm[i,j] / pop.halos.MF.mean_density0
     
-    dndm = pop.halos.dndm[i,j]
-    M = pop.halos.M
+    dndm = pop.halos.tab_dndm[i,j]
+    M = pop.halos.tab_M
     
     ok = M >= 1e8
     

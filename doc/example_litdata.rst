@@ -65,7 +65,7 @@ A few of the models we focused on most get their own dictionary, for example our
     sim.run()
     sim.GlobalSignature()  # voila!
     
-Hopefully this results *exactly* in the solid black curve from Figure 2 of `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_, provided you're using *ares* version 0.2. If it doesn't, please contact me! 
+Hopefully this results *exactly* in the solid black curve from Figure 2 of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_, provided you're using *ares* version 0.2. If it doesn't, please contact me! 
 
 Alternatively, you can use the ``ParameterBundle`` framework, which also taps into our collection of data from the literature. To access the set of parameters for the "dpl" model, you simply do: ::
 
@@ -73,7 +73,7 @@ Alternatively, you can use the ``ParameterBundle`` framework, which also taps in
     
 This tells *ares* to retrieve the ``dpl`` variable within the ``mirocha2017`` module. See :doc:`param_bundles` for more on these objects.
 
-`Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_ (``mirocha2017``)
+`Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_ (``mirocha2017``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This model has a few options: ``dpl``, and the extensions ``floor`` and ``steep``, as explored in the paper. 
 
@@ -109,7 +109,7 @@ For more thorough parameter space explorations, you might want to consider using
 
 .. note :: Notice that the ``floor`` and ``steep`` options are defined *relative* to the ``dpl`` model, i.e., they only contain the parameters that are different from the ``dpl`` model, which is why we updated the parameter dictionary rather than creating a new one just with the ``steep`` or ``floor`` parameters.
 
-`Furlanetto et al., submitted <https://arxiv.org/abs/1611.01169>`_ ``furlanetto2017``
+`Furlanetto et al. (2017) <https://arxiv.org/abs/1611.01169>`_ (``furlanetto2017``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The main options in this model are whether to use momentum-driven or energy-driven feedback, what are accessible separately via, e.g., 
 
