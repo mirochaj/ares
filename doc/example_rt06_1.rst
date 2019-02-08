@@ -17,6 +17,4 @@ source of ionizing photons. The main parameters are:
     
     sim = ares.simulations.RaySegment(problem_type=1)
     sim.run()
-    
-    anl = ares.analysis.RaySegment(sim.checkpoints)
-    anl.PlotIonizationFrontEvolution()
+    sim.PlotIonizationFrontEvolution()

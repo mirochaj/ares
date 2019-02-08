@@ -10,10 +10,12 @@ Description:
 
 """
 
+from .Toy import Toy
 from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
+from .ClusterPopulation import ClusterPopulation
 from .BlackHoleAggregate import BlackHoleAggregate
 from ..util.SetDefaultParameterValues import PopulationParameters
 from .Parameterized import ParametricPopulation, parametric_options
@@ -77,10 +79,16 @@ def GalaxyPopulation(**kwargs):
         return GalaxyCohort(**kwargs)
     elif model in ['fcoll', 'sfrd-func', 'sfrd-tab', 'sfrd-class']:
         return GalaxyAggregate(**kwargs)
+    elif model in ['frd-func']:
+        return ClusterPopulation(**kwargs)
+    elif model in ['ensemble']:
+        return GalaxyEnsemble(**kwargs)
     elif model in ['rates']:
         return ParametricPopulation(**kwargs)
     elif model in ['bhmd']:
         return BlackHoleAggregate(**kwargs)
+    elif model in ['toy']:
+        return Toy(**kwargs)    
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
 

@@ -10,8 +10,10 @@ formulae of Verner et al. 1996.
      
 """
 
-from numpy import sqrt
+import numpy as np
 from .Constants import E_LL
+
+sqrt = np.sqrt
 
 E_th = [E_LL, 24.6, 54.4]
 
@@ -43,8 +45,13 @@ def PhotoIonizationCrossSection(E, species=0):
     
     """
     
-    if E < E_th[species]:
-        return 0.0
+    if type(E) == np.ndarray:
+        mask = np.array(E >= E_th[species], dtype=int)
+    else:
+        if E < E_th[species]:
+            return 0.0
+        
+        mask = 1
     
     x = (E / params[species][0]) - params[species][5]
     y = sqrt(x**2 + params[species][6]**2)
@@ -52,7 +59,7 @@ def PhotoIonizationCrossSection(E, species=0):
         y**(0.5 * params[species][3] - 5.5) * \
         (1.0 + sqrt(y / params[species][2]))**-params[species][3]
                                 
-    return params[species][1] * F_y * 1e-18
+    return params[species][1] * F_y * 1e-18 * mask
     
 sigma0 = PhotoIonizationCrossSection(E_th[0])
 def ApproximatePhotoIonizationCrossSection(E, species=0):

@@ -10,7 +10,7 @@ A very incomplete set of data from from the literature exist in ``$ARES/input/li
 
 If any of these papers ring a bell, you can check out the contents in the following way: ::
 
-    litdata = ares.util.read_lit('mirocha2016')  # a self-serving example
+    litdata = ares.util.read_lit('mirocha2017')  # a self-serving example
     
 or, look directly at the source code, which lives in ``$ARES/input/litdata``. Hopefully the contents of these files are fairly self-explanatory! 
 
@@ -35,8 +35,8 @@ Currently, *ares* can handle both the *starburst99* original dataset and the *BP
     
 or, to create more useful objects for handling these data, ::
 
-    s99 = ares.populations.SynthesisModel(pop_sed='leitherer1999')
-    bpass = ares.populations.SynthesisModel(pop_sed='eldridge2009')
+    s99 = ares.sources.SynthesisModel(source_sed='leitherer1999')
+    bpass = ares.sources.SynthesisModel(source_sed='eldridge2009')
 
 The spectra for these models are stored in the exact same way to facilitate comparison and uniform use throughout *ares*. The most important attributes are ``wavelengths`` (or ``energies`` or ``frequencies``), ``times``, and ``data`` (a 2-D array with shape (``wavelengths``, ``times``)). So, to compare the spectra for continuous star formation in the steady-state limit (*ares* assumes continuous star formation by default), you could do: ::
 
@@ -57,11 +57,11 @@ Reproducing Models from *ares* Papers
 -------------------------------------
 If you're interested in reproducing a model from a paper exactly, you can either (1) contact me directly for the model of interest, or preferably (someday) download it from my website, or (2) re-compute it yourself. In the latter case, you just need to make sure you supply the required parameters. To facilitate this, I store "parameter files" (just dictionaries) in the litdata framework as well. You can access them like any other dataset from the literature, e.g., ::
 
-    m16 = ares.util.read_lit('mirocha2016')
+    m17 = ares.util.read_lit('mirocha2017')
     
 A few of the models we focused on most get their own dictionary, for example our reference double power law model for the star-formation efficiency is stored in the ``dpl`` variable: ::
 
-    sim = ares.simulations.Global21cm(**m16.dpl)
+    sim = ares.simulations.Global21cm(**m17.dpl)
     sim.run()
     sim.GlobalSignature()  # voila!
     
@@ -69,11 +69,11 @@ Hopefully this results *exactly* in the solid black curve from Figure 2 of `Miro
 
 Alternatively, you can use the ``ParameterBundle`` framework, which also taps into our collection of data from the literature. To access the set of parameters for the "dpl" model, you simply do: ::
 
-    pars = ares.util.ParameterBundle('mirocha2016:dpl')
+    pars = ares.util.ParameterBundle('mirocha2017:dpl')
     
-This tells *ares* to retrieve the ``dpl`` variable within the ``mirocha2016`` module. See :doc:`param_bundles` for more on these objects.
+This tells *ares* to retrieve the ``dpl`` variable within the ``mirocha2017`` module. See :doc:`param_bundles` for more on these objects.
 
-`Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_ (``mirocha2016``)
+`Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_ (``mirocha2017``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This model has a few options: ``dpl``, and the extensions ``floor`` and ``steep``, as explored in the paper. 
 
@@ -95,11 +95,11 @@ To re-make the right-hand panel of Figure 1 from the paper, you could do somethi
 
     import ares
     
-    dpl = ares.util.ParameterBundle('mirocha2016:dpl')
+    dpl = ares.util.ParameterBundle('mirocha2017:dpl')
     
     ax = None
     for model in ['floor', 'dpl', 'steep']:
-        pars = dpl + ares.util.ParameterBundle('mirocha2016:%s' % model)
+        pars = dpl + ares.util.ParameterBundle('mirocha2017:%s' % model)
         pars.update()
         sim = ares.simulations.Global21cm(**pars)
         sim.run()

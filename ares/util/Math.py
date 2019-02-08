@@ -14,11 +14,27 @@ import numpy as np
 from ..physics.Constants import nu_0_mhz
 from scipy.interpolate import interp1d as interp1d_scipy
 
+_numpy_kwargs = {'left': None, 'right': None}
+
 def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
     force_scipy=False, **kwargs):
+    
+    if 'axis' in kwargs:
+        force_scipy = True
+    
     if (kind == 'linear') and (not force_scipy):
-        return lambda xx: np.interp(xx, x, y)
+        kw = _numpy_kwargs.copy()
+        for kwarg in ['left', 'right']:
+            if kwarg in kwargs:
+                kw[kwarg] = kwargs[kwarg]
+            else:
+                kw[kwarg] = fill_value
+                
+        return lambda xx: np.interp(xx, x, y, **kw)
     elif (kind == 'cubic') or force_scipy: 
+        for kwarg in ['left', 'right']:
+            if kwarg in kwargs:
+                del kwargs[kwarg]
         return interp1d_scipy(x, y, kind='cubic', bounds_error=bounds_error, 
             fill_value=fill_value, **kwargs)
     else:
@@ -131,7 +147,7 @@ def take_derivative(z, field, wrt='z'):
 
     return z, np.interp(z, xp, fp)    
 
-class LinearNDInterpolator:
+class LinearNDInterpolator(object):
     def __init__(self, axes, data, fill_values=None):
         """
         Create linear interpolation object.

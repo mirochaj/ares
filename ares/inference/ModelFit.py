@@ -11,6 +11,8 @@ Description:
 """
 
 from __future__ import print_function
+
+import glob
 import numpy as np
 from ..util import get_hg_rev
 from ..util.MPIPool import MPIPool
@@ -22,7 +24,7 @@ import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
 from types import FunctionType#, InstanceType # InstanceType not in Python3
 from ..analysis.BlobFactory import BlobFactory
-from ..util.Stats import Gauss1D, GaussND, rebin
+from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, rebin
@@ -134,8 +136,9 @@ def _compute_blob_prior(sim, priors_B):
             
             ivar = sim.get_ivars(key)[0]
             
+            # Interpolate to find value of blob at point where prior is set
             val = np.interp(md[1], ivar, blob)
-            zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
+            #zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
                                     
             # Should check ivarn too just to be safe
             
@@ -147,10 +150,10 @@ def _compute_blob_prior(sim, priors_B):
     return np.log(like)
     
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
-    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters):
+    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters, debug):
 
     #write_memory('1')
-
+    
     kwargs = {}
     for i, par in enumerate(parameters):
 
@@ -184,11 +187,20 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
-
-    try:
+        
+    if debug:
+        print("Processor {} simulation starting: {}".format(rank, time.ctime()))
         sim.run()
+        print("Processor {} simulation complete: {}".format(rank, time.ctime()))
+        blobs = sim.blobs
+        print("Processor {} generated blobs    : {}".format(rank, time.ctime()))
+        
+    try:
+        if not debug:
+            sim.run()            
+            blobs = copy.deepcopy(sim.blobs)
     except ValueError:
-        print(kwargs)
+        print('FAILURE: ', kwargs)
         del sim, kw, kwargs
         gc.collect()
         return -np.inf, blank_blob
@@ -577,16 +589,29 @@ class ModelFit(FitBase):
     @save_hmf.setter
     def save_hmf(self, value):
         self._save_hmf = value
+        
+    @property 
+    def save_hist(self):
+        if not hasattr(self, '_save_hist'):
+            self._save_hist = True
+        return self._save_hist
+    
+    @save_hist.setter
+    def save_hist(self, value):
+        self._save_hist = value    
     
     @property 
-    def save_psm(self):
-        if not hasattr(self, '_save_psm'):
-            self._save_psm = True
-        return self._save_psm
+    def save_src(self):
+        if not hasattr(self, '_save_src'):
+            # False by default since this is a little riskier in that we
+            # *can* vary SED parameters, but haven't yet implemented HMF
+            # variations.
+            self._save_src = False
+        return self._save_src
     
-    @save_psm.setter
-    def save_psm(self, value):
-        self._save_psm = value    
+    @save_src.setter
+    def save_src(self, value):
+        self._save_src = value    
     
     @property
     def prior_set_P(self):
@@ -862,7 +887,7 @@ class ModelFit(FitBase):
         if type(value) in [int, float]:
             self._jitter = np.ones(len(self.parameters)) * value
         else:
-            assert (len(value) == len(self.parameters)), jitter_shape_error 
+            assert (len(value) == len(self.parameters)), 'jitter has the wrong shape!' 
                 
             self._jitter = np.array(value)
             
@@ -1008,13 +1033,29 @@ class ModelFit(FitBase):
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
                 'binfo', 'setup', 'load', 'fail', 'timeout']:
-                os.system('rm -f {0!s}.{1!s}.pkl'.format(self.prefix, suffix))
-                os.system('rm -f {0!s}.*.{1!s}.pkl'.format(self.prefix,\
-                    suffix))
-            os.system('rm -f {!s}.prior_set.hdf5'.format(self.prefix))
+                
+                _fn1 = '{0!s}.{1!s}.pkl'.format(self.prefix, suffix)
+                
+                if os.path.exists(_fn1):
+                    os.remove(_fn1)
+                
+                for _fn2 in glob.glob('{0!s}.*.{1!s}.pkl'.format(self.prefix,\
+                    suffix)):
+                    
+                    if os.path.exists(_fn2):
+                        os.remove(_fn2)
+            
+            if os.path.exists('{!s}.prior_set.hdf5'.format(self.prefix)):        
+                os.remove('{!s}.prior_set.hdf5'.format(self.prefix))
+                
             # These suffixes have their own suffixes
-            os.system('rm -f {!s}.blob_*.pkl'.format(self.prefix))
-            os.system('rm -f {!s}.*.blob_*.pkl'.format(self.prefix))
+            for _fn in glob.glob('{!s}.blob_*.pkl'.format(self.prefix)):
+                if os.path.exists(_fn):
+                    os.remove(_fn)
+            for _fn in glob.glob('{!s}.*.blob_*.pkl'.format(self.prefix)):
+                if os.path.exists(_fn):
+                    os.remove(_fn)
+                    
         # Each processor gets its own fail file
         f = open('{!s}.fail.pkl'.format(prefix_by_proc), 'wb')
         f.close()
@@ -1067,7 +1108,9 @@ class ModelFit(FitBase):
             if re.search('hmf_instance', key):
                 to_axe.append(key)
             if re.search('pop_psm_instance', key):
-                to_axe.append(key)        
+                to_axe.append(key)       
+            if re.search('pop_src_instance', key):
+                to_axe.append(key)     
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
             
@@ -1097,8 +1140,19 @@ class ModelFit(FitBase):
             open_mode='w', safe_mode=False, verbose=False)
         del tmp
         
+    @property
+    def debug(self):
+        if not hasattr(self, '_debug'):
+            self._debug = False
+        return self._debug
+    
+    @debug.setter
+    def debug(self, value):
+        assert type(value) in [int, bool]
+        self._debug = value    
+        
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500, reboot=False):
+        save_freq=500, reboot=False, recenter=False):
         """
         Run MCMC.
 
@@ -1204,7 +1258,7 @@ class ModelFit(FitBase):
         
         # Speed-up tricks
         
-        if self.save_hmf or self.save_psm:
+        if self.save_hmf or self.save_src or self.save_hist:
             sim = self.simulator(**self.base_kwargs)
             
         if self.save_hmf:
@@ -1214,44 +1268,69 @@ class ModelFit(FitBase):
             try:
                 hmf = sim.halos
             except AttributeError:
-                hmf = sim.pops[0].halos
-            
+                hmf = None
+                for pop in sim.pops:
+                    if hasattr(pop, 'halos'):
+                        hmf = pop.halos
+                        break
+                        
+            if hmf is None:
+                raise AttributeError('No `hmf` attributes available!')
+                
             self.base_kwargs['hmf_instance'] = hmf    
             
             if hmf is not None:
                 print("Saved HaloMassFunction instance to limit I/O.")
             
-        if self.save_psm:
-            assert 'pop_psm_instance' not in self.base_kwargs
+        if self.save_hist and type(self.base_kwargs['pop_histories']) == str:
+            hist = sim.load()
+            self.base_kwargs['pop_histories'] = hist
             
+            if hist is not None:
+                print("Saved halo histories to limit I/O.")
+            
+        if self.save_src:
+            # This maybe is unnecessary?
+            #assert 'pop_psm_instance' not in self.base_kwargs
+                        
             try:
-                psm = sim.src
-                idnum = None
+                srcs = [sim.src]
+                ids = [None]
             except AttributeError:
-                psm = None
-                idnum = 0
-                for idnum, pop in enumerate(sim.pops):
-                    if pop.pf['pop_sed'] in ['eldridge2009', 'leitherer1999']:
-                        psm = pop.src
-                        break
-            
-            if idnum is None:
-                self.base_kwargs['pop_psm_instance'] = psm
-                assert 'pop_Z' not in self.parameters, 'help'
-            else:                     
-                self.base_kwargs['pop_psm_instance{{{}}}'.format(idnum)] = psm
-                assert 'pop_Z{{{}}}'.format(idnum) not in self.parameters, 'help'
-            
-            if psm is not None:
-                print("Saved SynthesisModel instance to limit I/O.")
-        
+                srcs = [pop.src for pop in sim.pops]
+                ids = range(len(srcs))
+
+            for idnum, src in enumerate(srcs):
+
+                if ids[idnum] is None:
+                    sid = ''
+                else:
+                    sid = '{{{}}}'.format(idnum)
+
+                if isinstance(src, SynthesisModel):
+                    assert 'pop_Z{}'.format(sid) not in self.parameters
+                    print("Saved SynthesisModel instance for population #{} to limit I/O.".format(idnum))
+
+                elif isinstance(src, BlackHole):
+                    assert 'pop_mass{}'.format(sid) not in self.parameters
+                    assert 'pop_eta{}'.format(sid) not in self.parameters
+                    assert 'pop_fduty{}'.format(sid) not in self.parameters
+                    assert 'pop_alpha{}'.format(sid) not in self.parameters
+                    assert 'pop_logN{}'.format(sid) not in self.parameters
+                    assert 'pop_fsc{}'.format(sid) not in self.parameters
+                    
+                    print("Saved BlackHole instance for population #{} to limit I/O.".format(idnum))
+                    
+                    
+                self.base_kwargs['pop_src_instance{}'.format(sid)] = src
+                            
         ##
         # Initialize sampler
         ##
         args = [self.prefix, self.parameters, self.is_log, self.prior_set_P, 
             self.prior_set_B, self.blank_blob, 
             self.base_kwargs, self.checkpoint_by_proc, 
-            self.simulator, self.fitters]
+            self.simulator, self.fitters, self.debug]
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, loglikelihood, pool=self.pool, args=args)
@@ -1259,6 +1338,13 @@ class ModelFit(FitBase):
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
         pos = self.prep_output_files(restart, clobber)
+        
+        # Optional re-centering of walkers
+        if restart and recenter:
+            print("Recentering walkers...")
+            mlpt = pos[np.argmax(prob)]
+            pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
+        
         
         state = None #np.random.RandomState(self.seed)
                         

@@ -24,7 +24,7 @@ from ..util.SetDefaultParameterValues import MultiPhaseParameters
 _mpm_defs = MultiPhaseParameters()
 
 class MultiPhaseMedium(object):
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
         """
         Initialize a MultiPhaseMedium object.
         
@@ -34,9 +34,13 @@ class MultiPhaseMedium(object):
         ``include_cgm=False`` or ``include_igm=False``.
         
         """
-   
-        self.kwargs = kwargs
         
+        if pf is not None:
+            self.pf = pf
+            print('got pf')
+            
+        self.kwargs = kwargs
+                
     @property
     def pf(self):
         if not hasattr(self, '_pf'):
@@ -49,6 +53,11 @@ class MultiPhaseMedium(object):
             inits = self.inits
             
         return self._pf
+        
+    @pf.setter
+    def pf(self, val):
+        self._pf = val
+        inits = self.inits
         
     @property
     def inits(self):
@@ -84,11 +93,11 @@ class MultiPhaseMedium(object):
     def field(self):
         if not hasattr(self, '_field'):
             if self.pf['include_igm']:
-                self._field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
-                    **self.kwargs)
+                self._field = MetaGalacticBackground(pf=self.pf, 
+                    grid=self.parcel_igm.grid, **self.kwargs)
             else:
-                self._field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
-                    **self.kwargs)
+                self._field = MetaGalacticBackground(pf=self.pf,
+                    grid=self.parcel_cgm.grid, **self.kwargs)
                 
         return self._field
         
@@ -251,9 +260,13 @@ class MultiPhaseMedium(object):
             
             if self.pf['include_cgm']:    
                 self.all_data_cgm.append(data_cgm.copy())
+            #else:
+            #    self.all_data_cgm = []
             
             if self.pf['include_igm']:
                 self.all_data_igm.append(data_igm.copy())  
+            #else:
+            #    self.all_data_igm = []   
                 
             if self.pf['save_rate_coefficients']:
                 if self.pf['include_cgm']:     
@@ -275,6 +288,8 @@ class MultiPhaseMedium(object):
             self.history_cgm = \
                 _sort_history(self.all_data_cgm, prefix='cgm_', squeeze=True)        
             self.history.update(self.history_cgm)
+        else:
+            self.history_cgm = {}
 
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
@@ -287,6 +302,8 @@ class MultiPhaseMedium(object):
                 self.rates_cgm = \
                     _sort_history(self.all_RCs_cgm, prefix='cgm_', squeeze=True)
                 self.history.update(self.rates_cgm)
+            else:
+                self.rates_cgm = {}
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
@@ -392,7 +409,7 @@ class MultiPhaseMedium(object):
                 self.parcel_igm.dt = dt
             if self.pf['include_cgm']:
                 self.parcel_cgm.dt = dt
-                                            
+            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
                 
     def _insert_inits(self):
@@ -442,6 +459,7 @@ class MultiPhaseMedium(object):
 
         self.all_t = []
         self.all_data_igm = []
+        self.all_data_cgm = []
         self.all_z = list(z_inits[0:i_trunc])
         self.all_RCs_igm = [self.rates_no_RT(self.parcel_igm.grid)] * len(self.all_z)
         self.all_RCs_cgm = [self.rates_no_RT(self.parcel_igm.grid)] * len(self.all_z)
@@ -456,6 +474,8 @@ class MultiPhaseMedium(object):
                 
                 self.all_data_cgm[i]['n'] = \
                     self.parcel_cgm.grid.particle_density(cgm_data, self.all_z[i])
+        #else:
+        #    self.all_data_cgm = []
         
         if not self.pf['include_igm']:
             return

@@ -22,7 +22,7 @@ from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
 from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
-from mpl_toolkits.axes_grid import inset_locator
+from mpl_toolkits.axes_grid1 import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -738,10 +738,13 @@ class MultiPhaseMedium(object):
         #ax.plot([0, self.history['z'].min()], [tau.max() + tau_post]*2, **kwargs)
         
         if show_obs:
-            if obs_mu is not None:
+            if obs_mu is not None:            
+                sig2 = get_nu(obs_sigma, 0.68, 0.95)
+                ax.fill_between(ax.get_xlim(), [obs_mu-sig2]*2, 
+                    [obs_mu+sig2]*2, color='gray', alpha=0.2)
                 ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
-                    [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
-            
+                    [obs_mu+obs_sigma]*2, color='gray', alpha=0.5)
+                
             if annotate_obs:    
                 #ax.annotate(r'$1-\sigma$ constraint', 
                 #    [self.history['z'].min(), obs_mu], ha='left',
@@ -893,24 +896,20 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     fig = ax.xaxis.get_figure()
     
     if zlim > 100:
-        z = np.arange(20, zlim, 40)[-1::-1]
-        z_minor = np.arange(30, zlim, 20)[-1::-1]
+
+        z = np.array([20, 40, 100, 400])[-1::-1]
+        #z = np.arange(20, zlim, 40)[-1::-1]
+        z_minor = np.arange(50, zlim, 50)[-1::-1]
+        highz_labels = ['20', '30', '100']
     else:    
-        z = np.arange(20, 110, 10)[-1::-1]
-        z_minor = np.arange(15, zlim, 5)[-1::-1]
+        z = np.array([20, 40, 60, 80])[-1::-1]
+        z_minor = np.arange(20, zlim, 10)[-1::-1]
+        highz_labels = ['30', '80']
         
-    nu = nu_0_mhz / (1. + z)
-    nu_minor = nu_0_mhz / (1. + z_minor)
-    
-    z_labels = list(map(str, z))
+    #z_labels = list(map(str, z))
+    lowz_labels = list(map(str, [6, 8, 10, 12, 15, 20]))
 
-    # Add 25, 15 and 12, 8 to redshift labels
-    z_labels.insert(-1, '15')
-    z_labels.insert(-1, '12')
-    z_labels.insert(-1, '10')
-    z_labels.extend(['8', '7', '6', '5'])
-    #z_labels.insert(-5, '25')
-
+    z_labels = lowz_labels + highz_labels
     z = np.array(list(map(int, z_labels)))
 
     nu = nu_0_mhz / (1. + z)
@@ -926,12 +925,12 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     ax_z.set_xticks(nu_minor, minor=True)
 
     # A bit hack-y
-    for i, label in enumerate(z_labels):
-        if label in ['40','50', '60', '70']:
-            z_labels[i] = ''
-
-        if (float(label) > 80) and (zlim < 100):
-            z_labels[i] = ''
+    #for i, label in enumerate(z_labels):
+    #    if (zlim > 100) and (label not in highz_labels):
+    #        z_labels[i] = ''
+    #
+    #    if (float(label) > 80) and (zlim < 100):
+    #        z_labels[i] = ''
 
     ax_z.set_xticklabels(z_labels)
     ax_z.set_xlim(ax.get_xlim())
@@ -940,39 +939,38 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
 
     return ax_z
     
-def add_time_axis(ax, cosm, tlim=(0, 900), dt=100, dtm=50, tarr=None,
-    tarr_m=None, rotation=45):
+def add_time_axis(ax, cosm, tlim=(100, 900), dt=200, dtm=50, tarr=None,
+    tarr_m=None, rotation=0):
     """
     Take plot with redshift on x-axis and add top axis with corresponding 
     time since Big Bang.
-    
+
     Parameters
     ----------
     ax : matplotlib.axes.AxesSubplot instance
     """
     
-    
     if tarr is None:
         t = np.arange(tlim[0], tlim[1]+dt, dt) # in Myr
-        t_minor = np.arange(tlim[0], tlim[1]+dt, dtm)[1::2]
+        t_minor = np.arange(tlim[0]-dtm, tlim[1]+dtm, dtm)
     else:
         t = tarr
         t_minor = None
-    
+
     _zt = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t))
     _ztm = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t_minor))
-        
-    ft = nu_0_mhz / (1. + _zt)    
+
+    ft = nu_0_mhz / (1. + _zt)
     ftm = nu_0_mhz / (1. + _ztm)
     zt = list(_zt)
-        
+
     ax_time = ax.twiny()
-    #if t_minor is not None:
-    #    zt_minor = list(map(lambda tt: cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-    #        np.inf), t_minor))
-    #    ax_time.set_xticks(zt_minor, minor=True)
-            
-    ax_time.set_xlabel(r'$t \ \left[\mathrm{Myr} \right]$')            
+   #if t_minor is not None:
+   #    zt_minor = list(map(lambda tt: cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
+   #        np.inf), t_minor))
+   #    ax_time.set_xticks(zt_minor, minor=True)
+
+    ax_time.set_xlabel(r'$t \ \left[\mathrm{Myr} \right]$')
 
     # A bit hack-y
     time_labels = list(map(str, list(map(int, t))))
@@ -980,13 +978,13 @@ def add_time_axis(ax, cosm, tlim=(0, 900), dt=100, dtm=50, tarr=None,
         tnow = float(label)
         if (dt is None) and (dtm is None):
             if (tnow in [0,200,400,600,800]) or (tnow > 900):
-                time_labels[i] = ''    
+                time_labels[i] = ''
     
     print(ft, time_labels)
     print(ftm)
     
     ax_time.set_xticks(ft)
-    #ax_time.set_xticks(ftm, minor=True)
+    ax_time.set_xticks(ftm, minor=True)
                 
     ax_time.set_xticklabels(time_labels, rotation=rotation)
     ax_time.set_xlim(ax.get_xlim())

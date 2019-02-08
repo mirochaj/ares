@@ -21,12 +21,19 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 aux_data = \
 {
  'hmf': ['{!s}/downloads'.format(ares_link),
-    'hmf_ST_logM_1200_4-16_z_1141_3.0-60.0.npz',
+    'hmf_ST_logM_1200_4-16_z_1141_3-60.npz',
+    'hmf_ST_logM_1200_4-16_z_1201_0-60.npz',
     None],
- 'inits': ['{!s}/downloads'.format(ares_link), 
+ 'inits': ['{!s}/downloads'.format(ares_link),
      'initial_conditions.npz',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
+<<<<<<< working copy
+||||||| base
+    'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
+=======
+    'optical_depth_H_400x862_z_5-60_logE_2.3-4.5.npz',
+>>>>>>> merge rev
     'optical_depth_He_200x429_z_5-60_logE_2.3-4.5.npz',
     'optical_depth_He_400x862_z_5-60_logE_2.3-4.5.npz',
     'optical_depth_He_1000x2158_z_5-60_logE_2.3-4.5.npz',
@@ -49,7 +56,10 @@ aux_data = \
  #     [None],    
  #'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
  #   'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
- 
+ 'edges': ['http://loco.lab.asu.edu/download',
+    '790/figure1_plotdata.csv',
+    '792/figure2_plotdata.csv', 
+    None]
 }
 
 if not os.path.exists('input'):
@@ -101,6 +111,11 @@ for i, direc in enumerate(to_download):
         fns = [aux_data[direc][1:-1][files[i]]]
         
     for fn in fns:
+         
+        if '/' in fn:
+            pre, _fn = fn.split('/') 
+        else:
+            _fn = fn    
             
         if os.path.exists(fn):
             if ('fresh' in options) or ('clean' in options):
@@ -115,18 +130,18 @@ for i, direc in enumerate(to_download):
         print("Downloading {0!s}/{1!s}...".format(web, fn))
         
         try:
-            urlretrieve('{0!s}/{1!s}'.format(web, fn), fn)
+            urlretrieve('{0!s}/{1!s}'.format(web, fn), _fn)
         except:
             print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
             continue
         
         # If it's not a tarball, move on
-        if not re.search('tar', fn):
+        if not re.search('tar', _fn):
             continue
             
         # Otherwise, unpack it
         try:
-            tar = tarfile.open(fn)
+            tar = tarfile.open(_fn)
             tar.extractall()
             tar.close()
         except:

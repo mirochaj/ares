@@ -1,16 +1,16 @@
 Initial Conditions & Lookup Tables
 ==================================
 
-Cosmological Initial Conditions
--------------------------------
-
-
-
-
-
-
-The Halo Mass Function
-----------------------
+.. Cosmological Initial Conditions
+.. -------------------------------
+.. 
+.. 
+.. 
+.. 
+.. 
+.. 
+.. The Halo Mass Function
+.. ----------------------
 
 
 

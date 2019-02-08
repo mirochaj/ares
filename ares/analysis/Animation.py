@@ -12,10 +12,11 @@ Description:
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
+from ..physics import Hydrogen
 from ..util.Aesthetics import Labeler
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import add_redshift_axis
-from mpl_toolkits.axes_grid import inset_locator
+from mpl_toolkits.axes_grid1 import inset_locator
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -144,18 +145,19 @@ class Animation(object):
             fig = pl.figure(fig)
             fig.subplots_adjust(right=0.7)
             ax = fig.add_subplot(111)
-                
+
         sax = self.add_slider(ax, limits=self.data['limits'], 
             take_log=take_log, un_log=un_log, **kwargs)
-                            
+
         return ax, sax
-        
+
     def Plot1D(self, plane, par=None, pivots=None, prefix='test', twin_ax=None,
         ivar=None, take_log=False, un_log=False, multiplier=1., 
         ax=None, sax=None, fig=1, clear=True, z_to_freq=True, 
         slider_kwargs={}, backdrop=None, backdrop_kwargs={}, squeeze_main=True, 
         close=False, xlim=None, ylim=None, xticks=None, yticks=None, 
-        z_ax=True, origin=None, sticks=None, slims=None, **kwargs):
+        z_ax=True, origin=None, sticks=None, slims=None, inits=None,
+        **kwargs):
         """
         Animate variations of a single parameter.
 
@@ -167,7 +169,6 @@ class Animation(object):
         
         ..note:: should implement override for kwargs, like change color of
             line/symbol if some condition violated (e.g., tau_e).
-            
             
         """
 
@@ -202,7 +203,7 @@ class Animation(object):
         if z_ax and 'z' in _pars:
             twin_ax = add_redshift_axis(ax, twin_ax)
 
-        labeler = Labeler(_pars, **self.model_set.base_kwargs)        
+        labeler = Labeler(_pars, **self.model_set.base_kwargs)
         
         # What do we need to make plots?
         # data_assembled, plane, ax, sax, take_log etc.
@@ -227,6 +228,13 @@ class Animation(object):
                     ax.plot(nu_0_mhz / (1.+ x), y, **kwargs)
                 else:
                     ax.plot(x, y, **kwargs)
+                    
+            if inits is not None:
+                if z_to_freq:
+                    ax.plot(nu_0_mhz / (1. + inits['z']), inits['dTb'], 
+                        **kwargs)
+                else:
+                    ax.plot(inits['z'], inits['dTb'], **kwargs)
             
             # Need to be careful with axes limits not changing...
             if ('z' in _pars) and z_to_freq:
@@ -428,10 +436,28 @@ class AnimationSet(object):
         elif type(value) in [list, tuple]:
             assert len(value) == len(self.parameters)    
             self._un_log = [False] * len(self.parameters)
+            
+    @property
+    def inits(self):
+        if not hasattr(self, '_inits'):
+            hydr = Hydrogen()
+            inits = hydr.inits    
+        
+            anim = self.animations[0]
+            gr, i, nd, dims = anim.model_set.blob_info('z')
+            _z = anim.model_set.blob_ivars[gr][i]
+    
+            z = np.arange(max(_z), 1100, 1)
+    
+            dTb = hydr.dTb_no_astrophysics(z)
+    
+            self._inits = {'z': z, 'dTb': dTb}
+    
+        return self._inits        
         
     def Plot1D(self, plane, pars=None, ax=None, fig=1, prefix='test', 
-        xlim=None, ylim=None, xticks=None, yticks=None, sticks=None, 
-        slims=None, top_sax=0.75, **kwargs):
+        xlim=None, ylim=None, xticks=None, yticks=None, sticks=None,
+        slims=None, top_sax=0.75, include_inits=True, **kwargs):
         """
         Basically run a series of Plot1D.
         """
@@ -446,7 +472,7 @@ class AnimationSet(object):
         if sticks is None:
             sticks = {par:None for par in pars}
         if slims is None:
-            slims = {par:None for par in pars}    
+            slims = {par:None for par in pars}
         
         ## 
         # First: setup axes
@@ -454,7 +480,7 @@ class AnimationSet(object):
 
         ax = None
         sax = []
-        for k in range(N):    
+        for k in range(N):
             
             assert len(self.animations[k].model_set.parameters) == 1
             par = self.animations[k].model_set.parameters[0]
@@ -507,7 +533,7 @@ class AnimationSet(object):
                 self.animations[l]._reset_slider(sax[l], limits, 
                     take_log=self.take_log[l], un_log=self.un_log[l],
                     label=self.labels[l], sticks=sticks[_p], slims=slims[_p])
-            
+                        
             # Plot variable parameter
             ax, twin_ax = \
                 self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
@@ -515,7 +541,7 @@ class AnimationSet(object):
                 prefix='{0!s}.{1!s}'.format(prefix, par), close=False,
                 slider_kwargs=kw, xlim=xlim, ylim=ylim, origin=self.origin[k],
                 xticks=xticks, yticks=yticks, twin_ax=twin_ax, 
-                sticks=sticks, slims=slims, **kwargs)
+                sticks=sticks, slims=slims, inits=self.inits, **kwargs)
                 
             
             

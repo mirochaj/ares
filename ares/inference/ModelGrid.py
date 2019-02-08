@@ -89,7 +89,7 @@ class ModelGrid(ModelFit):
         ----------
         prefix : str
             File prefix of files ending in *.pkl to be read in.
-            
+
         """
         
         # Array of ones/zeros: has this model already been done?
@@ -367,6 +367,10 @@ class ModelGrid(ModelFit):
                     
         return self._reuse_splines
     
+    @reuse_splines.setter
+    def reuse_splines(self, value):
+        self._reuse_splines = value
+    
     @property
     def tricks(self):
         if not hasattr(self, '_tricks'):
@@ -506,10 +510,15 @@ class ModelGrid(ModelFit):
         
         failct = 0
         sim = self.simulator(**p)
+        
+        if self.debug:
+            sim.run()
+            blobs = sim.blobs
                         
         try:
-            sim.run()            
-            blobs = copy.deepcopy(sim.blobs)
+            if not self.debug:
+                sim.run()            
+                blobs = copy.deepcopy(sim.blobs)
         except RuntimeError:
             write_pickle_file(kw, '{0!s}.{1!s}.timeout.pkl'.format(\
                 self.prefix, str(rank).zfill(3)), ndumps=1, open_mode='a',\
@@ -534,7 +543,7 @@ class ModelGrid(ModelFit):
         if 'feedback_LW_guess' in self.tricks:            
             try:
                 self.trick_data['pop_Mmin{2}'] = \
-                    np.interp(sim.pops[2].halos.z, 
+                    np.interp(sim.pops[2].halos.tab_z, 
                         sim.medium.field._zarr, sim.medium.field._Mmin_now)
             except AttributeError:
                 del self.trick_data['pop_Mmin{2}']    
@@ -542,6 +551,17 @@ class ModelGrid(ModelFit):
         del sim    
             
         return blobs, failct
+        
+    @property
+    def debug(self):
+        if not hasattr(self, '_debug'):
+            self._debug = False
+        return self._debug
+    
+    @debug.setter
+    def debug(self, value):
+        assert type(value) in [int, bool]
+        self._debug = value
     
     def run(self, prefix, clobber=False, restart=False, save_freq=500,
         use_pb=True, use_checks=True, long_run=False, exit_after=None):
@@ -575,9 +595,11 @@ class ModelGrid(ModelFit):
         if rank == 0:
             print("Starting {}-element model grid.".format(self.grid.size))
         
+        chain_exists = os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc))
+        
         # Kill this thing if we're about to delete files and we haven't 
         # set clobber=True        
-        if os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc)) and (not clobber):
+        if chain_exists and (not clobber):
             if not restart:
                 raise IOError(('{!s}*.pkl exists! Remove manually, set ' +\
                     'clobber=True, or set restart=True to append.').format(\
@@ -585,7 +607,7 @@ class ModelGrid(ModelFit):
               
         restart_actual = True      
         _restart_actual = np.zeros(size)
-        if not os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc)):
+        if restart and (not chain_exists):
             print(("This can't be a restart (for proc #{0}), {1!s}*.pkl " +\
                 "not found. Starting from scratch...").format(rank, prefix))
             # Note: this can occur if restarting with fewer processors
@@ -605,7 +627,10 @@ class ModelGrid(ModelFit):
             _tmp = np.zeros(size)
             MPI.COMM_WORLD.Allreduce(_restart_np1, _tmp)
             fewer_procs = sum(_tmp) >= size
-            
+        else:
+            pass
+            # Can't have fewer procs than 1!
+                
         # Need to communicate results of restart_actual across all procs
         if size > 1:
             _all_restart = np.zeros(size)
@@ -614,6 +639,9 @@ class ModelGrid(ModelFit):
             any_restart = bool(sum(_all_restart) > 0)            
         else:
             all_restart = any_restart = _all_restart = _restart_actual
+                
+        # If user says it's not a restart, it's not a restart.        
+        any_restart *= restart        
                 
         self.is_restart = any_restart        
                 
@@ -632,16 +660,19 @@ class ModelGrid(ModelFit):
             
             # Figure out what models have been run by *any* processor
             # in the old grid.
-            if self.grid.structured:
-                tmp = np.zeros(self.grid.shape)
-                MPI.COMM_WORLD.Allreduce(done, tmp)
-                self.done = np.minimum(tmp, 1)
+            if size > 1:
+                if self.grid.structured:
+                    tmp = np.zeros(self.grid.shape)
+                    MPI.COMM_WORLD.Allreduce(done, tmp)
+                    self.done = np.minimum(tmp, 1)
+                else:
+                    # In this case, self.done is just an integer.
+                    # And apparently, we don't need to know which models are done?
+                    tmp = np.array([0])
+                    MPI.COMM_WORLD.Allreduce(done, tmp)
+                    self.done = tmp[0]
             else:
-                # In this case, self.done is just an integer.
-                # And apparently, we don't need to know which models are done?
-                tmp = np.array([0])
-                MPI.COMM_WORLD.Allreduce(done, tmp)
-                self.done = tmp[0]
+                self.done = done        
                 
             # Find outputs from processors beyond those that we're currently
             # using. 
@@ -700,7 +731,8 @@ class ModelGrid(ModelFit):
                 print(("Update               : {0} models down, {1} to " +\
                     "go.").format(Ndone, Ntot - Ndone))
             
-            MPI.COMM_WORLD.Barrier()
+            if size > 1:
+                MPI.COMM_WORLD.Barrier()
             
             # Is everybody done?
             if np.all(self.done == 1):
@@ -716,7 +748,7 @@ class ModelGrid(ModelFit):
             else:
                 print('Running {}-element model grid.'.format(self.grid.size))
             
-        # Make some blank files for data output                 
+        # Make some blank files for data output        
         self.prep_output_files(any_restart, clobber)
 
         # Dictionary for hmf tables
@@ -861,7 +893,7 @@ class ModelGrid(ModelFit):
                 del p, chain, blobs
                 gc.collect()
                 continue
-                
+
             # Not all processors will hit the final checkpoint exactly, 
             # which can make collective I/O difficult. Hence the existence
             # of the will_hit_final_checkpoint and wont_hit_final_checkpoint
@@ -917,7 +949,8 @@ class ModelGrid(ModelFit):
 
         # You. shall. not. pass.
         # Maybe unnecessary?
-        MPI.COMM_WORLD.Barrier()
+        if size > 1:
+            MPI.COMM_WORLD.Barrier()
         
         t2 = time.time()
 
@@ -965,10 +998,12 @@ class ModelGrid(ModelFit):
     @property
     def assignments(self):
         if not hasattr(self, '_assignments'):
-            if hasattr(self, 'grid'):
-                if self.grid.structured:
-                    raise AttributeError('Must set assignments by hand')
-            self._unstructured_balance(method=0)
+            #if hasattr(self, 'grid'):
+            #    if self.grid.structured:
+            #        self._structured_balance(method=0)
+            #        return     
+
+            self.LoadBalance()
             
         return self._assignments
             
@@ -1022,7 +1057,7 @@ class ModelGrid(ModelFit):
 
     def _balance_via_sorting(self, par):    
         pass
-
+            
     def LoadBalance(self, method=0, par=None):
         
         if self.grid.structured:
@@ -1035,11 +1070,11 @@ class ModelGrid(ModelFit):
         if rank == 0:
 
             order = list(np.arange(size))
-            self.assignments = []
+            self._assignments = []
             while len(self.assignments) < self.grid.size:
-                self.assignments.extend(order)
+                self._assignments.extend(order)
                 
-            self.assignments = np.array(self.assignments[0:self.grid.size])
+            self._assignments = np.array(self._assignments[0:self.grid.size])
             
             if size == 1:
                 self.LB = 0
@@ -1047,11 +1082,11 @@ class ModelGrid(ModelFit):
             
             # Communicate assignments to workers
             for i in range(1, size):    
-                MPI.COMM_WORLD.Send(self.assignments, dest=i, tag=10*i)    
+                MPI.COMM_WORLD.Send(self._assignments, dest=i, tag=10*i)    
 
         else:
-            self.assignments = np.empty(self.grid.size, dtype=np.int)    
-            MPI.COMM_WORLD.Recv(self.assignments, source=0,  
+            self._assignments = np.empty(self.grid.size, dtype=np.int)    
+            MPI.COMM_WORLD.Recv(self._assignments, source=0,  
                 tag=10*rank)
                    
         self.LB = 0
@@ -1080,7 +1115,7 @@ class ModelGrid(ModelFit):
         self.LB = method
         
         if size == 1:
-            self.assignments = np.zeros(self.grid.shape, dtype=int)
+            self._assignments = np.zeros(self.grid.shape, dtype=int)
             return
             
         if method in [1, 2]:
@@ -1112,13 +1147,13 @@ class ModelGrid(ModelFit):
                 k += 1
 
             # Communicate results
-            self.assignments = np.zeros(self.grid.shape, dtype=int)
-            MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)
+            self._assignments = np.zeros(self.grid.shape, dtype=int)
+            MPI.COMM_WORLD.Allreduce(tmp_assignments, self._assignments)
                         
         # Load balance over expensive axis    
         elif method in [1, 2]:
             
-            self.assignments = np.zeros(self.grid.shape, dtype=int)
+            self._assignments = np.zeros(self.grid.shape, dtype=int)
                         
             slc = [slice(0,None,1) for i in range(self.grid.Nd)]
             
@@ -1139,15 +1174,15 @@ class ModelGrid(ModelFit):
                 slc[par_i] = i
                 
                 if method == 1:
-                    self.assignments[slc] = k \
-                        * np.ones_like(self.assignments[slc], dtype=int)
+                    self._assignments[slc] = k \
+                        * np.ones_like(self._assignments[slc], dtype=int)
                 
                     # Cycle through processor numbers    
                     k += 1
                     if k == size:
                         k = 0
                 elif method == 2:
-                    tmp = np.ones_like(self.assignments[slc], dtype=int)
+                    tmp = np.ones_like(self._assignments[slc], dtype=int)
                     
                     leftovers = tmp.size % size
                     
@@ -1157,7 +1192,7 @@ class ModelGrid(ModelFit):
                         # This could be a little more efficient
                         arr = np.concatenate((arr, assign[0:leftovers]))
                         
-                    self.assignments[slc] = np.reshape(arr, tmp.size)
+                    self._assignments[slc] = np.reshape(arr, tmp.size)
                 else:
                     raise ValueError('No method={}!'.format(method))
 
@@ -1173,8 +1208,8 @@ class ModelGrid(ModelFit):
                 arr = np.random.randint(low=0, high=size, size=self.grid.size)
                 buff = np.reshape(arr, self.grid.dims)
                             
-            self.assignments = np.zeros(self.grid.dims, dtype=int)
-            nothing = MPI.COMM_WORLD.Allreduce(buff, self.assignments)
+            self._assignments = np.zeros(self.grid.dims, dtype=int)
+            nothing = MPI.COMM_WORLD.Allreduce(buff, self._assignments)
                         
         else:
             raise ValueError('No method={}!'.format(method))

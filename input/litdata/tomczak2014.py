@@ -42,7 +42,7 @@ tmp_data['smf_tot'] = \
 }
 
 
-units = {'smf_tot': 'log10', 'smf_sf': 'log10'}
+units = {'smf_tot': 'log10', 'smf_sf': 'log10', 'smf': 'log10'}
 
 tmp_data['smf_sf'] = \
 {
@@ -87,3 +87,4 @@ for group in ['smf_tot', 'smf_sf']:
         data[group][key]['err'] = tmp_data['smf_sf'][key]['err']
 
 
+data['smf'] = data['smf_sf']

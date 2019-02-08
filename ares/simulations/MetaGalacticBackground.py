@@ -76,16 +76,21 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     return f_M
         
 class MetaGalacticBackground(AnalyzeMGB):
-    def __init__(self, grid=None, **kwargs):
+    def __init__(self, pf=None, grid=None, **kwargs):
         """
         Initialize a MetaGalacticBackground object.    
         """
         
+        self.kwargs = kwargs
+        
+        if pf is None:
+            self.pf = ParameterFile(**self.kwargs)
+        else:
+            self.pf = pf
+        
         self._grid = grid
         self._has_fluxes = False
-        self._has_coeff = False
-        
-        self.kwargs = kwargs
+        self._has_coeff = False        
         
         if not hasattr(self, '_suite'):
             self._suite = []
@@ -94,12 +99,17 @@ class MetaGalacticBackground(AnalyzeMGB):
     def pf(self):
         if not hasattr(self, '_pf'):
             self._pf = ParameterFile(**self.kwargs)
-        return self._pf        
+        return self._pf
+        
+    @pf.setter        
+    def pf(self, val):
+        self._pf = val
             
     @property
     def solver(self):
         if not hasattr(self, '_solver'):
-            self._solver = UniformBackground(grid=self.grid, **self.kwargs)
+            self._solver = UniformBackground(pf=self.pf, grid=self.grid, 
+                **self.kwargs)
         return self._solver
         
     @property
@@ -192,16 +202,16 @@ class MetaGalacticBackground(AnalyzeMGB):
                 self.run(include_pops=self._not_lwb_sources)
             
         else:
-            if hasattr(self, '_sfrd_bank') and self.count >= 2:
-                pid = self.pf['feedback_LW_sfrd_popid']
-                z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
-                print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
-                    "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
-                    self.count, np.mean(self._sfrd_rerr[self._ok]),\
-                    np.max(self._sfrd_rerr[self._ok]), z_maxerr))
-                    
-            else:
-                print("LWB cycle #{} complete.".format(self.count))
+            if self.pf['verbose']:
+                if hasattr(self, '_sfrd_bank') and self.count >= 2:
+                    pid = self.pf['feedback_LW_sfrd_popid']
+                    z_maxerr = self.pops[pid].halos.tab_z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
+                    print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
+                        "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
+                        self.count, np.mean(self._sfrd_rerr[self._ok]),\
+                        np.max(self._sfrd_rerr[self._ok]), z_maxerr))
+                else:
+                    print("LWB cycle #{} complete.".format(self.count))
                             
             self.reboot()
             self.run(include_pops=self._lwb_sources)
@@ -218,22 +228,14 @@ class MetaGalacticBackground(AnalyzeMGB):
         """
         
         return self.flux_today()
-
+    
     def today_of_E(self, E):
         """
         Grab radiation background at a single energy at z=0.
         """
         nrg, fluxes = self.today
-        
-        flux = 0.0
-        for i, band in enumerate(nrg):
-            
-            if not (min(band) <= E <= max(band)):
-                continue
-                
-            flux += np.interp(E, band, fluxes[i])
-                
-        return flux   
+    
+        return np.interp(E, nrg, fluxes)
         
     def temp_of_E(self, E):
         """
@@ -243,7 +245,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         freq = E * erg_per_ev / h_p
         return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
-    
+                    
     def flux_today(self, zf=None, popids=None):
         """
         Propage radiation background from `zf` to z=0 assuming optically
@@ -251,23 +253,28 @@ class MetaGalacticBackground(AnalyzeMGB):
         """
         _fluxes_today = []
         _energies_today = []
-                
+    
         if popids is None:
             popids = range(len(self.pops))
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
-                        
+            
+        if zf is not None:
+            raise NotImplemented('need to fix this now that today_only option in place')    
+                
         ct = 0
         # Loop over pops: assumes energy ranges are non-overlapping!
         for popid, pop in enumerate(self.pops):
-            
+    
             if popid not in popids:
                 continue
-                        
+    
             if not self.solver.solve_rte[popid]:
                 continue
-
-            z, E, flux = self.get_history(popid=popid, flatten=True)    
+    
+            # Much faster to only read in first redshift element in this case.
+            z, E, flux = self.get_history(popid=popid, flatten=True, 
+                today_only=True)
             
             if zf is None:
                 k = 0
@@ -275,30 +282,30 @@ class MetaGalacticBackground(AnalyzeMGB):
                 k = np.argmin(np.abs(zf - z))
             
             Et = E / (1. + z[k])
-            ft = flux[k] / (1. + z[k])**2 
-
+            ft = flux[k] / (1. + z[k])**2
+    
             _energies_today.append(Et)
             _fluxes_today.append(ft)
-
+    
             ct += 1
-
+    
         if ct == 1:    
             return np.array(_energies_today[0]), np.array(_fluxes_today[0])
-            
+    
         ##
         # Add the fluxes! Interpolate to common energy grid first.
         ##    
-
+    
         _f = []        
         _E = np.unique(np.concatenate(_energies_today))
         for i, flux in enumerate(_fluxes_today):
             _f.append(np.interp(_E, _energies_today[i], flux, 
                 left=0.0, right=0.0))
-           
+    
         f = np.sum(_f, axis=0)
-         
-        return _E, f 
-                
+    
+        return _E, f                    
+                           
     @property        
     def jsxb(self):
         if not hasattr(self, '_jsxb'):
@@ -424,10 +431,11 @@ class MetaGalacticBackground(AnalyzeMGB):
             
             # Linked populations will get 
             if isinstance(self.pf['pop_Mmin{{{}}}'.format(popid)], basestring):
-                continue
+                if self.pf['pop_Mmin{{{}}}'.format(popid)] not in self.pf['cosmological_Mmin']:
+                    continue
                         
             self.kwargs['pop_Mmin{{{}}}'.format(popid)] = \
-                np.interp(self.pops[popid].halos.z, self.z_unique, self._Mmin_now)
+                np.interp(self.pops[popid].halos.tab_z, self.z_unique, self._Mmin_now)
                             
             # Need to make sure, if any populations are linked to this Mmin,
             # that they get updated too.
@@ -745,6 +753,12 @@ class MetaGalacticBackground(AnalyzeMGB):
         _f_Ja = []
         _f_Jlw = []
         for i, popid in enumerate(include_pops):
+            
+            if not (self.pops[popid].is_src_lw or self.pops[popid].is_src_lya):
+                _allz.append(self.solver.redshifts[popid])
+                _f_Jlw.append(lambda z: 0.0)
+                _f_Ja.append(lambda z: 0.0)
+                continue
                         
             _z, _Ja, _Jlw = self.get_uvb(popid)
             
@@ -781,7 +795,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if Mmin is None: 
                     T = Tmin
                 else:
-                    T = pop.halos.VirialTemperature(Mmin, pop.halos.z,
+                    T = pop.halos.VirialTemperature(Mmin, pop.halos.tab_z,
                         self.pf['mu'])
                 
                 if type(T) in [float, int, np.float64]:
@@ -862,7 +876,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
                 err = np.abs(pre - now) / now
                 
-                self._ok = np.logical_and(gt0, self.pops[pid].halos.z > zmin)                
+                self._ok = np.logical_and(gt0, self.pops[pid].halos.tab_z > zmin)                
                 self._sfrd_rerr = err
                 
                 if not np.any(self._ok):
@@ -920,7 +934,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             nh *= cm_per_mpc**3
             
             # Interpolate to same redshift array as fluxes
-            nh = np.interp(zarr, pop.halos.z, nh)
+            nh = np.interp(zarr, pop.halos.tab_z, nh)
             
             # Compute typical separation of halos
             ravg = nh**(-1./3.)
@@ -1054,7 +1068,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
 
                 pid = self.pf['feedback_LW_sfrd_popid']
-                zarr = self.pops[pid].halos.z
+                zarr = self.pops[pid].halos.tab_z
 
                 if quantity == 'sfrd':
                     ok = np.logical_and(gt0, zarr > zmin)
@@ -1140,7 +1154,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         return z, Ja, Jlw
 
-    def get_history(self, popid=0, flatten=False):
+    def get_history(self, popid=0, flatten=False, today_only=False):
         """
         Grab data associated with a single population.
 
@@ -1176,7 +1190,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         # be in descending order so flip 'em.
 
         z = self.solver.redshifts[popid]
-        pop = self.pops[popid]
+        zflip = z[-1::-1]
+        zmin = min(z)
         #else:
         #    # This may change on the fly due to sub-cycling and such
         #    z = np.array(self.all_z).T[popid][-1::-1]
@@ -1186,9 +1201,13 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             # First loop is over redshift.
             f = np.zeros([len(z), E.size])
+            
+            # Looping over redshift?
             for i, flux in enumerate(hist):
-                                
-                # Second loop is over sub-band
+                if today_only:
+                    if zflip[i] != zmin:
+                        continue
+                
                 fzflat = []
                 for j in range(len(self.solver.energies[popid])):
                     if not self.solver.solve_rte[popid][j]:
@@ -1197,7 +1216,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                         fzflat.extend(flux[j])
 
                 f[i] = np.array(fzflat)
-
+                
             # "tr" = "to return"
             z_tr = z
             E_tr = E

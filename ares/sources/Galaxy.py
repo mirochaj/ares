@@ -16,7 +16,7 @@ from .SynthesisModel import SynthesisModel
 from scipy.interpolate import RectBivariateSpline
 
 try:
-    from scipy.interpolate import Akima1DInterpolator
+    from scipy.interpolate import Akima1DInterpolator, interp1d
 except ImportError:
     pass
 
@@ -47,14 +47,14 @@ class Galaxy(object):
                 raise NotImplemented('help?')
             else:
                 # Tables are for a 10^6 Msun burst
-                self._tab_sed_ = self.src.data / 1e6 
+                self._tab_sed_ = self.src.data  
         return self._tab_sed_
 
     @property
     def _sfr_func(self):
         if not hasattr(self, '_sfr_func_'):
             if self.pf['source_sfh'] is None:
-                self._sfr_func_ = lambda t: 1.0
+                self._sfr_func_ = lambda t: np.ones_like(t)
                 print("Defaulting to 1 Msun/yr")
             else:
                 self._sfr_func_ = self.pf['source_sfh']
@@ -68,7 +68,9 @@ class Galaxy(object):
     def _synth_model(self):
         if not hasattr(self, '_synth_model_'):
             tmp = self.kwargs
-            tmp['source_Z'] = 0.0245 # i.e., not in lookup table
+            # i.e., not in lookup table. Must do this to force Synth model
+            # to load all metallicities.
+            tmp['source_Z'] = 0.0245 
             self._synth_model_ = SynthesisModel(**tmp)
             junk = self._synth_model.L1600_per_sfr
             #data_all_Z = pop._data_all_Z
@@ -93,7 +95,16 @@ class Galaxy(object):
         
         assert wavelength is not None or band is not None
         
+        if not hasattr(self, '_interpolants'):
+            self._interpolants = {}
+            
+        
+        interp_2d = None
+        
         if wavelength is not None:
+            
+            if wavelength in self._interpolants:
+                return self._interpolants[wavelength]
             
             i_lam = np.argmin(np.abs(wavelength - self.src.wavelengths))
             
@@ -101,25 +112,28 @@ class Galaxy(object):
                 Zarr = np.sort(list(self._synth_model.metallicities.values()))
                 tarr = self._synth_model.times
                 
-                interp2d = RectBivariateSpline(Zarr, tarr, 
-                    self._synth_model._data_all_Z[:,i_lam,:] / 1e6)
+                interp_2d = RectBivariateSpline(Zarr, tarr, 
+                    self._synth_model._data_all_Z[:,i_lam,:])
                 
                 sed = []
                 for t in tarr:
-                    sed.append(float(interp2d(self.Z(t), t)))
+                    sed.append(float(interp_2d(self.Z(t), t)))
                 
                 sed = np.array(sed)
-                
             else:
                 sed = self._tab_sed[i_lam]
                 
-            interp_logt = Akima1DInterpolator(np.log(self.src.times), 
-                np.log(sed))    
-                
-                
+            #interp_logt = Akima1DInterpolator(np.log(self.src.times), 
+            #    np.log(sed))    
+            interp_logt = interp1d(np.log(self.src.times),     
+                np.log(sed), bounds_error=False, 
+                fill_value=(0., np.log(sed)[-1]))
+
             interp_t = lambda t: np.exp(interp_logt.__call__(np.log(t)))
-            
-            return interp_t
+
+            self._interpolants[wavelength] = interp_t, interp_2d
+
+            return interp_t, interp_2d
             
         elif band is not None:
             sed = np.zeros((self._tab_E.size, len(times)))
@@ -136,52 +150,61 @@ class Galaxy(object):
         assert np.allclose(dt, np.roll(dt, 1)), \
             "Time points must be evenly spaced!"
         dt = dt[0] * 1e6
+        
+        if dt < 1:
+            print("dt < 1 might cause problems.")
                 
         # Setup interpolant for simple stellar population
-        interp_t = self.create_interpolant(times, band=band, 
+        interp_t, interp_Zt = self.create_interpolant(times, band=band, 
             wavelength=wavelength)
         
         # Must change if band is not None
-        sed = np.zeros(len(times))
+        Nt = len(times)
+        sed = np.zeros(Nt)
+        sfr = self.SFR(times)
         
         # Youngest stellar population we've got.
         t0 = min(times[times > 0])
         
-        # Loop over time
-        for i_t1, t1 in enumerate(times):
-
-            if t1 == 0:
-                continue
-
-            # Light from new stars
-            sed[i_t1] += interp_t(t0) * self.SFR(t1) * dt 
-
-            if not self.src.pf['source_aging']:
-                continue
-
-            # On each timestep, need to include new emission and 
-            # the evolved emission from previous star formation
-
-            if wavelength is not None:
-                
-                # Loop over the past
-                for i_t2, t2 in enumerate(times):
-                    if t2 == 0:
-                        continue
-                    if t2 >= t1:
-                        break
-
-                    # Light from old stars. Grab the SFR from the appropriate
-                    # moment in the past, multiply by dt (to get mass formed),
-                    # and add flux from those stars aged by t1-t2
-                    sed[i_t1] += interp_t(t1-t2) * self.SFR(t2) * dt
-
-            elif band is not None:
-                raise NotImplemented('help')
-                
-                
-            
-            
+        # Construct SED one time at a...time.
         
+        # Easier if metallicity not evolving.
+        if (self.pf['source_meh'] is None) or (not self.src.pf['source_aging']):
+            L = interp_t(times)
+            
+            # New stars only
+            sed += sfr * L[0] * dt
+                    
+            # If aging is being treated, must sum up luminosity from all
+            # past 'episodes' of star formation.            
+            if self.src.pf['source_aging']:
+                for j in range(1, Nt):
+                    sed[j] += np.sum(L[0:j][-1::-1] * sfr[0:j] * dt)
+        else:
+            # Will only make it here if a metal-enrichment history is provided
+            # AND sources are allowed to age.
+            
+            sfr = self.SFR(times)
+            
+            # Observed times
+            sed = np.zeros(len(times))
+            
+            # Loop over time (formation time)
+            for i_t1, t1 in enumerate(times):
+
+                if i_t1 == Nt - 1:
+                    continue
+                    
+                # Just get us an array of times from now till the end that
+                # has the right shape
+                ages = times[i_t1:] - t1
+                
+                # Setup interpolant for stars formating right now that tells
+                # us their luminosity for all remaining times.
+                interp_new = interp1d(ages, interp_Zt(self.Z(t1), ages),
+                    kind='linear')
+                
+                sed[i_t1:] += interp_new(ages).squeeze() * sfr[i_t1] * dt           
+                
         self.sed = sed
         return sed

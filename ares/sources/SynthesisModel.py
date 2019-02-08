@@ -63,12 +63,6 @@ class SynthesisModel(Source):
                 
         return self._litinst
     
-    @property
-    def cosm(self):
-        if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
-        return self._cosm
-        
     def AveragePhotonEnergy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
@@ -160,6 +154,9 @@ class SynthesisModel(Source):
         Where, if instantaneous burst, [depends] = 1e6 Msun
         and if continuous SF, [depends] = Msun / yr
         
+        In SSP case, remove factor of 1e6 here so it propagates everywhere
+        else.
+        
         """
         if not hasattr(self, '_data'):
             
@@ -209,8 +206,12 @@ class SynthesisModel(Source):
                 
             # Normalize by SFR or cluster mass.    
             if self.pf['source_ssp']:
-                self._data *= (self.pf['source_mass'] / 1e6)
+                # The factor of a million is built-in to the lookup tables
+                self._data *= self.pf['source_mass'] / 1e6
+                if hasattr(self, '_data_all_Z'):
+                    self._data_all_Z *= self.pf['source_mass'] / 1e6
             else:    
+                #raise NotImplemented('is this ok?')
                 self._data *= self.pf['source_sfr']
                 
         return self._data
@@ -338,22 +339,42 @@ class SynthesisModel(Source):
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
     
+    def _cache_L(self, wave):
+        if not hasattr(self, '_cache_L_'):
+            self._cache_L_ = {}
+            
+        if wave in self._cache_L_:
+            return self._cache_L_[wave]
+        
+        return None
+    
     def L_per_SFR_of_t(self, wave=1600., avg=1):
         """
         UV luminosity per unit SFR.
         """
+        
+        cached_result = self._cache_L(wave)
+        
+        if cached_result is not None:
+            return cached_result
                 
         j = np.argmin(np.abs(wave - self.wavelengths))
-        
-        dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
-        
+                
         if avg == 1:
-            yield_UV = self.data[j,:] * np.abs(dwavednu[j])
+            yield_UV = self.data[j,:] * np.abs(self.dwdn[j])
         else:
             assert avg % 2 != 0, "avg must be odd"
             s = (avg - 1) / 2
-            yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(dwavednu[j-s:j+s]))
+            yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
         
+        # Current units: 
+        # if pop_ssp: 
+        #     erg / sec / Hz / Msun
+        # else: 
+        #     erg / sec / Hz / (Msun / yr)
+
+        self._cache_L_[wave] = yield_UV
+            
         return yield_UV
 
     def LUV(self):
@@ -447,37 +468,38 @@ class SynthesisModel(Source):
         Compute the average energy per photon (in eV) in some band.
         """
         
-        if self.pf['source_ssp']:
-            # Assume last time-bin below.
-            raise NotImplemented('help!')
-        
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
-
-        it = -1  # time index
         
         # [self.data] = erg / s / A / [depends]
 
         # Must convert units
-        E_tot = np.trapz(self.data[i1:i0,it] * self.wavelengths[i1:i0], 
-            x=np.log(self.wavelengths[i1:i0]))
-        N_tot = np.trapz(self.data[i1:i0,it] * self.wavelengths[i1:i0] \
+        E_tot = np.trapz(self.data[i1:i0,:].T * self.wavelengths[i1:i0], 
+            x=np.log(self.wavelengths[i1:i0]), axis=1)
+        N_tot = np.trapz(self.data[i1:i0,:].T * self.wavelengths[i1:i0] \
             / self.energies[i1:i0] / erg_per_ev, 
-            x=np.log(self.wavelengths[i1:i0]))
+            x=np.log(self.wavelengths[i1:i0]), axis=1)
 
-        return E_tot / N_tot / erg_per_ev
+        if self.pf['source_ssp']:
+            return E_tot / N_tot / erg_per_ev
+        else:
+            return E_tot[-1] / N_tot[-1] / erg_per_ev
 
     def rad_yield(self, Emin, Emax):
         """
         Must be in the internal units of erg / g.
         """
         
-        erg_per_msun_yr = \
-           self.IntegratedEmission(Emin, Emax, energy_units=True)[-1]
-        erg_per_g = erg_per_msun_yr * s_per_yr / g_per_msun
-        
-        return erg_per_g
-        
+        erg_per_variable = \
+           self.IntegratedEmission(Emin, Emax, energy_units=True)
+           
+        if self.pf['source_ssp']:
+            # erg / s / Msun -> erg / s / g
+            return erg_per_variable / g_per_msun
+        else:    
+            # erg / g
+            return erg_per_variable[-1] * s_per_yr / g_per_msun
+                
     @property
     def Lbol_at_tsf(self):
         if not hasattr(self, '_Lbol_at_tsf'):
@@ -530,7 +552,7 @@ class SynthesisModel(Source):
             flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
                 
         # Current units: 
-        # if pop_ssp: photons / sec / (Msun / 1e6)
+        # if pop_ssp: photons / sec / Msun
         # else: photons / sec / (Msun / yr)
         
         return flux
@@ -573,7 +595,7 @@ class SynthesisModel(Source):
 
         # Current units: 
         # if pop_ssp: 
-        #     photons / sec / (Msun / 1e6)
+        #     photons / sec / Msun
         # else: 
         #     photons / sec / (Msun / yr)
 

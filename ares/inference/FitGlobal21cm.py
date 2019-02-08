@@ -100,7 +100,7 @@ class FitGlobal21cm(FitBase):
     @property
     def turning_points(self):
         if not hasattr(self, '_turning_points'):
-            self._turning_points = None
+            self._turning_points = False
 
         return self._turning_points
 

@@ -17,15 +17,12 @@ from ..physics.Constants import cm_per_pc
 norm_AB = 3631. * 1e-23  # 3631 Jansky in cgs, i.e., 
                          # 3631 * 1e-23 erg / s / cm**2 / Hz
 
-class MagnitudeSystem(Cosmology):
-    #def __init__(self, **kwargs):
-    #    
-    #    if not kwargs:
-    #        kw = cosm
-    #    else:
-    #        kw = {key : kwargs[key] for key in cosm}
-    #    
-    #    Cosmology.__init__(self, **kw)
+class MagnitudeSystem(object):
+    def __init__(self, cosm=None, **kwargs):
+        if cosm is None:
+            self.cosm = Cosmology(**kwargs)
+        else:
+            self.cosm = cosm
     
     def mab_to_L(self, mag, z=None, dL=None):
         """
@@ -57,7 +54,7 @@ class MagnitudeSystem(Cosmology):
         assert (z is not None) or (dL is not None)
         
         if z is not None:
-            dL = self.LuminosityDistance(z)
+            dL = self.cosm.LuminosityDistance(z)
         
         # Apparent magnitude
         m = mag + 5. * (np.log10(dL/ cm_per_pc) - 1.) 
@@ -70,7 +67,7 @@ class MagnitudeSystem(Cosmology):
         assert (z is not None) or (dL is not None)
         
         if z is not None:
-            dL = self.LuminosityDistance(z)
+            dL = self.cosm.LuminosityDistance(z)
          
         #    
         m = -2.5 * np.log10(L  / (norm_AB * 4. * np.pi * dL**2))

@@ -18,7 +18,7 @@ from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_fit
 from ..util.ParameterFile import par_info
 from ..util.Stats import symmetrize_errors
-from ..populations import GalaxyPopulation, GalaxyCohort
+from ..populations import GalaxyCohort, GalaxyEnsemble
 from .ModelFit import LogLikelihood, FitBase, def_kwargs
 
 try:
@@ -98,7 +98,8 @@ class loglikelihood(LogLikelihood):
                 
         # Figure out if `sim` is a population object or not.
         # OK if it's a simulation, will loop over LF-bearing populations.        
-        if not isinstance(sim, GalaxyCohort.GalaxyCohort):
+        if not (isinstance(sim, GalaxyCohort.GalaxyCohort) \
+            or isinstance(sim, GalaxyEnsemble.GalaxyEnsemble)):
             pops = []
             for pop in sim.pops:
                 if not hasattr(pop, 'LuminosityFunction'):
@@ -139,8 +140,8 @@ class loglikelihood(LogLikelihood):
                     # Compute LF
                     p = pop.LuminosityFunction(z=z, x=M, mags=True)
                 elif quantity == 'smf':
-                    M = xdat
-                    p = pop.StellarMassFunction(z, M)                
+                    M = np.log10(xdat)
+                    p = pop.StellarMassFunction(z, M)
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))

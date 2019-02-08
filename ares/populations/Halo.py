@@ -11,6 +11,9 @@ Description:
 """
 
 import numpy as np
+from ..util import read_lit
+from inspect import ismethod
+from types import FunctionType
 from .Population import Population
 from scipy.integrate import cumtrapz
 from ..util.PrintInfo import print_pop
@@ -44,12 +47,12 @@ class HaloPopulation(Population):
             except AttributeError:
                 pass
 
-    @property
-    def dndm(self):
-        if not hasattr(self, '_fcoll'):
-            self._init_fcoll()
-    
-        return self._dndm
+    #@property
+    #def dndm(self):
+    #    if not hasattr(self, '_fcoll'):
+    #        self._init_fcoll()
+    #
+    #    return self._dndm
 
     @property
     def fcoll(self):
@@ -106,7 +109,33 @@ class HaloPopulation(Population):
             self._fcoll, self._dfcolldz = \
                 self.pf['pop_fcoll'], self.pf['pop_dfcolldz']
     
-    def iMAR(self, z, source=None):
+    @property
+    def MGR(self):
+        """
+        Mass growth rate of halos of mass M at redshift z.
+    
+        ..note:: This is the *DM* mass accretion rate. To obtain the baryonic 
+            accretion rate, multiply by Cosmology.fbaryon.
+    
+        """
+        if not hasattr(self, '_MAR'):
+            if self.pf['pop_MAR'] is None:
+                self._MAR = None
+            elif type(self.pf['pop_MAR']) is FunctionType \
+                or ismethod(self.pf['pop_MAR']):
+                self._MAR = self.pf['pop_MAR']
+            elif self.pf['pop_MAR'] == 'pl':
+                raise NotImplemented('do this')
+            elif self.pf['pop_MAR'] == 'hmf':
+                # Would be nice if this were a pointer...
+                self._MAR = self.halos.MAR_func
+            else:
+                self._MAR = read_lit(self.pf['pop_MAR'], 
+                    verbose=self.pf['verbose']).MAR
+    
+        return self._MAR
+    
+    def MGR_integrated(self, z, source=None):
         """
         The integrated DM accretion rate.
     

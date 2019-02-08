@@ -33,16 +33,17 @@ plpars = \
  'pop_EminNorm': 2e2,
  'pop_EmaxNorm': 3e4,
  'pop_logN': -np.inf,
- #'approx_xrb': 0,
+
  'pop_solve_rte': True,
  'tau_redshift_bins': 400,
  
  'tau_redshift_bins': 400,
  'initial_redshift': 40.,
  'final_redshift': 10.,
+ 
 }
 
-def test(tol = 1e-2):
+def test(tol=1e-2):
 
     assert alpha + beta != 1.5, "Analytic solution diverges for alpha+beta=3/2!"
     
@@ -74,12 +75,12 @@ def test(tol = 1e-2):
             label=label)
             
         Ef, ff = mgb.today
-        flux_today = ff[0] * Ef[0] * erg_per_ev / sqdeg_per_std**2
-        Eok = np.logical_and(Ef[0] >= 5e2, Ef[0] <= 2e3)
-        ax4.loglog(Ef[0], flux_today)
+        flux_today = ff * Ef * erg_per_ev / sqdeg_per_std**2
+        Eok = np.logical_and(Ef >= 5e2, Ef <= 2e3)
+        ax4.loglog(Ef, flux_today)
         
         # Find integrated 0.5-2 keV flux
-        sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[0][Eok])
+        sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[Eok])
         ax4.annotate(r'$j_x = {:.2e}$'.format(sxb), (0.95, 0.95), xycoords='axes fraction',
             ha='right', va='top')
         
@@ -105,6 +106,8 @@ def test(tol = 1e-2):
             
             diff = np.abs(flux_anl - flux_num) / flux_anl
             
+            # Only use softest X-ray bin since this is where error should
+            # be worst.            
             assert diff[0] < tol, \
                 "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
         
@@ -139,7 +142,7 @@ def test(tol = 1e-2):
     
     pl.close('all')    
     assert True
-
+    
 if __name__ == '__main__':
     test()
 

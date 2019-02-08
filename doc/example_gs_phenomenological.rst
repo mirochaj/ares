@@ -7,13 +7,15 @@ Two common phenomenological parameterizations for the global 21-cm signal are in
 :: 
 
     import ares
+    import numpy as np
+    import matplotlib.pyplot as pl
     
     sim_1 = ares.simulations.Global21cm(tanh_model=True)
     sim_2 = ares.simulations.Global21cm(gaussian_model=True)
     
     # Have a look
-    ax = sim_1.GlobalSignature(color='k')
-    ax = sim_2.GlobalSignature(color='b', ax=ax)
+    ax, zax = sim_1.GlobalSignature(color='k', fig=1)
+    ax, zax = sim_2.GlobalSignature(color='b', ax=ax)
     
 Now, you might say "I could have done that myself extremely easily." You'd be right! However, sometimes there's an advantage in working through *ares* even when using simply parametric forms for the global 21-cm signal. For example, you can tap into *ares*' inference module and fit data, perform forecasting, or run large sets of models. In each of these applications, *ares* can take care of some annoying things for you, like tracking the quantities you care about and saving them to disk in a format that can be easily analyzed later on. For more concrete examples, check out the following pages:
     
@@ -24,11 +26,9 @@ Now, you might say "I could have done that myself extremely easily." You'd be ri
         
 In the remaining sections we'll cover different ways to parameterize the signal.
 
-Parameterizing the IGM
+Parameterizing the IGM 
 ----------------------
 Whereas the Gaussian absorption model makes no link between the brightness temperature and the underlying quantities of interest (ionization history, etc.), the tanh model first models :math:`J_{\alpha}(z)`, :math:`T_K(z)`, and :math:`x_i(z)`, and from those histories produces :math:`\delta T_b(z)`.
-
-However, 
 
 Now, let's assemble a set of parameters that will generate a global 21-cm signal using ParameterizedQuantity objects for each main piece: the thermal, ionization, and Ly-:math:`\alpha` histories. We'll assume that the thermal and ionization histories are *tanh* functions, but take the Ly-:math:`\alpha` background evolution to be a power-law in redshift:
 
@@ -74,6 +74,14 @@ To run it, as always:
 
     sim_3 = ares.simulations.Global21cm(**pars)
     sim_3.GlobalSignature(color='r', ax=ax)
+    pl.savefig('ares_gs_phenom.png')
+    
+.. figure::  https://www.dropbox.com/s/qo3o3tc7qqk2s5t/ares_gs_phenom.png?raw=1
+   :align:   center
+   :width:   600
+
+   Comparing three phenomenological models for the global 21-cm signal. 
+    
 
 Now, because the parameters of these models are hard to intuit ahead of time, it can be useful to run a set of them. As per usual, we can use some built-in machinery.
 
@@ -102,7 +110,16 @@ Just to do a quick check, let's look at where the absorption minimum occurs in t
 
     anl = ares.analysis.ModelSet('test_Ja_pl')
     
-    anl.Scatter(anl.parameters, c='z_C', fig=2, edgecolors='none')
+    anl.Scatter(anl.parameters, c='z_C', fig=4, edgecolors='none')
+    
+    pl.savefig('ares_gs_Ja_grid.png')
+    
+.. figure::  https://www.dropbox.com/s/vvu5gy2wi96s0u0/ares_gs_Ja_grid.png?raw=1
+   :align:   center
+   :width:   600
+
+   Basic exploration of a 2-D parameter grid.
+    
 
 
 .. Parameterizing Sources

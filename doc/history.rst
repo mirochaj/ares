@@ -4,6 +4,15 @@ Development History
 
 Here's an attempt to keep track of major changes to the code over time, which will be tagged in the bitbucket repository with version numbers. I haven't followed conventions for version numbering so far. Instead, I've simply tagged commits with a version number when a paper is submitted using that version of the code (e.g., v0.1 and v0.2), or when a series of noteworthy improvements or bug fixes have been made (v0.3).
 
+v0.5
+----
+- This is the version of the code used in `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_. 
+- Note that several ``litdata'' modules have been updated so that the year is reflective of the year the paper was *published*, not *submitted*!
+
+v0.4
+----
+- This is the version of the code used in `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_. The main addition is global Lyman-Werner feedback, which raises the minimum mass of star-forming halos self-consistently using an iterative technique. 
+
 v0.3
 ----
 - Updated to work with `hmf <http://hmf.readthedocs.org/en/latest/>`_ version 2.0.1.

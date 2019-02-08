@@ -14,6 +14,7 @@ import scipy
 import numpy as np
 from types import FunctionType
 from ..util.ReadData import _load_inits
+from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
@@ -25,6 +26,9 @@ try:
     g13 = gamma(1. / 3.)
     c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
     c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
+    
+    from scipy.special import airy, hyp2f1
+    
 except ImportError:
     pass
     
@@ -70,12 +74,16 @@ tabulated_coeff = \
 l_LyA = h * c / E_LyA / erg_per_ev
 
 class Hydrogen(object):
-    def __init__(self, cosm=None, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, cosm=None, **kwargs):
+        
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
 
         if cosm is None:
             from .Cosmology import Cosmology
-            self.cosm = Cosmology(**self.pf)
+            self.cosm = Cosmology(pf=self.pf, **self.pf)
         else:
             self.cosm = cosm
             
@@ -89,20 +97,22 @@ class Hydrogen(object):
              'T_H': T_HH, 'T_e': T_He}
 
     @property
-    def kappa_H_pre(self):
+    def kappa_H(self):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interp1d(T_HH, kappa_HH, 
-                kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                **_interp1d_kwargs)
+                kind=self.interp_method, bounds_error=False, 
+                fill_value=(kappa_HH[0], kappa_HH[-1]),
+                left=kappa_HH[0], right=kappa_HH[-1], **_interp1d_kwargs)
 
         return self._kappa_H_pre
 
     @property
-    def kappa_e_pre(self):
+    def kappa_e(self):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interp1d(T_He, kappa_He,
-                kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                **_interp1d_kwargs)
+                kind=self.interp_method, bounds_error=False, 
+                fill_value=(kappa_He[0], kappa_He[-1]),
+                left=kappa_He[0], right=kappa_He[-1], **_interp1d_kwargs)
 
         return self._kappa_e_pre
 
@@ -157,39 +167,7 @@ class Hydrogen(object):
             self._dlogke_dlogT_ = lambda T: _ke_spline(T)
     
         return self._dlogke_dlogT_
-    
-    def _kappa(self, Tk, Tarr, spline):
-        if Tk < Tarr[0]:
-            return spline(Tarr[0])
-        elif Tk > Tarr[-1]:
-            return spline(Tarr[-1])
-        else:
-            return spline(Tk)
-                               
-    def kappa_H(self, Tk):
-        """
-        Rate coefficient for spin-exchange via H-H collsions.
-        """
-        if type(Tk) in [int, float, np.float64]:            
-            return self._kappa(Tk, T_HH, self.kappa_H_pre)
-        else:
-            tmp = np.zeros_like(Tk)
-            for i in range(len(Tk)):
-                tmp[i] = self._kappa(Tk[i], T_HH, self.kappa_H_pre)
-            return tmp
-
-    def kappa_e(self, Tk):       
-        """
-        Rate coefficient for spin-exchange via H-electron collsions.
-        """                            
-        if type(Tk) in [int, float, np.float64]:
-            return self._kappa(Tk, T_He, self.kappa_e_pre)
-        else:
-            tmp = np.zeros_like(Tk)
-            for i in range(len(Tk)):
-                tmp[i] = self._kappa(Tk[i], T_He, self.kappa_e_pre)
-            return tmp
-
+                       
     def photon_energy(self, nu, nl=1):
         """
         Return energy of photon transitioning from nu to nl in eV.  
@@ -356,16 +334,62 @@ class Hydrogen(object):
                 
         return sum_term * T_star / A10 / Tref
     
-    def Ja_c(self, z):
-        return (1. + z) / 1.81e11
-    
-    def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None):
+
+    def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None, Tr=0.0,
+        ne=0.0):
         """
         Return radiative coupling coefficient (i.e., Wouthuysen-Field effect).
+        
+        .. note :: If approx_Sa > 3, will return x_a, S_a, and T_S, which are
+            determined iteratively.
+        
         """
-                
-        return self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / self.Ja_c(z)
 
+        if self.approx_S < 4:
+            return self.xalpha_tilde(z) * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja
+
+        ##
+        # Must solve iteratively.
+        ##
+        
+        # Hirata (2006)
+        if self.approx_S == 4:
+            
+            # This will correctly cause a crash if Tk is an array
+            Tk = float(Tk)
+                        
+            xi = (1e-7 * self.tauGP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
+            a = lambda Ts: 1. - 0.0631789 / Tk + 0.115995 / Tk**2 \
+                - 0.401403 / Ts / Tk + 0.336463 / Ts / Tk**2
+            b = 1. + 2.98394 * xi + 1.53583 * xi**2 + 3.85289 * xi**3
+        
+            Sa = lambda Ts: a(Ts) / b
+                        
+            xc = self.CollisionalCouplingCoefficient(z, Tk, xHII, ne, Tr)
+            xa = lambda Ts: self.xalpha_tilde(z) * Sa(Ts) * float(Ja) * 1.
+            Tcmb = self.cosm.TCMB(z)
+            Trad = Tcmb + Tr
+            
+            Tr_inv = 1. / Trad
+            Tk_inv = 1. / Tk
+            Tc_inv = lambda Ts: Tk**-1. + 0.405535 * (Ts**-1. - Tk**-1.) / Tk
+            
+            Ts_inv = lambda Ts: (Tr_inv + xa(Ts) * Tc_inv(Ts) + xc * Tk_inv) \
+                   / (1. + xa(Ts) + xc)
+            
+            to_solve = lambda Ts: np.abs(1. / Ts / Ts_inv(Ts) - 1.)
+            
+            assert type(z) is not np.ndarray
+
+            to_solve = lambda Ts: np.abs(Ts * Ts_inv(Ts) - 1.)
+            
+            x = fsolve(to_solve, Tcmb, full_output=True, epsfcn=1e-3)  
+            Ts = abs(float(x[0]))
+            
+            return xa(Ts), Sa(Ts), Ts
+        else:
+            raise NotImplemented('approx_Salpha>4 not currently supported!')  
+            
     def tauGP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
         return 1.5 * self.cosm.nH(z) * (1. - xHII) * l_LyA**3 * 50e6 \
@@ -377,36 +401,59 @@ class Hydrogen(object):
         """
         return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
 
-    def Sa(self, z=None, Tk=None, xHII=0.0):
+    def xalpha_tilde(self, z):
+        """
+        Equation 38 in Hirata (2006).
+        """
+        gamma = 5e7 # 50 MHz
+        return 8. * np.pi * l_LyA**2 * gamma * T_star \
+            / 9. / A10 / self.cosm.TCMB(z)
+
+    def Sa(self, z=None, Tk=None, xHII=0.0, Ts=None, Ja=0.0):
         """
         Account for line profile effects.
         """
 
         if self.approx_S == 0:
             raise NotImplementedError('Must use analytical formulae.')
-        if self.approx_S == 1:
-            return 1.0
+        elif self.approx_S == 1:
+            S = 1.0
         elif self.approx_S == 2:
-            return np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
+            S = np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
                 / (1. + 0.4 / Tk)
-        elif self.approx_S == 3:
+        elif int(self.approx_S) == 3:
             gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
             alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.) # Eq. 20
-            S = 1. - c1 * alpha + c2 * alpha**2 - 4. * alpha**3 / 3. # Eq. 19
-            return S
+            
+            # Gamma function approximation: Eq. 19
+            if self.approx_S % 1 != 0:
+                # c1 = 4. * np.pi / 3. / np.sqrt(3.) / Gamma(2/3)
+                # c2 = 8. * np.pi / 3. / np.sqrt(3.) / Gamma(1/3)
+                S = 1. - c1 * alpha + c2 * alpha**2 - 4. * alpha**3 / 3.
+            # Actual solution: Eq. 18
+            else:
+                Ai, Aip, Bi, Bip = airy(-2. * alpha / 3.**(1./3.))
+                F2 = hyp2f1(1., 4./3., 5./3., -8 * alpha**3 / 27.)
+                S = 1. - 4. * alpha \
+                    * (3.**(2./3.) * np.pi * Bi + 3 * alpha**2 * F2) / 9.
+            
+        elif self.approx_S == 4:
+            xa, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         else:
-            raise NotImplementedError('approx_Sa must be in [1,2,3].')
+            raise NotImplementedError('approx_Sa must be in [1,2,3,4].')
+                
+        return np.maximum(S, 0.0)
 
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
-        
+
     @property
     def Ts_floor_pars(self):
         if not hasattr(self, '_Ts_floor_pars'):
             self._Ts_floor_pars = [self.pf['floor_Ts_p{}'.format(i)] for i in range(6)]
         return self._Ts_floor_pars    
-        
+
     @property
     def Ts_floor(self):
         if not hasattr(self, '_Ts_floor'):
@@ -464,7 +511,33 @@ class Hydrogen(object):
 
         Ts = (1.0 + x_c + x_a) / \
             (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
-    
+            
+        if self.approx_S < 4:
+            x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
+            Tc = Tk
+
+            Tref = self.cosm.TCMB(z) + Tr
+
+            Ts = (1.0 + x_c + x_a) / \
+                (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+        else:
+            if type(z) == np.ndarray:
+                x_a = []; S = []; Ts = []
+                for i, red in enumerate(z):
+                    _xa, _S, _Ts = self.RadiativeCouplingCoefficient(z[i], 
+                        Ja[i], Tk[i], xHII[i], Tr[i], ne[i])
+                        
+                    x_a.append(_xa)
+                    S.append(_S)
+                    Ts.append(_Ts)
+                    
+                x_a = np.array(x_a)
+                S = np.array(S)
+                Ts = np.array(Ts)
+            else:    
+                x_a, S, Ts = self.RadiativeCouplingCoefficient(z, 
+                    Ja, Tk, xHII, Tr, ne)
+                            
         return np.maximum(Ts, self.Ts_floor(z=z))
     
     def dTb(self, z, xavg, Ts, Tr=0.0):
@@ -518,3 +591,6 @@ class Hydrogen(object):
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
 
+    def dTb_no_astrophysics(self, z):
+        Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
+        return self.dTb(z, 0.0, Ts)

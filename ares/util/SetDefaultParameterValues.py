@@ -243,7 +243,8 @@ def PhysicsParameters():
     "rate_source": 'fk94', # fk94, option for development here
     
     # Feedback parameters
-
+    
+    
     # LW
     'feedback_clear_solver': True,
     
@@ -271,11 +272,11 @@ def PhysicsParameters():
     'feedback_LW_guesses': None,
     'feedback_LW_guesses_from': None,
     'feedback_LW_guesses_perfect': False,
-    
+        
     # Assume that uniform background only emerges gradually as 
     # the typical separation of halos becomes << Hubble length
     "feedback_LW_ramp": 0,
-    
+        
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
 
@@ -295,13 +296,13 @@ def PhysicsParameters():
     'feedback_tau_Mmin_uponly': False,
     'feedback_tau_Mmin_smooth': False,
     
-    'feedback_EoR': None,
-    'feedback_EoR_Tcut': 1e4,
-    'feedback_EoR_rtol': 0.,
-    'feedback_EoR_atol': 1.,
-    'feedback_EoR_mean_err': False,
-    'feedback_EoR_Mmin_uponly': False,
-    'feedback_EoR_Mmin_smooth': False,
+    'feedback_ion': None,
+    'feedback_ion_Tcut': 1e4,
+    'feedback_ion_rtol': 0.,
+    'feedback_ion_atol': 1.,
+    'feedback_ion_mean_err': False,
+    'feedback_ion_Mmin_uponly': False,
+    'feedback_ion_Mmin_smooth': False,
 
     }
 
@@ -469,8 +470,9 @@ def PopulationParameters():
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
-    "pop_MAR_conserve_norm": False,
+    #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
+    "pop_MAR_corr": None,
 
     "pop_interp_MAR": 'linear',
     "pop_interp_sfrd": 'linear',
@@ -479,8 +481,9 @@ def PopulationParameters():
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
-    # Can parameterize the LF directly if we want.
+
     "pop_uvlf": None,
+    'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,
     "pop_focc": 1.0,
@@ -502,6 +505,7 @@ def PopulationParameters():
     "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_psm_instance": None,
+    "pop_src_instance": None,
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
@@ -520,6 +524,8 @@ def PopulationParameters():
     "pop_E": None,
     "pop_LE": None,
     
+    # Artificially kill emission in some band.
+    "pop_Ekill": None,
 
     "pop_Emin_xray": 2e2,
     
@@ -566,18 +572,44 @@ def PopulationParameters():
     'pop_acc_frac_gas': 1.0,
     'pop_metal_retention': 1.0,
 
+    "pop_star_formation": True,
+
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
     "pop_frd": None,
     "pop_fshock": 1.0,
     
+    # For GalaxyEnsemble
+    "pop_aging": False,
+    "pop_enrichment": False,
+    "pop_quench": False,
+    
+    # For Clusters
     "pop_mdist": None,
     "pop_age_res": 1.,
     "pop_dlogM": 0.1,
 
+    "pop_histories": None,
+    "pop_guide_pop": None,
+    "pop_thin_hist": False,
+    "pop_scatter_mar": 0.0,
+    "pop_scatter_sfr": 0.0,
+    "pop_scatter_sfe": 0.0,
+    "pop_scatter_env": 0.0,
+    
+    "pop_is_deterministic": None,
+    "pop_update_dt": 10.,
+    
+    # Cluster-centric model
+    "pop_poisson": False,
+    "pop_bcycling": False,
+    "pop_internal_feedback": False,
+    "pop_sf_via_inflow": True,
+    "pop_sf_via_reservior": False,
+    
     "pop_fobsc": 0.0,
-    "pop_fobsc_by_num": False,
+    "pop_fobsc_by": None, # or 'age' or 'lum'
 
     "pop_tab_z": None,
     "pop_tab_Mh": None,
@@ -614,9 +646,13 @@ def PopulationParameters():
     "pop_sfrd_units": 'msun/yr/mpc^3',
 
     # For BHs
-    "pop_bhmd": None,
-    "pop_bhard": None,
-    "pop_fseed": 1e-1,
+    "pop_bh_formation": False,
+    "pop_bh_md": None,
+    "pop_bh_ard": None,
+    "pop_bh_seed_ratio": 1e-3,
+    "pop_bh_seed_mass": None,
+    "pop_bh_seed_eff": None,
+    "pop_bh_facc": None,
 
     # Scales SFRD
     "pop_Nlw": 9690.,
@@ -670,6 +706,7 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
+    "pop_dust_yield": 0.1,
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
@@ -720,7 +757,6 @@ def PopulationParameters():
     "pop_user_par8": None,
     "pop_user_par9": None,
     "pop_user_pmap": {},
-    
     }
 
     pf.update(tmp)
@@ -763,6 +799,8 @@ def SourceParameters():
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     
+    "source_Ekill": None,
+    
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
 
@@ -777,9 +815,10 @@ def SourceParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    "source_interpolant": None,
     
     "source_degradation": None,      # Degrade spectra to this \AA resolution
-    "source_aging": True,
+    "source_aging": False,
     
     # Stellar
     "source_temperature": 1e5,
@@ -790,7 +829,7 @@ def SourceParameters():
     "source_meh": None,
 
     # BH
-    "source_mass": 1e5,
+    "source_mass": 1,         # Also normalizes ssp's, so set to 1 by default.
     "source_rmax": 1e3,
     "source_alpha": -1.5,
 
@@ -802,7 +841,6 @@ def SourceParameters():
     "source_dlogE": 0.1,
     
     "source_Lbol": None,
-    "source_mass": 10,  
     "source_fduty": 1.,
     
     "source_eta": 0.1,
@@ -886,7 +924,7 @@ def HaloMassFunctionParameters():
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
     "hmf_dlogM": 0.01,
-    "hmf_zmin": 3,
+    "hmf_zmin": 0,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
 
@@ -895,8 +933,8 @@ def HaloMassFunctionParameters():
     'hmf_dlnk': 1e-2,
     'hmf_lnk_min': -20.,
     'hmf_lnk_max': 10.,
-    'hmf_transfer__k_per_logint': 11.,
-    'hmf_transfer__kmax': 100., # hmf default value is 5
+    'hmf_transfer_k_per_logint': 11,
+    'hmf_transfer_kmax': 100., # hmf default value is 5
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
@@ -998,10 +1036,11 @@ def ControlParameters():
     "load_ics": 'cosmorec',
     "cosmological_ics": False,
     "load_sim": False,
+    
+    "cosmological_Mmin": ['filtering', 'tegmark'],
 
     # Timestepping
     "max_timestep": 1.,
-    "min_timestep": 1e-8,
     "epsilon_dt": 0.05,
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
@@ -1047,6 +1086,7 @@ def ControlParameters():
     "tau_approx": True,
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
+    "tau_Emin_pin": True,
 
     # Power spectrum stuff
     "powspec_logkmin": -3,
@@ -1056,9 +1096,9 @@ def ControlParameters():
     "powspec_band": (11.2, 13.6),
 
     "sam_dt": 1., # Myr
-    "sam_dz": 2., # Usually good enough!
-    "sam_atol": 1e-2,
-    "sam_rtol": 1e-2,
+    "sam_dz": None, # Usually good enough!
+    "sam_atol": 1e-4,
+    "sam_rtol": 1e-4,
     
     # File format
     "preferred_format": 'npz',

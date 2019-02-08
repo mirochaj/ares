@@ -86,7 +86,6 @@ def par_info(par):
     if prefix1 is not None:
         m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
     else:
-        print('hey')
         m = None
         prefix1 = par
 
@@ -289,15 +288,16 @@ class ParameterFile(dict):
         
         # Fix up everything
         self._parse(**kwargs)
-        
+                
         # Check for stuff that'll break...stuff
-        self._check_for_conflicts(**kwargs)
+        if self['debug']:
+            self._check_for_conflicts(**kwargs)
         
-        if self.orphans:
-            if (rank == 0) and self['verbose']:
-                for key in self.orphans:
-                    print("WARNING: {!s} is an `orphan` parameter.".format(\
-                        key))
+            if self.orphans:
+                if (rank == 0) and self['verbose']:
+                    for key in self.orphans:
+                        print("WARNING: {!s} is an `orphan` parameter.".format(\
+                            key))
 
     @property
     def Npops(self):
@@ -309,7 +309,7 @@ class ParameterFile(dict):
             tmp.update(self._kwargs)
 
             self._Npops = count_populations(**tmp)
-
+            
         return self._Npops
 
     @property
@@ -348,21 +348,22 @@ class ParameterFile(dict):
                 
         # Start w/ problem specific parameters (always)
         if 'problem_type' not in kw:
-            kw['problem_type'] = defaults['problem_type']    
+            kw['problem_type'] = defaults['problem_type']
             
         # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
-        
+                
         # Read in kwargs for this problem type
         kwargs = ProblemType(kw['problem_type'])
-        
+                                
         # Add in user-supplied kwargs
         tmp = kwargs.copy()
         tmp.update(kw)
-                
+       
         # Change names of parameters to ensure backward compatibility        
         tmp.update(backward_compatibility(kw['problem_type'], **tmp))        
-        kwargs.update(tmp)            
+        
+        kwargs.update(tmp)
                         
         ##    
         # Up until this point, just problem_type-specific kwargs and any
@@ -372,7 +373,7 @@ class ParameterFile(dict):
         pf_base = {}  # Temporary master parameter file   
                       # Should have no {}'s
                     
-        pf_base.update(defaults)  
+        pf_base.update(defaults)
                                     
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:

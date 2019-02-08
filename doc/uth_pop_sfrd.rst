@@ -64,6 +64,8 @@ If ``pop_sfr_model=='sfrd_func'`` you'll need to provide your SFRD function via 
 
 A really simple example would be just to make this population have a constant star formation history:
 
+::
+
     pars['pop_sfrd'] = lambda z: 1e-2
     
 However, you could also use a ``ParameterizedHaloProperty`` here (see :doc:`param_populations` for more details). This might be advantageous if, for example, you want to vary the parameters of the SFRD in a model grid or Monte Carlo simulation. 

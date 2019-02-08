@@ -39,3 +39,4 @@ input/eos
 *.bak
 *.backup
 doc/example_*.py
+*.csv

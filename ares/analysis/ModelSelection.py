@@ -13,7 +13,7 @@ Description:
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
-from mpl_toolkits.axes_grid import inset_locator
+from mpl_toolkits.axes_grid1 import inset_locator
 
 class ModelSelection(object):
     def __init__(self, msets):

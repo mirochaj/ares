@@ -18,11 +18,14 @@ from ..util.Math import interp1d
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
-    cm_per_mpc, k_B
+    cm_per_mpc, k_B, m_p
 
 class Cosmology(object):
-    def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, **kwargs):        
+        if pf is not None:
+            self.pf = pf
+        else:
+            self.pf = ParameterFile(**kwargs)
                 
         self.omega_m_0 = self.pf['omega_m_0']
         self.omega_b_0 = self.pf['omega_b_0']
@@ -186,7 +189,7 @@ class Cosmology(object):
                 return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
         elif self.pf['approx_thermal_history']:
             return np.interp(z, self.thermal_history['z'], 
-                        self.thermal_history['Tk'])
+                        self.thermal_history['Tk']) * 1.
             #if not hasattr(self, '_Tgas'):
             #    self._Tgas = interp1d(self.thermal_history['z'], 
             #        self.thermal_history['Tk'], kind='cubic',
@@ -199,7 +202,8 @@ class Cosmology(object):
                 self._Tgas = interp1d(self.inits['z'], self.inits['Tk'],
                     kind='cubic', bounds_error=False)
             
-            return self._Tgas(z)
+            # Make sure this is a float
+            return self._Tgas(z) * 1.
 
     @property
     def thermal_history(self):
@@ -467,11 +471,26 @@ class Cosmology(object):
             
         """
         
-        d_cm = self.ComovingRadialDistance(0., 8.)
+        d_cm = self.ComovingRadialDistance(0., z)
         angle_rad = (np.pi / 180.) * angle
         
         dA = angle_rad * d_cm
         
-        dldz = quad(self.ComovingLineElement, z-0.5 * dz, z + 0.5 * dz)[0]
+        dldz = quad(self.ComovingLineElement, z-0.5*dz, z+0.5*dz)[0]
         
         return dA**2 * dldz / cm_per_mpc**3
+    
+    def JeansMass(self, z, Tgas=None, mu=0.6):
+        
+        if Tgas is None:
+            Tgas = self.Tgas(z)
+            
+        k_J = (2. * k_B * Tgas / 3. / mu / m_p)**-0.5 \
+            * np.sqrt(self.OmegaMatter(z)) * self.hubble_0
+        
+        l_J = 2. * np.pi / k_J    
+            
+        return 4. * np.pi * (l_J / 2)**3 * self.rho_b_z0 / 3. / g_per_msun
+        
+        
+        

@@ -7,6 +7,7 @@ Parameters, Fields, and Data Structures
 * :doc:`params`
 * :doc:`fields`
 * :doc:`inits_tables`
+* :doc:`uth_pq`
 
 .. Radiation Sources
 .. -----------------
@@ -18,8 +19,11 @@ Parameters, Fields, and Data Structures
 
 Source Populations
 ------------------
+* :doc:`uth_pop_halo`
 * :doc:`uth_pop_sfrd` 
 * :doc:`uth_pop_radiation` 
+.. * :doc:`uth_pop_sam` 
+.. * :doc:`uth_pop_new`
 
 
 .. * :doc:`uth_pop_stellar`
@@ -41,8 +45,8 @@ Source Populations
 Solvers
 -------
 * :doc:`uth_solver_chem`
-.. * :doc:`uth_solver_rt1d`
 .. * :doc:`uth_solver_rte`
+
 
 .. Inference
 .. ---------

@@ -320,9 +320,9 @@ class ChemicalNetwork(object):
         for i, sp in enumerate(self.grid.qmap):
             self.dqdt[i] = dqdt[sp]
 
-        if np.any(np.isnan(self.dqdt)):
+        if np.isnan(self.dqdt).sum():
             raise ValueError('NaN encountered in RateEquations!')
-        if np.any(self.q < 0):
+        if (self.q < 0).sum():
             solver_error(self.grid, -1000, [self.q], [self.dqdt], -1000, cell, -1000)
             raise ValueError('Something < 0.')
 

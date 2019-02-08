@@ -51,6 +51,7 @@ ARES = os.getenv('ARES')
 
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
+c_over_four_pi = c / four_pi
 
 # Put this stuff in utils
 defkwargs = \
@@ -68,7 +69,7 @@ defkwargs = \
 }       
 
 class UniformBackground(object):
-    def __init__(self, grid=None, **kwargs):
+    def __init__(self, pf=None, grid=None, **kwargs):
         """
         Initialize a UniformBackground object.
         
@@ -85,7 +86,11 @@ class UniformBackground(object):
         """
                 
         self._kwargs = kwargs.copy()
-        self.pf = ParameterFile(**kwargs)
+        
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
         
         # Some useful physics modules
         if grid is not None:
@@ -93,7 +98,7 @@ class UniformBackground(object):
             self.cosm = grid.cosm
         else:
             self.grid = None
-            self.cosm = Cosmology(**self.pf)
+            self.cosm = Cosmology(pf=self.pf, **self.pf)
 
         self._set_integrator()
         
@@ -106,7 +111,7 @@ class UniformBackground(object):
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, **self.pf)
+            self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
 
         return self._hydr
 
@@ -245,7 +250,7 @@ class UniformBackground(object):
     @property
     def pops(self):
         if not hasattr(self, '_pops'):
-            self._pops = CompositePopulation(**self._kwargs).pops
+            self._pops = CompositePopulation(pf=self.pf, **self._kwargs).pops
             
         return self._pops
 
@@ -286,6 +291,27 @@ class UniformBackground(object):
 
         return self._effects_by_pop
 
+    @property
+    def effects_by_pop(self):
+        if not hasattr(self, '_effects_by_pop'):
+            self._effects_by_pop = [[] for i in range(self.Npops)]
+    
+            for i, pop in enumerate(self.pops):
+                bands = self.bands_by_pop[i]
+    
+                for j, band in enumerate(bands):
+                    if band is None:
+                        self.effects_by_pop[i].append(None)
+                        continue
+    
+                    if pop.zone == 'cgm' and band[1] <= E_LL:
+                        self._effects_by_pop[i].append(None)
+                        continue
+    
+                    self._effects_by_pop[i].append(pop.zone)
+    
+        return self._effects_by_pop
+    
     @property
     def bands_by_pop(self):
         if not hasattr(self, '_bands_by_pop'):
@@ -631,7 +657,7 @@ class UniformBackground(object):
                     # don't double count when computing ionization rate.
                     if self.effects_by_pop[i][k] is None:
                         continue
-                                        
+               
                     # Still may not necessarily solve the RTE
                     if self.solve_rte[i][k]:
                         self._update_by_band_and_species(z, i, j, k, 
@@ -1153,10 +1179,10 @@ class UniformBackground(object):
             for i in range(Nf): 
                 Inu[i] = pop.src.Spectrum(E[i])
 
-        # Convert to photon number (well, something proportional to it)
+        # Convert to photon *number* (well, something proportional to it)
         Inu_hat = Inu / E
 
-        # Now, redshift dependent parts    
+        # Now, redshift dependent parts
         epsilon = np.zeros([Nz, Nf])
         
         #if Nf == 1:
@@ -1193,13 +1219,18 @@ class UniformBackground(object):
                     fix = 1.
                 else:
                     b = band
-                    fix = 1. / pop._convert_band(*band)
-                
+                    
+                    # If aging population, is handled within the pop object.
+                    if not pop.is_aging:
+                        fix = 1. / pop._convert_band(*band)
+                    else:
+                        fix = 1.
+
                 # Setup interpolant
                 # If there's an attribute error here, it probably means
                 # is_emissivity_scalable isn't being set correctly.
                 rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
-                
+
                 if rho_L is None:
                     continue
 
@@ -1220,6 +1251,8 @@ class UniformBackground(object):
                         continue    
                     if redshift > self.pf['first_light_redshift']:
                         continue
+                            
+                    #print(pop.id_num, redshift, z.size, epsilon.shape, b)                
                                             
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
@@ -1239,7 +1272,7 @@ class UniformBackground(object):
         redshifts : np.ndarray
             1-D array of redshifts
         ehat : np.ndarray
-            2-D array of tabulate emissivities.
+            2-D array of tabulate emissivities (divided by H(z)).
         tau : np.ndarray
             2-D array of optical depths, or reference to an array that will
             be modified with time.
@@ -1290,6 +1323,13 @@ class UniformBackground(object):
 
         otf = False
         
+        # Pre-roll some stuff
+        tau_r = np.roll(tau, -1, axis=1)
+        ehat_r = np.roll(np.roll(ehat, -1, axis=0), -1, axis=1)
+        # Won't matter that we carried the first element to the end because
+        # the incoming flux in that bin is always zero.
+        
+        
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:
@@ -1304,10 +1344,14 @@ class UniformBackground(object):
                     
                 if otf:
                     exp_term = np.exp(-np.roll(tau, -1))
-                else:   
-                    exp_term = np.exp(-np.roll(tau[ll], -1))
-    
-                trapz_base = 0.5 * (zarr[ll+1] - zarr[ll])
+                else:
+                    exp_term = np.exp(-tau_r[ll])
+                    
+                # Special case: delta function SED
+                if self.pops[popid].src.is_delta:
+                    trapz_base = 1.
+                else:    
+                    trapz_base = 0.5 * (zarr[ll+1] - zarr[ll])
 
                 # Equivalent to Eq. 25 in Mirocha (2014)
                 # Less readable, but faster!
@@ -1371,7 +1415,7 @@ class UniformBackground(object):
 
             ##
             # Yield results, move on to next iteration
-            ##
+            ##  
             yield redshifts[ll], flux
 
             # Increment redshift
@@ -1381,26 +1425,6 @@ class UniformBackground(object):
             if ll == -1:
                 break
                 
-    #def _compute_line_flux(self, fluxes):  
-    #    """
-    #    Compute emission in lines.
-    #    
-    #    ..note:: Includes Ly-a emission only at this point.
-    #    
-    #    Parameters
-    #    ----------
-    #    List of fluxes, for each sub-band in a sawtooth generator.
-    #    
-    #    """     
-    #    
-    #    line_flux = [np.zeros_like(fluxes[i]) for i in xrange(len(fluxes))]
-    #
-    #    # Compute Lyman-alpha flux
-    #    if self.pf['include_injected_lya']:
-    #        line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
-    #    
-    #    return line_flux
-
     def _flux_generator_sawtooth(self, E, z, ehat, tau, my_id=None):
         """
         Create generators for the flux between all Lyman-n bands.
@@ -1480,5 +1504,3 @@ class UniformBackground(object):
             self._fluxes_from_ = {}
         
         return self._fluxes_from_    
-    
-        

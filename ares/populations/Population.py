@@ -19,6 +19,8 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..util.Warnings import no_lya_warning
 from scipy.interpolate import interp1d as interp1d_scipy
+from ..util import MagnitudeSystem
+from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
@@ -117,13 +119,25 @@ class Population(object):
 
     @id_num.setter
     def id_num(self, value):
-        self._id_num = int(value)    
+        self._id_num = int(value)
+        
+    @property
+    def dust(self):
+        if not hasattr(self, '_dust'):
+            self._dust = DustCorrection(**self.pf)
+        return self._dust
+    
+    @property
+    def magsys(self):
+        if not hasattr(self, '_magsys'):
+            self._magsys = MagnitudeSystem(cosm=self.cosm, **self.pf)
+        return self._magsys    
     
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
             if self.grid is None:
-                self._cosm = Cosmology(**self.pf)
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
             else:
                 self._cosm = grid.cosm
                 
@@ -139,7 +153,10 @@ class Population(object):
             elif (not self.affects_cgm) and (not self.affects_igm):
                 self._zone = None
             else:
-                raise ValueError("Populations should only affect one zone!")
+                s = "Populations should only affect one zone!"
+                s += "In general, UV sources should have pop_ion_src_cgm=True "
+                s += "while X-ray sources should have pop_*src_igm=True."
+                raise ValueError(s)
                 
         return self._zone    
         
@@ -153,8 +170,12 @@ class Population(object):
     def affects_igm(self):
         if not hasattr(self, '_affects_igm'):
             self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
-        return self._affects_igm 
-
+        return self._affects_igm
+        
+    @property
+    def is_aging(self):
+        return self.pf['pop_aging']
+      
     @property
     def is_src_oir(self):
         if not hasattr(self, '_is_src_oir'):
@@ -351,6 +372,11 @@ class Population(object):
         """
 
         if not hasattr(self, '_is_emissivity_scalable'):
+            
+            if self.is_aging:
+                self._is_emissivity_scalable = False
+                return self._is_emissivity_scalable
+            
             self._is_emissivity_scalable = True
 
             if self.pf.Npqs == 0:
@@ -358,10 +384,11 @@ class Population(object):
 
             for par in self.pf.pqs:
     
-                # Exceptions. Ideally, exotic_heating_func wouldn't make it
-                # to the population parameter files...
-                if (par == 'pop_fstar') or (not par.startswith('pop_')):
+                # Exceptions.
+                if par not in ['pop_rad_yield', 'pop_fesc']:
                     continue
+                #if (par == 'pop_fstar') or (not par.startswith('pop_')):
+                #    continue
                     
                 # Could just skip parameters that start with pop_    
     
@@ -369,7 +396,7 @@ class Population(object):
                     self._is_emissivity_scalable = False
                     break
     
-                for i in xrange(self.pf.Npqs):
+                for i in range(self.pf.Npqs):
                     pn = '{0!s}[{1}]'.format(par,i)
                     if pn not in self.pf:
                         continue
@@ -388,7 +415,7 @@ class Population(object):
             elif self.pf['pop_sed'] in ['pl', 'mcd', 'simpl']:
                 self._Source_ = BlackHole
             elif self.pf['pop_sed'] == 'delta':
-                self._Source_ = DeltaFunction
+                self._Source_ = DeltaFunction    
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:    
@@ -460,7 +487,10 @@ class Population(object):
     def src(self):
         if not hasattr(self, '_src'):
             if self.pf['pop_psm_instance'] is not None:
+                # Should phase this out for more generate approach below.
                 self._src = self.pf['pop_psm_instance']
+            elif self.pf['pop_src_instance'] is not None:
+                self._src = self.pf['pop_src_instance']
             elif self._Source is not None:
                 try:
                     self._src = self._Source(**self.src_kwargs)
@@ -480,6 +510,29 @@ class Population(object):
             self._yield_per_sfr = normalize_sed(self)
                     
         return self._yield_per_sfr
+        
+    @property
+    def is_deterministic(self):
+        if not hasattr(self, '_is_deterministic'):
+            
+            if self.pf['pop_is_deterministic'] is not None:
+                self._is_deterministic = self.pf['pop_is_deterministic']
+                return self._is_deterministic
+            
+            self._is_deterministic = True
+            
+            sigma_sfr = self.pf['pop_scatter_sfr']
+            sigma_sfe = self.pf['pop_scatter_sfe']
+            sigma_mar = self.pf['pop_scatter_mar']
+            
+            if self.pf['pop_sfr_model'] == 'ensemble':
+                if sigma_sfr + sigma_sfe + sigma_mar > 0:
+                    self._is_deterministic = False
+                
+                if self.pf['feedback_ion'] or self.pf['feedback_LW']:
+                    self._is_deterministic = False                    
+                
+        return self._is_deterministic
     
     @yield_per_sfr.setter
     def yield_per_sfr(self, value):
@@ -497,6 +550,10 @@ class Population(object):
     def is_link_sfrd(self):
         if re.search('link:sfrd', self.pf['pop_sfr_model']):
             return True
+        # For BHs right now...
+        elif self.pf['pop_frd'] is not None:
+            if re.search('link:frd', self.pf['pop_frd']):
+                return True    
         return False  
     
     @property
@@ -551,6 +608,9 @@ class Population(object):
         defined by ``(Emin, Emax)``.
     
         """
+    
+        if self.is_aging:
+            raise AttributeError('This shouldn\'t happen! Aging of spectrum should be handled by pop itself.')
     
         # If we're here, it means we need to use some SED info
     
@@ -640,9 +700,13 @@ class Population(object):
             return self._eV_per_phot[(Emin, Emax)]
     
         if Emin < self.pf['pop_Emin']:
-            print("WARNING: Emin < pop_Emin")
+            print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+                "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
+                self.id_num))
         if Emax > self.pf['pop_Emax']:
-            print("WARNING: Emax > pop_Emax")
+            print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+                "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
+                self.id_num))
     
         if self.sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)

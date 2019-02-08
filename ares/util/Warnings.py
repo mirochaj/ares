@@ -165,7 +165,7 @@ def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):
     print(line("Emin (pf)   : {0:g}".format(pop.pf['pop_Emin'])))
     print(line("Emin ({0})  : {1:g}".format(which, Etab.min())))
     print(line("Emax (pf)   : {0:g}".format(pop.pf['pop_Emax'])))
-    print(line("Emax ({0})  : {1.g}".format(which, Etab.max())))
+    print(line("Emax ({0})  : {1:g}".format(which, Etab.max())))
 
     if Etab.min() < pop.pf['pop_Emin']:
         print(line(("this is OK  : we'll discard E < {0:.2e} eV entries in " +\

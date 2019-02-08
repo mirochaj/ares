@@ -112,7 +112,7 @@ class OpticalDepth(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm
     
     def OpticalDepth(self):
@@ -404,7 +404,10 @@ class OpticalDepth(object):
                 Emin=self.E0, Emax=self.E1)
     
             # Create energy arrays
-            self.E = self.E0 * self.R**np.arange(self.N)
+            if self.pf['tau_Emin_pin']:
+                self.E = self.E0 * self.R**np.arange(self.N)
+            else:
+                self.E = np.flip(self.E1 * self.R**-np.arange(self.N), 0)
     
         # Frequency grid must be index-1-based.
         self.nn = np.arange(1, self.N+1)
@@ -468,7 +471,8 @@ class OpticalDepth(object):
             if re.search('pkl', fn):
                 data = read_pickle_file(fn, nloads=1, verbose=False)
             else:
-                data = dict(np.load(fn))
+                data = np.load(fn)
+                data = dict(data)
                 # For some reason Python 3 doesn't like this.
                 #f = open(fn, 'r')
                 #data = dict(np.load(f))
@@ -725,7 +729,7 @@ class OpticalDepth(object):
         # so be lenient with this condition (100 eV or 1% difference
         # between parameter file and lookup table)
         Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
-        
+
         # Check redshift bounds
         if not (zmax_ok and zmin_ok):
             if not zmax_ok:
@@ -763,7 +767,7 @@ class OpticalDepth(object):
             #tau[:,i_E1+1:] = np.inf
         else:
             i_E1 = None
-                        
+                                                
         self.z_fetched = ztab
         self.E_fetched = Etab[i_E0:i_E1]  
         self.tau_fetched = tau[:,i_E0:i_E1]

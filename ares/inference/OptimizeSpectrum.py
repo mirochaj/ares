@@ -12,6 +12,7 @@ Description:
 
 import os
 import copy
+import glob
 import pickle
 import numpy as np
 from ..static import Grid
@@ -235,7 +236,8 @@ class SpectrumOptimization(object):
                 if not clobber:
                     raise IOError("{0}*.pkl exists! Set clobber=True to overwrite".format(prefix))
                 else:
-                    os.system("rm -f {!s}.*.pkl".format(prefix_by_proc))    
+                    for _fn in glob.glob("{!s}.*.pkl".format(prefix_by_proc)):
+                        os.remove(_fn)
                 
             # Save metadata
             with open("{0}.binfo.pkl".format(prefix), 'wb') as f:

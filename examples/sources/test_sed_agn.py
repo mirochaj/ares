@@ -27,5 +27,6 @@ bh = ares.analysis.Source(src)
 
 ax = bh.PlotSpectrum()
 
-ax.set_ylim(1e-8, 1)
+ax.set_ylim(1e-6, 1e-3)
 pl.draw()
+

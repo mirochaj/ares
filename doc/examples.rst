@@ -6,9 +6,10 @@ Running Individual Simulations
     
 * Reionization & Global 21-cm Signal
     * :doc:`example_gs_standard`
+    * :doc:`example_gs_multipop`
     * :doc:`example_gs_phenomenological`
+    
 ..    * :doc:`example_gs_hybrid`
-..    * :doc:`example_21cm_multipop`
 ..    * :doc:`example_21cm_xrb`
 ..    * :doc:`example_21cm_lwb`
 
@@ -47,7 +48,7 @@ Extensions
     * :doc:`example_adv_RT_w_He`
     
 * Advanced source populations
-    * :doc:`example_galaxypop`
+    * :doc:`example_pop_galaxy`
     * :doc:`example_popIII`
     
 * Comparing to observational data
@@ -55,6 +56,6 @@ Extensions
 
 * Customization
     * :doc:`example_embed_ares`
-    
-.. * :doc:`example_customization`
+    * :doc:`uth_pq`
+    * :doc:`uth_pop_new`
 

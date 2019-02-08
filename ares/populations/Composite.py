@@ -13,9 +13,12 @@ class instances.
 import re
 import numpy as np
 from ..util import ParameterFile
+from ..util.Misc import get_attribute
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
+from .BlackHoleAggregate import BlackHoleAggregate
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -24,41 +27,46 @@ except:
     basestring = str
 
 after_instance = ['pop_rad_yield']
-allowed_options = ['pop_sfr_model', 'pop_Mmin']
+allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd']
 
 class CompositePopulation(object):
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
         """
         Initialize a CompositePopulation object, i.e., a list of *Population instances.
         """
         
-        self.pf = ParameterFile(**kwargs)
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
         
         N = self.Npops = self.pf.Npops
         self.pfs = self.pf.pfs
-                                        
+
         self.BuildPopulationInstances()
         
     def BuildPopulationInstances(self):
         """
         Construct list of *Population class instances.
         """
-        
+    
         self.pops = [None for i in range(self.Npops)]
         to_tunnel = [None for i in range(self.Npops)]
         to_quantity = [None for i in range(self.Npops)]
         to_copy = [None for i in range(self.Npops)]
         to_attribute = [None for i in range(self.Npops)]
+        link_args = [[] for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
-                        
+    
             ct = 0            
             # Only link options that are OK at this stage.
+
             for option in allowed_options:
-                                
+    
                 if (pf[option] is None) or (not isinstance(pf[option], basestring)):
                     # Only can happen for pop_Mmin
                     continue
-                                
+    
                 if re.search('link', pf[option]):
                     try:
                         junk, linkto, linkee = pf[option].split(':')
@@ -72,39 +80,54 @@ class CompositePopulation(object):
                         to_quantity[i] = 'sfrd'
                         assert option == 'pop_sfr_model'
                         print('HELLO help please')
-                        
+    
                     ct += 1    
-            
+    
             assert ct < 2
-            
+    
             if ct == 0:
                 self.pops[i] = GalaxyPopulation(**pf)
-            
+    
             # This is poor design, but things are setup such that only one
             # quantity can be linked. This is a way around that.
             for option in after_instance:
                 if (pf[option] is None) or (not isinstance(pf[option], basestring)):
                     # Only can happen for pop_Mmin
                     continue
-                
+    
                 if re.search('link', pf[option]):
-                    junk, linkto, linkee = pf[option].split(':')
+                    options = pf[option].split(':')
+    
+                    if len(options) == 3:
+                        junk, linkto, linkee = options
+                        args = None
+                    elif len(options) == 4:
+                        junk, linkto, linkee, args = options
+                    else:
+                        raise ValueError('Wrong number of options supplied via link!')
+    
                     to_copy[i] = int(linkee)
                     to_attribute[i] = linkto
-
+    
+                    if args is not None:
+                        link_args[i] = map(float, args.split('-'))
+    
         # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
             if entry is None:
                 continue
-                        
+    
             tmp = self.pfs[i].copy()
             
             if self.pops[i] is not None:
                 raise ValueError('Only one link allowed right now!')
-                
+    
             if to_quantity[i] in ['sfrd', 'emissivity']:
                 self.pops[i] = GalaxyAggregate(**tmp)
                 self.pops[i]._sfrd = self.pops[entry]._sfrd_func
+            elif to_quantity[i] in ['frd']:
+                self.pops[i] = BlackHoleAggregate(**tmp)
+                self.pops[i]._frd = self.pops[entry]._frd_func
             elif to_quantity[i] in ['sfe', 'fstar']:
                 self.pops[i] = GalaxyCohort(**tmp)
                 self.pops[i]._fstar = self.pops[entry].SFE
@@ -122,7 +145,7 @@ class CompositePopulation(object):
                 continue
             else:
                 raise NotImplementedError('help')
-
+    
         # Set ID numbers (mostly for debugging purposes)
         for i, pop in enumerate(self.pops):
             pop.id_num = i
@@ -131,11 +154,26 @@ class CompositePopulation(object):
         for i, entry in enumerate(to_copy):
             if entry is None:
                 continue
-
+    
             tmp = self.pfs[i].copy()
-
-            self.pops[i].yield_per_sfr = \
-                self.pops[entry].__getattribute__(to_attribute[i])
-        
-        
-                        
+    
+            args = link_args[i]
+    
+            # If the attribute is just an attribute (i.e., no nesting)
+            if '.' not in to_attribute[i]:
+                self.pops[i].yield_per_sfr = \
+                    self.pops[entry].__getattribute__(to_attribute[i])
+    
+                continue
+    
+            ##    
+            # Nested attributes
+            ##
+    
+            # Recursively find the attribute we want
+            func = get_attribute(to_attribute[i], self.pops[entry])
+    
+            # This may need to be generalized if the nested attribute
+            # is not a function.
+            self.pops[i].yield_per_sfr = func(*args)
+    

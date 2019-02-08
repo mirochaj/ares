@@ -14,6 +14,11 @@ Basic Properties
     Population will not contribute to radiation backgrounds after this redshift.
 
     Default: 0
+
+``pop_lw_src`` 
+    Sources contribute to Lyman-Werner background? Only relevant if LW feedback is turned on.
+
+    Default: ``True``
     
 ``pop_lya_src`` 
     Sources contribute to Ly-:math:`\alpha` background?
@@ -75,7 +80,7 @@ The following parameters control the star-formation history of a population. See
     
     Options:
         + Any number between 0 and 1.
-        + ``php`` for "parameterized halo property". Requires ``pop_model=True``. See next section for more details on setting the ``php_*`` parameters. Note that if multiple php's are being used for a single population, you can use square brackets to attach an ID number, e.g., ``pop_fstar=php[0]`` and ``pop_fesc=php[1]``. The square brackets w/ ID numbers must be appended to each of the corresponding ``php_*`` parameters as well.
+        + ``pq`` for "parameterized halo property". Requires ``pop_model=True``. See next section for more details on setting the ``pq_*`` parameters. Note that if multiple PQ's are being used for a single population, you can use square brackets to attach an ID number, e.g., ``pop_fstar=pq[0]`` and ``pop_fesc=pq[1]``. The square brackets w/ ID numbers must be appended to each of the corresponding ``pq_*`` parameters as well.
     
     Default: 0.1
     
@@ -109,12 +114,12 @@ Radiation Fields
 
     Default: ``True``
 
-``pop_yield``
+``pop_rad_yield``
     How many photons are emitted per unit star formation?
 
     Default: :math:`2.6 \times 10^{39}`
 
-``pop_yield_units``
+``pop_rad_yield_units``
     How to normalize the yield? 
 
     Options: 
@@ -198,66 +203,6 @@ We use square brackets on this page to denote the units of parameters.
     Maximum photon energy to consider in radiative transfer calculation. 
 
     Default: 3e4 [eV]
-
-    
-    
-Parameterized halo properties
------------------------------
-Parameterized halo properties are most often used in the context of the galaxy luminosity function, where model the efficiency of star formation as a function of halo mass and (perhaps) redshift. See the ``mirocha2016`` option in :doc:`param_bundles` for a concrete example of how these parameters can be used.
-
-``php_func``
-    Function adopted. Options include ``pl``, ``dpl``, and many more. See listing below parameter(s) ``php_func_par[0-5]``.
-
-    Default: ``dpl``
-
-``php_func_var``
-    Independent variable of ``php_func``.
-
-    Options:
-        + ``mass``
-        + ``redshift``
-
-    Default: ``mass``
-
-``php_func_par[0-5]``
-    Parameters required by ``php_func``. Their meaning depends on the type of function employed. See below for meaning of each parameter by ``php_func`` and number (:math:`x` is either redshift or halo mass in general).
-
-    Options:
-        + ``pl``: :math:`p[0] * (x / p[1])^{p[2]}`
-        + ``dpl``: :math:`p[0] / ((x / p[1])^{-p[2]} + (x / p[1])^{-p[3]})`
-        + ``dpl_arbnorm``: :math:`p[0](p[4]) / ((x / p[1])^-p[2] + (x / p[1])^-p[3])'`
-        + ``pwpl``: :math:`p[0] * (x / p[4])^{p[1]}` if :math:`x \leq p[4]` else :math:`p[2] * (x / p[4])^{p[3]}`
-        + ``plexp``: :math:`p[0] * (x / p[1])^{p[2]} * np.exp(-x / p[3])`
-        + ``lognormal``: :math:`p[0] * np.exp(-(logx - p[1])^2 / 2 / p[2]^2)`
-        + ``astep``: :math:`p[0]` if :math:`x \leq p[1]` else :math:`p[2]`
-        + ``rstep``: :math:`p[0] * p[2]` if :math:`x \leq p[1]` else :math:`p[2]`
-        + ``plsum``: :math:`p[0] * (x / p[1])^{p[2]} + p[3] * (x / p[4])^{p[5]}`
-
-    Default: ``None``
-
-``php_faux``
-    "Auxiliary function" used to augment ``php_func``.
-
-``php_func_var``
-    Independent variable of ``php_faux``.
-
-    Options:
-        + ``mass``
-        + ``redshift``
-
-    Default: ``None``
-
-``php_faux_meth``
-    Method used to augment ``php_func``.
-
-    Options: 
-        + ``multiply``
-        + ``add``
-
-    Default: ``multiply``
-
-``php_faux_par[0-4]``
-    Parameters required by ``php_faux``. 
 
             
 For backward compatibility

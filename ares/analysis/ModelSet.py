@@ -1523,7 +1523,7 @@ class ModelSet(BlobFactory):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
         
         return self._cosm
         
@@ -2153,7 +2153,7 @@ class ModelSet(BlobFactory):
         
     def _get_1d_kwargs(self, **kw):
         
-        for key in ['labels', 'colors', 'linestyles']:
+        for key in ['labels', 'colors', 'linestyles', 'cmap']:
         
             if key in kw:
                 kw.pop(key)
@@ -2941,7 +2941,6 @@ class ModelSet(BlobFactory):
                 ax.set_xscale('linear')
                 ax.set_yscale('linear')
                 
-            
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
 
@@ -2950,15 +2949,15 @@ class ModelSet(BlobFactory):
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-        
+    
         pl.draw()
-        
+
         return ax
-              
+
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, fill=True, 
         inline_labels=False, manual=None, cax=None, use_colorbar=True, 
-        cb_kwargs={}, **kwargs):         
+        cb_kwargs={}, **kwargs):
         """
         Draw contours that are NOT associated with confidence levels.
         
@@ -3601,7 +3600,7 @@ class ModelSet(BlobFactory):
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
-        E_to_freq=False, **kwargs):
+        E_to_freq=False, is_logx=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3844,6 +3843,9 @@ class ModelSet(BlobFactory):
             
         if E_to_freq:
             xarr = xarr * erg_per_ev / h_p
+            
+        if is_logx:
+            xarr = 10**xarr    
 
         ##
         # Do the actual plotting
@@ -3855,9 +3857,11 @@ class ModelSet(BlobFactory):
             
             if samples == 'all':
                 # Unmasked elements only
-                elements = np.argwhere(self.mask == 0).squeeze()
-                for i, element in enumerate(elements):
-                    ax.plot(xarr, y.T[i], **kwargs)
+                #mask1d = np.sum(self.mask, axis=1)
+                #elements = np.argwhere(mask1d == 0).squeeze()
+                                                     
+                for i, element in enumerate(y.T):
+                    ax.plot(xarr, element, **kwargs)
             else:
                 # Choose randomly 
                 if type(samples) == int:    
@@ -4236,7 +4240,7 @@ class ModelSet(BlobFactory):
                 k = np.argmin(np.abs(biv - ivar))
                 
                 if not np.allclose(biv[k], ivar):
-                    print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, ivar, biv[k])
+                    print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, ivar, biv[k]))
                 
                 return blob[:,k]
         elif nd == 2:
@@ -4247,8 +4251,8 @@ class ModelSet(BlobFactory):
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
             
             if not np.allclose(self.blob_ivars[i][0][k1], ivar[0]):
-                print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
-                    ivar[0], self.blob_ivars[i][0][k1])
+                print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
+                    ivar[0], self.blob_ivars[i][0][k1]))
             
             
             if ivar[1] is None:
@@ -4257,12 +4261,13 @@ class ModelSet(BlobFactory):
                 k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
                 
                 if self.blob_ivars[i][1][k2] != ivar[1]:
-                    print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
-                        ivar[1], self.blob_ivars[i][1][k2])
+                    print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
+                        ivar[1], self.blob_ivars[i][1][k2]))
                 
                 return blob[:,k1,k2]    
     
-    def max_likelihood_parameters(self, method='mode', min_or_max='max'):
+    def max_likelihood_parameters(self, method='mode', min_or_max='max',
+        skip=0, stop=None):
         """
         Return parameter values at maximum likelihood point.
         
@@ -4270,28 +4275,26 @@ class ModelSet(BlobFactory):
         ----------
         method : str
             median or mode
-            
+
         """
-                    
+
         if method == 'median':
-            N = len(self.logL)
-            psorted = np.sort(self.logL)
+            N = len(self.logL[skip:stop])
+            psorted = np.sort(self.logL[skip:stop])
             logL_med = psorted[int(N / 2.)]
-            iML = np.argmin(np.abs(self.logL - logL_med))
+            iML = np.argmin(np.abs(self.logL[skip:stop] - logL_med))
         else:
             if min_or_max == 'max':
-                iML = np.argmax(self.logL)
+                iML = np.argmax(self.logL[skip:stop])
             else:
-                iML = np.argmin(self.logL)
-                
-        print('iML={}'.format(iML))
-                        
+                iML = np.argmin(self.logL[skip:stop])
+                                                
         self._max_like_pars = {}
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
-                self._max_like_pars[par] = 10**self.chain[iML,i]
+                self._max_like_pars[par] = 10**self.chain[skip:stop][iML,i]
             else:
-                self._max_like_pars[par] = self.chain[iML,i]
+                self._max_like_pars[par] = self.chain[skip:stop][iML,i]
         
         return self._max_like_pars
         
@@ -4309,8 +4312,8 @@ class ModelSet(BlobFactory):
             each field in ``data``.
         fields : list, tuple
             List of quantities required by ``func``.
-            
-        OR the second two:    
+
+        OR the second two:
             
         expr : str
             For example, 'x - y'

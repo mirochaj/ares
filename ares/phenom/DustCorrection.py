@@ -77,14 +77,24 @@ class DustCorrection(object):
         AUV = a + b * beta + 0.2 * np.log(10) * sigma
         return np.maximum(AUV, 0.0)
     
+    def _Mobs(self, z, MUV):
+        # It'd be a lot faster to just compute AUV
+        AUV = self.AUV(z, MUV)
+    
+        # Compare data to model at dust-corrected magnitudes
+        Mobs = MUV + AUV
+        
     def Mobs(self, z, MUV):
         """
-        Return observed (i.e., uncorrected for dust) magnitude.
+        Return observed (i.e., uncorrected for dust) magnitude for 
+        intrinsic magnitudes.
+        
+        This could probably be a lot faster.
         """
         
         # Compute the absolute magnitude one measured in the first place,
-        # i.e., before correcting for dust. 
-        
+        # i.e., before correcting for dust.
+           
         if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
             
             x = []
@@ -92,7 +102,7 @@ class DustCorrection(object):
                 f_AUV = lambda mag: self.AUV(z, mag)
                 
                 to_min = lambda xx: np.abs(xx - f_AUV(xx) - M)
-                x.append(fsolve(to_min, M+1.)[0])
+                x.append(fsolve(to_min, M)[0])
                 
             x = np.array(x)    
         else:
@@ -100,7 +110,7 @@ class DustCorrection(object):
             f_AUV = lambda mag: self.AUV(z, mag)
             
             to_min = lambda xx: np.abs(xx - f_AUV(xx) - MUV)
-            x = fsolve(to_min, MUV+1.)[0]
+            x = fsolve(to_min, MUV)[0]
 
         return x
 
@@ -113,12 +123,13 @@ class DustCorrection(object):
             return self.pf['dustcorr_beta'](z, mag)
         else:
             return self.pf['dustcorr_beta'] * np.ones_like(mag)
-
+            
     def _bouwens2014_beta0(self, z):
         """
         Get the measured UV continuum slope from Bouwens+2014 (Table 3).
         """
-        _z = np.round(z,0)
+        
+        _z = round(z,0)
         
         if _z < 4.0:
             val = -1.70; err_rand = 0.07; err_sys = 0.15
@@ -135,14 +146,15 @@ class DustCorrection(object):
         else:
             # Assume constant at z>8
             val = -2.00; err_rand = 0.00; err_sys = 0.00
-        return [val, err_rand, err_sys]
-    
-    
+                    
+        return val, err_rand, err_sys
+        
     def _bouwens2014_dbeta0_dM0(self, z):
         """
         Get the measured slope of the UV continuum slope from Bouwens+2014.
         """
-        _z = np.round(z,0)
+        
+        _z = round(z,0)
         if _z < 4.0:
             val = -0.2; err = 0.04
         elif _z == 4.0:
@@ -158,7 +170,8 @@ class DustCorrection(object):
         else:
             # Assume constant at z>8
             val = -0.15; err = 0.00
-        return [val, err]
+                        
+        return val, err
     
     def _beta_fit(self, z, mag):
         """

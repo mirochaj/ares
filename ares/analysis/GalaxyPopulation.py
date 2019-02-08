@@ -1,6 +1,6 @@
 """
 
-ObservedLF.py
+GalaxyPopulation.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
@@ -203,7 +203,7 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', **kwargs)              
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
+        AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
         """
         Plot the luminosity function data at a given redshift.
@@ -260,7 +260,15 @@ class GalaxyPopulation(object):
                 'mec':default_colors[source],
                 'fmt': default_markers[source],
                 'color':default_colors[source], 'capthick':2}
-                
+            
+            if not use_labels:
+                label = None
+            elif ('label' not in kwargs):
+                label = source
+            else:
+                label = kwargs['label']
+            
+            kw['label'] = label
             kw.update(kwargs)
                 
             if AUV is not None:
@@ -276,16 +284,16 @@ class GalaxyPopulation(object):
                         source, data[source]['wavelength'], wavelength))
             #else:
             shift = 0.    
-              
-            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=np.inf, 
-                label=source, **kw)
+                          
+            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
+                **kw)
 
         if quantity in ['lf', 'smf']:
             ax.set_yscale('log', nonposy='clip')    
 
         if quantity == 'lf' and (not gotax):
+            ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
-            ax.set_xticks(np.arange(-26, -10, 1), minor=True)
             ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
             ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         elif quantity == 'smf' and (not gotax):
@@ -306,7 +314,7 @@ class GalaxyPopulation(object):
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
         quantity='lf', annotate_z='left', mp=None, sources_except=[], 
-        mp_kwargs={}, **kwargs):
+        mp_kwargs={}, show_ylabel=True, **kwargs):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -372,14 +380,12 @@ class GalaxyPopulation(object):
             if gotmp:
                 continue
                 
-            ax.annotate(r'$z \sim {}$'.format(round(z, 0)), (_xannot, 0.95), 
+            ax.annotate(r'$z \sim {}$'.format(round(z, 1)), (_xannot, 0.95), 
                 ha=annotate_z, va='top', xycoords='axes fraction')
         
         if gotmp:
             return mp
-        
-        mp.fix_ticks(rotate_x=45)
-                
+                        
         for i, z in enumerate(redshifts):
             k = mp.elements.ravel()[i]
             ax = mp.grid[k]
@@ -387,20 +393,24 @@ class GalaxyPopulation(object):
             if quantity == 'lf':
                 ax.set_xlim(-24, xmax)
                 ax.set_ylim(1e-7, ymax)
-                ax.set_xticks(np.arange(-20, 5, 5), minor=False)
-                ax.set_xticks(np.arange(-23, -1, 2), minor=True)
                 ax.set_yscale('log', nonposy='clip')  
                 ax.set_ylabel('')
+                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
             else:
                 ax.set_xscale('log')
                 ax.set_xlim(1e6, 1e12)
                 ax.set_ylim(1e-7, ymax)
                 ax.set_yscale('log', nonposy='clip')                      
+                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+        
+        if show_ylabel:
+            if quantity == 'lf':
+                mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+            else:
+                mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        
             
-        if quantity == 'lf':
-            mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        else:
-            mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        pl.show()    
             
         return mp
             

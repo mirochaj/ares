@@ -1,17 +1,23 @@
-======
 *ares*
 ======
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a 
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
-global radiation background calculator.
+global radiation background calculator. 
 
 A few papers on how it works:
 
 - 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
 - Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_.
-- Parameter inference: `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_.
-- Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
+- Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
+- Population III star formation: `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_
+
+Plus some more applications:
+
+- `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_
+- `Schneider (2018) <http://adsabs.harvard.edu/abs/2018PhRvD..98f3021S>`_
+- `Tauscher et al. (2017) <http://adsabs.harvard.edu/abs/2018ApJ...853..187T>`_
+- `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_
 
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
@@ -24,6 +30,15 @@ The `documentation <http://ares.readthedocs.org/en/latest/>`_ are still a work i
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
+   
+Citation
+--------
+If you use ARES in paper please reference `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_ 
+if it's an application of the global 21-cm modeling machinery and 
+`Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_ if you use the 1-D radiative 
+transfer and/or SED optimization. Either way, please also provide a link 
+to `this page <https://bitbucket.org/mirochaj/ares>`_ as a footnote.
+ 
 
 Getting started
 ---------------------
@@ -67,6 +82,9 @@ and optionally,
 - `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
 - `shapely <https://pypi.python.org/pypi/Shapely>`_
 - `descartes <https://pypi.python.org/pypi/descartes>`_
+
+
+.. note :: *ares* has been tested only with Python 2.7.x and Python 3.3.x.
 
 Quick Example
 --------------
@@ -118,21 +136,27 @@ If you encounter problems with installation or running simple scripts, first che
 Contributors
 ------------
 
-Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (UCLA) 
+Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (UCLA)
 
 Additional contributions / corrections / suggestions from:
-    
-- Geraint Harker
-- Jacob Jost (CU-Boulder)
-- `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
-- `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
-- Jason Sun (Caltech)
-- Keith Tauscher (CU-Boulder)
-- Saurabh Singh (RRI)
-- Krishma Singal (Georgia Tech)
-- Donald Trinh (UC-Irvine)
-- Omar Ruiz Macias (INAOE)
-- Arnab Chakraborty (IIT)
-- Saul Kohn (UPenn)
 
+- Geraint Harker
+- Jason Sun 
+- Keith Tauscher
+- Jacob Jost
+- Greg Salvesen
+- Adrian Liu
+- Saurabh Singh
+- Rick Mebane
+- Krishma Singal
+- Donald Trinh
+- Omar Ruiz Macias
+- Arnab Chakraborty
+- Madhurima Choudhury
+- Saul Kohn
+- Aurel Schneider
+- Kristy Fu
+- Garett Lopez
+- Ranita Jana
+- Daniel Meinert
 

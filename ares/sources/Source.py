@@ -95,6 +95,10 @@ class Source(object):
         Print info like Nlw etc in various units!
         """
         pass
+    
+    @property
+    def is_delta(self):
+        return self.pf['source_sed'] == 'delta'    
         
     
     @property
@@ -117,16 +121,7 @@ class Source(object):
     def cosm(self):
         if not hasattr(self, '_cosm'):
             if self.grid is None:
-                self._cosm = Cosmology(
-                    omega_m_0=self.pf['omega_m_0'], 
-                    omega_l_0=self.pf['omega_l_0'], 
-                    omega_b_0=self.pf['omega_b_0'],  
-                    hubble_0=self.pf['hubble_0'],  
-                    helium_by_number=self.pf['helium_by_number'], 
-                    cmb_temp_0=self.pf['cmb_temp_0'], 
-                    approx_highz=self.pf['approx_highz'], 
-                    sigma_8=self.pf['sigma_8'], 
-                    primordial_index=self.pf['primordial_index'])
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
             else:
                 self._cosm = self.grid.cosm
         
@@ -582,6 +577,10 @@ class Source(object):
         eV\ :sup:`-1`\.
 
         """   
+        
+        if self.pf['source_Ekill'] is not None:
+            if self.pf['source_Ekill'][0] <= E <= self.pf['source_Ekill'][1]:
+                return 0.0
                 
         return self._normL * self._Intensity(E, t=t)
         
