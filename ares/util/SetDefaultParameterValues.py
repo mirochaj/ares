@@ -217,7 +217,7 @@ def PhysicsParameters():
     "inits_Tk_p1": None,
     "inits_Tk_p2": None,    # Set to -4/3 if thermal_hist = 'exp' to recover adiabatic cooling
     "inits_Tk_p3": 0.0,
-    "inits_Tk_p4": np.inf,
+    "inits_Tk_p4": inf,
     "inits_Tk_p5": None,
     "inits_Tk_dz": 1.,
     
@@ -371,50 +371,87 @@ def PowerSpectrumParameters():
 
     tmp = \
     {     
-     'powspec_redshifts': np.arange(6, 20, 1),
-     'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
+    
+     'ps_output_z': np.arange(6, 20, 1),
+     
+     "ps_output_k": None,
+     "ps_output_lnkmin": -4.6,
+     "ps_output_lnkmax": 1.,
+     "ps_output_dlnk": 0.2,
+     
+     "ps_output_R": None,
+     "ps_output_lnRmin": -8.,
+     "ps_output_lnRmax": 8.,
+     "ps_output_dlnR": 0.01,
+     
+     'ps_linear_pert': False,
+     'ps_use_wick': False,
+     
+     'ps_igm_model': 1, # 1=3-zone IGM, 2=other
+     
+     'ps_include_acorr': True,
+     'ps_include_xcorr': False,
+     'ps_include_bias': True,
+     
+     'ps_include_xcorr_wrt': None,
+     
+     # Save all individual pieces that make up 21-cm PS?
+     "ps_output_components": False,
+     
+     'ps_include_21cm': True,
+     'ps_include_density': True,
+     'ps_include_ion': True,
+     'ps_include_temp': False,
+     'ps_include_lya': False,
+     'ps_lya_cut': inf,
+     
+     # Binary model switches
+     'ps_include_xcorr_ion_rho': False,
+     'ps_include_xcorr_hot_rho': False,
+     'ps_include_xcorr_ion_hot': False,
+     
+     'ps_include_3pt': True,
+     'ps_include_4pt': True,
+     
+     'ps_temp_model': 1,  # 1=Bubble shells, 2=FZH04
+     'ps_saturated': 10.,
+          
+     'ps_correct_gs_ion': True,
+     'ps_correct_gs_temp': True,     
+     
+     'ps_assume_saturated': False,
+     
+     'ps_split_transform': True,
+     'ps_fht_rtol': 1e-4,
+     'ps_fht_atol': 1e-4,
+     
+     'ps_include_lya_lc': False,
 
-     # Ultimately we'll interpolate beyond these
-     'powspec_dlogk': 0.1,
-     'powspec_dlogr': 0.1,
-     
-     'include_acorr': True,
-     'include_xcorr': False,
-     
-     'include_xcorr_wrt': None,
-     
-     'include_density_fl': True,
-     'include_ion_fl': True,
-     'include_temp_fl': False,
-     'include_lya_fl': False,
-     
-     'include_lya_lc': False,
-           
-     'include_bias': False,
+     "ps_volfix": True,
 
-     "powspec_volfix": False,
-     "powspec_rescale_Qion": False,
-     "powspec_rescale_Qlya": False,
-     "powspec_rescale_Qhot": False,
-     "powspec_rescale_dTb": False,
+     "ps_rescale_Qlya": False,
+     "ps_rescale_Qhot": False,
+     "ps_rescale_dTb": False,
 
      "bubble_size": None,
      "bubble_density": None,
      
      # Important that the number is at the end! ARES will interpret
      # numbers within underscores as population ID numbers.
+     "bubble_shell_rvol_zone_0": None,
+     "bubble_shell_rdens_zone_0": 0.,
      "bubble_shell_rsize_zone_0": None,
      "bubble_shell_asize_zone_0": None,
      "bubble_shell_ktemp_zone_0": None,
-     "bubble_shell_tpert_zone_0": None,
-     "bubble_shell_rsize_zone_1": None,
-     "bubble_shell_asize_zone_1": None,
-     "bubble_shell_ktemp_zone_1": None,
-     "bubble_shell_tpert_zone_1": None,
-     "bubble_shell_rsize_zone_2": None,
-     "bubble_shell_asize_zone_2": None,
-     "bubble_shell_ktemp_zone_2": None,
-     "bubble_shell_tpert_zone_2": None,
+     #"bubble_shell_tpert_zone_0": None,
+     #"bubble_shell_rsize_zone_1": None,
+     #"bubble_shell_asize_zone_1": None,
+     #"bubble_shell_ktemp_zone_1": None,
+     #"bubble_shell_tpert_zone_1": None,
+     #"bubble_shell_rsize_zone_2": None,
+     #"bubble_shell_asize_zone_2": None,
+     #"bubble_shell_ktemp_zone_2": None,
+     #"bubble_shell_tpert_zone_2": None,
      
      "bubble_shell_include_xcorr": True,
      
@@ -426,9 +463,8 @@ def PowerSpectrumParameters():
      #"bubble_pod_temp": None,
      #"bubble_pod_Nsc": 1e3,
      
-     "powspec_lya_method": 'lpt',
-     "powspec_ion_method": None,  # unused
-     "powspec_temp_method": 'xset',  # or...'shell'
+     "ps_lya_method": 'lpt',
+     "ps_ion_method": None,  # unused
      
      #"powspec_lya_approx_sfr": 'exp',
      
@@ -466,7 +502,7 @@ def PopulationParameters():
     
     "pop_sfr_above_threshold": True,
     "pop_sfr_cross_threshold": True,
-    "pop_sfr_cross_upto_Tmin": np.inf,
+    "pop_sfr_cross_upto_Tmin": inf,
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
@@ -709,6 +745,7 @@ def PopulationParameters():
     "pop_lya_fl": False,
     "pop_ion_fl": False,
     "pop_temp_fl": False,
+    
     "pop_one_halo_term": True,
     "pop_two_halo_term": True,
         
@@ -938,6 +975,7 @@ def HaloMassFunctionParameters():
     {
     "hmf_model": 'ST',
     
+    
     "hmf_instance": None,
     "hmf_load": True,
     "hmf_load_ps": True,
@@ -947,7 +985,7 @@ def HaloMassFunctionParameters():
 
     # Table resolution
     "hmf_logMmin": 4,
-    "hmf_logMmax": 16,
+    "hmf_logMmax": 18,
     "hmf_dlogM": 0.01,
     "hmf_zmin": 0,
     "hmf_zmax": 60,
@@ -965,9 +1003,18 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_trunc": False,
     
     # For matter power spectrum
-    'mpowspec_dlogk': 0.1,
-    'mpowspec_dlogr': 0.1,
+    "mps_zmin": 6,
+    "mps_zmax": 30,
+    "mps_dz": 0.5,
     
+    "mps_linear": False,
+    
+    'mps_dlnk': 0.001,
+    'mps_dlnR': 0.001,
+    'mps_lnk_min': -10.,
+    'mps_lnk_max': 10.,
+    'mps_lnR_min': -10.,
+    'mps_lnR_max': 10.,
 
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
@@ -1073,12 +1120,6 @@ def ControlParameters():
     
     "compute_fluxes_at_start": False,
     
-    # k-space resolution
-    "powspec_logkmin": -3,
-    "powspec_logkmax": 2.,
-    "powspec_dlogk": 0.1,
-    "powspec_z": 10.,
-    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
@@ -1112,13 +1153,6 @@ def ControlParameters():
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
     "tau_Emin_pin": True,
-
-    # Power spectrum stuff
-    "powspec_logkmin": -3,
-    "powspec_logkmax": 2,
-    "powspec_dlogk": 0.5,    
-    "powspec_dlogr": 0.1,
-    "powspec_band": (11.2, 13.6),
 
     "sam_dt": 1., # Myr
     "sam_dz": None, # Usually good enough!

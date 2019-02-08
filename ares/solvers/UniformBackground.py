@@ -1174,7 +1174,7 @@ class UniformBackground(object):
             # sense for a delta function, but it's what happens later, so
             # insert a factor of a half now so we recover all the flux we 
             # should.
-            Inu[-1] = 1. / (E[-1] - E[-2]) / 0.5
+            Inu[-1] = 1.
         else:
             for i in range(Nf): 
                 Inu[i] = pop.src.Spectrum(E[i])

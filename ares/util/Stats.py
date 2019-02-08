@@ -286,7 +286,7 @@ def correlation_matrix(cov):
             rho[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
 
     return rho
-
+    
 def bin_e2c(bins):
     """
     Convert bin edges to bin centers.

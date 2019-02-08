@@ -19,13 +19,15 @@ def test():
     pars = {'problem_type': 101}
 
     pars['fstar'] = 0.1
-    pars['fesc'] = 0.1
+    pars['fesc'] = 0.2
     pars['Tmin'] = 2e4
     pars['Nlw'] = 9690.
     pars['cX'] = 2.6e39
     pars['fX'] = 0.2
     pars['fXh'] = 0.2
     pars['Nion'] = 4e3
+    
+    # Above yield zeta = 40
 
     pars['include_acorr'] = True
     pars['include_xcorr'] = False
@@ -35,13 +37,14 @@ def test():
     pars['pop_temp_fl{1}'] = True
     pars['pop_ion_fl{2}'] = True
     pars['include_bias'] = True
-    pars['powspec_redshifts'] = [7, 8, 9, 10]
+    pars['powspec_redshifts'] = [6, 8, 10, 15]
 
     # 
     pars['include_lya_fl'] = False
     pars['include_ion_fl'] = True
     pars['include_temp_fl'] = False
     pars['include_density_fl'] = True
+    pars['powspec_force_Qi_gs'] = True
 
     # This seems to matter a lot!
     pars['powspec_rescale_Qion'] = False
@@ -52,10 +55,14 @@ def test():
     ax = None
     colors = 'k', 'b', 'g', 'c', 'm', 'r', 'y', 'orange'
     for i, z in enumerate(pars['powspec_redshifts']):
-        ax = sim.BubbleSizeDistribution(z=z, ax=ax, label=r'$z=%i$' % z,
+        iz = np.argmin(np.abs(z - sim.history['z']))
+        ax = sim.BubbleSizeDistribution(z=z, ax=ax, 
+            label=r'$z={}, Q={}$'.format(z, round(sim.history['Qi'][iz], 2)),
             color=colors[i])
 
-    ax.legend(loc='upper right', frameon=True, fontsize=12)
+    ax.legend(loc='upper left', frameon=True, fontsize=12)
+    ax.set_yscale('log')
+    ax.set_ylim(1e-3, 1)
 
     for i in range(1, 2):
         pl.figure(i)

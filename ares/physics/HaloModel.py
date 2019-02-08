@@ -5,7 +5,9 @@ import re
 import pickle
 import numpy as np
 import scipy.special as sp
+from types import FunctionType
 from scipy.integrate import quad
+from scipy.interpolate import interp1d, Akima1DInterpolator
 from ..util.ProgressBar import ProgressBar
 from .Constants import rho_cgs, c, cm_per_mpc
 from .HaloMassFunction import HaloMassFunction
@@ -22,6 +24,15 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+try:
+    import hankel
+    have_hankel = True
+    from hankel import HankelTransform, SymmetricFourierTransform
+except ImportError:
+    have_hankel = False
+    
+four_pi = 4 * np.pi    
     
 ARES = os.getenv("ARES")    
 
@@ -103,25 +114,25 @@ class HaloModel(HaloMassFunction):
         # The extra factor of np.log(1 + c) - c / (1 + c)) comes in because
         # there's really a normalization factor of 4 pi rho_s r_s^3 / m, 
         # and m = 4 pi rho_s r_s^3 * the log term
-        norm = 1. / (np.log(1 + c) - c / (1 + c)) 
+        norm = 1. / (np.log(1 + c) - c / (1 + c))
 
         return norm * (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc))
-        
+
     def u_isl(self, k, m, z, rmax):
         """
         Normalized Fourier transform of an r^-2 profile.
-        
+
         rmax : int, float
             Effective horizon. Distance a photon can travel between
             Ly-beta and Ly-alpha.
-        
+
         """
-    
+
         asi, aco = sp.sici(rmax * k)
 
         return asi / rmax / k
-        
+
     def u_isl_exp(self, k, m, z, rmax, rstar): 
         return np.arctan(rstar * k) / rstar / k
     
@@ -185,43 +196,43 @@ class HaloModel(HaloMassFunction):
         """
         Compute the one halo term of the halo model for given input profile.
         """
-
-        iz = np.argmin(np.abs(z - self.z))
+        
+        iz = np.argmin(np.abs(z - self.tab_z))
 
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_1 is None:
             profile_1 = self.u_nfw
-        
-        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.M))
+            
+        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
             
         if profile_2 is None:
             prof2 = prof1
         else:
-            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.M))
+            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
 
-        dndlnm = self.dndm[iz,:] * self.M
-        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+        dndlnm = self.tab_dndm[iz,:] * self.tab_M
+        rho_bar = self.cosm.mean_density0
 
         if Mmin_1 is None:
             fcoll_1 = 1.
             iM_1 = 0
         else:
-            fcoll_1 = self.fcoll_Tmin[iz]
-            iM_1 = np.argmin(np.abs(Mmin_1 - self.M))
+            fcoll_1 = self.fcoll_2d(z, np.log10(Mmin_1))#self.fcoll_Tmin[iz]
+            iM_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
         
         if Mmin_2 is None:
             fcoll_2 = 1.
             iM_2 = 0
         else:
-            fcoll_2 = self.fcoll_Tmin[iz]
-            iM_2 = np.argmin(np.abs(Mmin_2 - self.M))
+            fcoll_2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
+            iM_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
         
         iM = max(iM_1, iM_2)
         
-        integrand = dndlnm * (self.M / rho_bar / fcoll_1) \
-            * (self.M / rho_bar / fcoll_2) * prof1 * prof2 
+        integrand = dndlnm * (self.tab_M / rho_bar / fcoll_1) \
+            * (self.tab_M / rho_bar / fcoll_2) * prof1 * prof2 
 
-        result = np.trapz(integrand[iM:], x=self.lnM[iM:])
+        result = np.trapz(integrand[iM:], x=np.log(self.tab_M[iM:]))
 
         return result
 
@@ -237,22 +248,22 @@ class HaloModel(HaloMassFunction):
         
         """
         
-        iz = np.argmin(np.abs(z - self.z))
-
+        iz = np.argmin(np.abs(z - self.tab_z))
+        
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_1 is None:
             profile_1 = self.u_nfw
-        
-        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.M))
+            
+        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
             
         if profile_2 is None:
             prof2 = prof1
         else:
-            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.M))
+            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
                         
         # Short-cuts
-        dndlnm = self.dndm[iz,:] * self.M
-        bias = self.bias_of_M(z)
+        dndlnm = self.tab_dndm[iz,:] * self.tab_M
+        bias = self.Bias(z)
         #rho_bar = self.mgtm[iz,0]
         rho_bar = self.cosm.rho_m_z0 * rho_cgs
 
@@ -262,49 +273,51 @@ class HaloModel(HaloMassFunction):
             
             # Small halo correction.
             # Make use of Cooray & Sheth Eq. 71
-            _integrand = dndlnm * (self.M / rho_bar) * bias
-            correction_1 = 1. - np.trapz(_integrand, x=self.lnM)
+            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            correction_1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         else:
-            fcoll_1 = self.fcoll_Tmin[iz]
-            iM_1 = np.argmin(np.abs(Mmin_1 - self.M))
+            fcoll_1 = self.fcoll_2d(z, np.log10(Mmin_1))#self.fcoll_Tmin[iz]
+            iM_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
             correction_1 = 0.0
                     
         if Mmin_2 is None:
             fcoll_2 = 1.#self.mgtm[iz,0] / rho_bar
             iM_2 = 0
-            _integrand = dndlnm * (self.M / rho_bar) * bias
-            correction_2 = 1. - np.trapz(_integrand, x=self.lnM)
+            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            correction_2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         else:
-            fcoll_2 = self.fcoll_Tmin[iz]
-            iM_2 = np.argmin(np.abs(Mmin_2 - self.M))
+            fcoll_2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
+            iM_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
             correction_2 = 0.0
 
         # Compute two-halo integral with profile in there
-        integrand1 = dndlnm * (self.M / rho_bar / fcoll_1) * prof1 * bias
-        integral1 = np.trapz(integrand1[iM_1:], x=self.lnM[iM_1:]) \
+        integrand1 = dndlnm * (self.tab_M / rho_bar / fcoll_1) * prof1 * bias
+        integral1 = np.trapz(integrand1[iM_1:], x=np.log(self.tab_M[iM_1:])) \
                   + correction_1
 
         if profile_2 is not None:
-            integrand2 = dndlnm * (self.M / rho_bar / fcoll_2) * prof2 * bias
-            integral2 = np.trapz(integrand2[iM_2:], x=self.lnM[iM_2:]) \
+            integrand2 = dndlnm * (self.tab_M / rho_bar / fcoll_2) * prof2 * bias
+            integral2 = np.trapz(integrand2[iM_2:], x=np.log(self.tab_M[iM_2:])) \
                       + correction_2
         else:
             integral2 = integral1
 
-        return integral1 * integral2 * float(self.psCDM(z, k))
+        return integral1 * integral2 * float(self.LinearPS(z, np.log(k)))
 
     def PowerSpectrum(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
-        Mmin_2=None):
+        Mmin_2=None, exact_z=True):
         
         # Tabulation only implemented for density PS at the moment.
         if self.pf['hmf_load_ps'] and (profile_1 is None):
-            iz = np.argmin(np.abs(z - self.z))
-            assert abs(z - self.z[iz]) < 1e-2, \
-                'Supplied redshift (%g) not in table!' % z
-            if np.allclose(k, self.k_cr_pos):
-                return self.ps_dd[iz]
-            else:
-                return np.interp(np.log(k), log(self.k_cr_pos), self.ps_dd[iz])
+            iz = np.argmin(np.abs(z - self.tab_z_ps))
+            if exact_z:
+                assert abs(z - self.tab_z_ps[iz]) < 1e-2, \
+                    'Supplied redshift (%g) not in table!' % z
+            if len(k) == len(self.tab_k):
+                if np.allclose(k, self.tab_k):
+                    return self.tab_ps_mm[iz]
+                
+            return np.interp(k, self.tab_k, self.tab_ps_mm[iz])
                     
         if type(k) == np.ndarray:
             f1 = lambda kk: self.PS_OneHalo(z, kk, profile_1, Mmin_1, profile_2, 
@@ -313,21 +326,349 @@ class HaloModel(HaloMassFunction):
                 Mmin_2)
             ps1 = np.array(map(f1, k))
             ps2 = np.array(map(f2, k))
+                        
             return ps1 + ps2
         else:    
             return self.PS_OneHalo(z, k, profile_1, Mmin_1, profile_2, Mmin_2) \
                  + self.PS_TwoHalo(z, k, profile_1, Mmin_1, profile_2, Mmin_2)
     
-    def CorrelationFunction(self, z, dr):
-        if self.pf['hmf_load_ps']:
-            iz = np.argmin(np.abs(z - self.z))
-            assert abs(z - self.z[iz]) < 1e-2, \
-                'Supplied redshift (%g) not in table!' % z
-            assert np.allclose(dr, self.R_cr)
-            return self.cf_dd[iz]
-                
-        raise NotImplemented('help')
+    def CorrelationFunction(self, z, R, k=None, Pofk=None, load=True):
+        """
+        Compute the correlation function of the matter power spectrum.
         
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        R : int, float, np.ndarray
+            Scale(s) of interest
+            
+        """
+        
+        ##
+        # Load from table
+        ##
+        if self.pf['hmf_load_ps'] and load:
+            iz = np.argmin(np.abs(z - self.tab_z_ps))
+            assert abs(z - self.tab_z_ps[iz]) < 1e-2, \
+                'Supplied redshift (%g) not in table!' % z
+            if len(R) == len(self.tab_R):
+                assert np.allclose(R, self.tab_R)
+                return self.tab_cf_mm[iz]
+                
+            return np.interp(R, self.tab_R, self.tab_cf_mm[iz])
+        
+        ##
+        # Compute from scratch
+        ##
+        
+        # Has P(k) already been computed?
+        if Pofk is not None:
+            if k is None:
+                k = self.tab_k
+                assert len(Pofk) == len(self.tab_k), \
+                    "Mismatch in shape between Pofk and k!"
+
+        else:        
+            k = self.tab_k
+            Pofk = self.PowerSpectrum(z, self.tab_k)
+        
+        return self.InverseFT3D(R, Pofk, k)
+    
+    def InverseFT3D(self, R, ps, k=None, kmin=None, kmax=None,
+        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False,
+        method='clenshaw-curtis', use_pb=False, suppression=np.inf):
+        """
+        Take a power spectrum and perform the inverse (3-D) FT to recover
+        a correlation function.
+        """
+        assert type(R) == np.ndarray
+    
+        if (type(ps) == FunctionType) or isinstance(ps, interp1d) \
+           or isinstance(ps, Akima1DInterpolator):
+            k = ps.x
+        elif type(ps) == np.ndarray:
+            # Setup interpolant
+    
+            assert k is not None, "Must supply k vector as well!"
+
+            #if interpolant == 'akima':
+            #    ps = Akima1DInterpolator(k, ps)
+            #elif interpolant == 'cubic':
+            
+            ps = interp1d(np.log(k), ps, kind='cubic', assume_sorted=True,
+                bounds_error=False, fill_value=0.0)
+            
+            #_ps = interp1d(np.log(k), np.log(ps), kind='cubic', assume_sorted=True,
+            #    bounds_error=False, fill_value=-np.inf)
+            #    
+            #ps = lambda k: np.exp(_ps.__call__(np.log(k)))   
+                
+        else:       
+            raise ValueError('Do not understand type of `ps`.')
+    
+        if kmin is None:
+            kmin = k.min()
+        if kmax is None:
+            kmax = k.max()
+            
+        norm = 1. / ps(np.log(kmax))
+        
+        ## 
+        # Use Steven Murray's `hankel` package to do the transform
+        ##
+        if method == 'ogata':
+            assert have_hankel, "hankel package required for this!"
+            
+            integrand = lambda kk: four_pi * kk**2 * norm * ps(np.log(kk)) \
+                * np.exp(-kk * R / suppression)
+            ht = HankelTransform(nu=0, N=k.size, h=0.001)
+            
+            #integrand = lambda kk: ps(np.log(kk)) * norm
+            #ht = SymmetricFourierTransform(3, N=k.size, h=0.001)
+            
+            #print(ht.integrate(integrand))
+            cf = ht.transform(integrand, k=R, ret_err=False, inverse=True) / norm
+
+            return cf / (2. * np.pi)**3
+        else:
+            pass
+            # Otherwise, do it by-hand.
+        
+            
+        ##
+        # Optional progress bar
+        ##
+        pb = ProgressBar(R.size, use=self.pf['progress_bar'] * use_pb, 
+            name='ps(k)->cf(R)')
+              
+        # Loop over R and perform integral
+        cf = np.zeros_like(R)
+        for i, RR in enumerate(R):
+            
+            if not pb.has_pb:
+                pb.start()              
+            
+            pb.update(i)
+            
+            # Leave sin(k*R) out -- that's the 'weight' for scipy.
+            integrand = lambda kk: norm * four_pi * kk**2 * ps(np.log(kk)) \
+                * np.exp(-kk * RR / suppression) / kk / RR
+            
+            if method == 'clenshaw-curtis':
+                    
+                if split_by_scale:
+                    kcri = np.exp(ps.x[np.argmin(np.abs(np.exp(ps.x) - 1. / RR))])
+                    
+                    # Integral over small k is easy
+                    lowk = np.exp(ps.x) <= kcri
+                    klow = np.exp(ps.x[lowk == 1])
+                    plow = ps.y[lowk == 1]
+                    sinc = np.sin(RR * klow) / klow / RR
+                    integ = norm * four_pi * klow**2 * plow * sinc \
+                        * np.exp(-klow * RR / suppression)
+                    cf[i] = np.trapz(integ * klow, x=np.log(klow)) / norm
+                    
+                    kstart = kcri
+                    
+                    #print(RR, 1. / RR, kcri, lowk.sum(), ps.x.size - lowk.sum())
+                    #
+                    #if lowk.sum() < 1000 and lowk.sum() % 100 == 0:
+                    #    import matplotlib.pyplot as pl
+                    #    
+                    #    pl.figure(2)
+                    #    
+                    #    sinc = np.sin(RR * k) / k / RR
+                    #    pl.loglog(k, integrand(k) * sinc, color='k')
+                    #    pl.loglog([kcri]*2, [1e-4, 1e4], color='y')
+                    #    raw_input('<enter>')
+                    
+                else:
+                    kstart = kmin
+                    
+                # Add in the wiggly part
+                cf[i] += quad(integrand, kstart, kmax,
+                    epsrel=epsrel, epsabs=epsabs, limit=limit,
+                    weight='sin', wvar=RR)[0] / norm
+                
+            else:
+                raise NotImplemented('help')  
+    
+        pb.finish()
+    
+        # Our FT convention        
+        cf /= (2 * np.pi)**3
+    
+        return cf
+    
+    def FT3D(self, k, cf, R=None, Rmin=None, Rmax=None, 
+        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False,
+        method='clenshaw-curtis', use_pb=False, suppression=np.inf):
+        """
+        This is nearly identical to the inverse transform function above,
+        I just got tired of having to remember to swap meanings of the
+        k and R variables. Sometimes clarity is better than minimizing 
+        redundancy.
+        """
+        assert type(k) == np.ndarray
+    
+        if (type(cf) == FunctionType) or isinstance(cf, interp1d) \
+           or isinstance(cf, Akima1DInterpolator):
+            R = cf.x
+        elif type(cf) == np.ndarray:
+            # Setup interpolant
+    
+            assert R is not None, "Must supply R vector as well!"
+
+            #if interpolant == 'akima':
+            #    ps = Akima1DInterpolator(k, ps)
+            #elif interpolant == 'cubic':
+            cf = interp1d(np.log(R), cf, kind='cubic', assume_sorted=True,
+                bounds_error=False, fill_value=0.0)                
+                
+        else:       
+            raise ValueError('Do not understand type of `ps`.')
+    
+        if Rmin is None:
+            Rmin = R.min()
+        if Rmax is None:
+            Rmax = R.max()    
+    
+        norm = 1. / cf(np.log(Rmin))
+        
+        if method == 'ogata':
+            assert have_hankel, "hankel package required for this!"
+            
+            integrand = lambda RR: four_pi * R**2 * norm * cf(np.log(RR)) 
+            ht = HankelTransform(nu=0, N=k.size, h=0.1)
+            
+            #integrand = lambda kk: ps(np.log(kk)) * norm
+            #ht = SymmetricFourierTransform(3, N=k.size, h=0.001)
+            
+            #print(ht.integrate(integrand))
+            ps = ht.transform(integrand, k=k, ret_err=False, inverse=False) / norm
+
+            return ps
+            
+        ##
+        # Optional progress bar
+        ##
+        pb = ProgressBar(R.size, use=self.pf['progress_bar'] * use_pb, 
+            name='cf(R)->ps(k)')
+        
+        # Loop over k and perform integral    
+        ps = np.zeros_like(k)
+        for i, kk in enumerate(k):
+            
+            if not pb.has_pb:
+                pb.start()              
+            
+            pb.update(i)
+            
+            if method == 'clenshaw-curtis':
+                
+                # Leave sin(k*R) out -- that's the 'weight' for scipy.
+                # Note the minus sign.
+                integrand = lambda RR: norm * four_pi * RR**2 * cf(np.log(RR)) \
+                    * np.exp(-kk * RR / suppression) / kk / RR
+                
+                if split_by_scale:
+                    Rcri = np.exp(cf.x[np.argmin(np.abs(np.exp(cf.x) - 1. / kk))])
+                    
+                    # Integral over small k is easy
+                    lowR = np.exp(cf.x) <= Rcri
+                    Rlow = np.exp(cf.x[lowR == 1])
+                    clow = cf.y[lowR == 1]
+                    sinc = np.sin(kk * Rlow) / Rlow / kk
+                    integ = norm * four_pi * Rlow**2 * clow * sinc \
+                        * np.exp(-kk * Rlow / suppression)
+                    ps[i] = np.trapz(integ * Rlow, x=np.log(Rlow)) / norm
+                    
+                    Rstart = Rcri
+                    
+                    #if lowR.sum() < 1000 and lowR.sum() % 100 == 0:
+                    #    import matplotlib.pyplot as pl
+                    #    
+                    #    pl.figure(2)
+                    #    
+                    #    sinc = np.sin(kk * R) / kk / R
+                    #    pl.loglog(R, integrand(R) * sinc, color='k')
+                    #    pl.loglog([Rcri]*2, [1e-4, 1e4], color='y')
+                    #    raw_input('<enter>')
+                                        
+                else:
+                    Rstart = Rmin
+                    
+                
+                # Use 'chebmo' to save Chebyshev moments and pass to next integral?
+                ps[i] += quad(integrand, Rstart, Rmax,
+                    epsrel=epsrel, epsabs=epsabs, limit=limit,
+                    weight='sin', wvar=kk)[0] / norm
+
+                
+            else:
+                raise NotImplemented('help')
+    
+        pb.finish()
+        
+        # 
+        return np.abs(ps)
+    
+    @property
+    def tab_k(self):
+        """
+        k-vector constructed from mps parameters.
+        """
+        if not hasattr(self, '_tab_k'):
+            dlogk = self.pf['mps_dlnk']
+            kmi, kma = self.pf['mps_lnk_min'], self.pf['mps_lnk_max']
+            logk = np.arange(kmi, kma+dlogk, dlogk)
+            self._tab_k = np.exp(logk)
+        
+        return self._tab_k
+        
+    @tab_k.setter
+    def tab_k(self, value):
+        self._tab_k = value
+    
+    @property
+    def tab_R(self):
+        """
+        R-vector constructed from mps parameters.
+        """
+        if not hasattr(self, '_tab_R'):        
+            dlogR = self.pf['mps_dlnR']
+            Rmi, Rma = self.pf['mps_lnR_min'], self.pf['mps_lnR_max']
+            logR = np.arange(Rmi, Rma+dlogR, dlogR)
+            self._tab_R = np.exp(logR)
+            
+        return self._tab_R
+        
+    @property
+    def tab_z_ps(self):
+        """
+        Redshift array -- different than HMF redshifts!
+        """
+        if not hasattr(self, '_tab_z_ps'):        
+            zmin = self.pf['mps_zmin']
+            zmax = self.pf['mps_zmax']
+            dz = self.pf['mps_dz']
+            
+            Nz = int(round(((zmax - zmin) / dz) + 1, 1))
+            self._tab_z_ps = np.linspace(zmin, zmax, Nz)
+    
+        return self._tab_z_ps    
+        
+    @tab_z_ps.setter
+    def tab_z_ps(self, value):
+        self._tab_z_ps = value    
+        
+    @tab_R.setter
+    def tab_R(self, value):
+        self._tab_R = value
+        
+        print('Setting R attribute. Should verify it matches PS.')
+            
     def __getattr__(self, name):
                 
         if hasattr(HaloMassFunction, name):
@@ -337,46 +678,46 @@ class HaloModel(HaloMassFunction):
             raise AttributeError('This will get caught. Don\'t worry!')
     
         if name not in self.__dict__.keys():
-            self.load_hmf()
+            self._load_hmf()
             
             if name not in self.__dict__.keys():
-                self.load_ps()
+                self._load_ps()
     
         return self.__dict__[name]
     
-    def load_ps(self, suffix='npz'):
+    def _load_ps(self, suffix='npz'):
         """ Load table from HDF5 or binary. """
         
-        fn = '%s/input/hmf/%s.%s' % (ARES, self.table_prefix_ps(), suffix)
+        fn = '%s/input/hmf/%s.%s' % (ARES, self.tab_prefix_ps(), suffix)
     
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')
-            self.z = f['z'].value
-            self.R_cr = f['r'].value
-            self.k_cr_pos = f['k'].value
-            self.ps_dd = f['ps'].value
-            self.cf_dd = f['cf'].value
+            self.tab_z_ps = f['tab_z_ps'].value
+            self.tab_R = f['tab_R'].value
+            self.tab_k = f['tab_k'].value
+            self.tab_ps_mm = f['tab_ps_mm'].value
+            self.tab_cf_mm = f['tab_cf_mm'].value
             f.close()
         elif re.search('.npz', fn):
             f = np.load(fn)
-            self.z = f['z']
-            self.R_cr = f['r']
-            self.k_cr_pos = f['k']
-            self.ps_dd = f['ps']
-            self.cf_dd = f['cf']    
+            self.tab_z_ps = f['tab_z_ps']
+            self.tab_R = f['tab_R']
+            self.tab_k = f['tab_k']
+            self.tab_ps_mm = f['tab_ps_mm']
+            self.tab_cf_mm = f['tab_cf_mm']    
             f.close()                        
         elif re.search('.pkl', fn):
             f = open(fn, 'rb')
-            self.z = pickle.load(f)
-            self.R_cr = pickle.load(f)
-            self.k_cr_pos = pickle.load(f)
-            self.ps_dd = pickle.load(f)
-            self.cf_dd = pickle.load(f)    
+            self.tab_z_ps = pickle.load(f)
+            self.tab_R = pickle.load(f)
+            self.tab_k = pickle.load(f)
+            self.tab_ps_mm = pickle.load(f)
+            self.tab_cf_mm = pickle.load(f)
             f.close()
         else:
             raise IOError('Unrecognized format for mps_table.')    
 
-    def table_prefix_ps(self, with_size=True):
+    def tab_prefix_ps(self, with_size=True):
         """
         What should we name this table?
         
@@ -391,15 +732,25 @@ class HaloModel(HaloMassFunction):
         """
         
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+
+        z1, z2 = self.pf['mps_zmin'], self.pf['mps_zmax']
         
-        rarr = self.pf['fft_scales']
+        dlogk = self.pf['mps_dlnk']
+        kmi, kma = self.pf['mps_lnk_min'], self.pf['mps_lnk_max']
+        #logk = np.arange(kmi, kma+dlogk, dlogk)
+        #karr = np.exp(logk)
+        
+        dlogR = self.pf['mps_dlnR']
+        Rmi, Rma = self.pf['mps_lnR_min'], self.pf['mps_lnR_max']
+        #logR = np.arange(np.log(Rmi), np.log(Rma)+dlogR, dlogR)
+        #Rarr = np.exp(logR)
+        
                 
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz']) + 1
+            zsize = ((self.pf['mps_zmax'] - self.pf['mps_zmin']) \
+                / self.pf['mps_dz']) + 1
 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)
@@ -407,55 +758,36 @@ class HaloModel(HaloMassFunction):
             zsize = int(round(zsize, 1))
                 
             # Should probably save NFW information etc. too
-            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_logR_%.1f-%.1f_dlogr_%.2f_dlogk_%.2f' \
+            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnR_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
-                   np.log10(min(rarr)), np.log10(max(rarr)), 
-                   self.pf['mpowspec_dlogr'],
-                   self.pf['mpowspec_dlogk'])
+                   Rmi, Rma, dlogR, kmi, kma, dlogk)
         else:
             raise NotImplementedError('help')
-            #return 'ps_%s_logM_*_%i-%i_z_*_%i-%i' \
-            #    % (self.hmf_func, M1, M2, z1, z2)
-    
-    def tabulate_ps(self, clobber=False, checkpoint=True):
+
+    def tab_prefix_ps_check(self, with_size=True):
         """
-        Tabulate the (density) power spectrum.
+        A version of the prefix to be used only for checkpointing.
+        
+        This just means take the full prefix and hack out the bit with the
+        redshift interval.
         """
         
-        pb = ProgressBar(len(self.z), 'ps_dd')
+        prefix = self.tab_prefix_ps(with_size)
+        
+        iz = prefix.find('_z_')
+        iR = prefix.find('_lnR_')
+        
+        return prefix[0:iz] + prefix[iR:]
+
+    def TabulatePS(self, clobber=False, checkpoint=True, **ftkwargs):
+        """
+        Tabulate the matter power spectrum as a function of redshift and k.
+        """
+        
+        pb = ProgressBar(len(self.tab_z_ps), 'ps_dd')
         pb.start()
-        
-        step = np.diff(self.pf['fft_scales'])[0]
-        R = self.pf['fft_scales']
-        logR = np.log(R)
-        
-        # Find corresponding wavenumbers
-        k = np.fft.fftfreq(R.size, step)
-        absk = np.abs(k)
-        logk = np.log(absk)
-        
-        # Zero-frequency shifted to center so values are monotonically rising
-        k_sh = np.fft.fftshift(k)
-        absk_sh = np.abs(k_sh)
-        logk_sh = np.log(absk_sh)
-        
-        # The frequency array has half the number of unique elements (plus 1)
-        # as the scales array. 
-        
-        # Set up coarse grid for evaluation of halo model
-        k_mi, k_ma = absk_sh[absk_sh>0].min(), absk_sh.max()
-        dlogk = self.pf['mpowspec_dlogk']
-        logk_cr_pos = np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk)
-        self.k_cr_pos = np.exp(logk_cr_pos)
-                
-        # Setup degraded scales array
-        r_mi, r_ma = R.min(), R.max()
-        dlogr = self.pf['mpowspec_dlogr']
-        logR_cr = np.arange(np.log(r_mi), np.log(r_ma)+dlogr, dlogr)
-        self.R_cr = R_cr = np.exp(logR_cr)
-        
-        ct = 0
-        
+
+        # Lists to store any checkpoints that are found        
         _z = []
         _ps = []
         _cf = []
@@ -463,12 +795,16 @@ class HaloModel(HaloMassFunction):
             if (not os.path.exists('tmp')):
                 os.mkdir('tmp')
 
-            fn = 'tmp/{}.{}.pkl'.format(self.table_prefix_ps(True), 
-                str(rank).zfill(3))    
+            pref = self.tab_prefix_ps_check(True)
+            fn = 'tmp/{}.{}.pkl'.format(pref, str(rank).zfill(3))    
                 
             if os.path.exists(fn) and (not clobber):
                                 
                 # Should delete if clobber == True?
+                
+                if rank == 0:
+                    print("Checkpoints for this model found in tmp/.")
+                    print("Re-run with clobber=True to overwrite.")
                 
                 f = open(fn, 'rb')
                 while True:
@@ -483,51 +819,66 @@ class HaloModel(HaloMassFunction):
                     _cf.append(tmp[2])
                 
                 if _z != []:
-                    print "Processor {} loaded checkpoints for z={}-{}".format(rank, 
-                        min(_z), max(_z))
+                    print "Processor {} loaded checkpoints for z={}".format(rank, _z)
             
             elif os.path.exists(fn):
                 os.remove(fn)
+                
+        # Must collect checkpoints so we don't re-run something another
+        # processor did!
+        if size > 1 and _z != []:
+            _zdone = MPI.COMM_WORLD.reduce(_z, root=0)
+            zdone = MPI.COMM_WORLD.bcast(_zdone, root=0)
+            _zdone_by = MPI.COMM_WORLD.reduce([rank] * len(_z), root=0)
+            zdone_by = MPI.COMM_WORLD.bcast(_zdone_by, root=0)
+        else:
+            zdone = []
+            zdone_by = []
             
-        # Must tabulate onto coarse grid otherwise we'll run out of memory.
-        self.ps_dd = np.zeros((len(self.z), len(self.k_cr_pos)))
-        self.cf_dd = np.zeros((len(self.z), len(self.R_cr)))
-        for i, z in enumerate(self.z):
+        # Figure out what redshift still need to be done by somebody
+        assignments = []
+        for k, z in enumerate(self.tab_z_ps):
+            if z in zdone:
+                continue
+    
+            assignments.append(z)    
         
-            if i % size != rank:
+        # Split up the work among processors
+        my_assignments = []
+        for k, z in enumerate(assignments):
+            if k % size != rank:
                 continue
             
-            # Load checkpoint
-            if z in _z:
-                
-                j = _z.index(z)
-                self.ps_dd[i] = _ps[j]
-                self.cf_dd[i] = _cf[j]
-                
-                #print rank, z, _z[j]
+            my_assignments.append(z)
+            
+        if size > 1:
+            if len(assignments) % size != 0:
+                print("WARNING: Uneven load: {} redshifts and {} processors!".format(len(assignments), size))
                             
-                pb.update(i)
+        self.tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
+        self.tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
+        for i, z in enumerate(self.tab_z_ps):
+            
+            # Done but not by me!
+            if (z in zdone) and (z not in _z):
                 continue
-                
+                        
+            if z not in my_assignments:
+                continue
+            
             ##
             # Calculate from scratch
             ##                
-                            
-            ps_k_cr_pos = self.PowerSpectrum(z, self.k_cr_pos)
+            print("Processor {} generating z={} PS and CF...".format(rank, z))
 
             # Must interpolate back to fine grid (uniformly sampled 
             # real-space scales) to do FFT and obtain correlation function
-            self.ps_dd[i] = ps_k_cr_pos.copy()
-            
-            # Recall that logk contains +/- frequencies so this power spectrum
-            # is (properly) mirrored about zero-frequency 
-            ps_all_k = np.exp(np.interp(logk, logk_cr_pos, 
-                np.log(ps_k_cr_pos)))
-                
-            cf_R = 2 * np.fft.ifft(ps_all_k)
-
-            # Once we have correlation function, degrade it to coarse grid.
-            self.cf_dd[i] = np.interp(logR_cr, logR, cf_R.real)
+            self.tab_ps_mm[i] = self.PowerSpectrum(z, self.tab_k)
+                 
+            # Compute correlation function at native resolution to save time
+            # later.
+            self.tab_cf_mm[i] = self.InverseFT3D(self.tab_R, self.tab_ps_mm[i],
+                self.tab_k, **ftkwargs)
             
             pb.update(i)
                         
@@ -535,23 +886,54 @@ class HaloModel(HaloMassFunction):
                 continue
                                 
             with open(fn, 'ab') as f:
-                pickle.dump((z, self.ps_dd[i], self.cf_dd[i]), f)
-                #print "Processor {} wrote checkpoint for z={}".format(rank, z)
+                pickle.dump((z, self.tab_ps_mm[i], self.tab_cf_mm[i]), f)
+                #print("Processor {} wrote checkpoint for z={}".format(rank, z))
             
         pb.finish()
+        
+        # Grab checkpoints before writing to disk
+        for i, z in enumerate(self.tab_z_ps):
+        
+            # Done but not by me! If not for this, Allreduce would sum
+            # solutions from different processors.
+            if (z in zdone) and (z not in _z):
+                continue
+            
+            # Two processors did the same redshift (backward compatibility)
+            if zdone.count(z) > 1:
+                done_by = []
+                for ii, zz in enumerate(zdone):
+                    if zz != z:
+                        continue
+                    done_by.append(zdone_by[ii])    
+                    
+                if rank != done_by[0]:
+                    continue
+                                
+            ##
+            # Load checkpoint, if one exists.
+            ##
+            if z in _z:
+                
+                j = _z.index(z)
+                self.tab_ps_mm[i] = _ps[j]
+                self.tab_cf_mm[i] = _cf[j]
+
 
         # Collect results!
         if size > 1:
-            tmp1 = np.zeros_like(self.ps_dd)
-            nothing = MPI.COMM_WORLD.Allreduce(self.ps_dd, tmp1)
-            self.ps_dd = tmp1
+            tmp1 = np.zeros_like(self.tab_ps_mm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.tab_ps_mm, tmp1)
+            self.tab_ps_mm = tmp1
         
-            tmp2 = np.zeros_like(self.cf_dd)
-            nothing = MPI.COMM_WORLD.Allreduce(self.cf_dd, tmp2)
-            self.cf_dd = tmp2
+            tmp2 = np.zeros_like(self.tab_cf_mm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.tab_cf_mm, tmp2)
+            self.tab_cf_mm = tmp2
+            
+        # Done!    
 
-    def save_ps(self, fn=None, clobber=True, destination=None, format='npz',
-        checkpoint=True):
+    def SavePS(self, fn=None, clobber=True, destination=None, format='npz',
+        checkpoint=True, **ftkwargs):
         """
         Save matter power spectrum table to HDF5 or binary (via pickle).
     
@@ -559,7 +941,7 @@ class HaloModel(HaloMassFunction):
         ----------
         fn : str (optional)
             Name of file to save results to. If None, will use 
-            self.table_prefix and value of format parameter to make one up.
+            self.tab_prefix_ps and value of format parameter to make one up.
         clobber : bool
             Overwrite pre-existing files of the same name?
         destination : str
@@ -574,7 +956,7 @@ class HaloModel(HaloMassFunction):
         
         # Determine filename
         if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix_ps(True), format)
+            fn = '%s/%s.%s' % (destination, self.tab_prefix_ps(True), format)
         else:
             if format not in fn:
                 print "Suffix of provided filename does not match chosen format."
@@ -585,10 +967,10 @@ class HaloModel(HaloMassFunction):
                 os.system('rm -f %s' % fn)
             else:
                 raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
-    
+
         # Do this first! (Otherwise parallel runs will be garbage)
-        self.tabulate_ps(clobber=clobber, checkpoint=checkpoint)
-    
+        self.TabulatePS(clobber=clobber, checkpoint=checkpoint, **ftkwargs)
+                
         if rank > 0:
             return
     
@@ -610,31 +992,36 @@ class HaloModel(HaloMassFunction):
     
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
-            f.create_dataset('z', data=self.z)
-            f.create_dataset('r', data=self.R_cr)
-            f.create_dataset('k', data=self.k_cr_pos)
-            f.create_dataset('ps', data=self.ps_dd)
-            f.create_dataset('cf', data=self.cf_dd)
+            f.create_dataset('tab_z_ps', data=self.tab_z_ps)
+            f.create_dataset('tab_R', data=self.tab_R)
+            f.create_dataset('tab_k', data=self.tab_k)
+            f.create_dataset('tab_ps_mm', data=self.tab_ps_mm)
+            f.create_dataset('tab_cf_mm', data=self.tab_cf_mm)
   
             f.close()
     
         elif format == 'npz':
-            data = {'z': self.z, 
-                    'r': self.R_cr,
-                    'k': self.k_cr_pos,
-                    'ps': self.ps_dd,
-                    'cf': self.cf_dd,
+            data = {'tab_z_ps': self.tab_z_ps, 
+                    'tab_R': self.tab_R,
+                    'tab_k': self.tab_k,
+                    'tab_ps_mm': self.tab_ps_mm,
+                    'tab_cf_mm': self.tab_cf_mm,
                     'hmf-version': hmf_v}
-            np.savez(fn, **data)
+                    
+            try:
+                np.savez(fn, **data)
+            except IOError:
+                f = open(fn, 'wb')
+                np.savez(f, **data)
     
         # Otherwise, pickle it!    
         else:   
             f = open(fn, 'wb')
-            pickle.dump(self.z, f)
-            pickle.dump(self.r, f)
-            pickle.dump(self.k_cr_pos, f)
-            pickle.dump(self.ps_dd, f)
-            pickle.dump(self.cf_dd, f)
+            pickle.dump(self.tab_z_ps, f)
+            pickle.dump(self.tab_R, f)
+            pickle.dump(self.tab_k, f)
+            pickle.dump(self.tab_ps_mm, f)
+            pickle.dump(self.tab_cf_mm, f)
             pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
     

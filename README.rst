@@ -40,6 +40,10 @@ transfer and/or SED optimization. Either way, please also provide a link
 to `this page <https://bitbucket.org/mirochaj/ares>`_ as a footnote.
  
 
+Citation
+--------
+If you use ARES in paper please reference `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_ if its an application of the global 21-cm modeling machinery and `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_ if you use the 1-D radiative transfer and/or SED optimization. Either way, please provide a link to `this page <https://bitbucket.org/mirochaj/ares>`_ as a footnote.
+
 Getting started
 ---------------------
 To clone a copy and install: ::
@@ -159,4 +163,3 @@ Additional contributions / corrections / suggestions from:
 - Garett Lopez
 - Ranita Jana
 - Daniel Meinert
-

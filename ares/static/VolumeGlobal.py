@@ -349,7 +349,7 @@ class GlobalVolume(object):
             prefix = 'igm'
         
         if species == 0:     
-            weight = 1. / self.cosm.nH(z) / kw['{!s}_h_1'.format(prefix)]
+            weight = 1. / self.cosm.nH(z)  / kw['{!s}_h_1'.format(prefix)]
         elif species == 1:
             weight = 1. / self.cosm.nHe(z) / kw['{!s}_he_1'.format(prefix)]
         elif species == 2:

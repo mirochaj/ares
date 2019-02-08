@@ -408,7 +408,7 @@ class OpticalDepth(object):
                 self.E = self.E0 * self.R**np.arange(self.N)
             else:
                 self.E = np.flip(self.E1 * self.R**-np.arange(self.N), 0)
-    
+
         # Frequency grid must be index-1-based.
         self.nn = np.arange(1, self.N+1)
     

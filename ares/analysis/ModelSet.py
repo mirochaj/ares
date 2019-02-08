@@ -671,7 +671,8 @@ class ModelSet(BlobFactory):
         
         Returns
         -------
-        Lists of walker ID numbers. First, the good walkers, then the bad.
+        Lists of walker ID numbers. First, the good walkers, then the bad, as
+        well as the mask itself.
         """
         
         bad_walkers = []

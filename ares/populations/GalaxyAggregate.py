@@ -28,7 +28,7 @@ from ..sources import Star, BlackHole, StarQS, SynthesisModel
 from ..util import ParameterFile, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
+    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL, k_B
     
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']    
 tiny_sfrd = 1e-15    
@@ -281,6 +281,18 @@ class GalaxyAggregate(HaloPopulation):
         return rhoL / (eV_per_phot * erg_per_ev)
     
     def IonizingEfficiency(self, z):
-        return self.pf['pop_Nion'] * self.pf['pop_fesc'] * self.pf['pop_fstar']
+        """
+        This is not quite the standard definition of zeta. It has an extra 
+        factor of fbaryon since fstar is implemented throughout the rest of 
+        the code as an efficiency wrt baryonic inflow, not matter inflow.
+        """
+        zeta = self.pf['pop_Nion'] * self.pf['pop_fesc'] \
+            * self.pf['pop_fstar'] #* self.cosm.fbaryon
+        return zeta
         
+    def HeatingEfficiency(self, z):
+        uconn = s_per_yr * self.cosm.g_per_b / g_per_msun
+        zeta_x = self.pf['pop_fXh'] * self.pf['pop_rad_yield'] * uconn \
+               * (2. / 3. / k_B / self.pf['ps_saturated'] / self.cosm.TCMB(z))
     
+        return zeta_x
