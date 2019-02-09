@@ -1661,6 +1661,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_sfrd_total_ = np.zeros_like(self.halos.tab_z)
             for i, z in enumerate(self.halos.tab_z):
                 
+                if z < self.pf['final_redshift']:
+                    continue
+                
+                if z > self.pf['initial_redshift']:
+                    continue    
+                
                 if z > self.zform:
                     continue
 

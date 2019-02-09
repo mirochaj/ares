@@ -1371,7 +1371,6 @@ class UniformBackground(object):
                                                                      
                         # k is a band ID number
                         # i is just an index
-                        print(i, k, popid)
                         _E, J = self._fluxes_from[(popid, k)]
                     
                         n = narr[i]
