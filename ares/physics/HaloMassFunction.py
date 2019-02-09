@@ -735,7 +735,6 @@ class HaloMassFunction(object):
         "Evolve" a halo through time (assuming fixed number density).
         """
         
-<<<<<<< working copy
         M = np.zeros(self.tab_z.size)
         
         m_1 = self.tab_M[iM]
@@ -1108,7 +1107,6 @@ class HaloMassFunction(object):
         
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
-<<<<<<< working copy
             f.create_dataset('tab_z', data=self.tab_z)
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_dndm', data=self.tab_dndm)

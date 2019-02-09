@@ -638,7 +638,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
             if self.pf['pop_MAR_corr'] == 'integral':
 
-<<<<<<< working copy
                 _rhs = np.zeros_like(self.halos.tab_z)
                 _lhs = np.zeros_like(self.halos.tab_z)
                 _tab_eta_ = np.ones_like(self.halos.tab_z)
@@ -2224,7 +2223,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         return np.diag(results)    
     
->>>>>>> merge rev
     def _SAM_2z(self, z, y):
         raise NotImplemented('Super not done with this!')
         

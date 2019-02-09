@@ -987,7 +987,7 @@ def HaloMassFunctionParameters():
     "hmf_logMmin": 4,
     "hmf_logMmax": 18,
     "hmf_dlogM": 0.01,
-    "hmf_zmin": 0,
+    "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
 
