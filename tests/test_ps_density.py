@@ -44,10 +44,10 @@ def test():
         pl.loglog(karr, (delta1+delta2), color=colors[i], ls='-', lw=1,
             label='halo model')
         
-        pop.halos.MF.update(z=z)
+        pop.halos._MF.update(z=z)
     
-        k = pop.halos.MF.k
-        powspec = k**3 * pop.halos.MF.power / (2. * np.pi**2)
+        k = pop.halos._MF.k
+        powspec = k**3 * pop.halos._MF.power / (2. * np.pi**2)
         pl.loglog(k, powspec, ls='--', alpha=0.5, color=colors[i],
             label='linear')
         

@@ -342,11 +342,6 @@ class HaloMassFunction(object):
             self._pars_growth = {'dlna': self.pf['hmf_dlna']}
         return self._pars_growth
 
-    def pars_cosmo(self):
-        return {'Om0':self.cosm.omega_m_0,
-                'Ob0':self.cosm.omega_b_0,
-                'H0':self.cosm.h70*100}    
-        
     @property
     def pars_transfer(self):
         if not hasattr(self, '_pars_transfer'):                   
@@ -512,6 +507,10 @@ class HaloMassFunction(object):
         if not hasattr(self, '_logM_min'):
             self.build_1d_splines(Tmin=self.pf['pop_Tmin'], mu=self.pf['mu'])
         return self._logM_min
+    
+    @logM_min.setter
+    def logM_min(self, value):
+        self._logM_min = value
             
     @property
     def fcoll_Tmin(self):
