@@ -1263,10 +1263,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._tab_logMmax_    
     
     @property
+    def _loaded_guesses(self):
+        if not hasattr(self, '_loaded_guesses_'):
+            self._loaded_guesses_ = False
+        return self._loaded_guesses_
+    
+    @_loaded_guesses.setter
+    def _loaded_guesses(self, value):
+        self._loaded_guesses_ = value
+    
+    @property
     def _tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin_'):
+                        
             # First, compute threshold mass vs. redshift
-            if self.pf['feedback_LW_guesses'] is not None:
+            if self.pf['feedback_LW_guesses'] is not None and (not self._loaded_guesses):
                 guess = self._guess_Mmin()
                 if guess is not None:
                     self._tab_Mmin = guess
@@ -1304,7 +1315,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmin(self, value):
         if ismethod(value):
             self.Mmin = value
-            self._tab_Mmin_ = np.array(list(map(value, self.halos.tab_z)), dtype=float)
+            self._tab_Mmin_ = np.array(list(map(value, self.halos.tab_z)), 
+                dtype=float)
         elif type(value) in [int, float, np.float64]:    
             self._tab_Mmin_ = value * np.ones_like(self.halos.tab_z)
         else:
@@ -1724,6 +1736,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ##
             self._tab_sfrd_total_ = np.zeros_like(self.halos.tab_z)
             for i, z in enumerate(self.halos.tab_z):
+                
+                if z < self.pf['final_redshift']:
+                    continue
+                
+                if z > self.pf['initial_redshift']:
+                    continue
                 
                 if z > self.zform:
                     continue
@@ -3007,8 +3025,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         if fn is None:
             return None
+            
+        if self.id_num is None:
+            return None
         
         if isinstance(fn, basestring):
+            print("Loading guesses", self._loaded_guesses, self.id_num)
             anl = ModelSet(fn)
         elif isinstance(fn, ModelSet): 
             anl = fn
@@ -3047,7 +3069,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             score += np.abs(np.log10(vals) - np.log10(kw[par]))
         
         best = np.argmin(score)
-                
+                        
         return np.interp(self.halos.tab_z, zarr, Mmin[best])
         
     def save(self, prefix=None, fn=None, fmt='npz'):

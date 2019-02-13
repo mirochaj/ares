@@ -55,6 +55,22 @@ class DustCorrection(object):
         Return non-negative mean correction <Auv> averaged over Luv assuming a
         normally distributed Auv
         """
+        
+        
+        ##
+        # Physical models!
+        ##
+        if self.method == 'physical':
+            raise NotImplemented('help')
+        
+        
+        
+        
+        ##
+        # Empirical prescriptions.
+        ##
+        
+        
         if self.method is None:
             method = None
         elif type(self.method) is list:
@@ -85,6 +101,12 @@ class DustCorrection(object):
         This could probably be a lot faster.
         """
         
+        ##
+        # Physical models!
+        ##
+        if self.method == 'physical':
+            raise NotImplemented('help')
+        
         # Compute the absolute magnitude one measured in the first place,
         # i.e., before correcting for dust.
            
@@ -109,6 +131,14 @@ class DustCorrection(object):
 
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
+        
+        ##
+        # Physical models!
+        ##
+        if self.method == 'physical':
+            raise NotImplemented('help')
+            
+            # Need a population instance.
         
         if isinstance(self.pf['dustcorr_beta'], basestring):
             return self._beta_fit(z, mag)

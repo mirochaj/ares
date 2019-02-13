@@ -848,7 +848,7 @@ def HaloMassFunctionParameters():
     
     # Table resolution
     "hmf_logMmin": 4,
-    "hmf_logMmax": 16,
+    "hmf_logMmax": 18,
     "hmf_dlogM": 0.01,
     "hmf_zmin": 0,
     "hmf_zmax": 60,

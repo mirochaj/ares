@@ -75,8 +75,12 @@ class GalaxyAggregate(HaloPopulation):
                 z, sfrd = self.pf['pop_sfrd']
                 
                 assert np.all(np.diff(z) > 0), "Redshifts must be ascending."
-                                
-                sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
+                
+                if self.pf['pop_sfrd_units'] == 'internal':
+                    sfrd[sfrd * rhodot_cgs <= tiny_sfrd] = tiny_sfrd / rhodot_cgs
+                else:
+                    sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
+                    
                 interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_interp_sfrd'],
                     bounds_error=False, fill_value=-np.inf)
                     

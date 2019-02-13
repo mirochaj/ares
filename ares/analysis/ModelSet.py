@@ -1298,6 +1298,14 @@ class ModelSet(BlobFactory):
             loc = np.sort(self.logL)[N // 2]
         elif best_fit == 'mode':
             loc = np.argmax(self.logL)
+            
+            #psorted = np.argsort(self.logL)
+            #
+            #cut = int(0.9 * len(self.logL))
+            #
+            #loc = psorted[cut:]
+            
+            
 
         for i, par in enumerate(pars):
             self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
