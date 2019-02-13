@@ -275,7 +275,7 @@ def PhysicsParameters():
     # Assume that uniform background only emerges gradually as 
     # the typical separation of halos becomes << Hubble length
     "feedback_LW_ramp": 0,
-        
+            
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
 
@@ -848,7 +848,7 @@ def HaloMassFunctionParameters():
     
     # Table resolution
     "hmf_logMmin": 4,
-    "hmf_logMmax": 16,
+    "hmf_logMmax": 18,
     "hmf_dlogM": 0.01,
     "hmf_zmin": 0,
     "hmf_zmax": 60,

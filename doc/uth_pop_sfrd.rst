@@ -87,6 +87,20 @@ sets the SFRD to be
 .. math :: \mathrm{SFRD} = 10^{-2} \left(\frac{1 + z}{7} \right)^{-6} M_{\odot} \ \mathrm{year}^{-1} \ \mathrm{cMpc}^{-3}
 
 
+``sfrd-tab`` models
+~~~~~~~~~~~~~~~~~~~
+Alternatively, you can supply a lookup table for the SFRD. To do this, modify your parameters as follows:
+
+::
+
+    pars['pop_sfr_model'] = 'sfrd-tab'
+    pars['pop_sfrd'] = (z, sfrd)
+
+where ``z`` and ``sfrd`` are arrays you've generated yourself. *ares* will construct an interpolant from these arrays using ``scipy.interpolate.interp1d``, using the method supplied in ``pop_sfrd_interp``. By default, this will be a ``'cubic'`` spline, but you can also supply, e.g., ``pop_sfrd_interp='linear'``.
+
+By default, *ares* assumes your SFRD is in units of :math:`\mathrm{g} \  \mathrm{s}^{-1} \ \mathrm{cm}^{-3}` (co-moving) (corresponding to ``pop_sfrd_units='internal'``), but if you can change this to 'msun/yr/cmpc^3' if you'd prefer the more sensible units of :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}`! In fact, these are the only two options, so as long as ``pop_sfrd_units != 'internal'``, *ares* assumes the :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}` units.
+
+
 ``sfe-func`` models
 ~~~~~~~~~~~~~~~~~~~
 Rather than parameterizing the SFRD directly, it is possible to parameterize the star formation efficiency as a function of halo mass and redshift, and integrate over the halo mass function in order to obtain the global SFRD.
@@ -121,6 +135,7 @@ and the SFRD:
     pop.SFRD(10.)
     
     
+See :doc:`example_pop_galaxy` for more information about this.    
 
 ``link`` models
 ~~~~~~~~~~~~~~~
