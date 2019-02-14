@@ -158,8 +158,6 @@ class loglikelihood(LogLikelihood):
 
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
 
-        print(lnL, self.const_term)
-
         return lnL + self.const_term
     
 class FitGalaxyPopulation(FitBase):

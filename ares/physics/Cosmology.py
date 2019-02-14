@@ -508,7 +508,7 @@ class Cosmology(object):
         
         """
         
-        d = self.LuminosityDistance(z) # cm
+        d = self.LuminosityDistance(z) / (1. + z)**2# cm
         
         in_rad = (angle / 60.) * np.pi / 180.
         

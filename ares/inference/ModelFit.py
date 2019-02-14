@@ -162,7 +162,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
             kwargs[par] = 10**pars[i]
         else:
             kwargs[par] = pars[i]
-
+            
     # Apply prior on model parameters first (dont need to generate model)
     point = {}
     for i, par in enumerate(parameters):
@@ -243,7 +243,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     PofD = lp + lnL
 
     # emcee doesn't like nans, but -inf is OK (see below)
-    if np.isnan(PofD):
+    if np.isnan(PofD) or isinstance(PofD, np.ma.core.MaskedConstant):
         del sim, kw, kwargs
         gc.collect()
         return -np.inf, blank_blob
@@ -259,7 +259,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     gc.collect()
     
     #write_memory('4')
-                
+                    
     return PofD, blobs    
 
 def _str_to_val(p, par, pvals, pars):
