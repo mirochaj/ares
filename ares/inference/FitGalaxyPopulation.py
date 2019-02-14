@@ -139,6 +139,7 @@ class loglikelihood(LogLikelihood):
                                     
                     # Compute LF
                     p = pop.LuminosityFunction(z=z, x=M, mags=True)
+                                        
                 elif quantity == 'smf':
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(z, M)
@@ -156,6 +157,8 @@ class loglikelihood(LogLikelihood):
         #del sim, pops
 
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
+
+        print(lnL, self.const_term)
 
         return lnL + self.const_term
     
@@ -251,7 +254,7 @@ class FitGalaxyPopulation(FitBase):
                 for quantity in self.include:
                     if quantity not in litdata.data.keys():
                         continue
-                        
+                                                
                     # Short hand
                     data = litdata.data[quantity]
                     redshifts = litdata.redshifts
