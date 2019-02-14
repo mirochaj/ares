@@ -459,7 +459,15 @@ class MetaGalacticBackground(AnalyzeMGB):
             delattr(self, '_solver')
             delattr(self, '_pops')
         else:
-            delattr(self.solver, '_generators')        
+            delattr(self.solver, '_generators')       
+            
+        ##
+        # Only read guesses on first iteration. Turn off for all subsequent
+        # iterations. Don't like modifying pf in general, but kind of need to
+        # here.
+        ##    
+        if self.pf['feedback_LW_guesses'] is not None:
+            self.kwargs['feedback_LW_guesses'] = None
 
         # May not need to do this -- just execute loop just above?
         self.__init__(**self.kwargs)
@@ -847,7 +855,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.count == 1:            
             has_guess = False
             if self.pf['feedback_LW_guesses'] is not None:
-                print('hey loading guesses')
                 has_guess = True
                 pid = self.pf['feedback_LW_sfrd_popid']
                 #_z_guess, _Mmin_guess = guess
@@ -859,6 +866,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                         
             self._Mmin_bank = [self._Mmin_pre.copy()]
             self._Jlw_bank = [Jlw]
+            
+            self.pf['feedback_LW_guesses'] = None
                         
             ## 
             # Quit right away if you say so. Note: Dangerous!

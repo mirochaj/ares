@@ -18,7 +18,7 @@ from ..util.Math import interp1d
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
-    cm_per_mpc, k_B, m_p
+    cm_per_mpc, cm_per_kpc, k_B, m_p
 
 class Cosmology(object):
     def __init__(self, pf=None, **kwargs):        
@@ -399,7 +399,8 @@ class Cosmology(object):
     
     def LuminosityDistance(self, z):
         """
-        Returns luminosity distance in cm.  Assumes we mean distance from us (z = 0).
+        Returns luminosity distance in cm.  Assumes we mean distance from 
+        us (z = 0).
         """
         
         integr = quad(lambda z: self.hubble_0 / self.HubbleParameter(z), 
@@ -490,5 +491,28 @@ class Cosmology(object):
             
         return 4. * np.pi * (l_J / 2)**3 * self.rho_b_z0 / 3. / g_per_msun
         
+    def AngleToComovingLength(self, z, angle):
+        """
+        Convert an angle to a co-moving length-scale at the observed redshift.
         
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        angle : int, float
+            Angle in arcminutes.
+        
+        Returns
+        -------
+        Length scale in Mpc.
+        
+        """
+        
+        d = self.LuminosityDistance(z) # cm
+        
+        in_rad = (angle / 60.) * np.pi / 180.
+        
+        x = np.tan(in_rad) * d / cm_per_mpc
+        
+        return x
         

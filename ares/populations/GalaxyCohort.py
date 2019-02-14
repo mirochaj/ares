@@ -3020,17 +3020,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Super non-general at the moment sorry.
         """
-        
+                
         fn = self.pf['feedback_LW_guesses']
         
         if fn is None:
             return None
             
-        if self.id_num is None:
-            return None
-        
         if isinstance(fn, basestring):
-            print("Loading guesses", self._loaded_guesses, self.id_num)
             anl = ModelSet(fn)
         elif isinstance(fn, ModelSet): 
             anl = fn
