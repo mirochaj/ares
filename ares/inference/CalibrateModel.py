@@ -75,7 +75,7 @@ class CalibrateModel(object):
         self.zevol_sfe_shape = int(zevol_sfe_shape)
         self.include_obsc = int(include_obsc)
         self.zevol_obsc = int(zevol_obsc)
-        self.include_dust = int(include_dust)
+        self.include_dust = include_dust
         self.save_lf = int(save_lf)
         self.save_smf = int(save_smf)
         self.save_sfrd = int(save_sfrd)
