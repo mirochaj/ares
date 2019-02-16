@@ -53,7 +53,10 @@ aux_data = \
  'edges': ['http://loco.lab.asu.edu/download',
     '790/figure1_plotdata.csv',
     '792/figure2_plotdata.csv', 
-    None]
+    None],
+ 'nircam': ['https://jwst-docs.stsci.edu/download/attachments/17760694/',
+     'nircam_throughputs_22April2016_v4.tar.gz',
+     None]
 }
 
 if not os.path.exists('input'):
