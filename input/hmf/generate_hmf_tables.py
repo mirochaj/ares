@@ -16,7 +16,7 @@ parallel, e.g.,
 import ares
 
 ## INPUT
-fit = 'ST'
+fit = 'PS'
 fmt = 'npz'
 ##
 

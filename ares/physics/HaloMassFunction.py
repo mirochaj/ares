@@ -342,11 +342,6 @@ class HaloMassFunction(object):
             self._pars_growth = {'dlna': self.pf['hmf_dlna']}
         return self._pars_growth
 
-    def pars_cosmo(self):
-        return {'Om0':self.cosm.omega_m_0,
-                'Ob0':self.cosm.omega_b_0,
-                'H0':self.cosm.h70*100}    
-        
     @property
     def pars_transfer(self):
         if not hasattr(self, '_pars_transfer'):                   
@@ -406,8 +401,7 @@ class HaloMassFunction(object):
             self._tab_fcoll = self.tab_mgtm / self.cosm.mean_density0
         return self._tab_fcoll
 
-    @property
-                                
+    @property                   
     def tab_bias(self):
         if not hasattr(self, '_tab_bias'):
             self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))

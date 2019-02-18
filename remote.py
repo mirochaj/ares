@@ -19,20 +19,15 @@ _bpass_v1_links = ['sed_bpass_z{!s}_tar.gz'.format(Z) \
 aux_data = \
 {
  'hmf': ['{!s}/downloads'.format(ares_link),
-    'hmf_ST_logM_1200_4-16_z_1141_3-60.npz',
-    'hmf_ST_logM_1200_4-16_z_1201_0-60.npz',
-    'hmf_Tinker10_logM_1200_4-16_z_1201_0-60.npz',
+    'hmf_ST_logM_1200_4-18_z_1141_3-60.npz',
+    'hmf_ST_logM_1200_4-18_z_1201_0-60.npz',
+    'hmf_Tinker10_logM_1200_4-18_z_1201_0-60.npz',
     None],
  'inits': ['{!s}/downloads'.format(ares_link),
      'initial_conditions.npz',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
-<<<<<<< working copy
-||||||| base
-    'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
-=======
     'optical_depth_H_400x862_z_5-60_logE_2.3-4.5.npz',
->>>>>>> merge rev
     'optical_depth_He_200x429_z_5-60_logE_2.3-4.5.npz',
     'optical_depth_He_400x862_z_5-60_logE_2.3-4.5.npz',
     'optical_depth_He_1000x2158_z_5-60_logE_2.3-4.5.npz',
