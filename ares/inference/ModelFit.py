@@ -1213,16 +1213,16 @@ class ModelFit(FitBase):
         pos = sample_ball(mlpt, sigm + syst, size=self.nwalkers)   
         
         if not np.all(mlpt == orig):
-            if j == 2:
+            if j+1 == 2:
                 sup = 'nd'
-            elif j == 3:
+            elif j+1 == 3:
                 sup = 'rd'
             else:
                 sup = 'th'
             print("WARNING: Burn-in may have been too short based on location of") 
             print("         maximum likelihood position (outside 1-sigma dist. of")
             print("         final walker positions). As a result, we have re-centered")
-            print("         around the {}{} best point from last snapshot of burn.".format(j, sup)) 
+            print("         around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
     
         return pos
         

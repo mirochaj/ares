@@ -14,8 +14,8 @@ import os
 import numpy as np
 from .ModelFit import ModelFit
 from ..util import ParameterBundle as PB
-from .FitGalaxyPopulation import FitGalaxyPopulation
 from ..populations.GalaxyCohort import GalaxyCohort
+from .FitGalaxyPopulation import FitGalaxyPopulation
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
 
 try:
@@ -38,7 +38,8 @@ class CalibrateModel(object):
     def __init__(self, include_lf=True, include_smf=False, include_gs=False,
         zcal=[4.], zevol_sfe_norm=False, zevol_sfe_peak=False, 
         zevol_sfe_shape=False, include_obsc=False, zevol_obsc=False,
-        include_dust='var_beta', save_lf=True, save_smf=False, save_sfrd=False):
+        include_dust='var_beta', save_lf=True, save_smf=False, 
+        save_sfrd=False, use_ensemble=True, include_scatter_mar=True):
         """
         Calibrate a galaxy model to available data.
         
@@ -79,6 +80,8 @@ class CalibrateModel(object):
         self.save_lf = int(save_lf)
         self.save_smf = int(save_smf)
         self.save_sfrd = int(save_sfrd)
+        self.use_ensemble = use_ensemble
+        self.include_scatter_mar = int(include_scatter_mar)
         
     @property
     def prefix(self):
@@ -116,13 +119,22 @@ class CalibrateModel(object):
     @property
     def parameters(self):
         if not hasattr(self, '_parameters'):
-            free_pars = ['pop_scatter_mar']
-            guesses = {'pop_scatter_mar': 0.3}
-            is_log = [False]
-            jitter = [0.1]
-
+            
+            free_pars = []
+            guesses = {}
+            is_log = []
+            jitter = []
             ps = DistributionSet()
-            ps.add_distribution(UniformDistribution(0, 1.), 'pop_scatter_mar')
+            
+            ##
+            # MAR scatter
+            ##
+            if self.include_scatter_mar:
+                free_pars.append('pop_scatter_mar')
+                guesses['pop_scatter_mar'] = 0.3
+                is_log.append(False)
+                jitter.append(0.1)                
+                ps.add_distribution(UniformDistribution(0, 1.), 'pop_scatter_mar')
 
             ##
             # Allow redshift evolution in normalization?
@@ -137,7 +149,7 @@ class CalibrateModel(object):
                 ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[1]')
             else:
                 free_pars.append('pq_func_par0[1]')
-                guesses['pq_func_par0[1]'] = -4
+                guesses['pq_func_par0[1]'] = -4.
                 is_log.append(True)
                 jitter.append(0.2)
                 ps.add_distribution(UniformDistribution(-6, 0.), 'pq_func_par0[1]')
@@ -151,14 +163,14 @@ class CalibrateModel(object):
                 guesses['pq_func_par0[2]'] = 11.5
                 guesses['pq_func_par2[2]'] = 0.0
                 is_log.extend([True, False])
-                jitter.extend([0.2, 0.2])
+                jitter.extend([0.3, 0.2])
                 ps.add_distribution(UniformDistribution(10, 13.), 'pq_func_par0[2]')
                 ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[2]')
             else:
                 free_pars.append('pq_func_par0[2]')
                 guesses['pq_func_par0[2]'] = 11.5
                 is_log.append(True)
-                jitter.append(0.2)
+                jitter.append(0.3)
                 ps.add_distribution(UniformDistribution(10, 13), 'pq_func_par0[2]')
     
             ##    
@@ -167,22 +179,22 @@ class CalibrateModel(object):
             if self.zevol_sfe_shape:
                 free_pars.extend(['pq_func_par0[3]', 'pq_func_par2[3]'])
                 free_pars.extend(['pq_func_par0[4]', 'pq_func_par2[4]'])
-                guesses['pq_func_par0[3]'] = 1.0
+                guesses['pq_func_par0[3]'] = 0.8
                 guesses['pq_func_par2[3]'] = 0.0
-                guesses['pq_func_par0[4]'] = -0.25
+                guesses['pq_func_par0[4]'] = -0.5
                 guesses['pq_func_par2[4]'] = 0.0
                 is_log.extend([False]*4)
-                jitter.extend([0.2, 0.2, 0.2, 0.2])
+                jitter.extend([0.3, 0.3, 0.2, 0.2])
                 ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[3]')
                 ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[3]')
                 ps.add_distribution(UniformDistribution(-2, 1.), 'pq_func_par0[4]')
                 ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[4]')
             else:
                 free_pars.extend(['pq_func_par0[3]', 'pq_func_par0[4]'])
-                guesses['pq_func_par0[3]'] = 1.0
-                guesses['pq_func_par0[4]'] = -0.25
+                guesses['pq_func_par0[3]'] = 0.8
+                guesses['pq_func_par0[4]'] = -0.5
                 is_log.extend([False]*2)
-                jitter.extend([0.2, 0.2])
+                jitter.extend([0.3, 0.3])
                 ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[3]')
                 ps.add_distribution(UniformDistribution(-2, 1.), 'pq_func_par0[4]')
 
@@ -254,7 +266,7 @@ class CalibrateModel(object):
     def blobs(self):
         redshifts = np.array([1.75, 2.25, 2.75, 3, 3.8, 4, 4.9, 5, 5.9, 6, 
             6.9, 7, 7.9, 8, 9, 10, 11, 12, 13, 14, 15])
-        MUV = np.arange(-28, -5.8, 0.2)
+        MUV = np.arange(-28, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.1, 0.1)
 
@@ -266,11 +278,20 @@ class CalibrateModel(object):
         # blob 2: the SFE. Same deal.
         blob_n2 = ['fstar']
         blob_i2 = [('z', redshifts), ('Mh', Mh)]
-        blob_f2 = ['guide.fstar']
+        
+        if self.use_ensemble:
+            blob_f2 = ['guide.fstar']
+        else:
+            blob_f2 = ['fstar']
 
         if self.include_obsc:
             blob_n2.append('fobsc')
-            blob_f2.append('guide.fobsc')
+            
+            if self.use_ensemble:
+                blob_f2.append('guide.fobsc')
+            else:
+                blob_f2.append('fobsc')
+                
             raise NotImplemented('must add to pars')
         
         blob_pars = \
@@ -352,7 +373,11 @@ class CalibrateModel(object):
         # Master fitter
         fitter = ModelFit(**pars)
         fitter.add_fitter(fitter_lf)
-        fitter.simulator = GalaxyEnsemble
+        
+        if self.use_ensemble:
+            fitter.simulator = GalaxyEnsemble
+        else:
+            fitter.simulator = GalaxyCohort
 
         fitter.parameters = self.parameters
         fitter.is_log = self.is_log
@@ -373,7 +398,7 @@ class CalibrateModel(object):
         fitter.guesses = self.guesses
 
         fitter.save_hmf = True
-        fitter.save_hist = True
+        fitter.save_hist = 'pop_histories' in self.base_kwargs
         fitter.save_src = True    # Ugh can't be pickled...send tables? yes.
 
         self.fitter = fitter

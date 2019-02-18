@@ -1295,19 +1295,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                
         return zarr, tarr, np.cumsum(Lall)
           
-    def _cache_lf(self, z, x):
+    def _cache_lf(self, z, x=None):
         if not hasattr(self, '_cache_lf_'):
             self._cache_lf_ = {}
             
         if z in self._cache_lf_:            
-            _x, _phi = self._cache_lf_[z]    
+                        
+            _x, _phi = self._cache_lf_[z]  
+            
+            # If no x supplied, return bin centers
+            if x is None:
+                return _x, _phi  
             
             if type(x) != np.ndarray:
                 k = np.argmin(np.abs(x - _x))
                 if abs(x - _x[k]) < 1e-3:
                     return _phi[k]
                 else:
-                    return 10**np.interp(x, _x, np.log10(_phi))
+                    phi = 10**np.interp(x, _x, np.log10(_phi))
+                    
+                    # If _phi is 0, interpolation will yield a NaN
+                    if np.isnan(phi):
+                        return 0.0
+                    return phi
             elif np.allclose(_x, x):
                 return _phi
             else:
@@ -1346,7 +1356,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_lf(z, x)
         if cached_result is not None:
             return cached_result
-        
+                    
         # These are kept in ascending redshift just to make life difficult.
         raw = self.histories
                         
@@ -1412,16 +1422,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # spikes where L==0, all L==0 elements should be a contiguous chunk.
         Misok = L > 0
         
-        if type(x) != np.ndarray:
-            _x = np.arange(-28, 0.0, 0.2)
-        else:
-            _x = x    
-        
+        # Always bin to setup cache, interpolate from then on.
+        _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+
         hist, bin_edges = np.histogram(MAB[Misok==1], 
             weights=w[Misok==1], 
             bins=bin_c2e(_x), density=True)
-                
-        bin_c = bin_e2c(bin_edges)
+            
+        bin_c = _x
         
         N = np.sum(w)
         

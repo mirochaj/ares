@@ -506,6 +506,7 @@ def PopulationParameters():
     "pop_aging": False,
     "pop_enrichment": False,
     "pop_quench": False,
+    "pop_mag_bin": 0.5,
     
     # For Clusters
     "pop_mdist": None,

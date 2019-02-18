@@ -667,7 +667,7 @@ class ModelSet(BlobFactory):
         good_walkers = []
         mask = np.zeros_like(self.chain, dtype=int)
         for i in range(self.nwalkers):
-            chain, elements = self.get_walker(i)
+            chain, logL, elements = self.get_walker(i)
             if np.allclose(np.diff(chain[:,axis]), 0.0, atol=tol, rtol=0):
                 bad_walkers.append(i)
                 mask += elements
@@ -890,13 +890,18 @@ class ModelSet(BlobFactory):
         schunk = nw * sf 
         
         data = []
+        logL = []
         elements = np.zeros_like(self.chain, dtype=int).data
         for i in range(nchunks):   
+            # Within each 'chunk', which is the size of a data outputs,
+            # the walker of interest's data is in a block of size 'save_freq`
+            _logL = self.logL[i*schunk + sf*num:i*schunk + sf*(num+1)]
             chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
             elements[i*schunk + sf*num:i*schunk + sf*(num+1)] = 1
             data.extend(chunk)
+            logL.extend(_logL)
             
-        return np.array(data), elements
+        return np.array(data), np.array(logL), elements
                 
     @property
     def Npops(self):
@@ -1272,7 +1277,8 @@ class ModelSet(BlobFactory):
         self._plot_info = value
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
-        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
+        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
+        use_top=1, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1304,9 +1310,15 @@ class ModelSet(BlobFactory):
             #cut = int(0.9 * len(self.logL))
             #
             #loc = psorted[cut:]
-            
-            
-
+    
+        # Find precise point of max likelihood
+        ibest = np.argsort(self.logL)[-1::-1]
+        best = []
+        for i in range(use_top):
+            walker, step = self.index_to_walker_step(ibest[i])
+            best.append((walker, step))
+      
+    
         for i, par in enumerate(pars):
             self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
 
@@ -1317,11 +1329,44 @@ class ModelSet(BlobFactory):
             if par in self.parameters:
                 k = self.parameters.index(par)
                 mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
-                    [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
+                    [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
+                
+                for j, (walk, step) in enumerate(best):
+                    mp.grid[i].scatter(step+1, self.chain[ibest[j],k], 
+                        marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
+                        s=150, color='k', lw=1)
             else:
                 pass
                 
         return mp           
+                
+    def index_to_walker_step(self, loc):
+        sf = self.save_freq
+        nw = self.nwalkers   
+        
+        steps_per_walker = self.chain.shape[0] // nw
+        nchunks = steps_per_walker // sf
+        
+        # "size" of each chunk in # of MCMC steps
+        schunk = nw * sf
+        
+        #
+        # isolates chunk for walker ID `num`, `i` is chunk ID num
+        broken = False
+        for num in range(self.nwalkers):
+            for i in range(nchunks):
+                mi, ma = i*schunk + sf*num, i*schunk + sf*(num+1)
+            
+                if mi <= loc <= ma:
+                    broken = True
+                    break
+            
+            if broken:
+                break        
+                                
+        step = i * sf + (loc - mi)
+                                                                
+        return num, step
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
         **kwargs):
@@ -1354,7 +1399,7 @@ class ModelSet(BlobFactory):
             to_plot = walkers
         
         for i in to_plot:
-            data, elements = self.get_walker(i)
+            data, logL, elements = self.get_walker(i)
             if par in self.parameters:
                 y = data[:,self.parameters.index(par)]        
             else:
@@ -1384,7 +1429,7 @@ class ModelSet(BlobFactory):
         par1, par2 = pars
         
         if isinstance(walkers, basestring):
-            assert N < self.nwalkers, \
+            assert N <= self.nwalkers, \
                 "Only {} walkers available!".format(self.nwalkers)
 
             to_plot = self._get_walker_subset(N, walkers)
@@ -1392,7 +1437,7 @@ class ModelSet(BlobFactory):
             to_plot = walkers
         
         for i in to_plot:
-            data, mask = self.get_walker(i)
+            data, logL, mask = self.get_walker(i)
             
             if scale_by_step:
                 if scatter:
@@ -2050,7 +2095,7 @@ class ModelSet(BlobFactory):
         return self.SliceByElement(to_keep)
     
     def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
-        limit=None, un_log=False, multiplier=1., peak='median', skip=0,
+        limit=None, un_log=False, multiplier=1., peak='mode', skip=0,
         stop=None):
         """
         Compute 1-D error bar for input parameter.
@@ -3723,7 +3768,7 @@ class ModelSet(BlobFactory):
             if skip is not None:
                 keep[0:skip] *= 0
             if stop is not None:
-                keep[stop: ] *= 0
+                keep[stop:]  *= 0
             
             # Grab the maximum likelihood point
             if use_best and self.is_mcmc:
@@ -3807,7 +3852,7 @@ class ModelSet(BlobFactory):
                         loc = psorted[int(N / 2.)]
                     else:
                         loc = np.argmax(self.logL[keep == 1])    
-                
+                                
                 if np.all(yblob[keep == 1].mask == 1):
                     print("WARNING: elements all masked!")
                     y.append(-np.inf)
