@@ -1530,51 +1530,10 @@ class ModelFit(FitBase):
             
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
-                    blobs_all]
+                    blobs_all, state]
 
-            # The flattened version of pos_all has 
-            # shape = (save_freq * nwalkers, ndim)
-
-            for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-
-                if self.checkpoint_append:
-                    mode = 'ab'
-                else:
-                    mode = 'wb'
-                    
-                # Blobs
-                if suffix == 'blobs':
-                    if self.blob_names is None:
-                        continue
-                    self.save_blobs(data[i], dd=dd, prefix=prefix)
-                # Other stuff
-                else:
-                    if self.checkpoint_append:
-                        fn = '{0!s}.{1!s}.pkl'.format(prefix, suffix)
-                    else:
-                        fn = '{0!s}.{1!s}.{2!s}.pkl'.format(prefix, dd, suffix)
-                        
-                    write_pickle_file(data[i], fn, ndumps=1,\
-                        open_mode=mode[0], safe_mode=False, verbose=False)
-                    
-            # This is a running total already so just save the end result 
-            # for this set of steps
-            write_pickle_file(self.sampler.acceptance_fraction,\
-                '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
-                safe_mode=False, verbose=False)
+            self._write_checkpoint(data, dd, ct, prefix, save_freq)
             
-            if self.checkpoint_append:
-                print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
-                    time.ctime()))
-            else:
-                print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
-                    time.ctime()))
-
-            ##################################################################
-            write_pickle_file(state, '{!s}.rstate.pkl'.format(prefix),\
-                ndumps=1, open_mode='w', safe_mode=False, verbose=False)
-            ##################################################################
-
             del pos_all, prob_all, blobs_all, data
             
             # Delete chain, logL, etc., to be conscious of memory
@@ -1583,10 +1542,70 @@ class ModelFit(FitBase):
             gc.collect()
                         
             pos_all = []; prob_all = []; blobs_all = []
+            
+        
+        ##
+        # Means there's a mismatch in `save_freq` and (`steps` and/or `burn`)
+        # so we never hit the last checkpoint. Don't let those samples go
+        # to waste!
+        ##
+        if pos_all != []:
+            print("Writing data one last time because save_freq > steps.")
+            data = [flatten_chain(np.array(pos_all)),
+                    flatten_logL(np.array(prob_all)),
+                    blobs_all, state]
+                    
+            self._write_checkpoint(data, dd, ct, prefix, save_freq)
+            
+            del pos_all, prob_all, blobs_all, data
         
         # Just return progress over last `save_freq` steps.    
         return pos, prob, state, blobs
-    
+        
+    def _write_checkpoint(self, data, dd, ct, prefix, save_freq):
+        # The flattened version of pos_all has 
+        # shape = (save_freq * nwalkers, ndim)
+
+        for i, suffix in enumerate(['chain', 'logL', 'blobs']):
+
+            if self.checkpoint_append:
+                mode = 'ab'
+            else:
+                mode = 'wb'
+                
+            # Blobs
+            if suffix == 'blobs':
+                if self.blob_names is None:
+                    continue
+                self.save_blobs(data[i], dd=dd, prefix=prefix)
+            # Other stuff
+            else:
+                if self.checkpoint_append:
+                    fn = '{0!s}.{1!s}.pkl'.format(prefix, suffix)
+                else:
+                    fn = '{0!s}.{1!s}.{2!s}.pkl'.format(prefix, dd, suffix)
+                    
+                write_pickle_file(data[i], fn, ndumps=1,\
+                    open_mode=mode[0], safe_mode=False, verbose=False)
+                
+        # This is a running total already so just save the end result 
+        # for this set of steps
+        write_pickle_file(self.sampler.acceptance_fraction,\
+            '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
+            safe_mode=False, verbose=False)
+        
+        if self.checkpoint_append:
+            print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+                time.ctime()))
+        else:
+            print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
+                time.ctime()))
+
+        ##################################################################
+        write_pickle_file(data[-1], '{!s}.rstate.pkl'.format(prefix),\
+            ndumps=1, open_mode='w', safe_mode=False, verbose=False)
+        ##################################################################
+            
     def save_blobs(self, blobs, uncompress=True, prefix=None, dd=None):
         """
         Write blobs to disk.
