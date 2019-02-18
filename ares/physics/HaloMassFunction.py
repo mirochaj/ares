@@ -401,8 +401,7 @@ class HaloMassFunction(object):
             self._tab_fcoll = self.tab_mgtm / self.cosm.mean_density0
         return self._tab_fcoll
 
-    @property
-                                
+    @property                   
     def tab_bias(self):
         if not hasattr(self, '_tab_bias'):
             self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
