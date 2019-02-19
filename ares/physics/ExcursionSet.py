@@ -17,6 +17,7 @@ from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
 from scipy.integrate import simps, quad
 from scipy.interpolate import interp1d
+from scipy.misc import derivative
 
 two_pi = 2. * np.pi
 four_pi = 4. * np.pi
@@ -88,6 +89,20 @@ class ExcursionSet(object):
     @tab_ps.setter
     def tab_ps(self, value):
         self._tab_ps = value
+    
+    @property
+    def tab_growth(self):
+        if not hasattr(self, '_tab_growth'):
+            raise AttributeError('must set by hand for now')
+        return self._tab_growth
+    
+    @tab_growth.setter
+    def tab_growth(self, value):
+        self._tab_growth = value    
+                
+    def _growth_factor(self, z):
+        return np.interp(z, self.tab_z, self.tab_growth,
+            left=np.inf, right=np.inf)            
                 
     def Mass(self, R):
         return self.cosm.rho_m_z0 * rho_cgs * self.WindowVolume(R)
@@ -179,15 +194,17 @@ class ExcursionSet(object):
         rho0_m = self.cosm.rho_m_z0 * rho_cgs
 
         M = self.Mass(R)
-        V = four_pi * R**3 / 3.
         S = np.array(map(lambda RR: self.Variance(z, RR), R))
-        
-        _S, dlnSdlnM = central_difference(np.log(S), np.log(M))
+
+        _M, _dlnSdlnM = central_difference(np.log(M[-1::-1]), np.log(S[-1::-1]))
+        _M = _M[-1::-1]
+        dlnSdlnM = _dlnSdlnM[-1::-1]
         dSdM = dlnSdlnM * (S[1:-1] / M[1:-1])
 
         dFdM = self.FCD(z, R, dcrit, dzero)[1:-1] * np.abs(dSdM)
 
-        # This is, e.g., Eq. 17 in Zentner (2006)
+        # This is, e.g., Eq. 17 in Zentner (2006) 
+        # or Eq. 9.38 in Loeb and Furlanetto (2013)
         dndm = rho0_m * np.abs(dFdM) / M[1:-1]
 
         return R[1:-1], M[1:-1], dndm
