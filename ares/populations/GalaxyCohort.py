@@ -32,7 +32,7 @@ from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
     LinearNDInterpolator
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c
+    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd
     
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -1014,7 +1014,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         return phi_of_x
     
-    def LuminosityFunction(self, z, x, mags=True):
+    def LuminosityFunction(self, z, x, mags=True, wave=1600.):
         """
         Reconstructed luminosity function.
     
@@ -1033,24 +1033,54 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Number density.
     
         """
-    
+
         if mags:
-            phi_of_x = self.UVLF_M(x, z)
+            phi_of_x = self.UVLF_M(x, z, wave=wave)
         else:
-            phi_of_x = self.UVLF_L(x, z)
+            phi_of_x = self.UVLF_L(x, z, wave=wave)
     
         return phi_of_x
-    
-    def Lh(self, z):
+
+    def Lh(self, z, wave=1600.):
         """
         This is the rest-frame UV band in which the LF is measured.
         
         NOT generally use-able!!!
         
         """
-        return self.SFR(z) * self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
+        
+        if self.pf['pop_star_formation']:
+            return self.SFR(z) * self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
+        elif self.pf['pop_bh_formation']:
+            # In this case, luminosity just proportional to BH mass.
+            zarr, data = self.Trajectories()
+            
+            iz = np.argmin(np.abs(zarr - z))
+            
+            # Interpolate Mbh onto halo mass grid so we can use abundances.
+            Mbh = np.exp(np.interp(np.log(self.halos.tab_M), 
+                np.log(data['Mh'][:,iz]), 
+                np.log(data['Mbh'][:,iz])))
 
-    def phi_of_L(self, z):
+            # Bolometric luminosity: Eddington 
+            ledd = 4 * np.pi * G * m_p * c / sigma_T
+            Lbol = ledd * Mbh * g_per_msun
+            Lbol[np.isnan(Lbol)]= 0.0
+
+            # Need to do bolometric correction.
+            E = h_p * c / (wave * 1e-8) / erg_per_ev
+            I_E = self.src.Spectrum(E)
+            
+            return Lbol * I_E * ev_per_hz
+
+            # Don't need to do trajectories unless we're letting
+            # BHs grow via accretion, i.e., scaling laws can just get
+            # painted on.
+
+        else:
+            raise NotImplemented('help')
+
+    def phi_of_L(self, z, wave=1600.):
         """
         Compute the luminosity function at redshift z.
         
@@ -1069,7 +1099,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if abs(red - z) < ztol:
                     return self._phi_of_L[red]
                 
-        Lh = self.Lh(z)
+        Lh = self.Lh(z, wave=wave)
                 
         fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))        
         # Means obscuration refers to fractional dimming of individual 
@@ -1140,7 +1170,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_L[z]
 
-    def phi_of_M(self, z):
+    def phi_of_M(self, z, wave=1600.):
         if not hasattr(self, '_phi_of_M'):
             self._phi_of_M = {}
         else:
@@ -1150,7 +1180,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if np.allclose(red, z):
                     return self._phi_of_M[red]
 
-        Lh, phi_of_L = self.phi_of_L(z)
+        Lh, phi_of_L = self.phi_of_L(z, wave=wave)
 
         MAB = self.magsys.L_to_MAB(Lh, z=z)
 
@@ -1160,8 +1190,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_M[z]
 
-    def MUV(self, z, Mh):
-        Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z))
+    def MUV(self, z, Mh, wave=1600.):
+        Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z, wave=wave))
         MAB = self.magsys.L_to_MAB(Lh, z=z)
         return MAB
 
@@ -1172,10 +1202,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self.MUV(z, Mmin)
 
-    def Mh_of_MUV(self, z, MUV):
+    def Mh_of_MUV(self, z, MUV, wave=1600.):
         
         # MAB corresponds to self.halos.tab_M
-        MAB, phi = self.phi_of_M(z)
+        MAB, phi = self.phi_of_M(z, wave=wave)
         ok = MAB.mask == 0
         
         if ok.sum() == 0:
@@ -1930,6 +1960,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
+            
+            if not self.pf['pop_star_formation']:
+                self._fstar = lambda **kwargs: 0.0
                             
             assert self.pf['pop_sfr'] is None
 
@@ -2141,28 +2174,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             y5p = SFR + NPIR * Sfrac
 
-        # Add BHs
+        # BH accretion rate
         if self.pf['pop_bh_formation']:
             if self.pf['pop_bh_facc'] is not None:
                 y6p = self.pf['pop_bh_facc'] * PIR
             else:
                 
-                C = dtdz_s * 4.0 * np.pi * G * m_p / sigma_T / c
-                
-                if self.pf['pop_bh_seed_mass'] is not None:
-                    Mseed = self.pf['pop_bh_seed_mass']    
-                elif self.pf['pop_bh_seed_eff'] is not None:
-                    Mseed = self.pf['pop_bh_seed_eff'] * Mg
-                else:
-                    Mseed = self.pf['pop_bh_seed_ratio'] * Mmin
-                
-                # Form new BHs
-                if (Mh >= Mmin) and (Mbh == 0.0):
-                    y6p = Mseed * C
-                elif Mbh > 0:
-                    # Eddington-limited growth. Remember Mbh is really
-                    # just the accreted mass so we need to add in the seed mass.
-                    y6p = C * (Mbh + Mseed)
+                eta = self.pf['pop_eta']
+                fduty = self.pf['pop_fduty']
+                if Mbh > 0:
+                    y6p = Mbh * dtdz_s * fduty * (1. - eta) / eta / t_edd
                 else:
                     y6p = 0.0
 
@@ -2605,7 +2626,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         -------
         Dictionary of quantities, each having shape (z, z). 
         The first dimension corresponds to formation time, the second axis
-        represents trajectories.
+        repreesents trajectories. So, e.g., to pick out all halo masses at a 
+        given observed redshift (say z=6) you would do:
+        
+            zarr, data = self.Trajectories()
+            k = np.argmin(np.abs(zarr - 6))
+            Mh = data[:,k]
         
         """
         
@@ -2630,7 +2656,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
         zmax = []
         zform = []
-                
         for i, z in enumerate(zarr):
             #if (i == 0) or (i == len(zarr) - 1):
             #    zmax.append(zarr[i])
@@ -2752,6 +2777,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         MZ0 = 0.0
         Mst0 = 0.0
         Mbh0 = 0.0
+        seeded = False
         
         # Initial stellar mass -> 0, initial halo mass -> Mmin
         solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, Mbh0]), z0)
@@ -2788,10 +2814,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
-            Mbh_t.append(solver.y[5])  
             sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
             mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
-            nh_t.append(n0)   
+            nh_t.append(n0)
+            
+            Mmin = np.interp(redshifts[-1], self.halos.tab_z, self._tab_Mmin)
+                        
+            if self.pf['pop_bh_seed_mass'] is not None:
+                Mseed = self.pf['pop_bh_seed_mass']    
+            elif self.pf['pop_bh_seed_eff'] is not None:
+                Mseed = self.pf['pop_bh_seed_eff'] * Mg
+            else:
+                Mseed = self.pf['pop_bh_seed_ratio'] * Mmin
+                
+            # Form new BHs
+            if (Mh_t[-1] >= Mmin) and (not seeded):
+                Mbh_t.append(Mseed)   
+                # Update solver position. 
+                pos = np.array([Mh_t[-1], Mg_t[-1], Mst_t[-1], metals[-1], cMst_t[-1], Mseed])
+                solver.set_initial_value(pos, redshifts[-1])
+                seeded = True
+            elif (not seeded):
+                Mbh_t.append(0.0)
+            else:
+                Mbh_t.append(solver.y[5])
             
             if 'sfe' in self.pf['pop_sfr_model']:
                 sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))

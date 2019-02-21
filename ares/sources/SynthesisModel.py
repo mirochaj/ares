@@ -399,6 +399,15 @@ class SynthesisModel(Source):
     def L1600_per_sfr(self):
         return self.L_per_sfr()   
         
+    def _cache_L_per_sfr(self, wave, avg):
+        if not hasattr(self, '_cache_L_per_sfr_'):
+            self._cache_L_per_sfr_ = {}
+        
+        if (wave, avg) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, avg)]
+        
+        return None
+                    
     def L_per_sfr(self, wave=1600., avg=1):
         """
         Specific emissivity at provided wavelength.
@@ -417,20 +426,29 @@ class SynthesisModel(Source):
 
         """
         
+        cached = self._cache_L_per_sfr(wave, avg)
+        
+        if cached is not None:
+            return cached
+        
         yield_UV = self.L_per_SFR_of_t(wave)
             
         # Interpolate in time to obtain final LUV
         if self.pf['source_tsf'] in self.times:
-            return yield_UV[np.argmin(np.abs(self.times - self.pf['source_tsf']))]
+            result = yield_UV[np.argmin(np.abs(self.times - self.pf['source_tsf']))]
+        else:
+            k = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
+            if self.times[k] > self.pf['source_tsf']:
+                k -= 1
+                
+            if not hasattr(self, '_LUV_interp'):
+                self._LUV_interp = interp1d(self.times, yield_UV, kind='linear')
             
-        k = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
-        if self.times[k] > self.pf['source_tsf']:
-            k -= 1
+            result = self._LUV_interp(self.pf['source_tsf'])
             
-        if not hasattr(self, '_LUV_interp'):
-            self._LUV_interp = interp1d(self.times, yield_UV, kind='linear')
+        self._cache_L_per_sfr_[(wave, avg)] = result
             
-        return self._LUV_interp(self.pf['source_tsf'])
+        return result
         
     def kappa_UV_of_t(self):        
         return 1. / self.LUV_of_t()

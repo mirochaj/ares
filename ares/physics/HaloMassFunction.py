@@ -1055,7 +1055,7 @@ class HaloMassFunction(object):
                         
         return s   
                                
-    def SaveHMF(self, fn=None, clobber=True, destination=None, format='hdf5'):
+    def SaveHMF(self, fn=None, clobber=False, destination=None, format='hdf5'):
         """
         Save mass function table to HDF5 or binary (via pickle).
         

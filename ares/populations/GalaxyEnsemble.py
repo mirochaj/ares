@@ -1318,10 +1318,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     if np.isnan(phi):
                         return 0.0
                     return phi
-            elif np.allclose(_x, x):
-                return _phi
-            else:
-                return 10**np.interp(x, _x, np.log10(_phi))
+            if _x.size == x.size:
+                if np.allclose(_x, x):
+                    return _phi
+            
+            return 10**np.interp(x, _x, np.log10(_phi))
                 
         return None
         
