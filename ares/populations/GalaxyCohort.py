@@ -1069,11 +1069,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             # This uses __getattr__ in case we're allowing Z to be 
             # updated from SAM.
-            #L = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
-            L_sfr = self.src.L_per_sfr(wave)
             sfr = self.SFR(z) 
             
             if self.pf['pop_dust_yield'] > 0:
+                
+                L_sfr = self.src.L_per_sfr(wave)
                 fcov = self.dust_fcov(Mh=self.halos.tab_M)
                 
                 kappa = self.dust_kappa(wave=wave)
@@ -1085,6 +1085,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 return Lh * fcov + Lh * (1. - fcov) * np.exp(-tau)
                 
             else:
+                L_sfr = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
                 return sfr * L_sfr
             
         elif self.pf['pop_bh_formation']:
