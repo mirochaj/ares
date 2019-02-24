@@ -22,7 +22,8 @@ from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import RectBivariateSpline
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
-from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, g_per_msun, c, Lsun
+from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
+    g_per_msun, c, Lsun, cm_per_kpc
 
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
@@ -984,7 +985,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Md = self.pf['pop_dust_yield'] * MZ
         
         # Make PQ option
-        Rd = self.pf['pop_dust_scale']
+        Rd = self.guide.dust_scale(z=z, Mh=Mh)
         
         # Gas mass
         Mh0 = self.guide.Mmin(z)
@@ -1008,7 +1009,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Ms': Ms,#[:,-1::-1],
          'MZ': MZ,#[:,-1::-1],
          'Md': Md,
-         'Sd': Md * g_per_msun / 4. / np.pi / (Rd * cm_per_pc)**2,
+         'Sd': Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2,
          'Mh': Mh,#[:,-1::-1],
          'bursty': np.zeros_like(Mh),
          'imf': np.zeros((Mh.size, self.tab_imf_mc.size)),
@@ -1227,7 +1228,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #    return hist['t'], hist['z'], np.zeros_like(hist['z'])
         #
         izform = 0#min(np.argwhere(hist['Mh'] > 0))[0]
-                                
+        
+        
+        
+        
+        ##
+        # Dust model?
+        ##
+        if self.pf['pop_dust_yield'] > 0:
+            fcov = self.guide.dust_fcov(z=hist['z'][izform:izobs+1], 
+                Mh=hist['Mh'][izform:izobs+1])
+            kappa = self.guide.dust_kappa(wave=wave)
+            Sd = hist['Sd'][izform:izobs+1]
+            tau = kappa * Sd
+        else:
+            tau = fcov = 0.0
+                                            
         ##
         # First. Simple case without stellar population aging.
         ##
@@ -1271,11 +1287,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Loft = self.src.L_per_SFR_of_t(wave)
             L_per_msun = np.interp(ages, self.src.times, 
                 Loft, left=Loft[0], right=Loft[-1])
-                
+
             Lall = L_per_msun * SFR * dt
-                
-            #Lall = np.zeros_like(dt)    
-                
+                                
             # Correction for IMF sampling (can't use SPS).
             if self.pf['pop_sample_imf'] and np.any(bursty):                            
                 life = self._stars.tab_life
@@ -1298,8 +1312,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Loft = np.sum(integ * on[bursty==1], axis=1)
         
                 Lall[bursty==1] = Loft
-               
-        return zarr, tarr, np.cumsum(Lall)
+                
+        # Integrate over all times
+        Lhist = np.cumsum(Lall)
+                
+        # Redden away!
+        if self.pf['pop_dust_yield'] > 0:
+            Lout = Lhist * (1. - fcov) + Lhist * fcov * np.exp(-tau)
+        else:
+            Lout = Lhist    
+                       
+        return zarr, tarr, Lout
           
     def _cache_lf(self, z, x=None):
         if not hasattr(self, '_cache_lf_'):
@@ -1382,7 +1405,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 continue
                 
             hist = {'t': raw['t'], 'z': raw['z'],
-                'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i],
+                'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 'Sd': raw['Sd'][i],
                 'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i],
                 'imf': raw['imf'][i]}
 

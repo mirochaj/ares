@@ -85,9 +85,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         # A few special cases    
         if self.sed_tab and (name in _sed_tab_attributes):
-            
-            assert name == 'L1600_per_sfr'
-            
+                        
             if self.pf['pop_Z'] == 'sam':
                 tmp = []
                 Zarr = np.sort(list(self.src.metallicities.values()))
@@ -1073,16 +1071,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             if self.pf['pop_dust_yield'] > 0:
                 
-                L_sfr = self.src.L_per_sfr(wave)
-                fcov = self.dust_fcov(Mh=self.halos.tab_M)
+                L_sfr = self.src.L_per_sfr(wave)                                
+                Lh = L_sfr * sfr
                 
+                fcov = self.dust_fcov(Mh=self.halos.tab_M)
                 kappa = self.dust_kappa(wave=wave)
                 Sd = self.get_field(z, 'Sd')
                 tau = kappa * Sd
                 
-                Lh = L_sfr * sfr
-                
-                return Lh * fcov + Lh * (1. - fcov) * np.exp(-tau)
+                return Lh * (1 - fcov) + Lh * fcov * np.exp(-tau)
                 
             else:
                 L_sfr = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
@@ -1226,6 +1223,29 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         self._phi_of_M[z] = MAB[0:-1], phi_of_M
 
         return self._phi_of_M[z]
+        
+    def Beta(self, z, wave=1600., dlam=10):
+        """
+        UV slope.
+        """
+        
+
+        ok = np.logical_and(wave-dlam <= self.src.wavelengths, 
+                            self.src.wavelengths <= wave+dlam)
+
+        arr = self.src.wavelengths[ok==1]
+                
+        Lh = np.array([self.Lh(z, w) for w in arr])
+        
+        Llam = Lh / self.src.dwdn[ok==1][:,None]
+        
+        logw = np.log(arr)
+        logL = np.log(Llam)
+                
+        beta = (logL[0,:] - logL[-1,:]) / (logw[0] - logw[-1])
+
+        return beta
+
 
     def MUV(self, z, Mh, wave=1600.):
         Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z, wave=wave))
