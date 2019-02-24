@@ -32,7 +32,7 @@ from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
     LinearNDInterpolator
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd
+    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc
     
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -85,6 +85,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         # A few special cases    
         if self.sed_tab and (name in _sed_tab_attributes):
+            
+            assert name == 'L1600_per_sfr'
+            
             if self.pf['pop_Z'] == 'sam':
                 tmp = []
                 Zarr = np.sort(list(self.src.metallicities.values()))
@@ -153,6 +156,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         setattr(self, name, result)
                 
         return result
+
+    def get_field(self, z, field):
+        """
+        Return results from SAM (all masses) at input redshift.
+        """
+        zarr, data = self.Trajectories()
+        
+        iz = np.argmin(np.abs(z - zarr))
+        
+        Mh = data['Mh'][:,iz]
+        
+        return 10**np.interp(np.log10(self.halos.tab_M), np.log10(Mh), 
+            np.log10(data[field][:,iz]))
 
     def Zgas(self, z, Mh):
         if not hasattr(self, '_sam_data'):
@@ -1050,7 +1066,27 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         if self.pf['pop_star_formation']:
-            return self.SFR(z) * self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
+            
+            # This uses __getattr__ in case we're allowing Z to be 
+            # updated from SAM.
+            #L = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
+            L_sfr = self.src.L_per_sfr(wave)
+            sfr = self.SFR(z) 
+            
+            if self.pf['pop_dust_yield'] > 0:
+                fcov = self.dust_fcov(Mh=self.halos.tab_M)
+                
+                kappa = self.dust_kappa(wave=wave)
+                Sd = self.get_field(z, 'Sd')
+                tau = kappa * Sd
+                
+                Lh = L_sfr * sfr
+                
+                return Lh * fcov + Lh * (1. - fcov) * np.exp(-tau)
+                
+            else:
+                return sfr * L_sfr
+            
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.Trajectories()
@@ -2640,7 +2676,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'SFE', 'MAR', 
-            'nh', 'Z', 't']
+            'Md', 'Sd', 'nh', 'Z', 't']
                 
         zf = max(float(self.halos.tab_z.min()), self.zdead)
         zi = min(float(self.halos.tab_z.max()), self.zform)
@@ -2989,6 +3025,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
+        Md = self.pf['pop_dust_yield'] * MZ
+        Rd = self.pf['pop_dust_scale']
+        Sd = Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
+        
+        if self.pf['pop_dust_yield'] > 0:
+            tau = self.dust_kappa(wave=1600.)
+        else:
+            tau = None
+        
         cMs = np.array(cMst_t)[-1::-1]
         Mbh = np.array(Mbh_t)[-1::-1]
         SFR = np.array(sfr_t)[-1::-1]
@@ -2998,9 +3043,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         tlb = np.array(lbtime)[-1::-1]
 
         # Derived
-        results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
+        results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'Md': Md, 'cMs': cMs,
             'Mbh': Mbh, 'SFR': SFR, 'SFE': SFE, 'MAR': MAR, 'nh': nh, 
-            'zmax': zmax, 't': tlb}
+            'Sd': Sd, 'tau': tau, 'zmax': zmax, 't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 

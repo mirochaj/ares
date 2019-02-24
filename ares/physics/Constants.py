@@ -24,6 +24,7 @@ cm_per_km = 1e5
 cm_per_rsun = 695500. * cm_per_km
 cm_per_rEarth = 637100000.
 cm_per_au = 1.49597871e13
+cm_per_ang = 1e-8
 
 # masses
 g_per_amu = 1.660538921e-24    

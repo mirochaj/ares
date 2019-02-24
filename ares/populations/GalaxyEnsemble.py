@@ -981,6 +981,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #Msj = cumtrapz(SFR[:,:], dx=dt, axis=1)
         #Msj = 0.5 * cumtrapz(SFR * tall, x=np.log(tall), axis=1)
         MZ = np.concatenate((MZ0, MZj), axis=1)
+        Md = self.pf['pop_dust_yield'] * MZ
+        
+        # Make PQ option
+        Rd = self.pf['pop_dust_scale']
         
         # Gas mass
         Mh0 = self.guide.Mmin(z)
@@ -1003,6 +1007,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Mg': Mg,#[:,-1::-1],
          'Ms': Ms,#[:,-1::-1],
          'MZ': MZ,#[:,-1::-1],
+         'Md': Md,
+         'Sd': Md * g_per_msun / 4. / np.pi / (Rd * cm_per_pc)**2,
          'Mh': Mh,#[:,-1::-1],
          'bursty': np.zeros_like(Mh),
          'imf': np.zeros((Mh.size, self.tab_imf_mc.size)),
