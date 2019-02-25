@@ -20,7 +20,7 @@ The Opacity of the Intergalactic Medium
 ---------------------------------------
 Solutions for the evolution of the cosmic X-ray background are greatly accelerated if one tabulates the IGM opacity, :math:`\tau_{\nu}(z, z^{\prime})`, ahead of time (see in Appendix C of `Haardt & Madau (1996) <http://adsabs.harvard.edu/abs/1996ApJ...461...20H>`_ for some discussion of this technique). *ares* automatically looks in ``$ARES/input/optical_depth`` for :math:`\tau_{\nu}(z, z^{\prime})` lookup tables. 
 
-The shape of the lookup table is defined by the redshift range being considered (set by the parameters ``initial_redshift`` and ``final_redshift``), the number of redshift bins used to sample that interval, ``pop_tau_Nz`` (which may vary from population to population, hence the ``pop_`` prefix), the minimum and maximum photon energies (``pop_Emin`` and ``pop_Emax``), and the number of photon energies (determined iteratively from the redshift and energy intervals and the value of ``pop_tau_Nz``).
+The shape of the lookup table is defined by the redshift range being considered (set by the parameters ``first_light_redshift`` and ``final_redshift``), the number of redshift bins used to sample that interval, ``tau_redshift_bins``, the minimum and maximum photon energies (``pop_Emin`` and ``pop_Emax``), and the number of photon energies (determined iteratively from the redshift and energy intervals and the value of ``tau_redshift_bins``).
 
 By default, ares generates tables assuming the IGM is fully neutral, but that is not required. To make optical depth tables of your own, see ``$ARES/examples/generate_optical_depth_tables.py``. See Section 3 of `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_ for more discussion of this technique. 
 

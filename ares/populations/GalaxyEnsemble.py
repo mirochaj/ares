@@ -1291,7 +1291,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Lall = L_per_msun * SFR * dt
                                 
             # Correction for IMF sampling (can't use SPS).
-            if self.pf['pop_sample_imf'] and np.any(bursty):                            
+            if self.pf['pop_sample_imf'] and np.any(bursty):
                 life = self._stars.tab_life
                 on = np.array([life > age for age in ages])
                 
@@ -1376,7 +1376,33 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             return 10**np.interp(bins, _x, np.log10(_phi))
             
-        return None    
+        return None  
+        
+    def get_histories(self, z):
+        # These are kept in ascending redshift just to make life difficult.
+        raw = self.histories
+                        
+        keys = raw.keys()
+        Nt = raw['t'].size
+        Nh = raw['Mh'].shape[0]
+        
+        izobs = np.argmin(np.abs(raw['z'] - z))
+        
+        for i in range(Nh):
+                        
+            if not np.any(raw['Mh'][i] > 0):
+                print('hey', i)
+                continue
+                
+            hist = {'t': raw['t'], 'z': raw['z'],
+                'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 'Sd': raw['Sd'][i],
+                'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i],
+                'imf': raw['imf'][i]}
+
+            izform = 0#min(np.argwhere(raw['Mh'][i][-1::-1] > 0))[0]
+            
+            yield hist
+  
         
     def LuminosityFunction(self, z, x, mags=True, wave=1600., band=None):
         """
@@ -1467,8 +1493,45 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         self._cache_lf_[z] = bin_c, phi
         
-        return self._cache_lf(z, x)                
+        return self._cache_lf(z, x)
                         
+    def Beta(self, z, wave=1600., dlam=100):
+        """
+        UV slope.
+        """
+        
+        ok = np.logical_or(wave-dlam == self.src.wavelengths, 
+                           wave+dlam == self.src.wavelengths)
+        
+        ok = np.logical_or(ok, wave == self.src.wavelengths)
+            
+        if ok.sum() < 2:
+            raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
+            
+        arr = self.src.wavelengths[ok==1]
+        
+        beta = []
+        MAB = []
+        for i, hist in enumerate(self.get_histories(z)):
+        
+            # Must supply in time-ascending order
+            Lh = np.zeros_like(arr)
+            for j, w in enumerate(arr):
+                zarr, tarr, _L = self.SpectralSynthesis(hist, 
+                    zobs=z, wave=w)
+                Lh[j] = _L[-1] * 1. # just grab last time snapshot.
+                
+                if w == wave:
+                    MAB.append(self.magsys.L_to_MAB(Lh[j], z=z))
+
+            Llam = Lh / self.src.dwdn[ok==1]
+            
+            logw = np.log(arr)
+            logL = np.log(Llam)
+                                        
+            beta.append((logL[0] - logL[-1]) / (logw[0] - logw[-1]))
+
+        return np.array(MAB), np.array(beta)
         
     def MainSequence(self, z):
         """
