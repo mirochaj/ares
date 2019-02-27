@@ -531,7 +531,7 @@ def PopulationParameters():
     "pop_force_equilibrium": np.inf,
     "pop_sample_imf": False,
     "pop_sample_cmf": False,
-    "pop_imf": 'salpeter',
+    "pop_imf": 2.35,     # default to standard SSPs. 
     "pop_imf_bins": None,#np.arange(0.1, 150.01, 0.01),  # bin centers
     "pop_cmf": None,
     

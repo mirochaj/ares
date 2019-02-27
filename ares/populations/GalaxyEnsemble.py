@@ -1201,7 +1201,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._stars_ = SynthesisModelSBS(**self.src_kwargs)
         return self._stars_
         
-    def SpectralSynthesis(self, hist, zobs=None, wave=1600., weights=1):
+    def _cache_ss(self, key):
+        if not hasattr(self, '_cache_ss_'):
+            self._cache_ss_ = {}
+            
+        if key in self._cache_ss_:
+            return self._cache_ss_[key]    
+        
+        return None
+        
+    def SpectralSynthesis(self, hist=None, idnum=None, zobs=None, wave=1600., 
+        weights=1):
         """
         Yield spectrum for a single galaxy.
         
@@ -1215,11 +1225,27 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         For example, hist could be the output of a call to _gen_galaxy_history.
             
         """
+        
+        if idnum is not None:
+            
+            assert hist is None, "Must supply `hist` OR `idnum`!"
+            hist = self.get_history(idnum)
+            
+            cached_result = self._cache_ss((idnum, wave))
+            if cached_result is not None:
+                                
+                if zobs is None:
+                    return cached_result
+                
+                # Do zobs correction    
+                izobs = np.argmin(np.abs(zobs - hist['z'])) + 1
+                zarr, tarr, L = cached_result
+                return zarr[0:izobs], tarr[0:izobs], L[0:izobs]
                 
         if zobs is None:
             izobs = None
         else:
-            izobs = np.argmin(np.abs(zobs - hist['z']))
+            izobs = np.argmin(np.abs(zobs - hist['z'])) + 1
         
         # Must be supplied in increasing time order, decreasing redshift.
         assert np.all(np.diff(hist['t']) >= 0)
@@ -1230,14 +1256,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #
         izform = 0#min(np.argwhere(hist['Mh'] > 0))[0]
         
+        slc = slice(0, izobs)
+        
         ##
         # Dust model?
         ##
         if self.pf['pop_dust_yield'] > 0:
-            fcov = self.guide.dust_fcov(z=hist['z'][izform:izobs+1], 
-                Mh=hist['Mh'][izform:izobs+1])
+            fcov = self.guide.dust_fcov(z=hist['z'][slc], Mh=hist['Mh'][slc])
             kappa = self.guide.dust_kappa(wave=wave)
-            Sd = hist['Sd'][izform:izobs+1]
+            Sd = hist['Sd'][slc]
             tau = kappa * Sd
         else:
             tau = fcov = 0.0
@@ -1250,8 +1277,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 "Should not have pop_ssp==True if pop_aging==False."
             
             L_per_sfr = self.src.L_per_sfr(wave)
-            return hist['z'][izform:izobs+1], hist['t'][izform:izobs+1], \
-                L_per_sfr * hist['SFR'][izform:izobs+1]
+            return hist['z'][slc], hist['t'][slc], L_per_sfr * hist['SFR'][slc]
         
         ##
         # Second. Harder case where aging is allowed.
@@ -1259,24 +1285,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         assert self.pf['pop_ssp']
                 
         # SFH        
-        Nsn  = hist['Nsn'][izform:izobs+1]
-        SFR  = hist['SFR'][izform:izobs+1]
-        tarr = hist['t'][izform:izobs+1] # in Myr
-        zarr = hist['z'][izform:izobs+1]
-        bursty = hist['bursty'][izform:izobs+1]
-        imf = hist['imf'][izform:izobs+1]
+        Nsn  = hist['Nsn'][slc]
+        SFR  = hist['SFR'][slc]
+        tarr = hist['t'][slc] # in Myr
+        zarr = hist['z'][slc]
+        bursty = hist['bursty'][slc]
+        imf = hist['imf'][slc]
         dt = np.concatenate((np.diff(tarr) * 1e6, [0]))
                 
-        #if SFR[np.argmin(hist['z'][izform:izobs+1] - 10.)] > 1e-2:
-        #    import matplotlib.pyplot as pl
-        #    pl.figure(10)
-        #    pl.semilogy(zarr, SFR)
-        #    raw_input('<enter>')
-        
+        Loft = self.src.L_per_SFR_of_t(wave)
+
         Lhist = np.zeros_like(SFR)
         for i, _tobs in enumerate(tarr):
+            
+            if (zobs is not None):
+                if (zarr[i] > zobs):
+                    continue
                 
-            ages = tarr[i] - tarr[0:i+1]
+            ages = tarr[i] - tarr[0:i+1] + 1e-1
+            #_tf0 = tarr[0:i+1] - tarr[0]
                               
             if self.pf['pop_enrichment']:
                 raise NotImplementedError('help')
@@ -1287,11 +1314,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 # 'ages' only meaningful for final snapshot. Argh.
                 
-                Loft = self.src.L_per_SFR_of_t(wave)
-                L_per_msun = np.interp(ages, self.src.times, 
-                    Loft, left=Loft[0], right=Loft[-1])
-                    
-                self.L_per_msun = L_per_msun
+                
+                L_per_msun = np.exp(np.interp(np.log(ages), np.log(self.src.times), 
+                    np.log(Loft), left=np.log(Loft[0]), right=np.log(Loft[-1])))
             
                 # erg/s/Hz
                 Lall = L_per_msun * SFR[0:i+1] #* dt[0:i+1]
@@ -1321,9 +1346,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
             # Integrate over all times up to this tobs
             Lhist[i] = np.trapz(Lall, dx=dt[0:i])#np.sum(Lall)#[-1]
-                
-        self.Lall = Lall 
-        
+            #Lhist[i]  = np.sum(Lall * dt[0:i+1])
+            
+            # In this case, we only need one iteration of this loop.
+            if zobs is not None:
+                break
+                        
         Lhist = np.array(Lhist)
                 
         # Redden away!
@@ -1332,7 +1360,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             Lout = Lhist    
                        
-        return zarr, tarr, Lout
+        # Only cache if we've got the whole history
+        if (zobs is None) and (idnum is not None):
+            self._cache_ss_[(idnum, wave)] = zarr, tarr, Lout
+                       
+        return zarr[slc], tarr[slc], Lout[slc]
           
     def _cache_lf(self, z, x=None):
         if not hasattr(self, '_cache_lf_'):
@@ -1423,36 +1455,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Nt = raw['t'].size
         Nh = raw['Mh'].shape[0]
         
-        izobs = np.argmin(np.abs(raw['z'] - z))
+        izobs = np.argmin(np.abs(self.histories['z'] - z)) + 1
         
-        Lt = np.zeros((Nh, izobs+1))
+        Lt = np.zeros((Nh, izobs))
         corr = np.ones_like(Lt)
         for i in range(Nh):
                         
-            if not np.any(raw['Mh'][i] > 0):
-                print('hey', i)
-                continue
-                
-            hist = {'t': raw['t'], 'z': raw['z'],
-                'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 'Sd': raw['Sd'][i],
-                'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i],
-                'imf': raw['imf'][i]}
-
-            izform = 0#min(np.argwhere(raw['Mh'][i][-1::-1] > 0))[0]
-            
             # Must supply in time-ascending order
-            zarr, tarr, _L = self.SpectralSynthesis(hist, 
+            zarr, tarr, Lt[i,:izobs] = self.SpectralSynthesis(idnum=i,
                 zobs=z, wave=wave)
 
-            Lt[i,izform:] = _L
-            
             ## 
             # Optional: obscuration
             ##
             if self.pf['pop_fobsc'] in [0, 0.0, None]:
                 pass
             else:
-                _M = raw['Mh'][i,izform:izobs+1]
+                _M = raw['Mh'][i,:izobs]
                 
                 # Means obscuration refers to fractional dimming of individual 
                 # objects
@@ -1498,46 +1517,48 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_lf(z, x)
         
-    def get_beta(self, iz, zobs=None, wave=1600., dlam=100):
-        
-        ok = np.logical_and(wave-dlam <= self.src.wavelengths, 
-                            wave+dlam >= self.src.wavelengths)
-        
-        #ok = np.logical_or(ok, wave == self.src.wavelengths)
+    def get_beta(self, idnum, zobs=None, wave=1600., dlam=500):
+        """
+        Get UV slope for a single object.
+        """
+
+        if self.src.pf['source_sed'] == 'eldridge2009':
+            ok = np.logical_or(wave-dlam == self.src.wavelengths, 
+                               wave+dlam == self.src.wavelengths)
+            ok = np.logical_or(ok, wave == self.src.wavelengths)
+        else:
+            lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))
+            me = np.argmin(np.abs(wave - self.src.wavelengths))
+            hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))
             
-        #ok = np.logical_or(self.src.wavelengths == wave-dlam, 
-        #                   self.src.wavelengths == wave+dlam)    
-            
+            ok = np.zeros_like(self.src.wavelengths)
+            ok[lo] = 1; ok[me] = 1; ok[hi] = 1
+
         if ok.sum() < 2:
             raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
             
         arr = self.src.wavelengths[ok==1]
-        
-        hist = self.get_history(iz)
-        
-        # Must supply in time-ascending order
-        izobs = np.argmin(np.abs(self.histories['z'] - zobs))
-        
+                        
         Lh = []
         MAB = []
         #Lh = np.zeros((arr.size, izobs+1))
         for j, w in enumerate(arr):
-            zarr, tarr, _L = self.SpectralSynthesis(hist, 
-                zobs=zobs, wave=w)
+            zarr, tarr, _L = self.SpectralSynthesis(idnum=idnum, zobs=zobs, 
+                wave=w)
             Lh.append(_L * 1.)
             
-            if w == wave:
+            if j == 1:
                 MAB = self.magsys.L_to_MAB(Lh[j], z=zarr[-1])
                     
         Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None]
-        
+
         logw = np.log(arr)
         logL = np.log(Lh_l)
-                                    
+
         beta = (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
-        
+
         return MAB, beta
-                        
+
     def Beta(self, z, wave=1600., dlam=100):
         """
         UV slope.
@@ -1545,39 +1566,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         ok = np.logical_or(wave-dlam == self.src.wavelengths, 
                            wave+dlam == self.src.wavelengths)
-        
+
         ok = np.logical_or(ok, wave == self.src.wavelengths)
-            
+
         if ok.sum() < 2:
             raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
-            
+
         arr = self.src.wavelengths[ok==1]
-        
+
         beta = []
         MAB = []
         for i, hist in enumerate(self.get_histories(z)):
-
             _muv, _beta = self.get_beta(i, z, wave, dlam)
             MAB.append(_muv[-1])
             beta.append(_beta[-1])
-            continue
-
-            # Must supply in time-ascending order
-            Lh = np.zeros_like(arr)
-            for j, w in enumerate(arr):
-                zarr, tarr, _L = self.SpectralSynthesis(hist, 
-                    zobs=z, wave=w)
-                Lh[j] = _L[-1] * 1. # just grab last time snapshot.
-                
-                if w == wave:
-                    MAB.append(self.magsys.L_to_MAB(Lh[j], z=z))
-
-            Llam = Lh / self.src.dwdn[ok==1]
-
-            logw = np.log(arr)
-            logL = np.log(Llam)
-
-            beta.append((logL[0] - logL[-1]) / (logw[0] - logw[-1]))
 
         return np.array(MAB), np.array(beta)
         
@@ -1585,7 +1587,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
         Take 'raw' data and recover contours. 
         """
-        
+
         bin_e = bin_c2e(bins)
         
         band = []

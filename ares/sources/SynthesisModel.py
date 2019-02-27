@@ -318,31 +318,22 @@ class SynthesisModel(Source):
 
         return self._uvslope
         
-    def fit_uvslope(self, lam=1600, dlam=200, data=None):
+    def get_beta(self, wave=1600, dlam=500, data=None):
         
         if data is None:
             data = self.data
-        
-        slc = np.logical_and(lam-dlam <= self.wavelengths, 
-                            self.wavelengths <= lam+dlam)
-        
-        _uvslope_fit = np.zeros_like(self.times)        
-        for i in range(self.times.size):
             
-            logL = np.log(data[slc,i])
-            logw = np.log(self.wavelengths[slc])
+        ok = np.logical_or(wave-dlam == self.wavelengths, 
+                           wave+dlam == self.wavelengths)    
 
-            model = lambda pars: pars[0] + pars[1] * logw
-
-            to_min = lambda x, *args: np.sum((model(x) - logL)**2)
-
-            res = minimize(to_min, np.array([42., -2.]))
-
-            a, b = res.x
-
-            _uvslope_fit[i] = b
-            
-        return _uvslope_fit    
+        arr = self.wavelengths[ok==1]
+        
+        Lh_l = np.array(self.data[ok==1,:])
+        
+        logw = np.log(arr)
+        logL = np.log(Lh_l)
+                                    
+        return (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
     
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
