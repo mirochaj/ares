@@ -387,7 +387,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         of the background for each population.
 
         """
-        
+
         if self.solver.approx_all_pops:
             return None, None
             
