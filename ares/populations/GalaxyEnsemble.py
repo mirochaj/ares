@@ -33,6 +33,7 @@ pars_affect_sfhs.extend(["pop_update_dt","pop_thin_hist"])
 class GalaxyEnsemble(HaloPopulation,BlobFactory):
     
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
         # May not actually need this...
         HaloPopulation.__init__(self, **kwargs)
         
@@ -983,7 +984,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #Msj = cumtrapz(SFR[:,:], dx=dt, axis=1)
         #Msj = 0.5 * cumtrapz(SFR * tall, x=np.log(tall), axis=1)
         MZ = np.concatenate((MZ0, MZj), axis=1)
-        Md = self.pf['pop_dust_yield'] * MZ
+        Md = self.guide.dust_yield(z=z) * MZ
         
         # Make PQ option
         Rd = self.guide.dust_scale(z=z, Mh=Mh)
@@ -1239,6 +1240,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 # Do zobs correction    
                 izobs = np.argmin(np.abs(zobs - hist['z'])) + 1
+                if hist['z'][izobs-1] > zobs:
+                    izobs += 1
+                
                 zarr, tarr, L = cached_result
                 return zarr[0:izobs], tarr[0:izobs], L[0:izobs]
                 
@@ -1246,7 +1250,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             izobs = None
         else:
             izobs = np.argmin(np.abs(zobs - hist['z'])) + 1
-        
+            
+            if hist['z'][izobs-1] > zobs:
+                izobs += 1
+                
         # Must be supplied in increasing time order, decreasing redshift.
         assert np.all(np.diff(hist['t']) >= 0)
                         
@@ -1261,7 +1268,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Dust model?
         ##
-        if self.pf['pop_dust_yield'] > 0:
+        fd = self.guide.dust_yield(z=hist['z'][slc])
+        if np.any(fd > 0):
             fcov = self.guide.dust_fcov(z=hist['z'][slc], Mh=hist['Mh'][slc])
             kappa = self.guide.dust_kappa(wave=wave)
             Sd = hist['Sd'][slc]
@@ -1298,12 +1306,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Lhist = np.zeros_like(SFR)
         for i, _tobs in enumerate(tarr):
             
+            #print(i, len(tarr), _tobs, zarr[i], zobs)
+            
             if (zobs is not None):
                 if (zarr[i] > zobs):
                     continue
                 
             ages = tarr[i] - tarr[0:i+1] + 1e-1
             #_tf0 = tarr[0:i+1] - tarr[0]
+            
+            #print('hey! ages', ages)
+            
                               
             if self.pf['pop_enrichment']:
                 raise NotImplementedError('help')
@@ -1354,8 +1367,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         
         Lhist = np.array(Lhist)
                 
-        # Redden away!
-        if self.pf['pop_dust_yield'] > 0:
+        # Redden away!        
+        if np.any(fd) > 0:
             Lout = Lhist * (1. - fcov) + Lhist * fcov * np.exp(-tau)
         else:
             Lout = Lhist    
@@ -1456,6 +1469,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Nh = raw['Mh'].shape[0]
         
         izobs = np.argmin(np.abs(self.histories['z'] - z)) + 1
+        if self.histories['z'][izobs-1] > z:
+            izobs += 1
         
         Lt = np.zeros((Nh, izobs))
         corr = np.ones_like(Lt)

@@ -16,7 +16,7 @@ parallel, e.g.,
 import ares
 
 ## INPUT
-fit = 'PS'
+fit = 'Tinker10'
 fmt = 'npz'
 ##
 
@@ -29,6 +29,8 @@ hmf_pars = \
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
+ "hmf_dt": 1.,
+ "hmf_tmax": 2000.,
 }
 ##
 

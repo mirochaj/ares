@@ -225,7 +225,7 @@ class ParameterizedQuantity(object):
         elif func == 'normal':
             f = self.p0 * np.exp(-(x - self.p1)**2 / 2. / self.p2**2)
         elif func == 'pl':
-            #print('{0} {1} {2} {3} {4}'.format(x, kwargs['z'], p0, p1, p2))
+            #print('{0} {1} {2} {3} {4}'.format(x, kwargs['z'], self.p0, self.p1, self.p2))
             f = self.p0 * (x / self.p1)**self.p2
         elif func == 'schechter':
             f = self.p0 * (x / self.p1)**self.p2 * np.exp(-(x / self.p1)) / self.p1

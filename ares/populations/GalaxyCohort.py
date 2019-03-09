@@ -889,7 +889,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             return phi
 
-    def SurfaceDensity(self, z, mag=None, dz=1., dtheta=1.):
+    def SurfaceDensity(self, z, mag=None, dz=1., dtheta=1., wave=1600.):
         """
         
         Returns
@@ -901,7 +901,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         # These are intrinsic (i.e., not dust-corrected) absolute magnitudes 
-        _mags, _phi = self.phi_of_M(z=z)
+        _mags, _phi = self.phi_of_M(z=z, wave=wave)
         
         mask = np.logical_or(_mags.mask, _phi.mask)
         
@@ -987,7 +987,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
         return self._is_uvlf_parametric 
     
-    def UVLF_M(self, MUV, z=None):
+    def UVLF_M(self, MUV, z=None, wave=1600.):
         if self.is_uvlf_parametric:
             return self.uvlf(MUV=MUV, z=z)
     
@@ -995,7 +995,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Otherwise, standard SFE parameterized approach.
         ##
             
-        x_phi, phi = self.phi_of_M(z)
+        x_phi, phi = self.phi_of_M(z, wave=wave)
         
         ok = phi.mask == False
 
@@ -1011,8 +1011,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         return phi_of_x
     
-    def UVLF_L(self, LUV, z=None):
-        x_phi, phi = self.phi_of_L(z)
+    def UVLF_L(self, LUV, z=None, wave=1600.):
+        x_phi, phi = self.phi_of_L(z, wave=wave)
     
         ok = phi.mask == False
     
@@ -2157,7 +2157,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         An updated array of y-values.
 
         """
-
+        
         Mh, Mg, Mst, MZ, cMst, Mbh = y
 
         kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ,
@@ -2249,9 +2249,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
-        
+                
         results = [y1p, y2p, y3p, y4p, y5p, y6p]
-        
+                
         return np.array(results)
         
     def _SAM_1z_jac(self, z, y):
@@ -2701,19 +2701,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
         zf = max(float(self.halos.tab_z.min()), self.zdead)
         zi = min(float(self.halos.tab_z.max()), self.zform)
-        
+                
         if self.pf['sam_dz'] is not None:
-            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
+            assert self.pf['hmf_dt'] is None
+            dz = self.pf['sam_dz']
+            zfreq = int(round(self.pf['sam_dz'] / dz, 0))
         else:
             zfreq = 1
-
-        in_range = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= zi)
+        
+        in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= zi)
         zarr = self.halos.tab_z[in_range][::zfreq]
         results = {key:np.zeros([zarr.size]*2) for key in keys}
                 
         zmax = []
         zform = []
         for i, z in enumerate(zarr):
+            
+            #if z == zarr[0]:
+            #    continue
             #if (i == 0) or (i == len(zarr) - 1):
             #    zmax.append(zarr[i])
             #    zform.append(z)
@@ -2769,15 +2774,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         """
 
-        zf = max(float(self.halos.tab_z.min()), self.zdead)
-
-        if self.pf['sam_dz'] is not None:
-            dz = self.pf['sam_dz']
-            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
-        else:
-            dz = np.diff(self.halos.tab_z)[0]
-            zfreq = 1
-
         # jac=self._SAM_jac
         solver = ode(self._SAM).set_integrator('lsoda', 
             nsteps=1e4, atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'],
@@ -2802,7 +2798,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##
 
         n0 = 0.0
-
+        
         # Our results don't depend on this, unless SFE depends on z
         if (z0 is None) and (M0 == 0):
             z0 = self.halos.tab_z.max()
@@ -2825,17 +2821,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
 
-        in_range = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+        # Setup time-stepping
+        zf = max(float(self.halos.tab_z.min()), self.zdead)
+        
+        in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= z0)
+        in_range2 = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+        if self.pf['sam_dz'] is not None:
+            assert self.pf['hmf_dt'] is None
+            dz = self.pf['sam_dz'] * np.ones_like(self.halos.tab_z)
+            zfreq = int(round(self.pf['sam_dz'] / dz[0], 0))
+        else:
+            dz = np.diff(self.halos.tab_z[in_range2])
+            zfreq = 1
+
+        
         zarr = self.halos.tab_z[in_range][::zfreq]
         Nz = zarr.size
-
+        
         # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0
         MZ0 = 0.0
         Mst0 = 0.0
         Mbh0 = 0.0
         seeded = False
-        
+
         # Initial stellar mass -> 0, initial halo mass -> Mmin
         solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, Mbh0]), z0)
 
@@ -3034,7 +3043,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if has_t_ceil and (not has_t_limit):
                     zmax = max(zmax, zmax_t)
 
-            solver.integrate(solver.t-dz)
+            #print(i, Nz, zarr[-1::-1][i], solver.t - dz[-1::-1][i])
+            solver.integrate(solver.t-dz[-1::-1][i])
 
         if zmax is None:
             zmax = self.zdead
@@ -3047,7 +3057,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
         Md = self.pf['pop_dust_yield'] * MZ
-        Rd = self.pf['pop_dust_scale']
+        Rd = self.dust_scale(z=z, Mh=Mh)
         Sd = Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
         
         if self.pf['pop_dust_yield'] > 0:

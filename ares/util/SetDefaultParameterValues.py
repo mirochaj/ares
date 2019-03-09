@@ -859,6 +859,12 @@ def HaloMassFunctionParameters():
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
     
+    # Optional: time instead of redshift
+    "hmf_tmin": 30.,
+    "hmf_tmax": 1000.,
+    "hmf_dt": None,     # if not None, will switch this one.
+    
+    
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,

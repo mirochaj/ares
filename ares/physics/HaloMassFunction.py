@@ -25,7 +25,8 @@ from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
 from ..util.Pickling import read_pickle_file, write_pickle_file
-from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, m_H, k_B
+from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
+    m_H, k_B, s_per_myr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
 
 try:
@@ -360,16 +361,6 @@ class HaloMassFunction(object):
             logMmax = self.pf['hmf_logMmax']
             dlogM = self.pf['hmf_dlogM']
             
-            dz = self.pf['hmf_dz']
-            
-            # Introduce ghost zones so that the derivative is defined
-            # at the boundaries.
-            zmin = max(self.pf['hmf_zmin'] - 2 * dz, 0)
-            zmax = self.pf['hmf_zmax'] + 2 * dz
-            
-            Nz = int(round(((zmax - zmin) / dz) + 1, 1))
-            self.tab_z = np.linspace(zmin, zmax, Nz)             
-
             # Initialize Perturbations class            
             self._MF_ = MassFunction(Mmin=logMmin, Mmax=logMmax, 
                 dlog10m=dlogM, z=self.tab_z[0], 
@@ -406,6 +397,39 @@ class HaloMassFunction(object):
                 self._tab_bias[i] = self.Bias(z)
                 
         return self._tab_bias    
+        
+    @property
+    def tab_t(self):
+        if not hasattr(self, '_tab_t'):
+            tab_z = self.tab_z
+        return self._tab_t
+    
+    @property
+    def tab_z(self):
+        if not hasattr(self, '_tab_z'):
+            if self.pf['hmf_dt'] is None:
+                    
+                dz = self.pf['hmf_dz']
+                zmin = max(self.pf['hmf_zmin'] - 2*dz, 0.0)
+                zmax = self.pf['hmf_zmax'] + 2*dz
+            
+                Nz = int(round(((zmax - zmin) / dz) + 1, 1))
+                self._tab_z = np.linspace(zmin, zmax, Nz)
+            else:
+                dt = self.pf['hmf_dt'] # Myr
+            
+                tmin = max(self.pf['hmf_tmin'] - 2*dt, 0.0)
+                tmax = self.pf['hmf_tmax'] + 2*dt
+            
+                Nt = Nz = int(round(((tmax - tmin) / dt) + 1, 1))
+                self._tab_t = np.linspace(tmin, tmax, Nt)[-1::-1]    
+                self._tab_z = self.cosm.z_of_t(self.tab_t * s_per_myr)
+                        
+        return self._tab_z    
+        
+    @tab_z.setter
+    def tab_z(self, value):
+        self._tab_z = value
                                     
     def TabulateHMF(self):
         """
@@ -413,15 +437,7 @@ class HaloMassFunction(object):
         
         Can be run in parallel.
         """
-        
-        dz = self.pf['hmf_dz']
-        zmin = max(self.pf['hmf_zmin'] - 2*dz, 0.0)
-        zmax = self.pf['hmf_zmax'] + 2*dz
-        dlogM = self.pf['hmf_dlogM']
-        
-        Nz = int(round(((zmax - zmin) / dz) + 1, 1))
-        self.tab_z = np.linspace(zmin, zmax, Nz)
-        
+                        
         if rank == 0:
             print_hmf(self)
             print("\nComputing {!s} mass function...".format(self.hmf_func))    
@@ -450,7 +466,7 @@ class HaloMassFunction(object):
         pb.start()
 
         for i, z in enumerate(self.tab_z):
-            
+                        
             if i > 0:
                 self._MF.update(z=z)
                 
@@ -1025,33 +1041,57 @@ class HaloMassFunction(object):
         """
         
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
         
-        # Just use integer redshift bounds please.
-        assert z1 % 1 == 0
-        assert z2 % 1 == 0
         
-        z1 = int(z1)
-        z2 = int(z2)
+        if self.pf['hmf_dt'] is None:
+            z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+            
+            # Just use integer redshift bounds please.
+            assert z1 % 1 == 0
+            assert z2 % 1 == 0
+            
+            z1 = int(z1)
+            z2 = int(z2)
+            
+            s = 'z'
+            
+            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
+                / self.pf['hmf_dz']) + 1
+            
+        else:
+            t1, t2 = self.pf['hmf_tmin'], self.pf['hmf_tmax']
+            
+            # Just use integer redshift bounds please.
+            assert t1 % 1 == 0
+            assert t2 % 1 == 0
+            
+            # really times just use z for formatting below.
+            t1 = z1 = int(t1)
+            t2 = z2 = int(t2)
+        
+            s = 't'
+            
+            tsize = zsize = ((self.pf['hmf_tmax'] - self.pf['hmf_tmin']) \
+                / self.pf['hmf_dt']) + 1
+            
         
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz']) + 1
+            
                 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)    
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))    
              
-            s = 'hmf_{0!s}_logM_{1}_{2}-{3}_z_{4}_{5}-{6}'.format(\
-                self.hmf_func, logMsize, M1, M2, zsize, z1, z2)            
+            s = 'hmf_{0!s}_logM_{1}_{2}-{3}_{4}_{5}_{6}-{7}'.format(\
+                self.hmf_func, logMsize, M1, M2, s, zsize, z1, z2)            
                                 
         else:
             
-            s = 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3}-{4}'.format(\
-                self.hmf_func, M1, M2, z1, z2) 
+            s = 'hmf_{0!s}_logM_*_{1}-{2}_{3}_*_{4}-{5}'.format(\
+                self.hmf_func, M1, M2, s, z1, z2) 
                         
         return s   
                                
@@ -1105,9 +1145,7 @@ class HaloMassFunction(object):
         
         if rank > 0:
             return
-        
-        
-        
+                
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('tab_z', data=self.tab_z)

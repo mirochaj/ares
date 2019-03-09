@@ -18,9 +18,9 @@ Output to screen
 Starting and stopping calculations
 ----------------------------------
 ``initial_redshift``
-    Initial redshift of calculation. 
+    Initial redshift of calculation, i.e., the redshift at which we switch from cosmological initial conditions to the *ares* solver.
     
-    Default: 50
+    Default: 60
     
 ``final_redshift``
     Calculation stops at this redshift.

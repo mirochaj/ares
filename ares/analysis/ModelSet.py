@@ -1332,7 +1332,7 @@ class ModelSet(BlobFactory):
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
                 
                 for j, (walk, step) in enumerate(best):
-                    mp.grid[i].scatter(step+1, self.chain[ibest[j],k], 
+                    mp.grid[i].scatter(step, self.chain[ibest[j],k], 
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
                         s=150, color='k', lw=1)
             else:
@@ -1407,7 +1407,7 @@ class ModelSet(BlobFactory):
                 tmp = self.ExtractData(par)[par]
                 y = tmp[keep == 1]
                                                     
-            x = np.arange(1, len(y)+1)
+            x = np.arange(0, len(y))
             ax.plot(x, y, **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
