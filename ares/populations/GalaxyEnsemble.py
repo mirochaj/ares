@@ -84,7 +84,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Will convert to internal cgs units.
         """
         
-        iz = np.argmin(np.abs(z - self.tab_z))
+        iz = np.argmin(np.abs(z - self.histories['z']))
         sfr = self.histories['SFR'][:,iz]
         w = self.histories['nh'][:,iz]
         
@@ -1396,7 +1396,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if abs(x - _x[k]) < 1e-3:
                     return _phi[k]
                 else:
-                    phi = 10**np.interp(x, _x, np.log10(_phi))
+                    phi = 10**np.interp(x, _x, np.log10(_phi),
+                        left=-np.inf, right=-np.inf)
                     
                     # If _phi is 0, interpolation will yield a NaN
                     if np.isnan(phi):
@@ -1406,7 +1407,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if np.allclose(_x, x):
                     return _phi
             
-            return 10**np.interp(x, _x, np.log10(_phi))
+            return 10**np.interp(x, _x, np.log10(_phi), 
+                left=-np.inf, right=-np.inf)
                 
         return None
         
@@ -1424,12 +1426,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if abs(bins - _x[k]) < 1e-3:
                     return _phi[k]
                 else:
-                    return 10**np.interp(bins, _x, np.log10(_phi))
+                    return 10**np.interp(bins, _x, np.log10(_phi),
+                        left=-np.inf, right=-np.inf)
             elif _x.size == bins.size:
                 if np.allclose(_x, bins):
                     return _phi
             
-            return 10**np.interp(bins, _x, np.log10(_phi))
+            return 10**np.interp(bins, _x, np.log10(_phi),
+                left=-np.inf, right=-np.inf)
             
         return None  
         
@@ -1475,7 +1479,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Lt = np.zeros((Nh, izobs))
         corr = np.ones_like(Lt)
         for i in range(Nh):
-                        
+                                    
             # Must supply in time-ascending order
             zarr, tarr, Lt[i,:izobs] = self.SpectralSynthesis(idnum=i,
                 zobs=z, wave=wave)
@@ -1574,11 +1578,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return MAB, beta
 
-    def Beta(self, z, wave=1600., dlam=100):
+    def Beta(self, z, MUV=None, wave=1600., dlam=100):
         """
         UV slope.
         """
-        
+                
         ok = np.logical_or(wave-dlam == self.src.wavelengths, 
                            wave+dlam == self.src.wavelengths)
 
@@ -1596,6 +1600,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             MAB.append(_muv[-1])
             beta.append(_beta[-1])
 
+        if MUV is not None:
+            _beta = np.interp(MUV, np.array(MAB)[-1::-1], np.array(beta)[-1::-1],
+                left=-9999, right=-9999)
+            
+            return _beta
+                                                    
         return np.array(MAB), np.array(beta)
         
     def get_contours(self, x, y, bins):

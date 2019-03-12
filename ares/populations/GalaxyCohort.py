@@ -1074,7 +1074,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 L_sfr = self.src.L_per_sfr(wave)                                
                 Lh = L_sfr * sfr
                 
-                fcov = self.dust_fcov(Mh=self.halos.tab_M)
+                fcov = self.dust_fcov(z=z, Mh=self.halos.tab_M)
                 kappa = self.dust_kappa(wave=wave)
                 Sd = self.get_field(z, 'Sd')
                 tau = kappa * Sd
@@ -2032,7 +2032,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if type(self.pf['pop_mlf']) in [float, np.float64]:
                     # Note that fshock is really fcool
                     self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
-                        / ((1. / self.pf['pop_fstar_max']) + self.pf['pop_mlf'])
+                        / ((1. / self.pf['pop_fstar_max'] + self.pf['pop_mlf']))
                 elif self.pf['pop_mlf'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
                     Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
@@ -2040,14 +2040,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     self._mlf_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                         self.pf, **pars)
                 
-                    self._update_pq_registry('mlf', self._mlf_inst)    
+                    self._update_pq_registry('mlf', self._mlf_inst)
                     self._fstar = \
                         lambda **kwargs: boost * self.fshock(**kwargs) \
-                            / ((1. / self.pf['pop_fstar_max']) + self._mlf_inst(**kwargs))
+                            / ((1. / self.pf['pop_fstar_max'] + self._mlf_inst(**kwargs)))
             
             elif self.pf['pop_fstar'] is not None:
                 if type(self.pf['pop_fstar']) in [float, np.float64]:
-                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost    
+                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost \
+                          / (1. / self.pf['pop_fstar_max'])
                 
                 elif self.pf['pop_fstar'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
@@ -2060,7 +2061,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                     self._fstar = \
                         lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
-                            * boost
+                            * boost / (1. / self.pf['pop_fstar_max'])
 
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
@@ -3060,10 +3061,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Rd = self.dust_scale(z=z, Mh=Mh)
         Sd = Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
         
-        if self.pf['pop_dust_yield'] > 0:
-            tau = self.dust_kappa(wave=1600.)
-        else:
-            tau = None
+        #f self.pf['pop_dust_yield'] > 0:
+        #   tau = self.dust_kappa(wave=1600.)
+        #lse:
+        #   tau = None
         
         cMs = np.array(cMst_t)[-1::-1]
         Mbh = np.array(Mbh_t)[-1::-1]
@@ -3076,7 +3077,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'Md': Md, 'cMs': cMs,
             'Mbh': Mbh, 'SFR': SFR, 'SFE': SFE, 'MAR': MAR, 'nh': nh, 
-            'Sd': Sd, 'tau': tau, 'zmax': zmax, 't': tlb}
+            'Sd': Sd, 'zmax': zmax, 't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 

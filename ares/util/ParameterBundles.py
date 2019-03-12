@@ -309,6 +309,59 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
+_physical_dc = \
+{    
+ "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
+
+ "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
+ "pq_func[20]": 'pl',
+ 'pq_func_var[20]': 'wave',
+ 'pq_func_par0[20]': 1.,
+ 'pq_func_par1[20]': 1e4,
+ 'pq_func_par2[20]': -1.,
+ 
+ # Covering fraction
+ #"pop_dust_fcov": 0.5,
+ "pop_dust_fcov": 'pq[21]',   
+ "pq_func[21]": 'log_tanh_abs',
+ 'pq_func_var[21]': 'Mh',
+ 'pq_func_par0[21]': 0.0,     
+ 'pq_func_par1[21]': 1.0,
+ 'pq_func_par2[21]': 10.5,
+ 'pq_func_par3[21]': 1.5,
+ 'pq_val_floor[21]': 0.0,
+ 'pq_val_ceil[21]': 1.0,
+ 
+ # Scale 
+ "pop_dust_scale": 'pq[22]',   # Scale radius [in kpc]
+ "pq_func[22]": 'pl',
+ 'pq_func_var[22]': 'Mh',
+ 'pq_func_par0[22]': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]': 1e10,
+ 'pq_func_par2[22]': 0.33,
+ #'pq_val_floor[22]': 1e-5,
+ #'pq_val_ceil[12]': 1e3,
+ 
+ # Evolution of scale
+ "pq_func[23]": 'pl',
+ 'pq_func_var[23]': '1+z',
+ 'pq_func_par0[23]': 0.01,
+ 'pq_func_par1[23]': 5.,
+ 'pq_func_par2[23]': -1., # R(vir) goes like 1 / (1+z)
+ 'pq_val_ceil[23]': 10.,
+} 
+
+_physical_dc_zevol = _physical_dc.copy()
+_physical_dc_zevol['pq_func_par2[21]'] = 'pq[24]'
+_physical_dc_zevol["pq_func[24]"] = 'pl'
+_physical_dc_zevol['pq_func_var[24]'] = '1+z'
+_physical_dc_zevol['pq_func_par0[24]'] = 10.5
+_physical_dc_zevol['pq_func_par1[24]'] = 5.
+_physical_dc_zevol['pq_func_par2[24]'] = 0.
+_physical_dc_zevol['pq_val_floor[24]'] = 0.
+_physical_dc_zevol['pq_val_ceil[24]'] = 1.
+
+
 _cooling = \
 {
  'approx_thermal_history': 'exp',
@@ -356,7 +409,8 @@ _Bundles = \
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
-    'evolving': _evolve_dc, 'none': {},
+    'evolving': _evolve_dc, 'none': {}, 'phys': _physical_dc, 
+    'phys+e': _physical_dc_zevol,
     },
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
