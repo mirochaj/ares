@@ -192,7 +192,7 @@ class CalibrateModel(object):
                 # Normalization of SFE
                 if 'norm' in self.free_params_sfe:
                     free_pars.append('pq_func_par0[1]')
-                    guesses['pq_func_par0[1]'] = -4.5
+                    guesses['pq_func_par0[1]'] = -4.
                     is_log.extend([True])
                     jitter.extend([0.5])
                     ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
@@ -312,7 +312,7 @@ class CalibrateModel(object):
                 guesses['pq_func_par2[22]'] = 0.4
                 
                 # Normalization and redshift-dependence of R_d
-                guesses['pq_func_par0[23]'] = -2.
+                guesses['pq_func_par0[23]'] = 0.
                 guesses['pq_func_par2[23]'] = -1.
                 
                 is_log.extend([False, False, False, False, False, True, False])
@@ -323,7 +323,7 @@ class CalibrateModel(object):
                 ps.add_distribution(UniformDistribution(8, 14), 'pq_func_par2[21]')
                 ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[21]')
                 ps.add_distribution(UniformDistribution(-1., 2.), 'pq_func_par2[22]')
-                ps.add_distribution(UniformDistribution(-3., 0.), 'pq_func_par0[23]')
+                ps.add_distribution(UniformDistribution(-3., 2.), 'pq_func_par0[23]')
                 ps.add_distribution(UniformDistribution(-2., 1.), 'pq_func_par2[23]')
                                     
             # Set the attributes

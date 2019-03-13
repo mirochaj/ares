@@ -2047,8 +2047,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             elif self.pf['pop_fstar'] is not None:
                 if type(self.pf['pop_fstar']) in [float, np.float64]:
-                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost \
-                          / (1. / self.pf['pop_fstar_max'])
+                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
                 
                 elif self.pf['pop_fstar'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
@@ -2061,7 +2060,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                     self._fstar = \
                         lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
-                            * boost / (1. / self.pf['pop_fstar_max'])
+                            * boost 
 
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
