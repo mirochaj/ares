@@ -1246,7 +1246,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return beta
 
-
     def MUV(self, z, Mh, wave=1600.):
         Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z, wave=wave))
         MAB = self.magsys.L_to_MAB(Lh, z=z)
@@ -3058,7 +3057,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         MZ = np.array(metals)[-1::-1]
         Md = self.pf['pop_dust_yield'] * MZ
         Rd = self.dust_scale(z=z, Mh=Mh)
-        Sd = Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
+        # Assumes spherical symmetry, uniform dust density
+        Sd = 3. * Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
         
         #f self.pf['pop_dust_yield'] > 0:
         #   tau = self.dust_kappa(wave=1600.)

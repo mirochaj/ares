@@ -3640,7 +3640,7 @@ class ModelSet(BlobFactory):
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 
-        un_logx=False, 
+        un_logx=False, expr=None, new_x=None,
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
         E_to_freq=False, **kwargs):
@@ -3743,6 +3743,10 @@ class ModelSet(BlobFactory):
             
             # Read in the independent variable(s) and data itself
             xarr = ivars[0]
+            
+            if new_x is not None:
+                xarr = new_x
+                print("You better know what you're doing!")
                                 
             # Convert redshifts to frequencies    
             if z_to_freq:
@@ -3753,11 +3757,19 @@ class ModelSet(BlobFactory):
             
             if un_logx:
                 xarr = 10**xarr
+                
+            if new_x is not None:
+                xarr = new_x
+                print("You better know what you're doing!")    
             
             #if len(names) == 1:
             tmp = self.ExtractData(name, 
                 take_log=take_log, un_log=un_logy, multiplier=multiplier)
-            data = yblob = tmp[name]#.squeeze()
+            yblob = tmp[name]#.squeeze()
+            
+            if expr is not None:
+                yblob = eval(expr)
+            
             #else:
             #    tmp = self.ExtractData(names, 
             #        take_log=take_log, un_log=un_log, multiplier=multiplier)
@@ -3844,6 +3856,10 @@ class ModelSet(BlobFactory):
             if un_logx:
                 xarr = 10**xarr
                 
+            if new_x is not None:
+                xarr = new_x
+                print("You better know what you're doing!")
+            
             if type(multiplier) not in [list, np.ndarray, tuple]:
                 multiplier = [multiplier] * len(vector)
                                         
@@ -3851,6 +3867,9 @@ class ModelSet(BlobFactory):
                 take_log=take_log, un_log=un_logy)
                 
             yblob = tmp[name]    
+            
+            if expr is not None:
+                yblob = eval(expr)
             
             mask = np.all(yblob.mask == True, axis=1)
             keep = np.array(np.logical_not(mask), dtype=int)

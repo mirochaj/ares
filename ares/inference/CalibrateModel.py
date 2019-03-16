@@ -43,10 +43,10 @@ class CalibrateModel(object):
     """
     def __init__(self, fit_lf=True, fit_smf=False, fit_gs=False, use_ensemble=True, 
         zcal=[4.], include_sfe=True, free_params_sfe=True, zevol_sfe=[],
-        include_fshock=False, include_scatter_mar=False,
+        include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_obsc=False, zevol_obsc=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
-        save_lf=True, save_smf=False, 
+        save_lf=True, save_smf=False, save_sam=False,
         save_sfrd=False, save_beta=False, save_dust=False):
         """
         Calibrate a galaxy model to available data.
@@ -80,6 +80,7 @@ class CalibrateModel(object):
             Overwrite existing data outputs?
         """
         
+        self.name = name             # optional additional prefix
         self.fit_lf = int(fit_lf)
         self.fit_smf = int(fit_smf)
         self.fit_gs = int(fit_gs)
@@ -112,6 +113,7 @@ class CalibrateModel(object):
         
         self.save_lf = int(save_lf)
         self.save_smf = int(save_smf)
+        self.save_sam = int(save_sam)
         self.save_sfrd = int(save_sfrd)
         self.save_beta = int(save_beta)
         self.save_dust = int(save_dust)
@@ -159,6 +161,9 @@ class CalibrateModel(object):
             
         s += rest
         
+        if self.name is not None:
+            s = name + '_' + s
+        
         if rank == 0:
             print("Will save to files with prefix {}.".format(s))
 
@@ -192,7 +197,7 @@ class CalibrateModel(object):
                 # Normalization of SFE
                 if 'norm' in self.free_params_sfe:
                     free_pars.append('pq_func_par0[1]')
-                    guesses['pq_func_par0[1]'] = -4.
+                    guesses['pq_func_par0[1]'] = -3.3
                     is_log.extend([True])
                     jitter.extend([0.5])
                     ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
@@ -380,7 +385,6 @@ class CalibrateModel(object):
         redshifts = np.array([3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 
             10, 11, 12, 13, 14, 15])
         MUV = np.arange(-25, 5., 0.5)
-        MUV_2 = np.arange(-25, -5., 0.5)
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.1, 0.1)
 
@@ -401,12 +405,12 @@ class CalibrateModel(object):
         if self.include_sfe in [True, 1, 'dpl', 'flex']:
             blob_n = ['fstar']
             blob_i = [('z', redshifts), ('Mh', Mh)]
-            
+
             if self.use_ensemble:
                 blob_f = ['guide.fstar']
             else:
                 blob_f = ['fstar']
-                
+
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
@@ -422,6 +426,23 @@ class CalibrateModel(object):
                 blob_f2.append('fobsc')
                 
             raise NotImplemented('must add to pars')
+        
+        # SAM stuff
+        if self.save_sam:
+            blob_n = ['SFR', 'SMHM']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+            
+            if self.use_ensemble:
+                blob_f = ['guide.SFR', 'SMHM']
+            else:
+                blob_f = ['SFR', 'SMHM']
+                
+            blob_k = [{}, {'return_mean_only': True}]    
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(blob_k)
         
         # SMF
         if self.save_smf:    
@@ -446,15 +467,31 @@ class CalibrateModel(object):
             blob_pars['blob_kwargs'].append(None)
         
         # MUV-Beta
-        if self.save_beta:
-            blob_n = ['beta']
-            blob_i = [('z', np.array([4, 6, 8, 10])), ('MUV', MUV_2)]
-            blob_f = ['Beta']
+        if self.save_beta is not None:
+            
+            blob_n = ['AUV', 'AUV_eff']
+            blob_i = [('z', np.array([4, 6, 8, 10])), ('MUV', MUV)]
+            blob_f = ['AUV', 'AUV']
+            # By default, MUV refers to 1600 magnitude
+            blob_k = [{'wave': 1600.}, {'wave': 1600., 'eff': True}]
+            
+            if type(self.save_beta) in [int, bool]:
+                if rank == 0:
+                    print("Defaulting to Beta at 2200 Angstrom.")
+                blob_n.append('beta_2200')
+                blob_f.append('Beta')
+                blob_k.append({'wave': 2200})
+            else:
+                _beta_waves = []
+                for element in self.save_beta:
+                    blob_n.append('beta_{}'.format(int(element)))
+                    blob_f.append('Beta')
+                    blob_k.append({'wave': element})
             
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
-            blob_pars['blob_kwargs'].append([{'wave': 1600.}])
+            blob_pars['blob_kwargs'].append(blob_k)
             
         # Cosmic SFRD
         if self.save_sfrd:

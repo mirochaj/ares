@@ -997,7 +997,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #Msj = cumtrapz(SFR[:,:], dx=dt, axis=1)
         #Msj = 0.5 * cumtrapz(SFR * tall, x=np.log(tall), axis=1)
         #Mg = np.concatenate((Mg0, Mgj), axis=1)
-                            
+
         results = \
         {
          'nh': nh,#[:,-1::-1],
@@ -1018,7 +1018,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Nsn': np.zeros_like(Mh)
          #'Z': MZ[:,-1::-1] / Mg[:,-1::-1],
         }
-                
+
         # Reset attribute!
         self.histories = results
                 
@@ -1109,23 +1109,39 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_smf(z, bins)
         
-    def SMHM(self, z, bins=None):
+    def SMHM(self, z, Mh=None, return_mean_only=False):
+        """
+        Compute stellar mass -- halo mass relation at given redshift `z`.
+        
+        .. note :: Because in general this is a scatter plot, this routine
+            returns the mean and variance in stellar mass as a function of
+            halo mass, the latter of which is defined via `Mh`.
+        
+        Parameters
+        ----------
+        z : int, float 
+            Redshift of interest
+        Mh : int, np.ndarray
+            Halo mass bins (their centers) to use for histogram.
+            Must be evenly spaced in log10
+        
+        """
         iz = np.argmin(np.abs(z - self.histories['z']))
         
-        Ms = self.histories['Ms'][:,iz]
-        Mh = self.histories['Mh'][:,iz]
-        logMh = np.log10(Mh)
+        _Ms = self.histories['Ms'][:,iz]
+        _Mh = self.histories['Mh'][:,iz]
+        logMh = np.log10(_Mh)
         
-        fstar_raw = Ms / Mh
+        fstar_raw = _Ms / _Mh
         
-        if (bins is None) or (type(bins) is not np.ndarray):
+        if (Mh is None) or (type(Mh) is not np.ndarray):
             bin = 0.1
             bin_c = np.arange(6., 13.+bin, bin)
         else:
-            dx = np.diff(bins)
+            dx = np.diff(np.log10(Mh))
             assert np.allclose(np.diff(dx), 0)
             bin = dx[0]
-            bin_c = bins
+            bin_c = np.log10(Mh)
             
         bin_e = bin_c2e(bin_c)
         
@@ -1138,7 +1154,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             hi = bin_e[i+1]
                 
             ok = np.logical_and(logMh >= lo, logMh < hi)
-            ok = np.logical_and(ok, Mh > 0)
+            ok = np.logical_and(ok, _Mh > 0)
             
             f = np.log10(fstar_raw[ok==1])
             
@@ -1153,6 +1169,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             std.append(np.std(f))
             fstar.append(np.mean(f))
+        
+        std = np.array(std)
+        fstar = np.array(fstar)
+        
+        if return_mean_only:
+            return fstar
         
         return bin_c, np.array(fstar), np.array(std)
         
@@ -1412,27 +1434,27 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return None
         
-    def _cache_smf(self, z, bins):
+    def _cache_smf(self, z, Mh):
         if not hasattr(self, '_cache_smf_'):
             self._cache_smf_ = {}
     
         if z in self._cache_smf_:
             _x, _phi = self._cache_smf_[z]    
                 
-            if bins is None:
+            if Mh is None:
                 return _phi        
-            elif type(bins) != np.ndarray:
-                k = np.argmin(np.abs(bins - _x))
-                if abs(bins - _x[k]) < 1e-3:
+            elif type(Mh) != np.ndarray:
+                k = np.argmin(np.abs(Mh - _x))
+                if abs(Mh - _x[k]) < 1e-3:
                     return _phi[k]
                 else:
-                    return 10**np.interp(bins, _x, np.log10(_phi),
+                    return 10**np.interp(Mh, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
-            elif _x.size == bins.size:
-                if np.allclose(_x, bins):
+            elif _x.size == Mh.size:
+                if np.allclose(_x, Mh):
                     return _phi
             
-            return 10**np.interp(bins, _x, np.log10(_phi),
+            return 10**np.interp(Mh, _x, np.log10(_phi),
                 left=-np.inf, right=-np.inf)
             
         return None  
@@ -1536,7 +1558,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_lf(z, x)
         
-    def get_beta(self, idnum, zobs=None, wave=1600., dlam=500):
+    def _cache_beta(self, z, wave, wave_MUV):
+        if not hasattr(self, '_cache_beta_'):
+            self._cache_beta_ = {}
+            
+        if (z, wave, wave_MUV) in self._cache_beta_:
+            return self._cache_beta_[(z, wave, wave_MUV)]
+            
+        return None    
+        
+    def get_beta(self, idnum, zobs=None, wave=1600., dlam=100):
         """
         Get UV slope for a single object.
         """
@@ -1578,35 +1609,107 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return MAB, beta
 
-    def Beta(self, z, MUV=None, wave=1600., dlam=100):
+    def Beta(self, z, MUV=None, wave=1600., wave_MUV=1600., dlam=100):
         """
-        UV slope.
+        UV slope for all objects in model.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        MUV : int, float, np.ndarray
+            Optional. Set of magnitudes at which to return Beta.
+            Note: these need not be at the same wavelength as that used
+                  to compute Beta (see wave_MUV).
+        wave : int, float
+            Wavelength at which to compute Beta.
+        wave_MUV : int, float
+            Wavelength assumed for input MUV. Allows us to return, e.g., the
+            UV slope at 2200 Angstrom corresponding to input 1600 Angstrom
+            magnitudes.
+        dlam : int, float
+            Interval over which to average UV slope [Angstrom]
+        
+        Returns
+        -------
+        if MUV is None:
+            Tuple containing (magnitudes, slopes)
+        else:
+            Slopes at corresponding user-supplied MUV (assumed to be at 
+            wavelength `wave_MUV`).
         """
+        
+        cached_result = self._cache_beta(z, wave, wave_MUV)
+        
+        if cached_result is None:
                 
-        ok = np.logical_or(wave-dlam == self.src.wavelengths, 
-                           wave+dlam == self.src.wavelengths)
-
-        ok = np.logical_or(ok, wave == self.src.wavelengths)
-
-        if ok.sum() < 2:
-            raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
-
-        arr = self.src.wavelengths[ok==1]
-
-        beta = []
-        MAB = []
-        for i, hist in enumerate(self.get_histories(z)):
-            _muv, _beta = self.get_beta(i, z, wave, dlam)
-            MAB.append(_muv[-1])
-            beta.append(_beta[-1])
+            ok = np.logical_or(wave-dlam == self.src.wavelengths, 
+                               wave+dlam == self.src.wavelengths)
+            
+            ok = np.logical_or(ok, wave == self.src.wavelengths)
+            
+            if ok.sum() < 2:
+                raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
+            
+            arr = self.src.wavelengths[ok==1]
+            
+            beta = []
+            MAB = []
+            for i, hist in enumerate(self.get_histories(z)):
+                _muv1, _beta1 = self.get_beta(i, z, wave, dlam)
+                if wave_MUV != wave:
+                    _muv2, _beta2 = self.get_beta(i, z, wave, dlam)
+                    MAB.append(_muv2[-1])
+                else:
+                    MAB.append(_muv1[-1])
+                    
+                beta.append(_beta1[-1])
+                
+            beta = np.array(beta)
+            MAB = np.array(MAB) 
+            
+            self._cache_beta_[(z, wave, wave_MUV)] = MAB, beta    
+             
+        else:
+            MAB, beta = cached_result
 
         if MUV is not None:
-            _beta = np.interp(MUV, np.array(MAB)[-1::-1], np.array(beta)[-1::-1],
+            _beta = np.interp(MUV, MAB[-1::-1], beta[-1::-1],
                 left=-9999, right=-9999)
             
             return _beta
-                                                    
-        return np.array(MAB), np.array(beta)
+                                                                
+        return MAB, beta
+        
+    def AUV(self, z, MUV=None, wave=1600., dlam=100., eff=False):
+        """
+        Compute UV extinction.
+        """
+        
+        kappa = self.guide.dust_kappa(wave=wave)
+        Sd = self.get_field(z, 'Sd')
+        tau = kappa * Sd
+        
+        # Can return 'effective' extinction as well
+        if eff:
+            Mh = self.get_field(z, 'Mh')
+            fcov = self.guide.dust_fcov(z=z, Mh=Mh)
+            tau_eff = -np.log(1. - fcov + fcov * np.exp(-tau))
+            AUV = np.log10(np.exp(-tau_eff)) / -0.4
+        else:
+            AUV = np.log10(np.exp(-tau)) / -0.4
+            
+        # At this point, extinction is at magnitudes corresponding to 'Mh'.
+        # Need to recover magnitudes in order to interpolate.  
+        
+        MAB, beta = self.Beta(z, MUV=None, wave=wave, dlam=dlam)
+
+        if MUV is not None:
+            _AUV = np.interp(MUV, MAB[-1::-1], AUV[-1::-1],
+                left=0., right=0.)
+            return _AUV
+
+        return MUV, AUV
         
     def get_contours(self, x, y, bins):
         """

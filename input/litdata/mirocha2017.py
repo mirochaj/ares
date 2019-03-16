@@ -147,12 +147,12 @@ _flex2 = \
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 'pq[3]',
  'pq_func_par3{0}[0]': 'pq[4]',
- 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+ 'pq_func_par4{0}[0]': 1e10,        # Mass at which fstar,0 is defined
 
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
- 'pq_func_par0{0}[1]': 0.00205,       # DPL model at Mh=1e8
+ 'pq_func_par0{0}[1]': 0.019,       # DPL model at Mh=1e8
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
 
