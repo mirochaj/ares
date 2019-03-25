@@ -14,8 +14,8 @@ import os
 import numpy as np
 from .ModelFit import ModelFit
 from ..util import ParameterBundle as PB
-from .FitGalaxyPopulation import FitGalaxyPopulation
 from ..populations.GalaxyCohort import GalaxyCohort
+from .FitGalaxyPopulation import FitGalaxyPopulation
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
 
 try:
@@ -34,24 +34,38 @@ except ImportError:
 
 _zcal = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
 
+acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
+acceptable_dust_params = ['low', 'high', 'mid', 'width', 'norm', 'mdep', 'zdep']
+
 class CalibrateModel(object):
-    def __init__(self, include_lf=True, include_smf=False, include_gs=False,
-        zcal=[4.], zevol_sfe_norm=False, zevol_sfe_peak=False, 
-        zevol_sfe_shape=False, include_obsc=False, zevol_obsc=False,
-        include_dust='var_beta', save_lf=True, save_smf=False, save_sfrd=False):
+    """
+    Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
+    """
+    def __init__(self, fit_lf=True, fit_smf=False, fit_gs=False, use_ensemble=True, 
+        zcal=[4.], include_sfe=True, free_params_sfe=True, zevol_sfe=[],
+        include_fshock=False, include_scatter_mar=False, name=None,
+        include_dust='var_beta', include_obsc=False, zevol_obsc=False,
+        zevol_fshock=False, zevol_dust=False, free_params_dust=[],
+        save_lf=True, save_smf=False, save_sam=False,
+        save_sfrd=False, save_beta=False, save_dust=False):
         """
         Calibrate a galaxy model to available data.
         
+        .. note :: All the `include_*` parameters control what goes into our
+            base_kwargs, while the `free_params_*` parameters control what
+            we allow to vary in the fit.
+        
         Parameters
         ----------
-        include_lf : bool
+        fit_lf : bool
             Use available luminosity function measurements?
-        include_smf : bool
+        fit_smf : bool
             Use available stellar mass function measurements?    
-        include_gs : bool
+        fit_gs : bool
             Use constraints on global 21-cm signal?
         zcal : list
             Calibrate to data at these redshifts.
+        
         zevol_sfe_norm : bool
             Allow redshift evolution in the normalization of the SFE?
         zevol_sfe_peak : bool
@@ -66,19 +80,45 @@ class CalibrateModel(object):
             Overwrite existing data outputs?
         """
         
-        self.include_lf = int(include_lf)
-        self.include_smf = int(include_smf)
-        self.include_gs = int(include_gs)
+        self.name = name             # optional additional prefix
+        self.fit_lf = int(fit_lf)
+        self.fit_smf = int(fit_smf)
+        self.fit_gs = int(fit_gs)
         self.zcal = zcal
-        self.zevol_sfe_norm = int(zevol_sfe_norm)
-        self.zevol_sfe_peak = int(zevol_sfe_peak)
-        self.zevol_sfe_shape = int(zevol_sfe_shape)
+        self.include_sfe = include_sfe
         self.include_obsc = int(include_obsc)
-        self.zevol_obsc = int(zevol_obsc)
+        self.include_fshock = int(include_fshock)
+        self.include_scatter_mar = int(include_scatter_mar)
+
         self.include_dust = include_dust
+
+        # Set SFE free parameters
+        self.free_params_sfe = free_params_sfe        
+        for par in self.free_params_sfe:
+            if par in acceptable_sfe_params:
+                continue
+                
+            raise ValueError("Unrecognized SFE param: {}".format(par))
+        
+        # What's allowed to vary with redshift?
+        if zevol_sfe is None:
+            self.zevol_sfe = []   
+        elif zevol_sfe == 'all':
+            self.zevol_sfe = free_params_sfe
+        else:
+            self.zevol_sfe = zevol_sfe
+
+        self.zevol_dust = int(zevol_dust)
+        self.zevol_obsc = int(zevol_obsc)
+        
         self.save_lf = int(save_lf)
         self.save_smf = int(save_smf)
+        self.save_sam = int(save_sam)
         self.save_sfrd = int(save_sfrd)
+        self.save_beta = int(save_beta)
+        self.save_dust = int(save_dust)
+        self.use_ensemble = int(use_ensemble)
+        
         
     @property
     def prefix(self):
@@ -89,7 +129,7 @@ class CalibrateModel(object):
         for z in _zcal:
             if z not in self.zcal:
                 continue
-    
+
             zcal.append(z)
                 
         zs = ''
@@ -98,94 +138,135 @@ class CalibrateModel(object):
         zs = zs.rstrip('_')
     
         s = ''
-        if self.include_lf:
+        if self.fit_lf:
             s += 'lf_'
-        if self.include_smf:
+        if self.fit_smf:
             s += 'smf_'
-        if self.include_gs:
+        if self.fit_gs:
             s += 'gs_'
     
-        rest = 'enorm-{}_epeak-{}_eshape-{}_obsc-{}_eobsc-{}_dust-{}_zcal-{}'.format(
-            self.zevol_sfe_norm, self.zevol_sfe_peak, self.zevol_sfe_shape,
-            self.include_obsc, self.zevol_obsc, self.include_dust, zs)
-    
+        if self.include_sfe in [True, 1, 'dpl', 'flex']:
+            enorm = 'norm' in self.zevol_sfe
+            epeak = 'peak' in self.zevol_sfe
+            eslop = 'slope-low' in self.zevol_sfe \
+                 or 'slope-high' in self.zevol_sfe
+            
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_zcal-{}'.format(
+                int(enorm), int(epeak), int(eslop), self.include_dust, zs)
+        elif self.include_sfe in ['f17-p', 'f17-E']:
+            rest = 'sfe-{}_fshock-{}_dust-{}_zcal-{}'.format(
+                self.include_sfe, self.include_fshock, self.include_dust, zs)
+        else:
+            raise ValueError('Unrecognized option for `include_sfe`.')
+            
         s += rest
+        
+        if self.name is not None:
+            s = name + '_' + s
+        
+        if rank == 0:
+            print("Will save to files with prefix {}.".format(s))
 
         return s
         
     @property
     def parameters(self):
         if not hasattr(self, '_parameters'):
-            free_pars = ['pop_scatter_mar']
-            guesses = {'pop_scatter_mar': 0.3}
-            is_log = [False]
-            jitter = [0.1]
-
+            
+            free_pars = []
+            guesses = {}
+            is_log = []
+            jitter = []
             ps = DistributionSet()
-            ps.add_distribution(UniformDistribution(0, 1.), 'pop_scatter_mar')
+            
+            ##
+            # MAR scatter
+            ##
+            if self.include_scatter_mar:
+                free_pars.append('pop_scatter_mar')
+                guesses['pop_scatter_mar'] = 0.3
+                is_log.append(False)
+                jitter.append(0.1)                
+                ps.add_distribution(UniformDistribution(0, 1.), 'pop_scatter_mar')
 
             ##
             # Allow redshift evolution in normalization?
             ##
-            if self.zevol_sfe_norm:
-                free_pars.extend(['pq_func_par0[1]', 'pq_func_par2[1]'])
-                guesses['pq_func_par0[1]'] = -4.
-                guesses['pq_func_par2[1]'] = 0.0
-                is_log.extend([True, False])
-                jitter.extend([0.2, 0.2])
-                ps.add_distribution(UniformDistribution(-6, 0.0), 'pq_func_par0[1]')
-                ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[1]')
-            else:
-                free_pars.append('pq_func_par0[1]')
-                guesses['pq_func_par0[1]'] = -4
-                is_log.append(True)
-                jitter.append(0.2)
-                ps.add_distribution(UniformDistribution(-6, 0.), 'pq_func_par0[1]')
-    
-     
+            if self.include_sfe in [True, 1, 'dpl', 'flex']:
+                
+                # Normalization of SFE
+                if 'norm' in self.free_params_sfe:
+                    free_pars.append('pq_func_par0[1]')
+                    guesses['pq_func_par0[1]'] = -3.3
+                    is_log.extend([True])
+                    jitter.extend([0.5])
+                    ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
+                    
+                    if 'norm' in self.zevol_sfe:
+                        free_pars.append('pq_func_par2[1]')
+                        guesses['pq_func_par2[1]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[1]')
+                        
+                # Peak mass
+                if 'peak' in self.free_params_sfe:
+                    free_pars.append('pq_func_par0[2]')
+                    guesses['pq_func_par0[2]'] = 11.5
+                    is_log.extend([True])
+                    jitter.extend([0.5])
+                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[2]')
+                    
+                    if 'peak' in self.zevol_sfe:
+                        free_pars.append('pq_func_par2[2]')
+                        guesses['pq_func_par2[2]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[2]')
+                        
+                # Slope at low-mass side of peak
+                if 'slope-low' in self.free_params_sfe:                    
+                    free_pars.append('pq_func_par0[3]')
+                    guesses['pq_func_par0[3]'] = 0.666
+                    is_log.extend([False])
+                    jitter.extend([0.333])
+                    ps.add_distribution(UniformDistribution(0.0, 1.5), 'pq_func_par0[3]')
+                    
+                    # Allow to evolve with redshift?
+                    if 'slope-low' in self.zevol_sfe:
+                        free_pars.append('pq_func_par2[3]')
+                        guesses['pq_func_par2[3]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[3]')
+                
+                # Slope at high-mass side of peak        
+                if 'slope-high' in self.free_params_sfe:
+                    free_pars.append('pq_func_par0[4]')
+                    guesses['pq_func_par0[4]'] = 0.
+                    is_log.extend([False])
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par0[4]')
+                    
+                    # Allow to evolve with redshift?
+                    if 'slope-high' in self.zevol_sfe:
+                        free_pars.append('pq_func_par2[4]')
+                        guesses['pq_func_par2[4]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[4]')
+                    
             ##
-            # Allow redshift evolution in peak mass?
-            ##    
-            if self.zevol_sfe_peak:
-                free_pars.extend(['pq_func_par0[2]', 'pq_func_par2[2]'])
-                guesses['pq_func_par0[2]'] = 11.5
-                guesses['pq_func_par2[2]'] = 0.0
-                is_log.extend([True, False])
-                jitter.extend([0.2, 0.2])
-                ps.add_distribution(UniformDistribution(10, 13.), 'pq_func_par0[2]')
-                ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[2]')
-            else:
-                free_pars.append('pq_func_par0[2]')
-                guesses['pq_func_par0[2]'] = 11.5
-                is_log.append(True)
-                jitter.append(0.2)
-                ps.add_distribution(UniformDistribution(10, 13), 'pq_func_par0[2]')
-    
-            ##    
-            # Allow slope in SFE to evolve?
+            # Steve's models
             ##
-            if self.zevol_sfe_shape:
-                free_pars.extend(['pq_func_par0[3]', 'pq_func_par2[3]'])
-                free_pars.extend(['pq_func_par0[4]', 'pq_func_par2[4]'])
-                guesses['pq_func_par0[3]'] = 1.0
-                guesses['pq_func_par2[3]'] = 0.0
-                guesses['pq_func_par0[4]'] = -0.25
-                guesses['pq_func_par2[4]'] = 0.0
-                is_log.extend([False]*4)
-                jitter.extend([0.2, 0.2, 0.2, 0.2])
-                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[3]')
-                ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[3]')
-                ps.add_distribution(UniformDistribution(-2, 1.), 'pq_func_par0[4]')
-                ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par2[4]')
-            else:
-                free_pars.extend(['pq_func_par0[3]', 'pq_func_par0[4]'])
-                guesses['pq_func_par0[3]'] = 1.0
-                guesses['pq_func_par0[4]'] = -0.25
-                is_log.extend([False]*2)
-                jitter.extend([0.2, 0.2])
-                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[3]')
-                ps.add_distribution(UniformDistribution(-2, 1.), 'pq_func_par0[4]')
-
+            elif self.include_sfe in ['f17-p', 'f17-E']:
+                # 10 * epsilon_K * omega_49
+                free_pars.append('pq_func_par0[1]') 
+                guesses['pq_func_par0[1]'] = 0.
+                is_log.extend([True])
+                jitter.extend([0.5])
+                ps.add_distribution(UniformDistribution(-2, 2), 'pq_func_par0[1]')
+            
             ##
             # OBSCURATION
             ##
@@ -202,6 +283,55 @@ class CalibrateModel(object):
                 ps.add_distribution(UniformDistribution(8, 14), 'pq_func_par0[12]')
                 ps.add_distribution(UniformDistribution(0., 8.), 'pq_func_par0[13]')
     
+            ##
+            # DUST REDDENING
+            ##
+            if self.include_dust.startswith('phys'):
+                
+                #if self.zevol_dust:
+                #    free_pars.extend(['pq_func_par0[24]', 'pq_func_par2[24]'])
+                #    guesses['pq_func_par0[24]'] = 10.5
+                #    guesses['pq_func_par2[24]'] = 0.
+                #    is_log.extend([False, False])
+                #    jitter.extend([0.5, 1.0])
+                #    ps.add_distribution(UniformDistribution(8., 13.), 'pq_func_par0[24]')
+                #    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[24]')
+                #else:
+                #    free_pars.append('pq_func_par2[21]')    
+                #    guesses['pq_func_par2[21]'] = 10.5
+                #    is_log.append(False)
+                #    jitter.append(0.5)
+                #    ps.add_distribution(UniformDistribution(8., 13.), 'pq_func_par2[21]')
+
+                free_pars.extend(['pq_func_par0[21]', 'pq_func_par1[21]',
+                    'pq_func_par2[21]', 'pq_func_par3[21]', 'pq_func_par2[22]', 
+                    'pq_func_par0[23]', 'pq_func_par2[23]'])
+
+                # Tanh describing covering fraction
+                guesses['pq_func_par0[21]'] = 0.05
+                guesses['pq_func_par1[21]'] = 0.95
+                guesses['pq_func_par2[21]'] = 10.5
+                guesses['pq_func_par3[21]'] = 2.
+                
+                # Mass-dependence of R_d
+                guesses['pq_func_par2[22]'] = 0.4
+                
+                # Normalization and redshift-dependence of R_d
+                guesses['pq_func_par0[23]'] = 0.
+                guesses['pq_func_par2[23]'] = -1.
+                
+                is_log.extend([False, False, False, False, False, True, False])
+                jitter.extend([0.05, 0.05, 0.5, 0.5, 0.1, 0.5, 0.2])
+                
+                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[21]')
+                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
+                ps.add_distribution(UniformDistribution(8, 14), 'pq_func_par2[21]')
+                ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[21]')
+                ps.add_distribution(UniformDistribution(-1., 2.), 'pq_func_par2[22]')
+                ps.add_distribution(UniformDistribution(-3., 2.), 'pq_func_par0[23]')
+                ps.add_distribution(UniformDistribution(-2., 1.), 'pq_func_par2[23]')
+                                    
+            # Set the attributes
             self._parameters = free_pars
             self._guesses = guesses
             self._is_log = is_log
@@ -252,60 +382,155 @@ class CalibrateModel(object):
         
     @property
     def blobs(self):
-        redshifts = np.array([1.75, 2.25, 2.75, 3, 3.8, 4, 4.9, 5, 5.9, 6, 
-            6.9, 7, 7.9, 8, 9, 10, 11, 12, 13, 14, 15])
-        MUV = np.arange(-28, -5.8, 0.2)
+        redshifts = np.array([3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 
+            10, 11, 12, 13, 14, 15])
+        MUV = np.arange(-25, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.1, 0.1)
 
-        # blob 1: the LF. Give it a name, and the function needed to calculate it.
-        blob_n1 = ['galaxy_lf']
-        blob_i1 = [('z', redshifts), ('x', MUV)]
-        blob_f1 = ['LuminosityFunction']
-
-        # blob 2: the SFE. Same deal.
-        blob_n2 = ['fstar']
-        blob_i2 = [('z', redshifts), ('Mh', Mh)]
-        blob_f2 = ['guide.fstar']
-
-        if self.include_obsc:
-            blob_n2.append('fobsc')
-            blob_f2.append('guide.fobsc')
-            raise NotImplemented('must add to pars')
+        # Always save the UVLF
+        blob_n = ['galaxy_lf']
+        blob_i = [('z', redshifts), ('x', MUV)]
+        blob_f = ['LuminosityFunction']
         
         blob_pars = \
         {
-         'blob_names': [blob_n1, blob_n2],
-         'blob_ivars': [blob_i1, blob_i2],
-         'blob_funcs': [blob_f1, blob_f2],
-         'blob_kwargs': [None] * 2,
+         'blob_names': [blob_n],
+         'blob_ivars': [blob_i],
+         'blob_funcs': [blob_f],
+         'blob_kwargs': [None],
         }
-        
-        if self.save_smf:    
-            blob_n3 = ['galaxy_smf']
-            blob_i3 = [('z', redshifts), ('bins', Ms)]
-            blob_f3 = ['StellarMassFunction']
-            
-            blob_pars['blob_names'].append(blob_n3)
-            blob_pars['blob_ivars'].append(blob_i3)
-            blob_pars['blob_funcs'].append(blob_f3)
+
+        # Save the SFE if we're varying its parameters.
+        if self.include_sfe in [True, 1, 'dpl', 'flex']:
+            blob_n = ['fstar']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+
+            if self.use_ensemble:
+                blob_f = ['guide.fstar']
+            else:
+                blob_f = ['fstar']
+
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
+
+        # Binary obscuration
+        if self.include_obsc:
+            blob_n2.append('fobsc')
             
+            if self.use_ensemble:
+                blob_f2.append('guide.fobsc')
+            else:
+                blob_f2.append('fobsc')
+                
+            raise NotImplemented('must add to pars')
+        
+        # SAM stuff
+        if self.save_sam:
+            blob_n = ['SFR', 'SMHM']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+            
+            if self.use_ensemble:
+                blob_f = ['guide.SFR', 'SMHM']
+            else:
+                blob_f = ['SFR', 'SMHM']
+                
+            blob_k = [{}, {'return_mean_only': True}]    
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(blob_k)
+        
+        # SMF
+        if self.save_smf:    
+            blob_n = ['galaxy_smf']
+            blob_i = [('z', redshifts), ('bins', Ms)]
+            blob_f = ['StellarMassFunction']
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(None)
+        
+        # Covering factor and scale length    
+        if self.save_dust:
+            blob_n = ['dust_fcov', 'dust_scale']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+            blob_f = ['guide.dust_fcov', 'guide.dust_scale']
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(None)
+        
+        # MUV-Beta
+        if self.save_beta is not None:
+            
+            blob_n = ['AUV', 'AUV_eff']
+            blob_i = [('z', np.array([4, 6, 8, 10])), ('MUV', MUV)]
+            blob_f = ['AUV', 'AUV']
+            # By default, MUV refers to 1600 magnitude
+            blob_k = [{'wave': 1600.}, {'wave': 1600., 'eff': True}]
+            
+            if type(self.save_beta) in [int, bool]:
+                if rank == 0:
+                    print("Defaulting to Beta at 2200 Angstrom.")
+                blob_n.append('beta_2200')
+                blob_f.append('Beta')
+                blob_k.append({'wave': 2200})
+            else:
+                _beta_waves = []
+                for element in self.save_beta:
+                    blob_n.append('beta_{}'.format(int(element)))
+                    blob_f.append('Beta')
+                    blob_k.append({'wave': element})
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(blob_k)
+            
+        # Cosmic SFRD
         if self.save_sfrd:
-            raise NotImplemented('help')         
+            blob_n = ['sfrd']
+            blob_i = [('z', np.arange(3.5, 30.1, 0.1))]
+            blob_f = ['SFRD']
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(None)
         
         return blob_pars
-        
-    def augment(self):
-        pass
         
     @property
     def base_kwargs(self):
         if not hasattr(self, '_base_kwargs'):
-            self._base_kwargs = \
-                PB('mirocha2017:base').pars_by_pop(0, 1) \
-              + PB('mirocha2017:dflex').pars_by_pop(0, 1) \
-              + PB('dust:{}'.format(self.include_dust))
+            
+            if self.include_sfe in [1, True, 'dpl', 'flex']:
+                self._base_kwargs = \
+                    PB('mirocha2017:base').pars_by_pop(0, 1) \
+                  + PB('mirocha2017:dflex').pars_by_pop(0, 1) \
+                  + PB('dust:{}'.format(self.include_dust))
+            elif self.include_sfe in ['f17-p', 'f17-E']:
+                s = 'energy' if self.include_sfe.split('-')[1] == 'E' \
+                    else 'momentum'
+                
+                self._base_kwargs = \
+                    PB('furlanetto2017:{}'.format(s)) \
+                  + PB('dust:{}'.format(self.include_dust))
+                  
+                if self.include_fshock:
+                    self._base_kwargs = self._base_kwargs \
+                        + PB('furlanetto2017:fshock')
+                  
+                # Make sure 'pop_L1600_per_sfr' is None?  
+                  
+            else:
+                raise ValueError('Unrecognized option for `include_sfe`.')
         
         return self._base_kwargs
         
@@ -326,13 +551,13 @@ class CalibrateModel(object):
         
         data = []
         include = []
-        if self.include_lf:
+        if self.fit_lf:
             include.append('lf')
             data.extend(['bouwens2015', 'oesch2018'])
-        if self.include_smf:
+        if self.fit_smf:
             include.append('smf')
             data.append('song2016')
-        if self.include_gs:    
+        if self.fit_gs:    
             raise NotImplemented('sorry folks')
 
         # Must be before data is set
@@ -352,7 +577,11 @@ class CalibrateModel(object):
         # Master fitter
         fitter = ModelFit(**pars)
         fitter.add_fitter(fitter_lf)
-        fitter.simulator = GalaxyEnsemble
+        
+        if self.use_ensemble:
+            fitter.simulator = GalaxyEnsemble
+        else:
+            fitter.simulator = GalaxyCohort
 
         fitter.parameters = self.parameters
         fitter.is_log = self.is_log
@@ -373,7 +602,7 @@ class CalibrateModel(object):
         fitter.guesses = self.guesses
 
         fitter.save_hmf = True
-        fitter.save_hist = True
+        fitter.save_hist = 'pop_histories' in self.base_kwargs
         fitter.save_src = True    # Ugh can't be pickled...send tables? yes.
 
         self.fitter = fitter

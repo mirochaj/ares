@@ -139,6 +139,9 @@ class loglikelihood(LogLikelihood):
                                     
                     # Compute LF
                     p = pop.LuminosityFunction(z=z, x=M, mags=True)
+                    
+                    if np.isnan(p):
+                        raise ValueError('LF is nan!', z, M)
                                         
                 elif quantity == 'smf':
                     M = np.log10(xdat)
@@ -155,10 +158,8 @@ class loglikelihood(LogLikelihood):
         #phi = np.ma.array(_phi, mask=self.mask)
         
         #del sim, pops
-
+        
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
-
-        print(lnL, self.const_term)
 
         return lnL + self.const_term
     

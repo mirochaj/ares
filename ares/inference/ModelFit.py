@@ -28,14 +28,12 @@ from ..analysis.BlobFactory import BlobFactory
 from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
+from ..util.Stats import Gauss1D, GaussND, rebin, get_nu, bin_e2c
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain, read_pickled_logL
 
-import os
-import time
 #import psutil
 #
 #ps = psutil.Process(os.getpid())
@@ -162,7 +160,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
             kwargs[par] = 10**pars[i]
         else:
             kwargs[par] = pars[i]
-
+            
     # Apply prior on model parameters first (dont need to generate model)
     point = {}
     for i, par in enumerate(parameters):
@@ -243,7 +241,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     PofD = lp + lnL
 
     # emcee doesn't like nans, but -inf is OK (see below)
-    if np.isnan(PofD):
+    if np.isnan(PofD) or isinstance(PofD, np.ma.core.MaskedConstant):
         del sim, kw, kwargs
         gc.collect()
         return -np.inf, blank_blob
@@ -259,7 +257,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     gc.collect()
     
     #write_memory('4')
-                
+                    
     return PofD, blobs    
 
 def _str_to_val(p, par, pvals, pars):
@@ -834,46 +832,49 @@ class ModelFit(FitBase):
         return newpos
             
                         
-    # I don't know how to integrate this using the new prior system
-    # Can you help, Jordan?
-    #
-    #def _fix_guesses(self, pos):
-    #    
-    #    if rank > 0:
-    #        return
-    #    
-    #    guesses = pos.copy()
-    #    
-    #    # Fix parameters whose values lie outside prior space
-    #    for i, par in enumerate(self.parameters):
-    #        if par not in self.priors:
-    #            continue
-    #            
-    #        if self.priors[par][0] != 'uniform':
-    #            continue
-    #        
-    #        mi, ma = self.priors[par][1:]
-    #        
-    #        ok_lo = guesses[:,i] >= mi
-    #        ok_hi = guesses[:,i] <= ma
-    #        
-    #        if np.all(ok_lo) and np.all(ok_hi):
-    #            continue
-    #            
-    #        # Draw from uniform distribution for failed cases
-    #        
-    #        not_ok_lo = np.logical_not(ok_lo)
-    #        not_ok_hi = np.logical_not(ok_hi)
-    #        not_ok = np.logical_or(not_ok_hi, not_ok_lo)
-    #        
-    #        bad_mask = np.argwhere(not_ok)
-    #        
-    #        for j in bad_mask:
-    #            print ("Fixing guess for walker {0} parameter " +\
-    #                "{1!s}").format(j[0], par)
-    #            guesses[j[0],i] = np.random.uniform(mi, ma)
-    #    
-    #    return guesses
+    def _fix_guesses(self, pos):
+        """
+        If any walkers have been re-initialized to locations outside the
+        prior range, push them back into the acceptable range.
+        """
+        
+        raise NotImplemented('needs fixing with DistributionSet stuff.')
+        
+        if rank > 0:
+            return
+        
+        guesses = pos.copy()
+        
+        # Fix parameters whose values lie outside prior space
+        for i, par in enumerate(self.parameters):
+            if par not in self.priors:
+                continue
+                
+            if self.prior_set[par][0] != 'uniform':
+                continue
+            
+            mi, ma = self.priors[par][1:]
+            
+            ok_lo = guesses[:,i] >= mi
+            ok_hi = guesses[:,i] <= ma
+            
+            if np.all(ok_lo) and np.all(ok_hi):
+                continue
+                
+            # Draw from uniform distribution for failed cases
+            
+            not_ok_lo = np.logical_not(ok_lo)
+            not_ok_hi = np.logical_not(ok_hi)
+            not_ok = np.logical_or(not_ok_hi, not_ok_lo)
+            
+            bad_mask = np.argwhere(not_ok)
+            
+            for j in bad_mask:
+                print ("Fixing guess for walker {0} parameter " +\
+                    "{1!s}").format(j[0], par)
+                guesses[j[0],i] = np.random.uniform(mi, ma)
+        
+        return guesses
         
     @property 
     def jitter(self):
@@ -1150,7 +1151,80 @@ class ModelFit(FitBase):
     @debug.setter
     def debug(self, value):
         assert type(value) in [int, bool]
-        self._debug = value    
+        self._debug = value  
+        
+    def _reinitialize_walkers(self, chain, logL):
+        """
+        Re-initialize walkers after burn-in. 
+        
+        Doing this a little more carefully now. Just focusing on last
+        `nwalkers` elements of the chain, and will iteratively find
+        a new point around which to center walkers based on ranked list of 
+        likelihoods AND only accepting points within bulk of final distribution.
+                
+        Note that we're correcting for something that would likely be fixed
+        by a longer burn-in, and as a result will print a warning message
+        if we've kludged the walker positions relative to the naive 
+        approach.
+        
+        Parameters
+        ----------
+        chain : np.ndarray
+            An array with shape (nwalkers, nparams). The last snapshot of the
+            burn-in.
+        logL : np.ndarray
+            log likelihoods from burn-in
+        """
+        
+        ilogL = np.argsort(logL)[-1::-1]
+        
+        mlpt = chain[np.argmax(logL)]
+        orig = mlpt.copy()
+        sigm = np.std(chain, axis=0)
+    
+        # Find out if max likelihood point is within the bulk of 
+        # the distribution.
+        j = 0
+        ok = False
+        while (not ok):
+            for i in range(chain.shape[1]):
+                pdf, _bins = np.histogram(chain[:,i], bins=100)
+            
+                x = bin_e2c(_bins)
+                cdf = np.cumsum(pdf) / float(np.sum(pdf))
+            
+                x1 = np.interp(0.16, cdf, x)
+                x2 = np.interp(0.84, cdf, x)
+                        
+                if x1 <= mlpt[i] <= x2:
+                    ok = True
+                else:
+                    ok = False
+                    break
+        
+            if not ok:        
+                j += 1
+                
+            mlpt = chain[ilogL[j]]
+        
+        # Add the systematic difference between the PDF and best fit?
+        syst = abs(chain[np.argmax(logL)] - mlpt) * 0.5
+        
+        pos = sample_ball(mlpt, sigm + syst, size=self.nwalkers)   
+        
+        if not np.all(mlpt == orig):
+            if j+1 == 2:
+                sup = 'nd'
+            elif j+1 == 3:
+                sup = 'rd'
+            else:
+                sup = 'th'
+            print("WARNING: Burn-in may have been too short based on location of") 
+            print("         maximum likelihood position (outside 1-sigma dist. of")
+            print("         final walker positions). As a result, we have re-centered")
+            print("         around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
+    
+        return pos
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, reboot=False, recenter=False):
@@ -1173,10 +1247,10 @@ class ModelFit(FitBase):
             Append to pre-existing files of the same prefix if one exists?
             Can also supply the filename of the checkpoint from which to 
             restart.
-            
+        
         """
-                
-        self.prefix = prefix
+                        
+        self.prefix = prefix 
         
         if rank == 0:
             if os.path.exists('{!s}.chain.pkl'.format(prefix)) and (not clobber):
@@ -1220,7 +1294,9 @@ class ModelFit(FitBase):
                     # Print warning to screen    
                     not_a_restart(prefix, has_burn)    
                         
+        ##                
         # Initialize Pool
+        ##
         if size > 1:
             self.pool = MPIPool()
             
@@ -1255,12 +1331,13 @@ class ModelFit(FitBase):
         ##
         # Only rank==0 processor ever makes it here
         ##    
-            
+                    
         self.steps = steps
         self.save_freq = save_freq
         
+        ##
         # Speed-up tricks
-        
+        ##
         if self.save_hmf or self.save_src or self.save_hist:
             sim = self.simulator(**self.base_kwargs)
             
@@ -1349,60 +1426,26 @@ class ModelFit(FitBase):
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
         
         
-        state = None #np.random.RandomState(self.seed)
-                        
-        # Burn in, prep output files     
+        state = None #np.random.RandomState(self.seed)  
+        
+        ##
+        # Run burn-in
+        ##
         if (burn > 0) and (not restart):
             
             print("Starting burn-in: {!s}".format(time.ctime()))
             
             t1 = time.time()
             pos, prob, state, blobs = \
-                self.sampler.run_mcmc(self.guesses, burn, rstate0=state)
+                self._run(self.guesses, burn, state=state, save_freq=save_freq, 
+                    restart=False, prefix=self.prefix+'.burn')
             t2 = time.time()
 
             print("Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
-
-            # Save burn-in
-            burn_prefix = prefix + '.burn'
-            name = ['chain', 'logL', 'blobs']
-            for i, attrib in enumerate(['chain', 'lnprobability', 'blobs']):
-
-                data = self.sampler.__getattribute__(attrib)
-
-                # Blobs
-                if name[i] == 'blobs':
-                    if self.blob_names is None:
-                        continue
-                    self.save_blobs(data, prefix=burn_prefix)
-
-                    continue
-
-                # Other stuff
-                elif name[i] == 'chain':
-                    
-                    # Quick restructure of chain.
-                    rdata = np.array([data[:,kk,:] for kk in range(burn)])
-                    dat = flatten_chain(rdata)
-                else:
-                    rdata = np.array([data[:,kk] for kk in range(burn)])
-                    dat = flatten_logL(rdata)
-                    
-                fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
-                write_pickle_file(dat, fn, ndumps=1, open_mode='w',\
-                    safe_mode=False, verbose=True)
-                        
-            # Find walker at highest likelihood point at end of burn
-            mlpt = pos[np.argmax(prob)]
-
-            pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
-            #pos = self._fix_guesses(pos)
-
+          
+            pos = self._reinitialize_walkers(pos, prob)
             self.sampler.reset()
-
-            del data, dat
             gc.collect()
-            
         elif not restart:
             pos = self.guesses
             state = None
@@ -1410,18 +1453,51 @@ class ModelFit(FitBase):
             state = read_pickle_file('{!s}.rstate.pkl'.format(prefix),\
                 nloads=1, verbose=False)
             if rank == 0:
-                print("Using pre-restart RandomState.")
+                print("Using pre-restart RandomState. Should we do this?")
         else:
             state = None
-
-        #
-        ## MAIN CALCULATION BELOW
-        #
+            
+          
+        ##
+        # MAIN MCMC
+        ##
+        if rank == 0:
+            print("Starting MCMC: {!s}".format(time.ctime())) 
+            
+            pos, prob, state, blobs = \
+                self._run(pos, steps, state=state, save_freq=save_freq, 
+                    restart=restart, prefix=self.prefix)
+            
+        if self.pool is not None and emcee_mpipool:
+            self.pool.close()
+        elif self.pool is not None:
+            self.pool.stop()
 
         if rank == 0:
-            print("Starting MCMC: {!s}".format(time.ctime()))
-
-        # Need to make sure we don't overwrite previous outputs in this case    
+            print("Finished on {!s}".format(time.ctime()))
+          
+        ##
+        # New option: Reboot. See if destruction of Pool affects memory.
+        ##
+        if not reboot:
+            return
+          
+        del self.pool, self.sampler
+        gc.collect()
+          
+        self.counter = self.counter + 1    
+        
+        if rank == 0:
+            print("Commence reboot #{} (proc={})".format(self.counter, rank))
+          
+        self.run(prefix, steps=steps, burn=0, clobber=False, restart=True, 
+            save_freq=save_freq, reboot=self.counter < reboot) 
+            
+    def _run(self, pos, steps, state, save_freq, restart, prefix):
+        """
+        Run sampler and handle I/O.
+        """
+                
         if restart and (not self.checkpoint_append):
             ct = save_freq * (1 + max(self._saved_checkpoints(prefix)))
         else:
@@ -1431,14 +1507,11 @@ class ModelFit(FitBase):
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
-            
-            # Only the rank 0 processor ever makes it here
-            #write_memory('5')
-                          
+                        
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
             dd = 'dd' + str(ct // save_freq).zfill(4)
-            
+
             # Increment counter
             ct += 1
             
@@ -1446,7 +1519,7 @@ class ModelFit(FitBase):
             prob_all.append(prob.copy())
             blobs_all.append(blobs)
             
-            del blobs
+            #del blobs
 
             if ct % save_freq != 0:
                 gc.collect()
@@ -1457,87 +1530,82 @@ class ModelFit(FitBase):
             
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
-                    blobs_all]
+                    blobs_all, state]
 
-            # The flattened version of pos_all has 
-            # shape = (save_freq * nwalkers, ndim)
-
-            for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-
-                if self.checkpoint_append:
-                    mode = 'ab'
-                else:
-                    mode = 'wb'
-                    
-                # Blobs
-                if suffix == 'blobs':
-                    if self.blob_names is None:
-                        continue
-                    self.save_blobs(data[i], dd=dd)
-                # Other stuff
-                else:
-                    if self.checkpoint_append:
-                        fn = '{0!s}.{1!s}.pkl'.format(prefix, suffix)
-                    else:
-                        fn = '{0!s}.{1!s}.{2!s}.pkl'.format(prefix, dd, suffix)
-                        
-                    write_pickle_file(data[i], fn, ndumps=1,\
-                        open_mode=mode[0], safe_mode=False, verbose=False)
-                    
-            # This is a running total already so just save the end result 
-            # for this set of steps
-            write_pickle_file(self.sampler.acceptance_fraction,\
-                '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
-                safe_mode=False, verbose=False)
+            self._write_checkpoint(data, dd, ct, prefix, save_freq)
             
-            if self.checkpoint_append:
-                print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
-                    time.ctime()))
-            else:
-                print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
-                    time.ctime()))
-
-            ##################################################################
-            write_pickle_file(state, '{!s}.rstate.pkl'.format(prefix),\
-                ndumps=1, open_mode='w', safe_mode=False, verbose=False)
-            ##################################################################
-
             del pos_all, prob_all, blobs_all, data
             
             # Delete chain, logL, etc., to be conscious of memory
             self.sampler.reset()
-
+            
             gc.collect()
-            
-            #write_memory('6')
-
+                        
             pos_all = []; prob_all = []; blobs_all = []
-
-        if self.pool is not None and emcee_mpipool:
-            self.pool.close()
-        elif self.pool is not None:
-            self.pool.stop()
-
-        if rank == 0:
-            print("Finished on {!s}".format(time.ctime()))
             
-        ##
-        # New option: Reboot. See if destruction of Pool affects memory.
-        ##
-        if not reboot:
-            return
-            
-        del self.pool, self.sampler
-        gc.collect()
-            
-        self.counter = self.counter + 1    
         
-        if rank == 0:
-            print("Commence reboot #{} (proc={})".format(self.counter, rank))
+        ##
+        # Means there's a mismatch in `save_freq` and (`steps` and/or `burn`)
+        # so we never hit the last checkpoint. Don't let those samples go
+        # to waste!
+        ##
+        if pos_all != []:
+            print("Writing data one last time because save_freq > steps.")
+            data = [flatten_chain(np.array(pos_all)),
+                    flatten_logL(np.array(prob_all)),
+                    blobs_all, state]
+                    
+            self._write_checkpoint(data, dd, ct, prefix, save_freq)
             
-        self.run(prefix, steps=steps, burn=0, clobber=False, restart=True, 
-            save_freq=save_freq, reboot=self.counter < reboot)    
-    
+            del pos_all, prob_all, blobs_all, data
+        
+        # Just return progress over last `save_freq` steps.    
+        return pos, prob, state, blobs
+        
+    def _write_checkpoint(self, data, dd, ct, prefix, save_freq):
+        # The flattened version of pos_all has 
+        # shape = (save_freq * nwalkers, ndim)
+
+        for i, suffix in enumerate(['chain', 'logL', 'blobs']):
+
+            if self.checkpoint_append:
+                mode = 'ab'
+            else:
+                mode = 'wb'
+                
+            # Blobs
+            if suffix == 'blobs':
+                if self.blob_names is None:
+                    continue
+                self.save_blobs(data[i], dd=dd, prefix=prefix)
+            # Other stuff
+            else:
+                if self.checkpoint_append:
+                    fn = '{0!s}.{1!s}.pkl'.format(prefix, suffix)
+                else:
+                    fn = '{0!s}.{1!s}.{2!s}.pkl'.format(prefix, dd, suffix)
+                    
+                write_pickle_file(data[i], fn, ndumps=1,\
+                    open_mode=mode[0], safe_mode=False, verbose=False)
+                
+        # This is a running total already so just save the end result 
+        # for this set of steps
+        write_pickle_file(self.sampler.acceptance_fraction,\
+            '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
+            safe_mode=False, verbose=False)
+        
+        if self.checkpoint_append:
+            print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+                time.ctime()))
+        else:
+            print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
+                time.ctime()))
+
+        ##################################################################
+        write_pickle_file(data[-1], '{!s}.rstate.pkl'.format(prefix),\
+            ndumps=1, open_mode='w', safe_mode=False, verbose=False)
+        ##################################################################
+            
     def save_blobs(self, blobs, uncompress=True, prefix=None, dd=None):
         """
         Write blobs to disk.
@@ -1594,10 +1662,6 @@ class ModelFit(FitBase):
                 write_pickle_file(np.array(to_write), bfn, ndumps=1,\
                     open_mode=mode[0], safe_mode=False, verbose=False)
     
-    
-    ##
-    # TESTING
-    ##
         
     @property
     def simulator(self):

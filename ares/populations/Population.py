@@ -105,6 +105,9 @@ class Population(object):
         self._eV_per_phot = {}
         self._conversion_factors = {}
         
+        assert self.pf['pop_star_formation'] + self.pf['pop_bh_formation'] <= 1, \
+            "Populations can only form stars OR black holes."
+        
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
         pass    

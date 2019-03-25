@@ -506,6 +506,7 @@ def PopulationParameters():
     "pop_aging": False,
     "pop_enrichment": False,
     "pop_quench": False,
+    "pop_mag_bin": 0.5,
     
     # For Clusters
     "pop_mdist": None,
@@ -530,7 +531,7 @@ def PopulationParameters():
     "pop_force_equilibrium": np.inf,
     "pop_sample_imf": False,
     "pop_sample_cmf": False,
-    "pop_imf": 'salpeter',
+    "pop_imf": 2.35,     # default to standard SSPs. 
     "pop_imf_bins": None,#np.arange(0.1, 150.01, 0.01),  # bin centers
     "pop_cmf": None,
     
@@ -633,7 +634,11 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
-    "pop_dust_yield": 0.1,
+    "pop_dust_yield": 0.,     # Mdust = dust_yield * metal mass
+    "pop_dust_scale": 0.1,    # 100 pc
+    "pop_dust_fcov": 1.0,     
+    "pop_dust_kappa": None,   # opacity in [cm^2 / g]
+    
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
@@ -854,6 +859,12 @@ def HaloMassFunctionParameters():
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
     
+    # Optional: time instead of redshift
+    "hmf_tmin": 30.,
+    "hmf_tmax": 1000.,
+    "hmf_dt": None,     # if not None, will switch this one.
+    
+    
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
@@ -920,8 +931,6 @@ def ControlParameters():
     
     "save_rate_coefficients": 1,
     
-    "need_for_speed": False,
-
     "optically_thin": 0,
 
     # Solvers

@@ -74,6 +74,16 @@ class MagnitudeSystem(object):
         
         return m - 5. * (np.log10(dL / cm_per_pc) - 1.) 
 
+    def L_to_mab(self, L, z=None, dL=None):
+        # apparent magnitude
+        assert (z is not None) or (dL is not None)
+        
+        if z is not None:
+            dL = self.cosm.LuminosityDistance(z)
+         
+        #    
+        return -2.5 * np.log10(L  / (norm_AB * 4. * np.pi * dL**2))
+
     def mAB_to_flux_density(self, mag):
         pass
     

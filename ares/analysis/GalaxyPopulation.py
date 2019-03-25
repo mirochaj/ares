@@ -313,7 +313,7 @@ class GalaxyPopulation(object):
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
-        quantity='lf', annotate_z='left', mp=None, sources_except=[], 
+        quantity='lf', mp=None, sources_except=[], 
         mp_kwargs={}, show_ylabel=True, **kwargs):
         """
         Plot the luminosity function at a bunch of different redshifts.
@@ -347,6 +347,8 @@ class GalaxyPopulation(object):
             
         if mp_kwargs == {}:
             mp_kwargs = {'panel_size': panel_size, 'padding': [0.2]*2}
+            
+        annotate_z = 'left' if quantity == 'lf' else 'right'
             
         # Create multiplot
         if mp is None:

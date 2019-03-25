@@ -40,7 +40,7 @@ class DustCorrection(object):
             elif type(self.pf['dustcorr_method']) is list:
                 meth = self.pf['dustcorr_method']
                 self._method = \
-                    [meth[i] for i in range(len(meth))]   
+                    [meth[i] for i in range(len(meth))]
                     
                 assert len(self._method) == len(self.pf['dustcorr_ztrans'])
             else:
@@ -62,9 +62,6 @@ class DustCorrection(object):
         ##
         if self.method == 'physical':
             raise NotImplemented('help')
-        
-        
-        
         
         ##
         # Empirical prescriptions.
