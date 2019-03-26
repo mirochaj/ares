@@ -114,7 +114,7 @@ class loglikelihood(LogLikelihood):
         #try:
         phi = np.zeros_like(self.ydata)
         for i, quantity in enumerate(self.metadata):
-            
+                        
             if self.mask[i]:
                 continue
 
@@ -146,6 +146,9 @@ class loglikelihood(LogLikelihood):
                 elif quantity == 'smf':
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(z, M)
+                elif quantity == 'beta':
+                    M = xdat
+                    p = pop.Beta(z, MUV=M)
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
@@ -323,7 +326,11 @@ class FitGalaxyPopulation(FitBase):
                         M = self.data[quantity][i][redshift]['M']
                         
                         # These could still be in log10 units
-                        phi = self.data[quantity][i][redshift]['phi']
+                        if quantity == 'beta':
+                            phi = self.data[quantity][i][redshift]['beta']
+                        else:    
+                            phi = self.data[quantity][i][redshift]['phi']
+                            
                         err = self.data[quantity][i][redshift]['err']
 
                         if hasattr(M, 'mask'):
@@ -413,7 +420,11 @@ class FitGalaxyPopulation(FitBase):
                     for i, dataset in enumerate(self.data[quantity]):
                         for j, redshift in enumerate(self.data[i]):
                             self._xdata.append(dataset[redshift]['M'])
-                            self._ydata.append(dataset[redshift]['phi'])
+                            
+                            if quantity == 'beta':
+                                self._ydata.append(dataset[redshift]['beta'])
+                            else:    
+                                self._ydata.append(dataset[redshift]['phi'])
                             self._error.append(dataset[redshift]['err'])
                     
         return self._xdata

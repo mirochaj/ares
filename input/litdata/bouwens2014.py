@@ -8,7 +8,8 @@ info = \
 }
 
 redshifts = [4, 5, 6, 7, 8]
-wavelength = 1500.
+wavelength = None
+units = {'beta': 1.}
 
 
 _data = \
@@ -45,7 +46,8 @@ _data = \
 
 
 data = {}
+data['beta'] = {}
 for key in _data:
-    data[key] = {}
+    data['beta'][key] = {}
     for element in _data[key]:
-        data[key][element] = np.array(_data[key][element])
+        data['beta'][key][element] = np.array(_data[key][element])
