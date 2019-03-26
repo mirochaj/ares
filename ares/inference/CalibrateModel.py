@@ -32,7 +32,9 @@ except ImportError:
     rank = 0
     size = 1    
 
-_zcal = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
+_zcal_lf = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
+_zcal_smf = [3, 4, 5, 6, 7, 8]
+_zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
 acceptable_dust_params = ['low', 'high', 'mid', 'width', 'norm', 'mdep', 'zdep']
@@ -41,8 +43,9 @@ class CalibrateModel(object):
     """
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
-    def __init__(self, fit_lf=True, fit_smf=False, fit_gs=False, use_ensemble=True, 
-        zcal=[4.], include_sfe=True, free_params_sfe=True, zevol_sfe=[],
+    def __init__(self, fit_lf=[5.9], fit_smf=False, fit_gs=False, fit_beta=False,
+        use_ensemble=True,  
+        include_sfe=True, free_params_sfe=True, zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_obsc=False, zevol_obsc=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
@@ -63,9 +66,7 @@ class CalibrateModel(object):
             Use available stellar mass function measurements?    
         fit_gs : bool
             Use constraints on global 21-cm signal?
-        zcal : list
-            Calibrate to data at these redshifts.
-        
+
         zevol_sfe_norm : bool
             Allow redshift evolution in the normalization of the SFE?
         zevol_sfe_peak : bool
@@ -81,10 +82,11 @@ class CalibrateModel(object):
         """
         
         self.name = name             # optional additional prefix
-        self.fit_lf = int(fit_lf)
-        self.fit_smf = int(fit_smf)
-        self.fit_gs = int(fit_gs)
-        self.zcal = zcal
+        self.fit_lf = fit_lf
+        self.fit_smf = fit_smf
+        self.fit_gs = fit_gs
+        self.fit_beta = fit_beta
+                
         self.include_sfe = include_sfe
         self.include_obsc = int(include_obsc)
         self.include_fshock = int(include_fshock)
@@ -119,15 +121,14 @@ class CalibrateModel(object):
         self.save_dust = int(save_dust)
         self.use_ensemble = int(use_ensemble)
         
-        
-    @property
-    def prefix(self):
+    def get_zstr(self, vals, okvals):
         """
-        Generate output filename.
+        Make a string showing the redshifts we're calibrating to for some 
+        quantity.
         """
         zcal = []
-        for z in _zcal:
-            if z not in self.zcal:
+        for z in okvals:
+            if z not in vals:
                 continue
 
             zcal.append(z)
@@ -136,14 +137,24 @@ class CalibrateModel(object):
         for z in zcal:
             zs += '%i_' % round(z)
         zs = zs.rstrip('_')
-    
+        
+        return zs
+        
+    @property
+    def prefix(self):
+        """
+        Generate output filename.
+        """
+        
         s = ''
         if self.fit_lf:
-            s += 'lf_'
+            s += 'lf_' + self.get_zstr(self.fit_lf, _zcal_lf) + '_'
         if self.fit_smf:
-            s += 'smf_'
+            s += 'smf_' + self.get_zstr(self.fit_smf, _zcal_smf) + '_'
+        if self.fit_beta:
+            s += 'beta_' + self.get_zstr(self.fit_beta, _zcal_beta) + '_'
         if self.fit_gs:
-            s += 'gs_'
+            s += 'gs_' # add freq range?
     
         if self.include_sfe in [True, 1, 'dpl', 'flex']:
             enorm = 'norm' in self.zevol_sfe
@@ -151,8 +162,8 @@ class CalibrateModel(object):
             eslop = 'slope-low' in self.zevol_sfe \
                  or 'slope-high' in self.zevol_sfe
             
-            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_zcal-{}'.format(
-                int(enorm), int(epeak), int(eslop), self.include_dust, zs)
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}'.format(
+                int(enorm), int(epeak), int(eslop), self.include_dust)
         elif self.include_sfe in ['f17-p', 'f17-E']:
             rest = 'sfe-{}_fshock-{}_dust-{}_zcal-{}'.format(
                 self.include_sfe, self.include_fshock, self.include_dust, zs)
@@ -197,7 +208,7 @@ class CalibrateModel(object):
                 # Normalization of SFE
                 if 'norm' in self.free_params_sfe:
                     free_pars.append('pq_func_par0[1]')
-                    guesses['pq_func_par0[1]'] = -3.3
+                    guesses['pq_func_par0[1]'] = -1.3
                     is_log.extend([True])
                     jitter.extend([0.5])
                     ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
@@ -477,7 +488,7 @@ class CalibrateModel(object):
             
             if type(self.save_beta) in [int, bool]:
                 if rank == 0:
-                    print("Defaulting to Beta at 2200 Angstrom.")
+                    print("[blobs] Defaulting to Beta at 2200 Angstrom.")
                 blob_n.append('beta_2200')
                 blob_f.append('Beta')
                 blob_k.append({'wave': 2200})
@@ -557,23 +568,25 @@ class CalibrateModel(object):
         if self.fit_smf:
             include.append('smf')
             data.append('song2016')
+        if self.fit_beta:
+            include.append('beta')
+            data.append('bouwens2014')    
         if self.fit_gs:    
             raise NotImplemented('sorry folks')
 
         # Must be before data is set
-        fitter_lf.redshifts = {'lf': self.zcal, 'smf': self.zcal}
+        fitter_lf.redshifts = {'lf': self.fit_lf, 'smf': self.fit_smf,
+            'beta': self.fit_beta}
         fitter_lf.include = include
 
         fitter_lf.data = data
         
-
         ##
         # Stitch together parameters
         ##
         pars = self.base_kwargs
         pars.update(self.blobs)
         
-
         # Master fitter
         fitter = ModelFit(**pars)
         fitter.add_fitter(fitter_lf)

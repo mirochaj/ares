@@ -3640,7 +3640,7 @@ class ModelSet(BlobFactory):
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 
-        un_logx=False, expr=None, new_x=None,
+        expr=None, new_x=None, is_logx=False,
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
         E_to_freq=False, **kwargs):
@@ -3743,7 +3743,7 @@ class ModelSet(BlobFactory):
             
             # Read in the independent variable(s) and data itself
             xarr = ivars[0]
-            
+
             if new_x is not None:
                 xarr = new_x
                 print("You better know what you're doing!")
@@ -3755,7 +3755,7 @@ class ModelSet(BlobFactory):
             if E_to_freq:
                 xarr = xarr * erg_per_ev / h_p
             
-            if un_logx:
+            if is_logx:
                 xarr = 10**xarr
                 
             if new_x is not None:
@@ -3853,7 +3853,7 @@ class ModelSet(BlobFactory):
             if E_to_freq:
                 xarr = xarr * erg_per_ev / h_p
             
-            if un_logx:
+            if is_logx:
                 xarr = 10**xarr
                 
             if new_x is not None:
