@@ -40,7 +40,7 @@ try:
 except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
-    
+        
 ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18

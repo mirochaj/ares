@@ -1387,13 +1387,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if zobs is not None:
                 break
                         
-        Lhist = np.array(Lhist)
+        _Lhist = np.array(Lhist)
                 
         # Redden away!        
         if np.any(fd) > 0:
-            Lout = Lhist * (1. - fcov) + Lhist * fcov * np.exp(-tau)
+            Lout = _Lhist * (1. - fcov) + _Lhist * fcov * np.exp(-tau)
         else:
-            Lout = Lhist    
+            Lout = _Lhist    
                        
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):

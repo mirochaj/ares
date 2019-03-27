@@ -173,7 +173,7 @@ class CalibrateModel(object):
         s += rest
         
         if self.name is not None:
-            s = name + '_' + s
+            s = self.name + '_' + s
         
         if rank == 0:
             print("Will save to files with prefix {}.".format(s))
@@ -395,7 +395,7 @@ class CalibrateModel(object):
     def blobs(self):
         redshifts = np.array([3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 
             10, 11, 12, 13, 14, 15])
-        MUV = np.arange(-25, 5., 0.5)
+        MUV = np.arange(-28, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.1, 0.1)
 

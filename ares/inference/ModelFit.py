@@ -1115,6 +1115,10 @@ class ModelFit(FitBase):
                 to_axe.append(key)     
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
+            if re.search('pop_histories', key):
+                to_axe.append(key)    
+            if re.search('hmf_table', key):
+                to_axe.append(key)
             
             # Apparently functions of any kind cause problems everywhere
             # but my laptop
