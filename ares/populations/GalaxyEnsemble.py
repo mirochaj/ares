@@ -26,6 +26,11 @@ from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc
 
+try:
+    import h5py
+except ImportError:
+    pass
+
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
 pars_affect_sfhs.extend(["pop_update_dt","pop_thin_hist"])
@@ -210,16 +215,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def tab_shape(self, value):
         self._tab_shape = value
         
+    @property
+    def _cache_halos(self):
+        if not hasattr(self, '_cache_halos_'):
+            self._cache_halos_ = self._gen_halo_histories()
+        return self._cache_halos_
+        
     def _gen_halo_histories(self):
         """
         From a set of smooth halo assembly histories, build a bigger set
         of histories by thinning, and (optionally) adding scatter to the MAR. 
         """            
-                    
+        
+        if hasattr(self, '_cache_halos_'):
+            return self._cache_halos
+
         raw = self.load()
-                
+
         thin = self.pf['pop_thin_hist']
-                
+
         sigma_sfe = self.pf['pop_scatter_sfe']
         sigma_mar = self.pf['pop_scatter_mar']
         sigma_env = self.pf['pop_scatter_env']
@@ -230,13 +244,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             zall, raw = self.guide.Trajectories()
             print('Done with halo trajectories.')
         else:
-            zall = raw['z']        
-                
+            zall = raw['z']
+
         sfe_raw = raw['SFE']    
         mar_raw = raw['MAR']    
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
-                
+
         # Could optionally thin out the bins to allow more diversity.
         if thin > 0:
             # Doesn't really make sense to do this unless we're
@@ -267,7 +281,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         sfe = self.tile(sfe_raw, thin)
         if sigma_sfe > 0:
             sfe += self.noise_lognormal(sfe, sigma_sfe)
-        
+            
         # Two potential kinds of scatter in MAR    
         mar = self.tile(mar_raw, thin)
         if sigma_env > 0:
@@ -686,8 +700,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ifut = np.argmin(np.abs((tfut - tnow) - delay))
                 
         return inow + ifut
-        
-        
+                
     def _gen_galaxy_history(self, halo, zobs=0):
         """
         Evolve a single galaxy in time. 
@@ -768,11 +781,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 break
                 
             if i == Nt - 1:
-                break    
-            
+                break
+
             # In years    
             dt = (t[i+1] - t[i]) * 1e6
-            
+
             if z[i] == zform:
                 self._arr_Mg_t[i] = fb * _Mh
                 
@@ -1136,7 +1149,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         if (Mh is None) or (type(Mh) is not np.ndarray):
             bin = 0.1
-            bin_c = np.arange(6., 13.+bin, bin)
+            bin_c = np.arange(6., 14.+bin, bin)
         else:
             dx = np.diff(np.log10(Mh))
             assert np.allclose(np.diff(dx), 0)
@@ -1523,13 +1536,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     raise NotImplemented('help')
             
         # Grab number of halos from last timestep.
-        w = raw['nh'][:,-1]
+        #w = raw['nh'][:,-1]        
+        
+        # Need to be more careful here as nh can change when using
+        # simulated halos
+        w = raw['nh'][:,izobs]        
+        
                         
         # Just hack out the luminosity *now*.
         L = Lt[:,-1] * corr[:,-1]
         
         MAB = self.magsys.L_to_MAB(L, z=z)
-        
+                
         # Need to modify weights, since the mapping from Mh -> L -> mag
         # is not linear.
         #w *= np.diff(self.histories['Mh'][:,iz]) / np.diff(L)
@@ -1539,7 +1557,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
         # spikes where L==0, all L==0 elements should be a contiguous chunk.
-        Misok = L > 0
+        Misok = np.logical_and(L > 0, np.isfinite(L))
         
         # Always bin to setup cache, interpolate from then on.
         _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
@@ -1550,10 +1568,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         bin_c = _x
         
-        N = np.sum(w)
+        N = np.sum(w[Misok==1])
         
         phi = hist * N
-        
+                
         self._cache_lf_[z] = bin_c, phi
         
         return self._cache_lf(z, x)
@@ -1754,18 +1772,49 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
                         
         if type(self.pf['pop_histories']) is str:
-            
+
+            print("Trying to load", self.pf['pop_histories'])
+
             if self.pf['pop_histories'].endswith('.pkl'):
                 f = open(self.pf['pop_histories'], 'rb')
                 prefix = self.pf['pop_histories'].split('.pkl')[0]
+                zall, traj_all = pickle.load(f)
+                f.close()
+                
+                hist = traj_all
+                      
+            #elif self.pf['pop_histories'].endswith('.hdf5'):
+            #    f = h5py.File(self.pf['pop_histories'], 'r')
+            #    prefix = self.pf['pop_histories'].split('.hdf5')[0]
+            #    zall = np.array(f[('z')])
+            #    traj_all = np.array(f[('traj')])
+            #    Nparents = f['traj'].attrs.get('Nparents')
+            #    f.close()
+            #    
+            #    hist = {'Mh': traj_all, 'z': zall}
+            #    if 'nh' not in f:
+            #        hist['nh'] = np.ones_like(traj_all)
+            #    if 'SFE' not in f:
+            #        hist['SFE'] = np.ma.array(np.ones_like(traj_all), 
+            #            mask=np.ones_like(traj_all))
+            #    if 'MAR' not in f:
+            #        # Can just compute this in a time-averaged way.
+            #        
+            #        # (N halos, N timesteps)
+            #        Mh = traj_all
+            #        
+            #        hist['MAR'] = np.ma.array(np.ones_like(traj_all), 
+            #            mask=np.ones_like(traj_all))
+                
             else:
+                # Assume pickle?
                 f = open(self.pf['pop_histories']+'.pkl', 'rb')
                 prefix = self.pf['pop_histories']
+                zall, traj_all = pickle.load(f)
+                f.close()
             
-            zall, traj_all = pickle.load(f)
-            f.close()
-            
-            hist = traj_all
+                hist = traj_all
+                
             hist['zform'] = zall
             hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
             

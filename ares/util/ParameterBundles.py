@@ -309,7 +309,7 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
-_physical_dc = \
+_physical_dc_nozevol = \
 {    
  "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
 
@@ -351,16 +351,13 @@ _physical_dc = \
  'pq_val_ceil[23]': 10.,
 } 
 
-_physical_dc_zevol = _physical_dc.copy()
-_physical_dc_zevol['pq_func_par2[21]'] = 'pq[24]'
-_physical_dc_zevol["pq_func[24]"] = 'pl'
-_physical_dc_zevol['pq_func_var[24]'] = '1+z'
-_physical_dc_zevol['pq_func_par0[24]'] = 10.5
-_physical_dc_zevol['pq_func_par1[24]'] = 5.
-_physical_dc_zevol['pq_func_par2[24]'] = 0.
-_physical_dc_zevol['pq_val_floor[24]'] = 0.
-_physical_dc_zevol['pq_val_ceil[24]'] = 1.
-
+_physical_dc = _physical_dc_nozevol.copy()
+_physical_dc['pq_func_par2[21]'] = 'pq[24]'
+_physical_dc["pq_func[24]"] = 'pl'
+_physical_dc['pq_func_var[24]'] = '1+z'
+_physical_dc['pq_func_par0[24]'] = 10.5
+_physical_dc['pq_func_par1[24]'] = 5.
+_physical_dc['pq_func_par2[24]'] = 0.
 
 _cooling = \
 {
@@ -410,7 +407,7 @@ _Bundles = \
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {}, 'phys': _physical_dc, 
-    'phys+e': _physical_dc_zevol,
+    #'phys+e': _physical_dc_zevol,
     },
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
