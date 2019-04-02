@@ -1100,6 +1100,7 @@ class ModelFit(FitBase):
         
         # Constant parameters being passed to ares.simulations.Global21cm
         tmp = self.base_kwargs.copy()
+                
         to_axe = []
         for key in tmp:
             # these might be big, get rid of it
@@ -1115,8 +1116,11 @@ class ModelFit(FitBase):
                 to_axe.append(key)     
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
-            if re.search('pop_histories', key):
-                to_axe.append(key)    
+            #if re.search('pop_histories', key):
+            #    if type(tmp[key]) == str:
+            #        pass
+            #    else:
+            #        to_axe.append(key)    
             if re.search('hmf_table', key):
                 to_axe.append(key)
             
