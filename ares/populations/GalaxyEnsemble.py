@@ -958,7 +958,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         MAR = halos['MAR'][:,-1::-1]
         SFE = self.guide.SFE(z=z2d, Mh=Mh)
         
-        
         # Short-hand
         fb = self.cosm.fbar_over_fcdm
         
@@ -977,9 +976,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         #Mh = _Mh
         
-        _SFE_c = 0.5 * (np.roll(SFE, -1, axis=1) + SFE)
-        SFR = MAR * SFE * fb
-        SFR_c = _MAR_c * _SFE_c * fb
+        if 'SFR' in halos.keys():
+            SFR_c = halos['SFR'][-1::-1]
+        else:    
+            _SFE_c = 0.5 * (np.roll(SFE, -1, axis=1) + SFE)
+            SFR = MAR * SFE * fb
+            SFR_c = _MAR_c * _SFE_c * fb
         
         MGR = MAR * fb #* self.guide.fshock(z=z, Mh=Mh)
         MGR_c = _MAR_c * fb
@@ -1404,7 +1406,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         # Redden away!        
         if np.any(fd) > 0:
-            Lout = _Lhist * (1. - fcov) + _Lhist * fcov * np.exp(-tau)
+            if self.pf['pop_dust_geom'] == 'screen':
+                Lout = _Lhist * (1. - fcov) + _Lhist * fcov * np.exp(-tau)
+            elif self.pf['pop_dust_geom'] == 'mixed':
+                fgeom = (1. - np.exp(-tau)) / tau
+                raise NotImplemented('help')
+            else:
+                raise NotImplemented('help')
         else:
             Lout = _Lhist    
                        
@@ -1727,7 +1735,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 left=0., right=0.)
             return _AUV
 
-        return MUV, AUV
+        return MAB, AUV
         
     def get_contours(self, x, y, bins):
         """
@@ -1772,9 +1780,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
                         
         if type(self.pf['pop_histories']) is str:
-
-            print("Trying to load", self.pf['pop_histories'])
-
             if self.pf['pop_histories'].endswith('.pkl'):
                 f = open(self.pf['pop_histories'], 'rb')
                 prefix = self.pf['pop_histories'].split('.pkl')[0]

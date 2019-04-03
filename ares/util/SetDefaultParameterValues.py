@@ -637,6 +637,7 @@ def PopulationParameters():
     "pop_dust_yield": 0.,     # Mdust = dust_yield * metal mass
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,     
+    "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     
     "pop_fpoll": 1.0,         # uniform pollution
