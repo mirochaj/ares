@@ -300,6 +300,39 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
+def bin_samples(x, y, xbin_c):
+    """
+    Take samples and bin up.
+    """
+    
+    xbin_e = bin_c2e(xbin_c)
+    
+    ystd = []
+    yavg = []
+    for i, lo in enumerate(xbin_e):
+        if i == len(xbin_e) - 1:
+            break
+
+        hi = xbin_e[i+1]
+
+        ok = np.logical_and(x >= lo, x < hi)
+        ok = np.logical_and(ok, np.isfinite(y))
+        
+        f = y[ok==1]
+
+        if f.size == 0:
+            ystd.append(-np.inf)
+            yavg.append(-np.inf)
+            continue
+
+        #spread = np.percentile(f, (16., 84.))
+        #
+        #print(i, np.mean(f), spread, np.std(f))
+        
+        ystd.append(np.std(f))
+        yavg.append(np.mean(f))
+
+    return np.array(xbin_c), np.array(yavg), np.array(ystd)
 
 def rebin(bins):
     """

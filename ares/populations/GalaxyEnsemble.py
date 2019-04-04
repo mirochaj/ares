@@ -18,10 +18,10 @@ from ..util.Math import smooth
 from ..util import ProgressBar
 from .Halo import HaloPopulation
 from .GalaxyCohort import GalaxyCohort
-from ..util.Stats import bin_e2c, bin_c2e
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import RectBivariateSpline
+from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc
@@ -306,6 +306,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         histories['z'] = zall
         histories['t'] = np.array(map(self.cosm.t_of_z, zall)) / s_per_myr
+                        
+        histories['rand'] = np.reshape(np.random.rand(Mh.size), Mh.shape)
                         
         self.tab_z = zall
                         
@@ -884,6 +886,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Nsn': Nsn[keep==1],
          'bursty': bursty[keep==1],
          'imf': imf[keep==1],
+         'rand': halo['rand'][-1::-1],
          'z': z[keep==1],
          't': t[keep==1],
          'zthin': halo['zthin'][-1::-1],
@@ -909,7 +912,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_sample_cmf']:
             
             fields = ['SFR', 'MAR', 'Mg', 'Ms', 'Mh', 'nh', 
-                'Nsn', 'bursty', 'imf']
+                'Nsn', 'bursty', 'imf', 'rand']
             num = halos['Mh'].shape[0]
             
             hist = {key:np.zeros_like(halos['Mh']) for key in fields}
@@ -923,7 +926,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 print(i)
                 #halo = {key:halos[key][i] for key in keys}
                 halo = {'t': halos['t'], 'z': halos['z'], 
-                    'zthin': halos['zthin'],
+                    'zthin': halos['zthin'], 'rand': halos['rand'],
                     'Mh': halos['Mh'][i], 'nh': halos['nh'][i],
                     'MAR': halos['MAR'][i]}
                 data = self._gen_galaxy_history(halo, zstop)
@@ -1017,6 +1020,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         {
          'nh': nh,#[:,-1::-1],
          'Mh': Mh,#[:,-1::-1],
+         'rand': halos['rand'][:,-1::-1],
          't': t,#[-1::-1],
          'z': z,#[-1::-1],
          'zthin': halos['zthin'][-1::-1],
@@ -1124,7 +1128,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_smf(z, bins)
         
-    def SMHM(self, z, Mh=None, return_mean_only=False):
+    def SMHM(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
         
@@ -1141,6 +1145,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Must be evenly spaced in log10
         
         """
+        
         iz = np.argmin(np.abs(z - self.histories['z']))
         
         _Ms = self.histories['Ms'][:,iz]
@@ -1150,49 +1155,50 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         fstar_raw = _Ms / _Mh
         
         if (Mh is None) or (type(Mh) is not np.ndarray):
-            bin = 0.1
-            bin_c = np.arange(6., 14.+bin, bin)
+            bin_c = np.arange(6., 14.+Mbin, Mbin)
         else:
             dx = np.diff(np.log10(Mh))
             assert np.allclose(np.diff(dx), 0)
-            bin = dx[0]
+            Mbin = dx[0]
             bin_c = np.log10(Mh)
             
-        bin_e = bin_c2e(bin_c)
-        
-        std = []
-        fstar = []
-        for i, lo in enumerate(bin_e):
-            if i == len(bin_e) - 1:
-                break
-                
-            hi = bin_e[i+1]
-                
-            ok = np.logical_and(logMh >= lo, logMh < hi)
-            ok = np.logical_and(ok, _Mh > 0)
+        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c)    
             
-            f = np.log10(fstar_raw[ok==1])
-            
-            if f.size == 0:
-                std.append(-np.inf)
-                fstar.append(-np.inf)
-                continue
-                        
-            #spread = np.percentile(f, (16., 84.))
-            #
-            #print(i, np.mean(f), spread, np.std(f))
-            
-            std.append(np.std(f))
-            fstar.append(np.mean(f))
-        
-        std = np.array(std)
-        fstar = np.array(fstar)
-        
+        #bin_e = bin_c2e(bin_c)
+        #
+        #std = []
+        #fstar = []
+        #for i, lo in enumerate(bin_e):
+        #    if i == len(bin_e) - 1:
+        #        break
+        #        
+        #    hi = bin_e[i+1]
+        #        
+        #    ok = np.logical_and(logMh >= lo, logMh < hi)
+        #    ok = np.logical_and(ok, _Mh > 0)
+        #    
+        #    f = np.log10(fstar_raw[ok==1])
+        #    
+        #    if f.size == 0:
+        #        std.append(-np.inf)
+        #        fstar.append(-np.inf)
+        #        continue
+        #                
+        #    #spread = np.percentile(f, (16., 84.))
+        #    #
+        #    #print(i, np.mean(f), spread, np.std(f))
+        #    
+        #    std.append(np.std(f))
+        #    fstar.append(np.mean(f))
+        #
+        #std = np.array(std)
+        #fstar = np.array(fstar)
+
         if return_mean_only:
-            return fstar
-        
-        return bin_c, np.array(fstar), np.array(std)
-        
+            return y
+
+        return x, y, z
+
     def L_of_Z_t(self, wave):
         
         if not hasattr(self, '_L_of_Z_t'):
@@ -1336,6 +1342,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         zarr = hist['z'][slc]
         bursty = hist['bursty'][slc]
         imf = hist['imf'][slc]
+        
+        if 'rand' in hist:
+            rand = hist['rand'][slc]
+        else:
+            rand = np.ones_like(SFR)
+        
         dt = np.concatenate((np.diff(tarr) * 1e6, [0]))
                 
         Loft = self.src.L_per_SFR_of_t(wave)
@@ -1406,13 +1418,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         # Redden away!        
         if np.any(fd) > 0:
-            if self.pf['pop_dust_geom'] == 'screen':
+            # Reddening is probabilistic
+            if self.pf['pop_dust_fcov_isprob']:
+                clear = rand > fcov
+                block = ~clear
+                
+                Lout = _Lhist * clear + _Lhist * np.exp(-tau) * block
+            else:    
                 Lout = _Lhist * (1. - fcov) + _Lhist * fcov * np.exp(-tau)
-            elif self.pf['pop_dust_geom'] == 'mixed':
-                fgeom = (1. - np.exp(-tau)) / tau
-                raise NotImplemented('help')
-            else:
-                raise NotImplemented('help')
         else:
             Lout = _Lhist    
                        
@@ -1488,7 +1501,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # These are kept in ascending redshift just to make life difficult.
         raw = self.histories
                                 
-        hist = {'t': raw['t'], 'z': raw['z'],
+        hist = {'t': raw['t'], 'z': raw['z'], 'rand': raw['rand'][i],
             'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 'Sd': raw['Sd'][i],
             'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i],
             'imf': raw['imf'][i]}
@@ -1635,7 +1648,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return MAB, beta
 
-    def Beta(self, z, MUV=None, wave=1600., wave_MUV=1600., dlam=100):
+    def Beta(self, z, MUV=None, wave=1600., wave_MUV=1600., dlam=100,
+        return_binned=True, Mbins=None):
         """
         UV slope for all objects in model.
         
@@ -1655,6 +1669,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             magnitudes.
         dlam : int, float
             Interval over which to average UV slope [Angstrom]
+        return_binned : bool
+            If True, return binned version of MUV(Beta), including 
+            standard deviation of Beta in each MUV bin.
         
         Returns
         -------
@@ -1694,10 +1711,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             beta = np.array(beta)
             MAB = np.array(MAB) 
             
-            self._cache_beta_[(z, wave, wave_MUV)] = MAB, beta    
-             
+            # Only cache
+            self._cache_beta_[(z, wave, wave_MUV)] = MAB, beta
+                                     
         else:
             MAB, beta = cached_result
+            
+        if return_binned:
+            if Mbins is None:
+                Mbins = np.arange(-25, -10, 0.1)
+            _x, _y, _z = bin_samples(MAB, beta, Mbins)
+                        
+            MAB = _x
+            beta = _y
+            std = _z 
+        else:
+            std = None    
 
         if MUV is not None:
             _beta = np.interp(MUV, MAB[-1::-1], beta[-1::-1],
@@ -1705,9 +1734,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             return _beta
                                                                 
-        return MAB, beta
+        return MAB, beta, std
         
-    def AUV(self, z, MUV=None, wave=1600., dlam=100., eff=False):
+    def AUV(self, z, MUV=None, wave=1600., dlam=100., eff=False,
+        return_binned=True, Mbins=None):
         """
         Compute UV extinction.
         """
@@ -1720,22 +1750,42 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if eff:
             Mh = self.get_field(z, 'Mh')
             fcov = self.guide.dust_fcov(z=z, Mh=Mh)
+            
+            if self.pf['pop_dust_fcov_isprob']:
+                clear = rand > fcov
+                print("This isn't correct yet!")
+            else:
+                clear = np.ones_like(fcov)
+            
             tau_eff = -np.log(1. - fcov + fcov * np.exp(-tau))
             AUV = np.log10(np.exp(-tau_eff)) / -0.4
+            
+            
         else:
             AUV = np.log10(np.exp(-tau)) / -0.4
             
-        # At this point, extinction is at magnitudes corresponding to 'Mh'.
-        # Need to recover magnitudes in order to interpolate.  
-        
-        MAB, beta = self.Beta(z, MUV=None, wave=wave, dlam=dlam)
+        # Just do this to get MAB array of same size as Mh
+        MAB, beta, std = self.Beta(z, MUV=None, wave=wave, dlam=dlam,
+            return_binned=False)
+                
+        if return_binned:            
+            if Mbins is None:
+                Mbins = np.arange(-25, -10, 0.1)
+                
+            _x, _y, _z = bin_samples(MAB, AUV, Mbins)
+                    
+            MAB = _x
+            AUV = _y
+            std = _z 
+        else:
+            std = None
+            
+            if MUV is not None:
+                _AUV = np.interp(MUV, MAB[-1::-1], AUV[-1::-1],
+                    left=0., right=0.)
+                return _AUV
 
-        if MUV is not None:
-            _AUV = np.interp(MUV, MAB[-1::-1], AUV[-1::-1],
-                left=0., right=0.)
-            return _AUV
-
-        return MAB, AUV
+        return MAB, AUV, std
         
     def get_contours(self, x, y, bins):
         """

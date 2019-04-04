@@ -11,11 +11,18 @@ Description:
 """
 
 import numpy as np
+from ..util import labels
 from ..util import read_lit
 import matplotlib.pyplot as pl
+from .ModelSet import ModelSet
+from ..phenom import DustCorrection
 from matplotlib.patches import Patch
-from ..util.Stats import symmetrize_errors
+import matplotlib.gridspec as gridspec
+from ..physics.Constants import rhodot_cgs
 from .MultiPlot import MultiPanel, add_master_legend
+from ..util.Stats import symmetrize_errors, bin_samples
+from ..populations.GalaxyEnsemble import GalaxyEnsemble
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -43,21 +50,21 @@ groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf,
     'smf_tot': groups_smf, 
     'mzr': {'all': datasets_mzr}}
 
-colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
+colors_cyc = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
 markers = ['o'] * 6 + ['s'] * 6    
     
 default_colors = {}
 default_markers = {}    
 for i, dataset in enumerate(datasets_lf):
-    default_colors[dataset] = colors[i]
+    default_colors[dataset] = colors_cyc[i]
     default_markers[dataset] = markers[i]
 
 for i, dataset in enumerate(datasets_smf):
-    default_colors[dataset] = colors[i]
+    default_colors[dataset] = colors_cyc[i]
     default_markers[dataset] = markers[i]
 
 for i, dataset in enumerate(datasets_mzr):
-    default_colors[dataset] = colors[i]
+    default_colors[dataset] = colors_cyc[i]
     default_markers[dataset] = markers[i]    
 
 _ulim_tick = 0.5
@@ -448,4 +455,512 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
         
+    def MegaPlot(self, pop, axes=None, fig=1, use_best=True):
+        """
+        Make a huge plot.
+        """
+        
+        if axes is None:
+            gotax = False
+            axes = self._MegaPlotSetup(fig)   
+        else:
+            gotax = True
             
+        self._MegaPlotCalData(axes)
+        self._MegaPlotPredData(axes)
+        self._MegaPlotGuideEye(axes)
+        
+        if isinstance(pop, GalaxyEnsemble):
+            self._MegaPlotPop(axes, pop)
+        elif hasattr(pop, 'chain'):
+            
+            if use_best:
+                bkw = pop.base_kwargs.copy()
+                bkw.update(pop.max_likelihood_parameters())
+                pop = GalaxyEnsemble(**bkw)
+                self._MegaPlotPop(axes, pop)
+            else:
+                self._MegaPlotChain(axes, pop)
+        else:
+            raise TypeError("Unrecognized object pop={}".format(pop))
+            
+        self._MegaPlotCleanup(axes)
+        
+        return axes
+        
+    def _MegaPlotPop(self, kw, pop, **kwargs):
+        
+        
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+        
+        
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        _mst  = np.arange(6, 12, 0.1)
+        _mags = np.arange(-25, -10, 0.1)
+        
+        redshifts = [4, 6, 8]
+        colors = ['k', 'b', 'c']
+        
+        xa_b = []
+        xa_f = []
+        for j, z in enumerate(redshifts):
+            
+            # UVLF
+            phi = pop.LuminosityFunction(z, _mags)
+            ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
+                    
+            # Binned version
+            _mags_b, _beta, _std = pop.Beta(z, wave=1600., return_binned=True,
+                Mbins=np.arange(-25, -10, 1.0))
+            ax_bet.plot(_mags_b, _beta, color=colors[j])
+            
+            Mh = pop.get_field(z, 'Mh')
+            Ms = pop.get_field(z, 'Ms')
+            SFR = pop.get_field(z, 'SFR')
+            SFE = pop.guide.SFE(z=z, Mh=Mh)
+            # Beta just to get 'mags'
+            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False)
+            
+            fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
+            Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
+            
+            if type(fcov) in [int, float, np.float64]:
+                fcov = fcov * np.ones_like(Mh)
+            
+            ax_sfe.loglog(Mh, SFE, color=colors[j], alpha=0.8,
+                label=r'$z={}$'.format(z))
+            ax_fco.semilogx(Mh, fcov, color=colors[j])
+            ax_rdu.loglog(Mh, Rdust, color=colors[j])
+            
+            ax_sfms.loglog(Ms, SFR, color=colors[j])
+            
+            # SMF
+            phi = pop.StellarMassFunction(z, _mst)
+            ax_smf.loglog(10**_mst, phi, color=colors[j], drawstyle='steps-mid')
+        
+            # SMHM
+            _Mh = 10**np.arange(8, 12.5, 0.1)
+            fstar = pop.SMHM(z, _Mh, return_mean_only=True)
+            ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
+        
+            # These mags will correspond to Mh so we can use them for stuff.
+            _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
+                Mbins=np.arange(-25, -10, 1.))  
+            
+            ax_AUV.plot(_mags_A, AUV, color=colors[j])  
+            
+            # MUV-Mstell
+            _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_A)
+            ax_MsMUV.plot(_x, _y, color=colors[j])
+                
+            # LAE stuff
+            _x, _y, _z = bin_samples(mags, fcov, _mags_A)
+            ax_lae_m.plot(_x, 1. - _y, color=colors[j])
+            
+            xa_b.append(1. - np.mean(_y[_mags_A < -20.25]))    
+            xa_f.append(1. - np.mean(_y[_mags_A >= -20.25]))
+                
+            
+        ax_lae_z.plot(redshifts, xa_b, color='k', alpha=1.0, ls='-')
+        ax_lae_z.plot(redshifts, xa_f, color='k', alpha=1.0, ls='--')
+        
+        zarr = np.arange(4, 25, 0.1)
+        sfrd = np.array([pop.SFRD(zarr[i]) for i in range(zarr.size)])
+        ax_sfrd.semilogy(zarr, sfrd * rhodot_cgs, color='k')
+                
+    def _MegaPlotSetup(self, fig):
+        
+        fig = pl.figure(tight_layout=False, figsize=(22, 7), num=fig)
+        #gs = gridspec.GridSpec(3, 10, hspace=0.3, wspace=1.0)
+        gs = gridspec.GridSpec(3, 14, hspace=0.3, wspace=5.0)
+        
+        # Inputs
+        ax_sfe = fig.add_subplot(gs[0,0:3])
+        ax_fco = fig.add_subplot(gs[1,0:3])
+        ax_rdu = fig.add_subplot(gs[2,0:3])
+        
+        # Predictions
+        ax_smf = fig.add_subplot(gs[0:2,6:9])
+        ax_smhm = fig.add_subplot(gs[2,12:])
+        ax_MsMUV = fig.add_subplot(gs[2,9:12])
+        ax_AUV = fig.add_subplot(gs[0,9:12])
+        ax_sfrd = fig.add_subplot(gs[0,12:])
+        ax_lae_z = fig.add_subplot(gs[1,12:])
+        ax_lae_m = fig.add_subplot(gs[1,9:12])
+        ax_sfms = fig.add_subplot(gs[2,6:9])
+        
+        # Cal
+        ax_phi = fig.add_subplot(gs[0:2,3:6])
+        ax_bet = fig.add_subplot(gs[2,3:6])
+
+        # Placeholder
+        #ax_tau = fig.add_subplot(gs[0:1,9])
+        
+        ax_sfe.set_title('Model Inputs', fontsize=18)
+
+        ax_rdu.set_xlabel(r'$M_h / M_{\odot}$')
+        ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
+        ax_fco.set_ylabel(r'$f_{\mathrm{cov,dust}}$')
+        ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
+        
+
+        ax_sfe.set_xlim(1e8, 1e13)
+        ax_sfe.set_ylim(1e-3, 1.0)
+        ax_fco.set_xlim(1e8, 1e13)
+        ax_fco.set_yscale('linear')
+        ax_fco.set_ylim(0, 1.05)
+        ax_rdu.set_xlim(1e8, 1e13)
+        ax_rdu.set_ylim(1e-2, 100)
+
+        ##
+        # CALIBRATION DATA
+        ##
+        ax_phi.set_title('Calibration Data', fontsize=18)
+        ax_bet.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_phi.set_ylabel(labels['lf'])
+        ax_bet.set_ylabel(r'$\beta$')
+
+        ax_bet.set_xlim(-25, -12)
+        ax_bet.set_ylim(-3, -1)
+        ax_phi.set_xlim(-25, -12)
+        ax_phi.set_ylim(1e-7, 2e-1)
+
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+
+        ax_AUV.set_title('Predictions', fontsize=18)
+        ax_smf.set_title('Predictions', fontsize=18)
+        ax_sfrd.set_title('Predictions', fontsize=18)
+
+        ax_smf.set_ylabel(labels['galaxy_smf'])
+        ax_smf.set_xscale('log')
+        ax_smf.set_xlim(1e7, 1e12)
+        ax_smf.set_ylim(1e-7, 2e-1)
+        ax_smhm.set_xscale('log')
+        ax_smhm.set_yscale('log')
+        #ax_smhm.set_ylim(-4, 1.)
+        #ax_smhm.set_yscale('log', nonposy='clip')
+        ax_smhm.set_xlim(1e9, 1e12)
+        ax_smhm.set_ylim(5e-4, 1.5e-1)
+        ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
+        ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
+        ax_phi.set_ylabel(labels['galaxy_lf'])
+        ax_bet.set_ylabel(r'$\beta$')
+
+        ax_MsMUV.set_yscale('linear')
+        ax_MsMUV.set_ylim(7, 12)
+        ax_MsMUV.set_xlim(-25, -12)
+        ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
+        ax_MsMUV.set_xlabel(r'$M_{\mathrm{UV}}$')
+
+        ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')
+        ax_AUV.set_xlim(-25, -12)
+        ax_AUV.set_ylim(0, 3.5)
+
+        ax_sfms.set_xlim(1e7, 1e12)
+        ax_sfms.set_ylim(1e-2, 2e3)
+        ax_sfms.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+        ax_sfms.set_ylabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
+
+        ax_sfrd.set_xlabel(r'$z$')
+        ax_sfrd.set_ylabel(labels['sfrd'])
+        ax_sfrd.set_ylim(1e-4, 1e-1)
+
+        ax_lae_z.set_xlabel(r'$z$')
+        ax_lae_z.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
+        ax_lae_m.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
+        ax_lae_m.set_xlim(-25, -12)
+        ax_lae_z.set_xlim(3., 7.2)
+        ax_lae_m.set_ylim(0, 1.05)
+        ax_lae_z.set_ylim(0, 1.05)
+
+        # Set ticks for all MUV scales
+        for ax in [ax_bet, ax_phi, ax_MsMUV, ax_lae_m, ax_AUV]:
+            ax.set_xticks(np.arange(-24, -12, 1), minor=True)
+        
+        
+        kw = \
+        {
+         'ax_sfe': ax_sfe,
+         'ax_fco': ax_fco, 
+         'ax_rdu': ax_rdu,
+         'ax_phi': ax_phi,
+         'ax_bet': ax_bet,
+         'ax_smf': ax_smf,
+         'ax_smhm': ax_smhm,
+         'ax_MsMUV': ax_MsMUV,
+         'ax_AUV': ax_AUV, 
+         'ax_sfrd': ax_sfrd,
+         'ax_lae_z': ax_lae_z,
+         'ax_lae_m': ax_lae_m,
+         'ax_sfms': ax_sfms,
+        }
+        
+        return kw
+           
+    def _MegaPlotCalData(self, kw):
+        
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+        
+        
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        
+        b14 = read_lit('bouwens2014')
+        
+        # Vanilla dust model
+        dc1 = DustCorrection(dustcorr_method='meurer1999',
+            dustcorr_beta='bouwens2014')
+        #devol = ares.util.ParameterBundle('dust:evolving')
+        #dc2 = ares.phenom.DustCorrection(**devol)
+        #dc3 = DustCorrection(dustcorr_method='pettini1998',
+        #    dustcorr_beta='bouwens2014')
+        
+
+        # Redshifts and color scheme
+        redshifts = [4, 6, 8]
+        colors = 'k', 'b', 'c'
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+
+        # UVLF and Beta
+        for j, z in enumerate(redshifts):
+            self.PlotLF(z, ax=ax_phi, sources=['bouwens2015'],
+                round_z=0.21, color=colors[j], mec=colors[j], mfc=colors[j], fmt='o',
+                label='Bouwens+ 2015' if j == 0 else None, **mkw)
+            self.PlotLF(z, ax=ax_phi, sources=['finkelstein2015'],
+                round_z=0.21, color=colors[j], mec=colors[j], mfc='none', mew=1, fmt='s',
+                label='Finkelstein+ 2015' if j == 0 else None, **mkw)    
+            self.PlotSMF(z, ax=ax_smf, sources=['song2016'],
+                round_z=0.1, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
+                label='Song+ 2016' if j == 0 else None, **mkw)    
+            self.PlotSMF(z, ax=ax_smf, sources=['stefanon2017'], mew=1, fmt='s',
+                round_z=0.1, color=colors[j], mec=colors[j], mfc='none',
+                label='Stefanon+ 2017' if j == 0 else None, **mkw)
+
+        
+            err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
+            ax_bet.errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
+                fmt='o', color=colors[j], label=r'Bouwens+ 2014' if j == 0 else None,
+                **mkw)
+        
+            # Plot vanilla dust correction
+            ax_AUV.plot(np.arange(-25, -14, 2.), dc1.AUV(z, np.arange(-25, -14, 2.)), 
+                color=colors[j], ls=':', 
+                label=r'M99+B14 IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)  
+            #ax_AUV.plot(np.arange(-25, -14, 2.), dc2.AUV(z, np.arange(-25, -14, 2.)), 
+            #    color=colors[j], ls='--', 
+            #    label=r'evolving IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)  
+            #ax_AUV.plot(np.arange(-25, -14, 2.), dc3.AUV(z, np.arange(-25, -14, 2.)), 
+            #    color=colors[j], ls='-.', 
+            #    label=r'P98+B14 IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)    
+                
+    def _MegaPlotGuideEye(self, kw):
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+        
+        
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        ax_rdu.annotate(r'$R_h \propto M_h^{1/3} (1+z)^{-1}$', (1.5e8, 30))
+        
+        redshifts = [4, 6, 8]
+        colors = 'k', 'b', 'c'
+        
+        # Show different Mh slopes        
+        mh = np.logspace(8, 9, 50)
+        
+        # How Rdust would scale if it were proportional with halo size
+        for j, z in enumerate(redshifts):
+            ax_rdu.loglog(mh, 5. * (mh / 1e8)**0.333 * (1. + 4.) / (1. + z), color=colors[j], 
+                lw=1, ls='-', alpha=0.5)
+        
+        
+        func = lambda z, A: 5e-2 * (mh / 1e8)**A #* (1. + 4.) / (1. + zz)**B
+        ax_sfe.loglog(mh, func(4., 1./3.), 
+            color='k', lw=1, ls='-', alpha=0.5)    
+        ax_sfe.loglog(mh, func(4., 2./3.), 
+            color='k', lw=1, ls='-', alpha=0.5)
+        ax_sfe.loglog(mh, func(4., 3./3.), 
+            color='k', lw=1, ls='-', alpha=0.5)    
+        ax_sfe.annotate(r'$1/3$', (mh[-1]*1.1, func(4., 1./3.)[-1]), ha='left')        
+        ax_sfe.annotate(r'$2/3$', (mh[-1]*1.1, func(4., 2./3.)[-1]), ha='left')       
+        ax_sfe.annotate(r'$1$',   (mh[-1]*1.1, func(4., 3./3.)[-1]), ha='left')
+    
+        # Show different z-dep
+        ax_sfe.scatter(np.ones(3) * 1e10, 4e-3 * ((1. + np.array(redshifts)) / 9.),
+            color=colors, facecolors='none', marker='s', s=5) 
+        ax_sfe.scatter(np.ones(3) * 1e11, 4e-3 * np.sqrt(((1. + np.array(redshifts)) / 9.)),
+            color=colors, facecolors='none', marker='s', s=5)        
+        ax_sfe.annotate(r'$(1+z)$', (1e10, 5e-3), ha='center', va='bottom', 
+            rotation=0, fontsize=8)
+        ax_sfe.annotate(r'$\sqrt{1+z}$', (1e11, 5e-3), ha='center', va='bottom', 
+            rotation=0, fontsize=8)
+    
+
+        ax_phi.legend(loc='lower right', fontsize=8)
+        ax_smf.legend(loc='lower left', fontsize=8)
+        ax_bet.legend(loc='lower left', fontsize=8)
+        ax_AUV.legend(loc='upper right', fontsize=8)
+
+
+        # Show different z-dep
+        ax_sfms.scatter(np.ones(3) * 2e9, 1e-1 * ((1. + np.array(redshifts)) / 9.)**1.5,
+            color=colors, facecolors='none', marker='s', s=5) 
+        ax_sfms.annotate(r'$(1+z)^{3/2}$', (2e9, 1.5e-1), ha='center', va='bottom', 
+            rotation=0, fontsize=8)
+        ax_sfms.scatter(np.ones(3) * 2e10, 1e-1 * ((1. + np.array(redshifts)) / 9.)**2.5,
+            color=colors, facecolors='none', marker='s', s=5) 
+        ax_sfms.annotate(r'$(1+z)^{5/2}$', (2e10, 1.5e-1), ha='center', va='bottom', 
+            rotation=0, fontsize=8)
+
+        mh = np.logspace(7., 8, 50.)
+        ax_sfms.loglog(mh, 200 * func(4., 3./3.), 
+            color=colors[0], lw=1, ls='-', alpha=0.5)    
+        ax_sfms.annotate(r'$1$',   (mh[-1]*1.1, 200 * func(4., 3./3.)[-1]), ha='left')
+                
+    def _MegaPlotPredData(self, kw):
+        
+        
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+        
+        
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+        
+        redshifts = [4, 6, 8]
+        colors = 'k', 'b', 'c'
+        
+        xarr = np.arange(-22, -18, 0.5)
+        yarr = [0.1, 0.08, 0.08, 0.1, 0.18, 0.3, 0.47, 0.6]
+        yerr = [0.1, 0.05, 0.03, 0.05, 0.05, 0.1, 0.15, 0.2]
+        ax_lae_m.errorbar(xarr, yarr, yerr=yerr, color='k', 
+            label='Stark+ 2010 (3 < z < 6.2)', fmt='o', **mkw)
+
+        zlist = [4., 5, 6.1]
+        x25_b = [0.13, 0.25, 0.2]
+        x25_f = [0.35, 0.48, 0.55]
+        err_b = [0.05, 0.05, 0.08]
+        err_f = [0.05, 0.1, 0.15]
+        
+        _colors = 'k', 'g', 'b'
+        for j, z in enumerate(zlist):
+            ax_lae_z.errorbar(zlist[j], x25_b[j], yerr=err_b[j], 
+                color=_colors[j], ms=5, 
+                label=r'Stark+ 2011' if j == 0 else None, 
+                fmt='s', mfc='none', **mkw)
+            ax_lae_z.errorbar(zlist[j], x25_f[j], yerr=err_f[j], 
+                color=_colors[j], ms=5,
+                fmt='o', mfc='none', **mkw)
+
+    
+        # De Barros et al. (2017)    
+        ax_lae_z.errorbar(5.9, 0.1, 0.05, color='b', fmt='*', mfc='none', ms=5,
+            label=r'deBarros+ 2017', **mkw)
+        ax_lae_z.errorbar(5.9, 0.38, 0.12, color='b', fmt='*', mfc='none', ms=5,
+            **mkw)
+
+        ax_lae_z.legend(loc='upper left', frameon=True, fontsize=6)
+        ax_lae_m.legend(loc='upper left', frameon=True, fontsize=6)
+
+        # Salmon et al. 2015
+        data = \
+        {
+         4: {'MUV': np.arange(-21.5, -18, 0.5),
+             'Ms': [9.61, 9.5, 9.21, 9.13, 8.96, 8.81, 8.75],
+             'err': [0.39, 0.57, 0.47, 0.51, 0.56, 0.53, 0.57]},
+         5: None,
+         6: {'MUV': np.arange(-21.5, -18.5, 0.5),
+             'Ms': [9.34, 9.23, 9.21, 9.14, 8.90, 8.77],
+             'err': [0.44, 0.38, 0.41, 0.38, 0.38, 0.47]},
+        }
+
+        for j, z in enumerate(redshifts):
+            if z not in data:
+                continue
+        
+            ax_MsMUV.errorbar(data[z]['MUV'], data[z]['Ms'], yerr=data[z]['err'],
+                color=colors[j], label='Salmon+ 2015' if j==0 else None, 
+                fmt='o', mfc='none', **mkw)
+
+        ax_MsMUV.legend(loc='upper right', fontsize=8)
+                
+    def _MegaPlotCleanup(self, kw):
+        
+        
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+        
+        
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        
+        
+
+        ax_phi.legend(loc='lower right', fontsize=8)
+        ax_smf.legend(loc='lower left', fontsize=8)
+        ax_bet.legend(loc='lower left', fontsize=8)
+        ax_AUV.legend(loc='upper right', fontsize=8)
+        ax_sfe.legend(loc='lower right', fontsize=8, frameon=True, handlelength=1)
+        ax_lae_z.legend(loc='upper left', frameon=True, fontsize=6)
+        ax_lae_m.legend(loc='upper left', frameon=True, fontsize=6)
+        ax_MsMUV.legend(loc='upper right', fontsize=8)
+        
+        
+        
