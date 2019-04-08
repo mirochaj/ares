@@ -138,7 +138,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     
     def noise_lognormal(self, arr, sigma):
         lognoise = np.random.normal(scale=sigma, size=arr.size)        
-        noise = 10**(np.log10(arr) + np.reshape(lognoise, arr.shape))
+        noise = 10**(np.log10(arr) + np.reshape(lognoise, arr.shape)) - arr
         return np.reshape(noise, arr.shape)
         
     def gen_kelson(self, guide, thin):
@@ -274,7 +274,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #
         #if sigma_sfr > 0:
         #    assert have_sfr
-        #    assert not (self.pf['pop_scatter_sfe'] or self.pf['pop_scatter_mar'])                
+        #    assert not (self.pf['pop_scatter_sfe'] or self.pf['pop_scatter_mar'])
         #    sfr += self.noise_lognormal(sfr, sigma_sfr)
         
         # Can add SFE scatter
@@ -288,21 +288,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             mar *= (1. + self.noise_normal(mar, sigma_env))
             
         if sigma_mar > 0:
-            mar += self.noise_lognormal(mar, sigma_mar)
-            #sfr = sfe * mar * self.cosm.fbar_over_fcdm
-        #else:
-        #    if not have_sfr:
-        #        sfr = sfe * mar * self.cosm.fbar_over_fcdm 
-                
+            # Normalize by mean of log-normal to preserve mean MAR
+            mar += self.noise_lognormal(mar, sigma_mar)   
+
         # SFR = (zform, time (but really redshift))
         # So, halo identity is wrapped up in axis=0
         # In Cohort, formation time defines initial mass and trajectory (in full)
         z2d = np.array([zall] * nh.shape[0])
         histories = {'z2d': z2d, 'Mh': Mh, 'MAR': mar, 'nh': nh}
-            
+
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zthin'] = self.tile(zall, thin)
-        
+
         histories['z'] = zall
         histories['t'] = np.array(map(self.cosm.t_of_z, zall)) / s_per_myr
                         
