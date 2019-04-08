@@ -111,7 +111,8 @@ class CalibrateModel(object):
         self.save_smf = int(save_smf)
         self.save_sam = int(save_sam)
         self.save_sfrd = int(save_sfrd)
-        self.save_beta = int(save_beta)
+        self.save_beta = bool(save_beta) if save_beta in [0, 1, True, False] \
+            else int(save_beta)
         self.save_dust = int(save_dust)
         self.use_ensemble = int(use_ensemble)
         
@@ -476,7 +477,7 @@ class CalibrateModel(object):
             blob_pars['blob_kwargs'].append(None)
         
         # MUV-Beta
-        if self.save_beta is not None:
+        if self.save_beta != False:
             
             blob_n = ['AUV', 'AUV_eff']
             blob_i = [('z', np.array([4, 6, 8, 10])), ('MUV', MUV)]

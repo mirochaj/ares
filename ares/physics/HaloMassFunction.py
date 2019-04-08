@@ -251,22 +251,21 @@ class HaloMassFunction(object):
                             
         if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
-            self.tab_z = f['tab_z'].value
-            self.tab_M = f['tab_M'].value
-            #self.fcoll_tab = f['fcoll'].value
-            self.tab_dndm = f['tab_dndm'].value
+            self.tab_z = np.array(f[('tab_z')])
+            self.tab_M = np.array(f[('tab_M')])
+            self.tab_dndm = np.array(f[('tab_dndm')])
 
-            if self.pf['hmf_load_ps']:
-                self.tab_k_lin = f['tab_k_lin'].value
-                self.tab_ps_lin = f['tab_ps_lin'].value
-                self.tab_sigma = f['tab_sigma'].value
-                self.tab_dlnsdlnm = f['tab_dlnsdlnm'].value
+            #if self.pf['hmf_load_ps']:
+            self.tab_k_lin = np.array(f[('tab_k_lin')])
+            self.tab_ps_lin = np.array(f[('tab_ps_lin')])
+            self.tab_sigma = np.array(f[('tab_sigma')])
+            self.tab_dlnsdlnm = np.array(f[('tab_dlnsdlnm')])
 
-            self.tab_ngtm = f['tab_ngtm'].value
-            self.tab_mgtm = f['tab_mgtm'].value
+            self.tab_ngtm = np.array(f[('tab_ngtm')])
+            self.tab_mgtm = np.array(f[('tab_mgtm')])
             if 'tab_MAR' in f:
-                self.tab_MAR = f['tab_MAR'].value
-            self.tab_growth = f['tab_growth'].value
+                self.tab_MAR = np.array(f[('tab_MAR')])
+            self.tab_growth = np.array(f[('tab_growth')])
             
             f.close()
         elif re.search('.npz', self.tab_name):
@@ -1159,12 +1158,13 @@ class HaloMassFunction(object):
             f.create_dataset('tab_growth', data=self.tab_growth)
             f.create_dataset('tab_sigma', data=self.tab_sigma)
             f.create_dataset('tab_dlnsdlnm', data=self.tab_dlnsdlnm)
-            f.create_dataset('tab_k_lin', data=self.tab_k)
+            f.create_dataset('tab_k_lin', data=self.tab_k_lin)
             f.create_dataset('hmf-version', data=hmf_v)
             f.close()
 
         elif format == 'npz':
-            data = {'tab_z': self.tab_z, 'tab_M': self.tab_M, 
+            data = {'tab_z': self.tab_z, 
+                    'tab_M': self.tab_M, 
                     'tab_dndm': self.tab_dndm,
                     'tab_ngtm': self.tab_ngtm, 
                     'tab_mgtm': self.tab_mgtm,
@@ -1175,9 +1175,14 @@ class HaloMassFunction(object):
                     'tab_sigma': self.tab_sigma,
                     'tab_dlnsdlnm': self.tab_dlnsdlnm,
                     'tab_k_lin': self.tab_k_lin,
-                    'pars': {'pars_growth': self.pars_growth,
-                             'pars_transfer': self.pars_transfer},
+                    # Causing problems with pickling
+                    #'pars': {'pars_growth': self.pars_growth,
+                    #         'pars_transfer': self.pars_transfer},
                     'hmf-version': hmf_v}
+                    
+            for key in data:
+                print(key, type(data[key]))        
+                    
             np.savez(fn, **data)
 
         # Otherwise, pickle it!    
