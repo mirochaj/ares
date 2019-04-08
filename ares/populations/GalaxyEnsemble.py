@@ -298,8 +298,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # So, halo identity is wrapped up in axis=0
         # In Cohort, formation time defines initial mass and trajectory (in full)
         z2d = np.array([zall] * nh.shape[0])
-        histories = {'z2d': z2d, 'Mh': Mh, 
-            'MAR': mar, 'nh': nh}
+        histories = {'z2d': z2d, 'Mh': Mh, 'MAR': mar, 'nh': nh}
             
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zthin'] = self.tile(zall, thin)

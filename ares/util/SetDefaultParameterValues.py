@@ -1020,7 +1020,7 @@ def ControlParameters():
 
     "progress_bar": True,
     "verbose": True,
-    "debug": False,
+    "debug": True,
     }
 
     pf.update(rcParams)

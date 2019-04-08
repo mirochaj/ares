@@ -406,7 +406,14 @@ class HaloMassFunction(object):
     @property
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
-            if self.pf['hmf_dt'] is None:
+            if self.pf['hmf_table'] is not None:
+                
+                if self._is_loaded:
+                    raise AttributeError('this shouldnt happen!')
+                
+                self._load_hmf()
+                
+            elif self.pf['hmf_dt'] is None:
                     
                 dz = self.pf['hmf_dz']
                 zmin = max(self.pf['hmf_zmin'] - 2*dz, 0.0)

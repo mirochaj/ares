@@ -198,18 +198,20 @@ class GalaxyPopulation(object):
         return data
                 
     def PlotLF(self, z, ax=None, fig=1, sources='all', round_z=False, 
-            AUV=None, wavelength=1600., sed_model=None, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
                 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', **kwargs)  
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', 
+            force_labels=force_labels, **kwargs)  
         
     def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
-            AUV=None, wavelength=1600., sed_model=None, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
     
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', **kwargs)              
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
+            force_labels=force_labels, **kwargs)              
                 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
         """
@@ -295,17 +297,17 @@ class GalaxyPopulation(object):
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
 
-        if quantity == 'lf' and (not gotax):
+        if quantity == 'lf' and ((not gotax) or force_labels):
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
             ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
             ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'smf' and (not gotax):
+        elif quantity == 'smf' and ((not gotax) or force_labels):
             ax.set_xscale('log')
             ax.set_xlim(1e7, 1e13)
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'mzr' and (not gotax):
+        elif quantity == 'mzr' and ((not gotax) or force_labels):
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
             ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
             ax.set_xlim(1e8, 1e12)

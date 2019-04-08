@@ -1646,10 +1646,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Why am I getting a NaN?
             isnan = np.isnan(self._tab_sfr_)
 
-            if isnan.sum() > 1:
+            if isnan.sum() > 1 and self.pf['debug']:                
+                # Find bounds in redshift and mass?
+                i_nan = np.argwhere(isnan==1)
+                x, y = i_nan.T
+                i_zlo = np.argmin(x)
+                i_zhi = np.argmax(x)
+                i_Mlo = np.argmin(y)
+                i_Mhi = np.argmax(y)
+                
+                zlo = self.halos.tab_z[i_zlo]
+                zhi = self.halos.tab_z[i_zhi]
+                Mlo = self.halos.tab_M[i_Mlo]
+                Mhi = self.halos.tab_M[i_Mhi]
+                
                 print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
-                #raise ValueError('Nans!')
-            
+                print("WARNING: Found in range {}<=z<={} and {}<=Mh<={}".format(zlo, 
+                    zhi, Mlo, Mhi))
+                            
             self._tab_sfr_[isnan] = 0.
                                 
         return self._tab_sfr_
