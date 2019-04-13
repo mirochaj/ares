@@ -520,12 +520,12 @@ class GalaxyPopulation(object):
         for j, z in enumerate(redshifts):
             
             # UVLF
-            phi = pop.LuminosityFunction(z, _mags)
+            phi = pop.LuminosityFunction(z, _mags, batch=True)
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
                     
             # Binned version
             _mags_b, _beta, _std = pop.Beta(z, wave=1600., return_binned=True,
-                Mbins=np.arange(-25, -10, 1.0))
+                Mbins=np.arange(-25, -10, 1.0), batch=True)
             ax_bet.plot(_mags_b, _beta, color=colors[j])
             
             Mh = pop.get_field(z, 'Mh')
@@ -533,7 +533,8 @@ class GalaxyPopulation(object):
             SFR = pop.get_field(z, 'SFR')
             SFE = pop.guide.SFE(z=z, Mh=Mh)
             # Beta just to get 'mags'
-            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False)
+            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False, 
+                batch=True)
             
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
@@ -546,7 +547,12 @@ class GalaxyPopulation(object):
             ax_fco.semilogx(Mh, fcov, color=colors[j])
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
             
-            ax_sfms.loglog(Ms, SFR, color=colors[j])
+            if pop.pf['pop_scatter_mar'] > 0:
+                _bins = np.arange(7, 12.1, 0.1)
+                x, y, std = bin_samples(np.log10(Ms), np.log10(SFR), _bins)
+                ax_sfms.loglog(10**x, 10**y, color=colors[j])
+            else:    
+                ax_sfms.loglog(Ms, SFR, color=colors[j])
             
             # SMF
             phi = pop.StellarMassFunction(z, _mst)
@@ -804,7 +810,8 @@ class GalaxyPopulation(object):
                 **mkw)
         
             # Plot vanilla dust correction
-            ax_AUV.plot(np.arange(-25, -14, 2.), dc1.AUV(z, np.arange(-25, -14, 2.)), 
+            ax_AUV.plot(np.arange(-22, -16, 0.1), 
+                dc1.AUV(z, np.arange(-22, -16, 0.1)), 
                 color=colors[j], ls=':', 
                 label=r'M99+B14 IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)  
             #ax_AUV.plot(np.arange(-25, -14, 2.), dc2.AUV(z, np.arange(-25, -14, 2.)), 

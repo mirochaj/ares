@@ -236,7 +236,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         thin = self.pf['pop_thin_hist']
 
-        sigma_sfe = self.pf['pop_scatter_sfe']
         sigma_mar = self.pf['pop_scatter_mar']
         sigma_env = self.pf['pop_scatter_env']
                                         
@@ -248,7 +247,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             zall = raw['z']
 
-        sfe_raw = raw['SFE']    
         mar_raw = raw['MAR']    
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
@@ -270,20 +268,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Allow scatter in things
         ##            
-        # Just adding scatter in SFR
-        #if have_sfr:
-        #    sfr = self.tile(sfr_raw, thin)
-        #
-        #if sigma_sfr > 0:
-        #    assert have_sfr
-        #    assert not (self.pf['pop_scatter_sfe'] or self.pf['pop_scatter_mar'])
-        #    sfr += self.noise_lognormal(sfr, sigma_sfr)
         
-        # Can add SFE scatter
-        sfe = self.tile(sfe_raw, thin)
-        if sigma_sfe > 0:
-            sfe += self.noise_lognormal(sfe, sigma_sfe)
-            
         # Two potential kinds of scatter in MAR    
         mar = self.tile(mar_raw, thin)
         if sigma_env > 0:
@@ -1288,13 +1273,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 # Do zobs correction    
                 izobs = np.argmin(np.abs(hist['z'] - zobs))
-                if zobs < hist['z'][izobs]:
-                    izobs -= 1
+                if hist['z'][izobs] > zobs:
+                    izobs += 1
 
                 zarr, tarr, L = cached_result
-                return zarr[0:izobs], tarr[0:izobs], L[0:izobs]
+                return zarr[0:izobs+1], tarr[0:izobs+1], L[0:izobs+1]
         elif hist is None:
-            print("Performing SpectralSynthesis for all halos...")        
             hist = self.histories   
             batch_mode = True 
 
@@ -1302,19 +1286,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if zobs is None:
             izobs = None
         else:
-            # Do zobs correction    
+            # Need to be sure that we grab a grid point exactly at or just
+            # below the requested redshift (?)
             izobs = np.argmin(np.abs(hist['z'] - zobs))
-            if zobs < hist['z'][izobs]:
-                izobs -= 1
-                
-        izobs += 1
+            if hist['z'][izobs] > zobs:
+                izobs += 1
                 
         # Must be supplied in increasing time order, decreasing redshift.
         assert np.all(np.diff(hist['t']) >= 0)
         
-        if idnum == 0 or batch_mode:
-            print("HELLO", zobs, izobs, hist['z'][izobs])
-                        
         #if not np.any(hist['SFR'] > 0):
         #    print('nipped this in the bud')
         #    return hist['t'], hist['z'], np.zeros_like(hist['z'])
@@ -1324,9 +1304,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if batch_mode:
             #raise NotImplemented('help')
             # Need to slice over first dimension now...
-            slc = Ellipsis, slice(0, izobs)
+            slc = Ellipsis, slice(0, izobs+1)
         else:    
-            slc = slice(0, izobs)
+            slc = slice(0, izobs+1)
 
         ##
         # Dust model?
@@ -1446,7 +1426,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             clear = rand > fcov
             block = ~clear
             
-            Lout = Lhist * clear + _Lhist * np.exp(-tau) * block
+            Lout = Lhist * clear + Lhist * np.exp(-tau) * block
 
         else:
             Lout = Lhist    
@@ -1548,35 +1528,34 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if cached_result is not None:
             return cached_result
                     
-        # These are kept in ascending redshift just to make life difficult.
+        # These are kept in descending redshift just to make life difficult.
+        # [The last element corresponds to observation redshift.]
         raw = self.histories
                         
         keys = raw.keys()
         Nt = raw['t'].size
         Nh = raw['Mh'].shape[0]
         
-        # 
-        izobs = np.argmin(np.abs(self.histories['z'] - z)) #+ 1
-        if z < self.histories['z'][izobs]:
-            izobs -= 1
-            
-        izobs += 1    
-        
+        # Find the z grid point closest to that requested.
+        # Must be >= z requested.
+        izobs = np.argmin(np.abs(self.histories['z'] - z))
+        if z > self.histories['z'][izobs]:
+            # Go to one grid point lower redshift
+            izobs += 1
+                    
         ##
         # Run in batch? 
         if batch:
             
-            Lt = np.zeros((Nh, izobs))
-            
             # Must supply in time-ascending order
-            zarr, tarr, Lt[:,:] = self.SpectralSynthesis(idnum=None, 
+            zarr, tarr, Lt = self.SpectralSynthesis(idnum=None, 
                 hist=None, zobs=z, wave=wave)        
             
             corr = np.ones_like(Lt)
             
         else:
         
-            Lt = np.zeros((Nh, izobs))
+            Lt = np.zeros((Nh, izobs+1))
             corr = np.ones_like(Lt)
             for i in range(Nh):
                                         
@@ -1600,25 +1579,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     else:
                         raise NotImplemented('help')
             
-        # Grab number of halos from last timestep.
-        #w = raw['nh'][:,-1]        
-        
+
         # Need to be more careful here as nh can change when using
         # simulated halos
-        w = raw['nh'][:,izobs]        
-        
+        w = raw['nh'][:,izobs+1]
                         
         # Just hack out the luminosity *now*.
         L = Lt[:,-1] * corr[:,-1]
         
         MAB = self.magsys.L_to_MAB(L, z=z)
-                
-        # Need to modify weights, since the mapping from Mh -> L -> mag
-        # is not linear.
-        #w *= np.diff(self.histories['Mh'][:,iz]) / np.diff(L)
-        
-        # Should assert that max(MAB) is < max(MAB)
-        
+                        
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
         # spikes where L==0, all L==0 elements should be a contiguous chunk.
@@ -1628,8 +1598,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
 
         hist, bin_edges = np.histogram(MAB[Misok==1], 
-            weights=w[Misok==1], 
-            bins=bin_c2e(_x), density=True)
+            weights=w[Misok==1], bins=bin_c2e(_x), density=True)
             
         bin_c = _x
         
@@ -1650,15 +1619,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         return None    
         
-    def get_beta(self, idnum, zobs=None, wave=1600., dlam=100):
+    def get_beta(self, idnum=None, zobs=None, wave=1600., dlam=100):
         """
         Get UV slope for a single object.
         """
 
         if self.src.pf['source_sed'] == 'eldridge2009':
-            ok = np.logical_or(wave-dlam == self.src.wavelengths, 
-                               wave+dlam == self.src.wavelengths)
+            _lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))    
+            _hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))    
+               
+            lo = self.src.wavelengths[_lo] 
+            hi = self.src.wavelengths[_hi]  
+                
+            ok = np.logical_or(lo == self.src.wavelengths, 
+                               hi == self.src.wavelengths)
+            
             ok = np.logical_or(ok, wave == self.src.wavelengths)
+            
         else:
             lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))
             me = np.argmin(np.abs(wave - self.src.wavelengths))
@@ -1671,6 +1648,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
             
         arr = self.src.wavelengths[ok==1]
+        
+        if idnum is None:
+            batch_mode = True
+        else:
+            batch_mode = False
                         
         Lh = []
         MAB = []
@@ -1682,18 +1664,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             if j == 1:
                 MAB = self.magsys.L_to_MAB(Lh[j], z=zarr[-1])
-                    
-        Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None]
+        
+        if batch_mode:
+            Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None,None]
+        else:    
+            Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None]
 
         logw = np.log(arr)
         logL = np.log(Lh_l)
 
-        beta = (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
+        if batch_mode:
+            beta = (logL[0,:,:] - logL[-1,:,:]) / (logw[0,None,None] - logw[-1,None,None])
+        else:
+            beta = (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
 
         return MAB, beta
 
     def Beta(self, z, MUV=None, wave=1600., wave_MUV=1600., dlam=100,
-        return_binned=True, Mbins=None):
+        return_binned=True, Mbins=None, batch=False):
         """
         UV slope for all objects in model.
         
@@ -1730,30 +1718,42 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         if cached_result is None:
                 
-            ok = np.logical_or(wave-dlam == self.src.wavelengths, 
-                               wave+dlam == self.src.wavelengths)
+            _lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))    
+            _hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))    
+               
+            lo = self.src.wavelengths[_lo] 
+            hi = self.src.wavelengths[_hi]  
+                
+            ok = np.logical_or(lo == self.src.wavelengths, 
+                               hi == self.src.wavelengths)
             
             ok = np.logical_or(ok, wave == self.src.wavelengths)
-            
+                        
             if ok.sum() < 2:
                 raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
             
             arr = self.src.wavelengths[ok==1]
             
-            beta = []
-            MAB = []
-            for i, hist in enumerate(self.get_histories(z)):
-                _muv1, _beta1 = self.get_beta(i, z, wave, dlam)
-                if wave_MUV != wave:
-                    _muv2, _beta2 = self.get_beta(i, z, wave, dlam)
-                    MAB.append(_muv2[-1])
-                else:
-                    MAB.append(_muv1[-1])
+            if batch:
+                _MAB, _beta = self.get_beta(None, z, wave, dlam)
+                MAB = _MAB[:,-1]
+                beta = _beta[:,-1]
+            else:    
+            
+                beta = []
+                MAB = []
+                for i, hist in enumerate(self.get_histories(z)):
+                    _muv1, _beta1 = self.get_beta(i, z, wave, dlam)
+                    if wave_MUV != wave:
+                        _muv2, _beta2 = self.get_beta(i, z, wave, dlam)
+                        MAB.append(_muv2[-1])
+                    else:
+                        MAB.append(_muv1[-1])
+                        
+                    beta.append(_beta1[-1])
                     
-                beta.append(_beta1[-1])
-                
-            beta = np.array(beta)
-            MAB = np.array(MAB) 
+                beta = np.array(beta)
+                MAB = np.array(MAB) 
             
             # Only cache
             self._cache_beta_[(z, wave, wave_MUV)] = MAB, beta
@@ -1794,7 +1794,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         # Just do this to get MAB array of same size as Mh
         MAB, beta, std = self.Beta(z, MUV=None, wave=wave, dlam=dlam,
-            return_binned=False)
+            return_binned=False, batch=True)
                 
         if return_binned:            
             if Mbins is None:
