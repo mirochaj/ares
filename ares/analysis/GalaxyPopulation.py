@@ -464,14 +464,14 @@ class GalaxyPopulation(object):
         
         if axes is None:
             gotax = False
-            axes = self._MegaPlotSetup(fig)   
+            axes = self._MegaPlotSetup(fig)
         else:
             gotax = True
-            
+
         self._MegaPlotCalData(axes)
         self._MegaPlotPredData(axes)
         self._MegaPlotGuideEye(axes)
-        
+
         if isinstance(pop, GalaxyEnsemble):
             self._MegaPlotPop(axes, pop)
         elif hasattr(pop, 'chain'):
@@ -509,8 +509,8 @@ class GalaxyPopulation(object):
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        _mst  = np.arange(6, 12, 0.1)
-        _mags = np.arange(-25, -10, 0.1)
+        _mst  = np.arange(6, 12, 0.2)
+        _mags = np.arange(-25, -10, 0.2)
         
         redshifts = [4, 6, 8]
         colors = ['k', 'b', 'c']
@@ -551,7 +551,7 @@ class GalaxyPopulation(object):
             # SMF
             phi = pop.StellarMassFunction(z, _mst)
             ax_smf.loglog(10**_mst, phi, color=colors[j], drawstyle='steps-mid')
-        
+
             # SMHM
             _Mh = 10**np.arange(8, 12.5, 0.1)
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
@@ -559,9 +559,9 @@ class GalaxyPopulation(object):
         
             # These mags will correspond to Mh so we can use them for stuff.
             _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
-                Mbins=np.arange(-25, -10, 1.))  
+                Mbins=np.arange(-25, -10, 1.))
             
-            ax_AUV.plot(_mags_A, AUV, color=colors[j])  
+            ax_AUV.plot(_mags_A, AUV, color=colors[j])
             
             # MUV-Mstell
             _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_A)
@@ -571,8 +571,11 @@ class GalaxyPopulation(object):
             _x, _y, _z = bin_samples(mags, fcov, _mags_A)
             ax_lae_m.plot(_x, 1. - _y, color=colors[j])
             
-            xa_b.append(1. - np.mean(_y[_mags_A < -20.25]))    
-            xa_f.append(1. - np.mean(_y[_mags_A >= -20.25]))
+            faint  = np.logical_and(_mags_A >= -20.25, _mags_A < -18.)
+            bright = _mags_A < -20.25
+            
+            xa_f.append(1. - np.mean(_y[faint==1]))    
+            xa_b.append(1. - np.mean(_y[bright==1]))
                 
             
         ax_lae_z.plot(redshifts, xa_b, color='k', alpha=1.0, ls='-')
@@ -582,6 +585,70 @@ class GalaxyPopulation(object):
         sfrd = np.array([pop.SFRD(zarr[i]) for i in range(zarr.size)])
         ax_sfrd.semilogy(zarr, sfrd * rhodot_cgs, color='k')
                 
+    def _MegaPlotLimitsAndTicks(self, kw):
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        
+        
+        ax_sfe.set_xlim(1e8, 1e13)
+        ax_sfe.set_ylim(1e-3, 1.0)
+        ax_fco.set_xlim(1e8, 1e13)
+        ax_fco.set_yscale('linear')
+        ax_fco.set_ylim(0, 1.05)
+        ax_rdu.set_xlim(1e8, 1e13)
+        ax_rdu.set_ylim(1e-2, 100)
+        
+        ax_smf.set_xscale('log')
+        ax_smf.set_xlim(1e7, 1e12)
+        ax_smf.set_ylim(1e-7, 2e-1)
+        ax_smhm.set_xscale('log')
+        ax_smhm.set_yscale('log')
+        #ax_smhm.set_ylim(-4, 1.)
+        #ax_smhm.set_yscale('log', nonposy='clip')
+        ax_smhm.set_xlim(1e9, 1e12)
+        ax_smhm.set_ylim(5e-4, 1.5e-1)
+        ax_bet.set_xlim(-25, -12)
+        ax_bet.set_ylim(-3, -1)
+        ax_phi.set_xlim(-25, -12)
+        ax_phi.set_ylim(1e-7, 2e-1)
+        
+        ax_MsMUV.set_yscale('linear')
+        ax_MsMUV.set_ylim(7, 12)
+        ax_MsMUV.set_xlim(-25, -12)
+        
+        ax_AUV.set_xlim(-25, -12)
+        ax_AUV.set_ylim(0, 3.5)
+
+        ax_sfms.set_xlim(1e7, 1e12)
+        ax_sfms.set_ylim(1e-2, 2e3)
+        
+        ax_lae_m.set_xlim(-25, -12)
+        ax_lae_z.set_xlim(3., 7.2)
+        ax_lae_m.set_ylim(0, 1.05)
+        ax_lae_z.set_ylim(0, 1.05)
+
+        # Set ticks for all MUV scales
+        for ax in [ax_bet, ax_phi, ax_MsMUV, ax_lae_m, ax_AUV]:
+            ax.set_xticks(np.arange(-24, -12, 1), minor=True)
+            
+        for ax in [ax_MsMUV, ax_lae_m, ax_AUV]:
+            ax.set_xlim(-25, -15)    
+        
+        return kw
+        
     def _MegaPlotSetup(self, fig):
         
         fig = pl.figure(tight_layout=False, figsize=(22, 7), num=fig)
@@ -618,13 +685,7 @@ class GalaxyPopulation(object):
         ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
         
 
-        ax_sfe.set_xlim(1e8, 1e13)
-        ax_sfe.set_ylim(1e-3, 1.0)
-        ax_fco.set_xlim(1e8, 1e13)
-        ax_fco.set_yscale('linear')
-        ax_fco.set_ylim(0, 1.05)
-        ax_rdu.set_xlim(1e8, 1e13)
-        ax_rdu.set_ylim(1e-2, 100)
+        
 
         ##
         # CALIBRATION DATA
@@ -634,10 +695,7 @@ class GalaxyPopulation(object):
         ax_phi.set_ylabel(labels['lf'])
         ax_bet.set_ylabel(r'$\beta$')
 
-        ax_bet.set_xlim(-25, -12)
-        ax_bet.set_ylim(-3, -1)
-        ax_phi.set_xlim(-25, -12)
-        ax_phi.set_ylim(1e-7, 2e-1)
+        
 
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
 
@@ -646,33 +704,18 @@ class GalaxyPopulation(object):
         ax_sfrd.set_title('Predictions', fontsize=18)
 
         ax_smf.set_ylabel(labels['galaxy_smf'])
-        ax_smf.set_xscale('log')
-        ax_smf.set_xlim(1e7, 1e12)
-        ax_smf.set_ylim(1e-7, 2e-1)
-        ax_smhm.set_xscale('log')
-        ax_smhm.set_yscale('log')
-        #ax_smhm.set_ylim(-4, 1.)
-        #ax_smhm.set_yscale('log', nonposy='clip')
-        ax_smhm.set_xlim(1e9, 1e12)
-        ax_smhm.set_ylim(5e-4, 1.5e-1)
         ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
         ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
         ax_phi.set_ylabel(labels['galaxy_lf'])
         ax_bet.set_ylabel(r'$\beta$')
 
-        ax_MsMUV.set_yscale('linear')
-        ax_MsMUV.set_ylim(7, 12)
-        ax_MsMUV.set_xlim(-25, -12)
+        
         ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
         ax_MsMUV.set_xlabel(r'$M_{\mathrm{UV}}$')
 
         ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')
-        ax_AUV.set_xlim(-25, -12)
-        ax_AUV.set_ylim(0, 3.5)
-
-        ax_sfms.set_xlim(1e7, 1e12)
-        ax_sfms.set_ylim(1e-2, 2e3)
+        
         ax_sfms.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         ax_sfms.set_ylabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
 
@@ -683,16 +726,7 @@ class GalaxyPopulation(object):
         ax_lae_z.set_xlabel(r'$z$')
         ax_lae_z.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
         ax_lae_m.set_xlabel(r'$M_{\mathrm{UV}}$')
-        ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
-        ax_lae_m.set_xlim(-25, -12)
-        ax_lae_z.set_xlim(3., 7.2)
-        ax_lae_m.set_ylim(0, 1.05)
-        ax_lae_z.set_ylim(0, 1.05)
-
-        # Set ticks for all MUV scales
-        for ax in [ax_bet, ax_phi, ax_MsMUV, ax_lae_m, ax_AUV]:
-            ax.set_xticks(np.arange(-24, -12, 1), minor=True)
-        
+        ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')        
         
         kw = \
         {
@@ -951,9 +985,6 @@ class GalaxyPopulation(object):
         ax_lae_z  = kw['ax_lae_z']
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
-        
-        
-        
 
         ax_phi.legend(loc='lower right', fontsize=8)
         ax_smf.legend(loc='lower left', fontsize=8)
@@ -965,4 +996,4 @@ class GalaxyPopulation(object):
         ax_MsMUV.legend(loc='upper right', fontsize=8)
         
         
-        
+        self._MegaPlotLimitsAndTicks(kw)

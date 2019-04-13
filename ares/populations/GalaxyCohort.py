@@ -426,7 +426,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_sfr_cross_threshold']:
             
             y = yield_per_sfr(z=self.halos.tab_z, Mh=self._tab_Mmin)
-            
+                        
             if self.pf['pop_sfr'] is not None:
                 thresh = self.pf['pop_sfr'] \
                     * self._tab_nh_at_Mmin * self._tab_Mmin \
@@ -1078,12 +1078,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Sd = self.get_field(z, 'Sd')
                 tau = kappa * Sd
                 
-                # In this case, reddening is applied later
-                if self.pf['pop_dust_fcov_isprob']:
-                    raise NotImplemented('help')
-                else:                
-                    return Lh * (1 - fcov) + Lh * fcov * np.exp(-tau)
-                
+                # I don't think this method should ever get called.
+                # Basically we only have this implemented for GalaxyEnsemble.
+                # Right, because the reddening is probabilistic (due to fcov)
+                # we don't have a way to deal with it in Cohort currently.
+                raise NotImplemented('help')
+
             else:
                 L_sfr = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
                 return sfr * L_sfr

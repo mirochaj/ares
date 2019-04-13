@@ -417,6 +417,10 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+    # Can degrade spectral resolution of stellar population synthesis models
+    # just to speed things up.
+    "pop_sed_degrade": None,
+    
     # If pop_sed == 'user'
     "pop_E": None,
     "pop_L": None,
@@ -637,7 +641,6 @@ def PopulationParameters():
     "pop_dust_yield": 0.,     # Mdust = dust_yield * metal mass
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,     
-    "pop_dust_fcov_isprob": 0,    
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     
@@ -701,6 +704,8 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    "source_sed_degrade": None,
     
     "source_sfr": 1.,
     "source_fesc": 0.1,
@@ -827,6 +832,7 @@ def SynthesisParameters():
     {
     # For synthesis models
     "source_sed": None,
+    "source_sed_degrade": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
     "source_tracks": None,
@@ -1020,7 +1026,7 @@ def ControlParameters():
 
     "progress_bar": True,
     "verbose": True,
-    "debug": True,
+    "debug": False,
     }
 
     pf.update(rcParams)
