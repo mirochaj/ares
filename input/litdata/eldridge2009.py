@@ -69,7 +69,7 @@ def _kwargs_to_fn(**kwargs):
     fn += '.z{!s}'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
         
     if kwargs['source_sed_degrade'] is not None:
-        fn += '.db{}'.format(kwargs['source_sed_degrade'])    
+        fn += '.deg{}'.format(kwargs['source_sed_degrade'])    
             
     return _input + '/' + fn    
             

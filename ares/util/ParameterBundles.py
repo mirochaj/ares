@@ -353,7 +353,7 @@ _physical_dc_nozevol = \
 
 _physical_dc = _physical_dc_nozevol.copy()
 _physical_dc['pq_func_par2[21]'] = 'pq[24]'
-_physical_dc["pq_func[24]"] = 'pl'
+_physical_dc["pq_func[24]"] = 'linear'
 _physical_dc['pq_func_var[24]'] = '1+z'
 _physical_dc['pq_func_par0[24]'] = 10.5
 _physical_dc['pq_func_par1[24]'] = 5.

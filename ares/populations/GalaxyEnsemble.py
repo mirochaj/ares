@@ -284,8 +284,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # SFR = (zform, time (but really redshift))
         # So, halo identity is wrapped up in axis=0
         # In Cohort, formation time defines initial mass and trajectory (in full)
-        z2d = np.array([zall] * nh.shape[0])
-        histories = {'z2d': z2d, 'Mh': Mh, 'MAR': mar, 'nh': nh}
+        #z2d = np.array([zall] * nh.shape[0])
+        histories = {'Mh': Mh, 'MAR': mar, 'nh': nh}
 
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zthin'] = self.tile(zall, thin)
@@ -942,12 +942,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         # Flip arrays to be in ascending time.
         z = halos['z'][-1::-1]
-        z2d = halos['z2d'][:,-1::-1]
+        #z2d = halos['z2d'][:,-1::-1]
+        z2d = np.array([z] * halos['nh'].shape[0])[:,-1::-1]
         t = halos['t'][-1::-1]
         Mh = halos['Mh'][:,-1::-1]
         nh = halos['nh'][:,-1::-1]
         MAR = halos['MAR'][:,-1::-1]
         SFE = self.guide.SFE(z=z2d, Mh=Mh)
+        
+        #print("TESTING")
+        #p0 = self.pf['pq_func_par0[1]']
+        #p1 = self.pf['pq_func_par0[2]']
+        #p2 = self.pf['pq_func_par0[3]']
+        #p3 = self.pf['pq_func_par0[4]']
+        #
+        #xx = Mh / p1
+        #
+        #SFE = 2. * p0 / (np.power(xx,-p2) + np.power(xx, -p3))
+        
+        del z2d
         
         # Short-hand
         fb = self.cosm.fbar_over_fcdm
@@ -1013,7 +1026,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          't': t,#[-1::-1],
          'z': z,#[-1::-1],
          'zthin': halos['zthin'][-1::-1],
-         'z2d': z2d,
+         #'z2d': z2d,
          'SFR': SFR,#[:,-1::-1],
          'Mg': Mg,#[:,-1::-1],
          'Ms': Ms,#[:,-1::-1],
@@ -1257,7 +1270,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         For example, hist could be the output of a call to _gen_galaxy_history.
             
-        """
+        """            
         
         batch_mode = False
         if idnum is not None:
@@ -1291,6 +1304,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             izobs = np.argmin(np.abs(hist['z'] - zobs))
             if hist['z'][izobs] > zobs:
                 izobs += 1
+        
+        # Can load batch results from cache as well
+        if batch_mode:
+            cached_result = self._cache_ss((zobs, wave))
+            if cached_result is not None:        
+                zarr, tarr, L = cached_result
+                return zarr[0:izobs+1], tarr[0:izobs+1], L[:,0:izobs+1]    
                 
         # Must be supplied in increasing time order, decreasing redshift.
         assert np.all(np.diff(hist['t']) >= 0)
@@ -1434,7 +1454,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
             self._cache_ss_[(idnum, wave)] = zarr, tarr, Lout
-                       
+        # Or if we did batch mode
+        elif (zobs is not None) and (idnum is None):
+            init = self._cache_ss((zobs, wave))
+            self._cache_ss_[(zobs, wave)] = zarr, tarr, Lout
+                                   
         return zarr[slc], tarr[slc], Lout[slc]
           
     def _cache_lf(self, z, x=None):
@@ -1527,7 +1551,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_lf(z, x)
         if cached_result is not None:
             return cached_result
-                    
+                                
         # These are kept in descending redshift just to make life difficult.
         # [The last element corresponds to observation redshift.]
         raw = self.histories
@@ -1555,7 +1579,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         else:
         
-            Lt = np.zeros((Nh, izobs+1))
+            Lt = np.zeros((Nh, izobs))
             corr = np.ones_like(Lt)
             for i in range(Nh):
                                         
@@ -1625,7 +1649,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
 
         if self.src.pf['source_sed'] == 'eldridge2009':
-            _lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))    
+            _lo = np.argmin(np.abs(wave - self.src.wavelengths))    
             _hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))    
                
             lo = self.src.wavelengths[_lo] 
@@ -1669,7 +1693,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None,None]
         else:    
             Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None]
-
+        
         logw = np.log(arr)
         logL = np.log(Lh_l)
 
@@ -1717,8 +1741,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_beta(z, wave, wave_MUV)
         
         if cached_result is None:
-                
-            _lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))    
+            _lo = np.argmin(np.abs(wave - self.src.wavelengths))    
             _hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))    
                
             lo = self.src.wavelengths[_lo] 
@@ -1770,12 +1793,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             beta = _y
             std = _z 
         else:
-            std = None    
+            std = None   
+            assert MUV is None     
 
-        if MUV is not None:
-            _beta = np.interp(MUV, MAB[-1::-1], beta[-1::-1],
-                left=-9999, right=-9999)
-            
+        if MUV is not None:            
+            _beta = np.interp(MUV, MAB[-1::-1], beta[-1::-1], 
+                left=-9999, right=-9999)            
             return _beta
                                                                 
         return MAB, beta, std
@@ -1806,12 +1829,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             AUV = _y
             std = _z 
         else:
+            #MAB = np.flip(MAB)
+            #beta = np.flip(beta)
             std = None
-            
-            if MUV is not None:
-                _AUV = np.interp(MUV, MAB[-1::-1], AUV[-1::-1],
-                    left=0., right=0.)
-                return _AUV
+                
+            assert MUV is None    
+                
+        if MUV is not None:
+            _AUV = np.interp(MUV, MAB[-1::-1], AUV[-1::-1], left=0., right=0.)
+            return _AUV
 
         return MAB, AUV, std
         

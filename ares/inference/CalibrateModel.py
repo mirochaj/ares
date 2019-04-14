@@ -304,19 +304,19 @@ class CalibrateModel(object):
                     'pq_func_par3[21]'])
                                 
                 # Mass-dependence of R_d
-                guesses['pq_func_par2[22]'] = 0.4
+                guesses['pq_func_par2[22]'] = 0.66
                 
                 # Normalization and redshift-dependence of R_d
                 guesses['pq_func_par0[23]'] = 0.
-                guesses['pq_func_par2[23]'] = -1.
+                guesses['pq_func_par2[23]'] = -0.5
                 
                 # Tanh describing covering fraction
-                guesses['pq_func_par0[21]'] = 0.05
+                guesses['pq_func_par0[21]'] = 0.25
                 guesses['pq_func_par1[21]'] = 0.95
-                guesses['pq_func_par3[21]'] = 2.
+                guesses['pq_func_par3[21]'] = 0.5
                 
                 is_log.extend([False, True, False, False, False, False])
-                jitter.extend([0.1, 0.5, 0.2, 0.05, 0.05, 0.5])
+                jitter.extend([0.1, 0.3, 0.25, 0.05, 0.05, 0.2])
                 
                 ps.add_distribution(UniformDistribution(-1., 2.), 'pq_func_par2[22]')
                 ps.add_distribution(UniformDistribution(-3., 2.), 'pq_func_par0[23]')
@@ -328,15 +328,15 @@ class CalibrateModel(object):
                                     
                 if self.zevol_dust:
                     free_pars.extend(['pq_func_par0[24]', 'pq_func_par2[24]'])
-                    guesses['pq_func_par0[24]'] = 10.5
+                    guesses['pq_func_par0[24]'] = 10.8
                     guesses['pq_func_par2[24]'] = 0.
                     is_log.extend([False, False])
-                    jitter.extend([0.5, 1.0])
+                    jitter.extend([0.5, 0.1])
                     ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[24]')
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[24]') 
                 else:
                     free_pars.append('pq_func_par0[24]')
-                    guesses['pq_func_par0[24]'] = 10.5
+                    guesses['pq_func_par0[24]'] = 10.8
                     jitter.append(0.5)
                     is_log.append(False)
                     ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[24]')
@@ -392,15 +392,33 @@ class CalibrateModel(object):
         
     @property
     def blobs(self):
-        redshifts = np.array([3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 
-            10, 11, 12, 13, 14, 15])
+        redshifts = np.array([4, 6, 8, 10]) # generic
+
+        if self.fit_lf:
+            red_lf = np.array(self.fit_lf)
+        else:
+            red_lf = redshifts
+        
+        if self.fit_smf:
+            red_smf = np.array(self.fit_smf)
+        else:
+            red_smf = redshifts    
+            
+        if self.fit_beta:
+            red_beta = np.array(self.fit_beta)
+        else:
+            red_beta = redshifts    
+        
+            
+
         MUV = np.arange(-30, 5., 0.5)
+        
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.1, 0.1)
 
         # Always save the UVLF
         blob_n = ['galaxy_lf']
-        blob_i = [('z', redshifts), ('x', MUV)]
+        blob_i = [('z', red_lf), ('x', MUV)]
         blob_f = ['LuminosityFunction']
         
         blob_pars = \
@@ -408,7 +426,7 @@ class CalibrateModel(object):
          'blob_names': [blob_n],
          'blob_ivars': [blob_i],
          'blob_funcs': [blob_f],
-         'blob_kwargs': [None],
+         'blob_kwargs': [[{'batch': True}]],
         }
 
         # Save the SFE if we're varying its parameters.
@@ -457,7 +475,8 @@ class CalibrateModel(object):
         # SMF
         if self.save_smf:    
             blob_n = ['galaxy_smf']
-            blob_i = [('z', redshifts), ('bins', Ms)]
+            blob_i = [('z', red_smf), ('bins', Ms)]
+
             blob_f = ['StellarMassFunction']
             
             blob_pars['blob_names'].append(blob_n)
@@ -479,24 +498,24 @@ class CalibrateModel(object):
         # MUV-Beta
         if self.save_beta != False:
             
-            blob_n = ['AUV', 'AUV_eff']
-            blob_i = [('z', np.array([4, 6, 8, 10])), ('MUV', MUV)]
-            blob_f = ['AUV', 'AUV']
+            blob_n = ['AUV']
+            blob_i = [('z', red_beta), ('MUV', MUV)]
+            blob_f = ['AUV']
             # By default, MUV refers to 1600 magnitude
-            blob_k = [{'wave': 1600.}, {'wave': 1600., 'eff': True}]
+            blob_k = [{'wave': 1600}]
             
             if type(self.save_beta) in [int, bool]:
                 if rank == 0:
-                    print("[blobs] Defaulting to Beta at 2200 Angstrom.")
-                blob_n.append('beta_2200')
+                    print("[blobs] Defaulting to Beta at 1600 Angstrom.")
+                blob_n.append('beta_1600')
                 blob_f.append('Beta')
-                blob_k.append({'wave': 2200})
+                blob_k.append({'wave': 1600, 'batch': True})
             else:
                 _beta_waves = []
                 for element in self.save_beta:
                     blob_n.append('beta_{}'.format(int(element)))
                     blob_f.append('Beta')
-                    blob_k.append({'wave': element})
+                    blob_k.append({'wave': element, 'batch': True})
             
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)

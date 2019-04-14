@@ -537,7 +537,7 @@ class BlobFactory(object):
                                                 
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -649,7 +649,7 @@ class BlobFactory(object):
                         blob.append(tmp)
                                                                         
                 this_group.append(np.array(blob))
-
+                                
             self._blobs.append(np.array(this_group))
             
     @property 

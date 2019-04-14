@@ -163,6 +163,8 @@ class ParameterizedQuantity(object):
     def __call__(self, **kwargs):
         return self._call(self.pars_list, **kwargs)
 
+
+
     def _call(self, pars, **kwargs):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
@@ -218,7 +220,7 @@ class ParameterizedQuantity(object):
                     
             else:
                 setattr(self, 'p{}'.format(i), par)
-        
+                
         # Actually execute the function
         if func == 'lognormal':
             f = self.p0 * np.exp(-(logx - self.p1)**2 / 2. / self.p2**2)
@@ -381,7 +383,7 @@ class ParameterizedQuantity(object):
                 f = np.maximum(f, self.floor)
             else:
                 f = np.maximum(f, self.floor(**kwargs))
-                                
+                                          
         return f
               
 

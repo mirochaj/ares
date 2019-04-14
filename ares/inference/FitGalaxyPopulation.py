@@ -10,7 +10,6 @@ Description:
 
 """
 
-import time
 import gc, os
 import numpy as np
 from ..util import read_lit
@@ -109,7 +108,12 @@ class loglikelihood(LogLikelihood):
                     
         else:
             pops = [sim]
-                                                                                                                  
+            
+        if isinstance(sim, GalaxyEnsemble.GalaxyEnsemble):
+            more_kw = {'batch': True}
+        else: 
+            more_kw = {}
+                                                                                             
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
@@ -122,7 +126,7 @@ class loglikelihood(LogLikelihood):
             z = self.redshifts[i]
             
             for pop in pops:
-            
+                            
                 # Generate model LF
                 if quantity == 'lf':
                     # Dust correction for observed galaxies
@@ -138,7 +142,7 @@ class loglikelihood(LogLikelihood):
                     M = xdat - AUV
                                     
                     # Compute LF
-                    p = pop.LuminosityFunction(z=z, x=M, mags=True)
+                    p = pop.LuminosityFunction(z=z, x=M, mags=True, **more_kw)
                     
                     if np.isnan(p):
                         raise ValueError('LF is nan!', z, M)
@@ -148,13 +152,13 @@ class loglikelihood(LogLikelihood):
                     p = pop.StellarMassFunction(z, M)
                 elif quantity == 'beta':
                     M = xdat
-                    p = pop.Beta(z, MUV=M)
+                    p = pop.Beta(z, MUV=M, **more_kw)
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
 
-                phi[i] += p                                                      
-
+                phi[i] += p   
+            
         #except:
         #    return -np.inf, self.blank_blob
 
