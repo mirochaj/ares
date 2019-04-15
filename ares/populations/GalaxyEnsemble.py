@@ -11,6 +11,7 @@ Description:
 """
 
 import os
+import gc
 import time
 import pickle
 import numpy as np
@@ -30,6 +31,8 @@ try:
     import h5py
 except ImportError:
     pass
+    
+from memory_profiler import profile    
     
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
@@ -223,6 +226,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._cache_halos_ = self._gen_halo_histories()
         return self._cache_halos_
         
+    @profile    
     def _gen_halo_histories(self):
         """
         From a set of smooth halo assembly histories, build a bigger set
@@ -689,6 +693,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return inow + ifut
                 
+    @profile            
     def _gen_galaxy_history(self, halo, zobs=0):
         """
         Evolve a single galaxy in time. 
@@ -1035,7 +1040,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Sd': Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2,
          'Mh': Mh,#[:,-1::-1],
          'bursty': zeros_like_Mh,
-         'imf': np.zeros((Mh.size, self.tab_imf_mc.size)),
+         'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
          #'Z': MZ[:,-1::-1] / Mg[:,-1::-1],
         }
@@ -1255,7 +1260,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self._cache_ss_[key]    
         
         return None        
-        
+    
+    @profile    
     def SpectralSynthesis(self, hist=None, idnum=None, zobs=None, wave=1600., 
         weights=1):
         """
@@ -1449,8 +1455,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Lout = Lhist * clear + Lhist * np.exp(-tau) * block
 
         else:
-            Lout = Lhist    
-                       
+            Lout = Lhist.copy()
+            
+        del Lhist, tau, Lall    
+        gc.collect()    
+                    
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
             self._cache_ss_[(idnum, wave)] = zarr, tarr, Lout
@@ -1538,6 +1547,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         for i in range(self.histories['Mh'].shape[0]):
             yield self.get_history(i)
         
+    @profile    
     def LuminosityFunction(self, z, x, mags=True, wave=1600., band=None,
         batch=False):
         """
@@ -1566,7 +1576,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if z > self.histories['z'][izobs]:
             # Go to one grid point lower redshift
             izobs += 1
-                    
+                                
         ##
         # Run in batch? 
         if batch:
@@ -1607,7 +1617,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Need to be more careful here as nh can change when using
         # simulated halos
         w = raw['nh'][:,izobs+1]
-                        
+                                
         # Just hack out the luminosity *now*.
         L = Lt[:,-1] * corr[:,-1]
         
