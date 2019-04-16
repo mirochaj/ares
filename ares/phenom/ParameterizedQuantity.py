@@ -163,8 +163,6 @@ class ParameterizedQuantity(object):
     def __call__(self, **kwargs):
         return self._call(self.pars_list, **kwargs)
 
-
-
     def _call(self, pars, **kwargs):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
@@ -191,13 +189,73 @@ class ParameterizedQuantity(object):
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars):
 
-            # It's possible that a parameter will itself be a PQ object.            
+            # It's possible that a parameter will itself be a PQ object.
             if isinstance(par, basestring):
 
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
 
-                val = PQ.__call__(**kwargs)
+                #is_dim = None
+                #if x.ndim == 2:
+                #    d0 = np.diff(x, axis=0)
+                #    if np.all(d0 == 0):
+                #        
+                #        # These are the unique x values
+                #        if var == '1+z':
+                #            xnew = x[0,:] - 1.
+                #        else:    
+                #            xnew = x[0,:]
+                #        
+                #        is_dim = 1
+                #        
+                #        var2 = 
+                #        
+                #        kw = {var: xnew, }
+                #        
+                #    elif np.all(d1 == 0):
+                #        # These are the unique x values
+                #        xnew = x[:,0]
+                #        raise NotImplemented('help')
+                #    else:
+                #        kw = kwargs
+                #else:    
+                #    kw = kwargs
+                
+                _val = PQ.__call__(**kwargs)
+                
+                if type(_val) == np.ndarray:
+                
+                    # This is a memory-conserving trick. Remove redundant elements
+                    # in input arrays before storing as attribute.
+                    if _val.ndim == 2:
+                        
+                        d0 = np.all(np.diff(_val, axis=0) == 0)
+                        d1 = np.all(np.diff(_val, axis=1) == 0)
+                        if d0 and d1:
+                            val = _val[0,0]
+                        elif d0:
+                            val = _val[0,:][None,:] 
+                        elif d1:
+                            val = _val[:,0][:,None]
+                        else:
+                            val = _val
+                                
+                        del _val
+                            
+                    else:
+                        val = _val  
+                else:
+                    val = _val              
+                
+                
+                #if is_dim == 1:
+                #    val = _val[None,:]
+                #elif is_dim is None:
+                #    val = _val
+                #else:
+                #    raise NotImplemented('help')
+                
+                #print("HI HELLO", func, var, val.shape, x.shape, kwargs.keys())
                 
                 setattr(self, 'p{}'.format(i), val)
 

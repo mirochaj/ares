@@ -562,17 +562,23 @@ class GalaxyPopulation(object):
             _Mh = 10**np.arange(8, 12.5, 0.1)
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
+            
+            # MUV-Mstell
+            _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_b)
+            ax_MsMUV.plot(_x, _y, color=colors[j])
         
             # These mags will correspond to Mh so we can use them for stuff.
+            if pop.pf['pop_dust_yield'] == 0:
+                xa_f.append(0)
+                xa_b.append(0)
+                
+                continue
+                
             _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
                 Mbins=np.arange(-25, -10, 1.))
             
             ax_AUV.plot(_mags_A, AUV, color=colors[j])
-            
-            # MUV-Mstell
-            _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_A)
-            ax_MsMUV.plot(_x, _y, color=colors[j])
-                
+                            
             # LAE stuff
             _x, _y, _z = bin_samples(mags, fcov, _mags_A)
             ax_lae_m.plot(_x, 1. - _y, color=colors[j])
@@ -582,7 +588,6 @@ class GalaxyPopulation(object):
             
             xa_f.append(1. - np.mean(_y[faint==1]))    
             xa_b.append(1. - np.mean(_y[bright==1]))
-                
             
         ax_lae_z.plot(redshifts, xa_b, color='k', alpha=1.0, ls='-')
         ax_lae_z.plot(redshifts, xa_f, color='k', alpha=1.0, ls='--')
