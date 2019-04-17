@@ -648,8 +648,8 @@ class GalaxyPopulation(object):
         
         ax_lae_m.set_xlim(-25, -12)
         ax_lae_z.set_xlim(3., 7.2)
-        ax_lae_m.set_ylim(0, 1.05)
-        ax_lae_z.set_ylim(0, 1.05)
+        ax_lae_m.set_ylim(-0.05, 1.05)
+        ax_lae_z.set_ylim(-0.05, 1.05)
 
         # Set ticks for all MUV scales
         for ax in [ax_bet, ax_phi, ax_MsMUV, ax_lae_m, ax_AUV]:

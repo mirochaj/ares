@@ -37,7 +37,7 @@ _zcal_smf = [3, 4, 5, 6, 7, 8]
 _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
-acceptable_dust_params = ['low', 'high', 'mid', 'width', 'norm', 'mdep', 'zdep']
+acceptable_dust_params = ['norm', 'slope', 'fcov']
 
 class CalibrateModel(object):
     """
@@ -45,7 +45,7 @@ class CalibrateModel(object):
     """
     def __init__(self, fit_lf=[5.9], fit_smf=False, fit_gs=False, fit_beta=False,
         use_ensemble=True,  
-        include_sfe=True, free_params_sfe=True, zevol_sfe=[],
+        include_sfe=True, free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', 
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
@@ -96,7 +96,7 @@ class CalibrateModel(object):
                 continue
                 
             raise ValueError("Unrecognized SFE param: {}".format(par))
-        
+                
         # What's allowed to vary with redshift?
         if zevol_sfe is None:
             self.zevol_sfe = []   
@@ -104,8 +104,22 @@ class CalibrateModel(object):
             self.zevol_sfe = free_params_sfe
         else:
             self.zevol_sfe = zevol_sfe
-
-        self.zevol_dust = int(zevol_dust)
+        
+        # Set SFE free parameters
+        self.free_params_dust = free_params_dust        
+        for par in self.free_params_dust:
+            if par in acceptable_dust_params:
+                continue
+                
+            raise ValueError("Unrecognized dust param: {}".format(par))
+                
+        # What's allowed to vary with redshift?
+        if zevol_dust is None:
+            self.zevol_dust = []   
+        elif zevol_dust == 'all':
+            self.zevol_dust = free_params_dust
+        else:
+            self.zevol_dust = zevol_dust    
         
         self.save_lf = int(save_lf)
         self.save_smf = int(save_smf)
@@ -156,9 +170,13 @@ class CalibrateModel(object):
             epeak = 'peak' in self.zevol_sfe
             eslop = 'slope-low' in self.zevol_sfe \
                  or 'slope-high' in self.zevol_sfe
+                 
+            enorm_d = 'norm' in self.zevol_dust
+            eslop_d = 'scale' in self.zevol_dust
             
-            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_edust-{}'.format(
-                int(enorm), int(epeak), int(eslop), self.include_dust, self.zevol_dust)
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_eshape-{}'.format(
+                int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d), 
+                int(eslop_d))
         elif self.include_sfe in ['f17-p', 'f17-E']:
             rest = 'sfe-{}_fshock-{}_dust-{}_edust-{}_zcal-{}'.format(
                 self.include_sfe, self.include_fshock, self.include_dust, 
@@ -211,7 +229,7 @@ class CalibrateModel(object):
                     
                     if 'norm' in self.zevol_sfe:
                         free_pars.append('pq_func_par2[1]')
-                        guesses['pq_func_par2[1]'] = 0.
+                        guesses['pq_func_par2[1]'] = 0.5
                         is_log.extend([False])
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[1]')
@@ -293,54 +311,59 @@ class CalibrateModel(object):
             ##
             # DUST REDDENING
             ##
-            if self.include_dust.startswith('phys'):
+            if self.include_dust in ['screen', 'patchy']:
                 
-                # Just Rd(Mh, z) first
-                free_pars.extend(['pq_func_par2[22]', 'pq_func_par0[23]',  
-                    'pq_func_par2[23]'])
+                if 'norm' in self.free_params_dust:
+                    
+                    free_pars.append('pq_func_par0[23]')
+                    guesses['pq_func_par0[23]'] = 0.5
+                    is_log.extend([True])
+                    jitter.extend([0.5])
+                    ps.add_distribution(UniformDistribution(-3, 2.), 'pq_func_par0[23]')
+                                        
+                    if 'norm' in self.zevol_dust:
+                        free_pars.append('pq_func_par2[23]')
+                        guesses['pq_func_par2[23]'] = -0.5
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[23]')
                 
-                # fcov parameters (no zevol)    
-                free_pars.extend(['pq_func_par0[21]', 'pq_func_par1[21]',
-                    'pq_func_par3[21]'])
-                                
-                # Mass-dependence of R_d
-                guesses['pq_func_par2[22]'] = 0.66
+                if 'slope' in self.free_params_dust:
+                    free_pars.append('pq_func_par2[22]')
+                    guesses['pq_func_par2[22]'] = 0.5
+                    is_log.extend([False])
+                    jitter.extend([0.3])
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
+                    
                 
-                # Normalization and redshift-dependence of R_d
-                guesses['pq_func_par0[23]'] = 0.
-                guesses['pq_func_par2[23]'] = -0.5
+                if 'fcov' in self.free_params_dust:    
                 
-                # Tanh describing covering fraction
-                guesses['pq_func_par0[21]'] = 0.25
-                guesses['pq_func_par1[21]'] = 0.95
-                guesses['pq_func_par3[21]'] = 0.5
-                
-                is_log.extend([False, True, False, False, False, False])
-                jitter.extend([0.1, 0.3, 0.25, 0.05, 0.05, 0.2])
-                
-                ps.add_distribution(UniformDistribution(-1., 2.), 'pq_func_par2[22]')
-                ps.add_distribution(UniformDistribution(-3., 2.), 'pq_func_par0[23]')
-                ps.add_distribution(UniformDistribution(-2., 1.), 'pq_func_par2[23]')
-                
-                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[21]')
-                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
-                ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[21]')
+                    # fcov parameters (no zevol)
+                    free_pars.extend(['pq_func_par0[21]', 'pq_func_par1[21]',
+                        'pq_func_par3[21]', 'pq_func_par0[24]'])
                                     
-                if self.zevol_dust:
-                    free_pars.extend(['pq_func_par0[24]', 'pq_func_par2[24]'])
+                    # Tanh describing covering fraction
+                    guesses['pq_func_par0[21]'] = 0.25
+                    guesses['pq_func_par1[21]'] = 0.95
+                    guesses['pq_func_par3[21]'] = 0.5
                     guesses['pq_func_par0[24]'] = 10.8
-                    guesses['pq_func_par2[24]'] = 0.
-                    is_log.extend([False, False])
-                    jitter.extend([0.5, 0.1])
+                
+                    is_log.extend([False, False, False, False])
+                    jitter.extend([0.05, 0.05, 0.2, 0.3])
+                    
+                    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[21]')
+                    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
+                    ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[21]')
                     ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[24]')
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[24]') 
-                else:
-                    free_pars.append('pq_func_par0[24]')
-                    guesses['pq_func_par0[24]'] = 10.8
-                    jitter.append(0.5)
-                    is_log.append(False)
-                    ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[24]')
-                                                        
+                                    
+                    # Just let transition mass evolve
+                    if 'fcov' in self.zevol_dust:
+                        free_pars.extend(['pq_func_par2[24]'])
+                        guesses['pq_func_par2[24]'] = 0.1
+                        is_log.extend([False])
+                        jitter.extend([0.1])
+                        ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par2[24]') 
+                      
             # Set the attributes
             self._parameters = free_pars
             self._guesses = guesses

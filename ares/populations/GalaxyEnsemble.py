@@ -919,37 +919,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh = halos['nh'][:,-1::-1]
         MAR = halos['MAR'][:,-1::-1]
         
-        
-        #SFE = 0.1 * np.ones_like(MAR)
-        SFE = self.guide.SFE(z=z2d, Mh=Mh)
-        
-        # For some reason this is faster than making a 2-d z array and 
-        # using a single call to guide.SFE.
-        #_SFE = np.array([self.guide.SFE(z=halos['z'][i], Mh=halos['Mh'][:,i]) \
-        #    for i in range(z.size)])
-        #SFE = _SFE.swapaxes(0, 1)[:,-1::-1] 
-           
-        #SFE = SFE.
-        
-        #print("TESTING")
-        #p0 = self.pf['pq_func_par0[1]']
-        #p1 = self.pf['pq_func_par0[2]']
-        #p2 = self.pf['pq_func_par0[3]']
-        #p3 = self.pf['pq_func_par0[4]']
-        #
-        #xx = Mh / p1
-        #
-        #SFE = 2. * p0 / (np.power(xx,-p2) + np.power(xx, -p3))
-        
-        #del z2d
-        
-        # Short-hand
-        fb = self.cosm.fbar_over_fcdm
-        
         # 't' is in Myr
         dt = np.abs(np.diff(t)) * 1e6
-        
-        
+
         ##
         # OK. We've got a bunch of halo histories and we need to integrate them
         # to get things like stellar mass, metal mass, etc. This means we need
@@ -976,7 +948,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #_MAR_c = 0.5 * (np.roll(MAR, -1, axis=1) + MAR)
         #_Mint = np.cumsum(_MAR_c[:,1:] * dt, axis=1)
         
-        SFR = MAR * SFE * fb
+        if 'SFR' in halos:
+            SFR = halos['SFR'][:,-1::-1]
+        else:
+            SFE = self.guide.SFE(z=z2d, Mh=Mh)
+            fb = self.cosm.fbar_over_fcdm
+            SFR = MAR * SFE * fb
         
         # Integrated 'cumulative' quantities
         #_SFR_c = np.cumsum(SFR[:,0:-1] * dt, axis=1)
@@ -1660,8 +1637,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Always bin to setup cache, interpolate from then on.
         _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
 
-        print(L.shape, Misok.size, Misok.sum(), raw['Mh'].shape, w.shape)
-
         hist, bin_edges = np.histogram(MAB[Misok==1], 
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
             
@@ -1682,7 +1657,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if (z, wave, wave_MUV) in self._cache_beta_:
             return self._cache_beta_[(z, wave, wave_MUV)]
             
-        return None    
+        return None
         
     def get_beta(self, idnum=None, zobs=None, wave=1600., dlam=100):
         """

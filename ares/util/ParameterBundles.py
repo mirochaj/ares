@@ -309,7 +309,20 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
-_physical_dc_nozevol = \
+_physical_dc_fcov = \
+{
+ "pop_dust_fcov": 'pq[21]',   
+ "pq_func[21]": 'log_tanh_abs',
+ 'pq_func_var[21]': 'Mh',
+ 'pq_func_par0[21]': 0.0,     
+ 'pq_func_par1[21]': 1.0,
+ 'pq_func_par2[21]': 10.5,
+ 'pq_func_par3[21]': 1.5,
+ 'pq_val_floor[21]': 0.0,
+ 'pq_val_ceil[21]': 1.0,       
+}
+
+_physical_dc_screen = \
 {    
  "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
 
@@ -319,19 +332,7 @@ _physical_dc_nozevol = \
  'pq_func_par0[20]': 1e5,      # opacity at wavelength below
  'pq_func_par1[20]': 1e3,
  'pq_func_par2[20]': -1.,
- 
- # Covering fraction
- #"pop_dust_fcov": 0.5,
- "pop_dust_fcov": 'pq[21]',   
- "pq_func[21]": 'log_tanh_abs',
- 'pq_func_var[21]': 'Mh',
- 'pq_func_par0[21]': 0.0,     
- 'pq_func_par1[21]': 1.0,
- 'pq_func_par2[21]': 10.5,
- 'pq_func_par3[21]': 1.5,
- 'pq_val_floor[21]': 0.0,
- 'pq_val_ceil[21]': 1.0,
- 
+
  # Scale 
  "pop_dust_scale": 'pq[22]',   # Scale radius [in kpc]
  "pq_func[22]": 'pl',
@@ -351,13 +352,15 @@ _physical_dc_nozevol = \
  'pq_val_ceil[23]': 10.,
 } 
 
-_physical_dc = _physical_dc_nozevol.copy()
-_physical_dc['pq_func_par2[21]'] = 'pq[24]'
-_physical_dc["pq_func[24]"] = 'linear'
-_physical_dc['pq_func_var[24]'] = '1+z'
-_physical_dc['pq_func_par0[24]'] = 10.5
-_physical_dc['pq_func_par1[24]'] = 5.
-_physical_dc['pq_func_par2[24]'] = 0.
+_physical_dc_patchy = _physical_dc_screen.copy()
+_physical_dc_patchy.update(_physical_dc_fcov)
+
+_physical_dc_patchy['pq_func_par2[21]'] = 'pq[24]'
+_physical_dc_patchy["pq_func[24]"] = 'linear'
+_physical_dc_patchy['pq_func_var[24]'] = '1+z'
+_physical_dc_patchy['pq_func_par0[24]'] = 10.5
+_physical_dc_patchy['pq_func_par1[24]'] = 5.
+_physical_dc_patchy['pq_func_par2[24]'] = 0.
 
 _cooling = \
 {
@@ -406,8 +409,8 @@ _Bundles = \
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
-    'evolving': _evolve_dc, 'none': {}, 'phys': _physical_dc, 
-    #'phys+e': _physical_dc_zevol,
+    'evolving': _evolve_dc, 'none': {}, 'screen': _physical_dc_screen, 
+    'patchy': _physical_dc_patchy,
     },
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
