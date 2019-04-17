@@ -255,6 +255,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             pass
 
+        if 'SFR' in raw:
+            #assert sigma_mar == sigma_env == 0
+            histories['SFR'] = raw['SFR']
+
         self.tab_z = zall
         #self._cache_halos = histories
         
@@ -1338,12 +1342,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #
         izform = 0#min(np.argwhere(hist['Mh'] > 0))[0]
         
-        if batch_mode:
-            #raise NotImplemented('help')
-            # Need to slice over first dimension now...
-            slc = Ellipsis, slice(0, izobs+1)
+        if zobs is None:
+            slc = Ellipsis
         else:    
-            slc = slice(0, izobs+1)
+            if batch_mode:
+                #raise NotImplemented('help')
+                # Need to slice over first dimension now...
+                slc = Ellipsis, slice(0, izobs+1)
+            else:    
+                slc = slice(0, izobs+1)
 
         ##
         # Dust model?
@@ -1380,9 +1387,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         bursty = hist['bursty'][slc]
         imf = hist['imf'][slc]
         
-        tarr = hist['t'][0:izobs+1] # in Myr
-        zarr = hist['z'][0:izobs+1]
-        
+        if izobs is not None:
+            tarr = hist['t'][0:izobs+1] # in Myr
+            zarr = hist['z'][0:izobs+1]
+        else:
+            tarr = hist['t']    
+            zarr = hist['z']
         
         dt = np.concatenate((np.diff(tarr) * 1e6, [0]))
                 
@@ -1564,12 +1574,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         raw = self.histories
                                 
         hist = {'t': raw['t'], 'z': raw['z'], 
-            'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 'Sd': raw['Sd'][i],
+            'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 
             'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i],
             'imf': raw['imf'][i]}
             
         if self.pf['pop_dust_yield'] > 0:
             hist['rand'] = raw['rand'][i]
+            hist['Sd'] = raw['Sd'][i]
         
         return hist
         

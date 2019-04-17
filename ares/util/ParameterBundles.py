@@ -399,6 +399,21 @@ _slow = \
  'max_timestep': 1.,
 }
 
+# Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
+_planck2015 = \
+{
+ "omega_m_0": 0.3089,
+ "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
+ "omega_l_0": 1. - 0.3089,
+ "hubble_0": 0.6774,
+ "helium_by_number": 0.0813,
+ "helium_by_mass": 0.2453,   # predicted by BBN
+ "cmb_temp_0": 2.7255,
+ "sigma_8": 0.8159,
+ "primordial_index": 0.9667,
+}
+
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -412,6 +427,7 @@ _Bundles = \
     'evolving': _evolve_dc, 'none': {}, 'screen': _physical_dc_screen, 
     'patchy': _physical_dc_patchy,
     },
+ 'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
     'careless': _careless}

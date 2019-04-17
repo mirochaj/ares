@@ -270,7 +270,7 @@ class CalibrateModel(object):
                     free_pars.append('pq_func_par0[4]')
                     guesses['pq_func_par0[4]'] = 0.
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.5])
                     ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par0[4]')
                     
                     # Allow to evolve with redshift?
@@ -316,10 +316,10 @@ class CalibrateModel(object):
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[23]')
-                    guesses['pq_func_par0[23]'] = 0.5
+                    guesses['pq_func_par0[23]'] = 0.2
                     is_log.extend([True])
-                    jitter.extend([0.5])
-                    ps.add_distribution(UniformDistribution(-3, 2.), 'pq_func_par0[23]')
+                    jitter.extend([0.25])
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par0[23]')
                                         
                     if 'norm' in self.zevol_dust:
                         free_pars.append('pq_func_par2[23]')
@@ -330,7 +330,7 @@ class CalibrateModel(object):
                 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
-                    guesses['pq_func_par2[22]'] = 0.5
+                    guesses['pq_func_par2[22]'] = 0.2
                     is_log.extend([False])
                     jitter.extend([0.3])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
