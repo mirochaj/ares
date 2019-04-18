@@ -509,7 +509,7 @@ class ParameterBundle(dict):
                     first_update = False
                 
                 if self.verbose:
-                    if type(tmp[key]) in [int, float, np.float64]:
+                    if type(other[key]) in [int, float, np.float64]:
                         msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key.ljust(20), 
                             other[key])
                     else:
