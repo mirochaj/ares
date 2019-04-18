@@ -1909,19 +1909,31 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
         Load results from past run.
         """
-                        
-        if type(self.pf['pop_histories']) is str:
-            if self.pf['pop_histories'].endswith('.pkl'):
-                f = open(self.pf['pop_histories'], 'rb')
-                prefix = self.pf['pop_histories'].split('.pkl')[0]
+                
+        fn_hist = self.pf['pop_histories']
+        
+        # Look for results attached to hmf table
+        if fn_hist is None:
+            prefix = self.guide.halos.tab_prefix_hmf(True)
+            fn = self.guide.halos.tab_name
+        
+            suffix = fn[fn.rfind('.')+1:]
+            path = os.getenv("ARES") + '/input/hmf/'
+            fn_hist = path + prefix + '.hist.' + suffix
+                    
+        # Read output
+        if type(fn_hist) is not None:
+            if fn_hist.endswith('.pkl'):
+                f = open(fn_hist, 'rb')
+                prefix = fn_hist.split('.pkl')[0]
                 zall, traj_all = pickle.load(f)
                 f.close()
                 
                 hist = traj_all
                       
-            elif self.pf['pop_histories'].endswith('.hdf5'):
-                f = h5py.File(self.pf['pop_histories'], 'r')
-                prefix = self.pf['pop_histories'].split('.hdf5')[0]
+            elif fn_hist.endswith('.hdf5'):
+                f = h5py.File(fn_hist, 'r')
+                prefix = fn_hist.split('.hdf5')[0]
                 
                 hist = {}
                 for key in f.keys():
@@ -1931,25 +1943,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 f.close()
                 
-                #hist = {'Mh': traj_all, 'z': zall}
-                #if 'nh' not in f:
-                #    hist['nh'] = np.ones_like(traj_all)
-                #if 'SFE' not in f:
-                #    hist['SFE'] = np.ma.array(np.ones_like(traj_all), 
-                #        mask=np.ones_like(traj_all))
-                #if 'MAR' not in f:
-                #    # Can just compute this in a time-averaged way.
-                #    
-                #    # (N halos, N timesteps)
-                #    Mh = traj_all
-                #    
-                #    hist['MAR'] = np.ma.array(np.ones_like(traj_all), 
-                #        mask=np.ones_like(traj_all))
-                
             else:
                 # Assume pickle?
-                f = open(self.pf['pop_histories']+'.pkl', 'rb')
-                prefix = self.pf['pop_histories']
+                f = open(fn_hist+'.pkl', 'rb')
+                prefix = fn_hist
                 zall, traj_all = pickle.load(f)
                 f.close()
             

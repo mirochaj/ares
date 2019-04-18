@@ -327,29 +327,28 @@ class CalibrateModel(object):
                         is_log.extend([False])
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[23]')
-                
+
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
                     guesses['pq_func_par2[22]'] = 0.2
                     is_log.extend([False])
                     jitter.extend([0.3])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
-                    
-                
+
                 if 'fcov' in self.free_params_dust:    
-                
+
                     # fcov parameters (no zevol)
                     free_pars.extend(['pq_func_par0[21]', 'pq_func_par1[21]',
                         'pq_func_par3[21]', 'pq_func_par0[24]'])
-                                    
+
                     # Tanh describing covering fraction
                     guesses['pq_func_par0[21]'] = 0.25
                     guesses['pq_func_par1[21]'] = 0.95
-                    guesses['pq_func_par3[21]'] = 0.5
+                    guesses['pq_func_par3[21]'] = 0.2
                     guesses['pq_func_par0[24]'] = 10.8
                 
                     is_log.extend([False, False, False, False])
-                    jitter.extend([0.05, 0.05, 0.2, 0.3])
+                    jitter.extend([0.05, 0.05, 0.1, 0.3])
                     
                     ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[21]')
                     ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
@@ -359,9 +358,9 @@ class CalibrateModel(object):
                     # Just let transition mass evolve
                     if 'fcov' in self.zevol_dust:
                         free_pars.extend(['pq_func_par2[24]'])
-                        guesses['pq_func_par2[24]'] = 0.1
+                        guesses['pq_func_par2[24]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.1])
+                        jitter.extend([0.03])
                         ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par2[24]') 
                       
             # Set the attributes
@@ -591,7 +590,8 @@ class CalibrateModel(object):
         self._base_kwargs.update(kwargs)
         
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
-        debug=True, restart=False, clobber=False, verbose=True):
+        debug=True, restart=False, clobber=False, verbose=True,
+        cache_tricks=True):
         """
         Create a fitter class and run the fit!
         """
@@ -655,10 +655,15 @@ class CalibrateModel(object):
         fitter.jitter = self.jitter
         fitter.guesses = self.guesses
 
-        fitter.save_hmf = True
-        fitter.save_hist = 'pop_histories' in self.base_kwargs
-        fitter.save_src = True    # Ugh can't be pickled...send tables? yes.
-
+        if cache_tricks:
+            fitter.save_hmf = True
+            fitter.save_hist = 'pop_histories' in self.base_kwargs
+            fitter.save_src = True    # Ugh can't be pickled...send tables? yes.
+        else:
+            fitter.save_hmf = False
+            fitter.save_hist = False
+            fitter.save_src = False
+            
         self.fitter = fitter
 
         # RUN

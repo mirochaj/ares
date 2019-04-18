@@ -912,6 +912,9 @@ def CosmologyParameters():
     "sigma_8": 0.8159,
     "primordial_index": 0.9667,
     "approx_highz": False,    
+    "cosmology_name": None,  # Can pass 'named cosmologies'
+    "cosmology_number": None,
+    "cosmology_generator": None,
     }
 
     pf.update(rcParams)
@@ -1010,7 +1013,7 @@ def ControlParameters():
     "sam_rtol": 1e-4,
     
     # File format
-    "preferred_format": 'npz',
+    "preferred_format": 'hdf5',
 
     # Finding SED tables
     "load_sed": False,
