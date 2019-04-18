@@ -172,11 +172,9 @@ class CalibrateModel(object):
                  or 'slope-high' in self.zevol_sfe
                  
             enorm_d = 'norm' in self.zevol_dust
-            eslop_d = 'scale' in self.zevol_dust
             
-            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_eshape-{}'.format(
-                int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d), 
-                int(eslop_d))
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}'.format(
+                int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d))
         elif self.include_sfe in ['f17-p', 'f17-E']:
             rest = 'sfe-{}_fshock-{}_dust-{}_edust-{}_zcal-{}'.format(
                 self.include_sfe, self.include_fshock, self.include_dust, 
@@ -591,7 +589,7 @@ class CalibrateModel(object):
         
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
-        cache_tricks=True):
+        cache_tricks=False):
         """
         Create a fitter class and run the fit!
         """

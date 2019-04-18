@@ -37,7 +37,7 @@ from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
-    read_pickled_logL, fcoll_gjah_to_ares, tanh_gjah_to_ares
+    read_pickled_logL
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -89,20 +89,6 @@ numerical_types = [float, np.float64, np.float32, int, np.int32, np.int64]
 
 # Machine precision
 MP = np.finfo(float).eps
-
-def patch_pinfo(pars):
-    # This should be deprecated in future versions
-    new_pars = []
-    for par in pars:
-
-        if par in tanh_gjah_to_ares:
-            new_pars.append(tanh_gjah_to_ares[par])
-        elif par in fcoll_gjah_to_ares:
-            new_pars.append(fcoll_gjah_to_ares[par])
-        else:
-            new_pars.append(par)
-    
-    return new_pars
 
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
@@ -334,7 +320,6 @@ class ModelSet(BlobFactory):
                 (self._parameters, self._is_log) =\
                     read_pickle_file('{!s}.pinfo.pkl'.format(pre), nloads=1,\
                     verbose=False)
-                self._parameters = patch_pinfo(self._parameters)
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
                 self._parameters = list(f['chain'].attrs.get('names'))
@@ -348,7 +333,7 @@ class ModelSet(BlobFactory):
         
             self._is_log = tuple(self._is_log)
             self._parameters = tuple(self._parameters)
-        
+                    
         return self._parameters
         
     @property

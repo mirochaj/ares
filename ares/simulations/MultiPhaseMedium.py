@@ -515,6 +515,10 @@ class MultiPhaseMedium(object):
             snapshot['n'] = \
                 self.parcel_igm.grid.particle_density(snapshot.copy(), red)
 
+            # Need to keep the cell number dimension for consistency
+            for element in snapshot:
+                snapshot[element] = np.array([snapshot[element]], dtype=float)
+
             self.all_t.append(0.0)
             self.all_data_igm.append(snapshot.copy())
 

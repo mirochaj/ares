@@ -1922,7 +1922,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fn_hist = path + prefix + '.hist.' + suffix
                     
         # Read output
-        if type(fn_hist) is not None:
+        if type(fn_hist) is str:
             if fn_hist.endswith('.pkl'):
                 f = open(fn_hist, 'rb')
                 prefix = fn_hist.split('.pkl')[0]

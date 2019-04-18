@@ -509,9 +509,18 @@ class ParameterBundle(dict):
                     first_update = False
                 
                 if self.verbose:
-                    msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
-                        str(other[key]).ljust(12))
-                    msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                    if type(tmp[key]) in [int, float, np.float64]:
+                        msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key.ljust(20), 
+                            other[key])
+                    else:
+                        msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
+                            str(other[key]).ljust(12))
+                    if type(tmp[key]) in [int, float, np.float64]:
+                        msg2 = "previously {0} = {1:9.2e}".format(str(key).ljust(20), 
+                            tmp[key])
+                    else:
+                        msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                        
                     print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]

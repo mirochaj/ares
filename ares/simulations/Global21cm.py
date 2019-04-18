@@ -136,8 +136,14 @@ class Global21cm(AnalyzeGlobal21cm):
 
         dTb = []
         for i, data_igm in enumerate(self.all_data_igm):
-            
+                        
             n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
+            
+            #print(z[i], n_H, data_igm)
+            #print(z[i], data_igm['Tk'], 0.0, data_igm['h_2'],
+            #        data_igm['e'], n_H)
+            #raw_input('<enter>')
+            
             Ts = \
                 self.medium.parcel_igm.grid.hydr.Ts(
                     z[i], data_igm['Tk'], 0.0, data_igm['h_2'],
@@ -149,12 +155,13 @@ class Global21cm(AnalyzeGlobal21cm):
             else:
                 QHII = 0.0
                 
-            xavg = QHII + (1. - QHII) * data_igm['h_2']        
+            xavg = QHII + (1. - QHII) * data_igm['h_2']
 
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
-            self.all_data_igm[i]['dTb'] = float(Tb)
-            self.all_data_igm[i]['Ts'] = Ts
+            self.all_data_igm[i]['dTb'] = Tb
+            self.all_data_igm[i]['Ts'] = np.array([Ts])
+
             dTb.append(Tb)
 
         return dTb

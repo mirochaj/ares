@@ -143,7 +143,7 @@ class Chemistry(object):
                 newdata['he_1'] = newdata['h_1']
                 newdata['he_2'] = newdata['h_2']
                 newdata['he_3'] = np.zeros_like(newdata['h_1'])
-        
+
         return newdata  
 
     def _sort_kwargs_by_cell(self, kwargs):
