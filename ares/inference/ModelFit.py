@@ -1155,11 +1155,11 @@ class ModelFit(FitBase):
         if not hasattr(self, '_debug'):
             self._debug = False
         return self._debug
-    
+
     @debug.setter
     def debug(self, value):
         assert type(value) in [int, bool]
-        self._debug = value  
+        self._debug = value
         
     def _reinitialize_walkers(self, chain, logL):
         """

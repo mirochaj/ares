@@ -1814,6 +1814,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if return_binned:
             if Mbins is None:
                 Mbins = np.arange(-25, -10, 0.1)
+                
             _x, _y, _z = bin_samples(MAB, beta, Mbins)
                         
             MAB = _x
@@ -1823,9 +1824,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             std = None   
             assert MUV is None     
 
-        if MUV is not None:            
-            _beta = np.interp(MUV, MAB[-1::-1], beta[-1::-1], 
-                left=-9999, right=-9999)            
+        if MUV is not None:       
+            assert return_binned     
+            _beta = np.interp(MUV, MAB, beta, left=-9999, right=-9999)            
             return _beta
                                                                 
         return MAB, beta, std
@@ -1955,31 +1956,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             hist['zform'] = zall
             hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
             
-            #with open(prefix+'.parameters.pkl', 'rb') as f:
-            #    pars = pickle.load(f)
-            
-            ##
-            # CHECK FOR MATCH IN PARAMETERS THAT MATTER.
-            # IF SFR PARAMETERS ARE DIFFERENT, cleave off SFHs to force re-run.
-            ##
-            #mars_ok = 1
-            #for par in pars_affect_mars:
-            #
-            #    ok = pars[par] == self.pf[par]
-            #    if not ok:
-            #        print("Mismatch in saved histories: {}".format(par))
-            #
-            #    mars_ok *= ok
-            #    
-            #sfhs_ok = 1
-            #for par in pars_affect_sfhs:
-            #
-            #    ok = pars[par] == self.pf[par]
-            #    if not ok:
-            #        print("Mismatch in saved histories: {}".format(par))
-            #
-            #    sfhs_ok *= ok    
-            #
             ## Check to see if parameters match
             print("Need to check that HMF parameters match!")
         elif type(self.pf['pop_histories']) is dict:
