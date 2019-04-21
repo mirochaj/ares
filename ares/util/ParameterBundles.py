@@ -340,8 +340,6 @@ _physical_dc_screen = \
  'pq_func_par0[22]': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
  'pq_func_par1[22]': 1e10,
  'pq_func_par2[22]': 0.33,
- #'pq_val_floor[22]': 1e-5,
- #'pq_val_ceil[12]': 1e3,
  
  # Evolution of scale
  "pq_func[23]": 'pl',
@@ -349,7 +347,6 @@ _physical_dc_screen = \
  'pq_func_par0[23]': 1.,
  'pq_func_par1[23]': 5.,
  'pq_func_par2[23]': -1., # R(vir) goes like 1 / (1+z)
- 'pq_val_ceil[23]': 10.,
 } 
 
 _physical_dc_patchy = _physical_dc_screen.copy()
@@ -361,6 +358,29 @@ _physical_dc_patchy['pq_func_var[24]'] = '1+z'
 _physical_dc_patchy['pq_func_par0[24]'] = 10.5
 _physical_dc_patchy['pq_func_par1[24]'] = 5.
 _physical_dc_patchy['pq_func_par2[24]'] = 0.
+
+
+_physical_dc_screen_tanh = _physical_dc_screen.copy()
+_physical_dc_patchy_tanh = _physical_dc_patchy.copy()
+
+
+_physical_dc_screen_tanh["pq_func[22]"] = 'log_tanh_abs'
+_physical_dc_screen_tanh['pq_func_var[22]'] = 'Mh'
+_physical_dc_screen_tanh['pq_func_par0[22]'] = 'pq[23]'
+_physical_dc_screen_tanh['pq_func_par1[22]'] = 10.
+_physical_dc_screen_tanh['pq_func_par2[22]'] = 12.
+_physical_dc_screen_tanh['pq_func_par3[22]'] = 1.
+_physical_dc_screen_tanh['pq_func_par0[23]'] = 1e-1
+
+_physical_dc_patchy_tanh["pq_func[22]"] = 'log_tanh_abs'
+_physical_dc_patchy_tanh['pq_func_var[22]'] = 'Mh'
+_physical_dc_patchy_tanh['pq_func_par0[22]'] = 'pq[23]'
+_physical_dc_patchy_tanh['pq_func_par1[22]'] = 10.
+_physical_dc_patchy_tanh['pq_func_par2[22]'] = 12.
+_physical_dc_patchy_tanh['pq_func_par3[22]'] = 1.
+_physical_dc_patchy_tanh['pq_func_par0[23]'] = 1e-1
+
+
 
 _cooling = \
 {
@@ -425,7 +445,8 @@ _Bundles = \
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {}, 'screen': _physical_dc_screen, 
-    'patchy': _physical_dc_patchy,
+    'patchy': _physical_dc_patchy, 'screen-tanh': _physical_dc_screen_tanh, 
+    'patchy-tanh': _physical_dc_patchy_tanh,
     },
  'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},

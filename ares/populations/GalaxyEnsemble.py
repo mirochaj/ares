@@ -1395,6 +1395,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             zarr = hist['z']
         
         dt = np.concatenate((np.diff(tarr) * 1e6, [0]))
+        
+        oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
+            (dt[-2] >= 2e6)
                 
         Loft = self.src.L_per_SFR_of_t(wave)
         
@@ -1422,57 +1425,92 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 assert i == tarr.size - 1    
                 
-            ages = tarr[i] - tarr[0:i+1] # problems when identically 0?
-            #_tf0 = tarr[0:i+1] - tarr[0]
-                        
-                              
+            ages = tarr[i] - tarr[0:i+1] 
+            
             if self.pf['pop_enrichment']:
                 raise NotImplementedError('help')
                 Z = self.histories['Z']
                 L_per_msun = self.L_of_Z_t(wave)(np.log10(ages),
                     np.log10(Z))
             else:    
-                L_per_msun = np.exp(np.interp(np.log(ages), np.log(self.src.times), 
-                    np.log(Loft), left=np.log(Loft[0]), right=np.log(Loft[-1])))
-            
-                # erg/s/Hz
-                if batch_mode:
-                    Lall = L_per_msun * SFR[:,0:i+1] #* dt[0:i+1]
+                
+                # If time resolution is >= 2 Myr, over-sample final interval.
+                if oversample:                    
+                    
+                    # Use 1 Myr time resolution for final stretch
+                    extra = np.arange(ages[-1], ages[-2], 1.)[-1::-1]
+                    
+                    # Must augment ages and dt accordingly
+                    _ages = np.hstack((ages[0:-1], extra))
+                    _dt = np.abs(np.diff(_ages) * 1e6)
+                    
+                    # 
+                    _dt = np.hstack((_dt, [0]))
+                    
+                    # Now, compute luminosity at expanded ages.
+                    L_per_msun = np.exp(np.interp(np.log(_ages), 
+                        np.log(self.src.times), np.log(Loft), 
+                        left=np.log(Loft[0]), right=np.log(Loft[-1])))
+                    
+                    # Must reshape SFR to match. Assume constant SFR within
+                    # over-sampled integral.                    
+                    xSFR = SFR[:,-1][:,None] * np.ones((SFR.shape[0], extra.size))
+                    
+                    if batch_mode:
+                        _SFR = np.hstack((SFR[:,0:-1], xSFR))
+                    else:
+                        _SFR = np.hstack((SFR[0:i], SFR[i+1] * np.ones_like(extra)))
+                    
+                    # erg/s/Hz
+                    if batch_mode:
+                        Lall = L_per_msun * _SFR #* dt[0:i+1]
+                    else:    
+                        Lall = L_per_msun * _SFR #* dt[0:i+1]
+                                                                 
                 else:    
-                    Lall = L_per_msun * SFR[0:i+1] #* dt[0:i+1]
+                    L_per_msun = np.exp(np.interp(np.log(ages), 
+                        np.log(self.src.times), np.log(Loft), 
+                        left=np.log(Loft[0]), right=np.log(Loft[-1])))
+                    
+                    _dt = dt
+            
+                    # erg/s/Hz
+                    if batch_mode:
+                        Lall = L_per_msun * SFR[:,0:i+1] #* dt[0:i+1]
+                    else:    
+                        Lall = L_per_msun * SFR[0:i+1] #* dt[0:i+1]
                                     
                 # Correction for IMF sampling (can't use SPS).
-                if self.pf['pop_sample_imf'] and np.any(bursty):
-                    life = self._stars.tab_life
-                    on = np.array([life > age for age in ages])
-
-                    il = np.argmin(np.abs(wave - self._stars.wavelengths))
-
-                    if self._stars.aging:
-                        raise NotImplemented('help')
-                        lum = self._stars.tab_Ls[:,il] * self._stars.dldn[il]
-                    else:
-                        lum = self._stars.tab_Ls[:,il] * self._stars.dldn[il]
-
-                    # Need luminosity in erg/s/Hz
-                    #print(lum)
-
-                    # 'imf' is (z or age, mass)
-
-                    integ = imf[bursty==1,:] * lum[None,:]
-                    Loft = np.sum(integ * on[bursty==1], axis=1)
-
-                    Lall[bursty==1] = Loft
+                #if self.pf['pop_sample_imf'] and np.any(bursty):
+                #    life = self._stars.tab_life
+                #    on = np.array([life > age for age in ages])
+                #
+                #    il = np.argmin(np.abs(wave - self._stars.wavelengths))
+                #
+                #    if self._stars.aging:
+                #        raise NotImplemented('help')
+                #        lum = self._stars.tab_Ls[:,il] * self._stars.dldn[il]
+                #    else:
+                #        lum = self._stars.tab_Ls[:,il] * self._stars.dldn[il]
+                #
+                #    # Need luminosity in erg/s/Hz
+                #    #print(lum)
+                #
+                #    # 'imf' is (z or age, mass)
+                #
+                #    integ = imf[bursty==1,:] * lum[None,:]
+                #    Loft = np.sum(integ * on[bursty==1], axis=1)
+                #
+                #    Lall[bursty==1] = Loft
 
             # Integrate over all times up to this tobs
             if batch_mode:
                 if (zobs is not None):
-                    Lhist = np.trapz(Lall, dx=dt[0:i], axis=1)
+                    Lhist = np.sum(Lall * _dt[None,:], axis=1)
                 else:
-                    Lhist[:,i] = np.trapz(Lall, dx=dt[0:i], axis=1)
+                    Lhist[:,i] = np.sum(Lall * _dt[0:i+1], axis=1)
             else:    
-                Lhist[i] = np.trapz(Lall, dx=dt[0:i])#np.sum(Lall)#[-1]
-            #Lhist[i]  = np.sum(Lall * dt[0:i+1])
+                Lhist[i] = np.sum(Lall * _dt[0:i+1])
             
             ##
             # In this case, we only need one iteration of this loop.
@@ -1487,12 +1525,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             block = ~clear
                         
             Lout = Lhist * clear[:,-1] + Lhist * np.exp(-tau[:,-1]) * block[:,-1]
-
         else:
             Lout = Lhist.copy()
             
         del Lhist, tau, Lall    
-        gc.collect()    
+        gc.collect()
                     
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
@@ -1616,7 +1653,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if z > self.histories['z'][izobs]:
             # Go to one grid point lower redshift
             izobs += 1
-                                
+                                            
         ##
         # Run in batch? 
         if batch:
@@ -1638,7 +1675,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # simulated halos
         w = raw['nh'][:,izobs+1]
                                                 
-        MAB = self.magsys.L_to_MAB(L, z=z)
+        _MAB = self.magsys.L_to_MAB(L, z=z)
+        
+        if self.pf['dustcorr_method'] is not None:
+            MAB = self.dust.Mobs(z, _MAB)
+        else:
+            MAB = _MAB
                         
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random

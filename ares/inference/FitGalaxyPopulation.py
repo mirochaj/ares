@@ -130,7 +130,7 @@ class loglikelihood(LogLikelihood):
                 # Generate model LF
                 if quantity == 'lf':
                     # Dust correction for observed galaxies
-                    AUV = pop.dust.AUV(z, xdat)
+                    #AUV = pop.dust.AUV(z, xdat)
                 
                     # The input magnitudes are assumed to be *not* yet
                     # corrected for dust, i.e., they are the observed magnitudes.
@@ -139,10 +139,13 @@ class loglikelihood(LogLikelihood):
                     # magnitudes of interest are the intrinsic magnitudes.
                 
                     # Compare data to model at dust-corrected magnitudes
-                    M = xdat - AUV
+                    #M = xdat - AUV
+                                    
+                    # New convention: LuminosityFunction always in terms of
+                    # observed magnitudes.                
                                     
                     # Compute LF
-                    p = pop.LuminosityFunction(z=z, x=M, mags=True, **more_kw)
+                    p = pop.LuminosityFunction(z=z, x=xdat, mags=True, **more_kw)
                     
                     if np.isnan(p):
                         raise ValueError('LF is nan!', z, M)

@@ -420,7 +420,7 @@ def PopulationParameters():
     # Can degrade spectral resolution of stellar population synthesis models
     # just to speed things up.
     "pop_sed_degrade": None,
-    
+        
     # If pop_sed == 'user'
     "pop_E": None,
     "pop_L": None,
@@ -438,6 +438,8 @@ def PopulationParameters():
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
+    
+    "pop_ssp_oversample": False,
     
     "pop_sfh": False,             # account for SFH in spectrum modeling
 

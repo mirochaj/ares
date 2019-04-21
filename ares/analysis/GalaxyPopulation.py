@@ -468,9 +468,10 @@ class GalaxyPopulation(object):
         else:
             gotax = True
 
-        self._MegaPlotCalData(axes)
-        self._MegaPlotPredData(axes)
-        self._MegaPlotGuideEye(axes)
+        if not gotax:
+            self._MegaPlotCalData(axes)
+            self._MegaPlotPredData(axes)
+            self._MegaPlotGuideEye(axes)
 
         if isinstance(pop, GalaxyEnsemble):
             self._MegaPlotPop(axes, pop)
@@ -485,7 +486,8 @@ class GalaxyPopulation(object):
                 self._MegaPlotChain(axes, pop)
         else:
             raise TypeError("Unrecognized object pop={}".format(pop))
-            
+         
+           
         self._MegaPlotCleanup(axes)
         
         return axes
@@ -512,8 +514,11 @@ class GalaxyPopulation(object):
         _mst  = np.arange(6, 12, 0.2)
         _mags = np.arange(-25, -10, 0.2)
         
-        redshifts = [4, 6, 8]
-        colors = ['k', 'b', 'c']
+        redshifts = [4, 6, 8, 10]
+        colors = ['k', 'b', 'c', 'm']
+        
+        dc1 = DustCorrection(dustcorr_method='meurer1999',
+            dustcorr_beta='bouwens2014')
         
         xa_b = []
         xa_f = []
@@ -524,29 +529,17 @@ class GalaxyPopulation(object):
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
                     
             # Binned version
-            _mags_b, _beta, _std = pop.Beta(z, wave=1600., return_binned=True,
+            _mags_b, _beta, _std = pop.Beta(z, wave=1600, return_binned=True,
                 Mbins=np.arange(-25, -10, 1.0), batch=True)
-            ax_bet.plot(_mags_b, _beta, color=colors[j])
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
             SFR = pop.get_field(z, 'SFR')
             SFE = pop.guide.SFE(z=z, Mh=Mh)
-            # Beta just to get 'mags'
-            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False, 
-                batch=True)
-            
-            fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
-            Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
-            
-            if type(fcov) in [int, float, np.float64]:
-                fcov = fcov * np.ones_like(Mh)
             
             ax_sfe.loglog(Mh, SFE, color=colors[j], alpha=0.8,
                 label=r'$z={}$'.format(z))
-            ax_fco.semilogx(Mh, fcov, color=colors[j])
-            ax_rdu.loglog(Mh, Rdust, color=colors[j])
-            
+                
             if pop.pf['pop_scatter_mar'] > 0:
                 _bins = np.arange(7, 12.1, 0.1)
                 x, y, std = bin_samples(np.log10(Ms), np.log10(SFR), _bins)
@@ -563,16 +556,32 @@ class GalaxyPopulation(object):
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
             
+            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False, 
+                batch=True)
+            
             # MUV-Mstell
             _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_b)
-            ax_MsMUV.plot(_x, _y, color=colors[j])
-        
-            # These mags will correspond to Mh so we can use them for stuff.
+            ax_MsMUV.plot(_x, _y, color=colors[j])    
+            
+            # Beta just to get 'mags'
             if pop.pf['pop_dust_yield'] == 0:
                 xa_f.append(0)
                 xa_b.append(0)
                 
+                ax_bet.plot(_mags_b, dc1.Beta(z, _mags_b), color=colors[j])
+                
                 continue
+                
+            ax_bet.plot(_mags_b, _beta, color=colors[j])    
+            
+            fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
+            Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
+            
+            if type(fcov) in [int, float, np.float64]:
+                fcov = fcov * np.ones_like(Mh)
+            
+            ax_fco.semilogx(Mh, fcov, color=colors[j])
+            ax_rdu.loglog(Mh, Rdust, color=colors[j])
                 
             _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
                 Mbins=np.arange(-25, -10, 1.))
@@ -789,8 +798,8 @@ class GalaxyPopulation(object):
         
 
         # Redshifts and color scheme
-        redshifts = [4, 6, 8]
-        colors = 'k', 'b', 'c'
+        redshifts = [4, 6, 8, 10]
+        colors = 'k', 'b', 'c', 'm'
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
 
         # UVLF and Beta
@@ -798,6 +807,9 @@ class GalaxyPopulation(object):
             self.PlotLF(z, ax=ax_phi, sources=['bouwens2015'],
                 round_z=0.21, color=colors[j], mec=colors[j], mfc=colors[j], fmt='o',
                 label='Bouwens+ 2015' if j == 0 else None, **mkw)
+            self.PlotLF(z, ax=ax_phi, sources=['oesch2018'],
+                round_z=0.21, color=colors[j], mec=colors[j], mfc=colors[j], fmt='d',
+                label='Oesch+ 2018' if j == 0 else None, **mkw)    
             self.PlotLF(z, ax=ax_phi, sources=['finkelstein2015'],
                 round_z=0.21, color=colors[j], mec=colors[j], mfc='none', mew=1, fmt='s',
                 label='Finkelstein+ 2015' if j == 0 else None, **mkw)    
@@ -808,6 +820,8 @@ class GalaxyPopulation(object):
                 round_z=0.1, color=colors[j], mec=colors[j], mfc='none',
                 label='Stefanon+ 2017' if j == 0 else None, **mkw)
 
+            if z not in b14.data['beta']:
+                continue
         
             err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
             ax_bet.errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
@@ -815,10 +829,12 @@ class GalaxyPopulation(object):
                 **mkw)
         
             # Plot vanilla dust correction
-            ax_AUV.plot(np.arange(-22, -16, 0.1), 
-                dc1.AUV(z, np.arange(-22, -16, 0.1)), 
+            ax_AUV.plot(np.arange(-25, -15, 0.1), 
+                dc1.AUV(z, np.arange(-25, -15, 0.1)), 
                 color=colors[j], ls=':', 
                 label=r'M99+B14 IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)  
+                
+            
             #ax_AUV.plot(np.arange(-25, -14, 2.), dc2.AUV(z, np.arange(-25, -14, 2.)), 
             #    color=colors[j], ls='--', 
             #    label=r'evolving IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)  
@@ -845,8 +861,8 @@ class GalaxyPopulation(object):
         
         ax_rdu.annotate(r'$R_h \propto M_h^{1/3} (1+z)^{-1}$', (1.5e8, 30))
         
-        redshifts = [4, 6, 8]
-        colors = 'k', 'b', 'c'
+        redshifts = [4, 6, 8, 10]
+        colors = 'k', 'b', 'c', 'm'
         
         # Show different Mh slopes        
         mh = np.logspace(8, 9, 50)
@@ -869,9 +885,9 @@ class GalaxyPopulation(object):
         ax_sfe.annotate(r'$1$',   (mh[-1]*1.1, func(4., 3./3.)[-1]), ha='left')
     
         # Show different z-dep
-        ax_sfe.scatter(np.ones(3) * 1e10, 4e-3 * ((1. + np.array(redshifts)) / 9.),
+        ax_sfe.scatter(np.ones_like(redshifts) * 1e10, 4e-3 * ((1. + np.array(redshifts)) / 9.),
             color=colors, facecolors='none', marker='s', s=5) 
-        ax_sfe.scatter(np.ones(3) * 1e11, 4e-3 * np.sqrt(((1. + np.array(redshifts)) / 9.)),
+        ax_sfe.scatter(np.ones_like(redshifts) * 1e11, 4e-3 * np.sqrt(((1. + np.array(redshifts)) / 9.)),
             color=colors, facecolors='none', marker='s', s=5)        
         ax_sfe.annotate(r'$(1+z)$', (1e10, 5e-3), ha='center', va='bottom', 
             rotation=0, fontsize=8)
@@ -886,11 +902,11 @@ class GalaxyPopulation(object):
 
 
         # Show different z-dep
-        ax_sfms.scatter(np.ones(3) * 2e9, 1e-1 * ((1. + np.array(redshifts)) / 9.)**1.5,
+        ax_sfms.scatter(np.ones_like(redshifts) * 2e9, 1e-1 * ((1. + np.array(redshifts)) / 9.)**1.5,
             color=colors, facecolors='none', marker='s', s=5) 
         ax_sfms.annotate(r'$(1+z)^{3/2}$', (2e9, 1.5e-1), ha='center', va='bottom', 
             rotation=0, fontsize=8)
-        ax_sfms.scatter(np.ones(3) * 2e10, 1e-1 * ((1. + np.array(redshifts)) / 9.)**2.5,
+        ax_sfms.scatter(np.ones_like(redshifts) * 2e10, 1e-1 * ((1. + np.array(redshifts)) / 9.)**2.5,
             color=colors, facecolors='none', marker='s', s=5) 
         ax_sfms.annotate(r'$(1+z)^{5/2}$', (2e10, 1.5e-1), ha='center', va='bottom', 
             rotation=0, fontsize=8)
@@ -922,8 +938,8 @@ class GalaxyPopulation(object):
         
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
         
-        redshifts = [4, 6, 8]
-        colors = 'k', 'b', 'c'
+        redshifts = [4, 6, 8, 10]
+        colors = 'k', 'b', 'c', 'm'
         
         xarr = np.arange(-22, -18, 0.5)
         yarr = [0.1, 0.08, 0.08, 0.1, 0.18, 0.3, 0.47, 0.6]
