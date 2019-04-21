@@ -1314,7 +1314,7 @@ class UniformBackground(object):
                     * ((xsq[ll] * trapz_base) * ehat[ll]) \
                     + exp_term * (c_over_four_pi * xsq[ll+1] \
                     * trapz_base * ehat_r[ll] \
-                    + np.concatenate((flux[1:], [0])) / Rsq)
+                    + np.hstack((flux[1:], [0])) / Rsq)
                     #+ np.roll(flux, -1) / Rsq)
                     
                                                                         
