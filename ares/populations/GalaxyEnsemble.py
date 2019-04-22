@@ -21,9 +21,9 @@ from .Halo import HaloPopulation
 from .GalaxyCohort import GalaxyCohort
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
-from scipy.interpolate import RectBivariateSpline
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
+from scipy.interpolate import RectBivariateSpline, interp1d
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc
 
@@ -1394,13 +1394,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             tarr = hist['t']    
             zarr = hist['z']
         
-        dt = np.concatenate((np.diff(tarr) * 1e6, [0]))
+        tyr = tarr * 1e6
+        dt = np.concatenate((np.diff(tyr), [0]))
         
         oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
             (dt[-2] >= 2e6)
                 
         Loft = self.src.L_per_SFR_of_t(wave)
         
+        _func = interp1d(np.log(self.src.times), np.log(Loft),
+            kind='cubic', bounds_error=False, 
+            fill_value=Loft[-1])
+            
+        # Extrapolate linearly at times < 1 Myr
+        _m = (Loft[1] - Loft[0]) \
+          / (self.src.times[1] - self.src.times[0])
+        L_small_t = lambda age: _m * age + Loft[0]
+        
+        # Extrapolate as PL at t < 1 Myr based on first two
+        # grid points
+        #m = np.log(Loft[1] / Loft[0]) \
+        #  / np.log(self.src.times[1] / self.src.times[0])
+        #func = lambda age: np.exp(m * np.log(age) + np.log(Loft[0]))
+                
         if zobs is None:
             Lhist = np.zeros_like(SFR)
         else:
@@ -1425,7 +1441,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 assert i == tarr.size - 1    
                 
-            ages = tarr[i] - tarr[0:i+1] 
+            ages = tarr[i] - tarr[0:i+1]
             
             if self.pf['pop_enrichment']:
                 raise NotImplementedError('help')
@@ -1435,7 +1451,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:    
                 
                 # If time resolution is >= 2 Myr, over-sample final interval.
-                if oversample:                    
+                if oversample:
                     
                     # Use 1 Myr time resolution for final stretch
                     extra = np.arange(ages[-1], ages[-2], 1.)[-1::-1]
@@ -1448,9 +1464,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     _dt = np.hstack((_dt, [0]))
                     
                     # Now, compute luminosity at expanded ages.
-                    L_per_msun = np.exp(np.interp(np.log(_ages), 
-                        np.log(self.src.times), np.log(Loft), 
-                        left=np.log(Loft[0]), right=np.log(Loft[-1])))
+                    L_per_msun = np.exp(_func(np.log(_ages)))    
+                    
+                    #L_per_msun = np.exp(np.interp(np.log(_ages), 
+                    #    np.log(self.src.times), np.log(Loft), 
+                    #    left=-np.inf, right=np.log(Loft[-1])))
+                        
+                    # Interpolate linearly at t < 1 Myr    
+                    func = lambda age: age * Loft[0]
+                    L_per_msun[_ages < 1] = func(_ages[_ages < 1])    
                     
                     # Must reshape SFR to match. Assume constant SFR within
                     # over-sampled integral.                    
@@ -1463,9 +1485,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
                     # erg/s/Hz
                     if batch_mode:
-                        Lall = L_per_msun * _SFR #* dt[0:i+1]
+                        Lall = L_per_msun * _SFR
                     else:    
-                        Lall = L_per_msun * _SFR #* dt[0:i+1]
+                        Lall = L_per_msun * _SFR
                                                                  
                 else:    
                     L_per_msun = np.exp(np.interp(np.log(ages), 
@@ -1473,12 +1495,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         left=np.log(Loft[0]), right=np.log(Loft[-1])))
                     
                     _dt = dt
-            
+                                        
+                    # Fix early time behavior
+                    L_per_msun[ages < 1] = L_small_t(ages[ages < 1])
+                    
                     # erg/s/Hz
                     if batch_mode:
-                        Lall = L_per_msun * SFR[:,0:i+1] #* dt[0:i+1]
+                        Lall = L_per_msun * SFR[:,0:i+1]
                     else:    
-                        Lall = L_per_msun * SFR[0:i+1] #* dt[0:i+1]
+                        Lall = L_per_msun * SFR[0:i+1]
                                     
                 # Correction for IMF sampling (can't use SPS).
                 #if self.pf['pop_sample_imf'] and np.any(bursty):
@@ -1506,11 +1531,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Integrate over all times up to this tobs
             if batch_mode:
                 if (zobs is not None):
-                    Lhist = np.sum(Lall * _dt[None,:], axis=1)
+                    Lhist = np.trapz(Lall, dx=_dt[0:-1], axis=1)
                 else:
-                    Lhist[:,i] = np.sum(Lall * _dt[0:i+1], axis=1)
-            else:    
-                Lhist[i] = np.sum(Lall * _dt[0:i+1])
+                    Lhist[:,i] = np.trapz(Lall, dx=_dt[0:-1], axis=1)
+            else:
+                Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])
             
             ##
             # In this case, we only need one iteration of this loop.
