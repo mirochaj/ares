@@ -948,7 +948,7 @@ class HaloMassFunction(object):
         cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
         return (1e8 / self.cosm.h70) \
-            *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
+            *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10.)**1.5
             
     def BindingEnergy(self, z, M, mu=0.6):
         return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(z, M, mu)) \

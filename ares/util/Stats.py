@@ -300,7 +300,7 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
-def bin_samples(x, y, xbin_c):
+def bin_samples(x, y, xbin_c, weights=None):
     """
     Take samples and bin up.
     """
@@ -330,7 +330,7 @@ def bin_samples(x, y, xbin_c):
         #print(i, np.mean(f), spread, np.std(f))
         
         ystd.append(np.std(f))
-        yavg.append(np.mean(f))
+        yavg.append(np.average(f, weights=weights[ok==1]))
 
     return np.array(xbin_c), np.array(yavg), np.array(ystd)
 

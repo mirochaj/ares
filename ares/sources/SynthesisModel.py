@@ -347,7 +347,7 @@ class SynthesisModel(Source):
         
         return None
     
-    def L_per_SFR_of_t(self, wave=1600., avg=1):
+    def L_per_SFR_of_t(self, wave=1600., avg=1, Z=None):
         """
         UV luminosity per unit SFR.
         """
@@ -358,10 +358,20 @@ class SynthesisModel(Source):
             return cached_result
                 
         j = np.argmin(np.abs(wave - self.wavelengths))
+        
+        if Z is not None:
+            Zvals = np.sort(self.metallicities.values())
+            k = np.argmin(np.abs(Z - Zvals))
+            raw = self.data # just to be sure it has been read in.
+            data = self._data_all_Z[k,j]
+        else:
+            data = self.data[j,:]        
                 
         if avg == 1:
-            yield_UV = self.data[j,:] * np.abs(self.dwdn[j])
+            yield_UV = data * np.abs(self.dwdn[j])
         else:
+            if Z is not None:
+                raise NotImplemented('hey!')
             assert avg % 2 != 0, "avg must be odd"
             s = (avg - 1) / 2
             yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
