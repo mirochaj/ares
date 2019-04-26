@@ -978,7 +978,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         zeros_like_Mh = np.zeros((Nhalos, 1))
         
         # Stellar mass should have zeros padded at the 0th time index
-        Ms = np.hstack((zeros_like_Mh, 
+        Ms = np.hstack((zeros_like_Mh,
             np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
          
         # Dust           
@@ -998,10 +998,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Md = Sd = 0.
             Rd = np.inf
         
-        
         # Gas mass
         Mg = np.hstack((zeros_like_Mh, 
-            np.cumsum(MAR[:,0:-1] * dt * fb, axis=1)))
+            np.cumsum(MAR[:,0:-1] * fb * (1 - SFE[:,0:-1]) * dt, axis=1)))
         
         # Metal mass
         if 'Z' in halos:
@@ -1013,6 +1012,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 MZ = 0.0
                 
             Z = MZ / Mg / self.pf['pop_fpoll']
+            
+            Z[Mg==0] = 1e-3
+            Z = np.maximum(Z, 1e-3)
+            
         
         # Pack up                
         results = \
@@ -1373,7 +1376,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             zarr = hist['z']
         
         tyr = tarr * 1e6
-        dt = np.concatenate((np.diff(tyr), [0]))
+        dt = np.hstack((np.diff(tyr), [0]))
         
         oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
             (dt[-2] >= 2e6)
@@ -1426,11 +1429,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # function of age and Z.
             if self.pf['pop_enrichment']:
 
-                Z = hist['Z'][slc][0:i+1]
+                if batch_mode:
+                    Z = hist['Z'][slc][:,0:i+1]
+                else:
+                    Z = hist['Z'][slc][0:i+1]
 
                 logA = np.log10(ages)
                 logZ = np.log10(Z)
-
                 L_per_msun = self.L_of_Z_t(wave)(logA, logZ, grid=False)
                     
                 # erg/s/Hz
@@ -1441,7 +1446,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
                 if oversample:
                     raise NotImplemented('help!')    
-                    
+                else:
+                    _dt = dt
             else:    
                 
                 # If time resolution is >= 2 Myr, over-sample final interval.
@@ -1527,7 +1533,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if (zobs is not None):
                     Lhist = np.trapz(Lall, dx=_dt[0:-1], axis=1)
                 else:
-                    Lhist[:,i] = np.trapz(Lall, dx=_dt[0:-1], axis=1)
+                    Lhist[:,i] = np.trapz(Lall, dx=_dt[0:i], axis=1)
             else:
                 Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])
 
