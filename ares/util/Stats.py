@@ -307,6 +307,9 @@ def bin_samples(x, y, xbin_c, weights=None):
     
     xbin_e = bin_c2e(xbin_c)
     
+    if weights is None:
+        weights = np.ones_like(x)
+    
     ystd = []
     yavg = []
     for i, lo in enumerate(xbin_e):
@@ -320,15 +323,11 @@ def bin_samples(x, y, xbin_c, weights=None):
         
         f = y[ok==1]
 
-        if f.size == 0:
+        if (f.size == 0) or (weights[ok==1].sum() == 0):
             ystd.append(-np.inf)
             yavg.append(-np.inf)
             continue
 
-        #spread = np.percentile(f, (16., 84.))
-        #
-        #print(i, np.mean(f), spread, np.std(f))
-        
         ystd.append(np.std(f))
         yavg.append(np.average(f, weights=weights[ok==1]))
 

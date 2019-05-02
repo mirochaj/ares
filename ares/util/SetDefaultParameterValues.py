@@ -513,6 +513,9 @@ def PopulationParameters():
     "pop_enrichment": False,
     "pop_quench": False,
     "pop_mag_bin": 0.5,
+    "pop_synth_dz": 1.0,
+    "pop_synth_zmax": 15.,
+    "pop_synth_zmin": 3.5,
     
     # For Clusters
     "pop_mdist": None,

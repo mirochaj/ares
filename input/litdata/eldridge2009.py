@@ -78,10 +78,11 @@ def _load(**kwargs):
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
     
-    Zvals = np.sort(list(metallicities.values()))
+    Zvals_l = list(metallicities.values())
+    Zvals = np.sort(Zvals_l)
 
     # Interpolate
-    if kwargs['source_Z'] not in Zvals:
+    if kwargs['source_Z'] not in Zvals_l:
         tmp = kwargs.copy()
                 
         spectra = []

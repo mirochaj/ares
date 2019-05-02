@@ -416,6 +416,83 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._tab_imf_mc = 10**self.src.pf['source_imf_bins']
         return self._tab_imf_mc
         
+    def _cache_ehat(self, key):
+        if not hasattr(self, '_cache_ehat_'):
+            self._cache_ehat_ = {}
+            
+        if key in self._cache_ehat_:
+            return self._cache_ehat_[key]    
+        
+        return None    
+        
+    def _TabulateEmissivity(self, E=None, Emin=None, Emax=None, wave=None):
+        """
+        Compute emissivity over a grid of redshifts and setup interpolant.
+        """   
+        
+        dz = self.pf['pop_synth_dz']
+        zarr = np.arange(self.pf['pop_synth_zmin'], 
+            self.pf['pop_synth_zmax'] + dz, dz)
+        
+        if (Emin is not None) and (Emax is not None):
+            band = (Emin, Emax)
+        else:
+            band = None
+        
+        if (band is not None) and (E is not None):
+            raise ValueError("You're being confusing! Supply `E` OR `Emin` and `Emax`")
+            
+        if wave is not None:
+            raise NotImplemented('careful')    
+            
+        tab = np.zeros_like(zarr)
+        
+        for i, z in enumerate(zarr):
+            _zarr, _tarr, L = self.SpectralSynthesis(zobs=z, band=band)
+            
+            # OK, we've got a whole population here.
+            
+            nh = self.get_field(z, 'nh')
+            Mh = self.get_field(z, 'Mh')
+            
+            
+            tab[i] = np.sum(L * nh)
+            
+            
+            
+        
+    def Emissivity(self, z, E=None, Emin=None, Emax=None):
+        """
+        Compute the emissivity of this population as a function of redshift
+        and rest-frame photon energy [eV].
+
+        Parameters
+        ----------
+        z : int, float
+
+        Returns
+        -------
+        Emissivity in units of erg / s / c-cm**3 [/ eV]
+
+        """
+
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
+
+        # Need to build an interpolation table first.
+        # Cache also by E, Emin, Emax
+        
+        cached_result = self._cache_ehat((E, Emin, Emax))
+        if cached_result is not None:
+            
+            
+            
+            return cached_result
+        
+        self._cache_ehat_[(E, Emin, Emax)] = \
+            self._TabulateEmissivity(E, Emin, Emax)
+        
     def _gen_stars(self, idnum, Mh):
         """
         Take draws from cluster mass function until stopping criterion met.
@@ -974,7 +1051,38 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFE = self.guide.SFE(z=z2d_cc, Mh=Mh_cc)
             SFR = MAR * SFE * fb
 
-        
+        # 50% duty cycle
+        #fduty = np.minimum(0.3 * (Mh / 1e10)**0.3, 1.)
+        #delt = 30e6 * (Mh / 1e10)**0.4
+        #
+        #di = 0.5 * delt / np.hstack(([0], dt))[None,:]
+        #
+        #rand = np.reshape(np.random.rand(Mh.size), Mh.shape)
+        #
+        ###
+        ## Method 1:
+        ##
+        #Pon = (fduty / delt) * np.hstack(([0], dt))[None,:]
+        #
+        #r = np.reshape(np.random.rand(Mh.size), Mh.shape)
+        #
+        ## Discrete events
+        #on = np.array(r < Pon, dtype=int)
+        #
+        ## Pad by `delt` interval
+        #a = np.argwhere(on == 1)
+        #        
+        #for ij in a:
+        #    iM, iz = ij
+        #    
+        #    l = int(di[iM,iz])
+        #    
+        #    on[iM,iz-l:iz+l+1] = 1
+        #    
+        ##on = np.array(np.logical_not(off), dtype=int)
+        #    
+        #SFR = SFR * on
+            
         zeros_like_Mh = np.zeros((Nhalos, 1))
         
         # Stellar mass should have zeros padded at the 0th time index
@@ -993,14 +1101,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             Sd = fd * fZy * Ms * g_per_msun \
                 / 4. / np.pi / (self.guide.dust_scale(z=z, Mh=Mh) * cm_per_kpc)**2
-            
+                        
         else:
             Md = Sd = 0.
             Rd = np.inf
         
         # Gas mass
         Mg = np.hstack((zeros_like_Mh, 
-            np.cumsum(MAR[:,0:-1] * fb * (1 - SFE[:,0:-1]) * dt, axis=1)))
+            np.cumsum((MAR[:,0:-1] * fb - SFR[:,0:-1]) * dt, axis=1)))
         
         # Metal mass
         if 'Z' in halos:
@@ -1027,17 +1135,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
          'SFR': SFR,#[:,-1::-1],
-         #'Mg': Mg, # Save memory, not using for now
          'Ms': Ms,#[:,-1::-1],
          #'MZ': MZ,#[:,-1::-1],
          #'Md': Md, # Only need 'Sd' for now so save some memory
          'Sd': Sd,
          'Mh': Mh,#[:,-1::-1],
+         'Mg': Mg,#[:,-1::-1],
          'Z': Z,
          'bursty': zeros_like_Mh,
          'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
-         #'Z': MZ[:,-1::-1] / Mg[:,-1::-1],
+         'Z': Z,
         }
         
         if self.pf['pop_dust_yield'] > 0:
@@ -1167,7 +1275,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Mbin = dx[0]
             bin_c = np.log10(Mh)
             
-        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c)    
+        nh = self.get_field(z, 'nh')    
+        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
             
         #bin_e = bin_c2e(bin_c)
         #
@@ -1256,7 +1365,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return None        
     
     def SpectralSynthesis(self, hist=None, idnum=None, zobs=None, wave=1600., 
-        weights=1):
+        weights=1, band=None):
         """
         Yield spectrum for a single galaxy or the entire population.
         
@@ -1279,7 +1388,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             assert hist is None, "Must supply `hist` OR `idnum`!"
             hist = self.get_history(idnum)
             
-            cached_result = self._cache_ss((idnum, wave))
+            cached_result = self._cache_ss((idnum, wave, band))
             if cached_result is not None:
                                 
                 if zobs is None:
@@ -1309,7 +1418,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         # Can load batch results from cache as well
         if batch_mode:
-            cached_result = self._cache_ss((zobs, wave))
+            cached_result = self._cache_ss((zobs, wave, band))
             if cached_result is not None:        
                 zarr, tarr, L = cached_result
                 return zarr[0:izobs+1], tarr[0:izobs+1], L
@@ -1337,12 +1446,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Dust model?
         ##
         fd = self.guide.dust_yield(z=hist['z'][slc])
-        if np.any(fd > 0):
+        if np.any(fd > 0) and (band is None):
             fcov = self.guide.dust_fcov(z=hist['z'][slc], Mh=hist['Mh'][slc])
             kappa = self.guide.dust_kappa(wave=wave)
             Sd = hist['Sd'][slc]
             tau = kappa * Sd
-            rand = hist['rand'][slc]
+            rand = hist['rand'][slc]            
         else:
             tau = fcov = 0.0
             rand = 1#np.ones_like(hist['SFR'])
@@ -1353,6 +1462,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if not self.pf['pop_aging']:
             assert not self.pf['pop_ssp'], \
                 "Should not have pop_ssp==True if pop_aging==False."
+            
+            if band is not None:
+                raise NotImplemented('help!')
             
             L_per_sfr = self.src.L_per_sfr(wave)
             return hist['z'][slc], hist['t'][slc], L_per_sfr * hist['SFR'][slc]
@@ -1380,10 +1492,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
             (dt[-2] >= 2e6)
-                
-                
-        Loft = self.src.L_per_SFR_of_t(wave)
         
+        if band is not None:
+            Loft = self.src.IntegratedEmission(band[0], band[1])
+            #raise NotImplemented('help!')        
+            print("Note this now has different units.")
+        else:        
+            Loft = self.src.L_per_SFR_of_t(wave)
+                    
         _func = interp1d(np.log(self.src.times), np.log(Loft),
             kind='cubic', bounds_error=False, 
             fill_value=Loft[-1])
@@ -1535,9 +1651,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 else:
                     Lhist[:,i] = np.trapz(Lall, dx=_dt[0:i], axis=1)
             else:
+                assert not batch_mode, "still working geez"
+                
                 Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])
 
-                assert not batch_mode, "still working geez"
+                
 
             ##
             # In this case, we only need one iteration of this loop.
@@ -1546,7 +1664,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 break
                                         
         # Redden away!        
-        if np.any(fd) > 0:
+        if np.any(fd) > 0 and (band is None):
             # Reddening is binary and probabilistic
             clear = rand > fcov
             block = ~clear
@@ -1560,11 +1678,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
-            self._cache_ss_[(idnum, wave)] = zarr, tarr, Lout
+            self._cache_ss_[(idnum, wave, band)] = zarr, tarr, Lout
         # Or if we did batch mode
         elif (zobs is not None) and (idnum is None):
-            init = self._cache_ss((zobs, wave))
-            self._cache_ss_[(zobs, wave)] = zarr, tarr, Lout
+            init = self._cache_ss((zobs, wave, band))
+            self._cache_ss_[(zobs, wave, band)] = zarr, tarr, Lout
           
         if zobs is not None:
             return zarr[slc], tarr[slc], Lout
@@ -1887,18 +2005,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if Mbins is None:
                 Mbins = np.arange(-25, -10, 0.1)
                 
-            _x, _y, _z = bin_samples(MAB, beta, Mbins)
+            nh = self.get_field(z, 'nh')
+                
+            _x, _y, _z = bin_samples(MAB, beta, Mbins, weights=nh)
                         
             MAB = _x
             beta = _y
             std = _z 
         else:
             std = None   
-            assert MUV is None     
+            assert MUV is None
 
-        if MUV is not None:       
-            assert return_binned     
-            _beta = np.interp(MUV, MAB, beta, left=-9999, right=-9999)            
+        if MUV is not None:
+            assert return_binned
+            _beta = np.interp(MUV, MAB, beta, left=-9999, right=-9999)
             return _beta
                                                                 
         return MAB, beta, std
@@ -1923,7 +2043,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if Mbins is None:
                 Mbins = np.arange(-25, -10, 0.1)
                 
-            _x, _y, _z = bin_samples(MAB, AUV, Mbins)
+            nh = self.get_field(z, 'nh')    
+            _x, _y, _z = bin_samples(MAB, AUV, Mbins, weights=nh)
                     
             MAB = _x
             AUV = _y
