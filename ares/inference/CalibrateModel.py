@@ -428,9 +428,7 @@ class CalibrateModel(object):
             red_beta = np.array(self.fit_beta)
         else:
             red_beta = redshifts    
-        
-            
-
+                    
         MUV = np.arange(-30, 5., 0.5)
         
         Mh = np.logspace(7, 13, 61)

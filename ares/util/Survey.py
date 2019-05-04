@@ -74,7 +74,7 @@ class Survey(object):
             self._dwdn = np.concatenate((tmp, [tmp[-1]]))
         return self._dwdn
     
-    def PlotFilters(self, ax=None, fig=1, filter_set='W'):
+    def PlotFilters(self, ax=None, fig=1, filter_set='W', annotate=True):
         """
         Plot transmission curves for NIRCAM filters.
         """
@@ -88,11 +88,16 @@ class Survey(object):
         
         data = self._read_nircam(filter_set)
         
-        for filt in data.keys():
+        colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g']
+        for i, filt in enumerate(data.keys()):
             
-            ax.plot(data[filt][0], data[filt][1], label=filt)
+            ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
             
-        ax.set_xlabel(r'Wavelength $[\mu \mathrm{m}]$')    
+            if annotate:
+                ax.annotate(filt, (data[filt][2], 0.6), ha='center', va='top',
+                    color=colors[i], rotation=90)
+            
+        ax.set_xlabel(r'Observed Wavelength $[\mu \mathrm{m}]$')    
         ax.set_ylabel('Transmission')
         #ax.legend(loc='best', frameon=False, fontsize=10, ncol=2)
             
@@ -175,7 +180,7 @@ class Survey(object):
     
         return self.wavelengths * (1. + z) / 1e4, f
 
-    def photometrize_spectrum(self, spec, z, filter_set='W'):
+    def photometrize_spectrum(self, spec, z, filter_set='W', flux_units=None):
         """
         Take a spectrum and determine what it would look like to NIRCAM.
     
@@ -193,10 +198,16 @@ class Survey(object):
     
         # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
         wave_obs, flux_obs = self.observe_spectrum(spec, z)
-    
+            
         # Convert microns to cm. micron * (m / 1e6) * (1e2 cm / m)
         freq_obs = c / (wave_obs * 1e-4)
-    
+        
+        if flux_units is not None:
+            _diff = np.diff(freq_obs) / np.diff(wave_obs)
+            dndw = np.hstack((_diff, [0]))
+        
+            flux_obs *= dndw
+        
         # Convert microns to Ang. micron * (m / 1e6) * (1e10 A / m)
         tmp = np.abs(np.diff(freq_obs) / np.diff(wave_obs * 1e4))
         dndw = np.concatenate((tmp, [tmp[-1]]))
@@ -210,12 +221,12 @@ class Survey(object):
         # Loop over filters, compute fluxes in band (accounting for 
         # transmission fraction) and convert to observed magnitudes.
         for filt in data:
-            
+
             x, y, cent, dx, Tavg, norm = data[filt]
-        
+
             # Re-grid transmission onto provided wavelength axis.
             filt_regrid = np.interp(wave_obs, x, y, left=0, right=0)
-        
+
             # Observed flux is in erg/s/cm^2/Hz
             _yphot = np.abs(np.trapz(filt_regrid * flux_obs, x=freq_obs))            
         

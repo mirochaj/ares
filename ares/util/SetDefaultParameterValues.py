@@ -513,8 +513,8 @@ def PopulationParameters():
     "pop_enrichment": False,
     "pop_quench": False,
     "pop_mag_bin": 0.5,
-    "pop_synth_dz": 1.0,
-    "pop_synth_zmax": 15.,
+    "pop_synth_dz": 0.5,
+    "pop_synth_zmax": 20.,
     "pop_synth_zmin": 3.5,
     
     # For Clusters
@@ -964,6 +964,9 @@ def ControlParameters():
     
     # Not implemented
     "extrap_Z": False,
+    
+    # Experimental
+    "conserve_memory": False,
 
     # Initialization
     "load_ics": 'cosmorec',
