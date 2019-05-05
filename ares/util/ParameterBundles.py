@@ -317,7 +317,7 @@ _physical_dc_fcov = \
  'pq_func_par0[21]': 0.0,     
  'pq_func_par1[21]': 1.0,
  'pq_func_par2[21]': 10.5,
- 'pq_func_par3[21]': 1.5,
+ 'pq_func_par3[21]': 0.8,
  'pq_val_floor[21]': 0.0,
  'pq_val_ceil[21]': 1.0,       
 }
@@ -344,7 +344,7 @@ _physical_dc_screen = \
  # Evolution of scale
  "pq_func[23]": 'pl',
  'pq_func_var[23]': '1+z',
- 'pq_func_par0[23]': 1.,
+ 'pq_func_par0[23]': 2.,
  'pq_func_par1[23]': 5.,
  'pq_func_par2[23]': -1., # R(vir) goes like 1 / (1+z)
 } 

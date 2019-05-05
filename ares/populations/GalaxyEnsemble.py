@@ -31,10 +31,7 @@ try:
     import h5py
 except ImportError:
     pass
-   
-#except ImportError:
-#    pass
-    
+       
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
 pars_affect_sfhs.extend(["pop_update_dt","pop_thin_hist"])
@@ -1054,16 +1051,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             
             # Use cell-centered mass and redshift to compute SFE?
-            dM = np.diff(z2d, axis=1)
-            dz = np.diff(Mh, axis=1)
-                        
+            dz = np.diff(z2d, axis=1)
+            dM = np.diff(Mh, axis=1)
+            #            
             Mh_cc = Mh.copy()
             Mh_cc[:,0:-1] += dM
             
             z2d_cc = z2d.copy()
             z2d_cc[:,0:-1] += dz
             
-            SFR = MAR * fb * self.guide.SFE(z=z2d_cc, Mh=Mh_cc)
+            SFR = MAR * fb * self.guide.SFE(z=z2d, Mh=Mh)
+            
+            #print(dz)
                         
             del dM, dz, Mh_cc, z2d_cc
 
@@ -1509,8 +1508,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             tarr = hist['t']    
             zarr = hist['z']
         
+        
+        fill = np.zeros(1, 
+            dtype=np.float32 if self.pf['conserve_memory'] else np.float64)
         tyr = tarr * 1e6
-        dt = np.hstack((np.diff(tyr), [0]))
+        dt = np.hstack((np.diff(tyr), fill))
         
         oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
             (dt[-2] >= 2e6)
@@ -1521,6 +1523,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             print("Note this now has different units.")
         else:        
             Loft = self.src.L_per_SFR_of_t(wave)
+            
+        if self.pf['conserve_memory']:
+            Loft = np.array(Loft, dtype=np.float32)
                     
         _func = interp1d(np.log(self.src.times), np.log(Loft),
             kind='cubic', bounds_error=False, 
@@ -1575,7 +1580,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 logA = np.log10(ages)
                 logZ = np.log10(Z)
                 L_per_msun = self.L_of_Z_t(wave)(logA, logZ, grid=False)
-                    
+                                        
                 # erg/s/Hz
                 if batch_mode:
                     Lall = L_per_msun * SFR[:,0:i+1]
@@ -1633,7 +1638,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         left=np.log(Loft[0]), right=np.log(Loft[-1])))
                     
                     _dt = dt
-                                        
+                    
+                    if self.pf['conserve_memory']:
+                        L_per_msun = L_per_msun.astype(np.float32)
+                                                            
                     # Fix early time behavior
                     L_per_msun[ages < 1] = L_small_t(ages[ages < 1])
         
@@ -1642,7 +1650,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         Lall = L_per_msun * SFR[:,0:i+1]
                     else:    
                         Lall = L_per_msun * SFR[0:i+1]
-                            
+                                                    
                 # Correction for IMF sampling (can't use SPS).
                 #if self.pf['pop_sample_imf'] and np.any(bursty):
                 #    life = self._stars.tab_life
@@ -1667,6 +1675,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 #    Lall[bursty==1] = Loft
 
             # Integrate over all times up to this tobs
+            
             if batch_mode:
                 if (zobs is not None):
                     Lhist = np.trapz(Lall, dx=_dt[0:-1], axis=1)
@@ -1692,10 +1701,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Lout = Lhist * clear[:,-1] + Lhist * np.exp(-tau[:,-1]) * block[:,-1]
         else:
             Lout = Lhist.copy()
-            
+                    
         del Lhist, tau, Lall    
         gc.collect()
-                    
+                            
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
             self._cache_ss_[(idnum, wave, band)] = zarr, tarr, Lout

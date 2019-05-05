@@ -279,7 +279,9 @@ class SynthesisModel(Source):
         
     @property
     def times(self):
-        return self.litinst.times
+        if not hasattr(self, '_times'):
+            self._times = self.litinst.times.astype(np.float32)
+        return self._times
     
     @property
     def metallicities(self):
@@ -410,7 +412,7 @@ class SynthesisModel(Source):
         
         return None
                     
-    def L_per_sfr(self, wave=1600., avg=1):
+    def L_per_sfr(self, wave=1600., avg=1, Z=None):
         """
         Specific emissivity at provided wavelength.
         
@@ -428,7 +430,7 @@ class SynthesisModel(Source):
 
         """
         
-        cached = self._cache_L_per_sfr(wave, avg)
+        cached = self._cache_L_per_sfr(wave, avg, Z)
         
         if cached is not None:
             return cached
@@ -448,7 +450,7 @@ class SynthesisModel(Source):
             
             result = self._LUV_interp(self.pf['source_tsf'])
             
-        self._cache_L_per_sfr_[(wave, avg)] = result
+        self._cache_L_per_sfr_[(wave, avg, Z)] = result
             
         return result
         
