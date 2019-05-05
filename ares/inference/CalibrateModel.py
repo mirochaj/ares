@@ -316,7 +316,7 @@ class CalibrateModel(object):
                     free_pars.append('pq_func_par0[23]')
                     guesses['pq_func_par0[23]'] = 1.
                     is_log.extend([True])
-                    jitter.extend([0.5])
+                    jitter.extend([0.3])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par0[23]')
                                         
                     if 'norm' in self.zevol_dust:

@@ -250,7 +250,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             dtype = np.float64
         
-        histories['t'] = np.array(map(self.cosm.t_of_z, zall), dtype=dtype) \
+        histories['t'] = np.array(map(self.cosm.t_of_z, zall)) \
             / s_per_myr
                             
         if self.pf['pop_dust_yield'] > 0:
@@ -1524,8 +1524,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:        
             Loft = self.src.L_per_SFR_of_t(wave)
             
-        if self.pf['conserve_memory']:
-            Loft = np.array(Loft, dtype=np.float32)
+        #if self.pf['conserve_memory']:
+        #    Loft = np.array(Loft, dtype=np.float32)
                     
         _func = interp1d(np.log(self.src.times), np.log(Loft),
             kind='cubic', bounds_error=False, 

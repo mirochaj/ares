@@ -457,7 +457,7 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
         
-    def MegaPlot(self, pop, axes=None, fig=1, use_best=True):
+    def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode'):
         """
         Make a huge plot.
         """
@@ -479,7 +479,7 @@ class GalaxyPopulation(object):
             
             if use_best:
                 bkw = pop.base_kwargs.copy()
-                bkw.update(pop.max_likelihood_parameters())
+                bkw.update(pop.max_likelihood_parameters(method=method))
                 pop = GalaxyEnsemble(**bkw)
                 self._MegaPlotPop(axes, pop)
             else:
@@ -604,6 +604,46 @@ class GalaxyPopulation(object):
         zarr = np.arange(4, 25, 0.1)
         sfrd = np.array([pop.SFRD(zarr[i]) for i in range(zarr.size)])
         ax_sfrd.semilogy(zarr, sfrd * rhodot_cgs, color='k')
+                
+    def _MegaPlotChain(self, kw, anl):
+        """
+        Plot many samples
+        """
+        
+        ax_sfe = kw['ax_sfe']
+        ax_fco = kw['ax_fco']
+        ax_rdu = kw['ax_rdu']
+        ax_phi = kw['ax_phi']
+        ax_bet = kw['ax_bet']
+        
+        
+        ax_smf    = kw['ax_smf']
+        ax_smhm   = kw['ax_smhm']
+        ax_MsMUV  = kw['ax_MsMUV']
+        ax_AUV    = kw['ax_AUV']
+        ax_sfrd   = kw['ax_sfrd']
+        ax_lae_z  = kw['ax_lae_z']
+        ax_lae_m  = kw['ax_lae_m']
+        ax_sfms   = kw['ax_sfms']
+        
+        _mst  = np.arange(6, 12, 0.2)
+        _mags = np.arange(-25, -10, 0.2)
+        
+        redshifts = [4, 6, 8, 10]
+        colors = ['k', 'b', 'c', 'm']
+        
+        dc1 = DustCorrection(dustcorr_method='meurer1999',
+            dustcorr_beta='bouwens2014')
+        
+        xa_b = []
+        xa_f = []
+        for j, z in enumerate(redshifts):
+            
+            # UVLF
+            anl.ReconstructedFunction('galaxy_lf', ivar=[z, None], ax=ax_phi,
+                color=colors[j], samples=100, alpha=0.1, fill=False)
+        
+        
                 
     def _MegaPlotLimitsAndTicks(self, kw):
         ax_sfe = kw['ax_sfe']
