@@ -344,7 +344,7 @@ _physical_dc_screen = \
  # Evolution of scale
  "pq_func[23]": 'pl',
  'pq_func_var[23]': '1+z',
- 'pq_func_par0[23]': 2.,
+ 'pq_func_par0[23]': 2.0,
  'pq_func_par1[23]': 5.,
  'pq_func_par2[23]': -1., # R(vir) goes like 1 / (1+z)
 } 

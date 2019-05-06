@@ -457,7 +457,8 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
         
-    def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode'):
+    def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
+        **kwargs):
         """
         Make a huge plot.
         """
@@ -483,11 +484,11 @@ class GalaxyPopulation(object):
                 pop = GalaxyEnsemble(**bkw)
                 self._MegaPlotPop(axes, pop)
             else:
-                self._MegaPlotChain(axes, pop)
+                self._MegaPlotChain(axes, pop, **kwargs)
         else:
             raise TypeError("Unrecognized object pop={}".format(pop))
          
-           
+         
         self._MegaPlotCleanup(axes)
         
         return axes
@@ -605,7 +606,7 @@ class GalaxyPopulation(object):
         sfrd = np.array([pop.SFRD(zarr[i]) for i in range(zarr.size)])
         ax_sfrd.semilogy(zarr, sfrd * rhodot_cgs, color='k')
                 
-    def _MegaPlotChain(self, kw, anl):
+    def _MegaPlotChain(self, kw, anl, **kwargs):
         """
         Plot many samples
         """
@@ -641,9 +642,31 @@ class GalaxyPopulation(object):
             
             # UVLF
             anl.ReconstructedFunction('galaxy_lf', ivar=[z, None], ax=ax_phi,
-                color=colors[j], samples=100, alpha=0.1, fill=False)
+                color=colors[j], **kwargs)
+                
+            anl.ReconstructedFunction('fstar', ivar=[z, None], ax=ax_sfe,
+                color=colors[j], **kwargs)    
         
+            anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
+                color=colors[j], **kwargs)
+            
+            anl.ReconstructedFunction('beta_1600', ivar=[z, None], ax=ax_bet,
+                color=colors[j], **kwargs)
+            
+            anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
+                color=colors[j], **kwargs)    
+                
+            anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
+                color=colors[j], **kwargs)    
         
+            anl.ReconstructedFunction('dust_scale', ivar=[z, None], ax=ax_rdu,
+                color=colors[j], **kwargs)
+            
+            anl.ReconstructedFunction('dust_fcov', ivar=[z, None], ax=ax_fco,
+                color=colors[j], **kwargs)    
+                
+                    
+                
                 
     def _MegaPlotLimitsAndTicks(self, kw):
         ax_sfe = kw['ax_sfe']
@@ -736,58 +759,7 @@ class GalaxyPopulation(object):
 
         # Placeholder
         #ax_tau = fig.add_subplot(gs[0:1,9])
-        
-        ax_sfe.set_title('Model Inputs', fontsize=18)
-
-        ax_rdu.set_xlabel(r'$M_h / M_{\odot}$')
-        ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
-        ax_fco.set_ylabel(r'$f_{\mathrm{cov,dust}}$')
-        ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
-        
-
-        
-
-        ##
-        # CALIBRATION DATA
-        ##
-        ax_phi.set_title('Calibration Data', fontsize=18)
-        ax_bet.set_xlabel(r'$M_{\mathrm{UV}}$')
-        ax_phi.set_ylabel(labels['lf'])
-        ax_bet.set_ylabel(r'$\beta$')
-
-        
-
-        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
-
-        ax_AUV.set_title('Predictions', fontsize=18)
-        ax_smf.set_title('Predictions', fontsize=18)
-        ax_sfrd.set_title('Predictions', fontsize=18)
-
-        ax_smf.set_ylabel(labels['galaxy_smf'])
-        ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
-        ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
-        ax_phi.set_ylabel(labels['galaxy_lf'])
-        ax_bet.set_ylabel(r'$\beta$')
-
-        
-        ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
-        ax_MsMUV.set_xlabel(r'$M_{\mathrm{UV}}$')
-
-        ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
-        ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')
-        
-        ax_sfms.set_xlabel(r'$M_{\ast} / M_{\odot}$')
-        ax_sfms.set_ylabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
-
-        ax_sfrd.set_xlabel(r'$z$')
-        ax_sfrd.set_ylabel(labels['sfrd'])
-        ax_sfrd.set_ylim(1e-4, 1e-1)
-
-        ax_lae_z.set_xlabel(r'$z$')
-        ax_lae_z.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
-        ax_lae_m.set_xlabel(r'$M_{\mathrm{UV}}$')
-        ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')        
-        
+                
         kw = \
         {
          'ax_sfe': ax_sfe,
@@ -1053,6 +1025,51 @@ class GalaxyPopulation(object):
         ax_lae_z  = kw['ax_lae_z']
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
+        
+        ax_sfe.set_title('Model Inputs', fontsize=18)
+
+        ax_rdu.set_xlabel(r'$M_h / M_{\odot}$')
+        ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
+        ax_fco.set_ylabel(r'$f_{\mathrm{cov,dust}}$')
+        ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
+        
+        ax_AUV.set_title('Predictions', fontsize=18)
+        ax_smf.set_title('Predictions', fontsize=18)
+        ax_sfrd.set_title('Predictions', fontsize=18)
+
+        ax_smf.set_ylabel(labels['galaxy_smf'])
+        ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
+        ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
+        ax_phi.set_ylabel(labels['galaxy_lf'])
+        ax_bet.set_ylabel(r'$\beta$')
+
+        
+        ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
+        ax_MsMUV.set_xlabel(r'$M_{\mathrm{UV}}$')
+
+        ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')
+        
+        ax_sfms.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+        ax_sfms.set_ylabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
+
+        ax_sfrd.set_xlabel(r'$z$')
+        ax_sfrd.set_ylabel(labels['sfrd'])
+        ax_sfrd.set_ylim(1e-4, 1e-1)
+
+        ax_lae_z.set_xlabel(r'$z$')
+        ax_lae_z.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
+        ax_lae_m.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
+        
+
+        ##
+        # CALIBRATION DATA
+        ##
+        ax_phi.set_title('Calibration Data', fontsize=18)
+        ax_bet.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_phi.set_ylabel(labels['lf'])
+        ax_bet.set_ylabel(r'$\beta$')
 
         ax_phi.legend(loc='lower right', fontsize=8)
         ax_smf.legend(loc='lower left', fontsize=8)

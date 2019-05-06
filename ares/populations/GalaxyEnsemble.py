@@ -250,8 +250,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             dtype = np.float64
         
-        histories['t'] = np.array(map(self.cosm.t_of_z, zall)) \
-            / s_per_myr
+        t = np.array(map(self.cosm.t_of_z, zall)) / s_per_myr
+        
+        histories['t'] = t.astype(dtype)
                             
         if self.pf['pop_dust_yield'] > 0:
             r = np.reshape(np.random.rand(Mh.size), Mh.shape)
@@ -1113,19 +1114,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if np.any(fd > 0):
             
             # As long as the yields are constant then dust mass just scales with
-            # stellar mass
-            #Md = fd * fZy * Ms
-            
-            # Dust scale length
-            #Rd = self.guide.dust_scale(z=z, Mh=Mh)
-            
-            Sd = fd * fZy * Ms * g_per_msun \
-                / 4. / np.pi / (self.guide.dust_scale(z=z, Mh=Mh) * cm_per_kpc)**2
-                        
+            # stellar mass            
+            Sd = fd * fZy * Ms \
+                / 4. / np.pi / self.guide.dust_scale(z=z, Mh=Mh)**2
+                
+            # Convert to cgs. Do in two steps in case conserve_memory==True.
+            Sd *= g_per_msun / cm_per_kpc**2
         else:
             Md = Sd = 0.
             Rd = np.inf
-                
+
         # Metal mass
         if 'Z' in halos:
             Z = halos['Z']
@@ -1472,7 +1470,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             kappa = self.guide.dust_kappa(wave=wave)
             Sd = hist['Sd'][slc]
             tau = kappa * Sd
-            rand = hist['rand'][slc]            
+            rand = hist['rand'][slc]          
         else:
             tau = fcov = 0.0
             rand = 1#np.ones_like(hist['SFR'])
