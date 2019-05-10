@@ -753,6 +753,8 @@ class OpticalDepth(object):
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
+                
+            i_E0 -= 1    
     
             #tau[:,0:i_E0+1] = np.inf
         else:

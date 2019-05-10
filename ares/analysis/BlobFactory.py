@@ -537,7 +537,7 @@ class BlobFactory(object):
                                                 
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -558,7 +558,7 @@ class BlobFactory(object):
                     # The 0 index is because ivars are kept in a list no
                     # matter what
                     x = np.array(self.blob_ivars[i][0]).squeeze()
-                    if (self.blob_funcs[i][j] is None) and (key in self.history):                        
+                    if (self.blob_funcs[i][j] is None) and (key in self.history):
                         blob = np.interp(x, self.history['z'][-1::-1],
                             self.history[key][-1::-1])
                     elif self.blob_funcs[i][j] is None:
@@ -649,7 +649,7 @@ class BlobFactory(object):
                         blob.append(tmp)
                                                                         
                 this_group.append(np.array(blob))
-
+                                
             self._blobs.append(np.array(this_group))
             
     @property 

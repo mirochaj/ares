@@ -37,7 +37,7 @@ from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
-    read_pickled_logL, fcoll_gjah_to_ares, tanh_gjah_to_ares
+    read_pickled_logL
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -89,20 +89,6 @@ numerical_types = [float, np.float64, np.float32, int, np.int32, np.int64]
 
 # Machine precision
 MP = np.finfo(float).eps
-
-def patch_pinfo(pars):
-    # This should be deprecated in future versions
-    new_pars = []
-    for par in pars:
-
-        if par in tanh_gjah_to_ares:
-            new_pars.append(tanh_gjah_to_ares[par])
-        elif par in fcoll_gjah_to_ares:
-            new_pars.append(fcoll_gjah_to_ares[par])
-        else:
-            new_pars.append(par)
-    
-    return new_pars
 
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
@@ -334,7 +320,6 @@ class ModelSet(BlobFactory):
                 (self._parameters, self._is_log) =\
                     read_pickle_file('{!s}.pinfo.pkl'.format(pre), nloads=1,\
                     verbose=False)
-                self._parameters = patch_pinfo(self._parameters)
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
                 self._parameters = list(f['chain'].attrs.get('names'))
@@ -348,7 +333,7 @@ class ModelSet(BlobFactory):
         
             self._is_log = tuple(self._is_log)
             self._parameters = tuple(self._parameters)
-        
+                    
         return self._parameters
         
     @property
@@ -3686,8 +3671,8 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
-        if percentile:    
-            q1 = 0.5 * 100 * (1. - percentile)    
+        if percentile:
+            q1 = 0.5 * 100 * (1. - percentile)
             q2 = 100 * percentile + q1
             
         max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())
@@ -3789,6 +3774,9 @@ class ModelSet(BlobFactory):
                 keep[0:skip] *= 0
             if stop is not None:
                 keep[stop:]  *= 0
+                
+            if (samples is not None) and (type(samples) != str):
+                keep[0:-samples] = 0
             
             # Grab the maximum likelihood point
             if use_best and self.is_mcmc:
@@ -3812,6 +3800,8 @@ class ModelSet(BlobFactory):
             # Plot time        
             if samples == 'all':
                 ax.plot(xarr, yblob.T, **kwargs)
+            elif type(samples) is int:
+                ax.plot(xarr, yblob[keep==1].T, **kwargs)    
             elif use_best and self.is_mcmc:
                 ax.plot(xarr, yblob[keep==1][loc], **kwargs)
             elif percentile:
@@ -3866,10 +3856,12 @@ class ModelSet(BlobFactory):
             tmp = self.ExtractData(name, ivar=ivar,                            
                 take_log=take_log, un_log=un_logy)
                 
-            yblob = tmp[name]    
+            _yblob = tmp[name]    
             
             if expr is not None:
-                yblob = eval(expr)
+                _yblob = eval(expr)
+                
+            yblob = np.nan_to_num(_yblob)
             
             mask = np.all(yblob.mask == True, axis=1)
             keep = np.array(np.logical_not(mask), dtype=int)
@@ -3879,6 +3871,9 @@ class ModelSet(BlobFactory):
                 keep[0:skip] *= 0
             if stop is not None:
                 keep[stop:]  *= 0
+                
+            if (samples is not None) and (type(samples) != str):
+                keep[0:-samples] = 0    
             
             #if multiplier != 1:
             #    raise NotImplemented('need to fix this')
@@ -3894,6 +3889,9 @@ class ModelSet(BlobFactory):
                 # Slicing in y dimension
                 else:
                     pass
+            elif type(samples) is int:
+                ax.plot(xarr, yblob[keep==1].T, **kwargs)
+                
             # Plot only the best-fitting model
             elif use_best and self.is_mcmc:
                 if best == 'median':

@@ -40,7 +40,7 @@ try:
 except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
-    
+
 ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18
@@ -426,7 +426,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_sfr_cross_threshold']:
             
             y = yield_per_sfr(z=self.halos.tab_z, Mh=self._tab_Mmin)
-            
+                        
             if self.pf['pop_sfr'] is not None:
                 thresh = self.pf['pop_sfr'] \
                     * self._tab_nh_at_Mmin * self._tab_Mmin \
@@ -1069,8 +1069,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # updated from SAM.
             sfr = self.SFR(z) 
             
-            if self.pf['pop_dust_yield'] > 0:
-                
+            if self.pf['pop_dust_yield'] > 0:                
                 L_sfr = self.src.L_per_sfr(wave)                                
                 Lh = L_sfr * sfr
                 
@@ -1079,8 +1078,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Sd = self.get_field(z, 'Sd')
                 tau = kappa * Sd
                 
-                return Lh * (1 - fcov) + Lh * fcov * np.exp(-tau)
-                
+                # I don't think this method should ever get called.
+                # Basically we only have this implemented for GalaxyEnsemble.
+                # Right, because the reddening is probabilistic (due to fcov)
+                # we don't have a way to deal with it in Cohort currently.
+                raise NotImplemented('help')
+
             else:
                 L_sfr = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
                 return sfr * L_sfr
@@ -1216,7 +1219,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Lh, phi_of_L = self.phi_of_L(z, wave=wave)
 
-        MAB = self.magsys.L_to_MAB(Lh, z=z)
+        _MAB = self.magsys.L_to_MAB(Lh, z=z)
+        
+        if self.pf['dustcorr_method'] is not None:
+            MAB = self.dust.Mobs(z, _MAB)
+        else:
+            MAB = _MAB
 
         phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
 
@@ -1643,10 +1651,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Why am I getting a NaN?
             isnan = np.isnan(self._tab_sfr_)
 
-            if isnan.sum() > 1:
+            if isnan.sum() > 1 and self.pf['debug']:                
+                # Find bounds in redshift and mass?
+                i_nan = np.argwhere(isnan==1)
+                x, y = i_nan.T
+                i_zlo = np.argmin(x)
+                i_zhi = np.argmax(x)
+                i_Mlo = np.argmin(y)
+                i_Mhi = np.argmax(y)
+                
+                zlo = self.halos.tab_z[i_zlo]
+                zhi = self.halos.tab_z[i_zhi]
+                Mlo = self.halos.tab_M[i_Mlo]
+                Mhi = self.halos.tab_M[i_Mhi]
+                
                 print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
-                #raise ValueError('Nans!')
-            
+                print("WARNING: Found in range {}<=z<={} and {}<=Mh<={}".format(zlo, 
+                    zhi, Mlo, Mhi))
+                            
             self._tab_sfr_[isnan] = 0.
                                 
         return self._tab_sfr_
@@ -2176,13 +2198,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Units = Msun / yr -> Msun / dz
         PIR = fb * self.MAR(z, Mh) * dtdz
         NPIR = fb * self.MDR(z, Mh) * dtdz
-        
+
         # Measured relative to baryonic inflow
         Mb = fb * Mh
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
         Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
         Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
-        
+
         # Need SFR per dz
         if not self.pf['pop_star_formation']:
             fstar = SFR = 0.0

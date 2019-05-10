@@ -160,11 +160,12 @@ class SynthesisModel(Source):
         """
         if not hasattr(self, '_data'):
             
-            Zall = np.sort(list(self.metallicities.values()))
+            Zall_l = list(self.metallicities.values())
+            Zall = np.sort(Zall_l)
                         
             # Check to see dimensions of tmp. Depending on if we're 
             # interpolating in Z, it might be multiple arrays.
-            if (self.pf['source_Z'] in Zall):
+            if (self.pf['source_Z'] in Zall_l):
                 if self.pf['source_sed_by_Z'] is not None:
                     _tmp = self.pf['source_sed_by_Z'][1]
                     self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
@@ -278,7 +279,9 @@ class SynthesisModel(Source):
         
     @property
     def times(self):
-        return self.litinst.times
+        if not hasattr(self, '_times'):
+            self._times = self.litinst.times.astype(np.float32)
+        return self._times
     
     @property
     def metallicities(self):
@@ -338,30 +341,40 @@ class SynthesisModel(Source):
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
     
-    def _cache_L(self, wave):
+    def _cache_L(self, wave, avg, Z):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
             
-        if wave in self._cache_L_:
-            return self._cache_L_[wave]
+        if (wave, avg, Z) in self._cache_L_:
+            return self._cache_L_[(wave, avg, Z)]
         
         return None
     
-    def L_per_SFR_of_t(self, wave=1600., avg=1):
+    def L_per_SFR_of_t(self, wave=1600., avg=1, Z=None):
         """
         UV luminosity per unit SFR.
         """
         
-        cached_result = self._cache_L(wave)
+        cached_result = self._cache_L(wave, avg, Z)
         
         if cached_result is not None:
             return cached_result
                 
         j = np.argmin(np.abs(wave - self.wavelengths))
+        
+        if Z is not None:
+            Zvals = np.sort(self.metallicities.values())
+            k = np.argmin(np.abs(Z - Zvals))
+            raw = self.data # just to be sure it has been read in.
+            data = self._data_all_Z[k,j]
+        else:
+            data = self.data[j,:]        
                 
         if avg == 1:
-            yield_UV = self.data[j,:] * np.abs(self.dwdn[j])
+            yield_UV = data * np.abs(self.dwdn[j])
         else:
+            if Z is not None:
+                raise NotImplemented('hey!')
             assert avg % 2 != 0, "avg must be odd"
             s = (avg - 1) / 2
             yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
@@ -379,7 +392,7 @@ class SynthesisModel(Source):
         #else:
         #    pass
         
-        self._cache_L_[wave] = yield_UV
+        self._cache_L_[(wave, avg, Z)] = yield_UV
             
         return yield_UV
     
@@ -390,16 +403,16 @@ class SynthesisModel(Source):
     def L1600_per_sfr(self):
         return self.L_per_sfr()   
         
-    def _cache_L_per_sfr(self, wave, avg):
+    def _cache_L_per_sfr(self, wave, avg, Z):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
         
-        if (wave, avg) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, avg)]
+        if (wave, avg, Z) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, avg, Z)]
         
         return None
                     
-    def L_per_sfr(self, wave=1600., avg=1):
+    def L_per_sfr(self, wave=1600., avg=1, Z=None):
         """
         Specific emissivity at provided wavelength.
         
@@ -417,7 +430,7 @@ class SynthesisModel(Source):
 
         """
         
-        cached = self._cache_L_per_sfr(wave, avg)
+        cached = self._cache_L_per_sfr(wave, avg, Z)
         
         if cached is not None:
             return cached
@@ -437,7 +450,7 @@ class SynthesisModel(Source):
             
             result = self._LUV_interp(self.pf['source_tsf'])
             
-        self._cache_L_per_sfr_[(wave, avg)] = result
+        self._cache_L_per_sfr_[(wave, avg, Z)] = result
             
         return result
         

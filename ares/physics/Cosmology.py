@@ -17,6 +17,7 @@ from scipy.integrate import quad, ode
 from ..util.Math import interp1d
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
+from ..util.ParameterBundles import ParameterBundle
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, cm_per_kpc, k_B, m_p
 
@@ -27,12 +28,37 @@ class Cosmology(object):
         else:
             self.pf = ParameterFile(**kwargs)
                 
+        # Can override cosmological parameters using named/numbered cosmologies.
+        if self.pf['cosmology_name'] is not None:
+            if self.pf['cosmology_number'] is not None:
+                pb = '{}-{}'.format(self.pf['cosmology_name'],
+                    str(self.pf['cosmology_number']).zfill(5))
+            else:    
+                pb = self.pf['cosmology_name']
+            
+            self.cosmology_prefix = pb
+            
+            try:
+                cpars = ParameterBundle('cosmology:{}'.format(pb))
+            except KeyError:
+                func = self.pf['cosmology_generator']
+                cpars = func(self.pf['cosmology_name'], 
+                    self.pf['cosmology_number'])
+            
+            self.pf.update(cpars)
+            
+            if self.pf['verbose']:
+                print("Updated to cosmology '{}'".format(pb))
+                
+        else:
+            self.cosmology_prefix = None
+                
         self.omega_m_0 = self.pf['omega_m_0']
         self.omega_b_0 = self.pf['omega_b_0']
         self.omega_l_0 = self.pf['omega_l_0']
         self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
 
-        self.hubble_0 = self.pf['hubble_0'] * 100 / km_per_mpc
+        self.hubble_0 = self.pf['hubble_0'] * 100. / km_per_mpc
         self.cmb_temp_0 = self.pf['cmb_temp_0']
         self.approx_highz = self.pf['approx_highz']
         self.approx_lowz = False

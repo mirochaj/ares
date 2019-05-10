@@ -943,7 +943,7 @@ def print_model_set(mset):
         prefix = mset.prefix[i+1:]
 
     print(line("path        : {!s}".format(path)))
-    print(line("prefix      : {!s}".format(prefix)))
+    print(line("prefix      : {!s}".format(prefix)))    
     print(line("N-d         : {}".format(len(mset.parameters))))
 
     print(line('-' * twidth))

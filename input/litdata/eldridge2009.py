@@ -64,9 +64,12 @@ def _kwargs_to_fn(**kwargs):
         fn += '.bin'
     else:
         fn += '.sin'
-    
+        
     # Metallicity
     fn += '.z{!s}'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
+        
+    if kwargs['source_sed_degrade'] is not None:
+        fn += '.deg{}'.format(kwargs['source_sed_degrade'])    
             
     return _input + '/' + fn    
             
@@ -75,10 +78,11 @@ def _load(**kwargs):
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
     
-    Zvals = np.sort(list(metallicities.values()))
+    Zvals_l = list(metallicities.values())
+    Zvals = np.sort(Zvals_l)
 
     # Interpolate
-    if kwargs['source_Z'] not in Zvals:
+    if kwargs['source_Z'] not in Zvals_l:
         tmp = kwargs.copy()
                 
         spectra = []

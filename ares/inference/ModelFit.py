@@ -1100,6 +1100,7 @@ class ModelFit(FitBase):
         
         # Constant parameters being passed to ares.simulations.Global21cm
         tmp = self.base_kwargs.copy()
+                
         to_axe = []
         for key in tmp:
             # these might be big, get rid of it
@@ -1114,6 +1115,13 @@ class ModelFit(FitBase):
             if re.search('pop_src_instance', key):
                 to_axe.append(key)     
             if re.search('pop_sed_by_Z', key):
+                to_axe.append(key)
+            #if re.search('pop_histories', key):
+            #    if type(tmp[key]) == str:
+            #        pass
+            #    else:
+            #        to_axe.append(key)    
+            if re.search('hmf_table', key):
                 to_axe.append(key)
             
             # Apparently functions of any kind cause problems everywhere
@@ -1147,11 +1155,11 @@ class ModelFit(FitBase):
         if not hasattr(self, '_debug'):
             self._debug = False
         return self._debug
-    
+
     @debug.setter
     def debug(self, value):
         assert type(value) in [int, bool]
-        self._debug = value  
+        self._debug = value
         
     def _reinitialize_walkers(self, chain, logL):
         """

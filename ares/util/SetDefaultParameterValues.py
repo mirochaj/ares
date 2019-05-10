@@ -417,6 +417,10 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+    # Can degrade spectral resolution of stellar population synthesis models
+    # just to speed things up.
+    "pop_sed_degrade": None,
+        
     # If pop_sed == 'user'
     "pop_E": None,
     "pop_L": None,
@@ -434,6 +438,8 @@ def PopulationParameters():
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
+    
+    "pop_ssp_oversample": False,
     
     "pop_sfh": False,             # account for SFH in spectrum modeling
 
@@ -507,6 +513,9 @@ def PopulationParameters():
     "pop_enrichment": False,
     "pop_quench": False,
     "pop_mag_bin": 0.5,
+    "pop_synth_dz": 0.5,
+    "pop_synth_zmax": 20.,
+    "pop_synth_zmin": 3.5,
     
     # For Clusters
     "pop_mdist": None,
@@ -637,6 +646,7 @@ def PopulationParameters():
     "pop_dust_yield": 0.,     # Mdust = dust_yield * metal mass
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,     
+    "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     
     "pop_fpoll": 1.0,         # uniform pollution
@@ -699,6 +709,8 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    "source_sed_degrade": None,
     
     "source_sfr": 1.,
     "source_fesc": 0.1,
@@ -825,6 +837,7 @@ def SynthesisParameters():
     {
     # For synthesis models
     "source_sed": None,
+    "source_sed_degrade": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
     "source_tracks": None,
@@ -904,6 +917,9 @@ def CosmologyParameters():
     "sigma_8": 0.8159,
     "primordial_index": 0.9667,
     "approx_highz": False,    
+    "cosmology_name": None,  # Can pass 'named cosmologies'
+    "cosmology_number": None,
+    "cosmology_generator": None,
     }
 
     pf.update(rcParams)
@@ -948,6 +964,9 @@ def ControlParameters():
     
     # Not implemented
     "extrap_Z": False,
+    
+    # Experimental
+    "conserve_memory": False,
 
     # Initialization
     "load_ics": 'cosmorec',
@@ -1002,7 +1021,7 @@ def ControlParameters():
     "sam_rtol": 1e-4,
     
     # File format
-    "preferred_format": 'npz',
+    "preferred_format": 'hdf5',
 
     # Finding SED tables
     "load_sed": False,

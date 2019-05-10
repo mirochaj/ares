@@ -70,6 +70,11 @@ This is a strange one, which might arise due to differences in the Python and/or
     
 If that doesn't magically fix it, please email me and I'll do what I can to help!
 
+``ERROR: Cannot generate halo mass function``
+---------------------------------------------
+This error generally occurs because lookup tables for the halo mass function are not being found, and when that happens, *ares* tries to make new tables. This process is slow and so is not recommended! Instead you should check that (i) you have correctly set the $ARES environment variable and (ii) that you have run the ``remote.py`` script (see :doc:`install`), which downloads the default HMF lookup table. If you have recently pulled changes, you may need to re-run ``remote.py`` since, e.g., the default HMF parameters may have been changed and corresponding tables may have been updated on the web. To save time, you can specify that you only want new HMF tables by executing ``python remote.py fresh hmf``.
+
+
 General Mysteriousness
 ----------------------
 - If you're running *ares* from within an iPython (or Jupyter) notebook, be wary of initializing class instances in one notebook cell and modifying attributes in a separate cell. If you re-run the the second cell *without* re-running the first cell, this can cause problems because changes to attributes will not automatically propagate back up to any parent classes (should they exist). This is known to happen (at least) when using the ``ModelGrid`` and ``ModelSamples`` classes in the inference sub-module.

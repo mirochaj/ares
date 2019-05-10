@@ -57,7 +57,7 @@ class MagnitudeSystem(object):
             dL = self.cosm.LuminosityDistance(z)
         
         # Apparent magnitude
-        m = mag + 5. * (np.log10(dL/ cm_per_pc) - 1.) 
+        m = mag + 5. * (np.log10(dL/ cm_per_pc) - 1.)
 
         # Luminosity!    
         return 10**(m / -2.5) * norm_AB * 4. * np.pi * dL**2
