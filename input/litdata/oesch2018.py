@@ -33,7 +33,8 @@ units = {'lf': 1.}
 data = {}
 data['lf'] = {}
 for key in tmp_data['lf']:
-    mask = np.array(tmp_data['lf'][key]['err']) == ULIM
+    N = len(tmp_data['lf'][key]['M'])
+    mask = np.array([tmp_data['lf'][key]['err'][i] == ULIM for i in range(N)])
     
     data['lf'][key] = {}
     data['lf'][key]['M'] = np.ma.array(tmp_data['lf'][key]['M'], mask=mask) 

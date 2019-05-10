@@ -103,14 +103,17 @@ units = {'lf': 1.}
 data = {}
 data['lf'] = {}
 for key in tmp_data['lf']:
-    mask = []
-    for element in tmp_data['lf'][key]['err']:
-        if element == ULIM:
-            mask.append(1)
-        else:
-            mask.append(0)
+    N = len(tmp_data['lf'][key]['M'])
+    mask = np.array([tmp_data['lf'][key]['err'][i] == ULIM for i in range(N)])
     
-    mask = np.array(mask)
+    #mask = []
+    #for element in tmp_data['lf'][key]['err']:
+    #    if element == ULIM:
+    #        mask.append(1)
+    #    else:
+    #        mask.append(0)
+    #
+    #mask = np.array(mask)
     
     data['lf'][key] = {}
     data['lf'][key]['M'] = np.ma.array(tmp_data['lf'][key]['M'], mask=mask) 
