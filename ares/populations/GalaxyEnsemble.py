@@ -1036,7 +1036,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # with).
         ##
         
-        
         fb = self.cosm.fbar_over_fcdm
         fZy = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield']
         fd = self.guide.dust_yield(z=z)   
@@ -1062,9 +1061,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             z2d_cc[:,0:-1] += dz
             
             SFR = MAR * fb * self.guide.SFE(z=z2d, Mh=Mh)
-            
-            #print(dz)
-                        
+                                    
             del dM, dz, Mh_cc, z2d_cc
 
         # 50% duty cycle
@@ -2020,7 +2017,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     beta.append(_beta1[-1])
                     
                 beta = np.array(beta)
-                MAB = np.array(MAB) 
+                MAB = np.array(MAB)
             
             # Only cache
             self._cache_beta_[(z, wave, wave_MUV)] = MAB, beta
@@ -2030,7 +2027,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         if return_binned:
             if Mbins is None:
-                Mbins = np.arange(-25, -10, 0.1)
+                Mbins = np.arange(-27, -10, 0.2)
                 
             nh = self.get_field(z, 'nh')
                 
@@ -2068,7 +2065,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         if return_binned:            
             if Mbins is None:
-                Mbins = np.arange(-25, -10, 0.1)
+                Mbins = np.arange(-27, -10, 0.2)
                 
             nh = self.get_field(z, 'nh')    
             _x, _y, _z = bin_samples(MAB, AUV, Mbins, weights=nh)
@@ -2084,7 +2081,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             assert MUV is None    
                 
         if MUV is not None:
-            _AUV = np.interp(MUV, MAB[-1::-1], AUV[-1::-1], left=0., right=0.)
+            _AUV = np.interp(MUV, MAB, AUV, left=0., right=0.)
             return _AUV
 
         return MAB, AUV, std

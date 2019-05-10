@@ -833,7 +833,7 @@ class HaloMassFunction(object):
                 tab_dMdt_of_z[i,:] = dmdt_rg2
 
             # Convert from trajectories to (z, Mh) table.
-            arr = np.zeros((self.tab_z.size, self.tab_M.size))    
+            arr = np.zeros((self.tab_z.size, self.tab_M.size))
             for i, z in enumerate(self.tab_z):
 
                 # At what redshift does an object of a particular mass have 
@@ -868,14 +868,9 @@ class HaloMassFunction(object):
             tdyn = self.DynamicalTime(self.tab_z)
             
             MAR = self.tab_MAR
-            
-            
-            
+                        
         return self._tab_MAR_delayed    
-            
-            
-        
-        
+                    
     def MAR_func(self, z, M):
         return self.MAR_func_(z, M)
         

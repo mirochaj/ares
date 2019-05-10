@@ -24,12 +24,19 @@ except ImportError:
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
-_path = os.environ.get('ARES') + '/input/nircam/nircam_throughputs'
+_path = os.environ.get('ARES') + '/input'
 
 class Survey(object):
-    def __init__(self, cam='nircam', mod='modA'):
-        self.path = '{}/{}/filters_only'.format(_path, mod)
+    def __init__(self, cam='nircam', mod='modA', chip=1):
+        self.camera = cam
+        self.chip = chip
         
+        if cam == 'nircam':
+            self.path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path, mod)
+        elif cam == 'wfc3':
+            self.path = '{}/wfc3'.format(_path)
+        else:
+            raise NotImplemented('Unrecognized camera \'{}\''.format(cam))
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -86,9 +93,9 @@ class Survey(object):
         else:
             gotax = True
         
-        data = self._read_nircam(filter_set)
+        data = self._read_throughputs(filter_set)
         
-        colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g']
+        colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
         for i, filt in enumerate(data.keys()):
             
             ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
@@ -102,6 +109,14 @@ class Survey(object):
         #ax.legend(loc='best', frameon=False, fontsize=10, ncol=2)
             
         return ax
+    
+    def _read_throughputs(self, filter_set='W'):
+        if self.camera == 'nircam':
+            return self._read_nircam(filter_set)
+        elif self.camera == 'wfc3':
+            return self._read_wfc3(filter_set)        
+        else:
+            raise NotImplemented('help')
             
     def _read_nircam(self, filter_set='W'):
 
@@ -132,28 +147,69 @@ class Survey(object):
             x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
                 skiprows=1)
             
-            Tmax = max(y)
-            hmax = y > 0.5 * Tmax
+            data[pre] = self._get_filter_prop(x, y, cent)
+            
+        self._filter_cache[filter_set] = data
+        
+        return data   
+                 
+    def _read_wfc3(self, filter_set='W'):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+            
+        if filter_set in self._filter_cache:
+            return self._filter_cache[filter_set]
+        
+        data = {}
+        for fn in os.listdir(self.path):
+        
+            pre = fn.split('throughput')[0]
+            
+            if filter_set not in pre:
+                continue
+        
+            # Determine the center wavelength of the filter based on its string
+            # identifier.    
+            k = pre.rfind(filter_set)
+            cent = float('{}.{}'.format(pre[1], pre[2:k]))
+        
+            if 'UVIS' in fn:                
+                _i, x1, y1, x2, y2 = np.loadtxt('{}/{}'.format(self.path, fn), 
+                    unpack=True, skiprows=1, delimiter=',')
                     
-            # Compute width of filter
-            hi = max(x[hmax == True])
-            lo = min(x[hmax == True])
-            mi = np.mean(x[hmax == True])
-            dx = np.array([hi - mi, mi - lo])
-            
-            ok = np.logical_and(x >= lo, x <= hi)
-            Tavg = np.mean(y[ok==1])
-            
-            # Get the Hz^-1 units back
-            norm = c / (lo * 1e-4) - c / (hi * 1e-4)
-                
-            data[pre] = x, y, cent, dx, Tavg, norm
-            
+                if self.chip == 1:
+                    data[pre] = self._get_filter_prop(x1, y1, cent)
+                else:
+                    data[pre] = self._get_filter_prop(x2, y2, cent)
+            else:
+                _i, x, y = np.loadtxt('{}/{}'.format(self.path, fn), 
+                    unpack=True, skiprows=1, delimiter=',')
+                            
+                data[pre] = self._get_filter_prop(x, y, cent)
 
         self._filter_cache[filter_set] = data
         
-        return data    
-            
+        return data
+        
+    def _get_filter_prop(self, x, y, cent):    
+        Tmax = max(y)
+        hmax = y > 0.5 * Tmax
+                
+        # Compute width of filter
+        hi = max(x[hmax == True])
+        lo = min(x[hmax == True])
+        mi = np.mean(x[hmax == True])
+        dx = np.array([hi - mi, mi - lo])
+        
+        ok = np.logical_and(x >= lo, x <= hi)
+        Tavg = np.mean(y[ok==1])
+        
+        # Get the Hz^-1 units back
+        norm = c / (lo * 1e-4) - c / (hi * 1e-4)
+        
+        return x, y, cent, dx, Tavg, norm
+        
+        
     def observe_spectrum(self, spec, z):
         """
         Take an input spectrum and "observe" it at redshift z.
@@ -194,7 +250,7 @@ class Survey(object):
     
         """
     
-        data = self._read_nircam(filter_set)
+        data = self._read_throughputs(filter_set)
     
         # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
         wave_obs, flux_obs = self.observe_spectrum(spec, z)

@@ -220,39 +220,39 @@ class CalibrateModel(object):
                 # Normalization of SFE
                 if 'norm' in self.free_params_sfe:
                     free_pars.append('pq_func_par0[1]')
-                    guesses['pq_func_par0[1]'] = -1.3
+                    guesses['pq_func_par0[1]'] = -1.4
                     is_log.extend([True])
-                    jitter.extend([0.5])
+                    jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
                     
                     if 'norm' in self.zevol_sfe:
                         free_pars.append('pq_func_par2[1]')
-                        guesses['pq_func_par2[1]'] = 0.5
+                        guesses['pq_func_par2[1]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.5])
+                        jitter.extend([0.1])
                         ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[1]')
                         
                 # Peak mass
                 if 'peak' in self.free_params_sfe:
                     free_pars.append('pq_func_par0[2]')
-                    guesses['pq_func_par0[2]'] = 11.5
+                    guesses['pq_func_par0[2]'] = 11.
                     is_log.extend([True])
-                    jitter.extend([0.5])
+                    jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[2]')
                     
                     if 'peak' in self.zevol_sfe:
                         free_pars.append('pq_func_par2[2]')
                         guesses['pq_func_par2[2]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.5])
+                        jitter.extend([0.1])
                         ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[2]')
                         
                 # Slope at low-mass side of peak
                 if 'slope-low' in self.free_params_sfe:                    
                     free_pars.append('pq_func_par0[3]')
-                    guesses['pq_func_par0[3]'] = 0.666
+                    guesses['pq_func_par0[3]'] = 0.66
                     is_log.extend([False])
-                    jitter.extend([0.333])
+                    jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0.0, 1.5), 'pq_func_par0[3]')
                     
                     # Allow to evolve with redshift?
@@ -260,7 +260,7 @@ class CalibrateModel(object):
                         free_pars.append('pq_func_par2[3]')
                         guesses['pq_func_par2[3]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.5])
+                        jitter.extend([0.1])
                         ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[3]')
                 
                 # Slope at high-mass side of peak        
@@ -269,14 +269,14 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[4]'] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par0[4]')
+                    ps.add_distribution(UniformDistribution(-3., 0.1), 'pq_func_par0[4]')
                     
                     # Allow to evolve with redshift?
                     if 'slope-high' in self.zevol_sfe:
                         free_pars.append('pq_func_par2[4]')
                         guesses['pq_func_par2[4]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.5])
+                        jitter.extend([0.1])
                         ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[4]')
                     
             ##
@@ -314,42 +314,42 @@ class CalibrateModel(object):
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[23]')
-                    guesses['pq_func_par0[23]'] = 1.
+                    guesses['pq_func_par0[23]'] = 1.3
                     is_log.extend([False])
-                    jitter.extend([0.3])
+                    jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[23]')
                                         
                     if 'norm' in self.zevol_dust:
                         free_pars.append('pq_func_par2[23]')
                         guesses['pq_func_par2[23]'] = -0.5
                         is_log.extend([False])
-                        jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[23]')
+                        jitter.extend([0.1])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[23]')
 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
-                    guesses['pq_func_par2[22]'] = 0.2
+                    guesses['pq_func_par2[22]'] = 0.5
                     is_log.extend([False])
-                    jitter.extend([0.3])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
                 if 'fcov' in self.free_params_dust:    
 
                     # fcov parameters (no zevol)
-                    free_pars.extend(['pq_func_par0[21]', 'pq_func_par1[21]',
+                    free_pars.extend(['pq_func_par0[21]', #'pq_func_par1[21]',
                         'pq_func_par3[21]', 'pq_func_par0[24]'])
 
                     # Tanh describing covering fraction
                     guesses['pq_func_par0[21]'] = 0.25
-                    guesses['pq_func_par1[21]'] = 0.95
+                    #guesses['pq_func_par1[21]'] = 0.98
                     guesses['pq_func_par3[21]'] = 0.2
                     guesses['pq_func_par0[24]'] = 10.8
                 
-                    is_log.extend([False, False, False, False])
-                    jitter.extend([0.05, 0.05, 0.1, 0.3])
+                    is_log.extend([False, False, False])
+                    jitter.extend([0.05, 0.1, 0.3])
                     
                     ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[21]')
-                    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
+                    #ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
                     ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[21]')
                     ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[24]')
                                     
@@ -579,6 +579,13 @@ class CalibrateModel(object):
             else:
                 raise ValueError('Unrecognized option for `include_sfe`.')
         
+        # Initialize with best guesses mostly for debugging purposes
+        for i, par in enumerate(self.parameters):
+            if self.is_log[i]:
+                self._base_kwargs[par] = 10**self.guesses[par]
+            else:
+                self._base_kwargs[par] = self.guesses[par]
+        
         return self._base_kwargs
         
     def update_kwargs(self, **kwargs):
@@ -607,7 +614,7 @@ class CalibrateModel(object):
             data.append('song2016')
         if self.fit_beta:
             include.append('beta')
-            data.append('bouwens2014')    
+            data.extend(['bouwens2014', 'lee2011'])
         if self.fit_gs:    
             raise NotImplemented('sorry folks')
 

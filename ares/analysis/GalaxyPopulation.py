@@ -456,7 +456,6 @@ class GalaxyPopulation(object):
     def add_master_legend(self, mp, **kwargs):
         return add_master_legend(mp, **kwargs)
         
-        
     def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
         **kwargs):
         """
@@ -481,6 +480,8 @@ class GalaxyPopulation(object):
             if use_best:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
+                bkw['conserve_memory'] = False
+                
                 pop = GalaxyEnsemble(**bkw)
                 self._MegaPlotPop(axes, pop)
             else:
@@ -648,16 +649,16 @@ class GalaxyPopulation(object):
                 color=colors[j], **kwargs)    
         
             anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
-                color=colors[j], **kwargs)
+                color=colors[j], is_logx=True, **kwargs)
             
             anl.ReconstructedFunction('beta_1600', ivar=[z, None], ax=ax_bet,
                 color=colors[j], **kwargs)
             
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
-                color=colors[j], **kwargs)    
+                color=colors[j], **kwargs)
                 
             anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
-                color=colors[j], **kwargs)    
+                color=colors[j], **kwargs)
         
             anl.ReconstructedFunction('dust_scale', ivar=[z, None], ax=ax_rdu,
                 color=colors[j], **kwargs)
@@ -688,6 +689,7 @@ class GalaxyPopulation(object):
         
         ax_sfe.set_xlim(1e8, 1e13)
         ax_sfe.set_ylim(1e-3, 1.0)
+        ax_fco.set_xscale('log')
         ax_fco.set_xlim(1e8, 1e13)
         ax_fco.set_yscale('linear')
         ax_fco.set_ylim(0, 1.05)
@@ -722,6 +724,9 @@ class GalaxyPopulation(object):
         ax_lae_z.set_xlim(3., 7.2)
         ax_lae_m.set_ylim(-0.05, 1.05)
         ax_lae_z.set_ylim(-0.05, 1.05)
+
+        ax_sfrd.set_yscale('log')
+        ax_sfrd.set_ylim(1e-4, 1e-1)
 
         # Set ticks for all MUV scales
         for ax in [ax_bet, ax_phi, ax_MsMUV, ax_lae_m, ax_AUV]:
@@ -798,6 +803,7 @@ class GalaxyPopulation(object):
         ax_sfms   = kw['ax_sfms']
         
         
+        l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
         
         # Vanilla dust model
@@ -832,13 +838,18 @@ class GalaxyPopulation(object):
                 round_z=0.1, color=colors[j], mec=colors[j], mfc='none',
                 label='Stefanon+ 2017' if j == 0 else None, **mkw)
 
-            if z not in b14.data['beta']:
-                continue
+            if z in b14.data['beta']:
         
-            err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
-            ax_bet.errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
-                fmt='o', color=colors[j], label=r'Bouwens+ 2014' if j == 0 else None,
-                **mkw)
+                err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
+                ax_bet.errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
+                    fmt='o', color=colors[j], label=r'Bouwens+ 2014' if j == 0 else None,
+                    **mkw)
+                    
+            if z in l11.data['beta']:
+                ax_bet.errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
+                    l11.data['beta'][z]['err'], 
+                    fmt='*', color=colors[j], label=r'Lee+ 2011' if j == 0 else None,
+                    **mkw)
         
             # Plot vanilla dust correction
             ax_AUV.plot(np.arange(-25, -15, 0.1), 
@@ -909,7 +920,7 @@ class GalaxyPopulation(object):
 
         ax_phi.legend(loc='lower right', fontsize=8)
         ax_smf.legend(loc='lower left', fontsize=8)
-        ax_bet.legend(loc='lower left', fontsize=8)
+        ax_bet.legend(loc='upper right', fontsize=8)
         ax_AUV.legend(loc='upper right', fontsize=8)
 
 

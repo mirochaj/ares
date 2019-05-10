@@ -3671,8 +3671,8 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
-        if percentile:    
-            q1 = 0.5 * 100 * (1. - percentile)    
+        if percentile:
+            q1 = 0.5 * 100 * (1. - percentile)
             q2 = 100 * percentile + q1
             
         max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())
@@ -3774,6 +3774,9 @@ class ModelSet(BlobFactory):
                 keep[0:skip] *= 0
             if stop is not None:
                 keep[stop:]  *= 0
+                
+            if (samples is not None) and (type(samples) != str):
+                keep[0:-samples] = 0
             
             # Grab the maximum likelihood point
             if use_best and self.is_mcmc:
@@ -3797,6 +3800,8 @@ class ModelSet(BlobFactory):
             # Plot time        
             if samples == 'all':
                 ax.plot(xarr, yblob.T, **kwargs)
+            elif type(samples) is int:
+                ax.plot(xarr, yblob[keep==1].T, **kwargs)    
             elif use_best and self.is_mcmc:
                 ax.plot(xarr, yblob[keep==1][loc], **kwargs)
             elif percentile:
@@ -3851,10 +3856,12 @@ class ModelSet(BlobFactory):
             tmp = self.ExtractData(name, ivar=ivar,                            
                 take_log=take_log, un_log=un_logy)
                 
-            yblob = tmp[name]    
+            _yblob = tmp[name]    
             
             if expr is not None:
-                yblob = eval(expr)
+                _yblob = eval(expr)
+                
+            yblob = np.nan_to_num(_yblob)
             
             mask = np.all(yblob.mask == True, axis=1)
             keep = np.array(np.logical_not(mask), dtype=int)
@@ -3864,6 +3871,9 @@ class ModelSet(BlobFactory):
                 keep[0:skip] *= 0
             if stop is not None:
                 keep[stop:]  *= 0
+                
+            if (samples is not None) and (type(samples) != str):
+                keep[0:-samples] = 0    
             
             #if multiplier != 1:
             #    raise NotImplemented('need to fix this')
@@ -3879,6 +3889,9 @@ class ModelSet(BlobFactory):
                 # Slicing in y dimension
                 else:
                     pass
+            elif type(samples) is int:
+                ax.plot(xarr, yblob[keep==1].T, **kwargs)
+                
             # Plot only the best-fitting model
             elif use_best and self.is_mcmc:
                 if best == 'median':

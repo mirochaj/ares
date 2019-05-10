@@ -2198,13 +2198,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Units = Msun / yr -> Msun / dz
         PIR = fb * self.MAR(z, Mh) * dtdz
         NPIR = fb * self.MDR(z, Mh) * dtdz
-        
+
         # Measured relative to baryonic inflow
         Mb = fb * Mh
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
         Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
         Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
-        
+
         # Need SFR per dz
         if not self.pf['pop_star_formation']:
             fstar = SFR = 0.0

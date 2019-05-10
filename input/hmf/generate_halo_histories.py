@@ -34,7 +34,7 @@ cosmo = \
  'omega_m_0': 0.315579, 
  'omega_b_0': 0.0491, 
  'hubble_0': 0.6726,
- 'omega_l_0': 1. - 0.315579,   
+ 'omega_l_0': 1. - 0.315579,
 }
 
 pars.update(cosmo)
@@ -46,7 +46,7 @@ if 'npz' in fn_hmf:
 elif 'hdf5' in fn_hmf:
     pref = fn_hmf.replace('.hdf5', '')
 else:
-    raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))    
+    raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))
     
 fn = '{}.hist.hdf5'.format(pref)
 

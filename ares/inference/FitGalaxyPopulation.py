@@ -120,6 +120,7 @@ class loglikelihood(LogLikelihood):
         for i, quantity in enumerate(self.metadata):
                         
             if self.mask[i]:
+                #print('masked:', rank, self.redshifts[i], self.xdata[i])
                 continue
 
             xdat = self.xdata[i]
@@ -129,17 +130,6 @@ class loglikelihood(LogLikelihood):
                             
                 # Generate model LF
                 if quantity == 'lf':
-                    # Dust correction for observed galaxies
-                    #AUV = pop.dust.AUV(z, xdat)
-                
-                    # The input magnitudes are assumed to be *not* yet
-                    # corrected for dust, i.e., they are the observed magnitudes.
-                    # So, we need to apply a dust correction to those magnitudes
-                    # before passing them to the model, which assumes the input
-                    # magnitudes of interest are the intrinsic magnitudes.
-                
-                    # Compare data to model at dust-corrected magnitudes
-                    #M = xdat - AUV
                                     
                     # New convention: LuminosityFunction always in terms of
                     # observed magnitudes.                
@@ -147,15 +137,22 @@ class loglikelihood(LogLikelihood):
                     # Compute LF
                     p = pop.LuminosityFunction(z=z, x=xdat, mags=True, **more_kw)
                     
-                    if np.isnan(p):
-                        raise ValueError('LF is nan!', z, M)
-                                        
+                    if not np.isfinite(p):
+                        print('LF is inf or nan!', z, M)
+                        raise ValueError('LF is inf or nan!', z, M)
+                                                                
                 elif quantity == 'smf':
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(z, M)
                 elif quantity == 'beta':
                     M = xdat
                     p = pop.Beta(z, MUV=M, **more_kw)
+                    
+                    if not np.isfinite(p):
+                        print('beta is inf or nan!', z, M)
+                        return -np.inf
+                        #raise ValueError('beta is inf or nan!', z, M)
+                    
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))

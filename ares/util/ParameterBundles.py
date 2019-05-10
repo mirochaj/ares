@@ -316,8 +316,8 @@ _physical_dc_fcov = \
  'pq_func_var[21]': 'Mh',
  'pq_func_par0[21]': 0.0,     
  'pq_func_par1[21]': 1.0,
- 'pq_func_par2[21]': 10.5,
- 'pq_func_par3[21]': 0.8,
+ 'pq_func_par2[21]': 10.8,
+ 'pq_func_par3[21]': 0.3,
  'pq_val_floor[21]': 0.0,
  'pq_val_ceil[21]': 1.0,       
 }
@@ -334,19 +334,19 @@ _physical_dc_screen = \
  'pq_func_par2[20]': -1.,
 
  # Scale 
- "pop_dust_scale": 'pq[22]',   # Scale radius [in kpc]
+ "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
  "pq_func[22]": 'pl',
  'pq_func_var[22]': 'Mh',
  'pq_func_par0[22]': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
  'pq_func_par1[22]': 1e10,
- 'pq_func_par2[22]': 0.33,
+ 'pq_func_par2[22]': 0.45,
  
  # Evolution of scale
  "pq_func[23]": 'pl',
  'pq_func_var[23]': '1+z',
- 'pq_func_par0[23]': 2.0,
+ 'pq_func_par0[23]': 1.0,
  'pq_func_par1[23]': 5.,
- 'pq_func_par2[23]': -1., # R(vir) goes like 1 / (1+z)
+ 'pq_func_par2[23]': -0.5,         # R(vir) goes like 1 / (1+z)
 } 
 
 _physical_dc_patchy = _physical_dc_screen.copy()
@@ -355,7 +355,7 @@ _physical_dc_patchy.update(_physical_dc_fcov)
 _physical_dc_patchy['pq_func_par2[21]'] = 'pq[24]'
 _physical_dc_patchy["pq_func[24]"] = 'linear'
 _physical_dc_patchy['pq_func_var[24]'] = '1+z'
-_physical_dc_patchy['pq_func_par0[24]'] = 10.5
+_physical_dc_patchy['pq_func_par0[24]'] = 10.8
 _physical_dc_patchy['pq_func_par1[24]'] = 5.
 _physical_dc_patchy['pq_func_par2[24]'] = 0.
 
