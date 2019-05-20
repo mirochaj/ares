@@ -575,7 +575,6 @@ class GalaxyPopulation(object):
                 
             ax_bet.plot(_mags_b, _beta, color=colors[j])    
             
-            fduty = pop.guide.fduty(z=z, Mh=Mh)
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
             
@@ -586,9 +585,14 @@ class GalaxyPopulation(object):
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
             
             if fcov.ndim == 1:
-                ax_fco.semilogx(Mh, fduty, color=colors[j])
-            else:    
+                try:
+                    fduty = pop.guide.fduty(z=z, Mh=Mh)
+                    ax_fco.semilogx(Mh, fduty, color=colors[j])
+                except:
+                    pass    
+            else:  
                 ax_fco.semilogx(Mh, fcov, color=colors[j])
+                
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
                 
