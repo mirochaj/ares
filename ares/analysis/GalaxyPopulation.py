@@ -221,8 +221,8 @@ class GalaxyPopulation(object):
         ----------
         z : int, float
             Redshift of interest
-        wavelength : int, float 
-            Wavelength (in Angstroms) of LF. 
+        wavelength : int, float
+            Wavelength (in Angstroms) of LF.
         sed_model : instance
             ares.sources.SynthesisModel
         imf : str
@@ -501,8 +501,7 @@ class GalaxyPopulation(object):
         ax_fco = kw['ax_fco']
         ax_rdu = kw['ax_rdu']
         ax_phi = kw['ax_phi']
-        ax_bet = kw['ax_bet']
-        
+        ax_bet = kw['ax_bet']        
         
         ax_smf    = kw['ax_smf']
         ax_smhm   = kw['ax_smhm']
@@ -576,13 +575,21 @@ class GalaxyPopulation(object):
                 
             ax_bet.plot(_mags_b, _beta, color=colors[j])    
             
+            fduty = pop.guide.fduty(z=z, Mh=Mh)
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
             
             if type(fcov) in [int, float, np.float64]:
                 fcov = fcov * np.ones_like(Mh)
             
-            ax_fco.semilogx(Mh, fcov, color=colors[j])
+            #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
+            #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
+            
+            if fcov.ndim == 1:
+                ax_fco.semilogx(Mh, fduty, color=colors[j])
+            else:    
+                ax_fco.semilogx(Mh, fcov, color=colors[j])
+                
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
                 
             _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
@@ -636,7 +643,12 @@ class GalaxyPopulation(object):
         
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
-        
+            
+            
+        # Compute X_LAE, etc.
+        #anl.DeriveBlob(name='x_LAE', expr='1-fcov', clobber=True,
+        #    varmap={'fcov': 'dust_fcov'}, ivar=anl.get_ivars('dust_fcov'))    
+                
         xa_b = []
         xa_f = []
         for j, z in enumerate(redshifts):
@@ -663,8 +675,15 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('dust_scale', ivar=[z, None], ax=ax_rdu,
                 color=colors[j], **kwargs)
             
-            anl.ReconstructedFunction('dust_fcov', ivar=[z, None], ax=ax_fco,
-                color=colors[j], **kwargs)    
+            if 'fduty' in anl.all_blob_names:
+                anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
+                    color=colors[j], **kwargs)
+            else:    
+                anl.ReconstructedFunction('dust_fcov', ivar=[z, None], ax=ax_fco,
+                    color=colors[j], **kwargs)    
+            
+            #anl.ReconstructedFunction('x_LAE', ivar=[z, None], ax=ax_lae_m,
+            #    color=colors[j], **kwargs)
                 
                     
                 
@@ -980,9 +999,9 @@ class GalaxyPopulation(object):
         for j, z in enumerate(zlist):
             ax_lae_z.errorbar(zlist[j], x25_b[j], yerr=err_b[j], 
                 color=_colors[j], ms=5, 
-                label=r'Stark+ 2011' if j == 0 else None, 
+                label=r'Stark+ 2011' if j == 0 else None,
                 fmt='s', mfc='none', **mkw)
-            ax_lae_z.errorbar(zlist[j], x25_f[j], yerr=err_f[j], 
+            ax_lae_z.errorbar(zlist[j], x25_f[j], yerr=err_f[j],
                 color=_colors[j], ms=5,
                 fmt='o', mfc='none', **mkw)
 
@@ -1041,7 +1060,9 @@ class GalaxyPopulation(object):
 
         ax_rdu.set_xlabel(r'$M_h / M_{\odot}$')
         ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
+        
         ax_fco.set_ylabel(r'$f_{\mathrm{cov,dust}}$')
+            
         ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
         
         ax_AUV.set_title('Predictions', fontsize=18)

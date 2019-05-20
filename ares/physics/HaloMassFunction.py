@@ -178,9 +178,25 @@ class HaloMassFunction(object):
                     
                     self.tab_name = None
                     for candidate in candidates:
+                        
+                        if 'hist' in candidate:
+                            continue
+                        
+                        results = list(map(int, re.findall(r'\d+', candidate)))
+
+                        if self.hmf_func == 'Tinker10':
+                            ist = 1
+                        else:
+                            ist = 0
+                            
+                        if 'hdf5' in candidate:
+                            ien = -1
+                        else:
+                            ien = None
+                                                        
                         _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
-                            list(map(int, re.findall(r'\d+', candidate)))
-                    
+                            results[ist:ien]           
+
                         if (_logMmin > logMmin) or (_logMmax < logMmax):
                             continue
                             

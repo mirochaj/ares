@@ -107,7 +107,7 @@ class ModelSetGalaxyPopulation(ModelSet):
             ax = self._Recovered_Function(redshift, quantity=quantity, ax=ax,
                 percentile=percentile, use_best=use_best, best=best,
                 samples=samples, skip=skip, stop=stop, 
-                show_all=show_all, **kwargs)    
+                show_all=show_all, **kwargs)
         
         pl.draw()
 

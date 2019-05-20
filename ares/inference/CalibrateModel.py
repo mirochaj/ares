@@ -47,7 +47,7 @@ class CalibrateModel(object):
         use_ensemble=True,  
         include_sfe=True, free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
-        include_dust='var_beta', 
+        include_dust='var_beta', include_fduty=False, zevol_fduty=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
         save_lf=True, save_smf=False, save_sam=False,
         save_sfrd=False, save_beta=False, save_dust=False):
@@ -88,6 +88,7 @@ class CalibrateModel(object):
         self.include_scatter_mar = int(include_scatter_mar)
         
         self.include_dust = include_dust
+        self.include_fduty = include_fduty
 
         # Set SFE free parameters
         self.free_params_sfe = free_params_sfe        
@@ -120,6 +121,8 @@ class CalibrateModel(object):
             self.zevol_dust = free_params_dust
         else:
             self.zevol_dust = zevol_dust    
+        
+        self.zevol_fduty = zevol_fduty
         
         self.save_lf = int(save_lf)
         self.save_smf = int(save_smf)
@@ -173,12 +176,13 @@ class CalibrateModel(object):
                  
             enorm_d = 'norm' in self.zevol_dust
             
-            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}'.format(
-                int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d))
-        elif self.include_sfe in ['f17-p', 'f17-E']:
-            rest = 'sfe-{}_fshock-{}_dust-{}_edust-{}_zcal-{}'.format(
-                self.include_sfe, self.include_fshock, self.include_dust, 
-                self.zevol_dust, zs)
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_fduty-{}_efduty-{}'.format(
+                int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d),
+                int(self.include_fduty), int(self.zevol_fduty))
+        #elif self.include_sfe in ['f17-p', 'f17-E']:
+        #    rest = 'sfe-{}_fshock-{}_dust-{}_edust-{}_zcal-{}'.format(
+        #        self.include_sfe, self.include_fshock, self.include_dust, 
+        #        self.zevol_dust, zs)
         else:
             raise ValueError('Unrecognized option for `include_sfe`.')
             
@@ -289,6 +293,28 @@ class CalibrateModel(object):
                 is_log.extend([True])
                 jitter.extend([0.5])
                 ps.add_distribution(UniformDistribution(-2, 2), 'pq_func_par0[1]')
+            
+            ##
+            # fduty
+            ##
+            if self.include_fduty:
+                                
+                # Normalization of SFE
+                free_pars.extend(['pq_func_par0[31]', 'pq_func_par2[30]'])
+                guesses['pq_func_par0[31]'] = 0.8
+                guesses['pq_func_par2[30]'] = 0.2
+                is_log.extend([False, False])
+                jitter.extend([0.1, 0.1])
+                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[31]')
+                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[30]')
+                
+                if self.zevol_fduty:
+                    free_pars.append('pq_func_par2[31]')
+                    guesses['pq_func_par2[31]'] = 0.
+                    is_log.extend([False])
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[31]')
+            
             
             ##
             # OBSCURATION
@@ -462,6 +488,21 @@ class CalibrateModel(object):
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
 
+        if self.include_fduty:
+            blob_n = ['fduty']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+
+            if self.use_ensemble:
+                blob_f = ['guide.fduty']
+            else:
+                blob_f = ['fduty']
+
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(None)
+            
+
         # Binary obscuration
         #if self.include_obsc:
         #    blob_n2.append('fobsc')
@@ -579,6 +620,9 @@ class CalibrateModel(object):
             else:
                 raise ValueError('Unrecognized option for `include_sfe`.')
         
+            if self.include_fduty:
+                self._base_kwargs.update(PB('in_prep:fduty').pars_by_pop(0, 1))
+        
         # Initialize with best guesses mostly for debugging purposes
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
@@ -615,7 +659,7 @@ class CalibrateModel(object):
         if self.fit_beta:
             include.append('beta')
             data.extend(['bouwens2014', 'lee2011'])
-        if self.fit_gs:    
+        if self.fit_gs:
             raise NotImplemented('sorry folks')
 
         # Must be before data is set

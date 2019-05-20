@@ -1,114 +1,100 @@
 import numpy as np
+from mirocha2017 import base as _base_
+from mirocha2017 import dflex as _dflex_
 
-# Giving fsmooth 5 <= PQs < 10         
-fsmooth = \
+base = _base_.copy()
+base.update(_dflex_)
+
+_base = \
 {
- 'pop_fsmooth': 'pq[5]',
- 'pq_func[5]': 'log_tanh_abs',
- 'pq_func_var[5]': 'Mh',
- 'pq_func_par0[5]': 0.7,
- 'pq_func_par1[5]': 0.3,
- 'pq_func_par2[5]': 12.,
- 'pq_func_par3[5]': 1.,
+ 'pop_sfr_model{0}': 'ensemble', 
+ 'pop_sed{0}': 'eldridge2009',
+ 
+ 'pop_sed_degrade{0}': 10,
+ 'pop_thin_hist{0}': 10,
+ 'pop_aging{0}': True,
+ 'pop_ssp{0}': True,
+ 'pop_mass_yield{0}': 0.15,
+ 'pop_calib_L1600{0}': None,
+ 'pop_Z{0}': 0.002, 
+ 'pop_zdead{0}': 3.5,
+ 
+ # Metallicity evolution!
+ 'pop_enrichment{0}': False,
+ 'pop_metal_yield{0}': 0.1,
+ 'pop_mass_yield{0}': 0.15,
+ 'pop_fpoll{0}': 1,
+ 
+ 'pop_scatter_mar{0}': 0.3,
+   
+ 'hmf_dt': 1.,
+ 'hmf_tmax': 2e3,
+ 'hmf_model': 'Tinker10',
+ 
+ "sigma_8": 0.8159, 
+ 'primordial_index': 0.9652, 
+ 'omega_m_0': 0.315579, 
+ 'omega_b_0': 0.0491, 
+ 'hubble_0': 0.6726,
+ 'omega_l_0': 1. - 0.315579,
+
+ # Screw with SFE.
+ 'pq_func_par0[1]{0}': 3e-2,         # SFE normalization [0.05 by default]
+ 'pq_func_par0[3]{0}': 0.5,
+ 'pq_func_par0[4]{0}': 0.0,           # High-mass slope
+ 'pq_func_par2[1]{0}': 0.,           # Redshift evolution
+ 
+ 'pq_func_par1[1]{0}': 5.,           # Pin to z = 4         
 }
 
-fsmooth_evol = fsmooth.copy()
-for j, i in enumerate(range(6, 10)):
-    fsmooth_evol['pq_func_par{}[5]'.format(j)] = 'pq[{}]'.format(i)
-    fsmooth_evol['pq_func[{}]'.format(i)] = 'pl'
-    fsmooth_evol['pq_func_var[{}]'.format(i)] = '1+z'
-    fsmooth_evol['pq_func_par0[{}]'.format(i)] = fsmooth['pq_func_par{}[5]'.format(j)]
-    fsmooth_evol['pq_func_par1[{}]'.format(i)] = 7.
-    fsmooth_evol['pq_func_par2[{}]'.format(i)] = 0.
+base.update(_base)
 
-# Giving fsmooth 10 <= PQs < 15
-fobsc = \
+screen = \
 {
- 'pop_fobsc': 'pq[10]',
- 'pq_func[10]': 'log_tanh_abs',
- 'pq_func_var[10]': 'Mh',
- 'pq_func_par0[10]': 0.1,
- 'pq_func_par1[10]': 0.9,
- 'pq_func_par2[10]': 11.5,
- 'pq_func_par3[10]': 0.5,
+ 'pop_dust_fcov{0}': 1,  
+ 'pq_func_par2[22]{0}': 0.45,              # PL dependence of Rdust on Mh
+ 'pq_func_par0[23]{0}': 2.,                # normalization if Rdust [kpc]
+ 'pq_func_par2[23]{0}': 0.,                # PL dependence of Rdust on z
+  
+ 'pop_dust_yield{0}': 0.4,
+ 
 }
 
-fobsc_evol = fobsc.copy()
-for j, i in enumerate(range(11, 15)):
-    fobsc_evol['pq_func_par{}[10]'.format(j)] = 'pq[{}]'.format(i)
-    fobsc_evol['pq_func[{}]'.format(i)] = 'pl'
-    fobsc_evol['pq_func_var[{}]'.format(i)] = '1+z'
-    fobsc_evol['pq_func_par0[{}]'.format(i)] = fobsc['pq_func_par{}[10]'.format(j)]
-    fobsc_evol['pq_func_par1[{}]'.format(i)] = 7.
-    fobsc_evol['pq_func_par2[{}]'.format(i)] = 0.
-
-"""
-Saves some disk space since redshift is irrelevant for scaling laws.
-"""
-_const_blob_n1 = ['lf']                         # function of MUV
-_const_blob_n2 = ['fstar', 'fsmooth', 'fobsc']  # function of halo mass, not z
-_const_blob_n3 = ['smf']                        # function of stellar mass
-_const_blob_n4 = ['SFR', 'Mgas', 'MZ', 'Mstell']# can depend on redshift
-_const_blob_i1 = [('z', np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
-    ('x', np.arange(-27, -8.8, 0.2))]
-_const_blob_i2 = [('Mh', 10**np.arange(5., 13.6, 0.1))]
-_const_blob_i3 = [('z', np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
-    ('M', 10**np.arange(5., 13.6, 0.1))]
-_const_blob_i4 = [('z', np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
-    ('Mh', 10**np.arange(5., 13.6, 0.1))]    
-_const_blob_f1 = ['LuminosityFunction']
-_const_blob_f2 = ['fstar', 'fsmooth', 'fobsc']
-_const_blob_f3 = ['StellarMassFunction']
-_const_blob_f4 = ['SFR', 'GasMass', 'MetalMass', 'StellarMass']
-
-# Case where everything evolves with z
-_zevol_blob_n1 = ['lf']                                               # function of MUV
-_zevol_blob_n2 = ['fstar', 'fsmooth', 'fobsc', 'SFR', 'Mgas', 'MZ', 'Mstell']  # function of halo mass
-_zevol_blob_n3 = ['smf']                                              # function of stellar mass
-_zevol_blob_i1 = [('z', np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
-    ('x', np.arange(-27, -8.8, 0.2))]
-_zevol_blob_i2 = [('z', np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
-    ('Mh', 10**np.arange(5., 13.6, 0.1))]
-_zevol_blob_i3 = [('z', np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
-    ('M', 10**np.arange(5., 13.6, 0.1))]
-_zevol_blob_f1 = ['LuminosityFunction']
-_zevol_blob_f2 = ['fstar', 'fsmooth', 'fobsc', 'SFR', 'GasMass', 'MetalMass', 'StellarMass']
-_zevol_blob_f3 = ['StellarMassFunction']
-
-sfe_const = \
-{ 
- 'blob_names': [_const_blob_n1, _const_blob_n2, _const_blob_n3, _const_blob_n4],
- 'blob_ivars': [_const_blob_i1, _const_blob_i2, _const_blob_i3, _const_blob_i4],
- 'blob_funcs': [_const_blob_f1, _const_blob_f2, _const_blob_f3, _const_blob_f4],
-}
-
-sfe_zevol = \
-{ 
- 'blob_names': [_zevol_blob_n1, _zevol_blob_n2, _zevol_blob_n3],
- 'blob_ivars': [_zevol_blob_i1, _zevol_blob_i2, _zevol_blob_i3],
- 'blob_funcs': [_zevol_blob_f1, _zevol_blob_f2, _zevol_blob_f3],
-}
-
-lfonly = \
-{ 
- 'blob_names': [_const_blob_n1],
- 'blob_ivars': [_const_blob_i1],
- 'blob_funcs': [_const_blob_f1],
-}
-
-smfonly = \
-{ 
- 'blob_names': [_zevol_blob_n2],
- 'blob_ivars': [_zevol_blob_i2],
- 'blob_funcs': [_zevol_blob_f2],
-}
-
-ddpl = \
+patchy = \
 {
- 'pq_func[0]': 'ddpl',
- 'pq_func_par4[0]': 5e-1, 
- 'pq_func_par5[0]': 5e11,
- 'pq_func_par6[0]': 1.,
- 'pq_func_par7[0]': -0.5,
+ 'pop_dust_fcov{0}': 'pq[21]',
+ 'pq_func[21]{0}': 'log_tanh_abs',
+ 'pq_func_var[21]{0}': 'Mh',
+ 'pq_func_par0[21]{0}': 0.05,
+ 'pq_func_par1[21]{0}': 1.0,
+ 'pq_func_par2[21]{0}': 'pq[24]',
+ 'pq_func_par3[21]{0}': 0.2,
+ 
+ # Redshift evolution of transition mass
+ 'pq_func[24]{0}': 'linear',
+ 'pq_func_var[24]{0}': '1+z',
+ 'pq_func_par0[24]{0}': 10.8,
+ 'pq_func_par1[24]{0}': 5.,
+ 'pq_func_par2[24]{0}': 0.0,
 }
+
+fduty = \
+{
+ 'pop_fduty{0}': 'pq[30]',
+ "pq_func[30]{0}": 'pl',
+ 'pq_func_var[30]{0}': 'Mh',
+ 'pq_func_par0[30]{0}': 'pq[31]',
+ 'pq_func_par1[30]{0}': 1e10,
+ 'pq_func_par2[30]{0}': 0.2,
+ 'pq_val_ceil[30]{0}': 1.0,
+ 
+ # Redshift evolution of fduty normalization
+ 'pq_func[31]{0}': 'pl',
+ 'pq_func_var[31]{0}': '1+z',
+ 'pq_func_par0[31]{0}': 0.5,
+ 'pq_func_par1[31]{0}': 5.,
+ 'pq_func_par2[31]{0}': 0.0,
+ 
+}
+
 
