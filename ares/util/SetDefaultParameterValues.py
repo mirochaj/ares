@@ -746,6 +746,14 @@ def SourceParameters():
     "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
+    "source_dE": None,
+    "source_dlam": None,
+    
+    "source_toysps_beta": -3.5,
+    "source_toysps_norm": 2e33,  # at 1600A
+    "source_toysps_gamma": -0.8,
+    "source_toysps_alpha": 5.,
+    "source_toysps_t0": 100.,
     
     "source_Ekill": None,
     

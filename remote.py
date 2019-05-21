@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, re, sys, tarfile
+import os, re, sys, tarfile, zipfile
 try:
     from urllib.request import urlretrieve # this option only true with Python3
 except:
@@ -56,7 +56,17 @@ aux_data = \
     None],
  'nircam': ['https://jwst-docs.stsci.edu/download/attachments/17760694/',
      'nircam_throughputs_22April2016_v4.tar.gz',
-     None]
+     None],
+ 'wfc3': ['http://www.stsci.edu/hst/wfc3/ins_performance/throughputs/Throughput_Tables/',
+    'IR.zip',
+     None],
+ 'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
+    'wfc_F435W.dat',
+    'wfc_F606W.dat',
+    'wfc_F775W.dat',
+    'wfc_F814W.dat',
+    'wfc_F850LP.dat',
+    None],
 }
 
 if not os.path.exists('input'):
@@ -130,6 +140,13 @@ for i, direc in enumerate(to_download):
             urlretrieve('{0!s}/{1!s}'.format(web, fn), _fn)
         except:
             print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
+            continue
+        
+        # If it's a zip, unzip and move on.
+        if re.search('.zip', _fn) and (not re.search('tar', _fn)):
+            zip_ref = zipfile.ZipFile(_fn, 'r')
+            zip_ref.extractall()
+            zip_ref.close()            
             continue
         
         # If it's not a tarball, move on
