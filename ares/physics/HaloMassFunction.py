@@ -1154,6 +1154,8 @@ class HaloMassFunction(object):
         if os.path.exists(fn):
             if clobber and rank == 0:
                 os.remove(fn)
+            elif rank != 0:
+                pass
             else:
                 raise IOError(('File {!s} exists! Set clobber=True or ' +\
                     'remove manually.').format(fn))    
