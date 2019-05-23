@@ -409,7 +409,10 @@ def PopulationParameters():
     "pop_uvlf": None,
     'pop_lf_Mmax': 1e15,
 
-    "pop_fduty": 1.0,
+    "pop_fduty": None,
+    "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
+                          # it's coherent.
+    
     "pop_focc": 1.0,
     
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
@@ -440,6 +443,7 @@ def PopulationParameters():
     "pop_sed_by_Z": None,
     
     "pop_ssp_oversample": False,
+    "pop_ssp_oversample_age": 30.,
     
     "pop_sfh": False,             # account for SFH in spectrum modeling
 
@@ -516,6 +520,12 @@ def PopulationParameters():
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 20.,
     "pop_synth_zmin": 3.5,
+    
+    
+    "pop_tau_bc": 0,
+    "pop_age_bc": 10.,
+    
+    "pop_mergers": False,
     
     # For Clusters
     "pop_mdist": None,
@@ -643,7 +653,7 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
-    "pop_dust_yield": 0.,     # Mdust = dust_yield * metal mass
+    "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,     
     "pop_dust_geom": 'screen',  # or 'mixed'
@@ -736,6 +746,14 @@ def SourceParameters():
     "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
+    "source_dE": None,
+    "source_dlam": None,
+    
+    "source_toysps_beta": -3.5,
+    "source_toysps_norm": 2e33,  # at 1600A
+    "source_toysps_gamma": -0.8,
+    "source_toysps_alpha": 5.,
+    "source_toysps_t0": 100.,
     
     "source_Ekill": None,
     

@@ -11,6 +11,7 @@ Description:
 """
 
 import os
+import copy
 import numpy as np
 import matplotlib.pyplot as pl
 from ..physics.Constants import c
@@ -35,6 +36,8 @@ class Survey(object):
             self.path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path, mod)
         elif cam == 'wfc3':
             self.path = '{}/wfc3'.format(_path)
+        elif cam == 'wfc':
+            self.path = '{}/wfc'.format(_path)
         else:
             raise NotImplemented('Unrecognized camera \'{}\''.format(cam))
     @property
@@ -101,11 +104,17 @@ class Survey(object):
             ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
             
             if annotate:
-                ax.annotate(filt, (data[filt][2], 0.6), ha='center', va='top',
+                if filt.endswith('IR'):
+                    _filt = filt[0:-3]
+                else:    
+                    _filt = filt
+                    
+                ax.annotate(_filt, (data[filt][2], 0.8), ha='center', va='top',
                     color=colors[i], rotation=90)
             
         ax.set_xlabel(r'Observed Wavelength $[\mu \mathrm{m}]$')    
         ax.set_ylabel('Transmission')
+        ax.set_ylim(-0.05, 1.05)
         #ax.legend(loc='best', frameon=False, fontsize=10, ncol=2)
             
         return ax
@@ -115,6 +124,8 @@ class Survey(object):
             return self._read_nircam(filter_set)
         elif self.camera == 'wfc3':
             return self._read_wfc3(filter_set)        
+        elif self.camera == 'wfc':
+            return self._read_wfc(filter_set)    
         else:
             raise NotImplemented('help')
             
@@ -123,71 +134,111 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
             
-        if filter_set in self._filter_cache:
-            return self._filter_cache[filter_set]
+        if type(filter_set) != list:
+            filter_set = [filter_set]
+
+        data = {}
+        for fn in os.listdir(self.path):
+                    
+            pre = fn.split('_')[0]
+            
+            for _filters in filter_set:
+                
+                if _filters in self._filter_cache:
+                    data[pre] = self._filter_cache[_filters]
+                    continue
+                    
+                if _filters not in pre:
+                    continue        
         
+                # Need to distinguish W from W2
+                if (_filters == 'W') and ('W2' in pre):
+                    continue
+                                                                        
+                # Determine the center wavelength of the filter based its string
+                # identifier.    
+                k = pre.rfind(_filters)    
+                cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                
+                # Wavelength [micron], transmission
+                x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
+                    skiprows=1)
+                
+                data[pre] = self._get_filter_prop(x, y, cent)
+            
+                self._filter_cache[pre] = copy.deepcopy(data[pre])
+        
+        return data   
+        
+    def _read_wfc(self, filter_set='W'):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+            
+        if type(filter_set) != list:
+            filter_set = [filter_set]    
+            
         data = {}
         for fn in os.listdir(self.path):
         
-            pre = fn.split('_')[0]
+            pre = fn.split('wfc_')[1].split('.dat')[0]
             
-            if filter_set not in pre:
-                continue
-        
-            # Need to distinguish W from W2
-            if filter_set == 'W' and 'W2' in pre:
-                continue
+            for _filters in filter_set:
+            
+                if _filters in self._filter_cache:
+                    data[pre] = self._filter_cache[_filters]
+                    continue
                     
-            # Determine the center wavelength of the filter based its string
-            # identifier.    
-            k = pre.rfind(filter_set)    
-            cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                if _filters not in pre:
+                    continue
+                
+                # Determine the center wavelength of the filter based on its string
+                # identifier.    
+                k = pre.rfind(_filters)
+                cent = float('0.{}'.format(pre[1:k]))
+                
+                x, y = np.loadtxt('{}/{}'.format(self.path, fn), 
+                    unpack=True, skiprows=1)
+                                            
+                # Convert wavelengths from nanometers to microns
+                data[pre] = self._get_filter_prop(x / 1e4, y, cent)
+
+                self._filter_cache[pre] = copy.deepcopy(data[pre])
         
-            # Wavelength [micron], transmission
-            x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
-                skiprows=1)
-            
-            data[pre] = self._get_filter_prop(x, y, cent)
-            
-        self._filter_cache[filter_set] = data
-        
-        return data   
+        return data    
                  
     def _read_wfc3(self, filter_set='W'):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
             
-        if filter_set in self._filter_cache:
-            return self._filter_cache[filter_set]
-        
-        data = {}
-        for fn in os.listdir(self.path):
-        
-            pre = fn.split('throughput')[0]
+        if type(filter_set) != list:
+            filter_set = [filter_set]    
             
-            if filter_set not in pre:
-                continue
+        data = {}
+        for fn in os.listdir(self.path+'/IR'):
         
-            # Determine the center wavelength of the filter based on its string
-            # identifier.    
-            k = pre.rfind(filter_set)
-            cent = float('{}.{}'.format(pre[1], pre[2:k]))
-        
-            if 'UVIS' in fn:                
-                _i, x1, y1, x2, y2 = np.loadtxt('{}/{}'.format(self.path, fn), 
-                    unpack=True, skiprows=1, delimiter=',')
+            pre = fn.split('_throughput')[0]
+            
+            for _filters in filter_set:
+            
+                if _filters in self._filter_cache:
+                    data[pre] = self._filter_cache[_filters]
+                    continue
                     
-                if self.chip == 1:
-                    data[pre] = self._get_filter_prop(x1, y1, cent)
-                else:
-                    data[pre] = self._get_filter_prop(x2, y2, cent)
-            else:
-                _i, x, y = np.loadtxt('{}/{}'.format(self.path, fn), 
+                if _filters not in pre:
+                    continue
+        
+                # Determine the center wavelength of the filter based on its string
+                # identifier.    
+                k = pre.rfind(_filters)
+                cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                
+                _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn), 
                     unpack=True, skiprows=1, delimiter=',')
                             
-                data[pre] = self._get_filter_prop(x, y, cent)
+                # Convert wavelengths from Angstroms to microns
+                data[pre] = self._get_filter_prop(x / 1e4, y, cent)
 
-        self._filter_cache[filter_set] = data
+                self._filter_cache[pre] = copy.deepcopy(data[pre])
         
         return data
         
@@ -276,7 +327,9 @@ class Survey(object):
     
         # Loop over filters, compute fluxes in band (accounting for 
         # transmission fraction) and convert to observed magnitudes.
-        for filt in data:
+        all_filters = data.keys()
+        
+        for filt in all_filters:
 
             x, y, cent, dx, Tavg, norm = data[filt]
 
@@ -297,6 +350,40 @@ class Survey(object):
         yphot_obs = np.array(yphot_obs)
         yphot_corr = np.array(yphot_corr)
         
-        return xphot, wphot, -2.5 * np.log10(yphot_obs / flux_AB), \
+        return all_filters, xphot, wphot, -2.5 * np.log10(yphot_obs / flux_AB), \
             -2.5 * np.log10(yphot_corr / flux_AB)
         
+    def get_beta(self, z, data, filter_set='W'):
+        filt, xphot, wphot, mag, magcorr = \
+            self.photometrize_spectrum(data, z, flux_units=True, 
+            filter_set=filter_set)
+    
+        # Need to sort first.
+        iphot = np.argsort(xphot)
+    
+        xphot = xphot[iphot]
+        wphot = wphot[iphot]
+        mag = mag[iphot]
+        magcorr = magcorr[iphot]
+        all_filt = np.array(filt)[iphot]
+
+        flux = 10**(magcorr * -0.4)
+
+        slopes = {}
+        for i, filt in enumerate(xphot):
+        
+            if i == (len(xphot) - 1):
+                break
+            
+            beta = np.log10(flux[i+1] / flux[i]) \
+                 / np.log10(xphot[i+1] / xphot[i])
+        
+            midpt = np.mean([xphot[i], xphot[i+1]])
+        
+            # In Angstrom
+            rest_wave = midpt * (1. / 1e6) * 1e10 / (1. + z)
+                
+            slopes[(all_filt[i], all_filt[i+1])] = midpt, beta
+        
+        
+        return slopes

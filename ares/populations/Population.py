@@ -19,7 +19,8 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..util import MagnitudeSystem
 from ..phenom.DustCorrection import DustCorrection
-from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
+from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
+    SynthesisModel, SynthesisModelToy
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
 
@@ -431,6 +432,8 @@ class Population(object):
                 self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in _single_star_models:
                 self._Source_ = StarQS
+            elif self.pf['pop_sed'] == 'sps-toy':
+                self._Source_ = SynthesisModelToy
             elif type(self.pf['pop_sed']) is FunctionType or \
                  inspect.ismethod(self.pf['pop_sed']) or \
                  isinstance(self.pf['pop_sed'], interp1d):

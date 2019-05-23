@@ -178,9 +178,25 @@ class HaloMassFunction(object):
                     
                     self.tab_name = None
                     for candidate in candidates:
+                        
+                        if 'hist' in candidate:
+                            continue
+                        
+                        results = list(map(int, re.findall(r'\d+', candidate)))
+
+                        if self.hmf_func == 'Tinker10':
+                            ist = 1
+                        else:
+                            ist = 0
+                            
+                        if 'hdf5' in candidate:
+                            ien = -1
+                        else:
+                            ien = None
+                                                        
                         _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
-                            list(map(int, re.findall(r'\d+', candidate)))
-                    
+                            results[ist:ien]           
+
                         if (_logMmin > logMmin) or (_logMmax < logMmax):
                             continue
                             
@@ -1096,7 +1112,8 @@ class HaloMassFunction(object):
                         
         return s   
                                
-    def SaveHMF(self, fn=None, clobber=False, destination=None, format='hdf5'):
+    def SaveHMF(self, fn=None, clobber=False, destination=None, format='hdf5',
+        save_MAR=True):
         """
         Save mass function table to HDF5 or binary (via pickle).
         
@@ -1135,8 +1152,10 @@ class HaloMassFunction(object):
                 print("Will go with format indicated by filename suffix.")
         
         if os.path.exists(fn):
-            if clobber:
+            if clobber and rank == 0:
                 os.remove(fn)
+            elif rank != 0:
+                pass
             else:
                 raise IOError(('File {!s} exists! Set clobber=True or ' +\
                     'remove manually.').format(fn))    
@@ -1153,8 +1172,11 @@ class HaloMassFunction(object):
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_dndm', data=self.tab_dndm)
             f.create_dataset('tab_ngtm', data=self.tab_ngtm)
-            f.create_dataset('tab_mgtm', data=self.tab_mgtm)        
-            f.create_dataset('tab_MAR', data=self.tab_MAR)
+            f.create_dataset('tab_mgtm', data=self.tab_mgtm)    
+            
+            if save_MAR:    
+                f.create_dataset('tab_MAR', data=self.tab_MAR)
+                
             f.create_dataset('tab_Mmin_floor', data=self.tab_Mmin_floor)
             f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
             f.create_dataset('tab_growth', data=self.tab_growth)
@@ -1170,7 +1192,6 @@ class HaloMassFunction(object):
                     'tab_dndm': self.tab_dndm,
                     'tab_ngtm': self.tab_ngtm, 
                     'tab_mgtm': self.tab_mgtm,
-                    'tab_MAR': self.tab_MAR,
                     'tab_Mmin_floor': self.tab_Mmin_floor,
                     'tab_growth': self.tab_growth,
                     'tab_ps_lin': self.tab_ps_lin,
@@ -1182,9 +1203,9 @@ class HaloMassFunction(object):
                     #         'pars_transfer': self.pars_transfer},
                     'hmf-version': hmf_v}
                     
-            for key in data:
-                print(key, type(data[key]))        
-                    
+            if save_MAR:
+                data['tab_MAR'] = self.tab_MAR
+                       
             np.savez(fn, **data)
 
         # Otherwise, pickle it!    
@@ -1195,7 +1216,10 @@ class HaloMassFunction(object):
             pickle.dump(self.tab_dndm, f)
             pickle.dump(self.tab_ngtm, f)
             pickle.dump(self.tab_mgtm, f)
-            pickle.dump(self.tab_MAR, f)
+            
+            if save_MAR:
+                pickle.dump(self.tab_MAR, f)
+                
             pickle.dump(self.tab_Mmin_floor, f)
             pickle.dump(self.tab_ps_lin, f)
             pickle.dump(self.tab_sigma, f)

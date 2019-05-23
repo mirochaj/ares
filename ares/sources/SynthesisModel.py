@@ -321,17 +321,17 @@ class SynthesisModel(Source):
 
         return self._uvslope
         
-    def get_beta(self, wave=1600, dlam=500, data=None):
+    def get_beta(self, wave1=1600, wave2=2300, data=None):
         
         if data is None:
             data = self.data
             
-        ok = np.logical_or(wave-dlam == self.wavelengths, 
-                           wave+dlam == self.wavelengths)    
+        ok = np.logical_or(wave1 == self.wavelengths, 
+                           wave2 == self.wavelengths)    
 
         arr = self.wavelengths[ok==1]
         
-        Lh_l = np.array(self.data[ok==1,:])
+        Lh_l = np.array(data[ok==1,:])
         
         logw = np.log(arr)
         logL = np.log(Lh_l)

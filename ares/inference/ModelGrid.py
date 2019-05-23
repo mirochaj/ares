@@ -702,7 +702,7 @@ class ModelGrid(ModelFit):
                     _done_all = self.done.copy()
                     _done_all += _done_extra
                     for i in range(1, size):    
-                        MPI.COMM_WORLD.Send(_done_all, dest=i, tag=10*i)    
+                        MPI.COMM_WORLD.Send(_done_all, dest=i, tag=10*i)
 
                 else:
                     self.done = np.zeros(self.grid.shape)
