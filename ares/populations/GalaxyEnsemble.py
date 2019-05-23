@@ -1202,46 +1202,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Need to add luminosity from progenitor history even after merger.
         ##        
         
-        if 'child' in halos and self.pf['pop_mergers']:
-            child_iz, child_iM = halos['child'][:,-1::-1].T
+        if ('child' in halos) and self.pf['pop_mergers']:
+            child = halos['child']
+            child_iz, child_iM = halos['child'].T
+            
+            is_central = child_iM == -1
                                          
             if np.all(is_central == 1):
                 pass
             else:    
-                # Need to determind index where merger happened.
-                # Could find where dM == -Mh
                 
-                # Grab satellites
-                #sat = is_central == 0
-                ## Make 2-D
-                #is_sat = np.reshape(np.repeat(sat, z.size), (sat.size, z.size))
-                                
-                # Flag all timesteps where satellite is distinct object.
-                #distinct = np.logical_and(is_sat==1, Mh>0)
-                #absorbed = np.logical_not(distinct)
-                
-                print('merging stuff!')
-                
-                
-                # Collapse down stellar mass of progenitors
-                #Mf = Mh[distinct == True]
-                #
-                #Nz = z.size
-                #Nh = Mh.shape[0]
-                #Nc = int(c.sum())
-                #Np = Mh.shape[0] / Nc
-                #extra_Ms = np.zeros((Nc, Nz))
-                
-                # Identify all 'live' branch segments
-                #live_branch = Mh > 0
-                #
-                ## Highest index where halo is still distinct, i.e., hasn't
-                ## yet merged. Subtract one to obtain redshift where we must
-                ## starting adding this halo's mass etc. to its children.
-                #i_merge = np.argmax(live_branch, axis=1) - 1
-                
-                # Easy things first. Eliminate merged halos in 'nh'.
-                                
                 print("Looping over {} halos...".format(Mh.shape[0]))                
                                 
                 pb = ProgressBar(Mh.shape[0])
@@ -1253,67 +1223,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     # This means the i'th halo is alive and well at the
                     # final redshift, i.e., it's a central
                     if is_central[i]:
-                        continue          
+                        continue
                          
                     pb.update(i)
                                                                 
                     # At this point, need to figure out which child halos
                     # to dump mass and SFH into...    
                         
-                    nh[i,0:i_merge[i]+1] = 0
+                    nh[i,0:child_iz[i]+1] = 0
                     
                     # To figure out which halo this one is absorbed by, we
                     # simply look for halos with the same child whose merger
                     # time is *later* than this halo.
                     
-                    # Child halo, i.e., halo this one ultimately ends up in.
-                    j = child[i]
-                    
-                    # Replace i-1 with RIGHT child index
-                    Ms[i-1,0:i_merge[i+1]] += Ms[i,i_merge[i]+1]
-                    
-                    
-                    # All halos who share the same final descendant
-                    #match = child == j
-                    #
-                    #if match.sum() == 1:
-                    #    continue
-                    
-                    #cousins = np.argwhere(match).squeeze()
-                    
-                    #print(i, Mh.shape[0], i_merge[i], cousins)
-                    
-                    
-                    
-                    # Do we have enough information to do this?
-                    
-                    # This is the index where this halo last lived on its own.
-                    #i_merge[i] + 1
-                    
-                    # The relevant child will have _i < i just based on how 
-                    # we build the halo trajectories. 
-                    
-                    # So, find the closest cousin with _i < i
+                    # Dump all stellar mass into child halo at all
+                    # subsequent timesteps.
+                    # Or, will this 'erase' zeros appropriately filling Ms
+                    # array?
                                         
-                    # Need to add stellar mass to all children in this branch
-                    # of the tree.
-
-                    #for _k, k in enumerate(range(i, i-10, -1)):
-                    #    
-                    #    # If I hit another halo that doesn't live to the next
-                    #    # timestep, I've found the child.
-                    #    if live_branch[k,i_merge[k]]:
-                    #        l = k
-                    #        Ms[l,0:i_merge[i+1]] += Ms[i,i_merge[i]+1]
-                    #        break
-
-                    # Add final mass of this progenitor to future of branch
-
-                pb.finish()        
-                            
+                    Ms[child_iM[i],0:child_iz[i]+1] += Ms[i,child_iz[i]+1]
+                    
+                pb.finish()
         else:
-            extra_Ms = 0.0        
-                
+            child = None
+            
         # Pack up                
         results = \
         {
@@ -1321,6 +1254,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Mh': Mh,#[:,-1::-1],
          't': t,#[-1::-1],
          'z': z,#[-1::-1],
+         'child': child,
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
          'SFR': SFR,#[:,-1::-1],
@@ -1404,12 +1338,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #rebin = np.concatenate((dMh_dMs, [dMh_dMs[-1]]))
                 
         if (bins is None) or (type(bins) is not np.ndarray):
-            bin = 0.1
-            bin_c = np.arange(6., 13.+bin, bin)
+            binw = 0.1
+            bin_c = np.arange(6., 13.+binw, binw)
         else:
             dx = np.diff(bins)
             assert np.allclose(np.diff(dx), 0)
-            bin = dx[0]
+            binw = dx[0]
             bin_c = bins
             
         bin_e = bin_c2e(bin_c)
@@ -1421,7 +1355,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         if units == 'dex':
             # Convert to dex**-1 units
-            phi /= bin
+            phi /= binw
         else:
             raise NotImplemented('help')
                         
@@ -1667,6 +1601,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         assert self.pf['pop_ssp']
                 
         # SFH        
+        Nz0 = hist['z'].size
+        #Nz  = hist['z'][slc].size
         Nsn  = hist['Nsn'][slc]
         SFR  = hist['SFR'][slc]
         bursty = hist['bursty'][slc]
@@ -1933,7 +1869,63 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         del Lhist, tau, Lall    
         gc.collect()
+        
+        ##
+        # Sum luminosity of parent halos along merger tree            
+        ##
+            
+        # Don't change shape, just zero-out luminosities of 
+        # parent halos after they merge?
+        if (hist['child'] is not None) and self.pf['pop_mergers'] and batch_mode:
+            
+            child_iz, child_iM = hist['child'].T
+        
+            is_central = child_iM == -1
+                                     
+            if np.all(is_central == 1):
+                pass
+            else:    
+            
+                print("Looping over {} halos...".format(SFR.shape[0]))
                             
+                pb = ProgressBar(SFR.shape[0])
+                pb.start()
+        
+                # Loop over all 'branches'
+                for i in range(SFR.shape[0]):
+                                    
+                    # This means the i'th halo is alive and well at the
+                    # final redshift, i.e., it's a central
+                    if is_central[i]:
+                        continue
+                     
+                    pb.update(i)
+                                                            
+                    # At this point, need to figure out which child halos
+                    # to dump mass and SFH into...    
+                    
+                    # Be careful with redshift array. 
+                    # We're now working in ascending time, reverse redshift,
+                    # so we need to correct the child iz values. We've also
+                    # chopped off elements at z < zobs.
+                    #iz = Nz0 - child_iz[i]
+                    
+                    # This `iz` should not be negative despite us having
+                    # chopped up the redshift array since getting to this
+                    # point in the loop is predicated on being a parent of
+                    # another halo, i.e., not surviving beyond this redshift. 
+                    
+                    # Lout is just 1-D at this point, i.e., just luminosity
+                    # *now*. 
+                                    
+                    # Add luminosity to child halo. Zero out luminosity of 
+                    # parent to avoid double counting. Note that nh will
+                    # also have been zeroed out but we're just being careful.
+                    Lout[child_iM[i]] += 1 * Lout[i]
+                    Lout[i] = 0.0
+                
+                pb.finish()
+                                    
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
             self._cache_ss_[(idnum, wave, band)] = zarr, tarr, Lout
@@ -2076,7 +2068,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zarr, tarr, Lt[i] = self.SpectralSynthesis(idnum=i,
                     zobs=z, wave=wave)
             
-
         # Need to be more careful here as nh can change when using
         # simulated halos
         w = raw['nh'][:,izobs+1]

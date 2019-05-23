@@ -366,9 +366,9 @@ class Survey(object):
         mag = mag[iphot]
         magcorr = magcorr[iphot]
         all_filt = np.array(filt)[iphot]
-    
+
         flux = 10**(magcorr * -0.4)
-        
+
         slopes = {}
         for i, filt in enumerate(xphot):
         
@@ -382,9 +382,7 @@ class Survey(object):
         
             # In Angstrom
             rest_wave = midpt * (1. / 1e6) * 1e10 / (1. + z)
-        
-        
-        
+                
             slopes[(all_filt[i], all_filt[i+1])] = midpt, beta
         
         
