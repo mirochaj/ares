@@ -92,7 +92,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 for Z in Zarr:
                     kw = self.src_kwargs.copy()
                     kw['pop_Z'] = Z
-                    src = self._Source(**kw)
+                    src = self._Source(cosm=self.cosm, **kw)
                     
                     att = src.__getattribute__(name)
                     

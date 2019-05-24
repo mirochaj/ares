@@ -27,7 +27,7 @@ class Cosmology(object):
             self.pf = pf
         else:
             self.pf = ParameterFile(**kwargs)  
-                
+                        
         # Can override cosmological parameters using named/numbered cosmologies.
         if self.pf['cosmology_name'] is not None:
             if self.pf['cosmology_number'] is not None:
