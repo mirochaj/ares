@@ -22,14 +22,14 @@ from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import erg_per_ev, s_per_yr, g_per_msun
 
 class StarQS(Source):
-    def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    #def __init__(self, **kwargs):
+    #    self.pf = ParameterFile(**kwargs)
         
-    @property
-    def cosm(self):
-        if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
-        return self._cosm
+    #@property
+    #def cosm(self):
+    #    if not hasattr(self, '_cosm'):
+    #        self._cosm = Cosmology(**self.pf)
+    #    return self._cosm
     
     @property
     def N(self):

@@ -2017,6 +2017,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_enrichment']:
             hist['Z'] = raw['Z'][i]
         
+        if 'child' in raw:
+            if raw['child'] is not None:
+                hist['child'] = raw['child'][i]
+            else:
+                hist['child'] = None
+        
         return hist
         
     def get_histories(self, z):

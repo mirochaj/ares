@@ -51,9 +51,9 @@ class Star(Source):
         
         """  
         
-        self.pf = ParameterFile(**kwargs)#StellarParameters()
+        #self.pf = ParameterFile(**kwargs)#StellarParameters()
         #self.pf.update(kwargs)
-        Source.__init__(self)
+        Source.__init__(self, **kwargs)
         
         self._name = 'star'
         self.Q = self.pf['source_qdot']

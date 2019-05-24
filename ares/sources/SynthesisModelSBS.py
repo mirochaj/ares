@@ -35,7 +35,8 @@ class SynthesisModelSBS(Source):
     to save time...
     """
     def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+        #self.pf = ParameterFile(**kwargs)
+        Source.__init__(self, **kwargs)
         
         self.fcore = 6e-3 * 0.74
 

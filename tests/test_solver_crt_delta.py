@@ -78,9 +78,9 @@ def test(tol=1e-2):
     
     mgb = ares.simulations.MetaGalacticBackground(**pars)
     mgb.run()
-            
+
     z, E, flux = mgb.get_history()
-        
+
     for j, redshift in enumerate([6, 10, 20, 30]):
         
         iz = np.argmin(np.abs(redshift - z))
