@@ -32,8 +32,6 @@ except ImportError:
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
 
-cosmo_pars = CosmologyParameters()
-
 class Source(object):
     def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
         """ 
@@ -49,42 +47,6 @@ class Source(object):
         """    
         
         self.pf = ParameterFile(**kwargs)
-                
-        # Update cosmological parameters
-        # Why is this necessary? J.M.12.27.2015
-        #for par in cosmo_pars:
-        #    if par in self.pf:
-        #        continue
-        #
-        #    self.pf[par] = cosmo_pars[par]
-                
-        # Modify parameter file if spectrum_file provided
-        #self._load_spectrum()        
-            
-        # Correct emission limits if none were provided
-        #self.Emin = self.pf['source_Emin']
-        #self.Emax = self.pf['source_Emax']
-        
-        #if self.pf['source_EminNorm'] == None:
-        #    self.pf['source_EminNorm'] = self.pf['source_Emin']
-        #if self.pf['source_EmaxNorm'] == None:
-        #    self.pf['source_EmaxNorm'] = self.pf['source_Emax']
-        #    
-        #self.EminNorm = self.pf['source_EminNorm']
-        #self.EmaxNorm = self.pf['source_EmaxNorm']    
-               
-        # Number of frequencies
-        #if self.discrete:
-        #    self.E = np.array(self.pf['source_E'])
-        #    self.LE = np.array(self.pf['source_LE'])
-        #    self.Nfreq = len(self.E)
-        #    
-        #if self.src._name == 'DiffuseSource':
-        #    self.ionization_rate = self.src.ionization_rate
-        #    self.secondary_ionization_rate = self.src.secondary_ionization_rate
-        #    self.heating_rate = self.src.heating_rate
-        #        
-        #self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
 
         # Create lookup tables for integral quantities
         if init_tabs and (grid is not None):
