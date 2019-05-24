@@ -50,8 +50,8 @@ class DummyClass(object):
         return wave, data
         
 class SynthesisModel(Source):
-    def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    #def __init__(self, **kwargs):
+    #    self.pf = ParameterFile(**kwargs)
                 
     @property
     def litinst(self):

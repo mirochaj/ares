@@ -31,10 +31,7 @@ class DeltaFunction(Source):
             
         """  
         
-        self.pf = SourceParameters()
-        self.pf.update(kwargs)
-        
-        Source.__init__(self)
+        Source.__init__(self, **kwargs)
         
         assert self.pf['source_sed'] == 'delta', \
             "Error: source is {}, should be delta!".format(self.pf['source_sed'])
@@ -72,10 +69,7 @@ class Toy(Source):
             
         """  
         
-        self.pf = SourceParameters()
-        self.pf.update(kwargs)
-        
-        Source.__init__(self)
+        Source.__init__(self, **kwargs)
 
         self.Q = self.pf['source_qdot']
         self.E = np.atleast_1d(self.pf['source_E'])

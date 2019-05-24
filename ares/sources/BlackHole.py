@@ -46,9 +46,9 @@ class BlackHole(Source):
     
         """
         
-        self.pf = BlackHoleParameters()
-        self.pf.update(kwargs)    
-        Source.__init__(self)
+        #self.pf = BlackHoleParameters()
+        #self.pf.update(kwargs)    
+        Source.__init__(self, **kwargs)
                 
         self._name = 'bh'
         

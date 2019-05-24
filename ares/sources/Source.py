@@ -16,6 +16,7 @@ from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
+from ..util.ParameterFile import ParameterFile
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable
 from ..physics.Constants import erg_per_ev, E_LL, s_per_myr
@@ -31,8 +32,6 @@ except ImportError:
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
 
-cosmo_pars = CosmologyParameters()
-
 class Source(object):
     def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
         """ 
@@ -47,47 +46,38 @@ class Source(object):
         
         """    
         
-        # Update cosmological parameters
-        # Why is this necessary? J.M.12.27.2015
-        for par in cosmo_pars:
-            if par in self.pf:
-                continue
-        
-            self.pf[par] = cosmo_pars[par]
-                
-        # Modify parameter file if spectrum_file provided
-        #self._load_spectrum()        
-            
-        # Correct emission limits if none were provided
-        self.Emin = self.pf['source_Emin']
-        self.Emax = self.pf['source_Emax']
-        self.logEmin = np.log10(self.Emin)
-        self.logEmax = np.log10(self.Emax)
-                
-        if self.pf['source_EminNorm'] == None:
-            self.pf['source_EminNorm'] = self.pf['source_Emin']
-        if self.pf['source_EmaxNorm'] == None:
-            self.pf['source_EmaxNorm'] = self.pf['source_Emax']
-            
-        self.EminNorm = self.pf['source_EminNorm']
-        self.EmaxNorm = self.pf['source_EmaxNorm']    
-               
-        # Number of frequencies
-        #if self.discrete:
-        #    self.E = np.array(self.pf['source_E'])
-        #    self.LE = np.array(self.pf['source_LE'])
-        #    self.Nfreq = len(self.E)
-        #    
-        #if self.src._name == 'DiffuseSource':
-        #    self.ionization_rate = self.src.ionization_rate
-        #    self.secondary_ionization_rate = self.src.secondary_ionization_rate
-        #    self.heating_rate = self.src.heating_rate
-        #        
-        #self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
+        self.pf = ParameterFile(**kwargs)
 
         # Create lookup tables for integral quantities
         if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
+            
+    @property
+    def Emin(self):
+        return self.pf['source_Emin']
+    @property
+    def Emax(self):
+        return self.pf['source_Emax']   
+        
+    @property
+    def EminNorm(self):
+        if not hasattr(self, '_EminNorm'):
+            if self.pf['source_EminNorm'] == None:
+                self._EminNorm = self.pf['source_Emin']
+            else:
+                self._EminNorm = self.pf['source_EminNorm']    
+        
+        return self._EminNorm
+    
+    @property
+    def EmaxNorm(self):
+        if not hasattr(self, '_EmaxNorm'):
+            if self.pf['source_EmaxNorm'] == None:
+                self._EmaxNorm = self.pf['source_Emax']
+            else:
+                self._EmaxNorm = self.pf['source_EmaxNorm']
+        
+        return self._EmaxNorm    
         
     @property        
     def info(self):
@@ -102,7 +92,7 @@ class Source(object):
         
     def SourceOn(self, t):
         if t < self.tau:
-            return True    
+            return True  
         else:
             return False
 
@@ -237,11 +227,11 @@ class Source(object):
             else:
                 if self.intrinsic_hardening:
                     self._normL_ = 1. / quad(self._Intensity,
-                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                        self.EminNorm, self.EmaxNorm)[0]
                 else:    
                     integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
                     self._normL_ = 1. / quad(integrand,
-                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                        self.EminNorm, self.EmaxNorm)[0]
                 
         return self._normL_          
 
@@ -649,7 +639,7 @@ class Source(object):
         name = ('{0!s}_logM_{1:.2g}_Gamma_{2:.3g}_fsc_{3:.3g}_' +\
             'logE_{4:.2g}-{5:.2g}').format(self.SpectrumPars['type'][i],\
             np.log10(self.src.M0), self.src.spec_pars['alpha'][i], 
-            self.src.spec_pars['fsc'][i], self.logEmin, self.logEmax)
+            self.src.spec_pars['fsc'][i], np.log10(self.Emin), np.log10(self.Emax))
         
         return name
         

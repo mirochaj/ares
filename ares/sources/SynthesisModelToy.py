@@ -15,12 +15,13 @@ from .Source import Source
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import c, h_p, erg_per_ev, cm_per_ang
 
-class SynthesisModelToy(object):
+class SynthesisModelToy(Source):
     def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+        Source.__init__(self, **kwargs)
+        #self.pf = ParameterFile(**kwargs)
         
-        self.Emin = self.pf['source_Emin']
-        self.Emax = self.pf['source_Emax']
+        #self.Emin = self.pf['source_Emin']
+        #self.Emax = self.pf['source_Emax']
         
     @property
     def energies(self):
