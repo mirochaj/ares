@@ -459,7 +459,7 @@ class Population(object):
                 self._src_kwargs = {}
                 return {}
     
-            self._src_kwargs = {}
+            self._src_kwargs = dict(self.pf)
             if self._Source in [Star, StarQS, Toy, DeltaFunction]:
                 spars = StellarParameters()
                 for par in spars:
@@ -492,7 +492,9 @@ class Population(object):
             else:
                 self._src_kwargs = self.pf.copy()
                 self._src_kwargs.update(self.pf['pop_kwargs'])
-    
+                
+        # Sometimes we need to know about cosmology...        
+        
         return self._src_kwargs
     
     @property
@@ -505,7 +507,7 @@ class Population(object):
                 self._src = self.pf['pop_src_instance']
             elif self._Source is not None:
                 try:
-                    self._src = self._Source(**self.src_kwargs)
+                    self._src = self._Source(cosm=self.cosm, **self.src_kwargs)
                 except TypeError:
                     # For litdata
                     self._src = self._Source

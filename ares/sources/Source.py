@@ -33,7 +33,8 @@ np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
 
 class Source(object):
-    def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
+    def __init__(self, grid=None, cosm=None, logN=None, init_tabs=True, 
+        **kwargs):
         """ 
         Initialize a radiation source object. 
         
@@ -45,9 +46,10 @@ class Source(object):
         logN: column densities over which to tabulate integral quantities
         
         """    
-        
+                
         self.pf = ParameterFile(**kwargs)
-
+        self._cosm_ = cosm
+                
         # Create lookup tables for integral quantities
         if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
@@ -107,6 +109,8 @@ class Source(object):
         if not hasattr(self, '_cosm'):
             if self.grid is None:
                 self._cosm = Cosmology(pf=self.pf, **self.pf)
+            elif self._cosm_ is not None:
+                self._cosm = self._cosm_
             else:
                 self._cosm = self.grid.cosm
         
