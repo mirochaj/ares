@@ -42,3 +42,4 @@ doc/example_*.py
 *.csv
 .pytest_cache/*
 input/nircam/*
+*.zip

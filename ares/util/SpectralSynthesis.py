@@ -13,10 +13,10 @@ Description:
 import numpy as np
 from ..util import Survey
 from ..util import ProgressBar
-from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
+from ..physics.Cosmology import Cosmology
 from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev
 
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
@@ -100,6 +100,8 @@ class SpectralSynthesis(object):
                 dxphot.extend(list(_dxphot))
                 ycorr.extend(list(_ycorr))
                 
+              
+            filt = np.array(filt)  
             xphot = np.array(xphot)   
             dxphot = np.array(dxphot)
             ycorr = np.array(ycorr)
@@ -114,19 +116,25 @@ class SpectralSynthesis(object):
         
             _x = xphot[isort]
             _y = ycorr[isort]
-            _f = 10**(_y / -2.5) * flux_AB / dwdn
+            _dwdn = dwdn[isort]
+            _f = 10**(_y / -2.5) * flux_AB / _dwdn
                                     
             r = _x * 1e4 / (1. + zobs)
             
             ok = np.logical_and(r >= rest_wave[0], r <= rest_wave[1])
             
+            if ok.sum() == 2:
+                print("WARNING: Estimating slope from only two points: {}".format(filt[isort][ok==1]))
+            
             x = _x[ok==1]
             y = _f[ok==1]
             
+            print(x, y)
+            
             # Only use filters that trace emission in `rest_wave` interval.
-            guess = np.array([_x[ok==1].min(), -2.5])
+            guess = np.array([y.max(), -2.5])
                             
-        popt, pcov = curve_fit(func, x, y, p0=guess)
+        popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=1000)
                 
         if return_norm:
             return popt
@@ -240,15 +248,6 @@ class SpectralSynthesis(object):
         # Convert microns to cm. micron * (m / 1e6) * (1e2 cm / m)
         freq_obs = c / (wave_obs * 1e-4)
                     
-        # Convert from Hz^-1 to Ang^-1 flux units
-        #if flux_units in ['Ang', 'A']:
-        #    print("converting flux units?")
-        #    freq_obs = c / (wave_obs * 1e-4)
-        #    _diff = np.diff(freq_obs) / np.diff(wave_obs)
-        #    dndw = np.hstack((_diff, [0]))
-        #
-        #    flux_obs *= dndw
-           
         # Why do NaNs happen? Just nircam. 
         flux_obs[np.isnan(flux_obs)] = 0.0
         
@@ -293,7 +292,7 @@ class SpectralSynthesis(object):
             -2.5 * np.log10(yphot_corr / flux_AB)
         
     def Spectrum(self, sfh, waves, tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, children=None, idnum=None):
+        zobs=None, tobs=None, band=None, children=None, idnum=None, units='Hz'):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -316,11 +315,18 @@ class SpectralSynthesis(object):
             spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
                 zobs=zobs, tobs=tobs, band=band, children=children,
                 idnum=idnum)
+                
+        if units in ['A', 'Ang']:
+            freqs = c / (waves / 1e8)
+            tmp = np.abs(np.diff(waves) / np.diff(freqs))
+            dwdn = np.concatenate((tmp, [tmp[-1]]))
+            spec /= dwdn
+                    
         
         return spec
 
     def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, children=None, idnum=None):
+        zobs=None, tobs=None, band=None, children=None, idnum=None, hist=None):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -344,6 +350,9 @@ class SpectralSynthesis(object):
         tobs : int, float   
             If supplied, luminosity will be return only for an observation 
             at this time.
+        hist : dict
+            Extra information we may need, e.g., metallicity, dust optical 
+            depth, etc. to compute spectrum.
         
         Returns
         -------
@@ -409,6 +418,8 @@ class SpectralSynthesis(object):
         _m = (Loft[1] - Loft[0]) \
           / (self.src.times[1] - self.src.times[0])
         L_small_t = lambda age: _m * age + Loft[0]
+        
+        #L_small_t = Loft[0]
         
         # Extrapolate as PL at t < 1 Myr based on first two
         # grid points

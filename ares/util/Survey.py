@@ -306,11 +306,14 @@ class Survey(object):
 
     def _get_filter_prop(self, x, y, cent):
         Tmax = max(y)
-        _ok = y > 1e-2
+        _ok = y > 1e-3
         
         # Find non-contiguous regions (NIRCAM F090W only?)
+        # This is a kludgey fix
         i = np.arange(0, x.size)
-        chunks = np.split(i, np.where(np.diff(i[_ok==1]) != 1)[0]+1)
+        
+        bpts = np.where(np.diff(i[_ok==1]) != 1)[0]
+        chunks = np.split(i[_ok==1], bpts+1)
         if len(chunks) == 1:
             ok = _ok
         else:
@@ -326,10 +329,10 @@ class Survey(object):
                 
         # Compute width of filter
         hi = max(x[ok == True])
-        lo = min(x[ok == True])   
+        lo = min(x[ok == True])
         
         # Average T-weighted wavelength in filter.     
-        mi = np.sum(x * y) / np.sum(y)
+        mi = np.sum(x[ok == True] * y[ok == True]) / np.sum(y[ok == True])
         
         dx = np.array([hi - mi, mi - lo])
         Tavg = np.sum(y[ok==1]) / y[ok==1].size
@@ -340,130 +343,3 @@ class Survey(object):
         dHz = c / (lo * 1e-4) - c / (hi * 1e-4)
                 
         return x, y, cent, dx, Tavg, dHz
-        
-    def observe_spectrum(self, spec, z):
-        """
-        Take an input spectrum and "observe" it at redshift z.
-        
-        Parameters
-        ----------
-        wave : np.ndarray
-            Rest wavelengths in [Angstrom]
-        spec : np.ndarray
-            Specific luminosities in [erg/s/A]
-        z : int, float
-            Redshift.
-        
-        Returns
-        -------
-        Observed wavelengths in microns, observed fluxes in erg/s/cm^2/Hz.
-        
-        """
-    
-        dL = self.cosm.LuminosityDistance(z)
-    
-        # Flux at Earth in erg/s/cm^2/Hz
-        f = spec * self.dwdn / (4. * np.pi * dL**2)
-    
-        return self.wavelengths * (1. + z) / 1e4, f
-
-    def photometrize_spectrum(self, spec, z, filter_set='W', flux_units=None):
-        """
-        Take a spectrum and determine what it would look like to NIRCAM.
-    
-        Returns
-        -------
-        Tuple containing (in this order):
-            - Midpoints of photometric filters [microns]
-            - Width of filters [microns]
-            - Apparent magnitudes in each filter.
-            - Apparent magnitudes correctedf or filter transmission.
-    
-        """
-    
-        data = self._read_throughputs(filter_set)
-    
-        # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
-        wave_obs, flux_obs = self.observe_spectrum(spec, z)
-            
-        # Convert microns to cm. micron * (m / 1e6) * (1e2 cm / m)
-        freq_obs = c / (wave_obs * 1e-4)
-        
-        if flux_units is not None:
-            _diff = np.diff(freq_obs) / np.diff(wave_obs)
-            dndw = np.hstack((_diff, [0]))
-        
-            flux_obs *= dndw
-        
-        # Convert microns to Ang. micron * (m / 1e6) * (1e10 A / m)
-        tmp = np.abs(np.diff(freq_obs) / np.diff(wave_obs * 1e4))
-        dndw = np.concatenate((tmp, [tmp[-1]]))
-
-        # Loop over filters and re-weight spectrum
-        xphot = []      # Filter centroids
-        wphot = []      # Filter width
-        yphot_obs = []  # Observed magnitudess [apparent]
-        yphot_corr = [] # Magnitudes corrected for filter transmissions.
-    
-        # Loop over filters, compute fluxes in band (accounting for 
-        # transmission fraction) and convert to observed magnitudes.
-        all_filters = data.keys()
-        
-        for filt in all_filters:
-
-            x, y, cent, dx, Tavg, norm = data[filt]
-
-            # Re-grid transmission onto provided wavelength axis.
-            filt_regrid = np.interp(wave_obs, x, y, left=0, right=0)
-
-            # Observed flux is in erg/s/cm^2/Hz
-            _yphot = np.abs(np.trapz(filt_regrid * flux_obs, x=freq_obs))            
-        
-            xphot.append(cent)    
-            yphot_obs.append(_yphot / norm)
-            yphot_corr.append(_yphot / norm / Tavg)
-            wphot.append(dx)
-                            
-        
-        xphot = np.array(xphot)
-        wphot = np.array(wphot)
-        yphot_obs = np.array(yphot_obs)
-        yphot_corr = np.array(yphot_corr)
-        
-        return all_filters, xphot, wphot, -2.5 * np.log10(yphot_obs / flux_AB), \
-            -2.5 * np.log10(yphot_corr / flux_AB)
-        
-    def get_beta(self, z, data, filter_set='W'):
-        filt, xphot, wphot, mag, magcorr = \
-            self.photometrize_spectrum(data, z, flux_units=True, 
-            filter_set=filter_set)
-    
-        # Need to sort first.
-        iphot = np.argsort(xphot)
-    
-        xphot = xphot[iphot]
-        wphot = wphot[iphot]
-        mag = mag[iphot]
-        magcorr = magcorr[iphot]
-        all_filt = np.array(filt)[iphot]
-
-        flux = 10**(magcorr * -0.4)
-
-        slopes = {}
-        for i, filt in enumerate(xphot):
-        
-            if i == (len(xphot) - 1):
-                break
-            
-            beta = np.log10(flux[i+1] / flux[i]) \
-                 / np.log10(xphot[i+1] / xphot[i])
-        
-            midpt = np.mean([xphot[i], xphot[i+1]])
-        
-            # In Angstrom
-            rest_wave = midpt * (1. / 1e6) * 1e10 / (1. + z)
-                
-            slopes[(all_filt[i], all_filt[i+1])] = midpt, beta
-        
-        
-        return slopes

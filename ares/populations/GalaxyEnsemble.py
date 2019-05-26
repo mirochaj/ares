@@ -18,6 +18,7 @@ import numpy as np
 from ..util.Math import smooth
 from ..util import ProgressBar
 from .Halo import HaloPopulation
+from ..util import SpectralSynthesis
 from .GalaxyCohort import GalaxyCohort
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
@@ -2027,6 +2028,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_histories(self, z):
         for i in range(self.histories['Mh'].shape[0]):
             yield self.get_history(i)
+            
+    @property
+    def synth(self):
+        if not hasattr(self, '_synth'):
+            self._synth = SpectralSynthesis(**self.pf)
+            self._synth.src = self.src
+        return self._synth
             
     def LuminosityFunction(self, z, x, mags=True, wave=1600., band=None,
         batch=True):
