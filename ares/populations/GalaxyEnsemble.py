@@ -1615,7 +1615,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             tarr = hist['t']    
             zarr = hist['z']
         
-        
         fill = np.zeros(1, 
             dtype=np.float32 if self.pf['conserve_memory'] else np.float64)
         tyr = tarr * 1e6
@@ -2057,6 +2056,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if z > self.histories['z'][izobs]:
             # Go to one grid point lower redshift
             izobs += 1
+                           
+        izobs = min(izobs, len(self.histories['z']) - 2)                   
                                             
         ##
         # Run in batch? 
@@ -2152,7 +2153,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         Lh = []
         MAB = []
-        #Lh = np.zeros((arr.size, izobs+1))
         for j, w in enumerate(arr):
             zarr, tarr, _L = self.SpectralSynthesis(idnum=idnum, zobs=zobs, 
                 wave=w)
