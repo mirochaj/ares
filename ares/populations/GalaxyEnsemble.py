@@ -2036,8 +2036,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._synth.src = self.src
         return self._synth
             
-    def LuminosityFunction(self, z, x, mags=True, wave=1600., band=None,
-        batch=True):
+    def LuminosityFunction(self, z, x, mags=True, wave=1600., band=None):
         """
         Compute the luminosity function from discrete histories.
         
@@ -2060,40 +2059,33 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         # Find the z grid point closest to that requested.
         # Must be >= z requested.
-        izobs = np.argmin(np.abs(self.histories['z'] - z))
-        if z > self.histories['z'][izobs]:
+        izobs = np.argmin(np.abs(raw['z'] - z))
+        if z > raw['z'][izobs]:
             # Go to one grid point lower redshift
             izobs += 1
                            
-        izobs = min(izobs, len(self.histories['z']) - 2)                   
+        izobs = min(izobs, len(raw['z']) - 2)                   
                                             
         ##
-        # Run in batch? 
-        if batch:
-            
-            # Must supply in time-ascending order
-            zarr, tarr, L = self.SpectralSynthesis(idnum=None, 
-                hist=None, zobs=z, wave=wave)        
-                        
-        else:
+        # Run in batch.
+        L = self.synth.Luminosity(sfh=raw['SFR'], wave=wave, zarr=raw['z'],
+            zobs=z, hist=raw)
+        ##    
         
-            L = np.zeros(Nh)
-            for i in range(Nh):                                        
-                # Must supply in time-ascending order
-                zarr, tarr, Lt[i] = self.SpectralSynthesis(idnum=i,
-                    zobs=z, wave=wave)
-            
+        zarr = raw['z']         
+        tarr = raw['t']
+
         # Need to be more careful here as nh can change when using
         # simulated halos
         w = raw['nh'][:,izobs+1]
-                                                
+                                                        
         _MAB = self.magsys.L_to_MAB(L, z=z)
         
         if self.pf['dustcorr_method'] is not None:
             MAB = self.dust.Mobs(z, _MAB)
         else:
             MAB = _MAB
-                        
+
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
         # spikes where L==0, all L==0 elements should be a contiguous chunk.
@@ -2102,7 +2094,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Always bin to setup cache, interpolate from then on.
         _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
 
-        hist, bin_edges = np.histogram(MAB[Misok==1], 
+        hist, bin_edges = np.histogram(MAB[Misok==1],
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
             
         bin_c = _x
@@ -2124,68 +2116,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         return None
         
-    def get_beta(self, idnum=None, zobs=None, wave=1600., dlam=100):
-        """
-        Get UV slope for a single object.
-        """
-
-        if self.src.pf['source_sed'] == 'eldridge2009':
-            _lo = np.argmin(np.abs(wave - self.src.wavelengths))    
-            _hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))    
-               
-            lo = self.src.wavelengths[_lo] 
-            hi = self.src.wavelengths[_hi]  
-                
-            ok = np.logical_or(lo == self.src.wavelengths, 
-                               hi == self.src.wavelengths)
-            
-            ok = np.logical_or(ok, wave == self.src.wavelengths)
-            
-        else:
-            lo = np.argmin(np.abs(wave - dlam - self.src.wavelengths))
-            me = np.argmin(np.abs(wave - self.src.wavelengths))
-            hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))
-            
-            ok = np.zeros_like(self.src.wavelengths)
-            ok[lo] = 1; ok[me] = 1; ok[hi] = 1
-
-        if ok.sum() < 2:
-            raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
-            
-        arr = self.src.wavelengths[ok==1]
-        
-        if idnum is None:
-            batch_mode = True
-        else:
-            batch_mode = False
-
-        Lh = []
-        MAB = []
-        for j, w in enumerate(arr):
-            zarr, tarr, _L = self.SpectralSynthesis(idnum=idnum, zobs=zobs, 
-                wave=w)
-            Lh.append(_L * 1.)
-            
-            if j == 1:
-                MAB = self.magsys.L_to_MAB(Lh[j], z=zarr[-1])
-        
-        #if batch_mode:
-        #    Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None]
-        #else:    
-        Lh_l = np.array(Lh) / self.src.dwdn[ok==1,None]
-        
-        logw = np.log(arr)
-        logL = np.log(Lh_l)
-
-        #if batch_mode:
-        #    beta = (logL[0,:,:] - logL[-1,:,:]) / (logw[0,None,None] - logw[-1,None,None])
-        #else:
-        beta = (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
-
-        return MAB, beta
-
-    def Beta(self, z, MUV=None, wave=1600., wave_MUV=1600., dlam=100,
-        return_binned=True, Mbins=None, batch=False):
+    def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None, 
+        filters=None, filter_set=None, dlam=10.):
         """
         UV slope for all objects in model.
         
@@ -2218,73 +2150,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             wavelength `wave_MUV`).
         """
         
-        cached_result = self._cache_beta(z, wave, wave_MUV)
+        raw = self.histories
         
-        if cached_result is None:
-            _lo = np.argmin(np.abs(wave - self.src.wavelengths))    
-            _hi = np.argmin(np.abs(wave + dlam - self.src.wavelengths))    
-               
-            lo = self.src.wavelengths[_lo] 
-            hi = self.src.wavelengths[_hi]  
-                
-            ok = np.logical_or(lo == self.src.wavelengths, 
-                               hi == self.src.wavelengths)
-            
-            ok = np.logical_or(ok, wave == self.src.wavelengths)
-                        
-            if ok.sum() < 2:
-                raise ValueError('Need at least two wavelength points to compute slope! Have {}.'.format(ok.sum()))
-            
-            arr = self.src.wavelengths[ok==1]
-            
-            if batch:
-                _MAB, _beta = self.get_beta(None, z, wave, dlam)
-                MAB = _MAB[:]
-                beta = _beta[:]
-            else:    
-            
-                beta = []
-                MAB = []
-                for i, hist in enumerate(self.get_histories(z)):
-                    _muv1, _beta1 = self.get_beta(i, z, wave, dlam)
-                    if wave_MUV != wave:
-                        _muv2, _beta2 = self.get_beta(i, z, wave, dlam)
-                        MAB.append(_muv2[-1])
-                    else:
-                        MAB.append(_muv1[-1])
-                        
-                    beta.append(_beta1[-1])
-                    
-                beta = np.array(beta)
-                MAB = np.array(MAB)
-            
-            # Only cache
-            self._cache_beta_[(z, wave, wave_MUV)] = MAB, beta
-                                     
-        else:
-            MAB, beta = cached_result
-            
-        if return_binned:
-            if Mbins is None:
-                Mbins = np.arange(-27, -10, 0.2)
-                
-            nh = self.get_field(z, 'nh')
-                
-            _x, _y, _z = bin_samples(MAB, beta, Mbins, weights=nh)
-                        
-            MAB = _x
-            beta = _y
-            std = _z 
-        else:
-            std = None   
-            assert MUV is None
-
-        if MUV is not None:
-            assert return_binned
-            _beta = np.interp(MUV, MAB, beta, left=-9999, right=-9999)
-            return _beta
-                                                                
-        return MAB, beta, std
+        ##
+        # Run in batch.
+        beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
+            hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
+            rest_wave=rest_wave)
+        ##
+        
+        return beta
         
     def AUV(self, z, MUV=None, wave=1600., dlam=100., eff=False,
         return_binned=True, Mbins=None):

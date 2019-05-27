@@ -52,32 +52,46 @@ class SpectralSynthesis(object):
         return self._cameras
         
     def Slope(self, zobs, spec=None, waves=None, sfh=None, zarr=None, tarr=None,
-        tobs=None, cam=None, rest_wave=(1600., 2300.), method='fit', band=None, 
-        return_norm=False, filters=None, filter_set=None):
+        tobs=None, cam=None, rest_wave=(1600., 2300.), band=None, hist=None,
+        return_norm=False, filters=None, filter_set=None, dlam=10., method='fit'):
         """
         Compute slope in some wavelength range or using photometry.
         """
         
         # If no camera supplied, operate directly on spectrum
         if cam is None:
-            
+
             func = lambda xx, p0, p1: p0 * (xx / 1.)**p1
-        
+            
+            if waves is None:
+                waves = np.arange(rest_wave[0], rest_wave[1]+dlam, dlam)
+
             owaves, oflux = self.ObserveSpectrum(zobs, spec=spec, waves=waves,
-                sfh=sfh, zarr=zarr, tarr=tarr, flux_units='Ang')
-            
+                sfh=sfh, zarr=zarr, tarr=tarr, flux_units='Ang', hist=hist)
+
             rwaves = owaves * 1e4 / (1. + zobs)
-            
+
             ok = np.logical_and(rwaves >= rest_wave[0], rwaves <= rest_wave[1])
             
             x = owaves[ok==1]
-            y = oflux[ok==1]
             
-            guess = np.array([oflux[np.argmin(np.abs(owaves - 1.))], -2.4])
+            if oflux.ndim == 2:
+                batch_mode = True
+                y = oflux[:,ok==1].swapaxes(0, 1)
+                
+                ma = np.max(y, axis=0)
+                sl = -2.5 * np.ones(ma.size)
+                guess = np.vstack((ma, sl)).T                
+            else:    
+                batch_mode = False
+                y = oflux[ok==1]
+                guess = np.array([oflux[np.argmin(np.abs(owaves - 1.))], -2.4])
+            
+            print(y.shape, guess.shape)
+            
         else:
             
             # Log-linear fit
-            #func = lambda xx, p0, p1: p0 + p1 * np.log10(xx)
             func = lambda x, p0, p1: p0 * (x / 1.)**p1
             
             if type(cam) not in [list, tuple]:
@@ -90,59 +104,89 @@ class SpectralSynthesis(object):
             for _cam in cam:
                             
                 _filters, _xphot, _dxphot, _yphot, _ycorr = \
-                    self.Photometry(sfh=sfh, 
+                    self.Photometry(sfh=sfh, hist=hist,
                     cam=_cam, filters=filters, filter_set=filter_set, 
-                    dlam=np.diff(waves)[0], tarr=tarr, tobs=tobs, 
-                    zarr=zarr, zobs=zobs)
+                    dlam=dlam, tarr=tarr, tobs=tobs, 
+                    zarr=zarr, zobs=zobs, rest_wave=rest_wave)
                                         
                 filt.extend(list(_filters))
                 xphot.extend(list(_xphot))
                 dxphot.extend(list(_dxphot))
                 ycorr.extend(list(_ycorr))
                 
-              
             filt = np.array(filt)  
             xphot = np.array(xphot)   
             dxphot = np.array(dxphot)
             ycorr = np.array(ycorr)
-                
-            xp, xm = dxphot.T
-            dx = xp + xm    
-                
-            dnphot = c / ((xphot-xm) * 1e-4) - c / ((xphot + xp) * 1e-4)
-            dwdn = dx * 1e4 / dnphot
             
-            isort = np.argsort(xphot)    
-        
+            # Sort arrays in ascending wavelength
+            isort = np.argsort(xphot)
+            
             _x = xphot[isort]
             _y = ycorr[isort]
-            _dwdn = dwdn[isort]
-            _f = 10**(_y / -2.5) * flux_AB / _dwdn
-                                    
-            r = _x * 1e4 / (1. + zobs)
             
+            # Recover flux to do power-law fit    
+            xp, xm = dxphot.T
+            dx = xp + xm    
+
+            dnphot = c / ((xphot-xm) * 1e-4) - c / ((xphot + xp) * 1e-4)
+            dwdn = dx * 1e4 / dnphot
+            _dwdn = dwdn[isort]
+            
+            r = _x * 1e4 / (1. + zobs)
             ok = np.logical_and(r >= rest_wave[0], r <= rest_wave[1])
+            x = _x[ok==1]
+
+            # Be careful in batch mode!
+            if ycorr.ndim == 2:
+                batch_mode = True
+                _f = 10**(_y / -2.5) * flux_AB / _dwdn[:,None]
+                y = _f[ok==1]
+                ma = np.max(y, axis=0)
+                sl = -2.5 * np.ones(ma.size)
+                guess = np.vstack((ma, sl)).T
+            else:
+                batch_mode = False
+                _f = 10**(_y / -2.5) * flux_AB / _dwdn
+                y = _f[ok==1]    
+                guess = np.array([ma, -2.5])                
             
             if ok.sum() == 2:
                 print("WARNING: Estimating slope from only two points: {}".format(filt[isort][ok==1]))
-            
-            x = _x[ok==1]
-            y = _f[ok==1]
-            
-            print(x, y)
-            
-            # Only use filters that trace emission in `rest_wave` interval.
-            guess = np.array([y.max(), -2.5])
+
+        ##
+        # Fit a PL to points.
+        if method == 'fit':
+            if batch_mode:
+                N = y.shape[1]
+                popt = -99999 * np.ones((2, N))
+                pcov = -99999 * np.ones((2, 2, N))
                             
-        popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=1000)
+                for i in range(N):
+                    
+                    if not np.any(y[:,i] > 0):
+                        continue
+                    
+                    popt[:,i], pcov[:,:,i] = curve_fit(func, x, y[:,i], 
+                        p0=guess[i], maxfev=1000)
+                                
+            else:                    
+                popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=1000)
+        else:
+            raise NotImplemented('help')
+            
+            # Simple differencing?
+            #beta = (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
+            
+                    
                 
         if return_norm:
             return popt
         else:
-            return popt[1]    
+            return popt[1]
         
     def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
-        flux_units='Hz', tarr=None, tobs=None, zarr=None, children=None, 
+        flux_units='Hz', tarr=None, tobs=None, zarr=None, hist=None, 
         idnum=None):
         """
         Take an input spectrum and "observe" it at redshift z.
@@ -164,7 +208,7 @@ class SpectralSynthesis(object):
         
         if spec is None:
             spec = self.Spectrum(sfh, waves, tarr=tarr, zarr=zarr, 
-                zobs=zobs, tobs=None, children=children, idnum=idnum)
+                zobs=zobs, tobs=None, hist=hist, idnum=idnum)
     
         dL = self.cosm.LuminosityDistance(zobs)
         
@@ -188,8 +232,8 @@ class SpectralSynthesis(object):
         return waves * (1. + zobs) / 1e4, f
 
     def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all', 
-        filter_set=None, dlam=10., 
-        tarr=None, zarr=None, zobs=None, tobs=None, band=None, children=None, 
+        filter_set=None, dlam=10., rest_wave=None,
+        tarr=None, zarr=None, zobs=None, tobs=None, band=None, hist=None,
         idnum=None, flux_units=None):
         """
         Just a wrapper around `Spectrum`.
@@ -213,34 +257,54 @@ class SpectralSynthesis(object):
         # Get transmission curves
         filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set, 
             filters=filters)
-                    
+        all_filters = filter_data.keys()    
+
         # Figure out spectral range we need to model for these filters.
         # Find bluest and reddest filters, set wavelength range with some
         # padding above and below these limits.
         lmin = np.inf
         lmax = 0.0
+        ct = 0
         for filt in filter_data:
             x, y, cent, dx, Tavg, norm = filter_data[filt]
+                                    
+            # If we're only doing this for the sake of measuring a slope, we
+            # might restrict the range based on wavelengths of interest, i.e.,
+            # we may not use all the filters.
+            if rest_wave is not None:
+                cent_r = cent * 1e4 / (1. + zobs)
+                if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
+                    continue
                         
-            lmin = min(lmin, cent - 3 * dx[1])
-            lmax = max(lmax, cent + 3 * dx[0])
+            lmin = min(lmin, cent - dx[1])
+            lmax = max(lmax, cent + dx[0])
+            ct += 1
+            
+        # No filters in range requested    
+        if ct == 0:    
+            return [], [], [], [], []
                             
         # Convert from microns to Angstroms, undo redshift.
         lmin = lmin * 1e4 / (1. + zobs)
         lmax = lmax * 1e4 / (1. + zobs)
-        
+                
         lmin = max(lmin, self.src.wavelengths.min())
         lmax = min(lmax, self.src.wavelengths.max())
-                        
+                                                
         # Here's our array of REST wavelengths
         waves = np.arange(lmin, lmax+dlam, dlam)
                 
         # Get spectrum first.
         if spec is None:
             spec = self.Spectrum(sfh, waves, tarr=tarr, tobs=tobs,
-                zarr=zarr, zobs=zobs, band=band, children=children,
+                zarr=zarr, zobs=zobs, band=band, hist=hist,
                 idnum=idnum)
             
+        # Might be running over lots of galaxies
+        batch_mode = False 
+        if spec.ndim == 2:
+            batch_mode = True    
+                        
         # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
         wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
             waves=waves)
@@ -259,24 +323,32 @@ class SpectralSynthesis(object):
     
         # Loop over filters, compute fluxes in band (accounting for 
         # transmission fraction) and convert to observed magnitudes.
-        all_filters = filter_data.keys()
-
         for filt in all_filters:
 
             x, T, cent, dx, Tavg, dHz = filter_data[filt]
+            
+            if rest_wave is not None:
+                cent_r = cent * 1e4 / (1. + zobs)
+                if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
+                    continue
                         
             # Re-grid transmission onto provided wavelength axis.
             T_regrid = np.interp(wave_obs, x, T, left=0, right=0)
                  
-            # Observed flux is in erg/s/cm^2/Hz
-            integrand = flux_obs * T_regrid
+            # Remember: observed flux is in erg/s/cm^2/Hz
+
             # Integrate over frequency to get integrated flux in band
             # defined by filter.
-            #_yphot = np.abs(np.trapz(integrand, x=freq_obs))
-            _yphot = np.sum(integrand[0:-1] * -1. * np.diff(freq_obs))
+            if batch_mode:
+                integrand = -1. * flux_obs * T_regrid[None,:]                
+                _yphot = np.sum(integrand[:,0:-1] * np.diff(freq_obs)[None,:],
+                    axis=1)
+            else:    
+                integrand = -1. * flux_obs * T_regrid
+                _yphot = np.sum(integrand[0:-1] * np.diff(freq_obs))
             
-            corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs))
-                                                        
+            #corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
+                                                                               
             xphot.append(cent)
             yphot_obs.append(_yphot / dHz)
             yphot_corr.append(_yphot / Tavg / dHz)
@@ -292,7 +364,7 @@ class SpectralSynthesis(object):
             -2.5 * np.log10(yphot_corr / flux_AB)
         
     def Spectrum(self, sfh, waves, tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, children=None, idnum=None, units='Hz'):
+        zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist=None):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -303,7 +375,7 @@ class SpectralSynthesis(object):
         # Shape of output array depends on some input parameters
         shape = []
         if batch_mode:
-            shape.append(batch_mode.shape[0])
+            shape.append(sfh.shape[0])
         if time_series:
             shape.append(tarr.size)
         shape.append(len(waves))
@@ -311,22 +383,20 @@ class SpectralSynthesis(object):
         spec = np.zeros(shape)
         for i, wave in enumerate(waves):
             slc = (Ellipsis, i) if (batch_mode or time_series) else i
-                        
+            
             spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
-                zobs=zobs, tobs=tobs, band=band, children=children,
-                idnum=idnum)
+                zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum)
                 
         if units in ['A', 'Ang']:
             freqs = c / (waves / 1e8)
             tmp = np.abs(np.diff(waves) / np.diff(freqs))
             dwdn = np.concatenate((tmp, [tmp[-1]]))
-            spec /= dwdn
-                    
+            spec /= dwdn    
         
         return spec
 
     def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, children=None, idnum=None, hist=None):
+        zobs=None, tobs=None, band=None, idnum=None, hist=None):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -361,6 +431,9 @@ class SpectralSynthesis(object):
         
         """
         
+        # If SFH is 2-D it means we're doing this for multiple galaxies at once.
+        # The first dimension will be number of galaxies and second dimension
+        # is time/redshift.
         batch_mode = sfh.ndim == 2
         
         # Parse time/redshift information
@@ -371,9 +444,16 @@ class SpectralSynthesis(object):
         else:
             zarr = self.cosm.z_of_t(tarr * s_per_myr)
             
+        assert np.all(np.diff(tarr) > 0), \
+            "Must supply SFH in time-ascending (i.e., redshift-descending) order!"
+        
+        # Convert tobs to redshift.        
         if tobs is not None:
             zobs = self.cosm.z_of_t(tobs * s_per_myr)
+            assert tarr.min() <= tobs <= tarr.max(), \
+                "Requested time of observation (`tobs`) not in supplied range!"
             
+        # Prepare slice through time-axis.    
         if zobs is None:
             slc = Ellipsis
             izobs = None
@@ -390,13 +470,19 @@ class SpectralSynthesis(object):
                 slc = Ellipsis, slice(0, izobs+1)
             else:    
                 slc = slice(0, izobs+1)
-            
+                
+            assert zarr.min() <= zobs <= zarr.max(), \
+                "Requested time of observation (`tobs`) not in supplied range!"
+                                
         fill = np.zeros(1)
         tyr = tarr * 1e6
         dt = np.hstack((np.diff(tyr), fill))
         
-        oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
-            (dt[-2] >= 2e6)    
+        # Figure out if we need to over-sample the grid we've got to more
+        # accurately solve for young stellar populations.
+        oversample = (zobs is not None) \
+            and self.pf['pop_ssp_oversample'] \
+            and (dt[-2] >= 2e6)
         ##
         # Done parsing time/redshift
         
@@ -433,9 +519,11 @@ class SpectralSynthesis(object):
         #    pass
             # Lhist will just get made once. Don't need to initialize
         
+        ##
         # Loop over the history of object(s) and compute the luminosity of 
         # simple stellar populations of the corresponding ages (relative to
         # zobs).
+        ##
         
         # Start from initial redshift and move forward in time, i.e., from
         # high redshift to low.
@@ -598,13 +686,14 @@ class SpectralSynthesis(object):
             # Integrate over all times up to this tobs            
             if batch_mode:
                 if (zobs is not None):
-                    Lhist = np.trapz(Lall, dx=_dt[0:-1], axis=1)
+                    Lhist = np.trapz(Lall[:,0:i+1], dx=_dt[0:i], axis=1)
                 else:
                     Lhist[:,i] = np.trapz(Lall, dx=_dt[0:i], axis=1)
             else:
-                assert not batch_mode, "still working geez"
-                
-                Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])                
+                if (zobs is not None):
+                    Lhist = np.trapz(Lall, x=tyr[0:i+1])                
+                else:    
+                    Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])                
 
             ##
             # In this case, we only need one iteration of this loop.
@@ -633,55 +722,59 @@ class SpectralSynthesis(object):
             
         # Don't change shape, just zero-out luminosities of 
         # parent halos after they merge?
-        if (children is not None) and self.pf['pop_mergers'] and batch_mode:
+        if hist is not None:            
+            do_mergers = self.pf['pop_mergers'] and batch_mode
             
-            child_iz, child_iM = children.T
-        
-            is_central = child_iM == -1
-                                     
-            if np.all(is_central == 1):
-                pass
-            else:    
-            
-                print("Looping over {} halos...".format(sfh.shape[0]))
-                            
-                pb = ProgressBar(sfh.shape[0])
-                pb.start()
-        
-                # Loop over all 'branches'
-                for i in range(SFR.shape[0]):
-                                    
-                    # This means the i'th halo is alive and well at the
-                    # final redshift, i.e., it's a central
-                    if is_central[i]:
-                        continue
-                     
-                    pb.update(i)
-                                                            
-                    # At this point, need to figure out which child halos
-                    # to dump mass and SFH into...    
+            if 'children' in hist:
+                if (hist['children'] is not None) and do_mergers:
                     
-                    # Be careful with redshift array. 
-                    # We're now working in ascending time, reverse redshift,
-                    # so we need to correct the child iz values. We've also
-                    # chopped off elements at z < zobs.
-                    #iz = Nz0 - child_iz[i]
-                    
-                    # This `iz` should not be negative despite us having
-                    # chopped up the redshift array since getting to this
-                    # point in the loop is predicated on being a parent of
-                    # another halo, i.e., not surviving beyond this redshift. 
-                    
-                    # Lout is just 1-D at this point, i.e., just luminosity
-                    # *now*. 
-                                    
-                    # Add luminosity to child halo. Zero out luminosity of 
-                    # parent to avoid double counting. Note that nh will
-                    # also have been zeroed out but we're just being careful.
-                    Lout[child_iM[i]] += 1 * Lout[i]
-                    Lout[i] = 0.0
+                    child_iz, child_iM = children.T
                 
-                pb.finish()
+                    is_central = child_iM == -1
+                                             
+                    if np.all(is_central == 1):
+                        pass
+                    else:    
+                    
+                        print("Looping over {} halos...".format(sfh.shape[0]))
+                                    
+                        pb = ProgressBar(sfh.shape[0])
+                        pb.start()
+                
+                        # Loop over all 'branches'
+                        for i in range(SFR.shape[0]):
+                                            
+                            # This means the i'th halo is alive and well at the
+                            # final redshift, i.e., it's a central
+                            if is_central[i]:
+                                continue
+                             
+                            pb.update(i)
+                                                                    
+                            # At this point, need to figure out which child halos
+                            # to dump mass and SFH into...    
+                            
+                            # Be careful with redshift array. 
+                            # We're now working in ascending time, reverse redshift,
+                            # so we need to correct the child iz values. We've also
+                            # chopped off elements at z < zobs.
+                            #iz = Nz0 - child_iz[i]
+                            
+                            # This `iz` should not be negative despite us having
+                            # chopped up the redshift array since getting to this
+                            # point in the loop is predicated on being a parent of
+                            # another halo, i.e., not surviving beyond this redshift. 
+                            
+                            # Lout is just 1-D at this point, i.e., just luminosity
+                            # *now*. 
+                                            
+                            # Add luminosity to child halo. Zero out luminosity of 
+                            # parent to avoid double counting. Note that nh will
+                            # also have been zeroed out but we're just being careful.
+                            Lout[child_iM[i]] += 1 * Lout[i]
+                            Lout[i] = 0.0
+                        
+                        pb.finish()
                                     
         # Only cache if we've got the whole history
         if (zobs is None) and (idnum is not None):
@@ -690,18 +783,16 @@ class SpectralSynthesis(object):
         elif (zobs is not None) and (idnum is None):
             init = self._cache_ss((zobs, wave, band))
             self._cache_ss_[(zobs, wave, band)] = zarr, tarr, Lout
-          
-        if zobs is not None:
-            return Lout[izobs]
-        else:
-            return Lout[slc]
+                  
+        # Get outta here.
+        return Lout
             
     def _cache_ss(self, key):
         if not hasattr(self, '_cache_ss_'):
             self._cache_ss_ = {}
             
         if key in self._cache_ss_:
-            return self._cache_ss_[key]    
+            return self._cache_ss_[key]
         
         return None        
         
