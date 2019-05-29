@@ -48,9 +48,9 @@ class SpectralSynthesis(object):
             self._cameras = {}
             for cam in all_cameras:
                 self._cameras[cam] = Survey(cam=cam)
-            
+
         return self._cameras
-        
+
     def Slope(self, zobs, spec=None, waves=None, sfh=None, zarr=None, tarr=None,
         tobs=None, cam=None, rest_wave=(1600., 2300.), band=None, hist=None,
         return_norm=False, filters=None, filter_set=None, dlam=10., method='fit'):
@@ -69,10 +69,9 @@ class SpectralSynthesis(object):
             owaves, oflux = self.ObserveSpectrum(zobs, spec=spec, waves=waves,
                 sfh=sfh, zarr=zarr, tarr=tarr, flux_units='Ang', hist=hist)
 
-            rwaves = owaves * 1e4 / (1. + zobs)
-
+            rwaves = waves
             ok = np.logical_and(rwaves >= rest_wave[0], rwaves <= rest_wave[1])
-            
+
             x = owaves[ok==1]
             
             if oflux.ndim == 2:
@@ -86,9 +85,7 @@ class SpectralSynthesis(object):
                 batch_mode = False
                 y = oflux[ok==1]
                 guess = np.array([oflux[np.argmin(np.abs(owaves - 1.))], -2.4])
-            
-            print(y.shape, guess.shape)
-            
+                        
         else:
             
             # Log-linear fit
@@ -102,13 +99,12 @@ class SpectralSynthesis(object):
             dxphot = []
             ycorr = []
             for _cam in cam:
-                            
                 _filters, _xphot, _dxphot, _yphot, _ycorr = \
                     self.Photometry(sfh=sfh, hist=hist,
                     cam=_cam, filters=filters, filter_set=filter_set, 
                     dlam=dlam, tarr=tarr, tobs=tobs, 
                     zarr=zarr, zobs=zobs, rest_wave=rest_wave)
-                                        
+            
                 filt.extend(list(_filters))
                 xphot.extend(list(_xphot))
                 dxphot.extend(list(_dxphot))
@@ -127,11 +123,13 @@ class SpectralSynthesis(object):
             
             # Recover flux to do power-law fit    
             xp, xm = dxphot.T
-            dx = xp + xm    
-
-            dnphot = c / ((xphot-xm) * 1e-4) - c / ((xphot + xp) * 1e-4)
-            dwdn = dx * 1e4 / dnphot
-            _dwdn = dwdn[isort]
+            dx = xp + xm
+            
+            # Need flux in units of A^-1
+           #dnphot = c / ((xphot-xm) * 1e-4) - c / ((xphot + xp) * 1e-4)
+           #dwdn = dx * 1e4 / dnphot
+            _dwdn = (_x * 1e4)**2 / (c * 1e8)
+           
             
             r = _x * 1e4 / (1. + zobs)
             ok = np.logical_and(r >= rest_wave[0], r <= rest_wave[1])
@@ -148,7 +146,8 @@ class SpectralSynthesis(object):
             else:
                 batch_mode = False
                 _f = 10**(_y / -2.5) * flux_AB / _dwdn
-                y = _f[ok==1]    
+                y = _f[ok==1]   
+                ma = np.max(y) 
                 guess = np.array([ma, -2.5])                
             
             if ok.sum() == 2:
@@ -157,6 +156,20 @@ class SpectralSynthesis(object):
         ##
         # Fit a PL to points.
         if method == 'fit':
+            
+            if len(x) < 2:
+                print("Not enough points to estimate slope")
+                
+                if batch_mode:
+                    corr = np.ones(y.shape[1])
+                else:
+                    corr = 1
+                
+                if return_norm:
+                    return -99999 * corr, -99999 * corr
+                else:
+                    return -99999 * corr
+            
             if batch_mode:
                 N = y.shape[1]
                 popt = -99999 * np.ones((2, N))
@@ -172,13 +185,21 @@ class SpectralSynthesis(object):
                                 
             else:                    
                 popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=1000)
+        elif method == 'diff':
+            
+            assert cam is None, "Should only use to skip photometry."
+            
+            # Remember that galaxy number is second dimension
+            logL = np.log(y)
+            logw = np.log(x)
+            
+            # Logarithmic derivative = beta
+            beta = (logL[-1,:] - logL[0,:]) / (logw[-1,None] - logw[0,None])
+            
+            popt = np.array([-99999, beta])
+            
         else:
-            raise NotImplemented('help')
-            
-            # Simple differencing?
-            #beta = (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
-            
-                    
+            raise NotImplemented('help me')
                 
         if return_norm:
             return popt
@@ -217,9 +238,10 @@ class SpectralSynthesis(object):
             dwdn = self.src.dwdn
             assert len(spec) == len(waves)
         else:
-            freqs = c / (waves / 1e8)
-            tmp = np.abs(np.diff(waves) / np.diff(freqs))
-            dwdn = np.concatenate((tmp, [tmp[-1]]))
+            #freqs = c / (waves / 1e8)
+            dwdn = waves**2 / (c * 1e8)
+            #tmp = np.abs(np.diff(waves) / np.diff(freqs))
+            #dwdn = np.concatenate((tmp, [tmp[-1]]))
     
         # Flux at Earth in erg/s/cm^2/Hz
         f = spec / (4. * np.pi * dL**2)
@@ -388,12 +410,23 @@ class SpectralSynthesis(object):
                 zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum)
                 
         if units in ['A', 'Ang']:
-            freqs = c / (waves / 1e8)
-            tmp = np.abs(np.diff(waves) / np.diff(freqs))
-            dwdn = np.concatenate((tmp, [tmp[-1]]))
+            #freqs = c / (waves / 1e8)
+            #tmp = np.abs(np.diff(waves) / np.diff(freqs))
+            #dwdn = np.concatenate((tmp, [tmp[-1]]))
+            dwdn = waves**2 / (c * 1e8)
             spec /= dwdn    
         
         return spec
+        
+    def Magnitude(self, sfh, wave=1600., tarr=None, zarr=None, 
+        zobs=None, tobs=None, band=None, idnum=None, hist=None):
+        
+        L = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr, 
+            zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist)
+        
+        MAB = self.magsys.L_to_MAB(L, z=zobs)
+        
+        return MAB    
 
     def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, 
         zobs=None, tobs=None, band=None, idnum=None, hist=None):
@@ -430,7 +463,7 @@ class SpectralSynthesis(object):
         
         
         """
-        
+                
         # If SFH is 2-D it means we're doing this for multiple galaxies at once.
         # The first dimension will be number of galaxies and second dimension
         # is time/redshift.
@@ -776,25 +809,8 @@ class SpectralSynthesis(object):
                         
                         pb.finish()
                                     
-        # Only cache if we've got the whole history
-        if (zobs is None) and (idnum is not None):
-            self._cache_ss_[(idnum, wave, band)] = zarr, tarr, Lout
-        # Or if we did batch mode
-        elif (zobs is not None) and (idnum is None):
-            init = self._cache_ss((zobs, wave, band))
-            self._cache_ss_[(zobs, wave, band)] = zarr, tarr, Lout
-                  
         # Get outta here.
         return Lout
-            
-    def _cache_ss(self, key):
-        if not hasattr(self, '_cache_ss_'):
-            self._cache_ss_ = {}
-            
-        if key in self._cache_ss_:
-            return self._cache_ss_[key]
-        
-        return None        
         
     def get_beta(self, z, data, filter_set='W'):
         filt, xphot, wphot, mag, magcorr = \

@@ -566,9 +566,12 @@ class CalibrateModel(object):
             if type(self.save_beta) in [int, bool]:
                 if rank == 0:
                     print("[blobs] Defaulting to Beta at 1600 Angstrom.")
-                blob_n.append('beta_1600')
+                blob_n.append('beta_hst')
                 blob_f.append('Beta')
-                blob_k.append({'wave': 1600, 'batch': True})
+
+                kw = {'cam': ('wfc', 'wfc3'), 'filters': 'help',
+                    'dlam':10., 'rest_wave': (1600., 2300.)}
+                blob_k.append(kw_beta)
             else:
                 _beta_waves = []
                 for element in self.save_beta:

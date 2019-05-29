@@ -188,7 +188,7 @@ class Survey(object):
             if filters == 'all':
                 get_all = True
             else:
-                assert type(filters) == list
+                assert type(filters) in [list, tuple]
         else:   
             # Grab all 'W' or 'N' etc. filters 
             if type(filter_set) != list:
@@ -249,7 +249,7 @@ class Survey(object):
             if filters == 'all':
                 get_all = True
             else:
-                assert type(filters) == list
+                assert type(filters) in [list, tuple]
         else:    
             filters = []
             if type(filter_set) != list:
