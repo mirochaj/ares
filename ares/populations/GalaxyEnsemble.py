@@ -1032,9 +1032,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Eventually generalize
         assert self.pf['pop_update_dt'].startswith('native')
         native_sampling = True
-        
+
         Nhalos = halos['Mh'].shape[0]
-        
+
         # Flip arrays to be in ascending time.
         z = halos['z'][-1::-1]
         #z2d = halos['z2d'][:,-1::-1]
@@ -1097,8 +1097,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             del dM, dz#, Mh_cc
 
-
-
         ##
         # Duty cycle effects
         ##
@@ -1117,8 +1115,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 off = r >= fduty
                 SFR[off==True] = 0
             
-        del z2d
-
         # 50% duty cycle
         #fduty = np.minimum(0.3 * (Mh / 1e10)**0.3, 1.)
         #delt = 30e6 * (Mh / 1e10)**0.4
@@ -1172,9 +1168,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2
+                             
+            if self.pf['pop_dust_fcov'] is not None:
+                fcov = self.guide.dust_fcov(z=z2d, Mh=Mh)
+            else:
+                fcov = 1.
+            
         else:
             Md = Sd = 0.
             Rd = np.inf
+            fcov = 1.0
+            
+        del z2d    
 
         # Metal mass
         if 'Z' in halos:
@@ -1263,6 +1268,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          #'MZ': MZ,#[:,-1::-1],
          #'Md': Md, # Only need 'Sd' for now so save some memory
          'Sd': Sd,
+         'fcov': fcov,
          'Mh': Mh,#[:,-1::-1],
          'Mg': Mg,#[:,-1::-1],
          'Z': Z,
@@ -2180,11 +2186,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         raw = self.histories
         
+        if np.any(raw['Sd'] > 0):
+            extras = {'kappa': self.guide.dust_kappa}
+        else:
+            extras = {}
+        
         ##
         # Run in batch.
         beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
             hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
-            rest_wave=rest_wave, method=method)
+            rest_wave=rest_wave, method=method, extras=extras)
         ##
         
         self._cache_beta_[kw_tup] = beta

@@ -53,7 +53,8 @@ class SpectralSynthesis(object):
 
     def Slope(self, zobs, spec=None, waves=None, sfh=None, zarr=None, tarr=None,
         tobs=None, cam=None, rest_wave=(1600., 2300.), band=None, hist=None,
-        return_norm=False, filters=None, filter_set=None, dlam=10., method='fit'):
+        return_norm=False, filters=None, filter_set=None, dlam=10., 
+        method='fit', extras={}):
         """
         Compute slope in some wavelength range or using photometry.
         """
@@ -67,7 +68,8 @@ class SpectralSynthesis(object):
                 waves = np.arange(rest_wave[0], rest_wave[1]+dlam, dlam)
 
             owaves, oflux = self.ObserveSpectrum(zobs, spec=spec, waves=waves,
-                sfh=sfh, zarr=zarr, tarr=tarr, flux_units='Ang', hist=hist)
+                sfh=sfh, zarr=zarr, tarr=tarr, flux_units='Ang', hist=hist,
+                extras=extras)
 
             rwaves = waves
             ok = np.logical_and(rwaves >= rest_wave[0], rwaves <= rest_wave[1])
@@ -102,13 +104,21 @@ class SpectralSynthesis(object):
                 _filters, _xphot, _dxphot, _yphot, _ycorr = \
                     self.Photometry(sfh=sfh, hist=hist,
                     cam=_cam, filters=filters, filter_set=filter_set, 
-                    dlam=dlam, tarr=tarr, tobs=tobs, 
+                    dlam=dlam, tarr=tarr, tobs=tobs, extras=extras,
                     zarr=zarr, zobs=zobs, rest_wave=rest_wave)
             
                 filt.extend(list(_filters))
                 xphot.extend(list(_xphot))
                 dxphot.extend(list(_dxphot))
                 ycorr.extend(list(_ycorr))
+            
+            # No matching filters? Return.    
+            if len(filt) == 0:
+                if return_norm:
+                    return -99999 * np.ones((sfh.shape[0], 2))
+                else:
+                    return -99999 * np.ones(sfh.shape[0])
+                
                 
             filt = np.array(filt)  
             xphot = np.array(xphot)   
@@ -208,7 +218,7 @@ class SpectralSynthesis(object):
         
     def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist=None, 
-        idnum=None):
+        idnum=None, extras={}):
         """
         Take an input spectrum and "observe" it at redshift z.
         
@@ -229,7 +239,8 @@ class SpectralSynthesis(object):
         
         if spec is None:
             spec = self.Spectrum(sfh, waves, tarr=tarr, zarr=zarr, 
-                zobs=zobs, tobs=None, hist=hist, idnum=idnum)
+                zobs=zobs, tobs=None, hist=hist, idnum=idnum,
+                extras=extras)
     
         dL = self.cosm.LuminosityDistance(zobs)
         
@@ -254,7 +265,7 @@ class SpectralSynthesis(object):
         return waves * (1. + zobs) / 1e4, f
 
     def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all', 
-        filter_set=None, dlam=10., rest_wave=None,
+        filter_set=None, dlam=10., rest_wave=None, extras={},
         tarr=None, zarr=None, zobs=None, tobs=None, band=None, hist=None,
         idnum=None, flux_units=None):
         """
@@ -320,7 +331,7 @@ class SpectralSynthesis(object):
         if spec is None:
             spec = self.Spectrum(sfh, waves, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
-                idnum=idnum)
+                idnum=idnum, extras=extras)
             
         # Might be running over lots of galaxies
         batch_mode = False 
@@ -329,7 +340,7 @@ class SpectralSynthesis(object):
                         
         # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
         wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
-            waves=waves)
+            waves=waves, extras=extras)
             
         # Convert microns to cm. micron * (m / 1e6) * (1e2 cm / m)
         freq_obs = c / (wave_obs * 1e-4)
@@ -386,7 +397,8 @@ class SpectralSynthesis(object):
             -2.5 * np.log10(yphot_corr / flux_AB)
         
     def Spectrum(self, sfh, waves, tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist=None):
+        zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist=None,
+        extras={}):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -407,7 +419,8 @@ class SpectralSynthesis(object):
             slc = (Ellipsis, i) if (batch_mode or time_series) else i
             
             spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
-                zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum)
+                zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum,
+                extras=extras)
                 
         if units in ['A', 'Ang']:
             #freqs = c / (waves / 1e8)
@@ -419,17 +432,18 @@ class SpectralSynthesis(object):
         return spec
         
     def Magnitude(self, sfh, wave=1600., tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, idnum=None, hist=None):
+        zobs=None, tobs=None, band=None, idnum=None, hist=None, extras={}):
         
         L = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr, 
-            zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist)
+            zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist, 
+            extras=extras)
         
         MAB = self.magsys.L_to_MAB(L, z=zobs)
         
         return MAB    
 
     def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, 
-        zobs=None, tobs=None, band=None, idnum=None, hist=None):
+        zobs=None, tobs=None, band=None, idnum=None, hist=None, extras={}):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -733,18 +747,33 @@ class SpectralSynthesis(object):
             ##
             if zobs is not None:
                 break
-                                        
-        # Redden away!        
-        #if np.any(fd) > 0 and (band is None):
-        #    # Reddening is binary and probabilistic
-        #    
-        #    clear = rand > fcov            
-        #    block = ~clear
-        #    
-        #    Lout = Lhist * clear[:,-1] + Lhist * np.exp(-tau[:,-1]) * block[:,-1]
-        #
-        #else:
-        Lout = Lhist.copy()
+                           
+                           
+        ##
+        # Redden spectra
+        ##
+        if 'Sd' in hist:
+            
+            # Redden away!        
+            if np.any(hist['Sd'] > 0) and (band is None):
+                # Reddening is binary and probabilistic
+                                
+                assert 'kappa' in extras
+                
+                kappa = extras['kappa'](wave=wave)
+                                
+                #kappa = self.guide.dust_kappa(wave=wave)
+                tau = kappa * hist['Sd']
+                                
+                clear = hist['rand'] > hist['fcov']
+                block = ~clear
+                
+                Lout = Lhist * clear[:,-1] \
+                     + Lhist * np.exp(-tau[:,-1]) * block[:,-1]
+            else:
+                Lout = Lhist.copy()
+        else:
+            Lout = Lhist.copy()
 
         #del Lhist, tau, Lall    
         #gc.collect()

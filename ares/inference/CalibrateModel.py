@@ -568,9 +568,13 @@ class CalibrateModel(object):
                     print("[blobs] Defaulting to Beta at 1600 Angstrom.")
                 blob_n.append('beta_hst')
                 blob_f.append('Beta')
+                
+                filt = ['F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
+                    'F814W', 'F850LP', 'F125W', 'F160W']
 
-                kw = {'cam': ('wfc', 'wfc3'), 'filters': 'help',
+                kw = {'cam': ('wfc', 'wfc3'), 'filters': filt,
                     'dlam':10., 'rest_wave': (1600., 2300.)}
+                    
                 blob_k.append(kw_beta)
             else:
                 _beta_waves = []
