@@ -73,8 +73,8 @@ class Cosmology(object):
 
         # Creates the path variable for the MCMC chains
         ARES = os.environ.get('ARES')
-        cosmo_path=ARES+'/input/cosmo_params/COM_CosmoParams'+\
-        '_base-plikHM-TTTEEE-lowl-lowE_R3.00/base/'
+        cosmo_path=ARES+'/input/cosmo_params/COM_CosmoParams_base-plikHM'+
+        '-TTTEEE-lowl-lowE_R3.00/base/'
         if self.cosmology_prefix: 
             # Checks if the file required is in the lensing or normal directory
             lensing=None
