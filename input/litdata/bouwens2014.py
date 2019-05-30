@@ -44,6 +44,21 @@ _data = \
  },   
 }
 
+# Keep track of filters used to compute slope
+filter_names = \
+{
+ 'F435W': r'$B_{435}$',
+ 'F606W': r'$V_{606}$',
+ 'F775W': r'$i_{775}$',
+ 'F814W': r'$I_{814}$',
+ 'F850LP': r'$z_{850}$',
+ 'F098M': r'$Y_{098}$',
+ 'F105W': r'$Y_{105}$',
+ 'F125W': r'$J_{125}$',
+ 'F140W': r'$JH_{140}$',
+ 'F160W': r'$H_{160}$',
+}
+
 
 data = {}
 data['beta'] = {}

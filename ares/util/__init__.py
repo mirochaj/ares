@@ -13,4 +13,5 @@ from ares.util.ReadData import read_lit, lit_options
 from ares.util.MagnitudeSystem import MagnitudeSystem
 from ares.util.ParameterBundles import ParameterBundle
 from ares.util.RestrictTimestep import RestrictTimestep
+from ares.util.SpectralSynthesis import SpectralSynthesis
 from ares.util.Misc import get_hg_rev, get_cmd_line_kwargs

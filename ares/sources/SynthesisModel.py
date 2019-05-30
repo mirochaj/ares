@@ -116,8 +116,7 @@ class SynthesisModel(Source):
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
-            tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
-            self._dwdn = np.concatenate((tmp, [tmp[-1]]))
+            self._dwdn = self.wavelengths**2 / (c * 1e8)
         return self._dwdn
 
     @property
@@ -280,7 +279,7 @@ class SynthesisModel(Source):
     @property
     def times(self):
         if not hasattr(self, '_times'):
-            self._times = self.litinst.times.astype(np.float32)
+            self._times = self.litinst.times
         return self._times
     
     @property
@@ -350,7 +349,7 @@ class SynthesisModel(Source):
         
         return None
     
-    def L_per_SFR_of_t(self, wave=1600., avg=1, Z=None):
+    def L_per_SFR_of_t(self, wave=1600., avg=1, Z=None, units='Hz'):
         """
         UV luminosity per unit SFR.
         """
@@ -368,16 +367,22 @@ class SynthesisModel(Source):
             raw = self.data # just to be sure it has been read in.
             data = self._data_all_Z[k,j]
         else:
-            data = self.data[j,:]        
-                
+            data = self.data[j,:]
+
         if avg == 1:
-            yield_UV = data * np.abs(self.dwdn[j])
+            if units == 'Hz':
+                yield_UV = data * np.abs(self.dwdn[j])
+            else:    
+                yield_UV = data
         else:
             if Z is not None:
                 raise NotImplemented('hey!')
             assert avg % 2 != 0, "avg must be odd"
             s = (avg - 1) / 2
-            yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
+            if units == 'Hz':
+                yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
+            else:
+                yield_UV = np.mean(self.data[j-s:j+s,:])
         
         # Current units: 
         # if pop_ssp: 
@@ -392,7 +397,7 @@ class SynthesisModel(Source):
         #else:
         #    pass
         
-        self._cache_L_[(wave, avg, Z)] = yield_UV
+        self._cache_L_[(wave, avg, Z, units)] = yield_UV
             
         return yield_UV
     
