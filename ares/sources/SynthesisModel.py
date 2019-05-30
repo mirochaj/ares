@@ -279,7 +279,7 @@ class SynthesisModel(Source):
     @property
     def times(self):
         if not hasattr(self, '_times'):
-            self._times = self.litinst.times.astype(np.float32)
+            self._times = self.litinst.times
         return self._times
     
     @property
