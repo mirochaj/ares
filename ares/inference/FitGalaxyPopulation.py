@@ -37,6 +37,13 @@ except ImportError:
     
 twopi = 2. * np.pi
 
+_hst_filt = ('F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
+    'F814W', 'F850LP', 'F125W', 'F160W')
+            
+_kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': _hst_filt,
+    'dlam':20., 'rest_wave': (1600., 2300.), 'return_binned': True,
+    'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}
+
 class loglikelihood(LogLikelihood):
 
     @property
@@ -143,7 +150,7 @@ class loglikelihood(LogLikelihood):
                     p = pop.StellarMassFunction(z, M)
                 elif quantity == 'beta':
                     M = xdat
-                    p = pop.Beta(z, MUV=M, **more_kw)
+                    p = pop.Beta(z, MUV=M, **_kw_hst)
                     
                     if not np.isfinite(p):
                         print('beta is inf or nan!', z, M)

@@ -477,15 +477,14 @@ class GalaxyPopulation(object):
             self._MegaPlotPop(axes, pop)
         elif hasattr(pop, 'chain'):
             
-            if use_best:
-                bkw = pop.base_kwargs.copy()
-                bkw.update(pop.max_likelihood_parameters(method=method))
-                bkw['conserve_memory'] = False
-                
-                pop = GalaxyEnsemble(**bkw)
-                self._MegaPlotPop(axes, pop)
-            else:
-                self._MegaPlotChain(axes, pop, **kwargs)
+            #if use_best:
+            #    #bkw = pop.base_kwargs.copy()
+            #    #bkw.update(pop.max_likelihood_parameters(method=method))
+            #    #print("should just grab this from blobs")
+            #    #pop = GalaxyEnsemble(**bkw)
+            #    #self._MegaPlotPop(axes, pop)
+            #else:
+            self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
             raise TypeError("Unrecognized object pop={}".format(pop))
          
@@ -526,12 +525,13 @@ class GalaxyPopulation(object):
         for j, z in enumerate(redshifts):
             
             # UVLF
-            phi = pop.LuminosityFunction(z, _mags, batch=True)
+            phi = pop.LuminosityFunction(z, _mags)
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
                     
             # Binned version
-            _mags_b, _beta, _std = pop.Beta(z, wave=1600, return_binned=True,
-                Mbins=np.arange(-25, -10, 1.0), batch=True)
+            Mbins = np.arange(-25, -10, 1.0)
+            _beta = pop.Beta(z, Mwave=1600, return_binned=True,
+                Mbins=Mbins)
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
@@ -557,11 +557,11 @@ class GalaxyPopulation(object):
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
             
-            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False, 
-                batch=True)
+            mags = pop.Magnitude(z, wave=1600.)
+            beta = pop.Beta(z, Mwave=1600., return_binned=False)
             
             # MUV-Mstell
-            _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_b)
+            _x, _y, _z = bin_samples(mags, np.log10(Ms), Mbins)
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'
@@ -569,11 +569,11 @@ class GalaxyPopulation(object):
                 xa_f.append(0)
                 xa_b.append(0)
                 
-                ax_bet.plot(_mags_b, dc1.Beta(z, _mags_b), color=colors[j])
+                ax_bet.plot(Mbins, dc1.Beta(z, Mbins), color=colors[j])
                 
                 continue
                 
-            ax_bet.plot(_mags_b, _beta, color=colors[j])    
+            ax_bet.plot(Mbins, _beta, color=colors[j])    
             
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
@@ -596,17 +596,18 @@ class GalaxyPopulation(object):
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
                 
-            _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
-                Mbins=np.arange(-25, -10, 1.))
+            Mbins = np.arange(-25, -10, 1.)
+            AUV = pop.AUV(z, Mwave=1600., return_binned=True,
+                Mbins=Mbins)
             
-            ax_AUV.plot(_mags_A, AUV, color=colors[j])
+            ax_AUV.plot(Mbins, AUV, color=colors[j])
                             
             # LAE stuff
-            _x, _y, _z = bin_samples(mags, fcov, _mags_A)
+            _x, _y, _z = bin_samples(mags, fcov, Mbins)
             ax_lae_m.plot(_x, 1. - _y, color=colors[j])
             
-            faint  = np.logical_and(_mags_A >= -20.25, _mags_A < -18.)
-            bright = _mags_A < -20.25
+            faint  = np.logical_and(Mbins >= -20.25, Mbins < -18.)
+            bright = Mbins < -20.25
             
             xa_f.append(1. - np.mean(_y[faint==1]))    
             xa_b.append(1. - np.mean(_y[bright==1]))

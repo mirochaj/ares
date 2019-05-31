@@ -530,8 +530,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 bounds_error=False, fill_value=-np.inf)
             
             self._cache_ehat_[(E, Emin, Emax)] = func#zarr, tab
-            
-         
+                     
         return 10**func(z)
         #return self._cache_ehat_[(E, Emin, Emax)](z)
         
@@ -2262,7 +2261,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return np.interp(MUV, MAB, AUV, left=0., right=0.)
 
         # Otherwise, return raw (or binned) results
-        return MAB, AUV, std
+        return AUV
         
     def get_contours(self, x, y, bins):
         """
