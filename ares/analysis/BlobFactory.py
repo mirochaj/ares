@@ -630,7 +630,7 @@ class BlobFactory(object):
                     # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
-                                                                                                                      
+                        
                         if self.blob_kwargs[i] is not None:
                             kw = self.blob_kwargs[i][j]
                         else:

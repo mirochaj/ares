@@ -470,7 +470,7 @@ class CalibrateModel(object):
          'blob_names': [blob_n],
          'blob_ivars': [blob_i],
          'blob_funcs': [blob_f],
-         'blob_kwargs': [[{'batch': True}]],
+         'blob_kwargs': [None],
         }
 
         # Save the SFE if we're varying its parameters.
@@ -561,28 +561,26 @@ class CalibrateModel(object):
             blob_i = [('z', red_beta), ('MUV', MUV)]
             blob_f = ['AUV']
             # By default, MUV refers to 1600 magnitude
-            blob_k = [{'wave': 1600}]
+            blob_k = [{'return_binned': True,
+                'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}]
             
-            if type(self.save_beta) in [int, bool]:
-                if rank == 0:
-                    print("[blobs] Defaulting to Beta at 1600 Angstrom.")
-                blob_n.append('beta_hst')
-                blob_f.append('Beta')
+            blob_n.extend(['beta_hst', 'beta_spec'])
+            blob_f.extend(['Beta'] * 2)
+            
+            filt = ('F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
+                'F814W', 'F850LP', 'F125W', 'F160W')
+            
+            # Would be great if this was faster...
+            kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt,
+                'dlam':20., 'rest_wave': (1600., 2300.), 'return_binned': True,
+                'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}
                 
-                filt = ['F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
-                    'F814W', 'F850LP', 'F125W', 'F160W']
+            kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.), 
+                'return_binned': True, 
+                'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}
+                
+            blob_k.extend([kw_hst, kw_spec])
 
-                kw = {'cam': ('wfc', 'wfc3'), 'filters': filt,
-                    'dlam':10., 'rest_wave': (1600., 2300.)}
-                    
-                blob_k.append(kw_beta)
-            else:
-                _beta_waves = []
-                for element in self.save_beta:
-                    blob_n.append('beta_{}'.format(int(element)))
-                    blob_f.append('Beta')
-                    blob_k.append({'wave': element, 'batch': True})
-            
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)

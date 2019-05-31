@@ -2054,7 +2054,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         raw = self.histories
         L = self.synth.Luminosity(sfh=raw['SFR'], wave=wave, zarr=raw['z'],
-            zobs=z, hist=raw)
+            zobs=z, hist=raw, extras=self.extras)
            
         self._cache_L_[(z, wave, band)] = L
            
@@ -2140,8 +2140,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         return None
         
+    @property
+    def extras(self):
+        if not hasattr(self, '_extras'):
+            if self.pf['pop_dust_yield'] is not None:
+                self._extras = {'kappa': self.guide.dust_kappa}
+            else:
+                self._extras = {}
+        return self._extras
+        
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
-        filters=None, filter_set=None, dlam=10., method='fit'):
+        filters=None, filter_set=None, dlam=10., method='fit', 
+        return_binned=False, Mbins=None, Mwave=1600., MUV=None):
         """
         UV slope for all objects in model.
 
@@ -2174,6 +2184,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             wavelength `wave_MUV`).
         """
                 
+        # Don't put any binning stuff in here!
         kw = {'z':z, 'waves':waves, 'rest_wave':rest_wave, 'cam': cam, 
             'filters': filters, 'filter_set': filter_set,
             'dlam':dlam, 'method': method}
@@ -2182,27 +2193,36 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         cached_result = self._cache_beta(kw_tup)
         if cached_result is not None:
-            return cached_result
-        
-        raw = self.histories
-        
-        if np.any(raw['Sd'] > 0):
-            extras = {'kappa': self.guide.dust_kappa}
+            beta = cached_result
         else:
-            extras = {}
+            raw = self.histories
+            
+            ##
+            # Run in batch.
+            beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
+                hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
+                rest_wave=rest_wave, method=method, extras=self.extras)
+            ##
+            self._cache_beta_[kw_tup] = beta
+                
+        # Can return binned (in MUV) version
+        if return_binned:            
+            if Mbins is None:
+                Mbins = np.arange(-27, -10, 0.2)
+                
+            nh = self.get_field(z, 'nh')    
+            _MAB = self.Magnitude(z, wave=Mwave)
+                        
+            MAB, beta, _z = bin_samples(_MAB, beta, Mbins, weights=nh)
+            
         
-        ##
-        # Run in batch.
-        beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
-            hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
-            rest_wave=rest_wave, method=method, extras=extras)
-        ##
+        if MUV is not None:
+            return np.interp(MUV, MAB, beta, left=-99999, right=-99999)
         
-        self._cache_beta_[kw_tup] = beta
-        
+        # Get out.
         return beta
         
-    def AUV(self, z, wave=1600., cam=None, MUV=None, Mbins=None, 
+    def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mbins=None, 
         return_binned=False):
         """
         Compute UV extinction.
@@ -2211,14 +2231,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_dust_yield'] is None:
             return None
         
-        kappa = self.guide.dust_kappa(wave=wave)
+        kappa = self.guide.dust_kappa(wave=Mwave)
         Sd = self.get_field(z, 'Sd')
         tau = kappa * Sd
         
         AUV = np.log10(np.exp(-tau)) / -0.4
             
         # Just do this to get MAB array of same size as Mh
-        MAB = self.Magnitude(z, wave=wave)
+        MAB = self.Magnitude(z, wave=Mwave)
                 
         if return_binned:            
             if Mbins is None:
@@ -2235,12 +2255,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             #beta = np.flip(beta)
             std = None
                 
-            assert MUV is None    
+            assert MUV is None
                 
         # May specify a single magnitude at which to return AUV        
         if MUV is not None:
-            _AUV = np.interp(MUV, MAB, AUV, left=0., right=0.)
-            return _AUV
+            return np.interp(MUV, MAB, AUV, left=0., right=0.)
 
         # Otherwise, return raw (or binned) results
         return MAB, AUV, std

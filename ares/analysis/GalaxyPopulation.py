@@ -667,7 +667,7 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
                 color=colors[j], is_logx=True, **kwargs)
             
-            anl.ReconstructedFunction('beta_1600', ivar=[z, None], ax=ax_bet,
+            anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
                 color=colors[j], **kwargs)
             
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,

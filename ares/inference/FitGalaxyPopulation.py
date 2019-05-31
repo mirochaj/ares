@@ -108,11 +108,8 @@ class loglikelihood(LogLikelihood):
                     
         else:
             pops = [sim]
-            
-        if isinstance(sim, GalaxyEnsemble.GalaxyEnsemble):
-            more_kw = {'batch': True}
-        else: 
-            more_kw = {}
+        
+        more_kw = {}
                                                                                              
         # Loop over all data points individually.
         #try:
