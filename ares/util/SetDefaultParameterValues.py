@@ -668,6 +668,9 @@ def PopulationParameters():
     # Transition mass
     "pop_transition": 0,
     
+    "pop_dE": None,
+    "pop_dlam": 1.,
+    
     # deprecated?
     "pop_kappa_UV": 1.15e-28,
     
@@ -868,6 +871,10 @@ def SynthesisParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    
+    # Only used by toy SPS
+    "source_dE": None,
+    "source_dlam": 1.,
     }
 
     return pf

@@ -41,7 +41,27 @@ class SpectralSynthesis(object):
     @src.setter
     def src(self, value):
         self._src = value
+        
+    @property
+    def oversampling_enabled(self):
+        if not hasattr(self, '_oversampling_enabled'):
+            self._oversampling_enabled = True
+        return self._oversampling_enabled
+        
+    @oversampling_enabled.setter
+    def oversampling_enabled(self, value):
+        self._oversampling_enabled = value
 
+    @property
+    def oversampling_below(self):
+        if not hasattr(self, '_oversampling_below'):
+            self._oversampling_below = 30.
+        return self._oversampling_below
+        
+    @oversampling_below.setter
+    def oversampling_below(self, value):
+        self._oversampling_below = value
+    
     @property
     def cameras(self):
         if not hasattr(self, '_cameras'):
@@ -471,7 +491,65 @@ class SpectralSynthesis(object):
         MAB = self.magsys.L_to_MAB(L, z=zobs)
         
         return MAB    
+        
+    def _oversample_sfh(self, ages, sfh, i):
+        """
+        Over-sample time axis while stellar populations are young if the time
+        resolution is worse than 1 Myr / grid point.
+        """
+        
+        batch_mode = sfh.ndim == 2
+        
+        # Use 1 Myr time resolution for final stretch.
+        # final stretch is determined by `oversampling_below` attribute.
+        # This loop determines how many elements at the end of 
+        # `ages` are within the `oversampling_below` zone.
+        
+        ct = 0
+        while ages[-1-ct] < self.oversampling_below:
+            ct += 1
 
+            if ct + 1 == len(ages):
+                break
+        
+        ifin = -1 - ct                                                            
+        ages_x = np.arange(ages[-1], ages[ifin]+1., 1.)[-1::-1]
+                                                        
+        # Must augment ages and dt accordingly
+        _ages = np.hstack((ages[0:ifin], ages_x))
+        _dt = np.abs(np.diff(_ages) * 1e6)
+        
+        if batch_mode:
+            xSFR = np.ones((sfh.shape[0], ages_x.size-1))
+        else:
+            xSFR = np.ones(ages_x.size-1)
+            
+        # Must allow non-constant SFR within over-sampled region
+        # as it may be tens of Myr.
+        # Walk back from the end and fill in SFR
+        N = (ages_x.size - 1) / ct
+        for _i in range(0, ct):
+            
+            slc = slice(-1 * N * _i-1, -1 * N * (_i + 1) -1, -1)
+                                    
+            if batch_mode:
+                xSFR[slc] = sfh[:,-_i-2] * np.ones(N)[None,:]
+            else:
+                xSFR[slc] = sfh[-_i-2] * np.ones(N)
+        
+        # Need to tack on the SFH at ages older than our 
+        # oversampling approach kicks in.
+        if batch_mode:
+            _SFR = np.hstack((sfh[:,0:ifin], xSFR))
+        else:
+                
+            if ct + 1 == len(ages):
+                _SFR = np.hstack((sfh[0], xSFR))
+            else:
+                _SFR = np.hstack((sfh[0:i+1][0:ifin+1], xSFR))
+        
+        return _ages, _SFR
+        
     def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
         """
@@ -562,9 +640,9 @@ class SpectralSynthesis(object):
         
         # Figure out if we need to over-sample the grid we've got to more
         # accurately solve for young stellar populations.
-        oversample = (zobs is not None) \
-            and self.pf['pop_ssp_oversample'] \
-            and (dt[-2] >= 2e6)
+        oversample = self.oversampling_enabled and (dt[-2] > 1.01e6)
+        # Used to also require zobs is not None. Why?
+                        
         ##
         # Done parsing time/redshift
         
@@ -583,8 +661,7 @@ class SpectralSynthesis(object):
             fill_value=Loft[-1])
             
         # Extrapolate linearly at times < 1 Myr
-        _m = (Loft[1] - Loft[0]) \
-          / (self.src.times[1] - self.src.times[0])
+        _m = (Loft[1] - Loft[0]) / (self.src.times[1] - self.src.times[0])
         L_small_t = lambda age: _m * age + Loft[0]
         
         #L_small_t = Loft[0]
@@ -645,87 +722,40 @@ class SpectralSynthesis(object):
                 if oversample:
                     raise NotImplemented('help!')    
                 else:
-                    _dt = dt
+                    _dt = dt[0:i]
                     
                 _ages = ages    
             else:    
                 
                 # If time resolution is >= 2 Myr, over-sample final interval.
-                if oversample:
-                                        
-                    # Use 1 Myr time resolution for final stretch.
-                    # Treat 'final stretch' as free parameter? 10 Myr? 20?
-                    
-                    ct = 0
-                    while (ages[-2-ct] - ages[-1]) < self.pf['pop_ssp_oversample_age']:
-                        ct += 1
-                    
-                    ifin = -1 - ct
-                                        
-                    extra = np.arange(ages[-1], ages[ifin], 1.)[-1::-1]
-                    
-                    # Must augment ages and dt accordingly
-                    _ages = np.hstack((ages[0:ifin], extra))
+                if oversample and len(ages) > 1:                    
+                    _ages, _SFR = self._oversample_sfh(ages, sfh[0:i+1], i)
                     _dt = np.abs(np.diff(_ages) * 1e6)
-                    
-                    # 
-                    _dt = np.hstack((_dt, [0]))
                     
                     # Now, compute luminosity at expanded ages.
                     L_per_msun = np.exp(_func(np.log(_ages)))    
-                    
-                    #L_per_msun = np.exp(np.interp(np.log(_ages), 
-                    #    np.log(self.src.times), np.log(Loft), 
-                    #    left=-np.inf, right=np.log(Loft[-1])))
-                        
-                    # Interpolate linearly at t < 1 Myr    
-                    func = lambda age: age * Loft[0]
-                    L_per_msun[_ages < 1] = func(_ages[_ages < 1])    
-                    
-                    # Must reshape SFR to match. Assume constant SFR within
-                    # over-sampled integral.                    
-                    #xSFR = SFR[:,ifin:] * np.ones((SFR.shape[0], extra.size))
-                    
-                    # Must allow non-constant SFR within over-sampled region
-                    # as it may be tens of Myr
-                    xSFR = np.ones((sfh.shape[0], extra.size))
-                    
-                    # Walk back from the end and fill in SFRs
-                    N = extra.size / (ct + 1)
-                    for _i in range(0, ct+1):                     
-                        _fill = sfh[:,ifin+_i]
-                        fill = np.reshape(np.repeat(_fill, N), (sfh.shape[0], N))
-                        
-                        #print(_i, xSFR[:,_i*N:(_i+1)*N].shape, fill.shape)
-                        xSFR[:,_i*N:(_i+1)*N] = fill.copy()
-                            
-                        #print(_i, fill[0], fill.shape)
-                        #raw_input('<enter>')
 
-                    if batch_mode:
-                        _SFR = np.hstack((sfh[:,0:ifin], xSFR))
-                    else:
-                        print('help')
-                        _SFR = np.hstack((sfh[0:i], SFR[i+1] * np.ones_like(extra)))
+                    # Interpolate linearly at t < 1 Myr    
+                    L_per_msun[_ages < 1] = L_small_t(_ages[_ages < 1])   
                     
                     # erg/s/Hz
                     if batch_mode:
                         Lall = L_per_msun * _SFR
                     else:    
                         Lall = L_per_msun * _SFR
-                                                                 
+                                                               
                 else:    
                     L_per_msun = np.exp(np.interp(np.log(ages), 
                         np.log(self.src.times), np.log(Loft), 
                         left=np.log(Loft[0]), right=np.log(Loft[-1])))
                     
-                    _dt = dt
+                    _dt = dt[0:i]
                                                 
                     # Fix early time behavior
                     L_per_msun[ages < 1] = L_small_t(ages[ages < 1])
         
                     _ages = ages
-        
+                            
                     # erg/s/Hz
                     if batch_mode:
                         Lall = L_per_msun * sfh[:,0:i+1]
@@ -768,14 +798,14 @@ class SpectralSynthesis(object):
             # Integrate over all times up to this tobs            
             if batch_mode:
                 if (zobs is not None):
-                    Lhist = np.trapz(Lall[:,0:i+1], dx=_dt[0:i], axis=1)
+                    Lhist = np.trapz(Lall[:,0:i+1], dx=_dt, axis=1)
                 else:
-                    Lhist[:,i] = np.trapz(Lall, dx=_dt[0:i], axis=1)
+                    Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
             else:
                 if (zobs is not None):
-                    Lhist = np.trapz(Lall, x=tyr[0:i+1])                
+                    Lhist = np.trapz(Lall, dx=_dt)                
                 else:    
-                    Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])                
+                    Lhist[i] = np.trapz(Lall, dx=_dt)
 
             ##
             # In this case, we only need one iteration of this loop.
