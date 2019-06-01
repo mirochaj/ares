@@ -14,6 +14,7 @@ import time
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
+from ares.physics.Constants import s_per_myr
 
 def test(show_bpass=False, oversample_age=30.):
 
@@ -25,11 +26,15 @@ def test(show_bpass=False, oversample_age=30.):
     pars['pop_dlam'] = 1.
     pars['pop_thin_hist'] = 0
     pars['pop_scatter_mar'] = 0
-    pop1 = ares.populations.GalaxyPopulation(**pars)
     
-    pars2 = pars.copy()
-    pars2['hmf_dt'] = 10
-    pop2 = ares.populations.GalaxyPopulation(**pars2)
+    # Prevent use of hmf table
+    tarr = np.arange(50, 1000, 1.)[-1::-1]
+    zarr = toy.cosm.z_of_t(tarr * s_per_myr)
+    pars['pop_histories'] = {'t': tarr, 'z': zarr, 
+        'MAR': np.ones((10, tarr.size)), 'nh': np.ones((10, tarr.size)),
+        'Mh': 1e10 * np.ones((10, tarr.size))}
+    
+    pop1 = ares.populations.GalaxyPopulation(**pars)
     
     if show_bpass:
         src = ares.sources.SynthesisModel(source_sed='eldridge2009', source_ssp=True)
@@ -71,9 +76,7 @@ def test(show_bpass=False, oversample_age=30.):
         y1 = src.data[np.argmin(np.abs(src.wavelengths - wave)),:]
         ax1.loglog(src.times, y1, color=colors[i], ls='-',
             label=r'$\lambda = {} \AA$'.format(wave))
-    
-    ax1.legend(loc='upper right')
-    
+        
     ##
     # Plot spectra
     ##
