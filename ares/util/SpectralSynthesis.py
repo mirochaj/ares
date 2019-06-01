@@ -530,7 +530,10 @@ class SpectralSynthesis(object):
         N = (ages_x.size - 1) / ct
         for _i in range(0, ct):
             
-            slc = slice(-1 * N * _i-1, -1 * N * (_i + 1) -1, -1)
+            if batch_mode:
+                slc = Ellipsis, slice(-1 * N * _i-1, -1 * N * (_i + 1) -1, -1)
+            else:    
+                slc = slice(-1 * N * _i-1, -1 * N * (_i + 1) -1, -1)
                                     
             if batch_mode:
                 xSFR[slc] = sfh[:,-_i-2] * np.ones(N)[None,:]
@@ -540,7 +543,11 @@ class SpectralSynthesis(object):
         # Need to tack on the SFH at ages older than our 
         # oversampling approach kicks in.
         if batch_mode:
-            _SFR = np.hstack((sfh[:,0:ifin], xSFR))
+            if ct + 1 == len(ages):
+                print(sfh[:,0].shape, xSFR.shape)
+                _SFR = np.hstack((sfh[:,0][:,None], xSFR))
+            else:
+                _SFR = np.hstack((sfh[:,0:i+1][:,0:ifin+1], xSFR))
         else:
                 
             if ct + 1 == len(ages):
@@ -728,8 +735,13 @@ class SpectralSynthesis(object):
             else:    
                 
                 # If time resolution is >= 2 Myr, over-sample final interval.
-                if oversample and len(ages) > 1:                    
-                    _ages, _SFR = self._oversample_sfh(ages, sfh[0:i+1], i)
+                if oversample and len(ages) > 1:                
+                    
+                    if batch_mode:
+                        _ages, _SFR = self._oversample_sfh(ages, sfh[:,0:i+1], i)
+                    else:        
+                        _ages, _SFR = self._oversample_sfh(ages, sfh[0:i+1], i)
+                        
                     _dt = np.abs(np.diff(_ages) * 1e6)
                     
                     # Now, compute luminosity at expanded ages.

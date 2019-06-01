@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import s_per_myr
 
+#show_bpass=False; oversample_age=30.
 def test(show_bpass=False, oversample_age=30.):
 
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
@@ -214,8 +215,19 @@ def test(show_bpass=False, oversample_age=30.):
     
     pl.close('all')
     
+    ##
+    # Test batch mode
+    ##
     
+    sfh2 = np.array([sfh2] * 10)
     
+    L2b = ss.Luminosity(sfh2, tarr=tarr2)
+    L3b = ss2.Luminosity(sfh2, tarr=tarr2)
+    
+    assert np.all(L2b[0] == L2)
+    assert np.all(L3b[0] == L3)
+        
+        
     #print("Mean error in L(t) with oversampling at t<{} Myr: {}".format(oversample_age,
     #    np.mean(err)))
     
