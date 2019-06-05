@@ -41,10 +41,10 @@ _base = \
  # Screw with SFE.
  'pq_func_par0[1]{0}': 3e-2,         # SFE normalization [0.05 by default]
  'pq_func_par0[3]{0}': 0.5,
- 'pq_func_par0[4]{0}': 0.0,           # High-mass slope
+ 'pq_func_par0[4]{0}': 0.0,          # High-mass slope
  'pq_func_par2[1]{0}': 0.,           # Redshift evolution
  
- 'pq_func_par1[1]{0}': 5.,           # Pin to z = 4         
+ 'pq_func_par1[1]{0}': 5.,           # Pin to z = 4
 }
 
 base.update(_base)
@@ -53,7 +53,6 @@ screen = \
 {
  
  # Dust opacity vs. wavelength    
-    
     
  'pop_dust_fcov{0}': 1,  
  'pq_func_par2[22]{0}': 0.45,              # PL dependence of Rdust on Mh

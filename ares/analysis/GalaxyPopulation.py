@@ -642,10 +642,10 @@ class GalaxyPopulation(object):
         
         _mst  = np.arange(6, 12, 0.2)
         _mags = np.arange(-25, -10, 0.2)
-        
+
         redshifts = [4, 6, 8, 10]
         colors = ['k', 'b', 'c', 'm']
-        
+
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
             

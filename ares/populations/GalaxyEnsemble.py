@@ -2039,23 +2039,26 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if not hasattr(self, '_synth'):
             self._synth = SpectralSynthesis(**self.pf)
             self._synth.src = self.src
+            self._synth.oversampling_enabled = self.pf['pop_ssp_oversample']
+            self._synth.oversampling_below = self.pf['pop_ssp_oversample_age']
+            
         return self._synth
     
     def Magnitude(self, z, wave=1600.):
         L = self.Luminosity(z, wave=wave)
         return self.magsys.L_to_MAB(L, z=z)
             
-    def Luminosity(self, z, wave=1600., band=None):
+    def Luminosity(self, z, wave=1600., band=None, idnum=None):
         
-        cached_result = self._cache_L((z, wave, band))
+        cached_result = self._cache_L((z, wave, band, idnum))
         if cached_result is not None:
             return cached_result
         
         raw = self.histories
         L = self.synth.Luminosity(sfh=raw['SFR'], wave=wave, zarr=raw['z'],
-            zobs=z, hist=raw, extras=self.extras)
+            zobs=z, hist=raw, extras=self.extras, idnum=idnum)
            
-        self._cache_L_[(z, wave, band)] = L
+        self._cache_L_[(z, wave, band, idnum)] = L
            
         return L  
             
@@ -2150,7 +2153,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
         filters=None, filter_set=None, dlam=10., method='fit', 
-        return_binned=False, Mbins=None, Mwave=1600., MUV=None):
+        return_binned=False, Mbins=None, Mwave=1600., MUV=None,
+        return_scatter=False):
         """
         UV slope for all objects in model.
 
@@ -2212,13 +2216,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             nh = self.get_field(z, 'nh')    
             _MAB = self.Magnitude(z, wave=Mwave)
                         
-            MAB, beta, _z = bin_samples(_MAB, beta, Mbins, weights=nh)
+            MAB, beta, _std = bin_samples(_MAB, beta, Mbins, weights=nh)
             
         
         if MUV is not None:
             return np.interp(MUV, MAB, beta, left=-99999, right=-99999)
         
         # Get out.
+        if return_scatter:
+            return beta, _std
         return beta
         
     def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mbins=None, 

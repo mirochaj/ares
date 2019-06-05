@@ -309,7 +309,7 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
-_physical_dc_fcov = \
+_dust_fcov = \
 {
  "pop_dust_fcov": 'pq[21]',   
  "pq_func[21]": 'log_tanh_abs',
@@ -322,7 +322,7 @@ _physical_dc_fcov = \
  'pq_val_ceil[21]': 1.0,       
 }
 
-_physical_dc_screen = \
+_dust_kappa = \
 {    
  "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
 
@@ -332,7 +332,10 @@ _physical_dc_screen = \
  'pq_func_par0[20]': 1e5,      # opacity at wavelength below
  'pq_func_par1[20]': 1e3,
  'pq_func_par2[20]': -1.,
+}
 
+_dust_screen_pl = \
+{
  # Scale 
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
  "pq_func[22]": 'pl',
@@ -346,39 +349,70 @@ _physical_dc_screen = \
  'pq_func_var[23]': '1+z',
  'pq_func_par0[23]': 1.0,
  'pq_func_par1[23]': 5.,
- 'pq_func_par2[23]': -0.5,         # R(vir) goes like 1 / (1+z)
+ 'pq_func_par2[23]': 0.,         # R(vir) goes like 1 / (1+z)
 } 
 
-_physical_dc_patchy = _physical_dc_screen.copy()
-_physical_dc_patchy.update(_physical_dc_fcov)
+_dust_screen_pl.update(_dust_kappa)
 
-_physical_dc_patchy['pq_func_par2[21]'] = 'pq[24]'
-_physical_dc_patchy["pq_func[24]"] = 'linear'
-_physical_dc_patchy['pq_func_var[24]'] = '1+z'
-_physical_dc_patchy['pq_func_par0[24]'] = 10.8
-_physical_dc_patchy['pq_func_par1[24]'] = 5.
-_physical_dc_patchy['pq_func_par2[24]'] = 0.
+_dust_screen_dpl = \
+{
+ # Scale 
+ "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
+ "pq_func[22]": 'dpl_arbnorm',
+ 'pq_func_var[22]': 'Mh',
+ 'pq_func_par0[22]': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]': 'pq[24]',
+ 'pq_func_par2[22]': 0.45,
+ 'pq_func_par3[22]': 0.45,
+ 'pq_func_par4[22]': 1e10,
+ 
+ # Evolution of scale
+ "pq_func[23]": 'pl',
+ 'pq_func_var[23]': '1+z',
+ 'pq_func_par0[23]': 1.0,
+ 'pq_func_par1[23]': 5.,
+ 'pq_func_par2[23]': 0.,         # R(vir) goes like 1 / (1+z)
+ 
+ # Evolution of peak
+ "pq_func[24]": 'pl',
+ 'pq_func_var[24]': '1+z',
+ 'pq_func_par0[24]': 11.,
+ 'pq_func_par1[24]': 5.,
+ 'pq_func_par2[24]': 0.,         # R(vir) goes like 1 / (1+z)
+} 
+
+_dust_screen_dpl.update(_dust_kappa)
+
+_dust_patchy = _dust_screen_pl.copy()
+_dust_patchy.update(_dust_fcov)
+
+_dust_patchy['pq_func_par2[21]'] = 'pq[24]'
+_dust_patchy["pq_func[24]"] = 'linear'
+_dust_patchy['pq_func_var[24]'] = '1+z'
+_dust_patchy['pq_func_par0[24]'] = 10.8
+_dust_patchy['pq_func_par1[24]'] = 5.
+_dust_patchy['pq_func_par2[24]'] = 0.
 
 
-_physical_dc_screen_tanh = _physical_dc_screen.copy()
-_physical_dc_patchy_tanh = _physical_dc_patchy.copy()
+#_physical_dc_screen_tanh = _physical_dc_screen.copy()
+#_physical_dc_patchy_tanh = _physical_dc_patchy.copy()
 
 
-_physical_dc_screen_tanh["pq_func[22]"] = 'log_tanh_abs'
-_physical_dc_screen_tanh['pq_func_var[22]'] = 'Mh'
-_physical_dc_screen_tanh['pq_func_par0[22]'] = 'pq[23]'
-_physical_dc_screen_tanh['pq_func_par1[22]'] = 10.
-_physical_dc_screen_tanh['pq_func_par2[22]'] = 12.
-_physical_dc_screen_tanh['pq_func_par3[22]'] = 1.
-_physical_dc_screen_tanh['pq_func_par0[23]'] = 1e-1
-
-_physical_dc_patchy_tanh["pq_func[22]"] = 'log_tanh_abs'
-_physical_dc_patchy_tanh['pq_func_var[22]'] = 'Mh'
-_physical_dc_patchy_tanh['pq_func_par0[22]'] = 'pq[23]'
-_physical_dc_patchy_tanh['pq_func_par1[22]'] = 10.
-_physical_dc_patchy_tanh['pq_func_par2[22]'] = 12.
-_physical_dc_patchy_tanh['pq_func_par3[22]'] = 1.
-_physical_dc_patchy_tanh['pq_func_par0[23]'] = 1e-1
+#_physical_dc_screen_tanh["pq_func[22]"] = 'log_tanh_abs'
+#_physical_dc_screen_tanh['pq_func_var[22]'] = 'Mh'
+#_physical_dc_screen_tanh['pq_func_par0[22]'] = 'pq[23]'
+#_physical_dc_screen_tanh['pq_func_par1[22]'] = 10.
+#_physical_dc_screen_tanh['pq_func_par2[22]'] = 12.
+#_physical_dc_screen_tanh['pq_func_par3[22]'] = 1.
+#_physical_dc_screen_tanh['pq_func_par0[23]'] = 1e-1
+#
+#_physical_dc_patchy_tanh["pq_func[22]"] = 'log_tanh_abs'
+#_physical_dc_patchy_tanh['pq_func_var[22]'] = 'Mh'
+#_physical_dc_patchy_tanh['pq_func_par0[22]'] = 'pq[23]'
+#_physical_dc_patchy_tanh['pq_func_par1[22]'] = 10.
+#_physical_dc_patchy_tanh['pq_func_par2[22]'] = 12.
+#_physical_dc_patchy_tanh['pq_func_par3[22]'] = 1.
+#_physical_dc_patchy_tanh['pq_func_par0[23]'] = 1e-1
 
 
 
@@ -444,9 +478,10 @@ _Bundles = \
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
-    'evolving': _evolve_dc, 'none': {}, 'screen': _physical_dc_screen, 
-    'patchy': _physical_dc_patchy, 'screen-tanh': _physical_dc_screen_tanh, 
-    'patchy-tanh': _physical_dc_patchy_tanh,
+    'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl, 
+    'screen-dpl': _dust_screen_dpl, 
+    'patchy': _dust_patchy, #'screen-tanh': _physical_dc_screen_tanh, 
+    #'patchy-tanh': _physical_dc_patchy_tanh,
     },
  'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},
@@ -689,6 +724,7 @@ class ParameterBundle(dict):
             if (idnum == num) or prefix.startswith('hmf_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
                 or prefix.startswith('master'):
+                                
                 if strip_id:
                     tmp[prefix] = self[par]
                 else:    

@@ -37,7 +37,7 @@ _zcal_smf = [3, 4, 5, 6, 7, 8]
 _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
-acceptable_dust_params = ['norm', 'slope', 'fcov']
+acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov']
 
 class CalibrateModel(object):
     """
@@ -175,10 +175,11 @@ class CalibrateModel(object):
                  or 'slope-high' in self.zevol_sfe
                  
             enorm_d = 'norm' in self.zevol_dust
+            epeak_d = 'norm' in self.zevol_dust
             
-            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_fduty-{}_efduty-{}'.format(
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_epeak-{}_fduty-{}_efduty-{}'.format(
                 int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d),
-                int(self.include_fduty), int(self.zevol_fduty))
+                int(epeak_d), int(self.include_fduty), int(self.zevol_fduty))
         #elif self.include_sfe in ['f17-p', 'f17-E']:
         #    rest = 'sfe-{}_fshock-{}_dust-{}_edust-{}_zcal-{}'.format(
         #        self.include_sfe, self.include_fshock, self.include_dust, 
@@ -335,7 +336,7 @@ class CalibrateModel(object):
             ##
             # DUST REDDENING
             ##
-            if self.include_dust in ['screen', 'patchy']:
+            if self.include_dust in ['screen', 'screen-dpl', 'patchy']:
                 
                 if 'norm' in self.free_params_dust:
                     
@@ -347,18 +348,41 @@ class CalibrateModel(object):
                                         
                     if 'norm' in self.zevol_dust:
                         free_pars.append('pq_func_par2[23]')
-                        guesses['pq_func_par2[23]'] = -0.5
+                        guesses['pq_func_par2[23]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.1])
+                        jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[23]')
 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
-                    guesses['pq_func_par2[22]'] = 0.5
+                    guesses['pq_func_par2[22]'] = 0.45
                     is_log.extend([False])
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
+                    if self.include_dust == 'screen-dpl':
+                        free_pars.append('pq_func_par3[22]')
+                        guesses['pq_func_par3[22]'] = 0.45
+                        is_log.extend([False])
+                        jitter.extend([0.1])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                
+                if 'peak' in self.free_params_dust:
+                    assert self.include_dust == 'screen-dpl'
+                    
+                    free_pars.append('pq_func_par0[24]')
+                    guesses['pq_func_par0[24]'] = 11.5
+                    is_log.extend([True])
+                    jitter.extend([0.5])
+                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[24]')                    
+
+                    if 'peak' in self.zevol_dust:
+                        free_pars.append('pq_func_par2[24]')
+                        guesses['pq_func_par2[24]'] = 0.0
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[24]')
+                    
                 if 'fcov' in self.free_params_dust:    
 
                     # fcov parameters (no zevol)

@@ -524,6 +524,11 @@ class SpectralSynthesis(object):
         else:
             xSFR = np.ones(ages_x.size-1)
             
+            
+        print('hey', ages_x.shape, (ages_x.size - 1) / ct, sfh.shape, xSFR.shape)    
+            
+        print(ages_x)    
+            
         # Must allow non-constant SFR within over-sampled region
         # as it may be tens of Myr.
         # Walk back from the end and fill in SFR
@@ -536,7 +541,8 @@ class SpectralSynthesis(object):
                 slc = slice(-1 * N * _i-1, -1 * N * (_i + 1) -1, -1)
                                     
             if batch_mode:
-                xSFR[slc] = sfh[:,-_i-2] * np.ones(N)[None,:]
+                _sfh_rs = np.array([sfh[:,-_i-2]]*N).T
+                xSFR[slc] = _sfh_rs * np.ones(N)[None,:]
             else:
                 xSFR[slc] = sfh[-_i-2] * np.ones(N)
         
@@ -810,7 +816,7 @@ class SpectralSynthesis(object):
             # Integrate over all times up to this tobs            
             if batch_mode:
                 if (zobs is not None):
-                    Lhist = np.trapz(Lall[:,0:i+1], dx=_dt, axis=1)
+                    Lhist = np.trapz(Lall, dx=_dt, axis=1)
                 else:
                     Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
             else:
