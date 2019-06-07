@@ -16,7 +16,6 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import s_per_myr
 
-#show_bpass=False; oversample_age=30.
 def test(show_bpass=False, oversample_age=30.):
 
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
@@ -27,6 +26,9 @@ def test(show_bpass=False, oversample_age=30.):
     pars['pop_dlam'] = 1.
     pars['pop_thin_hist'] = 0
     pars['pop_scatter_mar'] = 0
+    pars['pop_Tmin'] = None # So we don't have to read in HMF table for Mmin
+    pars['pop_Mmin'] = 1e8
+    pars['pop_synth_minimal'] = False
     
     # Prevent use of hmf table
     tarr = np.arange(50, 1000, 1.)[-1::-1]
@@ -226,13 +228,10 @@ def test(show_bpass=False, oversample_age=30.):
     
     assert np.all(L2b[0] == L2)
     assert np.all(L3b[0] == L3)
-        
-        
+            
     #print("Mean error in L(t) with oversampling at t<{} Myr: {}".format(oversample_age,
     #    np.mean(err)))
-    
-    
-        
+            
 if __name__ == '__main__':
     test()
 

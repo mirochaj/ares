@@ -1797,7 +1797,7 @@ class ModelSet(BlobFactory):
             if cdata is not None:
                 mask = np.logical_or(mask == True, cdata.mask == True)
             
-            print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
+            #print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
             
             xd = xdata[mask == 0]
             yd = ydata[mask == 0]
@@ -1807,17 +1807,24 @@ class ModelSet(BlobFactory):
             else:
                 cd = cdata
 
+        kw = {}
+        for _kw in kwargs:
+            if _kw not in ['color', 'mec', 'mfc', 'alpha']:
+                continue
+            
+            kw[_kw] = kwargs[_kw]
+
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
-                label=rung_label, label_on_top=rung_label_top, **kwargs)
+                label=rung_label, label_on_top=rung_label_top, **kw)
         elif hasattr(self, 'weights') and cdata is None:
-            scat = func(xd, yd, c=self.weights, **kwargs)
+            scat = func(xd, yd, c=self.weights, **kw)
         elif line_plot:
-            scat = func(xd, yd, **kwargs)
+            scat = func(xd, yd, **kw)
         elif (cdata is not None) and (filter_z is None):
-            scat = func(xd, yd, c=cd, **kwargs)
+            scat = func(xd, yd, c=cd, **kw)
         else:
-            scat = func(xd, yd, **kwargs)
+            scat = func(xd, yd, **kw)
                            
         if (cdata is not None) and use_colorbar and (not line_plot) and \
            (filter_z is None):

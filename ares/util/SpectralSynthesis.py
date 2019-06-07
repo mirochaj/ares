@@ -350,11 +350,11 @@ class SpectralSynthesis(object):
                     
                     if (l < rest_wave[0]) or (r > rest_wave[1]):
                         continue
-                
+
                 cent_r = cent * 1e4 / (1. + zobs)
                 if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
                     continue
-                        
+
             lmin = min(lmin, cent - dx[1])
             lmax = max(lmax, cent + dx[0])
             ct += 1
