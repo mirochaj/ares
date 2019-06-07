@@ -245,26 +245,37 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if _z < self.pf['pop_synth_zmin']:
                 continue
             if _z > self.pf['pop_synth_zmax']:
-                continue    
+                continue
+                
+            if not np.all(Mh_raw[:,i] > Mmin[i]):
+                j1 = np.argmin(np.abs(Mh_raw[:,i] - Mmin[i]))
+                if Mh_raw[j1,i] > Mmin[i]:
+                    j1 -= 1
+            else:
+                j1 = 0        
             
-            j1 = np.argmin(np.abs(Mh_raw[:,i] - Mmin[i]))
-            if Mh_raw[j1,i] > Mmin[i]:
-                j1 -= 1
-            
-            j2 = np.argmin(np.abs(Mh_raw[:,i] - self.pf['pop_synth_Mmax']))
-            if Mh_raw[j1,i] < self.pf['pop_synth_Mmax']:
-                j2 += 1
+            if not np.all(Mh_raw[:,i] < self.pf['pop_synth_Mmax']):
+                j2 = np.argmin(np.abs(Mh_raw[:,i] - self.pf['pop_synth_Mmax']))
+                if Mh_raw[j1,i] < self.pf['pop_synth_Mmax']:
+                    j2 += 1
+            else:
+                j2 = Mh_raw.shape[0] - 1
                            
             ilo = min(ilo, j1)
-            ihi = max(ihi, j2)    
+            ihi = max(ihi, j2)
+            
+        if ihi == Mh_raw.shape[0] - 1:
+            ihi = None
+        else:
+            ihi += 1 
             
         # Also cut out some redshift range.        
         zok = np.logical_and(zall >= self.pf['pop_synth_zmin'],
             zall <= self.pf['pop_synth_zmax'])
         zall = zall[zok==1]
-        Mh_raw = Mh_raw[ilo:ihi+1,zok==1]
-        nh_raw = nh_raw[ilo:ihi+1,zok==1]
-        mar_raw = mar_raw[ilo:ihi+1,zok==1]
+        Mh_raw = Mh_raw[ilo:ihi,zok==1]
+        nh_raw = nh_raw[ilo:ihi,zok==1]
+        mar_raw = mar_raw[ilo:ihi,zok==1]
         
         ##
         # Could optionally thin out the bins to allow more diversity.

@@ -525,9 +525,9 @@ class SpectralSynthesis(object):
             xSFR = np.ones(ages_x.size-1)
             
             
-        print('hey', ages_x.shape, (ages_x.size - 1) / ct, sfh.shape, xSFR.shape)    
-            
-        print(ages_x)    
+        #print('hey', ages_x.shape, (ages_x.size - 1) / ct, sfh.shape, xSFR.shape)    
+        #    
+        #print(ages_x)    
             
         # Must allow non-constant SFR within over-sampled region
         # as it may be tens of Myr.
