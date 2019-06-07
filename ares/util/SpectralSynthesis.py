@@ -224,7 +224,7 @@ class SpectralSynthesis(object):
                 try:
                     popt, pcov = curve_fit(func, x, y, p0=guess)
                 except RuntimeError:
-                    popt, pcov = -99999, -99999
+                    popt, pcov = -99999 * np.ones(2), -99999 * np.ones(2)
                         
         elif method == 'diff':
             

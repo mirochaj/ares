@@ -229,7 +229,44 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         else:
             mar_raw = raw['MAR']
+            
+        ##
+        # Throw away halos with Mh < Mmin or Mh > Mmax
+        ##
+        Mmin = self.guide.Mmin(zall)
+        ilo = Mh_raw.shape[0] - 1
+        ihi = 0
+        for i, _z in enumerate(zall):
+            
+            # Edge effects
+            if i < 5:
+                continue
+                
+            if _z < self.pf['pop_synth_zmin']:
+                continue
+            if _z > self.pf['pop_synth_zmax']:
+                continue    
+            
+            j1 = np.argmin(np.abs(Mh_raw[:,i] - Mmin[i]))
+            if Mh_raw[j1,i] > Mmin[i]:
+                j1 -= 1
+            
+            j2 = np.argmin(np.abs(Mh_raw[:,i] - self.pf['pop_synth_Mmax']))
+            if Mh_raw[j1,i] < self.pf['pop_synth_Mmax']:
+                j2 += 1
+                           
+            ilo = min(ilo, j1)
+            ihi = max(ihi, j2)    
+            
+        # Also cut out some redshift range.        
+        zok = np.logical_and(zall >= self.pf['pop_synth_zmin'],
+            zall <= self.pf['pop_synth_zmax'])
+        zall = zall[zok==1]
+        Mh_raw = Mh_raw[ilo:ihi+1,zok==1]
+        nh_raw = nh_raw[ilo:ihi+1,zok==1]
+        mar_raw = mar_raw[ilo:ihi+1,zok==1]
         
+        ##
         # Could optionally thin out the bins to allow more diversity.
         if thin > 0:
             # Doesn't really make sense to do this unless we're
@@ -241,7 +278,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             nh = nh_raw.copy()
             Mh = Mh_raw.copy()
-        
+                                    
         self.tab_shape = Mh.shape
         
         ##
@@ -280,7 +317,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         histories['t'] = t.astype(dtype)
                             
-        if self.pf['pop_dust_yield'] > 0:
+        if self.pf['pop_dust_yield'] is not None:
             r = np.reshape(np.random.rand(Mh.size), Mh.shape)
             if self.pf['conserve_memory']:
                 histories['rand'] = r.astype(np.float32)
@@ -1001,7 +1038,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             hist['imf'] = np.zeros((halos['Mh'].size, halos['z'].size,
                 self.tab_imf_mc.size))
             
-            for i in range(num): 
+            for i in range(num):
                 
                 print(i)
                 #halo = {key:halos[key][i] for key in keys}

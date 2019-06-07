@@ -457,7 +457,7 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
     def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        **kwargs):
+        fresh=False, **kwargs):
         """
         Make a huge plot.
         """
@@ -476,15 +476,13 @@ class GalaxyPopulation(object):
         if isinstance(pop, GalaxyEnsemble):
             self._MegaPlotPop(axes, pop)
         elif hasattr(pop, 'chain'):
-            
-            #if use_best:
-            #    #bkw = pop.base_kwargs.copy()
-            #    #bkw.update(pop.max_likelihood_parameters(method=method))
-            #    #print("should just grab this from blobs")
-            #    #pop = GalaxyEnsemble(**bkw)
-            #    #self._MegaPlotPop(axes, pop)
-            #else:
-            self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
+            if fresh:
+                bkw = pop.base_kwargs.copy()
+                bkw.update(pop.max_likelihood_parameters(method=method))
+                pop = GalaxyEnsemble(**bkw)
+                self._MegaPlotPop(axes, pop)
+            else:
+                self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
             raise TypeError("Unrecognized object pop={}".format(pop))
          

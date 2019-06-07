@@ -341,7 +341,7 @@ class CalibrateModel(object):
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[23]')
-                    guesses['pq_func_par0[23]'] = 1.3
+                    guesses['pq_func_par0[23]'] = 1.6
                     is_log.extend([False])
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[23]')

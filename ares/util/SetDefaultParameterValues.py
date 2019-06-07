@@ -520,6 +520,7 @@ def PopulationParameters():
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 20.,
     "pop_synth_zmin": 3.5,
+    "pop_synth_Mmax": 1e14,
     
     
     "pop_tau_bc": 0,
