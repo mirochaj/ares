@@ -19,74 +19,83 @@ except IndexError:
     print("Supply path to CosmoRec executable via command-line!")
     sys.exit(1)
 
+try:
+    output_path=sys.argv[2]
+except:
+    output_path=None
 pf = ares.util.SetDefaultParameterValues.CosmologyParameters()
 
-CR_pars = \
- [
-  1000,
-  3000,
-  0,           # final redshift
-  0.24,        # helium
-  2.725,
-  0.26,
-  0.044,
-  0.0,         # O_l
-  0.0,         # O_k
-  0.71,        
-  3.04,
-  1.14,
-  3,
-  500,
-  0,
-  3,
-  2,
-  1,
-  0,
-  1,
-  2,
-  3,
-  2,
-  './outputs/',
-  '.dat'
- ]
+# CR_pars = \
+#  [
+#   1000,
+#   3000,
+#   0,           # final redshift
+#   0.24,        # helium
+#   2.725,
+#   0.26,
+#   0.044,
+#   0.0,         # O_l
+#   0.0,         # O_k
+#   0.71,        
+#   3.04,
+#   1.14,
+#   3,
+#   500,
+#   0,
+#   3,
+#   2,
+#   1,
+#   0,
+#   1,
+#   2,
+#   3,
+#   2,
+#   './outputs/',
+#   '.dat'
+#  ]
  
-mapping = \
-{
-"omega_m_0": 5,
-"omega_b_0": 6,
-"hubble_0": 9,
-"helium_by_mass": 3,
-"cmb_temp_0": 4,
-}
+# mapping = \
+# {
+# "omega_m_0": 5,
+# "omega_b_0": 6,
+# "hubble_0": 9,
+# "helium_by_mass": 3,
+# "cmb_temp_0": 4,
+# }
  
-for par in pf:
-    if par not in mapping:
-        continue
+# for par in pf:
+#     if par not in mapping:
+#         continue
         
-    i = mapping[par]
-    val = pf[par]
+#     i = mapping[par]
+#     val = pf[par]
     
-    # Update
-    CR_pars[i] = val
+#     # Update
+#     CR_pars[i] = val
     
-# Create parameter file for reference
-f = open('CosmoRec.parameters.dat', 'w')
-for element in CR_pars:
-    print(element, file=f)
-f.close()
+# # Create parameter file for reference
+# f = open('CosmoRec.parameters.dat', 'w')
+# for element in CR_pars:
+#     print(element, file=f)
+# f.close()
 
-if not os.path.exists('outputs'):
-    os.mkdir('outputs')
+# if not os.path.exists('outputs'):
+#     os.mkdir('outputs')
 
 # Run the thing
-os.system('{!s} CosmoRec.parameters.dat'.format(to_CR))
-    
-for fn in os.listdir('outputs'):
-    if re.search('final', fn):
-        break
+os.system('{!s}/CosmoRec CosmoRec.parameters.dat'.format(to_CR))
+
+if output_path:   
+    for fn in os.listdir(output_path):
+        if re.search('final', fn):
+            break
+else:
+    for fn in os.listdir(to_CR+'/outputs/'):
+        if re.search('final', fn):
+            break
     
 # Convert it to ares format   
-data = np.loadtxt('outputs/{!s}'.format(fn))
+data = np.loadtxt('{!s}/outputs/{!s}'.format(to_CR, fn))
 
 new_data = \
  {'z': data[:,0][-1::-1], 

@@ -68,13 +68,14 @@ class Cosmology(object):
                 cosmology_name=self.pf['hmf_table'][cosmology_marker+10:number_marker-1]
                 cosmology_number=self.pf['hmf_table'][number_marker+7:number_marker+12]
                 self.cosmology_prefix=cosmology_name+'-'+cosmology_number
+                print('Cosmology recognized from the hmf table')
             else:
-                print('Cosmology not recognized')
+                if self.pf['cosmology_name'] is None:
+                    print('Cosmology not recognized from hmf table name')
 
         # Creates the path variable for the MCMC chains
         ARES = os.environ.get('ARES')
-        cosmo_path=ARES+'/input/cosmo_params/COM_CosmoParams_base-plikHM'+
-        '-TTTEEE-lowl-lowE_R3.00/base/'
+        cosmo_path=ARES+'/input/cosmo_params/COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00/base/'
         if self.cosmology_prefix: 
             # Checks if the file required is in the lensing or normal directory
             lensing=None
@@ -88,7 +89,7 @@ class Cosmology(object):
                 if file==self.cosmology_prefix[:-6]+'.txt':
                     lensing=False
             if lensing is None:
-                print('Error loading cosmology')
+                print('Error loading cosmology', self.cosmology_prefix)
 
 
             # Finds the specific file
