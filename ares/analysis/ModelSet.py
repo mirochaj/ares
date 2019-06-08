@@ -2524,7 +2524,11 @@ class ModelSet(BlobFactory):
                     ivars = self.derived_blob_ivars[par]
 
                     i1 = np.argmin(np.abs(ivars[0] - ivar[k][0]))
-                    i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
+                    
+                    if ivar[k][1] is None:
+                        i2 = Ellipsis
+                    else:
+                        i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
                     
                     #for iv in ivars:                            
                     #    arr = np.array(iv).squeeze()

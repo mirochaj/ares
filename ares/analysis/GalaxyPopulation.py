@@ -649,9 +649,11 @@ class GalaxyPopulation(object):
             
             
         # Compute X_LAE, etc.
-        #anl.DeriveBlob(name='x_LAE', expr='1-fcov', clobber=True,
-        #    varmap={'fcov': 'dust_fcov'}, ivar=anl.get_ivars('dust_fcov'))    
-                
+        if 'dust_fcov' in anl.all_blob_names:
+            func = lambda data, ivars: 1. - data['dust_fcov']
+            anl.DeriveBlob(name='x_LAE', func=func, clobber=True,
+                fields='dust_fcov', ivar=None) 
+                              
         xa_b = []
         xa_f = []
         for j, z in enumerate(redshifts):
@@ -681,12 +683,14 @@ class GalaxyPopulation(object):
             if 'fduty' in anl.all_blob_names:
                 anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)
-            else:    
+            
+            if 'dust_fcov' in anl.all_blob_names:
                 anl.ReconstructedFunction('dust_fcov', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)    
             
-            #anl.ReconstructedFunction('x_LAE', ivar=[z, None], ax=ax_lae_m,
-            #    color=colors[j], **kwargs)
+                # Need to convert to MUV!
+                anl.ReconstructedFunction('x_LAE', ivar=[z, None], ax=ax_lae_m,
+                    color=colors[j], **kwargs)
                 
                     
                 

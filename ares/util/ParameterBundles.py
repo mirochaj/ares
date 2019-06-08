@@ -311,15 +311,15 @@ _evolve_dc = \
 
 _dust_fcov = \
 {
- "pop_dust_fcov": 'pq[21]',   
- "pq_func[21]": 'log_tanh_abs',
- 'pq_func_var[21]': 'Mh',
- 'pq_func_par0[21]': 0.0,     
- 'pq_func_par1[21]': 1.0,
- 'pq_func_par2[21]': 10.8,
- 'pq_func_par3[21]': 0.3,
- 'pq_val_floor[21]': 0.0,
- 'pq_val_ceil[21]': 1.0,       
+ "pop_dust_fcov": 'pq[25]',   
+ "pq_func[25]": 'log_tanh_abs',
+ 'pq_func_var[25]': 'Mh',
+ 'pq_func_par0[25]': 0.0,     
+ 'pq_func_par1[25]': 1.0,
+ 'pq_func_par2[25]': 10.8,
+ 'pq_func_par3[25]': 0.3,
+ 'pq_val_floor[25]': 0.0,
+ 'pq_val_ceil[25]': 1.0,       
 }
 
 _dust_kappa = \
@@ -383,15 +383,15 @@ _dust_screen_dpl = \
 
 _dust_screen_dpl.update(_dust_kappa)
 
-_dust_patchy = _dust_screen_pl.copy()
+_dust_patchy = _dust_screen_dpl.copy()
 _dust_patchy.update(_dust_fcov)
 
-_dust_patchy['pq_func_par2[21]'] = 'pq[24]'
-_dust_patchy["pq_func[24]"] = 'linear'
-_dust_patchy['pq_func_var[24]'] = '1+z'
-_dust_patchy['pq_func_par0[24]'] = 10.8
-_dust_patchy['pq_func_par1[24]'] = 5.
-_dust_patchy['pq_func_par2[24]'] = 0.
+_dust_patchy['pq_func_par2[25]'] = 'pq[26]'
+_dust_patchy["pq_func[26]"] = 'linear'
+_dust_patchy['pq_func_var[26]'] = '1+z'
+_dust_patchy['pq_func_par0[26]'] = 10.8
+_dust_patchy['pq_func_par1[26]'] = 5.
+_dust_patchy['pq_func_par2[26]'] = 0.
 
 
 #_physical_dc_screen_tanh = _physical_dc_screen.copy()
