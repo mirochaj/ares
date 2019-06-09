@@ -360,7 +360,7 @@ class CalibrateModel(object):
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
-                    if self.include_dust == 'screen-dpl':
+                    if self.include_dust in ['screen-dpl', 'patchy']:
                         free_pars.append('pq_func_par3[22]')
                         guesses['pq_func_par3[22]'] = 0.45
                         is_log.extend([False])

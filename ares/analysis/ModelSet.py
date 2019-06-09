@@ -3733,7 +3733,7 @@ class ModelSet(BlobFactory):
                         
         # First, read-in data from disk. Slice it up depending on if 
         # skip or stop were provided. Squeeze arrays to remove NaNs etc.
-        
+                
         # 1-D case. Don't need to specify ivar by hand.
         if nd == 1:
             
@@ -3904,12 +3904,13 @@ class ModelSet(BlobFactory):
                 ax.plot(xarr, yblob[keep==1].T, **kwargs)
                 
             # Plot only the best-fitting model
-            elif use_best and self.is_mcmc:
+            elif use_best and self.is_mcmc:                
                 if best == 'median':
                     N = len(self.logL[keep == 1])
                     psorted = np.argsort(self.logL[keep == 1])
                     loc = psorted[int(N / 2.)]
                 else:
+                    
                     loc = np.argmax(self.logL[keep == 1])    
             
                 ax.plot(xarr, yblob[keep==1][loc], **kwargs)    

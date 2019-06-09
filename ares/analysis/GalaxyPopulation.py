@@ -21,6 +21,7 @@ import matplotlib.gridspec as gridspec
 from ..physics.Constants import rhodot_cgs
 from .MultiPlot import MultiPanel, add_master_legend
 from ..util.Stats import symmetrize_errors, bin_samples
+from ..populations.GalaxyPopulation import GalaxyPopulation as GP
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
 
 try:
@@ -479,7 +480,7 @@ class GalaxyPopulation(object):
             if fresh:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
-                pop = GalaxyEnsemble(**bkw)
+                pop = GP(**bkw)
                 self._MegaPlotPop(axes, pop)
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
@@ -581,8 +582,8 @@ class GalaxyPopulation(object):
             
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
-            
-            if fcov.ndim == 1:
+                        
+            if np.all(np.diff(fcov) == 0):
                 try:
                     fduty = pop.guide.fduty(z=z, Mh=Mh)
                     ax_fco.semilogx(Mh, fduty, color=colors[j])
