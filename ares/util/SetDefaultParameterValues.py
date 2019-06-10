@@ -925,6 +925,7 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
+    "cosmology_propagation": True,
     "omega_m_0": 0.3089,
     "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
     "omega_l_0": 1. - 0.3089,
