@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 import os
 import copy
 import numpy as np
@@ -133,40 +134,70 @@ class Survey(object):
 
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
-                        
-        if type(filter_set) != list:
-            filter_set = [filter_set]
+            
+        get_all = False    
+        if filters is not None:
+            if filters == 'all':
+                get_all = True
+            else:
+                assert type(filters) in [list, tuple]               
+        else:
+            filters = []
+            if type(filter_set) != list:
+                filter_set = [filter_set]
 
         data = {}
         for fn in os.listdir(self.path):
                     
             pre = fn.split('_')[0]
-            
-            for _filters in filter_set:
                 
-                if _filters in self._filter_cache:
-                    data[pre] = self._filter_cache[_filters]
+            if get_all or (pre in filters):
+            
+                if pre in self._filter_cache:
+                    data[pre] = self._filter_cache[pre]
                     continue
                     
-                if _filters not in pre:
-                    continue        
-        
-                # Need to distinguish W from W2
-                if (_filters == 'W') and ('W2' in pre):
-                    continue
-                                                                        
-                # Determine the center wavelength of the filter based its string
-                # identifier.    
-                k = pre.rfind(_filters)    
-                cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                if ('W2' in pre):
+                    continue    
+                
+                num = re.findall(r'\d+', pre)[0]
+                cent = float('{}.{}'.format(num[0], num[1:]))    
                 
                 # Wavelength [micron], transmission
                 x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
                     skiprows=1)
                 
                 data[pre] = self._get_filter_prop(x, y, cent)
-            
+                
                 self._filter_cache[pre] = copy.deepcopy(data[pre])
+            
+            elif filter_set is not None:
+                
+                for _filters in filter_set:
+                
+                    if _filters in self._filter_cache:
+                        data[pre] = self._filter_cache[_filters]
+                        continue
+                        
+                    if _filters not in pre:
+                        continue        
+                    
+                    # Need to distinguish W from W2
+                    if (_filters == 'W') and ('W2' in pre):
+                        continue
+                                                                            
+                    # Determine the center wavelength of the filter based its string
+                    # identifier.    
+                    k = pre.rfind(_filters)    
+                    cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                    
+                    # Wavelength [micron], transmission
+                    x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
+                        skiprows=1)
+                    
+                    data[pre] = self._get_filter_prop(x, y, cent)
+                    
+                    self._filter_cache[pre] = copy.deepcopy(data[pre])
         
         return data   
         
@@ -190,6 +221,7 @@ class Survey(object):
             else:
                 assert type(filters) in [list, tuple]
         else:   
+            filters = []
             # Grab all 'W' or 'N' etc. filters 
             if type(filter_set) != list:
                 filter_set = [filter_set]    

@@ -300,7 +300,7 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
-def bin_samples(x, y, xbin_c, weights=None):
+def bin_samples(x, y, xbin_c, weights=None, limits=False):
     """
     Take samples and bin up.
     """
@@ -324,12 +324,21 @@ def bin_samples(x, y, xbin_c, weights=None):
         f = y[ok==1]
 
         if (f.size == 0) or (weights[ok==1].sum() == 0):
-            ystd.append(-np.inf)
+            
             yavg.append(-np.inf)
+            if limits:
+                ystd.append((-np.inf, -np.inf))
+            else:    
+                ystd.append(-np.inf)
+            
             continue
-
-        ystd.append(np.std(f))
+        
         yavg.append(np.average(f, weights=weights[ok==1]))
+        
+        if limits:
+            ystd.append((np.min(f), np.max(f)))
+        else:        
+            ystd.append(np.std(f))
 
     return np.array(xbin_c), np.array(yavg), np.array(ystd)
 

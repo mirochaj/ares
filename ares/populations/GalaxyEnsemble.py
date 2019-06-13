@@ -2093,9 +2093,34 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         return self._synth
     
-    def Magnitude(self, z, wave=1600.):
-        L = self.Luminosity(z, wave=wave)
-        return self.magsys.L_to_MAB(L, z=z)
+    def Magnitude(self, z, wave=1600., cam=None, filters=None, filter_set=None,
+        dlam=10., method='gmean', idnum=None):
+        
+        # Compute magnitude from photometry
+        if (filters is not None) or (filter_set is not None):
+            assert cam is not None
+            
+            
+            hist = self.histories
+            
+            filters, xphot, dxphot, yphot, ycorr = \
+                self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
+                    hist=hist, dlam=dlam, cam=cam, filters=filters, 
+                    filter_set=filter_set, idnum=idnum, extras=self.extras)
+
+            mags = np.array(ycorr) - 48.6
+            
+            if method == 'gmean':
+                M = -1 * np.product(np.abs(mags), axis=0)**(1. / float(len(mags)))
+            else:
+                raise NotImplemented('help')
+            
+        # Or just take monochromatic MUV    
+        else:   
+            L = self.Luminosity(z, wave=wave)
+            M = self.magsys.L_to_MAB(L, z=z)
+            
+        return M    
             
     def Luminosity(self, z, wave=1600., band=None, idnum=None):
         
@@ -2203,7 +2228,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
         filters=None, filter_set=None, dlam=10., method='fit', 
         return_binned=False, Mbins=None, Mwave=1600., MUV=None,
-        return_scatter=False):
+        return_scatter=False, load=True):
         """
         UV slope for all objects in model.
 
@@ -2243,7 +2268,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         kw_tup = tuple(kw.viewitems())
         
-        cached_result = self._cache_beta(kw_tup)
+        if load:
+            cached_result = self._cache_beta(kw_tup)
+        else:
+            cached_result = None
+            
         if cached_result is not None:
             beta = cached_result
         else:
@@ -2255,10 +2284,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
                 rest_wave=rest_wave, method=method, extras=self.extras)
             ##
-            self._cache_beta_[kw_tup] = beta
+            if hasattr(self, '_cache_beta_'):
+                self._cache_beta_[kw_tup] = beta
                 
         # Can return binned (in MUV) version
-        if return_binned:            
+        if return_binned:
             if Mbins is None:
                 Mbins = np.arange(-27, -10, 0.2)
                 

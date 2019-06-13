@@ -672,6 +672,11 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
                 color=colors[j], **kwargs)
             
+            if 'use_best' in kwargs:
+                if kwargs['use_best']:
+                    anl.ReconstructedFunction('beta_spec', ivar=[z, None], ax=ax_bet,
+                        color=colors[j], ls='--', lw=3, **kwargs)    
+            
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
                 color=colors[j], **kwargs)
                 
