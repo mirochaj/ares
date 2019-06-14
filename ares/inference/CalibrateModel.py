@@ -34,7 +34,8 @@ except ImportError:
     size = 1    
 
 _b14 = read_lit('bouwens2014')
-filt_hst = _b14.filt_shallow
+filt_hst = {4: _b14.filt_shallow[4], 5: _b14.filt_shallow[5],
+    6: _b14.filt_deep[6], 7: _b14.filt_deep[7]}
 
 _zcal_lf = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
 _zcal_smf = [3, 4, 5, 6, 7, 8]
@@ -592,23 +593,26 @@ class CalibrateModel(object):
                 'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}]
                 
             # Save also the photometric MUV    
+            blob_f.extend(['Beta'] * 2)
+            blob_n.extend(['beta_hst', 'beta_spec'])
             
-            blob_n.extend(['beta_hst', 'beta_spec', 'MUV_gm'])
-            blob_f.extend(['Beta'] * 2 + ['Magnitude'])
-            
-            # Would be great if this was faster...
             kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam':20., 'rest_wave': None, 'return_binned': True,
                 'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}
-                
+
             kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
                 'return_binned': True, 
                 'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}
-                
+
             kw_mag = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam': 20.}
-                
-            blob_k.extend([kw_hst, kw_spec, kw_mag])
+
+            blob_k.extend([kw_hst, kw_spec])
+
+            # Save geometric mean magnitudes also
+            blob_n.append('MUV_gm')
+            blob_f.append('Magnitude')
+            blob_k.append(kw_mag)
 
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)

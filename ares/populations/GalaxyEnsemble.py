@@ -1540,459 +1540,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self._cache_L_[key]
         
         return None
-    
-    #def SpectralSynthesis(self, hist=None, idnum=None, zobs=None, wave=1600., 
-    #    weights=1, band=None):
-    #    """
-    #    Yield spectrum for a single galaxy or the entire population.
-    #    
-    #    Parameters
-    #    ----------
-    #    hist : dict
-    #        Dictionary containing the trajectory of a single object. Most
-    #        importantly, must contain 'SFR', as a function of *increasing
-    #        time*, stored in the key 't'.
-    #        
-    #    For example, hist could be the output of a call to _gen_galaxy_history.
-    #        
-    #    """            
-    #    
-    #    batch_mode = False
-    #    
-    #    # This means we're doing synthesis for a single object.
-    #    if idnum is not None:
-    #        
-    #        assert hist is None, "Must supply `hist` OR `idnum`!"
-    #        hist = self.get_history(idnum)
-    #        
-    #        cached_result = self._cache_ss((idnum, wave, band))
-    #        if cached_result is not None:
-    #                            
-    #            if zobs is None:
-    #                return cached_result
-    #            
-    #            # Do zobs correction    
-    #            izobs = np.argmin(np.abs(hist['z'] - zobs))
-    #            if hist['z'][izobs] > zobs:
-    #                izobs += 1
-    #
-    #            zarr, tarr, L = cached_result
-    #            return zarr[0:izobs+1], tarr[0:izobs+1], L[0:izobs+1]
-    #    # If no 'hist' provided, do spectral synthesis for all objects.
-    #    elif hist is None:
-    #        hist = self.histories   
-    #        batch_mode = True
-    #
-    #    # Must find index corresponding to requested redshift of observation.
-    #    if zobs is None:
-    #        izobs = None
-    #    else:
-    #        # Need to be sure that we grab a grid point exactly at or just
-    #        # below the requested redshift (?)
-    #        izobs = np.argmin(np.abs(hist['z'] - zobs))
-    #        if hist['z'][izobs] > zobs:
-    #            izobs += 1
-    #    
-    #    # Can load batch results from cache as well
-    #    if batch_mode:
-    #        cached_result = self._cache_ss((zobs, wave, band))
-    #        if cached_result is not None:        
-    #            zarr, tarr, L = cached_result
-    #            return zarr[0:izobs+1], tarr[0:izobs+1], L
-    #            
-    #    # Must be supplied in increasing time order, decreasing redshift.
-    #    assert np.all(np.diff(hist['t']) >= 0)
-    #    
-    #    #if not np.any(hist['SFR'] > 0):
-    #    #    print('nipped this in the bud')
-    #    #    return hist['t'], hist['z'], np.zeros_like(hist['z'])
-    #    #
-    #    izform = 0#min(np.argwhere(hist['Mh'] > 0))[0]
-    #    
-    #    if zobs is None:
-    #        slc = Ellipsis
-    #    else:    
-    #        if batch_mode:
-    #            #raise NotImplemented('help')
-    #            # Need to slice over first dimension now...
-    #            slc = Ellipsis, slice(0, izobs+1)
-    #        else:    
-    #            slc = slice(0, izobs+1)
-    #
-    #    ##
-    #    # Dust model?
-    #    ##
-    #    if self.pf['pop_dust_yield'] is not None:
-    #        fd = self.guide.dust_yield(z=hist['z'][slc])
-    #    else:
-    #        fd = 0.0        
-    #    
-    #    if np.any(fd > 0) and (band is None):
-    #        fcov = self.guide.dust_fcov(z=hist['z'][slc], Mh=hist['Mh'][slc])
-    #        kappa = self.guide.dust_kappa(wave=wave)
-    #        Sd = hist['Sd'][slc]
-    #        tau = kappa * Sd
-    #        rand = hist['rand'][slc]
-    #    else:
-    #        tau = fcov = 0.0
-    #        rand = 1#np.ones_like(hist['SFR'])
-    #
-    #    ##
-    #    # First. Simple case without stellar population aging.
-    #    ##
-    #    if not self.pf['pop_aging']:
-    #        assert not self.pf['pop_ssp'], \
-    #            "Should not have pop_ssp==True if pop_aging==False."
-    #        
-    #        if band is not None:
-    #            raise NotImplemented('help!')
-    #        
-    #        L_per_sfr = self.src.L_per_sfr(wave)
-    #        return hist['z'][slc], hist['t'][slc], L_per_sfr * hist['SFR'][slc]
-    #    
-    #    ##
-    #    # Second. Harder case where aging is allowed.
-    #    ##          
-    #    assert self.pf['pop_ssp']
-    #            
-    #    # SFH        
-    #    Nz0 = hist['z'].size
-    #    #Nz  = hist['z'][slc].size
-    #    Nsn  = hist['Nsn'][slc]
-    #    SFR  = hist['SFR'][slc]
-    #    bursty = hist['bursty'][slc]
-    #    imf = hist['imf'][slc]
-    #    
-    #    if izobs is not None:
-    #        tarr = hist['t'][0:izobs+1] # in Myr
-    #        zarr = hist['z'][0:izobs+1]
-    #    else:
-    #        tarr = hist['t']    
-    #        zarr = hist['z']
-    #    
-    #    fill = np.zeros(1, 
-    #        dtype=np.float32 if self.pf['conserve_memory'] else np.float64)
-    #    tyr = tarr * 1e6
-    #    dt = np.hstack((np.diff(tyr), fill))
-    #    
-    #    oversample = (zobs is not None) and self.pf['pop_ssp_oversample'] and \
-    #        (dt[-2] >= 2e6)
-    #    
-    #    if band is not None:
-    #        Loft = self.src.IntegratedEmission(band[0], band[1])
-    #        #raise NotImplemented('help!')        
-    #        print("Note this now has different units.")
-    #    else:        
-    #        Loft = self.src.L_per_SFR_of_t(wave)
-    #        
-    #    #if self.pf['conserve_memory']:
-    #    #    Loft = np.array(Loft, dtype=np.float32)
-    #                
-    #    _func = interp1d(np.log(self.src.times), np.log(Loft),
-    #        kind='cubic', bounds_error=False, 
-    #        fill_value=Loft[-1])
-    #        
-    #    # Extrapolate linearly at times < 1 Myr
-    #    _m = (Loft[1] - Loft[0]) \
-    #      / (self.src.times[1] - self.src.times[0])
-    #    L_small_t = lambda age: _m * age + Loft[0]
-    #    
-    #    # Extrapolate as PL at t < 1 Myr based on first two
-    #    # grid points
-    #    #m = np.log(Loft[1] / Loft[0]) \
-    #    #  / np.log(self.src.times[1] / self.src.times[0])
-    #    #func = lambda age: np.exp(m * np.log(age) + np.log(Loft[0]))
-    #            
-    #    if zobs is None:
-    #        Lhist = np.zeros_like(SFR)
-    #    else:
-    #        pass
-    #        # Lhist will just get made once. Don't need to initialize
-    #    
-    #    # Loop over the history of object(s) and compute the luminosity of 
-    #    # simple stellar populations of the corresponding ages (relative to
-    #    # zobs).
-    #    
-    #    # Start from initial redshift and move forward in time.
-    #    for i, _tobs in enumerate(tarr):
-    #        
-    #        #print(i, len(tarr), _tobs, zarr[i], zobs)
-    #        
-    #        # If zobs is supplied, we only have to do one iteration
-    #        # of this loop. This is just a dumb way to generalize this function
-    #        # to either do one redshift or return a whole history.
-    #        if (zobs is not None):
-    #            if (zarr[i] > zobs):
-    #                continue
-    #
-    #            assert i == tarr.size - 1    
-    #
-    #        ages = tarr[i] - tarr[0:i+1]
-    #
-    #        # Treat metallicity evolution? If so, need to grab luminosity as 
-    #        # function of age and Z.
-    #        if self.pf['pop_enrichment']:
-    #
-    #            if batch_mode:
-    #                Z = hist['Z'][slc][:,0:i+1]
-    #            else:
-    #                Z = hist['Z'][slc][0:i+1]
-    #
-    #            logA = np.log10(ages)
-    #            logZ = np.log10(Z)
-    #            L_per_msun = self.L_of_Z_t(wave)(logA, logZ, grid=False)
-    #                                    
-    #            # erg/s/Hz
-    #            if batch_mode:
-    #                Lall = L_per_msun * SFR[:,0:i+1]
-    #            else:
-    #                Lall = L_per_msun * SFR[0:i+1]
-    #                
-    #            if oversample:
-    #                raise NotImplemented('help!')    
-    #            else:
-    #                _dt = dt
-    #                
-    #            _ages = ages    
-    #        else:    
-    #            
-    #            # If time resolution is >= 2 Myr, over-sample final interval.
-    #            if oversample:
-    #                                    
-    #                # Use 1 Myr time resolution for final stretch.
-    #                # Treat 'final stretch' as free parameter? 10 Myr? 20?
-    #                
-    #                ct = 0
-    #                while (ages[-2-ct] - ages[-1]) < self.pf['pop_ssp_oversample_age']:
-    #                    ct += 1
-    #                
-    #                ifin = -1 - ct
-    #                                    
-    #                extra = np.arange(ages[-1], ages[ifin], 1.)[-1::-1]
-    #                
-    #                # Must augment ages and dt accordingly
-    #                _ages = np.hstack((ages[0:ifin], extra))
-    #                _dt = np.abs(np.diff(_ages) * 1e6)
-    #                
-    #                # 
-    #                _dt = np.hstack((_dt, [0]))
-    #                
-    #                # Now, compute luminosity at expanded ages.
-    #                L_per_msun = np.exp(_func(np.log(_ages)))    
-    #                
-    #                #L_per_msun = np.exp(np.interp(np.log(_ages), 
-    #                #    np.log(self.src.times), np.log(Loft), 
-    #                #    left=-np.inf, right=np.log(Loft[-1])))
-    #                    
-    #                # Interpolate linearly at t < 1 Myr    
-    #                func = lambda age: age * Loft[0]
-    #                L_per_msun[_ages < 1] = func(_ages[_ages < 1])    
-    #                
-    #                # Must reshape SFR to match. Assume constant SFR within
-    #                # over-sampled integral.                    
-    #                #xSFR = SFR[:,ifin:] * np.ones((SFR.shape[0], extra.size))
-    #                
-    #                # Must allow non-constant SFR within over-sampled region
-    #                # as it may be tens of Myr
-    #                xSFR = np.ones((SFR.shape[0], extra.size))
-    #                
-    #                # Walk back from the end and fill in SFRs
-    #                N = extra.size / (ct + 1)
-    #                for _i in range(0, ct+1):                     
-    #                    _fill = SFR[:,ifin+_i]
-    #                    fill = np.reshape(np.repeat(_fill, N), (SFR.shape[0], N))
-    #                    
-    #                    #print(_i, xSFR[:,_i*N:(_i+1)*N].shape, fill.shape)
-    #                    xSFR[:,_i*N:(_i+1)*N] = fill.copy()
-    #                        
-    #                    #print(_i, fill[0], fill.shape)
-    #                    #raw_input('<enter>')
-    #                    
-    #                    
-    #                    
-    #                #import matplotlib.pyplot as pl
-    #                #
-    #                #pl.figure(10)
-    #                #print(SFR[3000].min(), SFR[3000].max())
-    #                #pl.scatter(ages, SFR[3000], color='k')
-    #                #pl.plot(extra, xSFR[3000,:], color='b')
-    #                #pl.xlim(-5, 50)
-    #                #
-    #                #raw_input('<enter>')    
-    #                    
-    #                    
-    #                    
-    #                #print('HELLO', SFR.shape, SFR[0,ifin], xSFR[0,0:N])
-    #                #print('HELLO', SFR.shape, SFR[3000,ifin], xSFR[3000,0:N])
-    #                #raw_input('<enter>')
-    #                
-    #                if batch_mode:
-    #                    _SFR = np.hstack((SFR[:,0:ifin], xSFR))
-    #                else:
-    #                    print('help')
-    #                    _SFR = np.hstack((SFR[0:i], SFR[i+1] * np.ones_like(extra)))
-    #                
-    #                # erg/s/Hz
-    #                if batch_mode:
-    #                    Lall = L_per_msun * _SFR
-    #                else:    
-    #                    Lall = L_per_msun * _SFR
-    #                                                             
-    #            else:    
-    #                L_per_msun = np.exp(np.interp(np.log(ages), 
-    #                    np.log(self.src.times), np.log(Loft), 
-    #                    left=np.log(Loft[0]), right=np.log(Loft[-1])))
-    #                
-    #                _dt = dt
-    #                
-    #                if self.pf['conserve_memory']:
-    #                    L_per_msun = L_per_msun.astype(np.float32)
-    #                                                        
-    #                # Fix early time behavior
-    #                L_per_msun[ages < 1] = L_small_t(ages[ages < 1])
-    #    
-    #                _ages = ages
-    #    
-    #                # erg/s/Hz
-    #                if batch_mode:
-    #                    Lall = L_per_msun * SFR[:,0:i+1]
-    #                else:    
-    #                    Lall = L_per_msun * SFR[0:i+1]
-    #                                                
-    #            # Correction for IMF sampling (can't use SPS).
-    #            #if self.pf['pop_sample_imf'] and np.any(bursty):
-    #            #    life = self._stars.tab_life
-    #            #    on = np.array([life > age for age in ages])
-    #            #
-    #            #    il = np.argmin(np.abs(wave - self._stars.wavelengths))
-    #            #
-    #            #    if self._stars.aging:
-    #            #        raise NotImplemented('help')
-    #            #        lum = self._stars.tab_Ls[:,il] * self._stars.dldn[il]
-    #            #    else:
-    #            #        lum = self._stars.tab_Ls[:,il] * self._stars.dldn[il]
-    #            #
-    #            #    # Need luminosity in erg/s/Hz
-    #            #    #print(lum)
-    #            #
-    #            #    # 'imf' is (z or age, mass)
-    #            #
-    #            #    integ = imf[bursty==1,:] * lum[None,:]
-    #            #    Loft = np.sum(integ * on[bursty==1], axis=1)
-    #            #
-    #            #    Lall[bursty==1] = Loft
-    #
-    #
-    #        # Apply local reddening
-    #        tau_bc = self.pf['pop_tau_bc']
-    #        if tau_bc > 0:
-    #        
-    #            corr = np.ones_like(_ages) * np.exp(-tau_bc)
-    #            corr[_ages > self.pf['pop_age_bc']] = 1
-    #        
-    #            Lall *= corr
-    #
-    #        # Integrate over all times up to this tobs            
-    #        if batch_mode:
-    #            if (zobs is not None):
-    #                Lhist = np.trapz(Lall, dx=_dt[0:-1], axis=1)
-    #            else:
-    #                Lhist[:,i] = np.trapz(Lall, dx=_dt[0:i], axis=1)
-    #        else:
-    #            assert not batch_mode, "still working geez"
-    #            
-    #            Lhist[i] = np.trapz(Lall, x=tyr[0:i+1])                
-    #
-    #        ##
-    #        # In this case, we only need one iteration of this loop.
-    #        ##
-    #        if zobs is not None:
-    #            break
-    #                                    
-    #    # Redden away!        
-    #    if np.any(fd) > 0 and (band is None):
-    #        # Reddening is binary and probabilistic
-    #        
-    #        clear = rand > fcov            
-    #        block = ~clear
-    #        
-    #        Lout = Lhist * clear[:,-1] + Lhist * np.exp(-tau[:,-1]) * block[:,-1]
-    #
-    #    else:
-    #        Lout = Lhist.copy()
-    #
-    #    del Lhist, tau, Lall    
-    #    gc.collect()
-    #    
-    #    ##
-    #    # Sum luminosity of parent halos along merger tree            
-    #    ##
-    #        
-    #    # Don't change shape, just zero-out luminosities of 
-    #    # parent halos after they merge?
-    #    if (hist['child'] is not None) and self.pf['pop_mergers'] and batch_mode:
-    #        
-    #        child_iz, child_iM = hist['child'].T
-    #    
-    #        is_central = child_iM == -1
-    #                                 
-    #        if np.all(is_central == 1):
-    #            pass
-    #        else:    
-    #        
-    #            print("Looping over {} halos...".format(SFR.shape[0]))
-    #                        
-    #            pb = ProgressBar(SFR.shape[0])
-    #            pb.start()
-    #    
-    #            # Loop over all 'branches'
-    #            for i in range(SFR.shape[0]):
-    #                                
-    #                # This means the i'th halo is alive and well at the
-    #                # final redshift, i.e., it's a central
-    #                if is_central[i]:
-    #                    continue
-    #                 
-    #                pb.update(i)
-    #                                                        
-    #                # At this point, need to figure out which child halos
-    #                # to dump mass and SFH into...    
-    #                
-    #                # Be careful with redshift array. 
-    #                # We're now working in ascending time, reverse redshift,
-    #                # so we need to correct the child iz values. We've also
-    #                # chopped off elements at z < zobs.
-    #                #iz = Nz0 - child_iz[i]
-    #                
-    #                # This `iz` should not be negative despite us having
-    #                # chopped up the redshift array since getting to this
-    #                # point in the loop is predicated on being a parent of
-    #                # another halo, i.e., not surviving beyond this redshift. 
-    #                
-    #                # Lout is just 1-D at this point, i.e., just luminosity
-    #                # *now*. 
-    #                                
-    #                # Add luminosity to child halo. Zero out luminosity of 
-    #                # parent to avoid double counting. Note that nh will
-    #                # also have been zeroed out but we're just being careful.
-    #                Lout[child_iM[i]] += 1 * Lout[i]
-    #                Lout[i] = 0.0
-    #            
-    #            pb.finish()
-    #                                
-    #    # Only cache if we've got the whole history
-    #    if (zobs is None) and (idnum is not None):
-    #        self._cache_ss_[(idnum, wave, band)] = zarr, tarr, Lout
-    #    # Or if we did batch mode
-    #    elif (zobs is not None) and (idnum is None):
-    #        init = self._cache_ss((zobs, wave, band))
-    #        self._cache_ss_[(zobs, wave, band)] = zarr, tarr, Lout
-    #      
-    #    if zobs is not None:
-    #        return zarr[slc], tarr[slc], Lout
-    #    else:
-    #        return zarr[slc], tarr[slc], Lout[slc]
-          
+              
     def _cache_lf(self, z, x=None):
         if not hasattr(self, '_cache_lf_'):
             self._cache_lf_ = {}
@@ -2101,7 +1649,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             filters = filters[round(z)]
         
         # Don't put any binning stuff in here!
-        kw = {'z': z, 'cam': cam,  'filters': filters, 
+        kw = {'z': z, 'cam': cam, 'filters': filters, 
             'filter_set': filter_set, 'dlam':dlam, 'method': method}
         
         kw_tup = tuple(kw.viewitems())
@@ -2132,15 +1680,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 mags = []
                 for j, _cam in enumerate(cam):
                 
-                    filters, xphot, dxphot, yphot, ycorr = \
+                    _filters, xphot, dxphot, yphot, ycorr = \
                         self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
                             hist=hist, dlam=dlam, cam=_cam, filters=filters, 
                             filter_set=filter_set, idnum=idnum, extras=self.extras,
                             rest_wave=None)
-            
+                        
                     mags.extend(list(np.array(ycorr) - 48.6))
             
                 mags = np.array(mags)
+                
+                
             
             else:
                 mags = M
@@ -2284,7 +1834,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return self._extras
         
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
-        filters=None, filter_set=None, dlam=10., method='fit', 
+        filters=None, filter_set=None, dlam=10., method='fit',
         return_binned=False, Mbins=None, Mwave=1600., MUV=None,
         return_scatter=False, load=True):
         """
@@ -2328,22 +1878,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             'dlam':dlam, 'method': method}
         
         kw_tup = tuple(kw.viewitems())
-        
+
         if load:
             cached_result = self._cache_beta(kw_tup)
         else:
             cached_result = None
-            
+
         if cached_result is not None:
             beta = cached_result
         else:
             raw = self.histories
-            
+          
             ##
             # Run in batch.
             beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
                 hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
                 rest_wave=rest_wave, method=method, extras=self.extras)
+
             ##
             if hasattr(self, '_cache_beta_'):
                 self._cache_beta_[kw_tup] = beta
@@ -2354,10 +1905,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mbins = np.arange(-27, -10, 0.2)
                 
             nh = self.get_field(z, 'nh')    
+            
+            # This will be the geometric mean of magnitudes in `cam` and
+            # `filters` if they are provided!
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters)
                         
             MAB, beta, _std = bin_samples(_MAB, beta, Mbins, weights=nh)
-            
+
         if MUV is not None:
             return np.interp(MUV, MAB, beta, left=-99999, right=-99999)
         

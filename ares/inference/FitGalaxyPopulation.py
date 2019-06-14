@@ -152,6 +152,8 @@ class loglikelihood(LogLikelihood):
                     else:
                         filt_hst = hst_shallow
                     
+                    print('z={}, zstr={}, filters={}'.format(z, zstr, filt_hst[zstr]))
+                    
                     M = xdat
                     p = pop.Beta(z, MUV=M, cam=('wfc', 'wfc3'),     
                         return_binned=True, filters=filt_hst[zstr], dlam=20., 
@@ -165,7 +167,7 @@ class loglikelihood(LogLikelihood):
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
-
+                        
                 phi[i] += p   
                             
         #except:
@@ -176,6 +178,8 @@ class loglikelihood(LogLikelihood):
         #del sim, pops
         
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
+
+        print('hey', lnL, self.const_term)
 
         return lnL + self.const_term
     
