@@ -12,6 +12,7 @@ Description:
 
 import os
 import numpy as np
+from ..util import read_lit
 from .ModelFit import ModelFit
 from ..util import ParameterBundle as PB
 from ..populations.GalaxyCohort import GalaxyCohort
@@ -31,6 +32,9 @@ try:
 except ImportError:
     rank = 0
     size = 1    
+
+_b14 = read_lit('bouwens2014')
+filt_hst = _b14.filt_shallow
 
 _zcal_lf = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
 _zcal_smf = [3, 4, 5, 6, 7, 8]
@@ -524,7 +528,6 @@ class CalibrateModel(object):
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
-            
 
         # Binary obscuration
         #if self.include_obsc:
@@ -584,25 +587,28 @@ class CalibrateModel(object):
             blob_i = [('z', red_beta), ('MUV', MUV)]
             blob_f = ['AUV']
             # By default, MUV refers to 1600 magnitude
-            blob_k = [{'return_binned': True,
-                'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}]
+            blob_k = [{'return_binned': True, 'cam': ('wfc', 'wfc3'), 
+                'filters': filt_hst,
+                'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}]
+                
+            # Save also the photometric MUV    
             
-            blob_n.extend(['beta_hst', 'beta_spec'])
-            blob_f.extend(['Beta'] * 2)
-            
-            filt = ('F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
-                'F814W', 'F850LP', 'F125W', 'F160W')
+            blob_n.extend(['beta_hst', 'beta_spec', 'MUV_gm'])
+            blob_f.extend(['Beta'] * 2 + ['Magnitude'])
             
             # Would be great if this was faster...
-            kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt,
-                'dlam':20., 'rest_wave': (1600., 2300.), 'return_binned': True,
-                'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}
+            kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
+                'dlam':20., 'rest_wave': None, 'return_binned': True,
+                'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}
                 
-            kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.), 
+            kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
                 'return_binned': True, 
-                'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}
+                'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}
                 
-            blob_k.extend([kw_hst, kw_spec])
+            kw_mag = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
+                'dlam': 20.}
+                
+            blob_k.extend([kw_hst, kw_spec, kw_mag])
 
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -675,7 +681,7 @@ class CalibrateModel(object):
             prefix = self.prefix
 
         fitter_lf = FitGalaxyPopulation()
-        
+
         data = []
         include = []
         if self.fit_lf:
@@ -686,7 +692,7 @@ class CalibrateModel(object):
             data.append('song2016')
         if self.fit_beta:
             include.append('beta')
-            data.extend(['bouwens2014', 'lee2011'])
+            data.extend(['bouwens2014'])
         if self.fit_gs:
             raise NotImplemented('sorry folks')
 
@@ -696,7 +702,7 @@ class CalibrateModel(object):
         fitter_lf.include = include
 
         fitter_lf.data = data
-        
+
         ##
         # Stitch together parameters
         ##

@@ -37,13 +37,10 @@ except ImportError:
     
 twopi = 2. * np.pi
 
-_hst_filt = ('F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
-    'F814W', 'F850LP', 'F125W', 'F160W')
-            
-_kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': _hst_filt,
-    'dlam':20., 'rest_wave': (1600., 2300.), 'return_binned': True,
-    'Mwave': 1600., 'Mbins': np.arange(-25, -10, 0.1)}
-
+_b14 = read_lit('bouwens2014')
+hst_shallow = _b14.filt_shallow
+hst_deep = _b14.filt_deep
+                
 class loglikelihood(LogLikelihood):
 
     @property
@@ -115,9 +112,7 @@ class loglikelihood(LogLikelihood):
                     
         else:
             pops = [sim]
-        
-        more_kw = {}
-                                                                                             
+                                                                                                     
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
@@ -129,7 +124,7 @@ class loglikelihood(LogLikelihood):
 
             xdat = self.xdata[i]
             z = self.redshifts[i]
-            
+                        
             for pop in pops:
                             
                 # Generate model LF
@@ -139,7 +134,7 @@ class loglikelihood(LogLikelihood):
                     # observed magnitudes.                
                                     
                     # Compute LF
-                    p = pop.LuminosityFunction(z=z, x=xdat, mags=True, **more_kw)
+                    p = pop.LuminosityFunction(z=z, x=xdat, mags=True)
                     
                     if not np.isfinite(p):
                         print('LF is inf or nan!', z, M)
@@ -149,8 +144,18 @@ class loglikelihood(LogLikelihood):
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(z, M)
                 elif quantity == 'beta':
+                    
+                    zstr = int(round(z))
+                    
+                    if zstr >= 6:
+                        filt_hst = hst_deep
+                    else:
+                        filt_hst = hst_shallow
+                    
                     M = xdat
-                    p = pop.Beta(z, MUV=M, **_kw_hst)
+                    p = pop.Beta(z, MUV=M, cam=('wfc', 'wfc3'),     
+                        return_binned=True, filters=filt_hst[zstr], dlam=20., 
+                        rest_wave=None)
                     
                     if not np.isfinite(p):
                         print('beta is inf or nan!', z, M)
@@ -162,7 +167,7 @@ class loglikelihood(LogLikelihood):
                         quantity))
 
                 phi[i] += p   
-            
+                            
         #except:
         #    return -np.inf, self.blank_blob
 

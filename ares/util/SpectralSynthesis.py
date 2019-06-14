@@ -63,11 +63,22 @@ class SpectralSynthesis(object):
         self._oversampling_below = value
     
     @property
+    def force_perfect(self):
+        if not hasattr(self, '_force_perfect'):
+            self._force_perfect = False
+        return self._force_perfect
+    
+    @force_perfect.setter
+    def force_perfect(self, value):
+        self._force_perfect = value
+    
+    @property
     def cameras(self):
         if not hasattr(self, '_cameras'):
             self._cameras = {}
             for cam in all_cameras:
-                self._cameras[cam] = Survey(cam=cam)
+                self._cameras[cam] = Survey(cam=cam, 
+                    force_perfect=self.force_perfect)
 
         return self._cameras
 
@@ -110,6 +121,10 @@ class SpectralSynthesis(object):
                         
         else:
             
+            if filters is not None:
+                assert rest_wave is None, \
+                    "Set rest_wave=None if filters are supplied"
+            
             # Log-linear fit
             func = lambda x, p0, p1: p0 * (x / 1.)**p1
             
@@ -122,8 +137,8 @@ class SpectralSynthesis(object):
             ycorr = []
             for _cam in cam:
                 _filters, _xphot, _dxphot, _yphot, _ycorr = \
-                    self.Photometry(sfh=sfh, hist=hist, idnum=idnum,
-                    cam=_cam, filters=filters, filter_set=filter_set, 
+                    self.Photometry(sfh=sfh, hist=hist, idnum=idnum, spec=spec,
+                    cam=_cam, filters=filters, filter_set=filter_set, waves=waves,
                     dlam=dlam, tarr=tarr, tobs=tobs, extras=extras, picky=picky,
                     zarr=zarr, zobs=zobs, rest_wave=rest_wave, window=window)
             
@@ -136,8 +151,10 @@ class SpectralSynthesis(object):
             if len(filt) == 0:
                 if idnum is not None:
                     N = 1
-                else:
+                elif sfh is not None:
                     N = sfh.shape[0]
+                else:
+                    N = 1    
                     
                 if return_norm:
                     return -99999 * np.ones((N, 2))
@@ -164,10 +181,13 @@ class SpectralSynthesis(object):
            #dwdn = dx * 1e4 / dnphot
             _dwdn = (_x * 1e4)**2 / (c * 1e8)
            
-            
-            r = _x * 1e4 / (1. + zobs)
-            ok = np.logical_and(r >= rest_wave[0], r <= rest_wave[1])
-            x = _x[ok==1]
+            if rest_wave is not None:
+                r = _x * 1e4 / (1. + zobs)
+                ok = np.logical_and(r >= rest_wave[0], r <= rest_wave[1])
+                x = _x[ok==1]
+            else:
+                ok = np.ones_like(_x)
+                x = _x
 
             # Be careful in batch mode!
             if ycorr.ndim == 2:
@@ -184,7 +204,7 @@ class SpectralSynthesis(object):
                 ma = np.max(y) 
                 guess = np.array([ma, -2.5])                
             
-            if ok.sum() == 2:
+            if ok.sum() == 2 and self.pf['verbose']:
                 print("WARNING: Estimating slope from only two points: {}".format(filt[isort][ok==1]))
 
         ##
@@ -192,7 +212,8 @@ class SpectralSynthesis(object):
         if method == 'fit':
             
             if len(x) < 2:
-                print("Not enough points to estimate slope")
+                if self.pf['verbose']:
+                    print("Not enough points to estimate slope")
                 
                 if batch_mode:
                     corr = np.ones(y.shape[1])
@@ -220,7 +241,7 @@ class SpectralSynthesis(object):
                     except RuntimeError:
                         popt[:,i], pcov[:,:,i] = -99999, -99999
                                 
-            else:                    
+            else:
                 try:
                     popt, pcov = curve_fit(func, x, y, p0=guess)
                 except RuntimeError:
@@ -330,11 +351,10 @@ class SpectralSynthesis(object):
         
         return tuple(np.array(ok_filters)[isort])
                 
-
     def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all', 
         filter_set=None, dlam=10., rest_wave=None, extras={}, window=1,
-        tarr=None, zarr=None, zobs=None, tobs=None, band=None, hist={},
-        idnum=None, flux_units=None, picky=False, lbuffer=200.):
+        tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None, 
+        hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.):
         """
         Just a wrapper around `Spectrum`.
 
@@ -353,6 +373,11 @@ class SpectralSynthesis(object):
         
         if zobs is None:
             zobs = self.cosm.z_of_t(tobs * s_per_myr)
+                    
+        # Might be stored for all redshifts so pick out zobs            
+        if type(filters) == dict:
+            assert zobs is not None
+            filters = filters[round(zobs)]
                     
         # Get transmission curves
         filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set, 
@@ -388,23 +413,23 @@ class SpectralSynthesis(object):
                 if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
                     continue
 
-            lmin = min(lmin, cent - dx[1])
-            lmax = max(lmax, cent + dx[0])
+            lmin = min(lmin, cent - dx[1] * 1.2)
+            lmax = max(lmax, cent + dx[0] * 1.2)
             ct += 1
             
         # No filters in range requested    
         if ct == 0:    
             return [], [], [], [], []
-                            
-        # Convert from microns to Angstroms, undo redshift.
-        lmin = lmin * 1e4 / (1. + zobs)
-        lmax = lmax * 1e4 / (1. + zobs)
-                
-        lmin = max(lmin, self.src.wavelengths.min())
-        lmax = min(lmax, self.src.wavelengths.max())
                                                 
         # Here's our array of REST wavelengths
-        waves = np.arange(lmin-lbuffer, lmax+dlam+lbuffer, dlam)
+        if waves is None:
+            # Convert from microns to Angstroms, undo redshift.
+            lmin = lmin * 1e4 / (1. + zobs)
+            lmax = lmax * 1e4 / (1. + zobs)
+                
+            lmin = max(lmin, self.src.wavelengths.min())
+            lmax = min(lmax, self.src.wavelengths.max())
+            waves = np.arange(lmin-lbuffer, lmax+dlam+lbuffer, dlam)
                 
         # Get spectrum first.
         if spec is None:
@@ -416,7 +441,7 @@ class SpectralSynthesis(object):
         batch_mode = False 
         if spec.ndim == 2:
             batch_mode = True    
-                        
+
         # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
         wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
             waves=waves, extras=extras, window=window)
@@ -446,6 +471,12 @@ class SpectralSynthesis(object):
                         
             # Re-grid transmission onto provided wavelength axis.
             T_regrid = np.interp(wave_obs, x, T, left=0, right=0)
+            #func = interp1d(x, T, kind='cubic', fill_value=0.0,
+            #    bounds_error=False)
+            #T_regrid = func(wave_obs)
+            
+            #T_regrid = np.interp(np.log(wave_obs), np.log(x), T, left=0., 
+            #    right=0)
                  
             # Remember: observed flux is in erg/s/cm^2/Hz
 
@@ -458,12 +489,14 @@ class SpectralSynthesis(object):
             else:    
                 integrand = -1. * flux_obs * T_regrid
                 _yphot = np.sum(integrand[0:-1] * np.diff(freq_obs))
+                
+                #_yphot = np.trapz(integrand, x=freq_obs)
             
-            #corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
+            corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
                                                                                
             xphot.append(cent)
             yphot_obs.append(_yphot / dHz)
-            yphot_corr.append(_yphot / Tavg / dHz)
+            yphot_corr.append(_yphot / corr)
             wphot.append(dx)
         
         xphot = np.array(xphot)

@@ -1820,7 +1820,7 @@ class ModelSet(BlobFactory):
 
         kw = {}
         for _kw in kwargs:
-            if _kw not in ['color', 'mec', 'mfc', 'alpha']:
+            if _kw not in ['color', 'mec', 'mfc', 'alpha', 'ms']:
                 continue
             
             kw[_kw] = kwargs[_kw]

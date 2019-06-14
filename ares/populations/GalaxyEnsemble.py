@@ -2093,46 +2093,94 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         return self._synth
     
-    def Magnitude(self, z, wave=1600., cam=None, filters=None, filter_set=None,
-        dlam=10., method='gmean', idnum=None):
+    def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None, 
+        filter_set=None, dlam=10., method='gmean', idnum=None, window=1,
+        load=True):
         
-        # Compute magnitude from photometry
-        if (filters is not None) or (filter_set is not None):
-            assert cam is not None
+        if type(filters) is dict:
+            filters = filters[round(z)]
+        
+        # Don't put any binning stuff in here!
+        kw = {'z': z, 'cam': cam,  'filters': filters, 
+            'filter_set': filter_set, 'dlam':dlam, 'method': method}
+        
+        kw_tup = tuple(kw.viewitems())
+        
+        if load:
+            cached_result = self._cache_mags(kw_tup)
+        else:
+            cached_result = None
             
+        if cached_result is not None:
+            mags = cached_result
+        else:
             
-            hist = self.histories
-            
-            filters, xphot, dxphot, yphot, ycorr = \
-                self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
-                    hist=hist, dlam=dlam, cam=cam, filters=filters, 
-                    filter_set=filter_set, idnum=idnum, extras=self.extras)
-
-            mags = np.array(ycorr) - 48.6
-            
-            if method == 'gmean':
-                M = -1 * np.product(np.abs(mags), axis=0)**(1. / float(len(mags)))
-            else:
-                raise NotImplemented('help')
-            
-        # Or just take monochromatic MUV    
-        else:   
-            L = self.Luminosity(z, wave=wave)
+            # Take monochromatic (or within some window) MUV     
+            L = self.Luminosity(z, wave=wave, window=window)
             M = self.magsys.L_to_MAB(L, z=z)
             
-        return M    
+            ##
+            # Compute magnitude from photometry
+            if (filters is not None) or (filter_set is not None):
+                assert cam is not None
+                
+                hist = self.histories
+                
+                if type(cam) not in [tuple, list]:
+                    cam = [cam]
+                
+                mags = []
+                for j, _cam in enumerate(cam):
+                
+                    filters, xphot, dxphot, yphot, ycorr = \
+                        self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
+                            hist=hist, dlam=dlam, cam=_cam, filters=filters, 
+                            filter_set=filter_set, idnum=idnum, extras=self.extras,
+                            rest_wave=None)
             
-    def Luminosity(self, z, wave=1600., band=None, idnum=None):
+                    mags.extend(list(np.array(ycorr) - 48.6))
+            
+                mags = np.array(mags)
+            
+            else:
+                mags = M
+                
+            if hasattr(self, '_cache_mags_'):
+                self._cache_mags_[kw_tup] = mags    
+            
+        ##
+        # Interpolate etc.
+        ##    
+        if (filters is not None) or (filter_set is not None):    
+            hist = self.histories
+            if method == 'gmean':
+                if len(mags) == 0:
+                    Mg = -99999 * np.ones(hist['SFR'].shape[0])
+                else:    
+                    Mg = -1 * np.product(np.abs(mags), axis=0)**(1. / float(len(mags)))
+            else:
+                raise NotImplemented('help')
+                
+            if MUV is not None:
+                Mout = np.interp(MUV, M[-1::-1], Mg[-1::-1])
+            else:
+                Mout = Mg                    
+        else:
+            Mout = mags
+                    
+        return Mout
+            
+    def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1):
         
-        cached_result = self._cache_L((z, wave, band, idnum))
+        cached_result = self._cache_L((z, wave, band, idnum, window))
         if cached_result is not None:
             return cached_result
         
         raw = self.histories
         L = self.synth.Luminosity(sfh=raw['SFR'], wave=wave, zarr=raw['z'],
-            zobs=z, hist=raw, extras=self.extras, idnum=idnum)
+            zobs=z, hist=raw, extras=self.extras, idnum=idnum, window=window)
            
-        self._cache_L_[(z, wave, band, idnum)] = L
+        self._cache_L_[(z, wave, band, idnum, window)] = L
            
         return L  
             
@@ -2215,6 +2263,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self._cache_beta_[kw_tup]
             
         return None
+    
+    def _cache_mags(self, kw_tup):
+    
+        if not hasattr(self, '_cache_mags_'):
+            self._cache_mags_ = {}
+            
+        if kw_tup in self._cache_mags_:
+            return self._cache_mags_[kw_tup]
+            
+        return None    
         
     @property
     def extras(self):
@@ -2261,6 +2319,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             wavelength `wave_MUV`).
         """
                 
+        if type(filters) is dict:
+            filters = filters[round(z)]
+        
         # Don't put any binning stuff in here!
         kw = {'z':z, 'waves':waves, 'rest_wave':rest_wave, 'cam': cam, 
             'filters': filters, 'filter_set': filter_set,
@@ -2293,11 +2354,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mbins = np.arange(-27, -10, 0.2)
                 
             nh = self.get_field(z, 'nh')    
-            _MAB = self.Magnitude(z, wave=Mwave)
+            _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters)
                         
             MAB, beta, _std = bin_samples(_MAB, beta, Mbins, weights=nh)
             
-        
         if MUV is not None:
             return np.interp(MUV, MAB, beta, left=-99999, right=-99999)
         
@@ -2307,7 +2367,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return beta
         
     def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mbins=None, 
-        return_binned=False):
+        return_binned=False, filters=None):
         """
         Compute UV extinction.
         """
@@ -2322,15 +2382,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         AUV = np.log10(np.exp(-tau)) / -0.4
             
         # Just do this to get MAB array of same size as Mh
-        MAB = self.Magnitude(z, wave=Mwave)
+        MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters)
                 
         if return_binned:            
             if Mbins is None:
                 Mbins = np.arange(-27, -10, 0.2)
-                
-            nh = self.get_field(z, 'nh')    
+
+            nh = self.get_field(z, 'nh')
             _x, _y, _z = bin_samples(MAB, AUV, Mbins, weights=nh)
-                    
+
             MAB = _x
             AUV = _y
             std = _z 

@@ -669,8 +669,16 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
                 color=colors[j], is_logx=True, **kwargs)
             
+            #if 'MUV_gm' in anl.all_blob_namess:
+            #    _z, _MUV = anl.get_ivars('MUV_gm')
+            #    k = np.argmin(np.abs(z - _z))
+            #    new_x = anl.ExtractData('MUV_gm')['MUV_gm'][:,k,:]
+            #    print("New magnitudes!!!!")
+            #else:
+            new_x = None
+            
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
-                color=colors[j], **kwargs)
+                color=colors[j], new_x=new_x, **kwargs)
             
             if 'use_best' in kwargs:
                 if kwargs['use_best']:

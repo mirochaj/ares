@@ -635,7 +635,7 @@ class BlobFactory(object):
                             kw = self.blob_kwargs[i][j]
                         else:
                             kw = {}
-                            
+                                                                
                         kw.update({xn:x, yn:yarr})
                         result = func(**kw)
                                                 
@@ -647,7 +647,7 @@ class BlobFactory(object):
                         
                         tmp.extend(result)
                         blob.append(tmp)
-                                                                        
+                                                                                                                        
                 this_group.append(np.array(blob))
                                 
             self._blobs.append(np.array(this_group))
