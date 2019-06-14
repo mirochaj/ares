@@ -33,7 +33,8 @@ class Cosmology(object):
         ########################################################################
         if self.pf['cosmology_propagation'] == True:   
             # Can override cosmological parameters using specified cosmologies.
-            # Cosmology names: 'base_plikHM_TTTEEE_lowl_lowE_lensing_4'.
+            # Cosmology names: 
+            # 'plikHM_TTTEEE_lowl_lowE_lensing/base_plikHM_TTTEEE_lowl_lowE_lensing_4'
             # Cosmology numbers are the row numbers in the cosmo file.
 
             # Checks if a folder/cosmology name is provided
@@ -41,7 +42,7 @@ class Cosmology(object):
 
                 # Checks if a MCMC row number is provided
                 if self.pf['cosmology_number'] is not None:
-
+                    self.pf['cosmology_number']=int(self.pf['cosmology_number'])
                     # If a MCMC row number is provided, saves the cosmology
                     # in a variable pb as a string of the form "name-number"
                     pb = '{}-{}'.format(self.pf['cosmology_name'],
@@ -58,6 +59,7 @@ class Cosmology(object):
                 if self.pf['cosmology_number'] is not None:
                     print('No cosmology name provided')
                 self.cosmology_prefix = None
+
 
             # If a hmf table is specified and has the words Cosmology
             # and Number in it, it creates a corresponding cosmology prefix. 
@@ -85,36 +87,16 @@ class Cosmology(object):
             cosmo_path = (ARES + '/input/cosmo_params/COM_CosmoParams_base-'
                         + 'plikHM-TTTEEE-lowl-lowE_R3.00/base/')
 
-            # Checks if the file required is in the lensing or normal directory
+            # If no hmf table is specified but a matching table exists
+            if self.pf['cosmology_name'] is not None:
+                if self.pf['hmf_table'] is None:
+                    if self.pf['hmf_cosmology_location'] is not None:
+                        self.pf['hmf_table']=self.pf['hmf_cosmology_location']+'/{}.hdf5'.format(self.pf['cosmology_number'])
+
             if self.cosmology_prefix: 
-                lensing = None
-                files_cosmo_lensing = os.listdir(cosmo_path 
-                                      + 'plikHM_TTTEEE_lowl_lowE_lensing/')
-                files_cosmo_nolensing = os.listdir(cosmo_path
-                                        + 'plikHM_TTTEEE_lowl_lowE/')
-
-                # Checks if the cosmology prefix matches with a cosmology file
-                for file in files_cosmo_lensing:
-                    if file == self.cosmology_prefix[:-6] + '.txt':
-                        lensing = True
-                for file in files_cosmo_nolensing:
-                    if file == self.cosmology_prefix[:-6] + '.txt':
-                        lensing = False
-                if lensing is None:
-                    print('Error loading cosmology', self.cosmology_prefix)
-
-                # Finds the specific file
-                cosmo_file = None
-                if lensing is not None and lensing is True:
-                    cosmo_file = (cosmo_path
-                                  + 'plikHM_TTTEEE_lowl_lowE_lensing/'
-                                  + self.cosmology_prefix[:-6] 
-                                  + '.txt')
-                if lensing is not None and lensing is False:
-                    cosmo_file = (cosmo_path
-                                  +'plikHM_TTTEEE_lowl_lowE/'
-                                  + self.cosmology_prefix[:-6]
-                                  + '.txt')
+                cosmo_file = (cosmo_path
+                              + self.cosmology_prefix[:-6] 
+                              + '.txt')
 
                 # Finds the specific cosmological row
                 # The first two rows are not MCMC chains

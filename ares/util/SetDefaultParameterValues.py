@@ -914,6 +914,9 @@ def HaloMassFunctionParameters():
     "mu": 0.61,
     
     "hmf_database": None,
+
+    # Directory where cosmology hmf tables are located
+    "hmf_cosmology_location":'/home/henri/Documents/HERA/Cosmology/HMF_tables/PS/hdf5'
     
     }
     
