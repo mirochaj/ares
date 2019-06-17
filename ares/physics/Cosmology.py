@@ -197,7 +197,7 @@ class Cosmology(object):
             if (self.pf['cosmology_inits_location'] is not None) and\
             (self.pf['cosmology_name'] is not None):
                 self._inits = _load_inits(fn=self.pf['cosmology_inits_location']
-                                          + '/{}.npz'.format(self.pf['cosmology_number']))
+                                          + '/{}.npz'.format(int(self.pf['cosmology_number'])))
             else:
                 self._inits = _load_inits()
         return self._inits
