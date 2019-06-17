@@ -91,7 +91,8 @@ class Cosmology(object):
             if self.pf['cosmology_name'] is not None:
                 if self.pf['hmf_table'] is None:
                     if self.pf['hmf_cosmology_location'] is not None:
-                        self.pf['hmf_table']=self.pf['hmf_cosmology_location']+'/{}.hdf5'.format(self.pf['cosmology_number'])
+                        self.pf['hmf_table'] = (self.pf['hmf_cosmology_location']
+                                                + '/{}.hdf5'.format(self.pf['cosmology_number']))
 
             if self.cosmology_prefix: 
                 cosmo_file = (cosmo_path
@@ -193,7 +194,12 @@ class Cosmology(object):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            self._inits = _load_inits()
+            if (self.pf['cosmology_inits_location'] is not None) and\
+            (self.pf['cosmology_name'] is not None):
+                self._inits = _load_inits(fn=self.pf['cosmology_inits_location']
+                                          + '/{}.npz'.format(self.pf['cosmology_number']))
+            else:
+                self._inits = _load_inits()
         return self._inits
         
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):

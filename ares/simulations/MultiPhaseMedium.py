@@ -65,7 +65,11 @@ class MultiPhaseMedium(object):
             if self.pf['load_ics']:
                 
                 # Redshifts ascending at this point
-                if self.pf['approx_thermal_history']:
+                if (self.pf['cosmology_inits_location'] is not None)\
+                and (self.pf['cosmology_name'] is not None):
+                    self._inits = inits = _load_inits(fn=self.pf['cosmology_inits_location']
+                                          + '/{}.npz'.format(self.pf['cosmology_number']))
+                elif self.pf['approx_thermal_history']:
                     self._inits = inits = self.grid.cosm.thermal_history
                 else:    
                     self._inits = inits = _load_inits()
