@@ -42,7 +42,7 @@ _zcal_smf = [3, 4, 5, 6, 7, 8]
 _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
-acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov']
+acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield']
 
 class CalibrateModel(object):
     """
@@ -415,6 +415,23 @@ class CalibrateModel(object):
                         jitter.extend([0.03])
                         ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par2[26]') 
                       
+                if 'yield' in self.free_params_dust:
+                    
+                    free_pars.extend(['pq_func_par0[28]', 'pq_func_par2[27]'])
+                    guesses['pq_func_par0[28]'] = 0.3
+                    guesses['pq_func_par2[27]'] = 0.
+                    is_log.extend([False, False])
+                    jitter.extend([0.1, 0.5])
+                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[28]')
+                    ps.add_distribution(UniformDistribution(-1.5, 1.5), 'pq_func_par2[27]')
+
+                    if 'yield' in self.zevol_dust:
+                        free_pars.append('pq_func_par2[28]')
+                        guesses['pq_func_par2[28]'] = 0.0
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[28]')
+                      
             # Set the attributes
             self._parameters = free_pars
             self._guesses = guesses
@@ -576,38 +593,43 @@ class CalibrateModel(object):
             blob_i = [('z', redshifts), ('Mh', Mh)]
             blob_f = ['guide.dust_fcov', 'guide.dust_scale']
             
+            if type(self.base_kwargs['pop_dust_yield']) == str:
+                blob_n.append('dust_yield')
+                blob_f.append('guide.dust_yield')
+            
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
-            blob_pars['blob_kwargs'].append(None)
+            blob_pars['blob_kwargs'].append(None)            
         
         # MUV-Beta
         if self.save_beta != False:
+            
+            Mbins = np.arange(-30, -10, 0.1)
             
             blob_n = ['AUV']
             blob_i = [('z', red_beta), ('MUV', MUV)]
             blob_f = ['AUV']
             # By default, MUV refers to 1600 magnitude
             blob_k = [{'return_binned': True, 'cam': ('wfc', 'wfc3'), 
-                'filters': filt_hst,
-                'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}]
-                
-            # Save also the photometric MUV    
-            blob_f.extend(['Beta'] * 2)
-            blob_n.extend(['beta_hst', 'beta_spec'])
-            
+                'filters': filt_hst, 'dlam': 20.,
+                'Mwave': 1600., 'Mbins': Mbins}]
+                            
             kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam':20., 'rest_wave': None, 'return_binned': True,
-                'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}
+                'Mwave': 1600., 'Mbins': Mbins}
 
             kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
-                'return_binned': True, 
-                'Mwave': 1600., 'Mbins': np.arange(-30, -10, 0.1)}
-
+                'return_binned': True, 'Mwave': 1600.}
+            
+            blob_f.extend(['Beta'] * 2)
+            blob_n.extend(['beta_hst', 'beta_spec'])
+            blob_k.extend([kw_hst, kw_spec])
+            
+            # Save also the geometric mean of photometry as a function
+            # of a magnitude at fixed rest wavelength.
             kw_mag = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam': 20.}
-
-            blob_k.extend([kw_hst, kw_spec])
 
             # Save geometric mean magnitudes also
             blob_n.append('MUV_gm')

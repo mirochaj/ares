@@ -1117,7 +1117,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         fZy = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield']
         
         if self.pf['pop_dust_yield'] is not None:
-            fd = self.guide.dust_yield(z=z)   
+            fd = self.guide.dust_yield(z=z2d, Mh=Mh)   
         else:
             fd = 0.0
             
@@ -1221,12 +1221,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 fcov = self.guide.dust_fcov(z=z2d, Mh=Mh)
             else:
                 fcov = 1.
-            
+
         else:
             Md = Sd = 0.
             Rd = np.inf
             fcov = 1.0
-            
+
         del z2d    
 
         # Metal mass
@@ -1660,7 +1660,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             cached_result = None
             
         if cached_result is not None:
-            mags = cached_result
+            M, mags = cached_result
         else:
             
             # Take monochromatic (or within some window) MUV     
@@ -1689,14 +1689,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     mags.extend(list(np.array(ycorr) - 48.6))
             
                 mags = np.array(mags)
-                
-                
-            
+                                
             else:
                 mags = M
                 
             if hasattr(self, '_cache_mags_'):
-                self._cache_mags_[kw_tup] = mags    
+                self._cache_mags_[kw_tup] = M, mags    
             
         ##
         # Interpolate etc.
@@ -1921,7 +1919,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return beta
         
     def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mbins=None, 
-        return_binned=False, filters=None):
+        return_binned=False, filters=None, dlam=10.):
         """
         Compute UV extinction.
         """
@@ -1936,7 +1934,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         AUV = np.log10(np.exp(-tau)) / -0.4
             
         # Just do this to get MAB array of same size as Mh
-        MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters)
+        MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters, dlam=dlam)
                 
         if return_binned:            
             if Mbins is None:
@@ -1952,9 +1950,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             #MAB = np.flip(MAB)
             #beta = np.flip(beta)
             std = None
-                
+
             assert MUV is None
-                
+
         # May specify a single magnitude at which to return AUV        
         if MUV is not None:
             return np.interp(MUV, MAB, AUV, left=0., right=0.)

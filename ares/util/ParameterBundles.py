@@ -393,6 +393,24 @@ _dust_patchy['pq_func_par0[26]'] = 10.8
 _dust_patchy['pq_func_par1[26]'] = 5.
 _dust_patchy['pq_func_par2[26]'] = 0.
 
+_dust_destroy = \
+{
+ "pop_dust_yield": 'pq[27]',
+ "pq_func[27]": 'pl',
+ 'pq_func_var[27]': 'Mh',
+ 'pq_func_par0[27]': 'pq[28]',     
+ 'pq_func_par1[27]': 1e10,
+ 'pq_func_par2[27]': 0.,     # Mh-independent, by default
+ 'pq_val_ceil[27]': 0.4,
+ 
+ # Evolution in normalization
+ "pq_func[28]": 'pl',
+ 'pq_func_var[28]': '1+z',
+ 'pq_func_par0[28]': 0.4,
+ 'pq_func_par1[28]': 5.,
+ 'pq_func_par2[28]': 0.,         # R(vir) goes like 1 / (1+z)
+}
+
 
 #_physical_dc_screen_tanh = _physical_dc_screen.copy()
 #_physical_dc_patchy_tanh = _physical_dc_patchy.copy()
@@ -480,8 +498,7 @@ _Bundles = \
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl, 
     'screen-dpl': _dust_screen_dpl, 
-    'patchy': _dust_patchy, #'screen-tanh': _physical_dc_screen_tanh, 
-    #'patchy-tanh': _physical_dc_patchy_tanh,
+    'patchy': _dust_patchy, 'destruction': _dust_destroy,
     },
  'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},

@@ -10,6 +10,8 @@ Description:
 
 """
 
+import time
+import collections
 import numpy as np
 from ..util import Survey
 from ..util import ProgressBar
@@ -429,7 +431,13 @@ class SpectralSynthesis(object):
                 
             lmin = max(lmin, self.src.wavelengths.min())
             lmax = min(lmax, self.src.wavelengths.max())
-            waves = np.arange(lmin-lbuffer, lmax+dlam+lbuffer, dlam)
+            
+            # Force edges to be multiples of dlam
+            l1 = lmin - lbuffer
+            l1 -= l1 % dlam
+            l2 = lmax + lbuffer
+            
+            waves = np.arange(l1, l2+dlam, dlam)
                 
         # Get spectrum first.
         if spec is None:
@@ -536,7 +544,6 @@ class SpectralSynthesis(object):
             spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
                 zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum,
                 extras=extras, window=window)
-                            
                 
         if units in ['A', 'Ang']:
             #freqs = c / (waves / 1e8)
@@ -629,8 +636,112 @@ class SpectralSynthesis(object):
         
         return _ages, _SFR
         
+    @property
+    def _cache_lum_ctr(self):
+        if not hasattr(self, '_cache_lum_ctr_'):
+            self._cache_lum_ctr_ = 0
+        return self._cache_lum_ctr_    
+        
+    def _cache_lum(self, kwds):
+        """
+        Cache object for spectral synthesis of stellar luminosity.
+        """
+        if not hasattr(self, '_cache_lum_'):
+            self._cache_lum_ = {}
+                  
+        notok = -1
+        
+        t1 = time.time()                
+                        
+        # If we set order by hand, it greatly speeds things up because
+        # more likely than not, the redshift and wavelength are the only
+        # things that change and that's an easy logical check to do.
+        # Checking that SFHs, histories, etc., is more expensive.
+        ok_keys = ('wave', 'zobs', 'tobs', 'idnum', 'sfh', 'tarr', 'zarr', 
+            'window', 'band', 'hist', 'extras', 'load')                
+                        
+        ct = -1
+        # Loop through keys to do more careful comparison for unhashable types.
+        for keyset in self._cache_lum_.keys():
+
+            ct += 1
+
+            # Remember: keyset is just a number.
+            kw, data = self._cache_lum_[keyset]
+            
+            # Check wavelength first. Most common thing.
+            
+            if ('wave' in kw) and ('zobs' in kw):
+                if (kw['wave'] == kwds['wave']) and (kw['zobs'] == kwds['zobs']):
+                    notok = 0
+                    break
+                        
+            notok = 0
+            # Loop over cached keywords, compare to those supplied.
+            for key in ok_keys:
+                                
+                if key not in kwds:
+                    notok += 1
+                    break
+                                    
+                #if isinstance(kw[key], collections.Hashable):
+                #    if kwds[key] == kw[key]:
+                #        continue
+                #    else:
+                #        notok += 1
+                #        break
+                #else:
+                # For unhashable types, must work on case-by-case basis.
+                if type(kwds[key]) != type(kw[key]):
+                    notok += 1 
+                    break
+                elif type(kwds[key]) == np.ndarray:
+                    if np.all(kwds[key] == kw[key]):
+                        continue
+                    else:
+                        print("Does this ever happen?")
+                        notok += 1
+                        break
+                elif type(kwds[key]) == dict:
+                    if kwds[key] == kw[key]:
+                        continue
+                    else:
+                        
+                        #for _key in kwds[key]:
+                        #    print(_key, kwds[key][_key] == kw[key][_key])
+                        #
+                        #raw_input('<enter>')
+                        
+                        notok += 1
+                        break
+                else:
+                    if kwds[key] == kw[key]:
+                        continue
+                    else:
+                        notok += 1
+                        break
+                        
+            if notok > 0:
+                #print(keyset, key)
+                continue
+                
+            # If we're here, load this thing.
+            break        
+            
+        t2 = time.time()    
+            
+        if notok < 0:
+            return kwds, None          
+        elif notok == 0:
+            #print("Loaded from cache! Took N={} iterations, {} sec to find match".format(ct, t2 - t1))
+            # Recall that this is (kwds, data)
+            return self._cache_lum_[keyset]
+        else:
+            return kwds, None    
+        
     def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, window=1,
-        zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
+        zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
+        load=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -666,6 +777,20 @@ class SpectralSynthesis(object):
         
         
         """
+        
+        kw = {'sfh': sfh, 'zobs':zobs, 'tobs': tobs, 'wave':wave, 'tarr':tarr, 
+            'zarr': zarr, 'band': band, 'idnum': idnum, 'hist':hist, 
+            'extras': extras}        
+        
+        #kw_tup = tuple(kw.viewitems())
+        
+        if load:
+            _kwds, cached_result = self._cache_lum(kw)
+        else:
+            cached_result = None
+            
+        if cached_result is not None:
+            return cached_result
         
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
@@ -1004,6 +1129,13 @@ class SpectralSynthesis(object):
                             Lout[i] = 0.0
                         
                         pb.finish()
+                             
+        
+        ##
+        # Will be unhashable types so just save to a unique identifier
+        ##                          
+        self._cache_lum_[self._cache_lum_ctr] = kw, Lout
+        self._cache_lum_ctr_ += 1
                                     
         # Get outta here.
         return Lout

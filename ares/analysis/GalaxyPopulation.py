@@ -592,9 +592,8 @@ class GalaxyPopulation(object):
             else:  
                 ax_fco.semilogx(Mh, fcov, color=colors[j])
                 
-                
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
-                
+
             Mbins = np.arange(-25, -10, 1.)
             AUV = pop.AUV(z, Mwave=1600., return_binned=True,
                 Mbins=Mbins)

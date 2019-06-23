@@ -957,9 +957,9 @@ class ModelFit(FitBase):
                 # lec = largest existing checkpoint
                 chain = \
                     read_pickled_chain(self._latest_checkpoint_chain_file(prefix))
-            
-            pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]        
-                    
+
+            pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]
+
         except ValueError:
             print("WARNING: chain empty! Starting from last point in burn-in")
             

@@ -2655,6 +2655,8 @@ class ModelSet(BlobFactory):
                 if type(bins) == int:
                     valc = tohist
                     bvp = np.linspace(valc.min(), valc.max(), bins)
+                elif type(bins) == dict:
+                    bvp = bins[par]    
                 elif type(bins[k]) == int:
                     valc = tohist
                     bvp = np.linspace(valc.min(), valc.max(), bins[k])
@@ -2829,7 +2831,7 @@ class ModelSet(BlobFactory):
         Either a matplotlib.Axes.axis object or a nu-sigma error-bar, 
         depending on whether we're doing a 2-D posterior PDF (former) or
         1-D marginalized posterior PDF (latter).
-    
+
         """
 
         cs = None
