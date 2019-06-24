@@ -73,6 +73,16 @@ class SpectralSynthesis(object):
     @force_perfect.setter
     def force_perfect(self, value):
         self._force_perfect = value
+        
+    @property
+    def careful_cache(self):
+        if not hasattr(self, '_careful_cache_'):
+            self._careful_cache_ = True
+        return self._careful_cache_
+        
+    @careful_cache.setter
+    def careful_cache(self, value):
+        self._careful_cache_ = value
     
     @property
     def cameras(self):
@@ -671,7 +681,7 @@ class SpectralSynthesis(object):
             
             # Check wavelength first. Most common thing.
             
-            if ('wave' in kw) and ('zobs' in kw):
+            if (self.careful_cache == 0) and ('wave' in kw) and ('zobs' in kw):
                 if (kw['wave'] == kwds['wave']) and (kw['zobs'] == kwds['zobs']):
                     notok = 0
                     break
@@ -679,7 +689,7 @@ class SpectralSynthesis(object):
             notok = 0
             # Loop over cached keywords, compare to those supplied.
             for key in ok_keys:
-                                
+
                 if key not in kwds:
                     notok += 1
                     break
@@ -787,6 +797,7 @@ class SpectralSynthesis(object):
         if load:
             _kwds, cached_result = self._cache_lum(kw)
         else:
+            self._cache_lum_ = {}
             cached_result = None
             
         if cached_result is not None:

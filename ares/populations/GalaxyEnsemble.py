@@ -1638,7 +1638,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._synth.src = self.src
             self._synth.oversampling_enabled = self.pf['pop_ssp_oversample']
             self._synth.oversampling_below = self.pf['pop_ssp_oversample_age']
-            
+            self._synth.careful_cache = self.pf['pop_synth_cache_level']
+                        
         return self._synth
     
     def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None, 

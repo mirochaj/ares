@@ -126,18 +126,18 @@ def test(show_bpass=False, oversample_age=30.):
     ss2.oversampling_below = oversample_age
     
     t1 = time.time()
-    L1 = ss.Luminosity(sfh1, tarr=tarr1)
+    L1 = ss.Luminosity(sfh1, tarr=tarr1, load=False)
     t2 = time.time()
     
     print('dt=1', t2 - t1)
     
     t1 = time.time()
-    L2 = ss.Luminosity(sfh2, tarr=tarr2)
+    L2 = ss.Luminosity(sfh2, tarr=tarr2, load=False)
     t2 = time.time()
     print('dt=10, oversampling ON:', t2 - t1)
     
     t1 = time.time()
-    L3 = ss2.Luminosity(sfh2, tarr=tarr2)
+    L3 = ss2.Luminosity(sfh2, tarr=tarr2, load=False)
     t2 = time.time()
     print('dt=10, oversampling OFF:', t2 - t1)
     
@@ -228,9 +228,9 @@ def test(show_bpass=False, oversample_age=30.):
     
     assert np.all(L2b[0] == L2)
     assert np.all(L3b[0] == L3)
-            
-    #print("Mean error in L(t) with oversampling at t<{} Myr: {}".format(oversample_age,
-    #    np.mean(err)))
+                
+        #print("Mean error in L(t) with oversampling at t<{} Myr: {}".format(oversample_age,
+        #    np.mean(err)))
             
 if __name__ == '__main__':
     test()
