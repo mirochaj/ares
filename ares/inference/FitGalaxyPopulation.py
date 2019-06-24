@@ -112,6 +112,9 @@ class loglikelihood(LogLikelihood):
                     
         else:
             pops = [sim]
+            
+        if len(pops) > 1:
+            raise NotImplemented('careful! need to think about this.')
                                                                                                      
         # Loop over all data points individually.
         #try:
@@ -125,7 +128,7 @@ class loglikelihood(LogLikelihood):
             xdat = self.xdata[i]
             z = self.redshifts[i]
                         
-            for pop in pops:
+            for j, pop in enumerate(pops):
                             
                 # Generate model LF
                 if quantity == 'lf':
@@ -156,7 +159,7 @@ class loglikelihood(LogLikelihood):
                     p = pop.Beta(z, MUV=M, cam=('wfc', 'wfc3'),     
                         return_binned=True, filters=filt_hst[zstr], dlam=20., 
                         rest_wave=None)
-                    
+
                     if not np.isfinite(p):
                         print('beta is inf or nan!', z, M)
                         return -np.inf
@@ -166,7 +169,9 @@ class loglikelihood(LogLikelihood):
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
                         
-                phi[i] += p   
+                # If UVLF or SMF, could do multi-pop in which case we'd 
+                # increment here.        
+                phi[i] = p   
                             
         #except:
         #    return -np.inf, self.blank_blob

@@ -1276,6 +1276,10 @@ class ModelFit(FitBase):
         #            "found.").format(prefix))
                 
         if restart:
+            
+            if clobber:
+                raise IOError("If restart=True, should set clobber=False!")
+            
             # below checks for checkpoint_append==True failure
             cptapdtrfl = (self.checkpoint_append and\
                 (not os.path.exists('{!s}.chain.pkl'.format(prefix))))

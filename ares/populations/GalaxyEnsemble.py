@@ -1121,7 +1121,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             fd = 0.0
             
-        fml = (1. - self.pf['pop_mass_yield'])
+        fmr = self.pf['pop_mass_yield']    
+        fml = (1. - fmr)
         
         # Integrate (crudely) mass accretion rates
         #_Mint = cumtrapz(_MAR[:,:], dx=dt, axis=1)
@@ -1209,10 +1210,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Dust           
         if np.any(fd > 0):
             
+            Md = np.hstack((zeros_like_Mh,
+                np.cumsum(SFR[:,0:-1] * dt * fZy * fd[:,0:-1], 
+                axis=1)))
+            
             # As long as the yields are constant then dust mass just scales with
             # stellar mass            
-            Sd = fd * fZy * Ms \
-                / 4. / np.pi / self.guide.dust_scale(z=z, Mh=Mh)**2
+            Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z, Mh=Mh)**2
                 
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2
@@ -1221,12 +1225,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 fcov = self.guide.dust_fcov(z=z2d, Mh=Mh)
             else:
                 fcov = 1.
-
+                
         else:
             Md = Sd = 0.
             Rd = np.inf
             fcov = 1.0
-
+            
         del z2d    
 
         # Metal mass
@@ -1314,7 +1318,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'SFR': SFR,#[:,-1::-1],
          'Ms': Ms,#[:,-1::-1]d,
          #'MZ': MZ,#[:,-1::-1],
-         #'Md': Md, # Only need 'Sd' for now so save some memory
+         'Md': Md, # Only need 'Sd' for now so save some memory
          'Sd': Sd,
          'fcov': fcov,
          'Mh': Mh,#[:,-1::-1],
@@ -1901,7 +1905,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Can return binned (in MUV) version
         if return_binned:
             if Mbins is None:
-                Mbins = np.arange(-27, -10, 0.2)
+                Mbins = np.arange(-30, -10, 0.25)
                 
             nh = self.get_field(z, 'nh')    
             
@@ -1939,7 +1943,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         if return_binned:            
             if Mbins is None:
-                Mbins = np.arange(-27, -10, 0.2)
+                Mbins = np.arange(-30, -10, 0.25)
 
             nh = self.get_field(z, 'nh')
             _x, _y, _z = bin_samples(MAB, AUV, Mbins, weights=nh)

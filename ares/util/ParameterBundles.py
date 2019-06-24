@@ -408,7 +408,7 @@ _dust_destroy = \
  'pq_func_var[28]': '1+z',
  'pq_func_par0[28]': 0.4,
  'pq_func_par1[28]': 5.,
- 'pq_func_par2[28]': 0.,         # R(vir) goes like 1 / (1+z)
+ 'pq_func_par2[28]': 0.,       
 }
 
 

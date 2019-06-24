@@ -211,6 +211,141 @@ class GalaxyPopulation(object):
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
+
+    def MultiPlotUV(self, pop, gs=None, fig=1, redshifts=[4,6,8,10], 
+        sources='all', repeat_z=True, beta_phot=True, **kwargs):
+        """
+        Make a nice plot showing UVLF and UV CMD constraints and models.
+        """
+        
+        if gs is None:
+            fig = pl.figure(tight_layout=False, figsize=(12, 8), num=fig)
+            fig.subplots_adjust(left=0.1 ,right=0.9)
+            gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
+            
+        # Should do instance check.
+        assert fig is not None
+    
+        ax_uvlf = fig.add_subplot(gs[:,0:2])
+    
+        ax_cmd4 = fig.add_subplot(gs[0,2:])
+        ax_cmd6 = fig.add_subplot(gs[1,2:])
+        ax_cmd8 = fig.add_subplot(gs[2,2:])
+        ax_cmd10 = fig.add_subplot(gs[3,2:])
+            
+        ax_cmd = [ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]
+        
+        l11 = read_lit('lee2011')
+        b14 = read_lit('bouwens2014')
+        
+        ##
+        # Plot data
+        ##
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+        colors = 'k', 'b', 'c', 'm'
+        for j, z in enumerate(redshifts):
+        
+            _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[j], mfc=colors[j],
+                mec=colors[j], sources=sources, round_z=0.21)
+        
+            
+            if z in b14.data['beta']:
+        
+                err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
+                ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
+                    fmt='o', color=colors[j], label=r'Bouwens+ 2014' if j == 0 else None,
+                    **mkw)
+                    
+            if z in l11.data['beta']:
+                ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
+                    l11.data['beta'][z]['err'], 
+                    fmt='*', color=colors[j], label=r'Lee+ 2011' if j == 0 else None,
+                    **mkw)
+            ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*j), 
+                xycoords='axes fraction', color=colors[j], ha='right', va='top')
+            ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
+                ha='right', va='top', xycoords='axes fraction', color=colors[j])
+        
+        ##
+        # Plot models
+        ##
+        mags = np.arange(-25, -12, 0.1)
+        mags_cr = np.arange(-25, -10, 0.25)
+        hst_shallow = b14.filt_shallow
+        hst_deep = b14.filt_deep
+        
+        for j, z in enumerate(redshifts):
+            zstr = round(z)
+            
+            phi = pop.LuminosityFunction(z, mags)
+    
+            lab1 = 'no dust' if j == 0 else None
+            lab2 = 'w/ dust' if j == 0 else None
+    
+            ax_uvlf.semilogy(mags, phi, color=colors[j], **kwargs)
+            
+            if zstr >= 6:
+                hst_filt = hst_deep
+            else:
+                hst_filt = hst_shallow
+
+            cam = 'wfc', 'wfc3' if zstr <= 7 else 'nircam'    
+            filt = hst_filt[zstr] if zstr <= 7 else None
+            fset = None if zstr <= 7 else 'M'
+
+            if beta_phot:
+                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+            else:
+                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    rest_wave=(1600., 3000.), dlam=10.)
+                    
+                #beta2 = [pop.Beta(z, MUV=M, return_binned=True,
+                #    rest_wave=(1600., 3000.), dlam=10.) for M in mags_cr]
+                #    
+                #ax_cmd[j].plot(mags_cr, beta, color=colors[j], ls=':', lw=3)    
+                    
+            ax_cmd[j].plot(mags_cr, beta, color=colors[j], **kwargs)
+            
+            if repeat_z and j == 0:
+                kw = kwargs.copy()
+                kw['alpha'] = 0.3
+                for k in range(1, 4):
+                    ax_cmd[k].plot(mags_cr, beta, color=colors[j], **kw)
+                    
+            
+                    
+        ##
+        # Clean-up
+        ##
+        for i, ax in enumerate([ax_uvlf, ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]):
+            ax.set_xlim(-24, -15)
+            ax.set_xticks(np.arange(-24, -15, 2))
+            ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
+            
+            if i > 0:
+                ax.set_ylabel(r'$\beta$')
+                ax.set_yticks(np.arange(-2.4, -0.8, 0.4))
+                ax.set_yticks(np.arange(-2.7, -1., 0.1), minor=True)
+                ax.set_ylim(-2.7, -1.)
+                ax.yaxis.tick_right()
+                ax.yaxis.set_label_position("right")
+                
+                if i < 4:
+                    ax.set_xticklabels([])
+                else:
+                    ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+            else:
+                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                ax.set_ylabel(labels['galaxy_lf'])
+                ax.set_ylim(1e-7, 1e-1)
+            
+        return fig, gs
+        
+        
+        
+        
+        
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
