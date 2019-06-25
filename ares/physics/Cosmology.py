@@ -20,15 +20,13 @@ from ..util.ParameterFile import ParameterFile
 from ..util.ParameterBundles import ParameterBundle
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, cm_per_kpc, k_B, m_p
-
+    
 class Cosmology(object):
     def __init__(self, pf=None, **kwargs):        
         if pf is not None:
             self.pf = pf
         else:
-            self.pf = ParameterFile(**kwargs)  
-
-
+            self.pf = ParameterFile(**kwargs)
 
         ########################################################################
         if self.pf['cosmology_propagation'] == True:   
@@ -83,7 +81,7 @@ class Cosmology(object):
                         print('Cosmology not recognized from hmf table name')
 
             # Creates the path variable for the MCMC chains
-            ARES = os.environ.get('ARES')
+            ARES = self.ARES = os.environ.get('ARES')
             cosmo_path = (ARES + '/input/cosmo_params/COM_CosmoParams_base-'
                         + 'plikHM-TTTEEE-lowl-lowE_R3.00/base/')
 
@@ -194,13 +192,20 @@ class Cosmology(object):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            if (self.pf['cosmology_inits_location'] is not None) and\
-            (self.pf['cosmology_name'] is not None):
+            if self.pf['cosmology_name'] is not None:
+                if self.pf['cosmology_inits_location'] is not None:
+                    path = self.pf['cosmology_inits_location']
+                else:
+                    path = self.pf['cosmology_name']
+                
                 if self.pf['cosmology_number'] is None:
-                    # No row number specified
                     self.pf['cosmology_number'] = 0
-                self._inits = _load_inits(fn=self.pf['cosmology_inits_location']
-                                          + '/{}.npz'.format(int(self.pf['cosmology_number'])))
+                    num = '00000'
+                else:
+                    num = str(int(self.pf['cosmology_number'])).zfill(5)
+                                        
+                fn = '{}/input/inits/{}_{}.txt'.format(self.ARES, path, num)
+                self._inits = _load_inits(fn=fn)
             else:
                 self._inits = _load_inits()
         return self._inits

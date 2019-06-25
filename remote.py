@@ -23,7 +23,7 @@ aux_data = \
     'hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz',
     None],
  'inits': ['{!s}/downloads'.format(ares_link),
-     'initial_conditions.npz',
+     'initial_conditions.txt',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
     'optical_depth_H_400x862_z_5-60_logE_2.3-4.5.npz',

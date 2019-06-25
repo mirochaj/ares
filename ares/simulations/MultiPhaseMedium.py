@@ -63,19 +63,11 @@ class MultiPhaseMedium(object):
     def inits(self):
         if not hasattr(self, '_inits'):    
             if self.pf['load_ics']:
-                
-                # Redshifts ascending at this point
-                if (self.pf['cosmology_inits_location'] is not None)\
-                and (self.pf['cosmology_name'] is not None):
-                    if self.pf['cosmology_number'] is None:
-                        # No row number specified
-                        self.pf['cosmology_number'] = 0
-                    self._inits = inits = _load_inits(fn=self.pf['cosmology_inits_location']
-                                          + '/{}.npz'.format(int(self.pf['cosmology_number'])))
-                elif self.pf['approx_thermal_history']:
+                if self.pf['approx_thermal_history']:
                     self._inits = inits = self.grid.cosm.thermal_history
                 else:    
-                    self._inits = inits = _load_inits()
+                    self._inits = inits = self.grid.cosm.inits
+                    
                 
                 zi = self.pf['initial_redshift']
                 if not np.all(np.diff(inits['z']) > 0):

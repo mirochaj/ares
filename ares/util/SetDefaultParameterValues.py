@@ -916,7 +916,7 @@ def HaloMassFunctionParameters():
     "hmf_database": None,
 
     # Directory where cosmology hmf tables are located
-    "hmf_cosmology_location":'/home/henri/Documents/HERA/Cosmology/HMF_tables/PS/hdf5'
+    "hmf_cosmology_location": None, #'/home/henri/Documents/HERA/Cosmology/HMF_tables/PS/hdf5'
     
     }
     
@@ -929,7 +929,7 @@ def CosmologyParameters():
     pf = \
     {
     "cosmology_propagation": True,
-    "cosmology_inits_location":'/home/henri/Documents/HERA/Cosmology/CosmoRecTests/Cosmorec_inits',
+    "cosmology_inits_location": None,
     "omega_m_0": 0.3089,
     "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
     "omega_l_0": 1. - 0.3089,

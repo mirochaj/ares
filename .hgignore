@@ -43,3 +43,5 @@ doc/example_*.py
 .pytest_cache/*
 input/nircam/*
 *.zip
+input/cosmo_params/*
+input/inits/cr.log
