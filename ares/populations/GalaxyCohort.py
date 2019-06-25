@@ -1277,6 +1277,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return np.interp(MUV, MAB[ok][-1::-1], self.halos.tab_M[1:-1][ok][-1::-1])
         
+    def Mpeak(self, z):
+        slope = lambda logM: self.gamma_sfe(z, 10**logM)
+        return 10**fsolve(slope, 11.5)[0]
+        
     def MUV_at_peak_SFE(self, z):
         """
         Return the UV magnitude of a halo forming stars at peak efficiency.
@@ -3077,7 +3081,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
-        Md = self.pf['pop_dust_yield'] * MZ
+        Md = self.dust_yield(z=z, Mh=Mh) * MZ
         Rd = self.dust_scale(z=z, Mh=Mh)
         # Assumes spherical symmetry, uniform dust density
         Sd = 3. * Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2

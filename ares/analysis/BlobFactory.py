@@ -610,7 +610,7 @@ class BlobFactory(object):
                                         
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
-                    tmp_f = parse_attribute(fname, self)                    
+                    tmp_f = parse_attribute(fname, self)
                     
                     xarr, yarr = list(map(np.array, self.blob_ivars[i]))
                     
@@ -630,12 +630,12 @@ class BlobFactory(object):
                     # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
-                                                                                                                      
+                        
                         if self.blob_kwargs[i] is not None:
                             kw = self.blob_kwargs[i][j]
                         else:
                             kw = {}
-                            
+                                                                
                         kw.update({xn:x, yn:yarr})
                         result = func(**kw)
                                                 
@@ -647,7 +647,7 @@ class BlobFactory(object):
                         
                         tmp.extend(result)
                         blob.append(tmp)
-                                                                        
+                                                                                                                        
                 this_group.append(np.array(blob))
                                 
             self._blobs.append(np.array(this_group))

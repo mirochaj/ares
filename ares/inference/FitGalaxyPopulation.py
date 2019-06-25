@@ -37,6 +37,10 @@ except ImportError:
     
 twopi = 2. * np.pi
 
+_b14 = read_lit('bouwens2014')
+hst_shallow = _b14.filt_shallow
+hst_deep = _b14.filt_deep
+                
 class loglikelihood(LogLikelihood):
 
     @property
@@ -109,11 +113,9 @@ class loglikelihood(LogLikelihood):
         else:
             pops = [sim]
             
-        if isinstance(sim, GalaxyEnsemble.GalaxyEnsemble):
-            more_kw = {'batch': True}
-        else: 
-            more_kw = {}
-                                                                                             
+        if len(pops) > 1:
+            raise NotImplemented('careful! need to think about this.')
+                                                                                                     
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
@@ -125,8 +127,8 @@ class loglikelihood(LogLikelihood):
 
             xdat = self.xdata[i]
             z = self.redshifts[i]
-            
-            for pop in pops:
+                        
+            for j, pop in enumerate(pops):
                             
                 # Generate model LF
                 if quantity == 'lf':
@@ -135,7 +137,7 @@ class loglikelihood(LogLikelihood):
                     # observed magnitudes.                
                                     
                     # Compute LF
-                    p = pop.LuminosityFunction(z=z, x=xdat, mags=True, **more_kw)
+                    p = pop.LuminosityFunction(z=z, x=xdat, mags=True)
                     
                     if not np.isfinite(p):
                         print('LF is inf or nan!', z, M)
@@ -145,9 +147,19 @@ class loglikelihood(LogLikelihood):
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(z, M)
                 elif quantity == 'beta':
-                    M = xdat
-                    p = pop.Beta(z, MUV=M, **more_kw)
                     
+                    zstr = int(round(z))
+                    
+                    if zstr >= 6:
+                        filt_hst = hst_deep
+                    else:
+                        filt_hst = hst_shallow
+                                        
+                    M = xdat
+                    p = pop.Beta(z, MUV=M, cam=('wfc', 'wfc3'),     
+                        return_binned=True, filters=filt_hst[zstr], dlam=20., 
+                        rest_wave=None)
+
                     if not np.isfinite(p):
                         print('beta is inf or nan!', z, M)
                         return -np.inf
@@ -156,9 +168,11 @@ class loglikelihood(LogLikelihood):
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
-
-                phi[i] += p   
-            
+                        
+                # If UVLF or SMF, could do multi-pop in which case we'd 
+                # increment here.        
+                phi[i] = p   
+                            
         #except:
         #    return -np.inf, self.blank_blob
 

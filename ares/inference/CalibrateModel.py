@@ -12,6 +12,7 @@ Description:
 
 import os
 import numpy as np
+from ..util import read_lit
 from .ModelFit import ModelFit
 from ..util import ParameterBundle as PB
 from ..populations.GalaxyCohort import GalaxyCohort
@@ -32,12 +33,16 @@ except ImportError:
     rank = 0
     size = 1    
 
+_b14 = read_lit('bouwens2014')
+filt_hst = {4: _b14.filt_shallow[4], 5: _b14.filt_shallow[5],
+    6: _b14.filt_deep[6], 7: _b14.filt_deep[7]}
+
 _zcal_lf = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
 _zcal_smf = [3, 4, 5, 6, 7, 8]
 _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
-acceptable_dust_params = ['norm', 'slope', 'fcov']
+acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield']
 
 class CalibrateModel(object):
     """
@@ -175,10 +180,11 @@ class CalibrateModel(object):
                  or 'slope-high' in self.zevol_sfe
                  
             enorm_d = 'norm' in self.zevol_dust
+            epeak_d = 'norm' in self.zevol_dust
             
-            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_fduty-{}_efduty-{}'.format(
+            rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_epeak-{}_fduty-{}_efduty-{}'.format(
                 int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d),
-                int(self.include_fduty), int(self.zevol_fduty))
+                int(epeak_d), int(self.include_fduty), int(self.zevol_fduty))
         #elif self.include_sfe in ['f17-p', 'f17-E']:
         #    rest = 'sfe-{}_fshock-{}_dust-{}_edust-{}_zcal-{}'.format(
         #        self.include_sfe, self.include_fshock, self.include_dust, 
@@ -300,92 +306,115 @@ class CalibrateModel(object):
             if self.include_fduty:
                                 
                 # Normalization of SFE
-                free_pars.extend(['pq_func_par0[31]', 'pq_func_par2[30]'])
-                guesses['pq_func_par0[31]'] = 0.8
-                guesses['pq_func_par2[30]'] = 0.2
+                free_pars.extend(['pq_func_par0[41]', 'pq_func_par2[40]'])
+                guesses['pq_func_par0[41]'] = 0.8
+                guesses['pq_func_par2[40]'] = 0.2
                 is_log.extend([False, False])
                 jitter.extend([0.1, 0.1])
-                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[31]')
-                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[30]')
+                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[41]')
+                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[40]')
                 
                 if self.zevol_fduty:
-                    free_pars.append('pq_func_par2[31]')
-                    guesses['pq_func_par2[31]'] = 0.
+                    free_pars.append('pq_func_par2[41]')
+                    guesses['pq_func_par2[41]'] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[31]')
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[41]')
             
             
-            ##
-            # OBSCURATION
-            ##
-            #if self.include_obsc:
-            #    raise NotImplemented('help')
-            #    free_pars.extend(['pq_func_par0[11]', 'pq_func_par0[12]', 'pq_func_par0[13]'])
-            #    guesses['pq_func_par0[11]'] = 0.5
-            #    guesses['pq_func_par0[12]'] = 11.5
-            #    guesses['pq_func_par0[13]'] = 1.0
-            #    is_log.extend([False, False, False])
-            #    jitter.extend([0.2, 0.5, 0.5])
-            #
-            #    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[11]')
-            #    ps.add_distribution(UniformDistribution(8, 14), 'pq_func_par0[12]')
-            #    ps.add_distribution(UniformDistribution(0., 8.), 'pq_func_par0[13]')
-    
             ##
             # DUST REDDENING
             ##
-            if self.include_dust in ['screen', 'patchy']:
+            if self.include_dust in ['screen', 'screen-dpl', 'patchy']:
                 
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[23]')
-                    guesses['pq_func_par0[23]'] = 1.3
+                    guesses['pq_func_par0[23]'] = 1.6
                     is_log.extend([False])
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[23]')
                                         
                     if 'norm' in self.zevol_dust:
                         free_pars.append('pq_func_par2[23]')
-                        guesses['pq_func_par2[23]'] = -0.5
+                        guesses['pq_func_par2[23]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.1])
+                        jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[23]')
 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
-                    guesses['pq_func_par2[22]'] = 0.5
+                    guesses['pq_func_par2[22]'] = 0.45
                     is_log.extend([False])
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
+                    if self.include_dust in ['screen-dpl', 'patchy']:
+                        free_pars.append('pq_func_par3[22]')
+                        guesses['pq_func_par3[22]'] = 0.45
+                        is_log.extend([False])
+                        jitter.extend([0.1])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                
+                if 'peak' in self.free_params_dust:
+                    assert self.include_dust in ['screen-dpl', 'patchy']
+                    
+                    free_pars.append('pq_func_par0[24]')
+                    guesses['pq_func_par0[24]'] = 11.5
+                    is_log.extend([True])
+                    jitter.extend([0.5])
+                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[24]')                    
+
+                    if 'peak' in self.zevol_dust:
+                        free_pars.append('pq_func_par2[24]')
+                        guesses['pq_func_par2[24]'] = 0.0
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[24]')
+                    
                 if 'fcov' in self.free_params_dust:    
 
                     # fcov parameters (no zevol)
-                    free_pars.extend(['pq_func_par0[21]', #'pq_func_par1[21]',
-                        'pq_func_par3[21]', 'pq_func_par0[24]'])
+                    free_pars.extend(['pq_func_par0[25]', #'pq_func_par1[25]',
+                        'pq_func_par3[25]', 'pq_func_par0[26]'])
 
                     # Tanh describing covering fraction
-                    guesses['pq_func_par0[21]'] = 0.25
+                    guesses['pq_func_par0[25]'] = 0.25
                     #guesses['pq_func_par1[21]'] = 0.98
-                    guesses['pq_func_par3[21]'] = 0.2
-                    guesses['pq_func_par0[24]'] = 10.8
+                    guesses['pq_func_par3[25]'] = 0.2
+                    guesses['pq_func_par0[26]'] = 10.8
                 
                     is_log.extend([False, False, False])
                     jitter.extend([0.05, 0.1, 0.3])
                     
-                    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[21]')
-                    #ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par1[21]')
-                    ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[21]')
-                    ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[24]')
+                    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[25]')
+                    ps.add_distribution(UniformDistribution(0., 5.), 'pq_func_par3[25]')
+                    ps.add_distribution(UniformDistribution(8., 14.), 'pq_func_par0[26]')
                                     
                     # Just let transition mass evolve
                     if 'fcov' in self.zevol_dust:
-                        free_pars.extend(['pq_func_par2[24]'])
-                        guesses['pq_func_par2[24]'] = 0.
+                        free_pars.extend(['pq_func_par2[26]'])
+                        guesses['pq_func_par2[26]'] = 0.
                         is_log.extend([False])
                         jitter.extend([0.03])
-                        ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par2[24]') 
+                        ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par2[26]') 
+                      
+                if 'yield' in self.free_params_dust:
+                    
+                    free_pars.extend(['pq_func_par0[28]', 'pq_func_par2[27]'])
+                    guesses['pq_func_par0[28]'] = 0.3
+                    guesses['pq_func_par2[27]'] = 0.
+                    is_log.extend([False, False])
+                    jitter.extend([0.1, 0.5])
+                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[28]')
+                    ps.add_distribution(UniformDistribution(-1.5, 1.5), 'pq_func_par2[27]')
+
+                    if 'yield' in self.zevol_dust:
+                        free_pars.append('pq_func_par2[28]')
+                        guesses['pq_func_par2[28]'] = 0.0
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[28]')
                       
             # Set the attributes
             self._parameters = free_pars
@@ -470,7 +499,7 @@ class CalibrateModel(object):
          'blob_names': [blob_n],
          'blob_ivars': [blob_i],
          'blob_funcs': [blob_f],
-         'blob_kwargs': [[{'batch': True}]],
+         'blob_kwargs': [None],
         }
 
         # Save the SFE if we're varying its parameters.
@@ -501,7 +530,6 @@ class CalibrateModel(object):
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
-            
 
         # Binary obscuration
         #if self.include_obsc:
@@ -549,40 +577,49 @@ class CalibrateModel(object):
             blob_i = [('z', redshifts), ('Mh', Mh)]
             blob_f = ['guide.dust_fcov', 'guide.dust_scale']
             
+            if type(self.base_kwargs['pop_dust_yield']) == str:
+                blob_n.append('dust_yield')
+                blob_f.append('guide.dust_yield')
+            
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
-            blob_pars['blob_kwargs'].append(None)
+            blob_pars['blob_kwargs'].append(None)            
         
         # MUV-Beta
         if self.save_beta != False:
+            
+            Mbins = np.arange(-30, -10, 0.1)
             
             blob_n = ['AUV']
             blob_i = [('z', red_beta), ('MUV', MUV)]
             blob_f = ['AUV']
             # By default, MUV refers to 1600 magnitude
-            blob_k = [{'wave': 1600}]
-            
-            if type(self.save_beta) in [int, bool]:
-                if rank == 0:
-                    print("[blobs] Defaulting to Beta at 1600 Angstrom.")
-                blob_n.append('beta_hst')
-                blob_f.append('Beta')
-                
-                filt = ['F435W', 'F140W', 'F606W', 'F775W', 'F098M', 'F105W', \
-                    'F814W', 'F850LP', 'F125W', 'F160W']
+            blob_k = [{'return_binned': True, 'cam': ('wfc', 'wfc3'), 
+                'filters': filt_hst, 'dlam': 20.,
+                'Mwave': 1600., 'Mbins': Mbins}]
+                            
+            kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
+                'dlam':20., 'rest_wave': None, 'return_binned': True,
+                'Mwave': 1600., 'Mbins': Mbins}
 
-                kw = {'cam': ('wfc', 'wfc3'), 'filters': filt,
-                    'dlam':10., 'rest_wave': (1600., 2300.)}
-                    
-                blob_k.append(kw_beta)
-            else:
-                _beta_waves = []
-                for element in self.save_beta:
-                    blob_n.append('beta_{}'.format(int(element)))
-                    blob_f.append('Beta')
-                    blob_k.append({'wave': element, 'batch': True})
+            kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
+                'return_binned': True, 'Mwave': 1600.}
             
+            blob_f.extend(['Beta'] * 2)
+            blob_n.extend(['beta_hst', 'beta_spec'])
+            blob_k.extend([kw_hst, kw_spec])
+            
+            # Save also the geometric mean of photometry as a function
+            # of a magnitude at fixed rest wavelength.
+            kw_mag = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
+                'dlam': 20.}
+
+            # Save geometric mean magnitudes also
+            blob_n.append('MUV_gm')
+            blob_f.append('Magnitude')
+            blob_k.append(kw_mag)
+
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
@@ -654,7 +691,7 @@ class CalibrateModel(object):
             prefix = self.prefix
 
         fitter_lf = FitGalaxyPopulation()
-        
+
         data = []
         include = []
         if self.fit_lf:
@@ -665,7 +702,7 @@ class CalibrateModel(object):
             data.append('song2016')
         if self.fit_beta:
             include.append('beta')
-            data.extend(['bouwens2014', 'lee2011'])
+            data.extend(['bouwens2014'])
         if self.fit_gs:
             raise NotImplemented('sorry folks')
 
@@ -675,7 +712,7 @@ class CalibrateModel(object):
         fitter_lf.include = include
 
         fitter_lf.data = data
-        
+
         ##
         # Stitch together parameters
         ##

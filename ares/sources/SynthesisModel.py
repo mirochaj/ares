@@ -380,7 +380,7 @@ class SynthesisModel(Source):
             assert avg % 2 != 0, "avg must be odd"
             s = (avg - 1) / 2
             if units == 'Hz':
-                yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
+                yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
             else:
                 yield_UV = np.mean(self.data[j-s:j+s,:])
         

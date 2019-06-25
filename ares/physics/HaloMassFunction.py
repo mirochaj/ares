@@ -129,7 +129,7 @@ class HaloMassFunction(object):
 
         """
         self.pf = ParameterFile(**kwargs)
-        
+                
         # Read in a few parameters for convenience        
         self.tab_name = self.pf["hmf_table"]
         self.hmf_func = self.pf['hmf_model']

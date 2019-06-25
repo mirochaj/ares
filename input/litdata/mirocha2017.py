@@ -41,10 +41,10 @@ dpl = \
  ##
  # IMPORTANT
  ##
- 'pq_func_par0{0}[0]': 0.05,           # Table 1 in paper (last 4 rows)
- 'pq_func_par1{0}[0]': 2.8e11,
- 'pq_func_par2{0}[0]': 0.49,       
- 'pq_func_par3{0}[0]': -0.61,      
+ 'pq_func_par0[0]{0}': 0.05,           # Table 1 in paper (last 4 rows)
+ 'pq_func_par1[0]{0}': 2.8e11,
+ 'pq_func_par2[0]{0}': 0.49,       
+ 'pq_func_par3[0]{0}': -0.61,      
  'pop_calib_L1600{0}': 1.0185e28,      # Enforces Equation 13 in paper 
  ##
  #
@@ -92,10 +92,10 @@ floor = _floor_specific
 _steep_specific = \
 {
  'pop_focc{0}': 'pq[5]',
- 'pq_func{0}[5]': 'okamoto',
- 'pq_func_var{0}[5]': 'Mh',
- 'pq_func_par0{0}[5]': 1.,
- 'pq_func_par1{0}[5]': 1e9,
+ 'pq_func[5]{0}': 'okamoto',
+ 'pq_func_var[5]{0}': 'Mh',
+ 'pq_func_par0[5]{0}': 1.,
+ 'pq_func_par1[5]{0}': 1e9,
 }
 
 steep = _steep_specific
@@ -106,30 +106,30 @@ Redshift-dependent options.
 
 _flex = \
 {
- 'pq_func{0}[0]': 'dpl_arbnorm',
- 'pq_func_var{0}[0]': 'Mh',
+ 'pq_func[0]{0}': 'dpl_arbnorm',
+ 'pq_func_var[0]{0}': 'Mh',
 
- 'pq_val_ceil{0}[0]': 1.0,
+ 'pq_val_ceil[0]{0}': 1.0,
 
  # Standard dpl model at 10^8 Msun
- 'pq_func_par0{0}[0]': 'pq[1]',
- 'pq_func_par1{0}[0]': 'pq[2]',
- 'pq_func_par2{0}[0]': 0.49,
- 'pq_func_par3{0}[0]': -0.61,
- 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+ 'pq_func_par0[0]{0}': 'pq[1]',
+ 'pq_func_par1[0]{0}': 'pq[2]',
+ 'pq_func_par2[0]{0}': 0.49,
+ 'pq_func_par3[0]{0}': -0.61,
+ 'pq_func_par4[0]{0}': 1e8,        # Mass at which fstar,0 is defined
 
  # Evolving part
- 'pq_func{0}[1]': 'pl',
- 'pq_func_var{0}[1]': '1+z',
- 'pq_func_par0{0}[1]': 0.00205,
- 'pq_func_par1{0}[1]': 7.,
- 'pq_func_par2{0}[1]': 0.,   # power-law index!
+ 'pq_func[1]{0}': 'pl',
+ 'pq_func_var[1]{0}': '1+z',
+ 'pq_func_par0[1]{0}': 0.00205,
+ 'pq_func_par1[1]{0}': 7.,
+ 'pq_func_par2[1]{0}': 0.,   # power-law index!
 
- 'pq_func{0}[2]': 'pl',
- 'pq_func_var{0}[2]': '1+z',
- 'pq_func_par0{0}[2]': 2.8e11,
- 'pq_func_par1{0}[2]': 7.,
- 'pq_func_par2{0}[2]': 0.,   # power-law index!
+ 'pq_func[2]{0}': 'pl',
+ 'pq_func_var[2]{0}': '1+z',
+ 'pq_func_par0[2]{0}': 2.8e11,
+ 'pq_func_par1[2]{0}': 7.,
+ 'pq_func_par2[2]{0}': 0.,   # power-law index!
 
 }
 
@@ -137,69 +137,69 @@ flex = _flex
 
 _flex2 = \
 {
- 'pq_func{0}[0]': 'dpl_arbnorm',
- 'pq_func_var{0}[0]': 'Mh',
+ 'pq_func[0]{0}': 'dpl_arbnorm',
+ 'pq_func_var[0]{0}': 'Mh',
 
- 'pq_val_ceil{0}[0]': 1.0,
+ 'pq_val_ceil[0]{0}': 1.0,
 
  # Standard dpl model at 10^8 Msun
- 'pq_func_par0{0}[0]': 'pq[1]',
- 'pq_func_par1{0}[0]': 'pq[2]',
- 'pq_func_par2{0}[0]': 'pq[3]',
- 'pq_func_par3{0}[0]': 'pq[4]',
- 'pq_func_par4{0}[0]': 1e10,        # Mass at which fstar,0 is defined
+ 'pq_func_par0[0]{0}': 'pq[1]',
+ 'pq_func_par1[0]{0}': 'pq[2]',
+ 'pq_func_par2[0]{0}': 'pq[3]',
+ 'pq_func_par3[0]{0}': 'pq[4]',
+ 'pq_func_par4[0]{0}': 1e10,        # Mass at which fstar,0 is defined
 
  # Evolving part
- 'pq_func{0}[1]': 'pl',
- 'pq_func_var{0}[1]': '1+z',
- 'pq_func_par0{0}[1]': 0.019,       # DPL model at Mh=1e8
- 'pq_func_par1{0}[1]': 7.,
- 'pq_func_par2{0}[1]': 0.,   # power-law index!
+ 'pq_func[1]{0}': 'pl',
+ 'pq_func_var[1]{0}': '1+z',
+ 'pq_func_par0[1]{0}': 0.019,       # DPL model at Mh=1e8
+ 'pq_func_par1[1]{0}': 7.,
+ 'pq_func_par2[1]{0}': 0.,   # power-law index!
 
- 'pq_func{0}[2]': 'pl',
- 'pq_func_var{0}[2]': '1+z',
- 'pq_func_par0{0}[2]': 2.8e11,
- 'pq_func_par1{0}[2]': 7.,
- 'pq_func_par2{0}[2]': 0.,   # power-law index!
+ 'pq_func[2]{0}': 'pl',
+ 'pq_func_var[2]{0}': '1+z',
+ 'pq_func_par0[2]{0}': 2.8e11,
+ 'pq_func_par1[2]{0}': 7.,
+ 'pq_func_par2[2]{0}': 0.,   # power-law index!
 
- 'pq_func{0}[3]': 'pl',
- 'pq_func_var{0}[3]': '1+z',
- 'pq_func_par0{0}[3]': 0.49,
- 'pq_func_par1{0}[3]': 7.,
- 'pq_func_par2{0}[3]': 0.,   # power-law index!
+ 'pq_func[3]{0}': 'pl',
+ 'pq_func_var[3]{0}': '1+z',
+ 'pq_func_par0[3]{0}': 0.49,
+ 'pq_func_par1[3]{0}': 7.,
+ 'pq_func_par2[3]{0}': 0.,   # power-law index!
  
- 'pq_func{0}[4]': 'pl',
- 'pq_func_var{0}[4]': '1+z',
- 'pq_func_par0{0}[4]': -0.61,
- 'pq_func_par1{0}[4]': 7.,
- 'pq_func_par2{0}[4]': 0.,   # power-law index!
+ 'pq_func[4]{0}': 'pl',
+ 'pq_func_var[4]{0}': '1+z',
+ 'pq_func_par0[4]{0}': -0.61,
+ 'pq_func_par1[4]{0}': 7.,
+ 'pq_func_par2[4]{0}': 0.,   # power-law index!
  
  # Possibility of LF steepening.
- 'pq_val_floor{0}[0]': 'pq[5]',
- 'pq_func{0}[5]': 'pl',
- 'pq_func_var{0}[5]': '1+z',
- 'pq_func_par0{0}[5]': 0.0, # unused by default
- 'pq_func_par1{0}[5]': 7.,
- 'pq_func_par2{0}[5]': 0.,
+ 'pq_val_floor[0]{0}': 'pq[5]',
+ 'pq_func[5]{0}': 'pl',
+ 'pq_func_var[5]{0}': '1+z',
+ 'pq_func_par0[5]{0}': 0.0, # unused by default
+ 'pq_func_par1[5]{0}': 7.,
+ 'pq_func_par2[5]{0}': 0.,
  
  # Possibility of LF turn-over
  'pop_focc{0}': 'pq[6]',
- 'pq_func{0}[6]': 'okamoto',
- 'pq_func_var{0}[6]': 'Mh',
- 'pq_func_par0{0}[6]': 'pq[7]',
- 'pq_func_par1{0}[6]': 'pq[8]',
+ 'pq_func[6]{0}': 'okamoto',
+ 'pq_func_var[6]{0}': 'Mh',
+ 'pq_func_par0[6]{0}': 'pq[7]',
+ 'pq_func_par1[6]{0}': 'pq[8]',
 
- 'pq_func{0}[7]': 'pl',
- 'pq_func_var{0}[7]': '1+z',
- 'pq_func_par0{0}[7]': 1.,
- 'pq_func_par1{0}[7]': 5.,   # effectively not in use
- 'pq_func_par2{0}[7]': 0.,   # power-law index!
+ 'pq_func[7]{0}': 'pl',
+ 'pq_func_var[7]{0}': '1+z',
+ 'pq_func_par0[7]{0}': 1.,
+ 'pq_func_par1[7]{0}': 5.,   # effectively not in use
+ 'pq_func_par2[7]{0}': 0.,   # power-law index!
 
- 'pq_func{0}[8]': 'pl',
- 'pq_func_var{0}[8]': '1+z',
- 'pq_func_par0{0}[8]': 0.,  # Renders focc = 1 for all halos 
- 'pq_func_par1{0}[8]': 7.,
- 'pq_func_par2{0}[8]': 0.,   # power-law index!
+ 'pq_func[8]{0}': 'pl',
+ 'pq_func_var[8]{0}': '1+z',
+ 'pq_func_par0[8]{0}': 0.,  # Renders focc = 1 for all halos 
+ 'pq_func_par1[8]{0}': 7.,
+ 'pq_func_par2[8]{0}': 0.,   # power-law index!
 }
 
 dflex = _flex2
@@ -208,32 +208,32 @@ fobsc = \
 {
  'pop_fobsc{0}': 'pq[10]',
  'pop_fobsc_by_num{0}': False,     # fraction of UV luminosity that gets out
- 'pq_val_ceil{0}[10]': 1.0,
- 'pq_val_floor{0}[10]': 0.0, 
- 'pq_func{0}[10]': 'log_tanh_abs',
- 'pq_func_var{0}[10]': 'Mh',
- 'pq_func_par0{0}[10]': 0.0,       # minimal obscuration
- 'pq_func_par1{0}[10]': 'pq[11]',  # peak obscuration
- 'pq_func_par2{0}[10]': 'pq[12]',  # log transition mass
- 'pq_func_par3{0}[10]': 'pq[13]',  # dlogM
+ 'pq_val_ceil[10]{0}': 1.0,
+ 'pq_val_floor[10]{0}': 0.0, 
+ 'pq_func[10]{0}': 'log_tanh_abs',
+ 'pq_func_var[10]{0}': 'Mh',
+ 'pq_func_par0[10]{0}': 0.0,       # minimal obscuration
+ 'pq_func_par1[10]{0}': 'pq[11]',  # peak obscuration
+ 'pq_func_par2[10]{0}': 'pq[12]',  # log transition mass
+ 'pq_func_par3[10]{0}': 'pq[13]',  # dlogM
  
- 'pq_func{0}[11]': 'pl',
- 'pq_func_var{0}[11]': '1+z',
- 'pq_func_par0{0}[11]': 0.5,
- 'pq_func_par1{0}[11]': 7.,   # effectively not in use
- 'pq_func_par2{0}[11]': 0.,   # power-law index!
+ 'pq_func[11]{0}': 'pl',
+ 'pq_func_var[11]{0}': '1+z',
+ 'pq_func_par0[11]{0}': 0.5,
+ 'pq_func_par1[11]{0}': 7.,   # effectively not in use
+ 'pq_func_par2[11]{0}': 0.,   # power-law index!
  
- 'pq_func{0}[12]': 'pl',
- 'pq_func_var{0}[12]': '1+z',
- 'pq_func_par0{0}[12]': 11.,  
- 'pq_func_par1{0}[12]': 7.,
- 'pq_func_par2{0}[12]': 0.,   # power-law index!
+ 'pq_func[12]{0}': 'pl',
+ 'pq_func_var[12]{0}': '1+z',
+ 'pq_func_par0[12]{0}': 11.,  
+ 'pq_func_par1[12]{0}': 7.,
+ 'pq_func_par2[12]{0}': 0.,   # power-law index!
  
- 'pq_func{0}[13]': 'pl',
- 'pq_func_var{0}[13]': '1+z',
- 'pq_func_par0{0}[13]': 1.0,  
- 'pq_func_par1{0}[13]': 7.,
- 'pq_func_par2{0}[13]': 0.,   # power-law index!
+ 'pq_func[13]{0}': 'pl',
+ 'pq_func_var[13]{0}': '1+z',
+ 'pq_func_par0[13]{0}': 1.0,  
+ 'pq_func_par1[13]{0}': 7.,
+ 'pq_func_par2[13]{0}': 0.,   # power-law index!
 }
 
 

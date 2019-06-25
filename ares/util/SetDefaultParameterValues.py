@@ -520,7 +520,9 @@ def PopulationParameters():
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 20.,
     "pop_synth_zmin": 3.5,
-    
+    "pop_synth_Mmax": 1e14,
+    "pop_synth_minimal": True,  # Can turn off for testing (so we don't need MF)
+    "pop_synth_cache_level": 1, # Bigger = more careful
     
     "pop_tau_bc": 0,
     "pop_age_bc": 10.,
@@ -654,6 +656,7 @@ def PopulationParameters():
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
+    "pop_dust_growth": None,
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,     
     "pop_dust_geom": 'screen',  # or 'mixed'
@@ -667,6 +670,9 @@ def PopulationParameters():
     
     # Transition mass
     "pop_transition": 0,
+    
+    "pop_dE": None,
+    "pop_dlam": 1.,
     
     # deprecated?
     "pop_kappa_UV": 1.15e-28,
@@ -868,6 +874,10 @@ def SynthesisParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    
+    # Only used by toy SPS
+    "source_dE": None,
+    "source_dlam": 1.,
     }
 
     return pf

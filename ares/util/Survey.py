@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 import os
 import copy
 import numpy as np
@@ -28,9 +29,10 @@ nanoJ = 1e-23 * 1e-9
 _path = os.environ.get('ARES') + '/input'
 
 class Survey(object):
-    def __init__(self, cam='nircam', mod='modA', chip=1):
+    def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False):
         self.camera = cam
         self.chip = chip
+        self.force_perfect = force_perfect
         
         if cam == 'nircam':
             self.path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path, mod)
@@ -40,6 +42,7 @@ class Survey(object):
             self.path = '{}/wfc'.format(_path)
         else:
             raise NotImplemented('Unrecognized camera \'{}\''.format(cam))
+                    
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -84,7 +87,8 @@ class Survey(object):
             self._dwdn = np.concatenate((tmp, [tmp[-1]]))
         return self._dwdn
     
-    def PlotFilters(self, ax=None, fig=1, filter_set='W', annotate=True):
+    def PlotFilters(self, ax=None, fig=1, filter_set='W', 
+        filters=None, annotate=True):
         """
         Plot transmission curves for NIRCAM filters.
         """
@@ -96,7 +100,7 @@ class Survey(object):
         else:
             gotax = True
         
-        data = self._read_throughputs(filter_set)
+        data = self._read_throughputs(filter_set, filters)
         
         colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
         for i, filt in enumerate(data.keys()):
@@ -133,40 +137,70 @@ class Survey(object):
 
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
-                        
-        if type(filter_set) != list:
-            filter_set = [filter_set]
+            
+        get_all = False    
+        if filters is not None:
+            if filters == 'all':
+                get_all = True
+            else:
+                assert type(filters) in [list, tuple]               
+        else:
+            filters = []
+            if type(filter_set) != list:
+                filter_set = [filter_set]
 
         data = {}
         for fn in os.listdir(self.path):
                     
             pre = fn.split('_')[0]
-            
-            for _filters in filter_set:
                 
-                if _filters in self._filter_cache:
-                    data[pre] = self._filter_cache[_filters]
+            if get_all or (pre in filters):
+            
+                if pre in self._filter_cache:
+                    data[pre] = self._filter_cache[pre]
                     continue
                     
-                if _filters not in pre:
-                    continue        
-        
-                # Need to distinguish W from W2
-                if (_filters == 'W') and ('W2' in pre):
-                    continue
-                                                                        
-                # Determine the center wavelength of the filter based its string
-                # identifier.    
-                k = pre.rfind(_filters)    
-                cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                if ('W2' in pre):
+                    continue    
+                
+                num = re.findall(r'\d+', pre)[0]
+                cent = float('{}.{}'.format(num[0], num[1:]))    
                 
                 # Wavelength [micron], transmission
                 x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
                     skiprows=1)
                 
                 data[pre] = self._get_filter_prop(x, y, cent)
-            
+                
                 self._filter_cache[pre] = copy.deepcopy(data[pre])
+            
+            elif filter_set is not None:
+                
+                for _filters in filter_set:
+                
+                    if _filters in self._filter_cache:
+                        data[pre] = self._filter_cache[_filters]
+                        continue
+                        
+                    if _filters not in pre:
+                        continue        
+                    
+                    # Need to distinguish W from W2
+                    if (_filters == 'W') and ('W2' in pre):
+                        continue
+                                                                            
+                    # Determine the center wavelength of the filter based its string
+                    # identifier.    
+                    k = pre.rfind(_filters)    
+                    cent = float('{}.{}'.format(pre[1], pre[2:k]))
+                    
+                    # Wavelength [micron], transmission
+                    x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True, 
+                        skiprows=1)
+                    
+                    data[pre] = self._get_filter_prop(x, y, cent)
+                    
+                    self._filter_cache[pre] = copy.deepcopy(data[pre])
         
         return data   
         
@@ -190,6 +224,7 @@ class Survey(object):
             else:
                 assert type(filters) in [list, tuple]
         else:   
+            filters = []
             # Grab all 'W' or 'N' etc. filters 
             if type(filter_set) != list:
                 filter_set = [filter_set]    
@@ -306,7 +341,7 @@ class Survey(object):
 
     def _get_filter_prop(self, x, y, cent):
         Tmax = max(y)
-        _ok = y > 1e-3
+        _ok = y > 1e-2 #y > 1e-2 * y.max()
         
         # Find non-contiguous regions (NIRCAM F090W only?)
         # This is a kludgey fix
@@ -330,16 +365,35 @@ class Survey(object):
         # Compute width of filter
         hi = max(x[ok == True])
         lo = min(x[ok == True])
-        
-        # Average T-weighted wavelength in filter.     
-        mi = np.sum(x[ok == True] * y[ok == True]) / np.sum(y[ok == True])
-        
-        dx = np.array([hi - mi, mi - lo])
-        Tavg = np.sum(y[ok==1]) / y[ok==1].size
                 
+        # Average T-weighted wavelength in filter.     
+        #mi = np.sum(x[ok==True] * y[ok==True]) / np.sum(y[ok==True])
+
+        # Why is this sometimes not very close to `cent`?
+        mi = np.mean(x[ok==True])
+                        
+        dx = np.array([hi - mi, mi - lo])
+        Tavg1 = np.sum(y[ok==1]) / float(y[ok==1].size)
+        #Tavg2 = np.trapz(y[ok==1], x=x[ok==1]) / (hi - lo)
+        #Tavg3 = np.sum(y[0:-1] * np.diff(x)) / (x.max() - x.min())
+        Tavg = Tavg1
+                        
+        #lo = min(x)
+        #hi = max(x)                
+                        
         # Get the Hz^-1 units back
         freq = c / x / 1e-4
         
         dHz = c / (lo * 1e-4) - c / (hi * 1e-4)
                 
-        return x, y, cent, dx, Tavg, dHz
+        if self.force_perfect:
+            Tavg = 1.
+            dx = np.array([0.1] * 2)
+            ok = np.logical_and(x >= cent-dx[1], x <= cent+dx[0])
+            y[ok==1] = Tavg
+            y[~ok] = 0.0
+            hi = max(x[ok == True])
+            lo = min(x[ok == True])
+            dHz = c / (lo * 1e-4) - c / (hi * 1e-4)
+                
+        return x, y, mi, dx, Tavg, dHz
