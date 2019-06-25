@@ -84,8 +84,7 @@ class SynthesisModelToy(Source):
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
-            tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
-            self._dwdn = np.concatenate((tmp, [tmp[-1]]))
+            self._dwdn =  self.wavelengths**2 / (c * 1e8)
         return self._dwdn    
         
     def _Spectrum(self, t, wave=1600.):

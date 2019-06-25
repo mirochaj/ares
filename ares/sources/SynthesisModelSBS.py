@@ -215,19 +215,19 @@ class SynthesisModelSBS(Source):
     #            
     #    return Tsun * (M**2.5)**0.25
         
-    @property
-    def dldn(self):
-        if not hasattr(self, '_dwdn'):
-            l_edges = bin_c2e(self.wavelengths)
-            e_edges = h_p * c / (l_edges / 1e8) / erg_per_ev
-            n_edges = e_edges * erg_per_ev / h_p
-            
-            self._dldn = np.abs(np.diff(l_edges) / np.diff(n_edges))
-            #self._dedn = np.diff(e_edges * erg_per_ev) / np.diff(n_edges)
-            #self._dndl = np.diff(n_edges) / np.diff(l_edges)
-
-        return self._dldn
-
+    #@property
+    #def dldn(self):
+    #    if not hasattr(self, '_dwdn'):
+    #        l_edges = bin_c2e(self.wavelengths)
+    #        e_edges = h_p * c / (l_edges / 1e8) / erg_per_ev
+    #        n_edges = e_edges * erg_per_ev / h_p
+    #        
+    #        self._dldn = np.abs(np.diff(l_edges) / np.diff(n_edges))
+    #        #self._dedn = np.diff(e_edges * erg_per_ev) / np.diff(n_edges)
+    #        #self._dndl = np.diff(n_edges) / np.diff(l_edges)
+    #
+    #    return self._dldn
+    #
     @property
     def tab_LUV(self):
         if not hasattr(self, '_tab_LUV'):

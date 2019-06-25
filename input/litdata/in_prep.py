@@ -19,7 +19,7 @@ _base = \
  'pop_Z{0}': 0.002, 
  'pop_zdead{0}': 3.5,
  
- # Metallicity evolution!
+ # Metallicity evolution!?
  'pop_enrichment{0}': False,
  'pop_metal_yield{0}': 0.1,
  'pop_mass_yield{0}': 0.15,
@@ -51,6 +51,10 @@ base.update(_base)
 
 screen = \
 {
+ 
+ # Dust opacity vs. wavelength    
+    
+    
  'pop_dust_fcov{0}': 1,  
  'pq_func_par2[22]{0}': 0.45,              # PL dependence of Rdust on Mh
  'pq_func_par0[23]{0}': 2.,                # normalization if Rdust [kpc]
