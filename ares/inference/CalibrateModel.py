@@ -306,38 +306,22 @@ class CalibrateModel(object):
             if self.include_fduty:
                                 
                 # Normalization of SFE
-                free_pars.extend(['pq_func_par0[31]', 'pq_func_par2[30]'])
-                guesses['pq_func_par0[31]'] = 0.8
-                guesses['pq_func_par2[30]'] = 0.2
+                free_pars.extend(['pq_func_par0[41]', 'pq_func_par2[40]'])
+                guesses['pq_func_par0[41]'] = 0.8
+                guesses['pq_func_par2[40]'] = 0.2
                 is_log.extend([False, False])
                 jitter.extend([0.1, 0.1])
-                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[31]')
-                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[30]')
+                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[41]')
+                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[40]')
                 
                 if self.zevol_fduty:
-                    free_pars.append('pq_func_par2[31]')
-                    guesses['pq_func_par2[31]'] = 0.
+                    free_pars.append('pq_func_par2[41]')
+                    guesses['pq_func_par2[41]'] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[31]')
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[41]')
             
             
-            ##
-            # OBSCURATION
-            ##
-            #if self.include_obsc:
-            #    raise NotImplemented('help')
-            #    free_pars.extend(['pq_func_par0[11]', 'pq_func_par0[12]', 'pq_func_par0[13]'])
-            #    guesses['pq_func_par0[11]'] = 0.5
-            #    guesses['pq_func_par0[12]'] = 11.5
-            #    guesses['pq_func_par0[13]'] = 1.0
-            #    is_log.extend([False, False, False])
-            #    jitter.extend([0.2, 0.5, 0.5])
-            #
-            #    ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[11]')
-            #    ps.add_distribution(UniformDistribution(8, 14), 'pq_func_par0[12]')
-            #    ps.add_distribution(UniformDistribution(0., 8.), 'pq_func_par0[13]')
-    
             ##
             # DUST REDDENING
             ##

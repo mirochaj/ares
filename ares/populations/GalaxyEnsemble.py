@@ -1093,7 +1093,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh = halos['nh'][:,-1::-1]
         MAR = halos['MAR'][:,-1::-1]
         
-        # 't' is in Myr
+        # 't' is in Myr, convert to yr
         dt = np.abs(np.diff(t)) * 1e6
 
         ##
@@ -1120,6 +1120,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fd = self.guide.dust_yield(z=z2d, Mh=Mh)   
         else:
             fd = 0.0
+        
+        if self.pf['pop_dust_growth'] is not None:
+            fg = self.guide.dust_growth(z=z2d, Mh=Mh)   
+        else:
+            fg = 0.0
             
         fmr = self.pf['pop_mass_yield']    
         fml = (1. - fmr)
@@ -1206,17 +1211,41 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Stellar mass should have zeros padded at the 0th time index
         Ms = np.hstack((zeros_like_Mh,
             np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
-                  
+        
+        ##          
         # Dust           
+        ##
         if np.any(fd > 0):
-            
-            Md = np.hstack((zeros_like_Mh,
-                np.cumsum(SFR[:,0:-1] * dt * fZy * fd[:,0:-1], 
-                axis=1)))
-            
-            # As long as the yields are constant then dust mass just scales with
-            # stellar mass            
-            Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z, Mh=Mh)**2
+                        
+            if np.all(fg == 0):
+                if type(fd) in [int, float, np.float64]:
+                    Md = fd * fZy * Ms
+                else:
+                    Md = np.hstack((zeros_like_Mh,
+                        np.cumsum(SFR[:,0:-1] * dt * fZy * fd[:,0:-1], 
+                        axis=1)))
+            else:       
+                                
+                # Handle case where growth in ISM is included.
+                if type(fg) in [int, float, np.float64]:
+                    fg = fg * np.ones_like(SFR)
+                if type(fd) in [int, float, np.float64]:
+                    fd = fd * np.ones_like(SFR)
+                                    
+                # fg^-1 is like a rate coefficient [has units yr^-1]
+                Md = np.zeros_like(SFR)
+                for k, _t in enumerate(t[0:-1]):
+                    
+                    # Dust production rate
+                    Md_p = SFR[:,k] * fZy * fd[:,k]
+                    
+                    # Dust growth rate
+                    Md_g = Md[:,k] / fg[:,k]
+                    
+                    Md[:,k+1] = Md[:,k] + (Md_p + Md_g) * dt[k]
+                    
+            # Dust surface density.
+            Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
                 
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2
@@ -1240,19 +1269,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             if self.pf['pop_enrichment']:
                 MZ = Ms * fZy
-                
+
                 # Gas mass
                 Mg = np.hstack((zeros_like_Mh, 
                     np.cumsum((MAR[:,0:-1] * fb - SFR[:,0:-1]) * dt, axis=1)))
-                    
+
                 Z = MZ / Mg / self.pf['pop_fpoll']
-            
+
                 Z[Mg==0] = 1e-3
-                Z = np.maximum(Z, 1e-3)    
-                    
+                Z = np.maximum(Z, 1e-3)
+
             else:
-                MZ = Mg = Z = 0.0   
-                
+                MZ = Mg = Z = 0.0
                 
         ##
         # Merge halos, sum stellar masses, SFRs.
@@ -1315,10 +1343,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'child': child,
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
-         'SFR': SFR,#[:,-1::-1],
-         'Ms': Ms,#[:,-1::-1]d,
-         #'MZ': MZ,#[:,-1::-1],
-         'Md': Md, # Only need 'Sd' for now so save some memory
+         'SFR': SFR,
+         'Ms': Ms,
+         'MZ': MZ,
+         'Md': Md, 
          'Sd': Sd,
          'fcov': fcov,
          'Mh': Mh,#[:,-1::-1],

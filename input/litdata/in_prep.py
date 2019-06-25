@@ -83,20 +83,20 @@ patchy = \
 
 fduty = \
 {
- 'pop_fduty{0}': 'pq[30]',
- "pq_func[30]{0}": 'pl',
- 'pq_func_var[30]{0}': 'Mh',
- 'pq_func_par0[30]{0}': 'pq[31]',
- 'pq_func_par1[30]{0}': 1e10,
- 'pq_func_par2[30]{0}': 0.2,
- 'pq_val_ceil[30]{0}': 1.0,
+ 'pop_fduty{0}': 'pq[40]',
+ "pq_func[40]{0}": 'pl',
+ 'pq_func_var[40]{0}': 'Mh',
+ 'pq_func_par0[40]{0}': 'pq[41]',
+ 'pq_func_par1[40]{0}': 1e10,
+ 'pq_func_par2[40]{0}': 0.2,
+ 'pq_val_ceil[40]{0}': 1.0,
  
  # Redshift evolution of fduty normalization
- 'pq_func[31]{0}': 'pl',
- 'pq_func_var[31]{0}': '1+z',
- 'pq_func_par0[31]{0}': 0.5,
- 'pq_func_par1[31]{0}': 5.,
- 'pq_func_par2[31]{0}': 0.0,
+ 'pq_func[41]{0}': 'pl',
+ 'pq_func_var[41]{0}': '1+z',
+ 'pq_func_par0[41]{0}': 0.5,
+ 'pq_func_par1[41]{0}': 5.,
+ 'pq_func_par2[41]{0}': 0.0,
  
 }
 

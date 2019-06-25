@@ -212,8 +212,9 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
 
-    def MultiPlotUV(self, pop, gs=None, fig=1, redshifts=[4,6,8,10], 
-        sources='all', repeat_z=True, beta_phot=True, **kwargs):
+    def MultiPlotUV(self, pop, gs=None, fig=1, z_uvlf=[4,6,8,10], 
+        z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
+        **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -238,33 +239,45 @@ class GalaxyPopulation(object):
         l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
         
+        zall = np.sort(np.unique(np.concatenate((z_uvlf, z_beta))))
+        colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
+        
         ##
         # Plot data
         ##
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
-        colors = 'k', 'b', 'c', 'm'
-        for j, z in enumerate(redshifts):
         
-            _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[j], mfc=colors[j],
-                mec=colors[j], sources=sources, round_z=0.21)
+        ct_lf = 0
+        ct_b = 0
+        for j, z in enumerate(zall):
         
-            
+            if z in z_uvlf:
+                _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[z], mfc=colors[z],
+                    mec=colors[z], sources=sources, round_z=0.21)
+                ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
+                    xycoords='axes fraction', color=colors[z], ha='right', va='top')
+                ct_lf += 1
+        
+            if z not in z_beta:
+                continue
+                        
             if z in b14.data['beta']:
         
                 err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
                 ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
-                    fmt='o', color=colors[j], label=r'Bouwens+ 2014' if j == 0 else None,
+                    fmt='o', color=colors[z], label=r'Bouwens+ 2014' if j == 0 else None,
                     **mkw)
                     
             if z in l11.data['beta']:
                 ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
                     l11.data['beta'][z]['err'], 
-                    fmt='*', color=colors[j], label=r'Lee+ 2011' if j == 0 else None,
+                    fmt='*', color=colors[z], label=r'Lee+ 2011' if j == 0 else None,
                     **mkw)
-            ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*j), 
-                xycoords='axes fraction', color=colors[j], ha='right', va='top')
+            
             ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
-                ha='right', va='top', xycoords='axes fraction', color=colors[j])
+                ha='right', va='top', xycoords='axes fraction', color=colors[z])
+            ct_b += 1
+            
         
         ##
         # Plot models
@@ -274,15 +287,16 @@ class GalaxyPopulation(object):
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
         
-        for j, z in enumerate(redshifts):
+        for j, z in enumerate(zall):
             zstr = round(z)
             
-            phi = pop.LuminosityFunction(z, mags)
-    
-            lab1 = 'no dust' if j == 0 else None
-            lab2 = 'w/ dust' if j == 0 else None
-    
-            ax_uvlf.semilogy(mags, phi, color=colors[j], **kwargs)
+            if z in z_uvlf:
+                phi = pop.LuminosityFunction(z, mags)
+                
+                ax_uvlf.semilogy(mags, phi, color=colors[z], **kwargs)
+            
+            if z not in z_beta:
+                continue
             
             if zstr >= 6:
                 hst_filt = hst_deep
@@ -299,19 +313,12 @@ class GalaxyPopulation(object):
             else:
                 beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     rest_wave=(1600., 3000.), dlam=10.)
-                    
-                #beta2 = [pop.Beta(z, MUV=M, return_binned=True,
-                #    rest_wave=(1600., 3000.), dlam=10.) for M in mags_cr]
-                #    
-                #ax_cmd[j].plot(mags_cr, beta, color=colors[j], ls=':', lw=3)    
-                    
-            ax_cmd[j].plot(mags_cr, beta, color=colors[j], **kwargs)
+                                        
+            ax_cmd[j].plot(mags_cr, beta, color=colors[z], **kwargs)
             
             if repeat_z and j == 0:
-                kw = kwargs.copy()
-                kw['alpha'] = 0.3
                 for k in range(1, 4):
-                    ax_cmd[k].plot(mags_cr, beta, color=colors[j], **kw)
+                    ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
                     
             
                     
