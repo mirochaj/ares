@@ -18,6 +18,7 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
 from ..util import MagnitudeSystem
+from scipy.interpolate import interp1d
 from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy
@@ -480,7 +481,7 @@ class Population(object):
                     else:
                         self._src_kwargs[par] = bpars[par]
     
-            elif self._Source is SynthesisModel:
+            elif self._Source in [SynthesisModel, SynthesisModelToy]:
                 bpars = SynthesisParameters()
                 for par in bpars:
                     par_pop = par.replace('source', 'pop')

@@ -110,3 +110,5 @@ cm_per_rsun = 695500.0 * 1e5        # Radius of the sun - [cm_per_rsun] = cm
 t_edd = sigma_T * c / 4. / pi / G / m_p # Eddington timescale (~0.45 Gyr)
                                     
 xcorr = (3. / 7.)**0.5 * (6. / 7.)**3  # Correction factor for peak temperature location in disk                        
+
+flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz

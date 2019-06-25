@@ -1263,7 +1263,7 @@ class ModelSet(BlobFactory):
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
         ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
-        use_top=1, **kwargs):
+        use_top=1, skip=0, stop=None, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1305,7 +1305,8 @@ class ModelSet(BlobFactory):
       
     
         for i, par in enumerate(pars):
-            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
+            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], 
+                skip=skip, stop=stop, **kwargs)
 
             if loc is None:
                 continue
@@ -1354,7 +1355,7 @@ class ModelSet(BlobFactory):
         return num, step
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
-        **kwargs):
+        skip=0, stop=None, **kwargs):
         """
         Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
@@ -1374,6 +1375,9 @@ class ModelSet(BlobFactory):
             ax = fig.add_subplot(111)
         else:
             gotax = True
+            
+        if stop is not None:
+            stop = -int(stop)
         
         if isinstance(walkers, basestring):
             assert N < self.nwalkers, \
@@ -1393,7 +1397,7 @@ class ModelSet(BlobFactory):
                 y = tmp[keep == 1]
                                                     
             x = np.arange(0, len(y))
-            ax.plot(x, y, **kwargs)
+            ax.plot(x[skip:stop], y[skip:stop], **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -1797,7 +1801,7 @@ class ModelSet(BlobFactory):
             if cdata is not None:
                 mask = np.logical_or(mask == True, cdata.mask == True)
             
-            print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
+            #print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
             
             xd = xdata[mask == 0]
             yd = ydata[mask == 0]
@@ -1806,18 +1810,32 @@ class ModelSet(BlobFactory):
                 cd = cdata[mask == 0]
             else:
                 cd = cdata
+               
+        keep = np.ones_like(xd) 
+        if skip is not None:
+            keep[0:skip] *= 0
+        if stop is not None:
+            stop = -int(stop)
+            keep[stop:]  *= 0        
+
+        kw = {}
+        for _kw in kwargs:
+            if _kw not in ['color', 'mec', 'mfc', 'alpha', 'ms']:
+                continue
+            
+            kw[_kw] = kwargs[_kw]
 
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
-                label=rung_label, label_on_top=rung_label_top, **kwargs)
+                label=rung_label, label_on_top=rung_label_top, **kw)
         elif hasattr(self, 'weights') and cdata is None:
-            scat = func(xd, yd, c=self.weights, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], c=self.weights[keep==1], **kw)
         elif line_plot:
-            scat = func(xd, yd, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], **kw)
         elif (cdata is not None) and (filter_z is None):
-            scat = func(xd, yd, c=cd, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], c=cd[keep==1], **kw)
         else:
-            scat = func(xd, yd, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], **kw)
                            
         if (cdata is not None) and use_colorbar and (not line_plot) and \
            (filter_z is None):
@@ -2517,7 +2535,11 @@ class ModelSet(BlobFactory):
                     ivars = self.derived_blob_ivars[par]
 
                     i1 = np.argmin(np.abs(ivars[0] - ivar[k][0]))
-                    i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
+                    
+                    if ivar[k][1] is None:
+                        i2 = Ellipsis
+                    else:
+                        i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
                     
                     #for iv in ivars:                            
                     #    arr = np.array(iv).squeeze()
@@ -2633,6 +2655,8 @@ class ModelSet(BlobFactory):
                 if type(bins) == int:
                     valc = tohist
                     bvp = np.linspace(valc.min(), valc.max(), bins)
+                elif type(bins) == dict:
+                    bvp = bins[par]    
                 elif type(bins[k]) == int:
                     valc = tohist
                     bvp = np.linspace(valc.min(), valc.max(), bins[k])
@@ -2807,7 +2831,7 @@ class ModelSet(BlobFactory):
         Either a matplotlib.Axes.axis object or a nu-sigma error-bar, 
         depending on whether we're doing a 2-D posterior PDF (former) or
         1-D marginalized posterior PDF (latter).
-    
+
         """
 
         cs = None
@@ -3251,7 +3275,7 @@ class ModelSet(BlobFactory):
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
         bins=20,  scatter=False, polygons=False, 
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
-        show_errors=False, label_panels=None, 
+        show_errors=False, label_panels=None, return_axes=False, 
         fix=True, skip_panels=[], mp_kwargs={}, 
         **kwargs):
         """
@@ -3380,6 +3404,7 @@ class ModelSet(BlobFactory):
         
         # Loop over parameters
         # p1 is the y-value, p2 is the x-value
+        axes = {}
         for i, p1 in enumerate(pars[-1::-1]):
             for j, p2 in enumerate(pars):
 
@@ -3393,12 +3418,14 @@ class ModelSet(BlobFactory):
 
                 if k is None:
                     continue
-                    
+                                        
                 if k in skip_panels:
                     continue
 
                 if mp.grid[k] is None:
                     continue
+
+                axes[(p1, p2)] = mp.grid[k]
 
                 col, row = mp.axis_position(k)   
                 
@@ -3543,6 +3570,8 @@ class ModelSet(BlobFactory):
         if label_panels is not None and (not had_mp):
             mp = self._label_panels(mp, label_panels)
 
+        if return_axes:
+            return mp, axes
         return mp
 
     def _label_panels(self, mp, label_panels):
@@ -3722,7 +3751,7 @@ class ModelSet(BlobFactory):
                         
         # First, read-in data from disk. Slice it up depending on if 
         # skip or stop were provided. Squeeze arrays to remove NaNs etc.
-        
+                
         # 1-D case. Don't need to specify ivar by hand.
         if nd == 1:
             
@@ -3893,12 +3922,13 @@ class ModelSet(BlobFactory):
                 ax.plot(xarr, yblob[keep==1].T, **kwargs)
                 
             # Plot only the best-fitting model
-            elif use_best and self.is_mcmc:
+            elif use_best and self.is_mcmc:                
                 if best == 'median':
                     N = len(self.logL[keep == 1])
                     psorted = np.argsort(self.logL[keep == 1])
                     loc = psorted[int(N / 2.)]
                 else:
+                    
                     loc = np.argmax(self.logL[keep == 1])    
             
                 ax.plot(xarr, yblob[keep==1][loc], **kwargs)    

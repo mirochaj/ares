@@ -59,6 +59,24 @@ filter_names = \
  'F160W': r'$H_{160}$',
 }
 
+# Actual filters used depending on fields and redshift
+_filt_ers_z4 = ('F775W', 'F814W', 'F850LP', 'F098M', 'F105W',
+ 'F125W', 'F160W')
+_filt_ers_z5 = ('F850LP', 'F098M', 'F105W', 'F125W', 'F160W')
+_filt_ers_z6 = ('F098M', 'F105W', 'F125W', 'F160W')
+_filt_ers_z7 = ('F098M', 'F125W', 'F160W')
+
+# For XDF, HUDF09-1, HUDR09-2, z=4
+_filt_xdf_z4 = ('F775W', 'F814W', 'F850LP', 'F125W')
+# For XDF, HUDF09-1, HUDR09-2, z=5
+_filt_xdf_z5 = ('F850LP', 'F105W', 'F160W')
+# For XDF, HUDF09-1, HUDR09-2, z=6
+_filt_xdf_z6 = ('F105W', 'F160W')
+_filt_xdf_z7 = ('F125W', 'F160W')
+
+filt_deep = {4: _filt_xdf_z4,  5: _filt_xdf_z5,  6: _filt_xdf_z6, 7: _filt_xdf_z7}
+filt_shallow = {4: _filt_ers_z4, 5: _filt_ers_z5, 6: _filt_ers_z6, 7: _filt_ers_z7}
+
 
 data = {}
 data['beta'] = {}

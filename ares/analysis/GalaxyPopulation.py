@@ -21,6 +21,7 @@ import matplotlib.gridspec as gridspec
 from ..physics.Constants import rhodot_cgs
 from .MultiPlot import MultiPanel, add_master_legend
 from ..util.Stats import symmetrize_errors, bin_samples
+from ..populations.GalaxyPopulation import GalaxyPopulation as GP
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
 
 try:
@@ -210,6 +211,148 @@ class GalaxyPopulation(object):
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
+
+    def MultiPlotUV(self, pop, gs=None, fig=1, z_uvlf=[4,6,8,10], 
+        z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
+        **kwargs):
+        """
+        Make a nice plot showing UVLF and UV CMD constraints and models.
+        """
+        
+        if gs is None:
+            fig = pl.figure(tight_layout=False, figsize=(12, 8), num=fig)
+            fig.subplots_adjust(left=0.1 ,right=0.9)
+            gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
+            
+        # Should do instance check.
+        assert fig is not None
+    
+        ax_uvlf = fig.add_subplot(gs[:,0:2])
+    
+        ax_cmd4 = fig.add_subplot(gs[0,2:])
+        ax_cmd6 = fig.add_subplot(gs[1,2:])
+        ax_cmd8 = fig.add_subplot(gs[2,2:])
+        ax_cmd10 = fig.add_subplot(gs[3,2:])
+            
+        ax_cmd = [ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]
+        
+        l11 = read_lit('lee2011')
+        b14 = read_lit('bouwens2014')
+        
+        zall = np.sort(np.unique(np.concatenate((z_uvlf, z_beta))))
+        colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
+        
+        ##
+        # Plot data
+        ##
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+        
+        ct_lf = 0
+        ct_b = 0
+        for j, z in enumerate(zall):
+        
+            if z in z_uvlf:
+                _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[z], mfc=colors[z],
+                    mec=colors[z], sources=sources, round_z=0.21)
+                ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
+                    xycoords='axes fraction', color=colors[z], ha='right', va='top')
+                ct_lf += 1
+        
+            if z not in z_beta:
+                continue
+                        
+            if z in b14.data['beta']:
+        
+                err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
+                ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
+                    fmt='o', color=colors[z], label=r'Bouwens+ 2014' if j == 0 else None,
+                    **mkw)
+                    
+            if z in l11.data['beta']:
+                ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
+                    l11.data['beta'][z]['err'], 
+                    fmt='*', color=colors[z], label=r'Lee+ 2011' if j == 0 else None,
+                    **mkw)
+            
+            ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
+                ha='right', va='top', xycoords='axes fraction', color=colors[z])
+            ct_b += 1
+            
+        
+        ##
+        # Plot models
+        ##
+        mags = np.arange(-25, -12, 0.1)
+        mags_cr = np.arange(-25, -10, 0.25)
+        hst_shallow = b14.filt_shallow
+        hst_deep = b14.filt_deep
+        
+        for j, z in enumerate(zall):
+            zstr = round(z)
+            
+            if z in z_uvlf:
+                phi = pop.LuminosityFunction(z, mags)
+                
+                ax_uvlf.semilogy(mags, phi, color=colors[z], **kwargs)
+            
+            if z not in z_beta:
+                continue
+            
+            if zstr >= 6:
+                hst_filt = hst_deep
+            else:
+                hst_filt = hst_shallow
+
+            cam = 'wfc', 'wfc3' if zstr <= 7 else 'nircam'    
+            filt = hst_filt[zstr] if zstr <= 7 else None
+            fset = None if zstr <= 7 else 'M'
+
+            if beta_phot:
+                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+            else:
+                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    rest_wave=(1600., 3000.), dlam=10.)
+                                        
+            ax_cmd[j].plot(mags_cr, beta, color=colors[z], **kwargs)
+            
+            if repeat_z and j == 0:
+                for k in range(1, 4):
+                    ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
+                    
+            
+                    
+        ##
+        # Clean-up
+        ##
+        for i, ax in enumerate([ax_uvlf, ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]):
+            ax.set_xlim(-24, -15)
+            ax.set_xticks(np.arange(-24, -15, 2))
+            ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
+            
+            if i > 0:
+                ax.set_ylabel(r'$\beta$')
+                ax.set_yticks(np.arange(-2.4, -0.8, 0.4))
+                ax.set_yticks(np.arange(-2.7, -1., 0.1), minor=True)
+                ax.set_ylim(-2.7, -1.)
+                ax.yaxis.tick_right()
+                ax.yaxis.set_label_position("right")
+                
+                if i < 4:
+                    ax.set_xticklabels([])
+                else:
+                    ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+            else:
+                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                ax.set_ylabel(labels['galaxy_lf'])
+                ax.set_ylim(1e-7, 1e-1)
+            
+        return fig, gs
+        
+        
+        
+        
+        
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
@@ -457,7 +600,7 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
     def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        **kwargs):
+        fresh=False, **kwargs):
         """
         Make a huge plot.
         """
@@ -476,16 +619,13 @@ class GalaxyPopulation(object):
         if isinstance(pop, GalaxyEnsemble):
             self._MegaPlotPop(axes, pop)
         elif hasattr(pop, 'chain'):
-            
-            if use_best:
+            if fresh:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
-                bkw['conserve_memory'] = False
-                
-                pop = GalaxyEnsemble(**bkw)
+                pop = GP(**bkw)
                 self._MegaPlotPop(axes, pop)
             else:
-                self._MegaPlotChain(axes, pop, **kwargs)
+                self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
             raise TypeError("Unrecognized object pop={}".format(pop))
          
@@ -526,12 +666,13 @@ class GalaxyPopulation(object):
         for j, z in enumerate(redshifts):
             
             # UVLF
-            phi = pop.LuminosityFunction(z, _mags, batch=True)
+            phi = pop.LuminosityFunction(z, _mags)
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
                     
             # Binned version
-            _mags_b, _beta, _std = pop.Beta(z, wave=1600, return_binned=True,
-                Mbins=np.arange(-25, -10, 1.0), batch=True)
+            Mbins = np.arange(-25, -10, 1.0)
+            _beta = pop.Beta(z, Mwave=1600, return_binned=True,
+                Mbins=Mbins)
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
@@ -557,11 +698,11 @@ class GalaxyPopulation(object):
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
             
-            mags, beta, std = pop.Beta(z, wave=1600., return_binned=False, 
-                batch=True)
+            mags = pop.Magnitude(z, wave=1600.)
+            beta = pop.Beta(z, Mwave=1600., return_binned=False)
             
             # MUV-Mstell
-            _x, _y, _z = bin_samples(mags, np.log10(Ms), _mags_b)
+            _x, _y, _z = bin_samples(mags, np.log10(Ms), Mbins)
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'
@@ -569,11 +710,11 @@ class GalaxyPopulation(object):
                 xa_f.append(0)
                 xa_b.append(0)
                 
-                ax_bet.plot(_mags_b, dc1.Beta(z, _mags_b), color=colors[j])
+                ax_bet.plot(Mbins, dc1.Beta(z, Mbins), color=colors[j])
                 
                 continue
                 
-            ax_bet.plot(_mags_b, _beta, color=colors[j])    
+            ax_bet.plot(Mbins, _beta, color=colors[j])    
             
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
@@ -583,8 +724,8 @@ class GalaxyPopulation(object):
             
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
-            
-            if fcov.ndim == 1:
+                        
+            if np.all(np.diff(fcov) == 0):
                 try:
                     fduty = pop.guide.fduty(z=z, Mh=Mh)
                     ax_fco.semilogx(Mh, fduty, color=colors[j])
@@ -593,20 +734,20 @@ class GalaxyPopulation(object):
             else:  
                 ax_fco.semilogx(Mh, fcov, color=colors[j])
                 
-                
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
-                
-            _mags_A, AUV, std = pop.AUV(z, wave=1600., return_binned=True,
-                Mbins=np.arange(-25, -10, 1.))
+
+            Mbins = np.arange(-25, -10, 1.)
+            AUV = pop.AUV(z, Mwave=1600., return_binned=True,
+                Mbins=Mbins)
             
-            ax_AUV.plot(_mags_A, AUV, color=colors[j])
+            ax_AUV.plot(Mbins, AUV, color=colors[j])
                             
             # LAE stuff
-            _x, _y, _z = bin_samples(mags, fcov, _mags_A)
+            _x, _y, _z = bin_samples(mags, fcov, Mbins)
             ax_lae_m.plot(_x, 1. - _y, color=colors[j])
             
-            faint  = np.logical_and(_mags_A >= -20.25, _mags_A < -18.)
-            bright = _mags_A < -20.25
+            faint  = np.logical_and(Mbins >= -20.25, Mbins < -18.)
+            bright = Mbins < -20.25
             
             xa_f.append(1. - np.mean(_y[faint==1]))    
             xa_b.append(1. - np.mean(_y[bright==1]))
@@ -641,18 +782,20 @@ class GalaxyPopulation(object):
         
         _mst  = np.arange(6, 12, 0.2)
         _mags = np.arange(-25, -10, 0.2)
-        
+
         redshifts = [4, 6, 8, 10]
         colors = ['k', 'b', 'c', 'm']
-        
+
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
             
             
         # Compute X_LAE, etc.
-        #anl.DeriveBlob(name='x_LAE', expr='1-fcov', clobber=True,
-        #    varmap={'fcov': 'dust_fcov'}, ivar=anl.get_ivars('dust_fcov'))    
-                
+        if 'dust_fcov' in anl.all_blob_names:
+            func = lambda data, ivars: 1. - data['dust_fcov']
+            anl.DeriveBlob(name='x_LAE', func=func, clobber=True,
+                fields='dust_fcov', ivar=None) 
+                              
         xa_b = []
         xa_f = []
         for j, z in enumerate(redshifts):
@@ -667,8 +810,21 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
                 color=colors[j], is_logx=True, **kwargs)
             
-            anl.ReconstructedFunction('beta_1600', ivar=[z, None], ax=ax_bet,
-                color=colors[j], **kwargs)
+            #if 'MUV_gm' in anl.all_blob_namess:
+            #    _z, _MUV = anl.get_ivars('MUV_gm')
+            #    k = np.argmin(np.abs(z - _z))
+            #    new_x = anl.ExtractData('MUV_gm')['MUV_gm'][:,k,:]
+            #    print("New magnitudes!!!!")
+            #else:
+            new_x = None
+            
+            anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
+                color=colors[j], new_x=new_x, **kwargs)
+            
+            if 'use_best' in kwargs:
+                if kwargs['use_best']:
+                    anl.ReconstructedFunction('beta_spec', ivar=[z, None], ax=ax_bet,
+                        color=colors[j], ls='--', lw=3, **kwargs)    
             
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
                 color=colors[j], **kwargs)
@@ -682,12 +838,14 @@ class GalaxyPopulation(object):
             if 'fduty' in anl.all_blob_names:
                 anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)
-            else:    
+            
+            if 'dust_fcov' in anl.all_blob_names:
                 anl.ReconstructedFunction('dust_fcov', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)    
             
-            #anl.ReconstructedFunction('x_LAE', ivar=[z, None], ax=ax_lae_m,
-            #    color=colors[j], **kwargs)
+                # Need to convert to MUV!
+                anl.ReconstructedFunction('x_LAE', ivar=[z, None], ax=ax_lae_m,
+                    color=colors[j], **kwargs)
                 
                     
                 
