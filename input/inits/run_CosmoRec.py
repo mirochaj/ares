@@ -108,7 +108,7 @@ new_data = \
 }
 
 if cosmology_name is None:
-    fn_out = 'ics.txt'
+    fn_out = 'initial_conditions.txt'
 else:
     
     pre, post = cosmology_name.split('/')

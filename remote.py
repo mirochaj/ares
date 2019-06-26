@@ -162,9 +162,14 @@ for i, direc in enumerate(to_download):
             tar.close()
         except:
             print("WARNING: Error unpacking {0!s}/{1!s}".format(web, fn))
-        files=os.listdir(os.curdir)
-        for file in files:
-            if file=='COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00':
+        
+        
+        if direc != 'cosmo_params': 
+            continue
+            
+        _files = os.listdir(os.curdir)
+        for _file in _files:
+            if _file=='COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00':
                 try:
                     os.chdir('COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00')
                     tarfiles=os.listdir(os.curdir)
