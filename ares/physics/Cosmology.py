@@ -22,7 +22,7 @@ from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, cm_per_kpc, k_B, m_p
     
 class Cosmology(object):
-    def __init__(self, pf=None, **kwargs):        
+    def __init__(self, pf=None, **kwargs):
         if pf is not None:
             self.pf = pf
         else:

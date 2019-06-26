@@ -93,12 +93,12 @@ if not os.path.exists('outputs'):
 # Run the thing
 os.system('{!s}/CosmoRec CosmoRec.parameters.dat >> cr.log'.format(to_CR))
 
-for fn in os.listdir(to_CR+'/outputs/'):
+for fn in os.listdir('outputs'):
     if re.search('trans', fn):
         break
     
 # Convert it to ares format
-data = np.loadtxt('{!s}/outputs/{!s}'.format(to_CR, fn))
+data = np.loadtxt('outputs/{!s}'.format(fn))
 
 new_data = \
 {

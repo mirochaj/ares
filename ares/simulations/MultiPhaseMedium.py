@@ -37,7 +37,6 @@ class MultiPhaseMedium(object):
         
         if pf is not None:
             self.pf = pf
-            print('got pf')
             
         self.kwargs = kwargs
                 
