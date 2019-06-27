@@ -49,7 +49,7 @@ class CalibrateModel(object):
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
     def __init__(self, fit_lf=[5.9], fit_smf=False, fit_gs=False, fit_beta=False,
-        use_ensemble=True,  
+        use_ensemble=True, add_suffix=True,
         include_sfe=True, free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
@@ -83,6 +83,7 @@ class CalibrateModel(object):
         """
         
         self.name = name             # optional additional prefix
+        self.add_suffix = add_suffix
         self.fit_lf = fit_lf
         self.fit_smf = fit_smf
         self.fit_gs = fit_gs
@@ -195,7 +196,10 @@ class CalibrateModel(object):
         s += rest
         
         if self.name is not None:
-            s = self.name + '_' + s
+            if self.add_suffix:
+                s = self.name + '_' + s
+            else:
+                s = self.name    
         
         if rank == 0:
             print("Will save to files with prefix {}.".format(s))
