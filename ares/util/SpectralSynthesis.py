@@ -1067,11 +1067,11 @@ class SpectralSynthesis(object):
                 block = ~clear
                                 
                 if idnum is not None:
-                    Lout = Lhist * clear[-1] \
-                         + Lhist * np.exp(-tau[-1]) * block[-1]
+                    Lout = Lhist * clear[izobs] \
+                         + Lhist * np.exp(-tau[izobs]) * block[izobs]
                 else:    
-                    Lout = Lhist * clear[:,-1] \
-                         + Lhist * np.exp(-tau[:,-1]) * block[:,-1]
+                    Lout = Lhist * clear[:,izobs] \
+                         + Lhist * np.exp(-tau[:,izobs]) * block[:,izobs]
                                  
             else:
                 Lout = Lhist.copy()

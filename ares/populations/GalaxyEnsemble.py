@@ -1085,9 +1085,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Flip arrays to be in ascending time.
         z = halos['z'][-1::-1]
-        #z2d = halos['z2d'][:,-1::-1]
-        #z2d = np.array([z] * Nhalos)[:,-1::-1]
-        z2d = np.vstack([z] * Nhalos)[:,-1::-1]
+        z2d = np.vstack([z] * Nhalos)
         t = halos['t'][-1::-1]
         Mh = halos['Mh'][:,-1::-1]
         nh = halos['nh'][:,-1::-1]
