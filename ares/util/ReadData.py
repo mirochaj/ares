@@ -243,18 +243,26 @@ def _load_npz(fn):
     data.close()
     return new
 
+def _load_txt(fn):
+    z, xe, Te = np.loadtxt(fn, unpack=True)
+    inits = {'z': z, 'Tk': Te, 'xe': xe}
+    return inits
+
 def _load_inits(fn=None):
 
     if fn is None:
         assert ARES is not None, "$ARES environment variable has not been set!"
-        fn = '{!s}/input/inits/initial_conditions.npz'.format(ARES)
-        inits = _load_npz(fn)
+        fn = '{!s}/input/inits/initial_conditions.txt'.format(ARES)
+        inits = _load_txt(fn)
 
     else:
         if re.search('.hdf5', fn):
             inits = _load_hdf5(fn)
-        else:
+        elif re.search('.npz', fn):
             inits = _load_npz(fn)
+        else:
+            inits = _load_txt(fn)
+            
 
     return inits        
 

@@ -23,7 +23,7 @@ aux_data = \
     'hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz',
     None],
  'inits': ['{!s}/downloads'.format(ares_link),
-     'initial_conditions.npz',
+     'initial_conditions.txt',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
     'optical_depth_H_400x862_z_5-60_logE_2.3-4.5.npz',
@@ -40,7 +40,7 @@ aux_data = \
  #'hm12': ['http://www.ucolick.org/~pmadau/CUBA/Media',
  #   'UVB.out', 
  #   'emissivity.out', 
- #   None],
+ #   None],'inits', 'secondary_electrons', 'hmf']
  'bpass_v1': ['http://bpass.auckland.ac.nz/2/files'] + _bpass_v1_links + [None],
  'bpass_v1_stars': ['http://bpass.auckland.ac.nz/1/files',
     'starsmodels_tar.gz',
@@ -67,7 +67,9 @@ aux_data = \
     'wfc_F814W.dat',
     'wfc_F850LP.dat',
     None],
+ 'cosmo_params': ['https://pla.esac.esa.int/pla/aio','product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.tgz',None]
 }
+
 
 if not os.path.exists('input'):
     os.mkdir('input')
@@ -150,7 +152,7 @@ for i, direc in enumerate(to_download):
             continue
         
         # If it's not a tarball, move on
-        if not re.search('tar', _fn):
+        if (not re.search('tar', _fn)) and (not re.search('tgz', _fn)):
             continue
             
         # Otherwise, unpack it
@@ -160,6 +162,23 @@ for i, direc in enumerate(to_download):
             tar.close()
         except:
             print("WARNING: Error unpacking {0!s}/{1!s}".format(web, fn))
+        
+        
+        if direc != 'cosmo_params': 
+            continue
+            
+        _files = os.listdir(os.curdir)
+        for _file in _files:
+            if _file=='COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00':
+                try:
+                    os.chdir('COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00')
+                    tarfiles=os.listdir(os.curdir)
+                    for pack_file in tarfiles:
+                        tar = tarfile.open(pack_file)
+                        tar.extractall()
+                        tar.close()
+                except:
+                    print('Could not unpack the planck chains')
     
     # Run a script [optional]
     if aux_data[direc][-1] is not None:

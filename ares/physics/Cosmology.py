@@ -9,7 +9,7 @@ Created on 2010-03-01.
 Description:
 
 """
-
+import os
 import numpy as np
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -20,49 +20,115 @@ from ..util.ParameterFile import ParameterFile
 from ..util.ParameterBundles import ParameterBundle
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, cm_per_kpc, k_B, m_p
-
+    
 class Cosmology(object):
-    def __init__(self, pf=None, **kwargs):        
+    def __init__(self, pf=None, **kwargs):
         if pf is not None:
             self.pf = pf
         else:
-            self.pf = ParameterFile(**kwargs)  
-                        
-        # Can override cosmological parameters using named/numbered cosmologies.
-        if self.pf['cosmology_name'] is not None:
-            if self.pf['cosmology_number'] is not None:
-                pb = '{}-{}'.format(self.pf['cosmology_name'],
-                    str(self.pf['cosmology_number']).zfill(5))
-            else:    
-                pb = self.pf['cosmology_name']
-            
-            self.cosmology_prefix = pb
-            
-            try:
-                cpars = ParameterBundle('cosmology:{}'.format(pb))
-            except KeyError:
-                func = self.pf['cosmology_generator']
-                cpars = func(self.pf['cosmology_name'], 
-                    self.pf['cosmology_number'])
-            
-            self.pf.update(cpars)
-            
-            if self.pf['verbose']:
-                print("Updated to cosmology '{}'".format(pb))
-                
-        else:
-            self.cosmology_prefix = None
-                
-        self.omega_m_0 = self.pf['omega_m_0']
-        self.omega_b_0 = self.pf['omega_b_0']
-        self.omega_l_0 = self.pf['omega_l_0']
-        self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
+            self.pf = ParameterFile(**kwargs)
 
-        self.hubble_0 = self.pf['hubble_0'] * 100. / km_per_mpc
+        ########################################################################
+        if self.pf['cosmology_propagation'] == True:   
+            # Can override cosmological parameters using specified cosmologies.
+            # Cosmology names: 
+            # 'plikHM_TTTEEE_lowl_lowE_lensing/base_plikHM_TTTEEE_lowl_lowE_lensing_4'
+            # Cosmology numbers are the row numbers in the cosmo file.
+
+            # Checks if a folder/cosmology name is provided
+            if self.pf['cosmology_name'] is not None:
+
+                # Checks if a MCMC row number is provided
+                if self.pf['cosmology_number'] is not None:
+                    self.pf['cosmology_number']=int(self.pf['cosmology_number'])
+                    # If a MCMC row number is provided, saves the cosmology
+                    # in a variable pb as a string of the form "name-number"
+                    pb = '{}-{}'.format(self.pf['cosmology_name'],
+                        str(self.pf['cosmology_number']).zfill(5))
+                else:
+                    self.pf['cosmology_number'] = 0
+                    
+                    # If no row number is provided, uses the first row as default"
+                    pb = '{}-{}'.format(self.pf['cosmology_name'],
+                        str(self.pf['cosmology_number']).zfill(5))
+                self.cosmology_prefix = pb
+                    
+            else:
+                if self.pf['cosmology_number'] is not None:
+                    print('No cosmology name provided')
+                self.cosmology_prefix = None
+
+
+            # If a hmf table is specified and has the words Cosmology
+            # and Number in it, it creates a corresponding cosmology prefix. 
+            cosmology_marker = None
+            number_marker = None
+            if self.pf['hmf_table'] is not None:
+                for i in range(len(self.pf['hmf_table'])):
+                    if self.pf['hmf_table'][i:i+9] == 'Cosmology':
+                        cosmology_marker = i 
+                    if self.pf['hmf_table'][i:i+6] == 'Number':
+                        number_marker = i
+                if cosmology_marker is not None and number_marker is not None:
+                    cosmology_name, cosmology_number =\
+                     self.pf['hmf_table'][cosmology_marker + 10:number_marker - 1],\
+                     self.pf['hmf_table'][number_marker + 7:number_marker + 12]
+                    self.cosmology_prefix =\
+                     cosmology_name + '-' + cosmology_number
+                    print('Cosmology recognized from the hmf table')
+                else:
+                    if self.pf['cosmology_name'] is None:
+                        print('Cosmology not recognized from hmf table name')
+
+            # Creates the path variable for the MCMC chains
+            ARES = self.ARES = os.environ.get('ARES')
+            cosmo_path = (ARES + '/input/cosmo_params/COM_CosmoParams_base-'
+                        + 'plikHM-TTTEEE-lowl-lowE_R3.00/base/')
+
+            # If no hmf table is specified but a matching table exists
+            if self.pf['cosmology_name'] is not None:
+                if self.pf['hmf_table'] is None:
+                    if self.pf['hmf_cosmology_location'] is not None:
+                        self.pf['hmf_table'] = (self.pf['hmf_cosmology_location']
+                                                + '/{}.hdf5'.format(self.pf['cosmology_number']))
+
+            if self.cosmology_prefix: 
+                cosmo_file = (cosmo_path
+                              + self.cosmology_prefix[:-6] 
+                              + '.txt')
+
+                # Finds the specific cosmological row
+                # The first two rows are not MCMC chains
+                cosmo_rows = np.loadtxt(cosmo_file)[:,2:]
+                row = cosmo_rows[int(self.cosmology_prefix[-5:])]
+                self.omega_m_0 = row[29]
+                self.omega_l_0 = row[28]
+                self.sigma_8 = self.sigma8 = row[33]
+                self.hubble_0 = row[27]/km_per_mpc
+                self.omega_b_0 = row[0]*(row[27]/100)**(-2)
+                self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
+            else:
+                self.omega_m_0 = self.pf['omega_m_0']
+                self.omega_b_0 = self.pf['omega_b_0']
+                self.hubble_0 = self.pf['hubble_0'] * 100. / km_per_mpc
+                self.omega_l_0 = self.pf['omega_l_0']
+                self.sigma_8 = self.sigma8 = self.pf['sigma_8']
+                self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
+        else:
+            self.omega_m_0 = self.pf['omega_m_0']
+            self.omega_b_0 = self.pf['omega_b_0']
+            self.hubble_0 = self.pf['hubble_0'] * 100. / km_per_mpc
+            self.omega_l_0 = self.pf['omega_l_0']
+            self.sigma_8 = self.sigma8 = self.pf['sigma_8']
+            self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
+
+
+
+
+        ####################################################################
         self.cmb_temp_0 = self.pf['cmb_temp_0']
         self.approx_highz = self.pf['approx_highz']
         self.approx_lowz = False
-        self.sigma_8 = self.sigma8 = self.pf['sigma_8']
         self.primordial_index = self.pf['primordial_index']
         
         self.CriticalDensityNow = self.rho_crit_0 = \
@@ -71,8 +137,7 @@ class Cosmology(object):
         self.h70 = self.pf['hubble_0']
         
         self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
-            * cm_per_mpc**3 / g_per_msun / self.h70**2
-        
+            * cm_per_mpc**3 / g_per_msun / self.h70**2        
         if self.pf['helium_by_number'] is None:
             self.helium_by_mass = self.Y = self.pf['helium_by_mass']
             self.helium_by_number = self.y = 1. / (1. / self.Y - 1.) / 4.
@@ -127,7 +192,22 @@ class Cosmology(object):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            self._inits = _load_inits()
+            if self.pf['cosmology_name'] is not None:
+                if self.pf['cosmology_inits_location'] is not None:
+                    path = self.pf['cosmology_inits_location']
+                else:
+                    path = self.pf['cosmology_name']
+                
+                if self.pf['cosmology_number'] is None:
+                    self.pf['cosmology_number'] = 0
+                    num = '00000'
+                else:
+                    num = str(int(self.pf['cosmology_number'])).zfill(5)
+                                        
+                fn = '{}/input/inits/{}_{}.txt'.format(self.ARES, path, num)
+                self._inits = _load_inits(fn=fn)
+            else:
+                self._inits = _load_inits()
         return self._inits
         
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):

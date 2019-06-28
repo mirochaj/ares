@@ -159,4 +159,5 @@ Additional contributions / corrections / suggestions from:
 - Garett Lopez
 - Ranita Jana
 - Daniel Meinert
+- Henri Lamarre
 

@@ -13,6 +13,7 @@ parallel, e.g.,
 
 """
 
+import sys
 import ares
 
 ## INPUT
@@ -22,27 +23,27 @@ fmt = 'hdf5'
 hmf_pars = \
 {
  "hmf_model": fit,
- #"hmf_zmin": 0.,
- #"hmf_zmax": 60.,
- #"hmf_dz": 0.05,
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
- 
- # Can do constant timestep instead of constant dz
- "hmf_dt": 2.,
- "hmf_tmin": 30.,
- "hmf_tmax": 2000.,
-}
 
-cosmo = \
-{
+ # Redshift sampling
+ "hmf_zmin": 0.,
+ "hmf_zmax": 60.,
+ "hmf_dz": 0.05, 
+ 
+ # Can do constant timestep instead of constant dz 
+ #"hmf_dt": 2.,
+ #"hmf_tmin": 30.,
+ #"hmf_tmax": 2000.,
+ 
+ # Cosmology
  "sigma_8": 0.8159, 
  'primordial_index': 0.9652, 
  'omega_m_0': 0.315579, 
  'omega_b_0': 0.0491, 
  'hubble_0': 0.6726,
- 'omega_l_0': 1. - 0.315579,   
+ 'omega_l_0': 1. - 0.315579, 
 }
 
 ##

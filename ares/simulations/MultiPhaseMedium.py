@@ -37,7 +37,6 @@ class MultiPhaseMedium(object):
         
         if pf is not None:
             self.pf = pf
-            print('got pf')
             
         self.kwargs = kwargs
                 
@@ -63,12 +62,11 @@ class MultiPhaseMedium(object):
     def inits(self):
         if not hasattr(self, '_inits'):    
             if self.pf['load_ics']:
-                
-                # Redshifts ascending at this point
                 if self.pf['approx_thermal_history']:
                     self._inits = inits = self.grid.cosm.thermal_history
                 else:    
-                    self._inits = inits = _load_inits()
+                    self._inits = inits = self.grid.cosm.inits
+                    
                 
                 zi = self.pf['initial_redshift']
                 if not np.all(np.diff(inits['z']) > 0):

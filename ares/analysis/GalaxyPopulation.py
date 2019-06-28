@@ -226,22 +226,22 @@ class GalaxyPopulation(object):
             
         # Should do instance check.
         assert fig is not None
-    
+
         ax_uvlf = fig.add_subplot(gs[:,0:2])
-    
+
         ax_cmd4 = fig.add_subplot(gs[0,2:])
         ax_cmd6 = fig.add_subplot(gs[1,2:])
         ax_cmd8 = fig.add_subplot(gs[2,2:])
         ax_cmd10 = fig.add_subplot(gs[3,2:])
-            
+
         ax_cmd = [ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]
-        
+
         l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
-        
+
         zall = np.sort(np.unique(np.concatenate((z_uvlf, z_beta))))
         colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
-        
+
         ##
         # Plot data
         ##
@@ -268,11 +268,11 @@ class GalaxyPopulation(object):
                     fmt='o', color=colors[z], label=r'Bouwens+ 2014' if j == 0 else None,
                     **mkw)
                     
-            if z in l11.data['beta']:
-                ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
-                    l11.data['beta'][z]['err'], 
-                    fmt='*', color=colors[z], label=r'Lee+ 2011' if j == 0 else None,
-                    **mkw)
+            #if z in l11.data['beta']:
+            #    ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
+            #        l11.data['beta'][z]['err'], 
+            #        fmt='*', color=colors[z], label=r'Lee+ 2011' if j == 0 else None,
+            #        **mkw)
             
             ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
                 ha='right', va='top', xycoords='axes fraction', color=colors[z])
