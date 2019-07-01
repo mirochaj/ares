@@ -371,29 +371,14 @@ class Survey(object):
 
         # Why is this sometimes not very close to `cent`?
         mi = np.mean(x[ok==True])
-                        
         dx = np.array([hi - mi, mi - lo])
-        Tavg1 = np.sum(y[ok==1]) / float(y[ok==1].size)
-        #Tavg2 = np.trapz(y[ok==1], x=x[ok==1]) / (hi - lo)
-        #Tavg3 = np.sum(y[0:-1] * np.diff(x)) / (x.max() - x.min())
-        Tavg = Tavg1
+        Tavg = np.sum(y[ok==1]) / float(y[ok==1].size)
                         
-        #lo = min(x)
-        #hi = max(x)                
-                        
-        # Get the Hz^-1 units back
-        freq = c / x / 1e-4
-        
-        dHz = c / (lo * 1e-4) - c / (hi * 1e-4)
-                
         if self.force_perfect:
             Tavg = 1.
             dx = np.array([0.1] * 2)
             ok = np.logical_and(x >= cent-dx[1], x <= cent+dx[0])
             y[ok==1] = Tavg
             y[~ok] = 0.0
-            hi = max(x[ok == True])
-            lo = min(x[ok == True])
-            dHz = c / (lo * 1e-4) - c / (hi * 1e-4)
                 
-        return x, y, mi, dx, Tavg, dHz
+        return x, y, mi, dx, Tavg
