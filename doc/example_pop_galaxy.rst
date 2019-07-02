@@ -33,7 +33,7 @@ In general, the SFE curve must be calibrated to an observational dataset (see :d
 
 ::
 
-    p = ares.util.ParameterBundle('mirocha2016:dpl')
+    p = ares.util.ParameterBundle('mirocha2017:base')
     pars = p.pars_by_pop(0, strip_id=True)
     
 The second command extracts only the parameters associated with population #0, which is the stellar population in this calculation (population #1 is responsible for X-ray emission only; see :doc:`example_gs_multipop` for more info on the approach to populations in *ares*). Passing ``strip_id=True`` removes all ID numbers from parameter names, e.g., ``pop_sfr_model{0}`` becomes ``pop_sfr_model``. The reason for doing that is so we can generate a single ``GalaxyPopulation`` instance, e.g.,

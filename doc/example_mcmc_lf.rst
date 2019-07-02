@@ -47,7 +47,7 @@ Now, let's make our master dictionary of parameters, with one important addition
 
     import ares
 
-    base_pars = ares.util.ParameterBundle('mirocha2016:dpl').pars_by_pop(0, True)
+    base_pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, True)
     base_pars.update(blob_pars)
     
     # This is important!
