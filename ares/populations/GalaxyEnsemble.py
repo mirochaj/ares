@@ -1711,7 +1711,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 mags = []
                 for j, _cam in enumerate(cam):
                 
-                    _filters, xphot, dxphot, yphot, ycorr = \
+                    _filters, xphot, dxphot, ycorr = \
                         self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
                             hist=hist, dlam=dlam, cam=_cam, filters=filters, 
                             filter_set=filter_set, idnum=idnum, extras=self.extras,

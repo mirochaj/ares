@@ -99,13 +99,17 @@ class Cosmology(object):
 
                 # Finds the specific cosmological row
                 # The first two rows are not MCMC chains
+                # Reset the `pf` elements. Even though they won't reach other
+                # ARES objects, the run_CosmoRec script needs the pf to 
+                # be accurate.
                 cosmo_rows = np.loadtxt(cosmo_file)[:,2:]
-                row = cosmo_rows[int(self.cosmology_prefix[-5:])]
-                self.omega_m_0 = row[29]
-                self.omega_l_0 = row[28]
-                self.sigma_8 = self.sigma8 = row[33]
-                self.hubble_0 = row[27]/km_per_mpc
-                self.omega_b_0 = row[0]*(row[27]/100)**(-2)
+                row = cosmo_rows[self.pf['cosmology_number']]
+                self.omega_m_0 = self.pf['omega_m_0'] = row[29]
+                self.omega_l_0 = self.pf['omega_l_0'] = row[28]
+                self.sigma_8 = self.sigma8 = self.pf['sigma_8'] = row[33]
+                self.hubble_0 = row[27] / km_per_mpc
+                self.pf['hubble_0'] = row[27] / 100.
+                self.omega_b_0 = self.pf['omega_b_0'] = row[0]*(row[27]/100.)**-2.
                 self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
             else:
                 self.omega_m_0 = self.pf['omega_m_0']
@@ -121,9 +125,6 @@ class Cosmology(object):
             self.omega_l_0 = self.pf['omega_l_0']
             self.sigma_8 = self.sigma8 = self.pf['sigma_8']
             self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
-
-
-
 
         ####################################################################
         self.cmb_temp_0 = self.pf['cmb_temp_0']

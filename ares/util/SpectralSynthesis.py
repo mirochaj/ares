@@ -148,7 +148,7 @@ class SpectralSynthesis(object):
             dxphot = []
             ycorr = []
             for _cam in cam:
-                _filters, _xphot, _dxphot, _yphot, _ycorr = \
+                _filters, _xphot, _dxphot, _ycorr = \
                     self.Photometry(sfh=sfh, hist=hist, idnum=idnum, spec=spec,
                     cam=_cam, filters=filters, filter_set=filter_set, waves=waves,
                     dlam=dlam, tarr=tarr, tobs=tobs, extras=extras, picky=picky,
@@ -392,10 +392,42 @@ class SpectralSynthesis(object):
             filters = filters[round(zobs)]
                     
         # Get transmission curves
-        filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set, 
-            filters=filters)
-        all_filters = filter_data.keys()
-
+        if cam in self.cameras.keys():
+            filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set, 
+                filters=filters)
+        else:
+            # Can supply spectral windows, e.g., Calzetti+ 1994, in which case
+            # we assume perfect transmission but otherwise just treat like
+            # photometric filters.
+            assert type(filters) in [list, tuple, np.ndarray]
+            
+            #print("Generating photometry from {} spectral ranges.".format(len(filters)))
+            
+            wraw = np.array(filters)
+            x1 = wraw.min()
+            x2 = wraw.max()
+            x = np.arange(x1-100, x2+101, 1.) * 1e-4 * (1. + zobs)
+                        
+            # Note that in this case, the filter wavelengths are in rest-frame
+            # units, so we convert them to observed wavelengths before
+            # photometrizing everything.
+            
+            filter_data = {}    
+            for _window in filters:
+                lo, hi = _window
+                
+                lo *= 1e-4 * (1. + zobs)
+                hi *= 1e-4 * (1. + zobs)
+                
+                y = np.zeros_like(x)
+                y[np.logical_and(x >= lo, x <= hi)] = 1
+                mi = np.mean([lo, hi])
+                dx = np.array([hi - mi, mi - lo])
+                Tavg = 1.
+                filter_data[_window] = x, y, mi, dx, Tavg
+                            
+        all_filters = filter_data.keys()    
+            
         # Figure out spectral range we need to model for these filters.
         # Find bluest and reddest filters, set wavelength range with some
         # padding above and below these limits.
@@ -403,7 +435,7 @@ class SpectralSynthesis(object):
         lmax = 0.0
         ct = 0
         for filt in filter_data:
-            x, y, cent, dx, Tavg, norm = filter_data[filt]
+            x, y, cent, dx, Tavg = filter_data[filt]
                                     
             # If we're only doing this for the sake of measuring a slope, we
             # might restrict the range based on wavelengths of interest, i.e.,
@@ -431,7 +463,7 @@ class SpectralSynthesis(object):
             
         # No filters in range requested    
         if ct == 0:    
-            return [], [], [], [], []
+            return [], [], [], []
                                                 
         # Here's our array of REST wavelengths
         if waves is None:
@@ -473,14 +505,13 @@ class SpectralSynthesis(object):
         # Loop over filters and re-weight spectrum
         xphot = []      # Filter centroids
         wphot = []      # Filter width
-        yphot_obs = []  # Observed magnitudess [apparent]
         yphot_corr = [] # Magnitudes corrected for filter transmissions.
     
         # Loop over filters, compute fluxes in band (accounting for 
         # transmission fraction) and convert to observed magnitudes.
         for filt in all_filters:
 
-            x, T, cent, dx, Tavg, dHz = filter_data[filt]
+            x, T, cent, dx, Tavg = filter_data[filt]
             
             if rest_wave is not None:
                 cent_r = cent * 1e4 / (1. + zobs)
@@ -513,18 +544,15 @@ class SpectralSynthesis(object):
             corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
                                                                                
             xphot.append(cent)
-            yphot_obs.append(_yphot / dHz)
             yphot_corr.append(_yphot / corr)
             wphot.append(dx)
         
         xphot = np.array(xphot)
         wphot = np.array(wphot)
-        yphot_obs = np.array(yphot_obs)
         yphot_corr = np.array(yphot_corr)
         
         # Convert to magnitudes and return
-        return all_filters, xphot, wphot, -2.5 * np.log10(yphot_obs / flux_AB), \
-            -2.5 * np.log10(yphot_corr / flux_AB)
+        return all_filters, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
         
     def Spectrum(self, sfh, waves, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},

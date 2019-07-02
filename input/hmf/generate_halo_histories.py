@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: McGill
 Created on: Sat  9 Mar 2019 15:48:15 EST
 
-Description: 
+Description: This script may be obsolete.
 
 """
 
@@ -48,7 +48,7 @@ elif 'hdf5' in fn_hmf:
 else:
     raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))
     
-fn = '{}.hist.hdf5'.format(pref)
+fn = '{}.hdf5'.format(pref)
 
 if not os.path.exists(fn):
 

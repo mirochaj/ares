@@ -33,9 +33,9 @@ hmf_pars = \
  "hmf_dz": 0.05, 
  
  # Can do constant timestep instead of constant dz 
- #"hmf_dt": 2.,
- #"hmf_tmin": 30.,
- #"hmf_tmax": 2000.,
+ "hmf_dt": 1.,
+ "hmf_tmin": 30.,
+ "hmf_tmax": 2000.,
  
  # Cosmology
  "sigma_8": 0.8159, 
@@ -47,8 +47,6 @@ hmf_pars = \
 }
 
 ##
-
-hmf_pars.update(cosmo)
 
 hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
     hmf_load=False, **hmf_pars)
