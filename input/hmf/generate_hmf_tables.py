@@ -48,8 +48,6 @@ hmf_pars = \
 
 ##
 
-hmf_pars.update(cosmo)
-
 hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
     hmf_load=False, **hmf_pars)
 

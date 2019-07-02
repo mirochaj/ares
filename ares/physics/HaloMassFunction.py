@@ -25,6 +25,7 @@ from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
 from ..util.Pickling import read_pickle_file, write_pickle_file
+from ..util.SetDefaultParameterValues import CosmologyParameters
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
     m_H, k_B, s_per_myr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
@@ -453,7 +454,7 @@ class HaloMassFunction(object):
     def tab_z(self, value):
         self._tab_z = value
                                     
-    def TabulateHMF(self):
+    def TabulateHMF(self, save_MAR=True):
         """
         Build a lookup table for the halo mass function / collapsed fraction.
         
@@ -483,8 +484,9 @@ class HaloMassFunction(object):
         self.tab_k_lin  = self._MF.k * self.cosm.h70
         self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
+                    
         
-        pb = ProgressBar(len(self.tab_z), 'dndm')
+        pb = ProgressBar(len(self.tab_z), 'hmf')
         pb.start()
 
         for i, z in enumerate(self.tab_z):
@@ -495,7 +497,6 @@ class HaloMassFunction(object):
             if i % size != rank:
                 continue
                 
-
             # Has units of h**4 / cMpc**3 / Msun
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
             self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
@@ -538,7 +539,114 @@ class HaloMassFunction(object):
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_growth, tmp7)
             self.tab_growth = tmp7
         
-        # Done!    
+        ##
+        # Done!
+        ##
+        if not save_MAR:
+            return
+            
+        ##
+        # Generate halo growth histories
+        ##   
+        
+        pb = ProgressBar(self.tab_z.size+self.tab_M.size, 'mar')
+        pb.start()
+        
+        # First, do the cumulative number density calculation.
+        # This is actually the slowest part.
+        MM = np.zeros((self.tab_z.size+self.tab_M.size, self.tab_z.size))
+
+        for i in range(self.tab_z.size-1, 0, -1):
+            if i % size != rank:
+                continue
+            MM[i] = self._run_CND(i,0)
+            
+            pb.update(i)
+            
+        # Find trajectories for more massive halos with zform=zfirst    
+        for i in range(1, self.tab_M.size):
+            if i % size != rank:
+                continue
+            MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
+                                             
+            pb.update(i+self.tab_z.size-1)     
+            
+        pb.finish()                                
+                                                
+        self.tab_traj = MM
+        
+        if size > 1:
+            tmp = np.zeros_like(self.tab_traj)
+            nothing = MPI.COMM_WORLD.Allreduce(self.tab_traj, tmp)
+            self.tab_traj = tmp.copy()
+            del tmp
+        
+        # The first dimension is halo identity, the first self.tab_z.size
+        # elements are halos with M=self.tab_M[0], the next self.tab_M.size
+        # elements are halos with M=self.tab_M and formation redshifts
+        # equal to self.tab_z[-1]. The second dimension is a series
+        # of masses at corresponding redshifts in self.tab_z.
+        
+        dtdz = self.cosm.dtdz(self.tab_z)[1:-1]
+        
+        # Step 0: Compute dMdt for each history.
+        # Step 1: Interpolate dMdt onto tab_M grid.
+        tab_dMdt_of_z = np.zeros((self.tab_traj.shape[0], self.tab_z.size))
+        tab_dMdt_of_M = np.zeros((self.tab_traj.shape[0], self.tab_M.size))    
+        for i, hist in enumerate(self.tab_traj):
+            # 'hist' is the trajectory of a halo
+            
+            # Remember that mass increases as z decreases, so we flip
+            
+            z, dmdz = central_difference(self.tab_z, hist)
+            
+            mofz = hist[1:-1] * 1
+                            
+            # Interpolate accretion rates onto common mass grid
+            dmdt = dmdz[-1::-1] * s_per_yr / -dtdz[-1::-1]
+            _interp1 = interp1d(np.log(mofz[-1::-1]), np.log(dmdt), 
+                kind='linear', bounds_error=False, fill_value=-np.inf)
+            _interp2 = interp1d(np.log(z[-1::-1]), np.log(dmdt), 
+                kind='linear', bounds_error=False, fill_value=-np.inf)
+            dmdt_rg1 = np.exp(_interp1(np.log(self.tab_M)))
+            dmdt_rg2 = np.exp(_interp2(np.log(self.tab_z)))
+                            
+            tab_dMdt_of_M[i,:] = dmdt_rg1
+            tab_dMdt_of_z[i,:] = dmdt_rg2
+        
+        ##    
+        # Convert from trajectories to (z, Mh) table.
+        arr = np.zeros((self.tab_z.size, self.tab_M.size))
+        for i, z in enumerate(self.tab_z):
+
+            if i % size != rank:
+                continue
+
+            # At what redshift does an object of a particular mass have 
+            # this MAR?
+            
+            # At this redshift, all objects have some mass. Find it!
+            M = self.tab_traj[:,i]
+            Mdot = tab_dMdt_of_z[:,i]
+            
+            ok = np.logical_and(Mdot > 0, np.isfinite(M))
+            
+            if ok.sum() == 0:
+                continue
+                        
+            arr[i] = np.exp(np.interp(np.log(self.tab_M), np.log(M[ok==1]), 
+                np.log(Mdot[ok==1])))
+                            
+        self.tab_MAR = arr    
+
+        if size > 1:
+            tmp = np.zeros_like(self.tab_MAR)
+            nothing = MPI.COMM_WORLD.Allreduce(self.tab_MAR, tmp)
+            self.tab_MAR = tmp
+        
+        ##
+        # OK, *now* we're done.
+        ##
             
     @property
     def fcoll_Tmin(self):
@@ -777,107 +885,7 @@ class HaloMassFunction(object):
             m_1 = m_2
         
         return M        
-        
-    @property    
-    def tab_traj(self):
-        """
-        For halos with M=self.tab_M at some redshift, find mass at later z.
-        """
-        if not hasattr(self, '_tab_traj'):
-
-            MM = np.zeros((self.tab_z.size+self.tab_M.size, self.tab_z.size))
-
-            for i in range(self.tab_z.size-1, 0, -1):
-                MM[i] = self._run_CND(i,0)
-                
-            # Find trajectories for more massive halos with zform=zfirst    
-            for i in range(1, self.tab_M.size):
-                MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
-                                                    
-            self._tab_traj = MM
-
-        # The first dimension is halo identity, the first self.tab_z.size
-        # elements are halos with M=self.tab_M[0], the next self.tab_M.size
-        # elements are halos with M=self.tab_M and formation redshifts
-        # equal to self.tab_z[-1]. The second dimension is a series
-        # of masses at corresponding redshifts in self.tab_z.
-
-        return self._tab_traj
     
-    @property    
-    def tab_MAR(self):
-        if not hasattr(self, '_tab_MAR'):
-                    
-            if not self._is_loaded:
-                if self.pf['hmf_load']:
-                    self._load_hmf()
-                    if hasattr(self, '_tab_MAR'):
-                        return self._tab_MAR
-                    
-            print("Generating MAR. This is slow. What are you up to?")
-                    
-            # Differentiate trajectories, interpolate to common mass, redshift grid.
-            
-            
-            #arr = np.zeros_like(self._tab_traj)
-            
-            dtdz = self.cosm.dtdz(self.tab_z)[1:-1]
-            
-            # Step 0: Compute dMdt for each history.
-            # Step 1: Interpolate dMdt onto tab_M grid.
-            tab_dMdt_of_z = np.zeros((self.tab_traj.shape[0], self.tab_z.size))
-            tab_dMdt_of_M = np.zeros((self.tab_traj.shape[0], self.tab_M.size))
-            for i, hist in enumerate(self.tab_traj):
-                # 'hist' is the trajectory of a halo
-                
-                # Remember that mass increases as z decreases, so we flip
-                
-                z, dmdz = central_difference(self.tab_z, hist)
-                
-                mofz = hist[1:-1] * 1
-                                
-                # Interpolate accretion rates onto common mass grid
-                dmdt = dmdz[-1::-1] * s_per_yr / -dtdz[-1::-1]
-                _interp1 = interp1d(np.log(mofz[-1::-1]), np.log(dmdt), 
-                    kind='linear', bounds_error=False, fill_value=-np.inf)
-                _interp2 = interp1d(np.log(z[-1::-1]), np.log(dmdt), 
-                    kind='linear', bounds_error=False, fill_value=-np.inf)
-                dmdt_rg1 = np.exp(_interp1(np.log(self.tab_M)))
-                dmdt_rg2 = np.exp(_interp2(np.log(self.tab_z)))
-                                
-                tab_dMdt_of_M[i,:] = dmdt_rg1
-                tab_dMdt_of_z[i,:] = dmdt_rg2
-
-            # Convert from trajectories to (z, Mh) table.
-            arr = np.zeros((self.tab_z.size, self.tab_M.size))
-            for i, z in enumerate(self.tab_z):
-
-                # At what redshift does an object of a particular mass have 
-                # this MAR?
-                
-                # At this redshift, all objects have some mass. Find it!
-                M = self.tab_traj[:,i]
-                Mdot = tab_dMdt_of_z[:,i]
-                
-                ok = np.logical_and(Mdot > 0, np.isfinite(M))
-                
-                if ok.sum() == 0:
-                    continue
-                
-                #if i % 100 == 0:
-                #    pl.loglog(M, Mdot)
-                
-                arr[i] = np.exp(np.interp(np.log(self.tab_M), np.log(M[ok==1]), 
-                    np.log(Mdot[ok==1])))
-                
-            self._tab_MAR = arr
-                        
-        return self._tab_MAR
-        
-    @tab_MAR.setter
-    def tab_MAR(self, value):
-        self._tab_MAR = value
-        
     @property
     def tab_MAR_delayed(self):
         if not hasattr(self, '_tab_MAR_delayed'):
@@ -1161,7 +1169,7 @@ class HaloMassFunction(object):
                     'remove manually.').format(fn))    
         
         # Do this first! (Otherwise parallel runs will be garbage)
-        self.TabulateHMF()    
+        self.TabulateHMF(save_MAR)    
         
         if rank > 0:
             return
@@ -1184,6 +1192,17 @@ class HaloMassFunction(object):
             f.create_dataset('tab_dlnsdlnm', data=self.tab_dlnsdlnm)
             f.create_dataset('tab_k_lin', data=self.tab_k_lin)
             f.create_dataset('hmf-version', data=hmf_v)
+            
+            # Save cosmology            
+            grp = f.create_group('cosmology')
+
+            grp.create_dataset('omega_m_0', data=self.cosm.omega_m_0)
+            grp.create_dataset('omega_l_0', data=self.cosm.omega_l_0)
+            grp.create_dataset('sigma_8', data=self.cosm.sigma_8)
+            grp.create_dataset('h70', data=self.cosm.h70)
+            grp.create_dataset('omega_b_0', data=self.cosm.omega_b_0)
+            grp.create_dataset('omega_cdn_0', data=self.cosm.omega_cdm_0)
+            
             f.close()
 
         elif format == 'npz':
