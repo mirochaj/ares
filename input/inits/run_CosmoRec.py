@@ -29,7 +29,15 @@ try:
 except:
     cosmology_num = None
     
-pf = ares.util.SetDefaultParameterValues.CosmologyParameters()
+_pf = ares.util.SetDefaultParameterValues.CosmologyParameters()
+
+if cosmology_name is not None:
+    _pf['cosmology_name'] = cosmology_name
+    assert cosmology_num is not None
+    _pf['cosmology_number'] = cosmology_num
+    
+cosm = ares.physics.Cosmology(**_pf)
+pf = cosm.pf
 
 # Some defaults copied over from CosmoRec.
 CR_pars = \
@@ -80,7 +88,7 @@ for par in pf:
   
     # Update
     CR_pars[i] = val
-  
+      
 # Create parameter file for reference
 f = open('CosmoRec.parameters.dat', 'w')
 for element in CR_pars:
