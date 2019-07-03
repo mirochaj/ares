@@ -42,9 +42,9 @@ pars.update(cosmo)
 pop = ares.populations.GalaxyPopulation(**pars)
 
 if 'npz' in fn_hmf:
-    pref = fn_hmf.replace('.npz', '')
+    pref = fn_hmf.replace('.npz', '').replace('hmf', 'hgh')
 elif 'hdf5' in fn_hmf:
-    pref = fn_hmf.replace('.hdf5', '')
+    pref = fn_hmf.replace('.hdf5', '').replace('hmf', 'hgh')
 else:
     raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))
     

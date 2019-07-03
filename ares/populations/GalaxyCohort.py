@@ -3081,10 +3081,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
-        Md = self.dust_yield(z=z, Mh=Mh) * MZ
-        Rd = self.dust_scale(z=z, Mh=Mh)
-        # Assumes spherical symmetry, uniform dust density
-        Sd = 3. * Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
+        
+        if self.pf['pop_dust_yield'] is not None:
+            Md = self.dust_yield(z=z, Mh=Mh) * MZ
+            Rd = self.dust_scale(z=z, Mh=Mh)
+            # Assumes spherical symmetry, uniform dust density
+            Sd = 3. * Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
+        else:
+            Md = Rd = Sd = np.zeros_like(Mh)
         
         #f self.pf['pop_dust_yield'] > 0:
         #   tau = self.dust_kappa(wave=1600.)

@@ -2042,7 +2042,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
             suffix = fn[fn.rfind('.')+1:]
             path = os.getenv("ARES") + '/input/hmf/'
-            fn_hist = path + prefix + '.hist.' + suffix
+            fn_hist = path + prefix.replace('hmf', 'hgh') + '.' + suffix
                     
         # Read output
         if type(fn_hist) is str:
