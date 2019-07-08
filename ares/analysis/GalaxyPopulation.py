@@ -106,7 +106,7 @@ class GalaxyPopulation(object):
                 
         for source in srcs:
             src = read_lit(source)
-
+            
             if redshift not in src.redshifts and (not round_z):
                 print("No z={0:g} data in {1!s}.".format(redshift, source))
                 continue
@@ -121,10 +121,15 @@ class GalaxyPopulation(object):
             else:        
                 z = redshift
                 
+            if quantity not in src.data:
+                continue    
+                
             data[source] = {}
             
             if quantity in ['lf']:
                 data[source]['wavelength'] = src.wavelength
+                        
+            
                         
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
@@ -212,32 +217,53 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
 
-    def MultiPlotUV(self, pop, gs=None, fig=1, z_uvlf=[4,6,8,10], 
+    def PlotColors(self, pop, gs=None, fig=1, z_uvlf=[4,6,8,10], 
         z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
-        **kwargs):
+        show_Mstell=True, show_MUV=True, show_AUV=False, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
         
         if gs is None:
-            fig = pl.figure(tight_layout=False, figsize=(12, 8), num=fig)
-            fig.subplots_adjust(left=0.1 ,right=0.9)
-            gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
             
-        # Should do instance check.
-        assert fig is not None
+            # Should do instance check.
+            assert fig is not None
+            
+            if show_Mstell:
+                fig = pl.figure(tight_layout=False, figsize=(24, 6), num=fig)
+                fig.subplots_adjust(left=0.1 ,right=0.9)
+                gs = gridspec.GridSpec(4, 8, hspace=0.0, wspace=0.8, figure=fig)
+                            
+            else:
+                fig = pl.figure(tight_layout=False, figsize=(12, 6), num=fig)
+                fig.subplots_adjust(left=0.1 ,right=0.9)
+                gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
+                
+        if show_Mstell:
+            ax_uvlf = fig.add_subplot(gs[:,0:2])
+            ax_cmr4 = fig.add_subplot(gs[0,2:4])
+            ax_cmr6 = fig.add_subplot(gs[1,2:4])
+            ax_cmr8 = fig.add_subplot(gs[2,2:4])
+            ax_cmr10 = fig.add_subplot(gs[3,2:4])
+            
+            ax_smf = fig.add_subplot(gs[:,4:6])
+            ax_cMs4 = fig.add_subplot(gs[0,6:])
+            ax_cMs6 = fig.add_subplot(gs[1,6:])
+            ax_cMs8 = fig.add_subplot(gs[2,6:])
+            ax_cMs10 = fig.add_subplot(gs[3,6:])        
+        else:
+            ax_uvlf = fig.add_subplot(gs[:,0:2])
+            ax_cmr4 = fig.add_subplot(gs[0,2:])
+            ax_cmr6 = fig.add_subplot(gs[1,2:])
+            ax_cmr8 = fig.add_subplot(gs[2,2:])
+            ax_cmr10 = fig.add_subplot(gs[3,2:])    
 
-        ax_uvlf = fig.add_subplot(gs[:,0:2])
-
-        ax_cmd4 = fig.add_subplot(gs[0,2:])
-        ax_cmd6 = fig.add_subplot(gs[1,2:])
-        ax_cmd8 = fig.add_subplot(gs[2,2:])
-        ax_cmd10 = fig.add_subplot(gs[3,2:])
-
-        ax_cmd = [ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]
+        ax_cmd = [ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10]
+        ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]
 
         l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
+        f12 = read_lit('finkelstein2012')
 
         zall = np.sort(np.unique(np.concatenate((z_uvlf, z_beta))))
         colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
@@ -256,7 +282,14 @@ class GalaxyPopulation(object):
                     mec=colors[z], sources=sources, round_z=0.21)
                 ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
                     xycoords='axes fraction', color=colors[z], ha='right', va='top')
-                ct_lf += 1
+                
+                if show_Mstell:
+                    _ax = self.PlotSMF(z, ax=ax_smf, color=colors[z], mfc=colors[z],
+                        mec=colors[z], sources=sources, round_z=0.21)
+                    ax_smf.annotate(r'$z \sim {}$'.format(z), (0.05, 0.25-0.05*ct_lf), 
+                        xycoords='axes fraction', color=colors[z], ha='right', va='top')
+                
+                ct_lf += 1    
         
             if z not in z_beta:
                 continue
@@ -267,7 +300,7 @@ class GalaxyPopulation(object):
                 ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
                     fmt='o', color=colors[z], label=r'Bouwens+ 2014' if j == 0 else None,
                     **mkw)
-                    
+                                                
             #if z in l11.data['beta']:
             #    ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
             #        l11.data['beta'][z]['err'], 
@@ -278,10 +311,23 @@ class GalaxyPopulation(object):
                 ha='right', va='top', xycoords='axes fraction', color=colors[z])
             ct_b += 1
             
+            if not show_Mstell:
+                continue
+                
+            if z in f12.data['beta']:    
+                err = f12.data['beta'][z]['err']
+                ax_cMs[j].errorbar(10**f12.data['beta'][z]['Ms'], 
+                    f12.data['beta'][z]['beta'], err.T, 
+                    fmt='o', color=colors[z], 
+                    label=r'Finkelstein+ 2012' if j == 0 else None,
+                    **mkw)
+                
+                        
         
         ##
         # Plot models
         ##
+        Ms = np.arange(6, 13, 0.2)
         mags = np.arange(-25, -12, 0.1)
         mags_cr = np.arange(-25, -10, 0.25)
         hst_shallow = b14.filt_shallow
@@ -295,6 +341,10 @@ class GalaxyPopulation(object):
                 
                 ax_uvlf.semilogy(mags, phi, color=colors[z], **kwargs)
             
+                if show_Mstell:
+                    phi = pop.StellarMassFunction(z, bins=Ms)
+                    ax_smf.semilogy(10**Ms, phi, color=colors[z], **kwargs)    
+            
             if z not in z_beta:
                 continue
             
@@ -307,25 +357,45 @@ class GalaxyPopulation(object):
             filt = hst_filt[zstr] if zstr <= 7 else None
             fset = None if zstr <= 7 else 'M'
 
-            if beta_phot:
-                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
-            else:
-                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+            _beta_phot = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+            
+            _beta_spec = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     rest_wave=(1600., 3000.), dlam=10.)
-                                        
+            _mags = pop.Beta(z, Mbins=mags_cr, 
+                cam=cam, filters=filt, filter_set=fset, rest_wave=None)    
+             
+            if beta_phot:
+                beta = _beta_phot
+            else:
+                beta = _beta_spec 
+                                                      
             ax_cmd[j].plot(mags_cr, beta, color=colors[z], **kwargs)
+            
+            if show_Mstell:
+                
+                _beta_raw = pop.Beta(z, return_binned=False,
+                        rest_wave=(1600., 3000.), dlam=10.)
+                
+                # Need to interpolate between Ms and MUV
+                _Ms = np.log10(pop.get_field(z, 'Ms'))
+                _b = np.interp(Ms, _Ms, _beta_raw)
+                
+                ax_cMs[j].plot(10**Ms, _b, color=colors[z], **kwargs)
+                
             
             if repeat_z and j == 0:
                 for k in range(1, 4):
                     ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
+                    if show_Mstell:
+                        ax_cMs[k].plot(10**Ms, _b, color=colors[z], **kwargs)
                     
             
                     
         ##
         # Clean-up
         ##
-        for i, ax in enumerate([ax_uvlf, ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]):
+        for i, ax in enumerate([ax_uvlf]+ax_cmd):
             ax.set_xlim(-24, -15)
             ax.set_xticks(np.arange(-24, -15, 2))
             ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
@@ -335,8 +405,10 @@ class GalaxyPopulation(object):
                 ax.set_yticks(np.arange(-2.4, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.7, -1., 0.1), minor=True)
                 ax.set_ylim(-2.7, -1.)
-                ax.yaxis.tick_right()
-                ax.yaxis.set_label_position("right")
+                
+                if not show_Mstell:
+                    ax.yaxis.tick_right()
+                    ax.yaxis.set_label_position("right")
                 
                 if i < 4:
                     ax.set_xticklabels([])
@@ -346,14 +418,26 @@ class GalaxyPopulation(object):
                 ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                 ax.set_ylabel(labels['galaxy_lf'])
                 ax.set_ylim(1e-7, 1e-1)
-            
+                
+        if show_Mstell:
+            ax_smf.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+            ax_smf.set_ylabel(labels['galaxy_smf'])
+            ax_smf.set_xscale('log')   
+            ax_smf.set_ylim(1e-7, 1e-1)
+            ax_smf.set_xlim(1e7, 1e12)
+            for i, ax in enumerate([ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]):     
+                ax.set_xscale('log')
+                ax.set_xlim(1e7, 1e11)
+                ax.set_ylabel(r'$\beta$')
+                ax.set_yticks(np.arange(-2.4, -0.8, 0.4))
+                ax.set_yticks(np.arange(-2.7, -1., 0.1), minor=True)
+                ax.set_ylim(-2.7, -1.)
+                
+                if i > 0:
+                    ax.set_xticklabels([])
+        
         return fig, gs
         
-        
-        
-        
-        
-                
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
@@ -383,7 +467,7 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, 
             quantity=quantity, sources_except=sources_except)
-        
+                
         if isinstance(sources, basestring):
             if sources in groups[quantity]:
                 if sources == 'all':
@@ -402,6 +486,8 @@ class GalaxyPopulation(object):
         for source in srcs:
             if source not in data:
                 continue
+                             
+                             
                                         
             M = np.array(data[source]['M'])
             phi = np.array(data[source]['phi'])

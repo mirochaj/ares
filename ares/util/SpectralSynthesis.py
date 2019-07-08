@@ -177,7 +177,7 @@ class SpectralSynthesis(object):
             xphot = np.array(xphot)   
             dxphot = np.array(dxphot)
             ycorr = np.array(ycorr)
-            
+                        
             # Sort arrays in ascending wavelength
             isort = np.argsort(xphot)
             
@@ -376,7 +376,6 @@ class SpectralSynthesis(object):
             - Names of all filters included
             - Midpoints of photometric filters [microns]
             - Width of filters [microns]
-            - Apparent magnitudes in each filter.
             - Apparent magnitudes corrected for filter transmission.
 
         """
