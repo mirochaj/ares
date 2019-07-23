@@ -15,10 +15,15 @@ from ..util import labels
 from ..util import read_lit
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
+from ..util.Survey import Survey
 from ..phenom import DustCorrection
 from matplotlib.patches import Patch
+from ..util.ReadData import read_lit
+from ..util.Aesthetics import labels
+from scipy.optimize import curve_fit
 import matplotlib.gridspec as gridspec
 from ..physics.Constants import rhodot_cgs
+from ..util.SpectralSynthesis import what_filters
 from .MultiPlot import MultiPanel, add_master_legend
 from ..util.Stats import symmetrize_errors, bin_samples
 from ..populations.GalaxyPopulation import GalaxyPopulation as GP
@@ -106,7 +111,7 @@ class GalaxyPopulation(object):
                 
         for source in srcs:
             src = read_lit(source)
-
+            
             if redshift not in src.redshifts and (not round_z):
                 print("No z={0:g} data in {1!s}.".format(redshift, source))
                 continue
@@ -121,10 +126,15 @@ class GalaxyPopulation(object):
             else:        
                 z = redshift
                 
+            if quantity not in src.data:
+                continue    
+                
             data[source] = {}
             
             if quantity in ['lf']:
                 data[source]['wavelength'] = src.wavelength
+                        
+            
                         
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
@@ -212,32 +222,53 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
 
-    def MultiPlotUV(self, pop, gs=None, fig=1, z_uvlf=[4,6,8,10], 
+    def PlotColors(self, pop, gs=None, fig=1, z_uvlf=[4,6,8,10], 
         z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
-        **kwargs):
+        show_Mstell=True, show_MUV=True, show_AUV=False, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
         
         if gs is None:
-            fig = pl.figure(tight_layout=False, figsize=(12, 8), num=fig)
-            fig.subplots_adjust(left=0.1 ,right=0.9)
-            gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
             
-        # Should do instance check.
-        assert fig is not None
+            # Should do instance check.
+            assert fig is not None
+            
+            if show_Mstell:
+                fig = pl.figure(tight_layout=False, figsize=(24, 6), num=fig)
+                fig.subplots_adjust(left=0.1 ,right=0.9)
+                gs = gridspec.GridSpec(4, 8, hspace=0.0, wspace=0.8, figure=fig)
+                            
+            else:
+                fig = pl.figure(tight_layout=False, figsize=(12, 6), num=fig)
+                fig.subplots_adjust(left=0.1 ,right=0.9)
+                gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
+                
+        if show_Mstell:
+            ax_uvlf = fig.add_subplot(gs[:,0:2])
+            ax_cmr4 = fig.add_subplot(gs[0,2:4])
+            ax_cmr6 = fig.add_subplot(gs[1,2:4])
+            ax_cmr8 = fig.add_subplot(gs[2,2:4])
+            ax_cmr10 = fig.add_subplot(gs[3,2:4])
+            
+            ax_smf = fig.add_subplot(gs[:,4:6])
+            ax_cMs4 = fig.add_subplot(gs[0,6:])
+            ax_cMs6 = fig.add_subplot(gs[1,6:])
+            ax_cMs8 = fig.add_subplot(gs[2,6:])
+            ax_cMs10 = fig.add_subplot(gs[3,6:])        
+        else:
+            ax_uvlf = fig.add_subplot(gs[:,0:2])
+            ax_cmr4 = fig.add_subplot(gs[0,2:])
+            ax_cmr6 = fig.add_subplot(gs[1,2:])
+            ax_cmr8 = fig.add_subplot(gs[2,2:])
+            ax_cmr10 = fig.add_subplot(gs[3,2:])    
 
-        ax_uvlf = fig.add_subplot(gs[:,0:2])
-
-        ax_cmd4 = fig.add_subplot(gs[0,2:])
-        ax_cmd6 = fig.add_subplot(gs[1,2:])
-        ax_cmd8 = fig.add_subplot(gs[2,2:])
-        ax_cmd10 = fig.add_subplot(gs[3,2:])
-
-        ax_cmd = [ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]
+        ax_cmd = [ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10]
+        ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]
 
         l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
+        f12 = read_lit('finkelstein2012')
 
         zall = np.sort(np.unique(np.concatenate((z_uvlf, z_beta))))
         colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
@@ -250,13 +281,20 @@ class GalaxyPopulation(object):
         ct_lf = 0
         ct_b = 0
         for j, z in enumerate(zall):
-        
+
             if z in z_uvlf:
                 _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[z], mfc=colors[z],
                     mec=colors[z], sources=sources, round_z=0.21)
                 ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
                     xycoords='axes fraction', color=colors[z], ha='right', va='top')
-                ct_lf += 1
+        
+                if show_Mstell:
+                    _ax = self.PlotSMF(z, ax=ax_smf, color=colors[z], mfc=colors[z],
+                        mec=colors[z], sources=sources, round_z=0.21)
+                    ax_smf.annotate(r'$z \sim {}$'.format(z), (0.05, 0.25-0.05*ct_lf), 
+                        xycoords='axes fraction', color=colors[z], ha='right', va='top')
+        
+                ct_lf += 1    
         
             if z not in z_beta:
                 continue
@@ -267,7 +305,7 @@ class GalaxyPopulation(object):
                 ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], err, 
                     fmt='o', color=colors[z], label=r'Bouwens+ 2014' if j == 0 else None,
                     **mkw)
-                    
+                                                
             #if z in l11.data['beta']:
             #    ax_cmd[j].errorbar(l11.data['beta'][z]['M'], l11.data['beta'][z]['beta'], 
             #        l11.data['beta'][z]['err'], 
@@ -278,22 +316,38 @@ class GalaxyPopulation(object):
                 ha='right', va='top', xycoords='axes fraction', color=colors[z])
             ct_b += 1
             
-        
+            if not show_Mstell:
+                continue
+                
+            if z in f12.data['beta']:    
+                err = f12.data['beta'][z]['err']
+                ax_cMs[j].errorbar(10**f12.data['beta'][z]['Ms'], 
+                    f12.data['beta'][z]['beta'], err.T, 
+                    fmt='o', color=colors[z], 
+                    label=r'Finkelstein+ 2012' if j == 0 else None,
+                    **mkw)
+                        
         ##
         # Plot models
         ##
+        Ms = np.arange(6, 13.25, 0.25)
         mags = np.arange(-25, -12, 0.1)
         mags_cr = np.arange(-25, -10, 0.25)
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
+        calzetti = read_lit('calzetti1994').windows
         
         for j, z in enumerate(zall):
             zstr = round(z)
             
             if z in z_uvlf:
                 phi = pop.LuminosityFunction(z, mags)
-                
+    
                 ax_uvlf.semilogy(mags, phi, color=colors[z], **kwargs)
+
+                if show_Mstell:
+                    phi = pop.StellarMassFunction(z, bins=Ms)
+                    ax_smf.semilogy(10**Ms, phi, color=colors[z], **kwargs)    
             
             if z not in z_beta:
                 continue
@@ -307,36 +361,64 @@ class GalaxyPopulation(object):
             filt = hst_filt[zstr] if zstr <= 7 else None
             fset = None if zstr <= 7 else 'M'
 
+            _beta_phot = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                dlam=20.)
+            _beta_spec = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    rest_wave=(1600., 3000.), dlam=20.)
+            _beta_c94 = pop.Beta(z, Mwave=1600., return_binned=False,
+                cam='calzetti', filters=calzetti, dlam=1., rest_wave=None)        
+            _mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
+                cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+             
             if beta_phot:
-                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+                beta = _beta_phot
             else:
-                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    rest_wave=(1600., 3000.), dlam=10.)
-                                        
+                beta = _beta_spec 
+                                                      
             ax_cmd[j].plot(mags_cr, beta, color=colors[z], **kwargs)
+            
+            if show_Mstell:
+                
+                _beta_raw = pop.Beta(z, return_binned=False,
+                        rest_wave=(1600., 3000.), dlam=10.)
+                
+                # Need to interpolate between Ms and MUV
+                _Ms = pop.get_field(z, 'Ms')
+                _nh = pop.get_field(z, 'nh')
+                #_b = np.interp(Ms, _Ms, _beta_raw)
+                _x, _b, _err = bin_samples(np.log10(_Ms), _beta_c94, Ms, 
+                    weights=_nh)
+                
+                ax_cMs[j].plot(10**_x, _b, color=colors[z], **kwargs)
+                
+                ax_cMs[j].annotate(r'$z \sim {}$'.format(z), (0.05, 0.95), 
+                    ha='left', va='top', xycoords='axes fraction', color=colors[z])
+                
             
             if repeat_z and j == 0:
                 for k in range(1, 4):
                     ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
-                    
-            
-                    
+                    if show_Mstell:
+                        ax_cMs[k].plot(10**Ms, _b, color=colors[z], **kwargs)
+                                        
         ##
         # Clean-up
         ##
-        for i, ax in enumerate([ax_uvlf, ax_cmd4, ax_cmd6, ax_cmd8, ax_cmd10]):
+        for i, ax in enumerate([ax_uvlf] + ax_cmd):
             ax.set_xlim(-24, -15)
             ax.set_xticks(np.arange(-24, -15, 2))
             ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
             
             if i > 0:
                 ax.set_ylabel(r'$\beta$')
-                ax.set_yticks(np.arange(-2.4, -0.8, 0.4))
-                ax.set_yticks(np.arange(-2.7, -1., 0.1), minor=True)
-                ax.set_ylim(-2.7, -1.)
-                ax.yaxis.tick_right()
-                ax.yaxis.set_label_position("right")
+                ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
+                ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
+                ax.set_ylim(-2.9, -1.)
+                
+                if not show_Mstell:
+                    ax.yaxis.tick_right()
+                    ax.yaxis.set_label_position("right")
                 
                 if i < 4:
                     ax.set_xticklabels([])
@@ -346,14 +428,339 @@ class GalaxyPopulation(object):
                 ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                 ax.set_ylabel(labels['galaxy_lf'])
                 ax.set_ylim(1e-7, 1e-1)
-            
+                
+        if show_Mstell:
+            ax_smf.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+            ax_smf.set_ylabel(labels['galaxy_smf'])
+            ax_smf.set_xscale('log')   
+            ax_smf.set_ylim(1e-7, 1e-1)
+            ax_smf.set_xlim(1e7, 1e12)
+            for i, ax in enumerate([ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]):     
+                ax.set_xscale('log')
+                ax.set_xlim(1e7, 1e11)
+                ax.set_ylabel(r'$\beta$')
+                ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
+                ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
+                ax.set_ylim(-2.9, -1.)
+                
+                if i < 3:
+                    ax.set_xticklabels([])
+                else:
+                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+        
         return fig, gs
         
+    def PlotColorEvolution(self, pop, zarr=None, ax=None, fig=1, 
+        wave_lo=1300., wave_hi=2600., which_nircam='W', **kwargs):
+        """
+        Plot Beta_19.5(z) and Beta_Mstell(z).
+        """
         
+        if ax is None:
+            _fig = pl.figure(tight_layout=False, figsize=(8, 8), num=fig)
+            _fig.subplots_adjust(left=0.1)
+            gs = gridspec.GridSpec(2, 2, hspace=0.05, wspace=0.4, figure=_fig)
+        else:
+            gs = ax
+            _fig = fig
+
+        axB = _fig.add_subplot(gs[0,0])
+        axD = _fig.add_subplot(gs[0,1])
+        axB2 = _fig.add_subplot(gs[1,0])
+        axD2 = _fig.add_subplot(gs[1,1])
+
+        # Plot the Bouwens data
+        zbrack = [3.8, 5.0, 5.9, 7.0, 8.0]
+        Beta195 = [-1.85, -1.91, -2.00, -2.05, -2.13]
+        Beta195_err = [0.01, 0.02, 0.05, 0.09, 0.44]
+        Beta195_sys = [0.06, 0.06, 0.08, 0.13, 0.27]
+
+        dBdMUV = [-0.11, -0.14, -0.2, -0.2]
+        dB_err = [0.01, 0.02, 0.04, 0.07]
+
+        axB.errorbar(zbrack, Beta195, yerr=Beta195_sys, fmt='o', zorder=10,
+            color='r')
+        axD.errorbar(zbrack[:-1], dBdMUV, yerr=dB_err, fmt='o', zorder=10,
+            color='r')  
+
+        mags = np.arange(-25, -10, 0.1)
+        mags_cr = np.arange(-25.5, -10, 0.5)
         
+        if zarr is None:
+            zarr = np.arange(4, 12., 1.)
+
+        linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
+        cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2
+        colors = 'r', 'y', 'gray'
+        Mstell = np.array([7.5, 8.5, 9.5])
+        f12 = read_lit('finkelstein2012')
+        calzetti = read_lit('calzetti1994').windows
+        for z in [4,5,6,7,8]:
+            for i, _Mstell in enumerate(Mstell):
+                x = z
+                y = f12.data['beta'][z]['beta'][i]
+                yerr = np.array([f12.data['beta'][z]['err'][i]]).T
+                axB2.errorbar(z, y, yerr=yerr, fmt='o', color=colors[i],
+                    label=r'$\log_{10} M_{\ast}=%.1f$' % _Mstell if z == 4 else None)
         
+            sig = np.mean(f12.data['beta'][z]['err'], axis=1)
+            popt, pcov = curve_fit(linfunc, Mstell, f12.data['beta'][z]['beta'], 
+                sigma=sig, p0=[0.3, 0.], maxfev=1000)
+            popt2, pcov2 = curve_fit(cubfunc, Mstell, f12.data['beta'][z]['beta'], 
+                p0=[0.0, 0.3, 0.], maxfev=1000)
+            cubrecon = popt2[0] * (Mstell - 8.)**2 + popt2[1] * Mstell + popt2[2]
+            
+            cubeder = 2 * popt2[0] * (Mstell - 8.) + popt2[1]
+    
+            s2 = np.interp(8., Mstell, cubeder)
+            axD2.errorbar(z, s2, color='r', fmt='o')
+            print('add errors to me')
+            
+
+        # For CANDELS, ERS    
+        b14 = read_lit('bouwens2014')
+        hst_shallow = b14.filt_shallow
+        hst_deep = b14.filt_deep
+
+        nircam = Survey(cam='nircam')
+        nircam_M = nircam._read_nircam(filter_set='M')
+        nircam_W = nircam._read_nircam(filter_set='W')
+
+        colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 
+            'g', 10: 'm', 11: 'gray'}
+
+        ##
+        # Loop over models and reconstruct best-fitting Beta(z).
+        ##
+        Ms_b = np.arange(6, 10, 0.5)
+        colors = 'k', 'k', 'k', 'k'
+        ls = '-', '--', ':'
+
+        ##
+        # Won't be able to do DerivedBlob for 'nozevo' case because we only
+        # saved at one redshift :( Will be crude for others. Could re-generate
+        # samples later (parallelize, on cluster).
+        ##
+        _colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}    
         
+        print("Computing UV slope evolution for model={}...".format(i))
+    
+        B195_hst = []
+        dBdM195_hst = []
+        B195_spec = []
+        dBdM195_spec = []
+        B195_jwst = []
+        dBdM195_jwst = []
+        BMstell = []
+        dBMstell = []
+        for j, z in enumerate(zarr):
+        
+            zstr = round(z)
+        
+            if zstr >= 6:
+                hst_filt = hst_deep
+            else:
+                hst_filt = hst_shallow
+        
+            cam = ('wfc', 'wfc3') if zstr <= 7 else ('nircam', )
+            filt = hst_filt[zstr] if zstr <= 7 else None
+            fset = None if zstr <= 7 else 'M'        
+        
+            beta_spec = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                rest_wave=(wave_lo, wave_hi))
+            beta_hst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                cam=cam, filters=filt, filter_set=fset, rest_wave=None) 
+        
+            # Compute raw beta and compare to Mstell    
+            beta_c94 = pop.Beta(z, Mwave=1600., return_binned=False,
+                cam='calzetti', filters=calzetti, dlam=1., rest_wave=None)
+        
+            Ms_r = pop.get_field(z, 'Ms')
+            nh_r = pop.get_field(z, 'nh')
+    
+            _x1, _y1, _err = bin_samples(np.log10(Ms_r), beta_c94, Ms_b, 
+                weights=nh_r)    
+        
+            _tmp = []  
+            for Mstell in [7.5, 8.5, 9.5]:
+                s1 = np.interp(Mstell-0.5, Ms_b, _y1)
+                s2 = np.interp(Mstell+0.5, Ms_b, _y1)
+                _tmp.append(np.mean([s1, s2]))
+        
+            # Compute slopes with Mstell
+            popt, pcov = curve_fit(linfunc, Ms_b, _y1, p0=[0.3, 0.], maxfev=100)
+            popt2, pcov2 = curve_fit(cubfunc, Ms_b, _y1, p0=[0.0, 0.3, 0.], 
+                maxfev=1000)
+            cubrecon = popt2[0] * (Ms_b - 8.)**2 + popt2[1] * Ms_b + popt2[2]
+            cubeder = 2 * popt2[0] * (Ms_b - 8.) + popt2[1]
+                 
+            BMstell.append(_tmp)
+            #dBMstell.append(popt[0])
+            s1 = np.interp(7., Ms_b, cubeder)
+            s2 = np.interp(8., Ms_b, cubeder)
+            s3 = np.interp(9., Ms_b, cubeder)
+            
+            dBMstell.append([s1, s2, s3])
+                    
+            # Compute beta given HST+JWST
+            cam2 = ('wfc', 'wfc3', 'nircam') if zstr <= 7 else ('nircam', )
+            filt2 = hst_filt[zstr] if zstr <= 7 else None
+            # Add JWST filters based on redshift?
+            if filt2 is not None:
+                now = list(filt2)
+            else:
+                now = []
+        
+            nircam_z = what_filters(z, 
+                nircam_M if which_nircam=='M' else nircam_W, wave_lo, wave_hi)
+            print("Added NIRCAM at z={}: {}".format(z, nircam_z))
+            now.extend(nircam_z)
+        
+            filt2 = tuple(now)
                 
+            beta_jwst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                cam=cam2, filters=filt2, filter_set=fset, 
+                rest_wave=None)
+        
+            # Compute Beta at MUV=-19.5
+            for k, beta in enumerate([beta_spec, beta_hst, beta_jwst]):
+        
+                #if k == 0:
+                #    continue
+        
+                _i195 = np.argmin(np.abs(mags_cr + 19.5))
+                _B195 = beta[_i195]
+        
+                # Compute dBeta/dMag via finite difference.
+                #_xx = mags[_i195-3:_i195+4]
+                #_yy = beta[_i195-3:_i195+4]
+                #
+                #xx, yy = central_difference(_xx, _yy)
+                #
+                ## Smooth this out by just using last two points
+                #slope = np.interp(-19.5, [xx[0], xx[-1]], [yy[0], yy[-1]])
+
+                # Compute dBeta/dMag by fitting PL to points.
+                _xx = mags_cr[_i195-2:_i195+2]
+                _yy = beta[_i195-2:_i195+2]
+        
+                if not np.any(np.isfinite(_yy)):
+                    if k == 0:
+                        B195_spec.append(-99999)
+                        dBdM195_spec.append(-99999)
+                    elif k == 1:
+                        B195_hst.append(-99999)
+                        dBdM195_hst.append(-99999)
+                    else:
+                        B195_jwst.append(-99999)   
+                        dBdM195_jwst.append(-99999) 
+            
+                    continue
+        
+                func = lambda xx, p0, p1: p0 + p1 * xx
+                popt, pcov = curve_fit(func, _xx, _yy, p0=np.array([-2., 0.]))
+
+                norm = popt[0]
+                slope = popt[1]
+        
+                print('hey', z, k, slope, _B195)
+
+                if k == 0:
+                    B195_spec.append(_B195)
+                    dBdM195_spec.append(slope)
+                elif k == 1:
+                    B195_hst.append(_B195)
+                    dBdM195_hst.append(slope)
+                else:
+                    B195_jwst.append(_B195)
+                    dBdM195_jwst.append(slope)
+
+            # Sanity checks        
+            #pl.figure(3)
+            #pl.scatter(mags_cr, beta_hst, s=50)
+            #pl.scatter(_xx, _yy, s=80)
+            #pl.plot(mags_cr, norm + slope * mags_cr, ls='--')
+            #raw_input('<enter>')
+
+        B195_spec = np.array(B195_spec)        
+        dBdM195_spec = np.array(dBdM195_spec)
+        ok_spec = B195_spec > -99999
+        axB.plot(zarr[ok_spec==1], B195_spec[ok_spec==1], lw=1, alpha=0.4,
+            **kwargs)
+        axD.plot(zarr[ok_spec==1], dBdM195_spec[ok_spec==1], lw=1, alpha=0.4,
+            **kwargs)
+    
+        B195_hst = np.array(B195_hst)        
+        dBdM195_hst = np.array(dBdM195_hst)
+        ok_hst = B195_hst > -99999
+        axB.plot(zarr[ok_hst==1], B195_hst[ok_hst==1], lw=2, **kwargs)
+        axD.plot(zarr[ok_hst==1], dBdM195_hst[ok_hst==1], lw=2, **kwargs)
+    
+        B195_jwst = np.array(B195_jwst)        
+        dBdM195_jwst = np.array(dBdM195_jwst)
+        ok_jwst = B195_jwst > -99999
+        axB.plot(zarr[ok_jwst==1], B195_jwst[ok_jwst==1], lw=5, alpha=0.4, 
+            **kwargs)
+        axB.plot(zarr[ok_jwst==1], B195_jwst[ok_jwst==1], lw=1, alpha=1, 
+            **kwargs)
+        axD.plot(zarr[ok_jwst==1], dBdM195_jwst[ok_jwst==1], lw=5, alpha=0.4, 
+            **kwargs)
+        axD.plot(zarr[ok_jwst==1], dBdM195_jwst[ok_jwst==1], lw=1, alpha=1,
+            **kwargs)
+        
+        ##
+        # Plot Mstell stuff
+        axB2.plot(zarr, np.array(BMstell)[:,0], color='k')    
+        axB2.plot(zarr, np.array(BMstell)[:,1], color='k')    
+        axB2.plot(zarr, np.array(BMstell)[:,2], color='k')
+        
+        #axD2.plot(zarr, np.array(dBMstell)[:,0], color='k', ls=':')
+        axD2.plot(zarr, np.array(dBMstell)[:,1], color='k', ls='-')
+        #axD2.plot(zarr, np.array(dBMstell)[:,2], color='k', ls='-')
+        
+        ##
+        # Clean up
+        ##
+        axD.set_yticks(np.arange(-0.3, 0, 0.1))
+        axD.set_yticks(np.arange(-0.3, 0, 0.05), minor=True)
+        
+        axB.set_ylim(-2.9, -1.3)
+        axB.set_xlim(3.5, 11.2)
+        axD.set_xlim(3.5, 11.2)
+        axD.set_ylim(-0.3, -0.05)
+        #axB.set_xticklabels([])
+        axB2.set_ylim(-2.9, -1.3)
+        axB2.set_xlim(3.5, 11.2)
+        axD2.set_xlim(3.5, 11.2)
+        axD2.set_ylim(0., 0.5)
+
+        axB.set_xticklabels([])
+        axD.set_xticklabels([])
+        
+        axB.yaxis.set_ticks_position('both')
+        axB2.yaxis.set_ticks_position('both')
+        axD.yaxis.set_ticks_position('both')
+        axD2.yaxis.set_ticks_position('both')
+
+        axB.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
+        axB2.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
+
+        axB2.legend(loc='upper left', frameon=True, fontsize=8)
+
+        axB.set_ylabel(r'$\beta(M_\mathrm{UV}=-19.5)$')
+        axB2.set_ylabel(r'$\beta(\log_{10}M_{\ast}=9)$')
+        axD.set_ylabel(r'$d\beta(M_\mathrm{UV}=-19.5)/dM_{\mathrm{UV}}$')
+        axD2.set_ylabel(r'$d\beta(\log_{10}M_{\ast}=9)/dlog_{10}M_{\ast}$')
+        axD2.set_xlabel(r'$z$')
+        axB2.set_xlabel(r'$z$')
+        
+        for ax in [axB, axD, axB2, axD2]:
+            ax.yaxis.set_label_coords(-0.15, 0.5)
+            ax.yaxis.set_label_coords(-0.15, 0.5)
+        
+        return gs, fig
+        
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
@@ -383,7 +790,7 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, 
             quantity=quantity, sources_except=sources_except)
-        
+                
         if isinstance(sources, basestring):
             if sources in groups[quantity]:
                 if sources == 'all':
@@ -402,6 +809,8 @@ class GalaxyPopulation(object):
         for source in srcs:
             if source not in data:
                 continue
+                             
+                             
                                         
             M = np.array(data[source]['M'])
             phi = np.array(data[source]['phi'])
@@ -738,7 +1147,7 @@ class GalaxyPopulation(object):
 
             Mbins = np.arange(-25, -10, 1.)
             AUV = pop.AUV(z, Mwave=1600., return_binned=True,
-                Mbins=Mbins)
+                magbins=Mbins)
             
             ax_AUV.plot(Mbins, AUV, color=colors[j])
                             

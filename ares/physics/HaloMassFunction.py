@@ -497,7 +497,7 @@ class HaloMassFunction(object):
             if i % size != rank:
                 continue
                 
-            # Has units of h**4 / cMpc**3 / Msun
+            # Undo little h for all main quantities
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
             self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
             self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
