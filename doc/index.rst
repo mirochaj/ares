@@ -63,6 +63,7 @@ Contents
     updates
     contributing
     history
+	acknowledgements
 
 .. Indices and tables
 .. ==================
