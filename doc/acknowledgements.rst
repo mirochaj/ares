@@ -1,8 +1,9 @@
 Acknowledgements
 ================
 
-Main developer(s): 
-- `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (McGill)
+Main developer(s):
+
+- `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_
 
 Additional contributions / corrections / suggestions from:
 
