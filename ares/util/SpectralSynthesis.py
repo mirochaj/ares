@@ -26,6 +26,32 @@ nanoJ = 1e-23 * 1e-9
 
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
+def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
+    """
+    Given a redshift and a full filter set, return the filters that probe
+    the rest UV continuum only.
+    """
+    
+    # Compute observed wavelengths in microns
+    l1 = wave_lo * (1. + z) * 1e-4
+    l2 = wave_hi * (1. + z) * 1e-4
+    
+    out = []
+    for filt in fset.keys():
+        # Hack out numbers
+        _x, _y, mid, dx, Tbar = fset[filt]
+        
+        fhi = mid + dx[0]
+        flo = mid - dx[1]
+                
+        if not ((flo >= l1) and (fhi <= l2)):
+            continue
+        
+        out.append(filt)
+        
+        
+    return out
+
 class SpectralSynthesis(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -1178,37 +1204,3 @@ class SpectralSynthesis(object):
         # Get outta here.
         return Lout
         
-    def get_beta(self, z, data, filter_set='W'):
-        filt, xphot, wphot, mag, magcorr = \
-            self.photometrize_spectrum(data, z, flux_units=True, 
-            filter_set=filter_set)
-    
-        # Need to sort first.
-        iphot = np.argsort(xphot)
-    
-        xphot = xphot[iphot]
-        wphot = wphot[iphot]
-        mag = mag[iphot]
-        magcorr = magcorr[iphot]
-        all_filt = np.array(filt)[iphot]
-
-        flux = 10**(magcorr * -0.4)
-
-        slopes = {}
-        for i, filt in enumerate(xphot):
-        
-            if i == (len(xphot) - 1):
-                break
-            
-            beta = np.log10(flux[i+1] / flux[i]) \
-                 / np.log10(xphot[i+1] / xphot[i])
-        
-            midpt = np.mean([xphot[i], xphot[i+1]])
-        
-            # In Angstrom
-            rest_wave = midpt * (1. / 1e6) * 1e10 / (1. + z)
-                
-            slopes[(all_filt[i], all_filt[i+1])] = midpt, beta
-        
-        
-        return slopes    

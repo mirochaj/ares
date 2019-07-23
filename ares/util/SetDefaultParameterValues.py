@@ -687,6 +687,9 @@ def PopulationParameters():
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
 
+    # Nebular emission stuff
+    "pop_nebula_Tgas": 2e4,
+
     "pop_solve_rte": False,
     "pop_lya_permeable": False,
         

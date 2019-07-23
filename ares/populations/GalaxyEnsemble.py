@@ -19,6 +19,8 @@ from ..util.Math import smooth
 from ..util import ProgressBar
 from .Halo import HaloPopulation
 from ..util import SpectralSynthesis
+from scipy.optimize import curve_fit
+from ..physics import NebularEmission
 from .GalaxyCohort import GalaxyCohort
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
@@ -1671,6 +1673,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._synth.careful_cache = self.pf['pop_synth_cache_level']
                         
         return self._synth
+        
+    @property
+    def nebula(self):
+        if not hasattr(self, '_nebula'):
+            self._nebula = NebularEmission(cosm=self.cosm, **self.pf)
+   
+        return self._nebula    
     
     def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None, 
         filter_set=None, dlam=10., method='gmean', idnum=None, window=1,
@@ -1949,10 +1958,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return beta, _std
         return beta
         
-    def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mbins=None, 
-        return_binned=False, filters=None, dlam=10.):
+    def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None, magbins=None, 
+        massbins=None, return_binned=False, filters=None, dlam=10.):
         """
         Compute UV extinction.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Mstell : int, float, np.ndarray
+            Can return AUV as function of provided stellar mass.
+        MUV : int, float, np.ndarray
+            Can also return AUV as function of UV magnitude.
+        magbins : np.ndarray
+            Either the magnitude bins or log10(stellar mass) bins to use if
+            return_binned==True.
+        
         """
         
         if self.pf['pop_dust_yield'] is None:
@@ -1962,17 +1984,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Sd = self.get_field(z, 'Sd')
         tau = kappa * Sd
         
-        AUV = np.log10(np.exp(-tau)) / -0.4
+        AUV_r = np.log10(np.exp(-tau)) / -0.4
             
         # Just do this to get MAB array of same size as Mh
         MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters, dlam=dlam)
                 
         if return_binned:            
-            if Mbins is None:
-                Mbins = np.arange(-30, -10, 0.25)
+            if magbins is None:
+                magbins = np.arange(-30, -10, 0.25)
 
             nh = self.get_field(z, 'nh')
-            _x, _y, _z = bin_samples(MAB, AUV, Mbins, weights=nh)
+            _x, _y, _z = bin_samples(MAB, AUV_r, magbins, weights=nh)
 
             MAB = _x
             AUV = _y
@@ -1981,15 +2003,63 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             #MAB = np.flip(MAB)
             #beta = np.flip(beta)
             std = None
+            AUV = AUV_r
 
             assert MUV is None
 
         # May specify a single magnitude at which to return AUV        
         if MUV is not None:
             return np.interp(MUV, MAB, AUV, left=0., right=0.)
+        if Mstell is not None:
+            Ms_r = self.get_field(z, 'Ms')
+            nh_r = self.get_field(z, 'nh')
+            
+            x1, y1, err1 = bin_samples(np.log10(Ms_r), AUV_r, massbins, 
+                weights=nh_r)
+            return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
 
         # Otherwise, return raw (or binned) results
         return AUV
+        
+    def Gradient(self, field, wrt, as_func_of, eval_at_x, eval_at_y, ybins,
+        guess=[0., 1.5]):
+        """
+        Calculate derivatives. Generally fit with linear or PL function first.
+        """
+        
+        if field in self.histories.keys():
+            y = self.get_field(z, field)
+        else:
+            assert wrt == 'z', "only option right now"
+            if field == 'AUV':
+                if as_func_of == 'Ms':
+                    y = []
+                    for z in eval_at_x:
+                        _y = self.AUV(z=z, Mstell=eval_at_y, massbins=ybins)
+                        y.append(_y)
+                    y = np.array(y)
+                else:
+                    raise NotImplemented('help')
+            else:
+                raise NotImplemented('help')
+        
+        ##
+        # Get on with the fitting
+        ##
+        x = eval_at_x
+        
+        func = lambda x, p0, p1: p0 * (x - 4.) + p1
+        
+        if type(eval_at_y) in [int, float, np.float64]:
+            popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=100)
+            return x, popt[0]
+        
+        slopes = []
+        for k, element in enumerate(eval_at_y):
+            popt, pcov = curve_fit(func, x, y[:,k], p0=guess, maxfev=100)
+            slopes.append(popt[0])
+            
+        return x, np.array(slopes)    
         
     def get_contours(self, x, y, bins):
         """

@@ -133,12 +133,13 @@ class Cosmology(object):
         self.primordial_index = self.pf['primordial_index']
         
         self.CriticalDensityNow = self.rho_crit_0 = \
-            (3 * self.hubble_0**2) / (8 * np.pi * G)
+            (3. * self.hubble_0**2) / (8. * np.pi * G)
         
         self.h70 = self.pf['hubble_0']
         
         self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
-            * cm_per_mpc**3 / g_per_msun / self.h70**2        
+            * cm_per_mpc**3 / g_per_msun
+            
         if self.pf['helium_by_number'] is None:
             self.helium_by_mass = self.Y = self.pf['helium_by_mass']
             self.helium_by_number = self.y = 1. / (1. / self.Y - 1.) / 4.
