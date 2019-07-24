@@ -383,7 +383,7 @@ _dust_screen_dpl = \
 
 _dust_screen_dpl.update(_dust_kappa)
 
-_dust_patchy = _dust_screen_dpl.copy()
+_dust_patchy = _dust_screen_pl.copy()
 _dust_patchy.update(_dust_fcov)
 
 _dust_patchy['pq_func_par2[25]'] = 'pq[26]'
@@ -501,7 +501,6 @@ _planck2015 = \
  "sigma_8": 0.8159,
  "primordial_index": 0.9667,
 }
-
 
 _Bundles = \
 {

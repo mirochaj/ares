@@ -336,7 +336,7 @@ class CalibrateModel(object):
                     free_pars.append('pq_func_par0[23]')
                     guesses['pq_func_par0[23]'] = 1.6
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.5])
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[23]')
                                         
                     if 'norm' in self.zevol_dust:
@@ -601,18 +601,18 @@ class CalibrateModel(object):
             # By default, MUV refers to 1600 magnitude
             blob_k = [{'return_binned': True, 'cam': ('wfc', 'wfc3'), 
                 'filters': filt_hst, 'dlam': 20.,
-                'Mwave': 1600., 'Mbins': Mbins}]
+                'Mwave': 1600., 'magbins': Mbins}]
                             
             kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam':20., 'rest_wave': None, 'return_binned': True,
                 'Mwave': 1600., 'Mbins': Mbins}
 
-            kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
-                'return_binned': True, 'Mwave': 1600.}
+            #kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
+            #    'return_binned': True, 'Mwave': 1600.}
             
-            blob_f.extend(['Beta'] * 2)
-            blob_n.extend(['beta_hst', 'beta_spec'])
-            blob_k.extend([kw_hst, kw_spec])
+            blob_f.extend(['Beta'])
+            blob_n.extend(['beta_hst'])
+            blob_k.extend([kw_hst])
             
             # Save also the geometric mean of photometry as a function
             # of a magnitude at fixed rest wavelength.

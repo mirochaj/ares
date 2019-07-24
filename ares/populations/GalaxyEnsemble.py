@@ -15,6 +15,7 @@ import gc
 import time
 import pickle
 import numpy as np
+from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
 from .Halo import HaloPopulation
@@ -35,9 +36,12 @@ try:
 except ImportError:
     pass
        
+_linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
+_cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
+       
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
-pars_affect_sfhs.extend(["pop_update_dt","pop_thin_hist"])
+pars_affect_sfhs.extend(["pop_update_dt", "pop_thin_hist"])
 
 class GalaxyEnsemble(HaloPopulation,BlobFactory):
     
@@ -1873,8 +1877,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
         filters=None, filter_set=None, dlam=10., method='fit',
-        return_binned=False, Mbins=None, Mwave=1600., MUV=None,
-        return_scatter=False, load=True):
+        return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
+        return_scatter=False, load=True, massbins=None):
         """
         UV slope for all objects in model.
 
@@ -1923,35 +1927,43 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             cached_result = None
 
         if cached_result is not None:
-            beta = cached_result
+            beta_r = cached_result
         else:
             raw = self.histories
           
             ##
             # Run in batch.
-            beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
+            beta_r = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
                 hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
                 rest_wave=rest_wave, method=method, extras=self.extras)
 
             ##
             if hasattr(self, '_cache_beta_'):
-                self._cache_beta_[kw_tup] = beta
+                self._cache_beta_[kw_tup] = beta_r
                 
         # Can return binned (in MUV) version
         if return_binned:
             if Mbins is None:
                 Mbins = np.arange(-30, -10, 0.25)
-                
-            nh = self.get_field(z, 'nh')    
+
+            nh = self.get_field(z, 'nh')
             
             # This will be the geometric mean of magnitudes in `cam` and
             # `filters` if they are provided!
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters)
                         
-            MAB, beta, _std = bin_samples(_MAB, beta, Mbins, weights=nh)
+            MAB, beta, _std = bin_samples(_MAB, beta_r, Mbins, weights=nh)
+        else:
+            beta = beta_r
 
         if MUV is not None:
             return np.interp(MUV, MAB, beta, left=-99999, right=-99999)
+        if Mstell is not None:
+            Ms_r = self.get_field(z, 'Ms')
+            nh_r = self.get_field(z, 'nh')
+            x1, y1, err1 = bin_samples(np.log10(Ms_r), beta_r, massbins, 
+                weights=nh_r)
+            return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
         
         # Get out.
         if return_scatter:
@@ -2020,6 +2032,61 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Otherwise, return raw (or binned) results
         return AUV
+        
+    def dBeta_dMstell(self, z, dlam=10., Mstell=None, massbins=None):
+        """
+        Compute gradient in UV color at fixed stellar mass.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        dlam : int
+            Wavelength resolution to use for Beta calculation.
+        Mstell : int, float, np.ndarray
+            Stellar mass at which to evaluate slope. Can be None, in which 
+            case we'll return over a grid with resolution 0.5 dex.
+        """
+        
+        zstr = round(z)
+        calzetti = read_lit('calzetti1994').windows
+        
+        # Compute raw beta and compare to Mstell    
+        beta_c94 = self.Beta(z, Mwave=1600., return_binned=False,
+            cam='calzetti', filters=calzetti, dlam=dlam, rest_wave=None)
+
+        Ms_r = self.get_field(z, 'Ms')
+        nh_r = self.get_field(z, 'nh')
+
+        # Compute binned version of Beta(Mstell).
+        _x1, _y1, _err = bin_samples(np.log10(Ms_r), beta_c94, massbins, 
+            weights=nh_r)
+
+        # Compute slopes with Mstell
+        popt, pcov = curve_fit(_linfunc, _x1, _y1, p0=[0.3, 0.], maxfev=100)
+        popt2, pcov2 = curve_fit(_cubfunc, _x1, _y1, p0=[0.0, 0.3, 0.], 
+            maxfev=1000)
+        cubrecon = popt2[0] * (_x1 - 8.)**2 + popt2[1] * _x1 + popt2[2]
+        cubeder = 2 * popt2[0] * (_x1 - 8.) + popt2[1]
+             
+        norm = [] 
+        dBMstell = []
+        for _x in _x1:
+            dBMstell.append(np.interp(_x, _x1, cubeder))
+        
+        if Mstell is None:
+            return np.array(_x1), np.array(dBMstell)
+        else:
+            return np.interp(np.log10(Mstell), _x1, dBMstell)
+    
+    def dColor_dz(self, logM, dlam=1., zmin=4, zmax=10, dz=1):
+        
+        out = []
+        zarr = np.arange(zmin, zmax+dz, dz)
+        for z in zarr:
+            _logM, _slope = self.dColor_dMstell(z, dlam=dlam)
+            out.append(np.interp(logM, _logM, _slope))
+            
         
     def Gradient(self, field, wrt, as_func_of, eval_at_x, eval_at_y, ybins,
         guess=[0., 1.5]):

@@ -46,7 +46,14 @@ for key in tmp_data['beta']:
     data['beta'][key]['beta'] = np.array(tmp_data['beta'][key]['beta'])
     data['beta'][key]['err'] = np.array(tmp_data['beta'][key]['err'])
 
-
+data['slope_wrt_mass'] = \
+{
+ 4: {'slope': 0.17, 'err': 0.03},
+ 5: {'slope': 0.30, 'err': 0.06},
+ 6: {'slope': 0.40, 'err': 0.1},
+ 7: {'slope': 0.46, 'err': 0.1},
+ 8: {'slope': 0.45, 'err': 0.37},
+}
 
 
 

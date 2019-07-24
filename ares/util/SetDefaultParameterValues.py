@@ -655,10 +655,11 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
+    "pop_dust_holes": 'big', 
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
     "pop_dust_growth": None,
     "pop_dust_scale": 0.1,    # 100 pc
-    "pop_dust_fcov": 1.0,     
+    "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     

@@ -49,7 +49,6 @@ def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
         
         out.append(filt)
         
-        
     return out
 
 class SpectralSynthesis(object):
@@ -243,7 +242,8 @@ class SpectralSynthesis(object):
                 guess = np.array([ma, -2.5])                
             
             if ok.sum() == 2 and self.pf['verbose']:
-                print("WARNING: Estimating slope from only two points: {}".format(filt[isort][ok==1]))
+                print("WARNING: Estimating slope at z={} from only two points: {}".format(zobs, 
+                    filt[isort][ok==1]))
 
         ##
         # Fit a PL to points.
@@ -1115,17 +1115,24 @@ class SpectralSynthesis(object):
                     rand = hist['rand']
                                 
                 tau = kappa * Sd
-                                
-                clear = rand > fcov
-                block = ~clear
+                
+                clear = rand > fcov                
+                block = ~clear                
                                 
                 if idnum is not None:
-                    Lout = Lhist * clear[izobs] \
-                         + Lhist * np.exp(-tau[izobs]) * block[izobs]
+                    if self.pf['pop_dust_holes'] == 'big':
+                        Lout = Lhist * clear[izobs] \
+                             + Lhist * np.exp(-tau[izobs]) * block[izobs]
+                    else:
+                        Lout = Lhist * (1. - fcov[izobs]) \
+                             + Lhist * fcov[izobs] * np.exp(-tau[izobs])
                 else:    
-                    Lout = Lhist * clear[:,izobs] \
-                         + Lhist * np.exp(-tau[:,izobs]) * block[:,izobs]
-                                 
+                    if self.pf['pop_dust_holes'] == 'big':
+                        Lout = Lhist * clear[:,izobs] \
+                             + Lhist * np.exp(-tau[:,izobs]) * block[:,izobs]
+                    else:
+                        Lout = Lhist * (1. - fcov[:,izobs]) \
+                             + Lhist * fcov[:,izobs] * np.exp(-tau[:,izobs])
             else:
                 Lout = Lhist.copy()
         else:
