@@ -100,4 +100,23 @@ fduty = \
  
 }
 
+quench = \
+{
+ 'pop_fduty{0}': 'pq[50]',
+ "pq_func[40]{0}": 'pl',
+ 'pq_func_var[40]{0}': 'Mh',
+ 'pq_func_par0[40]{0}': 'pq[41]',
+ 'pq_func_par1[40]{0}': 1e10,
+ 'pq_func_par2[40]{0}': 0.2,
+ 'pq_val_ceil[40]{0}': 1.0,
+ 
+ # Redshift evolution of fduty normalization
+ 'pq_func[41]{0}': 'pl',
+ 'pq_func_var[41]{0}': '1+z',
+ 'pq_func_par0[41]{0}': 0.5,
+ 'pq_func_par1[41]{0}': 5.,
+ 'pq_func_par2[41]{0}': 0.0,
+ 
+}
+
 

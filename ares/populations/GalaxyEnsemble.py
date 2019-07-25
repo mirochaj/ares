@@ -1121,7 +1121,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         fZy = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield']
         
         if self.pf['pop_dust_yield'] is not None:
-            fd = self.guide.dust_yield(z=z2d, Mh=Mh)   
+            fd = self.guide.dust_yield(z=z2d, Mh=Mh)
         else:
             fd = 0.0
         
@@ -1204,6 +1204,32 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##on = np.array(np.logical_not(off), dtype=int)
         #    
         #SFR = SFR * on
+        
+        ## 
+        # Can quench star formation
+        ##
+        #if self.pf['pop_quench'] is not None:
+        #    if type(self.pf['pop_quench']) in [int, float, np.float64]:
+        #        #t0 = np.interp(self.pf['pop_quench'], Mh, t)
+        #        if self.pf['pop_quench_by'].lower() == 'sfr':
+        #            qok = SFR >= self.pf['pop_quench']
+        #            qcorr = np.ones_like(Mh)
+        #                                
+        #            i0 = np.argmin(np.abs(SFR - self.pf['pop_quench']), axis=1)
+        #            t0 = np.array([t[i] for i in i0])
+        #            
+        #            
+        #            qcorr[qok] = np.exp(-(SFR[qok] / self.pf['pop_quench']))
+        #        else:    
+        #            qok = Mh >= self.pf['pop_quench']
+        #            qcorr = np.ones_like(Mh)
+        #            qcorr[qok] = np.exp(-(Mh[qok] / self.pf['pop_quench'])**0.2)
+        #    else:    
+        #        qcorr = self.guide.quench(z=z2d, Mh=Mh)
+        #else:
+        #    qcorr = 1.
+
+        #SFR *= qcorr
             
         if self.pf['conserve_memory']:
             dtype = np.float32
@@ -1211,7 +1237,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             dtype = np.float64
             
         zeros_like_Mh = np.zeros((Nhalos, 1), dtype=dtype)
-                
+
         # Stellar mass should have zeros padded at the 0th time index
         Ms = np.hstack((zeros_like_Mh,
             np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
@@ -1454,6 +1480,32 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_smf(z, bins)
         
+    def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
+        iz = np.argmin(np.abs(z - self.histories['z']))
+        
+        _Ms = self.histories[field][:,iz]
+        _Mh = self.histories['Mh'][:,iz]
+        logMh = np.log10(_Mh)
+        
+        fstar_raw = _Ms / _Mh
+        
+        if (Mh is None) or (type(Mh) is not np.ndarray):
+            bin_c = np.arange(6., 14.+Mbin, Mbin)
+        else:
+            dx = np.diff(np.log10(Mh))
+            assert np.allclose(np.diff(dx), 0)
+            Mbin = dx[0]
+            bin_c = np.log10(Mh)
+            
+        nh = self.get_field(z, 'nh')    
+        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
+
+        if return_mean_only:
+            return y
+
+        return x, y, z
+        
+        
     def SMHM(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
@@ -1472,59 +1524,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         """
         
-        iz = np.argmin(np.abs(z - self.histories['z']))
-        
-        _Ms = self.histories['Ms'][:,iz]
-        _Mh = self.histories['Mh'][:,iz]
-        logMh = np.log10(_Mh)
-        
-        fstar_raw = _Ms / _Mh
-        
-        if (Mh is None) or (type(Mh) is not np.ndarray):
-            bin_c = np.arange(6., 14.+Mbin, Mbin)
-        else:
-            dx = np.diff(np.log10(Mh))
-            assert np.allclose(np.diff(dx), 0)
-            Mbin = dx[0]
-            bin_c = np.log10(Mh)
-            
-        nh = self.get_field(z, 'nh')    
-        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
-            
-        #bin_e = bin_c2e(bin_c)
-        #
-        #std = []
-        #fstar = []
-        #for i, lo in enumerate(bin_e):
-        #    if i == len(bin_e) - 1:
-        #        break
-        #        
-        #    hi = bin_e[i+1]
-        #        
-        #    ok = np.logical_and(logMh >= lo, logMh < hi)
-        #    ok = np.logical_and(ok, _Mh > 0)
-        #    
-        #    f = np.log10(fstar_raw[ok==1])
-        #    
-        #    if f.size == 0:
-        #        std.append(-np.inf)
-        #        fstar.append(-np.inf)
-        #        continue
-        #                
-        #    #spread = np.percentile(f, (16., 84.))
-        #    #
-        #    #print(i, np.mean(f), spread, np.std(f))
-        #    
-        #    std.append(np.std(f))
-        #    fstar.append(np.mean(f))
-        #
-        #std = np.array(std)
-        #fstar = np.array(fstar)
-
-        if return_mean_only:
-            return y
-
-        return x, y, z
+        return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
+            Mbin=Mbin)
 
     def L_of_Z_t(self, wave):
         

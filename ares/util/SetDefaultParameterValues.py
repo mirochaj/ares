@@ -515,7 +515,8 @@ def PopulationParameters():
     # For GalaxyEnsemble
     "pop_aging": False,
     "pop_enrichment": False,
-    "pop_quench": False,
+    "pop_quench": None,
+    "pop_quench_by": 'mass',
     "pop_mag_bin": 0.5,
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 20.,

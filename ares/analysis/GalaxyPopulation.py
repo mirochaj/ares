@@ -1134,6 +1134,12 @@ class GalaxyPopulation(object):
             
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
+            ydust = pop.guide.dust_yield(z=z, Mh=Mh)
+            
+            if pop.pf['pop_fduty'] is not None:
+                fduty = pop.guide.fduty(z=z, Mh=Mh)
+            else:
+                fduty = np.zeros_like(Mh)
             
             if type(fcov) in [int, float, np.float64]:
                 fcov = fcov * np.ones_like(Mh)
@@ -1141,14 +1147,15 @@ class GalaxyPopulation(object):
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
                         
-            if np.all(np.diff(fcov) == 0):
-                try:
-                    fduty = pop.guide.fduty(z=z, Mh=Mh)
-                    ax_fco.semilogx(Mh, fduty, color=colors[j])
-                except:
-                    pass    
-            else:  
+            if not np.all(np.diff(fcov) == 0):
                 ax_fco.semilogx(Mh, fcov, color=colors[j])
+                ax_fco.set_ylabel(r'$f_{\mathrm{cov}}$')
+            elif not np.all(np.diff(ydust) == 0):
+                ax_fco.semilogx(Mh, ydust, color=colors[j])
+                ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
+            elif not np.all(np.diff(fduty) == 0):
+                ax_fco.semilogx(Mh, fduty, color=colors[j])
+                ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
 

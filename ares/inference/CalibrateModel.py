@@ -312,7 +312,7 @@ class CalibrateModel(object):
                 # Normalization of SFE
                 free_pars.extend(['pq_func_par0[41]', 'pq_func_par2[40]'])
                 guesses['pq_func_par0[41]'] = 0.8
-                guesses['pq_func_par2[40]'] = 0.2
+                guesses['pq_func_par2[40]'] = 0.4
                 is_log.extend([False, False])
                 jitter.extend([0.1, 0.1])
                 ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[41]')
@@ -409,9 +409,9 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[28]'] = 0.3
                     guesses['pq_func_par2[27]'] = 0.
                     is_log.extend([False, False])
-                    jitter.extend([0.1, 0.5])
+                    jitter.extend([0.1, 1.0])
                     ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[28]')
-                    ps.add_distribution(UniformDistribution(-1.5, 1.5), 'pq_func_par2[27]')
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[27]')
 
                     if 'yield' in self.zevol_dust:
                         free_pars.append('pq_func_par2[28]')
@@ -534,17 +534,6 @@ class CalibrateModel(object):
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
-
-        # Binary obscuration
-        #if self.include_obsc:
-        #    blob_n2.append('fobsc')
-        #    
-        #    if self.use_ensemble:
-        #        blob_f2.append('guide.fobsc')
-        #    else:
-        #        blob_f2.append('fobsc')
-        #        
-        #    raise NotImplemented('must add to pars')
         
         # SAM stuff
         if self.save_sam:
@@ -555,8 +544,13 @@ class CalibrateModel(object):
                 blob_f = ['guide.SFR', 'SMHM']
             else:
                 blob_f = ['SFR', 'SMHM']
-                
+                    
             blob_k = [{}, {'return_mean_only': True}]    
+            
+            if self.base_kwargs['pop_dust_yield'] is not None:
+                blob_n.append('Md')
+                blob_f.append('XMHM')
+                blob_k.append({'return_mean_only': True, 'field': 'Md'})
             
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
