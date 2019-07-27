@@ -517,6 +517,9 @@ def PopulationParameters():
     "pop_enrichment": False,
     "pop_quench": None,
     "pop_quench_by": 'mass',
+    "pop_flag_sSFR": None,
+    "pop_flag_tau": None,
+    
     "pop_mag_bin": 0.5,
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 20.,
@@ -663,6 +666,7 @@ def PopulationParameters():
     "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
+    "pop_dust_scatter_Nd": None,
     
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,

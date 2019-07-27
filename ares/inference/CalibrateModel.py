@@ -42,7 +42,7 @@ _zcal_smf = [3, 4, 5, 6, 7, 8]
 _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
-acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield']
+acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield', 'scatter']
 
 class CalibrateModel(object):
     """
@@ -237,7 +237,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[1]'] = -1.4
                     is_log.extend([True])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
+                    ps.add_distribution(UniformDistribution(-7, 1.), 'pq_func_par0[1]')
                     
                     if 'norm' in self.zevol_sfe:
                         free_pars.append('pq_func_par2[1]')
@@ -419,6 +419,15 @@ class CalibrateModel(object):
                         is_log.extend([False])
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[28]')
+                      
+                if 'scatter' in self.free_params_dust:
+                    
+                    free_pars.extend(['pop_dust_scatter_Nd'])
+                    guesses['pop_dust_scatter_Nd'] = 0.3
+                    is_log.extend([False])
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(0., 2.), 'pop_dust_scatter_Nd')
+                    
                       
             # Set the attributes
             self._parameters = free_pars

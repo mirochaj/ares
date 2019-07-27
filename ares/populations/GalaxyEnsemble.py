@@ -1242,6 +1242,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Ms = np.hstack((zeros_like_Mh,
             np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
         
+        if self.pf['pop_flag_sSFR'] is not None:
+            sSFR = SFR / Ms
+            
         ##          
         # Dust           
         ##
@@ -1276,6 +1279,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
             # Dust surface density.
             Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                
+            # Can add scatter to surface density 
+            if self.pf['pop_dust_scatter_Nd'] is not None:
+                Sd += self.noise_lognormal(Sd, self.pf['pop_dust_scatter_Nd'])
                 
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2

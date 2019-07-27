@@ -382,7 +382,7 @@ class GalaxyPopulation(object):
             if beta_phot:
                 beta = _beta_phot
             else:
-                beta = _beta_spec 
+                beta = _beta_spec
                                                       
             ax_cmd[j].plot(mags_cr, beta, color=colors[z], **kwargs)
             
@@ -429,11 +429,13 @@ class GalaxyPopulation(object):
                     ax.set_xticklabels([])
                 else:
                     ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                    
+                ax.yaxis.set_ticks_position('both')    
             else:
                 ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                 ax.set_ylabel(labels['galaxy_lf'])
                 ax.set_ylim(1e-7, 1e-1)
-                
+                            
         if show_Mstell:
             ax_smf.set_xlabel(r'$M_{\ast} / M_{\odot}$')
             ax_smf.set_ylabel(labels['galaxy_smf'])
@@ -447,7 +449,7 @@ class GalaxyPopulation(object):
                 ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
-                
+                ax.yaxis.set_ticks_position('both')    
                 if i < 3:
                     ax.set_xticklabels([])
                 else:
@@ -1147,15 +1149,15 @@ class GalaxyPopulation(object):
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
                         
-            if not np.all(np.diff(fcov) == 0):
-                ax_fco.semilogx(Mh, fcov, color=colors[j])
-                ax_fco.set_ylabel(r'$f_{\mathrm{cov}}$')
-            elif not np.all(np.diff(ydust) == 0):
-                ax_fco.semilogx(Mh, ydust, color=colors[j])
-                ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
-            elif not np.all(np.diff(fduty) == 0):
-                ax_fco.semilogx(Mh, fduty, color=colors[j])
-                ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+            #if not np.all(np.diff(fcov) == 0):
+            #    ax_fco.semilogx(Mh, fcov, color=colors[j])
+            #    ax_fco.set_ylabel(r'$f_{\mathrm{cov}}$')
+            #elif not np.all(np.diff(ydust) == 0):
+            #    ax_fco.semilogx(Mh, ydust, color=colors[j])
+            #    ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
+            #elif not np.all(np.diff(fduty) == 0):
+            #    ax_fco.semilogx(Mh, fduty, color=colors[j])
+            #    ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
 
