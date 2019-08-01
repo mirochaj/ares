@@ -858,9 +858,13 @@ class SpectralSynthesis(object):
         
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
-            Mh = hist['Mh'][idnum,:]
+            
+            # Don't necessarily need Mh here.
+            if 'Mh' in hist:
+                Mh = hist['Mh'][idnum,:]
         else:
-            Mh = hist['Mh']
+            if 'Mh' in hist:
+                Mh = hist['Mh']
                 
         # If SFH is 2-D it means we're doing this for multiple galaxies at once.
         # The first dimension will be number of galaxies and second dimension

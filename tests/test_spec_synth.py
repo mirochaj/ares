@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import s_per_myr
 
+
 def test(show_bpass=False, oversample_age=30.):
 
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
