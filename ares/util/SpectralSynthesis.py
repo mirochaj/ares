@@ -858,6 +858,9 @@ class SpectralSynthesis(object):
         
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
+            Mh = hist['Mh'][idnum,:]
+        else:
+            Mh = hist['Mh']
                 
         # If SFH is 2-D it means we're doing this for multiple galaxies at once.
         # The first dimension will be number of galaxies and second dimension
@@ -1097,7 +1100,7 @@ class SpectralSynthesis(object):
                                 
                 assert 'kappa' in extras
                 
-                kappa = extras['kappa'](wave=wave)
+                kappa = extras['kappa'](wave=wave, Mh=Mh)
                                                                 
                 kslc = idnum if idnum is not None else Ellipsis                
                                 

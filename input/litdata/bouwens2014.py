@@ -75,8 +75,10 @@ _filt_xdf_z6 = ('F105W', 'F160W')
 _filt_xdf_z7 = ('F125W', 'F160W')
 _filt_xdf_z7 = ('F125W', 'F160W')
 
-filt_deep = {4: _filt_xdf_z4,  5: _filt_xdf_z5,  6: _filt_xdf_z6, 7: _filt_xdf_z7}
-filt_shallow = {4: _filt_ers_z4, 5: _filt_ers_z5, 6: _filt_ers_z6, 7: _filt_ers_z7}
+filt_deep = {4: _filt_xdf_z4,  5: _filt_xdf_z5,  6: _filt_xdf_z6, 7: _filt_xdf_z7,
+    8: ('F140W', 'F160W')}
+filt_shallow = {4: _filt_ers_z4, 5: _filt_ers_z5, 6: _filt_ers_z6, 7: _filt_ers_z7,
+    8: ('F140W', 'F160W')}
 
 data = {}
 data['beta'] = {}

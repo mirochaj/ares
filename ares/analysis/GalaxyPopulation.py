@@ -1149,15 +1149,15 @@ class GalaxyPopulation(object):
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
                         
-            #if not np.all(np.diff(fcov) == 0):
-            #    ax_fco.semilogx(Mh, fcov, color=colors[j])
-            #    ax_fco.set_ylabel(r'$f_{\mathrm{cov}}$')
-            #elif not np.all(np.diff(ydust) == 0):
-            #    ax_fco.semilogx(Mh, ydust, color=colors[j])
-            #    ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
-            #elif not np.all(np.diff(fduty) == 0):
-            #    ax_fco.semilogx(Mh, fduty, color=colors[j])
-            #    ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+            if type(pop.pf['pop_dust_fcov']) is str:
+                ax_fco.semilogx(Mh, fcov, color=colors[j])
+                ax_fco.set_ylabel(r'$f_{\mathrm{cov}}$')
+            elif type(pop.pf['pop_dust_yield']) is str:
+                ax_fco.semilogx(Mh, ydust, color=colors[j])
+                ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
+            elif type(pop.pf['pop_fduty']) is str:
+                ax_fco.semilogx(Mh, fduty, color=colors[j])
+                ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
 

@@ -40,6 +40,7 @@ _base = \
 
  # Screw with SFE.
  'pq_func_par0[1]{0}': 3e-2,         # SFE normalization [0.05 by default]
+ 'pq_func_par0[2]{0}': 3e11,
  'pq_func_par0[3]{0}': 0.5,
  'pq_func_par0[4]{0}': 0.0,          # High-mass slope
  'pq_func_par2[1]{0}': 0.,           # Redshift evolution
@@ -49,21 +50,51 @@ _base = \
 
 base.update(_base)
 
-screen = \
+_screen = \
 {
  
- # Dust opacity vs. wavelength    
-    
- 'pop_dust_fcov{0}': 1,  
- 'pq_func_par2[22]{0}': 0.45,              # PL dependence of Rdust on Mh
- 'pq_func_par0[23]{0}': 2.,                # normalization if Rdust [kpc]
- 'pq_func_par2[23]{0}': 0.,                # PL dependence of Rdust on z
-  
  'pop_dust_yield{0}': 0.4,
  
+ # Dust opacity vs. wavelength    
+ "pop_dust_kappa{0}": 'pq[20]',   # opacity in [cm^2 / g]
+ "pq_func[20]{0}": 'pl',
+ 'pq_func_var[20]{0}': 'wave',
+ 'pq_func_par0[20]{0}': 1e5,      # opacity at wavelength below
+ 'pq_func_par1[20]{0}': 1e3,
+ 'pq_func_par2[20]{0}': -1.,
+ 
+ # Screen parameters
+ 'pop_dust_fcov{0}': 1,  
+ "pop_dust_scale{0}": 'pq[22]',       # Scale radius [in kpc]
+ "pq_func[22]{0}": 'pl',
+ 'pq_func_var[22]{0}': 'Mh',
+ 'pq_func_par0[22]{0}': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]{0}': 1e10,
+ 'pq_func_par2[22]{0}': 0.45,
+ 
+ # Evolution of scale
+ "pq_func[23]{0}": 'pl',
+ 'pq_func_var[23]{0}': '1+z',
+ 'pq_func_par0[23]{0}': 1.6,
+ 'pq_func_par1[23]{0}': 5.,
+ 'pq_func_par2[23]{0}': 0.,         # R(vir) goes like 1 / (1+z)
+  
 }
 
-patchy = \
+_screen_best = \
+{
+ 'pq_func_par0[1]{0}': 0.0486191550793195,
+ 'pq_func_par0[2]{0}': 778500431735.2164,
+ 'pq_func_par0[3]{0}': 0.5124444731982576,
+ 'pq_func_par0[4]{0}': 0.03708330190131004,
+ 'pq_func_par2[22]{0}': 0.46260876352941155,
+ 'pq_func_par0[23]{0}': 1.3886146855924113,
+}
+
+screen = _screen.copy()
+screen.update(_screen_best)
+
+_patchy = \
 {
  'pop_dust_fcov{0}': 'pq[21]',
  'pq_func[21]{0}': 'log_tanh_abs',
@@ -80,6 +111,9 @@ patchy = \
  'pq_func_par1[24]{0}': 5.,
  'pq_func_par2[24]{0}': 0.0,
 }
+
+patchy = screen.copy()
+patchy.update(_patchy)
 
 fduty = \
 {
@@ -119,4 +153,63 @@ quench = \
  
 }
 
+destruction = \
+{
+ 'pq_func_par2[22]{0}': 0.,    
+ 'pq_func_par0[1]{0}': 0.0414924616502775,
+ 'pq_func_par0[2]{0}': 228025945619.58618,
+ 'pq_func_par0[3]{0}': 0.6314799815636458,
+ 'pq_func_par0[4]{0}': -0.5599463903428499,
+ 'pq_func_par0[23]{0}': 1.5452880256044765,
+ 'pq_func_par2[27]{0}': -1.4360103791063477,
+ 'pq_func_par0[28]{0}': 0.33198068910686596,
+}
+
+_scatter = \
+{
+ 'pq_func_par2[22]{0}': 0.,
+ 'pq_func_par0[23]{0}': 3.3435661993369257,
+ 'pq_func_par0[1]{0}': 0.03599536365742767,
+ 'pq_func_par0[2]{0}': 167344779121.14706,
+ 'pq_func_par0[3]{0}': 1.1677597636641468,
+ 'pq_func_par0[4]{0}': 0.06069676909919603,
+ 
+ "pop_dust_scatter{0}": 'pq[33]',
+ "pq_func[33]{0}": 'pl',
+ 'pq_func_var[33]{0}': 'Mh',
+ 'pq_func_par0[33]{0}': 'pq[34]',
+ 'pq_func_par1[33]{0}': 1e10,
+ 'pq_func_par2[33]{0}': 0.,
+   
+ "pq_func[34]{0}": 'pl',
+ 'pq_func_var[34]{0}': '1+z',
+ 'pq_func_par0[34]{0}': 0.3,
+ 'pq_func_par1[34]{0}': 5.,
+ 'pq_func_par2[34]{0}': 0.,
+}
+
+scatter = screen.copy()
+scatter.update(_scatter)
+
+_composition = \
+{
+ 'pq_func_par2[20]{0}': 'pq[31]',
+ 'pq_func[31]{0}': 'pl',
+ 'pq_func_var[31]{0}': 'Mh',
+ 'pq_func_par0[31]{0}': -1.,
+ 'pq_func_par1[31]{0}': 1e10,
+ 'pq_func_par2[31]{0}': 0.,
+ 
+ # Best fit from scatter model
+ 'pq_func_par2[22]{0}': 0.,
+ 'pq_func_par0[23]{0}': 3.3435661993369257,
+ 'pq_func_par0[1]{0}': 0.03599536365742767,
+ 'pq_func_par0[2]{0}': 167344779121.14706,
+ 'pq_func_par0[3]{0}': 1.1677597636641468,
+ 'pq_func_par0[4]{0}': 0.06069676909919603,
+}
+
+
+composition = screen.copy()
+composition.update(_composition)
 

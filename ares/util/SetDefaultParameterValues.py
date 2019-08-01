@@ -666,7 +666,7 @@ def PopulationParameters():
     "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
-    "pop_dust_scatter_Nd": None,
+    "pop_dust_scatter": None,
     
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
@@ -929,6 +929,13 @@ def HaloMassFunctionParameters():
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
     
+    "hmf_func": None,
+    "hmf_extra_par0": None,
+    "hmf_extra_par1": None,
+    "hmf_extra_par2": None,
+    "hmf_extra_par3": None,
+    "hmf_extra_par4": None,
+        
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     

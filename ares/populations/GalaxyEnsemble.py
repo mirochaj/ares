@@ -1281,8 +1281,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
                 
             # Can add scatter to surface density 
-            if self.pf['pop_dust_scatter_Nd'] is not None:
-                Sd += self.noise_lognormal(Sd, self.pf['pop_dust_scatter_Nd'])
+            if self.pf['pop_dust_scatter'] is not None:
+                sigma = self.guide.dust_scatter(z=z2d, Mh=Mh)
+                noise = np.zeros_like(Sd)
+                for _i, _z in enumerate(z):
+                    noise[:,_i] = self.noise_lognormal(Sd[:,_i], sigma[:,_i])
+                                
+                Sd += noise
                 
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2
@@ -1741,7 +1746,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     mags.extend(list(np.array(ycorr) - 48.6))
             
                 mags = np.array(mags)
-                                
+
             else:
                 mags = M
                 
@@ -2000,7 +2005,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_dust_yield'] is None:
             return None
         
-        kappa = self.guide.dust_kappa(wave=Mwave)
+        Mh = self.get_field(z, 'Mh')
+        kappa = self.guide.dust_kappa(wave=Mwave, Mh=Mh)
         Sd = self.get_field(z, 'Sd')
         tau = kappa * Sd
         

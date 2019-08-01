@@ -1327,6 +1327,10 @@ class ModelSet(BlobFactory):
             else:
                 pass
                 
+            if i > 0:
+                mp.grid[i].set_xlabel('')
+                mp.grid[i].set_xticklabels([])
+                
         return mp           
                 
     def index_to_walker_step(self, loc):
