@@ -224,7 +224,7 @@ class GalaxyPopulation(object):
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10], 
         z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, show_AUV=False, **kwargs):
+        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -268,7 +268,10 @@ class GalaxyPopulation(object):
 
             axes = ax_uvlf, ax_cmd, ax_smf, ax_cMs
         
+            had_axes = False
+            
         else:
+            had_axes = True
             ax_uvlf, ax_cmd, ax_smf, ax_cMs = axes
             ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10 = ax_cmd
             if show_Mstell:
@@ -293,7 +296,7 @@ class GalaxyPopulation(object):
 
             if z in z_uvlf:
                 _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[z], mfc=colors[z],
-                    mec=colors[z], sources=sources, round_z=0.21)
+                    mec=colors[z], sources=sources, round_z=0.21, use_labels=0)
                 ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
                     xycoords='axes fraction', color=colors[z], ha='right', va='top')
         
@@ -322,8 +325,9 @@ class GalaxyPopulation(object):
             #        fmt='*', color=colors[z], label=r'Lee+ 2011' if j == 0 else None,
             #        **mkw)
             
-            ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
-                ha='right', va='top', xycoords='axes fraction', color=colors[z])
+            if not had_axes:
+                ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
+                    ha='right', va='top', xycoords='axes fraction', color=colors[z])
             ct_b += 1
             
             if not show_Mstell:
@@ -353,7 +357,8 @@ class GalaxyPopulation(object):
             if z in z_uvlf:
                 phi = pop.LuminosityFunction(z, mags)
     
-                ax_uvlf.semilogy(mags, phi, color=colors[z], **kwargs)
+                ax_uvlf.semilogy(mags, phi, color=colors[z],
+                    label=label if j == 0 else None, **kwargs)
 
                 if show_Mstell:
                     phi = pop.StellarMassFunction(z, bins=Ms)
@@ -362,7 +367,7 @@ class GalaxyPopulation(object):
             if z not in z_beta:
                 continue
             
-            if zstr >= 6:
+            if zstr >= 7:
                 hst_filt = hst_deep
             else:
                 hst_filt = hst_shallow
@@ -371,20 +376,21 @@ class GalaxyPopulation(object):
             filt = hst_filt[zstr] if zstr <= 7 else None
             fset = None if zstr <= 7 else 'M'
 
-            _beta_phot = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                dlam=20.)
-            _beta_spec = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    rest_wave=(1600., 3000.), dlam=20.)
             _mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
                 cam=cam, filters=filt, filter_set=fset, rest_wave=None)
              
             if beta_phot:
-                beta = _beta_phot
+                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                dlam=20.)
             else:
-                beta = _beta_spec
+                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    rest_wave=(1600., 3000.), dlam=20.)
+            
+            # Mask 
+            ok = np.logical_and(np.isfinite(beta), beta > -99999)
                                                       
-            ax_cmd[j].plot(mags_cr, beta, color=colors[z], **kwargs)
+            ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors[z], **kwargs)
             
             if show_Mstell:
                 
@@ -428,13 +434,20 @@ class GalaxyPopulation(object):
                 if i < 4:
                     ax.set_xticklabels([])
                 else:
-                    ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                    if beta_phot:
+                        ax.set_xlabel(r'$\langle M_{\mathrm{UV}} \rangle$')
+                    else:
+                        ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                            
                     
                 ax.yaxis.set_ticks_position('both')    
             else:
-                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                ax.set_xlabel(r'$M_{1600}$')
                 ax.set_ylabel(labels['galaxy_lf'])
                 ax.set_ylim(1e-7, 1e-1)
+                            
+        if label is not None:
+            ax_uvlf.legend(loc='upper left', fontsize=12, frameon=True)                    
                             
         if show_Mstell:
             ax_smf.set_xlabel(r'$M_{\ast} / M_{\odot}$')
@@ -514,25 +527,12 @@ class GalaxyPopulation(object):
                     lab = None
                     
                 axB2.errorbar(z, y, yerr=yerr, fmt='o', color=colors[i],
-                    label=lab)
+                    alpha=0.4 if z >= 6 else 1)
         
             axD2.errorbar(z, f12.data['slope_wrt_mass'][z]['slope'],
                 yerr=f12.data['slope_wrt_mass'][z]['err'],
-                color=colors[i], fmt='o')
-                    
-            #sig = np.mean(f12.data['beta'][z]['err'], axis=1)
-            #popt, pcov = curve_fit(linfunc, Mstell, f12.data['beta'][z]['beta'], 
-            #    sigma=sig, p0=[0.3, 0.], maxfev=1000)
-            #popt2, pcov2 = curve_fit(cubfunc, Mstell, f12.data['beta'][z]['beta'], 
-            #    p0=[0.0, 0.3, 0.], maxfev=1000)
-            #cubrecon = popt2[0] * (Mstell - 8.)**2 + popt2[1] * Mstell + popt2[2]
-            #
-            #cubeder = 2 * popt2[0] * (Mstell - 8.) + popt2[1]
-            #
-            #s2 = np.interp(8., Mstell, cubeder)
-            #axD2.errorbar(z, s2, color='r', fmt='o')
-            #print('add errors to me')
-            
+                color=colors[i], fmt='o', alpha=0.4 if z >= 6 else 1)
+
 
         # For CANDELS, ERS    
         b14 = read_lit('bouwens2014')
@@ -584,14 +584,14 @@ class GalaxyPopulation(object):
             filt = hst_filt[zstr] if zstr <= 7 else None
             fset = None if zstr <= 7 else 'M'        
         
-            beta_spec = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                rest_wave=(wave_lo, wave_hi))
+            #beta_spec = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+            #    rest_wave=(wave_lo, wave_hi))
             beta_hst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                 cam=cam, filters=filt, filter_set=fset, rest_wave=None) 
         
             # Compute raw beta and compare to Mstell    
             beta_c94 = pop.Beta(z, Mwave=1600., return_binned=False,
-                cam='calzetti', filters=calzetti, dlam=10., rest_wave=None)
+                cam='calzetti', filters=calzetti, dlam=1., rest_wave=None)
 
             # Compute beta(Mstell)
             beta_Mst = pop.Beta(z, Mwave=1600., return_binned=False,
@@ -642,7 +642,7 @@ class GalaxyPopulation(object):
                 rest_wave=None)
         
             # Compute Beta at MUV=-19.5
-            for k, beta in enumerate([beta_spec, beta_hst, beta_jwst]):
+            for k, beta in enumerate([beta_c94, beta_hst, beta_jwst]):
         
                 #if k == 0:
                 #    continue
@@ -724,26 +724,28 @@ class GalaxyPopulation(object):
         ##
         # Plot Mstell stuff
         ##
-        for logM in [7, 8, 9, 10]:
+        ls = '-', '--', ':', '-.'
+        for _j, logM in enumerate([7, 8, 9, 10]):
             j = np.argmin(np.abs(Ms_b - logM))
-            axB2.plot(zarr, np.array(BMstell)[:,j], **kwargs)    
-            axD2.plot(zarr, np.array(dBMstell)[:,j], **kwargs)
+            axB2.plot(zarr, np.array(BMstell)[:,j], ls=ls[_j], color='k',
+                label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)    
+            axD2.plot(zarr, np.array(dBMstell)[:,j], ls=ls[_j], color='k')
         
         ##
         # Clean up
         ##
-        axD.set_yticks(np.arange(-0.3, 0, 0.1))
-        axD.set_yticks(np.arange(-0.3, 0, 0.05), minor=True)
+        axD.set_yticks(np.arange(-0.3, 0.1, 0.1))
+        axD.set_yticks(np.arange(-0.3, 0.1, 0.05), minor=True)
         
         axB.set_ylim(-2.9, -1.3)
         axB.set_xlim(3.5, 11.2)
         axD.set_xlim(3.5, 11.2)
-        axD.set_ylim(-0.3, -0.05)
+        axD.set_ylim(-0.3, 0.1)
         #axB.set_xticklabels([])
         axB2.set_ylim(-2.9, -1.3)
         axB2.set_xlim(3.5, 11.2)
         axD2.set_xlim(3.5, 11.2)
-        axD2.set_ylim(0., 0.5)
+        axD2.set_ylim(-0.1, 0.5)
 
         axB.set_xticklabels([])
         axD.set_xticklabels([])
@@ -756,13 +758,14 @@ class GalaxyPopulation(object):
         axB.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
         axB2.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
 
-        axB2.legend(loc='upper left', frameon=True, fontsize=8)
+        axB2.legend(loc='lower right', frameon=True, fontsize=8,
+            handlelength=2, ncol=2)
 
         if axes is None:
             axB.set_ylabel(r'$\beta(M_\mathrm{UV}=-19.5)$')
-            axB2.set_ylabel(r'$\beta(\log_{10}M_{\ast})$')
+            axB2.set_ylabel(r'$\beta_{\ast}$')
             axD.set_ylabel(r'$d\beta(M_\mathrm{UV}=-19.5)/dM_{\mathrm{UV}}$')
-            axD2.set_ylabel(r'$d\beta(\log_{10}M_{\ast})/dlog_{10}M_{\ast}$')
+            axD2.set_ylabel(r'$d\beta_{\ast}/dlog_{10}M_{\ast}$')
             axD2.set_xlabel(r'$z$')
             axB2.set_xlabel(r'$z$')
         

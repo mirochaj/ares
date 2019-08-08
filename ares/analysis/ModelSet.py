@@ -1327,7 +1327,7 @@ class ModelSet(BlobFactory):
             else:
                 pass
                 
-            if i > 0:
+            if i not in mp.bottom:
                 mp.grid[i].set_xlabel('')
                 mp.grid[i].set_xticklabels([])
                 

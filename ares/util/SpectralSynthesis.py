@@ -122,7 +122,7 @@ class SpectralSynthesis(object):
     def Slope(self, zobs, spec=None, waves=None, sfh=None, zarr=None, tarr=None,
         tobs=None, cam=None, rest_wave=(1600., 2300.), band=None, hist={},
         return_norm=False, filters=None, filter_set=None, dlam=10., idnum=None,
-        method='fit', window=1, extras={}, picky=False):
+        method='fit', window=1, extras={}, picky=False, return_err=False):
         """
         Compute slope in some wavelength range or using photometry.
         """
@@ -307,7 +307,10 @@ class SpectralSynthesis(object):
         if return_norm:
             return popt
         else:
-            return popt[1]
+            if return_err:
+                return popt[1], np.sqrt(pcov[1,1])
+            else:
+                return popt[1]
         
     def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={}, 
@@ -599,6 +602,8 @@ class SpectralSynthesis(object):
         if time_series:
             shape.append(tarr.size)
         shape.append(len(waves))
+        
+        # Do kappa up front?
             
         spec = np.zeros(shape)
         for i, wave in enumerate(waves):
@@ -703,7 +708,16 @@ class SpectralSynthesis(object):
     def _cache_lum_ctr(self):
         if not hasattr(self, '_cache_lum_ctr_'):
             self._cache_lum_ctr_ = 0
-        return self._cache_lum_ctr_    
+        return self._cache_lum_ctr_  
+        
+    def _cache_kappa(self, wave):
+        if not hasattr(self, '_cache_kappa_'):
+            self._cache_kappa_ = {}
+            
+        if wave in self._cache_kappa_:
+            return self._cache_kappa_[wave]
+        
+        return None
         
     def _cache_lum(self, kwds):
         """
@@ -1100,11 +1114,16 @@ class SpectralSynthesis(object):
             
             # Redden away!        
             if np.any(hist['Sd'] > 0) and (band is None):
-                # Reddening is binary and probabilistic
                                 
                 assert 'kappa' in extras
                 
-                kappa = extras['kappa'](wave=wave, Mh=Mh)
+                _kappa = self._cache_kappa(wave)
+                
+                if _kappa is None:
+                    kappa = extras['kappa'](wave=wave, Mh=Mh)
+                    self._cache_kappa_[wave] = kappa
+                else:
+                    kappa = _kappa
                                                                 
                 kslc = idnum if idnum is not None else Ellipsis                
                                 
@@ -1123,7 +1142,7 @@ class SpectralSynthesis(object):
                                 
                 tau = kappa * Sd
                 
-                clear = rand > fcov                
+                clear = rand > fcov              
                 block = ~clear                
                                 
                 if idnum is not None:

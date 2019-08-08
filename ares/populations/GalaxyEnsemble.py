@@ -1891,7 +1891,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
         filters=None, filter_set=None, dlam=10., method='fit',
         return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
-        return_scatter=False, load=True, massbins=None):
+        return_scatter=False, load=True, massbins=None, return_err=False):
         """
         UV slope for all objects in model.
 
@@ -1935,24 +1935,34 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         kw_tup = tuple(kw.viewitems())
 
         if load:
-            cached_result = self._cache_beta(kw_tup)
+            cached_result = self._cache_beta(kw_tup)            
         else:
             cached_result = None
 
         if cached_result is not None:
-            beta_r = cached_result
+            if len(cached_result) == 2:
+                beta_r, beta_rerr = cached_result
+            else:
+                beta_r = cached_result
+                
         else:
             raw = self.histories
           
             ##
             # Run in batch.
-            beta_r = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
+            _beta_r = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
                 hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
-                rest_wave=rest_wave, method=method, extras=self.extras)
+                rest_wave=rest_wave, method=method, extras=self.extras,
+                return_err=return_err)
+                                
+            if return_err:
+                beta_r, beta_rerr = _beta_r
+            else:
+                beta_r = _beta_r
 
             ##
-            if hasattr(self, '_cache_beta_'):
-                self._cache_beta_[kw_tup] = beta_r
+            if hasattr(self, '_cache_beta_'):    
+                self._cache_beta_[kw_tup] = _beta_r
                 
         # Can return binned (in MUV) version
         if return_binned:
@@ -1981,7 +1991,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Get out.
         if return_scatter:
             return beta, _std
-        return beta
+        
+        if return_err:
+            assert not return_scatter
+            assert not return_binned
+            
+            return beta, beta_rerr
+        else:    
+            return beta
         
     def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None, magbins=None, 
         massbins=None, return_binned=False, filters=None, dlam=10.):
@@ -2024,7 +2041,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             MAB = _x
             AUV = _y
-            std = _z 
+            std = _z
         else:
             #MAB = np.flip(MAB)
             #beta = np.flip(beta)

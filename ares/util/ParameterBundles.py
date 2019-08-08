@@ -549,7 +549,7 @@ _Bundles = \
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl, 
-    'screen-dpl': _dust_screen_dpl, 
+    'screen-dpl': _dust_screen_dpl,
     'patchy': _dust_patchy, 'destruction': _dust_destroy, 'growth': _dust_growth,
     'composition': _dust_composition, 'scatter': _dust_scatter},
  'cosmology': {'planck2015': _planck2015},
