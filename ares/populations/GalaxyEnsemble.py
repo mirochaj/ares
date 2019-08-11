@@ -15,6 +15,7 @@ import gc
 import time
 import pickle
 import numpy as np
+from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
 from .Halo import HaloPopulation
@@ -35,9 +36,12 @@ try:
 except ImportError:
     pass
        
+_linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
+_cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
+       
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
-pars_affect_sfhs.extend(["pop_update_dt","pop_thin_hist"])
+pars_affect_sfhs.extend(["pop_update_dt", "pop_thin_hist"])
 
 class GalaxyEnsemble(HaloPopulation,BlobFactory):
     
@@ -1117,7 +1121,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         fZy = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield']
         
         if self.pf['pop_dust_yield'] is not None:
-            fd = self.guide.dust_yield(z=z2d, Mh=Mh)   
+            fd = self.guide.dust_yield(z=z2d, Mh=Mh)
         else:
             fd = 0.0
         
@@ -1200,6 +1204,32 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##on = np.array(np.logical_not(off), dtype=int)
         #    
         #SFR = SFR * on
+        
+        ## 
+        # Can quench star formation
+        ##
+        #if self.pf['pop_quench'] is not None:
+        #    if type(self.pf['pop_quench']) in [int, float, np.float64]:
+        #        #t0 = np.interp(self.pf['pop_quench'], Mh, t)
+        #        if self.pf['pop_quench_by'].lower() == 'sfr':
+        #            qok = SFR >= self.pf['pop_quench']
+        #            qcorr = np.ones_like(Mh)
+        #                                
+        #            i0 = np.argmin(np.abs(SFR - self.pf['pop_quench']), axis=1)
+        #            t0 = np.array([t[i] for i in i0])
+        #            
+        #            
+        #            qcorr[qok] = np.exp(-(SFR[qok] / self.pf['pop_quench']))
+        #        else:    
+        #            qok = Mh >= self.pf['pop_quench']
+        #            qcorr = np.ones_like(Mh)
+        #            qcorr[qok] = np.exp(-(Mh[qok] / self.pf['pop_quench'])**0.2)
+        #    else:    
+        #        qcorr = self.guide.quench(z=z2d, Mh=Mh)
+        #else:
+        #    qcorr = 1.
+
+        #SFR *= qcorr
             
         if self.pf['conserve_memory']:
             dtype = np.float32
@@ -1207,11 +1237,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             dtype = np.float64
             
         zeros_like_Mh = np.zeros((Nhalos, 1), dtype=dtype)
-                
+
         # Stellar mass should have zeros padded at the 0th time index
         Ms = np.hstack((zeros_like_Mh,
             np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
         
+        if self.pf['pop_flag_sSFR'] is not None:
+            sSFR = SFR / Ms
+            
         ##          
         # Dust           
         ##
@@ -1246,6 +1279,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     
             # Dust surface density.
             Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                
+            # Can add scatter to surface density 
+            if self.pf['pop_dust_scatter'] is not None:
+                sigma = self.guide.dust_scatter(z=z2d, Mh=Mh)
+                noise = np.zeros_like(Sd)
+                for _i, _z in enumerate(z):
+                    noise[:,_i] = self.noise_lognormal(Sd[:,_i], sigma[:,_i])
+                                
+                Sd += noise
                 
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2
@@ -1450,6 +1492,32 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self._cache_smf(z, bins)
         
+    def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
+        iz = np.argmin(np.abs(z - self.histories['z']))
+        
+        _Ms = self.histories[field][:,iz]
+        _Mh = self.histories['Mh'][:,iz]
+        logMh = np.log10(_Mh)
+        
+        fstar_raw = _Ms / _Mh
+        
+        if (Mh is None) or (type(Mh) is not np.ndarray):
+            bin_c = np.arange(6., 14.+Mbin, Mbin)
+        else:
+            dx = np.diff(np.log10(Mh))
+            assert np.allclose(np.diff(dx), 0)
+            Mbin = dx[0]
+            bin_c = np.log10(Mh)
+            
+        nh = self.get_field(z, 'nh')    
+        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
+
+        if return_mean_only:
+            return y
+
+        return x, y, z
+        
+        
     def SMHM(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
@@ -1468,59 +1536,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         """
         
-        iz = np.argmin(np.abs(z - self.histories['z']))
-        
-        _Ms = self.histories['Ms'][:,iz]
-        _Mh = self.histories['Mh'][:,iz]
-        logMh = np.log10(_Mh)
-        
-        fstar_raw = _Ms / _Mh
-        
-        if (Mh is None) or (type(Mh) is not np.ndarray):
-            bin_c = np.arange(6., 14.+Mbin, Mbin)
-        else:
-            dx = np.diff(np.log10(Mh))
-            assert np.allclose(np.diff(dx), 0)
-            Mbin = dx[0]
-            bin_c = np.log10(Mh)
-            
-        nh = self.get_field(z, 'nh')    
-        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
-            
-        #bin_e = bin_c2e(bin_c)
-        #
-        #std = []
-        #fstar = []
-        #for i, lo in enumerate(bin_e):
-        #    if i == len(bin_e) - 1:
-        #        break
-        #        
-        #    hi = bin_e[i+1]
-        #        
-        #    ok = np.logical_and(logMh >= lo, logMh < hi)
-        #    ok = np.logical_and(ok, _Mh > 0)
-        #    
-        #    f = np.log10(fstar_raw[ok==1])
-        #    
-        #    if f.size == 0:
-        #        std.append(-np.inf)
-        #        fstar.append(-np.inf)
-        #        continue
-        #                
-        #    #spread = np.percentile(f, (16., 84.))
-        #    #
-        #    #print(i, np.mean(f), spread, np.std(f))
-        #    
-        #    std.append(np.std(f))
-        #    fstar.append(np.mean(f))
-        #
-        #std = np.array(std)
-        #fstar = np.array(fstar)
-
-        if return_mean_only:
-            return y
-
-        return x, y, z
+        return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
+            Mbin=Mbin)
 
     def L_of_Z_t(self, wave):
         
@@ -1729,7 +1746,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     mags.extend(list(np.array(ycorr) - 48.6))
             
                 mags = np.array(mags)
-                                
+
             else:
                 mags = M
                 
@@ -1873,8 +1890,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
         filters=None, filter_set=None, dlam=10., method='fit',
-        return_binned=False, Mbins=None, Mwave=1600., MUV=None,
-        return_scatter=False, load=True):
+        return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
+        return_scatter=False, load=True, massbins=None, return_err=False):
         """
         UV slope for all objects in model.
 
@@ -1918,45 +1935,70 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         kw_tup = tuple(kw.viewitems())
 
         if load:
-            cached_result = self._cache_beta(kw_tup)
+            cached_result = self._cache_beta(kw_tup)            
         else:
             cached_result = None
 
         if cached_result is not None:
-            beta = cached_result
+            if len(cached_result) == 2:
+                beta_r, beta_rerr = cached_result
+            else:
+                beta_r = cached_result
+                
         else:
             raw = self.histories
           
             ##
             # Run in batch.
-            beta = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
+            _beta_r = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
                 hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
-                rest_wave=rest_wave, method=method, extras=self.extras)
+                rest_wave=rest_wave, method=method, extras=self.extras,
+                return_err=return_err)
+                                
+            if return_err:
+                beta_r, beta_rerr = _beta_r
+            else:
+                beta_r = _beta_r
 
             ##
-            if hasattr(self, '_cache_beta_'):
-                self._cache_beta_[kw_tup] = beta
+            if hasattr(self, '_cache_beta_'):    
+                self._cache_beta_[kw_tup] = _beta_r
                 
         # Can return binned (in MUV) version
         if return_binned:
             if Mbins is None:
                 Mbins = np.arange(-30, -10, 0.25)
-                
-            nh = self.get_field(z, 'nh')    
+
+            nh = self.get_field(z, 'nh')
             
             # This will be the geometric mean of magnitudes in `cam` and
             # `filters` if they are provided!
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters)
                         
-            MAB, beta, _std = bin_samples(_MAB, beta, Mbins, weights=nh)
+            MAB, beta, _std = bin_samples(_MAB, beta_r, Mbins, weights=nh)
+        else:
+            beta = beta_r
 
         if MUV is not None:
             return np.interp(MUV, MAB, beta, left=-99999, right=-99999)
+        if Mstell is not None:
+            Ms_r = self.get_field(z, 'Ms')
+            nh_r = self.get_field(z, 'nh')
+            x1, y1, err1 = bin_samples(np.log10(Ms_r), beta_r, massbins, 
+                weights=nh_r)
+            return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
         
         # Get out.
         if return_scatter:
             return beta, _std
-        return beta
+        
+        if return_err:
+            assert not return_scatter
+            assert not return_binned
+            
+            return beta, beta_rerr
+        else:    
+            return beta
         
     def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None, magbins=None, 
         massbins=None, return_binned=False, filters=None, dlam=10.):
@@ -1980,7 +2022,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_dust_yield'] is None:
             return None
         
-        kappa = self.guide.dust_kappa(wave=Mwave)
+        Mh = self.get_field(z, 'Mh')
+        kappa = self.guide.dust_kappa(wave=Mwave, Mh=Mh)
         Sd = self.get_field(z, 'Sd')
         tau = kappa * Sd
         
@@ -1998,7 +2041,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             MAB = _x
             AUV = _y
-            std = _z 
+            std = _z
         else:
             #MAB = np.flip(MAB)
             #beta = np.flip(beta)
@@ -2020,6 +2063,61 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Otherwise, return raw (or binned) results
         return AUV
+        
+    def dBeta_dMstell(self, z, dlam=10., Mstell=None, massbins=None):
+        """
+        Compute gradient in UV color at fixed stellar mass.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        dlam : int
+            Wavelength resolution to use for Beta calculation.
+        Mstell : int, float, np.ndarray
+            Stellar mass at which to evaluate slope. Can be None, in which 
+            case we'll return over a grid with resolution 0.5 dex.
+        """
+        
+        zstr = round(z)
+        calzetti = read_lit('calzetti1994').windows
+        
+        # Compute raw beta and compare to Mstell    
+        beta_c94 = self.Beta(z, Mwave=1600., return_binned=False,
+            cam='calzetti', filters=calzetti, dlam=dlam, rest_wave=None)
+
+        Ms_r = self.get_field(z, 'Ms')
+        nh_r = self.get_field(z, 'nh')
+
+        # Compute binned version of Beta(Mstell).
+        _x1, _y1, _err = bin_samples(np.log10(Ms_r), beta_c94, massbins, 
+            weights=nh_r)
+
+        # Compute slopes with Mstell
+        popt, pcov = curve_fit(_linfunc, _x1, _y1, p0=[0.3, 0.], maxfev=100)
+        popt2, pcov2 = curve_fit(_cubfunc, _x1, _y1, p0=[0.0, 0.3, 0.], 
+            maxfev=1000)
+        cubrecon = popt2[0] * (_x1 - 8.)**2 + popt2[1] * _x1 + popt2[2]
+        cubeder = 2 * popt2[0] * (_x1 - 8.) + popt2[1]
+             
+        norm = [] 
+        dBMstell = []
+        for _x in _x1:
+            dBMstell.append(np.interp(_x, _x1, cubeder))
+        
+        if Mstell is None:
+            return np.array(_x1), np.array(dBMstell)
+        else:
+            return np.interp(np.log10(Mstell), _x1, dBMstell)
+    
+    def dColor_dz(self, logM, dlam=1., zmin=4, zmax=10, dz=1):
+        
+        out = []
+        zarr = np.arange(zmin, zmax+dz, dz)
+        for z in zarr:
+            _logM, _slope = self.dColor_dMstell(z, dlam=dlam)
+            out.append(np.interp(logM, _logM, _slope))
+            
         
     def Gradient(self, field, wrt, as_func_of, eval_at_x, eval_at_y, ybins,
         guess=[0., 1.5]):

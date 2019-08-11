@@ -454,15 +454,12 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
-    
-    # Artificially kill emission in some band.
-    "pop_Ekill": None,
 
+    "pop_Ekill": None,    # see also source_Ekill
     "pop_Emin_xray": 2e2,
     
     # Controls IGM ionization for approximate CXB treatments
     "pop_Ex": 500.,
-    "pop_EminX": 2e2,
     "pop_Euv": 30.,
     
     "pop_lf": None,
@@ -515,7 +512,11 @@ def PopulationParameters():
     # For GalaxyEnsemble
     "pop_aging": False,
     "pop_enrichment": False,
-    "pop_quench": False,
+    "pop_quench": None,
+    "pop_quench_by": 'mass',
+    "pop_flag_sSFR": None,
+    "pop_flag_tau": None,
+    
     "pop_mag_bin": 0.5,
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 20.,
@@ -655,12 +656,14 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
+    "pop_dust_holes": 'big', 
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
     "pop_dust_growth": None,
     "pop_dust_scale": 0.1,    # 100 pc
-    "pop_dust_fcov": 1.0,     
+    "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
+    "pop_dust_scatter": None,
     
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
@@ -673,9 +676,6 @@ def PopulationParameters():
     
     "pop_dE": None,
     "pop_dlam": 1.,
-    
-    # deprecated?
-    "pop_kappa_UV": 1.15e-28,
     
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
@@ -751,7 +751,7 @@ def SourceParameters():
     "source_multigroup": False,
 
     "source_Emin": 13.6,  
-    "source_Emax": 1e2,  
+    "source_Emax": 1e2,
     "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
@@ -923,6 +923,13 @@ def HaloMassFunctionParameters():
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
     
+    "hmf_func": None,
+    "hmf_extra_par0": None,
+    "hmf_extra_par1": None,
+    "hmf_extra_par2": None,
+    "hmf_extra_par3": None,
+    "hmf_extra_par4": None,
+        
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     

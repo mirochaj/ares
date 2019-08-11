@@ -292,6 +292,7 @@ class ModelSet(BlobFactory):
             elif os.path.exists('{!s}.setup.pkl'.format(pre)):
                 fn = '{!s}.setup.pkl'.format(pre)
             else:    
+                print("WARNING: No files with prefix={} were found.".format(pre))
                 self._base_kwargs = None
                 return self._base_kwargs
             
@@ -327,6 +328,7 @@ class ModelSet(BlobFactory):
                 self._is_log = [False] * len(self._parameters)
                 f.close()
             else:
+                print("WARNING: No files with prefix={} were found.".format(pre))
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p{}'.format(i) \
                     for i in range(self.chain.shape[-1])]
@@ -353,6 +355,7 @@ class ModelSet(BlobFactory):
                 self._nwalkers, self._save_freq, self._steps = \
                     list(map(int, loaded))
             else:
+                print("WARNING: No files with prefix={} were found.".format(pre))
                 self._nwalkers = self._save_freq = self._steps = None
     
         return self._nwalkers
@@ -454,7 +457,7 @@ class ModelSet(BlobFactory):
     def Nd(self):
         if not hasattr(self, '_Nd'):
             try:
-                self._Nd = int(self.chain.shape[-1])       
+                self._Nd = int(self.chain.shape[-1])
             except TypeError:
                 self._Nd = None
         
@@ -1323,6 +1326,10 @@ class ModelSet(BlobFactory):
                         s=150, color='k', lw=1)
             else:
                 pass
+                
+            if i not in mp.bottom:
+                mp.grid[i].set_xlabel('')
+                mp.grid[i].set_xticklabels([])
                 
         return mp           
                 
@@ -4459,6 +4466,61 @@ class ModelSet(BlobFactory):
                 self._max_like_pars[par] = self.chain[skip:stop][iML,i]
         
         return self._max_like_pars
+        
+    def ExpensiveBlob(self, func, ivar, name, skip=0, clobber=False):
+        """
+        Generate a new blob from parameters only, i.e., we need to re-run
+        some ARES calculation, which is wrapped by `func`.
+        
+        No restart option yet. Should add that.
+        """
+        
+        kwargs = self.AssembleParametersList(include_bkw=True)
+
+        print("Generating new field={} for all {} samples...".format(name,
+            len(kwargs)))
+            
+        nd = len(ivar)
+        shape = [len(kwargs)]
+        for k, dim in enumerate(range(nd)):
+            shape.append(len(ivar[k][1]))
+            
+        fn = '{0!s}.blob_{1}d.{2!s}.pkl'.format(self.prefix, nd, name)
+        
+        if os.path.exists(fn) and (not clobber):
+            print(('{!s} exists! Set clobber=True or remove by ' +\
+                'hand.').format(fn))    
+            return
+            
+        pb = ProgressBar(len(kwargs), name=name)
+        pb.start()
+        
+        all_results = -99999 * np.ones(shape)
+        for k, kw in enumerate(kwargs):
+            
+            if k < skip:
+                continue
+            
+            if k % size != rank:
+                continue
+            
+            result = func(ivar, **kw)
+            all_results[k] = result
+                        
+            pb.update(k)
+            
+        pb.finish()    
+            
+        if size > 1:
+            tmp = np.zeros_like(all_results)
+            nothing = MPI.COMM_WORLD.Allreduce(all_results, tmp)
+            all_results = tmp 
+        
+        if rank > 0:
+            return
+                    
+        write_pickle_file(all_results, fn, open_mode='w', ndumps=1,\
+            safe_mode=False, verbose=False)
         
     def DeriveBlob(self, func=None, fields=None, expr=None, varmap=None, 
         save=True, ivar=None, name=None, clobber=False):

@@ -1161,7 +1161,7 @@ class ModelFit(FitBase):
         assert type(value) in [int, bool]
         self._debug = value
         
-    def _reinitialize_walkers(self, chain, logL):
+    def _reinitialize_walkers(self, chain, logL, burn_method=0):
         """
         Re-initialize walkers after burn-in. 
         
@@ -1189,7 +1189,12 @@ class ModelFit(FitBase):
         mlpt = chain[np.argmax(logL)]
         orig = mlpt.copy()
         sigm = np.std(chain, axis=0)
-    
+        
+        # If burn_method==1, just re-initialize all walkers around
+        # max-likelihood point with jitter, not standard deviation of samples
+        if burn_method == 1:
+            return sample_ball(mlpt, self.jitter, size=self.nwalkers)
+           
         # Find out if max likelihood point is within the bulk of 
         # the distribution.
         j = 0
@@ -1218,7 +1223,7 @@ class ModelFit(FitBase):
         # Add the systematic difference between the PDF and best fit?
         syst = abs(chain[np.argmax(logL)] - mlpt) * 0.5
         
-        pos = sample_ball(mlpt, sigm + syst, size=self.nwalkers)   
+        pos = sample_ball(mlpt, sigm + syst, size=self.nwalkers)           
         
         if not np.all(mlpt == orig):
             if j+1 == 2:
@@ -1235,7 +1240,7 @@ class ModelFit(FitBase):
         return pos
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500, reboot=False, recenter=False):
+        save_freq=500, reboot=False, recenter=False, burn_method=0):
         """
         Run MCMC.
 
@@ -1335,7 +1340,7 @@ class ModelFit(FitBase):
                 
                 self.run(prefix, steps=steps, burn=0, clobber=False, 
                     restart=True, save_freq=save_freq, 
-                    reboot=self.counter < reboot)
+                    reboot=self.counter < reboot, burn_method=burn_method)
 
         else:
             self.pool = None
@@ -1445,6 +1450,10 @@ class ModelFit(FitBase):
         ##
         if (burn > 0) and (not restart):
             
+            if burn_method == 1:
+                if not hasattr(self, '_jitter'):
+                    raise AttributeError("Must set jitter!")
+            
             print("Starting burn-in: {!s}".format(time.ctime()))
             
             t1 = time.time()
@@ -1455,7 +1464,7 @@ class ModelFit(FitBase):
 
             print("Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
           
-            pos = self._reinitialize_walkers(pos, prob)
+            pos = self._reinitialize_walkers(pos, prob, burn_method)
             self.sampler.reset()
             gc.collect()
         elif not restart:

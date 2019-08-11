@@ -383,7 +383,7 @@ _dust_screen_dpl = \
 
 _dust_screen_dpl.update(_dust_kappa)
 
-_dust_patchy = _dust_screen_dpl.copy()
+_dust_patchy = _dust_screen_pl.copy()
 _dust_patchy.update(_dust_fcov)
 
 _dust_patchy['pq_func_par2[25]'] = 'pq[26]'
@@ -393,7 +393,7 @@ _dust_patchy['pq_func_par0[26]'] = 10.8
 _dust_patchy['pq_func_par1[26]'] = 5.
 _dust_patchy['pq_func_par2[26]'] = 0.
 
-_dust_destroy = \
+_dust_destroy_ = \
 {
  "pop_dust_yield": 'pq[27]',
  "pq_func[27]": 'pl',
@@ -410,6 +410,9 @@ _dust_destroy = \
  'pq_func_par1[28]': 5.,
  'pq_func_par2[28]': 0.,       
 }
+
+_dust_destroy = _dust_screen_pl.copy()
+_dust_destroy.update(_dust_destroy_)
 
 _dust_growth = \
 {
@@ -428,6 +431,39 @@ _dust_growth = \
  'pq_func_par2[30]': 0.,   
     
 }
+
+_dust_composition_ = \
+{
+ 'pq_func_par2[20]': 'pq[31]',
+ 'pq_func[31]': 'pl',
+ 'pq_func_var[31]': 'Mh',
+ 'pq_func_par0[31]': -1.,
+ 'pq_func_par1[31]': 1e10,
+ 'pq_func_par2[31]': 0.,
+}
+
+_dust_composition = _dust_screen_pl.copy()
+_dust_composition.update(_dust_composition_)
+
+_dust_scatter_ = \
+{
+ "pop_dust_scatter": 'pq[33]',
+ 'pq_func[33]': 'pl',
+ 'pq_func_var[33]': 'Mh',
+ 'pq_func_par0[33]': 'pq[34]',
+ 'pq_func_par1[33]': 1e10,
+ 'pq_func_par2[33]': 0.,
+    
+ "pq_func[34]": 'pl',
+ 'pq_func_var[34]': '1+z',
+ 'pq_func_par0[34]': 0.3,
+ 'pq_func_par1[34]': 5.,
+ 'pq_func_par2[34]': 0.,
+}
+
+_dust_scatter = _dust_screen_pl.copy()
+_dust_scatter.update(_dust_scatter_)
+
 
 #_physical_dc_screen_tanh = _physical_dc_screen.copy()
 #_physical_dc_patchy_tanh = _physical_dc_patchy.copy()
@@ -502,7 +538,6 @@ _planck2015 = \
  "primordial_index": 0.9667,
 }
 
-
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -514,9 +549,9 @@ _Bundles = \
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl, 
-    'screen-dpl': _dust_screen_dpl, 
+    'screen-dpl': _dust_screen_dpl,
     'patchy': _dust_patchy, 'destruction': _dust_destroy, 'growth': _dust_growth,
-    },
+    'composition': _dust_composition, 'scatter': _dust_scatter},
  'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,

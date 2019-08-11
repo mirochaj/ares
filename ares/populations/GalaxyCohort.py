@@ -1632,7 +1632,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.tab_M)
                     else:                            
                         raise ValueError('shouldnt happen.')
-                
+            elif self.pf['pop_sfr_model'] == 'sfr-tab':    
+                self._tab_sfr_ = self.pf['pop_sfr']
+                assert self._tab_sfr_.shape == \
+                    (self.halos.tab_z.size, self.halos.tab_M.size)
             else:   
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \

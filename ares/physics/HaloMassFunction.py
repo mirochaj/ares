@@ -343,6 +343,42 @@ class HaloMassFunction(object):
                 
         self._is_loaded = True
         
+        if self.pf['hmf_func'] is not None:
+            if self.pf['verbose']:
+                print("Overriding tabulated HMF in favor of user-supplied ``hmf_func``.")
+            
+            # Look for extra kwargs
+            hmf_kwargs = ['hmf_extra_par{}'.format(i) for i in range(5)]
+            kw = {par:self.pf[par] for par in hmf_kwargs}
+                        
+            self.tab_dndm = self.pf['hmf_func'](**kw)
+            assert self.tab_dndm.shape == (self.tab_z.size, self.tab_M.size), \
+                "Must return dndm in native shape (z, Mh)!"
+                
+            # Need to re-calculate mgtm and ngtm also.
+            self.tab_ngtm = np.zeros_like(self.tab_dndm)
+            self.tab_mgtm = np.zeros_like(self.tab_dndm)
+                        
+            for i, z in enumerate(self.tab_z):
+                ngtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M, 
+                    x=np.log(self.tab_M))
+                mgtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M**2, 
+                    x=np.log(self.tab_M))
+                self.tab_ngtm[i,:] = ngtm_0 \
+                    - cumtrapz(self.tab_dndm[i] * self.tab_M, 
+                        x=np.log(self.tab_M), initial=0.0)
+                self.tab_mgtm[i,:] = mgtm_0 \
+                    - cumtrapz(self.tab_dndm[i] * self.tab_M**2, 
+                        x=np.log(self.tab_M), initial=0.0)
+            
+            # Keep it positive please.
+            self.tab_mgtm = np.maximum(self.tab_mgtm, 1e-70)
+            self.tab_ngtm = np.maximum(self.tab_mgtm, 1e-70)
+            
+            # Reset fcoll
+            if hasattr(self, '_tab_fcoll'):
+                del self._tab_fcoll
+        
     @property
     def pars_cosmo(self):
         return {'Om0':self.cosm.omega_m_0,
@@ -747,7 +783,14 @@ class HaloMassFunction(object):
         else:
             fcoll_spline = None
             
-        self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
+        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
+                    
+        if np.any(np.isnan(self.dfcolldz_tab)):
+            self.dfcolldz_tab[np.isnan(self.dfcolldz_tab)] = tiny_dfcolldz
+            
+            if self.pf['verbose']:
+                print("Some NaNs detected in dfcolldz_tab. Kludging...")
+                    
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
             kind=self.pf['hmf_interp'], 

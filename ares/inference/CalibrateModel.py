@@ -42,7 +42,8 @@ _zcal_smf = [3, 4, 5, 6, 7, 8]
 _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
-acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield']
+acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield', 'scatter',
+    'kappa']
 
 class CalibrateModel(object):
     """
@@ -237,7 +238,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[1]'] = -1.4
                     is_log.extend([True])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-7, 0.), 'pq_func_par0[1]')
+                    ps.add_distribution(UniformDistribution(-7, 1.), 'pq_func_par0[1]')
                     
                     if 'norm' in self.zevol_sfe:
                         free_pars.append('pq_func_par2[1]')
@@ -312,7 +313,7 @@ class CalibrateModel(object):
                 # Normalization of SFE
                 free_pars.extend(['pq_func_par0[41]', 'pq_func_par2[40]'])
                 guesses['pq_func_par0[41]'] = 0.8
-                guesses['pq_func_par2[40]'] = 0.2
+                guesses['pq_func_par2[40]'] = 0.4
                 is_log.extend([False, False])
                 jitter.extend([0.1, 0.1])
                 ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[41]')
@@ -336,7 +337,7 @@ class CalibrateModel(object):
                     free_pars.append('pq_func_par0[23]')
                     guesses['pq_func_par0[23]'] = 1.6
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.5])
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[23]')
                                         
                     if 'norm' in self.zevol_dust:
@@ -409,9 +410,9 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[28]'] = 0.3
                     guesses['pq_func_par2[27]'] = 0.
                     is_log.extend([False, False])
-                    jitter.extend([0.1, 0.5])
+                    jitter.extend([0.1, 1.0])
                     ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[28]')
-                    ps.add_distribution(UniformDistribution(-1.5, 1.5), 'pq_func_par2[27]')
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[27]')
 
                     if 'yield' in self.zevol_dust:
                         free_pars.append('pq_func_par2[28]')
@@ -420,6 +421,36 @@ class CalibrateModel(object):
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[28]')
                       
+                if 'scatter' in self.free_params_dust:
+                    
+                    free_pars.extend(['pq_func_par2[33]', 'pq_func_par0[34]'])
+                    guesses['pq_func_par2[33]'] = 0.0
+                    guesses['pq_func_par0[34]'] = 0.3
+                    is_log.extend([False, False])
+                    jitter.extend([0.1, 0.1])
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[33]')
+                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[34]')
+                
+                    if 'scatter' in self.zevol_dust:
+                        free_pars.append('pq_func_par2[34]')
+                        guesses['pq_func_par2[34]'] = 0.0
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[34]')
+                    
+                
+                if 'kappa' in self.free_params_dust:
+                    free_pars.extend(['pq_func_par2[31]', 'pq_func_par0[31]'])
+                    guesses['pq_func_par2[31]'] = 0.0
+                    guesses['pq_func_par0[31]'] = -1
+                    is_log.extend([False, False])
+                    jitter.extend([0.1, 0.03])
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[31]')
+                    ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par0[31]')
+                               
+                    if 'kappa' in self.zevol_dust:
+                        raise NotImplemented('Cannot do triply nested PQs.')
+                        
             # Set the attributes
             self._parameters = free_pars
             self._guesses = guesses
@@ -534,17 +565,6 @@ class CalibrateModel(object):
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
-
-        # Binary obscuration
-        #if self.include_obsc:
-        #    blob_n2.append('fobsc')
-        #    
-        #    if self.use_ensemble:
-        #        blob_f2.append('guide.fobsc')
-        #    else:
-        #        blob_f2.append('fobsc')
-        #        
-        #    raise NotImplemented('must add to pars')
         
         # SAM stuff
         if self.save_sam:
@@ -555,8 +575,13 @@ class CalibrateModel(object):
                 blob_f = ['guide.SFR', 'SMHM']
             else:
                 blob_f = ['SFR', 'SMHM']
-                
+                    
             blob_k = [{}, {'return_mean_only': True}]    
+            
+            if self.base_kwargs['pop_dust_yield'] is not None:
+                blob_n.append('Md')
+                blob_f.append('XMHM')
+                blob_k.append({'return_mean_only': True, 'field': 'Md'})
             
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -601,18 +626,18 @@ class CalibrateModel(object):
             # By default, MUV refers to 1600 magnitude
             blob_k = [{'return_binned': True, 'cam': ('wfc', 'wfc3'), 
                 'filters': filt_hst, 'dlam': 20.,
-                'Mwave': 1600., 'Mbins': Mbins}]
+                'Mwave': 1600., 'magbins': Mbins}]
                             
             kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam':20., 'rest_wave': None, 'return_binned': True,
                 'Mwave': 1600., 'Mbins': Mbins}
 
-            kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
-                'return_binned': True, 'Mwave': 1600.}
+            #kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
+            #    'return_binned': True, 'Mwave': 1600.}
             
-            blob_f.extend(['Beta'] * 2)
-            blob_n.extend(['beta_hst', 'beta_spec'])
-            blob_k.extend([kw_hst, kw_spec])
+            blob_f.extend(['Beta'])
+            blob_n.extend(['beta_hst'])
+            blob_k.extend([kw_hst])
             
             # Save also the geometric mean of photometry as a function
             # of a magnitude at fixed rest wavelength.
@@ -686,7 +711,7 @@ class CalibrateModel(object):
         
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
-        cache_tricks=False):
+        cache_tricks=False, burn_method=0):
         """
         Create a fitter class and run the fit!
         """
@@ -763,7 +788,7 @@ class CalibrateModel(object):
 
         # RUN
         fitter.run(prefix=prefix, burn=burn, steps=steps, save_freq=save_freq, 
-            clobber=clobber, restart=restart)
+            clobber=clobber, restart=restart, burn_method=burn_method)
         
         
         
