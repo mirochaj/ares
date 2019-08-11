@@ -454,15 +454,12 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
-    
-    # Artificially kill emission in some band.
-    "pop_Ekill": None,
 
+    "pop_Ekill": None,    # see also source_Ekill
     "pop_Emin_xray": 2e2,
     
     # Controls IGM ionization for approximate CXB treatments
     "pop_Ex": 500.,
-    "pop_EminX": 2e2,
     "pop_Euv": 30.,
     
     "pop_lf": None,
@@ -680,9 +677,6 @@ def PopulationParameters():
     "pop_dE": None,
     "pop_dlam": 1.,
     
-    # deprecated?
-    "pop_kappa_UV": 1.15e-28,
-    
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
     
@@ -757,7 +751,7 @@ def SourceParameters():
     "source_multigroup": False,
 
     "source_Emin": 13.6,  
-    "source_Emax": 1e2,  
+    "source_Emax": 1e2,
     "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,

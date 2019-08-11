@@ -200,7 +200,7 @@ class OpticalDepth(object):
         #if not self.pf['source_solve_rte']:
         #    pass
         #elif (kw['Emax'] is None) and self.background.solve_rte[popid] and \
-        #    np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+        #    np.any(self.background.bands_by_pop[popid] > pop.pf['pop_Emin_xray']):
         #    kw['Emax'] = self.background.energies[popid][-1]
     
         return kw    
