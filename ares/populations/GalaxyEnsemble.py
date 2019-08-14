@@ -1099,6 +1099,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         # 't' is in Myr, convert to yr
         dt = np.abs(np.diff(t)) * 1e6
+        dt_myr = dt / 1e6
 
         ##
         # OK. We've got a bunch of halo histories and we need to integrate them
@@ -1250,13 +1251,31 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         if np.any(fd > 0):
                         
+            delay = self.pf['pop_dust_yield_delay']
+                                
             if np.all(fg == 0):
-                if type(fd) in [int, float, np.float64]:
+                if type(fd) in [int, float, np.float64] and delay == 0:
                     Md = fd * fZy * Ms
                 else:
+                    
+                    if delay > 0:
+                        
+                        assert np.allclose(np.diff(dt_myr), 0.0, 
+                            rtol=1e-5, atol=1e-5)
+
+                        shift = int(delay // dt_myr[0])
+                        
+                        # Need to fix so Mh-dep fd can still work.
+                        assert type(fd) in [int, float, np.float64]
+                        
+                        DPR = np.roll(SFR, shift, axis=1)[:,0:-1] \
+                            * dt * fZy * fd
+                        DPR[:,0:shift] = 0.0
+                    else:
+                        DPR = SFR[:,0:-1] * dt * fZy * fd[:,0:-1]
+                    
                     Md = np.hstack((zeros_like_Mh,
-                        np.cumsum(SFR[:,0:-1] * dt * fZy * fd[:,0:-1], 
-                        axis=1)))
+                        np.cumsum(DPR, axis=1)))
             else:       
                                 
                 # Handle case where growth in ISM is included.
@@ -1967,7 +1986,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Can return binned (in MUV) version
         if return_binned:
             if Mbins is None:
-                Mbins = np.arange(-30, -10, 0.25)
+                Mbins = np.arange(-30, -10, 1.)
 
             nh = self.get_field(z, 'nh')
             

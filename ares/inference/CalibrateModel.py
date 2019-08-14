@@ -618,7 +618,7 @@ class CalibrateModel(object):
         # MUV-Beta
         if self.save_beta != False:
             
-            Mbins = np.arange(-30, -10, 0.1)
+            Mbins = np.arange(-30, -10, 0.5)
             
             blob_n = ['AUV']
             blob_i = [('z', red_beta), ('MUV', MUV)]

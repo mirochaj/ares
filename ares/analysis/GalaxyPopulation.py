@@ -224,7 +224,8 @@ class GalaxyPopulation(object):
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10], 
         z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, **kwargs):
+        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, 
+        dmag=0.5, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -346,7 +347,7 @@ class GalaxyPopulation(object):
         ##
         Ms = np.arange(6, 13.25, 0.25)
         mags = np.arange(-25, -12, 0.1)
-        mags_cr = np.arange(-25, -10, 0.25)
+        mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
         calzetti = read_lit('calzetti1994').windows
@@ -381,8 +382,8 @@ class GalaxyPopulation(object):
              
             if beta_phot:
                 beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                dlam=20.)
+                    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                    dlam=20.)
             else:
                 beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     rest_wave=(1600., 3000.), dlam=20.)
@@ -394,10 +395,11 @@ class GalaxyPopulation(object):
             
             if show_Mstell:
                 
-                _beta_c94 = pop.Beta(z, Mwave=1600., return_binned=False,
+                _beta_c94 = pop.Beta(z, return_binned=False,
                     cam='calzetti', filters=calzetti, dlam=10., rest_wave=None)
 
-                # Need to interpolate between Ms and MUV
+                # _beta_c94 is 'raw', i.e., unbinned UV slopes for all halos.
+                # Just need to bin as function of stellar mass.
                 _Ms = pop.get_field(z, 'Ms')
                 _nh = pop.get_field(z, 'nh')
                 _x, _b, _err = bin_samples(np.log10(_Ms), _beta_c94, Ms, 
@@ -422,7 +424,7 @@ class GalaxyPopulation(object):
             ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
             
             if i > 0:
-                ax.set_ylabel(r'$\beta$')
+                ax.set_ylabel(r'$\beta_{\mathrm{hst}}$')
                 ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
@@ -439,15 +441,14 @@ class GalaxyPopulation(object):
                     else:
                         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                             
-                    
-                ax.yaxis.set_ticks_position('both')    
+                ax.yaxis.set_ticks_position('both')
             else:
                 ax.set_xlabel(r'$M_{1600}$')
                 ax.set_ylabel(labels['galaxy_lf'])
                 ax.set_ylim(1e-7, 1e-1)
                             
         if label is not None:
-            ax_uvlf.legend(loc='upper left', fontsize=12, frameon=True)                    
+            ax_uvlf.legend(loc='upper left', fontsize=12, frameon=True)
                             
         if show_Mstell:
             ax_smf.set_xlabel(r'$M_{\ast} / M_{\odot}$')
@@ -458,7 +459,7 @@ class GalaxyPopulation(object):
             for i, ax in enumerate([ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]):     
                 ax.set_xscale('log')
                 ax.set_xlim(1e7, 1e11)
-                ax.set_ylabel(r'$\beta$')
+                ax.set_ylabel(r'$\beta_{\mathrm{c94}}$')
                 ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
@@ -856,7 +857,11 @@ class GalaxyPopulation(object):
                     print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
                         source, data[source]['wavelength'], wavelength))
             #else:
-            shift = 0.    
+            if source in ['stefanon2017']:
+                shift = 0.25
+                print("Shifting stefanon stellar masses by 0.25 dex (Chabrier -> Salpeter)")
+            else:    
+                shift = 0.    
                           
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
@@ -1119,11 +1124,12 @@ class GalaxyPopulation(object):
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
             
+            mags1500 = pop.Magnitude(z, wave=1500.)
             mags = pop.Magnitude(z, wave=1600.)
             beta = pop.Beta(z, Mwave=1600., return_binned=False)
             
-            # MUV-Mstell
-            _x, _y, _z = bin_samples(mags, np.log10(Ms), Mbins)
+            # M1500-Mstell
+            _x, _y, _z = bin_samples(mags1500, np.log10(Ms), Mbins)
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'
@@ -1567,7 +1573,6 @@ class GalaxyPopulation(object):
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
         
         redshifts = [4, 6, 8, 10]
@@ -1667,7 +1672,7 @@ class GalaxyPopulation(object):
 
         
         ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
-        ax_MsMUV.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_MsMUV.set_xlabel(r'$M_{1500}$')
 
         ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')

@@ -150,7 +150,7 @@ class loglikelihood(LogLikelihood):
                     
                     zstr = int(round(z))
                     
-                    if zstr >= 6:
+                    if zstr >= 7:
                         filt_hst = hst_deep
                     else:
                         filt_hst = hst_shallow
