@@ -360,7 +360,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
                 * N_per_Msun * erg_per_phot    
-                
+
+            # For de-bugging purposes
             if not hasattr(self, '_yield_by_band'):
                 self._yield_by_band = {}  
                 self._fesc_by_band = {}
@@ -841,7 +842,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # by scaling the SFRD.
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
-
+        
         else:
             # Here, the radiation backgrounds cannot just be scaled. 
             # Note that this method can always be used, it's just less 

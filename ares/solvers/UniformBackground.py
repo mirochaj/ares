@@ -1192,23 +1192,14 @@ class UniformBackground(object):
                 if np.any(epsilon[:,in_band==1] > 0):
                     raise ValueError("Non-zero elements already!")
                 
-                
                 if not np.any(in_band):
                     continue
                                         
-                # Setup interpolant
-                # If there's an attribute error here, it probably means
-                # is_emissivity_scalable isn't being set correctly.
-                rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
-                                
-                if rho_L is None:
-                    continue    
 
                 # By definition, rho_L integrates to unity in (b[0], b[1]) band
                 # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band, 
                 # hence the 'fix'.
 
-                rho = rho_L(z)
                 for ll, redshift in enumerate(z):
                     
                     if (redshift < self.pf['final_redshift']):
@@ -1222,7 +1213,10 @@ class UniformBackground(object):
                     if redshift > self.pf['first_light_redshift']:
                         continue
                             
-                    epsilon[ll,in_band==1] = fix * rho[ll] \
+                    # Use Emissivity here rather than rho_L because only
+                    # GalaxyCohort objects will have a rho_L attribute.
+                    epsilon[ll,in_band==1] = fix \
+                        * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
 
                 ct += 1
