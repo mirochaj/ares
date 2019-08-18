@@ -1133,11 +1133,13 @@ class GalaxyPopulation(object):
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'
-            if pop.pf['pop_dust_yield'] == 0:
+            if pop.pf['pop_dust_yield'] in [0, None]:
                 xa_f.append(0)
                 xa_b.append(0)
                 
-                ax_bet.plot(Mbins, dc1.Beta(z, Mbins), color=colors[j])
+                if pop.pf['dustcorr_method'] is not None:
+                    print("dustcorr_method={}".format(pop.pf['dustcorr_method']))                
+                    ax_bet.plot(Mbins, dc1.Beta(z, Mbins), color=colors[j])
                 
                 continue
                 

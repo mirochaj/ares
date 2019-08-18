@@ -404,6 +404,7 @@ def PopulationParameters():
     "pop_interp_lf": 'linear',
     
     "pop_tdyn": 1e7,
+    "pop_tstar": None,
     "pop_sSFR": None,
 
     "pop_uvlf": None,

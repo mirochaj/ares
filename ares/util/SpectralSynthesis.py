@@ -395,7 +395,8 @@ class SpectralSynthesis(object):
     def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all', 
         filter_set=None, dlam=10., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None, 
-        hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.):
+        hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
+        ospec=None, owaves=None):
         """
         Just a wrapper around `Spectrum`.
 
@@ -508,22 +509,28 @@ class SpectralSynthesis(object):
             l2 = lmax + lbuffer
             
             waves = np.arange(l1, l2+dlam, dlam)
-                
+                    
         # Get spectrum first.
-        if spec is None:
+        if (spec is None) and (ospec is None):
             spec = self.Spectrum(sfh, waves, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
                 idnum=idnum, extras=extras, window=window)
+                
+            # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
+            wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
+                waves=waves, extras=extras, window=window)    
+          
+        elif ospec is not None:
+            flux_obs = ospec
+            wave_obs = owaves
+        else:
+            raise ValueError('This shouldn\'t happen')  
             
         # Might be running over lots of galaxies
         batch_mode = False 
-        if spec.ndim == 2:
+        if flux_obs.ndim == 2:
             batch_mode = True    
-
-        # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
-        wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
-            waves=waves, extras=extras, window=window)
-            
+                    
         # Convert microns to cm. micron * (m / 1e6) * (1e2 cm / m)
         freq_obs = c / (wave_obs * 1e-4)
                     

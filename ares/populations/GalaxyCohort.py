@@ -32,7 +32,7 @@ from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
     LinearNDInterpolator
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc
+    k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA
     
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -320,9 +320,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_rho_L'):
             self._rho_L = {}
         
-        if not hasattr(self, '_yield_per_sfr_for_rho'):
-            self._yield_per_sfr_for_rho = {}    
-    
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_L:
             return self._rho_L[(Emin, Emax)]     
@@ -343,7 +340,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise ValueError('help!')
 
         need_sam = False
-
+                
         # For all halos. Reduce to a function of redshift only by passing
         # in the array of halo masses stored in 'halos' attribute.
         if Emax <= 24.6:
@@ -351,19 +348,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
-            
+                   
             # Get an array for fesc
-            if (Emin, Emax) == (13.6, 24.6):
-            #if self.is_src_uv:
+            if Emin in [13.6, E_LL]:
+                # Doesn't matter what Emax is
                 fesc = lambda **kwargs: self.fesc(**kwargs)
-            #elif (self.is_src_lw or self.is_src_lya):
-            elif (Emin, Emax) == (10.2, 13.6):
+            elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None
-  
+                        
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
-                * N_per_Msun * erg_per_phot            
+                * N_per_Msun * erg_per_phot    
+                
+            if not hasattr(self, '_yield_by_band'):
+                self._yield_by_band = {}  
+                self._fesc_by_band = {}
+            
+            if (Emin, Emax) not in self._yield_by_band:
+                self._yield_by_band[(Emin, Emax)] = yield_per_sfr
+                self._fesc_by_band[(Emin, Emax)] = fesc
 
         else:
             # X-rays separate because we never have lookup table.
@@ -382,9 +386,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             yield_per_sfr = lambda **kwargs: self.rad_yield(**kwargs) \
                 * s_per_yr
-
-        self._yield_per_sfr_for_rho[(Emin, Emax)] = yield_per_sfr
-
+                
         ok = ~self._tab_sfr_mask
         tab = np.zeros(self.halos.tab_z.size)
         for i, z in enumerate(self.halos.tab_z):
@@ -411,7 +413,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 kw = {'z': z, 'Mh': self.halos.tab_M}
 
             integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * yield_per_sfr(**kw) * ok[i]
+                * self._tab_focc[i] * yield_per_sfr(**kw) * ok[i]
 
             _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
             _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
@@ -432,8 +434,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     * self._tab_nh_at_Mmin * self._tab_Mmin \
                     * y / s_per_yr / cm_per_mpc**3
             else:
+                
+                if not np.all(self._tab_eta == 1):
+                    raise NotImplemented('Needs fixing! Shape issue.')
+                
+                eta = 1.
+                
                 active = 1. - self.fsup(z=self.halos.tab_z)  
-                thresh = active * self._tab_eta * \
+                thresh = active * eta * \
                     self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
                     * self._tab_fstar_at_Mmin * self._tab_Mmin \
                     * self._tab_nh_at_Mmin * y \
@@ -441,10 +449,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
             tab += thresh
         
-        self._rho_L[(Emin, Emax)] = interp1d(self.halos.tab_z, tab, 
+        _Emin = round(Emin, 1)
+        _Emax = round(Emax, 1)
+        
+        self._rho_L[(_Emin, _Emax)] = interp1d(self.halos.tab_z, tab, 
             kind=self.pf['pop_interp_sfrd'])
     
-        return self._rho_L[(Emin, Emax)]
+        return self._rho_L[(_Emin, _Emax)]
     
     def rho_N(self, z, Emin, Emax):
         """
@@ -457,7 +468,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         if not hasattr(self, '_rho_N'):
             self._rho_N = {}
-        
+                    
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_N:    
             return self._rho_N[(Emin, Emax)](z)
@@ -466,7 +477,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         # For all halos
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
-        
+                                        
         if (Emin, Emax) == (13.6, 24.6):
             fesc = self.fesc(z=z, Mh=self.halos.tab_M)
         elif (Emin, Emax) == (10.2, 13.6):
@@ -477,7 +488,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ok = ~self._tab_sfr_mask
         for i, z in enumerate(self.halos.tab_z):
             integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * N_per_Msun * fesc * ok[i]
+                * self._tab_focc[i] * N_per_Msun * fesc * ok[i]
     
             tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
             cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
@@ -818,7 +829,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-
+        
         on = self.on(z)
         if not np.any(on):
             return z * on
@@ -1149,7 +1160,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         iz = np.argmin(np.abs(z - self.halos.tab_z))
         
         if abs(z - self.halos.tab_z[iz]) < ztol:
-            dndm = self.halos.tab_dndm[iz,:-1]
+            dndm = self.halos.tab_dndm[iz,:-1] * self._tab_focc[iz,:-1]
         else:
             dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1], 
                 axis=0, kind=self.pf['pop_interp_lf'])
@@ -1636,6 +1647,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_sfr_ = self.pf['pop_sfr']
                 assert self._tab_sfr_.shape == \
                     (self.halos.tab_z.size, self.halos.tab_M.size)
+            elif self.pf['pop_sfr_model'] == '21cmfast':
+                Mb = self.cosm.fbar_over_fcdm * self.halos.tab_M
+                fst = self._tab_fstar
+                tstar = self.pf['pop_tstar']
+                H = self.cosm.HubbleParameter(self.halos.tab_z) * s_per_yr
+                self._tab_sfr_ = np.array([Mb * fst[i] * H[i] / tstar \
+                    for i in range(H.size)])
             else:   
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \

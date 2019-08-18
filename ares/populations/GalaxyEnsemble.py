@@ -1173,66 +1173,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 off = r >= fduty
                 SFR[off==True] = 0
-            
-        # 50% duty cycle
-        #fduty = np.minimum(0.3 * (Mh / 1e10)**0.3, 1.)
-        #delt = 30e6 * (Mh / 1e10)**0.4
-        #
-        #di = 0.5 * delt / np.hstack(([0], dt))[None,:]
-        #
-        #rand = np.reshape(np.random.rand(Mh.size), Mh.shape)
-        #
-        ###
-        ## Method 1:
-        ##
-        #Pon = (fduty / delt) * np.hstack(([0], dt))[None,:]
-        #
-        #r = np.reshape(np.random.rand(Mh.size), Mh.shape)
-        #
-        ## Discrete events
-        #on = np.array(r < Pon, dtype=int)
-        #
-        ## Pad by `delt` interval
-        #a = np.argwhere(on == 1)
-        #        
-        #for ij in a:
-        #    iM, iz = ij
-        #    
-        #    l = int(di[iM,iz])
-        #    
-        #    on[iM,iz-l:iz+l+1] = 1
-        #    
-        ##on = np.array(np.logical_not(off), dtype=int)
-        #    
-        #SFR = SFR * on
         
-        ## 
-        # Can quench star formation
-        ##
-        #if self.pf['pop_quench'] is not None:
-        #    if type(self.pf['pop_quench']) in [int, float, np.float64]:
-        #        #t0 = np.interp(self.pf['pop_quench'], Mh, t)
-        #        if self.pf['pop_quench_by'].lower() == 'sfr':
-        #            qok = SFR >= self.pf['pop_quench']
-        #            qcorr = np.ones_like(Mh)
-        #                                
-        #            i0 = np.argmin(np.abs(SFR - self.pf['pop_quench']), axis=1)
-        #            t0 = np.array([t[i] for i in i0])
-        #            
-        #            
-        #            qcorr[qok] = np.exp(-(SFR[qok] / self.pf['pop_quench']))
-        #        else:    
-        #            qok = Mh >= self.pf['pop_quench']
-        #            qcorr = np.ones_like(Mh)
-        #            qcorr[qok] = np.exp(-(Mh[qok] / self.pf['pop_quench'])**0.2)
-        #    else:    
-        #        qcorr = self.guide.quench(z=z2d, Mh=Mh)
-        #else:
-        #    qcorr = 1.
-
-        #SFR *= qcorr
-            
+        # Never do this!                
         if self.pf['conserve_memory']:
+            raise NotImplemented('this is deprecated')
             dtype = np.float32
         else:
             dtype = np.float64
@@ -1359,7 +1303,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pass
             else:    
                 
-                print("Looping over {} halos...".format(Mh.shape[0]))                
+                print("Looping over {} halos...".format(Mh.shape[0]))         
                                 
                 pb = ProgressBar(Mh.shape[0])
                 pb.start()
