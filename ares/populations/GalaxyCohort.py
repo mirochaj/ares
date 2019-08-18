@@ -1721,8 +1721,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if z > self.zform:
                     continue
 
-                integrand = self.halos.tab_dndlnm[i] \
-                    * self.focc(z=z, Mh=self.halos.tab_M)
+                integrand = self.halos.tab_dndlnm[i] * self._tab_focc[k,:]
 
                 # Mmin and Mmax will never be exactly on Mh grid points 
                 # so we interpolate to more precisely determine SFRD.    
@@ -1935,7 +1934,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_focc(self):
         if not hasattr(self, '_tab_focc_'):
             yy, xx = self._tab_Mz
-            self._tab_focc_ = self.focc(z=xx, Mh=yy)
+            focc = self.focc(z=xx, Mh=yy)
+            
+            if type(focc) in [int, float, np.float64]:
+                self._tab_focc_ = focc * np.ones_like(self.halos.tab_dndm)
+            else:
+                self._tab_focc_ = focc
+            
         return self._tab_focc_
     
     def SFRD_within(self, z, Mlo, Mhi=None, is_mag=False):
