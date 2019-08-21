@@ -516,6 +516,28 @@ class Cosmology(object):
         
         return integr * c * (1. + z) / self.hubble_0
         
+    def DifferentialRedshiftElement(self, z, dl):
+        """
+        Given a redshift and a LOS distance, return the corresponding dz.
+        
+        Parameters
+        ----------
+        z0 : int, float
+            Redshift.
+        dl : int, float
+            Distance in Mpc.
+        """
+        
+        if not self.approx_highz:
+            raise NotImplemented('sorry!')
+            
+        dz = ((1. + z)**-0.5 \
+           - dl * cm_per_mpc * self.hubble_0 * np.sqrt(self.omega_m_0) / 2. / c)**-2 \
+           - (1. + z)
+            
+           
+        return dz
+        
     def ComovingRadialDistance(self, z0, z):
         """
         Return comoving distance between redshift z0 and z, z0 < z.

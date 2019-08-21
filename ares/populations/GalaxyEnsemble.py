@@ -195,6 +195,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         raw = self.load()
 
         thin = self.pf['pop_thin_hist']
+        
+        if thin > 1:
+            assert self.pf['pop_histories'] is None, \
+                "Set pop_thin_hist=pop_scatter_mar=0 if supplying pop_histories by hand."
 
         sigma_mar = self.pf['pop_scatter_mar']
         sigma_env = self.pf['pop_scatter_env']
@@ -1779,14 +1783,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if z > raw['z'][izobs]:
             # Go to one grid point lower redshift
             izobs += 1
-                           
+
         izobs = min(izobs, len(raw['z']) - 2)                   
-                                            
+
         ##
         # Run in batch.
         L = self.Luminosity(z, wave=wave, band=band)
         ##    
-        
+
         zarr = raw['z']         
         tarr = raw['t']
 
@@ -2182,7 +2186,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 prefix = fn_hist.split('.pkl')[0]
                 zall, traj_all = pickle.load(f)
                 f.close()
-                
+                print("Loaded {}.".format(fn_hist))
                 hist = traj_all
                       
             elif fn_hist.endswith('.hdf5'):
@@ -2204,8 +2208,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 zall = hist['z']
                 
-                
                 f.close()
+                print("Loaded {}.".format(fn_hist))
                 
             else:
                 # Assume pickle?
@@ -2213,6 +2217,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 prefix = fn_hist
                 zall, traj_all = pickle.load(f)
                 f.close()
+                print("Loaded {}.".format(fn_hist+'.pkl'))
             
                 hist = traj_all
                 
@@ -2228,6 +2233,68 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             hist = None
             
         return hist
+        
+    def SaveCatalog(self, prefix, redshifts=None, waves=None, fields=None,
+        dlam=20., filters=None, save_spec=True):
+        """
+        Create a galaxy catalog over a series of redshifts.
+        """
+                        
+        hist = self.histories
+        zarr = hist['z']
+        tarr = hist['t']
+        
+        if redshifts is None:
+            zmin = round(min(zarr))
+            redshifts = np.arange(zmin, 13, 1.)
+        
+        if waves is None:
+            waves = np.arange(40., 3000.+dlam, dlam)
+        
+        if fields is None:
+            fields = 'Mh', 'Ms', 'SFR', 'Md'
+            # Also, MUV, beta....
+        
+        for i, z in enumerate(redshifts):
+            
+            _iz = np.argmin(np.abs(z - zarr))
+            if zarr[_iz] > z:
+                _iz -= 1
+            zactual = zarr[_iz]    
+            
+            ##
+            # Save spectra
+            if save_spec:
+                spec = self.synth.Spectrum(hist['SFR'], waves, zarr=zarr, 
+                    window=1, zobs=zactual, units='Hz', hist=hist)
+                    
+                fn_spec = '{}.z={}.spec.hdf5'.format(prefix, zactual)    
+                    
+                with h5py.File(fn_spec, 'w') as f:
+                    ds = f.create_dataset('spec', data=spec)
+                    ds = f.create_dataset('wave', data=waves)
+                print("Wrote {}.".format(fn_spec))
+            
+            ##
+            # Save basics
+            fn_prop = '{}.z={}.prop.hdf5'.format(prefix, zactual)    
+                
+            with h5py.File(fn_prop, 'w') as f:
+                pass
+            print("Wrote {}.".format(fn_prop))    
+            
+            if filters is None:
+                continue
+                
+            fn_phot = '{}.z={}.phot.hdf5'.format(prefix, zactual)    
+            with h5py.File(fn_phot, 'w') as f:
+                pass
+            print("Wrote {}.".format(fn_phot))
+            
+            
+        # Save files with galaxy properties ('prop') and spectra ('spec').
+        # Could derive photometry and beta later.
+            
     
     def save(self, prefix, clobber=False):
         """

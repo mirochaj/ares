@@ -927,8 +927,11 @@ class SpectralSynthesis(object):
             else:    
                 slc = slice(0, izobs+1)
                 
-            assert zarr.min() <= zobs <= zarr.max(), \
-                "Requested time of observation (`tobs`) not in supplied range!"
+            if not (zarr.min() <= zobs <= zarr.max()):
+                if batch_mode:
+                    return np.ones(sfh.shape[0]) * -99999
+                else:
+                    return -99999
                                 
         fill = np.zeros(1)
         tyr = tarr * 1e6

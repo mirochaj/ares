@@ -18,6 +18,7 @@ _base = \
  'pop_calib_L1600{0}': None,
  'pop_Z{0}': 0.002, 
  'pop_zdead{0}': 3.5,
+ 'pop_synth_cache_level{0}': 0,    # 1 = more careful
  
  # Metallicity evolution!?
  'pop_enrichment{0}': False,

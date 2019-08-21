@@ -85,6 +85,9 @@ class GalaxyPopulation(object):
         Create a master dictionary containing the MUV points, phi points,
         and (possibly asymmetric) errorbars for all (or some) data available.
         
+        .. note:: Since we store errorbars in +/- order (if asymmetric), but
+            matplotlib.pyplot.errorbar assumes -/+ order, we swap the order here.
+        
         Parameters
         ----------
         z : int, float
@@ -132,9 +135,7 @@ class GalaxyPopulation(object):
             data[source] = {}
             
             if quantity in ['lf']:
-                data[source]['wavelength'] = src.wavelength
-                        
-            
+                data[source]['wavelength'] = src.wavelength            
                         
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
@@ -337,7 +338,7 @@ class GalaxyPopulation(object):
             if z in f12.data['beta']:    
                 err = f12.data['beta'][z]['err']
                 ax_cMs[j].errorbar(10**f12.data['beta'][z]['Ms'], 
-                    f12.data['beta'][z]['beta'], err.T, 
+                    f12.data['beta'][z]['beta'], err.T[-1::-1], 
                     fmt='o', color=colors[z], 
                     label=r'Finkelstein+ 2012' if j == 0 else None,
                     **mkw)
@@ -1026,7 +1027,7 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
     def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        fresh=False, **kwargs):
+        fresh=False, redshifts=None, **kwargs):
         """
         Make a huge plot.
         """
@@ -1038,18 +1039,18 @@ class GalaxyPopulation(object):
             gotax = True
 
         if not gotax:
-            self._MegaPlotCalData(axes)
-            self._MegaPlotPredData(axes)
-            self._MegaPlotGuideEye(axes)
+            self._MegaPlotCalData(axes, redshifts=redshifts)
+            self._MegaPlotPredData(axes, redshifts=redshifts)
+            self._MegaPlotGuideEye(axes, redshifts=redshifts)
 
         if isinstance(pop, GalaxyEnsemble):
-            self._MegaPlotPop(axes, pop)
+            self._MegaPlotPop(axes, pop, redshifts=redshifts)
         elif hasattr(pop, 'chain'):
             if fresh:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
                 pop = GP(**bkw)
-                self._MegaPlotPop(axes, pop)
+                self._MegaPlotPop(axes, pop, redshifts=redshifts)
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
@@ -1060,7 +1061,7 @@ class GalaxyPopulation(object):
         
         return axes
         
-    def _MegaPlotPop(self, kw, pop, **kwargs):
+    def _MegaPlotPop(self, kw, pop, redshifts=None, **kwargs):
         
         
         ax_sfe = kw['ax_sfe']
@@ -1078,11 +1079,14 @@ class GalaxyPopulation(object):
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        _mst  = np.arange(6, 12, 0.2)
+        _mst = np.arange(6, 14, 0.2)
+        _mh = np.logspace(6, 13, 100)
         _mags = np.arange(-25, -10, 0.2)
         
-        redshifts = [4, 6, 8, 10]
-        colors = ['k', 'b', 'c', 'm']
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
@@ -1090,25 +1094,29 @@ class GalaxyPopulation(object):
         xa_b = []
         xa_f = []
         for j, z in enumerate(redshifts):
-            
+                        
             # UVLF
             phi = pop.LuminosityFunction(z, _mags)
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
-                    
+            
             # Binned version
             Mbins = np.arange(-25, -10, 1.0)
-            _beta = pop.Beta(z, Mwave=1600, return_binned=True,
-                Mbins=Mbins)
+            if pop.pf['pop_dust_yield'] is not None:
+                _beta = pop.Beta(z, Mwave=1600, return_binned=True,
+                    Mbins=Mbins)
+            else:
+                _beta = np.zeros_like(Mbins)        
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
             SFR = pop.get_field(z, 'SFR')
-            SFE = pop.guide.SFE(z=z, Mh=Mh)
             
-            ax_sfe.loglog(Mh, SFE, color=colors[j], alpha=0.8,
+            SFE = pop.guide.SFE(z=z, Mh=_mh)
+                        
+            ax_sfe.loglog(_mh, SFE, color=colors[j], alpha=0.8,
                 label=r'$z={}$'.format(z))
                 
-            if pop.pf['pop_scatter_mar'] > 0:
+            if (pop.pf['pop_scatter_mar'] > 0) or (pop.pf['pop_histories'] is not None):
                 _bins = np.arange(7, 12.1, 0.1)
                 x, y, std = bin_samples(np.log10(Ms), np.log10(SFR), _bins)
                 ax_sfms.loglog(10**x, 10**y, color=colors[j])
@@ -1126,7 +1134,10 @@ class GalaxyPopulation(object):
             
             mags1500 = pop.Magnitude(z, wave=1500.)
             mags = pop.Magnitude(z, wave=1600.)
-            beta = pop.Beta(z, Mwave=1600., return_binned=False)
+            if pop.pf['pop_dust_yield'] is not None:
+                beta = pop.Beta(z, Mwave=1600., return_binned=False)
+            else:
+                beta = np.zeros_like(mags)
             
             # M1500-Mstell
             _x, _y, _z = bin_samples(mags1500, np.log10(Ms), Mbins)
@@ -1143,7 +1154,7 @@ class GalaxyPopulation(object):
                 
                 continue
                 
-            ax_bet.plot(Mbins, _beta, color=colors[j])    
+            ax_bet.plot(Mbins, _beta, color=colors[j])
             
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
@@ -1220,7 +1231,7 @@ class GalaxyPopulation(object):
         _mags = np.arange(-25, -10, 0.2)
 
         redshifts = [4, 6, 8, 10]
-        colors = ['k', 'b', 'c', 'm']
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
 
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
@@ -1254,6 +1265,12 @@ class GalaxyPopulation(object):
             #else:
             new_x = None
             
+            anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
+                color=colors[j], **kwargs)
+                
+            if anl.base_kwargs['pop_dust_yield'] is None:
+                continue
+            
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
                 color=colors[j], new_x=new_x, **kwargs)
             
@@ -1264,10 +1281,7 @@ class GalaxyPopulation(object):
             
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
                 color=colors[j], **kwargs)
-                
-            anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
-                color=colors[j], **kwargs)
-        
+                        
             anl.ReconstructedFunction('dust_scale', ivar=[z, None], ax=ax_rdu,
                 color=colors[j], **kwargs)
             
@@ -1401,7 +1415,7 @@ class GalaxyPopulation(object):
         
         return kw
            
-    def _MegaPlotCalData(self, kw):
+    def _MegaPlotCalData(self, kw, redshifts=None):
         
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
@@ -1433,8 +1447,10 @@ class GalaxyPopulation(object):
         
 
         # Redshifts and color scheme
-        redshifts = [4, 6, 8, 10]
-        colors = 'k', 'b', 'c', 'm'
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
 
         # UVLF and Beta
@@ -1482,7 +1498,7 @@ class GalaxyPopulation(object):
             #    color=colors[j], ls='-.', 
             #    label=r'P98+B14 IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)    
                 
-    def _MegaPlotGuideEye(self, kw):
+    def _MegaPlotGuideEye(self, kw, redshifts=None):
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
         ax_rdu = kw['ax_rdu']
@@ -1501,8 +1517,10 @@ class GalaxyPopulation(object):
         
         ax_rdu.annotate(r'$R_h \propto M_h^{1/3} (1+z)^{-1}$', (1.5e8, 30))
         
-        redshifts = [4, 6, 8, 10]
-        colors = 'k', 'b', 'c', 'm'
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         
         # Show different Mh slopes        
         mh = np.logspace(8, 9, 50)
@@ -1556,7 +1574,7 @@ class GalaxyPopulation(object):
             color=colors[0], lw=1, ls='-', alpha=0.5)    
         ax_sfms.annotate(r'$1$',   (mh[-1]*1.1, 200 * func(4., 3./3.)[-1]), ha='left')
                 
-    def _MegaPlotPredData(self, kw):
+    def _MegaPlotPredData(self, kw, redshifts=None):
         
         
         ax_sfe = kw['ax_sfe']
@@ -1577,8 +1595,10 @@ class GalaxyPopulation(object):
         
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
         
-        redshifts = [4, 6, 8, 10]
-        colors = 'k', 'b', 'c', 'm'
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         
         xarr = np.arange(-22, -18, 0.5)
         yarr = [0.1, 0.08, 0.08, 0.1, 0.18, 0.3, 0.47, 0.6]

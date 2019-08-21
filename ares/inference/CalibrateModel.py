@@ -56,7 +56,7 @@ class CalibrateModel(object):
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
         save_lf=True, save_smf=False, save_sam=False,
-        save_sfrd=False, save_beta=False, save_dust=False):
+        save_sfrd=False, save_beta=False, save_dust=False, zmap={}):
         """
         Calibrate a galaxy model to available data.
         
@@ -89,6 +89,7 @@ class CalibrateModel(object):
         self.fit_smf = fit_smf
         self.fit_gs = fit_gs
         self.fit_beta = fit_beta
+        self.zmap = zmap        
                 
         self.include_sfe = include_sfe
         self.include_fshock = int(include_fshock)
@@ -720,7 +721,11 @@ class CalibrateModel(object):
             prefix = self.prefix
 
         fitter_lf = FitGalaxyPopulation()
-
+        print("about to set zmap")
+        fitter_lf.zmap = self.zmap
+        print("zmap set")
+        print(fitter_lf.zmap)
+        
         data = []
         include = []
         if self.fit_lf:
