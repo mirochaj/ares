@@ -721,11 +721,8 @@ class CalibrateModel(object):
             prefix = self.prefix
 
         fitter_lf = FitGalaxyPopulation()
-        print("about to set zmap")
         fitter_lf.zmap = self.zmap
-        print("zmap set")
-        print(fitter_lf.zmap)
-        
+
         data = []
         include = []
         if self.fit_lf:
