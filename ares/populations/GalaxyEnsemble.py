@@ -29,7 +29,7 @@ from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from scipy.interpolate import RectBivariateSpline, interp1d
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
-    g_per_msun, c, Lsun, cm_per_kpc
+    g_per_msun, c, Lsun, cm_per_kpc, erg_per_ev, cm_per_mpc, E_LL, E_LyA
 
 try:
     import h5py
@@ -97,21 +97,33 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Will convert to internal cgs units.
         """
         
-        iz = np.argmin(np.abs(z - self.histories['z']))
-        sfr = self.histories['SFR'][:,iz]
-        w = self.histories['nh'][:,iz]
+        if type(z) in [int, float, np.float64]:
         
-        # Really this is the number of galaxies that formed in a given
-        # differential redshift slice.
-        
-        #Mh = self.histories['Mh'][:,iz]
-        
-        #dw = np.diff(_w) / np.diff(Mh)
-        
-        # The 'bins' in the first dimension have some width...
-        
-        return np.sum(sfr * w) / rhodot_cgs
+            iz = np.argmin(np.abs(z - self.histories['z']))
+            sfr = self.histories['SFR'][:,iz]
+            w = self.histories['nh'][:,iz]
+            
+            # Really this is the number of galaxies that formed in a given
+            # differential redshift slice.
+            return np.sum(sfr * w) / rhodot_cgs
+        else:
+            sfr = np.zeros_like(z)
+            for k, _z in enumerate(z):
+                iz = np.argmin(np.abs(_z - self.histories['z']))
+                _sfr = self.histories['SFR'][:,iz]
+                _w = self.histories['nh'][:,iz]
+            
+                # Really this is the number of galaxies that formed in a given
+                # differential redshift slice.
+                sfr[k] = np.sum(_sfr * _w) / rhodot_cgs
+                
+            return sfr    
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
+        
+    def _sfrd_func(self, z):
+        # This is a cheat so that the SFRD spline isn't constructed
+        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
+        return self.SFRD(z)    
 
     def tile(self, arr, thin, renorm=False):
         """
@@ -543,17 +555,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         tab = np.zeros_like(zarr)
         
+        hist = self.histories
+        
         for i, z in enumerate(zarr):
-            _zarr, _tarr, L = self.SpectralSynthesis(zobs=z, band=band)
+            L = self.synth.Luminosity(sfh=hist['SFR'], zobs=z, band=band,
+                zarr=hist['z'])
             
             # OK, we've got a whole population here.
-            
             nh = self.get_field(z, 'nh')
             Mh = self.get_field(z, 'Mh')
+            
+            # Modify by fesc
+            if band is not None:
+                if band[0] in [13.6, E_LL]:
+                    # Doesn't matter what Emax is
+                    fesc = self.guide.fesc(z=z, Mh=Mh)
+                elif band in [(10.2, 13.6), (E_LyA, E_LL)]:
+                    fesc = self.guide.fesc_LW(z=z, Mh=Mh)
+                else:
+                    fesc = 1.    
+            
+            tab[i] = np.sum(L * fesc * nh) 
 
-            tab[i] = np.sum(L * nh)
-
-        return zarr, tab
+        return zarr, tab / cm_per_mpc**3
         
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
@@ -580,10 +604,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_ehat((E, Emin, Emax))
         if cached_result is not None:
             func = cached_result
-            #return cached_result(z)
         else:
             
             zarr, tab = self._TabulateEmissivity(E, Emin, Emax)
+            
+            tab[np.logical_or(tab <= 0, np.isinf(tab))] = 1e-70
             
             func = interp1d(zarr, np.log10(tab), kind='cubic', 
                 bounds_error=False, fill_value=-np.inf)
@@ -593,6 +618,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return 10**func(z)
         #return self._cache_ehat_[(E, Emin, Emax)](z)
         
+    def PhotonLuminosityDensity(self, z, E=None, Emin=None, Emax=None):
+        # erg / s / cm**3
+        rhoL = self.Emissivity(z, E=E, Emin=Emin, Emax=Emax)
+        erg_per_phot = self._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                                                              
+        return rhoL / np.mean(erg_per_phot)
+
     def _gen_stars(self, idnum, Mh):
         """
         Take draws from cluster mass function until stopping criterion met.

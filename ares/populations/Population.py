@@ -164,6 +164,12 @@ class Population(object):
         return self._zone    
         
     @property
+    def is_src_anything(self):
+        if not hasattr(self, '_is_src_anything'):
+            self._is_src_anything = self.is_src_oir or self.is_src_uv \
+                or self.is_src_xray
+        
+    @property
     def affects_cgm(self):
         if not hasattr(self, '_affects_cgm'):
             self._affects_cgm = self.is_src_ion_cgm 

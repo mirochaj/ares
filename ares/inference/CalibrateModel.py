@@ -712,7 +712,7 @@ class CalibrateModel(object):
         
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
-        cache_tricks=False, burn_method=0):
+        cache_tricks=False, burn_method=0, recenter=False):
         """
         Create a fitter class and run the fit!
         """
@@ -790,7 +790,8 @@ class CalibrateModel(object):
 
         # RUN
         fitter.run(prefix=prefix, burn=burn, steps=steps, save_freq=save_freq, 
-            clobber=clobber, restart=restart, burn_method=burn_method)
+            clobber=clobber, restart=restart, burn_method=burn_method,
+            recenter=recenter)
         
         
         

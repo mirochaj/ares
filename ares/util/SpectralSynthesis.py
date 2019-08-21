@@ -947,9 +947,9 @@ class SpectralSynthesis(object):
         
         # Is this luminosity in some bandpass or monochromatic?
         if band is not None:
-            Loft = self.src.IntegratedEmission(band[0], band[1])
+            Loft = self.src.IntegratedEmission(band[0], band[1], 
+                energy_units=True)
             #raise NotImplemented('help!')
-            print("Note this now has different units.")
         else:
             Loft = self.src.L_per_SFR_of_t(wave, avg=window)
         #

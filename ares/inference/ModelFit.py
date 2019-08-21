@@ -1116,11 +1116,11 @@ class ModelFit(FitBase):
                 to_axe.append(key)     
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
-            #if re.search('pop_histories', key):
-            #    if type(tmp[key]) == str:
-            #        pass
-            #    else:
-            #        to_axe.append(key)    
+            if re.search('pop_histories', key):
+                if type(tmp[key]) == str:
+                    pass
+                else:
+                    to_axe.append(key)    
             if re.search('hmf_table', key):
                 to_axe.append(key)
             

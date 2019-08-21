@@ -665,7 +665,7 @@ class UniformBackground(object):
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateCGM(z, species=j, popid=i,
                 band=k, **kwargs)
-        
+                
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
@@ -1147,12 +1147,15 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
+            
+            if pop.is_src_anything:
 
-            Lbol = pop.Emissivity(z)        
-            for ll in range(Nz):
-                #Lbol = pop.Emissivity(z[ll])
-                epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
-                    / erg_per_ev
+                Lbol = pop.Emissivity(z)        
+                for ll in range(Nz):
+                    epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
+                        / erg_per_ev
+            else:
+                pass
         else:
                             
             # There is only a distinction here for computational
