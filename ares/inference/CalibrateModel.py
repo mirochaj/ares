@@ -469,7 +469,11 @@ class CalibrateModel(object):
     
     @guesses.setter
     def guesses(self, value):
-        self._guesses = value
+        if not hasattr(self, '_guesses'):
+            tmp = self.parameters
+        
+        print("Revising default guessses...")
+        self._guesses.update(value)
         
     @property
     def jitter(self):
