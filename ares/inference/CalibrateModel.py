@@ -235,44 +235,45 @@ class CalibrateModel(object):
                 
                 # Normalization of SFE
                 if 'norm' in self.free_params_sfe:
-                    free_pars.append('pq_func_par0[1]')
-                    guesses['pq_func_par0[1]'] = -1.4
+                    free_pars.append('pq_func_par0[0]')
+                    guesses['pq_func_par0[0]'] = -1.4
                     is_log.extend([True])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-7, 1.), 'pq_func_par0[1]')
+                    ps.add_distribution(UniformDistribution(-7, 1.), 'pq_func_par0[0]')
                     
                     if 'norm' in self.zevol_sfe:
-                        free_pars.append('pq_func_par2[1]')
-                        guesses['pq_func_par2[1]'] = 0.
+                        free_pars.append('pq_func_par6[0]')
+                        guesses['pq_func_par6[0]'] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[1]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par6[0]')
                         
                 # Peak mass
                 if 'peak' in self.free_params_sfe:
-                    free_pars.append('pq_func_par0[2]')
-                    guesses['pq_func_par0[2]'] = 11.
+                    free_pars.append('pq_func_par1[0]')
+                    guesses['pq_func_par1[0]'] = 11.
                     is_log.extend([True])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[2]')
+                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[0]')
                     
                     if 'peak' in self.zevol_sfe:
-                        free_pars.append('pq_func_par2[2]')
-                        guesses['pq_func_par2[2]'] = 0.
+                        free_pars.append('pq_func_par7[0]')
+                        guesses['pq_func_par7[0]'] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[2]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par7[0]')
                         
                 # Slope at low-mass side of peak
                 if 'slope-low' in self.free_params_sfe:                    
-                    free_pars.append('pq_func_par0[3]')
-                    guesses['pq_func_par0[3]'] = 0.66
+                    free_pars.append('pq_func_par2[0]')
+                    guesses['pq_func_par2[0]'] = 0.66
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(0.0, 1.5), 'pq_func_par0[3]')
+                    ps.add_distribution(UniformDistribution(0.0, 1.5), 'pq_func_par2[0]')
                     
                     # Allow to evolve with redshift?
                     if 'slope-low' in self.zevol_sfe:
+                        raise NotImplemented('Needs fixing after PQ overhaul.')
                         free_pars.append('pq_func_par2[3]')
                         guesses['pq_func_par2[3]'] = 0.
                         is_log.extend([False])
@@ -281,14 +282,15 @@ class CalibrateModel(object):
                 
                 # Slope at high-mass side of peak        
                 if 'slope-high' in self.free_params_sfe:
-                    free_pars.append('pq_func_par0[4]')
-                    guesses['pq_func_par0[4]'] = 0.
+                    free_pars.append('pq_func_par3[0]')
+                    guesses['pq_func_par3[0]'] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-3., 0.1), 'pq_func_par0[4]')
+                    ps.add_distribution(UniformDistribution(-3., 0.1), 'pq_func_par3[0]')
                     
                     # Allow to evolve with redshift?
                     if 'slope-high' in self.zevol_sfe:
+                        raise NotImplemented('Needs fixing after PQ overhaul.')
                         free_pars.append('pq_func_par2[4]')
                         guesses['pq_func_par2[4]'] = 0.
                         is_log.extend([False])
@@ -299,6 +301,7 @@ class CalibrateModel(object):
             # Steve's models
             ##
             elif self.include_sfe in ['f17-p', 'f17-E']:
+                raise NotImplemented('Needs fixing after PQ overhaul.')
                 # 10 * epsilon_K * omega_49
                 free_pars.append('pq_func_par0[1]') 
                 guesses['pq_func_par0[1]'] = 0.
@@ -310,7 +313,7 @@ class CalibrateModel(object):
             # fduty
             ##
             if self.include_fduty:
-                                
+                raise NotImplemented('Needs fixing after PQ overhaul.')                
                 # Normalization of SFE
                 free_pars.extend(['pq_func_par0[41]', 'pq_func_par2[40]'])
                 guesses['pq_func_par0[41]'] = 0.8
@@ -679,7 +682,7 @@ class CalibrateModel(object):
             if self.include_sfe in [1, True, 'dpl', 'flex']:
                 self._base_kwargs = \
                     PB('mirocha2017:base').pars_by_pop(0, 1) \
-                  + PB('mirocha2017:dflex').pars_by_pop(0, 1) \
+                  + PB('mirocha2017:flex').pars_by_pop(0, 1) \
                   + PB('dust:{}'.format(self.include_dust))
             elif self.include_sfe in ['f17-p', 'f17-E']:
                 s = 'energy' if self.include_sfe.split('-')[1] == 'E' \

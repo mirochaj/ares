@@ -35,7 +35,7 @@ dpl = \
  
  # SFE
  'pop_fstar{0}': 'pq[0]',
- 'pq_func[0]{0}': 'dpl_peaknorm',
+ 'pq_func[0]{0}': 'dpl_normP',
  'pq_func_var[0]{0}': 'Mh',
  
  ##
@@ -106,30 +106,23 @@ Redshift-dependent options.
 
 _flex = \
 {
- 'pq_func[0]{0}': 'dpl_arbnorm',
+ 'pq_func[0]{0}': 'dpl_evolNP',
  'pq_func_var[0]{0}': 'Mh',
+ 'pq_func_var2[0]{0}': '1+z',
 
  'pq_val_ceil[0]{0}': 1.0,
 
  # Standard dpl model at 10^8 Msun
- 'pq_func_par0[0]{0}': 'pq[1]',
- 'pq_func_par1[0]{0}': 'pq[2]',
+ 'pq_func_par0[0]{0}': 0.05,
+ 'pq_func_par1[0]{0}': 2.8e11,
  'pq_func_par2[0]{0}': 0.49,
  'pq_func_par3[0]{0}': -0.61,
- 'pq_func_par4[0]{0}': 1e8,        # Mass at which fstar,0 is defined
+ 'pq_func_par4[0]{0}': 1e10,        # Mass at which fstar,0 is defined
+ 'pq_func_par5[0]{0}': 5.,
 
- # Evolving part
- 'pq_func[1]{0}': 'pl',
- 'pq_func_var[1]{0}': '1+z',
- 'pq_func_par0[1]{0}': 0.00205,
- 'pq_func_par1[1]{0}': 7.,
- 'pq_func_par2[1]{0}': 0.,   # power-law index!
-
- 'pq_func[2]{0}': 'pl',
- 'pq_func_var[2]{0}': '1+z',
- 'pq_func_par0[2]{0}': 2.8e11,
- 'pq_func_par1[2]{0}': 7.,
- 'pq_func_par2[2]{0}': 0.,   # power-law index!
+ # Evolving bits
+ 'pq_func_par6[0]{0}': 0.,   # power-law index!
+ 'pq_func_par7[0]{0}': 0.,   # power-law index!
 
 }
 
@@ -203,38 +196,6 @@ _flex2 = \
 }
 
 dflex = _flex2
-
-fobsc = \
-{
- 'pop_fobsc{0}': 'pq[10]',
- 'pop_fobsc_by_num{0}': False,     # fraction of UV luminosity that gets out
- 'pq_val_ceil[10]{0}': 1.0,
- 'pq_val_floor[10]{0}': 0.0, 
- 'pq_func[10]{0}': 'log_tanh_abs',
- 'pq_func_var[10]{0}': 'Mh',
- 'pq_func_par0[10]{0}': 0.0,       # minimal obscuration
- 'pq_func_par1[10]{0}': 'pq[11]',  # peak obscuration
- 'pq_func_par2[10]{0}': 'pq[12]',  # log transition mass
- 'pq_func_par3[10]{0}': 'pq[13]',  # dlogM
- 
- 'pq_func[11]{0}': 'pl',
- 'pq_func_var[11]{0}': '1+z',
- 'pq_func_par0[11]{0}': 0.5,
- 'pq_func_par1[11]{0}': 7.,   # effectively not in use
- 'pq_func_par2[11]{0}': 0.,   # power-law index!
- 
- 'pq_func[12]{0}': 'pl',
- 'pq_func_var[12]{0}': '1+z',
- 'pq_func_par0[12]{0}': 11.,  
- 'pq_func_par1[12]{0}': 7.,
- 'pq_func_par2[12]{0}': 0.,   # power-law index!
- 
- 'pq_func[13]{0}': 'pl',
- 'pq_func_var[13]{0}': '1+z',
- 'pq_func_par0[13]{0}': 1.0,  
- 'pq_func_par1[13]{0}': 7.,
- 'pq_func_par2[13]{0}': 0.,   # power-law index!
-}
 
 
 

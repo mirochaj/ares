@@ -10,6 +10,7 @@ Description:
 
 """
 
+import gc
 import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
@@ -204,7 +205,7 @@ class StepRel(BasePQ):
         lo = x < self.args[2]
         hi = x >= self.args[2]
 
-        y = lo * self.args[0] * self.args[1] + hi * self.args[1] 
+        y = lo * self.args[0] * self.args[1] + hi * self.args[1]
 
         return y 
     
@@ -217,7 +218,7 @@ class StepAbs(BasePQ):
 
         y = lo * self.args[0] + hi * self.args[1] 
 
-        return y          
+        return y
 
 
 class DoublePowerLawPeakNorm(BasePQ):
@@ -278,6 +279,7 @@ class DoublePowerLawEvolvingPeak(BasePQ):
         else:
             t = kwargs[self.t]
         
+        # This is the peak mass
         p1 = self.args[1] * (t / self.args[5])**self.args[6]
         
         # Normalization evolves
@@ -301,20 +303,26 @@ class DoublePowerLawEvolvingNormPeak(BasePQ):
             t = 1. + kwargs['z']
         else:
             t = kwargs[self.t]
+            
+        # This is the peak mass
+        p1 = self.args[1] * (t / self.args[5])**self.args[7]    
         
-        p1 = self.args[1] * (t / self.args[5])**self.args[7]
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
         
         # This is to conserve memory.
-        xx = (x / p1)
+        xx = x / p1
         y  = xx**-self.args[2]
         y += xx**-self.args[3]
-        np.divide(1., y, out=y)  
+        np.divide(1., y, out=y)      
         
-        xx *= self.args[4] / x    
-                
-        y *= (xx**-self.args[2] + xx**-self.args[3])
-        y *= self.args[0] * (t / self.args[5])**self.args[6]
-        
+        if self.t == '1+z':  
+            y *= normcorr * self.args[0] \
+                * ((1. + kwargs['z']) / self.args[5])**self.args[6]
+        else:
+            y *= normcorr * self.args[0] \
+                * (kwargs[self.t] / self.args[5])**self.args[6]
+
         return y
         
 class Okamoto(BasePQ):
@@ -362,8 +370,6 @@ class SchechterEvolving(BasePQ):
         
         return y
         
-        
-        
 class Linear(BasePQ):            
     def __call__(self, **kwargs):
         x = kwargs[self.x]
@@ -385,7 +391,7 @@ class ParameterizedQuantity(object):
             self.func = PowerLawEvolvingNorm(**kwargs)
         elif kwargs['pq_func'] in ['dpl', 'dpl_arbnorm']:
             self.func = DoublePowerLaw(**kwargs)
-        elif kwargs['pq_func'] in ['dpl_peaknorm']:
+        elif kwargs['pq_func'] in ['dpl_normP']:
             self.func = DoublePowerLawPeakNorm(**kwargs)    
         elif kwargs['pq_func'] == 'dpl_evolN':
             self.func = DoublePowerLawEvolvingNorm(**kwargs)

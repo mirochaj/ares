@@ -1127,7 +1127,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Flip arrays to be in ascending time.
         z = halos['z'][-1::-1]
-        #z2d = np.reshape(np.tile(z, Nhalos), (Nhalos, z.size))        
         z2d = z[None,:]
         t = halos['t'][-1::-1]
         Mh = halos['Mh'][:,-1::-1]
@@ -1180,31 +1179,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFR = halos['SFR'][:,-1::-1]
         else:    
             SFR = self.guide.SFE(z=z2d, Mh=Mh)
-            #SFR = fb * MAR * SFE
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
-            
-            #SFR = np.zeros_like(Mh)
-            
-            #SFR = self.guide.SFE(z=z2d, Mh=Mh)
-            #_p = {'pq_func': 'dpl'}
-            #_p['pq_func_par0'] = 3e-2 
-            #_p['pq_func_par1'] = 3e11
-            #_p['pq_func_par2'] = 0.5
-            #_p['pq_func_par3'] = 0.0
-            #_p['pq_func_par4'] = 1e10
-            #_p['pq_func_var'] = 'Mh'
-            #
-            ## Somehow this uses more memory than if all the work is done
-            ## right here.
-            #_sfe = ParameterizedQuantityNew(**_p)
-            ##SFR = (Mh / p1)**-p2
-            ##SFR += (Mh / p1)**-p3
-            ##np.divide(1., SFR, out=SFR)
-            ##SFR *= p0 * (((p4 / p1)**-p2 + (p4 / p1)**-p3)) #/ (xx**-p2 + xx**-p3)     
-            #SFR = _sfe(Mh=Mh, z=z)
-            #np.multiply(SFR, MAR, out=SFR)
-            #SFR *= fb
             
         ##
         # Duty cycle effects
@@ -2233,7 +2209,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 prefix = fn_hist.split('.pkl')[0]
                 zall, traj_all = pickle.load(f)
                 f.close()
-                print("Loaded {}.".format(fn_hist))
+                if self.pf['verbose']:
+                    print("Loaded {}.".format(fn_hist))
                 hist = traj_all
                       
             elif fn_hist.endswith('.hdf5'):
@@ -2256,7 +2233,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zall = hist['z']
                 
                 f.close()
-                print("Loaded {}.".format(fn_hist))
+                if self.pf['verbose']:
+                    print("Loaded {}.".format(fn_hist))
                 
             else:
                 # Assume pickle?
@@ -2264,7 +2242,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 prefix = fn_hist
                 zall, traj_all = pickle.load(f)
                 f.close()
-                print("Loaded {}.".format(fn_hist+'.pkl'))
+                if self.pf['verbose']:
+                    print("Loaded {}.".format(fn_hist+'.pkl'))
             
                 hist = traj_all
                 
@@ -2272,7 +2251,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
             
             ## Check to see if parameters match
-            print("Need to check that HMF parameters match!")
+            if self.pf['verbose']:
+                print("Need to check that HMF parameters match!")
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']
             # Assume you know what you're doing.

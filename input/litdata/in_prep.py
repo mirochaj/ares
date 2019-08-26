@@ -11,7 +11,7 @@ _base = \
  
  # SFE
  'pop_fstar{0}': 'pq[0]',
- 'pq_func{0}[0]': 'dpl_evolNP',
+ 'pq_func[0]{0}': 'dpl_evolNP',
  'pq_func_var[0]{0}': 'Mh',
  'pq_func_var2[0]{0}': '1+z',
  
@@ -21,7 +21,7 @@ _base = \
  'pq_func_par2[0]{0}': 0.49,       
  'pq_func_par3[0]{0}': -0.61,      
  'pq_func_par4[0]{0}': 1e10,  
- 'pq_func_par5[0]{0}': 5.,    # PL norm
+ 'pq_func_par5[0]{0}': 5.,    # 1+z pivot
  'pq_func_par6[0]{0}': 0.0,
  'pq_func_par7[0]{0}': 0.0,   # PL peak         
  
@@ -87,19 +87,14 @@ _screen = \
  # Screen parameters
  'pop_dust_fcov{0}': 1,  
  "pop_dust_scale{0}": 'pq[22]',       # Scale radius [in kpc]
- "pq_func[22]{0}": 'pl',
+ "pq_func[22]{0}": 'pl_evolN',
  'pq_func_var[22]{0}': 'Mh',
- 'pq_func_par0[22]{0}': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_var2[22]{0}': '1+z',
+ 'pq_func_par0[22]{0}': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
  'pq_func_par1[22]{0}': 1e10,
  'pq_func_par2[22]{0}': 0.45,
- 
- # Evolution of scale
- "pq_func[23]{0}": 'pl',
- 'pq_func_var[23]{0}': '1+z',
- 'pq_func_par0[23]{0}': 1.6,
- 'pq_func_par1[23]{0}': 5.,
- 'pq_func_par2[23]{0}': 0.,         # R(vir) goes like 1 / (1+z)
-  
+ 'pq_func_par3[22]{0}': 5.,
+ 'pq_func_par4[22]{0}': 0.,    
 }
 
 _screen_best = \
@@ -183,7 +178,7 @@ destruction = \
  'pq_func_par0[4]{0}': -0.5599463903428499,
  'pq_func_par0[23]{0}': 1.5452880256044765,
  'pq_func_par2[27]{0}': -1.4360103791063477,
- 'pq_func_par0[28]{0}': 0.33198068910686596,
+ 'pq_func_par4[27]{0}': 0.33198068910686596,
 }
 
 _scatter = \
@@ -196,17 +191,14 @@ _scatter = \
  'pq_func_par0[4]{0}': 0.06069676909919603,
  
  "pop_dust_scatter{0}": 'pq[33]',
- "pq_func[33]{0}": 'pl',
+ "pq_func[33]{0}": 'pl_evolN',
  'pq_func_var[33]{0}': 'Mh',
- 'pq_func_par0[33]{0}': 'pq[34]',
+ 'pq_func_var2[33]{0}': '1+z',
+ 'pq_func_par0[33]{0}': 0.3,
  'pq_func_par1[33]{0}': 1e10,
  'pq_func_par2[33]{0}': 0.,
-   
- "pq_func[34]{0}": 'pl',
- 'pq_func_var[34]{0}': '1+z',
- 'pq_func_par0[34]{0}': 0.3,
- 'pq_func_par1[34]{0}': 5.,
- 'pq_func_par2[34]{0}': 0.,
+ 'pq_func_par3[33]{0}': 5.,
+ 'pq_func_par4[33]{0}': 0., 
 }
 
 scatter = screen.copy()
