@@ -3,13 +3,29 @@ from mirocha2017 import base as _base_
 from mirocha2017 import dflex as _dflex_
 
 base = _base_.copy()
-base.update(_dflex_)
 
 _base = \
 {
  'pop_sfr_model{0}': 'ensemble', 
  'pop_sed{0}': 'eldridge2009',
  
+ # SFE
+ 'pop_fstar{0}': 'pq[0]',
+ 'pq_func{0}[0]': 'dpl_evolNP',
+ 'pq_func_var[0]{0}': 'Mh',
+ 'pq_func_var2[0]{0}': '1+z',
+ 
+ # DPL in Mh
+ 'pq_func_par0[0]{0}': 0.05,           # Table 1 in paper (last 4 rows)
+ 'pq_func_par1[0]{0}': 2.8e11,
+ 'pq_func_par2[0]{0}': 0.49,       
+ 'pq_func_par3[0]{0}': -0.61,      
+ 'pq_func_par4[0]{0}': 1e10,  
+ 'pq_func_par5[0]{0}': 5.,    # PL norm
+ 'pq_func_par6[0]{0}': 0.0,
+ 'pq_func_par7[0]{0}': 0.0,   # PL peak         
+ 
+ # Spectral synthesis
  'pop_sed_degrade{0}': 10,
  'pop_thin_hist{0}': 10,
  'pop_aging{0}': True,
@@ -18,7 +34,11 @@ _base = \
  'pop_calib_L1600{0}': None,
  'pop_Z{0}': 0.002, 
  'pop_zdead{0}': 3.5,
- 'pop_synth_cache_level{0}': 0,    # 1 = more careful
+ 
+ # Synthesis control
+ 'pop_synth_cache_level{0}': 0,    # 1 = more careful = slower
+ 'pop_synth_minimal{0}': True,
+ 'pop_Tmin{0}': 2e4,
  
  # Metallicity evolution!?
  'pop_enrichment{0}': False,

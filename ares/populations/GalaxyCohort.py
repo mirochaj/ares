@@ -131,7 +131,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 pars = tmp            
             Mmin = lambda z: self.Mmin
-            result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
+            #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
+            result = ParameterizedQuantity(**pars)
 
             self._update_pq_registry(name, result)
             
@@ -2089,8 +2090,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
                     Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
                 
-                    self._mlf_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
-                        self.pf, **pars)
+                    self._mlf_inst = ParameterizedQuantity(**pars)
                 
                     self._update_pq_registry('mlf', self._mlf_inst)
                     self._fstar = \
@@ -2104,11 +2104,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 elif self.pf['pop_fstar'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
                                         
-                    Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
-                    self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
-                        self.pf, **pars)
+                    #Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
+                    #self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                    #    self.pf, **pars)
+                    #
+                    #self._update_pq_registry('fstar', self._fstar_inst)    
 
-                    self._update_pq_registry('fstar', self._fstar_inst)    
+                    self._fstar_inst = ParameterizedQuantity(**pars)
 
                     self._fstar = \
                         lambda **kwargs: self._fstar_inst.__call__(**kwargs) \

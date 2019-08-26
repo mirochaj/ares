@@ -35,8 +35,8 @@ dpl = \
  
  # SFE
  'pop_fstar{0}': 'pq[0]',
- 'pq_func{0}[0]': 'dpl',
- 'pq_func_var{0}[0]': 'Mh',
+ 'pq_func[0]{0}': 'dpl_peaknorm',
+ 'pq_func_var[0]{0}': 'Mh',
  
  ##
  # IMPORTANT
