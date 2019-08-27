@@ -513,19 +513,25 @@ class CalibrateModel(object):
         redshifts = np.array([4, 6, 8, 10]) # generic
 
         if self.fit_lf:
-            red_lf = np.array(self.fit_lf)
+            if 'lf' in self.zmap:
+                red_lf = np.sort(self.zmap['lf'].values())
+            else:
+                red_lf = np.array(self.fit_lf)
         else:
             red_lf = redshifts
         
         if self.fit_smf:
+            if 'smf' in self.zmap:
+                raise NotImplemented('help')
+                
             red_smf = np.array(self.fit_smf)
         else:
-            red_smf = redshifts    
+            red_smf = red_lf    
             
         if self.fit_beta:
             red_beta = np.array(self.fit_beta)
         else:
-            red_beta = redshifts    
+            red_beta = red_lf    
                     
         MUV = np.arange(-30, 5., 0.5)
         

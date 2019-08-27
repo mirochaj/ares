@@ -1102,6 +1102,7 @@ class ModelFit(FitBase):
         tmp = self.base_kwargs.copy()
                 
         to_axe = []
+        to_up = {}
         for key in tmp:
             # these might be big, get rid of it
             if re.search('tau_instance', key):
@@ -1120,6 +1121,8 @@ class ModelFit(FitBase):
                 if type(tmp[key]) == str:
                     pass
                 else:
+                    if 'fn' in tmp[key]:
+                        to_up[key] = tmp[key]['fn']
                     to_axe.append(key)    
             if re.search('hmf_table', key):
                 to_axe.append(key)
@@ -1141,6 +1144,8 @@ class ModelFit(FitBase):
         
         for key in to_axe:
             tmp[key] = None
+        for key in to_up:
+            tmp[key] = to_up[key]
             
         # If possible, include ares revision used to run this fit.
         tmp['revision'] = get_hg_rev()

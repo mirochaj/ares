@@ -524,7 +524,7 @@ def PopulationParameters():
     "pop_synth_zmax": 20.,
     "pop_synth_zmin": 3.5,
     "pop_synth_Mmax": 1e14,
-    "pop_synth_minimal": True,  # Can turn off for testing (so we don't need MF)
+    "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
     "pop_synth_cache_level": 1, # Bigger = more careful
     
     "pop_tau_bc": 0,

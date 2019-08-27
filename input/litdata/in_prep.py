@@ -22,8 +22,8 @@ _base = \
  'pq_func_par3[0]{0}': -0.61,      
  'pq_func_par4[0]{0}': 1e10,  
  'pq_func_par5[0]{0}': 5.,    # 1+z pivot
- 'pq_func_par6[0]{0}': 0.0,
- 'pq_func_par7[0]{0}': 0.0,   # PL peak         
+ 'pq_func_par6[0]{0}': 0.0,   # norm
+ 'pq_func_par7[0]{0}': 0.0,   # Mp 
  
  # Spectral synthesis
  'pop_sed_degrade{0}': 10,
@@ -37,7 +37,7 @@ _base = \
  
  # Synthesis control
  'pop_synth_cache_level{0}': 0,    # 1 = more careful = slower
- 'pop_synth_minimal{0}': True,
+ 'pop_synth_minimal{0}': False,
  'pop_Tmin{0}': 2e4,
  
  # Metallicity evolution!?
@@ -134,20 +134,15 @@ patchy.update(_patchy)
 fduty = \
 {
  'pop_fduty{0}': 'pq[40]',
- "pq_func[40]{0}": 'pl',
+ "pq_func[40]{0}": 'pl_evolN',
  'pq_func_var[40]{0}': 'Mh',
- 'pq_func_par0[40]{0}': 'pq[41]',
+ 'pq_func_var2[40]{0}': '1+z',
+ 'pq_func_par0[40]{0}': 0.5,
  'pq_func_par1[40]{0}': 1e10,
  'pq_func_par2[40]{0}': 0.2,
+ 'pq_func_par3[40]{0}': 5.,
+ 'pq_func_par4[40]{0}': 0.0,
  'pq_val_ceil[40]{0}': 1.0,
- 
- # Redshift evolution of fduty normalization
- 'pq_func[41]{0}': 'pl',
- 'pq_func_var[41]{0}': '1+z',
- 'pq_func_par0[41]{0}': 0.5,
- 'pq_func_par1[41]{0}': 5.,
- 'pq_func_par2[41]{0}': 0.0,
- 
 }
 
 quench = \

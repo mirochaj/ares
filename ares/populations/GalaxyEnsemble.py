@@ -256,6 +256,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Throw away halos with Mh < Mmin or Mh > Mmax
         ##
         if self.pf['pop_synth_minimal']:
+            raise NotImplemented('something broken here.')
             Mmin = self.guide.Mmin(zall)
             ilo = Mh_raw.shape[0] - 1
             ihi = 0
@@ -1331,7 +1332,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pass
             else:    
                 
-                print("Looping over {} halos...".format(Mh.shape[0]))         
+                if self.pf['verbose']:
+                    print("Looping over {} halos...".format(Mh.shape[0]))         
                                 
                 pb = ProgressBar(Mh.shape[0])
                 pb.start()
@@ -1441,22 +1443,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             log10 stellar masses at which to evaluate SMF
         
         """
-                
+                                        
         cached_result = self._cache_smf(z, bins)
         if cached_result is not None:
             return cached_result
-        
-        #iz = np.argmin(np.abs(z - self.tab_z))
-        
+                            
         iz = np.argmin(np.abs(z - self.histories['z']))
         Ms = self.histories['Ms'][:,iz]
-        Mh = self.histories['Mh'][:,iz]
         nh = self.histories['nh'][:,iz]
-        
-        # Need to re-bin
-        #dMh_dMs = np.diff(Mh) / np.diff(Ms)
-        #rebin = np.concatenate((dMh_dMs, [dMh_dMs[-1]]))
-                
+         
         if (bins is None) or (type(bins) is not np.ndarray):
             binw = 0.1
             bin_c = np.arange(6., 13.+binw, binw)
@@ -1468,20 +1463,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         bin_e = bin_c2e(bin_c)
         
-        #logM = np.log10(Ms)
-        #ok = Ms > 0
-        #print('bins', bin, bin_c, bin_e)
         phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
-        
+                
         if units == 'dex':
             # Convert to dex**-1 units
             phi /= binw
         else:
             raise NotImplemented('help')
-                        
+                                
         self._cache_smf_[z] = bin_c, phi
-        
-        return self._cache_smf(z, bins)
+                
+        return self._cache_smf(z, bin_c)
         
     def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
         iz = np.argmin(np.abs(z - self.histories['z']))
@@ -1614,27 +1606,27 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return None
         
-    def _cache_smf(self, z, Mh):
+    def _cache_smf(self, z, Ms):
         if not hasattr(self, '_cache_smf_'):
             self._cache_smf_ = {}
     
         if z in self._cache_smf_:
             _x, _phi = self._cache_smf_[z]    
                 
-            if Mh is None:
+            if Ms is None:
                 return _phi        
-            elif type(Mh) != np.ndarray:
-                k = np.argmin(np.abs(Mh - _x))
-                if abs(Mh - _x[k]) < 1e-3:
+            elif type(Ms) != np.ndarray:
+                k = np.argmin(np.abs(Ms - _x))
+                if abs(Ms - _x[k]) < 1e-3:
                     return _phi[k]
                 else:
-                    return 10**np.interp(Mh, _x, np.log10(_phi),
+                    return 10**np.interp(Ms, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
-            elif _x.size == Mh.size:
-                if np.allclose(_x, Mh):
+            elif _x.size == Ms.size:
+                if np.allclose(_x, Ms):
                     return _phi
             
-            return 10**np.interp(Mh, _x, np.log10(_phi),
+            return 10**np.interp(Ms, _x, np.log10(_phi),
                 left=-np.inf, right=-np.inf)
             
         return None  
@@ -2217,19 +2209,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 f = h5py.File(fn_hist, 'r')
                 prefix = fn_hist.split('.hdf5')[0]
                 
-                if self.pf['conserve_memory']:
-                    dtype = np.float32
-                else:
-                    dtype = np.float64
-                
                 hist = {}
                 for key in f.keys():
-                    
-                    if isinstance(f[(key)], h5py._hl.dataset.Dataset):
-                        hist[key] = np.array(f[(key)], dtype=dtype)
-                    else:    
-                        hist[key] = np.array(f[(key)])
-                
+                    hist[key] = np.array(f[(key)])
+                                
                 zall = hist['z']
                 
                 f.close()
