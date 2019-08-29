@@ -24,6 +24,12 @@ from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
+try: 
+    import pymp
+    have_pymp = True
+except ImportError:
+    have_pymp = False
+
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
 def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
@@ -611,14 +617,29 @@ class SpectralSynthesis(object):
         shape.append(len(waves))
         
         # Do kappa up front?
-            
-        spec = np.zeros(shape)
-        for i, wave in enumerate(waves):
-            slc = (Ellipsis, i) if (batch_mode or time_series) else i
-            
-            spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
-                zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum,
-                extras=extras, window=window)
+        
+        ##
+        # Can thread this calculation
+        ##
+        if (self.pf['nthreads'] is not None) and have_pymp:
+            spec = pymp.shared.array(shape, dtype='float64')
+            with pymp.Parallel(self.pf['nthreads']) as p:
+                for i in p.range(0, waves.size):
+                    slc = (Ellipsis, i) if (batch_mode or time_series) else i
+                    
+                    spec[slc] = self.Luminosity(sfh, wave=waves[i], tarr=tarr, 
+                        zarr=zarr, zobs=zobs, tobs=tobs, band=band, hist=hist, 
+                        idnum=idnum, extras=extras, window=window)
+                            
+        else:    
+        
+            spec = np.zeros(shape)
+            for i, wave in enumerate(waves):
+                slc = (Ellipsis, i) if (batch_mode or time_series) else i
+                
+                spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
+                    zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum,
+                    extras=extras, window=window)
                 
         if units in ['A', 'Ang']:
             #freqs = c / (waves / 1e8)
@@ -918,7 +939,7 @@ class SpectralSynthesis(object):
             # below the requested redshift (?)
             izobs = np.argmin(np.abs(zarr - zobs))
             if zarr[izobs] > zobs:
-                izobs += 1    
+                izobs += 1
                 
             if batch_mode:
                 #raise NotImplemented('help')
@@ -1199,7 +1220,7 @@ class SpectralSynthesis(object):
                     
                         print("Looping over {} halos...".format(sfh.shape[0]))
                                     
-                        pb = ProgressBar(sfh.shape[0])
+                        pb = ProgressBar(sfh.shape[0], use=self.pf['progress_bar'])
                         pb.start()
                 
                         # Loop over all 'branches'

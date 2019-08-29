@@ -2729,6 +2729,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _trajectories(self, value):
         self._trajectories_ = value
         
+    @property
+    def histories(self):
+        if not hasattr(self, '_histories'):
+            self._histories = self.Trajectories()[1]
+        return self._histories
+        
     def Trajectories(self, M0=0):
         """
         In this case, the formation time of a halo matters.
@@ -2787,7 +2793,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             for key in keys:
                 dat = _results[key].copy()
                 k = np.argmin(abs(_zarr.min() - zarr))
-                results[key][i,k:k+len(dat)] = dat
+                results[key][i,k:k+len(dat)] = dat.squeeze()
             
             zform.append(z)
             

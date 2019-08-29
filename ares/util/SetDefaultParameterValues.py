@@ -541,6 +541,7 @@ def PopulationParameters():
     "pop_guide_pop": None,
     "pop_thin_hist": False,
     "pop_scatter_mar": 0.0,
+    "pop_scatter_mar_seed": None,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
     "pop_scatter_env": 0.0,
@@ -978,6 +979,8 @@ def ControlParameters():
     {
     
     'revision': None,
+    
+    'nthreads': None,
     
     # Start/stop/IO
     "dtDataDump": 1.,

@@ -35,6 +35,13 @@ try:
     import h5py
 except ImportError:
     pass
+    
+try: 
+    import pymp
+    have_pymp = True
+except ImportError:
+    have_pymp = False
+    
        
 _linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
 _cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
@@ -313,9 +320,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             nh = nh_raw#.copy()
             Mh = Mh_raw#.copy()
-                                    
+
         self.tab_shape = Mh.shape
-                        
+
         ##
         # Allow scatter in things
         ##            
@@ -326,6 +333,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             mar *= (1. + self.noise_normal(mar, sigma_env))
 
         if sigma_mar > 0:
+            np.random.seed(self.pf['pop_scatter_mar_seed'])
             noise = self.noise_lognormal(mar, sigma_mar)
             mar += noise
             # Normalize by mean of log-normal to preserve mean MAR?
@@ -1178,7 +1186,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
-        else:    
+        else:      
             SFR = self.guide.SFE(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
@@ -1299,7 +1307,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Metal mass
         if 'Z' in halos:
             Z = halos['Z']
-            Mg = 0.0
+            Mg = MZ = 0.0
         else:
             if self.pf['pop_enrichment']:
                 MZ = Ms * fZy
@@ -2241,7 +2249,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Assume you know what you're doing.
         else:
             hist = None
-            
+                
         return hist
         
     def SaveCatalog(self, prefix, redshifts=None, waves=None, fields=None,

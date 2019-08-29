@@ -209,6 +209,7 @@ gauss_parameters = \
 
 lf_parameters = \
 {
+ 'MUV': r'$M_{\mathrm{UV}}$',
  'pop_lf_Mstar': r'$M_{\ast}$',
  'pop_lf_pstar': r'$\phi_{\ast}$',
  'pop_lf_alpha': r'$\alpha$',

@@ -13,6 +13,7 @@ and optionally:
 * `emcee <http://dan.iel.fm/emcee/current/>`_
 * `distpy <https://bitbucket.org/ktausch/distpy>`_
 * `mpi4py <http://mpi4py.scipy.org>`_
+* `pymp <https://github.com/classner/pymp>`_
 * `h5py <http://www.h5py.org/>`_
 * `setuptools <https://pypi.python.org/pypi/setuptools>`_
 * `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
