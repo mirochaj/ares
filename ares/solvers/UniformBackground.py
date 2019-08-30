@@ -1185,14 +1185,13 @@ class UniformBackground(object):
                         fix = 1.
                         
                 in_band = np.logical_and(E >= b[0], E <= b[1])
-                
+                                
                 # Should be any filled elements yet
                 if np.any(epsilon[:,in_band==1] > 0):
                     raise ValueError("Non-zero elements already!")
                 
                 if not np.any(in_band):
-                    continue
-                                        
+                    continue            
 
                 # By definition, rho_L integrates to unity in (b[0], b[1]) band
                 # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band, 

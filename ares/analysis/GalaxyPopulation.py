@@ -226,7 +226,7 @@ class GalaxyPopulation(object):
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10], 
         z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
         show_Mstell=True, show_MUV=True, show_AUV=False, label=None, 
-        dmag=0.5, **kwargs):
+        dmag=0.5, dlam_c94=10, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -397,7 +397,8 @@ class GalaxyPopulation(object):
             if show_Mstell:
                 
                 _beta_c94 = pop.Beta(z, return_binned=False,
-                    cam='calzetti', filters=calzetti, dlam=10., rest_wave=None)
+                    cam='calzetti', filters=calzetti, dlam=dlam_c94, 
+                    rest_wave=None)
 
                 # _beta_c94 is 'raw', i.e., unbinned UV slopes for all halos.
                 # Just need to bin as function of stellar mass.
@@ -1465,10 +1466,10 @@ class GalaxyPopulation(object):
                 round_z=0.21, color=colors[j], mec=colors[j], mfc='none', mew=1, fmt='s',
                 label='Finkelstein+ 2015' if j == 0 else None, **mkw)    
             self.PlotSMF(z, ax=ax_smf, sources=['song2016'],
-                round_z=0.1, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
+                round_z=0.11, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
                 label='Song+ 2016' if j == 0 else None, **mkw)    
             self.PlotSMF(z, ax=ax_smf, sources=['stefanon2017'], mew=1, fmt='s',
-                round_z=0.1, color=colors[j], mec=colors[j], mfc='none',
+                round_z=0.11, color=colors[j], mec=colors[j], mfc='none',
                 label='Stefanon+ 2017' if j == 0 else None, **mkw)
 
             if z in b14.data['beta']:

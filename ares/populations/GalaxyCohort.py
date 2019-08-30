@@ -265,6 +265,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_fstar_at_Mmin_ = \
                 self.SFE(z=self.halos.tab_z, Mh=self._tab_Mmin)
         return self._tab_fstar_at_Mmin_
+        
+    @property
+    def _tab_sfr_at_Mmin(self):
+        if not hasattr(self, '_tab_sfr_at_Mmin_'):
+            self._tab_sfr_at_Mmin_ = \
+                np.array([self.SFR(z=self.halos.tab_z[i], Mh=self._tab_Mmin[i]) \
+                    for i in range(self.halos.tab_z.size)])
+        return self._tab_sfr_at_Mmin_
 
     @property
     def _tab_sfrd_at_threshold(self):
@@ -432,7 +440,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             y = yield_per_sfr(z=self.halos.tab_z, Mh=self._tab_Mmin)
                         
             if self.pf['pop_sfr'] is not None:
-                thresh = self.pf['pop_sfr'] \
+                thresh = self._tab_sfr_at_Mmin \
                     * self._tab_nh_at_Mmin * self._tab_Mmin \
                     * y / s_per_yr / cm_per_mpc**3
             else:
@@ -765,7 +773,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         if self.pf['pop_sfr'] is not None:
-            return self.sfr(z=z, Mh=Mh)
+            if type(self.pf['pop_sfr']) == 'str':
+                return self.sfr(z=z, Mh=Mh)
                 
         # If Mh is None, it triggers use of _tab_sfr, which spans all
         # halo masses in self.halos.tab_M
@@ -787,8 +796,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if not hasattr(self, '_spline_sfr'):
                 log10sfr = np.log10(self._tab_sfr)
                 # Filter zeros since we're going log10
-                log10sfr[np.isinf(log10sfr)] = -20
-                log10sfr[np.isnan(log10sfr)] = -20
+                log10sfr[np.isinf(log10sfr)] = -90.
+                log10sfr[np.isnan(log10sfr)] = -90.
                 
                 _spline_sfr = RectBivariateSpline(self.halos.tab_z, 
                     np.log10(self.halos.tab_M), log10sfr)

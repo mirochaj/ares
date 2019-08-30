@@ -131,12 +131,12 @@ class Cosmology(object):
         self.approx_highz = self.pf['approx_highz']
         self.approx_lowz = False
         self.primordial_index = self.pf['primordial_index']
-        
+
         self.CriticalDensityNow = self.rho_crit_0 = \
             (3. * self.hubble_0**2) / (8. * np.pi * G)
-        
+
         self.h70 = self.pf['hubble_0']
-        
+
         self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
             * cm_per_mpc**3 / g_per_msun
             

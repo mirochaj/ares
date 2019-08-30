@@ -99,32 +99,67 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def run(self):
         return
         
-    def SFRD(self, z):
+    def cSFRD(self, z, Mh):
+        """
+        Compute cumulative SFRD as a function of lower-mass bound.
+        """
+        
+        if type(Mh) not in [list, np.ndarray]:
+            Mh = np.array([Mh])
+        
+        iz = np.argmin(np.abs(z - self.histories['z']))
+        _Mh = self.histories['Mh'][:,iz]
+        _sfr = self.histories['SFR'][:,iz]
+        _w = self.histories['nh'][:,iz]
+        
+        # Really this is the number of galaxies that formed in a given
+        # differential redshift slice.
+        SFRD = np.zeros_like(Mh)
+        for i, _mass in enumerate(Mh):
+            ok = _Mh >= _mass
+            SFRD[i] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
+        
+        SFRD_tot = self.SFRD(z)    
+            
+        return SFRD / SFRD_tot
+        
+    def SFRD(self, z, Mmin=None):
         """
         Will convert to internal cgs units.
         """
-        
+                
         if type(z) in [int, float, np.float64]:
         
             iz = np.argmin(np.abs(z - self.histories['z']))
             sfr = self.histories['SFR'][:,iz]
             w = self.histories['nh'][:,iz]
             
+            if Mmin is not None:
+                _Mh = self.histories['Mh'][:,iz]
+                ok = _Mh >= Mmin
+            else:
+                ok = np.ones_like(sfr)
+                        
             # Really this is the number of galaxies that formed in a given
             # differential redshift slice.
-            return np.sum(sfr * w) / rhodot_cgs
+            return np.sum(sfr[ok==1] * w[ok==1]) / rhodot_cgs
         else:
-            sfr = np.zeros_like(z)
+            sfrd = np.zeros_like(z)
             for k, _z in enumerate(z):
+                
                 iz = np.argmin(np.abs(_z - self.histories['z']))
                 _sfr = self.histories['SFR'][:,iz]
                 _w = self.histories['nh'][:,iz]
-            
-                # Really this is the number of galaxies that formed in a given
-                # differential redshift slice.
-                sfr[k] = np.sum(_sfr * _w) / rhodot_cgs
                 
-            return sfr    
+                if Mmin is not None:
+                    _Mh = self.histories['Mh'][:,iz]
+                    ok = _Mh >= Mmin
+                else:
+                    ok = np.ones_like(_sfr)
+                            
+                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
+                
+            return sfrd    
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
         
     def _sfrd_func(self, z):
@@ -263,7 +298,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Throw away halos with Mh < Mmin or Mh > Mmax
         ##
         if self.pf['pop_synth_minimal']:
-            raise NotImplemented('something broken here.')
             Mmin = self.guide.Mmin(zall)
             ilo = Mh_raw.shape[0] - 1
             ihi = 0
@@ -1172,18 +1206,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fd = 0.0
         
         if self.pf['pop_dust_growth'] is not None:
-            fg = self.guide.dust_growth(z=z2d, Mh=Mh)   
+            fg = self.guide.dust_growth(z=z2d, Mh=Mh)
         else:
             fg = 0.0
             
         fmr = self.pf['pop_mass_yield']    
         fml = (1. - fmr)
-                
+
         # Integrate (crudely) mass accretion rates
         #_Mint = cumtrapz(_MAR[:,:], dx=dt, axis=1)
         #_MAR_c = 0.5 * (np.roll(MAR, -1, axis=1) + MAR)
         #_Mint = np.cumsum(_MAR_c[:,1:] * dt, axis=1)
-        
+
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:      

@@ -1,6 +1,7 @@
 import numpy as np
 from mirocha2017 import base as _base_
 from mirocha2017 import dflex as _dflex_
+from ares.physics.Constants import E_LyA
 
 base = _base_.copy()
 
@@ -37,7 +38,7 @@ _base = \
  
  # Synthesis control
  'pop_synth_cache_level{0}': 0,    # 1 = more careful = slower
- 'pop_synth_minimal{0}': False,
+ 'pop_synth_minimal{0}': True,
  'pop_Tmin{0}': 2e4,
  
  # Metallicity evolution!?
@@ -178,13 +179,7 @@ destruction = \
 
 _scatter = \
 {
- 'pq_func_par2[22]{0}': 0.,
- 'pq_func_par0[23]{0}': 3.3435661993369257,
- 'pq_func_par0[1]{0}': 0.03599536365742767,
- 'pq_func_par0[2]{0}': 167344779121.14706,
- 'pq_func_par0[3]{0}': 1.1677597636641468,
- 'pq_func_par0[4]{0}': 0.06069676909919603,
- 
+
  "pop_dust_scatter{0}": 'pq[33]',
  "pq_func[33]{0}": 'pl_evolN',
  'pq_func_var[33]{0}': 'Mh',
@@ -220,4 +215,48 @@ _composition = \
 
 composition = screen.copy()
 composition.update(_composition)
+
+# These parameters are designed to reproduce Park et al. (2019) src model
+smhm = \
+{
+ 'pop_Tmin{0}': None,    
+ 'pop_Mmin{0}': 1e5,  # Let focc do the work.
+ 'pop_sfr_model{0}': 'smhm-func',
+ 
+ 'pop_tstar{0}': 0.5,
+ 'pop_fstar{0}': 'pq[0]',
+ 'pq_func[0]{0}': 'pl',
+ 'pq_func_par0[0]{0}': 0.05,
+ 'pq_func_par1[0]{0}': 1e10,
+ 'pq_func_par2[0]{0}': 0.5,
+ 'pq_val_ceil[0]{0}': 1.,
+    
+ # Need something close to kappa_UV = 1.15e-28 Msun/yr/(erg/s/Hz)
+ # 2x solar metallicity with BPASS single-stars is pretty close.
+ 'pop_Z{0}': 0.04,
+ 
+ 'pop_focc{0}': 'pq[40]',
+ "pq_func[40]{0}": 'exp-',
+ 'pq_func_var[40]{0}': 'Mh',
+ 'pq_func_par0[40]{0}': 1.,
+ 'pq_func_par1[40]{0}': 5e8,
+ 'pq_func_par2[40]{0}': -1.,
+   
+ 'pop_sfr_cross_threshold{0}': False,
+ 
+ #'pop_ion_src_cgm{0}': False,
+ 
+ # KLUDGE-TOWN
+ 'pop_fesc_LW{0}': 1.0,
+  
+ 'pop_sfr_model{1}': 'link:sfrd:0',
+ 'pop_rad_yield{1}': 10**40.5,
+ 'pop_alpha{1}': -1.,
+ 'pop_Emin{1}': 500.,
+ 'pop_Emax{1}': 3e4,
+ 'pop_EminNorm{1}': 500.,
+ 'pop_EmaxNorm{1}': 2e3,
+ 'pop_ion_src_igm{1}': 1, 
+}
+
 

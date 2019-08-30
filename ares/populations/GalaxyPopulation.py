@@ -76,7 +76,7 @@ def GalaxyPopulation(**kwargs):
                 model = 'sfe-func'
                 
     if model in ['sfe-func', 'sfr-func', 'mlf-func', 'sfe-tab', 'sfr-tab', 
-        'uvlf', '21cmfast']:
+        'uvlf', '21cmfast', 'smhm-func']:
         return GalaxyCohort(**kwargs)
     elif model in ['fcoll', 'sfrd-func', 'sfrd-tab', 'sfrd-class']:
         return GalaxyAggregate(**kwargs)

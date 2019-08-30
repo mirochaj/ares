@@ -35,7 +35,7 @@ except ImportError:
 
 _b14 = read_lit('bouwens2014')
 filt_hst = {4: _b14.filt_shallow[4], 5: _b14.filt_shallow[5],
-    6: _b14.filt_deep[6], 7: _b14.filt_deep[7]}
+    6: _b14.filt_shallow[6], 7: _b14.filt_deep[7]}
 
 _zcal_lf = [3.8, 4.9, 5.9, 6.9, 7.9, 10.]
 _zcal_smf = [3, 4, 5, 6, 7, 8]
@@ -313,22 +313,21 @@ class CalibrateModel(object):
             # fduty
             ##
             if self.include_fduty:
-                raise NotImplemented('Needs fixing after PQ overhaul.')                
                 # Normalization of SFE
-                free_pars.extend(['pq_func_par0[41]', 'pq_func_par2[40]'])
-                guesses['pq_func_par0[41]'] = 0.8
+                free_pars.extend(['pq_func_par0[40]', 'pq_func_par2[40]'])
+                guesses['pq_func_par0[40]'] = 0.8
                 guesses['pq_func_par2[40]'] = 0.4
                 is_log.extend([False, False])
                 jitter.extend([0.1, 0.1])
-                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[41]')
+                ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[40]')
                 ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[40]')
                 
                 if self.zevol_fduty:
-                    free_pars.append('pq_func_par2[41]')
-                    guesses['pq_func_par2[41]'] = 0.
+                    free_pars.append('pq_func_par4[40]')
+                    guesses['pq_func_par4[40]'] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[41]')
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par4[40]')
             
             
             ##
@@ -410,37 +409,37 @@ class CalibrateModel(object):
                       
                 if 'yield' in self.free_params_dust:
                     
-                    free_pars.extend(['pq_func_par0[28]', 'pq_func_par2[27]'])
-                    guesses['pq_func_par0[28]'] = 0.3
+                    free_pars.extend(['pq_func_par0[27]', 'pq_func_par2[27]'])
+                    guesses['pq_func_par0[27]'] = 0.3
                     guesses['pq_func_par2[27]'] = 0.
                     is_log.extend([False, False])
                     jitter.extend([0.1, 1.0])
-                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[28]')
+                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[27]')
                     ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[27]')
 
                     if 'yield' in self.zevol_dust:
-                        free_pars.append('pq_func_par2[28]')
-                        guesses['pq_func_par2[28]'] = 0.0
+                        free_pars.append('pq_func_par4[27]')
+                        guesses['pq_func_par4[27]'] = 0.0
                         is_log.extend([False])
                         jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[28]')
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[27]')
                       
                 if 'scatter' in self.free_params_dust:
                     
-                    free_pars.extend(['pq_func_par2[33]', 'pq_func_par0[34]'])
-                    guesses['pq_func_par2[33]'] = 0.0
-                    guesses['pq_func_par0[34]'] = 0.3
+                    free_pars.extend(['pq_func_par0[33]', 'pq_func_par2[33]'])
+                    guesses['pq_func_par0[33]'] = 0.3
+                    guesses['pq_func_par2[33]'] = 0.
                     is_log.extend([False, False])
                     jitter.extend([0.1, 0.1])
+                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[33]')
                     ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[33]')
-                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[34]')
                 
                     if 'scatter' in self.zevol_dust:
-                        free_pars.append('pq_func_par2[34]')
-                        guesses['pq_func_par2[34]'] = 0.0
+                        free_pars.append('pq_func_par4[33]')
+                        guesses['pq_func_par4[33]'] = 0.0
                         is_log.extend([False])
                         jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[34]')
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[33]')
                     
                 
                 if 'kappa' in self.free_params_dust:
@@ -523,7 +522,6 @@ class CalibrateModel(object):
         if self.fit_smf:
             if 'smf' in self.zmap:
                 raise NotImplemented('help')
-                
             red_smf = np.array(self.fit_smf)
         else:
             red_smf = red_lf    

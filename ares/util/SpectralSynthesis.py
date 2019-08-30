@@ -271,9 +271,10 @@ class SpectralSynthesis(object):
             
             if batch_mode:
                 N = y.shape[1]
+                    
                 popt = -99999 * np.ones((2, N))
-                pcov = -99999 * np.ones((2, 2, N))
-                            
+                pcov = -99999 * np.ones((2, 2, N))        
+                        
                 for i in range(N):
                     
                     if not np.any(y[:,i] > 0):
@@ -284,7 +285,7 @@ class SpectralSynthesis(object):
                             p0=guess[i], maxfev=1000)
                     except RuntimeError:
                         popt[:,i], pcov[:,:,i] = -99999, -99999
-                                
+                            
             else:
                 try:
                     popt, pcov = curve_fit(func, x, y, p0=guess)

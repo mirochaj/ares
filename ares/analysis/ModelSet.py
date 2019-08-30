@@ -191,7 +191,7 @@ class ModelSet(BlobFactory):
 
     @property
     def skip(self):
-        if not hasattr(self._skip):
+        if not hasattr(self, '_skip'):
             self._skip = 0
         return self._skip
         
@@ -2589,17 +2589,19 @@ class ModelSet(BlobFactory):
                 # to those links are masked.
                 else:
                     #print("hello, {}".format(self.mask[:,0].sum()))
+                    if self.mask.shape == val.shape:
+                        mask = self.mask
+                    else:
+                        N = np.product(val.shape[1:])
+                        
+                        try:
+                            mask = np.reshape(np.repeat(self.mask[:,0], N), 
+                                val.shape)
+                        except ValueError:
+                            print("Problem reshaping mask (shape {}) to match blob={} w/ shape {}".format(par,
+                                self.mask.shape, val.shape))
+                                        
                     
-                    mask = self.mask[:,0]
-                    
-                    
-                    
-                    #mask = np.zeros_like(val)
-                    #for j, element in enumerate(self.mask[:,0]):
-                    #    if np.all(element == 1):
-                    #        mask[j].fill(1)
-                    #        
-                    #print(mask.sum())
             else:
                 mask = self.mask
 
