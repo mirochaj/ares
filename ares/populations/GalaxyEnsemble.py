@@ -1621,7 +1621,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         if z in self._cache_lf_:            
                         
-            _x, _phi = self._cache_lf_[z]  
+            _x, _phi = self._cache_lf_[z]
             
             # If no x supplied, return bin centers
             if x is None:

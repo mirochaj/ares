@@ -164,6 +164,7 @@ class loglikelihood(LogLikelihood):
                 elif quantity == 'smf':
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(zmod, M)
+                                        
                 elif quantity == 'beta':
                     
                     zstr = int(round(zmod))
