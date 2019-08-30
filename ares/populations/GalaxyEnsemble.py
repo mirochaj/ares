@@ -1614,13 +1614,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self._cache_L_[key]
         
         return None
-              
+
     def _cache_lf(self, z, x=None):
         if not hasattr(self, '_cache_lf_'):
             self._cache_lf_ = {}
-            
+
         if z in self._cache_lf_:            
-                        
+
             _x, _phi = self._cache_lf_[z]
             
             # If no x supplied, return bin centers

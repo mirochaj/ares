@@ -337,18 +337,18 @@ class CalibrateModel(object):
                 
                 if 'norm' in self.free_params_dust:
                     
-                    free_pars.append('pq_func_par0[23]')
-                    guesses['pq_func_par0[23]'] = 1.6
+                    free_pars.append('pq_func_par0[22]')
+                    guesses['pq_func_par0[22]'] = 1.6
                     is_log.extend([False])
                     jitter.extend([0.5])
-                    ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[23]')
+                    ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[22]')
                                         
                     if 'norm' in self.zevol_dust:
-                        free_pars.append('pq_func_par2[23]')
-                        guesses['pq_func_par2[23]'] = 0.
+                        free_pars.append('pq_func_par4[22]')
+                        guesses['pq_func_par4[22]'] = 0.
                         is_log.extend([False])
                         jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[23]')
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[22]')
 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
@@ -358,6 +358,7 @@ class CalibrateModel(object):
                     ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
                     if self.include_dust in ['screen-dpl', 'patchy']:
+                        raise NotImplemented('help')
                         free_pars.append('pq_func_par3[22]')
                         guesses['pq_func_par3[22]'] = 0.45
                         is_log.extend([False])
@@ -365,6 +366,7 @@ class CalibrateModel(object):
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                 if 'peak' in self.free_params_dust:
+                    raise NotImplemented('help')
                     assert self.include_dust in ['screen-dpl', 'patchy']
                     
                     free_pars.append('pq_func_par0[24]')
@@ -441,7 +443,7 @@ class CalibrateModel(object):
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[33]')
                     
-                
+
                 if 'kappa' in self.free_params_dust:
                     free_pars.extend(['pq_func_par2[31]', 'pq_func_par0[31]'])
                     guesses['pq_func_par2[31]'] = 0.0
