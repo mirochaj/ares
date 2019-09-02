@@ -616,14 +616,19 @@ class CalibrateModel(object):
         
         # Covering factor and scale length    
         if self.save_dust:
-            blob_n = ['dust_fcov', 'dust_scale']
+            blob_n = ['dust_scale']
             blob_i = [('z', redshifts), ('Mh', Mh)]
-            blob_f = ['guide.dust_fcov', 'guide.dust_scale']
+            blob_f = ['guide.dust_scale']
             
             if type(self.base_kwargs['pop_dust_yield']) == str:
                 blob_n.append('dust_yield')
                 blob_f.append('guide.dust_yield')
             
+            if 'pop_dust_scatter' in self.base_kwargs:
+                if type(self.base_kwargs['pop_dust_scatter'] == str):
+                    blob_n.append('sigma_d')
+                    blob_f.append('guide.dust_scatter')
+                        
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
