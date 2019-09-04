@@ -524,7 +524,10 @@ class CalibrateModel(object):
         if self.fit_smf:
             if 'smf' in self.zmap:
                 raise NotImplemented('help')
-            red_smf = np.array(self.fit_smf)
+            red_smf = np.array(self.fit_smf)   
+            # Default to saving LF at same redshifts if not specified otherwise.
+            if not self.fit_lf:
+                red_lf = red_smf         
         else:
             red_smf = red_lf    
             

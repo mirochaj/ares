@@ -1269,6 +1269,8 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
                 color=colors[j], **kwargs)
                 
+            if 'pop_dust_yield' not in anl.base_kwargs:
+                continue
             if anl.base_kwargs['pop_dust_yield'] is None:
                 continue
             
@@ -1639,16 +1641,19 @@ class GalaxyPopulation(object):
          4: {'MUV': np.arange(-21.5, -18, 0.5),
              'Ms': [9.61, 9.5, 9.21, 9.13, 8.96, 8.81, 8.75],
              'err': [0.39, 0.57, 0.47, 0.51, 0.56, 0.53, 0.57]},
-         5: None,
+         5: {},
          6: {'MUV': np.arange(-21.5, -18.5, 0.5),
              'Ms': [9.34, 9.23, 9.21, 9.14, 8.90, 8.77],
              'err': [0.44, 0.38, 0.41, 0.38, 0.38, 0.47]},
         }
-
+        
         for j, z in enumerate(redshifts):
             if z not in data:
                 continue
-        
+                
+            if ('MUV' not in data[z]) or ('Ms' not in data[z]):
+                continue
+                
             ax_MsMUV.errorbar(data[z]['MUV'], data[z]['Ms'], yerr=data[z]['err'],
                 color=colors[j], label='Salmon+ 2015' if j==0 else None, 
                 fmt='o', mfc='none', **mkw)

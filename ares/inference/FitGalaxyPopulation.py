@@ -175,7 +175,7 @@ class loglikelihood(LogLikelihood):
                         filt_hst = hst_shallow
                                         
                     M = xdat
-                    p = pop.Beta(zmod, MUV=M, cam=('wfc', 'wfc3'),     
+                    p = pop.Beta(zmod, MUV=M, cam=('wfc', 'wfc3'),
                         return_binned=True, filters=filt_hst[zstr], dlam=20., 
                         rest_wave=None)
 
@@ -198,9 +198,8 @@ class loglikelihood(LogLikelihood):
         #phi = np.ma.array(_phi, mask=self.mask)
         
         #del sim, pops
-        
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
-
+        
         return lnL + self.const_term
     
 class FitGalaxyPopulation(FitBase):

@@ -1495,7 +1495,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh = self.histories['nh'][:,iz]
          
         if (bins is None) or (type(bins) is not np.ndarray):
-            binw = 0.1
+            binw = 0.5
             bin_c = np.arange(6., 13.+binw, binw)
         else:
             dx = np.diff(bins)
