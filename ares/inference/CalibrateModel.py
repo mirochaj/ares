@@ -592,10 +592,11 @@ class CalibrateModel(object):
                     
             blob_k = [{}, {'return_mean_only': True}]    
             
-            if self.base_kwargs['pop_dust_yield'] is not None:
-                blob_n.append('Md')
-                blob_f.append('XMHM')
-                blob_k.append({'return_mean_only': True, 'field': 'Md'})
+            if 'pop_dust_yield' in self.base_kwargs:
+                if self.base_kwargs['pop_dust_yield'] is not None:
+                    blob_n.append('Md')
+                    blob_f.append('XMHM')
+                    blob_k.append({'return_mean_only': True, 'field': 'Md'})
             
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -632,7 +633,7 @@ class CalibrateModel(object):
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)
-            blob_pars['blob_kwargs'].append(None)            
+            blob_pars['blob_kwargs'].append(None)
         
         # MUV-Beta
         if self.save_beta != False:
