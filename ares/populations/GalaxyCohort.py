@@ -811,11 +811,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     if type(sfr) is np.ndarray:
                         sfr[M < self.Mmin(z)] = 0.0
                         sfr[M > self.Mmax(z)] = 0.0
-                    else:
-                        if M < self.Mmin(z):
-                            return 0.0
-                        if M > self.Mmax(z):
-                            return 0.0
+                    #else:
+                    #    if M < self.Mmin(z):
+                    #        return 0.0
+                    #    if M > self.Mmax(z):
+                    #        return 0.0
 
                     return sfr
                 
@@ -1602,12 +1602,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
+            
+            # Fix SFR?
                 
         return self._tab_Mmax_
     
     @_tab_Mmax.setter
     def _tab_Mmax(self, value):
-        if type(value) in [int, float, np.float64]:    
+        if type(value) in [int, float, np.float64]:
             self._tab_Mmax_ = value * np.ones_like(self.halos.tab_z)
         else:
             self._tab_Mmax_ = value
@@ -1672,17 +1674,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Mmin is like tab_z, make it like (z, M)
             # M is like tab_M, make it like (z, M)
-            Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
-            Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
-            M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
-                    (self.halos.tab_z.size, self.halos.tab_M.size))
+            
+            
+            
+            #Mmin = np.array([self._tab_Mmin] * self.halos.tab_M.size).T
+            #Mmax = np.array([self._tab_Mmax] * self.halos.tab_M.size).T
+            #M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size), 
+            #        (self.halos.tab_z.size, self.halos.tab_M.size))
+            #
+            #mask = np.zeros_like(self._tab_sfr_, dtype=bool)
+            #mask[M < Mmin] = True
+            #mask[M > Mmax] = True
+            #mask[self.halos.tab_z > self.zform] = True
+            #mask[self.halos.tab_z < self.zdead] = True
+            #self._tab_sfr_mask_ = mask
 
-            mask = np.zeros_like(self._tab_sfr_, dtype=bool)
-            mask[M < Mmin] = True
-            mask[M > Mmax] = True
-            mask[self.halos.tab_z > self.zform] = True
-            mask[self.halos.tab_z < self.zdead] = True
-            self._tab_sfr_mask_ = mask
+            self._tab_sfr_mask_ = np.zeros_like(self._tab_sfr_, dtype=bool)
 
             # Why am I getting a NaN?
             isnan = np.isnan(self._tab_sfr_)
@@ -1706,7 +1713,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     zhi, Mlo, Mhi))
                             
             self._tab_sfr_[isnan] = 0.
-                                
+                                            
         return self._tab_sfr_
 
     @property
@@ -2605,6 +2612,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mfin = []
         zfin = []
         for k, z in enumerate(zarr):
+                        
             # z here is the formation redshift
             new_data = self._sort_sam(z, zarr, data, sort_by='form')
             
@@ -2792,7 +2800,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    zmax.append(zarr[i])
             #    zform.append(z)
             #    continue
-
+            
             # If M0 is 0, assume it's the minimum mass at this redshift.
             _zarr, _results = self.RunSAM(z0=z, M0=M0)
 
@@ -2818,11 +2826,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         self.RunSAM(z0, M0)
 
-    def Trajectory(self, z0=None, M0=0):
-        """
-        Just a wrapper around `RunSAM`.
-        """
-        return self.RunSAM(z0, M0)
+    #def Trajectory(self, z0=None, M0=0):
+    #    """
+    #    Just a wrapper around `RunSAM`.
+    #    """
+    #    return self.RunSAM(z0, M0)
         
     def RunSAM(self, z0=None, M0=0):
         """
@@ -2842,7 +2850,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         redshifts, halo mass, gas mass, stellar mass, metal mass
         
         """
-
+        
         # jac=self._SAM_jac
         solver = ode(self._SAM).set_integrator('lsoda', 
             nsteps=1e4, atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'],

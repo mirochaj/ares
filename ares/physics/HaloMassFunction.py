@@ -350,16 +350,21 @@ class HaloMassFunction(object):
             # Look for extra kwargs
             hmf_kwargs = ['hmf_extra_par{}'.format(i) for i in range(5)]
             kw = {par:self.pf[par] for par in hmf_kwargs}
+            for par in CosmologyParameters():
+                kw[par] = self.pf[par]
+            
+            kw['hmf_window'] = self.pf['hmf_window']
                         
             self.tab_dndm = self.pf['hmf_func'](**kw)
             assert self.tab_dndm.shape == (self.tab_z.size, self.tab_M.size), \
                 "Must return dndm in native shape (z, Mh)!"
-                
+                    
             # Need to re-calculate mgtm and ngtm also.
             self.tab_ngtm = np.zeros_like(self.tab_dndm)
             self.tab_mgtm = np.zeros_like(self.tab_dndm)
                         
             for i, z in enumerate(self.tab_z):
+                self.tab_dndm[i,np.argwhere(np.isnan(self.tab_dndm[i]))] = 1e-70
                 ngtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M, 
                     x=np.log(self.tab_M))
                 mgtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M**2, 

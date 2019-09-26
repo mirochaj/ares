@@ -925,6 +925,9 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+    # Note that this is not passed to hmf yet.
+    "hmf_window": 'tophat',
+    
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
     
