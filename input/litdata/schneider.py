@@ -24,8 +24,6 @@ zmin = tab_z.min()
 zmax = tab_z.max()
 Nz = tab_z.size
 
-tiny_dndm = 1e-60
-
 def get_ps(**kwargs):
     
     Om = kwargs['omega_m_0']
@@ -105,17 +103,10 @@ def hmf_wrapper(**kwargs):
     """
     
     assert 'hmf_extra_par0' in kwargs
-    
-    # 'hmf_extra_par0' = psfct
-    # 'hmf_extra_par0' = mf_table
-    
-    #ok = tab_M > kwargs['hmf_extra_par0']
-    
+
     # Use Aurel's code to compute dndm
     par = gmf.par()
-    
-    # Should generate filename from hmf_extra_par? parameters.
-    
+        
     # 0 = filename supplied directly
     # 1 = WDM mass supplied, PS generated on-the-fly    
     par0 = kwargs['hmf_extra_par0']
@@ -130,45 +121,34 @@ def hmf_wrapper(**kwargs):
             dndm_all = np.array(f[('tab_dndm')])
             f.close()
             
-            # Could interpolate at some point.
-            
+            # Linearly interpolate between m_x values
             i1 = np.argmin(np.abs(mxvals - par1))
-            
             if mxvals[i1] > par1:
                 i1 -= 1
-                
             i2 = i1 + 1
+                
+            if mxvals[i1] == par1:
+                return dndm_all[i1]    
                 
             dndm_lo = dndm_all[i1]
             dndm_hi = dndm_all[i2]
-            
+                        
             func = interp1d(mxvals[i1:i1+2], np.array([dndm_lo, dndm_hi]),
                 axis=0)
             
-            dndm = func(par1)
-            #dndm = np.zeros_like(dndm_all[0])
-            #for i, red in enumerate(zvals):   
-            #    dndm[i] = np.interp(par1, mxvals[i1:i1+2], [dndm_lo[i], dndm_hi[i]])    
-            #
-            return dndm#_all[i]
+            return func(par1)
             
         else:    
             fn = par0
     else:
+        # Will create this file then read it in
         fn = 'wdm_model.txt'
     
+    # Generate matter PS using CLASS, save to disk so gmf can read it in.
     k, ps = get_ps(**kwargs)
     np.savetxt(fn, np.array([k, ps]).T)
         
-    # Re-generate this on-the-fly?
     par.file.psfct = fn
-    #"../../code/files/CDM_Planck15_pk.dat"
-    #par.file.mf_table = kwargs['hmf_extra_par1']
-    #"mfCDM_table.npz" 
-
-    #par.file.psfct = "files/WDM_Planck15_m4.0_pk.dat"
-    #par.file.mf_table = "mfWDM4_table.npz"
-
     par.code.window = kwargs['hmf_window']
     par.code.Nrbin = 100
     par.code.rmin  = 0.002
@@ -184,8 +164,7 @@ def hmf_wrapper(**kwargs):
     par.h0         = kwargs['hubble_0']
     par.ns         = kwargs['primordial_index']
     
-    par.mf.q       = 0.707 if par.code.window == 'tophat' \
-        else 1
+    par.mf.q       = 0.707 if par.code.window == 'tophat' else 1
     
     h = par.cosmo.h0
 

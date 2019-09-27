@@ -248,6 +248,23 @@ class DoublePowerLaw(BasePQ):
 
         return y
 
+class DoublePowerLawExtended(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+        
+        normcorr = (((self.args[4] / self.args[1])**-self.args[2] \
+                 +   (self.args[4] / self.args[1])**-self.args[3]))
+        
+        # This is to conserve memory.
+        y  = (x / self.args[1])**-self.args[2]
+        y += (x / self.args[1])**-self.args[3]
+        np.divide(1., y, out=y)        
+        y *= normcorr * self.args[0]
+        
+        y *= (1. + (x / self.args[5])**self.args[6])**self.args[7]
+
+        return y        
+
 class DoublePowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):     
         x = kwargs[self.x]
@@ -391,6 +408,8 @@ class ParameterizedQuantity(object):
             self.func = PowerLawEvolvingNorm(**kwargs)
         elif kwargs['pq_func'] in ['dpl', 'dpl_arbnorm']:
             self.func = DoublePowerLaw(**kwargs)
+        elif kwargs['pq_func'] == 'dplx':
+            self.func = DoublePowerLawExtended(**kwargs)
         elif kwargs['pq_func'] in ['dpl_normP']:
             self.func = DoublePowerLawPeakNorm(**kwargs)    
         elif kwargs['pq_func'] == 'dpl_evolN':

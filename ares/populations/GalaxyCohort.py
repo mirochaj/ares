@@ -808,9 +808,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     sfr = 10**_spline_sfr(z, log10M).squeeze()
 
                     M = 10**log10M
-                    if type(sfr) is np.ndarray:
-                        sfr[M < self.Mmin(z)] = 0.0
-                        sfr[M > self.Mmax(z)] = 0.0
+                    #if type(sfr) is np.ndarray:
+                    #    sfr[M < self.Mmin(z)] = 0.0
+                    #    sfr[M > self.Mmax(z)] = 0.0
                     #else:
                     #    if M < self.Mmin(z):
                     #        return 0.0
@@ -1565,7 +1565,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 # For each redshift, determine Mmax.
                 Mmax = np.zeros_like(self.halos.tab_z)
                 for i, z in enumerate(self.halos.tab_z):
-                    
+
                     # If we've specified a maximum initial mass halo, and
                     # we're at a redshift before that halo hits its limit.
                     # Or, we're using a time-limited model.
@@ -2553,7 +2553,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.constant_SFE:
                 self._scaling_relations = self._ScalingRelationsStaticSFE()
             else:
-                self._scaling_relations = self._ScalingRelationsGeneralSFE()
+                self._scaling_relations = self.Trajectories()
 
         return self._scaling_relations
 
@@ -2599,10 +2599,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Array of formation redshifts, final redshifts, and final masses.
 
         """
-
+        
         # This loops over a bunch of formation redshifts
         # and computes the trajectories for all SAM fields.
-        zarr, data = self._ScalingRelationsGeneralSFE(M0=M0)
+        zarr, data = self.Trajectories(M0=M0)
 
         # At this moment, all data is in order of ascending redshift
         # Each element in `data` is 2-D: (zform, zarr)
@@ -2733,9 +2733,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return new_data
         
-    def _ScalingRelationsGeneralSFE(self, M0=0):
-        return self.Trajectories(M0)
-        
     @property
     def _trajectories(self):
         if not hasattr(self, '_trajectories_'):
@@ -2786,14 +2783,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             zfreq = 1
         
-        in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= zi)
+        in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= zi)            
         zarr = self.halos.tab_z[in_range][::zfreq]
-        results = {key:np.zeros([zarr.size]*2) for key in keys}
-                
+        results = {key:np.zeros([zarr.size]*2) for key in keys}                
         zmax = []
         zform = []
         for i, z in enumerate(zarr):
-            
+                        
             #if z == zarr[0]:
             #    continue
             #if (i == 0) or (i == len(zarr) - 1):
@@ -2900,9 +2896,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Setup time-stepping
         zf = max(float(self.halos.tab_z.min()), self.zdead)
-        
+                
         in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= z0)
-        in_range2 = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+        in_range2 = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= z0)
         if self.pf['sam_dz'] is not None:
             assert self.pf['hmf_dt'] is None
             dz = self.pf['sam_dz'] * np.ones_like(self.halos.tab_z)
@@ -2910,10 +2906,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             dz = np.diff(self.halos.tab_z[in_range2])
             zfreq = 1
-
         
         zarr = self.halos.tab_z[in_range][::zfreq]
         Nz = zarr.size
+
+        #print('hey', z0, zf, dz, zarr[0:8])
         
         # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0
@@ -2950,6 +2947,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ehist = []
         redshifts = []
         for i in range(Nz):
+            
+            if dz.size == 0:
+                break
+                
+            #if zarr[-1::-1][i] < zf:
+            #    tmp = list(-99999 * np.ones_like(zarr[-1::-1][i:]))
+            #    redshifts.extend(tmp)
+            #    Mh_t.extend(tmp)
+            #    Mg_t.extend(tmp)
+            #    Mst_t.extend(tmp)
+            #    metals.extend(tmp)
+            #    cMst_t.extend(tmp)
+            #    sfr_t.extend(tmp)
+            #    mar_t.extend(tmp)
+            #    nh_t.extend(tmp)
+            #    
+            #    break    
+            
             # In descending order
             redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])
@@ -2986,7 +3001,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             
             z = redshifts[-1]
-            
+                        
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
 
@@ -3120,8 +3135,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if has_t_ceil and (not has_t_limit):
                     zmax = max(zmax, zmax_t)
 
-            #print(i, Nz, zarr[-1::-1][i], solver.t - dz[-1::-1][i])
+            #print(i, Nz, zarr[-1::-1][i], solver.t, dz[-1::-1][i], solver.t - dz[-1::-1][i])
             solver.integrate(solver.t-dz[-1::-1][i])
+            #print(solver.t)
+            
+            #raw_input('<enter>')
 
         if zmax is None:
             zmax = self.zdead
