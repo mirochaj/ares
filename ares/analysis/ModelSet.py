@@ -591,7 +591,7 @@ class ModelSet(BlobFactory):
 
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                chain = f['chain'].value
+                chain = np.array(f[('chain')])
                     
                 if hasattr(self, '_mask'):
                     if self.mask.ndim == 1:
@@ -4396,7 +4396,9 @@ class ModelSet(BlobFactory):
         
         if (i is None) and (j is None):
             f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
-            return f['blobs'][name].value
+            arr = np.array(f[('blobs')][name])
+            f.close()
+            return arr
         
         blob = self.get_blob_from_disk(name)
                 

@@ -34,11 +34,9 @@ def get_ps(**kwargs):
     
     Omega_ncdm = Om - Ob
     #m_ncdm = 77319.85488
-
-    T_ncdm = 0.715985
     
     mTH = kwargs['hmf_extra_par1']
-    
+        
     #Bozek2015
     msn = 3.9*(mTH)**1.294*(0.1198/0.1225)**(-0.33333)*1000
     
@@ -71,26 +69,25 @@ def get_ps(**kwargs):
          'format': 'camb',
                   
     }
-        
+
+    # Revert to CDM
+    if not np.isfinite(mTH):
+        params['N_ncdm'] = 0
+        params['Omega_ncdm'] = 0
+        params['Omega_cdm'] = Om - Ob
+        ncdm_pars = ['tol_ncdm_bg', 'Omega_ncdm', 'use_ncdm_psd_files', 
+            'm_ncdm', 'T_ncdm']
+        for par in ncdm_pars:
+            del params[par]
+
     classinst = Class()
     classinst.set(params)
     classinst.compute()
-    
-    #lo = -2
-    #hi = np.log10(params['P_k_max_h/Mpc'] * h0)
-    #Nk = (hi - lo) * params['k_per_decade_for_pk']
-    #k_bin = 10**np.linspace(lo, hi, Nk+1)
-    k_bin = np.logspace(-5, 2.5, 500)
-    #k_bin = np.logspace(-2, 1.7, 100)
-
+        
+    k_bin = np.logspace(-5, 2.5, 200)
     pk_bin = np.array([classinst.pk_lin(k_bin[i],0) for i in range(len(k_bin))])
-    
-    hcorr = True
-    
-    #if hcorr:
+        
     return k_bin / h0, pk_bin * h0**3
-    #else:
-    #    return k_bin, pk_bin
 
 def hmf_wrapper(**kwargs):
     """

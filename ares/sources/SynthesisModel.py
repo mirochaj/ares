@@ -49,20 +49,7 @@ class DummyClass(object):
                 
         return wave, data
         
-class SynthesisModel(Source):
-    #def __init__(self, **kwargs):
-    #    self.pf = ParameterFile(**kwargs)
-                
-    @property
-    def litinst(self):
-        if not hasattr(self, '_litinst'):
-            if self.pf['source_sed'] == 'user':
-                self._litinst = DummyClass()
-            else:    
-                self._litinst = read_lit(self.pf['source_sed'])
-                
-        return self._litinst
-    
+class SynthesisMaster(Source):        
     def AveragePhotonEnergy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
@@ -72,21 +59,21 @@ class SynthesisModel(Source):
         j2 = np.argmin(np.abs(Emax - self.energies))
         
         E = self.energies[j2:j1][-1::-1]
-        
+
         # Units: erg / s / Hz
         to_int = self.Spectrum(E)
-         
+
         # Units: erg / s
         return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
-
+        
     def Spectrum(self, E):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
         # reverse energies so they are in ascending order
         nrg = self.energies[-1::-1]
-        return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
-
+        return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm  
+        
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
@@ -117,8 +104,8 @@ class SynthesisModel(Source):
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
             self._dwdn = self.wavelengths**2 / (c * 1e8)
-        return self._dwdn
-
+        return self._dwdn      
+        
     @property
     def norm(self):
         """
@@ -143,89 +130,8 @@ class SynthesisModel(Source):
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
             self._i_tsf = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
-        return self._i_tsf
-    
-    @property
-    def data(self):
-        """
-        Units = erg / s / A / [depends]
+        return self._i_tsf    
         
-        Where, if instantaneous burst, [depends] = 1e6 Msun
-        and if continuous SF, [depends] = Msun / yr
-        
-        In SSP case, remove factor of 1e6 here so it propagates everywhere
-        else.
-        
-        """
-        if not hasattr(self, '_data'):
-            
-            Zall_l = list(self.metallicities.values())
-            Zall = np.sort(Zall_l)
-                        
-            # Check to see dimensions of tmp. Depending on if we're 
-            # interpolating in Z, it might be multiple arrays.
-            if (self.pf['source_Z'] in Zall_l):
-                if self.pf['source_sed_by_Z'] is not None:
-                    _tmp = self.pf['source_sed_by_Z'][1]
-                    self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
-                else:
-                    self._wavelengths, self._data = \
-                        self.litinst._load(**self.pf)
-            else:
-                if self.pf['source_sed_by_Z'] is not None:
-                    _tmp = self.pf['source_sed_by_Z'][1]
-                    assert len(_tmp) == len(Zall)
-                else:
-                    self._wavelengths, _tmp = \
-                        self.litinst._load(**self.pf)
-
-                # Shape is (Z, wavelength, time)?
-                to_interp = np.array(_tmp)
-                self._data_all_Z = to_interp
-                
-                # If outside table's range, just use endpoints
-                if self.pf['source_Z'] > max(Zall):
-                    _raw_data = np.log10(to_interp[-1])
-                elif self.pf['source_Z'] < min(Zall):
-                    _raw_data = np.log10(to_interp[0])
-                else:
-                    # If within range, interpolate
-                    _raw_data = np.zeros_like(to_interp[0])
-                    for i, t in enumerate(self.litinst.times):
-                        inter = interp1d(np.log10(Zall), 
-                            np.log10(to_interp[:,:,i]), axis=0, 
-                            kind=self.pf['interp_Z'])
-                        _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
-                                                                
-                self._data = 10**_raw_data
-                
-                # By doing the interpolation in log-space we sometimes
-                # get ourselves into trouble in bins with zero flux. 
-                # Gotta correct for that!
-                self._data[np.argwhere(np.isnan(self._data))] = 0.0
-                
-            # Normalize by SFR or cluster mass.    
-            if self.pf['source_ssp']:
-                # The factor of a million is built-in to the lookup tables
-                self._data *= self.pf['source_mass'] / 1e6
-                if hasattr(self, '_data_all_Z'):
-                    self._data_all_Z *= self.pf['source_mass'] / 1e6
-            else:    
-                #raise NotImplemented('is this ok?')
-                self._data *= self.pf['source_sfr']
-                
-        return self._data
-    
-    @property
-    def wavelengths(self):
-        if not hasattr(self, '_wavelengths'):
-            if self.pf['source_sed_by_Z'] is not None:
-                self._wavelengths, junk = self.pf['source_sed_by_Z']
-            else:
-                data = self.data
-            
-        return self._wavelengths
-
     @property
     def Nfreq(self):
         return len(self.energies)
@@ -256,7 +162,7 @@ class SynthesisModel(Source):
     def energies(self):
         if not hasattr(self, '_energies'):
             self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
-        return self._energies
+        return self._energies    
         
     @property
     def Emin(self):
@@ -271,20 +177,6 @@ class SynthesisModel(Source):
         if not hasattr(self, '_frequencies'):
             self._frequencies = c / (self.wavelengths / 1e8)
         return self._frequencies
-
-    @property
-    def weights(self):
-        return self.litinst.weights  
-        
-    @property
-    def times(self):
-        if not hasattr(self, '_times'):
-            self._times = self.litinst.times
-        return self._times
-    
-    @property
-    def metallicities(self):
-        return self.litinst.metallicities
         
     @property
     def time_averaged_sed(self):
@@ -653,3 +545,112 @@ class SynthesisModel(Source):
             # Return last element: steady state result
             return photons_per_b_t[-1]
                             
+class SynthesisModel(SynthesisMaster):
+    #def __init__(self, **kwargs):
+    #    self.pf = ParameterFile(**kwargs)
+                
+    @property
+    def _litinst(self):
+        if not hasattr(self, '_litinst_'):
+            if self.pf['source_sed'] == 'user':
+                self._litinst_ = DummyClass()
+            else:    
+                self._litinst_ = read_lit(self.pf['source_sed'])
+                
+        return self._litinst_
+        
+    @property
+    def wavelengths(self):
+        if not hasattr(self, '_wavelengths'):
+            if self.pf['source_sed_by_Z'] is not None:
+                self._wavelengths, junk = self.pf['source_sed_by_Z']
+            else:
+                data = self.data
+            
+        return self._wavelengths    
+        
+    @property
+    def weights(self):
+        return self._litinst.weights  
+
+    @property
+    def times(self):
+        if not hasattr(self, '_times'):
+            self._times = self._litinst.times
+        return self._times
+            
+    @property
+    def metallicities(self):
+        return self._litinst.metallicities    
+        
+    @property
+    def data(self):
+        """
+        Units = erg / s / A / [depends]
+        
+        Where, if instantaneous burst, [depends] = 1e6 Msun
+        and if continuous SF, [depends] = Msun / yr
+        
+        In SSP case, remove factor of 1e6 here so it propagates everywhere
+        else.
+        
+        """
+        if not hasattr(self, '_data'):
+            
+            Zall_l = list(self.metallicities.values())
+            Zall = np.sort(Zall_l)
+                        
+            # Check to see dimensions of tmp. Depending on if we're 
+            # interpolating in Z, it might be multiple arrays.
+            if (self.pf['source_Z'] in Zall_l):
+                if self.pf['source_sed_by_Z'] is not None:
+                    _tmp = self.pf['source_sed_by_Z'][1]
+                    self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
+                else:
+                    self._wavelengths, self._data = \
+                        self._litinst._load(**self.pf)
+            else:
+                if self.pf['source_sed_by_Z'] is not None:
+                    _tmp = self.pf['source_sed_by_Z'][1]
+                    assert len(_tmp) == len(Zall)
+                else:
+                    self._wavelengths, _tmp = \
+                        self._litinst._load(**self.pf)
+
+                # Shape is (Z, wavelength, time)?
+                to_interp = np.array(_tmp)
+                self._data_all_Z = to_interp
+                
+                # If outside table's range, just use endpoints
+                if self.pf['source_Z'] > max(Zall):
+                    _raw_data = np.log10(to_interp[-1])
+                elif self.pf['source_Z'] < min(Zall):
+                    _raw_data = np.log10(to_interp[0])
+                else:
+                    # If within range, interpolate
+                    _raw_data = np.zeros_like(to_interp[0])
+                    for i, t in enumerate(self._litinst.times):
+                        inter = interp1d(np.log10(Zall), 
+                            np.log10(to_interp[:,:,i]), axis=0, 
+                            kind=self.pf['interp_Z'])
+                        _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
+                                                                
+                self._data = 10**_raw_data
+                
+                # By doing the interpolation in log-space we sometimes
+                # get ourselves into trouble in bins with zero flux. 
+                # Gotta correct for that!
+                self._data[np.argwhere(np.isnan(self._data))] = 0.0
+                
+            # Normalize by SFR or cluster mass.    
+            if self.pf['source_ssp']:
+                # The factor of a million is built-in to the lookup tables
+                self._data *= self.pf['source_mass'] / 1e6
+                if hasattr(self, '_data_all_Z'):
+                    self._data_all_Z *= self.pf['source_mass'] / 1e6
+            else:    
+                #raise NotImplemented('is this ok?')
+                self._data *= self.pf['source_sfr']
+                
+        return self._data
+            
