@@ -352,7 +352,7 @@ class HaloMassFunction(object):
             kw = {par:self.pf[par] for par in hmf_kwargs}
             for par in CosmologyParameters():
                 kw[par] = self.pf[par]
-            
+                        
             kw['hmf_window'] = self.pf['hmf_window']
                         
             self.tab_dndm = self.pf['hmf_func'](**kw)
@@ -418,9 +418,18 @@ class HaloMassFunction(object):
             logMmax = self.pf['hmf_logMmax']
             dlogM = self.pf['hmf_dlogM']
             
+            from hmf.filters import SharpK, TopHat
+            if self.pf['hmf_window'] == 'tophat':
+                # This is the default in hmf
+                window = TopHat
+            elif self.pf['hmf_window'].lower() == 'sharpk':
+                window = SharpK
+            else:
+                raise ValueError("Unrecognized window function.")
+            
             # Initialize Perturbations class            
             self._MF_ = MassFunction(Mmin=logMmin, Mmax=logMmax, 
-                dlog10m=dlogM, z=self.tab_z[0], 
+                dlog10m=dlogM, z=self.tab_z[0], filter_model=window, 
                 hmf_model=self.hmf_func, cosmo_params=self.pars_cosmo,
                 growth_params=self.pars_growth, sigma_8=self.cosm.sigma8, 
                 n=self.cosm.primordial_index, transfer_params=self.pars_transfer,
@@ -1165,6 +1174,9 @@ class HaloMassFunction(object):
             
             s = 'hmf_{0!s}_logM_*_{1}-{2}_{3}_*_{4}-{5}'.format(\
                 self.hmf_func, M1, M2, s, z1, z2) 
+                
+        if self.pf['hmf_window'].lower() != 'tophat':
+            s += '_{}'.format(self.pf['hmf_window'].lower())
                         
         return s   
                                

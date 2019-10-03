@@ -324,6 +324,9 @@ def ParameterizedQuantityParameters():
      "pq_func_par5": None,
      "pq_func_par6": None,
      "pq_func_par7": None,
+     "pq_func_par7": None,
+     "pq_func_par8": None,
+     "pq_func_par9": None,
      
      "pq_boost": 1.,
      "pq_iboost": 1.,

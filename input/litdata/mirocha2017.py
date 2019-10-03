@@ -130,69 +130,38 @@ flex = _flex
 
 _flex2 = \
 {
- 'pq_func[0]{0}': 'dpl_arbnorm',
+ 'pq_func[0]{0}': 'dpl_evolNPSF',
  'pq_func_var[0]{0}': 'Mh',
+ 'pq_func_var2[0]{0}': '1+z',
 
  'pq_val_ceil[0]{0}': 1.0,
 
  # Standard dpl model at 10^8 Msun
- 'pq_func_par0[0]{0}': 'pq[1]',
- 'pq_func_par1[0]{0}': 'pq[2]',
- 'pq_func_par2[0]{0}': 'pq[3]',
- 'pq_func_par3[0]{0}': 'pq[4]',
+ 'pq_func_par0[0]{0}': 0.019,
+ 'pq_func_par1[0]{0}': 2.8e11,
+ 'pq_func_par2[0]{0}': 0.49,
+ 'pq_func_par3[0]{0}': -0.61,
  'pq_func_par4[0]{0}': 1e10,        # Mass at which fstar,0 is defined
+ 'pq_func_par5[0]{0}': 7.,
+ 'pq_func_par6[0]{0}': 0.,          # Redshift evolution of norm
+ 'pq_func_par7[0]{0}': 0.,          # Redshift evolution of peak
+ 'pq_func_par8[0]{0}': 0.,          # Redshift evolution of low-mass slope
+ 'pq_func_par9[0]{0}': 0.,          # Redshift evolution of high-mass slope
 
- # Evolving part
- 'pq_func[1]{0}': 'pl',
- 'pq_func_var[1]{0}': '1+z',
- 'pq_func_par0[1]{0}': 0.019,       # DPL model at Mh=1e8
- 'pq_func_par1[1]{0}': 7.,
- 'pq_func_par2[1]{0}': 0.,   # power-law index!
+ # Floor parameters
+ 'pq_func_par10[0]{0}': 0.0,
+ 'pq_func_par11[0]{0}': 0.0,
 
- 'pq_func[2]{0}': 'pl',
- 'pq_func_var[2]{0}': '1+z',
- 'pq_func_par0[2]{0}': 2.8e11,
- 'pq_func_par1[2]{0}': 7.,
- 'pq_func_par2[2]{0}': 0.,   # power-law index!
-
- 'pq_func[3]{0}': 'pl',
- 'pq_func_var[3]{0}': '1+z',
- 'pq_func_par0[3]{0}': 0.49,
- 'pq_func_par1[3]{0}': 7.,
- 'pq_func_par2[3]{0}': 0.,   # power-law index!
- 
- 'pq_func[4]{0}': 'pl',
- 'pq_func_var[4]{0}': '1+z',
- 'pq_func_par0[4]{0}': -0.61,
- 'pq_func_par1[4]{0}': 7.,
- 'pq_func_par2[4]{0}': 0.,   # power-law index!
- 
- # Possibility of LF steepening.
- 'pq_val_floor[0]{0}': 'pq[5]',
- 'pq_func[5]{0}': 'pl',
- 'pq_func_var[5]{0}': '1+z',
- 'pq_func_par0[5]{0}': 0.0, # unused by default
- 'pq_func_par1[5]{0}': 7.,
- 'pq_func_par2[5]{0}': 0.,
- 
- # Possibility of LF turn-over
- 'pop_focc{0}': 'pq[6]',
- 'pq_func[6]{0}': 'okamoto',
- 'pq_func_var[6]{0}': 'Mh',
- 'pq_func_par0[6]{0}': 'pq[7]',
- 'pq_func_par1[6]{0}': 'pq[8]',
-
- 'pq_func[7]{0}': 'pl',
- 'pq_func_var[7]{0}': '1+z',
- 'pq_func_par0[7]{0}': 1.,
- 'pq_func_par1[7]{0}': 5.,   # effectively not in use
- 'pq_func_par2[7]{0}': 0.,   # power-law index!
-
- 'pq_func[8]{0}': 'pl',
- 'pq_func_var[8]{0}': '1+z',
- 'pq_func_par0[8]{0}': 0.,  # Renders focc = 1 for all halos 
- 'pq_func_par1[8]{0}': 7.,
- 'pq_func_par2[8]{0}': 0.,   # power-law index!
+ # Okamoto parameters
+ 'pop_focc{0}': 'pq[1]',
+ 'pq_func[1]{0}': 'okamoto_evol',
+ 'pq_func_var[1]{0}': 'Mh',
+ 'pq_func_var2[1]{0}': '1+z',
+ 'pq_func_par0[1]{0}': 0.0,   # exponent
+ 'pq_func_par1[1]{0}': 0.0,   # critical mass
+ 'pq_func_par2[1]{0}': 7.0,   # pivot redshift
+ 'pq_func_par3[1]{0}': 0.0,
+ 'pq_func_par4[1]{0}': 0.0,
 }
 
 dflex = _flex2

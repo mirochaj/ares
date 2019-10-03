@@ -46,12 +46,15 @@ func_options = \
  'ramp': 'p0 if x <= p1, p2 if x >= p3, linear in between',
 }
 
+Np_max = 15
+
 optional_kwargs = 'pq_val_ceil', 'pq_val_floor', 'pq_var_ceil', 'pq_var_floor'
+numeric_types = [int, float, np.int, np.int64, np.float64]    
     
-class BasePQ(object):             
-    def __init__(self, **kwargs): 
-        self.args = [] 
-        for i in range(8):
+class BasePQ(object): 
+    def __init__(self, **kwargs):
+        self.args = []
+        for i in range(Np_max):
             name = 'pq_func_par{}'.format(i)
             if name not in kwargs:
                 continue
@@ -341,6 +344,75 @@ class DoublePowerLawEvolvingNormPeak(BasePQ):
                 * (kwargs[self.t] / self.args[5])**self.args[6]
 
         return y
+
+class DoublePowerLawEvolvingNormPeakSlope(BasePQ):
+    def __call__(self, **kwargs):     
+        x = kwargs[self.x]
+                
+        if self.t == '1+z':
+            t = 1. + kwargs['z']
+        else:
+            t = kwargs[self.t]
+            
+        # This is the peak mass
+        p1 = self.args[1] * (t / self.args[5])**self.args[7]    
+        
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+        
+        s1 = self.args[2] * (t / self.args[5])**self.args[8]
+        s2 = self.args[3] * (t / self.args[5])**self.args[9]
+        
+        # This is to conserve memory.
+        xx = x / p1
+        y  = xx**-s1
+        y += xx**-s2
+        np.divide(1., y, out=y)      
+        
+        if self.t == '1+z':  
+            y *= normcorr * self.args[0] \
+                * ((1. + kwargs['z']) / self.args[5])**self.args[6]
+        else:
+            y *= normcorr * self.args[0] \
+                * (kwargs[self.t] / self.args[5])**self.args[6]
+
+        return y
+
+class DoublePowerLawEvolvingNormPeakSlopeFloor(BasePQ):
+    def __call__(self, **kwargs):     
+        x = kwargs[self.x]
+                
+        if self.t == '1+z':
+            t = 1. + kwargs['z']
+        else:
+            t = kwargs[self.t]
+            
+        # This is the peak mass
+        p1 = self.args[1] * (t / self.args[5])**self.args[7]    
+        
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+        
+        s1 = self.args[2] * (t / self.args[5])**self.args[8]
+        s2 = self.args[3] * (t / self.args[5])**self.args[9]
+        
+        # This is to conserve memory.
+        xx = x / p1
+        y  = xx**-s1
+        y += xx**-s2
+        np.divide(1., y, out=y)      
+        
+        if self.t == '1+z':  
+            y *= normcorr * self.args[0] \
+                * ((1. + kwargs['z']) / self.args[5])**self.args[6]
+        else:
+            y *= normcorr * self.args[0] \
+                * (kwargs[self.t] / self.args[5])**self.args[6]
+
+        floor = self.args[10] * (t / self.args[5])**self.args[11]    
+
+        return np.maximum(y, floor)
+
         
 class Okamoto(BasePQ):
     def __call__(self, **kwargs):
@@ -348,6 +420,22 @@ class Okamoto(BasePQ):
         
         y = (1. + (2.**(self.args[0] / 3.) - 1.) \
           * (x / self.args[1])**-self.args[0])**(-3. / self.args[0])
+         
+        return y
+
+class OkamotoEvolving(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+        
+        if self.t == '1+z':
+            t = 1. + kwargs['z']
+        else:
+            t = kwargs[self.t]
+        
+        p0 = self.args[0] * (t / self.args[2])**self.args[3]
+        p1 = self.args[1] * (t / self.args[2])**self.args[4]
+            
+        y = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)
          
         return y
 
@@ -381,7 +469,7 @@ class SchechterEvolving(BasePQ):
         if self.x.lower() in ['mags', 'muv', 'mag']:
             y = 0.4 * np.log(10.) * p0 \
                 * (10**(0.4 * (p1 - x)))**(p2 + 1.) \
-                * np.exp(-10**(0.4 * (p1 - x))) 
+                * np.exp(-10**(0.4 * (p1 - x)))
         else:
             y = p0 * (x / p1)**p2 * np.exp(-(x / p1)) / p1
         
@@ -417,7 +505,11 @@ class ParameterizedQuantity(object):
         elif kwargs['pq_func'] == 'dpl_evolP':
             self.func = DoublePowerLawEvolvingPeak(**kwargs)    
         elif kwargs['pq_func'] == 'dpl_evolNP':
-            self.func = DoublePowerLawEvolvingNormPeak(**kwargs)    
+            self.func = DoublePowerLawEvolvingNormPeak(**kwargs)  
+        elif kwargs['pq_func'] == 'dpl_evolNPS':
+            self.func = DoublePowerLawEvolvingAll(**kwargs)
+        elif kwargs['pq_func'] == 'dpl_evolNPSF':    
+            self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
         elif kwargs['pq_func'] == 'exp':
             self.func = Exponential(**kwargs)  
         elif kwargs['pq_func'] == 'exp-':
@@ -437,7 +529,9 @@ class ParameterizedQuantity(object):
         elif kwargs['pq_func'] == 'step_rel':
             self.func = StepRel(**kwargs)
         elif kwargs['pq_func'] == 'okamoto':
-            self.func = Okamoto(**kwargs)           
+            self.func = Okamoto(**kwargs)  
+        elif kwargs['pq_func'] == 'okamoto_evol':
+            self.func = OkamotoEvolving(**kwargs)
         elif kwargs['pq_func'] in ['schechter', 'plexp']:
             self.func = Schechter(**kwargs)
         elif kwargs['pq_func'] in ['schechter_evol']:
@@ -459,18 +553,22 @@ class ParameterizedQuantity(object):
             
             # Should have these options for var2 also    
             if self.func.var_ceil is not None:
-                var = np.minimum(var, self.func.var_ceil)
+                if type(self.func.var_ceil) in numeric_types:
+                    var = np.minimum(var, self.func.var_ceil)
             if self.func.var_floor is not None:
-                var = np.maximum(var, self.func.var_floor)
+                if type(self.func.var_floor) in numeric_types:
+                    var = np.maximum(var, self.func.var_floor)
                 
             kw[key] = var
 
         y = self.func.__call__(**kw)
         
         if self.func.val_ceil is not None:
-            y = np.minimum(y, self.func.val_ceil)
+            if type(self.func.val_ceil) in numeric_types:
+                y = np.minimum(y, self.func.val_ceil)
         if self.func.val_floor is not None:
-            y = np.maximum(y, self.func.val_floor)
+            if type(self.func.val_floor) in numeric_types:
+                y = np.maximum(y, self.func.val_floor)
             
         return y
         
@@ -583,7 +681,7 @@ class ParameterizedQuantityOld(object):
     def pars_list(self):
         if not hasattr(self, '_pars_list'):
             self._pars_list = []
-            for i in range(8):
+            for i in range(10):
                 name = 'pq_func_par{}'.format(i)
                 if name in self.pf:
                     self._pars_list.append(self.pf[name])
