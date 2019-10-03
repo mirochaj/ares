@@ -1,7 +1,7 @@
 :orphan:
 
-More Realistic Galaxy Populations
-=================================
+More Realistic Galaxy Populations (mass-dependent star formation efficiency)
+==========================================================================
 Most global 21-cm examples in the documentation tie the volume-averaged emissivity of galaxies to the rate at which mass collapses into dark matter halos (this is the default option in *ares*). Because of this, they are referred to as :math:`f_{\text{coll}}` models throughout, and are selected by setting ``pop_sfr_model='fcoll'``. In the code, they are represented by ``GalaxyAggregate`` objects, named as such because galaxies are only modeled in aggregate, i.e., there is no distinction in the properties of galaxies as a function of mass, luminosity, etc.
 
 However, we can also run more detailed models in which the properties of galaxies are allowed to change as a function of halo mass, redshift, and/or potentially other quantities.

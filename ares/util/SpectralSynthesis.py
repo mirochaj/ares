@@ -777,6 +777,10 @@ class SpectralSynthesis(object):
             
             # Check wavelength first. Most common thing.
             
+            # If we're not being as careful as possible, retrieve cached
+            # result so long as wavelength and zobs match requested values.
+            # This should only be used when SpectralSynthesis is summoned
+            # internally! Likely to lead to confusing behavior otherwise.
             if (self.careful_cache == 0) and ('wave' in kw) and ('zobs' in kw):
                 if (kw['wave'] == kwds['wave']) and (kw['zobs'] == kwds['zobs']):
                     notok = 0
@@ -886,7 +890,7 @@ class SpectralSynthesis(object):
         
         kw = {'sfh': sfh, 'zobs':zobs, 'tobs': tobs, 'wave':wave, 'tarr':tarr, 
             'zarr': zarr, 'band': band, 'idnum': idnum, 'hist':hist, 
-            'extras': extras}        
+            'extras': extras}
         
         #kw_tup = tuple(kw.viewitems())
         
