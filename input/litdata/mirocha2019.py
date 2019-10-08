@@ -21,17 +21,22 @@ cold = \
  'pq_func_par2[0]{0}': 0.924929473207,
  'pq_func_par3[0]{0}': -0.345183026665,
  
+ # Redshift evolution of SFE parameters
  'pq_func_par6[0]{0}': -1.93710531526,
  'pq_func_par7[0]{0}': -0.0401589348891,
  'pq_func_par8[0]{0}': 0.496357034538,
  'pq_func_par9[0]{0}': -0.85185812704,
  
+ # Floor parameters
  'pq_func_par10[0]{0}': 0.0180819517762,
  'pq_func_par11[0]{0}': 0.633935667655,
+ 
+ # Turn-over possibility
  'pq_func_par0[1]{0}': 2.47340783415,
  'pq_func_par1[1]{0}': 22676116.9726,
  'pq_func_par3[1]{0}': 1.29978775053,
  'pq_func_par4[1]{0}': 2.51794223721,
+ 
  'inits_Tk_p0': 203.477407296,
  'inits_Tk_p1': 1.23612113669,
  'inits_Tk_p2': -6.89882925178,

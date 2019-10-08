@@ -404,10 +404,11 @@ class DoublePowerLawEvolvingNormPeakSlopeFloor(BasePQ):
         
         if self.t == '1+z':  
             y *= normcorr * self.args[0] \
-                * ((1. + kwargs['z']) / self.args[5])**self.args[6]
+                * (t / self.args[5])**self.args[6]
         else:
             y *= normcorr * self.args[0] \
-                * (kwargs[self.t] / self.args[5])**self.args[6]
+                * (t / self.args[5])**self.args[6]
+
 
         floor = self.args[10] * (t / self.args[5])**self.args[11]    
 

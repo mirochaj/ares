@@ -24,14 +24,14 @@ try:
     from distpy import UniformDistribution
 except ImportError:
     pass
-    
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     size = MPI.COMM_WORLD.size
 except ImportError:
     rank = 0
-    size = 1    
+    size = 1
 
 _b14 = read_lit('bouwens2014')
 filt_hst = {4: _b14.filt_shallow[4], 5: _b14.filt_shallow[5],
