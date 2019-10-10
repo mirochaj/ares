@@ -2,7 +2,7 @@
 
 Models for Star Formation in Galaxies
 =====================================
-The are a number of different ways to model star formation in *ares*. The method employed is determined by the value of the parameter ``pop_sfr_model``, which can take on any of the following values:
+The are a number of different ways to model star formation in *ARES*. The method employed is determined by the value of the parameter ``pop_sfr_model``, which can take on any of the following values:
 
     + ``'fcoll'``
         Relate the global star formation rate density (SFRD) to the rate at which matter collapses into halos above some threshold.
@@ -40,7 +40,7 @@ To initialize a population, just do:
     # Print SFRD at redshift 20.
     print pop.SFRD(20.)
 
-This will be a very small number because *ares* uses *cgs* units internally, which means the SFRD is in units of :math:`\mathrm{g} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-3}`, with the volume assumed to be co-moving. To convert to the more familiar units of :math:`M_{\odot} \ \mathrm{year}^{-1} \ \mathrm{cMpc}^{-3}`, 
+This will be a very small number because *ARES* uses *cgs* units internally, which means the SFRD is in units of :math:`\mathrm{g} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-3}`, with the volume assumed to be co-moving. To convert to the more familiar units of :math:`M_{\odot} \ \mathrm{year}^{-1} \ \mathrm{cMpc}^{-3}`, 
 
 ::
 
@@ -96,9 +96,9 @@ Alternatively, you can supply a lookup table for the SFRD. To do this, modify yo
     pars['pop_sfr_model'] = 'sfrd-tab'
     pars['pop_sfrd'] = (z, sfrd)
 
-where ``z`` and ``sfrd`` are arrays you've generated yourself. *ares* will construct an interpolant from these arrays using ``scipy.interpolate.interp1d``, using the method supplied in ``pop_sfrd_interp``. By default, this will be a ``'cubic'`` spline, but you can also supply, e.g., ``pop_sfrd_interp='linear'``.
+where ``z`` and ``sfrd`` are arrays you've generated yourself. *ARES* will construct an interpolant from these arrays using ``scipy.interpolate.interp1d``, using the method supplied in ``pop_sfrd_interp``. By default, this will be a ``'cubic'`` spline, but you can also supply, e.g., ``pop_sfrd_interp='linear'``.
 
-By default, *ares* assumes your SFRD is in units of :math:`\mathrm{g} \  \mathrm{s}^{-1} \ \mathrm{cm}^{-3}` (co-moving) (corresponding to ``pop_sfrd_units='internal'``), but if you can change this to 'msun/yr/cmpc^3' if you'd prefer the more sensible units of :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}`! In fact, these are the only two options, so as long as ``pop_sfrd_units != 'internal'``, *ares* assumes the :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}` units.
+By default, *ARES* assumes your SFRD is in units of :math:`\mathrm{g} \  \mathrm{s}^{-1} \ \mathrm{cm}^{-3}` (co-moving) (corresponding to ``pop_sfrd_units='internal'``), but if you can change this to 'msun/yr/cmpc^3' if you'd prefer the more sensible units of :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}`! In fact, these are the only two options, so as long as ``pop_sfrd_units != 'internal'``, *ARES* assumes the :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}` units.
 
 
 ``sfe-func`` models

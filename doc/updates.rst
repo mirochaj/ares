@@ -1,4 +1,4 @@
-*ares* Development: Staying Up To Date
+*ARES* Development: Staying Up To Date
 ======================================
 Things are changing fast! To keep up with advancements, a working knowledge of `mercurial <https://mercurial.selenic.com/>`_  will be very useful. If you're reading this, you may already be familiar with mercurial to some degree, as its ``clone`` command can be used to checkout a copy of the most-up-to-date version (the ''tip'' of development) from bitbucket. For example (as in :doc:`install`),  ::
 
@@ -6,19 +6,19 @@ Things are changing fast! To keep up with advancements, a working knowledge of `
     cd ares
     python setup.py install
     
-If you don't plan on making changes to the source code, but would like to make sure you have the most up-to-date version of *ares*, you'll want to use the ``hg pull`` command regularly, i.e., simply type ::
+If you don't plan on making changes to the source code, but would like to make sure you have the most up-to-date version of *ARES*, you'll want to use the ``hg pull`` command regularly, i.e., simply type ::
 
     hg pull
     
-from anywhere within the *ares* folder. After entering your bitbucket credentials, fresh copies of any files that have been changed will be downloaded. In order to accept those updates, you should then type::
+from anywhere within the *ARES* folder. After entering your bitbucket credentials, fresh copies of any files that have been changed will be downloaded. In order to accept those updates, you should then type::
 
     hg update
     
-or simply ``hg up`` for short. Then, to re-install *ares*: ::
+or simply ``hg up`` for short. Then, to re-install *ARES*: ::
 
     python setup.py install
 
-If you plan on making changes to *ares*, you should `fork it
+If you plan on making changes to *ARES*, you should `fork it
 <https://bitbucket.org/mirochaj/ares/fork>`_ so that your line of development can run in parallel with the ''main line'' of development. Once you've forked, you should clone a copy just as we did above. For example (note the hyperlink change), ::
 
     hg clone https://bitbucket.org/mirochaj/ares-jordan ares-jordan
@@ -57,7 +57,7 @@ If you convince yourself that the changes you've made are *good* changes, you sh
 - Modifications to a pre-existing file.
 - Creation of an entirely new file.
 
-If you've added new files to *ares*, they should get an ``?`` indicator when you type ``hg status``, meaning they are untracked. To start tracking them, you need to add them to the repository. For example, if we made a new file ``tests/test_new_feature.py``, we would do::
+If you've added new files to *ARES*, they should get an ``?`` indicator when you type ``hg status``, meaning they are untracked. To start tracking them, you need to add them to the repository. For example, if we made a new file ``tests/test_new_feature.py``, we would do::
     
     hg add tests/test_new_feature.py
 
@@ -69,7 +69,7 @@ If you've modified pre-existing files, they will be marked ``M`` by ``hg status`
     
 The ``-m`` indicates that what follows in quotes is the ''commit message'' describing what you've done. Commit messages should be descriptive but brief, i.e., try to limit yourself to a sentence (or maybe two), tops. You can see examples of this in the `ares commit history <https://bitbucket.org/mirochaj/ares/commits/all>`_.
 
-Note that your changes are still *local*, meaning the *ares* repository on bitbucket is unaware of them. To remedy that, go ahead and ``push``::
+Note that your changes are still *local*, meaning the *ARES* repository on bitbucket is unaware of them. To remedy that, go ahead and ``push``::
 
     hg push
     
@@ -87,11 +87,11 @@ You should see something that looks like ::
     [ui]
     username = John Doe <johndoe@gmail.com>
     
-If you got an authorization error, it is likely information in this file was either missing or incorrect. Remember that you won't have push access to the main *ares* repository: just your fork (hence the use of ''fork-name'' above). 
+If you got an authorization error, it is likely information in this file was either missing or incorrect. Remember that you won't have push access to the main *ARES* repository: just your fork (hence the use of ''fork-name'' above). 
 
 Contributing your Changes to the main repository
 ------------------------------------------------
-If you've made changes, you should let us know! The most formal way of doing so is to issue a pull request (PR), which alerts the administrators of *ares* to review your changes and pull them into the main line of *ares* development.
+If you've made changes, you should let us know! The most formal way of doing so is to issue a pull request (PR), which alerts the administrators of *ARES* to review your changes and pull them into the main line of *ARES* development.
 
 Dealing with Conflicts
 ----------------------

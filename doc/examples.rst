@@ -49,7 +49,7 @@ Extensions
     
 * Advanced source populations
     * :doc:`example_pop_galaxy`
-    * :doc:`example_sps`
+    * :doc:`example_pop_sps`
     * :doc:`example_popIII`
     * :doc:`example_edges`
     

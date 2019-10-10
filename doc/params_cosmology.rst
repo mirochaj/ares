@@ -2,7 +2,7 @@
 
 Cosmology Parameters
 ====================
-The default cosmological parameters in *ares* are from *Planck*. Specifically, we take values from the last column of Table 4 in `Planck XIII <http://adsabs.harvard.edu/abs/2015arXiv150201589P>`_. 
+The default cosmological parameters in *ARES* are from *Planck*. Specifically, we take values from the last column of Table 4 in `Planck XIII <http://adsabs.harvard.edu/abs/2015arXiv150201589P>`_. 
 
 .. note :: Several input files (e.g., lookup tables for the halo mass           
     function, initial conditions, etc.) depend on these vales. There currently 

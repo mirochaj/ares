@@ -38,7 +38,7 @@ The Source Spectrum
 -------------------    
 We'll use :math:`I_E` to denote to the SED of sources, which the user supplies via the parameter ``source_sed`` or ``pop_sed``. It is proportional
 to the *energy* emitted at energy :math:`E`, NOT the number of photons
-emitted at energy :math:`E`, and is normalized (automatically by *ares*) such that
+emitted at energy :math:`E`, and is normalized (automatically by *ARES*) such that
 
 .. math::
 

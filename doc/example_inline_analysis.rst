@@ -2,7 +2,7 @@
 
 Inline Analysis
 ===============
-When running a large number of models, each of which takes a few seconds (or more), it's important to do as much analysis "inline" as possible. For example, say we are interested in obtaining confidence intervals for quantities other than the free parameters of our model. Yes, we could go back later and re-run certain subsets of models and extract whatever information we want, but with a little planning, we can eliminate the need for these "extra" computations. The *emcee* code dubs such quantities `arbitrary meta-data blobs <http://dan.iel.fm/emcee/current/user/advanced/#arbitrary-metadata-blobs>`_, and as a result, any quantities computed during calculations in *ares* will be named "blobs" as well.
+When running a large number of models, each of which takes a few seconds (or more), it's important to do as much analysis "inline" as possible. For example, say we are interested in obtaining confidence intervals for quantities other than the free parameters of our model. Yes, we could go back later and re-run certain subsets of models and extract whatever information we want, but with a little planning, we can eliminate the need for these "extra" computations. The *emcee* code dubs such quantities `arbitrary meta-data blobs <http://dan.iel.fm/emcee/current/user/advanced/#arbitrary-metadata-blobs>`_, and as a result, any quantities computed during calculations in *ARES* will be named "blobs" as well.
 
 The goal of this section is to outline the general procedure used to save meta-data blobs of your choosing, which can be tricky because different quantities of interest are computed in very different ways and often are of diverse shapes and variables types.
 
@@ -25,7 +25,7 @@ So, we define a nested list containing the names of our blobs:
 
     blob_names = [['tau_e'], ['cgm_h_2', 'igm_Tk', 'dTb']]
 
-The blobs ares sorted by their dimensionality: the first sublist contains the names of all scalar blobs, while the second contains the 1-D blobs. Important question: how do you know the names of blobs? The scalar blobs, in this case just ``tau_e`` (the CMB optical depth) are all *attributes* of the ``Global21cm`` simulation class (well, really of ares.analysis.Global21cm, but they get inherited). The 1-D blobs are all names of *ares* fields: see :doc:`fields` for more information.
+The blobs ares sorted by their dimensionality: the first sublist contains the names of all scalar blobs, while the second contains the 1-D blobs. Important question: how do you know the names of blobs? The scalar blobs, in this case just ``tau_e`` (the CMB optical depth) are all *attributes* of the ``Global21cm`` simulation class (well, really of ares.analysis.Global21cm, but they get inherited). The 1-D blobs are all names of *ARES* fields: see :doc:`fields` for more information.
 
 Now, for the 1-D blobs we also need to provide a sequence of redshifts at which to save each quantity:
 
@@ -35,7 +35,7 @@ Now, for the 1-D blobs we also need to provide a sequence of redshifts at which 
     
 Notice that ``blob_ivars`` is a 2-element list (``ivars`` is short for "independent variables," since in general they need not be redshifts): one element for each blob group (scalar and 1-D). Since the scalars are just numbers, the first element in this list is just ``None``, while the second indicates that we'll save the desired quantities at redshifts (``'z'``) :math:`z=6,7,...,20`.
 
-.. note :: *ares* works with redshift internally, so, if you wanted to sample equally over some frequency range, simply define that array first and convert to redshifts via :math:`z = (\nu_0 / \nu) - 1` where :math:`\nu_0 = 1420.4057` MHz.
+.. note :: *ARES* works with redshift internally, so, if you wanted to sample equally over some frequency range, simply define that array first and convert to redshifts via :math:`z = (\nu_0 / \nu) - 1` where :math:`\nu_0 = 1420.4057` MHz.
 
 We supply these lists via parameters of the same name:
 
@@ -77,7 +77,7 @@ The blobs themselves can be accessed via:
 
 Special Redshifts
 ~~~~~~~~~~~~~~~~~
-We'll often be interested in saving a series of quantities at the redshifts corresponding to the extrema of the global 21-cm signal, or the midpoint of reionization, etc. However, since those aren't known *a-priori*, we can't specify them like we did above. Instead, we tag a suffix (either ``B``, ``C``, or ``D``) onto pre-existing *ares* fields, i.e., 
+We'll often be interested in saving a series of quantities at the redshifts corresponding to the extrema of the global 21-cm signal, or the midpoint of reionization, etc. However, since those aren't known *a-priori*, we can't specify them like we did above. Instead, we tag a suffix (either ``B``, ``C``, or ``D``) onto pre-existing *ARES* fields, i.e., 
 
 ::
 
@@ -88,7 +88,7 @@ and so on.
 
 Example: Derived Blobs
 ----------------------
-There are many quantities one might be interested in that are **not** computed by *ares* by default, but can be derived after-the-fact from quantities *ares* does compute. Things are setup such that you can provide your own function to compute such "derived blobs," or you can simply refer to built-in functions that are attributes of *ares* simulation objects.
+There are many quantities one might be interested in that are **not** computed by *ARES* by default, but can be derived after-the-fact from quantities *ARES* does compute. Things are setup such that you can provide your own function to compute such "derived blobs," or you can simply refer to built-in functions that are attributes of *ARES* simulation objects.
 
 To build on our previous example:
 
@@ -100,7 +100,7 @@ To build on our previous example:
     
 The ``'fwhm'`` blob is just a number, while ``'slope'`` here will be saved at integer frequencies between 40 and 150 MHz.
 
-Now, we must specify the functions needed to compute ``'fwhm'`` and ``'slope'``. In this case, we don't need to write them from scratch, as they already exist in ``ares.analysis.Global21cm``, which is inherited by ``ares.simulations.Global21cm``. *ares* will assume blob functions are attributes of the simulation class, which means these quantities are readily available:
+Now, we must specify the functions needed to compute ``'fwhm'`` and ``'slope'``. In this case, we don't need to write them from scratch, as they already exist in ``ares.analysis.Global21cm``, which is inherited by ``ares.simulations.Global21cm``. *ARES* will assume blob functions are attributes of the simulation class, which means these quantities are readily available:
 
 ::
 

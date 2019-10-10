@@ -2,7 +2,7 @@
 
 Parameters for Parameterized Quantities
 ----------------------------------------
-Parameterized quantities are most often used in the context of the galaxy luminosity function, where model the efficiency of star formation as a function of halo mass and (perhaps) redshift. See the ``mirocha2016`` option in :doc:`param_bundles` for a concrete example of how these parameters can be used. The basic idea is to provide a framework that enables *any* parameter to be parameterized more generally as a function of redshift, halo mass, etc. This potential is not yet fully realized, so beware that not all parameters can utilize this functionality!
+Parameterized quantities are most often used in the context of the galaxy luminosity function, where model the efficiency of star formation as a function of halo mass and (perhaps) redshift. See the ``mirocha2017`` option in :doc:`param_bundles` for a concrete example of how these parameters can be used. The basic idea is to provide a framework that enables *any* parameter to be parameterized more generally as a function of redshift, halo mass, etc. This potential is not yet fully realized, so beware that not all parameters can utilize this functionality!
 
 A more detailed description of the methodology can be found here: :doc:`uth_pq`.
 

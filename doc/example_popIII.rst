@@ -4,7 +4,7 @@ Including Population III Stars
 ==============================
 One of the generic results of using :doc:`example_pop_galaxy` is that they tend to produce strong late-time absorption troughs in the global 21-cm signal (this was the point of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_). Our interpretation was that deviations from these predictions could indicate "new" source populations, like Population III stars and their remnants. Indeed, we found some evidence that such objects introduce asymmetries in the global 21-cm signal (see `Mirocha et al. 2018 <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_ for details). 
 
-The PopIII stars in this paper are simple, and were designed to seamlessly integrate with *ares* while capturing the general behavior of more detailed models (e.g., `Mebane, Mirocha, \& Furlanetto (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.479.4544M>`_). This section will describe how to make use of these models yourself.
+The PopIII stars in this paper are simple, and were designed to seamlessly integrate with *ARES* while capturing the general behavior of more detailed models (e.g., `Mebane, Mirocha, \& Furlanetto (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.479.4544M>`_). This section will describe how to make use of these models yourself.
 
 The easiest way to tap into these models is via the `ParameterBundle` framework. To begin,
 
@@ -45,7 +45,7 @@ It is possible to use a halo mass-dependent prescription for the PopIII SFR if y
 
 Note on Feedback
 ~~~~~~~~~~~~~~~~
-One of the defining features of PopIII sources is their susceptibility to the global Lyman-Werner (LW) background, which drives up the minimum halo mass for star formation and thus limits the PopIII star formation rate density (SFRD). Because the LW background depends on the SFRD, the introduction of PopIII sources means *ares* calculations must be performed iteratively. As a result, **you will notice that these models can be quite a bit slower than normal ares calculations (by a factor of a few up to an order of magnitude, typically.**)
+One of the defining features of PopIII sources is their susceptibility to the global Lyman-Werner (LW) background, which drives up the minimum halo mass for star formation and thus limits the PopIII star formation rate density (SFRD). Because the LW background depends on the SFRD, the introduction of PopIII sources means *ARES* calculations must be performed iteratively. As a result, **you will notice that these models can be quite a bit slower than normal ares calculations (by a factor of a few up to an order of magnitude, typically.**)
 
 There is some control, here, however. If you're not looking for much accuracy, you can change the default set of convergence criteria to accelerate things.
 
@@ -142,9 +142,9 @@ Now, to use this model grid for further calculations, you can simply do:
     sim.run()
     
     
-*ares* will initialize a ``ModelGrid`` object using the ``popIII_grid*`` files in the current working directory. Importantly, we've told *ares* to use the parameter ``pop_time_limit`` to set initial guesses, which seems obvious here but in general we could have more parameters in the grid and we could opt to only use a subset here.
+*ARES* will initialize a ``ModelGrid`` object using the ``popIII_grid*`` files in the current working directory. Importantly, we've told *ARES* to use the parameter ``pop_time_limit`` to set initial guesses, which seems obvious here but in general we could have more parameters in the grid and we could opt to only use a subset here.
 
-If all goes according to plan, *ares* will use the ``pop_time_limit{2}=10`` grid point, pulling the result for the minimum mass evolution (which we saved as a blob) and using it as the initial guess. This should result in a SFRD very similar, but not identical to, the ``pop_time_limit{2}=10`` model in our grid. And, most importantly, whereas the ``pop_time_limit{2}=10`` model took 20 iterations to complete, the ``pop_time_limit{2}=12'' model should only take 10 (with default tolerances).
+If all goes according to plan, *ARES* will use the ``pop_time_limit{2}=10`` grid point, pulling the result for the minimum mass evolution (which we saved as a blob) and using it as the initial guess. This should result in a SFRD very similar, but not identical to, the ``pop_time_limit{2}=10`` model in our grid. And, most importantly, whereas the ``pop_time_limit{2}=10`` model took 20 iterations to complete, the ``pop_time_limit{2}=12'' model should only take 10 (with default tolerances).
 
 This kind of thing can be very useful if you want to vary parameters that do not affect the PopIII SFRD. In fact this is precisely what we did in `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_. In this case, we knew ahead of time that we would only survey the *exact* models represented in the grid, so we set:
 
@@ -152,4 +152,4 @@ This kind of thing can be very useful if you want to vary parameters that do not
 
     pars['feedback_LW_guesses_perfect'] = True
     
-which told *ares* not just to use results from the ``ModelGrid`` as first guesses, but to assume they are perfect, in which case no further iteration by the solver is required.
+which told *ARES* not just to use results from the ``ModelGrid`` as first guesses, but to assume they are perfect, in which case no further iteration by the solver is required.

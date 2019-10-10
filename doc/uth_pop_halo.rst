@@ -4,9 +4,9 @@ Dark Matter Halo Populations
 ============================
 Most of our models for star formation, black hole formation, etc., are painted onto a population of dark matter (DM) halos. In the simplest models, we just care about the total fraction of matter residing in halos, or the rate of change in that quantity (e.g., ``fcoll`` :doc:`uth_pop_sfrd`). In slightly more sophisticated models, we'll need the halo mass function, which describes the number density of halos as a function of redshift and mass, and perhaps the growth rates of halos (again, with redshift and mass).
 
-For all of this, *ares* uses the `hmf <http://hmf.readthedocs.org/en/latest/>`_ code. In order to speed-up calculations, by default, *ares* will read-in a lookup table for the mass function rather than using *hmf* to generate mass functions on-the-fly. This saves *a lot* of time. 
+For all of this, *ARES* uses the `hmf <http://hmf.readthedocs.org/en/latest/>`_ code. In order to speed-up calculations, by default, *ARES* will read-in a lookup table for the mass function rather than using *hmf* to generate mass functions on-the-fly. This saves *a lot* of time. 
 
-    .. note :: You do not necessarily need to install `hmf` to use *ares*, e.g., if the default lookup table is OK for your purposes. However, you should know that this table was generated with `hmf`, and reference the `relevant paper <https://arxiv.org/abs/1306.6721>`_ in your work.
+    .. note :: You do not necessarily need to install `hmf` to use *ARES*, e.g., if the default lookup table is OK for your purposes. However, you should know that this table was generated with `hmf`, and reference the `relevant paper <https://arxiv.org/abs/1306.6721>`_ in your work.
 
 To initialize a halo population on its own (i.e., without any information about sources that live in the halos), do
 
@@ -16,7 +16,7 @@ To initialize a halo population on its own (i.e., without any information about 
     
     pop = ares.populations.HaloPopulation()
     
-This class is inherited by almost every other kind of source population available in *ares*. Its most important attribute is simply called `halos`, and itself is an instance of the ``HaloMassFunction`` class, which does the heavy lifting. The attributes you're most likely to need access to are:
+This class is inherited by almost every other kind of source population available in *ARES*. Its most important attribute is simply called `halos`, and itself is an instance of the ``HaloMassFunction`` class, which does the heavy lifting. The attributes you're most likely to need access to are:
 
 + ``'tab_z'``
     The array of redshifts over which we have tabulated the HMF.
@@ -76,7 +76,7 @@ Halo Growth Rates
 ~~~~~~~~~~~~~~~~~
 For some models we need to know the growth rates of halos, in addition to their space density. There are a few ways to go about this.
 
-The default option in *ares* is to use the mass function itself to derive halo mass accretion rates, as is discussed in Section 2.2 of `Furlanetto et al. 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.472.1576F>`_. This approach assumes that halos evolve at fixed number density, which of course is not true in detail, but it is ultimately useful nonetheless as it preserves self-consistency between the abundance of halos and their growth histories.
+The default option in *ARES* is to use the mass function itself to derive halo mass accretion rates, as is discussed in Section 2.2 of `Furlanetto et al. 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.472.1576F>`_. This approach assumes that halos evolve at fixed number density, which of course is not true in detail, but it is ultimately useful nonetheless as it preserves self-consistency between the abundance of halos and their growth histories.
 
 To plot the growth rates, you can do, e.g.,
 
@@ -109,9 +109,9 @@ Generating new HMF Tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 If the default lookup table doesn't suit your purpose, you can (i) generate your own using the same machinery, or (ii) create your own lookup table using some other code. 
 
-If all you want to do is change the redshift or mass ranges, resolution, cosmological parameters, or model for the mass function (e.g., Press-Schechter, Sheth-Tormen, etc.), I'd recommend option \#1. If you navigate to ``$ARES/input/hmf``, you can modify the script ``generate_hmf_tables.py``. Have a look at :doc:`params_hmf` to see what changes are possible. By default, *ares* will go looking in ``$ARES/input/hmf`` for suitable lookup tables, so your new table will be found automatically if you supply the same set of parameters to an *ares* simulation. If you want to make these changes permanent without modifying the source code locally, you could change your custom defaults (see :doc:`params` for instructions).
+If all you want to do is change the redshift or mass ranges, resolution, cosmological parameters, or model for the mass function (e.g., Press-Schechter, Sheth-Tormen, etc.), I'd recommend option \#1. If you navigate to ``$ARES/input/hmf``, you can modify the script ``generate_hmf_tables.py``. Have a look at :doc:`params_hmf` to see what changes are possible. By default, *ARES* will go looking in ``$ARES/input/hmf`` for suitable lookup tables, so your new table will be found automatically if you supply the same set of parameters to an *ARES* simulation. If you want to make these changes permanent without modifying the source code locally, you could change your custom defaults (see :doc:`params` for instructions).
 
-If you have your own code for generating the halo mass function, everything else in *ares* should work as-advertised so long as the format of your table matches the expected format. Right now, *ares* supports pickle files ``.npy`` or ``.npz`` files, and HDF5 files. Have a look in ``ares.physics.HaloMassFunction.save`` to see the expected order and/or names of fields in your file. Once you've got a complete file, you'll want to provide the full path to *ares* via the ``hmf_table`` parameter.
+If you have your own code for generating the halo mass function, everything else in *ARES* should work as-advertised so long as the format of your table matches the expected format. Right now, *ARES* supports pickle files ``.npy`` or ``.npz`` files, and HDF5 files. Have a look in ``ares.physics.HaloMassFunction.save`` to see the expected order and/or names of fields in your file. Once you've got a complete file, you'll want to provide the full path to *ARES* via the ``hmf_table`` parameter.
 
 
 

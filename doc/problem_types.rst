@@ -36,7 +36,7 @@ Simple global 21-cm signal problem in which the Ly-:math:`\alpha`, LyC, and X-ra
     + ``pop_fesc{2}``: Escape fraction of LyC radiation.
     + ``pop_Tmin{0}``: Minimum virial temperature of star-forming halos. Note that ``pop_Tmin{1}`` and ``pop_Tmin{2}`` are automatically linked to ``pop_Tmin{0}``.
 
-    .. note :: In earlier versions of *ares* these parameters were denoted more simply as ``Nlw``, ``fX``, ``Nion``, ``fesc``, and ``Tmin``. You can still use this approach (i.e., this shouldn't break backward compatibility), though in the future this may not be true. 
+    .. note :: In earlier versions of *ARES* these parameters were denoted more simply as ``Nlw``, ``fX``, ``Nion``, ``fesc``, and ``Tmin``. You can still use this approach (i.e., this shouldn't break backward compatibility), though in the future this may not be true. 
     
 102
 ~~~

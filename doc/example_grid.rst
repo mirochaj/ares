@@ -186,7 +186,7 @@ All of the built-in analysis routines are structured so that you don't have to t
 
 More Expensive Models
 ---------------------
-Setting ``tanh_model=True`` sped things up considerably in the previous example. In general, you can run grids varying any *ares* parameters you like, just know that physical models (i.e., those with ``tanh_model=False``) generally take a few seconds each, whereas the :math:`tanh` model takes much less than a second for one model.
+Setting ``tanh_model=True`` sped things up considerably in the previous example. In general, you can run grids varying any *ARES* parameters you like, just know that physical models (i.e., those with ``tanh_model=False``) generally take a few seconds each, whereas the :math:`tanh` model takes much less than a second for one model.
 
 For example, to repeat the previous exercise for a physical model, you could replace this commands:
 
@@ -210,7 +210,7 @@ In some cases -- e.g., when ``Tmin`` or ``pop_Tmin`` is an axis of the model gri
     
     mg.LoadBalance(method=1, par='Tmin') # or 'pop_Tmin'
     
-The ``method=1`` setting assigns all models with common ``Tmin`` values to the same processor. This helps because *ares* knows that it need only generate lookup tables for :math:`df_{\mathrm{coll}} / dz` (which determines the star formation rate density in the simplest models) once per value of ``Tmin``, which means you save a little bit of runtime at the outset of each calculation.
+The ``method=1`` setting assigns all models with common ``Tmin`` values to the same processor. This helps because *ARES* knows that it need only generate lookup tables for :math:`df_{\mathrm{coll}} / dz` (which determines the star formation rate density in the simplest models) once per value of ``Tmin``, which means you save a little bit of runtime at the outset of each calculation.
     
 There is also a ``method=2`` option for load balancing, which is advantageous if the runtime of individual models is strongly correlated with a given parameter. In this case, the models will be sorted such that each processor gets a (roughly) equal share of the models for each value of the input ``par``. It helps to imagine the grid points of our 2-D parameter space color-coded by processor ID number: the resulting image for ``method=2`` is simply the transpose of the image you'd get for ``method=1``.
 

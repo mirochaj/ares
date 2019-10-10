@@ -20,7 +20,7 @@ The current list of papers currently included (at least to some extent) are:
 Notice that the shorthand for these papers are just the first author's last 
 name and the year of publication.
 
-For the rest of the examples on this page, we'll assume you've already imported *ares*, i.e. you've executed:
+For the rest of the examples on this page, we'll assume you've already imported *ARES*, i.e. you've executed:
 
 ::  
 
@@ -49,7 +49,7 @@ See ``$ARES/tests/lit`` for more examples.
 
 Expanding the Database
 ----------------------
-If you'd like to add your favorite empirical formulae from the literature to *ares*, here are a few conventions to follow:
+If you'd like to add your favorite empirical formulae from the literature to *ARES*, here are a few conventions to follow:
 
 File contents:
 
@@ -59,7 +59,7 @@ File contents:
 Naming conventions:
 
 - Your file should be called `<last name of first author><year of publication>.py`.
-- As long as this file lives in ``$ARES/input/litdata``, *ares* will find it.
+- As long as this file lives in ``$ARES/input/litdata``, *ARES* will find it.
 - Keep best-fit parameter values and errors stored in dictionaries.
 
 

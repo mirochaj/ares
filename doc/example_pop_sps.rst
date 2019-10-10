@@ -1,8 +1,8 @@
 :orphan:
 
-Even More Realistic Galaxy Populations (arbitrary SFHs \& spectral synthesis)
-=============================================================================
-By default, *ares* does not perform spectral synthesis. For example, in :doc:`example_pop_galaxy`, the luminosity of galaxies is determined using a fixed conversion factor between :math:`1600\AA` luminosity and star formation rate (SFR). The proper way to do this is to sum the luminosity from stars of all ages. In practice, the constant conversion factor works well for rest UV studies, since the rest UV depends largely on massive, short-lived stars. However, for non-trivial star formation histories (SFHs), or predictions at longer wavelengths, performing spectral synthesis in details is a must.
+More General Star Formation Histories and Spectral Synthesis
+============================================================
+By default, *ARES* does not perform spectral synthesis. For example, in :doc:`example_pop_galaxy`, the luminosity of galaxies is determined using a fixed conversion factor between :math:`1600\AA` luminosity and star formation rate (SFR). The proper way to do this is to sum the luminosity from stars of all ages. In practice, the constant conversion factor works well for rest UV studies, since the rest UV depends largely on massive, short-lived stars. However, for non-trivial star formation histories (SFHs), or predictions at longer wavelengths, performing spectral synthesis in details is a must.
 
 To enable a more general treatment of galaxy growth histories, including the proper synthesis of their spectra, we must use the ``GalaxyEnsemble`` object, which supercedes the ``GalaxyCohort`` object. We describe this object in more detail below.
 
@@ -20,7 +20,7 @@ We can build a new population object by modifying just a few parameters relative
 	pars['pop_aging'] = True
 	pars['pop_ssp'] = True
 	
-The ``pop_sfr_model`` setting ensures that the correct model is used, while ``pop_aging`` and ``pop_ssp`` force *ares* to properly track the impact of aging on the spectra of galaxies, by treating star formation at each timestep as a ``simple stellar population,'' i.e., a burst, which ages passively from that point onward.
+The ``pop_sfr_model`` setting ensures that the correct model is used, while ``pop_aging`` and ``pop_ssp`` force *ARES* to properly track the impact of aging on the spectra of galaxies, by treating star formation at each timestep as a ``simple stellar population,'' i.e., a burst, which ages passively from that point onward.
 
 For illustrative purposes, let's build two model galaxies: one with an exponentially rising (but noisy) SFH, and another that is identical for the first 900 Myr of evolution, but then is suddenly switched off:
 	
@@ -48,7 +48,7 @@ For illustrative purposes, let's build two model galaxies: one with an exponenti
 	spectral synthesis on an entire population of galaxies all at once. The 
 	first dimension of the SFH arrays corresponds to galaxy ID number.
 
-Now, to pass these histories to *ares* directly and bypass all the usual SFH-generating machinery, use the ``pop_histories`` parameter:
+Now, to pass these histories to *ARES* directly and bypass all the usual SFH-generating machinery, use the ``pop_histories`` parameter:
 
 ::
 
@@ -87,9 +87,9 @@ All the spectral synthesis machinery lives in ``ares.util.SpectralSynthesis``, w
 	
 There are many options for outputting photometry in addition to / instead of rest spectra. Contact me if you're interested in these features as they are not yet documented.
 	
-Using the ``GalaxyEnsemble`` from within *ares*
+Using the ``GalaxyEnsemble`` from within *ARES*
 -----------------------------------------------
-In practice, you may want to leverage the features of the ``GalaxyEnsemble`` object from within an *ares* simualtion, e.g., the 21-cm signal, metagalactic gackground, or while modeling a population of galaxies and comparing to observed UV luminosity functions or stellar mass functions.
+In practice, you may want to leverage the features of the ``GalaxyEnsemble`` object from within an *ARES* simualtion, e.g., the 21-cm signal, metagalactic gackground, or while modeling a population of galaxies and comparing to observed UV luminosity functions or stellar mass functions.
 
 Once again, contact me if you're interested in these features as they are not yet documented.
 

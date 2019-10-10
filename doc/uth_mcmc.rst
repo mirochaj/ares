@@ -2,7 +2,7 @@
 
 A generic MCMC example
 ======================
-In the example below, we'll show how to write your own likelihood function in the style required by *ares*.
+In the example below, we'll show how to write your own likelihood function in the style required by *ARES*.
 
 First, some fake data to work with:
 

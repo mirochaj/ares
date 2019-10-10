@@ -2,7 +2,7 @@ Monte-Carlo Sampling Higher Dimensional Spaces
 ==============================================
 For one- or two-dimensional parameter studies, a gridded search of parameter space (as in :doc:`example_grid`) is a reasonable approach. However, as the dimensionality grows, things quickly get out of hand. As a result, it can sometimes be advantageous to run Monte Carlo simulations instead, sampling more sparsely (but more efficiently) a high-dimensional space.
 
-You can do this in *ares* using the ``ModelSample`` class, which is just a wrapper around the ``ModelGrid`` class. As a result, the problem setup is very similar to that in :doc:`example_grid`, and that structure of the output data are identical, which means the routines documented in :doc:`example_grid_analysis` translate as well.
+You can do this in *ARES* using the ``ModelSample`` class, which is just a wrapper around the ``ModelGrid`` class. As a result, the problem setup is very similar to that in :doc:`example_grid`, and that structure of the output data are identical, which means the routines documented in :doc:`example_grid_analysis` translate as well.
 
 Before we start, the few usual imports:
 

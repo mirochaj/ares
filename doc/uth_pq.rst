@@ -2,9 +2,9 @@
 
 The ParameterizedQuantity Framework
 ===================================
-The goal of this framework is to make it possible to take any parameter in *ares* (the ones that take on numerical values, anyways), and convert it from a constant to a function of an arbitrary set of variables. 
+The goal of this framework is to make it possible to take any parameter in *ARES* (the ones that take on numerical values, anyways), and convert it from a constant to a function of an arbitrary set of variables. 
 
-One approach is to allow the user to supply a function of their own to each parameter in place of a numerical value. *ares* permits this functionality for some parameters (e.g., ``pop_sed``), however, it is often advantageous to retain access to the parameters of the user-supplied function, for example to allow these parameters to vary in some fit. This is the primary motivation for the ParameterizedQuantity framework.
+One approach is to allow the user to supply a function of their own to each parameter in place of a numerical value. *ARES* permits this functionality for some parameters (e.g., ``pop_sed``), however, it is often advantageous to retain access to the parameters of the user-supplied function, for example to allow these parameters to vary in some fit. This is the primary motivation for the ParameterizedQuantity framework.
 
 We have already seen PQs in use in the :doc:`example_pop_galaxy` example, which showed how to make the efficiency of star formation a function of halo mass:
 
@@ -34,7 +34,7 @@ We have already seen PQs in use in the :doc:`example_pop_galaxy` example, which 
     
 There are three important steps shown above:
 
-   + Setting ``pop_fstar='pq'`` tells *ares* that this quantity will be represented by a PQ object. With no ID number supplied, it is assumed that parameters with the prefix ``pq`` are used to construct this object.
+   + Setting ``pop_fstar='pq'`` tells *ARES* that this quantity will be represented by a PQ object. With no ID number supplied, it is assumed that parameters with the prefix ``pq`` are used to construct this object.
    + The function adopted is a double power-law, ``'dpl'``, which is a four-parameter model. The parameters ``pq_func_par0``, ``pq_func_par1``, etc. store the values of these parameters. The meaning of the parameters is of course different depending on what function we choose -- see  :doc:`params_pq` for a listing of the available functions and their corresponding parameters.
    + The independent variable is halo mass, ``Mh``. Note that this name is important, i.e., just ``M`` will cause an error. This is a convention of the :class:`GalaxyCohort <ares.populations.GalaxyCohort.GalaxyCohort>` class.
 
