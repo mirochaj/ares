@@ -73,8 +73,8 @@ All the spectral synthesis machinery lives in ``ares.util.SpectralSynthesis``, w
 	waves = np.arange(800, 3000, 10)
 	
 	# Generate spectra in rest frame
-	spec1 = pop1.synth.Spectrum(sfh1[0], waves=waves, tarr=tarr, tobs=1000)
-	spec2 = pop2.synth.Spectrum(sfh2[0], waves=waves, tarr=tarr, tobs=1000)
+	spec1 = pop1.synth.Spectrum(sfh=sfh1[0], waves=waves, tarr=tarr, tobs=1000)
+	spec2 = pop2.synth.Spectrum(sfh=sfh2[0], waves=waves, tarr=tarr, tobs=1000)
 
 	# Plot
 	pl.semilogy(waves, spec1, color='k')
