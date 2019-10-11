@@ -23,11 +23,11 @@ from ..util import SpectralSynthesis
 from scipy.optimize import curve_fit
 from ..physics import NebularEmission
 from .GalaxyCohort import GalaxyCohort
+from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
-from scipy.interpolate import RectBivariateSpline, interp1d
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, erg_per_ev, cm_per_mpc, E_LL, E_LyA
 
@@ -618,7 +618,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 else:
                     fesc = 1.    
             
-            tab[i] = np.sum(L * fesc * nh) 
+            tab[i] = np.sum(L * fesc * nh)
 
         return zarr, tab / cm_per_mpc**3
         
@@ -1563,26 +1563,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
             Mbin=Mbin)
-
-    def L_of_Z_t(self, wave):
-        
-        if not hasattr(self, '_L_of_Z_t'):
-            self._L_of_Z_t = {}
-            
-        if wave in self._L_of_Z_t:
-            return self._L_of_Z_t[wave]
-
-        tarr = self.src.times
-        Zarr = np.sort(list(self.src.metallicities.values()))
-        L = np.zeros((tarr.size, Zarr.size))
-        for j, Z in enumerate(Zarr):
-            L[:,j] = self.src.L_per_SFR_of_t(wave, Z=Z)
-            
-        # Interpolant
-        self._L_of_Z_t[wave] = RectBivariateSpline(np.log10(tarr), 
-            np.log10(Zarr), L, kx=3, ky=3)
-            
-        return self._L_of_Z_t[wave]
         
     def find_trajectory(self, Mh, zh):
         l = np.argmin(np.abs(zh - self.tab_z))
@@ -1806,7 +1786,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return cached_result
         
         raw = self.histories
-        L = self.synth.Luminosity(sfh=raw['SFR'], wave=wave, zarr=raw['z'],
+        L = self.synth.Luminosity(wave=wave, sfh=raw['SFR'], zarr=raw['z'],
             zobs=z, hist=raw, extras=self.extras, idnum=idnum, window=window)
            
         self._cache_L_[(z, wave, band, idnum, window)] = L
@@ -1974,10 +1954,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
           
             ##
             # Run in batch.
-            _beta_r = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
-                hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
-                rest_wave=rest_wave, method=method, extras=self.extras,
-                return_err=return_err)
+            _beta_r = self.synth.Slope(zobs=z, sfh=raw['SFR'], waves=waves, 
+                zarr=raw['z'], hist=raw, dlam=dlam, cam=cam, filters=filters, 
+                filter_set=filter_set, rest_wave=rest_wave, method=method, 
+                extras=self.extras, return_err=return_err)
                                 
             if return_err:
                 beta_r, beta_rerr = _beta_r
@@ -2317,7 +2297,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             ##
             # Save spectra
             if save_spec:
-                spec = self.synth.Spectrum(hist['SFR'], waves, zarr=zarr, 
+                spec = self.synth.Spectrum(waves, sfh=hist['SFR'], zarr=zarr, 
                     window=1, zobs=zactual, units='Hz', hist=hist)
                     
                 fn_spec = '{}.z={}.spec.hdf5'.format(prefix, zactual)    

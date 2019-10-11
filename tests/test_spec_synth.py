@@ -96,7 +96,6 @@ def test(show_bpass=False, oversample_age=30.):
         y1 = src.data[:,np.argmin(np.abs(src.times - _t))]
         ax2.loglog(src.wavelengths, y1, color=colors[i], ls='-', alpha=0.2)
         
-    
     ##
     # Make sure the spectra we put in are the spectra we get out.
     # e.g., do we recover UV slope of -2 if that's what we put in?
@@ -127,18 +126,18 @@ def test(show_bpass=False, oversample_age=30.):
     ss2.oversampling_below = oversample_age
     
     t1 = time.time()
-    L1 = ss.Luminosity(sfh1, tarr=tarr1, load=False)
+    L1 = ss.Luminosity(sfh=sfh1, tarr=tarr1, load=False)
     t2 = time.time()
     
     print('dt=1', t2 - t1)
     
     t1 = time.time()
-    L2 = ss.Luminosity(sfh2, tarr=tarr2, load=False)
+    L2 = ss.Luminosity(sfh=sfh2, tarr=tarr2, load=False)
     t2 = time.time()
     print('dt=10, oversampling ON:', t2 - t1)
     
     t1 = time.time()
-    L3 = ss2.Luminosity(sfh2, tarr=tarr2, load=False)
+    L3 = ss2.Luminosity(sfh=sfh2, tarr=tarr2, load=False)
     t2 = time.time()
     print('dt=10, oversampling OFF:', t2 - t1)
     
@@ -183,9 +182,9 @@ def test(show_bpass=False, oversample_age=30.):
     ax4a.set_ylabel(r'SFR')
     ax4a.set_ylim(0, 5)
     
-    L1 = ss.Luminosity(sfh1, tarr=tarr1)
-    L2 = ss.Luminosity(sfh2, tarr=tarr2)
-    L3 = ss2.Luminosity(sfh2, tarr=tarr2)
+    L1 = ss.Luminosity(sfh=sfh1, tarr=tarr1)
+    L2 = ss.Luminosity(sfh=sfh2, tarr=tarr2)
+    L3 = ss2.Luminosity(sfh=sfh2, tarr=tarr2)
     
     ax4b.plot(tarr1[L1>0], L1[L1>0], color='k')
     ax4b.plot(tarr2[L2>0], L2[L2>0], color='b', ls='--', lw=3)
@@ -224,8 +223,8 @@ def test(show_bpass=False, oversample_age=30.):
     
     sfh2 = np.array([sfh2] * 10)
     
-    L2b = ss.Luminosity(sfh2, tarr=tarr2)
-    L3b = ss2.Luminosity(sfh2, tarr=tarr2)
+    L2b = ss.Luminosity(sfh=sfh2, tarr=tarr2)
+    L3b = ss2.Luminosity(sfh=sfh2, tarr=tarr2)
     
     assert np.all(L2b[0] == L2)
     assert np.all(L3b[0] == L3)

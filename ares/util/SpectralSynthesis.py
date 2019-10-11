@@ -19,6 +19,7 @@ from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from ..physics.Cosmology import Cosmology
+from scipy.interpolate import RectBivariateSpline
 from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev
 
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
@@ -124,14 +125,51 @@ class SpectralSynthesis(object):
                     force_perfect=self.force_perfect)
 
         return self._cameras
+    
+    def L_of_Z_t(self, wave):
+        
+        if not hasattr(self, '_L_of_Z_t'):
+            self._L_of_Z_t = {}
+            
+        if wave in self._L_of_Z_t:
+            return self._L_of_Z_t[wave]
 
-    def Slope(self, zobs, spec=None, waves=None, sfh=None, zarr=None, tarr=None,
-        tobs=None, cam=None, rest_wave=(1600., 2300.), band=None, hist={},
-        return_norm=False, filters=None, filter_set=None, dlam=10., idnum=None,
+        tarr = self.src.times
+        Zarr = np.sort(list(self.src.metallicities.values()))
+        L = np.zeros((tarr.size, Zarr.size))
+        for j, Z in enumerate(Zarr):
+            L[:,j] = self.src.L_per_SFR_of_t(wave, Z=Z)
+            
+        # Interpolant
+        self._L_of_Z_t[wave] = RectBivariateSpline(np.log10(tarr), 
+            np.log10(Zarr), np.log10(L), kx=3, ky=3)
+            
+        return self._L_of_Z_t[wave]
+
+    def Slope(self, zobs=None, tobs=None, spec=None, waves=None, 
+        sfh=None, zarr=None, tarr=None, hist={}, idnum=None,
+        cam=None, rest_wave=(1600., 2300.), band=None, 
+        return_norm=False, filters=None, filter_set=None, dlam=10.,
         method='fit', window=1, extras={}, picky=False, return_err=False):
         """
         Compute slope in some wavelength range or using photometry.
+        
+        Parameters
+        ----------
+        zobs : int, float
+            Redshift of observation.
+        rest_wave: tuple
+            Rest-wavelength range in which slope will be computed (Angstrom).
+        dlam : int
+            Sample the spectrum with this wavelength resolution (Angstrom).
+        window : int
+            Can optionally operate on a smoothed version of the spectrum, 
+            obtained by convolving with a boxcar window function if this width.
         """
+        
+        assert (tobs is not None) or (zobs is not None)
+        if tobs is not None:
+            zobs = self.cosm.z_of_t(tobs * s_per_myr)
         
         # If no camera supplied, operate directly on spectrum
         if cam is None:
@@ -153,7 +191,7 @@ class SpectralSynthesis(object):
             if oflux.ndim == 2:
                 batch_mode = True
                 y = oflux[:,ok==1].swapaxes(0, 1)
-                
+
                 ma = np.max(y, axis=0)
                 sl = -2.5 * np.ones(ma.size)
                 guess = np.vstack((ma, sl)).T                
@@ -161,9 +199,9 @@ class SpectralSynthesis(object):
                 batch_mode = False
                 y = oflux[ok==1]
                 guess = np.array([oflux[np.argmin(np.abs(owaves - 1.))], -2.4])
-                        
+
         else:
-            
+
             if filters is not None:
                 assert rest_wave is None, \
                     "Set rest_wave=None if filters are supplied"
@@ -204,7 +242,7 @@ class SpectralSynthesis(object):
                 else:
                     return -99999 * np.ones(N)
                 
-            filt = np.array(filt)  
+            filt = np.array(filt)
             xphot = np.array(xphot)   
             dxphot = np.array(dxphot)
             ycorr = np.array(ycorr)
@@ -341,7 +379,7 @@ class SpectralSynthesis(object):
         """
         
         if spec is None:
-            spec = self.Spectrum(sfh, waves, tarr=tarr, zarr=zarr, 
+            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, zarr=zarr, 
                 zobs=zobs, tobs=None, hist=hist, idnum=idnum,
                 extras=extras, window=window)
     
@@ -596,7 +634,7 @@ class SpectralSynthesis(object):
         # Convert to magnitudes and return
         return all_filters, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
         
-    def Spectrum(self, sfh, waves, tarr=None, zarr=None, window=1,
+    def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
         extras={}):
         """
@@ -628,9 +666,10 @@ class SpectralSynthesis(object):
                 for i in p.range(0, waves.size):
                     slc = (Ellipsis, i) if (batch_mode or time_series) else i
                     
-                    spec[slc] = self.Luminosity(sfh, wave=waves[i], tarr=tarr, 
-                        zarr=zarr, zobs=zobs, tobs=tobs, band=band, hist=hist, 
-                        idnum=idnum, extras=extras, window=window)
+                    spec[slc] = self.Luminosity(wave=waves[i], 
+                        sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
+                        band=band, hist=hist, idnum=idnum, 
+                        extras=extras, window=window)
                             
         else:    
         
@@ -638,8 +677,9 @@ class SpectralSynthesis(object):
             for i, wave in enumerate(waves):
                 slc = (Ellipsis, i) if (batch_mode or time_series) else i
                 
-                spec[slc] = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr,
-                    zobs=zobs, tobs=tobs, band=band, hist=hist, idnum=idnum,
+                spec[slc] = self.Luminosity(wave=wave, 
+                    sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
+                    band=band, hist=hist, idnum=idnum,
                     extras=extras, window=window)
                 
         if units in ['A', 'Ang']:
@@ -651,10 +691,10 @@ class SpectralSynthesis(object):
         
         return spec
         
-    def Magnitude(self, sfh, wave=1600., tarr=None, zarr=None, window=1,
+    def Magnitude(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
         
-        L = self.Luminosity(sfh, wave=wave, tarr=tarr, zarr=zarr, 
+        L = self.Luminosity(wave=wave, sfh=sfh, tarr=tarr, zarr=zarr, 
             zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist, 
             extras=extras, window=window)
         
@@ -847,9 +887,9 @@ class SpectralSynthesis(object):
             # Recall that this is (kwds, data)
             return self._cache_lum_[keyset]
         else:
-            return kwds, None    
+            return kwds, None
         
-    def Luminosity(self, sfh, wave=1600., tarr=None, zarr=None, window=1,
+    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
         load=True):
         """
@@ -872,11 +912,10 @@ class SpectralSynthesis(object):
         window : int, float
             Average over interval about `wave`? [Angstrom]
         zobs : int, float   
-            If supplied, luminosity will be return only for an observation 
-            at this redshift.
+            Redshift of observation.
         tobs : int, float   
-            If supplied, luminosity will be return only for an observation 
-            at this time.
+            Time of observation (will be computed self-consistently if `zobs`
+            is supplied).
         hist : dict
             Extra information we may need, e.g., metallicity, dust optical 
             depth, etc. to compute spectrum.
@@ -888,23 +927,46 @@ class SpectralSynthesis(object):
         
         """
         
-        kw = {'sfh': sfh, 'zobs':zobs, 'tobs': tobs, 'wave':wave, 'tarr':tarr, 
-            'zarr': zarr, 'band': band, 'idnum': idnum, 'hist':hist, 
-            'extras': extras}
+        setup_1 = (sfh is not None) and \
+            ((tarr is not None) or (zarr is not None))
+        setup_2 = hist != {}
+                
+        do_all_time = False
+        if (tobs is not None) and (zobs is not None):
+            do_all_time = True
+        #assert (tobs is not None) or (zobs is not None), \
+        #    "Must supply time or redshift of observation, `tobs` or `zobs`!"
         
-        #kw_tup = tuple(kw.viewitems())
+        assert setup_1 or setup_2
         
+        if setup_1:
+            assert (sfh is not None)
+        elif setup_2:
+            assert ('z' in hist) or ('t' in hist), \
+                "`hist` must contain redshifts, `z`, or times, `t`."
+            sfh = hist['SFR'] if 'SFR' in hist else hist['sfr']
+            if 'z' in hist:
+                zarr = hist['z']
+            else:    
+                tarr = hist['t']
+
+        kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr, 
+            'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist, 
+            'extras':extras}
+
         if load:
             _kwds, cached_result = self._cache_lum(kw)
         else:
             self._cache_lum_ = {}
             cached_result = None
-            
+
         if cached_result is not None:
             return cached_result
         
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
+            if 'Z' in hist:
+                Z = hist['Z'][idnum]
             
             # Don't necessarily need Mh here.
             if 'Mh' in hist:
@@ -912,6 +974,8 @@ class SpectralSynthesis(object):
         else:
             if 'Mh' in hist:
                 Mh = hist['Mh']
+            if 'Z' in hist:    
+                Z = hist['Z']
                 
         # If SFH is 2-D it means we're doing this for multiple galaxies at once.
         # The first dimension will be number of galaxies and second dimension
@@ -919,21 +983,27 @@ class SpectralSynthesis(object):
         batch_mode = sfh.ndim == 2
                 
         # Parse time/redshift information
-        if zarr is not None:
+        if tarr is not None:
+            zarr = self.cosm.z_of_t(tarr * s_per_myr)
+        else:
             assert tarr is None
             
             tarr = self.cosm.t_of_z(zarr) / s_per_myr
-        else:
-            zarr = self.cosm.z_of_t(tarr * s_per_myr)
-            
+                        
         assert np.all(np.diff(tarr) > 0), \
             "Must supply SFH in time-ascending (i.e., redshift-descending) order!"
         
         # Convert tobs to redshift.        
         if tobs is not None:
             zobs = self.cosm.z_of_t(tobs * s_per_myr)
-            assert tarr.min() <= tobs <= tarr.max(), \
-                "Requested time of observation (`tobs`) not in supplied range!"
+            if type(tobs) == np.ndarray:
+                assert (tobs.min() >= tarr.min()) and (tobs.max() <= tarr.max()), \
+                    "Requested times of observation (`tobs={}-{}`) not in supplied range ({}, {})!".format(tobs.min(), 
+                        tobs.max(), tarr.min(), tarr.max())
+            else:    
+                assert tarr.min() <= tobs <= tarr.max(), \
+                    "Requested time of observation (`tobs={}`) not in supplied range ({}, {})!".format(tobs, 
+                        tarr.min(), tarr.max())
             
         # Prepare slice through time-axis.    
         if zobs is None:
@@ -1016,7 +1086,7 @@ class SpectralSynthesis(object):
             # If zobs is supplied, we only have to do one iteration
             # of this loop. This is just a dumb way to generalize this function
             # to either do one redshift or return a whole history.
-            if (zobs is not None):
+            if do_all_time:
                 if (zarr[i] > zobs):
                     continue
 
@@ -1029,14 +1099,17 @@ class SpectralSynthesis(object):
             # function of age and Z.
             if self.pf['pop_enrichment']:
 
-                if batch_mode:
-                    Z = hist['Z'][slc][:,0:i+1]
-                else:
-                    Z = hist['Z'][slc][0:i+1]
-
                 logA = np.log10(ages)
-                logZ = np.log10(Z)
-                L_per_msun = self.L_of_Z_t(wave)(logA, logZ, grid=False)
+                logZ = np.log10(Z[0:i+1])
+                L_per_msun = np.zeros_like(ages)
+                logL_at_wave = self.L_of_Z_t(wave)
+                
+                L_per_msun = 10**logL_at_wave(logA, logZ, grid=False)
+                
+                #print(logA.shape, logZ.shape)
+                #for j in range(ages.size):
+                #    L_per_msun[j] = 10**logL_at_wave(logA[j], logZ[j], 
+                #        grid=False)
                                         
                 # erg/s/Hz
                 if batch_mode:
@@ -1048,12 +1121,12 @@ class SpectralSynthesis(object):
                     raise NotImplemented('help!')    
                 else:
                     _dt = dt[0:i]
-                    
+
                 _ages = ages    
-            else:    
-                
+            else:
+
                 # If time resolution is >= 2 Myr, over-sample final interval.
-                if oversample and len(ages) > 1:                
+                if oversample and len(ages) > 1:
                     
                     if batch_mode:
                         _ages, _SFR = self._oversample_sfh(ages, sfh[:,0:i+1], i)

@@ -20,7 +20,7 @@ We can build a new population object by modifying just a few parameters relative
 	pars['pop_aging'] = True
 	pars['pop_ssp'] = True
 	
-The ``pop_sfr_model`` setting ensures that the correct model is used, while ``pop_aging`` and ``pop_ssp`` force *ARES* to properly track the impact of aging on the spectra of galaxies, by treating star formation at each timestep as a ``simple stellar population,'' i.e., a burst, which ages passively from that point onward.
+The ``pop_sfr_model`` setting ensures that the correct model is used, while ``pop_aging`` and ``pop_ssp`` force *ARES* to properly track the impact of aging on the spectra of galaxies, by treating star formation at each timestep as a "simple stellar population," i.e., a burst, which ages passively from that point onward.
 
 For illustrative purposes, let's build two model galaxies: one with an exponentially rising (but noisy) SFH, and another that is identical for the first 900 Myr of evolution, but then is suddenly switched off:
 	
@@ -83,13 +83,13 @@ All the spectral synthesis machinery lives in ``ares.util.SpectralSynthesis``, w
 	pl.ylabel(r'$f_{\nu}$')
 	
 .. note :: These spectra correspond to the `BPASS <http://bpass.auckland.ac.nz/>`_ v1.0 models, since that is the 
-	default in the ``mirocha2017`` parameter bundle.	
+	default in the ``mirocha2017`` parameter bundle. You can switch to *starburst99* by setting ``pop_sed='leitherer1999'``. You can also change the stellar metallicity via the ``pop_Z`` parameter. If you have a model for metal enrichment, that is possible to supply as well.
 	
 There are many options for outputting photometry in addition to / instead of rest spectra. Contact me if you're interested in these features as they are not yet documented.
 	
 Using the ``GalaxyEnsemble`` from within *ARES*
 -----------------------------------------------
-In practice, you may want to leverage the features of the ``GalaxyEnsemble`` object from within an *ARES* simualtion, e.g., the 21-cm signal, metagalactic gackground, or while modeling a population of galaxies and comparing to observed UV luminosity functions or stellar mass functions.
+In practice, you may want to leverage the features of the ``GalaxyEnsemble`` object from within an *ARES* simulation, e.g., the 21-cm signal, metagalactic gackground, or while modeling a population of galaxies and comparing to observed UV luminosity functions or stellar mass functions.
 
 Once again, contact me if you're interested in these features as they are not yet documented.
 
