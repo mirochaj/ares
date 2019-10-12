@@ -16,10 +16,9 @@ For example, say you want to vary the minimum virial temperature of star-forming
 
     import ares
     
-    base_kwargs = ares.util.ParameterBundle('mirocha2016:dpl')
-    base_kwargs['initial_redshift'] = 60
+    base_kwargs = ares.util.ParameterBundle('mirocha2017:dpl')
 
-.. note :: See :doc:`example_litdata` regarding use of ``mirocha2016:dpl`` models.
+.. note :: See :doc:`example_litdata` regarding use of ``mirocha2017:dpl`` models.
 
 Now, let's setup a grid of models to evaluate.
 

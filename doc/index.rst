@@ -58,6 +58,7 @@ Contents
     Home <self>
     install
     examples
+    performance
     uth
     troubleshooting
     updates
