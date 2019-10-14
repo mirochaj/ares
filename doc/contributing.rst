@@ -1,6 +1,6 @@
-*ares* Development: Contributing!
+*ARES* Development: Contributing!
 =================================
-If *ares* lacks functionality you're interested in, but seems to exhibit some 
+If *ARES* lacks functionality you're interested in, but seems to exhibit some 
 features you'd like to make use of, adapting it to suit your purpose should
 (in principle) be fairly straightforward. The following sections describe
 how you might go about doing this. 
@@ -21,11 +21,11 @@ Feel free to shoot me an email if you need help getting started!
 
 Adding new modules: general rules
 ---------------------------------
-There are a few basic rules to follow in adding new modules to *ares* that should prevent major crashes. They are covered below.
+There are a few basic rules to follow in adding new modules to *ARES* that should prevent major crashes. They are covered below.
 
 Imports
 ~~~~~~~
-First and foremost, when you write a new module you should follow the hierarchy that's already in place. Below, the pre-existing sub-modules within *ares* are listed in an order representative of that hierarchy:
+First and foremost, when you write a new module you should follow the hierarchy that's already in place. Below, the pre-existing sub-modules within *ARES* are listed in an order representative of that hierarchy:
 
 - inference
 - simulations
@@ -36,7 +36,7 @@ First and foremost, when you write a new module you should follow the hierarchy 
 
 It will hopefully be clear which sub-module your new code ought to be added to. For example, if you're writing code to fit a particular kind of dataset, you'll want to add your new module to ``ares.inference``. If you're creating new kinds of source populations, ``ares.populations``, and so on. If you're adding new physical constants, rate coefficients, etc., look at ``ares.physics.Constants`` and ``ares.physics.RateCoefficients``.
 
-Now, you'll (hopefully) be making use of at least some pre-existing capabilities of *ares*, which means your module will need to import classes from other sub-modules. There is only one rule here: 
+Now, you'll (hopefully) be making use of at least some pre-existing capabilities of *ARES*, which means your module will need to import classes from other sub-modules. There is only one rule here: 
 
 **When writing a new class, let's say within sub-module X, you cannot import classes from sub-modules Y that lie above X in the hierarchy.** 
 

@@ -109,7 +109,7 @@ def count_populations(**kwargs):
         if num is None:
             continue
             
-        if num not in popIDs:
+        if num not in popIDs:            
             popIDs.append(num)
 
     return len(popIDs)
@@ -307,9 +307,9 @@ class ParameterFile(dict):
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self._kwargs)
-
-            self._Npops = count_populations(**tmp)
             
+            self._Npops = count_populations(**tmp)
+
         return self._Npops
 
     @property

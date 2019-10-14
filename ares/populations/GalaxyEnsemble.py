@@ -23,18 +23,25 @@ from ..util import SpectralSynthesis
 from scipy.optimize import curve_fit
 from ..physics import NebularEmission
 from .GalaxyCohort import GalaxyCohort
+from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
-from scipy.interpolate import RectBivariateSpline, interp1d
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
-    g_per_msun, c, Lsun, cm_per_kpc
+    g_per_msun, c, Lsun, cm_per_kpc, erg_per_ev, cm_per_mpc, E_LL, E_LyA
 
 try:
     import h5py
 except ImportError:
     pass
+    
+try: 
+    import pymp
+    have_pymp = True
+except ImportError:
+    have_pymp = False
+    
        
 _linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
 _cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
@@ -92,26 +99,73 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def run(self):
         return
         
-    def SFRD(self, z):
+    def cSFRD(self, z, Mh):
         """
-        Will convert to internal cgs units.
+        Compute cumulative SFRD as a function of lower-mass bound.
         """
         
+        if type(Mh) not in [list, np.ndarray]:
+            Mh = np.array([Mh])
+        
         iz = np.argmin(np.abs(z - self.histories['z']))
-        sfr = self.histories['SFR'][:,iz]
-        w = self.histories['nh'][:,iz]
+        _Mh = self.histories['Mh'][:,iz]
+        _sfr = self.histories['SFR'][:,iz]
+        _w = self.histories['nh'][:,iz]
         
         # Really this is the number of galaxies that formed in a given
         # differential redshift slice.
+        SFRD = np.zeros_like(Mh)
+        for i, _mass in enumerate(Mh):
+            ok = _Mh >= _mass
+            SFRD[i] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
         
-        #Mh = self.histories['Mh'][:,iz]
+        SFRD_tot = self.SFRD(z)    
+            
+        return SFRD / SFRD_tot
         
-        #dw = np.diff(_w) / np.diff(Mh)
+    def SFRD(self, z, Mmin=None):
+        """
+        Will convert to internal cgs units.
+        """
+                
+        if type(z) in [int, float, np.float64]:
         
-        # The 'bins' in the first dimension have some width...
-        
-        return np.sum(sfr * w) / rhodot_cgs
+            iz = np.argmin(np.abs(z - self.histories['z']))
+            sfr = self.histories['SFR'][:,iz]
+            w = self.histories['nh'][:,iz]
+            
+            if Mmin is not None:
+                _Mh = self.histories['Mh'][:,iz]
+                ok = _Mh >= Mmin
+            else:
+                ok = np.ones_like(sfr)
+                        
+            # Really this is the number of galaxies that formed in a given
+            # differential redshift slice.
+            return np.sum(sfr[ok==1] * w[ok==1]) / rhodot_cgs
+        else:
+            sfrd = np.zeros_like(z)
+            for k, _z in enumerate(z):
+                
+                iz = np.argmin(np.abs(_z - self.histories['z']))
+                _sfr = self.histories['SFR'][:,iz]
+                _w = self.histories['nh'][:,iz]
+                
+                if Mmin is not None:
+                    _Mh = self.histories['Mh'][:,iz]
+                    ok = _Mh >= Mmin
+                else:
+                    ok = np.ones_like(_sfr)
+                            
+                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
+                
+            return sfrd    
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
+        
+    def _sfrd_func(self, z):
+        # This is a cheat so that the SFRD spline isn't constructed
+        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
+        return self.SFRD(z)    
 
     def tile(self, arr, thin, renorm=False):
         """
@@ -193,8 +247,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self._cache_halos
 
         raw = self.load()
-
+        
         thin = self.pf['pop_thin_hist']
+        
+        if thin > 1:
+            assert self.pf['pop_histories'] is None, \
+                "Set pop_thin_hist=pop_scatter_mar=0 if supplying pop_histories by hand."
 
         sigma_mar = self.pf['pop_scatter_mar']
         sigma_env = self.pf['pop_scatter_env']
@@ -212,7 +270,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
-        
+                
         # May have to generate MAR if these are simulated halos
         if 'MAR' not in raw:
             
@@ -235,7 +293,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         else:
             mar_raw = raw['MAR']
-            
+                        
         ##
         # Throw away halos with Mh < Mmin or Mh > Mmax
         ##
@@ -294,11 +352,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             nh = self.tile(nh_raw, thin, True)
             Mh = self.tile(Mh_raw, thin)
         else:
-            nh = nh_raw.copy()
-            Mh = Mh_raw.copy()
-                                    
+            nh = nh_raw#.copy()
+            Mh = Mh_raw#.copy()
+
         self.tab_shape = Mh.shape
-        
+
         ##
         # Allow scatter in things
         ##            
@@ -309,6 +367,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             mar *= (1. + self.noise_normal(mar, sigma_env))
 
         if sigma_mar > 0:
+            np.random.seed(self.pf['pop_scatter_mar_seed'])
             noise = self.noise_lognormal(mar, sigma_mar)
             mar += noise
             # Normalize by mean of log-normal to preserve mean MAR?
@@ -320,7 +379,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # In Cohort, formation time defines initial mass and trajectory (in full)
         #z2d = np.array([zall] * nh.shape[0])
         histories = {'Mh': Mh, 'MAR': mar, 'nh': nh}
-
+        
         # Add in formation redshifts to match shape (useful after thinning)
         histories['zthin'] = self.tile(zall, thin)
 
@@ -343,7 +402,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 histories['rand'] = r
         else:
             pass
-
+            
         if 'SFR' in raw:
             #assert sigma_mar == sigma_env == 0
             histories['SFR'] = raw['SFR']
@@ -411,6 +470,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     @histories.setter
     def histories(self, value):
+        
+        assert type(value) is dict
+                
+        must_flip = False
+        if 'z' in value:
+            if np.all(np.diff(value['z']) > 0):
+                must_flip = True
+            
+        if must_flip:
+            for key in value:
+                if not type(value[key]) == np.ndarray:
+                    continue
+                    
+                if value[key].ndim == 1:
+                    value[key] = value[key][-1::-1]
+                else:    
+                    value[key] = value[key][:,-1::-1]
+        
         self._histories = value
         
     def Trajectories(self):
@@ -539,17 +616,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         tab = np.zeros_like(zarr)
         
+        hist = self.histories
+        
         for i, z in enumerate(zarr):
-            _zarr, _tarr, L = self.SpectralSynthesis(zobs=z, band=band)
+            L = self.synth.Luminosity(sfh=hist['SFR'], zobs=z, band=band,
+                zarr=hist['z'])
             
             # OK, we've got a whole population here.
-            
             nh = self.get_field(z, 'nh')
             Mh = self.get_field(z, 'Mh')
+            
+            # Modify by fesc
+            if band is not None:
+                if band[0] in [13.6, E_LL]:
+                    # Doesn't matter what Emax is
+                    fesc = self.guide.fesc(z=z, Mh=Mh)
+                elif band in [(10.2, 13.6), (E_LyA, E_LL)]:
+                    fesc = self.guide.fesc_LW(z=z, Mh=Mh)
+                else:
+                    fesc = 1.    
+            
+            tab[i] = np.sum(L * fesc * nh)
 
-            tab[i] = np.sum(L * nh)
-
-        return zarr, tab
+        return zarr, tab / cm_per_mpc**3
         
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
@@ -576,10 +665,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_ehat((E, Emin, Emax))
         if cached_result is not None:
             func = cached_result
-            #return cached_result(z)
         else:
             
             zarr, tab = self._TabulateEmissivity(E, Emin, Emax)
+            
+            tab[np.logical_or(tab <= 0, np.isinf(tab))] = 1e-70
             
             func = interp1d(zarr, np.log10(tab), kind='cubic', 
                 bounds_error=False, fill_value=-np.inf)
@@ -589,6 +679,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return 10**func(z)
         #return self._cache_ehat_[(E, Emin, Emax)](z)
         
+    def PhotonLuminosityDensity(self, z, E=None, Emin=None, Emax=None):
+        # erg / s / cm**3
+        rhoL = self.Emissivity(z, E=E, Emin=Emin, Emax=Emax)
+        erg_per_phot = self._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                                                              
+        return rhoL / np.mean(erg_per_phot)
+
     def _gen_stars(self, idnum, Mh):
         """
         Take draws from cluster mass function until stopping criterion met.
@@ -882,7 +979,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Nsn  = np.zeros_like(Mh_s)
         L1600 = np.zeros_like(Mh_s)
         bursty = np.zeros_like(Mh_s)
-        imf = np.zeros((Mh_s.size, self.tab_imf_mc.size))
+        #imf = np.zeros((Mh_s.size, self.tab_imf_mc.size))
         #fc_r = np.ones_like(Mh_s)
         #fc_i = np.ones_like(Mh_s)
                         
@@ -1017,7 +1114,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'nh': nh[keep==1],
          'Nsn': Nsn[keep==1],
          'bursty': bursty[keep==1],
-         'imf': imf[keep==1],
+         #'imf': imf[keep==1],
          'z': z[keep==1],
          't': t[keep==1],
          'zthin': halo['zthin'][-1::-1],
@@ -1037,24 +1134,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         `self._gen_galaxy_history`, otherwise, can 'evolve' galaxies
         deterministically all at once.
         """
-        
+                
         # First, grab halos
         halos = self._gen_halo_histories()
-                
+                                        
         ## 
         # Stochastic model
         ##
         if self.pf['pop_sample_cmf']:
             
             fields = ['SFR', 'MAR', 'Mg', 'Ms', 'Mh', 'nh', 
-                'Nsn', 'bursty', 'imf', 'rand']
+                'Nsn', 'bursty', 'rand']
             num = halos['Mh'].shape[0]
             
             hist = {key:np.zeros_like(halos['Mh']) for key in fields}
             
             # This guy is 3-D
-            hist['imf'] = np.zeros((halos['Mh'].size, halos['z'].size,
-                self.tab_imf_mc.size))
+            #hist['imf'] = np.zeros((halos['Mh'].size, halos['z'].size,
+            #    self.tab#_imf_mc.size))
             
             for i in range(num):
                 
@@ -1091,15 +1188,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Flip arrays to be in ascending time.
         z = halos['z'][-1::-1]
-        z2d = np.vstack([z] * Nhalos)
+        z2d = z[None,:]
         t = halos['t'][-1::-1]
         Mh = halos['Mh'][:,-1::-1]
         nh = halos['nh'][:,-1::-1]
         MAR = halos['MAR'][:,-1::-1]
-        
+                        
         # 't' is in Myr, convert to yr
         dt = np.abs(np.diff(t)) * 1e6
-
+        dt_myr = dt / 1e6
+                        
         ##
         # OK. We've got a bunch of halo histories and we need to integrate them
         # to get things like stellar mass, metal mass, etc. This means we need
@@ -1126,35 +1224,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fd = 0.0
         
         if self.pf['pop_dust_growth'] is not None:
-            fg = self.guide.dust_growth(z=z2d, Mh=Mh)   
+            fg = self.guide.dust_growth(z=z2d, Mh=Mh)
         else:
             fg = 0.0
             
         fmr = self.pf['pop_mass_yield']    
         fml = (1. - fmr)
-        
+
         # Integrate (crudely) mass accretion rates
         #_Mint = cumtrapz(_MAR[:,:], dx=dt, axis=1)
         #_MAR_c = 0.5 * (np.roll(MAR, -1, axis=1) + MAR)
         #_Mint = np.cumsum(_MAR_c[:,1:] * dt, axis=1)
-        
+
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
-        else:
+        else:      
+            SFR = self.guide.SFE(z=z2d, Mh=Mh)
+            np.multiply(SFR, MAR, out=SFR)
+            SFR *= fb
             
-            # Use cell-centered mass and redshift to compute SFE?
-            dz = np.diff(z2d, axis=1)
-            dM = np.diff(Mh, axis=1)
-            #            
-            #Mh_cc = Mh.copy()
-            #Mh_cc[:,0:-1] += dM
-            
-            z2d_cc = z2d.copy()
-            z2d_cc[:,0:-1] += dz            
-            SFR = MAR * fb * self.guide.SFE(z=z2d, Mh=Mh)
-
-            del dM, dz#, Mh_cc
-
         ##
         # Duty cycle effects
         ##
@@ -1172,66 +1260,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 off = r >= fduty
                 SFR[off==True] = 0
-            
-        # 50% duty cycle
-        #fduty = np.minimum(0.3 * (Mh / 1e10)**0.3, 1.)
-        #delt = 30e6 * (Mh / 1e10)**0.4
-        #
-        #di = 0.5 * delt / np.hstack(([0], dt))[None,:]
-        #
-        #rand = np.reshape(np.random.rand(Mh.size), Mh.shape)
-        #
-        ###
-        ## Method 1:
-        ##
-        #Pon = (fduty / delt) * np.hstack(([0], dt))[None,:]
-        #
-        #r = np.reshape(np.random.rand(Mh.size), Mh.shape)
-        #
-        ## Discrete events
-        #on = np.array(r < Pon, dtype=int)
-        #
-        ## Pad by `delt` interval
-        #a = np.argwhere(on == 1)
-        #        
-        #for ij in a:
-        #    iM, iz = ij
-        #    
-        #    l = int(di[iM,iz])
-        #    
-        #    on[iM,iz-l:iz+l+1] = 1
-        #    
-        ##on = np.array(np.logical_not(off), dtype=int)
-        #    
-        #SFR = SFR * on
         
-        ## 
-        # Can quench star formation
-        ##
-        #if self.pf['pop_quench'] is not None:
-        #    if type(self.pf['pop_quench']) in [int, float, np.float64]:
-        #        #t0 = np.interp(self.pf['pop_quench'], Mh, t)
-        #        if self.pf['pop_quench_by'].lower() == 'sfr':
-        #            qok = SFR >= self.pf['pop_quench']
-        #            qcorr = np.ones_like(Mh)
-        #                                
-        #            i0 = np.argmin(np.abs(SFR - self.pf['pop_quench']), axis=1)
-        #            t0 = np.array([t[i] for i in i0])
-        #            
-        #            
-        #            qcorr[qok] = np.exp(-(SFR[qok] / self.pf['pop_quench']))
-        #        else:    
-        #            qok = Mh >= self.pf['pop_quench']
-        #            qcorr = np.ones_like(Mh)
-        #            qcorr[qok] = np.exp(-(Mh[qok] / self.pf['pop_quench'])**0.2)
-        #    else:    
-        #        qcorr = self.guide.quench(z=z2d, Mh=Mh)
-        #else:
-        #    qcorr = 1.
-
-        #SFR *= qcorr
-            
+        # Never do this!                
         if self.pf['conserve_memory']:
+            raise NotImplemented('this is deprecated')
             dtype = np.float32
         else:
             dtype = np.float64
@@ -1241,7 +1273,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Stellar mass should have zeros padded at the 0th time index
         Ms = np.hstack((zeros_like_Mh,
             np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
-        
+                
+        #Ms = np.zeros_like(Mh)        
+                
         if self.pf['pop_flag_sSFR'] is not None:
             sSFR = SFR / Ms
             
@@ -1250,13 +1284,31 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         if np.any(fd > 0):
                         
+            delay = self.pf['pop_dust_yield_delay']
+
             if np.all(fg == 0):
-                if type(fd) in [int, float, np.float64]:
+                if type(fd) in [int, float, np.float64] and delay == 0:
                     Md = fd * fZy * Ms
                 else:
+                    
+                    if delay > 0:
+                        
+                        assert np.allclose(np.diff(dt_myr), 0.0, 
+                            rtol=1e-5, atol=1e-5)
+
+                        shift = int(delay // dt_myr[0])
+                        
+                        # Need to fix so Mh-dep fd can still work.
+                        assert type(fd) in [int, float, np.float64]
+                        
+                        DPR = np.roll(SFR, shift, axis=1)[:,0:-1] \
+                            * dt * fZy * fd
+                        DPR[:,0:shift] = 0.0
+                    else:
+                        DPR = SFR[:,0:-1] * dt * fZy * fd[:,0:-1]
+                    
                     Md = np.hstack((zeros_like_Mh,
-                        np.cumsum(SFR[:,0:-1] * dt * fZy * fd[:,0:-1], 
-                        axis=1)))
+                        np.cumsum(DPR, axis=1)))
             else:       
                                 
                 # Handle case where growth in ISM is included.
@@ -1303,11 +1355,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fcov = 1.0
             
         del z2d    
-
+        
         # Metal mass
         if 'Z' in halos:
             Z = halos['Z']
-            Mg = 0.0
+            Mg = MZ = 0.0
         else:
             if self.pf['pop_enrichment']:
                 MZ = Ms * fZy
@@ -1323,7 +1375,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             else:
                 MZ = Mg = Z = 0.0
-                
+                                
         ##
         # Merge halos, sum stellar masses, SFRs.
         # Only add masses after progenitors are absorbed.
@@ -1340,7 +1392,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pass
             else:    
                 
-                print("Looping over {} halos...".format(Mh.shape[0]))                
+                if self.pf['verbose']:
+                    print("Looping over {} halos...".format(Mh.shape[0]))         
                                 
                 pb = ProgressBar(Mh.shape[0])
                 pb.start()
@@ -1378,10 +1431,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Pack up                
         results = \
         {
-         'nh': nh,#[:,-1::-1],
-         'Mh': Mh,#[:,-1::-1],
-         't': t,#[-1::-1],
-         'z': z,#[-1::-1],
+         'nh': nh,
+         'Mh': Mh,
+         't': t,
+         'z': z,
          'child': child,
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
@@ -1391,20 +1444,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Md': Md, 
          'Sd': Sd,
          'fcov': fcov,
-         'Mh': Mh,#[:,-1::-1],
-         'Mg': Mg,#[:,-1::-1],
+         'Mh': Mh,
+         'Mg': Mg,
          'Z': Z,
          'bursty': zeros_like_Mh,
-         'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
+         #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
         }
-        
+                
         if self.pf['pop_dust_yield'] > 0:
             results['rand'] = halos['rand'][:,-1::-1]
             
         # Reset attribute!
         self.histories = results
-                
+                                
         return results
                 
     def Slice(self, z, slc):
@@ -1450,24 +1503,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             log10 stellar masses at which to evaluate SMF
         
         """
-                
+                                        
         cached_result = self._cache_smf(z, bins)
         if cached_result is not None:
             return cached_result
-        
-        #iz = np.argmin(np.abs(z - self.tab_z))
-        
+                            
         iz = np.argmin(np.abs(z - self.histories['z']))
         Ms = self.histories['Ms'][:,iz]
-        Mh = self.histories['Mh'][:,iz]
         nh = self.histories['nh'][:,iz]
-        
-        # Need to re-bin
-        #dMh_dMs = np.diff(Mh) / np.diff(Ms)
-        #rebin = np.concatenate((dMh_dMs, [dMh_dMs[-1]]))
-                
+         
         if (bins is None) or (type(bins) is not np.ndarray):
-            binw = 0.1
+            binw = 0.5
             bin_c = np.arange(6., 13.+binw, binw)
         else:
             dx = np.diff(bins)
@@ -1477,20 +1523,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         bin_e = bin_c2e(bin_c)
         
-        #logM = np.log10(Ms)
-        #ok = Ms > 0
-        #print('bins', bin, bin_c, bin_e)
         phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
-        
+                
         if units == 'dex':
             # Convert to dex**-1 units
             phi /= binw
         else:
             raise NotImplemented('help')
-                        
+                                
         self._cache_smf_[z] = bin_c, phi
-        
-        return self._cache_smf(z, bins)
+                
+        return self._cache_smf(z, bin_c)
         
     def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
         iz = np.argmin(np.abs(z - self.histories['z']))
@@ -1538,26 +1581,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
             Mbin=Mbin)
-
-    def L_of_Z_t(self, wave):
-        
-        if not hasattr(self, '_L_of_Z_t'):
-            self._L_of_Z_t = {}
-            
-        if wave in self._L_of_Z_t:
-            return self._L_of_Z_t[wave]
-
-        tarr = self.src.times
-        Zarr = np.sort(list(self.src.metallicities.values()))
-        L = np.zeros((tarr.size, Zarr.size))
-        for j, Z in enumerate(Zarr):
-            L[:,j] = self.src.L_per_SFR_of_t(wave, Z=Z)
-            
-        # Interpolant
-        self._L_of_Z_t[wave] = RectBivariateSpline(np.log10(tarr), 
-            np.log10(Zarr), L, kx=3, ky=3)
-            
-        return self._L_of_Z_t[wave]
         
     def find_trajectory(self, Mh, zh):
         l = np.argmin(np.abs(zh - self.tab_z))
@@ -1589,14 +1612,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self._cache_L_[key]
         
         return None
-              
+
     def _cache_lf(self, z, x=None):
         if not hasattr(self, '_cache_lf_'):
             self._cache_lf_ = {}
-            
+
         if z in self._cache_lf_:            
-                        
-            _x, _phi = self._cache_lf_[z]  
+
+            _x, _phi = self._cache_lf_[z]
             
             # If no x supplied, return bin centers
             if x is None:
@@ -1623,27 +1646,27 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return None
         
-    def _cache_smf(self, z, Mh):
+    def _cache_smf(self, z, Ms):
         if not hasattr(self, '_cache_smf_'):
             self._cache_smf_ = {}
     
         if z in self._cache_smf_:
             _x, _phi = self._cache_smf_[z]    
                 
-            if Mh is None:
+            if Ms is None:
                 return _phi        
-            elif type(Mh) != np.ndarray:
-                k = np.argmin(np.abs(Mh - _x))
-                if abs(Mh - _x[k]) < 1e-3:
+            elif type(Ms) != np.ndarray:
+                k = np.argmin(np.abs(Ms - _x))
+                if abs(Ms - _x[k]) < 1e-3:
                     return _phi[k]
                 else:
-                    return 10**np.interp(Mh, _x, np.log10(_phi),
+                    return 10**np.interp(Ms, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
-            elif _x.size == Mh.size:
-                if np.allclose(_x, Mh):
+            elif _x.size == Ms.size:
+                if np.allclose(_x, Ms):
                     return _phi
             
-            return 10**np.interp(Mh, _x, np.log10(_phi),
+            return 10**np.interp(Ms, _x, np.log10(_phi),
                 left=-np.inf, right=-np.inf)
             
         return None  
@@ -1658,8 +1681,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                                 
         hist = {'t': raw['t'], 'z': raw['z'], 
             'SFR': raw['SFR'][i], 'Mh': raw['Mh'][i], 
-            'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i],
-            'imf': raw['imf'][i]}
+            'bursty': raw['bursty'][i], 'Nsn': raw['Nsn'][i]}
             
         if self.pf['pop_dust_yield'] is not None:
             hist['rand'] = raw['rand'][i]
@@ -1782,8 +1804,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return cached_result
         
         raw = self.histories
-        L = self.synth.Luminosity(sfh=raw['SFR'], wave=wave, zarr=raw['z'],
-            zobs=z, hist=raw, extras=self.extras, idnum=idnum, window=window)
+        L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
+            extras=self.extras, idnum=idnum, window=window)
            
         self._cache_L_[(z, wave, band, idnum, window)] = L
            
@@ -1816,14 +1838,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if z > raw['z'][izobs]:
             # Go to one grid point lower redshift
             izobs += 1
-                           
+
         izobs = min(izobs, len(raw['z']) - 2)                   
-                                            
+
         ##
         # Run in batch.
         L = self.Luminosity(z, wave=wave, band=band)
         ##    
-        
+
         zarr = raw['z']         
         tarr = raw['t']
 
@@ -1950,10 +1972,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
           
             ##
             # Run in batch.
-            _beta_r = self.synth.Slope(z, sfh=raw['SFR'], waves=waves, zarr=raw['z'],
-                hist=raw, dlam=dlam, cam=cam, filters=filters, filter_set=filter_set,
-                rest_wave=rest_wave, method=method, extras=self.extras,
-                return_err=return_err)
+            _beta_r = self.synth.Slope(zobs=z, sfh=raw['SFR'], waves=waves, 
+                zarr=raw['z'], hist=raw, dlam=dlam, cam=cam, filters=filters, 
+                filter_set=filter_set, rest_wave=rest_wave, method=method, 
+                extras=self.extras, return_err=return_err)
                                 
             if return_err:
                 beta_r, beta_rerr = _beta_r
@@ -1967,7 +1989,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Can return binned (in MUV) version
         if return_binned:
             if Mbins is None:
-                Mbins = np.arange(-30, -10, 0.25)
+                Mbins = np.arange(-30, -10, 1.)
 
             nh = self.get_field(z, 'nh')
             
@@ -2219,30 +2241,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 prefix = fn_hist.split('.pkl')[0]
                 zall, traj_all = pickle.load(f)
                 f.close()
-                
+                if self.pf['verbose']:
+                    print("Loaded {}.".format(fn_hist))
                 hist = traj_all
                       
             elif fn_hist.endswith('.hdf5'):
                 f = h5py.File(fn_hist, 'r')
                 prefix = fn_hist.split('.hdf5')[0]
                 
-                if self.pf['conserve_memory']:
-                    dtype = np.float32
-                else:
-                    dtype = np.float64
-                
                 hist = {}
                 for key in f.keys():
-                    
-                    if isinstance(f[(key)], h5py._hl.dataset.Dataset):
-                        hist[key] = np.array(f[(key)], dtype=dtype)
-                    else:    
-                        hist[key] = np.array(f[(key)])
-                
+                    hist[key] = np.array(f[(key)])
+                                
                 zall = hist['z']
                 
-                
                 f.close()
+                if self.pf['verbose']:
+                    print("Loaded {}.".format(fn_hist))
                 
             else:
                 # Assume pickle?
@@ -2250,6 +2265,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 prefix = fn_hist
                 zall, traj_all = pickle.load(f)
                 f.close()
+                if self.pf['verbose']:
+                    print("Loaded {}.".format(fn_hist+'.pkl'))
             
                 hist = traj_all
                 
@@ -2257,14 +2274,77 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
             
             ## Check to see if parameters match
-            print("Need to check that HMF parameters match!")
+            if self.pf['verbose']:
+                print("Need to check that HMF parameters match!")
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']
             # Assume you know what you're doing.
         else:
             hist = None
-            
+                
         return hist
+        
+    def SaveCatalog(self, prefix, redshifts=None, waves=None, fields=None,
+        dlam=20., filters=None, save_spec=True):
+        """
+        Create a galaxy catalog over a series of redshifts.
+        """
+                        
+        hist = self.histories
+        zarr = hist['z']
+        tarr = hist['t']
+        
+        if redshifts is None:
+            zmin = round(min(zarr))
+            redshifts = np.arange(zmin, 13, 1.)
+        
+        if waves is None:
+            waves = np.arange(40., 3000.+dlam, dlam)
+        
+        if fields is None:
+            fields = 'Mh', 'Ms', 'SFR', 'Md'
+            # Also, MUV, beta....
+        
+        for i, z in enumerate(redshifts):
+            
+            _iz = np.argmin(np.abs(z - zarr))
+            if zarr[_iz] > z:
+                _iz -= 1
+            zactual = zarr[_iz]    
+            
+            ##
+            # Save spectra
+            if save_spec:
+                spec = self.synth.Spectrum(waves, sfh=hist['SFR'], zarr=zarr, 
+                    window=1, zobs=zactual, units='Hz', hist=hist)
+                    
+                fn_spec = '{}.z={}.spec.hdf5'.format(prefix, zactual)    
+                    
+                with h5py.File(fn_spec, 'w') as f:
+                    ds = f.create_dataset('spec', data=spec)
+                    ds = f.create_dataset('wave', data=waves)
+                print("Wrote {}.".format(fn_spec))
+            
+            ##
+            # Save basics
+            fn_prop = '{}.z={}.prop.hdf5'.format(prefix, zactual)    
+                
+            with h5py.File(fn_prop, 'w') as f:
+                pass
+            print("Wrote {}.".format(fn_prop))    
+            
+            if filters is None:
+                continue
+                
+            fn_phot = '{}.z={}.phot.hdf5'.format(prefix, zactual)    
+            with h5py.File(fn_phot, 'w') as f:
+                pass
+            print("Wrote {}.".format(fn_phot))
+            
+            
+        # Save files with galaxy properties ('prop') and spectra ('spec').
+        # Could derive photometry and beta later.
+            
     
     def save(self, prefix, clobber=False):
         """

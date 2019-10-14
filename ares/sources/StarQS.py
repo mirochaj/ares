@@ -36,6 +36,18 @@ class StarQS(Source):
         return self.PhotonsPerBaryon
         
     @property
+    def Nion(self):
+        if not hasattr(self, '_Nion'):
+            self._Nion = self.N[1]
+        return self._Nion
+        
+    @property
+    def Nlw(self):
+        if not hasattr(self, '_Nlw'):
+            self._Nlw = self.N[0]
+        return self._Nlw    
+        
+    @property
     def PhotonsPerBaryon(self):
         return self.Q * self.lifetime * s_per_yr \
             / (self.pf['source_mass'] * g_per_msun * self.cosm.b_per_g)

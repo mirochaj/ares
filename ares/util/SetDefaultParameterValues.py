@@ -315,6 +315,7 @@ def ParameterizedQuantityParameters():
      "pq_func": 'dpl',
      "pq_func_fun": None,  # only used if pq_func == 'user'
      "pq_func_var": 'Mh',
+     "pq_func_var2": None, 
      "pq_func_par0": None,
      "pq_func_par1": None,
      "pq_func_par2": None,
@@ -323,6 +324,9 @@ def ParameterizedQuantityParameters():
      "pq_func_par5": None,
      "pq_func_par6": None,
      "pq_func_par7": None,
+     "pq_func_par7": None,
+     "pq_func_par8": None,
+     "pq_func_par9": None,
      
      "pq_boost": 1.,
      "pq_iboost": 1.,
@@ -404,6 +408,7 @@ def PopulationParameters():
     "pop_interp_lf": 'linear',
     
     "pop_tdyn": 1e7,
+    "pop_tstar": None,
     "pop_sSFR": None,
 
     "pop_uvlf": None,
@@ -522,7 +527,7 @@ def PopulationParameters():
     "pop_synth_zmax": 20.,
     "pop_synth_zmin": 3.5,
     "pop_synth_Mmax": 1e14,
-    "pop_synth_minimal": True,  # Can turn off for testing (so we don't need MF)
+    "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
     "pop_synth_cache_level": 1, # Bigger = more careful
     
     "pop_tau_bc": 0,
@@ -539,6 +544,7 @@ def PopulationParameters():
     "pop_guide_pop": None,
     "pop_thin_hist": False,
     "pop_scatter_mar": 0.0,
+    "pop_scatter_mar_seed": None,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
     "pop_scatter_env": 0.0,
@@ -658,12 +664,14 @@ def PopulationParameters():
     "pop_metal_yield": 0.1,
     "pop_dust_holes": 'big', 
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
+    "pop_dust_yield_delay": 0,
     "pop_dust_growth": None,
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     "pop_dust_scatter": None,
+    
     
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
@@ -920,6 +928,9 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+    # Note that this is not passed to hmf yet.
+    "hmf_window": 'tophat',
+    
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
     
@@ -974,6 +985,8 @@ def ControlParameters():
     {
     
     'revision': None,
+    
+    'nthreads': None,
     
     # Start/stop/IO
     "dtDataDump": 1.,

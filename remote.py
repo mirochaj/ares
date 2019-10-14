@@ -67,7 +67,9 @@ aux_data = \
     'wfc_F814W.dat',
     'wfc_F850LP.dat',
     None],
- 'cosmo_params': ['https://pla.esac.esa.int/pla/aio','product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.tgz',None]
+ 'cosmo_params': ['https://pla.esac.esa.int/pla/aio',
+    'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.tgz',
+    None]
 }
 
 
@@ -103,6 +105,7 @@ if (len(options) > 0) and ('clean' not in options):
             files = [None] * len(to_download)
 else:
     to_download = aux_data.keys()
+    to_download.remove('cosmo_params')
     files = [None] * len(to_download)
         
 for i, direc in enumerate(to_download):
@@ -162,7 +165,6 @@ for i, direc in enumerate(to_download):
             tar.close()
         except:
             print("WARNING: Error unpacking {0!s}/{1!s}".format(web, fn))
-        
         
         if direc != 'cosmo_params': 
             continue

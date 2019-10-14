@@ -17,7 +17,7 @@ import sys
 import ares
 
 ## INPUT
-fit = 'Tinker10'
+fit = 'ST'
 fmt = 'hdf5'
 
 hmf_pars = \
@@ -26,6 +26,8 @@ hmf_pars = \
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
+
+ "hmf_window": 'sharpk',
 
  # Redshift sampling
  "hmf_zmin": 0.,

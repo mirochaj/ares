@@ -4,12 +4,12 @@ Fitting EDGES-like Signals
 ==========================
 In March of 2018, the EDGES collaboration reported an anamolously-strong absorption signal in the sky-averaged spectrum at 78 MHz (`Bowman et al. (2018) <http://adsabs.harvard.edu/abs/2018Natur.555...67B>`_). This is roughly where one might expect the global 21-cm signal, though its amplitude is 2-3x larger than the most extreme cases in a :math:`\Lambda \text{CDM}` framework. This has led to a variety of exotic explanations, such as milli-charged dark (see, e.g., `Barkana (2018) <http://adsabs.harvard.edu/abs/2018Natur.555...71B>`_, `Fialkov et al. (2018) <http://adsabs.harvard.edu/abs/2018PhRvL.121a1101F>`_, `Berlin et al. (2018) <http://adsabs.harvard.edu/abs/2018PhRvL.121a1102B>`_, `Kovetz et al. (2018) <http://adsabs.harvard.edu/abs/2018PhRvD..98j3529K>`_) matter and excess power in the Rayleigh-Jeans tail of the microwave background (see, e.g., `Feng \& Holder (2018) <http://adsabs.harvard.edu/abs/2018ApJ...858L..17F>`_, `Ewall-Wice et al. (2018) <http://adsabs.harvard.edu/abs/2018ApJ...868...63E>`_, `Fraser et al. (2018) <http://adsabs.harvard.edu/abs/2018PhLB..785..159F>`_, `Pospelov et al. (2018) <http://adsabs.harvard.edu/abs/2018PhRvL.121c1103P>`_). These lists are horribly incomplete, so apologies for that!
 
-In *ares*, we have not included any specific models of dark matter. However, in `Mirocha \& Furlanetto (2019) <http://adsabs.harvard.edu/abs/2019MNRAS.483.1980M>`_ we explored two general possibilities:
+In *ARES*, we have not included any specific models of dark matter. However, in `Mirocha \& Furlanetto (2019) <http://adsabs.harvard.edu/abs/2019MNRAS.483.1980M>`_ we explored two general possibilities:
 
 - A parametric "excess cooling" model, in which the thermal history at very high redshift is allowed to depart from the predictions of standard recombination codes in :math:`\Lambda \text{CDM}` cosmologies.
 - An astrophysically-generated radio background, whose strength scales with the star formation of galaxies as :math:`L_R \propto f_R \text{SFR}`. The parameter :math:`f_R` was left as a free parameter.
  
-In this section, we will show how to run these models within *ares*.
+In this section, we will show how to run these models within *ARES*.
 
 Excess Cooling Models
 ---------------------
@@ -21,7 +21,7 @@ At high-z the temperature of a mean-density gas parcel evolves between :math:`T(
 
 and integrate to obtain the thermal history. We have constructed this relation such that :math:`\alpha=-4` reproduces the typical thermal history, and while varying $\alpha$ can change the late-time cooling rate, the cooling rate as :math:`z \rightarrow \infty` tends to :math:`d\log T/ d\log t = -2/3`, as it must to preserve the thermal history during the recombination epoch. See Section 2.3.1 of our paper for more discussion of this model.
 
-To switch to this parameteric cooling model, you can add the following updates to any dictionary of parameters you would usually supply to *ares*:
+To switch to this parameteric cooling model, you can add the following updates to any dictionary of parameters you would usually supply to *ARES*:
 
 ::
 
@@ -35,7 +35,7 @@ To switch to this parameteric cooling model, you can add the following updates t
      'inits_Tk_p2': -4,              # alpha
     }
 
-The parameter values listed above are adopted to reproduce the standard :math:`\Lambda \text{CDM}` result, which *ares* draws from CosmoRec. To convince yourself of this, go ahead and compare to the standard scenario:
+The parameter values listed above are adopted to reproduce the standard :math:`\Lambda \text{CDM}` result, which *ARES* draws from CosmoRec. To convince yourself of this, go ahead and compare to the standard scenario:
 
 ::
 	
@@ -120,7 +120,7 @@ The main free parameters in this model are:
 	
 Astrophysical Radio Backgrounds
 -------------------------------
-The simplest way to augment the radio background is to parameterize it. You can do so easily in *ares* via the parameter ``Tbg``, to which you can supply a Python function (assumed to be defined in terms of redshift), or ``pl``, to indicate use of a power-law model. In the latter case, you must also supply the parameters ``Tbg_p0``, ``Tbg_p1``, and ``Tbg_p2`` which define the power-law as
+The simplest way to augment the radio background is to parameterize it. You can do so easily in *ARES* via the parameter ``Tbg``, to which you can supply a Python function (assumed to be defined in terms of redshift), or ``pl``, to indicate use of a power-law model. In the latter case, you must also supply the parameters ``Tbg_p0``, ``Tbg_p1``, and ``Tbg_p2`` which define the power-law as
 
 .. math::
     T_r(z) = p_0 \left(\frac{1+z}{1+p_1} \right)^{p_2}
@@ -134,7 +134,7 @@ and assumed a power-law spectrum with index :math:`\alpha=-0.7`.
 
 .. note:: We have scaled the Gurkan et al. 150 MHz normalization to 1.4 GHz. See Section 2.3.2 in our paper for more details.
 
-To create such a source population in *ares*, we build off the standard approach calibrated to high-z UV luminosity functions. Because we're assuming that the radio spectrum does not depend on host galaxy mass or time, we can simply link the SFRD of this new population to that of a pre-existing population, in this case with ID number 0:
+To create such a source population in *ARES*, we build off the standard approach calibrated to high-z UV luminosity functions. Because we're assuming that the radio spectrum does not depend on host galaxy mass or time, we can simply link the SFRD of this new population to that of a pre-existing population, in this case with ID number 0:
 
 ::
 

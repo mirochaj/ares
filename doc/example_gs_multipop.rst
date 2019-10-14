@@ -2,11 +2,11 @@
 
 Models with Multiple Source Populations
 =========================================
-*ares* can handle an arbitrary number of source populations. To
+*ARES* can handle an arbitrary number of source populations. To
 access this functionality, create a dictionary representing each source
 population of interest. Below, we'll create a population representative of PopII stars and another representative of PopIII stars.
 
-Before we start, it is important to note that in *ares*, source populations are identified by their spectra over some contiguous interval in photon energy. This can be somewhat counterintuitive. For example, though UV emission from stars and X-ray emission from their compact remnants, e.g., X-ray binary systems, are both natural byproducts of star formation, we treat them as separate source populations in *ares* even though the emission from each type of source is related to the same rate of star formation. However, because stars and XRBs have very different spectra, whose normalizations are parameterized differently, it is more convenient in the code to keep them separate. Because of this, what you might think of as a single source population (stars and their remnants) actually constitutes *two* source populations in *ares*. 
+Before we start, it is important to note that in *ARES*, source populations are identified by their spectra over some contiguous interval in photon energy. This can be somewhat counterintuitive. For example, though UV emission from stars and X-ray emission from their compact remnants, e.g., X-ray binary systems, are both natural byproducts of star formation, we treat them as separate source populations in *ARES* even though the emission from each type of source is related to the same rate of star formation. However, because stars and XRBs have very different spectra, whose normalizations are parameterized differently, it is more convenient in the code to keep them separate. Because of this, what you might think of as a single source population (stars and their remnants) actually constitutes *two* source populations in *ARES*. 
 
 Let's start with a PopII source population:
 
@@ -80,7 +80,7 @@ This let's us easily extract parameters according to their ID number, i.e.,
     popIII_xr = popII.pars_by_pop(1, True)
     popIII_xr.num = 3
 
-The second argument tells *ares* to remove the parameter ID numbers.
+The second argument tells *ARES* to remove the parameter ID numbers.
 
 Now, we can simply reset the ID numbers and update a few important parameters:
 

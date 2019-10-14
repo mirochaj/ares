@@ -38,9 +38,9 @@ zf, zi = (5, 60)
 Emin = 2e2
 Emax = 3e4
 pin_Emin = True
-Nz = [400]
-fmt = 'npz'        # 'hdf5' or 'pkl' or 'npz'
-helium = 0
+Nz = np.arange(1200, 1300, 100)#[400]
+fmt = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
+helium = 1
 xavg = lambda z: 0.0  # neutral
 ##
 #

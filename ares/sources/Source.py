@@ -416,7 +416,7 @@ class Source(object):
                       self.Emax)[0] / self.qdot_bar[i] / erg_per_ev
             
         return self._sigma_bar_all
-    
+
     @property
     def sigma_tilde(self):
         if not hasattr(self, '_sigma_tilde_all'):
@@ -427,9 +427,9 @@ class Source(object):
                 self._sigma_tilde_all[i] = quad(integrand, 
                     self.grid.ioniz_thresholds[absorber], self.Emax)[0] \
                     / self.fLbol_ionizing[i]
-        
+
         return self._sigma_tilde_all
-        
+
     def fLbol_ionizing(self, t=0):
         """
         Fraction of bolometric luminosity emitted above all ionization

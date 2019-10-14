@@ -338,18 +338,14 @@ _dust_screen_pl = \
 {
  # Scale 
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
- "pq_func[22]": 'pl',
+ "pq_func[22]": 'pl_evolN',
+ 'pq_func_var2[22]': '1+z',
  'pq_func_var[22]': 'Mh',
- 'pq_func_par0[22]': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par0[22]': 1.6,        # Note that Rhalo ~ Mh^1/3 / (1+z)
  'pq_func_par1[22]': 1e10,
  'pq_func_par2[22]': 0.45,
- 
- # Evolution of scale
- "pq_func[23]": 'pl',
- 'pq_func_var[23]': '1+z',
- 'pq_func_par0[23]': 1.6,
- 'pq_func_par1[23]': 5.,
- 'pq_func_par2[23]': 0.,         # R(vir) goes like 1 / (1+z)
+ 'pq_func_par3[22]': 5.,
+ 'pq_func_par4[22]': 0.,         # R(vir) goes like 1 / (1+z)
 } 
 
 _dust_screen_pl.update(_dust_kappa)
@@ -393,46 +389,34 @@ _dust_patchy['pq_func_par0[26]'] = 10.8
 _dust_patchy['pq_func_par1[26]'] = 5.
 _dust_patchy['pq_func_par2[26]'] = 0.
 
-_dust_destroy_ = \
+_dust_destroy = \
 {
  "pop_dust_yield": 'pq[27]',
- "pq_func[27]": 'pl',
+ "pq_func[27]": 'pl_evolN',
  'pq_func_var[27]': 'Mh',
- 'pq_func_par0[27]': 'pq[28]',     
+ 'pq_func_var2[27]': '1+z',
+ 'pq_func_par0[27]': 0.4,     
  'pq_func_par1[27]': 1e10,
  'pq_func_par2[27]': 0.,     # Mh-independent, by default
+ 'pq_func_par3[27]': 5.,
+ 'pq_func_par4[27]': 0.,  
  'pq_val_ceil[27]': 0.4,
- 
- # Evolution in normalization
- "pq_func[28]": 'pl',
- 'pq_func_var[28]': '1+z',
- 'pq_func_par0[28]': 0.4,
- 'pq_func_par1[28]': 5.,
- 'pq_func_par2[28]': 0.,       
 }
-
-_dust_destroy = _dust_screen_pl.copy()
-_dust_destroy.update(_dust_destroy_)
 
 _dust_growth = \
 {
  "pop_dust_growth": 'pq[29]',
- "pq_func[29]": 'pl',
+ "pq_func[29]": 'pl_evolN',
  'pq_func_var[29]': 'Mh',
- 'pq_func_par0[29]': 'pq[30]',     
+ 'pq_func_var2[30]': '1+z',
+ 'pq_func_par0[29]': 1e9,     
  'pq_func_par1[29]': 1e10,
  'pq_func_par2[29]': 0.,     # Mh-independent, by default
- 
- # Evolution in normalization
- "pq_func[30]": 'pl',
- 'pq_func_var[30]': '1+z',
- 'pq_func_par0[30]': 1e9,    # Gyr
- 'pq_func_par1[30]': 5.,
- 'pq_func_par2[30]': 0.,   
-    
+ 'pq_func_par3[29]': 5.,
+ 'pq_func_par4[29]': 0.,   
 }
 
-_dust_composition_ = \
+_dust_composition = \
 {
  'pq_func_par2[20]': 'pq[31]',
  'pq_func[31]': 'pl',
@@ -442,27 +426,18 @@ _dust_composition_ = \
  'pq_func_par2[31]': 0.,
 }
 
-_dust_composition = _dust_screen_pl.copy()
-_dust_composition.update(_dust_composition_)
-
-_dust_scatter_ = \
+_dust_scatter = \
 {
  "pop_dust_scatter": 'pq[33]',
- 'pq_func[33]': 'pl',
+ 'pq_func[33]': 'pl_evolN',
  'pq_func_var[33]': 'Mh',
- 'pq_func_par0[33]': 'pq[34]',
+ 'pq_func_var2[33]': '1+z',
+ 'pq_func_par0[33]': 0.3,
  'pq_func_par1[33]': 1e10,
  'pq_func_par2[33]': 0.,
-    
- "pq_func[34]": 'pl',
- 'pq_func_var[34]': '1+z',
- 'pq_func_par0[34]': 0.3,
- 'pq_func_par1[34]': 5.,
- 'pq_func_par2[34]': 0.,
+ 'pq_func_par3[33]': 5.,
+ 'pq_func_par4[33]': 0.,
 }
-
-_dust_scatter = _dust_screen_pl.copy()
-_dust_scatter.update(_dust_scatter_)
 
 
 #_physical_dc_screen_tanh = _physical_dc_screen.copy()

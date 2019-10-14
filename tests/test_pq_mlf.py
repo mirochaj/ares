@@ -75,18 +75,15 @@ def test():
     pars_sfe = \
     {
     'pop_sfr_model': 'sfe-func',
-    'pop_fstar': 'pq[0]',
-    'pq_func[0]': 'pl',
-    'pq_func_var[0]': 'Mh',
-    'pq_func_par0[0]': 'pq[1]',
-    'pq_func_par1[0]': 1e11,
-    'pq_func_par2[0]': 0.6,
-
-    'pq_func[1]': 'pl',
-    'pq_func_var[1]': 'z',
-    'pq_func_par0[1]': 1e-1,
-    'pq_func_par1[1]': 7.,
-    'pq_func_par2[1]': 1.,
+    'pop_fstar': 'pq',
+    'pq_func': 'pl_evolN',
+    'pq_func_var': 'Mh',
+    'pq_func_var2': 'z',
+    'pq_func_par0': 1e-1,
+    'pq_func_par1': 1e11,
+    'pq_func_par2': 0.6,
+    'pq_func_par3': 7.,
+    'pq_func_par4': 1.,
     
     }  
     
@@ -95,7 +92,7 @@ def test():
     
     pop_sfe = ares.populations.GalaxyPopulation(**pars_sfe)
     
-    correction = (z2 / z1)**pars_sfe['pq_func_par2[1]']
+    correction = (z2 / z1)**pars_sfe['pq_func_par4']
     
     assert pop_sfe.fstar(z=z1, Mh=1e11) * correction == pop_sfe.fstar(z=z2, Mh=1e11), \
         "Redshift evolution not working properly for SFE."

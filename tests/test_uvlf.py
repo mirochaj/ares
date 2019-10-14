@@ -31,43 +31,31 @@ pars = \
  'pop_Emax': 24.6,
  'pop_rad_yield': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                                  # should make this automatic
-
- 
- 'pop_uvlf': 'pq[0]',
- 'pq_func[0]': 'schechter_mags',
- 'pq_func_var[0]': 'MUV',
+ 'pop_uvlf': 'pq',
+ 'pq_func': 'schechter_evol',
+ 'pq_func_var': 'MUV',
+ 'pq_func_var2': 'z',
                
  # Bouwens+ 2015 Table 6 for z=5.9
  #'pq_func_par0[0]': 0.39e-3,
  #'pq_func_par1[0]': -21.1,
  #'pq_func_par2[0]': -1.90,    
  #
- # Can add some redshift evolution if we want.
- 'pq_func_par0[0]': 'pq[1]',  # phi_star
- 'pq_func_par1[0]': 'pq[2]',  # M_star
- 'pq_func_par2[0]': 'pq[3]',  # alpha
- 'pq_func[1]': 'loglinear',
- 'pq_func[2]': 'linear',
- 'pq_func[3]': 'linear',
- 'pq_func_var[1]': 'z',
- 'pq_func_var[2]': 'z',
- 'pq_func_var[3]': 'z',  
- 'pq_func_par1[1]': 6.,
- 'pq_func_par1[2]': 6.,
- 'pq_func_par1[3]': 6.,
-
  # phi_star
- 'pq_func_par0[1]': np.log10(0.47e-3),
- 'pq_func_par2[1]': -0.27,
+ 'pq_func_par0': np.log10(0.47e-3),
+ 'pq_func_par4': -0.27,
+ 
+ # z-pivot
+ 'pq_func_par3': 6.,
+ 
  # Mstar
- 'pq_func_par0[2]': -20.95,
- 'pq_func_par2[2]': 0.01,
+ 'pq_func_par1': -20.95,
+ 'pq_func_par5': 0.01,
+ 
  # alpha
- 'pq_func_par0[3]': -1.87,
- 'pq_func_par2[3]': -0.1,
- 
- 
- 
+ 'pq_func_par2': -1.87,
+ 'pq_func_par6': -0.1,
+  
 }
 
 def test():
@@ -78,14 +66,14 @@ def test():
     pop_sch = ares.populations.GalaxyPopulation(**pars)
     
     # DPL SFE fit from my paper
-    m16 = ares.util.ParameterBundle('mirocha2017:dpl')
+    m17 = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0,1)
     
     # Test suite doesn't download BPASS models, so supply L1600 by hand.
-    m16['pop_sed{0}'] = None
-    m16['pop_L1600_per_sfr{0}'] = 1.019e28
+    m17['pop_sed'] = None
+    m17['pop_L1600_per_sfr'] = 1.019e28
     
     # Make the population
-    pop_dpl = ares.populations.GalaxyPopulation(**m16.pars_by_pop(0,1))
+    pop_dpl = ares.populations.GalaxyPopulation(**m17)
     
     ax1 = None
     ax2 = None
@@ -97,18 +85,19 @@ def test():
             mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
         
         # Plot the Bouwens Schechter fit
-        ax1.semilogy(mags, pop_sch.UVLF_M(MUV=mags, z=z), color=colors[i], 
+        ax1.semilogy(mags, pop_sch.LuminosityFunction(z, mags), color=colors[i], 
             ls='-', lw=1)
     
         # My 2017 paper only looked at z > 6
-        if z < 4.9:
+        if z < 5:
             continue
     
         ax2 = gpop.Plot(z=z, sources='bouwens2015', ax=ax2, color=colors[i], fig=2,
             mec=colors[i], label=r'$z\sim {:d}$'.format(int(round(z, 0))))
             
         # Plot the physical model fit
-        ax2.semilogy(*pop_dpl.phi_of_M(z=z), color=colors[i], ls='-', lw=1)
+        ax2.semilogy(mags, pop_dpl.LuminosityFunction(z, mags), color=colors[i], 
+            ls='-', lw=1)
     
     
     # Add z = 10 models and data from Oesch+ 2014

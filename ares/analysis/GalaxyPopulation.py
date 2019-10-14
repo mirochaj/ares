@@ -85,6 +85,9 @@ class GalaxyPopulation(object):
         Create a master dictionary containing the MUV points, phi points,
         and (possibly asymmetric) errorbars for all (or some) data available.
         
+        .. note:: Since we store errorbars in +/- order (if asymmetric), but
+            matplotlib.pyplot.errorbar assumes -/+ order, we swap the order here.
+        
         Parameters
         ----------
         z : int, float
@@ -132,9 +135,7 @@ class GalaxyPopulation(object):
             data[source] = {}
             
             if quantity in ['lf']:
-                data[source]['wavelength'] = src.wavelength
-                        
-            
+                data[source]['wavelength'] = src.wavelength            
                         
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
@@ -224,7 +225,8 @@ class GalaxyPopulation(object):
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10], 
         z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, **kwargs):
+        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, 
+        dmag=0.5, dlam_c94=10, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -336,7 +338,7 @@ class GalaxyPopulation(object):
             if z in f12.data['beta']:    
                 err = f12.data['beta'][z]['err']
                 ax_cMs[j].errorbar(10**f12.data['beta'][z]['Ms'], 
-                    f12.data['beta'][z]['beta'], err.T, 
+                    f12.data['beta'][z]['beta'], err.T[-1::-1], 
                     fmt='o', color=colors[z], 
                     label=r'Finkelstein+ 2012' if j == 0 else None,
                     **mkw)
@@ -346,7 +348,7 @@ class GalaxyPopulation(object):
         ##
         Ms = np.arange(6, 13.25, 0.25)
         mags = np.arange(-25, -12, 0.1)
-        mags_cr = np.arange(-25, -10, 0.25)
+        mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
         calzetti = read_lit('calzetti1994').windows
@@ -381,8 +383,8 @@ class GalaxyPopulation(object):
              
             if beta_phot:
                 beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                dlam=20.)
+                    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                    dlam=20.)
             else:
                 beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     rest_wave=(1600., 3000.), dlam=20.)
@@ -394,10 +396,12 @@ class GalaxyPopulation(object):
             
             if show_Mstell:
                 
-                _beta_c94 = pop.Beta(z, Mwave=1600., return_binned=False,
-                    cam='calzetti', filters=calzetti, dlam=10., rest_wave=None)
+                _beta_c94 = pop.Beta(z, return_binned=False,
+                    cam='calzetti', filters=calzetti, dlam=dlam_c94, 
+                    rest_wave=None)
 
-                # Need to interpolate between Ms and MUV
+                # _beta_c94 is 'raw', i.e., unbinned UV slopes for all halos.
+                # Just need to bin as function of stellar mass.
                 _Ms = pop.get_field(z, 'Ms')
                 _nh = pop.get_field(z, 'nh')
                 _x, _b, _err = bin_samples(np.log10(_Ms), _beta_c94, Ms, 
@@ -422,7 +426,7 @@ class GalaxyPopulation(object):
             ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
             
             if i > 0:
-                ax.set_ylabel(r'$\beta$')
+                ax.set_ylabel(r'$\beta_{\mathrm{hst}}$')
                 ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
@@ -439,15 +443,14 @@ class GalaxyPopulation(object):
                     else:
                         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                             
-                    
-                ax.yaxis.set_ticks_position('both')    
+                ax.yaxis.set_ticks_position('both')
             else:
                 ax.set_xlabel(r'$M_{1600}$')
                 ax.set_ylabel(labels['galaxy_lf'])
                 ax.set_ylim(1e-7, 1e-1)
                             
         if label is not None:
-            ax_uvlf.legend(loc='upper left', fontsize=12, frameon=True)                    
+            ax_uvlf.legend(loc='upper left', fontsize=12, frameon=True)
                             
         if show_Mstell:
             ax_smf.set_xlabel(r'$M_{\ast} / M_{\odot}$')
@@ -458,7 +461,7 @@ class GalaxyPopulation(object):
             for i, ax in enumerate([ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]):     
                 ax.set_xscale('log')
                 ax.set_xlim(1e7, 1e11)
-                ax.set_ylabel(r'$\beta$')
+                ax.set_ylabel(r'$\beta_{\mathrm{c94}}$')
                 ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
@@ -737,12 +740,12 @@ class GalaxyPopulation(object):
         axD.set_yticks(np.arange(-0.3, 0.1, 0.1))
         axD.set_yticks(np.arange(-0.3, 0.1, 0.05), minor=True)
         
-        axB.set_ylim(-2.9, -1.3)
+        axB.set_ylim(-3.05, -1.3)
         axB.set_xlim(3.5, 11.2)
         axD.set_xlim(3.5, 11.2)
         axD.set_ylim(-0.3, 0.1)
         #axB.set_xticklabels([])
-        axB2.set_ylim(-2.9, -1.3)
+        axB2.set_ylim(-3.05, -1.3)
         axB2.set_xlim(3.5, 11.2)
         axD2.set_xlim(3.5, 11.2)
         axD2.set_ylim(-0.1, 0.5)
@@ -856,7 +859,11 @@ class GalaxyPopulation(object):
                     print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
                         source, data[source]['wavelength'], wavelength))
             #else:
-            shift = 0.    
+            if source in ['stefanon2017']:
+                shift = 0.25
+                print("Shifting stefanon stellar masses by 0.25 dex (Chabrier -> Salpeter)")
+            else:    
+                shift = 0.    
                           
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
@@ -1021,7 +1028,7 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
     def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        fresh=False, **kwargs):
+        fresh=False, redshifts=None, **kwargs):
         """
         Make a huge plot.
         """
@@ -1033,18 +1040,18 @@ class GalaxyPopulation(object):
             gotax = True
 
         if not gotax:
-            self._MegaPlotCalData(axes)
-            self._MegaPlotPredData(axes)
-            self._MegaPlotGuideEye(axes)
+            self._MegaPlotCalData(axes, redshifts=redshifts)
+            self._MegaPlotPredData(axes, redshifts=redshifts)
+            self._MegaPlotGuideEye(axes, redshifts=redshifts)
 
         if isinstance(pop, GalaxyEnsemble):
-            self._MegaPlotPop(axes, pop)
+            self._MegaPlotPop(axes, pop, redshifts=redshifts)
         elif hasattr(pop, 'chain'):
             if fresh:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
                 pop = GP(**bkw)
-                self._MegaPlotPop(axes, pop)
+                self._MegaPlotPop(axes, pop, redshifts=redshifts)
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
@@ -1055,7 +1062,7 @@ class GalaxyPopulation(object):
         
         return axes
         
-    def _MegaPlotPop(self, kw, pop, **kwargs):
+    def _MegaPlotPop(self, kw, pop, redshifts=None, **kwargs):
         
         
         ax_sfe = kw['ax_sfe']
@@ -1073,11 +1080,14 @@ class GalaxyPopulation(object):
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        _mst  = np.arange(6, 12, 0.2)
+        _mst = np.arange(6, 14, 0.2)
+        _mh = np.logspace(6, 13, 100)
         _mags = np.arange(-25, -10, 0.2)
         
-        redshifts = [4, 6, 8, 10]
-        colors = ['k', 'b', 'c', 'm']
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
@@ -1085,25 +1095,29 @@ class GalaxyPopulation(object):
         xa_b = []
         xa_f = []
         for j, z in enumerate(redshifts):
-            
+                        
             # UVLF
             phi = pop.LuminosityFunction(z, _mags)
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
-                    
+            
             # Binned version
             Mbins = np.arange(-25, -10, 1.0)
-            _beta = pop.Beta(z, Mwave=1600, return_binned=True,
-                Mbins=Mbins)
+            if pop.pf['pop_dust_yield'] is not None:
+                _beta = pop.Beta(z, Mwave=1600, return_binned=True,
+                    Mbins=Mbins)
+            else:
+                _beta = np.zeros_like(Mbins)        
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
             SFR = pop.get_field(z, 'SFR')
-            SFE = pop.guide.SFE(z=z, Mh=Mh)
             
-            ax_sfe.loglog(Mh, SFE, color=colors[j], alpha=0.8,
+            SFE = pop.guide.SFE(z=z, Mh=_mh)
+                        
+            ax_sfe.loglog(_mh, SFE, color=colors[j], alpha=0.8,
                 label=r'$z={}$'.format(z))
                 
-            if pop.pf['pop_scatter_mar'] > 0:
+            if (pop.pf['pop_scatter_mar'] > 0) or (pop.pf['pop_histories'] is not None):
                 _bins = np.arange(7, 12.1, 0.1)
                 x, y, std = bin_samples(np.log10(Ms), np.log10(SFR), _bins)
                 ax_sfms.loglog(10**x, 10**y, color=colors[j])
@@ -1119,23 +1133,29 @@ class GalaxyPopulation(object):
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
             
+            mags1500 = pop.Magnitude(z, wave=1500.)
             mags = pop.Magnitude(z, wave=1600.)
-            beta = pop.Beta(z, Mwave=1600., return_binned=False)
+            if pop.pf['pop_dust_yield'] is not None:
+                beta = pop.Beta(z, Mwave=1600., return_binned=False)
+            else:
+                beta = np.zeros_like(mags)
             
-            # MUV-Mstell
-            _x, _y, _z = bin_samples(mags, np.log10(Ms), Mbins)
+            # M1500-Mstell
+            _x, _y, _z = bin_samples(mags1500, np.log10(Ms), Mbins)
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'
-            if pop.pf['pop_dust_yield'] == 0:
+            if pop.pf['pop_dust_yield'] in [0, None]:
                 xa_f.append(0)
                 xa_b.append(0)
                 
-                ax_bet.plot(Mbins, dc1.Beta(z, Mbins), color=colors[j])
+                if pop.pf['dustcorr_method'] is not None:
+                    print("dustcorr_method={}".format(pop.pf['dustcorr_method']))                
+                    ax_bet.plot(Mbins, dc1.Beta(z, Mbins), color=colors[j])
                 
                 continue
                 
-            ax_bet.plot(Mbins, _beta, color=colors[j])    
+            ax_bet.plot(Mbins, _beta, color=colors[j])
             
             fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
@@ -1212,7 +1232,7 @@ class GalaxyPopulation(object):
         _mags = np.arange(-25, -10, 0.2)
 
         redshifts = [4, 6, 8, 10]
-        colors = ['k', 'b', 'c', 'm']
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
 
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
@@ -1246,6 +1266,14 @@ class GalaxyPopulation(object):
             #else:
             new_x = None
             
+            anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
+                color=colors[j], **kwargs)
+                
+            if 'pop_dust_yield' not in anl.base_kwargs:
+                continue
+            if anl.base_kwargs['pop_dust_yield'] is None:
+                continue
+            
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
                 color=colors[j], new_x=new_x, **kwargs)
             
@@ -1256,10 +1284,7 @@ class GalaxyPopulation(object):
             
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
                 color=colors[j], **kwargs)
-                
-            anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
-                color=colors[j], **kwargs)
-        
+                        
             anl.ReconstructedFunction('dust_scale', ivar=[z, None], ax=ax_rdu,
                 color=colors[j], **kwargs)
             
@@ -1393,7 +1418,7 @@ class GalaxyPopulation(object):
         
         return kw
            
-    def _MegaPlotCalData(self, kw):
+    def _MegaPlotCalData(self, kw, redshifts=None):
         
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
@@ -1425,8 +1450,10 @@ class GalaxyPopulation(object):
         
 
         # Redshifts and color scheme
-        redshifts = [4, 6, 8, 10]
-        colors = 'k', 'b', 'c', 'm'
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
 
         # UVLF and Beta
@@ -1441,10 +1468,10 @@ class GalaxyPopulation(object):
                 round_z=0.21, color=colors[j], mec=colors[j], mfc='none', mew=1, fmt='s',
                 label='Finkelstein+ 2015' if j == 0 else None, **mkw)    
             self.PlotSMF(z, ax=ax_smf, sources=['song2016'],
-                round_z=0.1, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
+                round_z=0.11, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
                 label='Song+ 2016' if j == 0 else None, **mkw)    
             self.PlotSMF(z, ax=ax_smf, sources=['stefanon2017'], mew=1, fmt='s',
-                round_z=0.1, color=colors[j], mec=colors[j], mfc='none',
+                round_z=0.11, color=colors[j], mec=colors[j], mfc='none',
                 label='Stefanon+ 2017' if j == 0 else None, **mkw)
 
             if z in b14.data['beta']:
@@ -1474,7 +1501,7 @@ class GalaxyPopulation(object):
             #    color=colors[j], ls='-.', 
             #    label=r'P98+B14 IRX-$\beta + M_{\mathrm{UV}}-\beta$' if j == 0 else None)    
                 
-    def _MegaPlotGuideEye(self, kw):
+    def _MegaPlotGuideEye(self, kw, redshifts=None):
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
         ax_rdu = kw['ax_rdu']
@@ -1493,8 +1520,10 @@ class GalaxyPopulation(object):
         
         ax_rdu.annotate(r'$R_h \propto M_h^{1/3} (1+z)^{-1}$', (1.5e8, 30))
         
-        redshifts = [4, 6, 8, 10]
-        colors = 'k', 'b', 'c', 'm'
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         
         # Show different Mh slopes        
         mh = np.logspace(8, 9, 50)
@@ -1548,7 +1577,7 @@ class GalaxyPopulation(object):
             color=colors[0], lw=1, ls='-', alpha=0.5)    
         ax_sfms.annotate(r'$1$',   (mh[-1]*1.1, 200 * func(4., 3./3.)[-1]), ha='left')
                 
-    def _MegaPlotPredData(self, kw):
+    def _MegaPlotPredData(self, kw, redshifts=None):
         
         
         ax_sfe = kw['ax_sfe']
@@ -1567,11 +1596,12 @@ class GalaxyPopulation(object):
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
         
-        redshifts = [4, 6, 8, 10]
-        colors = 'k', 'b', 'c', 'm'
+        if redshifts is None:
+            redshifts = [4, 6, 8, 10]
+            
+        colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
         
         xarr = np.arange(-22, -18, 0.5)
         yarr = [0.1, 0.08, 0.08, 0.1, 0.18, 0.3, 0.47, 0.6]
@@ -1611,16 +1641,19 @@ class GalaxyPopulation(object):
          4: {'MUV': np.arange(-21.5, -18, 0.5),
              'Ms': [9.61, 9.5, 9.21, 9.13, 8.96, 8.81, 8.75],
              'err': [0.39, 0.57, 0.47, 0.51, 0.56, 0.53, 0.57]},
-         5: None,
+         5: {},
          6: {'MUV': np.arange(-21.5, -18.5, 0.5),
              'Ms': [9.34, 9.23, 9.21, 9.14, 8.90, 8.77],
              'err': [0.44, 0.38, 0.41, 0.38, 0.38, 0.47]},
         }
-
+        
         for j, z in enumerate(redshifts):
             if z not in data:
                 continue
-        
+                
+            if ('MUV' not in data[z]) or ('Ms' not in data[z]):
+                continue
+                
             ax_MsMUV.errorbar(data[z]['MUV'], data[z]['Ms'], yerr=data[z]['err'],
                 color=colors[j], label='Salmon+ 2015' if j==0 else None, 
                 fmt='o', mfc='none', **mkw)
@@ -1667,7 +1700,7 @@ class GalaxyPopulation(object):
 
         
         ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
-        ax_MsMUV.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax_MsMUV.set_xlabel(r'$M_{1500}$')
 
         ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')

@@ -346,19 +346,19 @@ class OpticalDepth(object):
     
             zmax_ok = (self.z.max() >= self.pf['first_light_redshift']) or \
                 np.allclose(self.z.max(), self.pf['first_light_redshift'])
-    
+
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
-    
+
             Emin_ok = (self.E0 <= self.pf['tau_Emin']) or \
                 np.allclose(self.E0, self.pf['tau_Emin'])
-    
+
             # Results insensitive to Emax (so long as its relatively large)
             # so be lenient with this condition (100 eV or 1% difference
             # between parameter file and lookup table)
             Emax_ok = np.allclose(self.E1, self.pf['tau_Emax'],
                 atol=100., rtol=1e-2)
-        
+
             # Check redshift bounds
             if not (zmax_ok and zmin_ok):
                 if not zmax_ok:
@@ -439,7 +439,6 @@ class OpticalDepth(object):
         #    print("Loading {!s}...".format(fn))
         
         if type(fn) is dict:
-    
             self.E0 = fn['E'].min()
             self.E1 = fn['E'].max()
             self.E = fn['E']
@@ -455,16 +454,16 @@ class OpticalDepth(object):
     
             f = h5py.File(self.tabname, 'r')
     
-            self.E0 = min(f['photon_energy'].value)
-            self.E1 = max(f['photon_energy'].value)
-            self.E = f['photon_energy'].value
-            self.z = f['redshift'].value
+            self.E0 = min(f[('photon_energy')])
+            self.E1 = max(f[('photon_energy')])
+            self.E = np.array(f[('photon_energy')])
+            self.z = np.array(f[('redshift')])
             self.x = self.z + 1
             self.N = self.E.size
     
             self.R = self.x[1] / self.x[0]
     
-            self.tau = self._tau = f['tau'].value
+            self.tau = self._tau = np.array(f[('tau')])
             f.close()
     
         elif re.search('npz', fn) or re.search('pkl', fn):    
@@ -707,6 +706,9 @@ class OpticalDepth(object):
             
         if not self.tabname:
             return zpf, Epf, None
+            
+        if not os.path.exists(self.tabname):
+            raise IOError("Optical depth table {} does not exist!".format(self.tabname))
     
         # If we made it this far, we found a table that may be suitable
         ztab, Etab, tau = self.load(self.tabname)

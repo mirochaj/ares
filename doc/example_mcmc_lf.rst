@@ -39,7 +39,7 @@ Stick this all in a dictionary:
      'blob_kwargs': [None] * 2,
     }
     
-Note that the ``blob_f?`` variables contain string representations of functions. This is important! In :doc:`example_mcmc_gs`, we didn't have to do this because we only tracked common blobs that live in the ``history`` attribute of the ``ares.simulations.Global21cm`` class (*ares* knows to first look for blobs in the ``history`` attribute of simulation objects). So, dealing with 2-D blobs requires some knowledge of what's happening in the code. For example, the above will only work if ``LuminosityFunction`` accepts redshift and UV magnitude **in that order**. Also, we had to know that this method is attached to the object stored in the ``pops[0]`` attribute of a simulation object.
+Note that the ``blob_f?`` variables contain string representations of functions. This is important! In :doc:`example_mcmc_gs`, we didn't have to do this because we only tracked common blobs that live in the ``history`` attribute of the ``ares.simulations.Global21cm`` class (*ARES* knows to first look for blobs in the ``history`` attribute of simulation objects). So, dealing with 2-D blobs requires some knowledge of what's happening in the code. For example, the above will only work if ``LuminosityFunction`` accepts redshift and UV magnitude **in that order**. Also, we had to know that this method is attached to the object stored in the ``pops[0]`` attribute of a simulation object.
 
 Now, let's make our master dictionary of parameters, with one important addition:
         
@@ -53,9 +53,9 @@ Now, let's make our master dictionary of parameters, with one important addition
     # This is important!
     base_pars['pop_calib_L1600{0}'] = None
     
-The ``pop_calib_L1600`` parameter tells *ares* the :math:`1600\AA` luminosity per unit star formation conversion used to derive the input SFE parameters. This can be useful, for example, if you'd like to vary the parameters of a stellar population (e.g., the metallicity ``pop_Z``) *without* impacting the luminosity function. Of course, when we're fitting the LF, the whole point to allow parameter variations to affect the LF, which is why we must turn it off by hand here.
+The ``pop_calib_L1600`` parameter tells *ARES* the :math:`1600\AA` luminosity per unit star formation conversion used to derive the input SFE parameters. This can be useful, for example, if you'd like to vary the parameters of a stellar population (e.g., the metallicity ``pop_Z``) *without* impacting the luminosity function. Of course, when we're fitting the LF, the whole point to allow parameter variations to affect the LF, which is why we must turn it off by hand here.
     
-.. note:: By default, *ares* does not apply a dust correction. This can be useful, for example, if you want to generate a single physical model and study the effects of dust after the fact (see :doc:`example_pop_galaxy`). However, when fitting data, we must make a choice about the dust correction ahead of time since each evaluation of the likelihood will depend on it.
+.. note:: By default, *ARES* does not apply a dust correction. This can be useful, for example, if you want to generate a single physical model and study the effects of dust after the fact (see :doc:`example_pop_galaxy`). However, when fitting data, we must make a choice about the dust correction ahead of time since each evaluation of the likelihood will depend on it.
     
 OK, now let's set the free parameters and priors:
     
@@ -103,7 +103,7 @@ Initialize the fitter object:
     # The data can also be provided more explicitly
     fitter_lf.data = 'bouwens2015'
         
-Now, in earlier versions of *ares*, we would have set a few other attributes (which we'll now do below) and then executed ``fitter.run`` with some keyword arguments. But, now, to enable multi-wavelength fitting, we first create a master fitter object:
+Now, in earlier versions of *ARES*, we would have set a few other attributes (which we'll now do below) and then executed ``fitter.run`` with some keyword arguments. But, now, to enable multi-wavelength fitting, we first create a master fitter object:
 
 ::
 

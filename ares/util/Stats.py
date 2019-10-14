@@ -304,12 +304,12 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False):
     """
     Take samples and bin up.
     """
-    
+
     xbin_e = bin_c2e(xbin_c)
-    
+
     if weights is None:
         weights = np.ones_like(x)
-    
+
     ystd = []
     yavg = []
     for i, lo in enumerate(xbin_e):

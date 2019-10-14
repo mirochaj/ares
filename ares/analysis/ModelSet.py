@@ -191,7 +191,7 @@ class ModelSet(BlobFactory):
 
     @property
     def skip(self):
-        if not hasattr(self._skip):
+        if not hasattr(self, '_skip'):
             self._skip = 0
         return self._skip
         
@@ -591,7 +591,7 @@ class ModelSet(BlobFactory):
 
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                chain = f['chain'].value
+                chain = np.array(f[('chain')])
                     
                 if hasattr(self, '_mask'):
                     if self.mask.ndim == 1:
@@ -2435,6 +2435,9 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
+            
+        if np.all(np.array(multiplier) == 1):
+            multiplier = [None] * len(pars)    
                                 
         data = {}
         for k, par in enumerate(pars):
@@ -2448,12 +2451,13 @@ class ModelSet(BlobFactory):
                     val = 10**self.chain[:,j].copy()
                 else:
                     val = self.chain[:,j].copy()
-                                                
-                if self.is_log[j] and (not un_log[k]):
-                    val += np.log10(multiplier[k])
-                else:
-                    val *= multiplier[k]
                     
+                if multiplier[k] is not None:                        
+                    if self.is_log[j] and (not un_log[k]):
+                        val += np.log10(multiplier[k])
+                    else:
+                        val *= multiplier[k]
+                        
                 # Take log, unless the parameter is already in log10
                 if take_log[k] and (not self.is_log[j]):
                     val = np.log10(val)
@@ -2474,7 +2478,8 @@ class ModelSet(BlobFactory):
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
                 # Blobs are never stored as log10 of their true values        
-                val *= multiplier[k]
+                if multiplier[k] is not None:
+                    val *= multiplier[k]
                 
             # Only derived blobs in this else block, yes?                        
             else:
@@ -2589,17 +2594,19 @@ class ModelSet(BlobFactory):
                 # to those links are masked.
                 else:
                     #print("hello, {}".format(self.mask[:,0].sum()))
+                    if self.mask.shape == val.shape:
+                        mask = self.mask
+                    else:
+                        N = np.product(val.shape[1:])
+                        
+                        try:
+                            mask = np.reshape(np.repeat(self.mask[:,0], N), 
+                                val.shape)
+                        except ValueError:
+                            print("Problem reshaping mask (shape {}) to match blob={} w/ shape {}".format(par,
+                                self.mask.shape, val.shape))
+                                        
                     
-                    mask = self.mask[:,0]
-                    
-                    
-                    
-                    #mask = np.zeros_like(val)
-                    #for j, element in enumerate(self.mask[:,0]):
-                    #    if np.all(element == 1):
-                    #        mask[j].fill(1)
-                    #        
-                    #print(mask.sum())
             else:
                 mask = self.mask
 
@@ -2768,7 +2775,7 @@ class ModelSet(BlobFactory):
             un_log = [un_log] * len(pars)    
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)
-
+            
         if ivar is not None:
             if type(ivar) is list:
                 if len(pars) == 1:
@@ -2792,8 +2799,8 @@ class ModelSet(BlobFactory):
     def PosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, to_hist=None, ivar=None, 
-        ax=None, fig=1, 
+    def PosteriorPDF(self, pars, to_hist=None, ivar=None,
+        ax=None, fig=1,
         multiplier=1., like=[0.95, 0.68], cdf=False,
         color_by_like=False, fill=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1, 
@@ -4394,7 +4401,9 @@ class ModelSet(BlobFactory):
         
         if (i is None) and (j is None):
             f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
-            return f['blobs'][name].value
+            arr = np.array(f[('blobs')][name])
+            f.close()
+            return arr
         
         blob = self.get_blob_from_disk(name)
                 

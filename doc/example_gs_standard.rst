@@ -52,7 +52,7 @@ is inherited by the ``ares.simulations.Global21cm`` class:
    :align:   center
    :width:   600
    
-   One possible realization for the global 21-cm signal. You should get something that looks like this, but may not be exactly the same depending on what version of *ares* you're using.
+   One possible realization for the global 21-cm signal. You should get something that looks like this, but may not be exactly the same depending on what version of *ARES* you're using.
         
 If you'd like to save the results to disk, do something like: 
 
@@ -102,15 +102,15 @@ To do simple parameter study, you could do something like:
                 
 These parameters, along with ``Tmin``, ``Nlw``, and ``Nion`` round out the simplest parameterization of the signal (that I'm aware of) that's tied to cosmology/galaxy formation in any way. It's of course highly simplified, in that it treats galaxies in a very average sense. For more sophisticated models, check out :doc:`example_pop_galaxy`.
                  
-Check out :doc:`params_populations` for a listing of the most common parameters that govern the properties of source populations, and :doc:`example_grid` for examples of how to run and analyze large grids of models more easily. The key advantage of using the built-in model grid runner is having *ares* automatically store any information from each calculation that you deem desirable, and store it in a format amenable to the built-in analysis routines.
+Check out :doc:`params_populations` for a listing of the most common parameters that govern the properties of source populations, and :doc:`example_grid` for examples of how to run and analyze large grids of models more easily. The key advantage of using the built-in model grid runner is having *ARES* automatically store any information from each calculation that you deem desirable, and store it in a format amenable to the built-in analysis routines.
 
 A Note About Backward Compatibility
 -----------------------------------
-The models shown in this section are no longer the "best" models in *ares*, though they may suffice depending on your interests. As alluded to at the end of the previous section, the chief shortcoming of these models is that their parameters are essentially averages over the entire galaxy population, when in reality galaxy properties are known to vary with mass and many other properties.
+The models shown in this section are no longer the "best" models in *ARES*, though they may suffice depending on your interests. As alluded to at the end of the previous section, the chief shortcoming of these models is that their parameters are essentially averages over the entire galaxy population, when in reality galaxy properties are known to vary with mass and many other properties.
 
 This was the motivation behind `our paper in 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_, in which we generalized the star formation efficiency to be a function of halo mass and time, and moved to using stellar population synthesis spectra to determine the UV emissivity of galaxies, rather than choosing :math:`N_{\mathrm{LW}}`, :math:`N_{\mathrm{ion}}`, etc. by hand (see :doc:`example_pop_galaxy`). These updates led to a new parameter-naming convention in which all population-specific parameters were given a ``pop_`` prefix. So, in place of ``Nlw``, ``Nion``, ``fX``, now one should set ``pop_rad_yield`` in a particular band (set by ``pop_Emin`` and ``pop_Emax``). See :doc:`params_populations` for more information about that. 
 
-Currently, in order to ensure backward compatibility at some level, *ares* will automatically recognize the parameters used above and change them to ``pop_rad_yield`` etc. following the new convention. This means that there are three different values of ``pop_rad_yield``: one for the soft UV (non-ionizing) photons (related to ``Nlw``), one for the Lyman continuum photons (related to ``Nion``), and one for X-rays (related to ``fX``). This division was put in place because these three wavelength regimes affect the 21-cm background in different ways.
+Currently, in order to ensure backward compatibility at some level, *ARES* will automatically recognize the parameters used above and change them to ``pop_rad_yield`` etc. following the new convention. This means that there are three different values of ``pop_rad_yield``: one for the soft UV (non-ionizing) photons (related to ``Nlw``), one for the Lyman continuum photons (related to ``Nion``), and one for X-rays (related to ``fX``). This division was put in place because these three wavelength regimes affect the 21-cm background in different ways.
 
 In order to differentiate sources of radiation in different bands, we now must add a population identification number to ``pop_*`` parameters. Right now, ``fX``, ``Nion``, ``Nlw``, ``Tmin``, and ``fstar`` will automatically be updated in the following way:
 
@@ -119,7 +119,7 @@ In order to differentiate sources of radiation in different bands, we now must a
 - The value of ``Nion`` is assigned to ``pop_rad_yield{2}``, and ``pop_Emin{0}`` and ``pop_Emax{0}`` are set to 13.6 and 24.6, respectively.
 - ``pop_Tmin{0}``, ``pop_Tmin{1}``, and ``pop_Tmin{2}`` are all set to the value of ``Tmin``. Likewise for ``fstar``.
 
-Unfortunately not all parameters will be automatically converted in this way. If you get an error message about an "orphan parameter," this means you have supplied a ``pop_`` parameter without an ID number, and so *ares* doesn't know which population is meant to respond to your change. This is an easy mistake to make, especially when working with parameters like ``Nlw``, ``Nion`` etc., because *ares* is automatically converting them to ``pop_*`` parameters.
+Unfortunately not all parameters will be automatically converted in this way. If you get an error message about an "orphan parameter," this means you have supplied a ``pop_`` parameter without an ID number, and so *ARES* doesn't know which population is meant to respond to your change. This is an easy mistake to make, especially when working with parameters like ``Nlw``, ``Nion`` etc., because *ARES* is automatically converting them to ``pop_*`` parameters.
 
 
 

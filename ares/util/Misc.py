@@ -49,6 +49,8 @@ def get_cmd_line_kwargs(argv):
         elif post[0] == '[':
             vals = post[1:-1].split(',')
             cmd_line_kwargs[pre] = np.array(map(float, vals))
+        elif post in ['True', 'False']:
+            cmd_line_kwargs[pre] = bool(post)
         else:
             try:
                 cmd_line_kwargs[pre] = float(post)

@@ -2,7 +2,7 @@
 
 Phenomenological Models for the Global 21-cm Signal
 ===================================================
-Two common phenomenological parameterizations for the global 21-cm signal are included in *ares* and get their own set of pre-defined parameters: the tanh and Gaussian models. To generate them (without default parameters) one need only do:
+Two common phenomenological parameterizations for the global 21-cm signal are included in *ARES* and get their own set of pre-defined parameters: the tanh and Gaussian models. To generate them (without default parameters) one need only do:
 
 :: 
 
@@ -17,7 +17,7 @@ Two common phenomenological parameterizations for the global 21-cm signal are in
     ax, zax = sim_1.GlobalSignature(color='k', fig=1)
     ax, zax = sim_2.GlobalSignature(color='b', ax=ax)
     
-Now, you might say "I could have done that myself extremely easily." You'd be right! However, sometimes there's an advantage in working through *ares* even when using simply parametric forms for the global 21-cm signal. For example, you can tap into *ares*' inference module and fit data, perform forecasting, or run large sets of models. In each of these applications, *ares* can take care of some annoying things for you, like tracking the quantities you care about and saving them to disk in a format that can be easily analyzed later on. For more concrete examples, check out the following pages:
+Now, you might say "I could have done that myself extremely easily." You'd be right! However, sometimes there's an advantage in working through *ARES* even when using simply parametric forms for the global 21-cm signal. For example, you can tap into *ARES*' inference module and fit data, perform forecasting, or run large sets of models. In each of these applications, *ARES* can take care of some annoying things for you, like tracking the quantities you care about and saving them to disk in a format that can be easily analyzed later on. For more concrete examples, check out the following pages:
     
     * :doc:`example_inline_analysis`
     * :doc:`example_mcmc_gs`

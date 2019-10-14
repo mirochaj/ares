@@ -164,6 +164,12 @@ class Population(object):
         return self._zone    
         
     @property
+    def is_src_anything(self):
+        if not hasattr(self, '_is_src_anything'):
+            self._is_src_anything = self.is_src_oir or self.is_src_uv \
+                or self.is_src_xray
+        
+    @property
     def affects_cgm(self):
         if not hasattr(self, '_affects_cgm'):
             self._affects_cgm = self.is_src_ion_cgm 
@@ -389,14 +395,26 @@ class Population(object):
                 return self._is_emissivity_scalable
             
             self._is_emissivity_scalable = True
-
-            if self.pf.Npqs == 0:
+            
+            # If an X-ray source and no PQs, we're scalable.
+            if (self.pf.Npqs == 0) and (self.affects_igm) and \
+               (not self.affects_cgm) and (not self.is_src_lya):
                 return self._is_emissivity_scalable
+
+            # At this stage, we need to set is_emissivity_scalable=False IFF:
+            # (1) there are mass- or time-dependent radiative properties
+            # (2) if there are wavelength-dependent escape fractions.
+            # (3) maybe that's it?
+            
+            if (self.affects_cgm) and (not self.affects_igm):
+                if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
+                    self._is_emissivity_scalable = False
+                    return False
 
             for par in self.pf.pqs:
     
                 # Exceptions.
-                if par not in ['pop_rad_yield', 'pop_fesc']:
+                if par not in ['pop_rad_yield', 'pop_fesc', 'pop_fesc_LW']:
                     continue
                 #if (par == 'pop_fstar') or (not par.startswith('pop_')):
                 #    continue

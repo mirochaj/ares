@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-*ares*
+*ARES*
 ==============================
-The Accelerated Reionization Era Simulations (*ares*) code was designed to
+The Accelerated Reionization Era Simulations (*ARES*) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a 
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
 meta-galactic radiation background calculator.
@@ -58,6 +58,7 @@ Contents
     Home <self>
     install
     examples
+    performance
     uth
     troubleshooting
     updates

@@ -1,15 +1,32 @@
 import numpy as np
 from mirocha2017 import base as _base_
 from mirocha2017 import dflex as _dflex_
+from ares.physics.Constants import E_LyA
 
 base = _base_.copy()
-base.update(_dflex_)
 
 _base = \
 {
  'pop_sfr_model{0}': 'ensemble', 
  'pop_sed{0}': 'eldridge2009',
  
+ # SFE
+ 'pop_fstar{0}': 'pq[0]',
+ 'pq_func[0]{0}': 'dpl_evolNP',
+ 'pq_func_var[0]{0}': 'Mh',
+ 'pq_func_var2[0]{0}': '1+z',
+ 
+ # DPL in Mh
+ 'pq_func_par0[0]{0}': 0.05,           # Table 1 in paper (last 4 rows)
+ 'pq_func_par1[0]{0}': 2.8e11,
+ 'pq_func_par2[0]{0}': 0.49,       
+ 'pq_func_par3[0]{0}': -0.61,      
+ 'pq_func_par4[0]{0}': 1e10,  
+ 'pq_func_par5[0]{0}': 5.,    # 1+z pivot
+ 'pq_func_par6[0]{0}': 0.0,   # norm
+ 'pq_func_par7[0]{0}': 0.0,   # Mp 
+ 
+ # Spectral synthesis
  'pop_sed_degrade{0}': 10,
  'pop_thin_hist{0}': 10,
  'pop_aging{0}': True,
@@ -18,6 +35,11 @@ _base = \
  'pop_calib_L1600{0}': None,
  'pop_Z{0}': 0.002, 
  'pop_zdead{0}': 3.5,
+ 
+ # Synthesis control
+ 'pop_synth_cache_level{0}': 0,    # 1 = more careful = slower
+ 'pop_synth_minimal{0}': True,
+ 'pop_Tmin{0}': 2e4,
  
  # Metallicity evolution!?
  'pop_enrichment{0}': False,
@@ -66,19 +88,14 @@ _screen = \
  # Screen parameters
  'pop_dust_fcov{0}': 1,  
  "pop_dust_scale{0}": 'pq[22]',       # Scale radius [in kpc]
- "pq_func[22]{0}": 'pl',
+ "pq_func[22]{0}": 'pl_evolN',
  'pq_func_var[22]{0}': 'Mh',
- 'pq_func_par0[22]{0}': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_var2[22]{0}': '1+z',
+ 'pq_func_par0[22]{0}': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
  'pq_func_par1[22]{0}': 1e10,
  'pq_func_par2[22]{0}': 0.45,
- 
- # Evolution of scale
- "pq_func[23]{0}": 'pl',
- 'pq_func_var[23]{0}': '1+z',
- 'pq_func_par0[23]{0}': 1.6,
- 'pq_func_par1[23]{0}': 5.,
- 'pq_func_par2[23]{0}': 0.,         # R(vir) goes like 1 / (1+z)
-  
+ 'pq_func_par3[22]{0}': 5.,
+ 'pq_func_par4[22]{0}': 0.,    
 }
 
 _screen_best = \
@@ -118,20 +135,15 @@ patchy.update(_patchy)
 fduty = \
 {
  'pop_fduty{0}': 'pq[40]',
- "pq_func[40]{0}": 'pl',
+ "pq_func[40]{0}": 'pl_evolN',
  'pq_func_var[40]{0}': 'Mh',
- 'pq_func_par0[40]{0}': 'pq[41]',
+ 'pq_func_var2[40]{0}': '1+z',
+ 'pq_func_par0[40]{0}': 0.5,
  'pq_func_par1[40]{0}': 1e10,
  'pq_func_par2[40]{0}': 0.2,
+ 'pq_func_par3[40]{0}': 5.,
+ 'pq_func_par4[40]{0}': 0.0,
  'pq_val_ceil[40]{0}': 1.0,
- 
- # Redshift evolution of fduty normalization
- 'pq_func[41]{0}': 'pl',
- 'pq_func_var[41]{0}': '1+z',
- 'pq_func_par0[41]{0}': 0.5,
- 'pq_func_par1[41]{0}': 5.,
- 'pq_func_par2[41]{0}': 0.0,
- 
 }
 
 quench = \
@@ -162,30 +174,21 @@ destruction = \
  'pq_func_par0[4]{0}': -0.5599463903428499,
  'pq_func_par0[23]{0}': 1.5452880256044765,
  'pq_func_par2[27]{0}': -1.4360103791063477,
- 'pq_func_par0[28]{0}': 0.33198068910686596,
+ 'pq_func_par4[27]{0}': 0.33198068910686596,
 }
 
 _scatter = \
 {
- 'pq_func_par2[22]{0}': 0.,
- 'pq_func_par0[23]{0}': 3.3435661993369257,
- 'pq_func_par0[1]{0}': 0.03599536365742767,
- 'pq_func_par0[2]{0}': 167344779121.14706,
- 'pq_func_par0[3]{0}': 1.1677597636641468,
- 'pq_func_par0[4]{0}': 0.06069676909919603,
- 
+
  "pop_dust_scatter{0}": 'pq[33]',
- "pq_func[33]{0}": 'pl',
+ "pq_func[33]{0}": 'pl_evolN',
  'pq_func_var[33]{0}': 'Mh',
- 'pq_func_par0[33]{0}': 'pq[34]',
+ 'pq_func_var2[33]{0}': '1+z',
+ 'pq_func_par0[33]{0}': 0.3,
  'pq_func_par1[33]{0}': 1e10,
  'pq_func_par2[33]{0}': 0.,
-   
- "pq_func[34]{0}": 'pl',
- 'pq_func_var[34]{0}': '1+z',
- 'pq_func_par0[34]{0}': 0.3,
- 'pq_func_par1[34]{0}': 5.,
- 'pq_func_par2[34]{0}': 0.,
+ 'pq_func_par3[33]{0}': 5.,
+ 'pq_func_par4[33]{0}': 0., 
 }
 
 scatter = screen.copy()
@@ -212,4 +215,48 @@ _composition = \
 
 composition = screen.copy()
 composition.update(_composition)
+
+# These parameters are designed to reproduce Park et al. (2019) src model
+smhm = \
+{
+ 'pop_Tmin{0}': None,    
+ 'pop_Mmin{0}': 1e5,  # Let focc do the work.
+ 'pop_sfr_model{0}': 'smhm-func',
+ 
+ 'pop_tstar{0}': 0.5,
+ 'pop_fstar{0}': 'pq[0]',
+ 'pq_func[0]{0}': 'pl',
+ 'pq_func_par0[0]{0}': 0.05,
+ 'pq_func_par1[0]{0}': 1e10,
+ 'pq_func_par2[0]{0}': 0.5,
+ 'pq_val_ceil[0]{0}': 1.,
+    
+ # Need something close to kappa_UV = 1.15e-28 Msun/yr/(erg/s/Hz)
+ # 2x solar metallicity with BPASS single-stars is pretty close.
+ 'pop_Z{0}': 0.04,
+ 
+ 'pop_focc{0}': 'pq[40]',
+ "pq_func[40]{0}": 'exp-',
+ 'pq_func_var[40]{0}': 'Mh',
+ 'pq_func_par0[40]{0}': 1.,
+ 'pq_func_par1[40]{0}': 5e8,
+ 'pq_func_par2[40]{0}': -1.,
+   
+ 'pop_sfr_cross_threshold{0}': False,
+ 
+ #'pop_ion_src_cgm{0}': False,
+ 
+ # KLUDGE-TOWN
+ 'pop_fesc_LW{0}': 1.0,
+  
+ 'pop_sfr_model{1}': 'link:sfrd:0',
+ 'pop_rad_yield{1}': 10**40.5,
+ 'pop_alpha{1}': -1.,
+ 'pop_Emin{1}': 500.,
+ 'pop_Emax{1}': 3e4,
+ 'pop_EminNorm{1}': 500.,
+ 'pop_EmaxNorm{1}': 2e3,
+ 'pop_ion_src_igm{1}': 1, 
+}
+
 

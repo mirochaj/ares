@@ -62,7 +62,17 @@ class loglikelihood(LogLikelihood):
         return self._units
     @units.setter
     def units(self, value):
-        self._units = value     
+        self._units = value 
+    
+    @property
+    def zmap(self):
+        if not hasattr(self, '_zmap'):
+            self._zmap = {}
+        return self._zmap
+        
+    @zmap.setter
+    def zmap(self, value):
+        self._zmap = value
     
     @property
     def mask(self):
@@ -98,7 +108,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
     
         """
-                
+                    
         # Figure out if `sim` is a population object or not.
         # OK if it's a simulation, will loop over LF-bearing populations.        
         if not (isinstance(sim, GalaxyCohort.GalaxyCohort) \
@@ -113,6 +123,9 @@ class loglikelihood(LogLikelihood):
         else:
             pops = [sim]
             
+        if len(self.ydata) == 0:
+            raise ValueError("Problem: data is empty.")
+                                
         if len(pops) > 1:
             raise NotImplemented('careful! need to think about this.')
                                                                                                      
@@ -120,13 +133,18 @@ class loglikelihood(LogLikelihood):
         #try:
         phi = np.zeros_like(self.ydata)
         for i, quantity in enumerate(self.metadata):
-                        
+                                                
             if self.mask[i]:
                 #print('masked:', rank, self.redshifts[i], self.xdata[i])
                 continue
 
             xdat = self.xdata[i]
             z = self.redshifts[i]
+                        
+            if quantity in self.zmap:
+                zmod = self.zmap[quantity][z]
+            else:
+                zmod = z
                         
             for j, pop in enumerate(pops):
                             
@@ -137,26 +155,27 @@ class loglikelihood(LogLikelihood):
                     # observed magnitudes.                
                                     
                     # Compute LF
-                    p = pop.LuminosityFunction(z=z, x=xdat, mags=True)
-                    
+                    p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
+                                        
                     if not np.isfinite(p):
-                        print('LF is inf or nan!', z, M)
-                        raise ValueError('LF is inf or nan!', z, M)
+                        print('LF is inf or nan!', zmod, M)
+                        raise ValueError('LF is inf or nan!', zmod, M)
                                                                 
                 elif quantity == 'smf':
                     M = np.log10(xdat)
-                    p = pop.StellarMassFunction(z, M)
+                    p = pop.StellarMassFunction(zmod, M)
+                                        
                 elif quantity == 'beta':
                     
-                    zstr = int(round(z))
+                    zstr = int(round(zmod))
                     
-                    if zstr >= 6:
+                    if zstr >= 7:
                         filt_hst = hst_deep
                     else:
                         filt_hst = hst_shallow
                                         
                     M = xdat
-                    p = pop.Beta(z, MUV=M, cam=('wfc', 'wfc3'),     
+                    p = pop.Beta(zmod, MUV=M, cam=('wfc', 'wfc3'),
                         return_binned=True, filters=filt_hst[zstr], dlam=20., 
                         rest_wave=None)
 
@@ -179,9 +198,8 @@ class loglikelihood(LogLikelihood):
         #phi = np.ma.array(_phi, mask=self.mask)
         
         #del sim, pops
-        
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
-
+        
         return lnL + self.const_term
     
 class FitGalaxyPopulation(FitBase):
@@ -194,10 +212,21 @@ class FitGalaxyPopulation(FitBase):
             
             self._loglikelihood.redshifts = self.redshifts_flat
             self._loglikelihood.metadata = self.metadata_flat
+            self._loglikelihood.zmap = self.zmap
 
             self.info
 
         return self._loglikelihood
+
+    @property
+    def zmap(self):
+        if not hasattr(self, '_zmap'):
+            self._zmap = {}
+        return self._zmap
+        
+    @zmap.setter
+    def zmap(self, value):
+        self._zmap = value
 
     @property
     def redshift_bounds(self):

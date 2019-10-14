@@ -9,10 +9,6 @@ Running Individual Simulations
     * :doc:`example_gs_multipop`
     * :doc:`example_gs_phenomenological`
     
-..    * :doc:`example_gs_hybrid`
-..    * :doc:`example_21cm_xrb`
-..    * :doc:`example_21cm_lwb`
-
 * Uniform Radiation Backgrounds
     * :doc:`example_crb_uv`
     * :doc:`example_crb_xr`
@@ -49,6 +45,7 @@ Extensions
     
 * Advanced source populations
     * :doc:`example_pop_galaxy`
+    * :doc:`example_pop_sps`
     * :doc:`example_popIII`
     * :doc:`example_edges`
     

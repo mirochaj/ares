@@ -75,6 +75,7 @@ and optionally,
 - `hmf <https://github.com/steven-murray/hmf>`_
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
+- `pymp <https://github.com/classner/pymp>`_
 - `emcee <http://dan.iel.fm/emcee/current/>`_
 - `distpy <https://bitbucket.org/ktausch/distpy>`_
 - `progressbar2 <http://progressbar-2.readthedocs.io/en/latest/>`_

@@ -2,7 +2,7 @@
 
 Models for Star Formation in Galaxies
 =====================================
-The are a number of different ways to model star formation in *ares*. The method employed is determined by the value of the parameter ``pop_sfr_model``, which can take on any of the following values:
+The are a number of different ways to model star formation in *ARES*. The method employed is determined by the value of the parameter ``pop_sfr_model``, which can take on any of the following values:
 
     + ``'fcoll'``
         Relate the global star formation rate density (SFRD) to the rate at which matter collapses into halos above some threshold.
@@ -10,10 +10,12 @@ The are a number of different ways to model star formation in *ares*. The method
         Model the SFRD with a user-supplied function of redshift. 
     + ``'sfe-func'``
         Model the star formation efficiency (SFE) as a function of halo mass and (optionally) redshift.
-    + ``'link:ID'``
+    + ``'link:sfrd:ID'``
         Link the SFRD to that of the population with given ID number.
         
 Each of these is discussed in more detail below.
+
+.. note :: In what follows, we show isolated examples for illustrative purposes, i.e., initialization of a single source population and verification of its properties. To implement these star formation models in global 21-cm or meta-galactic background calculations with multiple source populations, you'll need to add population ID numbers to each star formation parameter. For example, ``pop_sfr_model{0}`` instead of ``pop_sfr_model``, and so on.
 
 ``fcoll`` models
 ~~~~~~~~~~~~~~~~
@@ -40,7 +42,7 @@ To initialize a population, just do:
     # Print SFRD at redshift 20.
     print pop.SFRD(20.)
 
-This will be a very small number because *ares* uses *cgs* units internally, which means the SFRD is in units of :math:`\mathrm{g} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-3}`, with the volume assumed to be co-moving. To convert to the more familiar units of :math:`M_{\odot} \ \mathrm{year}^{-1} \ \mathrm{cMpc}^{-3}`, 
+This will be a very small number because *ARES* uses *cgs* units internally, which means the SFRD is in units of :math:`\mathrm{g} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-3}`, with the volume assumed to be co-moving. To convert to the more familiar units of :math:`M_{\odot} \ \mathrm{year}^{-1} \ \mathrm{cMpc}^{-3}`, 
 
 ::
 
@@ -96,9 +98,9 @@ Alternatively, you can supply a lookup table for the SFRD. To do this, modify yo
     pars['pop_sfr_model'] = 'sfrd-tab'
     pars['pop_sfrd'] = (z, sfrd)
 
-where ``z`` and ``sfrd`` are arrays you've generated yourself. *ares* will construct an interpolant from these arrays using ``scipy.interpolate.interp1d``, using the method supplied in ``pop_sfrd_interp``. By default, this will be a ``'cubic'`` spline, but you can also supply, e.g., ``pop_sfrd_interp='linear'``.
+where ``z`` and ``sfrd`` are arrays you've generated yourself. *ARES* will construct an interpolant from these arrays using ``scipy.interpolate.interp1d``, using the method supplied in ``pop_sfrd_interp``. By default, this will be a ``'cubic'`` spline, but you can also supply, e.g., ``pop_sfrd_interp='linear'``.
 
-By default, *ares* assumes your SFRD is in units of :math:`\mathrm{g} \  \mathrm{s}^{-1} \ \mathrm{cm}^{-3}` (co-moving) (corresponding to ``pop_sfrd_units='internal'``), but if you can change this to 'msun/yr/cmpc^3' if you'd prefer the more sensible units of :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}`! In fact, these are the only two options, so as long as ``pop_sfrd_units != 'internal'``, *ares* assumes the :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}` units.
+By default, *ARES* assumes your SFRD is in units of :math:`\mathrm{g} \  \mathrm{s}^{-1} \ \mathrm{cm}^{-3}` (co-moving) (corresponding to ``pop_sfrd_units='internal'``), but if you can change this to 'msun/yr/cmpc^3' if you'd prefer the more sensible units of :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}`! In fact, these are the only two options, so as long as ``pop_sfrd_units != 'internal'``, *ARES* assumes the :math:`M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}` units.
 
 
 ``sfe-func`` models
@@ -109,7 +111,7 @@ Grab a few parameters to begin:
 
 ::
 
-    pars = ares.util.ParameterBundle('sfe-func')
+    pars = ares.util.ParameterBundle('pop:sfe-func')
     
 This set of parameters assumes a double power-law for the SFE as a function of halo mass with sensible values for the parameters. To create a population instance, as per usual,
 
@@ -150,12 +152,12 @@ Now, let's make a second population with the same star-formation model:
 
 ::
     
-    pop1 = {'pop_sfr_model{1}': 'link:0'}
+    pop1 = {'pop_sfr_model{1}': 'link:sfrd:0'}
     
     # Add together
     pars = pop0 + pop1
     
-The ``'link:0'`` means "link to population #0". So, if we initialize a simulation with both populations, e.g.,
+The ``'link:sfrd:0'`` means "link SFRD to population #0". So, if we initialize a simulation with both populations, e.g.,
 
 ::
 

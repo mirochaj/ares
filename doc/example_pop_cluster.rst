@@ -36,7 +36,7 @@ So, to plot the evolution of the UV luminosity (at :math:`1500 \AA`, let's say) 
     i = np.argmin(np.abs(1500. - src.wavelengths))
     pl.loglog(src.times, src.data[i,:] * 1e5)
     
-By default, *ares* normalizes the spectra to be specific luminosities per solar mass of star formation, hence the factor of :math:`10^5` in the second line. 
+By default, *ARES* normalizes the spectra to be specific luminosities per solar mass of star formation, hence the factor of :math:`10^5` in the second line. 
 
 Now, this seems all well and good, but what if we wanted to study a population of star clusters forming across the Universe with some mass distribution and perhaps some evolution in the rate at which such objects form over time. This is where the ``ClusterPopulation`` object comes into play. Essentially all it is doing is generating a whole population of such objects and integrating their spectra over time, while being careful to weight by the relative number of objects as a function of their mass (and thus overall luminosity).
 
@@ -109,7 +109,7 @@ Let's first verify that this population has the properties we said it should, e.
     pl.xlabel(r'$z$')
     pl.ylabel(ares.util.labels['sfrd'])
     
-Internally, *ares* uses *cgs* units, which is why the star-formation rate density (SFRDs) here is so small (it's in :math:`\mathrm{g} \ \mathrm{s}^{-1} \ \mathrm{cm}^3`). 
+Internally, *ARES* uses *cgs* units, which is why the star-formation rate density (SFRDs) here is so small (it's in :math:`\mathrm{g} \ \mathrm{s}^{-1} \ \mathrm{cm}^3`). 
 
 Now, for the mass function:
     
@@ -143,7 +143,7 @@ Having recovered our basic inputs, let's move on to a more complex quantity: the
 For a discussion of the shape of the GC luminosity function, see, e.g., `Boylan-Kolchin (2018) <http://adsabs.harvard.edu/doi/10.1093/mnras/sty1490>`_. To contrast it with the luminosity function of ''normal'' high-z galaxies for yourself, see :doc:`example_pop_galaxy`.
 
 
-Using Star Clusters in *ares* Simulations
+Using Star Clusters in *ARES* Simulations
 -----------------------------------------
 A good place to start here is the example on :doc:`example_gs_multipop`. In this example, one could simply replace the PopIII source population with a globular cluster population, being sure to include the X-ray emission from GCs as a separate source population. It would also be wise to upgrade the simple PopII source prescription in that example with :doc:`example_pop_galaxy`, since the use of GCs implies an interest in luminosity functions at high-:math:`z`.
 
