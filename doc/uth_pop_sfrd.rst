@@ -10,10 +10,12 @@ The are a number of different ways to model star formation in *ARES*. The method
         Model the SFRD with a user-supplied function of redshift. 
     + ``'sfe-func'``
         Model the star formation efficiency (SFE) as a function of halo mass and (optionally) redshift.
-    + ``'link:ID'``
+    + ``'link:sfrd:ID'``
         Link the SFRD to that of the population with given ID number.
         
 Each of these is discussed in more detail below.
+
+.. note :: In what follows, we show isolated examples for illustrative purposes, i.e., initialization of a single source population and verification of its properties. To implement these star formation models in global 21-cm or meta-galactic background calculations with multiple source populations, you'll need to add population ID numbers to each star formation parameter. For example, ``pop_sfr_model{0}`` instead of ``pop_sfr_model``, and so on.
 
 ``fcoll`` models
 ~~~~~~~~~~~~~~~~
@@ -109,7 +111,7 @@ Grab a few parameters to begin:
 
 ::
 
-    pars = ares.util.ParameterBundle('sfe-func')
+    pars = ares.util.ParameterBundle('pop:sfe-func')
     
 This set of parameters assumes a double power-law for the SFE as a function of halo mass with sensible values for the parameters. To create a population instance, as per usual,
 
@@ -150,12 +152,12 @@ Now, let's make a second population with the same star-formation model:
 
 ::
     
-    pop1 = {'pop_sfr_model{1}': 'link:0'}
+    pop1 = {'pop_sfr_model{1}': 'link:sfrd:0'}
     
     # Add together
     pars = pop0 + pop1
     
-The ``'link:0'`` means "link to population #0". So, if we initialize a simulation with both populations, e.g.,
+The ``'link:sfrd:0'`` means "link SFRD to population #0". So, if we initialize a simulation with both populations, e.g.,
 
 ::
 

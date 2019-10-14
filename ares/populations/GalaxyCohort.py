@@ -2777,6 +2777,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zfreq = int(round(self.pf['sam_dz'] / dz, 0))
         else:
             zfreq = 1
+            dz = np.diff(self.halos.tab_z)
         
         in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= zi)            
         zarr = self.halos.tab_z[in_range][::zfreq]
@@ -2791,14 +2792,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    zmax.append(zarr[i])
             #    zform.append(z)
             #    continue
-            
+                        
             # If M0 is 0, assume it's the minimum mass at this redshift.
-            _zarr, _results = self.RunSAM(z0=z, M0=M0)
+            _zarr, _results = self.RunSAM(z0=z, M0=M0)        
 
             # Need to splice into the right elements of 2-D array.
             # SAM is run from zform to final_redshift, so only a subset
             # of elements in the 2-D table are filled.
-            for key in keys:
+            for key in keys:  
                 dat = _results[key].copy()
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat.squeeze()
@@ -2893,19 +2894,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zf = max(float(self.halos.tab_z.min()), self.zdead)
                 
         in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= z0)
-        in_range2 = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= z0)
+        in_range2 = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
         if self.pf['sam_dz'] is not None:
             assert self.pf['hmf_dt'] is None
             dz = self.pf['sam_dz'] * np.ones_like(self.halos.tab_z)
             zfreq = int(round(self.pf['sam_dz'] / dz[0], 0))
         else:
+            # Need to use different range to make sure we get at least one
+            # element in `dz`
             dz = np.diff(self.halos.tab_z[in_range2])
             zfreq = 1
-        
+                    
         zarr = self.halos.tab_z[in_range][::zfreq]
         Nz = zarr.size
-
-        #print('hey', z0, zf, dz, zarr[0:8])
         
         # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0

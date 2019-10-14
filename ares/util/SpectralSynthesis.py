@@ -1082,11 +1082,11 @@ class SpectralSynthesis(object):
         # Start from initial redshift and move forward in time, i.e., from
         # high redshift to low.
         for i, _tobs in enumerate(tarr):
-                        
+                                    
             # If zobs is supplied, we only have to do one iteration
             # of this loop. This is just a dumb way to generalize this function
             # to either do one redshift or return a whole history.
-            if do_all_time:
+            if not do_all_time:
                 if (zarr[i] > zobs):
                     continue
 
@@ -1200,12 +1200,12 @@ class SpectralSynthesis(object):
 
             # Integrate over all times up to this tobs            
             if batch_mode:
-                if (zobs is not None):
+                if not do_all_time:
                     Lhist = np.trapz(Lall, dx=_dt, axis=1)
                 else:
                     Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
             else:
-                if (zobs is not None):
+                if not do_all_time:
                     Lhist = np.trapz(Lall, dx=_dt)                
                 else:    
                     Lhist[i] = np.trapz(Lall, dx=_dt)
@@ -1213,7 +1213,7 @@ class SpectralSynthesis(object):
             ##
             # In this case, we only need one iteration of this loop.
             ##
-            if zobs is not None:
+            if not do_all_time:
                 break
                                    
         ##

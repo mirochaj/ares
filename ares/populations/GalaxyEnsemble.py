@@ -470,6 +470,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     @histories.setter
     def histories(self, value):
+        
+        assert type(value) is dict
+                
+        must_flip = False
+        if 'z' in value:
+            if np.all(np.diff(value['z']) > 0):
+                must_flip = True
+            
+        if must_flip:
+            for key in value:
+                if not type(value[key]) == np.ndarray:
+                    continue
+                    
+                if value[key].ndim == 1:
+                    value[key] = value[key][-1::-1]
+                else:    
+                    value[key] = value[key][:,-1::-1]
+        
         self._histories = value
         
     def Trajectories(self):
@@ -1786,8 +1804,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return cached_result
         
         raw = self.histories
-        L = self.synth.Luminosity(wave=wave, sfh=raw['SFR'], zarr=raw['z'],
-            zobs=z, hist=raw, extras=self.extras, idnum=idnum, window=window)
+        L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
+            extras=self.extras, idnum=idnum, window=window)
            
         self._cache_L_[(z, wave, band, idnum, window)] = L
            
