@@ -932,13 +932,13 @@ class SpectralSynthesis(object):
         setup_2 = hist != {}
                 
         do_all_time = False
-        if (tobs is not None) and (zobs is not None):
+        if (tobs is None) and (zobs is None):
             do_all_time = True
         #assert (tobs is not None) or (zobs is not None), \
         #    "Must supply time or redshift of observation, `tobs` or `zobs`!"
         
         assert setup_1 or setup_2
-        
+                
         if setup_1:
             assert (sfh is not None)
         elif setup_2:
@@ -1087,6 +1087,7 @@ class SpectralSynthesis(object):
             # of this loop. This is just a dumb way to generalize this function
             # to either do one redshift or return a whole history.
             if not do_all_time:
+                
                 if (zarr[i] > zobs):
                     continue
 
