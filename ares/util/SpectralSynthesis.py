@@ -557,7 +557,7 @@ class SpectralSynthesis(object):
                     
         # Get spectrum first.
         if (spec is None) and (ospec is None):
-            spec = self.Spectrum(sfh, waves, tarr=tarr, tobs=tobs,
+            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
                 idnum=idnum, extras=extras, window=window)
                 

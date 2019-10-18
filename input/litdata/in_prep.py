@@ -179,7 +179,6 @@ destruction = \
 
 _scatter = \
 {
-
  "pop_dust_scatter{0}": 'pq[33]',
  "pq_func[33]{0}": 'pl_evolN',
  'pq_func_var[33]{0}': 'Mh',
