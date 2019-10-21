@@ -15,9 +15,11 @@ important, and will be used when secondary_ionization = 3.
      
 """
 
+import os
+import sys
+import urllib
+import pickle
 import numpy as np
-import os, urllib
-from ares.util.Pickling import write_pickle_file
 
 try:
     import h5py
@@ -25,6 +27,13 @@ try:
 except ImportError:
     have_h5py = False
 
+python_major_version = sys.version_info.major
+if python_major_version in [2, 3]:
+    is_python3 = (python_major_version == 3)
+else:
+    raise ValueError("The check for which Python version is being used " +\
+        "failed for some unknown reason.")
+    
 E_th = [13.6, 24.6, 54.4]
 
 # Ionized fraction points and corresponding files
@@ -83,8 +92,18 @@ fHeII_xi = np.array(list(zip(*fHeII)))
 # Make pickle file
 to_write = [np.array(energies), np.array(x), heat_xi, fexc_xi, fLya_xi,\
     fHI_xi, fHeI_xi, fHeII_xi, fion_xi]
-write_pickle_file(to_write, 'secondary_electron_data.pkl',\
-    ndumps=len(to_write), open_mode='w', safe_mode=False, verbose=False)
+#write_pickle_file(to_write, 'secondary_electron_data.pkl',\
+#    ndumps=len(to_write), open_mode='w', safe_mode=False, verbose=False)
+
+with open('secondary_electron_data.pkl', 'wb') as pickle_file:
+    for object_to_pickle in to_write:
+        if is_python3:
+            # extra 'protocol' keyword argument necessary for python2
+            # to be able to unpickle python3-pickled files
+            pickle.dump(object_to_pickle, pickle_file, protocol=2)
+        else:
+            pickle.dump(object_to_pickle, pickle_file, -1)         
+
          
 # Make npz file
 data = {'electron_energy': np.array(energies), 'ionized_fraction': np.array(x),

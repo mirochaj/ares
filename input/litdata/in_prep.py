@@ -111,6 +111,21 @@ _screen_best = \
 screen = _screen.copy()
 screen.update(_screen_best)
 
+_screen_dpl = \
+{
+ "pq_func[22]{0}": 'dpl_evolN',
+ 'pq_func_par0[22]{0}': 1.6,     # Normalization of length scale
+ 'pq_func_par1[22]{0}': 3e11,    # normalize at Mh=1e10
+ 'pq_func_par2[22]{0}': 0.45,    # low-mass sope
+ 'pq_func_par3[22]{0}': 0.45,    # high-mass slope
+ 'pq_func_par4[22]{0}': 1e10,    # peak mass
+ 'pq_func_par5[22]{0}': 5.,      # pin to z=4
+ 'pq_func_par6[22]{0}': 0.0      # no z evolution by default
+}
+
+screen_dpl = _screen.copy()
+screen_dpl.update(_screen_dpl)
+
 _patchy = \
 {
  'pop_dust_fcov{0}': 'pq[21]',

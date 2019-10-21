@@ -223,10 +223,10 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
 
-    def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10], 
+    def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, 
-        dmag=0.5, dlam_c94=10, fill=True, **kwargs):
+        show_Mstell=True, show_MUV=True, show_AUV=False, label=None,
+        dmag=0.5, dlam_c94=10, fill=False, extra_pane=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -237,11 +237,18 @@ class GalaxyPopulation(object):
                 fig = pl.figure(tight_layout=False, figsize=(24, 6), num=fig)
                 fig.subplots_adjust(left=0.1 ,right=0.9)
                 gs = gridspec.GridSpec(4, 8, hspace=0.0, wspace=0.8, figure=fig)
-                            
+                ax_extra = None
+                xp = 0
             else:
-                fig = pl.figure(tight_layout=False, figsize=(12, 6), num=fig)
+                
+                xp = extra_pane is not None
+                
+                fig = pl.figure(tight_layout=False, figsize=(12+xp*6, 6), 
+                    num=fig)
                 fig.subplots_adjust(left=0.1 ,right=0.9)
-                gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
+                # nrows, ncols
+                gs = gridspec.GridSpec(4, 4+3*xp, hspace=0.0, wspace=0.05, 
+                    figure=fig)
                 
             if show_Mstell:
                 ax_uvlf = fig.add_subplot(gs[:,0:2])
@@ -258,28 +265,33 @@ class GalaxyPopulation(object):
                 
                 ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]       
             else:
-                ax_uvlf = fig.add_subplot(gs[:,0:2])
-                ax_cmr4 = fig.add_subplot(gs[0,2:])
-                ax_cmr6 = fig.add_subplot(gs[1,2:])
-                ax_cmr8 = fig.add_subplot(gs[2,2:])
-                ax_cmr10 = fig.add_subplot(gs[3,2:])
+                if xp:
+                    # cols, rows
+                    ax_extra = fig.add_subplot(gs[:,0:2])
+                else:
+                    ax_extra = None
+                      
+                ax_uvlf = fig.add_subplot(gs[:,0+3*xp:2+3*xp])
+                ax_cmr4 = fig.add_subplot(gs[0,2+3*xp:])
+                ax_cmr6 = fig.add_subplot(gs[1,2+3*xp:])
+                ax_cmr8 = fig.add_subplot(gs[2,2+3*xp:])
+                ax_cmr10 = fig.add_subplot(gs[3,2+3*xp:])
                 ax_cMs = []
                 ax_smf = None
                 
             ax_cmd = [ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10]
 
-            axes = ax_uvlf, ax_cmd, ax_smf, ax_cMs
+            axes = ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra
         
             had_axes = False
             
         else:
             had_axes = True
-            ax_uvlf, ax_cmd, ax_smf, ax_cMs = axes
+            ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra = axes
             ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10 = ax_cmd
             if show_Mstell:
                 ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10 = ax_cMs
                 
-        
         if type(pop) in [list, tuple]:
             pops = pop
         else:
@@ -541,7 +553,7 @@ class GalaxyPopulation(object):
                 else:
                     ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         
-        return ax_uvlf, ax_cmd, ax_smf, ax_cMs
+        return ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra
         
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
         wave_lo=1300., wave_hi=2600., which_nircam='W', **kwargs):

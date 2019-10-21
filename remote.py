@@ -54,7 +54,7 @@ aux_data = \
     '790/figure1_plotdata.csv',
     '792/figure2_plotdata.csv', 
     None],
- 'nircam': ['https://jwst-docs.stsci.edu/download/attachments/17760694/',
+ 'nircam': ['https://jwst-docs.stsci.edu/files/73022379/73022381/1/1486438006000',
      'nircam_throughputs_22April2016_v4.tar.gz',
      None],
  'wfc3': ['http://www.stsci.edu/hst/wfc3/ins_performance/throughputs/Throughput_Tables/',
@@ -104,7 +104,7 @@ if (len(options) > 0) and ('clean' not in options):
             to_download = aux_data.keys()
             files = [None] * len(to_download)
 else:
-    to_download = aux_data.keys()
+    to_download = list(aux_data.keys())
     to_download.remove('cosmo_params')
     files = [None] * len(to_download)
         

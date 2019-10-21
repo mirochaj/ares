@@ -618,7 +618,7 @@ class CalibrateModel(object):
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
         
-        # Covering factor and scale length    
+        # Covering factor and scale length
         if self.save_dust:
             blob_n = ['dust_scale']
             blob_i = [('z', redshifts), ('Mh', Mh)]
