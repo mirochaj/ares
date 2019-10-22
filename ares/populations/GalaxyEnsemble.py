@@ -1731,7 +1731,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         kw = {'z': z, 'cam': cam, 'filters': filters, 
             'filter_set': filter_set, 'dlam':dlam, 'method': method}
         
-        kw_tup = tuple(kw.viewitems())
+        kw_tup = tuple(kw.items())
         
         if load:
             cached_result = self._cache_mags(kw_tup)
@@ -1954,7 +1954,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             'filters': filters, 'filter_set': filter_set,
             'dlam':dlam, 'method': method}
         
-        kw_tup = tuple(kw.viewitems())
+        kw_tup = tuple(kw.items())
 
         if load:
             cached_result = self._cache_beta(kw_tup)            

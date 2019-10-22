@@ -427,14 +427,19 @@ class CalibrateModel(object):
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[27]')
                       
                 if 'scatter' in self.free_params_dust:
-                    
-                    free_pars.extend(['pq_func_par0[33]', 'pq_func_par2[33]'])
+                    free_pars.extend(['pq_func_par0[33]'])
                     guesses['pq_func_par0[33]'] = 0.3
-                    guesses['pq_func_par2[33]'] = 0.
-                    is_log.extend([False, False])
-                    jitter.extend([0.1, 0.1])
+                    is_log.extend([False])
+                    jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[33]')
-                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[33]')
+                    
+                
+                    if 'scatter-slope' in self.free_params_dust:
+                        free_pars.extend(['pq_func_par2[33]'])
+                        guesses['pq_func_par2[33]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.1])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[33]')
                 
                     if 'scatter' in self.zevol_dust:
                         free_pars.append('pq_func_par4[33]')
