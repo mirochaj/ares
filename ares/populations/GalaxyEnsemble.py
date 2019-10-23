@@ -390,7 +390,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             dtype = np.float64
         
-        t = np.array(map(self.cosm.t_of_z, zall)) / s_per_myr
+        t = np.array([self.cosm.t_of_z(zall[_i]) for _i in range(zall.size)]) \
+            / s_per_myr
         
         histories['t'] = t.astype(dtype)
                             
@@ -1452,7 +1453,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Nsn': zeros_like_Mh,
         }
                 
-        if self.pf['pop_dust_yield'] > 0:
+        if self.pf['pop_dust_yield'] is not None:
             results['rand'] = halos['rand'][:,-1::-1]
             
         # Reset attribute!

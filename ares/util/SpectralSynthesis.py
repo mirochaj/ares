@@ -359,7 +359,7 @@ class SpectralSynthesis(object):
         
     def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={}, 
-        idnum=None, window=1, extras={}):
+        idnum=None, window=1, extras={}, nthreads=1, load=True):
         """
         Take an input spectrum and "observe" it at redshift z.
         
@@ -381,7 +381,7 @@ class SpectralSynthesis(object):
         if spec is None:
             spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, zarr=zarr, 
                 zobs=zobs, tobs=None, hist=hist, idnum=idnum,
-                extras=extras, window=window)
+                extras=extras, window=window, load=load)
     
         dL = self.cosm.LuminosityDistance(zobs)
         
@@ -636,7 +636,7 @@ class SpectralSynthesis(object):
         
     def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
-        extras={}):
+        extras={}, load=True):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -669,7 +669,7 @@ class SpectralSynthesis(object):
                     spec[slc] = self.Luminosity(wave=waves[i], 
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
                         band=band, hist=hist, idnum=idnum, 
-                        extras=extras, window=window)
+                        extras=extras, window=window, load=load)
                             
         else:    
         
@@ -680,7 +680,7 @@ class SpectralSynthesis(object):
                 spec[slc] = self.Luminosity(wave=wave, 
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
                     band=band, hist=hist, idnum=idnum,
-                    extras=extras, window=window)
+                    extras=extras, window=window, load=load)
                 
         if units in ['A', 'Ang']:
             #freqs = c / (waves / 1e8)
@@ -742,7 +742,7 @@ class SpectralSynthesis(object):
         # Must allow non-constant SFR within over-sampled region
         # as it may be tens of Myr.
         # Walk back from the end and fill in SFR
-        N = (ages_x.size - 1) / ct
+        N = int((ages_x.size - 1) / ct)
         for _i in range(0, ct):
             
             if batch_mode:
