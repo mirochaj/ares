@@ -71,7 +71,9 @@ for i, dataset in enumerate(datasets_smf):
 
 for i, dataset in enumerate(datasets_mzr):
     default_colors[dataset] = colors_cyc[i]
-    default_markers[dataset] = markers[i]    
+    default_markers[dataset] = markers[i]  
+    
+default_markers['stefanon2017'] = 's'
 
 _ulim_tick = 0.5
 
@@ -225,7 +227,7 @@ class GalaxyPopulation(object):
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, show_AUV=False, label=None,
+        show_Mstell=True, show_MUV=True, label=None, zcal=None,
         dmag=0.5, dlam_c94=10, fill=False, extra_pane=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
@@ -233,12 +235,12 @@ class GalaxyPopulation(object):
         
         if axes is None:
                         
-            if show_Mstell:
+            if show_Mstell and show_MUV:
                 fig = pl.figure(tight_layout=False, figsize=(24, 6), num=fig)
                 fig.subplots_adjust(left=0.1 ,right=0.9)
                 gs = gridspec.GridSpec(4, 8, hspace=0.0, wspace=0.8, figure=fig)
                 ax_extra = None
-                xp = 0
+                xp = 0 
             else:
                 
                 xp = extra_pane is not None
@@ -323,8 +325,19 @@ class GalaxyPopulation(object):
                     mec=colors[z], sources=sources, round_z=0.21, use_labels=0)
                 
                 if not had_axes:
-                    ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
-                        xycoords='axes fraction', color=colors[z], ha='right', va='top')
+                    if zcal is not None and z == zcal:
+                        bbox = dict(facecolor='none', edgecolor=colors[z], 
+                            boxstyle='round,pad=0.2')
+                    else:
+                        bbox = None    
+                        
+                    ax_uvlf.text(0.95, 0.25-0.05*ct_lf, r'$z \sim {}$'.format(z),  
+                        transform=ax_uvlf.transAxes, color=colors[z], ha='right', va='top',
+                        bbox=bbox)
+                                            
+                    #ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
+                    #    xycoords='axes fraction', color=colors[z], ha='right', va='top')
+
 
                 if show_Mstell:
                     _ax = self.PlotSMF(z, ax=ax_smf, color=colors[z], mfc=colors[z],
@@ -340,7 +353,6 @@ class GalaxyPopulation(object):
                 continue
 
             if z in b14.data['beta']:
-        
                 err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
                 ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], 
                     yerr=err, 
@@ -354,8 +366,20 @@ class GalaxyPopulation(object):
             #        **mkw)
             
             if not had_axes:
-                ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
-                    ha='right', va='top', xycoords='axes fraction', color=colors[z])
+                
+                if zcal is not None and z == zcal:
+                    bbox= dict(facecolor='none', edgecolor=colors[z], 
+                        boxstyle='round,pad=0.2')
+                else:
+                    bbox = None    
+                    
+                ax_cmd[j].text(0.95, 0.15, r'$z \sim {}$'.format(z),  
+                    transform=ax_cmd[j].transAxes, color=colors[z], 
+                    ha='right', va='top', bbox=bbox)
+                
+                #ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
+                #    ha='right', va='top', xycoords='axes fraction', color=colors[z])
+                
             ct_b += 1
             
             if not show_Mstell:
@@ -496,8 +520,9 @@ class GalaxyPopulation(object):
                 ax_cmd[j].fill_between(mags_cr, bphot_by_pop[0][z], 
                     bphot_by_pop[1][z], color=colors[z], **kwargs)
                     
-                ax_cMs[j].fill_between(10**Ms, bc94_by_pop[0][z], 
-                    bc94_by_pop[1][z], color=colors[z], **kwargs)
+                if show_Mstell:    
+                    ax_cMs[j].fill_between(10**Ms, bc94_by_pop[0][z], 
+                        bc94_by_pop[1][z], color=colors[z], **kwargs)
                                             
         ##
         # Clean-up
@@ -953,10 +978,13 @@ class GalaxyPopulation(object):
         if quantity == 'lf' and ((not gotax) or force_labels):
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
-            ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
+            ax.set_xlabel(r'$M_{\mathrm{UV}}$')
             ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         elif quantity == 'smf' and ((not gotax) or force_labels):
-            ax.set_xscale('log')
+            try:
+                ax.set_xscale('log')
+            except ValueError:
+                pass
             ax.set_xlim(1e7, 1e13)
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')

@@ -251,9 +251,9 @@ class CalibrateModel(object):
                 # Peak mass
                 if 'peak' in self.free_params_sfe:
                     free_pars.append('pq_func_par1[0]')
-                    guesses['pq_func_par1[0]'] = 11.
+                    guesses['pq_func_par1[0]'] = 11.5
                     is_log.extend([True])
-                    jitter.extend([0.1])
+                    jitter.extend([0.3])
                     ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[0]')
                     
                     if 'peak' in self.zevol_sfe:
@@ -358,7 +358,6 @@ class CalibrateModel(object):
                     ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
                     if self.include_dust in ['screen-dpl', 'patchy']:
-                        raise NotImplemented('help')
                         free_pars.append('pq_func_par3[22]')
                         guesses['pq_func_par3[22]'] = 0.45
                         is_log.extend([False])
@@ -366,16 +365,16 @@ class CalibrateModel(object):
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                 if 'peak' in self.free_params_dust:
-                    raise NotImplemented('help')
                     assert self.include_dust in ['screen-dpl', 'patchy']
                     
-                    free_pars.append('pq_func_par0[24]')
-                    guesses['pq_func_par0[24]'] = 11.5
+                    free_pars.append('pq_func_par1[22]')
+                    guesses['pq_func_par1[22]'] = 11.5
                     is_log.extend([True])
                     jitter.extend([0.5])
-                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[24]')                    
+                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[22]')                    
 
                     if 'peak' in self.zevol_dust:
+                        raise NotImplemented('help')
                         free_pars.append('pq_func_par2[24]')
                         guesses['pq_func_par2[24]'] = 0.0
                         is_log.extend([False])
