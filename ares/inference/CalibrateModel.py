@@ -55,7 +55,7 @@ class CalibrateModel(object):
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
-        save_lf=True, save_smf=False, save_sam=False,
+        save_lf=True, save_smf=False, save_sam=False, include_fyield=False,
         save_sfrd=False, save_beta=False, save_dust=False, zmap={}):
         """
         Calibrate a galaxy model to available data.
@@ -97,6 +97,7 @@ class CalibrateModel(object):
         
         self.include_dust = include_dust
         self.include_fduty = include_fduty
+        self.include_fyield = include_fyield
 
         # Set SFE free parameters
         self.free_params_sfe = free_params_sfe        
@@ -344,6 +345,7 @@ class CalibrateModel(object):
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[22]')
                                         
                     if 'norm' in self.zevol_dust:
+                        assert self.include_dust == 'screen'
                         free_pars.append('pq_func_par4[22]')
                         guesses['pq_func_par4[22]'] = 0.
                         is_log.extend([False])
@@ -410,20 +412,22 @@ class CalibrateModel(object):
                       
                 if 'yield' in self.free_params_dust:
                     
-                    free_pars.extend(['pq_func_par0[27]', 'pq_func_par2[27]'])
-                    guesses['pq_func_par0[27]'] = 0.3
-                    guesses['pq_func_par2[27]'] = 0.
+                    assert self.include_fyield
+                    
+                    free_pars.extend(['pq_func_par0[50]', 'pq_func_par2[50]'])
+                    guesses['pq_func_par0[50]'] = 0.3
+                    guesses['pq_func_par2[50]'] = 0.
                     is_log.extend([False, False])
                     jitter.extend([0.1, 1.0])
-                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[27]')
-                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[27]')
+                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[50]')
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[50]')
 
                     if 'yield' in self.zevol_dust:
-                        free_pars.append('pq_func_par4[27]')
-                        guesses['pq_func_par4[27]'] = 0.0
+                        free_pars.append('pq_func_par4[50]')
+                        guesses['pq_func_par4[50]'] = 0.0
                         is_log.extend([False])
                         jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[27]')
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[50]')
                       
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
@@ -587,6 +591,20 @@ class CalibrateModel(object):
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
         
+        if self.include_fyield:
+            blob_n = ['fyield']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+
+            if self.use_ensemble:
+                blob_f = ['guide.dust_yield']
+            else:
+                blob_f = ['dust_yield']
+
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(None)    
+        
         # SAM stuff
         if self.save_sam:
             blob_n = ['SFR', 'SMHM']
@@ -722,7 +740,9 @@ class CalibrateModel(object):
         
             if self.include_fduty:
                 self._base_kwargs.update(PB('in_prep:fduty').pars_by_pop(0, 1))
-        
+            if self.include_fyield:
+                self._base_kwargs.update(PB('in_prep:fyield').pars_by_pop(0, 1))
+            
         # Initialize with best guesses mostly for debugging purposes
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:

@@ -153,9 +153,23 @@ fduty = \
  'pq_val_ceil[40]{0}': 1.0,
 }
 
+fyield = \
+{
+ "pop_dust_yield{0}": 'pq[50]',
+ "pq_func[50]{0}": 'pl_evolN',
+ 'pq_func_var[50]{0}': 'Mh',
+ 'pq_func_var2[50]{0}': '1+z',
+ 'pq_func_par0[50]{0}': 0.1,
+ 'pq_func_par1[50]{0}': 1e11,
+ 'pq_func_par2[50]{0}': 0.,
+ 'pq_func_par3[50]{0}': 5.,
+ 'pq_func_par4[50]{0}': 0.,
+ 'pq_val_ceil[50]{0}': 0.4,
+}
+
 quench = \
 {
- 'pop_fduty{0}': 'pq[50]',
+ 'pop_fduty{0}': 'pq[40]',
  "pq_func[40]{0}": 'pl',
  'pq_func_var[40]{0}': 'Mh',
  'pq_func_par0[40]{0}': 'pq[41]',

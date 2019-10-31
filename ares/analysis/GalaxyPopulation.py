@@ -228,22 +228,40 @@ class GalaxyPopulation(object):
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
         show_Mstell=True, show_MUV=True, label=None, zcal=None,
-        dmag=0.5, dlam_c94=10, fill=False, extra_pane=None, **kwargs):
+        dmag=0.5, dlam_c94=10, fill=False, extra_pane=False, square=False,
+        **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
         
         if axes is None:
-                        
+
+            xp = extra_pane
+
+            if square:
+                dims = (12, 12)
+                nrows = 9
+                ncols = 4
+                hs = 0.1
+                ws = 0.8
+
+                assert not xp, "Cannot add extra panel for square plot."
+                assert show_Mstell, "No point in square plot if only 2 panels."
+            else:
+                dims = (24, 6)
+                nrows = 4
+                ncols = 8
+                hs = 0.8
+                ws = 0.
+
             if show_Mstell and show_MUV:
-                fig = pl.figure(tight_layout=False, figsize=(24, 6), num=fig)
+                fig = pl.figure(tight_layout=False, figsize=dims, num=fig)
                 fig.subplots_adjust(left=0.1 ,right=0.9)
-                gs = gridspec.GridSpec(4, 8, hspace=0.0, wspace=0.8, figure=fig)
+                gs = gridspec.GridSpec(nrows, ncols, hspace=hs, wspace=ws, 
+                    figure=fig)
                 ax_extra = None
                 xp = 0 
             else:
-                
-                xp = extra_pane is not None
                 
                 fig = pl.figure(tight_layout=False, figsize=(12+xp*6, 6), 
                     num=fig)
@@ -251,21 +269,22 @@ class GalaxyPopulation(object):
                 # nrows, ncols
                 gs = gridspec.GridSpec(4, 4+3*xp, hspace=0.0, wspace=0.05, 
                     figure=fig)
-                
+            
+            s = square    
             if show_Mstell:
-                ax_uvlf = fig.add_subplot(gs[:,0:2])
+                ax_uvlf = fig.add_subplot(gs[:4*s,0:2])
                 ax_cmr4 = fig.add_subplot(gs[0,2:4])
                 ax_cmr6 = fig.add_subplot(gs[1,2:4])
                 ax_cmr8 = fig.add_subplot(gs[2,2:4])
                 ax_cmr10 = fig.add_subplot(gs[3,2:4])
                 
-                ax_smf = fig.add_subplot(gs[:,4:6])
-                ax_cMs4 = fig.add_subplot(gs[0,6:])
-                ax_cMs6 = fig.add_subplot(gs[1,6:])
-                ax_cMs8 = fig.add_subplot(gs[2,6:])
-                ax_cMs10 = fig.add_subplot(gs[3,6:]) 
+                ax_smf = fig.add_subplot(gs[s*5:,(1-s)*4:(1-s)*5+2])
+                ax_cMs4 = fig.add_subplot(gs[s*5+0, (1-s)*5+2:])
+                ax_cMs6 = fig.add_subplot(gs[s*5+1, (1-s)*5+2:])
+                ax_cMs8 = fig.add_subplot(gs[s*5+2, (1-s)*5+2:])
+                ax_cMs10 = fig.add_subplot(gs[s*5+3,(1-s)*5+2:]) 
                 
-                ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]       
+                ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]
             else:
                 if xp:
                     # cols, rows
@@ -373,9 +392,9 @@ class GalaxyPopulation(object):
                 else:
                     bbox = None    
                     
-                ax_cmd[j].text(0.95, 0.15, r'$z \sim {}$'.format(z),  
+                ax_cmd[j].text(0.05, 0.05, r'$z \sim {}$'.format(z),  
                     transform=ax_cmd[j].transAxes, color=colors[z], 
-                    ha='right', va='top', bbox=bbox)
+                    ha='left', va='bottom', bbox=bbox)
                 
                 #ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
                 #    ha='right', va='top', xycoords='axes fraction', color=colors[z])
@@ -573,6 +592,7 @@ class GalaxyPopulation(object):
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
                 ax.yaxis.set_ticks_position('both')    
+                
                 if i < 3:
                     ax.set_xticklabels([])
                 else:
