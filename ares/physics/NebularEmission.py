@@ -22,101 +22,189 @@ class NebularEmission(object):
         self.cosm = cosm
         
     @property
+    def wavelengths(self):
+        if not hasattr(self, '_wavelengths'):
+            raise AttributeError('Must set `wavelengths` by hand.')
+        return self._wavelengths    
+            
+    @wavelengths.setter
+    def wavelengths(self, value):
+        self._wavelengths = value
+        
+    @property
+    def energies(self):
+        if not hasattr(self, '_energies'):
+            self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
+        return self._energies    
+        
+    @property
+    def Emin(self):
+        return np.min(self.energies)
+    
+    @property
+    def Emax(self):
+        return np.max(self.energies)    
+        
+    @property
+    def frequencies(self):
+        if not hasattr(self, '_frequencies'):
+            self._frequencies = c / (self.wavelengths / 1e8)
+        return self._frequencies    
+        
+    @property
+    def dwdn(self):
+        if not hasattr(self, '_dwdn'):
+            self._dwdn = self.wavelengths**2 / (c * 1e8)
+        return self._dwdn        
+        
+    @property
+    def dE(self):
+        if not hasattr(self, '_dE'):
+            tmp = np.abs(np.diff(self.energies))
+            self._dE = np.concatenate((tmp, [tmp[-1]]))
+        return self._dE    
+        
+    @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
         return self._hydr    
-
-    def _TwoPhoton(self, waves, spec):
         
-        E = h_p * c / (waves * 1e-8) / erg_per_ev
-        _sum = np.zeros_like(E)
-        x = E/E_LyA # Note: x = E/E_LyA
+    @property    
+    def _gamma_fb(self):
+        if not hasattr(self, '_gamma_fb_'):
+            _gaunt_fb = 1.05
+            _sum = np.zeros_like(self.frequencies)
+            for n in xrange(2, 100, 1):
+                _xn = Ryd / k_B / self.pf['pop_nebula_Tgas'] / n ** 2
+                ok = (Ryd / h_p / n**2) < self.frequencies
+                _sum[ok==1] += _xn * (np.exp(_xn) / n) * _gaunt_fb
+            self._gamma_fb_ = 5.44e-39 * _sum
+            
+        return self._gamma_fb_
+    
+    @property
+    def _gamma_ff(self):
+        return 5.44e-39 * 1.1
+        
+    def _FreeBound(self, spec):
+        e_fb = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
+        return e_fb
+        
+    def _FreeFree(self, spec):
+        e_ff = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
+        return e_ff
+        
+    @property
+    def _norm_free(self):
+        if not hasattr(self, '_norm_free_'):
+            integ = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
+            self._norm_free_ = 1. / np.trapz(integ[-1::-1] * self.frequencies[-1::-1],
+                x=np.log(self.frequencies[-1::-1]))
+        return self._norm_free_        
+        
+    def _TwoPhoton(self, spec):
+        x = self.energies / E_LyA
 
-        temp = np.zeros_like(E)
-        temp[x<1.] = 1.307 \
-                   - 2.627 * (x[x<1.] - 0.5)**2 \
-                   + 2.563 * (x[x<1.] - 0.5)**4 \
-                   - 51.69 * (x[x<1.] - 0.5)**6
+        P = np.zeros_like(self.energies)
+        # Fernandez & Komatsu 2006
+        P[x<1.] = 1.307 \
+                - 2.627 * (x[x<1.] - 0.5)**2 \
+                + 2.563 * (x[x<1.] - 0.5)**4 \
+                - 51.69 * (x[x<1.] - 0.5)**6
 
-        return E * temp / E_LyA
-
-    def _FreeBound(self, waves, spec):
-        E = h_p * c / (waves * 1e-8) / erg_per_ev
-        nu = E * erg_per_ev / h_p
-        _Tg = self.pf['pop_nebula_Tgas']
-        _gaunt_ff = 1.1
-        _gaunt_fb = 1.05
-        _sum = np.zeros_like(E)
-        for n in xrange(2, 100, 1):
-            _xn = Ryd / k_B / _Tg / n ** 2
-            ok = (Ryd / h_p / n**2) < nu
-            _sum[ok==1] += _xn * np.exp(_xn) / n * _gaunt_fb
-        gamma_c = 5.44e-39 * _sum
-        #print '_sum:', _sum   # Explains why ff/fb parallel at 2nd plateau
-
-        temp = gamma_c * np.exp(-h_p * nu / k_B / _Tg) * 4 * np.pi /2e-11
-
-        return temp
-
-    # ===== free-free ===== # 0.1-10.2 eV, reprocessed so 1-fesc = L
-    def _FreeFree(self, waves, spec):
+        return 2. * self.energies * P / E_LyA / nu_alpha
+        
+    def f_rep(self, spec, channel='ff', net=False):
         """
-        Free free
+        Fraction of photons reprocessed into different channels.
         """
-        
-        E = h_p * c / (waves * 1e-8) / erg_per_ev
-        
-        nu = E * erg_per_ev / h_p
-        _Tg = self.pf['pop_nebula_Tgas']
-        _gaunt_ff = 1.1
-        _gaunt_fb = 1.05
-        _sum = np.zeros_like(E)
-        for n in xrange(2, 100, 1):
-            _xn = Ryd / k_B / _Tg / n ** 2
-            ok = (Ryd / h_p / n**2) < nu
-            _sum[ok==1] += _xn * np.exp(_xn) / n * _gaunt_fb
-                
-        gamma_c = 5.44e-39 * _gaunt_ff
 
-        temp = gamma_c * np.exp(-h_p * nu / k_B /_Tg) * 4. * np.pi / 2e-11
+        erg_per_phot = self.energies * erg_per_ev
+        dE = self.dE * erg_per_ev
 
-        return temp
-        
-    def Continuum(self, waves, spec):
+        if channel == 'ff':
+            _ff = self._FreeFree(spec)
+            frep = 4. * np.pi * self._gamma_ff * _ff / 2.06e-11
+        elif channel == 'fb':
+            _fb = self._FreeBound(spec)
+            frep = 4. * np.pi * self._gamma_fb * _fb / 2.06e-11
+        elif channel == 'tp':
+            _tp = self._TwoPhoton(spec)
+            frep = 2. * self.energies * erg_per_ev * _tp / nu_alpha
+        else:
+            raise NotImplemented("Do not recognize channel `{}`".format(channel))
+    
+        if net:
+            return np.trapz(frep[-1::-1] * nu[-1::-1], x=np.log(nu[-1::-1]))
+        else:
+            return frep
+            
+    @property
+    def is_ionizing(self):
+        return self.energies >= E_LL
+    
+    def L_ion(self, spec):
+        ion = self.energies >= E_LL
+        gt0 = spec > 0
+        ok = np.logical_and(ion, gt0)
+
+        return np.trapz(spec[ok==1][-1::-1] * self.energies[ok==1][-1::-1], 
+            x=np.log(self.energies[ok==1][-1::-1]))
+
+    def Continuum(self, spec, include_ff=True, include_fb=True,
+        include_tp=True):
         """
         Add together nebular continuum contributions, i.e., free-free, 
         free-bound, and two-photon.
-        
-        Paramete
+
+        Parameters
+        ----------
+
         """
         
-        neb = np.zeros_like(waves)
-        nrg = h_p * c / (waves * 1e-8) / erg_per_ev
         fesc = self.pf['pop_fesc']
+        Tgas = self.pf['pop_nebula_Tgas']
+        flya = 2. / 3.
+        erg_per_phot = self.energies * erg_per_ev
         
-        ion = nrg >= E_LL
-        gt0 = spec > 0
-        ok = np.logical_and(ion, gt0)
+        ok = np.logical_and(self.is_ionizing, spec > 0)
         
-        Lion = np.trapz(spec[ok==1][-1::-1] * nrg[ok==1][-1::-1], 
-            x=np.log(nrg[ok==1][-1::-1]))
-                
-        _ff = self._FreeFree(waves, spec)
-        norm_ff = 1. / (np.trapz(_ff[-1::-1] * nrg[-1::-1], 
-            x=np.log(nrg[-1::-1])) / (1. - fesc) / Lion)
+        # This is in erg/s
+        Lion = self.L_ion(spec)
         
-        _fb = self._FreeBound(waves, spec)
-        norm_fb = 1. / (np.trapz(_fb[-1::-1] * nrg[-1::-1], 
-            x=np.log(nrg[-1::-1])) / (1. - fesc) / Lion)
+        #               
+        frep_ff = self.f_rep(spec, Tgas, 'ff')
+        frep_fb = self.f_rep(spec, Tgas, 'fb')
+        frep_tp = self.f_rep(spec, Tgas, 'tp')
         
-        _tp = self._TwoPhoton(waves, spec)
-        norm_tp = 1. / (np.trapz(_tp[-1::-1] * nrg[-1::-1], 
-            x=np.log(nrg[-1::-1])) / (1. - fesc) / Lion)    
+        #_ff = self._FreeFree(spec)
+        #_fb = self._FreeBound(spec)
+        #_tp = self._TwoPhoton(spec)
+        
+        # Amount of UV luminosity absorbed in ISM
+        Labs = Lion * (1. - fesc)
+        
+        # Normalize free-free and free-bound to total ionizing luminosity 
+        # multiplied by their respective reprocessing factors. This is 
+        # essentially just to get the result in the right units.
+        norm_ff = 1. / np.trapz(frep_ff[-1::-1] * h_p * self.frequencies[-1::-1]**2, 
+            x=np.log(self.frequencies[-1::-1])) / Labs
+        norm_fb = 1. / np.trapz(frep_fb[-1::-1] * h_p * self.frequencies[-1::-1]**2, 
+            x=np.log(self.frequencies[-1::-1])) / Labs
+        norm_tp = 1. / np.trapz(frep_tp[-1::-1] * h_p * self.frequencies[-1::-1]**2, 
+            x=np.log(self.frequencies[-1::-1])) / Labs
             
+        tot = np.zeros_like(self.wavelengths)
+        if include_ff:
+            tot += frep_ff * norm_ff * Labs#(_ff * norm_ff)
+        if include_fb:              
+            tot += frep_fb * Labs#(_fb * norm_fb)
+        if include_tp:
+            tot += frep_tp * Labs#(_tp * norm_tp)
         
-        return _ff * norm_ff + _fb * norm_fb + _tp * norm_tp
-        
+        return tot
+                
     def LymanSeries(self, waves, spec):
         return self.HydrogenLines(waves, spec, ninto=1)
         
@@ -138,7 +226,7 @@ class NebularEmission(object):
         Lion = np.trapz(spec[ok==1][-1::-1] * freq[ok==1][-1::-1], 
             x=np.log(freq[ok==1][-1::-1]))
         
-        Lout = Lion * (1. - self.pf['pop_fesc'])    
+        Lout = Lion * (1. - self.pf['pop_fesc'])
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
         
         fout = np.zeros_like(waves)

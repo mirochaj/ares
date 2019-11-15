@@ -50,11 +50,32 @@ The two most common lookup tables are those for the halo mass function (HMF) and
 This should provide a :math:`\sim 20\%` speed-up. 
 
 .. note :: The HMF speed-up applies also to the simplest global signal models, 
-	but the	``pop_src_instance`` trick used above does not, as such moddls do 
+	but the	``pop_src_instance`` trick used above does not, as such models do 
 	not initialize stellar population synthesis models.
 
 .. note :: These tricks are built-in to the ``ModelGrid`` and ``ModelFit`` 
 	machinery in *ARES*. Simply set the ``save_hmf`` and ``save_psm`` attributes of each class to ``True`` before running.
+	
+
+Turning off advanced solutions to radiative transfer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There are two main differences between the so-called :math:`f_{\mathrm{coll}}` models and the ``'mirocha2017'`` UVLF-calibrated models relevant to the performance of the code: (i) the UVLF-calibrated models generate an entire population of galaxies, rather than linking the star formation rate density to :math:`\dot{f}_{\mathrm{coll}}`, which is slightly slower, and (ii) by default, the ``'mirocha2017:base'`` models will solve the cosmological radiative transfer equation in detail, as mentioned above in the "Time Stepping" section. The accuracy of this calculation can be reduced to achieve a speed-up (see above), but you can also just turn this off if you'd like -- just beware that if performing inference, this will bias your constraints on any X-ray-related parameters.
+
+To turn off the advanced RTE machinery, do the following:
+
+::
+	
+	pars = ares.util.ParameterBundle('mirocha2017:base')
+	
+	# X-rays are emitted by population #1: turn off RTE solution
+	pars['pop_solve_rte{1}'] = False
+	
+	# Must also switch to a simpler, energy-independent scheme for 
+	# depositing photo-electron energies in the IGM.
+	pars['secondary_ionization] = 1
+	
+Setting ``secondary_ionization=1`` will revert to using the `Shull \& van Steenberg (1985) <https://ui.adsabs.harvard.edu/abs/1985ApJ...298..268S/abstract>`_ approach to secondary ionization and heating, which is an asymtoptic high-energy limit. By default, ``secondary_ionization=3``, which corresponds to the energy-dependent results of `Furlanetto \& Johnson-Stoever (2010) <https://ui.adsabs.harvard.edu/abs/2010MNRAS.404.1869F/abstract>`_.
+	
 	
 
 

@@ -261,7 +261,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         _energies_today = []
     
         if popids is None:
-            popids = range(len(self.pops))
+            popids = list(range(len(self.pops)))
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
             

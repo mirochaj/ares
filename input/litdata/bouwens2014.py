@@ -11,7 +11,6 @@ redshifts = [4, 5, 6, 7, 8]
 wavelength = None
 units = {'beta': 1.}
 
-
 _data = \
 {
  4: {'M': np.arange(-21.75, -15.25, 0.5),
@@ -72,6 +71,7 @@ _filt_xdf_z4 = ('F775W', 'F814W', 'F850LP', 'F125W')
 _filt_xdf_z5 = ('F850LP', 'F105W', 'F160W')
 # For XDF, HUDF09-1, HUDR09-2, z=6
 _filt_xdf_z6 = ('F105W', 'F160W')
+
 _filt_xdf_z7 = ('F125W', 'F160W')
 _filt_xdf_z7 = ('F125W', 'F160W')
 

@@ -354,27 +354,16 @@ _dust_screen_dpl = \
 {
  # Scale 
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
- "pq_func[22]": 'dpl_arbnorm',
+ "pq_func[22]": 'dpl_evolN',
+ 'pq_func_var2[22]': '1+z',
  'pq_func_var[22]': 'Mh',
- 'pq_func_par0[22]': 'pq[23]',     # Note that Rhalo ~ Mh^1/3 / (1+z)
- 'pq_func_par1[22]': 'pq[24]',
+ 'pq_func_par0[22]': 1.6,        # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]': 3e11,
  'pq_func_par2[22]': 0.45,
  'pq_func_par3[22]': 0.45,
- 'pq_func_par4[22]': 1e10,
- 
- # Evolution of scale
- "pq_func[23]": 'pl',
- 'pq_func_var[23]': '1+z',
- 'pq_func_par0[23]': 1.6,
- 'pq_func_par1[23]': 5.,
- 'pq_func_par2[23]': 0.,         # R(vir) goes like 1 / (1+z)
- 
- # Evolution of peak
- "pq_func[24]": 'pl',
- 'pq_func_var[24]': '1+z',
- 'pq_func_par0[24]': 11.,
- 'pq_func_par1[24]': 5.,
- 'pq_func_par2[24]': 0.,         # R(vir) goes like 1 / (1+z)
+ 'pq_func_par4[22]': 1e10,       
+ 'pq_func_par5[22]': 5.,         
+ 'pq_func_par6[22]': 0.,         # R(vir) goes like 1 / (1+z)
 }
 
 _dust_screen_dpl.update(_dust_kappa)

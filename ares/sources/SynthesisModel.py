@@ -162,7 +162,7 @@ class SynthesisMaster(Source):
     def energies(self):
         if not hasattr(self, '_energies'):
             self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
-        return self._energies    
+        return self._energies
         
     @property
     def Emin(self):

@@ -60,14 +60,6 @@ _base = \
  'hubble_0': 0.6726,
  'omega_l_0': 1. - 0.315579,
 
- # Screw with SFE.
- 'pq_func_par0[1]{0}': 3e-2,         # SFE normalization [0.05 by default]
- 'pq_func_par0[2]{0}': 3e11,
- 'pq_func_par0[3]{0}': 0.5,
- 'pq_func_par0[4]{0}': 0.0,          # High-mass slope
- 'pq_func_par2[1]{0}': 0.,           # Redshift evolution
- 
- 'pq_func_par1[1]{0}': 5.,           # Pin to z = 4
 }
 
 base.update(_base)
@@ -98,18 +90,23 @@ _screen = \
  'pq_func_par4[22]{0}': 0.,    
 }
 
-_screen_best = \
+screen = _screen.copy()
+#screen.update(_screen_best)
+
+_screen_dpl = \
 {
- 'pq_func_par0[1]{0}': 0.0486191550793195,
- 'pq_func_par0[2]{0}': 778500431735.2164,
- 'pq_func_par0[3]{0}': 0.5124444731982576,
- 'pq_func_par0[4]{0}': 0.03708330190131004,
- 'pq_func_par2[22]{0}': 0.46260876352941155,
- 'pq_func_par0[23]{0}': 1.3886146855924113,
+ "pq_func[22]{0}": 'dpl_evolN',
+ 'pq_func_par0[22]{0}': 1.6,     # Normalization of length scale
+ 'pq_func_par1[22]{0}': 3e11,    # normalize at Mh=1e10
+ 'pq_func_par2[22]{0}': 0.45,    # low-mass sope
+ 'pq_func_par3[22]{0}': 0.45,    # high-mass slope
+ 'pq_func_par4[22]{0}': 1e10,    # peak mass
+ 'pq_func_par5[22]{0}': 5.,      # pin to z=4
+ 'pq_func_par6[22]{0}': 0.0      # no z evolution by default
 }
 
-screen = _screen.copy()
-screen.update(_screen_best)
+screen_dpl = _screen.copy()
+screen_dpl.update(_screen_dpl)
 
 _patchy = \
 {
@@ -146,9 +143,23 @@ fduty = \
  'pq_val_ceil[40]{0}': 1.0,
 }
 
+fyield = \
+{
+ "pop_dust_yield{0}": 'pq[50]',
+ "pq_func[50]{0}": 'pl_evolN',
+ 'pq_func_var[50]{0}': 'Mh',
+ 'pq_func_var2[50]{0}': '1+z',
+ 'pq_func_par0[50]{0}': 0.1,
+ 'pq_func_par1[50]{0}': 1e11,
+ 'pq_func_par2[50]{0}': 0.,
+ 'pq_func_par3[50]{0}': 5.,
+ 'pq_func_par4[50]{0}': 0.,
+ 'pq_val_ceil[50]{0}': 0.4,
+}
+
 quench = \
 {
- 'pop_fduty{0}': 'pq[50]',
+ 'pop_fduty{0}': 'pq[40]',
  "pq_func[40]{0}": 'pl',
  'pq_func_var[40]{0}': 'Mh',
  'pq_func_par0[40]{0}': 'pq[41]',
@@ -179,7 +190,6 @@ destruction = \
 
 _scatter = \
 {
-
  "pop_dust_scatter{0}": 'pq[33]',
  "pq_func[33]{0}": 'pl_evolN',
  'pq_func_var[33]{0}': 'Mh',

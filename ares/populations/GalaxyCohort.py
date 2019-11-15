@@ -898,7 +898,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         bin_c = bin_e2c(bin_e)
 
-        phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)                
+        phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
         
         if units == 'dex':
             # Convert to dex**-1 units
@@ -1091,7 +1091,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # updated from SAM.
             sfr = self.SFR(z) 
             
-            if self.pf['pop_dust_yield'] > 0:                
+            if self.pf['pop_dust_yield'] is not None:                
                 L_sfr = self.src.L_per_sfr(wave)                                
                 Lh = L_sfr * sfr
                 

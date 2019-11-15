@@ -33,7 +33,7 @@ except ImportError:
 
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
-def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
+def what_filters(z, fset, wave_lo=1300., wave_hi=2600., picky=True):
     """
     Given a redshift and a full filter set, return the filters that probe
     the rest UV continuum only.
@@ -50,9 +50,13 @@ def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
         
         fhi = mid + dx[0]
         flo = mid - dx[1]
-                
-        if not ((flo >= l1) and (fhi <= l2)):
-            continue
+        
+        if picky:
+            if not ((flo >= l1) and (fhi <= l2)):
+                continue
+        else:
+            if not ((flo <= l1 <= fhi) or (flo <= l2 <= fhi)):
+                continue
         
         out.append(filt)
         
@@ -359,7 +363,7 @@ class SpectralSynthesis(object):
         
     def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={}, 
-        idnum=None, window=1, extras={}):
+        idnum=None, window=1, extras={}, nthreads=1, load=True):
         """
         Take an input spectrum and "observe" it at redshift z.
         
@@ -381,7 +385,7 @@ class SpectralSynthesis(object):
         if spec is None:
             spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, zarr=zarr, 
                 zobs=zobs, tobs=None, hist=hist, idnum=idnum,
-                extras=extras, window=window)
+                extras=extras, window=window, load=load)
     
         dL = self.cosm.LuminosityDistance(zobs)
         
@@ -557,7 +561,7 @@ class SpectralSynthesis(object):
                     
         # Get spectrum first.
         if (spec is None) and (ospec is None):
-            spec = self.Spectrum(sfh, waves, tarr=tarr, tobs=tobs,
+            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
                 idnum=idnum, extras=extras, window=window)
                 
@@ -636,7 +640,7 @@ class SpectralSynthesis(object):
         
     def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
-        extras={}):
+        extras={}, load=True):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -669,7 +673,7 @@ class SpectralSynthesis(object):
                     spec[slc] = self.Luminosity(wave=waves[i], 
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
                         band=band, hist=hist, idnum=idnum, 
-                        extras=extras, window=window)
+                        extras=extras, window=window, load=load)
                             
         else:    
         
@@ -680,7 +684,7 @@ class SpectralSynthesis(object):
                 spec[slc] = self.Luminosity(wave=wave, 
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
                     band=band, hist=hist, idnum=idnum,
-                    extras=extras, window=window)
+                    extras=extras, window=window, load=load)
                 
         if units in ['A', 'Ang']:
             #freqs = c / (waves / 1e8)
@@ -742,7 +746,7 @@ class SpectralSynthesis(object):
         # Must allow non-constant SFR within over-sampled region
         # as it may be tens of Myr.
         # Walk back from the end and fill in SFR
-        N = (ages_x.size - 1) / ct
+        N = int((ages_x.size - 1) / ct)
         for _i in range(0, ct):
             
             if batch_mode:
@@ -932,13 +936,13 @@ class SpectralSynthesis(object):
         setup_2 = hist != {}
                 
         do_all_time = False
-        if (tobs is not None) and (zobs is not None):
+        if (tobs is None) and (zobs is None):
             do_all_time = True
         #assert (tobs is not None) or (zobs is not None), \
         #    "Must supply time or redshift of observation, `tobs` or `zobs`!"
         
         assert setup_1 or setup_2
-        
+                
         if setup_1:
             assert (sfh is not None)
         elif setup_2:
@@ -1087,6 +1091,7 @@ class SpectralSynthesis(object):
             # of this loop. This is just a dumb way to generalize this function
             # to either do one redshift or return a whole history.
             if not do_all_time:
+                
                 if (zarr[i] > zobs):
                     continue
 

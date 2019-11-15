@@ -327,16 +327,16 @@ def ParameterizedQuantityParameters():
      "pq_func_par7": None,
      "pq_func_par8": None,
      "pq_func_par9": None,
-     
+
      "pq_boost": 1.,
      "pq_iboost": 1.,
      "pq_val_ceil": None,
      "pq_val_floor": None,
      "pq_var_ceil": None,
      "pq_var_floor": None,      
-         
+
     }  
-    
+
     pf.update(rcParams)
 
     return pf

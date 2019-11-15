@@ -4498,7 +4498,7 @@ class ModelSet(BlobFactory):
         
         if os.path.exists(fn) and (not clobber):
             print(('{!s} exists! Set clobber=True or remove by ' +\
-                'hand.').format(fn))    
+                'hand.').format(fn))
             return
             
         pb = ProgressBar(len(kwargs), name=name)

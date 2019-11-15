@@ -248,24 +248,30 @@ class HaloMassFunction(object):
     def __getattr__(self, name):
         
         if (name[0] == '_'):
-            raise AttributeError('This will get caught. Don\'t worry!')
-            
+            raise AttributeError('Should get caught by `hasattr` (#1).')
+                        
         if name not in self.__dict__.keys():
             if self.pf['hmf_load']:
                 self._load_hmf()
 
-        if name not in self.__dict__:
-            s = "May need to run 'python remote.py fresh hmf' or check hmf_* parameters."
-            raise KeyError("HMF table element {} not found. {}".format(name, s))
-                
+        # If we loaded the HMF and still don't see this attribute, then
+        # either (1) something is wrong with the HMF tables we have or
+        # (2) this is an attribute that lives elsewhere.
+        if name not in self.__dict__.keys():
+            if name.startswith('tab'):
+                s = "May need to run 'python remote.py fresh hmf' or check hmf_* parameters."
+                raise KeyError("HMF table element `{}` not found. {}".format(name, s))
+            else:
+                raise AttributeError('Should get caught by `hasattr` (#2).')
+                               
         return self.__dict__[name]
 
     def _load_hmf(self):
         """ Load table from HDF5 or binary. """
-                  
+
         if self._is_loaded:
-            return     
-                                
+            return
+
         if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
             self.tab_z = np.array(f[('tab_z')])
@@ -535,7 +541,6 @@ class HaloMassFunction(object):
         self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
                     
-        
         pb = ProgressBar(len(self.tab_z), 'hmf')
         pb.start()
 

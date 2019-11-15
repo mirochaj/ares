@@ -71,7 +71,9 @@ for i, dataset in enumerate(datasets_smf):
 
 for i, dataset in enumerate(datasets_mzr):
     default_colors[dataset] = colors_cyc[i]
-    default_markers[dataset] = markers[i]    
+    default_markers[dataset] = markers[i]  
+    
+default_markers['stefanon2017'] = 's'
 
 _ulim_tick = 0.5
 
@@ -223,63 +225,103 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
             force_labels=force_labels, **kwargs)              
 
-    def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10], 
-        z_beta=[4,5,6,7], sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, show_AUV=False, label=None, 
-        dmag=0.5, dlam_c94=10, **kwargs):
+    def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
+        z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
+        show_Mstell=True, show_MUV=True, label=None, zcal=None,
+        dmag=0.5, dlam_c94=10, fill=False, extra_pane=False, square=False,
+        **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
         
         if axes is None:
-                        
-            if show_Mstell:
-                fig = pl.figure(tight_layout=False, figsize=(24, 6), num=fig)
-                fig.subplots_adjust(left=0.1 ,right=0.9)
-                gs = gridspec.GridSpec(4, 8, hspace=0.0, wspace=0.8, figure=fig)
-                            
+
+            xp = extra_pane
+
+            if square:
+                dims = (12, 12)
+                nrows = 9
+                ncols = 4
+                hs = 0.1
+                ws = 0.8
+
+                assert not xp, "Cannot add extra panel for square plot."
+                assert show_Mstell, "No point in square plot if only 2 panels."
             else:
-                fig = pl.figure(tight_layout=False, figsize=(12, 6), num=fig)
+                dims = (24, 6)
+                nrows = 4
+                ncols = 8
+                hs = 0.1
+                ws = 0.8
+
+            if show_Mstell and show_MUV:
+                fig = pl.figure(tight_layout=False, figsize=dims, num=fig)
                 fig.subplots_adjust(left=0.1 ,right=0.9)
-                gs = gridspec.GridSpec(4, 4, hspace=0.0, wspace=0.05, figure=fig)
+                gs = gridspec.GridSpec(nrows, ncols, hspace=hs, wspace=ws, 
+                    figure=fig)
+                ax_extra = None
+                xp = 0 
+            else:
                 
+                fig = pl.figure(tight_layout=False, figsize=(12+xp*6, 6), 
+                    num=fig)
+                fig.subplots_adjust(left=0.1 ,right=0.9)
+                # nrows, ncols
+                gs = gridspec.GridSpec(4, 4+3*xp, hspace=0.0, wspace=0.05, 
+                    figure=fig)
+            
+            s = int(square)
             if show_Mstell:
-                ax_uvlf = fig.add_subplot(gs[:,0:2])
+                ax_uvlf = fig.add_subplot(gs[:4,0:2])
                 ax_cmr4 = fig.add_subplot(gs[0,2:4])
                 ax_cmr6 = fig.add_subplot(gs[1,2:4])
                 ax_cmr8 = fig.add_subplot(gs[2,2:4])
                 ax_cmr10 = fig.add_subplot(gs[3,2:4])
                 
-                ax_smf = fig.add_subplot(gs[:,4:6])
-                ax_cMs4 = fig.add_subplot(gs[0,6:])
-                ax_cMs6 = fig.add_subplot(gs[1,6:])
-                ax_cMs8 = fig.add_subplot(gs[2,6:])
-                ax_cMs10 = fig.add_subplot(gs[3,6:]) 
+                ax_smf = fig.add_subplot(gs[s*5:,(1-s)*4:(1-s)*4+2])
+                ax_cMs4 = fig.add_subplot(gs[s*5+0, (1-s)*4+2:])
+                ax_cMs6 = fig.add_subplot(gs[s*5+1, (1-s)*4+2:])
+                ax_cMs8 = fig.add_subplot(gs[s*5+2, (1-s)*4+2:])
+                ax_cMs10 = fig.add_subplot(gs[s*5+3,(1-s)*4+2:]) 
                 
-                ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]       
+                ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]
             else:
-                ax_uvlf = fig.add_subplot(gs[:,0:2])
-                ax_cmr4 = fig.add_subplot(gs[0,2:])
-                ax_cmr6 = fig.add_subplot(gs[1,2:])
-                ax_cmr8 = fig.add_subplot(gs[2,2:])
-                ax_cmr10 = fig.add_subplot(gs[3,2:])
+                if xp:
+                    # cols, rows
+                    ax_extra = fig.add_subplot(gs[:,0:2])
+                else:
+                    ax_extra = None
+                      
+                ax_uvlf = fig.add_subplot(gs[:,0+3*xp:2+3*xp])
+                ax_cmr4 = fig.add_subplot(gs[0,2+3*xp:])
+                ax_cmr6 = fig.add_subplot(gs[1,2+3*xp:])
+                ax_cmr8 = fig.add_subplot(gs[2,2+3*xp:])
+                ax_cmr10 = fig.add_subplot(gs[3,2+3*xp:])
                 ax_cMs = []
                 ax_smf = None
                 
             ax_cmd = [ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10]
 
-            axes = ax_uvlf, ax_cmd, ax_smf, ax_cMs
+            axes = ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra
         
             had_axes = False
             
         else:
             had_axes = True
-            ax_uvlf, ax_cmd, ax_smf, ax_cMs = axes
+            ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra = axes
             ax_cmr4, ax_cmr6, ax_cmr8, ax_cmr10 = ax_cmd
             if show_Mstell:
                 ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10 = ax_cMs
                 
+        if type(pop) in [list, tuple]:
+            pops = pop
+        else:
+            pops = [pop]
             
+        if zcal is not None:
+            if type(zcal) != list:
+                zcal = [zcal]
+                
         l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
         f12 = read_lit('finkelstein2012')
@@ -291,30 +333,49 @@ class GalaxyPopulation(object):
         # Plot data
         ##
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
-        
+                
         ct_lf = 0
         ct_b = 0
         for j, z in enumerate(zall):
+            
+            zstr = round(z)
+            if z_only is not None:
+                if zstr != z_only:
+                    continue
 
             if z in z_uvlf:
                 _ax = self.PlotLF(z, ax=ax_uvlf, color=colors[z], mfc=colors[z],
                     mec=colors[z], sources=sources, round_z=0.21, use_labels=0)
-                ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
-                    xycoords='axes fraction', color=colors[z], ha='right', va='top')
-        
+                
+                if not had_axes:
+                    if zcal is not None and z in zcal:
+                        bbox = dict(facecolor='none', edgecolor=colors[z], fc='w',
+                            boxstyle='round,pad=0.3', alpha=1., zorder=1000)
+                    else:
+                        bbox = None    
+                        
+                    ax_uvlf.text(0.95, 0.25-0.05*ct_lf, r'$z \sim {}$'.format(z),  
+                        transform=ax_uvlf.transAxes, color=colors[z], ha='right', va='top',
+                        bbox=bbox)
+                                            
+                    #ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
+                    #    xycoords='axes fraction', color=colors[z], ha='right', va='top')
+
+
                 if show_Mstell:
                     _ax = self.PlotSMF(z, ax=ax_smf, color=colors[z], mfc=colors[z],
                         mec=colors[z], sources=sources, round_z=0.21)
-                    ax_smf.annotate(r'$z \sim {}$'.format(z), (0.05, 0.25-0.05*ct_lf), 
-                        xycoords='axes fraction', color=colors[z], ha='left', va='top')
-        
-                ct_lf += 1    
-        
+                    
+                    if not had_axes:
+                        ax_smf.annotate(r'$z \sim {}$'.format(z), (0.05, 0.25-0.05*ct_lf), 
+                            xycoords='axes fraction', color=colors[z], ha='left', va='top')
+
+                ct_lf += 1
+
             if z not in z_beta:
                 continue
-                        
+
             if z in b14.data['beta']:
-        
                 err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
                 ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], 
                     yerr=err, 
@@ -328,8 +389,20 @@ class GalaxyPopulation(object):
             #        **mkw)
             
             if not had_axes:
-                ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
-                    ha='right', va='top', xycoords='axes fraction', color=colors[z])
+                
+                if zcal is not None and z in zcal:
+                    bbox= dict(facecolor='none', edgecolor=colors[z], fc='w',
+                        boxstyle='round,pad=0.3', alpha=1., zorder=1000)
+                else:
+                    bbox = None    
+                    
+                ax_cmd[j].text(0.05, 0.05, r'$z \sim {}$'.format(z),  
+                    transform=ax_cmd[j].transAxes, color=colors[z], 
+                    ha='left', va='bottom', bbox=bbox)
+                
+                #ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
+                #    ha='right', va='top', xycoords='axes fraction', color=colors[z])
+                
             ct_b += 1
             
             if not show_Mstell:
@@ -338,8 +411,8 @@ class GalaxyPopulation(object):
             if z in f12.data['beta']:    
                 err = f12.data['beta'][z]['err']
                 ax_cMs[j].errorbar(10**f12.data['beta'][z]['Ms'], 
-                    f12.data['beta'][z]['beta'], err.T[-1::-1], 
-                    fmt='o', color=colors[z], 
+                    f12.data['beta'][z]['beta'], err.T[-1::-1],
+                    fmt='o', color=colors[z],
                     label=r'Finkelstein+ 2012' if j == 0 else None,
                     **mkw)
                         
@@ -353,70 +426,127 @@ class GalaxyPopulation(object):
         hst_deep = b14.filt_deep
         calzetti = read_lit('calzetti1994').windows
         
-        for j, z in enumerate(zall):
-            zstr = round(z)
-            
-            if z in z_uvlf:
-                phi = pop.LuminosityFunction(z, mags)
-    
-                ax_uvlf.semilogy(mags, phi, color=colors[z],
-                    label=label if j == 0 else None, **kwargs)
-
-                if show_Mstell:
-                    phi = pop.StellarMassFunction(z, bins=Ms)
-                    ax_smf.semilogy(10**Ms, phi, color=colors[z], **kwargs)    
-            
-            if z not in z_beta:
-                continue
-            
-            if zstr >= 7:
-                hst_filt = hst_deep
-            else:
-                hst_filt = hst_shallow
-
-            cam = 'wfc', 'wfc3' if zstr <= 7 else 'nircam'    
-            filt = hst_filt[zstr] if zstr <= 7 else None
-            fset = None if zstr <= 7 else 'M'
-
-            _mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
-                cam=cam, filters=filt, filter_set=fset, rest_wave=None)
-             
-            if beta_phot:
-                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                    dlam=20.)
-            else:
-                beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    rest_wave=(1600., 3000.), dlam=20.)
-            
-            # Mask 
-            ok = np.logical_and(np.isfinite(beta), beta > -99999)
-                                                      
-            ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors[z], **kwargs)
-            
-            if show_Mstell:
+        uvlf_by_pop = {}
+        smf_by_pop = {}
+        bphot_by_pop = {}
+        bc94_by_pop = {}
+        for h, pop in enumerate(pops):
+        
+            uvlf_by_pop[h] = {}
+            smf_by_pop[h] = {}
+            bphot_by_pop[h] = {}
+            bc94_by_pop[h] = {}
+        
+            for j, z in enumerate(zall):
+                zstr = round(z)
                 
-                _beta_c94 = pop.Beta(z, return_binned=False,
-                    cam='calzetti', filters=calzetti, dlam=dlam_c94, 
-                    rest_wave=None)
-
-                # _beta_c94 is 'raw', i.e., unbinned UV slopes for all halos.
-                # Just need to bin as function of stellar mass.
-                _Ms = pop.get_field(z, 'Ms')
-                _nh = pop.get_field(z, 'nh')
-                _x, _b, _err = bin_samples(np.log10(_Ms), _beta_c94, Ms, 
-                    weights=_nh)
+                if z_only is not None:
+                    if zstr != z_only:
+                        continue
                 
-                ax_cMs[j].plot(10**_x, _b, color=colors[z], **kwargs)
-                ax_cMs[j].annotate(r'$z \sim {}$'.format(z), (0.05, 0.95), 
-                    ha='left', va='top', xycoords='axes fraction', color=colors[z])
-                
-            if repeat_z and j == 0:
-                for k in range(1, 4):
-                    ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
+                if z in z_uvlf:
+                    phi = pop.LuminosityFunction(z, mags)
+                    uvlf_by_pop[h][z] = phi
+                    
+                    if not fill:
+                        ax_uvlf.semilogy(mags, phi, color=colors[z],
+                            label=label if j == 0 else None, **kwargs)
+            
                     if show_Mstell:
-                        ax_cMs[k].plot(10**Ms, _b, color=colors[z], **kwargs)
-                                        
+                        phi = pop.StellarMassFunction(z, bins=Ms)
+                        smf_by_pop[h][z] = phi
+                        
+                        if not fill:
+                            ax_smf.semilogy(10**Ms, phi, color=colors[z], **kwargs)    
+                
+                if z not in z_beta:
+                    continue
+                
+                if zstr >= 7:
+                    hst_filt = hst_deep
+                else:
+                    hst_filt = hst_shallow
+            
+                cam = 'wfc', 'wfc3' if zstr <= 7 else 'nircam'    
+                filt = hst_filt[zstr] if zstr <= 7 else None
+                fset = None if zstr <= 7 else 'M'
+            
+                _mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
+                    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+                 
+                if beta_phot:
+                    beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                        dlam=20.)
+                else:
+                    beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        rest_wave=(1600., 3000.), dlam=20.)
+                
+                bphot_by_pop[h][z] = beta
+                
+                # Mask 
+                ok = np.logical_and(np.isfinite(beta), beta > -99999)
+                if not fill:
+                    ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors[z], **kwargs)
+                
+                if show_Mstell:
+                    
+                    _beta_c94 = pop.Beta(z, return_binned=False,
+                        cam='calzetti', filters=calzetti, dlam=dlam_c94, 
+                        rest_wave=None)
+                                    
+                    # _beta_c94 is 'raw', i.e., unbinned UV slopes for all halos.
+                    # Just need to bin as function of stellar mass.
+                    _Ms = pop.get_field(z, 'Ms')
+                    _nh = pop.get_field(z, 'nh')
+                    _x, _b, _err = bin_samples(np.log10(_Ms), _beta_c94, Ms, 
+                        weights=_nh)
+                        
+                    bc94_by_pop[h][z] = _b
+                    
+                    if not fill:
+                        ax_cMs[j].plot(10**_x, _b, color=colors[z], **kwargs)
+                        
+                    ax_cMs[j].annotate(r'$z \sim {}$'.format(z), (0.05, 0.95), 
+                        ha='left', va='top', xycoords='axes fraction', color=colors[z])
+                    
+                if repeat_z and (j == 0) and (not fill):
+                    for k in range(1, 4):
+                        ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
+                        if show_Mstell:
+                            ax_cMs[k].plot(10**Ms, _b, color=colors[z], **kwargs)
+        
+        ##
+        # Plot filled contours under certain conditions
+        if fill and len(pops) == 2:
+            for j, z in enumerate(zall):
+                zstr = round(z)
+                
+                if z_only is not None:
+                    if zstr != z_only:
+                        continue
+                
+                if z in z_uvlf:
+                    ax_uvlf.fill_between(mags, uvlf_by_pop[0][z], 
+                        uvlf_by_pop[1][z], color=colors[z],
+                        label=label if j == 0 else None, **kwargs)
+                        
+                    if show_Mstell:
+                        ax_smf.fill_between(10**Ms, smf_by_pop[0][z], 
+                            smf_by_pop[1][z], color=colors[z], **kwargs)
+                
+                if z not in z_beta:
+                    continue        
+                
+                #ok = np.logical_and(np.isfinite(beta), beta > -99999)
+                                                              
+                ax_cmd[j].fill_between(mags_cr, bphot_by_pop[0][z], 
+                    bphot_by_pop[1][z], color=colors[z], **kwargs)
+                    
+                if show_Mstell:    
+                    ax_cMs[j].fill_between(10**Ms, bc94_by_pop[0][z], 
+                        bc94_by_pop[1][z], color=colors[z], **kwargs)
+                                            
         ##
         # Clean-up
         ##
@@ -466,12 +596,13 @@ class GalaxyPopulation(object):
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
                 ax.set_ylim(-2.9, -1.)
                 ax.yaxis.set_ticks_position('both')    
+                
                 if i < 3:
                     ax.set_xticklabels([])
                 else:
                     ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         
-        return ax_uvlf, ax_cmd, ax_smf, ax_cMs
+        return ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra
         
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
         wave_lo=1300., wave_hi=2600., which_nircam='W', **kwargs):
@@ -871,10 +1002,13 @@ class GalaxyPopulation(object):
         if quantity == 'lf' and ((not gotax) or force_labels):
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
-            ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
+            ax.set_xlabel(r'$M_{\mathrm{UV}}$')
             ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         elif quantity == 'smf' and ((not gotax) or force_labels):
-            ax.set_xscale('log')
+            try:
+                ax.set_xscale('log')
+            except ValueError:
+                pass
             ax.set_xlim(1e7, 1e13)
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')

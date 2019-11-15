@@ -55,7 +55,7 @@ class CalibrateModel(object):
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
-        save_lf=True, save_smf=False, save_sam=False,
+        save_lf=True, save_smf=False, save_sam=False, include_fyield=False,
         save_sfrd=False, save_beta=False, save_dust=False, zmap={}):
         """
         Calibrate a galaxy model to available data.
@@ -97,6 +97,7 @@ class CalibrateModel(object):
         
         self.include_dust = include_dust
         self.include_fduty = include_fduty
+        self.include_fyield = include_fyield
 
         # Set SFE free parameters
         self.free_params_sfe = free_params_sfe        
@@ -251,9 +252,9 @@ class CalibrateModel(object):
                 # Peak mass
                 if 'peak' in self.free_params_sfe:
                     free_pars.append('pq_func_par1[0]')
-                    guesses['pq_func_par1[0]'] = 11.
+                    guesses['pq_func_par1[0]'] = 11.5
                     is_log.extend([True])
-                    jitter.extend([0.1])
+                    jitter.extend([0.3])
                     ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[0]')
                     
                     if 'peak' in self.zevol_sfe:
@@ -344,6 +345,7 @@ class CalibrateModel(object):
                     ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[22]')
                                         
                     if 'norm' in self.zevol_dust:
+                        assert self.include_dust == 'screen'
                         free_pars.append('pq_func_par4[22]')
                         guesses['pq_func_par4[22]'] = 0.
                         is_log.extend([False])
@@ -358,7 +360,6 @@ class CalibrateModel(object):
                     ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
 
                     if self.include_dust in ['screen-dpl', 'patchy']:
-                        raise NotImplemented('help')
                         free_pars.append('pq_func_par3[22]')
                         guesses['pq_func_par3[22]'] = 0.45
                         is_log.extend([False])
@@ -366,16 +367,16 @@ class CalibrateModel(object):
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                 if 'peak' in self.free_params_dust:
-                    raise NotImplemented('help')
                     assert self.include_dust in ['screen-dpl', 'patchy']
                     
-                    free_pars.append('pq_func_par0[24]')
-                    guesses['pq_func_par0[24]'] = 11.5
+                    free_pars.append('pq_func_par1[22]')
+                    guesses['pq_func_par1[22]'] = 11.5
                     is_log.extend([True])
                     jitter.extend([0.5])
-                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par0[24]')                    
+                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[22]')                    
 
                     if 'peak' in self.zevol_dust:
+                        raise NotImplemented('help')
                         free_pars.append('pq_func_par2[24]')
                         guesses['pq_func_par2[24]'] = 0.0
                         is_log.extend([False])
@@ -411,30 +412,37 @@ class CalibrateModel(object):
                       
                 if 'yield' in self.free_params_dust:
                     
-                    free_pars.extend(['pq_func_par0[27]', 'pq_func_par2[27]'])
-                    guesses['pq_func_par0[27]'] = 0.3
-                    guesses['pq_func_par2[27]'] = 0.
+                    assert self.include_fyield
+                    
+                    free_pars.extend(['pq_func_par0[50]', 'pq_func_par2[50]'])
+                    guesses['pq_func_par0[50]'] = 0.3
+                    guesses['pq_func_par2[50]'] = 0.
                     is_log.extend([False, False])
                     jitter.extend([0.1, 1.0])
-                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[27]')
-                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[27]')
+                    ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[50]')
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[50]')
 
                     if 'yield' in self.zevol_dust:
-                        free_pars.append('pq_func_par4[27]')
-                        guesses['pq_func_par4[27]'] = 0.0
+                        free_pars.append('pq_func_par4[50]')
+                        guesses['pq_func_par4[50]'] = 0.0
                         is_log.extend([False])
                         jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[27]')
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[50]')
                       
                 if 'scatter' in self.free_params_dust:
-                    
-                    free_pars.extend(['pq_func_par0[33]', 'pq_func_par2[33]'])
+                    free_pars.extend(['pq_func_par0[33]'])
                     guesses['pq_func_par0[33]'] = 0.3
-                    guesses['pq_func_par2[33]'] = 0.
-                    is_log.extend([False, False])
-                    jitter.extend([0.1, 0.1])
+                    is_log.extend([False])
+                    jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[33]')
-                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[33]')
+                    
+                
+                    if 'scatter-slope' in self.free_params_dust:
+                        free_pars.extend(['pq_func_par2[33]'])
+                        guesses['pq_func_par2[33]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.1])
+                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[33]')
                 
                     if 'scatter' in self.zevol_dust:
                         free_pars.append('pq_func_par4[33]')
@@ -583,6 +591,20 @@ class CalibrateModel(object):
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
         
+        if self.include_fyield:
+            blob_n = ['fyield']
+            blob_i = [('z', redshifts), ('Mh', Mh)]
+
+            if self.use_ensemble:
+                blob_f = ['guide.dust_yield']
+            else:
+                blob_f = ['dust_yield']
+
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(blob_f)
+            blob_pars['blob_kwargs'].append(None)    
+        
         # SAM stuff
         if self.save_sam:
             blob_n = ['SFR', 'SMHM']
@@ -618,7 +640,7 @@ class CalibrateModel(object):
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
         
-        # Covering factor and scale length    
+        # Covering factor and scale length
         if self.save_dust:
             blob_n = ['dust_scale']
             blob_i = [('z', redshifts), ('Mh', Mh)]
@@ -718,20 +740,23 @@ class CalibrateModel(object):
         
             if self.include_fduty:
                 self._base_kwargs.update(PB('in_prep:fduty').pars_by_pop(0, 1))
-        
+                
+            if self.include_fyield:
+                self._base_kwargs.update(PB('in_prep:fyield').pars_by_pop(0, 1))
+            
         # Initialize with best guesses mostly for debugging purposes
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
                 self._base_kwargs[par] = 10**self.guesses[par]
             else:
                 self._base_kwargs[par] = self.guesses[par]
-        
+
         return self._base_kwargs
-        
+
     def update_kwargs(self, **kwargs):
         bkw = self.base_kwargs
         self._base_kwargs.update(kwargs)
-        
+
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
         cache_tricks=False, burn_method=0, recenter=False):
