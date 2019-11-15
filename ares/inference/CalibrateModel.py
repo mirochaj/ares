@@ -740,6 +740,7 @@ class CalibrateModel(object):
         
             if self.include_fduty:
                 self._base_kwargs.update(PB('in_prep:fduty').pars_by_pop(0, 1))
+                
             if self.include_fyield:
                 self._base_kwargs.update(PB('in_prep:fyield').pars_by_pop(0, 1))
             
@@ -749,13 +750,13 @@ class CalibrateModel(object):
                 self._base_kwargs[par] = 10**self.guesses[par]
             else:
                 self._base_kwargs[par] = self.guesses[par]
-        
+
         return self._base_kwargs
-        
+
     def update_kwargs(self, **kwargs):
         bkw = self.base_kwargs
         self._base_kwargs.update(kwargs)
-        
+
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
         cache_tricks=False, burn_method=0, recenter=False):

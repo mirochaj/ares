@@ -898,7 +898,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         bin_c = bin_e2c(bin_e)
 
-        phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)                
+        phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
         
         if units == 'dex':
             # Convert to dex**-1 units

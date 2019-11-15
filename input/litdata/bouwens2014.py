@@ -11,7 +11,6 @@ redshifts = [4, 5, 6, 7, 8]
 wavelength = None
 units = {'beta': 1.}
 
-
 _data = \
 {
  4: {'M': np.arange(-21.75, -15.25, 0.5),

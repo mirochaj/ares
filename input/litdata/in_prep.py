@@ -90,18 +90,8 @@ _screen = \
  'pq_func_par4[22]{0}': 0.,    
 }
 
-_screen_best = \
-{
- 'pq_func_par0[1]{0}': 0.0486191550793195,
- 'pq_func_par0[2]{0}': 778500431735.2164,
- 'pq_func_par0[3]{0}': 0.5124444731982576,
- 'pq_func_par0[4]{0}': 0.03708330190131004,
- 'pq_func_par2[22]{0}': 0.46260876352941155,
- 'pq_func_par0[23]{0}': 1.3886146855924113,
-}
-
 screen = _screen.copy()
-screen.update(_screen_best)
+#screen.update(_screen_best)
 
 _screen_dpl = \
 {

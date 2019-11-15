@@ -300,7 +300,7 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
-def bin_samples(x, y, xbin_c, weights=None, limits=False):
+def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None):
     """
     Take samples and bin up.
     """
@@ -335,7 +335,12 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False):
         
         yavg.append(np.average(f, weights=weights[ok==1]))
         
-        if limits:
+        if percentile is not None:
+            q1 = 0.5 * 100 * (1. - percentile)
+            q2 = 100 * percentile + q1                
+            lo, hi = np.percentile(f, (q1, q2))
+            ystd.append((lo, hi))
+        elif limits:
             ystd.append((np.min(f), np.max(f)))
         else:        
             ystd.append(np.std(f))

@@ -33,7 +33,7 @@ except ImportError:
 
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
-def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
+def what_filters(z, fset, wave_lo=1300., wave_hi=2600., picky=True):
     """
     Given a redshift and a full filter set, return the filters that probe
     the rest UV continuum only.
@@ -50,9 +50,13 @@ def what_filters(z, fset, wave_lo=1300., wave_hi=2600.):
         
         fhi = mid + dx[0]
         flo = mid - dx[1]
-                
-        if not ((flo >= l1) and (fhi <= l2)):
-            continue
+        
+        if picky:
+            if not ((flo >= l1) and (fhi <= l2)):
+                continue
+        else:
+            if not ((flo <= l1 <= fhi) or (flo <= l2 <= fhi)):
+                continue
         
         out.append(filt)
         

@@ -251,8 +251,8 @@ class GalaxyPopulation(object):
                 dims = (24, 6)
                 nrows = 4
                 ncols = 8
-                hs = 0.8
-                ws = 0.
+                hs = 0.1
+                ws = 0.8
 
             if show_Mstell and show_MUV:
                 fig = pl.figure(tight_layout=False, figsize=dims, num=fig)
@@ -270,19 +270,19 @@ class GalaxyPopulation(object):
                 gs = gridspec.GridSpec(4, 4+3*xp, hspace=0.0, wspace=0.05, 
                     figure=fig)
             
-            s = square    
+            s = int(square)
             if show_Mstell:
-                ax_uvlf = fig.add_subplot(gs[:4*s,0:2])
+                ax_uvlf = fig.add_subplot(gs[:4,0:2])
                 ax_cmr4 = fig.add_subplot(gs[0,2:4])
                 ax_cmr6 = fig.add_subplot(gs[1,2:4])
                 ax_cmr8 = fig.add_subplot(gs[2,2:4])
                 ax_cmr10 = fig.add_subplot(gs[3,2:4])
                 
-                ax_smf = fig.add_subplot(gs[s*5:,(1-s)*4:(1-s)*5+2])
-                ax_cMs4 = fig.add_subplot(gs[s*5+0, (1-s)*5+2:])
-                ax_cMs6 = fig.add_subplot(gs[s*5+1, (1-s)*5+2:])
-                ax_cMs8 = fig.add_subplot(gs[s*5+2, (1-s)*5+2:])
-                ax_cMs10 = fig.add_subplot(gs[s*5+3,(1-s)*5+2:]) 
+                ax_smf = fig.add_subplot(gs[s*5:,(1-s)*4:(1-s)*4+2])
+                ax_cMs4 = fig.add_subplot(gs[s*5+0, (1-s)*4+2:])
+                ax_cMs6 = fig.add_subplot(gs[s*5+1, (1-s)*4+2:])
+                ax_cMs8 = fig.add_subplot(gs[s*5+2, (1-s)*4+2:])
+                ax_cMs10 = fig.add_subplot(gs[s*5+3,(1-s)*4+2:]) 
                 
                 ax_cMs = [ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]
             else:
@@ -317,6 +317,10 @@ class GalaxyPopulation(object):
             pops = pop
         else:
             pops = [pop]
+            
+        if zcal is not None:
+            if type(zcal) != list:
+                zcal = [zcal]
                 
         l11 = read_lit('lee2011')
         b14 = read_lit('bouwens2014')
@@ -344,9 +348,9 @@ class GalaxyPopulation(object):
                     mec=colors[z], sources=sources, round_z=0.21, use_labels=0)
                 
                 if not had_axes:
-                    if zcal is not None and z == zcal:
-                        bbox = dict(facecolor='none', edgecolor=colors[z], 
-                            boxstyle='round,pad=0.2')
+                    if zcal is not None and z in zcal:
+                        bbox = dict(facecolor='none', edgecolor=colors[z], fc='w',
+                            boxstyle='round,pad=0.3', alpha=1., zorder=1000)
                     else:
                         bbox = None    
                         
@@ -386,9 +390,9 @@ class GalaxyPopulation(object):
             
             if not had_axes:
                 
-                if zcal is not None and z == zcal:
-                    bbox= dict(facecolor='none', edgecolor=colors[z], 
-                        boxstyle='round,pad=0.2')
+                if zcal is not None and z in zcal:
+                    bbox= dict(facecolor='none', edgecolor=colors[z], fc='w',
+                        boxstyle='round,pad=0.3', alpha=1., zorder=1000)
                 else:
                     bbox = None    
                     
