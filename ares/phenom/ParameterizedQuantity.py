@@ -269,7 +269,7 @@ class DoublePowerLawExtended(BasePQ):
         return y        
 
 class DoublePowerLawEvolvingNorm(BasePQ):
-    def __call__(self, **kwargs):     
+    def __call__(self, **kwargs):
         x = kwargs[self.x]
         
         # Normalization evolves

@@ -529,6 +529,7 @@ def PopulationParameters():
     "pop_synth_Mmax": 1e14,
     "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
     "pop_synth_cache_level": 1, # Bigger = more careful
+    "pop_synth_age_interp": 'cubic',
     
     "pop_tau_bc": 0,
     "pop_age_bc": 10.,
@@ -889,6 +890,8 @@ def SynthesisParameters():
     # Only used by toy SPS
     "source_dE": None,
     "source_dlam": 1.,
+    "source_Emin": 1.,
+    "source_Emax": 54.4,
     }
 
     return pf

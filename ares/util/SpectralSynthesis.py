@@ -287,7 +287,7 @@ class SpectralSynthesis(object):
                 _f = 10**(_y / -2.5) * flux_AB / _dwdn
                 y = _f[ok==1]   
                 ma = np.max(y) 
-                guess = np.array([ma, -2.5])                
+                guess = np.array([ma, -2.])                
             
             if ok.sum() == 2 and self.pf['verbose']:
                 print("WARNING: Estimating slope at z={} from only two points: {}".format(zobs, 
@@ -321,16 +321,18 @@ class SpectralSynthesis(object):
                     
                     if not np.any(y[:,i] > 0):
                         continue
+                        
+                    err = 1. / np.sqrt(10**y[:,i])    
                     
                     try:
                         popt[:,i], pcov[:,:,i] = curve_fit(func, x, y[:,i], 
-                            p0=guess[i], maxfev=1000)
+                            p0=guess[i], maxfev=10000)
                     except RuntimeError:
                         popt[:,i], pcov[:,:,i] = -99999, -99999
                             
             else:
                 try:
-                    popt, pcov = curve_fit(func, x, y, p0=guess)
+                    popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=10000)
                 except RuntimeError:
                     popt, pcov = -99999 * np.ones(2), -99999 * np.ones(2)
                         
@@ -369,12 +371,13 @@ class SpectralSynthesis(object):
         
         Parameters
         ----------
-        wave : np.ndarray
-            Rest wavelengths in [Angstrom]
+        zobs : int, float
+            Redshift of observation.
+        waves : np.ndarray
+            Simulate spectrum at these rest wavelengths [Angstrom]
         spec : np.ndarray
             Specific luminosities in [erg/s/A]
-        z : int, float
-            Redshift.
+        
         
         Returns
         -------
@@ -445,7 +448,7 @@ class SpectralSynthesis(object):
         filter_set=None, dlam=10., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None, 
         hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
-        ospec=None, owaves=None):
+        ospec=None, owaves=None, load=True):
         """
         Just a wrapper around `Spectrum`.
 
@@ -563,7 +566,7 @@ class SpectralSynthesis(object):
         if (spec is None) and (ospec is None):
             spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
-                idnum=idnum, extras=extras, window=window)
+                idnum=idnum, extras=extras, window=window, load=load)
                 
             # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
             wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
@@ -634,7 +637,7 @@ class SpectralSynthesis(object):
         xphot = np.array(xphot)
         wphot = np.array(wphot)
         yphot_corr = np.array(yphot_corr)
-        
+                
         # Convert to magnitudes and return
         return all_filters, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
         
@@ -645,13 +648,14 @@ class SpectralSynthesis(object):
         This is just a wrapper around `Luminosity`.
         """
         
+        # Select single row of SFH array if `idnum` provided.
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
         
         batch_mode = sfh.ndim == 2
         time_series = (zobs is None) and (tobs is None)
         
-        # Shape of output array depends on some input parameters
+        # Shape of output array depends on some input parameters.
         shape = []
         if batch_mode:
             shape.append(sfh.shape[0])
@@ -811,8 +815,13 @@ class SpectralSynthesis(object):
             'window', 'band', 'hist', 'extras', 'load')                
                         
         ct = -1
+        
         # Loop through keys to do more careful comparison for unhashable types.
-        for keyset in self._cache_lum_.keys():
+        all_keys = self._cache_lum_.keys()
+        
+        # Search in reverse order since we often the keys represent different
+        # wavelengths, which are generated in ascending order.
+        for keyset in all_keys[-1::-1]:
 
             ct += 1
 
@@ -881,13 +890,14 @@ class SpectralSynthesis(object):
                 
             # If we're here, load this thing.
             break        
-            
-        t2 = time.time()    
-            
+
+        t2 = time.time()
+
         if notok < 0:
-            return kwds, None          
+            return kwds, None
         elif notok == 0:
-            #print("Loaded from cache! Took N={} iterations, {} sec to find match".format(ct, t2 - t1))
+            if (self.pf['verbose'] and self.pf['debug']):
+                print("Loaded from cache! Took N={} iterations, {} sec to find match".format(ct, t2 - t1))
             # Recall that this is (kwds, data)
             return self._cache_lum_[keyset]
         else:
@@ -899,7 +909,7 @@ class SpectralSynthesis(object):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
-        
+
         Parameters
         ----------
         sfh : np.ndarray
@@ -913,8 +923,8 @@ class SpectralSynthesis(object):
             supply if not passing `tarr` argument.
         wave : int, float
             Wavelength of interest [Angstrom]
-        window : int, float
-            Average over interval about `wave`? [Angstrom]
+        window : int
+            Average over interval about `wave`. [Angstrom]
         zobs : int, float   
             Redshift of observation.
         tobs : int, float   
@@ -923,14 +933,13 @@ class SpectralSynthesis(object):
         hist : dict
             Extra information we may need, e.g., metallicity, dust optical 
             depth, etc. to compute spectrum.
-        
+
         Returns
         -------
         Luminosity at wavelength=`wave` in units of erg/s/Hz.
         
-        
         """
-        
+                
         setup_1 = (sfh is not None) and \
             ((tarr is not None) or (zarr is not None))
         setup_2 = hist != {}
@@ -942,7 +951,7 @@ class SpectralSynthesis(object):
         #    "Must supply time or redshift of observation, `tobs` or `zobs`!"
         
         assert setup_1 or setup_2
-                
+        
         if setup_1:
             assert (sfh is not None)
         elif setup_2:
@@ -956,7 +965,7 @@ class SpectralSynthesis(object):
 
         kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr, 
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist, 
-            'extras':extras}
+            'extras':extras, 'window': window}
 
         if load:
             _kwds, cached_result = self._cache_lum(kw)
@@ -1009,7 +1018,7 @@ class SpectralSynthesis(object):
                     "Requested time of observation (`tobs={}`) not in supplied range ({}, {})!".format(tobs, 
                         tarr.min(), tarr.max())
             
-        # Prepare slice through time-axis.    
+        # Prepare slice through time-axis.
         if zobs is None:
             slc = Ellipsis
             izobs = None
@@ -1052,11 +1061,13 @@ class SpectralSynthesis(object):
             #raise NotImplemented('help!')
         else:
             Loft = self.src.L_per_SFR_of_t(wave, avg=window)
+            
+        #print("Synth. Lum = ", wave, window)    
         #
 
         # Setup interpolant for luminosity as a function of SSP age.      
         _func = interp1d(np.log(self.src.times), np.log(Loft),
-            kind='cubic', bounds_error=False, 
+            kind=self.pf['pop_synth_age_interp'], bounds_error=False, 
             fill_value=Loft[-1])
             
         # Extrapolate linearly at times < 1 Myr
@@ -1341,7 +1352,6 @@ class SpectralSynthesis(object):
                         
                         pb.finish()
                              
-        
         ##
         # Will be unhashable types so just save to a unique identifier
         ##                          

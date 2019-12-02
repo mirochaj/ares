@@ -270,6 +270,7 @@ class SynthesisMaster(Source):
             if Z is not None:
                 raise NotImplemented('hey!')
             assert avg % 2 != 0, "avg must be odd"
+            avg = int(avg)
             s = (avg - 1) / 2
             if units == 'Hz':
                 yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
