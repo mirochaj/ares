@@ -81,7 +81,7 @@ os.chdir('input')
 files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
-        to_download = ['inits', 'secondary_electrons', 'hmf']
+        to_download = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3']
         files = [None, None, None]
     elif 'clean' in options:
         to_download = aux_data.keys()
