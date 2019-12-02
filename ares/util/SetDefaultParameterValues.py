@@ -171,6 +171,9 @@ def AbsorberParameters():
     'cddf_gamma': 1.5,
     'cddf_zlow': 1.5,
     'cddf_gamma_low': 0.2,
+    
+    'absorption_model': None,
+    
     }
     
     pf.update(rcParams)

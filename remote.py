@@ -57,7 +57,7 @@ aux_data = \
  'nircam': ['https://jwst-docs.stsci.edu/files/73022379/73022381/1/1486438006000',
      'nircam_throughputs_22April2016_v4.tar.gz',
      None],
- 'wfc3': ['http://www.stsci.edu/hst/wfc3/ins_performance/throughputs/Throughput_Tables/',
+ 'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
     'IR.zip',
      None],
  'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
