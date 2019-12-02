@@ -46,10 +46,6 @@ def test(tol=0.25):
     wave_lo = np.min(c94_windows)
     wave_hi = np.max(c94_windows)
     
-    nircam = ares.util.Survey(cam='nircam')
-    nircam_M = nircam._read_nircam(filter_set='M')
-    nircam_W = nircam._read_nircam(filter_set='W')
-    
     waves = np.arange(900., 3000., 10.)
     load = False
     
@@ -66,10 +62,6 @@ def test(tol=0.25):
         else:
             filt_hst = hst_shallow
              
-        nircam_z_M = what_filters(z, nircam_M, wave_lo, wave_hi)
-        nircam_z_W = what_filters(z, nircam_W, wave_lo, wave_hi)
-        filt_jwst = tuple(nircam_z_M + nircam_z_W)    
-    
         hist = pop.histories
         owaves, oflux = pop.synth.ObserveSpectrum(zobs=z, sfh=hist['SFR'], 
             tarr=hist['t'], zarr=hist['z'], waves=waves, hist=hist, 
