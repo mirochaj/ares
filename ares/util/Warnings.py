@@ -14,19 +14,7 @@ import sys, os
 import numpy as np
 import sys, textwrap, os
 from .PrintInfo import twidth, line, tabulate
-
-try:
-    from hmf import MassFunction
-    have_hmf = True
-except ImportError:
-    have_hmf = False
-    
-try:
-    import pycamb
-    have_pycamb = True
-except ImportError:
-    have_pycamb = False
-    
+        
 ARES = os.getenv('ARES')
 have_ARES_env = ARES is not None
 
@@ -257,7 +245,19 @@ def no_hmf(hmf):
         correct? Have you sourced your .bashrc or .cshrc (or equivalent) to 
         ensure that it is defined? 
         """
-
+    
+    try:
+        from hmf import MassFunction
+        have_hmf = True
+    except ImportError:
+        have_hmf = False
+    
+    try:
+        import pycamb
+        have_pycamb = True
+    except ImportError:
+        have_pycamb = False
+    
     if not (have_pycamb and have_hmf):
         s = \
         """

@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Absorber', 'Old']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -446,6 +446,11 @@ def PopulationParameters():
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_psm_instance": None,
     "pop_src_instance": None,
+    
+    # Cache tricks: must be pickleable for MCMC to work.
+    "pop_sps_data": None,
+    "pop_hmf_data": None,
+    
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
@@ -533,6 +538,7 @@ def PopulationParameters():
     "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
     "pop_synth_cache_level": 1, # Bigger = more careful
     "pop_synth_age_interp": 'cubic',
+    "pop_synth_cache_phot": {},
     
     "pop_tau_bc": 0,
     "pop_age_bc": 10.,
@@ -796,6 +802,8 @@ def SourceParameters():
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
     "source_interpolant": None,
+    
+    "source_sps_data": None,
     
     # Log masses
     "source_imf_bins": np.arange(-1, 2.52, 0.02),  # bin centers

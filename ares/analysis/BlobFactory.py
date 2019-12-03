@@ -638,7 +638,7 @@ class BlobFactory(object):
                                                                 
                         kw.update({xn:x, yn:yarr})
                         result = func(**kw)
-                                                
+                                
                         # Happens when we save a blob that isn't actually
                         # a PQ (i.e., just a constant). Need to kludge so it
                         # doesn't crash.

@@ -665,20 +665,17 @@ class CalibrateModel(object):
             
             Mbins = np.arange(-30, -10, 1.0)
             
+            # This is fast
             blob_n = ['AUV']
             blob_i = [('z', red_beta), ('MUV', MUV)]
             blob_f = ['AUV']
-            # By default, MUV refers to 1600 magnitude
-            blob_k = [{'return_binned': True, 'cam': ('wfc', 'wfc3'), 
-                'filters': filt_hst, 'dlam': 20.,
-                'Mwave': 1600., 'magbins': Mbins}]
-                            
+
+            blob_k = [{'return_binned': True, 
+                'magbins': Mbins, 'Mwave': 1600.}]    
+            
             kw_hst = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
                 'dlam':20., 'rest_wave': None, 'return_binned': True,
-                'Mwave': 1600., 'Mbins': Mbins}
-
-            #kw_spec = {'dlam':700., 'rest_wave': (1600., 2300.),
-            #    'return_binned': True, 'Mwave': 1600.}
+                'Mbins': Mbins, 'Mwave': 1600.}
             
             blob_f.extend(['Beta'])
             blob_n.extend(['beta_hst'])
@@ -686,14 +683,11 @@ class CalibrateModel(object):
             
             # Save also the geometric mean of photometry as a function
             # of a magnitude at fixed rest wavelength.
-            kw_mag = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst,
-                'dlam': 20.}
-
-            # Save geometric mean magnitudes also
-            blob_n.append('MUV_gm')
-            blob_f.append('Magnitude')
-            blob_k.append(kw_mag)
-
+            #kw_mag = {'cam': ('wfc', 'wfc3'), 'filters': filt_hst, 'dlam':20.}
+            #blob_n.append('MUV_gm')
+            #blob_f.append('Magnitude')
+            #blob_k.append(kw_mag)
+            
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
             blob_pars['blob_funcs'].append(blob_f)

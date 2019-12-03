@@ -14,7 +14,6 @@ import re
 import os
 import copy
 import numpy as np
-import matplotlib.pyplot as pl
 from ..physics.Constants import c
 from ..physics.Cosmology import Cosmology
 
@@ -29,10 +28,12 @@ nanoJ = 1e-23 * 1e-9
 _path = os.environ.get('ARES') + '/input'
 
 class Survey(object):
-    def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False):
+    def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False,
+        cache={}):
         self.camera = cam
         self.chip = chip
         self.force_perfect = force_perfect
+        self.cache = cache
         
         if cam == 'nircam':
             self.path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path, mod)
@@ -93,6 +94,8 @@ class Survey(object):
         Plot transmission curves for NIRCAM filters.
         """
         
+        import matplotlib.pyplot as pl
+        
         if ax is None:
             fig = pl.figure(fig, figsize=(6, 6))
             ax = fig.add_subplot(111)
@@ -124,6 +127,19 @@ class Survey(object):
         return ax
     
     def _read_throughputs(self, filter_set='W', filters=None):
+        
+        if ((self.camera, None, 'all') in self.cache) and (filters is not None):
+            cached_phot = self.cache[(self.camera, None, 'all')]
+            
+            # Just grab the filters that were requested!
+            result = {}
+            for filt in filters:
+                if filt not in cached_phot:
+                    continue
+                result[filt] = cached_phot[filt]
+                
+            return result
+                
         if self.camera == 'nircam':
             return self._read_nircam(filter_set, filters)
         elif self.camera == 'wfc3':
@@ -137,8 +153,8 @@ class Survey(object):
 
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
-            
-        get_all = False    
+
+        get_all = False
         if filters is not None:
             if filters == 'all':
                 get_all = True

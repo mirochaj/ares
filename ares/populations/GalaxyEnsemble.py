@@ -1435,6 +1435,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         {
          'nh': nh,
          'Mh': Mh,
+         'MAR': MAR,  # May use this 
          't': t,
          'z': z,
          'child': child,
@@ -1748,7 +1749,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             #print("Mag load from cache:", wave, window)
             M, mags = cached_result
         else:
-            #print("Mag run from scratch:", wave, window)
             # Take monochromatic (or within some window) MUV     
             L = self.Luminosity(z, wave=wave, window=window)
             M = self.magsys.L_to_MAB(L, z=z)
@@ -1990,7 +1990,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return self._extras
         
     def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
-        filters=None, filter_set=None, dlam=10., method='fit', magmethod='gmean',
+        filters=None, filter_set=None, dlam=10., method='linear', magmethod='gmean',
         return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
         return_scatter=False, load=True, massbins=None, return_err=False):
         """
@@ -2003,10 +2003,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         MUV : int, float, np.ndarray
             Optional. Set of magnitudes at which to return Beta.
             Note: these need not be at the same wavelength as that used
-                  to compute Beta (see wave_MUV).
+                  to compute Beta (see Mwave).
         wave : int, float
             Wavelength at which to compute Beta.
-        wave_MUV : int, float
+        Mwave : int, float
             Wavelength assumed for input MUV. Allows us to return, e.g., the
             UV slope at 2200 Angstrom corresponding to input 1600 Angstrom
             magnitudes.
@@ -2356,6 +2356,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             ## Check to see if parameters match
             if self.pf['verbose']:
                 print("Need to check that HMF parameters match!")
+                
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']
             # Assume you know what you're doing.

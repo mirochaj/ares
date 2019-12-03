@@ -610,8 +610,8 @@ class ModelFit(FitBase):
     
     @save_src.setter
     def save_src(self, value):
-        self._save_src = value    
-    
+        self._save_src = value
+            
     @property
     def prior_set_P(self):
         if not hasattr(self, '_prior_set_P'):
@@ -1126,7 +1126,9 @@ class ModelFit(FitBase):
                     to_axe.append(key)    
             if re.search('hmf_table', key):
                 to_axe.append(key)
-            
+            if re.search('pop_synth_phot_cache', key):
+                to_axe.append(key)
+                
             # Apparently functions of any kind cause problems everywhere
             # but my laptop
             # 

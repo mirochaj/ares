@@ -569,7 +569,7 @@ class SynthesisModel(SynthesisMaster):
                 data = self.data
             
         return self._wavelengths    
-        
+                
     @property
     def weights(self):
         return self._litinst.weights  
@@ -597,6 +597,15 @@ class SynthesisModel(SynthesisMaster):
         
         """
         if not hasattr(self, '_data'):
+            
+            if self.pf['source_sps_data'] is not None:
+                _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
+                assert _Z == self.pf['source_Z']
+                assert _ssp == self.pf['source_ssp']
+                self._data = _data
+                self._times = _times
+                self._wavelengths = _waves
+                return self._data
             
             Zall_l = list(self.metallicities.values())
             Zall = np.sort(Zall_l)
