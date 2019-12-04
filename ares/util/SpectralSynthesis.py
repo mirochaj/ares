@@ -211,8 +211,8 @@ class SpectralSynthesis(object):
 
     def Slope(self, zobs=None, tobs=None, spec=None, waves=None, 
         sfh=None, zarr=None, tarr=None, hist={}, idnum=None,
-        cam=None, rest_wave=(1600., 2300.), band=None, 
-        return_norm=False, filters=None, filter_set=None, dlam=10.,
+        cam=None, rest_wave=None, band=None, 
+        return_norm=False, filters=None, filter_set=None, dlam=20.,
         method='linear', window=1, extras={}, picky=False, return_err=False):
         """
         Compute slope in some wavelength range or using photometry.
@@ -404,7 +404,8 @@ class SpectralSynthesis(object):
                 pcov = -99999 * np.ones((2, 2, N))        
                 
                 for i in range(N):
-                    popt[:,i] = np.linalg.lstsq(A, logy[:,i], rcond=None)[0][-1::-1]
+                    popt[:,i] = np.linalg.lstsq(A, logy[:,i], 
+                        rcond=None)[0][-1::-1]
             else:
                 popt = np.linalg.lstsq(A, logy, rcond=None)[0]
                 pcov = -99999 * np.ones(2)
@@ -614,11 +615,11 @@ class SpectralSynthesis(object):
                 cent_r = cent * 1e4 / (1. + zobs)
                 if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
                     continue
-
+                        
             lmin = min(lmin, cent - dx[1] * 1.2)
             lmax = max(lmax, cent + dx[0] * 1.2)
             ct += 1
-            
+                
         # No filters in range requested    
         if ct == 0:    
             return [], [], [], []
@@ -628,7 +629,7 @@ class SpectralSynthesis(object):
             # Convert from microns to Angstroms, undo redshift.
             lmin = lmin * 1e4 / (1. + zobs)
             lmax = lmax * 1e4 / (1. + zobs)
-                
+                            
             lmin = max(lmin, self.src.wavelengths.min())
             lmax = min(lmax, self.src.wavelengths.max())
             
@@ -638,7 +639,7 @@ class SpectralSynthesis(object):
             l2 = lmax + lbuffer
             
             waves = np.arange(l1, l2+dlam, dlam)
-                    
+                                
         # Get spectrum first.
         if (spec is None) and (ospec is None):
             spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
@@ -1180,6 +1181,7 @@ class SpectralSynthesis(object):
         
         # Start from initial redshift and move forward in time, i.e., from
         # high redshift to low.
+        
         for i, _tobs in enumerate(tarr):
                                     
             # If zobs is supplied, we only have to do one iteration
@@ -1315,7 +1317,7 @@ class SpectralSynthesis(object):
             ##
             if not do_all_time:
                 break
-                                   
+                                                                
         ##
         # Redden spectra
         ##

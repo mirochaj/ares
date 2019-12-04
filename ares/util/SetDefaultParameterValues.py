@@ -897,6 +897,7 @@ def SynthesisParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    "source_sps_data": None,
     
     # Only used by toy SPS
     "source_dE": None,

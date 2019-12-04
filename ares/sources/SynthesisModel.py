@@ -596,6 +596,7 @@ class SynthesisModel(SynthesisMaster):
         else.
         
         """
+        
         if not hasattr(self, '_data'):
             
             if self.pf['source_sps_data'] is not None:

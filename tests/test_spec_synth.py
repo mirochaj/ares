@@ -100,7 +100,7 @@ def test(show_bpass=False, oversample_age=30.):
     # e.g., do we recover UV slope of -2 if that's what we put in?
     ##
     
-    beta = pop1.Beta(6.)
+    beta = pop1.Beta(6., rest_wave=(1600., 2300.))
     mags = pop1.Magnitude(6.)
     
     ok = beta != -99999

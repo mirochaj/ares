@@ -42,8 +42,7 @@ try:
     have_pymp = True
 except ImportError:
     have_pymp = False
-    
-       
+           
 _linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
 _cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
        
@@ -96,6 +95,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._tab_dz = dz    
                 
         return self._tab_dz
+        
+    @property
+    def b14(self):
+        if not hasattr(self, '_b14'):
+            self._b14 = read_lit('bouwens2014')
+        return self._b14
         
     def run(self):
         return
@@ -1720,12 +1725,46 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def nebula(self):
         if not hasattr(self, '_nebula'):
             self._nebula = NebularEmission(cosm=self.cosm, **self.pf)
-   
         return self._nebula    
     
     def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None, 
-        filter_set=None, dlam=10., method='gmean', idnum=None, window=1,
-        load=True):
+        filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
+        load=True, presets=None):
+        """
+        Return the absolution magnitude of objects at specified wavelength
+        or as-estimated via given photometry.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of object(s)
+        wave : int, float
+            If `cam` and `filters` aren't supplied, return the monochromatic
+            AB magnitude at this wavelength [Angstroms].
+        cam : str, tuple
+            Single camera or tuple of cameras that contain the filters named
+            in `filters`, e.g., cam=('wfc', 'wfc3')
+        filters : tuple
+            List (well, tuple) of filters to be used in estimating the
+            magnitude of objects.
+        method : str
+            How to combined photometric measurements to estimate magnitude?
+            Can compute geometric mean (method='gmean'), can interpolate
+            between photometry to estimate magnitude at specified wavelength
+            `wave` (method='interp'), use filter closest to wavelength provided
+            (method='closest'), or return monochromatic magnitude (method='mono')
+        dlam : int, float
+            Wavelength resolution (in Angstrom) with which to sample underlying
+            spectra of objects. 20 is optimized for speed and accuracy.
+        window : int
+            Can optionally compute magnitude as the intrinsic spectrum 
+            centered at `wave` but convolved with a `window`-pixel boxcar.
+            
+            
+        """
+        if presets is not None:
+            filter_set = None
+            cam, filters = self._get_presets(z, presets)
         
         if type(filters) is dict:
             filters = filters[round(z)]
@@ -1989,10 +2028,31 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 self._extras = {}
         return self._extras
         
-    def Beta(self, z, waves=None, rest_wave=(1600., 2300.), cam=None,
-        filters=None, filter_set=None, dlam=10., method='linear', magmethod='gmean',
+    def _get_presets(self, z, presets):
+        """
+        Convenience routine to retrieve `cam` and `filters` via short-hand.
+        """
+        
+        zstr = int(round(z))
+        
+        if presets.lower() in ['hst', 'hubble']:
+            hst_shallow = self.b14.filt_shallow
+            hst_deep = self.b14.filt_deep
+            
+            if zstr >= 7:
+                filt_hst = hst_deep
+            else:
+                filt_hst = hst_shallow
+                
+            return ('wfc', 'wfc3'), filt_hst[z]    
+        else:
+            raise NotImplemented('No presets={} option yet!'.format(presets))        
+        
+    def Beta(self, z, waves=None, rest_wave=None, cam=None,
+        filters=None, filter_set=None, dlam=20., method='linear', magmethod='gmean',
         return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
-        return_scatter=False, load=True, massbins=None, return_err=False):
+        return_scatter=False, load=True, massbins=None, return_err=False,
+        presets=None):
         """
         UV slope for all objects in model.
 
@@ -2024,6 +2084,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Slopes at corresponding user-supplied MUV (assumed to be at 
             wavelength `wave_MUV`).
         """
+        
+        if presets is not None:
+            cam, filters = self._get_presets(z, presets)
                 
         if type(filters) is dict:
             filters = filters[round(z)]
@@ -2075,7 +2138,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # This will be the geometric mean of magnitudes in `cam` and
             # `filters` if they are provided!
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
-                method=magmethod)
+                method=magmethod, presets=presets)
                         
             MAB, beta, _std = bin_samples(_MAB, beta_r, Mbins, weights=nh)
         else:
@@ -2103,7 +2166,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return beta
         
     def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None, magbins=None, 
-        massbins=None, return_binned=False, filters=None, dlam=10.):
+        massbins=None, return_binned=False, filters=None, dlam=20.):
         """
         Compute UV extinction.
         
@@ -2166,7 +2229,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Otherwise, return raw (or binned) results
         return AUV
         
-    def dBeta_dMstell(self, z, dlam=10., Mstell=None, massbins=None):
+    def dBeta_dMstell(self, z, dlam=20., Mstell=None, massbins=None):
         """
         Compute gradient in UV color at fixed stellar mass.
         
@@ -2297,6 +2360,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def PDF(self, z, **kwargs):
         # Look at distribution in some quantity at fixed z, potentially other stuff.
         pass
+    
+    def prep_hist_for_cache(self):
+        keys = ['nh', 'MAR', 'Mh', 't', 'z']
+        hist = {key:self.histories[key][-1::-1] for key in keys}
+        return hist
     
     def load(self):
         """
