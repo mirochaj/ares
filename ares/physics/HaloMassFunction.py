@@ -274,7 +274,8 @@ class HaloMassFunction(object):
             
         if self.pf['pop_hmf_data'] is not None:
             self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
-                self.tab_ngtm, self.tab_Mmin_floor = self.pf['pop_hmf_data']            
+                self.tab_ngtm, self.tab_MAR, self.tab_Mmin_floor = \
+                    self.pf['pop_hmf_data']            
             return
             
         if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
@@ -516,7 +517,8 @@ class HaloMassFunction(object):
         self._tab_z = value
         
     def prep_for_cache(self):
-        keys = ['tab_z', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm', 'tab_Mmin_floor']
+        keys = ['tab_z', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm', 
+            'tab_MAR', 'tab_Mmin_floor']
         hist = [self.__getattribute__(key) for key in keys]
         return hist
                                     

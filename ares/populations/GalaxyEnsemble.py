@@ -2038,15 +2038,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if presets.lower() in ['hst', 'hubble']:
             hst_shallow = self.b14.filt_shallow
             hst_deep = self.b14.filt_deep
-            
+
             if zstr >= 7:
                 filt_hst = hst_deep
             else:
                 filt_hst = hst_shallow
-                
-            return ('wfc', 'wfc3'), filt_hst[z]    
+
+            return ('wfc', 'wfc3'), filt_hst[zstr]  
+            
+        elif presets.lower() in ['nircam', 'jwst']:
+            pass
         else:
-            raise NotImplemented('No presets={} option yet!'.format(presets))        
+            raise NotImplemented('No presets={} option yet!'.format(presets))
         
     def Beta(self, z, waves=None, rest_wave=None, cam=None,
         filters=None, filter_set=None, dlam=20., method='linear', magmethod='gmean',
