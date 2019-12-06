@@ -43,7 +43,7 @@ _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
 acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield', 'scatter',
-    'kappa']
+    'kappa', 'slope-high']
 
 class CalibrateModel(object):
     """
@@ -261,8 +261,8 @@ class CalibrateModel(object):
                         free_pars.append('pq_func_par7[0]')
                         guesses['pq_func_par7[0]'] = 0.
                         is_log.extend([False])
-                        jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par7[0]')
+                        jitter.extend([2.])
+                        ps.add_distribution(UniformDistribution(-5, 5.), 'pq_func_par7[0]')
                         
                 # Slope at low-mass side of peak
                 if 'slope-low' in self.free_params_sfe:                    
@@ -274,12 +274,11 @@ class CalibrateModel(object):
                     
                     # Allow to evolve with redshift?
                     if 'slope-low' in self.zevol_sfe:
-                        raise NotImplemented('Needs fixing after PQ overhaul.')
-                        free_pars.append('pq_func_par2[3]')
-                        guesses['pq_func_par2[3]'] = 0.
+                        free_pars.append('pq_func_par8[0]')
+                        guesses['pq_func_par8[0]'] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[3]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par8[0]')
                 
                 # Slope at high-mass side of peak        
                 if 'slope-high' in self.free_params_sfe:
@@ -291,12 +290,11 @@ class CalibrateModel(object):
                     
                     # Allow to evolve with redshift?
                     if 'slope-high' in self.zevol_sfe:
-                        raise NotImplemented('Needs fixing after PQ overhaul.')
-                        free_pars.append('pq_func_par2[4]')
-                        guesses['pq_func_par2[4]'] = 0.
+                        free_pars.append('pq_func_par9[0]')
+                        guesses['pq_func_par9[0]'] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par2[4]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par9[0]')
                     
             ##
             # Steve's models
@@ -365,6 +363,16 @@ class CalibrateModel(object):
                         is_log.extend([False])
                         jitter.extend([0.1])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                
+                elif 'slope-high' in self.free_params_dust:
+                    free_pars.append('pq_func_par3[22]')
+                    guesses['pq_func_par3[22]'] = 0.45
+                    is_log.extend([False])
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                
+                    if 'slope-high' in self.zevol_dust:
+                        raise NotImplemented('help')
                 
                 if 'peak' in self.free_params_dust:
                     assert self.include_dust in ['screen-dpl', 'patchy']
@@ -715,6 +723,11 @@ class CalibrateModel(object):
                     PB('mirocha2017:base').pars_by_pop(0, 1) \
                   + PB('mirocha2017:flex').pars_by_pop(0, 1) \
                   + PB('dust:{}'.format(self.include_dust))
+            elif self.include_sfe == ['dflex']:
+                self._base_kwargs = \
+                    PB('mirocha2017:base').pars_by_pop(0, 1) \
+                  + PB('mirocha2017:dflex').pars_by_pop(0, 1) \
+                  + PB('dust:{}'.format(self.include_dust))  
             elif self.include_sfe in ['f17-p', 'f17-E']:
                 s = 'energy' if self.include_sfe.split('-')[1] == 'E' \
                     else 'momentum'
