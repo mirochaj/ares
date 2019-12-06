@@ -508,7 +508,7 @@ class ParameterizedQuantity(object):
         elif kwargs['pq_func'] == 'dpl_evolNP':
             self.func = DoublePowerLawEvolvingNormPeak(**kwargs)  
         elif kwargs['pq_func'] == 'dpl_evolNPS':
-            self.func = DoublePowerLawEvolvingAll(**kwargs)
+            self.func = DoublePowerLawEvolvingNormPeakSlope(**kwargs)
         elif kwargs['pq_func'] == 'dpl_evolNPSF':    
             self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
         elif kwargs['pq_func'] == 'exp':

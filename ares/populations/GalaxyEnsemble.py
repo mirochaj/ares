@@ -18,6 +18,7 @@ import numpy as np
 from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
+from ..util.Survey import Survey
 from .Halo import HaloPopulation
 from ..util import SpectralSynthesis
 from scipy.optimize import curve_fit
@@ -26,6 +27,7 @@ from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
+from ..util.SpectralSynthesis import what_filters
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
@@ -97,11 +99,27 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return self._tab_dz
         
     @property
-    def b14(self):
-        if not hasattr(self, '_b14'):
-            self._b14 = read_lit('bouwens2014')
-        return self._b14
+    def _b14(self):
+        if not hasattr(self, '_b14_'):
+            self._b14_ = read_lit('bouwens2014')
+        return self._b14_
         
+    @property
+    def _c94(self):
+        if not hasattr(self, '_c94_'):
+            self._c94_ = read_lit('calzetti1994').windows
+        return self._c94_
+                
+    @property
+    def _nircam(self):
+        if not hasattr(self, '_nircam_'):
+            nircam = Survey(cam='nircam')
+            nircam_M = nircam._read_nircam(filter_set='M')
+            nircam_W = nircam._read_nircam(filter_set='W')
+            
+            self._nircam_ = nircam_M, nircam_W
+        return self._nircam_    
+            
     def run(self):
         return
         
@@ -2028,28 +2046,97 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 self._extras = {}
         return self._extras
         
-    def _get_presets(self, z, presets):
+    def _get_presets(self, z, presets, for_beta=True, wave_range=None):
         """
         Convenience routine to retrieve `cam` and `filters` via short-hand.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        presets : str
+            Name of presets package to use, e.g., 'hst', 'jwst', 'hst+jwst'.
+        for_beta : bool 
+            If True, will restrict to filters used to compute UV slope.
+        wave_range : tuple  
+            If for_beta==False, can restrict photometry to specified range
+            of rest wavelengths (in Angstroms). If None, will return all
+            photometry.
+        
+        Returns
+        -------
+        Tuple containing (i) list of cameras, and (ii) list of filters.
+        
         """
         
         zstr = int(round(z))
         
-        if presets.lower() in ['hst', 'hubble']:
-            hst_shallow = self.b14.filt_shallow
-            hst_deep = self.b14.filt_deep
-
+        if ('hst' in presets.lower()) or ('hubble' in presets.lower()):
+            hst_shallow = self._b14.filt_shallow
+            hst_deep = self._b14.filt_deep
+            
             if zstr >= 7:
                 filt_hst = hst_deep
             else:
                 filt_hst = hst_shallow
-
-            return ('wfc', 'wfc3'), filt_hst[zstr]  
-            
+                
+        if ('jwst' in presets.lower()) or ('nircam' in presets.lower()):
+            nircam_W, nircam_M = self._nircam
+        
+        ##
+        # Hubble only
+        if presets.lower() in ['hst', 'hubble']:
+            if for_beta:
+                cam = ('wfc', 'wfc3')
+                filters = filt_hst[zstr]
+            else:
+                raise NotImplemented('help')
+        
+        # JWST only    
         elif presets.lower() in ['nircam', 'jwst']:
-            pass
+            
+            if for_beta:
+                # Override
+                if z < 5:
+                    raise ValueError("JWST too red for UV slope measurements at z<5!")
+                
+                cam = ('nircam',)
+                
+                wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
+                
+                filters = list(what_filters(z, nircam_M, wave_lo, wave_hi))
+                filters.extend(list(what_filters(z, nircam_M, wave_lo, wave_hi)))
+                filters = tuple(filters)
+            else:
+                 raise NotImplemented('help')
+        
+        # Combo    
+        elif presets == 'hst+jwst':
+            
+            if for_beta:
+                cam = ('wfc', 'wfc3', 'nircam') if zstr <= 8 else ('nircam', )
+                filters = filt_hst[zstr] if zstr <= 8 else None
+                
+                if filters is not None:
+                    filters = list(filters)
+                else:
+                    filters = []
+                
+                wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
+                filters.extend(list(what_filters(z, nircam_M, wave_lo, wave_hi)))
+                filters.extend(list(what_filters(z, nircam_M, wave_lo, wave_hi)))
+                filters = tuple(filters)
+            else:
+                 raise NotImplemented('help')    
+                    
+        elif presets.lower() in ['c94', 'calzetti', 'calzetti1994']:
+            return ('calzetti', ), self._c94
         else:
             raise NotImplemented('No presets={} option yet!'.format(presets))
+        
+        ##
+        # Done!
+        return cam, filters
         
     def Beta(self, z, waves=None, rest_wave=None, cam=None,
         filters=None, filter_set=None, dlam=20., method='linear', magmethod='gmean',

@@ -142,7 +142,6 @@ def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
     
     fn = '{0!s}{1!s}.dat'.format(fig_prefix[k], Z_suffix)
     
-    print(fn)
     return fn
     
 def _load(**kwargs):
