@@ -104,8 +104,12 @@ class SynthesisMaster(Source):
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
+            #if np.allclose(np.diff(np.diff(self.wavelengths)), 0):
             self._dwdn = self.wavelengths**2 / (c * 1e8)
-        return self._dwdn      
+            #else:
+            #    tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
+            #    self._dwdn = np.concatenate((tmp, [tmp[-1]]))    
+        return self._dwdn
         
     @property
     def norm(self):
@@ -586,12 +590,23 @@ class SynthesisModel(SynthesisMaster):
         return self._litinst.metallicities 
            
     @property
-    def nebula(self):
-        if not hasattr(self, '_nebula'):
-            self._nebula = NebularEmission(cosm=self.cosm, **self.pf)
-            self._nebula.wavelengths = self.wavelengths
-        return self._nebula    
+    def _nebula(self):
+        if not hasattr(self, '_nebula_'):
+            self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
+            self._nebula_.wavelengths = self.wavelengths
+        return self._nebula_
         
+    @property
+    def _neb_cont(self):
+        if not hasattr(self, '_neb_cont_'):
+            self._neb_cont_ = np.zeros_like(self._data)
+            if self.pf['source_nebular'] > 1:
+                print('hello', self.pf['source_nebular'])
+                for i, t in enumerate(self.times):
+                    spec = self._data[:,i] * self.dwdn
+                    self._neb_cont_[:,i] = self._nebula.Continuum(spec) / self.dwdn
+        return self._neb_cont_
+                    
     @property
     def data(self):
         """
@@ -633,6 +648,7 @@ class SynthesisModel(SynthesisMaster):
                     _tmp = self.pf['source_sed_by_Z'][1]
                     assert len(_tmp) == len(Zall)
                 else:
+                    # Will load in all metallicities
                     self._wavelengths, _tmp = \
                         self._litinst._load(**self.pf)
 
@@ -640,26 +656,30 @@ class SynthesisModel(SynthesisMaster):
                 to_interp = np.array(_tmp)
                 self._data_all_Z = to_interp
                 
-                # If outside table's range, just use endpoints
+                # If outside table's metallicity range, just use endpoints
                 if self.pf['source_Z'] > max(Zall):
                     _raw_data = np.log10(to_interp[-1])
                 elif self.pf['source_Z'] < min(Zall):
                     _raw_data = np.log10(to_interp[0])
                 else:
-                    # If within range, interpolate
+                    # At each time, interpolate between SEDs at two different
+                    # metallicities. Note: interpolating to log10(SED) caused
+                    # problems when nebular emission was on and when 
+                    # starburst99 was being used (mysterious),
+                    # hence the log-linear approach here.                    
                     _raw_data = np.zeros_like(to_interp[0])
                     for i, t in enumerate(self._litinst.times):
                         inter = interp1d(np.log10(Zall), 
-                            np.log10(to_interp[:,:,i]), axis=0, 
-                            kind=self.pf['interp_Z'])
+                            to_interp[:,:,i], axis=0, 
+                            fill_value=0.0, kind=self.pf['interp_Z'])
                         _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
                                                                 
-                self._data = 10**_raw_data
+                self._data = _raw_data
                 
                 # By doing the interpolation in log-space we sometimes
                 # get ourselves into trouble in bins with zero flux. 
                 # Gotta correct for that!
-                self._data[np.argwhere(np.isnan(self._data))] = 0.0
+                #self._data[np.argwhere(np.isnan(self._data))] = 0.0
                 
             # Normalize by SFR or cluster mass.    
             if self.pf['source_ssp']:
@@ -668,19 +688,13 @@ class SynthesisModel(SynthesisMaster):
                 if hasattr(self, '_data_all_Z'):
                     self._data_all_Z *= self.pf['source_mass'] / 1e6
             else:    
-                #raise NotImplemented('is this ok?')
+                #raise NotImplemented('need to revisit this.')
                 self._data *= self.pf['source_sfr']
-                
-            ##
-            # Add nebular emission (just nebular continuum for now)
-            if self.pf['source_nebular'] > 1:
-                #neb = np.zeros_like(self._data)
-                neb = np.zeros_like(self._data)
-                for i, t in enumerate(self.times):
-                    spec = self._data[:,i] * self.dwdn
-                    neb[:,i] = self.nebula.Continuum(spec) / self.dwdn
-                    
-                self._data += neb
-                
+                       
+        # Add in nebular continuum (just once!)
+        if not hasattr(self, '_neb_cont_'):
+            self._data += self._neb_cont
+            self._data[np.argwhere(np.isnan(self._data))] = 0.0
+                            
         return self._data
             

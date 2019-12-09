@@ -109,7 +109,7 @@ def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
         mask[options % 2 == 1] = 0
     
     # Can't be > 6
-    if source_nebular == 1:
+    if int(source_nebular) == 1:
         mask[options > 6] = 0
     else:
         mask[options <= 6] = 0
