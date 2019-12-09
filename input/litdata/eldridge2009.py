@@ -55,7 +55,7 @@ def _kwargs_to_fn(**kwargs):
     else:
         fn += '.constant'
     
-    if kwargs['source_nebular']:
+    if int(kwargs['source_nebular']) == 1:
         fn += '.cloudy'
     else:
         fn += '.nocont'
@@ -69,7 +69,7 @@ def _kwargs_to_fn(**kwargs):
     fn += '.z{!s}'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
         
     if kwargs['source_sed_degrade'] is not None:
-        fn += '.deg{}'.format(kwargs['source_sed_degrade'])    
+        fn += '.deg{}'.format(kwargs['source_sed_degrade'])
             
     return _input + '/' + fn    
             
