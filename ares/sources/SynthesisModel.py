@@ -12,10 +12,11 @@ Description:
 
 import numpy as np
 from .Source import Source
+from ..util.Math import interp1d
 from ares.physics import Cosmology
 from scipy.optimize import minimize
 from ..util.ReadData import read_lit
-from ..util.Math import interp1d
+from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz
@@ -177,7 +178,7 @@ class SynthesisMaster(Source):
         if not hasattr(self, '_frequencies'):
             self._frequencies = c / (self.wavelengths / 1e8)
         return self._frequencies
-        
+                
     @property
     def time_averaged_sed(self):
         if not hasattr(self, '_tavg_sed'):
@@ -270,6 +271,7 @@ class SynthesisMaster(Source):
             if Z is not None:
                 raise NotImplemented('hey!')
             assert avg % 2 != 0, "avg must be odd"
+            avg = int(avg)
             s = (avg - 1) / 2
             if units == 'Hz':
                 yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
@@ -568,7 +570,7 @@ class SynthesisModel(SynthesisMaster):
                 data = self.data
             
         return self._wavelengths    
-        
+                
     @property
     def weights(self):
         return self._litinst.weights  
@@ -581,7 +583,14 @@ class SynthesisModel(SynthesisMaster):
             
     @property
     def metallicities(self):
-        return self._litinst.metallicities    
+        return self._litinst.metallicities 
+           
+    @property
+    def nebula(self):
+        if not hasattr(self, '_nebula'):
+            self._nebula = NebularEmission(cosm=self.cosm, **self.pf)
+            self._nebula.wavelengths = self.wavelengths
+        return self._nebula    
         
     @property
     def data(self):
@@ -595,7 +604,17 @@ class SynthesisModel(SynthesisMaster):
         else.
         
         """
+        
         if not hasattr(self, '_data'):
+            
+            if self.pf['source_sps_data'] is not None:
+                _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
+                assert _Z == self.pf['source_Z']
+                assert _ssp == self.pf['source_ssp']
+                self._data = _data
+                self._times = _times
+                self._wavelengths = _waves
+                return self._data
             
             Zall_l = list(self.metallicities.values())
             Zall = np.sort(Zall_l)
@@ -651,6 +670,17 @@ class SynthesisModel(SynthesisMaster):
             else:    
                 #raise NotImplemented('is this ok?')
                 self._data *= self.pf['source_sfr']
+                
+            ##
+            # Add nebular emission (just nebular continuum for now)
+            if self.pf['source_nebular'] > 1:
+                #neb = np.zeros_like(self._data)
+                neb = np.zeros_like(self._data)
+                for i, t in enumerate(self.times):
+                    spec = self._data[:,i] * self.dwdn
+                    neb[:,i] = self.nebula.Continuum(spec) / self.dwdn
+                    
+                self._data += neb
                 
         return self._data
             

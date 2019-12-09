@@ -876,7 +876,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def GasMass(self, z, Mh):
         zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Mg'])
-        
+
     def StellarMassFunction(self, z, bins=None, units='dex'):
         """
         Return stellar mass function (duh).
@@ -886,7 +886,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ms = traj_all['Ms'][:,iz]
         Mh = traj_all['Mh'][:,iz]
         nh = traj_all['nh'][:,iz]
-        
+
         if bins is None:
             bin = 0.1
             bin_e = np.arange(6., 13.+bin, bin)
@@ -931,7 +931,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         phi = _phi[mask == 0]
         
         # Observed magnitudes will be dimmer, + AB shift from absolute to apparent mags
-        Mobs = self.dust.Mobs(z, mags) + 48.6
+        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
+        magcorr = 5. * (np.log10(dL) - 1.)
+        Mobs = self.dust.Mobs(z, mags) - magcorr
         
         # Compute the volume of the shell we're looking at
         vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)

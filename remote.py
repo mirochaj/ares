@@ -57,7 +57,7 @@ aux_data = \
  'nircam': ['https://jwst-docs.stsci.edu/files/73022379/73022381/1/1486438006000',
      'nircam_throughputs_22April2016_v4.tar.gz',
      None],
- 'wfc3': ['http://www.stsci.edu/hst/wfc3/ins_performance/throughputs/Throughput_Tables/',
+ 'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
     'IR.zip',
      None],
  'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
@@ -81,8 +81,8 @@ os.chdir('input')
 files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
-        to_download = ['inits', 'secondary_electrons', 'hmf']
-        files = [None, None, None]
+        to_download = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3']
+        files = [None, None, None, None, None]
     elif 'clean' in options:
         to_download = aux_data.keys()
         files = [None] * len(to_download)

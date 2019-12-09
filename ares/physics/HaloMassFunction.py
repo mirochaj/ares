@@ -263,7 +263,7 @@ class HaloMassFunction(object):
                 raise KeyError("HMF table element `{}` not found. {}".format(name, s))
             else:
                 raise AttributeError('Should get caught by `hasattr` (#2).')
-                               
+
         return self.__dict__[name]
 
     def _load_hmf(self):
@@ -271,7 +271,13 @@ class HaloMassFunction(object):
 
         if self._is_loaded:
             return
-
+            
+        if self.pf['pop_hmf_data'] is not None:
+            self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
+                self.tab_ngtm, self.tab_MAR, self.tab_Mmin_floor = \
+                    self.pf['pop_hmf_data']            
+            return
+            
         if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
             self.tab_z = np.array(f[('tab_z')])
@@ -509,6 +515,12 @@ class HaloMassFunction(object):
     @tab_z.setter
     def tab_z(self, value):
         self._tab_z = value
+        
+    def prep_for_cache(self):
+        keys = ['tab_z', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm', 
+            'tab_MAR', 'tab_Mmin_floor']
+        hist = [self.__getattribute__(key) for key in keys]
+        return hist
                                     
     def TabulateHMF(self, save_MAR=True):
         """

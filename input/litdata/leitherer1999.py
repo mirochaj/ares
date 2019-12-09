@@ -109,7 +109,7 @@ def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
         mask[options % 2 == 1] = 0
     
     # Can't be > 6
-    if source_nebular:
+    if source_nebular == 1:
         mask[options > 6] = 0
     else:
         mask[options <= 6] = 0
@@ -140,7 +140,9 @@ def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
     j = options[mask == 1]
     k = fig_num.index(j)
     
-    return '{0!s}{1!s}.dat'.format(fig_prefix[k], Z_suffix)
+    fn = '{0!s}{1!s}.dat'.format(fig_prefix[k], Z_suffix)
+    
+    return fn
     
 def _load(**kwargs):
     """

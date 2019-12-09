@@ -11,10 +11,10 @@ Description:
 """
 
 import numpy as np
-from .Hydrogen import Hydrogen
-from ..util import ParameterFile
-from .Constants import h_p, c, k_B, erg_per_ev, E_LyA, E_LL, Ryd, ev_per_hz, \
-    nu_alpha, m_p
+from ares.physics.Hydrogen import Hydrogen
+from ares.util import ParameterFile
+from ares.physics.Constants import h_p, c, k_B, erg_per_ev, E_LyA, E_LL, Ryd, \
+    ev_per_hz, nu_alpha, m_p
 
 class NebularEmission(object):
     def __init__(self, cosm=None, **kwargs):
@@ -70,7 +70,7 @@ class NebularEmission(object):
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
         return self._hydr    
         
-    @property    
+    @property
     def _gamma_fb(self):
         if not hasattr(self, '_gamma_fb_'):
             _gaunt_fb = 1.05
@@ -86,22 +86,34 @@ class NebularEmission(object):
     @property
     def _gamma_ff(self):
         return 5.44e-39 * 1.1
-        
-    def _FreeBound(self, spec):
-        e_fb = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
-        return e_fb
-        
-    def _FreeFree(self, spec):
-        e_ff = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
-        return e_ff
-        
+    
     @property
     def _norm_free(self):
-        if not hasattr(self, '_norm_free_'):
-            integ = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
-            self._norm_free_ = 1. / np.trapz(integ[-1::-1] * self.frequencies[-1::-1],
-                x=np.log(self.frequencies[-1::-1]))
-        return self._norm_free_        
+    	x = self.energies / E_LyA
+    	integ = np.exp(-self.energies*erg_per_ev / k_B / self.pf['pop_nebula_Tgas']) / self.energies
+    	temp = np.trapz(integ[-1::-1] * x[-1::-1], x=np.log(x[-1::-1]))
+    	return temp
+        
+    def _FreeFree(self, spec):
+    	x = self.energies / E_LyA
+        e_ff = np.exp(-x * E_LyA * erg_per_ev / k_B / self.pf['pop_nebula_Tgas']) / (x * E_LyA * erg_per_ev)
+        e_ff /= self._norm_free
+        return e_ff
+        
+    def _FreeBound(self, spec):
+    	x = self.energies / E_LyA
+        e_fb = np.exp(-x * E_LyA * erg_per_ev / k_B / self.pf['pop_nebula_Tgas']) / (x * E_LyA * erg_per_ev)
+        e_fb /= self._norm_free
+        return e_fb
+        
+    #@property
+    #def _norm_free(self):
+    #    if not hasattr(self, '_norm_free_'):
+    #        integ = np.exp(-h_p * self.frequencies / k_B / self.pf['pop_nebula_Tgas'])
+    #        self._norm_free_ = 1. / np.trapz(integ[-1::-1] * self.frequencies[-1::-1],
+    #            x=np.log(self.frequencies[-1::-1]))
+    #    return self._norm_free_
+        
         
     def _TwoPhoton(self, spec):
         x = self.energies / E_LyA
@@ -113,22 +125,23 @@ class NebularEmission(object):
                 + 2.563 * (x[x<1.] - 0.5)**4 \
                 - 51.69 * (x[x<1.] - 0.5)**6
 
-        return 2. * self.energies * P / E_LyA / nu_alpha
+        return P
         
-    def f_rep(self, spec, channel='ff', net=False):
+    def f_rep(self, spec, Tgas=2e4, channel='ff', net=False):
         """
         Fraction of photons reprocessed into different channels.
+        
+            .. note :: This carries units of Hz^{-1}.
         """
 
         erg_per_phot = self.energies * erg_per_ev
-        dE = self.dE * erg_per_ev
 
         if channel == 'ff':
             _ff = self._FreeFree(spec)
-            frep = 4. * np.pi * self._gamma_ff * _ff / 2.06e-11
+            frep = 4. * np.pi * self._gamma_ff * _ff / 2.06e-11 * self._norm_free * erg_per_phot
         elif channel == 'fb':
             _fb = self._FreeBound(spec)
-            frep = 4. * np.pi * self._gamma_fb * _fb / 2.06e-11
+            frep = 4. * np.pi * self._gamma_fb * _fb / 2.06e-11 * self._norm_free * erg_per_phot
         elif channel == 'tp':
             _tp = self._TwoPhoton(spec)
             frep = 2. * self.energies * erg_per_ev * _tp / nu_alpha
@@ -144,13 +157,41 @@ class NebularEmission(object):
     def is_ionizing(self):
         return self.energies >= E_LL
     
+    #def L_ion(self, spec):
+    #    ion = self.energies >= E_LL
+    #    gt0 = spec > 0
+    #    ok = np.logical_and(ion, gt0)
+	#
+    #    return np.trapz(spec[ok==1][-1::-1] * self.energies[ok==1][-1::-1], 
+    #        x=np.log(self.energies[ok==1][-1::-1]))
+            
     def L_ion(self, spec):
         ion = self.energies >= E_LL
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        return np.trapz(spec[ok==1][-1::-1] * self.energies[ok==1][-1::-1], 
-            x=np.log(self.energies[ok==1][-1::-1]))
+        return np.trapz(spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1], 
+            x=np.log(self.frequencies[ok==1][-1::-1]))
+            
+    def N_ion(self, spec):
+        ion = self.energies >= E_LL
+        gt0 = spec > 0
+        ok = np.logical_and(ion, gt0)
+        
+        erg_per_phot = self.energies[ok==1][-1::-1] * erg_per_ev
+
+        integ = spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1] \
+              / erg_per_phot
+        return np.trapz(integ, x=np.log(self.frequencies[ok==1][-1::-1]))        
+            
+    def Ebar_ion(self, spec):
+        ion = self.energies >= E_LL
+        gt0 = spec > 0
+        ok = np.logical_and(ion, gt0)
+
+        temp = np.trapz(spec[ok==1][-1::-1] / (self.energies[ok==1][-1::-1] * erg_per_ev) * self.frequencies[ok==1][-1::-1], 
+            x=np.log(self.frequencies[ok==1][-1::-1]))
+        return self.L_ion(spec) / temp
 
     def Continuum(self, spec, include_ff=True, include_fb=True,
         include_tp=True):
@@ -160,6 +201,7 @@ class NebularEmission(object):
 
         Parameters
         ----------
+        Return L_\nu in [erg/s/Hz]
 
         """
         
@@ -170,17 +212,17 @@ class NebularEmission(object):
         
         ok = np.logical_and(self.is_ionizing, spec > 0)
         
-        # This is in erg/s
-        Lion = self.L_ion(spec)
+        # This is in [erg/s]
+        #Lion = self.L_ion(spec) / (self.Ebar_ion(spec))
         
-        #               
+        # This is in [#/s]
+        #Lion = self.L_ion(spec) / (self.Ebar_ion(spec))
+        Lion = self.N_ion(spec)
+        
+        # Reprocessing fraction in [erg/Hz]
         frep_ff = self.f_rep(spec, Tgas, 'ff')
         frep_fb = self.f_rep(spec, Tgas, 'fb')
-        frep_tp = self.f_rep(spec, Tgas, 'tp')
-        
-        #_ff = self._FreeFree(spec)
-        #_fb = self._FreeBound(spec)
-        #_tp = self._TwoPhoton(spec)
+        frep_tp = (1. - flya) * self.f_rep(spec, Tgas, 'tp')
         
         # Amount of UV luminosity absorbed in ISM
         Labs = Lion * (1. - fesc)
@@ -188,20 +230,20 @@ class NebularEmission(object):
         # Normalize free-free and free-bound to total ionizing luminosity 
         # multiplied by their respective reprocessing factors. This is 
         # essentially just to get the result in the right units.
-        norm_ff = 1. / np.trapz(frep_ff[-1::-1] * h_p * self.frequencies[-1::-1]**2, 
-            x=np.log(self.frequencies[-1::-1])) / Labs
-        norm_fb = 1. / np.trapz(frep_fb[-1::-1] * h_p * self.frequencies[-1::-1]**2, 
-            x=np.log(self.frequencies[-1::-1])) / Labs
-        norm_tp = 1. / np.trapz(frep_tp[-1::-1] * h_p * self.frequencies[-1::-1]**2, 
-            x=np.log(self.frequencies[-1::-1])) / Labs
+        #norm_ff = 1. / np.trapz(frep_ff[-1::-1] * self.frequencies[-1::-1]**2, 
+        #    x=np.log(self.frequencies[-1::-1]))
+        #norm_fb = 1. / np.trapz(frep_fb[-1::-1] * self.frequencies[-1::-1]**2, 
+        #    x=np.log(self.frequencies[-1::-1]))
+        #norm_tp = 1. / np.trapz(frep_tp[-1::-1] * self.frequencies[-1::-1]**2, 
+        #    x=np.log(self.frequencies[-1::-1]))
             
         tot = np.zeros_like(self.wavelengths)
         if include_ff:
-            tot += frep_ff * norm_ff * Labs#(_ff * norm_ff)
+            tot += frep_ff * Labs
         if include_fb:              
-            tot += frep_fb * Labs#(_fb * norm_fb)
+            tot += frep_fb * Labs
         if include_tp:
-            tot += frep_tp * Labs#(_tp * norm_tp)
+            tot += frep_tp * Labs 
         
         return tot
                 

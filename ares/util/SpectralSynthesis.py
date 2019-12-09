@@ -33,6 +33,9 @@ except ImportError:
 
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
+def _powlaw(x, p0, p1):
+    return p0 * (x / 1.)**p1
+
 def what_filters(z, fset, wave_lo=1300., wave_hi=2600., picky=True):
     """
     Given a redshift and a full filter set, return the filters that probe
@@ -126,9 +129,65 @@ class SpectralSynthesis(object):
             self._cameras = {}
             for cam in all_cameras:
                 self._cameras[cam] = Survey(cam=cam, 
-                    force_perfect=self.force_perfect)
+                    force_perfect=self.force_perfect, 
+                    cache=self.pf['pop_synth_cache_phot'])
 
         return self._cameras
+    
+    @property
+    def hydr(self):
+        if not hasattr(self, '_hydr'):
+            from ..physics.Hydrogen import Hydrogen
+            self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
+        return self._hydr    
+    
+    def OpticalDepth(self, z, owaves):
+        """
+        Compute Lyman series line blanketing following Madau (1995).
+    
+        Parameters
+        ----------
+        zobs : int, float
+            Redshift of object.
+        owaves : np.ndarray
+            Observed wavelengths in microns.
+    
+        """
+        
+        if self.pf['absorption_model'] is None:
+            return 0.0
+        
+        assert self.pf['absorption_model'].lower() == 'madau1995', \
+            "absorption_model='madau1995' is currently the sole option!"
+        
+        rwaves = owaves * 1e4 / (1. + z)
+        tau = np.zeros_like(owaves)
+    
+        # Text just after Eq. 15.
+        A = 0.0036, 1.7e-3, 1.2e-3, 9.3e-4
+        l = [h_p * c * 1e8 / (self.hydr.ELyn(n) * erg_per_ev) for n in range(2, 7)]
+    
+        for i in range(len(A)):    
+            ok = np.logical_and(rwaves < l[i], rwaves > l[i+1])
+        
+            tau[ok==1] += A[i] * (owaves[ok==1] * 1e4 / l[i])**3.46
+    
+        #tau[np.logical_and(rwaves < l[-1], rwaves > 912.)] = np.inf  
+    
+        # Metals
+        tau += 0.0017 * (owaves * 1e4 / l[0])**1.68
+      
+        # Photo-electric absorption. This is footnote 3 in Madau (1995).  
+        xem = 1. + z
+        xc  = owaves * 1e4 / l[0]
+        tau_bf = 0.25 * xc**3 * (xem**0.46 - xc**0.46) \
+               + 9.4 * xc**1.5 * (xem**0.18 - xc**0.18) \
+               - 0.7 * xc**3 * (xc**-1.32 - xem**-1.32) \
+               - 0.023 * (xem**1.68 - xc**1.68)
+    
+        tau[rwaves < 912.] += tau_bf[rwaves < 912.]
+    
+        return tau
     
     def L_of_Z_t(self, wave):
         
@@ -152,9 +211,9 @@ class SpectralSynthesis(object):
 
     def Slope(self, zobs=None, tobs=None, spec=None, waves=None, 
         sfh=None, zarr=None, tarr=None, hist={}, idnum=None,
-        cam=None, rest_wave=(1600., 2300.), band=None, 
-        return_norm=False, filters=None, filter_set=None, dlam=10.,
-        method='fit', window=1, extras={}, picky=False, return_err=False):
+        cam=None, rest_wave=None, band=None, 
+        return_norm=False, filters=None, filter_set=None, dlam=20.,
+        method='linear', window=1, extras={}, picky=False, return_err=False):
         """
         Compute slope in some wavelength range or using photometry.
         
@@ -209,10 +268,7 @@ class SpectralSynthesis(object):
             if filters is not None:
                 assert rest_wave is None, \
                     "Set rest_wave=None if filters are supplied"
-            
-            # Log-linear fit
-            func = lambda x, p0, p1: p0 * (x / 1.)**p1
-            
+                        
             if type(cam) not in [list, tuple]:
                 cam = [cam]
             
@@ -226,7 +282,7 @@ class SpectralSynthesis(object):
                     cam=_cam, filters=filters, filter_set=filter_set, waves=waves,
                     dlam=dlam, tarr=tarr, tobs=tobs, extras=extras, picky=picky,
                     zarr=zarr, zobs=zobs, rest_wave=rest_wave, window=window)
-            
+                                    
                 filt.extend(list(_filters))
                 xphot.extend(list(_xphot))
                 dxphot.extend(list(_dxphot))
@@ -287,7 +343,7 @@ class SpectralSynthesis(object):
                 _f = 10**(_y / -2.5) * flux_AB / _dwdn
                 y = _f[ok==1]   
                 ma = np.max(y) 
-                guess = np.array([ma, -2.5])                
+                guess = np.array([ma, -2.])                
             
             if ok.sum() == 2 and self.pf['verbose']:
                 print("WARNING: Estimating slope at z={} from only two points: {}".format(zobs, 
@@ -321,19 +377,40 @@ class SpectralSynthesis(object):
                     
                     if not np.any(y[:,i] > 0):
                         continue
-                    
+                                            
                     try:
-                        popt[:,i], pcov[:,:,i] = curve_fit(func, x, y[:,i], 
-                            p0=guess[i], maxfev=1000)
+                        popt[:,i], pcov[:,:,i] = curve_fit(_powlaw, x, y[:,i], 
+                            p0=guess[i], maxfev=10000)
                     except RuntimeError:
                         popt[:,i], pcov[:,:,i] = -99999, -99999
                             
             else:
                 try:
-                    popt, pcov = curve_fit(func, x, y, p0=guess)
+                    popt, pcov = curve_fit(_powlaw, x, y, p0=guess, maxfev=10000)
                 except RuntimeError:
                     popt, pcov = -99999 * np.ones(2), -99999 * np.ones(2)
                         
+        elif method == 'linear':
+            
+            logx = np.log10(x)
+            logy = np.log10(y)
+            
+            A = np.vstack([logx, np.ones(len(logx))]).T
+            
+            if batch_mode:
+                N = y.shape[1]
+                
+                popt = -99999 * np.ones((2, N))
+                pcov = -99999 * np.ones((2, 2, N))        
+                
+                for i in range(N):
+                    popt[:,i] = np.linalg.lstsq(A, logy[:,i], 
+                        rcond=None)[0][-1::-1]
+                        
+            else:
+                popt = np.linalg.lstsq(A, logy, rcond=None)[0]
+                pcov = -99999 * np.ones(2)
+                
         elif method == 'diff':
             
             assert cam is None, "Should only use to skip photometry."
@@ -369,12 +446,13 @@ class SpectralSynthesis(object):
         
         Parameters
         ----------
-        wave : np.ndarray
-            Rest wavelengths in [Angstrom]
+        zobs : int, float
+            Redshift of observation.
+        waves : np.ndarray
+            Simulate spectrum at these rest wavelengths [Angstrom]
         spec : np.ndarray
             Specific luminosities in [erg/s/A]
-        z : int, float
-            Redshift.
+        
         
         Returns
         -------
@@ -406,8 +484,12 @@ class SpectralSynthesis(object):
             pass
         else:
             f /= dwdn
+            
+        owaves = waves * (1. + zobs) / 1e4
+        
+        T = np.exp(-self.OpticalDepth(zobs, owaves))    
 
-        return waves * (1. + zobs) / 1e4, f
+        return owaves, f * T
         
     def _select_filters(self, zobs, cam='wfc3', lmin=912., lmax=3000., tol=0.0, 
         filter_set=None, filters='all'):
@@ -445,7 +527,7 @@ class SpectralSynthesis(object):
         filter_set=None, dlam=10., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None, 
         hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
-        ospec=None, owaves=None):
+        ospec=None, owaves=None, load=True):
         """
         Just a wrapper around `Spectrum`.
 
@@ -472,7 +554,7 @@ class SpectralSynthesis(object):
         # Get transmission curves
         if cam in self.cameras.keys():
             filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set, 
-                filters=filters)
+                filters=filters)                
         else:
             # Can supply spectral windows, e.g., Calzetti+ 1994, in which case
             # we assume perfect transmission but otherwise just treat like
@@ -484,7 +566,7 @@ class SpectralSynthesis(object):
             wraw = np.array(filters)
             x1 = wraw.min()
             x2 = wraw.max()
-            x = np.arange(x1-100, x2+101, 1.) * 1e-4 * (1. + zobs)
+            x = np.arange(x1-1, x2+1, 1.) * 1e-4 * (1. + zobs)
                         
             # Note that in this case, the filter wavelengths are in rest-frame
             # units, so we convert them to observed wavelengths before
@@ -534,11 +616,11 @@ class SpectralSynthesis(object):
                 cent_r = cent * 1e4 / (1. + zobs)
                 if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
                     continue
-
+                        
             lmin = min(lmin, cent - dx[1] * 1.2)
             lmax = max(lmax, cent + dx[0] * 1.2)
             ct += 1
-            
+                
         # No filters in range requested    
         if ct == 0:    
             return [], [], [], []
@@ -548,7 +630,7 @@ class SpectralSynthesis(object):
             # Convert from microns to Angstroms, undo redshift.
             lmin = lmin * 1e4 / (1. + zobs)
             lmax = lmax * 1e4 / (1. + zobs)
-                
+                            
             lmin = max(lmin, self.src.wavelengths.min())
             lmax = min(lmax, self.src.wavelengths.max())
             
@@ -558,12 +640,12 @@ class SpectralSynthesis(object):
             l2 = lmax + lbuffer
             
             waves = np.arange(l1, l2+dlam, dlam)
-                    
+                                
         # Get spectrum first.
         if (spec is None) and (ospec is None):
             spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
-                idnum=idnum, extras=extras, window=window)
+                idnum=idnum, extras=extras, window=window, load=load)
                 
             # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
             wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec, 
@@ -634,7 +716,7 @@ class SpectralSynthesis(object):
         xphot = np.array(xphot)
         wphot = np.array(wphot)
         yphot_corr = np.array(yphot_corr)
-        
+                
         # Convert to magnitudes and return
         return all_filters, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
         
@@ -645,13 +727,14 @@ class SpectralSynthesis(object):
         This is just a wrapper around `Luminosity`.
         """
         
+        # Select single row of SFH array if `idnum` provided.
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
         
         batch_mode = sfh.ndim == 2
         time_series = (zobs is None) and (tobs is None)
         
-        # Shape of output array depends on some input parameters
+        # Shape of output array depends on some input parameters.
         shape = []
         if batch_mode:
             shape.append(sfh.shape[0])
@@ -811,8 +894,15 @@ class SpectralSynthesis(object):
             'window', 'band', 'hist', 'extras', 'load')                
                         
         ct = -1
+        
         # Loop through keys to do more careful comparison for unhashable types.
-        for keyset in self._cache_lum_.keys():
+        #all_waves = self._cache_lum_waves_
+        
+        all_keys = self._cache_lum_.keys()    
+        
+        # Search in reverse order since we often the keys represent different
+        # wavelengths, which are generated in ascending order.
+        for keyset in all_keys:
 
             ct += 1
 
@@ -881,13 +971,14 @@ class SpectralSynthesis(object):
                 
             # If we're here, load this thing.
             break        
-            
-        t2 = time.time()    
-            
+
+        t2 = time.time()
+
         if notok < 0:
-            return kwds, None          
+            return kwds, None
         elif notok == 0:
-            #print("Loaded from cache! Took N={} iterations, {} sec to find match".format(ct, t2 - t1))
+            if (self.pf['verbose'] and self.pf['debug']):
+                print("Loaded from cache! Took N={} iterations, {} sec to find match".format(ct, t2 - t1))
             # Recall that this is (kwds, data)
             return self._cache_lum_[keyset]
         else:
@@ -899,7 +990,7 @@ class SpectralSynthesis(object):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
-        
+
         Parameters
         ----------
         sfh : np.ndarray
@@ -913,8 +1004,8 @@ class SpectralSynthesis(object):
             supply if not passing `tarr` argument.
         wave : int, float
             Wavelength of interest [Angstrom]
-        window : int, float
-            Average over interval about `wave`? [Angstrom]
+        window : int
+            Average over interval about `wave`. [Angstrom]
         zobs : int, float   
             Redshift of observation.
         tobs : int, float   
@@ -923,14 +1014,13 @@ class SpectralSynthesis(object):
         hist : dict
             Extra information we may need, e.g., metallicity, dust optical 
             depth, etc. to compute spectrum.
-        
+
         Returns
         -------
         Luminosity at wavelength=`wave` in units of erg/s/Hz.
         
-        
         """
-        
+                
         setup_1 = (sfh is not None) and \
             ((tarr is not None) or (zarr is not None))
         setup_2 = hist != {}
@@ -942,7 +1032,7 @@ class SpectralSynthesis(object):
         #    "Must supply time or redshift of observation, `tobs` or `zobs`!"
         
         assert setup_1 or setup_2
-                
+        
         if setup_1:
             assert (sfh is not None)
         elif setup_2:
@@ -956,7 +1046,7 @@ class SpectralSynthesis(object):
 
         kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr, 
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist, 
-            'extras':extras}
+            'extras':extras, 'window': window}
 
         if load:
             _kwds, cached_result = self._cache_lum(kw)
@@ -1009,7 +1099,7 @@ class SpectralSynthesis(object):
                     "Requested time of observation (`tobs={}`) not in supplied range ({}, {})!".format(tobs, 
                         tarr.min(), tarr.max())
             
-        # Prepare slice through time-axis.    
+        # Prepare slice through time-axis.
         if zobs is None:
             slc = Ellipsis
             izobs = None
@@ -1052,11 +1142,13 @@ class SpectralSynthesis(object):
             #raise NotImplemented('help!')
         else:
             Loft = self.src.L_per_SFR_of_t(wave, avg=window)
+            
+        #print("Synth. Lum = ", wave, window)    
         #
 
         # Setup interpolant for luminosity as a function of SSP age.      
         _func = interp1d(np.log(self.src.times), np.log(Loft),
-            kind='cubic', bounds_error=False, 
+            kind=self.pf['pop_synth_age_interp'], bounds_error=False, 
             fill_value=Loft[-1])
             
         # Extrapolate linearly at times < 1 Myr
@@ -1072,7 +1164,12 @@ class SpectralSynthesis(object):
         #func = lambda age: np.exp(m * np.log(age) + np.log(Loft[0]))
                 
         #if zobs is None:
-        Lhist = np.zeros_like(sfh)
+        Lhist = np.zeros(sfh.shape)
+        #if hasattr(self, '_sfh_zeros'):
+        #    Lhist = self._sfh_zeros.copy()
+        #else:    
+        #    Lhist = np.zeros_like(sfh)
+        #    self._sfh_zeros = Lhist.copy()
         #else:
         #    pass
             # Lhist will just get made once. Don't need to initialize
@@ -1085,6 +1182,7 @@ class SpectralSynthesis(object):
         
         # Start from initial redshift and move forward in time, i.e., from
         # high redshift to low.
+        
         for i, _tobs in enumerate(tarr):
                                     
             # If zobs is supplied, we only have to do one iteration
@@ -1220,7 +1318,7 @@ class SpectralSynthesis(object):
             ##
             if not do_all_time:
                 break
-                                   
+                                                                
         ##
         # Redden spectra
         ##
@@ -1341,7 +1439,6 @@ class SpectralSynthesis(object):
                         
                         pb.finish()
                              
-        
         ##
         # Will be unhashable types so just save to a unique identifier
         ##                          

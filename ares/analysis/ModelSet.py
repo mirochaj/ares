@@ -4442,10 +4442,10 @@ class ModelSet(BlobFactory):
                     print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
                         ivar[1], self.blob_ivars[i][1][k2]))
                 
-                return blob[:,k1,k2]    
+                return blob[:,k1,k2]
     
     def max_likelihood_parameters(self, method='mode', min_or_max='max',
-        skip=0, stop=None):
+        skip=0, stop=None, limit_to_dist=False, nu=0.68):
         """
         Return parameter values at maximum likelihood point.
         
@@ -4466,6 +4466,32 @@ class ModelSet(BlobFactory):
                 iML = np.argmax(self.logL[skip:stop])
             else:
                 iML = np.argmin(self.logL[skip:stop])
+                         
+        # Require that the best-fit model be in the bulk of the distribution?  
+        if limit_to_dist:                                        
+            iML_all = np.argsort(self.logL[skip:stop])[-1::-1]
+            
+            ranges = {}
+            for par in self.parameters:
+                mu, (hi, lo) = self.get_1d_error(par, peak=method, skip=skip, 
+                    stop=stop, nu=nu)
+                    
+                ranges[par] = (mu - lo, mu + hi)
+            
+            for h, _iML in enumerate(iML_all):
+                
+                all_ok = True
+                for i, par in enumerate(self.parameters):
+                    pval = self.chain[skip:stop][_iML,i]
+                    if not ranges[par][0] <= pval <= ranges[par][1]:
+                        all_ok = False
+                        break
+                    
+                if all_ok:
+                    break                       
+            
+            if h != 0:
+                print("WARNING: Using {}th highest-likelihood point.".format(h))                            
                                                 
         self._max_like_pars = {}
         for i, par in enumerate(self.parameters):
