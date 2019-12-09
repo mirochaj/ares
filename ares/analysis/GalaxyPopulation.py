@@ -57,7 +57,7 @@ groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf,
     'mzr': {'all': datasets_mzr}}
 
 colors_cyc = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
-markers = ['o'] * 6 + ['s'] * 6    
+markers = ['o', 's', 'p', 'h', 'D', 'd', '^', 'v', '<', '>'] * 3
     
 default_colors = {}
 default_markers = {}    
@@ -608,20 +608,25 @@ class GalaxyPopulation(object):
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
         wave_lo=1300., wave_hi=2600., which_nircam='W', show_beta_spec=True,
         show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
-        magmethod='gmean', **kwargs):
+        magmethod='gmean', include_Mstell=True, **kwargs):
         """
         Plot Beta_19.5(z) and Beta_Mstell(z).
         """
         
         if axes is None:
             fig = pl.figure(tight_layout=False, figsize=(8, 8), num=fig)
-            fig.subplots_adjust(left=0.1)
-            gs = gridspec.GridSpec(2, 2, hspace=0.2, wspace=0.4, figure=fig)
+            fig.subplots_adjust(left=0.2)
+            gs = gridspec.GridSpec(2, 1+include_Mstell, hspace=0.2, 
+                wspace=0.4, figure=fig)
 
             axB = fig.add_subplot(gs[0,0])
             axD = fig.add_subplot(gs[1,0])
-            axB2 = fig.add_subplot(gs[0,1])
-            axD2 = fig.add_subplot(gs[1,1])
+            
+            if include_Mstell:
+                axB2 = fig.add_subplot(gs[0,1])
+                axD2 = fig.add_subplot(gs[1,1])
+            else:
+                axB2 = axD2 = None
         else:
             axB, axD, axB2, axD2 = axes
 
@@ -648,36 +653,38 @@ class GalaxyPopulation(object):
         linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
         cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2
         
+        f12 = read_lit('finkelstein2012')
+        calzetti = read_lit('calzetti1994').windows
+        
         ##
         # Plot data: use same color-conventions as F12 for Mstell-beta stuff.
         ##
-        colors = 'r', 'y', 'gray'
-        Mstell = np.array([7.5, 8.5, 9.5])
-        f12 = read_lit('finkelstein2012')
-        calzetti = read_lit('calzetti1994').windows
-        for z in [4,5,6,7,8]:
-            for i, _Mstell in enumerate(Mstell):
-                x = z
-                y = f12.data['beta'][z]['beta'][i]
-                yerr = np.array([f12.data['beta'][z]['err'][i]]).T[-1::-1]
-                
-                if axes is None:
-                    lab = r'$%.1f \leq \log_{10} (M_{\ast} / M_{\odot}) \leq %.1f$' \
-                        % (_Mstell-0.5, _Mstell+0.5) if z == 4 else None
-                else:
-                    lab = None
+        if include_Mstell:
+            colors = 'r', 'y', 'gray'
+            Mstell = np.array([7.5, 8.5, 9.5])
+            for z in [4,5,6,7,8]:
+                for i, _Mstell in enumerate(Mstell):
+                    x = z
+                    y = f12.data['beta'][z]['beta'][i]
+                    yerr = np.array([f12.data['beta'][z]['err'][i]]).T[-1::-1]
                     
-                axB2.errorbar(z, y, yerr=yerr, fmt='o', color=colors[i],
-                    alpha=1.)
-                    
-                #if z == 4:
-                #    axB2.annotate(lab, (0.95, 0.95-0.05*i), ha='right', va='top',
-                #        color=colors[i], fontsize=12, xycoords='axes fraction')
-                            
-            axD2.errorbar(z, f12.data['slope_wrt_mass'][z]['slope'],
-                yerr=f12.data['slope_wrt_mass'][z]['err'],
-                color=colors[i], fmt='o', alpha=1.)
-        
+                    if axes is None:
+                        lab = r'$%.1f \leq \log_{10} (M_{\ast} / M_{\odot}) \leq %.1f$' \
+                            % (_Mstell-0.5, _Mstell+0.5) if z == 4 else None
+                    else:
+                        lab = None
+                        
+                    axB2.errorbar(z, y, yerr=yerr, fmt='o', color=colors[i],
+                        alpha=1.)
+                        
+                    #if z == 4:
+                    #    axB2.annotate(lab, (0.95, 0.95-0.05*i), ha='right', va='top',
+                    #        color=colors[i], fontsize=12, xycoords='axes fraction')
+                                
+                axD2.errorbar(z, f12.data['slope_wrt_mass'][z]['slope'],
+                    yerr=f12.data['slope_wrt_mass'][z]['err'],
+                    color=colors[i], fmt='o', alpha=1.)
+            
         ##
         # Continue with model predictions
         ##
@@ -705,9 +712,7 @@ class GalaxyPopulation(object):
         ##
         _colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}    
-        
-        print("Computing UV slope evolution for model={}...".format(i))
-    
+            
         B195_hst = []
         dBdM195_hst = []
         B195_spec = []
@@ -746,18 +751,17 @@ class GalaxyPopulation(object):
             # Compute raw beta and compare to Mstell    
             beta_c94 = pop.Beta(z, Mwave=1600., Mbins=mags_cr, return_binned=True,
                 cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
-                magmethod='gmean')
-            #beta_c94_M1600 = pop.Beta(z, Mwave=1600., Mbins=mags_cr, return_binned=True,
-            #    cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
-            #    magmethod='closest')
+                magmethod='mono')
             
             # Compute beta(Mstell)
-            beta_Mst = pop.Beta(z, Mwave=1600., return_binned=False,
-                cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
-                Mstell=10**Ms_b, massbins=Ms_b)
-
-            BMstell.append(beta_Mst)
-            dBMstell.append(pop.dBeta_dMstell(z, Mstell=10**Ms_b, massbins=Ms_b))
+            if include_Mstell:
+                beta_Mst = pop.Beta(z, Mwave=1600., return_binned=False,
+                    cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
+                    Mstell=10**Ms_b, massbins=Ms_b)
+                
+                BMstell.append(beta_Mst)
+                dBMstell.append(pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
+                    massbins=Ms_b, dlam=1.))
                     
             # Compute beta given HST+JWST
             cam2 = ('wfc', 'wfc3', 'nircam') if zstr <= 8 else ('nircam', )
@@ -793,13 +797,13 @@ class GalaxyPopulation(object):
     
             # Compute Beta at MUV=-19.5
             for k, beta in enumerate([beta_c94, beta_hst, beta_W, beta_M]):
-        
+                
                 #if k == 0:
                 #    continue
                 
                 _i195 = np.argmin(np.abs(mags_cr + 19.5))
                 _B195 = beta[_i195]
-        
+                                
                 # Compute dBeta/dMag via finite difference.
                 #_xx = mags[_i195-3:_i195+4]
                 #_yy = beta[_i195-3:_i195+4]
@@ -920,14 +924,15 @@ class GalaxyPopulation(object):
         ##
         # Plot Mstell stuff
         ##
-        ls = '-', '--', ':', '-.'
-        for _j, logM in enumerate([7, 8, 9, 10]):
-            j = np.argmin(np.abs(Ms_b - logM))
-            axB2.plot(zarr, np.array(BMstell)[:,j], ls=ls[_j], color='k',
-                label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)    
-            axD2.plot(zarr, np.array(dBMstell)[:,j], ls=ls[_j], color='k',
-                label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)
-        
+        if include_Mstell:
+            ls = '-', '--', ':', '-.'
+            for _j, logM in enumerate([7, 8, 9, 10]):
+                j = np.argmin(np.abs(Ms_b - logM))
+                axB2.plot(zarr, np.array(BMstell)[:,j], ls=ls[_j], color='k',
+                    label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)    
+                axD2.plot(zarr, np.array(dBMstell)[:,j], ls=ls[_j], color='k',
+                    label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)
+            
         
         ##
         # Clean up
@@ -937,43 +942,44 @@ class GalaxyPopulation(object):
         
         axB.set_xlim(3.5, zarr.max()+0.5)
         axB.set_ylim(-3.05, -1.3)
-        axB2.set_ylim(-3.05, -1.3)
-        axB2.set_xlim(3.5, zarr.max()+0.5)
         axD.set_xlim(3.5, zarr.max()+0.5)
         axD.set_ylim(-0.1, 0.5)
-        axD2.set_xlim(3.5, zarr.max()+0.5)
-        axD2.set_ylim(-0.1, 0.5)
-        
         axB.yaxis.set_ticks_position('both')
-        axB2.yaxis.set_ticks_position('both')
         axD.yaxis.set_ticks_position('both')
-        axD2.yaxis.set_ticks_position('both')
-
         axB.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
-        axB2.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
         axD.set_yticks(np.arange(-0.1, 0.6, 0.1), minor=True)
-        axD2.set_yticks(np.arange(-0.1, 0.6, 0.1), minor=True)
-        
         axB.legend(loc='upper left', frameon=True, fontsize=8,
             handlelength=2, ncol=2)
-            
-        axD2.legend(loc='upper right', frameon=True, fontsize=8,
-            handlelength=2, ncol=1)
-            
+        
+        if include_Mstell:
+            axB2.set_ylim(-3.05, -1.3)
+            axB2.set_xlim(3.5, zarr.max()+0.5)
+            axD2.set_xlim(3.5, zarr.max()+0.5)
+            axD2.set_ylim(-0.1, 0.5)
+            axB2.yaxis.set_ticks_position('both')
+            axD2.yaxis.set_ticks_position('both')
+            axB2.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
+            axD2.set_yticks(np.arange(-0.1, 0.6, 0.1), minor=True) 
+            axD2.legend(loc='upper right', frameon=True, fontsize=8,
+                handlelength=2, ncol=1)
+            if axes is None:
+                axB2.set_ylabel(r'$\beta_{\ast}$')
+                axD2.set_ylabel(r'$d\beta_{\ast}/dlog_{10}M_{\ast}$')
+                axD2.set_xlabel(r'$z$')
+                axB2.set_xlabel(r'$z$')
 
         if axes is None:
             axB.set_ylabel(r'$\beta(M_\mathrm{UV}=-19.5)$')
-            axB2.set_ylabel(r'$\beta_{\ast}$')
             axD.set_ylabel(r'$-d\beta(M_\mathrm{UV}=-19.5)/dM_{\mathrm{UV}}$')
-            axD2.set_ylabel(r'$d\beta_{\ast}/dlog_{10}M_{\ast}$')
             axD.set_xlabel(r'$z$')
             axB.set_xlabel(r'$z$')
-            axD2.set_xlabel(r'$z$')
-            axB2.set_xlabel(r'$z$')
+            
         
         for ax in [axB, axD, axB2, axD2]:
-            ax.yaxis.set_label_coords(-0.15, 0.5)
-            ax.yaxis.set_label_coords(-0.15, 0.5)
+            if ax is None:
+                continue
+            ax.yaxis.set_label_coords(-0.1-0.05*include_Mstell, 0.5)
+            ax.yaxis.set_label_coords(-0.1-0.05*include_Mstell, 0.5)
         
         return axB, axD, axB2, axD2
         

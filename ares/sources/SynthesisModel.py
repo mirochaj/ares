@@ -12,10 +12,11 @@ Description:
 
 import numpy as np
 from .Source import Source
+from ..util.Math import interp1d
 from ares.physics import Cosmology
 from scipy.optimize import minimize
 from ..util.ReadData import read_lit
-from ..util.Math import interp1d
+from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz
@@ -177,7 +178,7 @@ class SynthesisMaster(Source):
         if not hasattr(self, '_frequencies'):
             self._frequencies = c / (self.wavelengths / 1e8)
         return self._frequencies
-        
+                
     @property
     def time_averaged_sed(self):
         if not hasattr(self, '_tavg_sed'):
@@ -582,7 +583,14 @@ class SynthesisModel(SynthesisMaster):
             
     @property
     def metallicities(self):
-        return self._litinst.metallicities    
+        return self._litinst.metallicities 
+           
+    @property
+    def nebula(self):
+        if not hasattr(self, '_nebula'):
+            self._nebula = NebularEmission(cosm=self.cosm, **self.pf)
+            self._nebula.wavelengths = self.wavelengths
+        return self._nebula    
         
     @property
     def data(self):
@@ -662,6 +670,17 @@ class SynthesisModel(SynthesisMaster):
             else:    
                 #raise NotImplemented('is this ok?')
                 self._data *= self.pf['source_sfr']
+                
+            ##
+            # Add nebular emission (just nebular continuum for now)
+            if self.pf['source_nebular'] > 1:
+                #neb = np.zeros_like(self._data)
+                neb = np.zeros_like(self._data)
+                for i, t in enumerate(self.times):
+                    spec = self._data[:,i] * self.dwdn
+                    neb[:,i] = self.nebula.Continuum(spec) / self.dwdn
+                    
+                self._data += neb
                 
         return self._data
             

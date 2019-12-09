@@ -22,7 +22,6 @@ from ..util.Survey import Survey
 from .Halo import HaloPopulation
 from ..util import SpectralSynthesis
 from scipy.optimize import curve_fit
-from ..physics import NebularEmission
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
@@ -1738,13 +1737,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._synth.careful_cache = self.pf['pop_synth_cache_level']
                         
         return self._synth
-        
-    @property
-    def nebula(self):
-        if not hasattr(self, '_nebula'):
-            self._nebula = NebularEmission(cosm=self.cosm, **self.pf)
-        return self._nebula    
-    
+            
     def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None, 
         filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
         load=True, presets=None):
@@ -1824,19 +1817,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 xph  = []
                 fil = []
                 for j, _cam in enumerate(cam):
-                
+                                    
                     _filters, xphot, dxphot, ycorr = \
                         self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
                             hist=hist, dlam=dlam, cam=_cam, filters=filters, 
                             filter_set=filter_set, idnum=idnum, extras=self.extras,
                             rest_wave=None)
-                        
+            
                     mags.extend(list(np.array(ycorr) - magcorr))
                     xph.extend(xphot)
                     fil.extend(_filters)
             
                 mags = np.array(mags)
-
+                
             else:
                 mags = M
                 
@@ -1852,7 +1845,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if len(mags) == 0:
                     Mg = -99999 * np.ones(hist['SFR'].shape[0])
                 else:    
-                    Mg = -1 * np.product(np.abs(mags), axis=0)**(1. / float(len(mags)))
+                    Mg = -1 * np.nanprod(np.abs(mags), axis=0)**(1. / float(len(mags)))
             elif method == 'closest':
                 if len(mags) == 0:
                     Mg = -99999 * np.ones(hist['SFR'].shape[0])
@@ -2208,7 +2201,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zarr=raw['z'], hist=raw, dlam=dlam, cam=cam, filters=filters, 
                 filter_set=filter_set, rest_wave=rest_wave, method=method, 
                 extras=self.extras, return_err=return_err)
-                                
+                                                            
             if return_err:
                 beta_r, beta_rerr = _beta_r
             else:
@@ -2227,10 +2220,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             # This will be the geometric mean of magnitudes in `cam` and
             # `filters` if they are provided!
+            if (presets == 'calzetti') or (cam == 'calzetti'):
+                assert magmethod == 'mono', \
+                    "Known issues with magmethod!='mono' and Calzetti approach."
+  
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
                 method=magmethod, presets=presets)
-                        
+                                        
             MAB, beta, _std = bin_samples(_MAB, beta_r, Mbins, weights=nh)
+                        
         else:
             beta = beta_r
 
@@ -2339,7 +2337,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         # Compute raw beta and compare to Mstell    
         beta_c94 = self.Beta(z, Mwave=1600., return_binned=False,
-            cam='calzetti', filters=calzetti, dlam=dlam, rest_wave=None)
+            cam='calzetti', filters=calzetti, dlam=dlam, rest_wave=None,
+            magmethod='mono')
 
         Ms_r = self.get_field(z, 'Ms')
         nh_r = self.get_field(z, 'nh')

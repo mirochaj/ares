@@ -282,7 +282,7 @@ class SpectralSynthesis(object):
                     cam=_cam, filters=filters, filter_set=filter_set, waves=waves,
                     dlam=dlam, tarr=tarr, tobs=tobs, extras=extras, picky=picky,
                     zarr=zarr, zobs=zobs, rest_wave=rest_wave, window=window)
-            
+                                    
                 filt.extend(list(_filters))
                 xphot.extend(list(_xphot))
                 dxphot.extend(list(_dxphot))
@@ -406,6 +406,7 @@ class SpectralSynthesis(object):
                 for i in range(N):
                     popt[:,i] = np.linalg.lstsq(A, logy[:,i], 
                         rcond=None)[0][-1::-1]
+                        
             else:
                 popt = np.linalg.lstsq(A, logy, rcond=None)[0]
                 pcov = -99999 * np.ones(2)
@@ -565,7 +566,7 @@ class SpectralSynthesis(object):
             wraw = np.array(filters)
             x1 = wraw.min()
             x2 = wraw.max()
-            x = np.arange(x1-100, x2+101, 1.) * 1e-4 * (1. + zobs)
+            x = np.arange(x1-1, x2+1, 1.) * 1e-4 * (1. + zobs)
                         
             # Note that in this case, the filter wavelengths are in rest-frame
             # units, so we convert them to observed wavelengths before
