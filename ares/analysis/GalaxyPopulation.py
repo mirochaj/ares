@@ -1073,7 +1073,16 @@ class GalaxyPopulation(object):
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
 
+<<<<<<< working copy
+        if quantity in ['lf', 'smf']:
+            ax.set_yscale('log', nonposy='clip')    
+
+        if quantity == 'lf' and (not gotax):
+||||||| base
+        if quantity == 'lf' and (not gotax):
+=======
         if quantity == 'lf' and ((not gotax) or force_labels):
+>>>>>>> merge rev
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
             ax.set_xlabel(r'$M_{\mathrm{UV}}$')
@@ -1091,14 +1100,11 @@ class GalaxyPopulation(object):
             ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
-            
-        if quantity in ['lf', 'smf']:
-            ax.set_yscale('log', nonposy='clip')    
-            
+
         pl.draw()
-        
+
         return ax
-            
+
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
         quantity='lf', mp=None, sources_except=[], 
@@ -1231,7 +1237,7 @@ class GalaxyPopulation(object):
         pl.draw()
         
         return ax
-        
+
     def add_master_legend(self, mp, **kwargs):
         return add_master_legend(mp, **kwargs)
         
@@ -1241,6 +1247,10 @@ class GalaxyPopulation(object):
         Make a huge plot.
         """
         
+<<<<<<< working copy
+            ||||||| base
+            
+=======
         if axes is None:
             gotax = False
             axes = self._MegaPlotSetup(fig)
@@ -1946,4 +1956,4 @@ class GalaxyPopulation(object):
         ax_MsMUV.legend(loc='upper right', fontsize=8)
         
         
-        self._MegaPlotLimitsAndTicks(kw)
+        self._MegaPlotLimitsAndTicks(kw)>>>>>>> merge rev

@@ -234,14 +234,14 @@ class OpticalDepth(object):
         tau_proc = np.zeros([self.L, self.N])
     
         pb = ProgressBar(self.L * self.N, 'tau')
-        pb.start()     
-    
+        pb.start()
+
         # Loop over redshift, photon energy
-        for l in range(self.L):
-    
-            for n in range(self.N):
+        for l in xrange(self.L):
+
+            for n in xrange(self.N):
                 m = l * self.N + n + 1
-    
+
                 if m % size != rank:
                     continue
     
@@ -249,7 +249,7 @@ class OpticalDepth(object):
                 if l == (self.L - 1):
                     tau_proc[l,n] = 0.0
                 else:
-                    tau_proc[l,n] = self.DiffuseOpticalDepth(self.z[l], 
+                    tau_proc[l,n] = self.DiffuseOpticalDepth(self.z[l],
                         self.z[l+1], self.E[n], xavg=xavg)
     
                 pb.update(m)
@@ -259,7 +259,7 @@ class OpticalDepth(object):
         # Communicate results
         if size > 1:
             tau = np.zeros_like(tau_proc)       
-            nothing = MPI.COMM_WORLD.Allreduce(tau_proc, tau)            
+            nothing = MPI.COMM_WORLD.Allreduce(tau_proc, tau)
         else:
             tau = tau_proc
     
@@ -408,7 +408,7 @@ class OpticalDepth(object):
                 self.E = self.E0 * self.R**np.arange(self.N)
             else:
                 self.E = np.flip(self.E1 * self.R**-np.arange(self.N), 0)
-    
+
         # Frequency grid must be index-1-based.
         self.nn = np.arange(1, self.N+1)
     

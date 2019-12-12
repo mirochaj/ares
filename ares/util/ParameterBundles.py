@@ -853,7 +853,7 @@ _gs_4par = _PB('pop:fcoll', id_num=0, verbose=0) \
          + _PB('pop:fcoll', id_num=2, verbose=0) \
          + _PB('sed:xray',  id_num=2, verbose=0)
          
-         
+
          
 # Build a template four-parameter model
 _lw = _PB('pop:fcoll') + _PB('src:toy-lya')
@@ -865,7 +865,7 @@ _uv = _PB('src:toy-ion')
 _uv.num = 2
 _uv.link_sfrd_to = 0
          
-_gs_4par = _lw + _xr + _uv         
+_gs_4par = _lw + _xr + _uv
 
 _tanh_sim = {'problem_type': 100, 'tanh_model': True,
     'output_frequencies': np.arange(30., 201.)}

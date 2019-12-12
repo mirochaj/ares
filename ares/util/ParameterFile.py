@@ -29,7 +29,7 @@ try:
 except ImportError:
     rank = 0
 
-old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin']
+old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin', 'Mmin', 'fXh']
 
 _cosmo_params = CosmologyParameters()
 
@@ -610,15 +610,15 @@ class ParameterFile(dict):
             par, num = pop_id_num(kwarg)
             if num is None:
                 par = kwarg
-            
+
             if par in defaults.keys():
                 continue
-                
+
             if par in old_pars:
                 continue
-            
+
             if re.search('\[', par):
-                continue 
+                continue
             
             if verbose:
                 print('WARNING: Unrecognized parameter: {!s}'.format(par))

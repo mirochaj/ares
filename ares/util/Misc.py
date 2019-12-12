@@ -12,6 +12,7 @@ Description:
 
 import re, os
 import numpy as np
+import matplotlib.pyplot as pl
 from collections import Iterable
 from scipy.integrate import cumtrapz
 from ..physics.Constants import sigma_T
@@ -241,6 +242,7 @@ def tau_CMB(sim):
     
     return zarr, tau_all_z
 
+
 def get_attribute(s, ob):
     """
     Break apart a string `s` and recursively fetch attributes from object `ob`.
@@ -251,9 +253,56 @@ def get_attribute(s, ob):
     for part in spart:
         if part == '.':
             continue
-
+        
         f = f.__getattribute__(part)
-
+        
     return f
 
+def split_by_sign(x, y):
+    """
+    Split apart an array into its positive and negative chunks.
+    """
 
+    splitter = np.diff(np.sign(y))
+
+    if np.all(splitter == 0):
+        ych = [y]
+        xch = [x]
+    else:
+        splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+        ych = np.split(y, splits)
+        xch = np.split(x, splits)
+
+    return xch, ych
+    
+def plot_by_chunk(x, y, ax, **kwargs):
+    xx, yy = split_by_sign(x, y)
+    
+    if 'label' in kwargs:
+        label = kwargs['label']
+        del kwargs['label']
+    else:
+        label = None
+    
+    apply_label = False
+    applied_label = False
+    for i, chunk in enumerate(yy):
+        pos = np.all(chunk > 0)
+        
+        apply_label = pos
+        
+        if apply_label and applied_label:
+            apply_label = False
+        
+        if i == (len(yy) - 1) and (not applied_label):
+            apply_label = True
+            
+                
+        ax.loglog(xx[i], np.abs(yy[i]), lw=3 if pos else 1,
+            label=label if apply_label else None, **kwargs)
+    
+        if apply_label:
+            applied_label = True
+            
+    
+    return ax

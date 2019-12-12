@@ -16,8 +16,9 @@ from inspect import ismethod
 from types import FunctionType
 from .Population import Population
 from scipy.integrate import cumtrapz
-from ..physics import HaloMassFunction
 from ..util.PrintInfo import print_pop
+from scipy.interpolate import interp1d
+from ..physics.HaloModel import HaloModel
 from ..util.Math import central_difference, forward_difference
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
@@ -75,12 +76,24 @@ class HaloPopulation(Population):
             self.halos.build_1d_splines(Tmin, mu, return_fcoll=return_fcoll)
 
     @property
+    def gf_spline(self):
+        if not hasattr(self, '_gf_spline'):
+            gf = self.halos.growth_factor
+            self._gf_spline = interp1d(self.halos.z, gf, 
+                kind='linear', bounds_error=False)
+        
+        return self._gf_spline
+            
+    def growth_factor(self, z):
+        return self.gf_spline(z)
+                
+    @property
     def halos(self):
         if not hasattr(self, '_halos'):
             if self.pf['hmf_instance'] is not None:
                 self._halos = self.pf['hmf_instance']
             else:
-                self._halos = HaloMassFunction(**self.pf)
+                self._halos = HaloModel(**self.pf)
                 
         return self._halos
         

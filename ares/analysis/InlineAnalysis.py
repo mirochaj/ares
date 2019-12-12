@@ -387,7 +387,7 @@ class InlineAnalysis:
                     Jlo += np.trapz(flux[j][ilo], x=band) / ev_per_hz
                     Jhi += np.trapz(flux[j][ihi], x=band) / ev_per_hz
 
-                # Subtract of 10.2-11.2 eV flux
+                # Subtract off 10.2-11.2 eV flux
                 Earr = En[0]
                 icut = np.argmin(np.abs(Earr - 11.18))
                 Jlo -= np.trapz(flux[0][ilo][0:icut], x=En[0][0:icut]) / ev_per_hz

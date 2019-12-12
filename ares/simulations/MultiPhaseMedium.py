@@ -185,10 +185,10 @@ class MultiPhaseMedium(object):
                     kw[grid_key] = self.kwargs[key]
                 else:
                     kw[grid_key] = _mpm_defs[key]
-                            
+
             if zone == 'igm':
                 self.kw_igm = kw.copy()
-                
+
                 parcel_igm = GasParcel(**self.kw_igm)
                 
                 self.gen_igm = parcel_igm.step()

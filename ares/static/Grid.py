@@ -245,7 +245,7 @@ class Grid(object):
             #if absorber == 'h_1':
             self._ioniz_thresholds['h_1'] = 13.6
             #elif absorber == 'he_1':
-            self._ioniz_thresholds['he_1'] = 24.4
+            self._ioniz_thresholds['he_1'] = 24.6
             #elif absorber == 'he_2':
             self._ioniz_thresholds['he_2'] = 54.4
            
