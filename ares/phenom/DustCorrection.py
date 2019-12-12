@@ -14,6 +14,8 @@ import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.optimize import fsolve
+from scipy.interpolate import interp1d
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -27,6 +29,8 @@ _coeff = \
  'pettini1998': [1.49, 0.68],
  'capak2015': [0.312, 0.176],
 }
+
+_magarr = np.arange(-35, 0, 0.1)
           
 class DustCorrection(object):
     def __init__(self, **kwargs):
@@ -40,7 +44,7 @@ class DustCorrection(object):
             elif type(self.pf['dustcorr_method']) is list:
                 meth = self.pf['dustcorr_method']
                 self._method = \
-                    [meth[i] for i in range(len(meth))]   
+                    [meth[i] for i in range(len(meth))]
                     
                 assert len(self._method) == len(self.pf['dustcorr_ztrans'])
             else:
@@ -55,6 +59,19 @@ class DustCorrection(object):
         Return non-negative mean correction <Auv> averaged over Luv assuming a
         normally distributed Auv
         """
+        
+        
+        ##
+        # Physical models!
+        ##
+        if self.method == 'physical':
+            raise NotImplemented('help')
+        
+        ##
+        # Empirical prescriptions.
+        ##
+        
+        
         if self.method is None:
             method = None
         elif type(self.method) is list:
@@ -77,38 +94,75 @@ class DustCorrection(object):
         AUV = a + b * beta + 0.2 * np.log(10) * sigma
         return np.maximum(AUV, 0.0)
         
-    def Mobs(self, z, MUV):
-        """
-        Return observed (i.e., uncorrected for dust) magnitude for 
-        intrinsic magnitudes.
-        
-        This could probably be a lot faster.
-        """
-        
-        # Compute the absolute magnitude one measured in the first place,
-        # i.e., before correcting for dust.
-           
-        if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
+    def _Mobs_func(self, z):
+        if not hasattr(self, '_Mobs_func_'):
+            self._Mobs_func_ = {}
             
-            x = []
-            for M in MUV:
+        if z not in self._Mobs_func_:
+            y = []
+            for M in _magarr:
                 f_AUV = lambda mag: self.AUV(z, mag)
                 
                 to_min = lambda xx: np.abs(xx - f_AUV(xx) - M)
-                x.append(fsolve(to_min, M)[0])
+                y.append(fsolve(to_min, M)[0])
                 
-            x = np.array(x)    
-        else:
-
-            f_AUV = lambda mag: self.AUV(z, mag)
+            y = np.array(y)
             
-            to_min = lambda xx: np.abs(xx - f_AUV(xx) - MUV)
-            x = fsolve(to_min, MUV)[0]
-
-        return x
+            self._Mobs_func_[z] = lambda M: np.interp(M, _magarr, y,
+                left=np.nan, right=0.0)
+            
+        return self._Mobs_func_[z]    
+        
+    def Mobs(self, z, MUV):
+        """
+        Return observed  magnitude.
+        """
+        
+        ##
+        # Physical models!
+        ##
+        if self.method == 'physical':
+            raise NotImplemented('help')
+        
+        # Compute the absolute magnitude one measured in the first place,
+        # i.e., before correcting for dust.
+        
+        func = self._Mobs_func(z)
+        
+        Mobs = func(MUV)
+        
+        return Mobs
+        
+           
+        #if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
+        #    
+        #    x = []
+        #    for M in MUV:
+        #        f_AUV = lambda mag: self.AUV(z, mag)
+        #        
+        #        to_min = lambda xx: np.abs(xx - f_AUV(xx) - M)
+        #        x.append(fsolve(to_min, M)[0])
+        #        
+        #    x = np.array(x)    
+        #else:
+        #
+        #    f_AUV = lambda mag: self.AUV(z, mag)
+        #    
+        #    to_min = lambda xx: np.abs(xx - f_AUV(xx) - MUV)
+        #    x = fsolve(to_min, MUV)[0]
+        #
+        #return x
 
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
+        
+        ##
+        # Physical models!
+        ##
+        if self.method == 'physical':
+            raise NotImplemented('help')
+            
+            # Need a population instance.
         
         if isinstance(self.pf['dustcorr_beta'], basestring):
             return self._beta_fit(z, mag)

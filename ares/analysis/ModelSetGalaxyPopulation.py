@@ -48,7 +48,7 @@ class ModelSetGalaxyPopulation(ModelSet):
     def _Recovered_Function(self, z, quantity, ax=None, fig=1, 
         compare_to=None, percentile=0.685, 
         Mlim=(-24, -10), samples=1, take_log=False, un_log=False,
-        multiplier=1, skip=0, stop=None, use_best=False, best='median',
+        multiplier=1, skip=0, stop=None, use_best=False, best='mode',
         show_all=False, **kwargs):
         """
         Basically a wrapper around ModelSet.ReconstructedFunction but a lil
@@ -56,19 +56,19 @@ class ModelSetGalaxyPopulation(ModelSet):
         """
 
         if quantity in ['lf', 'smf']:
-            return self.ReconstructedFunction(quantity, ivar=[z, None], ax=ax, 
-                percentile=percentile, apply_dc=quantity=='lf', 
+            return self.ReconstructedFunction('galaxy_'+quantity, ivar=[z, None], ax=ax, 
+                percentile=percentile, 
                 use_best=use_best, best=best, skip=skip, stop=stop, 
                 samples=samples, **kwargs)
         elif type(quantity) in [tuple, list]:
-            return self.ReconstructedRelation(quantity, ivar=[z, None], ax=ax,
+            return self.ReconstructedRelation('galaxy_'+quantity, ivar=[z, None], ax=ax,
                 percentile=percentile, **kwargs)
         else:
             raise NotImplementedError('help me!')
 
     def RecoveredModel(self, z, mp=None, fig=1, quantity='lf', compare_to=None, 
         percentile=0.685, 
-        samples=None, skip=0, stop=None, use_best=False, best='median',
+        samples=None, skip=0, stop=None, use_best=False, best='mode',
         show_all=False, data_kwargs={}, **kwargs):
         """
         Plot the luminosity function used to train the SFE.
@@ -100,14 +100,13 @@ class ModelSetGalaxyPopulation(ModelSet):
             if len(z) == 1:
                 ax = mp
             else:
-                k = self.obsdata.redshifts_in_mp[i]
+                k = self.obsdata.redshifts_in_mp[quantity][i]
                 ax = mp.grid[k]
 
-            # Need to apply DC if quantity == 'lf'
             ax = self._Recovered_Function(redshift, quantity=quantity, ax=ax,
                 percentile=percentile, use_best=use_best, best=best,
                 samples=samples, skip=skip, stop=stop, 
-                show_all=show_all, **kwargs)    
+                show_all=show_all, **kwargs)
         
         pl.draw()
 

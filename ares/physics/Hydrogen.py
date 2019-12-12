@@ -446,7 +446,15 @@ class Hydrogen(object):
 
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
-        return E_LL * (1. - 1. / n**2)
+        return self.BohrModel(nfrom=n, ninto=1)
+    
+    def BohrModel(self, nfrom, ninto, helium=0):
+        """ Return energy of photon in eV using Bohr atom. """
+        
+        if helium:
+            return 4 * E_LL * ((1. / ninto)**2 - 1. / nfrom**2)
+        else:
+            return E_LL * ((1. / ninto)**2 - 1. / nfrom**2)
 
     @property
     def Ts_floor_pars(self):

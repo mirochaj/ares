@@ -156,7 +156,7 @@ class DerivedQuantities(object):
         try:
             self.cosm = self._ms.cosm
         except AttributeError:
-            self.cosm = Cosmology()
+            self.cosm = Cosmology(**self.pf)
         
         self._data = {}
         

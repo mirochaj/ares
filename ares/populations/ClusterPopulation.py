@@ -406,7 +406,8 @@ class ClusterPopulation(Population):
             #return mags[0:-1], phi[0:-1] * np.abs(dMdmag)
         
         if x is not None:
-            return np.interp(x, _mags[0:-1][-1::-1], phi[-1::-1])
+            return np.interp(x, _mags[0:-1][-1::-1], phi[-1::-1],
+                left=0., right=0.)
         else:
             return _mags[0:-1], phi
                     

@@ -21,8 +21,10 @@ from scipy.integrate import quad
 from ..util.Warnings import no_lya_warning
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..util import MagnitudeSystem
+from scipy.interpolate import interp1d
 from ..phenom.DustCorrection import DustCorrection
-from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, SynthesisModel
+from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
+    SynthesisModel, SynthesisModelToy
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
 
@@ -108,6 +110,9 @@ class Population(object):
         self._eV_per_phot = {}
         self._conversion_factors = {}
         
+        assert self.pf['pop_star_formation'] + self.pf['pop_bh_formation'] <= 1, \
+            "Populations can only form stars OR black holes."
+        
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
         pass    
@@ -160,6 +165,12 @@ class Population(object):
                 raise ValueError(s)
                 
         return self._zone    
+        
+    @property
+    def is_src_anything(self):
+        if not hasattr(self, '_is_src_anything'):
+            self._is_src_anything = self.is_src_oir or self.is_src_uv \
+                or self.is_src_xray
         
     @property
     def affects_cgm(self):
@@ -379,14 +390,26 @@ class Population(object):
                 return self._is_emissivity_scalable
             
             self._is_emissivity_scalable = True
-
-            if self.pf.Npqs == 0:
+            
+            # If an X-ray source and no PQs, we're scalable.
+            if (self.pf.Npqs == 0) and (self.affects_igm) and \
+               (not self.affects_cgm) and (not self.is_src_lya):
                 return self._is_emissivity_scalable
+
+            # At this stage, we need to set is_emissivity_scalable=False IFF:
+            # (1) there are mass- or time-dependent radiative properties
+            # (2) if there are wavelength-dependent escape fractions.
+            # (3) maybe that's it?
+            
+            if (self.affects_cgm) and (not self.affects_igm):
+                if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
+                    self._is_emissivity_scalable = False
+                    return False
 
             for par in self.pf.pqs:
     
                 # Exceptions.
-                if par not in ['pop_rad_yield', 'pop_fesc']:
+                if par not in ['pop_rad_yield', 'pop_fesc', 'pop_fesc_LW']:
                     continue
                 #if (par == 'pop_fstar') or (not par.startswith('pop_')):
                 #    continue
@@ -423,6 +446,8 @@ class Population(object):
                 self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in _single_star_models:
                 self._Source_ = StarQS
+            elif self.pf['pop_sed'] == 'sps-toy':
+                self._Source_ = SynthesisModelToy
             elif type(self.pf['pop_sed']) is FunctionType or \
                  inspect.ismethod(self.pf['pop_sed']) or \
                  isinstance(self.pf['pop_sed'], interp1d_scipy):
@@ -448,7 +473,7 @@ class Population(object):
                 self._src_kwargs = {}
                 return {}
     
-            self._src_kwargs = {}
+            self._src_kwargs = dict(self.pf)
             if self._Source in [Star, StarQS, Toy, DeltaFunction]:
                 spars = StellarParameters()
                 for par in spars:
@@ -469,7 +494,7 @@ class Population(object):
                     else:
                         self._src_kwargs[par] = bpars[par]
     
-            elif self._Source is SynthesisModel:
+            elif self._Source in [SynthesisModel, SynthesisModelToy]:
                 bpars = SynthesisParameters()
                 for par in bpars:
                     par_pop = par.replace('source', 'pop')
@@ -481,7 +506,9 @@ class Population(object):
             else:
                 self._src_kwargs = self.pf.copy()
                 self._src_kwargs.update(self.pf['pop_kwargs'])
-    
+                
+        # Sometimes we need to know about cosmology...        
+        
         return self._src_kwargs
     
     @property
@@ -494,7 +521,7 @@ class Population(object):
                 self._src = self.pf['pop_src_instance']
             elif self._Source is not None:
                 try:
-                    self._src = self._Source(**self.src_kwargs)
+                    self._src = self._Source(cosm=self.cosm, **self.src_kwargs)
                 except TypeError:
                     # For litdata
                     self._src = self._Source

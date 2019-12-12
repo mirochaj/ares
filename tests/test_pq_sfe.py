@@ -26,51 +26,16 @@ pars_pl = \
 'pq_val_ceil': 0.1,
 }
 
-pars_pl_w_zdep = \
-{
-'pop_fstar': 'pq[0]',
-'pq_func[0]': 'pl',
-'pq_func_var[0]': 'Mh',
-'pq_func_par0[0]': 'pq[1]',
-'pq_func_par1[0]': 1e11,
-'pq_func_par2[0]': 0.6,
-'pq_func_par3[0]': 0.,
-'pq_val_ceil[0]': 0.1,
-
-'pq_func[1]': 'pl',
-'pq_func_var[1]': '1+z',
-'pq_func_par0[1]': 1e-1,
-'pq_func_par1[1]': 7.,
-'pq_func_par2[1]': 1.,
-}
-
 pars_dpl = \
 {
 'pop_fstar': 'pq',
-'pq_func': 'dpl_arbnorm',
+'pq_func': 'dpl',
 'pq_func_var': 'Mh',
 'pq_func_par0': 1e-1,
 'pq_func_par1': 1e11,
 'pq_func_par2': 0.6,
 'pq_func_par3': 0.,
 'pq_func_par4': 1e14,      # Normalization mass
-}
-
-pars_dpl_Mofz = \
-{
-'pop_fstar': 'pq[0]',
-'pq_func[0]': 'dpl',
-'pq_func_var[0]': 'Mh',
-'pq_func_par0[0]': 1e-1,
-'pq_func_par1[0]': 'pq[1]',
-'pq_func_par2[0]': 0.6,
-'pq_func_par3[0]': -0.5,
-
-'pq_func[1]': 'pl',
-'pq_func_var[1]': '1+z',
-'pq_func_par0[1]': 1e11,
-'pq_func_par1[1]': 6.,
-'pq_func_par2[1]': -1.,
 }
 
 pars_pwpl = \
@@ -95,6 +60,54 @@ pars_ramp = \
 'pq_func_par2': 1e-1,
 'pq_func_par3': 11,
 }
+
+# Next two have evolving pieces
+pars_pl_w_zdep = \
+{
+'pop_fstar': 'pq[0]',
+'pq_func[0]': 'pl_evolN',
+'pq_func_var[0]': 'Mh',
+'pq_func_var2[0]': '1+z',
+'pq_func_par0[0]': 1e-2,
+'pq_func_par1[0]': 1e10,
+'pq_func_par2[0]': 0.6,
+'pq_func_par3[0]': 7.,
+'pq_func_par4[0]': 1.,
+'pq_val_ceil[0]': 0.1,
+}
+
+pars_dpl_Mofz = \
+{
+'pop_fstar': 'pq[0]',
+'pq_func[0]': 'dpl_evolP',
+'pq_func_var[0]': 'Mh',
+'pq_func_var2[0]': '1+z',
+
+'pq_func_par0[0]': 1e-2,
+'pq_func_par1[0]': 1e12,
+'pq_func_par2[0]': 0.6,
+'pq_func_par3[0]': -0.5,
+'pq_func_par4[0]': 1e10,
+'pq_func_par5[0]': 7.,
+'pq_func_par6[0]': -1.,
+}
+
+pars_dpl_Nofz = \
+{
+'pop_fstar': 'pq[0]',
+'pq_func[0]': 'dpl_evolN',
+'pq_func_var[0]': 'Mh',
+'pq_func_var2[0]': '1+z',
+
+'pq_func_par0[0]': 1e-2,
+'pq_func_par1[0]': 1e12,
+'pq_func_par2[0]': 0.6,
+'pq_func_par3[0]': -0.5,
+'pq_func_par4[0]': 1e10,
+'pq_func_par5[0]': 7.,
+'pq_func_par6[0]': 1.,
+}
+
 
 def test():
     
@@ -128,15 +141,21 @@ def test():
         **pars_pl_w_zdep)
     pop2 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 
         **pars_dpl_Mofz)
-    
-    colors = ['k', 'b']
+    pop3 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 
+        **pars_dpl_Nofz)    
+        
+    colors = ['k', 'b', 'c']
     ls = ['-', '--', ':']
-    labels = [r'$f_{\ast}(z)$', r'$M_p(z)$']
-    for j, pop in enumerate([pop1, pop2]):
-        for i, z in enumerate([6, 15, 30]):
-            pl.loglog(Mh, pop.SFE(z=z, Mh=Mh), color=colors[j], ls=ls[i],
+    labels = [r'$f_{\ast}(z)$', r'$M_p(z)$', r'$f_{\ast}(z)$']
+    all_sfe = []
+    for j, pop in enumerate([pop1, pop2, pop3]):
+        for i, z in enumerate([6, 10]):
+            sfe = pop.SFE(z=z, Mh=Mh)
+            pl.loglog(Mh, sfe, color=colors[j], ls=ls[i],
                 label=labels[j] if i == 0 else None)
-    
+            
+            all_sfe.append(sfe)
+                            
     pl.xlabel(r'$M_h / M_{\odot}$')
     pl.ylabel(r'$f_{\ast}$')
     pl.ylim(1e-4, 0.2)
@@ -144,6 +163,14 @@ def test():
     
     pl.savefig('{!s}_2.png'.format(__file__[0:__file__.rfind('.')]))     
     pl.close()
+    
+    assert ~np.all(all_sfe[0] == all_sfe[1]), "No SFE evolution detected!"
+    assert ~np.all(all_sfe[2] == all_sfe[3]), "No SFE evolution detected!"
+    assert ~np.all(all_sfe[4] == all_sfe[5]), "No SFE evolution detected!"
+    assert np.allclose(all_sfe[0][Mh <= 1e10], all_sfe[2][Mh <= 1e10],
+        rtol=1e-2, atol=0), "Mismatch at low Mh!"
+    assert np.allclose(all_sfe[0][Mh <= 1e10], all_sfe[4][Mh <= 1e10],
+        rtol=1e-2, atol=0), "Mismatch at low Mh!"    
     
 if __name__ == '__main__':
     test()

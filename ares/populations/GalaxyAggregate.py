@@ -76,8 +76,12 @@ class GalaxyAggregate(HaloPopulation):
                 z, sfrd = self.pf['pop_sfrd']
                 
                 assert np.all(np.diff(z) > 0), "Redshifts must be ascending."
-                                
-                sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
+                
+                if self.pf['pop_sfrd_units'] == 'internal':
+                    sfrd[sfrd * rhodot_cgs <= tiny_sfrd] = tiny_sfrd / rhodot_cgs
+                else:
+                    sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
+                    
                 interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_interp_sfrd'],
                     bounds_error=False, fill_value=-np.inf)
                     
@@ -214,12 +218,8 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 return rhoL * self.pf['pop_fX'] * self.pf['pop_cX'] \
                     / (g_per_msun / s_per_yr)
-                                    
-        ##                                                        
-        # Models based on SED. 
-        # Convert from reference band to user-supplied band
-        # and apply escape fractions.
-        ##
+                                        
+        # Convert from reference band to arbitrary band        
         rhoL *= self._convert_band(Emin, Emax)
         if (Emax is None) or (Emin is None):
             if self.pf['pop_reproc']:

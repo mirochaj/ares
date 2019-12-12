@@ -2,13 +2,13 @@
 
 The Metagalactic UV Background
 ==============================
-One of the main motivations for *ares* was to be able to easily generate models for the metagalactic background. In this example, we'll focus on the ultraviolet background , which is noteworthy given the ''sawtooth'' modulation (e.g., `Haiman et al. (1997) <http://adsabs.harvard.edu/abs/1997ApJ...476..458H>`_) caused by intergalactic hydrogen atoms.
+One of the main motivations for *ARES* was to be able to easily generate models for the metagalactic background. In this example, we'll focus on the ultraviolet background , which is noteworthy given the ''sawtooth'' modulation (e.g., `Haiman et al. (1997) <http://adsabs.harvard.edu/abs/1997ApJ...476..458H>`_) caused by intergalactic hydrogen atoms.
 
 In order to model this background, we need to decide on a few main ingredients:
 
 * The spectrum of sources, which can be one of several pre-defined options (like a power-law, ``pl`` or blackbody, ``bb``), or a Python function supplied by the user.
 * How the background will evolve with redshift, which could be based on the rate of collapse onto dark matter haloes as a function of time, a parameterized form for the star-formation rate history, or more detailed models of star-formation (see :doc:`uth_pop_sfrd`).
-* What (if any) approximations we'll make in order to speed-up the calculation, aside from the assumption of a spatially uniform radiation background, which we make implicitly in *ares* throughout.
+* What (if any) approximations we'll make in order to speed-up the calculation, aside from the assumption of a spatially uniform radiation background, which we make implicitly in *ARES* throughout.
 
 First things first:
 

@@ -23,7 +23,8 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
     'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum',
-    'Halo']
+    'Halo', 'Absorber']
+
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -172,6 +173,9 @@ def AbsorberParameters():
     'cddf_gamma': 1.5,
     'cddf_zlow': 1.5,
     'cddf_gamma_low': 0.2,
+    
+    'absorption_model': None,
+    
     }
     
     pf.update(rcParams)
@@ -316,6 +320,7 @@ def ParameterizedQuantityParameters():
      "pq_func": 'dpl',
      "pq_func_fun": None,  # only used if pq_func == 'user'
      "pq_func_var": 'Mh',
+     "pq_func_var2": None, 
      "pq_func_par0": None,
      "pq_func_par1": None,
      "pq_func_par2": None,
@@ -324,16 +329,19 @@ def ParameterizedQuantityParameters():
      "pq_func_par5": None,
      "pq_func_par6": None,
      "pq_func_par7": None,
-     
+     "pq_func_par7": None,
+     "pq_func_par8": None,
+     "pq_func_par9": None,
+
      "pq_boost": 1.,
      "pq_iboost": 1.,
      "pq_val_ceil": None,
      "pq_val_floor": None,
      "pq_var_ceil": None,
      "pq_var_floor": None,      
-         
+
     }  
-    
+
     pf.update(rcParams)
 
     return pf
@@ -516,13 +524,17 @@ def PopulationParameters():
     "pop_interp_lf": 'linear',
     
     "pop_tdyn": 1e7,
+    "pop_tstar": None,
     "pop_sSFR": None,
 
 
     "pop_uvlf": None,
     'pop_lf_Mmax': 1e15,
 
-    "pop_fduty": 1.0,
+    "pop_fduty": None,
+    "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
+                          # it's coherent.
+    
     "pop_focc": 1.0,
     
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
@@ -530,8 +542,16 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+<<<<<<< working copy
     "pop_sed_sharp_at": None,
     
+||||||| base
+=======
+    # Can degrade spectral resolution of stellar population synthesis models
+    # just to speed things up.
+    "pop_sed_degrade": None,
+        
+>>>>>>> merge rev
     # If pop_sed == 'user'
     "pop_E": None,
     "pop_L": None,
@@ -546,9 +566,17 @@ def PopulationParameters():
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_psm_instance": None,
     "pop_src_instance": None,
+    
+    # Cache tricks: must be pickleable for MCMC to work.
+    "pop_sps_data": None,
+    "pop_hmf_data": None,
+    
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
+    
+    "pop_ssp_oversample": False,
+    "pop_ssp_oversample_age": 30.,
     
     "pop_sfh": False,             # account for SFH in spectrum modeling
 
@@ -559,6 +587,7 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
+<<<<<<< working copy
     
     # Reserved for delta function sources
     "pop_E": None,
@@ -566,12 +595,18 @@ def PopulationParameters():
     
     # Artificially kill emission in some band.
     "pop_Ekill": None,
+||||||| base
+    
+    # Artificially kill emission in some band.
+    "pop_Ekill": None,
+=======
+>>>>>>> merge rev
 
+    "pop_Ekill": None,    # see also source_Ekill
     "pop_Emin_xray": 2e2,
     
     # Controls IGM ionization for approximate CXB treatments
     "pop_Ex": 500.,
-    "pop_EminX": 2e2,
     "pop_Euv": 30.,
     
     "pop_lf": None,
@@ -624,7 +659,25 @@ def PopulationParameters():
     # For GalaxyEnsemble
     "pop_aging": False,
     "pop_enrichment": False,
-    "pop_quench": False,
+    "pop_quench": None,
+    "pop_quench_by": 'mass',
+    "pop_flag_sSFR": None,
+    "pop_flag_tau": None,
+    
+    "pop_mag_bin": 0.5,
+    "pop_synth_dz": 0.5,
+    "pop_synth_zmax": 20.,
+    "pop_synth_zmin": 3.5,
+    "pop_synth_Mmax": 1e14,
+    "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
+    "pop_synth_cache_level": 1, # Bigger = more careful
+    "pop_synth_age_interp": 'cubic',
+    "pop_synth_cache_phot": {},
+    
+    "pop_tau_bc": 0,
+    "pop_age_bc": 10.,
+    
+    "pop_mergers": False,
     
     # For Clusters
     "pop_mdist": None,
@@ -635,6 +688,7 @@ def PopulationParameters():
     "pop_guide_pop": None,
     "pop_thin_hist": False,
     "pop_scatter_mar": 0.0,
+    "pop_scatter_mar_seed": None,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
     "pop_scatter_env": 0.0,
@@ -649,7 +703,7 @@ def PopulationParameters():
     "pop_force_equilibrium": np.inf,
     "pop_sample_imf": False,
     "pop_sample_cmf": False,
-    "pop_imf": 'salpeter',
+    "pop_imf": 2.35,     # default to standard SSPs. 
     "pop_imf_bins": None,#np.arange(0.1, 150.01, 0.01),  # bin centers
     "pop_cmf": None,
     
@@ -759,7 +813,17 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
-    "pop_dust_yield": 0.1,
+    "pop_dust_holes": 'big', 
+    "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
+    "pop_dust_yield_delay": 0,
+    "pop_dust_growth": None,
+    "pop_dust_scale": 0.1,    # 100 pc
+    "pop_dust_fcov": 1.0,
+    "pop_dust_geom": 'screen',  # or 'mixed'
+    "pop_dust_kappa": None,   # opacity in [cm^2 / g]
+    "pop_dust_scatter": None,
+    
+    
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
@@ -769,8 +833,8 @@ def PopulationParameters():
     # Transition mass
     "pop_transition": 0,
     
-    # deprecated?
-    "pop_kappa_UV": 1.15e-28,
+    "pop_dE": None,
+    "pop_dlam": 1.,
     
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
@@ -784,6 +848,9 @@ def PopulationParameters():
     
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
+
+    # Nebular emission stuff
+    "pop_nebula_Tgas": 2e4,
 
     "pop_solve_rte": False,
     "pop_lya_permeable": False,
@@ -824,8 +891,14 @@ def SourceParameters():
     "source_sed": 'bb',
     "source_position": 0.0,
     
+<<<<<<< working copy
     "source_sed_sharp_at": None,
     
+||||||| base
+=======
+    "source_sed_degrade": None,
+    
+>>>>>>> merge rev
     "source_sfr": 1.,
     "source_fesc": 0.1,
     
@@ -847,10 +920,18 @@ def SourceParameters():
     "source_multigroup": False,
 
     "source_Emin": 13.6,  
-    "source_Emax": 1e2,  
+    "source_Emax": 1e2,
     "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
+    "source_dE": None,
+    "source_dlam": None,
+    
+    "source_toysps_beta": -3.5,
+    "source_toysps_norm": 2e33,  # at 1600A
+    "source_toysps_gamma": -0.8,
+    "source_toysps_alpha": 5.,
+    "source_toysps_t0": 100.,
     
     "source_Ekill": None,
     
@@ -872,6 +953,8 @@ def SourceParameters():
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
     "source_interpolant": None,
+    
+    "source_sps_data": None,
     
     # Log masses
     "source_imf_bins": np.arange(-1, 2.52, 0.02),  # bin centers
@@ -954,6 +1037,7 @@ def SynthesisParameters():
     {
     # For synthesis models
     "source_sed": None,
+    "source_sed_degrade": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
     "source_tracks": None,
@@ -966,6 +1050,13 @@ def SynthesisParameters():
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
+    "source_sps_data": None,
+    
+    # Only used by toy SPS
+    "source_dE": None,
+    "source_dlam": 1.,
+    "source_Emin": 1.,
+    "source_Emax": 54.4,
     }
 
     return pf
@@ -990,7 +1081,19 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 0,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
+<<<<<<< working copy
 
+||||||| base
+    
+=======
+    
+    # Optional: time instead of redshift
+    "hmf_tmin": 30.,
+    "hmf_tmax": 1000.,
+    "hmf_dt": None,     # if not None, will switch this one.
+    
+    
+>>>>>>> merge rev
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
@@ -1002,6 +1105,7 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+<<<<<<< working copy
     # For matter power spectrum
     "mps_zmin": 6,
     "mps_zmax": 30,
@@ -1016,13 +1120,35 @@ def HaloMassFunctionParameters():
     'mps_lnR_min': -10.,
     'mps_lnR_max': 10.,
 
+||||||| base
+=======
+    # Note that this is not passed to hmf yet.
+    "hmf_window": 'tophat',
+    
+>>>>>>> merge rev
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
+<<<<<<< working copy
 
+||||||| base
+    
+=======
+    
+    "hmf_func": None,
+    "hmf_extra_par0": None,
+    "hmf_extra_par1": None,
+    "hmf_extra_par2": None,
+    "hmf_extra_par3": None,
+    "hmf_extra_par4": None,
+        
+>>>>>>> merge rev
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
     "hmf_database": None,
+
+    # Directory where cosmology hmf tables are located
+    "hmf_cosmology_location": None, #'/home/henri/Documents/HERA/Cosmology/HMF_tables/PS/hdf5'
     
     }
     
@@ -1034,6 +1160,8 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
+    "cosmology_propagation": True,
+    "cosmology_inits_location": None,
     "omega_m_0": 0.3089,
     "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
     "omega_l_0": 1. - 0.3089,
@@ -1044,6 +1172,9 @@ def CosmologyParameters():
     "sigma_8": 0.8159,
     "primordial_index": 0.9667,
     "approx_highz": False,    
+    "cosmology_name": None,  # Can pass 'named cosmologies'
+    "cosmology_number": None,
+    "cosmology_generator": None,
     }
 
     pf.update(rcParams)
@@ -1069,6 +1200,8 @@ def ControlParameters():
     
     'revision': None,
     
+    'nthreads': None,
+    
     # Start/stop/IO
     "dtDataDump": 1.,
     "dzDataDump": None,
@@ -1084,8 +1217,6 @@ def ControlParameters():
     
     "save_rate_coefficients": 1,
     
-    "need_for_speed": False,
-
     "optically_thin": 0,
 
     # Solvers
@@ -1103,6 +1234,9 @@ def ControlParameters():
     
     # Not implemented
     "extrap_Z": False,
+    
+    # Experimental
+    "conserve_memory": False,
 
     # Initialization
     "load_ics": 'cosmorec',
@@ -1160,7 +1294,7 @@ def ControlParameters():
     "sam_rtol": 1e-4,
     
     # File format
-    "preferred_format": 'npz',
+    "preferred_format": 'hdf5',
 
     # Finding SED tables
     "load_sed": False,

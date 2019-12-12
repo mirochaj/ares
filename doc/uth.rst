@@ -30,9 +30,10 @@ Source Populations
 .. * :doc:`uth_pop_bh` 
 .. * :doc:`uth_pop_analysis`
 
-.. Physics
-.. -------
-.. * :doc:`uth_physics_cosmo`
+Physics
+-------
+* :doc:`uth_physics_cosmo`
+
 .. * :doc:`uth_physics_hydrogen`
 .. * :doc:`uth_physics_constants`
 .. * :doc:`uth_physics_rcs`

@@ -102,7 +102,7 @@ and run the fit:
 
 This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_analysis` to proceed with inspecting the above dataset.
 
-.. note :: For a simple model like the tanh, this fitting will be slower to run through *ares* due to the overhead of initializing objects and performing the analysis (like finding extrema) in real time. For more sophisticated models, this overhead is dwarfed by the cost of each simulation, and for the complex blobs, the built-in machinery for I/O is very useful. If all you're interested in is phenomenological fits, then it'll be much faster to simply write your own wrappers around *emcee*.
+.. note :: For a simple model like the tanh, this fitting will be slower to run through *ARES* due to the overhead of initializing objects and performing the analysis (like finding extrema) in real time. For more sophisticated models, this overhead is dwarfed by the cost of each simulation, and for the complex blobs, the built-in machinery for I/O is very useful. If all you're interested in is phenomenological fits, then it'll be much faster to simply write your own wrappers around *emcee*.
 
 Hopefully you recover a signal with a peak at 80 MHz and -100 mK, but beware that this will be nowhere near converged, so the plots won't be pretty unless you increase the number of steps, walkers, or both.
 

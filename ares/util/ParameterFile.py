@@ -109,7 +109,7 @@ def count_populations(**kwargs):
         if num is None:
             continue
             
-        if num not in popIDs:
+        if num not in popIDs:            
             popIDs.append(num)
 
     return len(popIDs)
@@ -307,9 +307,9 @@ class ParameterFile(dict):
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self._kwargs)
-
-            self._Npops = count_populations(**tmp)
             
+            self._Npops = count_populations(**tmp)
+
         return self._Npops
 
     @property
@@ -374,7 +374,7 @@ class ParameterFile(dict):
                       # Should have no {}'s
                     
         pf_base.update(defaults)
-                                    
+                                            
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
             pfs_by_pop = self.update_pq_pars([pf_base], **kwargs)
@@ -395,7 +395,7 @@ class ParameterFile(dict):
             # Only add non-pop-specific parameters from ProblemType defaults
             prb = ProblemType(kwargs['problem_type'])
             for par in defaults_pop_indep:
-                
+                                
                 # Just means this parameter is not default to the 
                 # problem type. 
                 if par not in prb:
@@ -415,7 +415,7 @@ class ParameterFile(dict):
                     
                     if (phpid is not None) and (popid is None):
                         pf_base[par] = kwargs[par]
-                        
+                    
             # We now have a parameter file containing all non-pop-specific
             # parameters, which we can use as a base for all pop-specific
             # parameter files.        

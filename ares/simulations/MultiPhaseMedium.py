@@ -37,7 +37,6 @@ class MultiPhaseMedium(object):
         
         if pf is not None:
             self.pf = pf
-            print('got pf')
             
         self.kwargs = kwargs
                 
@@ -63,12 +62,11 @@ class MultiPhaseMedium(object):
     def inits(self):
         if not hasattr(self, '_inits'):    
             if self.pf['load_ics']:
-                
-                # Redshifts ascending at this point
                 if self.pf['approx_thermal_history']:
                     self._inits = inits = self.grid.cosm.thermal_history
                 else:    
-                    self._inits = inits = _load_inits()
+                    self._inits = inits = self.grid.cosm.inits
+                    
                 
                 zi = self.pf['initial_redshift']
                 if not np.all(np.diff(inits['z']) > 0):
@@ -514,6 +512,10 @@ class MultiPhaseMedium(object):
             snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
             snapshot['n'] = \
                 self.parcel_igm.grid.particle_density(snapshot.copy(), red)
+
+            # Need to keep the cell number dimension for consistency
+            for element in snapshot:
+                snapshot[element] = np.array([snapshot[element]], dtype=float)
 
             self.all_t.append(0.0)
             self.all_data_igm.append(snapshot.copy())

@@ -18,9 +18,9 @@ Output to screen
 Starting and stopping calculations
 ----------------------------------
 ``initial_redshift``
-    Initial redshift of calculation. 
+    Initial redshift of calculation, i.e., the redshift at which we switch from cosmological initial conditions to the *ARES* solver.
     
-    Default: 50
+    Default: 60
     
 ``final_redshift``
     Calculation stops at this redshift.
@@ -95,16 +95,11 @@ Time-stepping and data storage
 
 Lookup tables
 -------------
-``redshift_bins``
+``tau_redshift_bins``
     Number of points to use when discretizing the IGM optical depth in redshift.
     
     Default: ``None``
     
-``load_tau``
-    If ``True``, will search path set in environment variable ``$ARES`` for optical depth tables with dimensions given by ``redshift_bins`` (see above), and the energy range defined by ``spectrum_Emin`` and ``spectrum_Emax``.
-    
-    Default: ``False``
-
 ``tau_prefix``
     Path to directory on disk where optical depth tables are stored. Set this if you keep optical depth tables stored in a place other than the ``$ARES`` environment variable!
     
@@ -120,28 +115,4 @@ Lookup tables
     
     Default: ``None``
 
-Not done yet
-------------
 
-
-::
-     
-    # Initialization
-    "load_ics": True,
-    
-    # Real-time optical depth calculation once EoR begins
-    "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)
-    "EoR_dlogx": 0.01,    
-
-    "tau_table": None,
-            
-    "unsampled_integrator": 'quad',
-    "sampled_integrator": 'simps',
-    "integrator_rtol": 1e-6,
-    "integrator_atol": 1e-4,
-    "integrator_divmax": 1e2,
-    
-    "interpolator": 'spline',
-    
-    "progress_bar": True,
-    "verbose": True,

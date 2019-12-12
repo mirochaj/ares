@@ -24,6 +24,7 @@ cm_per_km = 1e5
 cm_per_rsun = 695500. * cm_per_km
 cm_per_rEarth = 637100000.
 cm_per_au = 1.49597871e13
+cm_per_ang = 1e-8
 
 # masses
 g_per_amu = 1.660538921e-24    
@@ -106,6 +107,8 @@ y = Y / 4. / (1. - Y)           # Primordial helium abundance by number
 
 lsun = 3.839e33                     # Solar luminosity - erg / s
 cm_per_rsun = 695500.0 * 1e5        # Radius of the sun - [cm_per_rsun] = cm
-t_edd = 0.45 * 1e9 * s_per_yr       # Eddington timescale (see eq. 1 in Volonteri & Rees 2005) 
+t_edd = sigma_T * c / 4. / pi / G / m_p # Eddington timescale (~0.45 Gyr)
                                     
 xcorr = (3. / 7.)**0.5 * (6. / 7.)**3  # Correction factor for peak temperature location in disk                        
+
+flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz

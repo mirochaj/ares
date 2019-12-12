@@ -1,14 +1,14 @@
 :orphan:
 
-Embedding *ares* in your own code
+Embedding *ARES* in your own code
 =================================
-If you want to summon *ares* to generate models within a larger calculation (say, a model grid, MCMC fit, etc.) but for whatever reason do NOT want to use the built-in machinery for such things (no hard feelings!), the procedure should be fairly painless. You can basically follow the same approach as has been outlined in other areas of the documentation:
+If you want to summon *ARES* to generate models within a larger calculation (say, a model grid, MCMC fit, etc.) but for whatever reason do NOT want to use the built-in machinery for such things (no hard feelings!), the procedure should be fairly painless. You can basically follow the same approach as has been outlined in other areas of the documentation:
 
     * :doc:`example_gs_standard`
     * :doc:`example_litdata` (see bottom for common models)
     
     
-Typically, the only hurdle is to correctly supply parameters to new *ares* simulation objects. *ares* expects all parameters to be supplied via keyword arguments, so if you have an array of parameter combinations you'd like to run (as in the case of MCMC), you'll have to convert each sub-array to a dictionary first.
+Typically, the only hurdle is to correctly supply parameters to new *ARES* simulation objects. *ARES* expects all parameters to be supplied via keyword arguments, so if you have an array of parameter combinations you'd like to run (as in the case of MCMC), you'll have to convert each sub-array to a dictionary first.
 
 For example, say you want to vary the minimum virial temperature of star-forming halos and the normalization of the :math:`L_X`-SFR relation. First, setup a dictionary of parameters that will *not* change from model to model:
 
@@ -16,10 +16,9 @@ For example, say you want to vary the minimum virial temperature of star-forming
 
     import ares
     
-    base_kwargs = ares.util.ParameterBundle('mirocha2016:dpl')
-    base_kwargs['initial_redshift'] = 60
+    base_kwargs = ares.util.ParameterBundle('mirocha2017:dpl')
 
-.. note :: See :doc:`example_litdata` regarding use of ``mirocha2016:dpl`` models.
+.. note :: See :doc:`example_litdata` regarding use of ``mirocha2017:dpl`` models.
 
 Now, let's setup a grid of models to evaluate.
 
@@ -39,7 +38,7 @@ Now, let's setup a grid of models to evaluate.
     
     grid = np.array(grid)        
     
-This ``grid`` array has the same shape as an MCMC chain. In practice, you may have such an array that you constructed yourself by some other means. Regardless, once you've got it, you can loop through its elements and run *ares* simulations via, e.g.,
+This ``grid`` array has the same shape as an MCMC chain. In practice, you may have such an array that you constructed yourself by some other means. Regardless, once you've got it, you can loop through its elements and run *ARES* simulations via, e.g.,
 
 ::
 
@@ -60,6 +59,6 @@ This is kind of a silly example because the first step of structuring the parame
 
 Note also that in this example you'd be left to parse all the outputs from individual calculations yourself. Not such a terrible thing, but if you're going to run large sets of models, it might be worth using the built-in routines for running big model grids, which automatically collect and distill the information into a format that can be easily analyzed via (you guessed it) other built-in analysis routines. If you still want to do your own thing, that's OK: you may want to eliminate the call to ``sim.save`` above, and extract only the pieces of information you are interested in (from ``sim.history``) and write-out in a format of your choosing.
 
-See :doc:`example_grid` and :doc:`example_grid_analysis` for more information on *ares*' internal model grid routines.
+See :doc:`example_grid` and :doc:`example_grid_analysis` for more information on *ARES*' internal model grid routines.
 
 

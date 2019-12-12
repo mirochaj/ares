@@ -40,8 +40,8 @@ Emax = 3e4
 Nz = [200]
 pin_Emin = True
 Nz = [400]
-fmt = 'npz'        # 'hdf5' or 'pkl' or 'npz'
-helium = 0
+fmt = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
+helium = 1
 xavg = lambda z: 0.0  # neutral
 ##
 #

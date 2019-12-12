@@ -307,6 +307,52 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
+def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None):
+    """
+    Take samples and bin up.
+    """
+
+    xbin_e = bin_c2e(xbin_c)
+
+    if weights is None:
+        weights = np.ones_like(x)
+
+    ystd = []
+    yavg = []
+    for i, lo in enumerate(xbin_e):
+        if i == len(xbin_e) - 1:
+            break
+
+        hi = xbin_e[i+1]
+
+        ok = np.logical_and(x >= lo, x < hi)
+        ok = np.logical_and(ok, np.isfinite(y))
+        
+        f = y[ok==1]
+
+        if (f.size == 0) or (weights[ok==1].sum() == 0):
+            
+            yavg.append(-np.inf)
+            if limits:
+                ystd.append((-np.inf, -np.inf))
+            else:    
+                ystd.append(-np.inf)
+            
+            continue
+        
+        yavg.append(np.average(f, weights=weights[ok==1]))
+        
+        if percentile is not None:
+            q1 = 0.5 * 100 * (1. - percentile)
+            q2 = 100 * percentile + q1                
+            lo, hi = np.percentile(f, (q1, q2))
+            ystd.append((lo, hi))
+        elif limits:
+            ystd.append((np.min(f), np.max(f)))
+        else:        
+            ystd.append(np.std(f))
+
+    return np.array(xbin_c), np.array(yavg), np.array(ystd)
 
 def rebin(bins):
     """

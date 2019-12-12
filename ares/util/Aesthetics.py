@@ -209,6 +209,7 @@ gauss_parameters = \
 
 lf_parameters = \
 {
+ 'MUV': r'$M_{\mathrm{UV}}$',
  'pop_lf_Mstar': r'$M_{\ast}$',
  'pop_lf_pstar': r'$\phi_{\ast}$',
  'pop_lf_alpha': r'$\alpha$',
@@ -238,8 +239,8 @@ pop_parameters = \
 
 sfe_parameters = \
 {
- "lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
- "galaxy_lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "lf": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "galaxy_lf": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_smf": r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$',
 }
 

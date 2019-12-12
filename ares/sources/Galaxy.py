@@ -29,7 +29,6 @@ class Galaxy(object):
     def src(self):
         if not hasattr(self, '_src'):
             self._src = SynthesisModel(**self.pf)
-
         return self._src
 
     @property

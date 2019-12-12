@@ -309,6 +309,148 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
+_dust_fcov = \
+{
+ "pop_dust_fcov": 'pq[25]',   
+ "pq_func[25]": 'log_tanh_abs',
+ 'pq_func_var[25]': 'Mh',
+ 'pq_func_par0[25]': 0.0,     
+ 'pq_func_par1[25]': 1.0,
+ 'pq_func_par2[25]': 10.8,
+ 'pq_func_par3[25]': 0.3,
+ 'pq_val_floor[25]': 0.0,
+ 'pq_val_ceil[25]': 1.0,       
+}
+
+_dust_kappa = \
+{    
+ "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
+
+ "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
+ "pq_func[20]": 'pl',
+ 'pq_func_var[20]': 'wave',
+ 'pq_func_par0[20]': 1e5,      # opacity at wavelength below
+ 'pq_func_par1[20]': 1e3,
+ 'pq_func_par2[20]': -1.,
+}
+
+_dust_screen_pl = \
+{
+ # Scale 
+ "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
+ "pq_func[22]": 'pl_evolN',
+ 'pq_func_var2[22]': '1+z',
+ 'pq_func_var[22]': 'Mh',
+ 'pq_func_par0[22]': 1.6,        # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]': 1e10,
+ 'pq_func_par2[22]': 0.45,
+ 'pq_func_par3[22]': 5.,
+ 'pq_func_par4[22]': 0.,         # R(vir) goes like 1 / (1+z)
+} 
+
+_dust_screen_pl.update(_dust_kappa)
+
+_dust_screen_dpl = \
+{
+ # Scale 
+ "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
+ "pq_func[22]": 'dpl_evolN',
+ 'pq_func_var2[22]': '1+z',
+ 'pq_func_var[22]': 'Mh',
+ 'pq_func_par0[22]': 1.6,        # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]': 3e11,
+ 'pq_func_par2[22]': 0.45,
+ 'pq_func_par3[22]': 0.45,
+ 'pq_func_par4[22]': 1e10,       
+ 'pq_func_par5[22]': 5.,         
+ 'pq_func_par6[22]': 0.,         # R(vir) goes like 1 / (1+z)
+}
+
+_dust_screen_dpl.update(_dust_kappa)
+
+_dust_patchy = _dust_screen_pl.copy()
+_dust_patchy.update(_dust_fcov)
+
+_dust_patchy['pq_func_par2[25]'] = 'pq[26]'
+_dust_patchy["pq_func[26]"] = 'linear'
+_dust_patchy['pq_func_var[26]'] = '1+z'
+_dust_patchy['pq_func_par0[26]'] = 10.8
+_dust_patchy['pq_func_par1[26]'] = 5.
+_dust_patchy['pq_func_par2[26]'] = 0.
+
+_dust_destroy = \
+{
+ "pop_dust_yield": 'pq[27]',
+ "pq_func[27]": 'pl_evolN',
+ 'pq_func_var[27]': 'Mh',
+ 'pq_func_var2[27]': '1+z',
+ 'pq_func_par0[27]': 0.4,     
+ 'pq_func_par1[27]': 1e10,
+ 'pq_func_par2[27]': 0.,     # Mh-independent, by default
+ 'pq_func_par3[27]': 5.,
+ 'pq_func_par4[27]': 0.,  
+ 'pq_val_ceil[27]': 0.4,
+}
+
+_dust_growth = \
+{
+ "pop_dust_growth": 'pq[29]',
+ "pq_func[29]": 'pl_evolN',
+ 'pq_func_var[29]': 'Mh',
+ 'pq_func_var2[30]': '1+z',
+ 'pq_func_par0[29]': 1e9,     
+ 'pq_func_par1[29]': 1e10,
+ 'pq_func_par2[29]': 0.,     # Mh-independent, by default
+ 'pq_func_par3[29]': 5.,
+ 'pq_func_par4[29]': 0.,   
+}
+
+_dust_composition = \
+{
+ 'pq_func_par2[20]': 'pq[31]',
+ 'pq_func[31]': 'pl',
+ 'pq_func_var[31]': 'Mh',
+ 'pq_func_par0[31]': -1.,
+ 'pq_func_par1[31]': 1e10,
+ 'pq_func_par2[31]': 0.,
+}
+
+_dust_scatter = \
+{
+ "pop_dust_scatter": 'pq[33]',
+ 'pq_func[33]': 'pl_evolN',
+ 'pq_func_var[33]': 'Mh',
+ 'pq_func_var2[33]': '1+z',
+ 'pq_func_par0[33]': 0.3,
+ 'pq_func_par1[33]': 1e10,
+ 'pq_func_par2[33]': 0.,
+ 'pq_func_par3[33]': 5.,
+ 'pq_func_par4[33]': 0.,
+}
+
+
+#_physical_dc_screen_tanh = _physical_dc_screen.copy()
+#_physical_dc_patchy_tanh = _physical_dc_patchy.copy()
+
+
+#_physical_dc_screen_tanh["pq_func[22]"] = 'log_tanh_abs'
+#_physical_dc_screen_tanh['pq_func_var[22]'] = 'Mh'
+#_physical_dc_screen_tanh['pq_func_par0[22]'] = 'pq[23]'
+#_physical_dc_screen_tanh['pq_func_par1[22]'] = 10.
+#_physical_dc_screen_tanh['pq_func_par2[22]'] = 12.
+#_physical_dc_screen_tanh['pq_func_par3[22]'] = 1.
+#_physical_dc_screen_tanh['pq_func_par0[23]'] = 1e-1
+#
+#_physical_dc_patchy_tanh["pq_func[22]"] = 'log_tanh_abs'
+#_physical_dc_patchy_tanh['pq_func_var[22]'] = 'Mh'
+#_physical_dc_patchy_tanh['pq_func_par0[22]'] = 'pq[23]'
+#_physical_dc_patchy_tanh['pq_func_par1[22]'] = 10.
+#_physical_dc_patchy_tanh['pq_func_par2[22]'] = 12.
+#_physical_dc_patchy_tanh['pq_func_par3[22]'] = 1.
+#_physical_dc_patchy_tanh['pq_func_par0[23]'] = 1e-1
+
+
+
 _cooling = \
 {
  'approx_thermal_history': 'exp',
@@ -346,6 +488,20 @@ _slow = \
  'max_timestep': 1.,
 }
 
+# Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
+_planck2015 = \
+{
+ "omega_m_0": 0.3089,
+ "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
+ "omega_l_0": 1. - 0.3089,
+ "hubble_0": 0.6774,
+ "helium_by_number": 0.0813,
+ "helium_by_mass": 0.2453,   # predicted by BBN
+ "cmb_temp_0": 2.7255,
+ "sigma_8": 0.8159,
+ "primordial_index": 0.9667,
+}
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -356,8 +512,11 @@ _Bundles = \
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
-    'evolving': _evolve_dc, 'none': {},
-    },
+    'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl, 
+    'screen-dpl': _dust_screen_dpl,
+    'patchy': _dust_patchy, 'destruction': _dust_destroy, 'growth': _dust_growth,
+    'composition': _dust_composition, 'scatter': _dust_scatter},
+ 'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
     'careless': _careless}
@@ -439,9 +598,18 @@ class ParameterBundle(dict):
                     first_update = False
                 
                 if self.verbose:
-                    msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
-                        str(other[key]).ljust(12))
-                    msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                    if type(other[key]) in [int, float, np.float64]:
+                        msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key.ljust(20), 
+                            other[key])
+                    else:
+                        msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
+                            str(other[key]).ljust(12))
+                    if type(tmp[key]) in [int, float, np.float64]:
+                        msg2 = "previously {0} = {1:9.2e}".format(str(key).ljust(20), 
+                            tmp[key])
+                    else:
+                        msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                        
                     print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]
@@ -589,6 +757,7 @@ class ParameterBundle(dict):
             if (idnum == num) or prefix.startswith('hmf_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
                 or prefix.startswith('master'):
+                                
                 if strip_id:
                     tmp[prefix] = self[par]
                 else:    

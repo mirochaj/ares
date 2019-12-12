@@ -2,9 +2,9 @@
 
 The ParameterizedQuantity Framework
 ===================================
-The goal of this framework is to make it possible to take any parameter in *ares* (the ones that take on numerical values, anyways), and convert it from a constant to a function of an arbitrary set of variables. 
+The goal of this framework is to make it possible to take any parameter in *ARES* (the ones that take on numerical values, anyways), and convert it from a constant to a function of an arbitrary set of variables. 
 
-One approach is to allow the user to supply a function of their own to each parameter in place of a numerical value. *ares* permits this functionality for some parameters (e.g., ``pop_sed``), however, it is often advantageous to retain access to the parameters of the user-supplied function, for example to allow these parameters to vary in some fit. This is the primary motivation for the ParameterizedQuantity framework.
+One approach is to allow the user to supply a function of their own to each parameter in place of a numerical value. *ARES* permits this functionality for some parameters (e.g., ``pop_sed``), however, it is often advantageous to retain access to the parameters of the user-supplied function, for example to allow these parameters to vary in some fit. This is the primary motivation for the ParameterizedQuantity framework.
 
 We have already seen PQs in use in the :doc:`example_pop_galaxy` example, which showed how to make the efficiency of star formation a function of halo mass:
 
@@ -26,13 +26,15 @@ We have already seen PQs in use in the :doc:`example_pop_galaxy` example, which 
      'pq_func_par1': 2.8e11,
      'pq_func_par2': 0.51,
      'pq_func_par3': -0.61,
+     'pq_func_par4': 1e10,  # Halo mass at which fstar is normalized
     }
     
     pop = ares.populations.GalaxyPopulation(**pars)
+   
     
 There are three important steps shown above:
 
-   + Setting ``pop_fstar='pq'`` tells *ares* that this quantity will be represented by a PQ object. With no ID number supplied, it is assumed that parameters with the prefix ``pq`` are used to construct this object.
+   + Setting ``pop_fstar='pq'`` tells *ARES* that this quantity will be represented by a PQ object. With no ID number supplied, it is assumed that parameters with the prefix ``pq`` are used to construct this object.
    + The function adopted is a double power-law, ``'dpl'``, which is a four-parameter model. The parameters ``pq_func_par0``, ``pq_func_par1``, etc. store the values of these parameters. The meaning of the parameters is of course different depending on what function we choose -- see  :doc:`params_pq` for a listing of the available functions and their corresponding parameters.
    + The independent variable is halo mass, ``Mh``. Note that this name is important, i.e., just ``M`` will cause an error. This is a convention of the :class:`GalaxyCohort <ares.populations.GalaxyCohort.GalaxyCohort>` class.
 
@@ -44,9 +46,9 @@ Let's plot it just for a sanity check:
     pl.loglog(Mh, pop.fstar(z=6, Mh=Mh), color='k', ls='--', lw=3)
 
 
-Parameterize a ParameterizedQuantity
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-It is also possible to allow components of a ParameterizedQuantity to themselves be parameterized. For example, say we wanted to allow the normalization of the SFE to evolve with redshift, i.e.,
+Multi-Variable Parameterized Quantities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+More complicated models are also available. For example, say we wanted to allow the normalization of the SFE to evolve with redshift, i.e.,
 
 .. math::
 
@@ -63,25 +65,21 @@ Starting from the pure ``dpl`` model above, we can make a few modifications:
      'pop_sed': 'eldridge2009',
 
      'pop_fstar': 'pq[0]',      # Give it an ID this time, since we'll add another
-     'pq_func[0]': 'dpl',       
-     
-     # NEW PARAMETERS
-     'pq_func_par0[0]': 'pq[1]',   # Note the change!
-     'pq_func[1]': 'pl',
-     'pq_func_var[1]': '1+z',
-     'pq_func_par0[1]': 0.05,
-     'pq_func_par1[1]': 7.,
-     'pq_func_par2[1]': 1.,    # This is gamma_z
-     #
-     
+     'pq_func[0]': 'dpl_evolN', # dpl w/ evolution in the Normalization      
+     'pq_func_var[0]': 'Mh',
+     'pq_func_var2[0]': '1+z',  # indicate 1+z as the second indep. variable
+	           
      # Old parameters that we still need
+     'pq_func_par0[0]': 0.05,
      'pq_func_par1[0]': 2.8e11,
      'pq_func_par2[0]': 0.51,
      'pq_func_par3[0]': -0.61,
-          
+     'pq_func_par4[0]': 1e10,
+     'pq_func_par5[0]': 7.,     # New param: "pivot" redshift
+     'pq_func_par6[0]': 1.,     # New param: PL evolution index
     }
     
-        
+	    
 To verify that this has worked, let's again plot the SFE, now as a function of redshift, and compare to the previous :math:`z`-independent model:
 
 ::
@@ -109,6 +107,8 @@ To verify that this has worked, let's again plot the SFE, now as a function of r
     always supply arguments accordingly (i.e., supplying positional arguments 
     only will not suffice), hence the ``z=z, Mh=Mh`` usage above.
 
+By default, all evolution is assumed to be a power-law. To implement more general models, emulate the structure in ``ares.phenom.ParameterizedQuantity``.
+
 Multiple Parameterized Quantities (PQs)
 ---------------------------------------
 In general, we can use the same approach outlined above to parameterize other quantities as a function of halo mass and/or redshift. For example, we can use a double power-law SFE model and set the escape fraction to be a step function in halo mass, 
@@ -126,9 +126,10 @@ In general, we can use the same approach outlined above to parameterize other qu
      'pq_func_par1[0]': 2.8e11,
      'pq_func_par2[0]': 0.5,
      'pq_func_par3[0]': -0.5,
+     'pq_func_par4[0]': 1e10,
 
      'pop_fesc': 'pq[1]',
-     'pq_func[1]': 'astep',
+     'pq_func[1]': 'step_abs',
      'pq_func_par0[1]': 0.02,
      'pq_func_par1[1]': 0.2,
      'pq_func_par2[1]': 1e10,

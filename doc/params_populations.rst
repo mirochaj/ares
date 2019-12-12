@@ -207,7 +207,7 @@ We use square brackets on this page to denote the units of parameters.
             
 For backward compatibility
 --------------------------
-There are many parameters that do *not* have the ``pop_`` prefix attached to them, but are nonetheless convenient because they are the most common parameters in fiducial global 21-cm models. In addition, in *ares* version 0.1, the ``pop_`` formulation was not yet in place, and the following parameters were the norm. They can still be used for ``problem_type=101`` (see :doc:`problem_types`), but one should be careful otherwise.
+There are many parameters that do *not* have the ``pop_`` prefix attached to them, but are nonetheless convenient because they are the most common parameters in fiducial global 21-cm models. In addition, in *ARES* version 0.1, the ``pop_`` formulation was not yet in place, and the following parameters were the norm. They can still be used for ``problem_type=101`` (see :doc:`problem_types`), but one should be careful otherwise.
 
 ``cX``
     Normalization of the X-ray luminosity to star formation rate (:math:`L_X`-SFR) relation in 

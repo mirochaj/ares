@@ -2,7 +2,7 @@
 
 More Realistic Galaxy Populations
 =================================
-Most global 21-cm examples in the documentation tie the volume-averaged emissivity of galaxies to the rate at which mass collapses into dark matter halos (this is the default option in *ares*). Because of this, they are referred to as :math:`f_{\text{coll}}` models throughout, and are selected by setting ``pop_sfr_model='fcoll'``. In the code, they are represented by ``GalaxyAggregate`` objects, named as such because galaxies are only modeled in aggregate, i.e., there is no distinction in the properties of galaxies as a function of mass, luminosity, etc.
+Most global 21-cm examples in the documentation tie the volume-averaged emissivity of galaxies to the rate at which mass collapses into dark matter halos (this is the default option in *ARES*). Because of this, they are referred to as :math:`f_{\text{coll}}` models throughout, and are selected by setting ``pop_sfr_model='fcoll'``. In the code, they are represented by ``GalaxyAggregate`` objects, named as such because galaxies are only modeled in aggregate, i.e., there is no distinction in the properties of galaxies as a function of mass, luminosity, etc.
 
 However, we can also run more detailed models in which the properties of galaxies are allowed to change as a function of halo mass, redshift, and/or potentially other quantities.
 
@@ -33,10 +33,10 @@ In general, the SFE curve must be calibrated to an observational dataset (see :d
 
 ::
 
-    p = ares.util.ParameterBundle('mirocha2016:dpl')
+    p = ares.util.ParameterBundle('mirocha2017:base')
     pars = p.pars_by_pop(0, strip_id=True)
     
-The second command extracts only the parameters associated with population #0, which is the stellar population in this calculation (population #1 is responsible for X-ray emission only; see :doc:`example_gs_multipop` for more info on the approach to populations in *ares*). Passing ``strip_id=True`` removes all ID numbers from parameter names, e.g., ``pop_sfr_model{0}`` becomes ``pop_sfr_model``. The reason for doing that is so we can generate a single ``GalaxyPopulation`` instance, e.g.,
+The second command extracts only the parameters associated with population #0, which is the stellar population in this calculation (population #1 is responsible for X-ray emission only; see :doc:`example_gs_multipop` for more info on the approach to populations in *ARES*). Passing ``strip_id=True`` removes all ID numbers from parameter names, e.g., ``pop_sfr_model{0}`` becomes ``pop_sfr_model``. The reason for doing that is so we can generate a single ``GalaxyPopulation`` instance, e.g.,
 
 ::
 
@@ -59,7 +59,7 @@ Now, to generate a model for the luminosity function, simply define your redshif
     pl.figure(1)
     pl.semilogy(MUV, lf)
     
-To compare to the observed galaxy luminosity function, we can use some convenience routines setup to easily access and plot measurements stored in the *ares* ``litdata`` module:
+To compare to the observed galaxy luminosity function, we can use some convenience routines setup to easily access and plot measurements stored in the *ARES* ``litdata`` module:
 
 ::
 
@@ -93,10 +93,7 @@ The ``round_z`` makes it so that any dataset available in the range :math:`3.7 \
         
         lf = pop.LuminosityFunction(z, MUV)
 
-        # [optional] dust correction!
-        Mobs = pop.dust.Mobs(z, MUV)
-
-        mp.grid[i].semilogy(Mobs, lf)
+        mp.grid[i].semilogy(MUV, lf)
     
     obslf.add_master_legend(mp, ncol=3)
     
@@ -133,21 +130,21 @@ To create the ``GalaxyPopulation`` used above from scratch (i.e., without using 
     
 Accretion Models
 ~~~~~~~~~~~~~~~~
-By default, *ares* will derive the mass accretion rate (MAR) onto halos from the HMF itself (see Section 2.2 of `Furlanetto et al. 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.472.1576F>`_. for details). That is, ``pop_MAR='hmf'`` by default. There are also two other options:
+By default, *ARES* will derive the mass accretion rate (MAR) onto halos from the HMF itself (see Section 2.2 of `Furlanetto et al. 2017 <http://adsabs.harvard.edu/abs/2017MNRAS.472.1576F>`_. for details). That is, ``pop_MAR='hmf'`` by default. There are also two other options:
 
 * Plug-in your favorite mass accretion model as a lambda function, e.g., ``pop_MAR=lambda z, M: 1. * (M / 1e12)**1.1 * (1. + z)**2.5``.
 * Grab a model from ``litdata``. The median MAR from McBride et al. (2009) is included (same as above equation), and can used as ``pop_MAR='mcbride2009'``. If you'd like to add more options, use ``$ARES/input/litdata/mcbride2009.py`` as a guide.
 
-.. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in `Sun \& Furlanetto (2016) <http://adsabs.harvard.edu/abs/2016MNRAS.460..417S>`_ is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
+.. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ARES* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ARES*. One approach used in `Sun \& Furlanetto (2016) <http://adsabs.harvard.edu/abs/2016MNRAS.460..417S>`_ is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ARES*.
 
 See :doc:`uth_pop_halo` for more information.
 
    
 Dust
 ~~~~
-Correcting for reddening due to the presence of dust in star-forming galaxies can be extremely important, especially in massive galaxies. When calling upon the ``LuminosityFunction`` method as in the above example, be aware that **all magnitudes returned are not corrected for dust.** That has been implemented as a separate step, so that one can generate a physical model first and still have the option of changing the dust correction afterward.
+Correcting for reddening due to the presence of dust in star-forming galaxies can be extremely important, especially in massive galaxies. When calling upon the ``LuminosityFunction`` method as in the above example, be aware that **all magnitudes are assumed to be observed magnitudes, not intrinsic magnitudes.** 
 
-At its simplest, the dust correction looks as follows (e.g., Meurer et al. 1999)
+At its simplest, the dust correction looks as follows (e.g., `Meurer et al. 1999) <https://ui.adsabs.harvard.edu/abs/1999ApJ...521...64M/abstract>`_
 
 .. math::
 
@@ -160,7 +157,7 @@ Some common dust corrections can be accessed by name and passed in via the ``dus
 * ``meurer1999``
 * ``pettini1998``
 
-By default, *ares* will assume a constant :math:`\beta=-2`. However, in general this is a poor approximation: fainter galaxies are known to suffer less from dust reddening than bright galaxies. Simply set ``dustcorr_beta='bouwens2014'``, for example, to adopt the Bouwens et al. 2014 :math:`M_{\text{UV}}-\beta` relation.
+By default, *ARES* will assume a constant :math:`\beta=-2`. However, in general this is a poor approximation: fainter galaxies are known to suffer less from dust reddening than bright galaxies. Simply set ``dustcorr_beta='bouwens2014'``, for example, to adopt the Bouwens et al. 2014 :math:`M_{\text{UV}}-\beta` relation.
 
 .. UPDATE Evolving dust
 

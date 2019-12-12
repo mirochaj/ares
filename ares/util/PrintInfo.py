@@ -336,9 +336,15 @@ def print_hmf(hmf):
     print(line('Table Limits & Resolution'))
     print(line('-' * twidth))
     
-    print(line("zmin                  : {0:g}".format(hmf.pf['hmf_zmin'])))
-    print(line("zmax                  : {0:g}".format(hmf.pf['hmf_zmax'])))
-    print(line("dz                    : {0:g}".format(hmf.pf['hmf_dz'])))
+    if hmf.pf['hmf_dt'] is None:
+        print(line("zmin                  : {0:g}".format(hmf.pf['hmf_zmin'])))
+        print(line("zmax                  : {0:g}".format(hmf.pf['hmf_zmax'])))
+        print(line("dz                    : {0:g}".format(hmf.pf['hmf_dz'])))
+    else:
+        print(line("tmin (Myr)            : {0:g}".format(hmf.pf['hmf_tmin'])))
+        print(line("tmax (Myr)            : {0:g}".format(hmf.pf['hmf_tmax'])))
+        print(line("dt   (Myr)            : {0:g}".format(hmf.pf['hmf_dt'])))
+        
     print(line("Mmin (Msun)           : {0:e}".format(\
         10 ** hmf.pf['hmf_logMmin'])))
     print(line("Mmax (Msun)           : {0:e}".format(\
@@ -940,7 +946,7 @@ def print_model_set(mset):
         prefix = mset.prefix[i+1:]
 
     print(line("path        : {!s}".format(path)))
-    print(line("prefix      : {!s}".format(prefix)))
+    print(line("prefix      : {!s}".format(prefix)))    
     print(line("N-d         : {}".format(len(mset.parameters))))
 
     print(line('-' * twidth))

@@ -185,10 +185,12 @@ class MetaGalacticBackground(AnalyzeMGB):
         count = self.count   # Just to make sure attribute exists
         self._count += 1
         
+        is_converged = self._is_Mmin_converged(self._lwb_sources)
+        
         ## 
         # Feedback
         ##
-        if self._is_Mmin_converged(self._lwb_sources):
+        if is_converged:
             self._has_fluxes = True
             self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja, 
                 left=0.0, right=0.0)
@@ -256,7 +258,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         _energies_today = []
     
         if popids is None:
-            popids = range(len(self.pops))
+            popids = list(range(len(self.pops)))
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
             
@@ -382,7 +384,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         of the background for each population.
 
         """
-        
+
         if self.solver.approx_all_pops:
             return None, None
             
@@ -454,7 +456,15 @@ class MetaGalacticBackground(AnalyzeMGB):
             delattr(self, '_solver')
             delattr(self, '_pops')
         else:
-            delattr(self.solver, '_generators')        
+            delattr(self.solver, '_generators')       
+            
+        ##
+        # Only read guesses on first iteration. Turn off for all subsequent
+        # iterations. Don't like modifying pf in general, but kind of need to
+        # here.
+        ##    
+        if self.pf['feedback_LW_guesses'] is not None:
+            self.kwargs['feedback_LW_guesses'] = None
 
         # May not need to do this -- just execute loop just above?
         self.__init__(**self.kwargs)
@@ -809,10 +819,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._LW_felt_by_    
     
     def _is_Mmin_converged(self, include_pops):
-        """
-        Compute UV background, Mmin, SFRD. Compare to last iteration.
-        """
-
         # Need better long-term fix: Lya sources aren't necessarily LW 
         # sources, if (for example) approx_all_pops = True. 
         if not self.pf['feedback_LW']:
@@ -837,6 +843,13 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Instance of a population that "feels" the feedback.
         # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
         pop_fb = self.pops[self._lwb_sources[0]]
+        
+        # Don't re-load Mmin guesses after first iteration
+        if self.pf['feedback_LW_guesses'] is not None and self.count > 1:  
+            pid = self.pf['feedback_LW_sfrd_popid']  
+            self.pops[pid]._loaded_guesses = True    
+            print('turning off ModelSet load', self.count, pid, self.pops[pid]._loaded_guesses)
+        
 
         # Save last iteration's solution for Mmin(z)
         if self.count == 1:            
@@ -846,12 +859,15 @@ class MetaGalacticBackground(AnalyzeMGB):
                 pid = self.pf['feedback_LW_sfrd_popid']
                 #_z_guess, _Mmin_guess = guess
                 self._Mmin_pre = self.pops[pid].Mmin(zarr)
+                
             else:
                 self._Mmin_pre = np.min([self.pops[idnum].Mmin(zarr) \
                     for idnum in self._lwb_sources], axis=0)
                         
             self._Mmin_bank = [self._Mmin_pre.copy()]
             self._Jlw_bank = [Jlw]
+            
+            self.pf['feedback_LW_guesses'] = None
                         
             ## 
             # Quit right away if you say so. Note: Dangerous!
@@ -863,7 +879,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                         
         else:
             self._Mmin_pre = self._Mmin_now.copy()
-        
+            
         if self.pf['feedback_LW_sfrd_popid'] is not None:
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:

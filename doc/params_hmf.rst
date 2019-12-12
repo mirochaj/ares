@@ -2,7 +2,7 @@
 
 Halo Mass Function Parameters
 =============================
-The halo mass function is at the core of many calculations related to the high-z universe. glorb uses `hmf <https://github.com/steven-murray/hmf>`_, a halo mass function calculator written by Stephen Murray.
+The halo mass function is at the core of many calculations related to the high-z universe. *ARES* uses `hmf <https://github.com/steven-murray/hmf>`_, a halo mass function calculator written by Stephen Murray.
 
 ``hmf_model``
     Which fit to the halo mass function should be used?

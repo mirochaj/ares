@@ -1,5 +1,6 @@
 import numpy as np
 from mirocha2017 import dpl, flex
+from ares.physics.Constants import E_LyA, E_LL
 
 _popII_models = {}
 for model in ['fall', 'strong_fall', 'weak_fall', 'soft_fall']:
@@ -121,8 +122,10 @@ First model: constant SFR in minihalos.
 _low = \
 {
 
- 'pop_zform{2}': 60,
- 'pop_zform{3}': 60,
+ 'pop_zform{2}': 60.,
+ 'pop_zform{3}': 60.,
+ 'pop_zdead{2}': 5.,
+ 'pop_zdead{3}': 5.,
 
  'pop_sfr_model{2}': 'sfr-func',
  'pop_sfr{2}': 1e-5,
@@ -130,7 +133,7 @@ _low = \
  'pop_sed{2}': 'eldridge2009',
  'pop_binaries{2}': False,
  'pop_Z{2}': 1e-3,
- 'pop_Emin{2}': 10.19,
+ 'pop_Emin{2}': E_LyA,
  'pop_Emax{2}': 24.6,
 
  'pop_heat_src_igm{2}': False,

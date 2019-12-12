@@ -28,6 +28,7 @@ def test():
      'pq_func_par1': 3e11,
      'pq_func_par2': 0.6,
      'pq_func_par3': -0.6,
+     'pq_func_par4': 1e10,
     }
     
     val = []

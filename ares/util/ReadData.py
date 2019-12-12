@@ -222,35 +222,12 @@ def _sort_history(all_data, prefix='', squeeze=False):
     # Cast everything to arrays
     for key in data:
         if squeeze:
-            data[key] = np.array(data[key]).squeeze()
+            data[key] = np.array(data[key], dtype=float).squeeze()
         else:
-            data[key] = np.array(data[key])
+            data[key] = np.array(data[key], dtype=float)
 
     return data
 
-tanh_gjah_to_ares = \
-{
- 'J_0/J_21': 'tanh_J0',
- 'dz_J': 'tanh_Jdz',
- 'z_{0,j}': 'tanh_Jz0',
- 'T_0': 'tanh_T0',
- 'dz_T': 'tanh_Tdz',
- 'z_{0,T}': 'tanh_Tz0',
- 'x_0': 'tanh_x0',
- 'dz_x': 'tanh_xdz',
- 'z_{0,x}': 'tanh_xz0',
- 'b_\\nu': 'tanh_bias_freq',
- 'b_T': 'tanh_bias_temp',
-}    
-
-fcoll_gjah_to_ares = \
-{
-'\\log_{10}\\xi_\\mathrm{LW}': 'xi_LW',
-'\\log_{10}\\xi_\\mathrm{XR}': 'xi_XR',
-'\\log_{10}xi_\\mathrm{UV}': 'xi_UV',
-'\\log_{10}T_\\mathrm{min}': 'Tmin',
-}
-    
 def _load_hdf5(fn):    
     inits = {}
     f = h5py.File(fn, 'r')
@@ -266,18 +243,26 @@ def _load_npz(fn):
     data.close()
     return new
 
+def _load_txt(fn):
+    z, xe, Te = np.loadtxt(fn, unpack=True)
+    inits = {'z': z, 'Tk': Te, 'xe': xe}
+    return inits
+
 def _load_inits(fn=None):
 
     if fn is None:
         assert ARES is not None, "$ARES environment variable has not been set!"
-        fn = '{!s}/input/inits/initial_conditions.npz'.format(ARES)
-        inits = _load_npz(fn)
+        fn = '{!s}/input/inits/initial_conditions.txt'.format(ARES)
+        inits = _load_txt(fn)
 
     else:
         if re.search('.hdf5', fn):
             inits = _load_hdf5(fn)
-        else:
+        elif re.search('.npz', fn):
             inits = _load_npz(fn)
+        else:
+            inits = _load_txt(fn)
+            
 
     return inits        
 

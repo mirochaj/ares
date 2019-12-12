@@ -416,7 +416,7 @@ class UniformBackground(object):
             E0, E1 = band
             has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
             has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
-                        
+
             # Special treatment if LWB or UVB
             if has_sawtooth:
 
@@ -453,7 +453,7 @@ class UniformBackground(object):
                     ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
                 else:
                     ehat = None
-
+                    
                 # Store stuff for this band
                 tau_by_band.append(tau)
                 energies_by_band.append(E)
@@ -483,7 +483,7 @@ class UniformBackground(object):
                 tau_by_band.append(tau)
                 energies_by_band.append(E)
                 emissivity_by_band.append(ehat)
-        
+                
         return z, energies_by_band, tau_by_band, emissivity_by_band
 
     @property
@@ -704,7 +704,6 @@ class UniformBackground(object):
                         
             self.k_ion[i,0,j] += Gamma
                 
-        
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
@@ -1194,7 +1193,7 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-            Lbol = pop.Emissivity(z)
+            Lbol = pop.Emissivity(z)        
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
@@ -1202,21 +1201,26 @@ class UniformBackground(object):
             
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
-            # than the LyC or X-ray backgrounds, so it makes sense 
-            # to keep the different emissivity chunks separate.                                  
-            for band in [(E_LyA, E_LL), (E_LL, 24.6), None]:
-
+            # than the LyC or X-ray backgrounds, so it makes sense
+            # to keep the different emissivity chunks separate.                                              
+            ct = 0
+            for band in [(10.2, 13.6), (13.6, 24.6), None]:
+  
                 if band is not None:
                     if pop.pf['pop_Emin'] > band[1]:
                         continue
                     
                     if pop.pf['pop_Emax'] < band[0]:
                         continue
-                
+                                
                 # Remind me of this distinction?
                 if band is None:
                     b = pop.full_band
                     fix = 1.
+                    
+                    if ct > 0:
+                        continue
+                    
                 else:
                     b = band
                     
@@ -1225,19 +1229,19 @@ class UniformBackground(object):
                         fix = 1. / pop._convert_band(*band)
                     else:
                         fix = 1.
-
-                # Setup interpolant
-                # If there's an attribute error here, it probably means
-                # is_emissivity_scalable isn't being set correctly.
-                rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
-
-                if rho_L is None:
-                    continue
-
+                        
                 in_band = np.logical_and(E >= b[0], E <= b[1])
+                                
+                # Should be any filled elements yet
+                if np.any(epsilon[:,in_band==1] > 0):
+                    raise ValueError("Non-zero elements already!")
+                
+                if not np.any(in_band):
+                    continue            
 
                 # By definition, rho_L integrates to unity in (b[0], b[1]) band
-                # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band
+                # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band, 
+                # hence the 'fix'.
 
                 for ll, redshift in enumerate(z):
                     
@@ -1252,11 +1256,13 @@ class UniformBackground(object):
                     if redshift > self.pf['first_light_redshift']:
                         continue
                             
-                    #print(pop.id_num, redshift, z.size, epsilon.shape, b)                
-                                            
-                    epsilon[ll,in_band] = fix \
+                    # Use Emissivity here rather than rho_L because only
+                    # GalaxyCohort objects will have a rho_L attribute.
+                    epsilon[ll,in_band==1] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
-                        * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev
+                        * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
+
+                ct += 1
 
         return epsilon
 
@@ -1354,13 +1360,14 @@ class UniformBackground(object):
                     trapz_base = 0.5 * (zarr[ll+1] - zarr[ll])
 
                 # Equivalent to Eq. 25 in Mirocha (2014)
-                # Less readable, but faster!
-                flux = (c / four_pi) \
-                    * ((xsq[ll+1] * trapz_base) * ehat[ll]) \
-                    + exp_term * ((c / four_pi) * xsq[ll+1] \
-                    * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
-                    + np.roll(flux, -1) / Rsq)
-      
+                # Less readable, but faster!  
+                flux = c_over_four_pi \
+                    * ((xsq[ll] * trapz_base) * ehat[ll]) \
+                    + exp_term * (c_over_four_pi * xsq[ll+1] \
+                    * trapz_base * ehat_r[ll] \
+                    + np.hstack((flux[1:], [0])) / Rsq)
+                    #+ np.roll(flux, -1) / Rsq)
+                                                                                            
                 ##
                 # Add Ly-a flux from cascades    
                 ##

@@ -2,7 +2,7 @@
 
 Parameter Listing
 =================
-We use keyword arguments to pass parameters around to various *ares* routines. 
+We use keyword arguments to pass parameters around to various *ARES* routines. 
 A complete listing of parameters and their default values can be found in 
 ``ares.util.SetDefaultParameterValues.py``. 
 

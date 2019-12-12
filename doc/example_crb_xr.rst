@@ -100,7 +100,7 @@ with :math:`\alpha = -1.5`, :math:`\beta = 0`, :math:`z=5`, and :math:`z_i=60`,
     
 Neutral Absorption by the Diffuse IGM
 -------------------------------------   
-The calculation above is basically identical to the optically-thin UV background calculations performed in the previous example, at least in the cases where we neglected any sawtooth effects. While there is no modification to the X-ray background due to resonant absorption in the Lyman series (of Hydrogen or Helium II), bound-free absorption by intergalactic hydrogen and helium atoms acts to harden the spectrum. By default, *ares* will *not* include these effects.
+The calculation above is basically identical to the optically-thin UV background calculations performed in the previous example, at least in the cases where we neglected any sawtooth effects. While there is no modification to the X-ray background due to resonant absorption in the Lyman series (of Hydrogen or Helium II), bound-free absorption by intergalactic hydrogen and helium atoms acts to harden the spectrum. By default, *ARES* will *not* include these effects.
 
 To "turn on" bound-free absorption in the IGM, modify the dictionary of parameters you've got already:
 
@@ -144,7 +144,7 @@ parameter, e.g.,
 
     pars['tau_redshift_bins'] = 500
 
-The optical depth lookup tables that ship with *ares* use ``tau_redshift_bins=400``
+The optical depth lookup tables that ship with *ARES* use ``tau_redshift_bins=400``
 as a default. If you run with ``tau_redshift_bins=500``, you should see some improvement in the soft X-ray spectrum. It'll take a few minutes to generate a new table. Run ``$ARES/input/optical_depth/generate_optical_depth_tables.py`` to make more!
 
 .. .. note :: Development of a dynamic optical depth calculation is underway, which can be turned on and off using the ``dynamic_tau`` parameter.
@@ -191,5 +191,5 @@ Notice how the plot of ``F2`` has been hardened by neutral absorption in the IGM
     
 Self-Consistent Meta-Galactic Background & IGM
 ----------------------------------------------
-If we don't already know the IGM optical depth *a-priori*, then the calculations above will only bracket the result expected in a more complex, evolving IGM, in which the radiation background ionizes the IGM, thus making the IGM more transparent, which then softens the meta-galactic background, and so on. A dynamic background calculator that takes this into account is on the *ares* wish-list -- shoot me an email if you're so inclined.
+If we don't already know the IGM optical depth *a-priori*, then the calculations above will only bracket the result expected in a more complex, evolving IGM, in which the radiation background ionizes the IGM, thus making the IGM more transparent, which then softens the meta-galactic background, and so on. A dynamic background calculator that takes this into account is on the *ARES* wish-list -- shoot me an email if you're so inclined.
 

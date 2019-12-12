@@ -10,7 +10,6 @@ Description:
 
 """
 
-import time
 import gc, os
 import numpy as np
 from ..util import read_lit
@@ -38,6 +37,10 @@ except ImportError:
     
 twopi = 2. * np.pi
 
+_b14 = read_lit('bouwens2014')
+hst_shallow = _b14.filt_shallow
+hst_deep = _b14.filt_deep
+                
 class loglikelihood(LogLikelihood):
 
     @property
@@ -59,7 +62,17 @@ class loglikelihood(LogLikelihood):
         return self._units
     @units.setter
     def units(self, value):
-        self._units = value     
+        self._units = value 
+    
+    @property
+    def zmap(self):
+        if not hasattr(self, '_zmap'):
+            self._zmap = {}
+        return self._zmap
+        
+    @zmap.setter
+    def zmap(self, value):
+        self._zmap = value
     
     @property
     def mask(self):
@@ -95,7 +108,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
     
         """
-                
+                    
         # Figure out if `sim` is a population object or not.
         # OK if it's a simulation, will loop over LF-bearing populations.        
         if not (isinstance(sim, GalaxyCohort.GalaxyCohort) \
@@ -109,54 +122,84 @@ class loglikelihood(LogLikelihood):
                     
         else:
             pops = [sim]
-                                                                                                                  
+            
+        if len(self.ydata) == 0:
+            raise ValueError("Problem: data is empty.")
+                                
+        if len(pops) > 1:
+            raise NotImplemented('careful! need to think about this.')
+                                                                                                     
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
         for i, quantity in enumerate(self.metadata):
-            
+                                                
             if self.mask[i]:
+                #print('masked:', rank, self.redshifts[i], self.xdata[i])
                 continue
 
             xdat = self.xdata[i]
             z = self.redshifts[i]
-            
-            for pop in pops:
-            
+                        
+            if quantity in self.zmap:
+                zmod = self.zmap[quantity][z]
+            else:
+                zmod = z
+                        
+            for j, pop in enumerate(pops):
+                            
                 # Generate model LF
                 if quantity == 'lf':
-                    # Dust correction for observed galaxies
-                    AUV = pop.dust.AUV(z, xdat)
-                
-                    # The input magnitudes are assumed to be *not* yet
-                    # corrected for dust, i.e., they are the observed magnitudes.
-                    # So, we need to apply a dust correction to those magnitudes
-                    # before passing them to the model, which assumes the input
-                    # magnitudes of interest are the intrinsic magnitudes.
-                
-                    # Compare data to model at dust-corrected magnitudes
-                    M = xdat - AUV
+                                    
+                    # New convention: LuminosityFunction always in terms of
+                    # observed magnitudes.                
                                     
                     # Compute LF
-                    p = pop.LuminosityFunction(z=z, x=M, mags=True)
+                    p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
+                                        
+                    if not np.isfinite(p):
+                        print('LF is inf or nan!', zmod, M)
+                        raise ValueError('LF is inf or nan!', zmod, M)
+                                                                
                 elif quantity == 'smf':
                     M = np.log10(xdat)
-                    p = pop.StellarMassFunction(z, M)
+                    p = pop.StellarMassFunction(zmod, M)
+                                        
+                elif quantity == 'beta':
+                    
+                    zstr = int(round(zmod))
+                    
+                    if zstr >= 7:
+                        filt_hst = hst_deep
+                    else:
+                        filt_hst = hst_shallow
+                                        
+                    M = xdat
+                    p = pop.Beta(zmod, MUV=M, cam=('wfc', 'wfc3'),
+                        return_binned=True, filters=filt_hst[zstr], dlam=20., 
+                        rest_wave=None)
+
+                    if not np.isfinite(p):
+                        print('beta is inf or nan!', z, M)
+                        return -np.inf
+                        #raise ValueError('beta is inf or nan!', z, M)
+                    
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
-
-                phi[i] += p                                                      
-
+                        
+                # If UVLF or SMF, could do multi-pop in which case we'd 
+                # increment here.        
+                phi[i] = p   
+                            
         #except:
         #    return -np.inf, self.blank_blob
 
         #phi = np.ma.array(_phi, mask=self.mask)
         
         #del sim, pops
-
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
-
+        
         return lnL + self.const_term
     
 class FitGalaxyPopulation(FitBase):
@@ -169,10 +212,21 @@ class FitGalaxyPopulation(FitBase):
             
             self._loglikelihood.redshifts = self.redshifts_flat
             self._loglikelihood.metadata = self.metadata_flat
+            self._loglikelihood.zmap = self.zmap
 
             self.info
 
         return self._loglikelihood
+
+    @property
+    def zmap(self):
+        if not hasattr(self, '_zmap'):
+            self._zmap = {}
+        return self._zmap
+        
+    @zmap.setter
+    def zmap(self, value):
+        self._zmap = value
 
     @property
     def redshift_bounds(self):
@@ -251,7 +305,7 @@ class FitGalaxyPopulation(FitBase):
                 for quantity in self.include:
                     if quantity not in litdata.data.keys():
                         continue
-                        
+                                                
                     # Short hand
                     data = litdata.data[quantity]
                     redshifts = litdata.redshifts
@@ -319,7 +373,11 @@ class FitGalaxyPopulation(FitBase):
                         M = self.data[quantity][i][redshift]['M']
                         
                         # These could still be in log10 units
-                        phi = self.data[quantity][i][redshift]['phi']
+                        if quantity == 'beta':
+                            phi = self.data[quantity][i][redshift]['beta']
+                        else:    
+                            phi = self.data[quantity][i][redshift]['phi']
+                            
                         err = self.data[quantity][i][redshift]['err']
 
                         if hasattr(M, 'mask'):
@@ -409,7 +467,11 @@ class FitGalaxyPopulation(FitBase):
                     for i, dataset in enumerate(self.data[quantity]):
                         for j, redshift in enumerate(self.data[i]):
                             self._xdata.append(dataset[redshift]['M'])
-                            self._ydata.append(dataset[redshift]['phi'])
+                            
+                            if quantity == 'beta':
+                                self._ydata.append(dataset[redshift]['beta'])
+                            else:    
+                                self._ydata.append(dataset[redshift]['phi'])
                             self._error.append(dataset[redshift]['err'])
                     
         return self._xdata

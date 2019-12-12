@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, re, sys, tarfile
+import os, re, sys, tarfile, zipfile
 try:
     from urllib.request import urlretrieve # this option only true with Python3
 except:
@@ -19,12 +19,11 @@ _bpass_v1_links = ['sed_bpass_z{!s}_tar.gz'.format(Z) \
 aux_data = \
 {
  'hmf': ['{!s}/downloads'.format(ares_link),
-    'hmf_ST_logM_1200_4-18_z_1141_3-60.npz',
-    'hmf_ST_logM_1200_4-18_z_1201_0-60.npz',
-    'hmf_Tinker10_logM_1200_4-18_z_1201_0-60.npz',
+    'hmf_ST_logM_1400_4-18_z_1201_0-60.npz',
+    'hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz',
     None],
  'inits': ['{!s}/downloads'.format(ares_link),
-     'initial_conditions.npz',
+     'initial_conditions.txt',
      None],    
  'optical_depth': ['{!s}/downloads'.format(ares_link),
     'optical_depth_H_400x862_z_5-60_logE_2.3-4.5.npz',
@@ -41,7 +40,7 @@ aux_data = \
  #'hm12': ['http://www.ucolick.org/~pmadau/CUBA/Media',
  #   'UVB.out', 
  #   'emissivity.out', 
- #   None],
+ #   None],'inits', 'secondary_electrons', 'hmf']
  'bpass_v1': ['http://bpass.auckland.ac.nz/2/files'] + _bpass_v1_links + [None],
  'bpass_v1_stars': ['http://bpass.auckland.ac.nz/1/files',
     'starsmodels_tar.gz',
@@ -54,8 +53,25 @@ aux_data = \
  'edges': ['http://loco.lab.asu.edu/download',
     '790/figure1_plotdata.csv',
     '792/figure2_plotdata.csv', 
+    None],
+ 'nircam': ['https://jwst-docs.stsci.edu/files/73022379/73022381/1/1486438006000',
+     'nircam_throughputs_22April2016_v4.tar.gz',
+     None],
+ 'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
+    'IR.zip',
+     None],
+ 'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
+    'wfc_F435W.dat',
+    'wfc_F606W.dat',
+    'wfc_F775W.dat',
+    'wfc_F814W.dat',
+    'wfc_F850LP.dat',
+    None],
+ 'cosmo_params': ['https://pla.esac.esa.int/pla/aio',
+    'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.tgz',
     None]
 }
+
 
 if not os.path.exists('input'):
     os.mkdir('input')
@@ -65,8 +81,8 @@ os.chdir('input')
 files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
-        to_download = ['inits', 'secondary_electrons', 'hmf']
-        files = [None, None, None]
+        to_download = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3']
+        files = [None, None, None, None, None]
     elif 'clean' in options:
         to_download = aux_data.keys()
         files = [None] * len(to_download)
@@ -86,9 +102,10 @@ if (len(options) > 0) and ('clean' not in options):
                 
         if to_download == [] and 'fresh' in options:
             to_download = aux_data.keys()
-            files = [None] * len(to_download)        
+            files = [None] * len(to_download)
 else:
-    to_download = aux_data.keys()
+    to_download = list(aux_data.keys())
+    to_download.remove('cosmo_params')
     files = [None] * len(to_download)
         
 for i, direc in enumerate(to_download):
@@ -130,8 +147,15 @@ for i, direc in enumerate(to_download):
             print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
             continue
         
+        # If it's a zip, unzip and move on.
+        if re.search('.zip', _fn) and (not re.search('tar', _fn)):
+            zip_ref = zipfile.ZipFile(_fn, 'r')
+            zip_ref.extractall()
+            zip_ref.close()            
+            continue
+        
         # If it's not a tarball, move on
-        if not re.search('tar', _fn):
+        if (not re.search('tar', _fn)) and (not re.search('tgz', _fn)):
             continue
             
         # Otherwise, unpack it
@@ -141,6 +165,22 @@ for i, direc in enumerate(to_download):
             tar.close()
         except:
             print("WARNING: Error unpacking {0!s}/{1!s}".format(web, fn))
+        
+        if direc != 'cosmo_params': 
+            continue
+            
+        _files = os.listdir(os.curdir)
+        for _file in _files:
+            if _file=='COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00':
+                try:
+                    os.chdir('COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00')
+                    tarfiles=os.listdir(os.curdir)
+                    for pack_file in tarfiles:
+                        tar = tarfile.open(pack_file)
+                        tar.extractall()
+                        tar.close()
+                except:
+                    print('Could not unpack the planck chains')
     
     # Run a script [optional]
     if aux_data[direc][-1] is not None:

@@ -29,12 +29,12 @@ and send them to me. Thanks!
 
 Plots not showing up
 --------------------
-If when running some *ares* script the program runs to completion without errors but does not produce a figure, it may be due to your matplotlib settings. Most test scripts use ``draw`` to ultimately produce the figure because it is non-blocking and thus allows you to continue tinkering with the output if you'd like. One of two things is going on:
+If when running some *ARES* script the program runs to completion without errors but does not produce a figure, it may be due to your matplotlib settings. Most test scripts use ``draw`` to ultimately produce the figure because it is non-blocking and thus allows you to continue tinkering with the output if you'd like. One of two things is going on:
 
 * You invoked the script with the standard Python interpreter (i.e., **not** iPython). Try running it with iPython, which will spit you back into an interactive session once the script is done, and thus keep the plot window open.
 * Alternatively, your default ``matplotlib`` settings may have caused this. Check out your ``matplotlibrc`` file (in ``$HOME/.matplotlibrc``) and make sure ``interactive : True``. 
 
-Future versions of *ares* may use blocking commands to ensure that plot windows don't disappear immediately. Email me if you have strong opinions about this.
+Future versions of *ARES* may use blocking commands to ensure that plot windows don't disappear immediately. Email me if you have strong opinions about this.
 
 ``IOError: No such file or directory``
 --------------------------------------
@@ -64,13 +64,18 @@ Turns out this parameter didn't exist prior to scipy version 0.14. If you update
 
 ``Failed to interpret file '<some-file>.npz' as a pickle``
 ----------------------------------------------------------
-This is a strange one, which might arise due to differences in the Python and/or pickle version used to read/write lookup tables *ares* uses. First, try to download new lookup tables via: ::
+This is a strange one, which might arise due to differences in the Python and/or pickle version used to read/write lookup tables *ARES* uses. First, try to download new lookup tables via: ::
 
     python remote.py fresh
     
 If that doesn't magically fix it, please email me and I'll do what I can to help!
 
+``ERROR: Cannot generate halo mass function``
+---------------------------------------------
+This error generally occurs because lookup tables for the halo mass function are not being found, and when that happens, *ARES* tries to make new tables. This process is slow and so is not recommended! Instead you should check that (i) you have correctly set the $ARES environment variable and (ii) that you have run the ``remote.py`` script (see :doc:`install`), which downloads the default HMF lookup table. If you have recently pulled changes, you may need to re-run ``remote.py`` since, e.g., the default HMF parameters may have been changed and corresponding tables may have been updated on the web. To save time, you can specify that you only want new HMF tables by executing ``python remote.py fresh hmf``.
+
+
 General Mysteriousness
 ----------------------
-- If you're running *ares* from within an iPython (or Jupyter) notebook, be wary of initializing class instances in one notebook cell and modifying attributes in a separate cell. If you re-run the the second cell *without* re-running the first cell, this can cause problems because changes to attributes will not automatically propagate back up to any parent classes (should they exist). This is known to happen (at least) when using the ``ModelGrid`` and ``ModelSamples`` classes in the inference sub-module.
+- If you're running *ARES* from within an iPython (or Jupyter) notebook, be wary of initializing class instances in one notebook cell and modifying attributes in a separate cell. If you re-run the the second cell *without* re-running the first cell, this can cause problems because changes to attributes will not automatically propagate back up to any parent classes (should they exist). This is known to happen (at least) when using the ``ModelGrid`` and ``ModelSamples`` classes in the inference sub-module.
 

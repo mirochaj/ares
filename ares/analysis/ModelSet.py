@@ -37,7 +37,7 @@ from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
-    read_pickled_logL, fcoll_gjah_to_ares, tanh_gjah_to_ares
+    read_pickled_logL
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -89,20 +89,6 @@ numerical_types = [float, np.float64, np.float32, int, np.int32, np.int64]
 
 # Machine precision
 MP = np.finfo(float).eps
-
-def patch_pinfo(pars):
-    # This should be deprecated in future versions
-    new_pars = []
-    for par in pars:
-
-        if par in tanh_gjah_to_ares:
-            new_pars.append(tanh_gjah_to_ares[par])
-        elif par in fcoll_gjah_to_ares:
-            new_pars.append(fcoll_gjah_to_ares[par])
-        else:
-            new_pars.append(par)
-    
-    return new_pars
 
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
@@ -201,7 +187,7 @@ class ModelSet(BlobFactory):
 
     @property
     def skip(self):
-        if not hasattr(self._skip):
+        if not hasattr(self, '_skip'):
             self._skip = 0
         return self._skip
         
@@ -302,6 +288,7 @@ class ModelSet(BlobFactory):
             elif os.path.exists('{!s}.setup.pkl'.format(pre)):
                 fn = '{!s}.setup.pkl'.format(pre)
             else:    
+                print("WARNING: No files with prefix={} were found.".format(pre))
                 self._base_kwargs = None
                 return self._base_kwargs
             
@@ -330,7 +317,6 @@ class ModelSet(BlobFactory):
                 (self._parameters, self._is_log) =\
                     read_pickle_file('{!s}.pinfo.pkl'.format(pre), nloads=1,\
                     verbose=False)
-                self._parameters = patch_pinfo(self._parameters)
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
                 self._parameters = list(f['chain'].attrs.get('names'))
@@ -338,13 +324,14 @@ class ModelSet(BlobFactory):
                 self._is_log = [False] * len(self._parameters)
                 f.close()
             else:
+                print("WARNING: No files with prefix={} were found.".format(pre))
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p{}'.format(i) \
                     for i in range(self.chain.shape[-1])]
         
             self._is_log = tuple(self._is_log)
             self._parameters = tuple(self._parameters)
-        
+                    
         return self._parameters
         
     @property
@@ -364,6 +351,7 @@ class ModelSet(BlobFactory):
                 self._nwalkers, self._save_freq, self._steps = \
                     list(map(int, loaded))
             else:
+                print("WARNING: No files with prefix={} were found.".format(pre))
                 self._nwalkers = self._save_freq = self._steps = None
     
         return self._nwalkers
@@ -465,7 +453,7 @@ class ModelSet(BlobFactory):
     def Nd(self):
         if not hasattr(self, '_Nd'):
             try:
-                self._Nd = int(self.chain.shape[-1])       
+                self._Nd = int(self.chain.shape[-1])
             except TypeError:
                 self._Nd = None
         
@@ -606,7 +594,7 @@ class ModelSet(BlobFactory):
 
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                chain = f['chain'].value
+                chain = np.array(f[('chain')])
                     
                 if hasattr(self, '_mask'):
                     if self.mask.ndim == 1:
@@ -679,7 +667,7 @@ class ModelSet(BlobFactory):
         good_walkers = []
         mask = np.zeros_like(self.chain, dtype=int)
         for i in range(self.nwalkers):
-            chain, elements = self.get_walker(i)
+            chain, logL, elements = self.get_walker(i)
             if np.allclose(np.diff(chain[:,axis]), 0.0, atol=tol, rtol=0):
                 bad_walkers.append(i)
                 mask += elements
@@ -902,13 +890,18 @@ class ModelSet(BlobFactory):
         schunk = nw * sf 
         
         data = []
+        logL = []
         elements = np.zeros_like(self.chain, dtype=int).data
         for i in range(nchunks):   
+            # Within each 'chunk', which is the size of a data outputs,
+            # the walker of interest's data is in a block of size 'save_freq`
+            _logL = self.logL[i*schunk + sf*num:i*schunk + sf*(num+1)]
             chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
             elements[i*schunk + sf*num:i*schunk + sf*(num+1)] = 1
             data.extend(chunk)
+            logL.extend(_logL)
             
-        return np.array(data), elements
+        return np.array(data), np.array(logL), elements
                 
     @property
     def Npops(self):
@@ -1284,7 +1277,8 @@ class ModelSet(BlobFactory):
         self._plot_info = value
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
-        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
+        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
+        use_top=1, skip=0, stop=None, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1310,9 +1304,24 @@ class ModelSet(BlobFactory):
             loc = np.sort(self.logL)[N // 2]
         elif best_fit == 'mode':
             loc = np.argmax(self.logL)
-
+            
+            #psorted = np.argsort(self.logL)
+            #
+            #cut = int(0.9 * len(self.logL))
+            #
+            #loc = psorted[cut:]
+    
+        # Find precise point of max likelihood
+        ibest = np.argsort(self.logL)[-1::-1]
+        best = []
+        for i in range(use_top):
+            walker, step = self.index_to_walker_step(ibest[i])
+            best.append((walker, step))
+      
+    
         for i, par in enumerate(pars):
-            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
+            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], 
+                skip=skip, stop=stop, **kwargs)
 
             if loc is None:
                 continue
@@ -1321,14 +1330,51 @@ class ModelSet(BlobFactory):
             if par in self.parameters:
                 k = self.parameters.index(par)
                 mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
-                    [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
+                    [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
+                
+                for j, (walk, step) in enumerate(best):
+                    mp.grid[i].scatter(step-1, self.chain[ibest[j],k], 
+                        marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
+                        s=150, color='k', lw=1)
             else:
                 pass
                 
+            if i not in mp.bottom:
+                mp.grid[i].set_xlabel('')
+                mp.grid[i].set_xticklabels([])
+                
         return mp           
                 
+    def index_to_walker_step(self, loc):
+        sf = self.save_freq
+        nw = self.nwalkers   
+        
+        steps_per_walker = self.chain.shape[0] // nw
+        nchunks = steps_per_walker // sf
+        
+        # "size" of each chunk in # of MCMC steps
+        schunk = nw * sf
+        
+        #
+        # isolates chunk for walker ID `num`, `i` is chunk ID num
+        broken = False
+        for num in range(self.nwalkers):
+            for i in range(nchunks):
+                mi, ma = i*schunk + sf*num, i*schunk + sf*(num+1)
+            
+                if mi <= loc <= ma:
+                    broken = True
+                    break
+            
+            if broken:
+                break        
+                                
+        step = i * sf + (loc - mi)
+                                                                
+        return num, step
+                
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
-        **kwargs):
+        skip=0, stop=None, **kwargs):
         """
         Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
@@ -1348,6 +1394,9 @@ class ModelSet(BlobFactory):
             ax = fig.add_subplot(111)
         else:
             gotax = True
+            
+        if stop is not None:
+            stop = -int(stop)
         
         if isinstance(walkers, basestring):
             assert N < self.nwalkers, \
@@ -1358,7 +1407,7 @@ class ModelSet(BlobFactory):
             to_plot = walkers
         
         for i in to_plot:
-            data, elements = self.get_walker(i)
+            data, logL, elements = self.get_walker(i)
             if par in self.parameters:
                 y = data[:,self.parameters.index(par)]        
             else:
@@ -1366,8 +1415,8 @@ class ModelSet(BlobFactory):
                 tmp = self.ExtractData(par)[par]
                 y = tmp[keep == 1]
                                                     
-            x = np.arange(1, len(y)+1)
-            ax.plot(x, y, **kwargs)
+            x = np.arange(0, len(y))
+            ax.plot(x[skip:stop], y[skip:stop], **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -1388,7 +1437,7 @@ class ModelSet(BlobFactory):
         par1, par2 = pars
         
         if isinstance(walkers, basestring):
-            assert N < self.nwalkers, \
+            assert N <= self.nwalkers, \
                 "Only {} walkers available!".format(self.nwalkers)
 
             to_plot = self._get_walker_subset(N, walkers)
@@ -1396,7 +1445,7 @@ class ModelSet(BlobFactory):
             to_plot = walkers
         
         for i in to_plot:
-            data, mask = self.get_walker(i)
+            data, logL, mask = self.get_walker(i)
             
             if scale_by_step:
                 if scatter:
@@ -1772,7 +1821,7 @@ class ModelSet(BlobFactory):
             if cdata is not None:
                 mask = np.logical_or(mask == True, cdata.mask == True)
             
-            print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
+            #print("Masking {} elements in ({}, {}) plane.".format(mask.sum(), p[0], p[1]))
             
             xd = xdata[mask == 0]
             yd = ydata[mask == 0]
@@ -1781,18 +1830,32 @@ class ModelSet(BlobFactory):
                 cd = cdata[mask == 0]
             else:
                 cd = cdata
+               
+        keep = np.ones_like(xd) 
+        if skip is not None:
+            keep[0:skip] *= 0
+        if stop is not None:
+            stop = -int(stop)
+            keep[stop:]  *= 0        
+
+        kw = {}
+        for _kw in kwargs:
+            if _kw not in ['color', 'mec', 'mfc', 'alpha', 'ms']:
+                continue
+            
+            kw[_kw] = kwargs[_kw]
 
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
-                label=rung_label, label_on_top=rung_label_top, **kwargs)
+                label=rung_label, label_on_top=rung_label_top, **kw)
         elif hasattr(self, 'weights') and cdata is None:
-            scat = func(xd, yd, c=self.weights, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], c=self.weights[keep==1], **kw)
         elif line_plot:
-            scat = func(xd, yd, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], **kw)
         elif (cdata is not None) and (filter_z is None):
-            scat = func(xd, yd, c=cd, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], c=cd[keep==1], **kw)
         else:
-            scat = func(xd, yd, **kwargs)
+            scat = func(xd[keep==1], yd[keep==1], **kw)
                            
         if (cdata is not None) and use_colorbar and (not line_plot) and \
            (filter_z is None):
@@ -2055,7 +2118,7 @@ class ModelSet(BlobFactory):
         return self.SliceByElement(to_keep)
     
     def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
-        limit=None, un_log=False, multiplier=1., peak='median', skip=0,
+        limit=None, un_log=False, multiplier=1., peak='mode', skip=0,
         stop=None):
         """
         Compute 1-D error bar for input parameter.
@@ -2385,6 +2448,9 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
+            
+        if np.all(np.array(multiplier) == 1):
+            multiplier = [None] * len(pars)    
                                 
         data = {}
         for k, par in enumerate(pars):
@@ -2398,12 +2464,13 @@ class ModelSet(BlobFactory):
                     val = 10**self.chain[:,j].copy()
                 else:
                     val = self.chain[:,j].copy()
-                                                
-                if self.is_log[j] and (not un_log[k]):
-                    val += np.log10(multiplier[k])
-                else:
-                    val *= multiplier[k]
                     
+                if multiplier[k] is not None:                        
+                    if self.is_log[j] and (not un_log[k]):
+                        val += np.log10(multiplier[k])
+                    else:
+                        val *= multiplier[k]
+                        
                 # Take log, unless the parameter is already in log10
                 if take_log[k] and (not self.is_log[j]):
                     val = np.log10(val)
@@ -2424,7 +2491,8 @@ class ModelSet(BlobFactory):
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
                 # Blobs are never stored as log10 of their true values        
-                val *= multiplier[k]
+                if multiplier[k] is not None:
+                    val *= multiplier[k]
                 
             # Only derived blobs in this else block, yes?                        
             else:
@@ -2492,7 +2560,11 @@ class ModelSet(BlobFactory):
                     ivars = self.derived_blob_ivars[par]
 
                     i1 = np.argmin(np.abs(ivars[0] - ivar[k][0]))
-                    i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
+                    
+                    if ivar[k][1] is None:
+                        i2 = Ellipsis
+                    else:
+                        i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
                     
                     #for iv in ivars:                            
                     #    arr = np.array(iv).squeeze()
@@ -2535,17 +2607,19 @@ class ModelSet(BlobFactory):
                 # to those links are masked.
                 else:
                     #print("hello, {}".format(self.mask[:,0].sum()))
+                    if self.mask.shape == val.shape:
+                        mask = self.mask
+                    else:
+                        N = np.product(val.shape[1:])
+                        
+                        try:
+                            mask = np.reshape(np.repeat(self.mask[:,0], N), 
+                                val.shape)
+                        except ValueError:
+                            print("Problem reshaping mask (shape {}) to match blob={} w/ shape {}".format(par,
+                                self.mask.shape, val.shape))
+                                        
                     
-                    mask = self.mask[:,0]
-                    
-                    
-                    
-                    #mask = np.zeros_like(val)
-                    #for j, element in enumerate(self.mask[:,0]):
-                    #    if np.all(element == 1):
-                    #        mask[j].fill(1)
-                    #        
-                    #print(mask.sum())
             else:
                 mask = self.mask
 
@@ -2608,6 +2682,8 @@ class ModelSet(BlobFactory):
                 if type(bins) == int:
                     valc = tohist
                     bvp = np.linspace(valc.min(), valc.max(), bins)
+                elif type(bins) == dict:
+                    bvp = bins[par]    
                 elif type(bins[k]) == int:
                     valc = tohist
                     bvp = np.linspace(valc.min(), valc.max(), bins[k])
@@ -2712,7 +2788,7 @@ class ModelSet(BlobFactory):
             un_log = [un_log] * len(pars)    
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)
-
+            
         if ivar is not None:
             if type(ivar) is list:
                 if len(pars) == 1:
@@ -2736,8 +2812,8 @@ class ModelSet(BlobFactory):
     def PosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, to_hist=None, ivar=None, 
-        ax=None, fig=1, 
+    def PosteriorPDF(self, pars, to_hist=None, ivar=None,
+        ax=None, fig=1,
         multiplier=1., like=[0.95, 0.68], cdf=False,
         color_by_like=False, fill=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1, 
@@ -2782,7 +2858,7 @@ class ModelSet(BlobFactory):
         Either a matplotlib.Axes.axis object or a nu-sigma error-bar, 
         depending on whether we're doing a 2-D posterior PDF (former) or
         1-D marginalized posterior PDF (latter).
-    
+
         """
 
         cs = None
@@ -3226,7 +3302,7 @@ class ModelSet(BlobFactory):
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
         bins=20,  scatter=False, polygons=False, 
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
-        show_errors=False, label_panels=None, 
+        show_errors=False, label_panels=None, return_axes=False, 
         fix=True, skip_panels=[], mp_kwargs={}, 
         **kwargs):
         """
@@ -3355,6 +3431,7 @@ class ModelSet(BlobFactory):
         
         # Loop over parameters
         # p1 is the y-value, p2 is the x-value
+        axes = {}
         for i, p1 in enumerate(pars[-1::-1]):
             for j, p2 in enumerate(pars):
 
@@ -3368,12 +3445,14 @@ class ModelSet(BlobFactory):
 
                 if k is None:
                     continue
-                    
+                                        
                 if k in skip_panels:
                     continue
 
                 if mp.grid[k] is None:
                     continue
+
+                axes[(p1, p2)] = mp.grid[k]
 
                 col, row = mp.axis_position(k)   
                 
@@ -3518,6 +3597,8 @@ class ModelSet(BlobFactory):
         if label_panels is not None and (not had_mp):
             mp = self._label_panels(mp, label_panels)
 
+        if return_axes:
+            return mp, axes
         return mp
 
     def _label_panels(self, mp, label_panels):
@@ -3598,17 +3679,18 @@ class ModelSet(BlobFactory):
         
         return x, y, zarr
         
-    def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
-        use_best=False, percentile=0.68, take_log=False, un_log=False, 
+    def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
+        use_best=False, percentile=0.68, take_log=False, un_logy=False, 
+        expr=None, new_x=None, is_logx=False,
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
-        E_to_freq=False, is_logx=False, **kwargs):
+        E_to_freq=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
         Parameters
         ----------
-        names : str
+        name : str
             Name of quantity you're interested in.
         ivar : list, np.ndarray
             List of values (or nested list) of independent variables. If 
@@ -3645,13 +3727,10 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
-        if percentile:    
-            q1 = 0.5 * 100 * (1. - percentile)    
+        if percentile:
+            q1 = 0.5 * 100 * (1. - percentile)
             q2 = 100 * percentile + q1
             
-        if isinstance(names, basestring):
-            names = [names]
-
         max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())
                 
         if samples is not None:
@@ -3660,19 +3739,19 @@ class ModelSet(BlobFactory):
                             
         # Step 1: figure out ivars  
         try:
-            info = self.blob_info(names[0])
+            info = self.blob_info(name)
             nd = info[2]
         except KeyError:
-            print("WARNING: blob {} not found by `blob_info`.".format(names[0]))
+            print("WARNING: blob {} not found by `blob_info`.".format(name))
             print("       : Making some assumptions...")
 
             if ivars is None:
-                ivars = self.get_ivars(names[0])
+                ivars = self.get_ivars(name)
             else:
                 if type(ivars) is str:
                     ivars = np.array(self.get_ivars(ivars))
                 else:
-                    ivars = np.atleast_2d(ivars)    
+                    ivars = np.atleast_2d(ivars)
 
             nd = len(ivars)
 
@@ -3685,9 +3764,8 @@ class ModelSet(BlobFactory):
                 else:    
                     ivars = np.atleast_2d(self.blob_ivars[info[0]])
             else:
-                assert len(names) == 1
-                if names[0] in self.derived_blob_names:
-                    ivars = self.derived_blob_ivars[names[0]]
+                if name in self.derived_blob_names:
+                    ivars = self.derived_blob_ivars[name]
                 else:
                     ivars = self.blob_ivars[info[0]]
 
@@ -3700,35 +3778,61 @@ class ModelSet(BlobFactory):
                         
         # First, read-in data from disk. Slice it up depending on if 
         # skip or stop were provided. Squeeze arrays to remove NaNs etc.
-        
+                
         # 1-D case. Don't need to specify ivar by hand.
         if nd == 1:
             
             # Read in the independent variable(s) and data itself
-            xarr = ivars[0]     
-                    
-            if len(names) == 1:
-                tmp = self.ExtractData(names[0], 
-                    take_log=take_log, un_log=un_log, multiplier=multiplier)
-                data = yblob = tmp[names[0]].squeeze()
-            else:
-                tmp = self.ExtractData(names, 
-                    take_log=take_log, un_log=un_log, multiplier=multiplier)
-                xblob = tmp[names[0]].squeeze()
-                yblob = tmp[names[1]].squeeze()
+            xarr = ivars[0]
+
+            if new_x is not None:
+                xarr = new_x
+                print("You better know what you're doing!")
+                                
+            # Convert redshifts to frequencies    
+            if z_to_freq:
+                xarr = nu_0_mhz / (1. + xarr)
+            
+            if E_to_freq:
+                xarr = xarr * erg_per_ev / h_p
+            
+            if is_logx:
+                xarr = 10**xarr
                 
-                # In this case, xarr is 2-D. Need to be more careful...
-                assert use_best
+            if new_x is not None:
+                xarr = new_x
+                print("You better know what you're doing!")    
+            
+            #if len(names) == 1:
+            tmp = self.ExtractData(name, 
+                take_log=take_log, un_log=un_logy, multiplier=multiplier)
+            yblob = tmp[name]#.squeeze()
+            
+            if expr is not None:
+                yblob = eval(expr)
+            
+            #else:
+            #    tmp = self.ExtractData(names, 
+            #        take_log=take_log, un_log=un_log, multiplier=multiplier)
+            #    xblob = tmp[names[0]].squeeze()
+            #    yblob = tmp[names[1]].squeeze()
+            #    
+            #    # In this case, xarr is 2-D. Need to be more careful...
+            #    assert use_best
                                      
             # Only keep runs where ALL elements are OK.
             mask = np.all(yblob.mask == True, axis=1)
             keep = np.array(np.logical_not(mask), dtype=int)
             nans = np.any(np.isnan(yblob.data), axis=1)
+            infs = np.any(np.isinf(yblob.data), axis=1)
                                          
             if skip is not None:
                 keep[0:skip] *= 0
             if stop is not None:
-                keep[stop: ] *= 0
+                keep[stop:]  *= 0
+                
+            if (samples is not None) and (type(samples) != str):
+                keep[0:-samples] = 0
             
             # Grab the maximum likelihood point
             if use_best and self.is_mcmc:
@@ -3743,27 +3847,35 @@ class ModelSet(BlobFactory):
                 
             # A few NaNs ruin everything
             if np.any(nans):
-                print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), names[0]))
+                print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), name))
                 keep[nans == 1] = 0
-                
-            y = []
-            for i, x in enumerate(xarr):
-                
-                # used to have compressed() here in a few places,
-                # but it can mess up the shape for plotting...why
-                # would certain channels get masked?
+            if np.any(infs):
+                print("WARNING: {} elements with infs detected in field={}. Will be discarded.".format(infs.sum(), name))
+                keep[infs == 1] = 0    
+            
+            # Plot time        
+            if samples == 'all':
+                ax.plot(xarr, yblob.T, **kwargs)
+            elif type(samples) is int:
+                ax.plot(xarr, yblob[keep==1].T, **kwargs)    
+            elif use_best and self.is_mcmc:
+                ax.plot(xarr, yblob[keep==1][loc], **kwargs)
+            elif percentile:
+                lo, hi = np.percentile(yblob[keep==1], (q1, q2), axis=0)
                                 
-                if (samples is not None):
-                    y.append(yblob[keep == 1,i]) 
-                elif (use_best and self.is_mcmc):
-                    y.append(yblob[keep == 1,i][loc])
-                elif percentile:
-                    lo, hi = np.percentile(yblob[keep == 1,i], (q1, q2))
-                    y.append((lo, hi))
+                if fill:
+                    ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
-                    dat = data[keep == 1,i]
-                    lo, hi = dat.min(), dat.max()
-                    y.append((lo, hi))
+                    ax.plot(xarr, lo, **kwargs)
+                    ax.plot(xarr, hi, **kwargs)
+            else:
+                raise NotImplemented('help')
+                ax.plot(xarr, yblob.T[0], **kwargs)
+                
+                if 'label' in kwargs:
+                    del kwargs['label']
+                
+                ax.plot(xarr, yblob.T[1], **kwargs)        
 
         elif nd == 2:
             if ivar[0] is None:
@@ -3775,137 +3887,212 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
+                
+            # This assumes scalar is z!
+            if apply_dc:
+                xarr = self.dust.Mobs(scalar, xarr)
+                                            
+            # Convert redshifts to frequencies    
+            if z_to_freq:
+                xarr = nu_0_mhz / (1. + xarr)
+            
+            if E_to_freq:
+                xarr = xarr * erg_per_ev / h_p
+            
+            if is_logx:
+                xarr = 10**xarr
+                
+            if new_x is not None:
+                xarr = new_x
+                print("You better know what you're doing!")
             
             if type(multiplier) not in [list, np.ndarray, tuple]:
                 multiplier = [multiplier] * len(vector)
-                                                                      
-            y = []
-            for i, value in enumerate(vector):
-                iv = [scalar, value][slc]
-                              
-                # Would be faster to pull this outside the loop                
-                tmp = self.ExtractData(names, ivar=[iv]*len(names),
-                    take_log=take_log, un_log=un_log, multiplier=[multiplier[i]])
-                 
-                if len(names) == 1:
-                    yblob = tmp[names[0]]
-                else:    
-                    xblob = tmp[names[0]]
-                    yblob = tmp[names[1]]
-
-                #keep = np.ones_like(yblob.shape[0])
-
-                mask = yblob.mask == True
-                keep = np.array(np.logical_not(mask), dtype=int)
-                nans = np.any(np.isnan(yblob.data)) 
-
-                if skip is not None:
-                    keep[0:skip] *= 0
-                if stop is not None:
-                    keep[stop: ] *= 0
-
-                # Grab the maximum likelihood point
-                if use_best and self.is_mcmc:
-                    if best == 'median':
-                        N = len(self.logL[keep == 1])
-                        psorted = np.argsort(self.logL[keep == 1])
-                        loc = psorted[int(N / 2.)]
-                    else:
-                        loc = np.argmax(self.logL[keep == 1])    
+                                        
+            tmp = self.ExtractData(name, ivar=ivar,                            
+                take_log=take_log, un_log=un_logy)
                 
-                if np.all(yblob[keep == 1].mask == 1):
-                    print("WARNING: elements all masked!")
-                    y.append(-np.inf)
-                    continue
-
-                if (use_best and self.is_mcmc):
-                    #x.append(xblob[name][skip:stop][loc])        
-                    y.append(yblob[loc]) 
-                elif samples is not None:
-                    y.append(yblob[keep == 1]) 
-                elif percentile:
-                    lo, hi = np.percentile(yblob[keep == 1], (q1, q2))
-                    y.append((lo, hi))                    
+            _yblob = tmp[name]    
+            
+            if expr is not None:
+                _yblob = eval(expr)
+                
+            yblob = np.nan_to_num(_yblob)
+            
+            mask = np.all(yblob.mask == True, axis=1)
+            keep = np.array(np.logical_not(mask), dtype=int)
+            nans = np.any(np.isnan(yblob.data), axis=1)
+                                         
+            if skip is not None:
+                keep[0:skip] *= 0
+            if stop is not None:
+                keep[stop:]  *= 0
+                
+            if (samples is not None) and (type(samples) != str):
+                keep[0:-samples] = 0    
+            
+            #if multiplier != 1:
+            #    raise NotImplemented('need to fix this')
+                
+            # Plot individual samples
+            if samples == 'all':
+                # Slicing in x dimension
+                if ivar[0] is not None:
+                    #ix = np.argmin(np.abs(ivar[0] - ivars[0]))
+                    #print(yblob.shape, ix, ivars[0].shape, xarr.shape)
+                    #y = yblob[:,ix,:]
+                    ax.plot(xarr, yblob[keep==1].T, **kwargs)
+                # Slicing in y dimension
                 else:
-                    dat = yblob[keep == 1]
-                    lo, hi = dat.min(), dat.max()
-                    y.append((lo, hi))
-
-        # This assumes scalar is z!
-        if apply_dc:
-            xarr = self.dust.Mobs(scalar, xarr)
-
-        y = np.array(y)
-                        
-        # At this stage, shape of y is (Nsamples, xarr)?
-
-        # Convert redshifts to frequencies    
-        if z_to_freq:
-            xarr = nu_0_mhz / (1. + xarr)
+                    pass
+            elif type(samples) is int:
+                ax.plot(xarr, yblob[keep==1].T, **kwargs)
+                
+            # Plot only the best-fitting model
+            elif use_best and self.is_mcmc:                
+                if best == 'median':
+                    N = len(self.logL[keep == 1])
+                    psorted = np.argsort(self.logL[keep == 1])
+                    loc = psorted[int(N / 2.)]
+                else:
+                    
+                    loc = np.argmax(self.logL[keep == 1])    
             
-        if E_to_freq:
-            xarr = xarr * erg_per_ev / h_p
-            
-        if is_logx:
-            xarr = 10**xarr    
+                ax.plot(xarr, yblob[keep==1][loc], **kwargs)    
+            # Plot contours enclosing some amount of likelihood
+            elif percentile:
+                lo, hi = np.nanpercentile(yblob[keep == 1], (q1, q2), axis=0)
 
+                if fill:
+                    ax.fill_between(xarr, lo, hi, **kwargs)
+                else:
+                    ax.plot(xarr, lo, **kwargs)
+                    ax.plot(xarr, hi, **kwargs)
+            else:
+                raise NotImplemented('help')        
+                
+            #y = []
+            #for i, value in enumerate(vector):
+            #    iv = [scalar, value][slc]
+            #    
+            #    print(i, scalar, value)
+            #                  
+            #    # Would be faster to pull this outside the loop, but I think
+            #    # we do this for vector multipliers              
+            #    #tmp = self.ExtractData(name, ivar=[iv]*len(names),
+            #    #    take_log=take_log, un_log=un_log, multiplier=[multiplier[i]])
+            #     
+            #    #if len(names) == 1:
+            #    #yblob = tmp[name]
+            #    #else:    
+            #    #    raise ValueError('')
+            #    #    xblob = tmp[names[0]]
+            #    #    yblob = tmp[names[1]]
+            #
+            #    #keep = np.ones_like(yblob.shape[0])
+            #
+            #    mask = yblob.mask == True
+            #    keep = np.array(np.logical_not(mask), dtype=int)
+            #    nans = np.any(np.isnan(yblob.data)) 
+            #
+            #    if skip is not None:
+            #        keep[0:skip] *= 0
+            #    if stop is not None:
+            #        keep[stop: ] *= 0
+            #
+            #    # Grab the maximum likelihood point
+            #    if use_best and self.is_mcmc:
+            #        if best == 'median':
+            #            N = len(self.logL[keep == 1])
+            #            psorted = np.argsort(self.logL[keep == 1])
+            #            loc = psorted[int(N / 2.)]
+            #        else:
+            #            loc = np.argmax(self.logL[keep == 1])    
+            #                    
+            #    if np.all(yblob[keep == 1].mask == 1):
+            #        print("WARNING: elements all masked!")
+            #        y.append(-np.inf)
+            #        continue
+            #
+            #    if (use_best and self.is_mcmc):
+            #        #x.append(xblob[name][skip:stop][loc])        
+            #        y.append(yblob[loc]) 
+            #    elif samples is not None:
+            #        y.append(yblob[keep == 1]) 
+            #    elif percentile:
+            #        lo, hi = np.percentile(yblob[keep == 1], (q1, q2))
+            #        y.append((lo, hi))                    
+            #    else:
+            #        dat = yblob[keep == 1]
+            #        lo, hi = dat.min(), dat.max()
+            #        y.append((lo, hi))
+                    
         ##
         # Do the actual plotting
         ##
                 
         # Limit number of realizations
         if samples is not None:
-            M = min(min(self.chain.shape[0], max_samples), len(y.T))            
-            
-            if samples == 'all':
-                # Unmasked elements only
-                #mask1d = np.sum(self.mask, axis=1)
-                #elements = np.argwhere(mask1d == 0).squeeze()
-                                                     
-                for i, element in enumerate(y.T):
-                    ax.plot(xarr, element, **kwargs)
-            else:
-                # Choose randomly 
-                if type(samples) == int:    
-                    elements = np.random.randint(0, M, size=samples)
-                # Or take from list
-                else:    
-                    elements = samples
-                
-                for element in range(M):
-                    if element not in elements:
-                        continue
-                        
-                    ax.plot(xarr, y.T[element], **kwargs)
+            pass
+            #M = min(min(self.chain.shape[0], max_samples), len(y.T))            
+            #
+            #if samples == 'all':
+            #    pass
+            #    # Unmasked elements only
+            #    #mask1d = np.sum(self.mask, axis=1)
+            #    #np.argwhere(mask1d == 0).squeeze()
+            #                                                          
+            #    #for i, element in enumerate(y.T):
+            #    #    #if type(element) == float:
+            #    #    #    continue
+            #    #    #elif len(element) != len(xarr):
+            #    #    #    print('hello', i, element.shape, xarr.shape)
+            #    #    #    continue
+            #    #    
+            #    #    #ok = np.isfinite(element)
+            #    #    ax.plot(xarr, element, **kwargs)
+            #else:
+            #    # Choose randomly 
+            #    if type(samples) == int:    
+            #        elements = np.random.randint(0, M, size=samples)
+            #    # Or take from list
+            #    else:    
+            #        elements = samples
+            #    
+            #    for element in range(M):
+            #        if element not in elements:
+            #            continue
+            #                                    
+            #        ax.plot(xarr, y.T[element], **kwargs)
   
-        elif use_best and self.is_mcmc:
+        #elif use_best and self.is_mcmc:
+        #    pass
+        #    # Don't need to transpose in this case
+        #    #ax.plot(xarr, y, **kwargs)
+        #else:
+        #
+        #    #if not take_log:
+        #    #    # Where y is zero, set to small number?
+        #    #    zeros = np.argwhere(y == 0)
+        #    #    for element in zeros:
+        #    #        y[element[0],element[1]] = 1e-15
+        #    
+        #    if fill:
+        #        ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
+        #    else:
+        #        ax.plot(xarr, y.T[0], **kwargs)
+        #        
+        #        if 'label' in kwargs:
+        #            del kwargs['label']
+        #        
+        #        ax.plot(xarr, y.T[1], **kwargs)
 
-            # Don't need to transpose in this case
-            ax.plot(xarr, y, **kwargs)
-        else:
-        
-            #if not take_log:
-            #    # Where y is zero, set to small number?
-            #    zeros = np.argwhere(y == 0)
-            #    for element in zeros:
-            #        y[element[0],element[1]] = 1e-15
-            
-            if fill:
-                ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
-            else:
-                ax.plot(xarr, y.T[0], **kwargs)
-                
-                if 'label' in kwargs:
-                    del kwargs['label']
-                
-                ax.plot(xarr, y.T[1], **kwargs)
-
-        ax.set_ylabel(self.labeler.label(names[0]))
+        ax.set_ylabel(self.labeler.label(name))
 
         pl.draw()
 
         if return_data:
-            return ax, xarr, y
+            return ax, xarr, yblob
         else:
             return ax
         
@@ -4227,7 +4414,9 @@ class ModelSet(BlobFactory):
 
         if (i is None) and (j is None):
             f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
-            return f['blobs'][name].value
+            arr = np.array(f[('blobs')][name])
+            f.close()
+            return arr
         
         blob = self.get_blob_from_disk(name)
                 
@@ -4266,10 +4455,10 @@ class ModelSet(BlobFactory):
                     print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
                         ivar[1], self.blob_ivars[i][1][k2]))
                 
-                return blob[:,k1,k2]    
+                return blob[:,k1,k2]
     
     def max_likelihood_parameters(self, method='mode', min_or_max='max',
-        skip=0, stop=None):
+        skip=0, stop=None, limit_to_dist=False, nu=0.68):
         """
         Return parameter values at maximum likelihood point.
         
@@ -4290,6 +4479,32 @@ class ModelSet(BlobFactory):
                 iML = np.argmax(self.logL[skip:stop])
             else:
                 iML = np.argmin(self.logL[skip:stop])
+                         
+        # Require that the best-fit model be in the bulk of the distribution?  
+        if limit_to_dist:                                        
+            iML_all = np.argsort(self.logL[skip:stop])[-1::-1]
+            
+            ranges = {}
+            for par in self.parameters:
+                mu, (hi, lo) = self.get_1d_error(par, peak=method, skip=skip, 
+                    stop=stop, nu=nu)
+                    
+                ranges[par] = (mu - lo, mu + hi)
+            
+            for h, _iML in enumerate(iML_all):
+                
+                all_ok = True
+                for i, par in enumerate(self.parameters):
+                    pval = self.chain[skip:stop][_iML,i]
+                    if not ranges[par][0] <= pval <= ranges[par][1]:
+                        all_ok = False
+                        break
+                    
+                if all_ok:
+                    break                       
+            
+            if h != 0:
+                print("WARNING: Using {}th highest-likelihood point.".format(h))                            
                                                 
         self._max_like_pars = {}
         for i, par in enumerate(self.parameters):
@@ -4299,6 +4514,61 @@ class ModelSet(BlobFactory):
                 self._max_like_pars[par] = self.chain[skip:stop][iML,i]
         
         return self._max_like_pars
+        
+    def ExpensiveBlob(self, func, ivar, name, skip=0, clobber=False):
+        """
+        Generate a new blob from parameters only, i.e., we need to re-run
+        some ARES calculation, which is wrapped by `func`.
+        
+        No restart option yet. Should add that.
+        """
+        
+        kwargs = self.AssembleParametersList(include_bkw=True)
+
+        print("Generating new field={} for all {} samples...".format(name,
+            len(kwargs)))
+            
+        nd = len(ivar)
+        shape = [len(kwargs)]
+        for k, dim in enumerate(range(nd)):
+            shape.append(len(ivar[k][1]))
+            
+        fn = '{0!s}.blob_{1}d.{2!s}.pkl'.format(self.prefix, nd, name)
+        
+        if os.path.exists(fn) and (not clobber):
+            print(('{!s} exists! Set clobber=True or remove by ' +\
+                'hand.').format(fn))
+            return
+            
+        pb = ProgressBar(len(kwargs), name=name)
+        pb.start()
+        
+        all_results = -99999 * np.ones(shape)
+        for k, kw in enumerate(kwargs):
+            
+            if k < skip:
+                continue
+            
+            if k % size != rank:
+                continue
+            
+            result = func(ivar, **kw)
+            all_results[k] = result
+                        
+            pb.update(k)
+            
+        pb.finish()    
+            
+        if size > 1:
+            tmp = np.zeros_like(all_results)
+            nothing = MPI.COMM_WORLD.Allreduce(all_results, tmp)
+            all_results = tmp 
+        
+        if rank > 0:
+            return
+                    
+        write_pickle_file(all_results, fn, open_mode='w', ndumps=1,\
+            safe_mode=False, verbose=False)
         
     def DeriveBlob(self, func=None, fields=None, expr=None, varmap=None, 
         save=True, ivar=None, name=None, clobber=False):

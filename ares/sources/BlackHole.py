@@ -46,9 +46,9 @@ class BlackHole(Source):
     
         """
         
-        self.pf = BlackHoleParameters()
-        self.pf.update(kwargs)    
-        Source.__init__(self)
+        #self.pf = BlackHoleParameters()
+        #self.pf.update(kwargs)    
+        Source.__init__(self, **kwargs)
                 
         self._name = 'bh'
         
@@ -56,7 +56,12 @@ class BlackHole(Source):
         self.epsilon = self.pf['source_eta']
         
         # Duty cycle parameters
-        self.fduty = self.pf['source_fduty'] 
+        if self.pf['source_fduty'] is None:
+            self.fduty = 1.0
+        else:
+            assert type(self.fduty) in [int, float, np.float64]    
+            self.fduty = self.pf['source_fduty'] 
+            
         self.variable = self.fduty < 1
         #if self.src_pars['fduty'] == 1:
         #    self.variable = self.tau < self.pf['stop_time']

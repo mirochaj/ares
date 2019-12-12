@@ -535,7 +535,7 @@ class BlobFactory(object):
                                                 
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -556,7 +556,7 @@ class BlobFactory(object):
                     # The 0 index is because ivars are kept in a list no
                     # matter what
                     x = np.array(self.blob_ivars[i][0]).squeeze()
-                    if (self.blob_funcs[i][j] is None) and (key in self.history):                        
+                    if (self.blob_funcs[i][j] is None) and (key in self.history):
                         blob = np.interp(x, self.history['z'][-1::-1],
                             self.history[key][-1::-1])
                     elif self.blob_funcs[i][j] is None:
@@ -608,7 +608,7 @@ class BlobFactory(object):
                                         
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
-                    tmp_f = parse_attribute(fname, self)                    
+                    tmp_f = parse_attribute(fname, self)
                     
                     xarr, yarr = list(map(np.array, self.blob_ivars[i]))
                     
@@ -628,15 +628,15 @@ class BlobFactory(object):
                     # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
-                                                                                                                      
+                        
                         if self.blob_kwargs[i] is not None:
                             kw = self.blob_kwargs[i][j]
                         else:
                             kw = {}
-                            
+                                                                
                         kw.update({xn:x, yn:yarr})
                         result = func(**kw)
-                                                
+                                
                         # Happens when we save a blob that isn't actually
                         # a PQ (i.e., just a constant). Need to kludge so it
                         # doesn't crash.
@@ -645,9 +645,9 @@ class BlobFactory(object):
                         
                         tmp.extend(result)
                         blob.append(tmp)
-                                                                        
+                                                                                                                        
                 this_group.append(np.array(blob))
-
+                                
             self._blobs.append(np.array(this_group))
             
     @property 
