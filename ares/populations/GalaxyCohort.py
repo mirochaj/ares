@@ -1535,7 +1535,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     else:
                         Mmax[i] = 10**np.interp(z, zfin, np.log10(Mfin))
                         
-                _tab_Mmax_ = Mmax
+                self._tab_Mmax_ = Mmax
                                                 
             elif self.pf['pop_Mmax'] is not None:
                 if type(self.pf['pop_Mmax']) is FunctionType:
@@ -1549,7 +1549,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         self._tab_Mmax_ = np.array(list(map(extra, self.halos.tab_z))) \
                             * self._tab_Mmin
                     else:
-                        _tab_Mmax_ = extra * self._tab_Mmin
+                        self._tab_Mmax_ = extra * self._tab_Mmin
                 else:    
                     self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones_like(self.halos.tab_z)
 
@@ -1824,8 +1824,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     continue
                 
                 if z > self.pf['initial_redshift']:
-                    continue
-
+                    continue    
+                
                 if z > self.zform:
                     continue
 
@@ -2753,6 +2753,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         results['z'] = np.array(zform)
         
         self._trajectories = np.array(zform), results
+        
+        return np.array(zform), results
 
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         self.RunSAM(z0, M0)

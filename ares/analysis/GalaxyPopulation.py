@@ -1073,16 +1073,7 @@ class GalaxyPopulation(object):
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
 
-<<<<<<< working copy
-        if quantity in ['lf', 'smf']:
-            ax.set_yscale('log', nonposy='clip')    
-
-        if quantity == 'lf' and (not gotax):
-||||||| base
-        if quantity == 'lf' and (not gotax):
-=======
         if quantity == 'lf' and ((not gotax) or force_labels):
->>>>>>> merge rev
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
             ax.set_xlabel(r'$M_{\mathrm{UV}}$')
@@ -1247,10 +1238,6 @@ class GalaxyPopulation(object):
         Make a huge plot.
         """
         
-<<<<<<< working copy
-            ||||||| base
-            
-=======
         if axes is None:
             gotax = False
             axes = self._MegaPlotSetup(fig)
@@ -1956,4 +1943,4 @@ class GalaxyPopulation(object):
         ax_MsMUV.legend(loc='upper right', fontsize=8)
         
         
-        self._MegaPlotLimitsAndTicks(kw)>>>>>>> merge rev
+        self._MegaPlotLimitsAndTicks(kw)

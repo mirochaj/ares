@@ -718,6 +718,10 @@ class HaloMassFunction(object):
         if not hasattr(self, '_logM_min'):
             self.build_1d_splines(Tmin=self.pf['pop_Tmin'], mu=self.pf['mu'])
         return self._logM_min
+    
+    @logM_min.setter
+    def logM_min(self, value):
+        self._logM_min = value
             
     @property
     def fcoll_Tmin(self):

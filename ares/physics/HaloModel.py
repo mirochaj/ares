@@ -235,6 +235,61 @@ class HaloModel(HaloMassFunction):
         result = np.trapz(integrand[iM:], x=np.log(self.tab_M[iM:]))
 
         return result
+        
+    def PS_OneHalo_Lum(self, z, k, LofM_1, LofM_2, profile_1=None, Mmin_1=None, Mmax_1=None,
+                       profile_2=None, Mmin_2=None, Mmax_2=None):
+        """
+        Compute the one halo term of the halo model for given input profile.
+        """
+
+        iz = np.argmin(np.abs(z - self.tab_z))
+
+        # Can plug-in any profile, but will default to dark matter halo profile
+        if profile_1 is None:
+            profile_1 = self.u_nfw
+
+        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
+
+        if profile_2 is None:
+            prof2 = prof1
+        else:
+            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
+
+        dndlnm = self.tab_dndm[iz, :] * self.tab_M
+        # bias = self.bias_of_M(z)
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+
+        if Mmin_1 is None:
+            iMmin_1 = 0
+        else:
+            iMmin_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
+
+        if Mmin_2 is None:
+            iMmin_2 = 0
+        else:
+            iMmin_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
+
+        if Mmax_1 is None:
+            iMmax_1 = 0
+        else:
+            iMmax_1 = np.argmin(np.abs(Mmax_1 - self.tab_M))
+
+        if Mmax_2 is None:
+            iMmax_2 = 0
+        else:
+            iMmax_2 = np.argmin(np.abs(Mmax_2 - self.tab_M))
+
+        iMmin = max(iMmin_1, iMmin_2)
+        iMmax = min(iMmax_1, iMmax_2)
+
+        assert np.size(self.tab_M) == np.size(LofM_1)
+        assert np.size(self.tab_M) == np.size(LofM_2)
+
+        integrand = dndlnm * LofM_1 * LofM_2 * prof1 * prof2
+
+        result = np.trapz(integrand[iMmin:iMmax], x=np.log(self.tab_M[iMmin:iMmax]))
+
+        return result    
 
     def PS_TwoHalo(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
         Mmin_2=None):
@@ -303,6 +358,124 @@ class HaloModel(HaloMassFunction):
             integral2 = integral1
 
         return integral1 * integral2 * float(self.LinearPS(z, np.log(k)))
+
+    def PS_TwoHalo_Lum(self, z, k, LofM_1, LofM_2, profile_1=None, Mmin_1=None, Mmax_1=None,
+                       profile_2=None, Mmin_2=None, Mmax_2=None):
+        """
+        Compute the two halo term of the halo model for given input profile.
+
+        .. note :: Assumption of linearity?
+
+        Parameters
+        ----------
+
+        """
+
+        iz = np.argmin(np.abs(z - self.tab_z))
+
+        # Can plug-in any profile, but will default to dark matter halo profile
+        if profile_1 is None:
+            profile_1 = self.u_nfw
+
+        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
+
+        if profile_2 is None:
+            prof2 = prof1
+        else:
+            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
+
+        # Short-cuts
+        dndlnm = self.tab_dndm[iz, :] * self.tab_M
+        bias = self.Bias(z)
+        # rho_bar = self.mgtm[iz,0]
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+
+        if Mmin_1 is None:
+            iMmin_1 = 0
+
+            # Small halo correction.
+            # Make use of Cooray & Sheth Eq. 71
+            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            correction_1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+        else:
+            iMmin_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
+            correction_1 = 0.0
+
+        if Mmin_2 is None:
+            iMmin_2 = 0
+            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            correction_2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+        else:
+            iMmin_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
+            correction_2 = 0.0
+
+        if Mmax_1 is None:
+            iMmax_1 = 0
+        else:
+            iMmax_1 = np.argmin(np.abs(Mmax_1 - self.tab_M))
+
+        if Mmax_2 is None:
+            iMmax_2 = 0
+        else:
+            iMmax_2 = np.argmin(np.abs(Mmax_2 - self.tab_M))
+
+        # Compute two-halo integral with profile in there
+        integrand1 = dndlnm * LofM_1 * prof1 * bias
+        integral1 = np.trapz(integrand1[iMmin_1:iMmax_1], x=np.log(self.tab_M[iMmin_1:iMmax_1])) \
+                    + correction_1
+
+        if profile_2 is not None:
+            integrand2 = dndlnm * LofM_2 * prof2 * bias
+            integral2 = np.trapz(integrand2[iMmin_2:iMmax_2], x=np.log(self.tab_M[iMmin_2:iMmax_2])) \
+                        + correction_2
+        else:
+            integral2 = integral1
+
+        return integral1 * integral2 * float(self.LinearPS(z, np.log(k)))
+
+    def PS_Shot_Lum(self, z, LofM_1, LofM_2, Mmin_1=None, Mmax_1=None, Mmin_2=None, Mmax_2=None):
+        """
+        Compute the one halo term of the halo model for given input profile.
+        """
+
+        iz = np.argmin(np.abs(z - self.tab_z))
+
+        dndlnm = self.tab_dndm[iz, :] * self.tab_M
+        # bias = self.bias_of_M(z)
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+
+        if Mmin_1 is None:
+            iMmin_1 = 0
+        else:
+            iMmin_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
+
+        if Mmin_2 is None:
+            iMmin_2 = 0
+        else:
+            iMmin_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
+
+        if Mmax_1 is None:
+            iMmax_1 = 0
+        else:
+            iMmax_1 = np.argmin(np.abs(Mmax_1 - self.tab_M))
+
+        if Mmax_2 is None:
+            iMmax_2 = 0
+        else:
+            iMmax_2 = np.argmin(np.abs(Mmax_2 - self.tab_M))
+
+        iMmin = max(iMmin_1, iMmin_2)
+        iMmax = min(iMmax_1, iMmax_2)
+
+        assert np.size(self.tab_M) == np.size(LofM_1)
+        assert np.size(self.tab_M) == np.size(LofM_2)
+
+        integrand = dndlnm * LofM_1 * LofM_2
+
+        result = np.trapz(integrand[iMmin:iMmax], x=np.log(self.tab_M[iMmin:iMmax]))
+
+        return result
+
 
     def PowerSpectrum(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
         Mmin_2=None, exact_z=True):

@@ -17,12 +17,25 @@ import matplotlib.pyplot as pl
 from ares.physics.Constants import rhodot_cgs
 
 def test():
-    pars = ares.util.ParameterBundle('mirocha2016:dpl') \
-         + ares.util.ParameterBundle('mirocha2017:high')
+    
+    print("Skipping this test. Must use parametric SED.")
+    return
+    
+    
+    pars = ares.util.ParameterBundle('mirocha2017:base') \
+         + ares.util.ParameterBundle('mirocha2018:high')
     
     pars['pop_sfr{2}'] = 1e-6        # ~1 100 Msun star every 10 Myr
     pars['pop_time_limit{2}'] = 20.  
     pars['pop_bind_limit{2}'] = None
+    
+    # So we don't need SPS models in test suite
+    #pars['pop_sed{0}'] = 'pl'
+    #pars['pop_rad_yield{0}'] = 4000
+    #pars['pop_rad_yield_units{0}'] = 'photons/baryon'
+    #pars['pop_Emin{0}'] = 10.2
+    #pars['pop_Emax{0}'] = 13.6
+    #pars['pop_calib_L1600{0}'] = None
     
     # just to speed things up a bit
     pars['feedback_LW_maxiter'] = 4
@@ -54,8 +67,8 @@ def test():
     
     # Convert SFRD from g/s/cm^3 to Msun/yr/cMpc^3
     pl.figure(1)
-    pl.semilogy(popII.halos.z, popII._tab_sfrd_total * rhodot_cgs, color='k')
-    pl.semilogy(popIII.halos.z, popIII._tab_sfrd_total * rhodot_cgs, color='b')
+    pl.semilogy(popII.halos.tab_z, popII._tab_sfrd_total * rhodot_cgs, color='k')
+    pl.semilogy(popIII.halos.tab_z, popIII._tab_sfrd_total * rhodot_cgs, color='b')
     pl.xlabel(r'$z$')
     pl.ylabel(ares.util.labels['sfrd'])
     
@@ -75,6 +88,6 @@ def test():
         pl.close()    
         
     assert True
-    
+
 if __name__ == '__main__':
     test()
