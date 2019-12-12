@@ -283,13 +283,6 @@ class SynthesisMaster(Source):
         # else: 
         #     erg / sec / Hz / (Msun / yr)
                     
-        # to erg / s / A / Msun
-        #if self.pf['source_ssp']:
-        #    yield_UV /= 1e6
-        ## or erg / s / A / (Msun / yr)
-        #else:
-        #    pass
-        
         self._cache_L_[(wave, avg, Z, units)] = yield_UV
             
         return yield_UV

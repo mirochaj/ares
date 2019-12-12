@@ -542,16 +542,12 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
-<<<<<<< working copy
     "pop_sed_sharp_at": None,
     
-||||||| base
-=======
     # Can degrade spectral resolution of stellar population synthesis models
     # just to speed things up.
     "pop_sed_degrade": None,
-        
->>>>>>> merge rev
+
     # If pop_sed == 'user'
     "pop_E": None,
     "pop_L": None,
@@ -587,7 +583,6 @@ def PopulationParameters():
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
-<<<<<<< working copy
     
     # Reserved for delta function sources
     "pop_E": None,
@@ -595,12 +590,6 @@ def PopulationParameters():
     
     # Artificially kill emission in some band.
     "pop_Ekill": None,
-||||||| base
-    
-    # Artificially kill emission in some band.
-    "pop_Ekill": None,
-=======
->>>>>>> merge rev
 
     "pop_Ekill": None,    # see also source_Ekill
     "pop_Emin_xray": 2e2,
@@ -891,14 +880,9 @@ def SourceParameters():
     "source_sed": 'bb',
     "source_position": 0.0,
     
-<<<<<<< working copy
     "source_sed_sharp_at": None,
-    
-||||||| base
-=======
     "source_sed_degrade": None,
     
->>>>>>> merge rev
     "source_sfr": 1.,
     "source_fesc": 0.1,
     
@@ -1081,11 +1065,6 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 0,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
-<<<<<<< working copy
-
-||||||| base
-    
-=======
     
     # Optional: time instead of redshift
     "hmf_tmin": 30.,
@@ -1093,7 +1072,6 @@ def HaloMassFunctionParameters():
     "hmf_dt": None,     # if not None, will switch this one.
     
     
->>>>>>> merge rev
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
@@ -1105,7 +1083,6 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
-<<<<<<< working copy
     # For matter power spectrum
     "mps_zmin": 6,
     "mps_zmax": 30,
@@ -1120,20 +1097,12 @@ def HaloMassFunctionParameters():
     'mps_lnR_min': -10.,
     'mps_lnR_max': 10.,
 
-||||||| base
-=======
     # Note that this is not passed to hmf yet.
     "hmf_window": 'tophat',
     
->>>>>>> merge rev
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
-<<<<<<< working copy
 
-||||||| base
-    
-=======
-    
     "hmf_func": None,
     "hmf_extra_par0": None,
     "hmf_extra_par1": None,
@@ -1141,7 +1110,6 @@ def HaloMassFunctionParameters():
     "hmf_extra_par3": None,
     "hmf_extra_par4": None,
         
->>>>>>> merge rev
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
