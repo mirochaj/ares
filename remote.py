@@ -19,8 +19,9 @@ _bpass_v1_links = ['sed_bpass_z{!s}_tar.gz'.format(Z) \
 aux_data = \
 {
  'hmf': ['{!s}/downloads'.format(ares_link),
-    'hmf_ST_logM_1400_4-18_z_1201_0-60.npz',
-    'hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz',
+    'hmf_ST_logM_1200_4-18_z_1201_0-60.npz',
+    'hmf_Tinker10_logM_1200_4-18_z_1201_0-60.npz',
+    'mps_ST_logM_1400_4-18_z_49_6-30_lnR_-10.0-10.0_dlnR_0.001_lnk_-10.0-10.0_dlnk_0.001'
     None],
  'inits': ['{!s}/downloads'.format(ares_link),
      'initial_conditions.txt',
