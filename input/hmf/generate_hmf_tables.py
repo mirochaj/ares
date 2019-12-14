@@ -18,7 +18,7 @@ import ares
 
 ## INPUT
 fit = 'ST'
-fmt = 'hdf5'
+fmt = 'npz'
 
 hmf_pars = \
 {
@@ -35,9 +35,9 @@ hmf_pars = \
  "hmf_dz": 0.05, 
  
  # Can do constant timestep instead of constant dz 
- "hmf_dt": 1.,
- "hmf_tmin": 30.,
- "hmf_tmax": 2000.,
+ #"hmf_dt": 1.,
+ #"hmf_tmin": 30.,
+ #"hmf_tmax": 2000.,
  
  # Cosmology
  "sigma_8": 0.8159, 

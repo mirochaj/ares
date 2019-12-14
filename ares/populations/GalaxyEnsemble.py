@@ -320,7 +320,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Throw away halos with Mh < Mmin or Mh > Mmax
         ##
-        if self.pf['pop_synth_minimal']:
+        if self.pf['pop_synth_minimal'] and (self.pf['pop_histories'] is None):
             Mmin = self.guide.Mmin(zall)
             ilo = Mh_raw.shape[0] - 1
             ihi = 0

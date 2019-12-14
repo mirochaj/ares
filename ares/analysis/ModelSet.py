@@ -3666,6 +3666,85 @@ class ModelSet(BlobFactory):
         
         return x, y, zarr
         
+    def RetrieveModels(self, skip=0, stop=None, Nmods=1, seed=None, 
+        limit_to=None, limit_all=False, tol=None, **kwargs):
+        """
+        Return a set of model parameters close to those requested.
+        
+        Do this by searching the posterior distribution for nearby points, 
+        potentially within some tolerance of the value requested and/or within
+        the bulk of the distribution, quantified by `limit_to`. 
+        """
+                
+        if len(kwargs.keys()) > 1:
+            raise NotImplemented('help')
+        
+        # Grab element closest to requested 
+        for i, par in enumerate(self.parameters):
+            if par not in kwargs:
+                continue
+                 
+            nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
+            
+            # Grab top 1000 hits
+            nsorted = np.argsort(nearby)
+            break
+        
+        # Make this deterministic. if we want
+        #np.random.seed(seed)
+        #np.random.shuffle(nsorted)
+        
+        ct = 0
+        models = []
+        for n, item in enumerate(nsorted): 
+            
+            if ct >= Nmods:
+                break
+                
+            val = self.chain[skip:stop,:][item,i]
+            
+            if tol is not None:
+                if abs(val - kwargs[par]) > tol:
+                    continue
+            
+            if limit_to is not None:
+                mu, (hi, lo) = self.get_1d_error(par, nu=limit_to)
+                                
+                if not lo <= val <= hi:
+                    #print("Match n={} outside {} range".format(n, limit_to))
+                    continue
+                    
+            if limit_all:
+                for _i, _par in enumerate(self.parameters):
+                    if _i == i:
+                        # Already did this one!
+                        continue
+                        
+                mu, (hi, lo) = self.get_1d_error(_par, nu=limit_to)
+                
+                if not lo <= self.chain[skip:stop,:][item,_i] <= hi:
+                    continue
+                    
+            print("Matched val={} (actual={}) at index={}".format(kwargs[par],    
+                val, item))
+            
+            # Make sure this element is in the high-likelihood region
+            p = {}
+            for m, par in enumerate(self.parameters):
+                #if self.chain[skip:stop,:][item,m] == p[par]:
+                #    print('Parameter \#{} identical to previous iteration'.format(m))
+                    
+                if self.is_log[m]:
+                    p[par] = 10**self.chain[skip:stop,:][item,m]
+                else:
+                    p[par] = self.chain[skip:stop,:][item,m]
+        
+            models.append(p)
+            
+            ct += 1
+        
+        return models
+        
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 
         expr=None, new_x=None, is_logx=False,

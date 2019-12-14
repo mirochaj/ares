@@ -247,15 +247,15 @@ class NebularEmission(object):
         
         return tot
                 
-    def LymanSeries(self, waves, spec):
-        return self.HydrogenLines(waves, spec, ninto=1)
+    def LymanSeries(self, spec):
+        return self.HydrogenLines(spec, ninto=1)
         
-    def BalmerSeries(self, waves, spec):
-        return self.HydrogenLines(waves, spec, ninto=2)
+    def BalmerSeries(self, spec):
+        return self.HydrogenLines(spec, ninto=2)
         
-    def HydrogenLines(self, waves, spec, ninto=1):
-        neb = np.zeros_like(waves)
-        nrg = h_p * c / (waves * 1e-8) / erg_per_ev
+    def HydrogenLines(self, spec, ninto=1):
+        neb = np.zeros_like(self.wavelengths)
+        nrg = h_p * c / (self.wavelengths * 1e-8) / erg_per_ev
         freq = nrg * erg_per_ev / h_p
         fesc = self.pf['pop_fesc']
         _Tg = self.pf['pop_nebula_Tgas']
@@ -265,14 +265,16 @@ class NebularEmission(object):
         ok = np.logical_and(ion, gt0)
         
         # This will be in [erg/s]
-        Lion = np.trapz(spec[ok==1][-1::-1] * freq[ok==1][-1::-1], 
-            x=np.log(freq[ok==1][-1::-1]))
-        
-        Lout = Lion * (1. - self.pf['pop_fesc'])
+        Lion = self.N_ion(spec)
+        Labs = Lion * (1. - fesc)
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
         
-        fout = np.zeros_like(waves)
-        for n in range(ninto+1, 15):
+        fout = np.zeros_like(self.wavelengths)
+        for n in range(ninto+1, 5):
+            
+            # Need to generalize
+            frec = 2. / 3.
+            
             En = self.hydr.BohrModel(ninto=ninto, nfrom=n)
             
             prof = np.exp(-0.5 * (nrg - E_LyA)**2 / 2. / sigm**2) \
@@ -280,14 +282,13 @@ class NebularEmission(object):
             
             # See if the line is resolved
             if not np.all(prof == 0):
-                fout += Lout * frec * prof
+                fout += Labs * frec * prof
             else:
                 loc = np.argmin(np.abs(nrg - En))
                 # Need to correct for size of bin
                 corr = freq[loc-1] - freq[loc]
-                fout[loc] += Lout * 2. / 3. / corr
-            
-                        
+                fout[loc] += Labs * frec / corr
+                                
         return fout
         
     def LinesByElement(self, element='helium'):

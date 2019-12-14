@@ -300,7 +300,8 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
-def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None):
+def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
+    return_N=False, inclusive=False):
     """
     Take samples and bin up.
     """
@@ -312,28 +313,38 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None):
 
     ystd = []
     yavg = []
+    N = []
     for i, lo in enumerate(xbin_e):
         if i == len(xbin_e) - 1:
             break
 
         hi = xbin_e[i+1]
 
-        ok = np.logical_and(x >= lo, x < hi)
-        ok = np.logical_and(ok, np.isfinite(y))
+        if inclusive and i == 0:
+            ok = x < hi
+            ok = np.logical_and(ok, np.isfinite(y))
+        elif inclusive and i == len(xbin_e) - 1:
+            ok = x >= lo
+            ok = np.logical_and(ok, np.isfinite(y))    
+        else:   
+            ok = np.logical_and(x >= lo, x < hi)
+            ok = np.logical_and(ok, np.isfinite(y))
         
         f = y[ok==1]
 
         if (f.size == 0) or (weights[ok==1].sum() == 0):
             
             yavg.append(-np.inf)
-            if limits:
+            if limits or (percentile is not None):
                 ystd.append((-np.inf, -np.inf))
             else:    
                 ystd.append(-np.inf)
             
+            N.append(0)
             continue
         
         yavg.append(np.average(f, weights=weights[ok==1]))
+        N.append(sum(ok==1))
         
         if percentile is not None:
             q1 = 0.5 * 100 * (1. - percentile)
@@ -345,7 +356,10 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None):
         else:        
             ystd.append(np.std(f))
 
-    return np.array(xbin_c), np.array(yavg), np.array(ystd)
+    if return_N:
+        return np.array(xbin_c), np.array(yavg), np.array(ystd), np.array(N)
+    else:
+        return np.array(xbin_c), np.array(yavg), np.array(ystd)
 
 def rebin(bins):
     """

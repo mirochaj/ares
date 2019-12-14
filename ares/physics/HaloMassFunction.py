@@ -872,17 +872,29 @@ class HaloMassFunction(object):
                
         # Note also that this is also HMF's definition of nu
         delta_sc = 1.686
-        nu = (delta_sc / self.tab_sigma / G)**2  
+        nu = (delta_sc / self.tab_sigma / G)
+        nu_sq = nu**2
         
         # Cooray & Sheth (2002) Equations 68-69
         if self.hmf_func == 'PS':
-            bias = 1. + (nu - 1.) / delta_sc
+            bias = 1. + (nu_sq - 1.) / delta_sc
         elif self.hmf_func == 'ST':
             ap, qp = 0.707, 0.3
             
             bias = 1. \
-                + (ap * nu - 1.) / delta_sc \
-                + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
+                + (ap * nu_sq - 1.) / delta_sc \
+                + (2. * qp / delta_sc) / (1. + (ap * nu_sq)**qp)
+        elif self.hmf_func == 'Tinker10':
+            y = np.log10(200.)
+            A = 1. + 0.24 * y * np.exp(-(4. / y)**4)
+            a = 0.44 * y - 0.88
+            B = 0.183
+            b = 1.5
+            C = 0.019 + 0.107 * y + 0.19 * np.exp(-(4. / y)**4)
+            c = 2.4
+            
+            bias = 1. - A * (nu**a / (nu**a + delta_sc**a)) + B * nu**b \
+                 + C * nu**c
         else:
             raise NotImplemented('No bias for non-PS non-ST MF yet!')
     
