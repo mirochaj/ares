@@ -13,7 +13,6 @@ Description:
 import time
 import numpy as np
 from ..util import labels
-from ..util import read_lit
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
 from ..util.Survey import Survey
@@ -23,10 +22,10 @@ from ..util.ReadData import read_lit
 from ..util.Aesthetics import labels
 from scipy.optimize import curve_fit
 import matplotlib.gridspec as gridspec
-from ..physics.Constants import rhodot_cgs
 from ..util.ProgressBar import ProgressBar
 from ..util.SpectralSynthesis import what_filters
 from .MultiPlot import MultiPanel, add_master_legend
+from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples
 from ..populations.GalaxyPopulation import GalaxyPopulation as GP
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
@@ -1216,6 +1215,154 @@ class GalaxyPopulation(object):
         pl.show()    
             
         return mp
+        
+    def _selected(self, color1, color2, lbcut, ccut, degen):
+    
+        inter, slope = degen
+        
+        is_highz = np.logical_and(color1 >= lbcut, color2 <= ccut)
+    
+        x = color1#np.arange(lbcut, 3.5, 0.01)
+        y = (x - inter) / slope
+    
+        is_highz = np.logical_and(color2 <= y, is_highz)
+    
+        return is_highz
+        
+        
+    def PlotColorColor(self, pop, redshifts=[4,5,6,7], cuts='bouwens2015',
+        fig=None, show_false_neg=True):
+        """
+        Make color-color plot including high-z selection criteria.
+        """
+        
+        Nz = len(redshifts)
+        
+        if fig is None:
+            fig = pl.figure(tight_layout=False, 
+                figsize=(4*Nz, 4 * (1+show_false_neg)), num=fig)
+            fig.subplots_adjust(left=0.15, bottom=0.15, top=0.9, right=0.9)
+            
+        gs = gridspec.GridSpec(1+show_false_neg, Nz, 
+            hspace=0.5, wspace=0.3, figure=fig)
+        
+        color_selection = read_lit(cuts).color_selection
+        
+        names = read_lit('bouwens2014').filter_names
+        cam = ('wfc', 'wfc3')
+        
+        phot = {}
+        axes = []
+        for i, z in enumerate(redshifts):
+        
+            ax = fig.add_subplot(gs[0,i])
+            ax2 = fig.add_subplot(gs[1,i])
+            #ax3 = fig.add_subplot(gs[2,i])
+            #axes.append(ax)
+            #
+            #ax4 = fig2.add_subplot(gs2[0,i])
+        
+            ax.annotate(r'$z \sim {}$'.format(z), (0.05, 0.95), ha='left',
+                va='top', xycoords='axes fraction')
+        
+            cuts = color_selection[z]
+            
+            n1A, n1B, n1gt = cuts[0]
+            n2A, n2B, n2lt = cuts[1]
+            inter, slope = cuts[2]
+        
+           # color1 = ph_mags[ph_fil.index(n1A)] - ph_mags[ph_fil.index(n1B)]
+           # color2 = ph_mags[ph_fil.index(n2A)] - ph_mags[ph_fil.index(n2B)]
+        
+            # Left rectangle: constraint on color2 (y axis)
+            ax.fill_betweenx([n2lt, 3.5], -1, 3.5, color='k', alpha=0.2,
+                edgecolors='none')
+            # Bottom rectangle: constraint on color1 (x axis)
+            ax.fill_between([-1,n1gt], -1, n2lt, color='k', alpha=0.2,
+                edgecolors='none')
+    
+            #y = np.arange(-1, n2lt+0.05, 0.05)
+            #x = inter + y * slope
+            x = np.arange(n1gt, 3.5, 0.01)
+            y = (x - inter) / slope
+        
+            ok = y <= n2lt
+        
+            ax.fill_between(x[ok==1], y[ok==1], np.ones_like(y[ok==1]) * n2lt, 
+                color='k', alpha=0.2)
+        
+            ax.set_xlabel(r'{}-{}'.format(names[n1A], names[n1B]))
+            ax.set_ylabel(r'{}-{}'.format(names[n2A], names[n2B]))
+        
+            hist = pop.histories
+        
+            dL = pop.cosm.LuminosityDistance(z)
+            magcorr = 5. * (np.log10(dL / cm_per_pc) - 1.)
+        
+            ph_mags = []
+            ph_xph  = []
+            ph_dx = []
+            ph_fil = []
+            for j, _cam in enumerate(cam):
+    
+                _filters, xphot, dxphot, ycorr = \
+                    pop.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
+                        hist=hist, dlam=20., cam=_cam, filters=names.keys(),
+                        extras=pop.extras, rest_wave=None, load=False)
+            
+                ph_mags.extend(list(np.array(ycorr) - magcorr))
+                ph_xph.extend(xphot)
+                ph_dx.extend(list(np.sum(dxphot, axis=1).squeeze()))
+                ph_fil.extend(_filters)
+    
+            ph_mags = np.array(ph_mags)
+        
+            phot[z] = ph_mags
+    
+            _color1 = ph_mags[ph_fil.index(n1A)] - ph_mags[ph_fil.index(n1B)]
+            _color2 = ph_mags[ph_fil.index(n2A)] - ph_mags[ph_fil.index(n2B)]
+    
+            is_highz = self._selected(_color1, _color2, n1gt, n2lt, 
+                (inter, slope))
+    
+            false_neg = (is_highz.size - is_highz.sum()) / float(is_highz.size)
+            print('False negatives at z={}: {}'.format(z, false_neg))
+    
+            #for _ax in axes:
+            ax.scatter(_color1[is_highz==1], _color2[is_highz==1], color='b',
+                facecolors='b', edgecolors='none', alpha=0.01)
+            ax.scatter(_color1[is_highz==0], _color2[is_highz==0], color='r',
+                facecolors='r', edgecolors='none', alpha=0.01)    
+                
+            ax.set_xlim(-0.5, 3.5)
+            ax.set_ylim(-0.5, 2)
+            
+            if not show_false_neg:
+                continue
+        
+            # Plot false negative rate vs. SFR
+            sfr = pop.get_field(z, 'SFR')
+            Mh = pop.get_field(z, 'Mh')
+            sfr_bins = np.arange(-3, 3, 0.2)
+                
+            # y is irrelevant here
+            x1, y1, std1, N1 = bin_samples(np.log10(sfr[is_highz==1]), 
+                Mh[is_highz==1],
+                sfr_bins, return_N=True, inclusive=True)
+            x2, y2, std2, N2 = bin_samples(np.log10(sfr[is_highz==0]), 
+                Mh[is_highz==0],
+                sfr_bins, return_N=True, inclusive=True)    
+            
+            tot_by_bin = N1 + N2
+            
+            ax2.semilogx(10**x1, N2 / tot_by_bin.astype('float'), color='k')
+            ax2.set_ylim(-0.05, 1.05)
+            ax2.set_xlabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
+            
+            if i == 0:
+                ax2.set_ylabel('false negative rate')    
+                
+        return fig, gs        
         
     def PlotScalingRelations(self, include=['SMHM', 'MZR', 'MS'], ncols=None):
         """
