@@ -247,7 +247,14 @@ class Survey(object):
             
         data = {}
         for fn in os.listdir(self.path):
-        
+            
+            # Mac OS creates a bunch of ._wfc_* files. Argh.
+            if not fn.startswith('wfc_'):
+                continue
+                
+            if fn.endswith('tar.gz'):
+                continue
+                
             pre = fn.split('wfc_')[1].split('.dat')[0]
                         
             if get_all or (pre in filters):
