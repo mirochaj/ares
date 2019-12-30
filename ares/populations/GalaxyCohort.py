@@ -2803,6 +2803,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # of elements in the 2-D table are filled.
             for key in keys:  
                 dat = _results[key].copy()
+                print(key)
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat.squeeze()
             

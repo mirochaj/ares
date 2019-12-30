@@ -14,7 +14,9 @@ import os
 import numpy as np
 from ..util import read_lit
 from .ModelFit import ModelFit
+from ..simulations import Global21cm
 from ..util import ParameterBundle as PB
+from .FitGlobal21cm import FitGlobal21cm
 from ..populations.GalaxyCohort import GalaxyCohort
 from .FitGalaxyPopulation import FitGalaxyPopulation
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
@@ -49,8 +51,8 @@ class CalibrateModel(object):
     """
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
-    def __init__(self, fit_lf=[5.9], fit_smf=False, fit_gs=False, fit_beta=False,
-        use_ensemble=True, add_suffix=True,
+    def __init__(self, fit_lf=[5.9], fit_smf=False, fit_beta=False,
+        fit_gs=False, idnum=0, use_ensemble=True, add_suffix=True,
         include_sfe=True, free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
@@ -68,19 +70,28 @@ class CalibrateModel(object):
         ----------
         fit_lf : bool
             Use available luminosity function measurements?
+        fit_beta : bool
+            Use available UV colour-magnitude measurements?
         fit_smf : bool
             Use available stellar mass function measurements?    
-        fit_gs : bool
+        fit_gs : tuple
             Use constraints on global 21-cm signal?
-
+            If not None, this should be (frequencies / MHz, dTb / mK, err / mK).
+        
+        idnum : int
+            If model being calibrated has multiple source populations, this is 
+            the ID number of the one containing luminosity functions etc.
+        
         zevol_sfe_norm : bool
             Allow redshift evolution in the normalization of the SFE?
         zevol_sfe_peak : bool
             Allow redshift evolution in the where the SFE peaks (in mass)?
         zevol_sfe_shape: bool
             Allow redshift evolution in the power-slopes of SFE?
+        
         clobber : bool
             Overwrite existing data outputs?
+        
         """
         
         self.name = name             # optional additional prefix
@@ -89,6 +100,7 @@ class CalibrateModel(object):
         self.fit_smf = fit_smf
         self.fit_gs = fit_gs
         self.fit_beta = fit_beta
+        self.idnum = idnum
         self.zmap = zmap        
                 
         self.include_sfe = include_sfe
@@ -175,7 +187,8 @@ class CalibrateModel(object):
         if self.fit_beta:
             s += 'beta_' + self.get_zstr(self.fit_beta, _zcal_beta) + '_'
         if self.fit_gs:
-            s += 'gs_' # add freq range?
+            s += 'gs_{0:.0f}_{0:.0f}_'.format(self.fit_gs[0].min(), 
+                self.fit_gs[0].max())
     
         if self.include_sfe in [True, 1, 'dpl', 'flex']:
             enorm = 'norm' in self.zevol_sfe
@@ -183,8 +196,11 @@ class CalibrateModel(object):
             eslop = 'slope-low' in self.zevol_sfe \
                  or 'slope-high' in self.zevol_sfe
                  
-            enorm_d = 'norm' in self.zevol_dust
-            epeak_d = 'norm' in self.zevol_dust
+            if self.zevol_dust:     
+                enorm_d = 'norm' in self.zevol_dust
+                epeak_d = 'norm' in self.zevol_dust
+            else:
+                enorm_d = epeak_d = 0
             
             rest = 'sfe-dpl_enorm-{}_epeak-{}_eshape-{}_dust-{}_enorm-{}_epeak-{}_fduty-{}_efduty-{}'.format(
                 int(enorm), int(epeak), int(eslop), self.include_dust, int(enorm_d),
@@ -213,6 +229,11 @@ class CalibrateModel(object):
     def parameters(self):
         if not hasattr(self, '_parameters'):
             
+            if self.Npops > 1:
+                _suff = '{{{}}}'.format(self.idnum)
+            else:
+                _suff = ''
+            
             free_pars = []
             guesses = {}
             is_log = []
@@ -223,11 +244,12 @@ class CalibrateModel(object):
             # MAR scatter
             ##
             if self.include_scatter_mar:
-                free_pars.append('pop_scatter_mar')
-                guesses['pop_scatter_mar'] = 0.3
+                free_pars.append('pop_scatter_mar{}'.format(_suff))
+                guesses['pop_scatter_mar{}'.format(_suff)] = 0.3
                 is_log.append(False)
                 jitter.append(0.1)                
-                ps.add_distribution(UniformDistribution(0, 1.), 'pop_scatter_mar')
+                ps.add_distribution(UniformDistribution(0, 1.), 
+                    'pop_scatter_mar{}'.format(_suff))
 
             ##
             # Allow redshift evolution in normalization?
@@ -236,65 +258,73 @@ class CalibrateModel(object):
                 
                 # Normalization of SFE
                 if 'norm' in self.free_params_sfe:
-                    free_pars.append('pq_func_par0[0]')
-                    guesses['pq_func_par0[0]'] = -1.4
+                    free_pars.append('pq_func_par0[0]{}'.format(_suff))
+                    guesses['pq_func_par0[0]{}'.format(_suff)] = -1.4
                     is_log.extend([True])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-7, 1.), 'pq_func_par0[0]')
+                    ps.add_distribution(UniformDistribution(-7, 1.), 
+                        'pq_func_par0[0]{}'.format(_suff))
                     
                     if 'norm' in self.zevol_sfe:
-                        free_pars.append('pq_func_par6[0]')
-                        guesses['pq_func_par6[0]'] = 0.
+                        free_pars.append('pq_func_par6[0]{}'.format(_suff))
+                        guesses['pq_func_par6[0]{}'.format(_suff)] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par6[0]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 
+                            'pq_func_par6[0]{}'.format(_suff))
                         
                 # Peak mass
                 if 'peak' in self.free_params_sfe:
-                    free_pars.append('pq_func_par1[0]')
-                    guesses['pq_func_par1[0]'] = 11.5
+                    free_pars.append('pq_func_par1[0]{}'.format(_suff))
+                    guesses['pq_func_par1[0]{}'.format(_suff)] = 11.5
                     is_log.extend([True])
                     jitter.extend([0.3])
-                    ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[0]')
+                    ps.add_distribution(UniformDistribution(9., 13.), 
+                        'pq_func_par1[0]{}'.format(_suff))
                     
                     if 'peak' in self.zevol_sfe:
-                        free_pars.append('pq_func_par7[0]')
-                        guesses['pq_func_par7[0]'] = 0.
+                        free_pars.append('pq_func_par7[0]{}'.format(_suff))
+                        guesses['pq_func_par7[0]{}'.format(_suff)] = 0.
                         is_log.extend([False])
                         jitter.extend([2.])
-                        ps.add_distribution(UniformDistribution(-5, 5.), 'pq_func_par7[0]')
+                        ps.add_distribution(UniformDistribution(-5, 5.), 
+                            'pq_func_par7[0]{}'.format(_suff))
                         
                 # Slope at low-mass side of peak
                 if 'slope-low' in self.free_params_sfe:                    
-                    free_pars.append('pq_func_par2[0]')
-                    guesses['pq_func_par2[0]'] = 0.66
+                    free_pars.append('pq_func_par2[0]{}'.format(_suff))
+                    guesses['pq_func_par2[0]{}'.format(_suff)] = 0.66
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(0.0, 1.5), 'pq_func_par2[0]')
+                    ps.add_distribution(UniformDistribution(0.0, 1.5), 
+                        'pq_func_par2[0]{}'.format(_suff))
                     
                     # Allow to evolve with redshift?
                     if 'slope-low' in self.zevol_sfe:
-                        free_pars.append('pq_func_par8[0]')
-                        guesses['pq_func_par8[0]'] = 0.
+                        free_pars.append('pq_func_par8[0]{}'.format(_suff))
+                        guesses['pq_func_par8[0]{}'.format(_suff)] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par8[0]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 
+                            'pq_func_par8[0]{}'.format(_suff))
                 
                 # Slope at high-mass side of peak        
                 if 'slope-high' in self.free_params_sfe:
-                    free_pars.append('pq_func_par3[0]')
-                    guesses['pq_func_par3[0]'] = 0.
+                    free_pars.append('pq_func_par3[0]{}'.format(_suff))
+                    guesses['pq_func_par3[0]{}'.format(_suff)] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-3., 0.1), 'pq_func_par3[0]')
+                    ps.add_distribution(UniformDistribution(-3., 0.1), 
+                        'pq_func_par3[0]{}'.format(_suff))
                     
                     # Allow to evolve with redshift?
                     if 'slope-high' in self.zevol_sfe:
-                        free_pars.append('pq_func_par9[0]')
-                        guesses['pq_func_par9[0]'] = 0.
+                        free_pars.append('pq_func_par9[0]{}'.format(_suff))
+                        guesses['pq_func_par9[0]{}'.format(_suff)] = 0.
                         is_log.extend([False])
                         jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par9[0]')
+                        ps.add_distribution(UniformDistribution(-3, 3.), 
+                            'pq_func_par9[0]{}'.format(_suff))
                     
             ##
             # Steve's models
@@ -527,6 +557,9 @@ class CalibrateModel(object):
         
     @property
     def blobs(self):
+        
+        ##
+        # First: some generic redshifts, magnitudes, masses.
         redshifts = np.array([4, 6, 8, 10]) # generic
 
         if self.fit_lf:
@@ -553,14 +586,30 @@ class CalibrateModel(object):
             red_beta = red_lf    
                     
         MUV = np.arange(-30, 5., 0.5)
-        
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.1, 0.1)
+        
+        ##
+        # Now, start assembling blobs
+  
+        # Account for different location of population instance if 
+        # fit runs an ares.simulations calculation. Just GS option now.
+        if self.fit_gs is not None:
+            _pref = 'pops[{}].'.format(self.idnum)
+        else:
+            _pref = ''
+            
+        # For things like SFE, fduty, etc., need to tap into `guide`
+        # attribute when using GalaxyEnsemble.    
+        if self.use_ensemble:
+            _pref_g = _pref + 'guide.'
+        else:
+            _pref_g = _pref
 
         # Always save the UVLF
         blob_n = ['galaxy_lf']
         blob_i = [('z', red_lf), ('x', MUV)]
-        blob_f = ['LuminosityFunction']
+        blob_f = ['{}LuminosityFunction'.format(_pref)]
         
         blob_pars = \
         {
@@ -574,11 +623,7 @@ class CalibrateModel(object):
         if self.include_sfe in [True, 1, 'dpl', 'flex']:
             blob_n = ['fstar']
             blob_i = [('z', redshifts), ('Mh', Mh)]
-
-            if self.use_ensemble:
-                blob_f = ['guide.fstar']
-            else:
-                blob_f = ['fstar']
+            blob_f = ['{}fstar'.format(_pref_g)]
 
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -588,11 +633,7 @@ class CalibrateModel(object):
         if self.include_fduty:
             blob_n = ['fduty']
             blob_i = [('z', redshifts), ('Mh', Mh)]
-
-            if self.use_ensemble:
-                blob_f = ['guide.fduty']
-            else:
-                blob_f = ['fduty']
+            blob_f = ['{}fduty'.format(_pref_g)]
 
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -602,11 +643,7 @@ class CalibrateModel(object):
         if self.include_fyield:
             blob_n = ['fyield']
             blob_i = [('z', redshifts), ('Mh', Mh)]
-
-            if self.use_ensemble:
-                blob_f = ['guide.dust_yield']
-            else:
-                blob_f = ['dust_yield']
+            blob_f = ['{}dust_yield'.format(_pref_g)]
 
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -621,7 +658,7 @@ class CalibrateModel(object):
             if self.use_ensemble:
                 blob_f = ['guide.SFR', 'SMHM']
             else:
-                blob_f = ['SFR', 'SMHM']
+                blob_f = ['{}SFR'.format(_pref), 'SMHM']
                     
             blob_k = [{}, {'return_mean_only': True}]    
             
@@ -712,6 +749,24 @@ class CalibrateModel(object):
             blob_pars['blob_funcs'].append(blob_f)
             blob_pars['blob_kwargs'].append(None)
         
+        # Reionization stuff
+        if self.fit_gs is not None:            
+            blob_n = ['tau_e', 'z_B', 'dTb_B', 'z_C', 'dTb_C',
+                'z_D', 'dTb_D']
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(None)
+            blob_pars['blob_funcs'].append(None)
+            blob_pars['blob_kwargs'].append(None)
+            
+            blob_n = ['cgm_h_2', 'igm_Tk', 'dTb']
+            blob_i = [('z', np.arange(5.5, 35.1, 0.1))]
+            
+            blob_pars['blob_names'].append(blob_n)
+            blob_pars['blob_ivars'].append(blob_i)
+            blob_pars['blob_funcs'].append(None)
+            blob_pars['blob_kwargs'].append(None)
+            
+        
         return blob_pars
         
     @property
@@ -720,13 +775,13 @@ class CalibrateModel(object):
             
             if self.include_sfe in [1, True, 'dpl', 'flex']:
                 self._base_kwargs = \
-                    PB('mirocha2017:base').pars_by_pop(0, 1) \
-                  + PB('mirocha2017:flex').pars_by_pop(0, 1) \
+                    PB('mirocha2017:base') \
+                  + PB('mirocha2017:flex') \
                   + PB('dust:{}'.format(self.include_dust))
             elif self.include_sfe == ['dflex']:
                 self._base_kwargs = \
-                    PB('mirocha2017:base').pars_by_pop(0, 1) \
-                  + PB('mirocha2017:dflex').pars_by_pop(0, 1) \
+                    PB('mirocha2017:base') \
+                  + PB('mirocha2017:dflex') \
                   + PB('dust:{}'.format(self.include_dust))  
             elif self.include_sfe in ['f17-p', 'f17-E']:
                 s = 'energy' if self.include_sfe.split('-')[1] == 'E' \
@@ -746,23 +801,45 @@ class CalibrateModel(object):
                 raise ValueError('Unrecognized option for `include_sfe`.')
         
             if self.include_fduty:
-                self._base_kwargs.update(PB('in_prep:fduty').pars_by_pop(0, 1))
+                self._base_kwargs.update(PB('in_prep:fduty'))
                 
             if self.include_fyield:
-                self._base_kwargs.update(PB('in_prep:fyield').pars_by_pop(0, 1))
+                self._base_kwargs.update(PB('in_prep:fyield'))
+        
+            if self.fit_gs is None:
+                self._base_kwargs = self._base_kwargs.pars_by_pop(self.idnum, 1)
             
-        # Initialize with best guesses mostly for debugging purposes
-        for i, par in enumerate(self.parameters):
-            if self.is_log[i]:
-                self._base_kwargs[par] = 10**self.guesses[par]
-            else:
-                self._base_kwargs[par] = self.guesses[par]
-
+            # Initialize with best guesses mostly for debugging purposes
+            for i, par in enumerate(self.parameters):
+                if self.is_log[i]:
+                    self._base_kwargs[par] = 10**self.guesses[par]
+                else:
+                    self._base_kwargs[par] = self.guesses[par]
+                                
         return self._base_kwargs
 
     def update_kwargs(self, **kwargs):
         bkw = self.base_kwargs
         self._base_kwargs.update(kwargs)
+        self.Npops = self._base_kwargs.Npops
+        
+    @property
+    def Npops(self):
+        if not hasattr(self, '_Npops'):
+            assert isinstance(self.base_kwargs, PB)
+            self._Npops = max(self.base_kwargs.Npops, 1)
+            
+        return self._Npops
+
+    @Npops.setter
+    def Npops(self, value):
+        if hasattr(self, '_Npops'):
+            if self.base_kwargs.Npops != self._Npops:
+                print("Updated Npops from {} to {}".format(self._Npops,
+                    self.base_kwargs.Npops))
+                self._Npops = max(self.base_kwargs.Npops, 1)
+        else:
+            self._Npops = max(self.base_kwargs.Npops, 1)
 
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
@@ -774,29 +851,39 @@ class CalibrateModel(object):
         if prefix is None:
             prefix = self.prefix
 
+        # Setup LF fitter
         fitter_lf = FitGalaxyPopulation()
         fitter_lf.zmap = self.zmap
 
         data = []
         include = []
+        fit_galaxies = False
         if self.fit_lf:
             include.append('lf')
             data.extend(['bouwens2015', 'oesch2018'])
+            fit_galaxies = True
         if self.fit_smf:
             include.append('smf')
             data.append('song2016')
+            fit_galaxies = True
         if self.fit_beta:
             include.append('beta')
             data.extend(['bouwens2014'])
-        if self.fit_gs:
-            raise NotImplemented('sorry folks')
-
+            fit_galaxies = True
+        
         # Must be before data is set
         fitter_lf.redshifts = {'lf': self.fit_lf, 'smf': self.fit_smf,
             'beta': self.fit_beta}
         fitter_lf.include = include
 
         fitter_lf.data = data
+        
+        if self.fit_gs is not None:
+            freq, dTb, err = self.fit_gs
+            fitter_gs = FitGlobal21cm()
+            fitter_gs.frequencies = freq
+            fitter_gs.data = dTb
+            fitter_gs.error = err
 
         ##
         # Stitch together parameters
@@ -806,9 +893,16 @@ class CalibrateModel(object):
         
         # Master fitter
         fitter = ModelFit(**pars)
-        fitter.add_fitter(fitter_lf)
+            
+        if fit_galaxies:
+            fitter.add_fitter(fitter_lf)
+            
+        if self.fit_gs is not None:
+            fitter.add_fitter(fitter_gs)
         
-        if self.use_ensemble:
+        if self.fit_gs is not None:
+            fitter.simulator = Global21cm
+        elif self.use_ensemble:
             fitter.simulator = GalaxyEnsemble
         else:
             fitter.simulator = GalaxyCohort

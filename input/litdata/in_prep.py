@@ -17,7 +17,7 @@ _base = \
  'pq_func_var2[0]{0}': '1+z',
  
  # DPL in Mh
- 'pq_func_par0[0]{0}': 0.05,           # Table 1 in paper (last 4 rows)
+ 'pq_func_par0[0]{0}': 0.05, #* (1e10 / 2.8e11)**0.49, # adjust peak-norm
  'pq_func_par1[0]{0}': 2.8e11,
  'pq_func_par2[0]{0}': 0.49,       
  'pq_func_par3[0]{0}': -0.61,      

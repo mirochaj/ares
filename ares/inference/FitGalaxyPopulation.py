@@ -156,7 +156,7 @@ class loglikelihood(LogLikelihood):
                                     
                     # Compute LF
                     p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
-                                        
+                                                                                
                     if not np.isfinite(p):
                         print('LF is inf or nan!', zmod, M)
                         raise ValueError('LF is inf or nan!', zmod, M)

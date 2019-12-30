@@ -1936,11 +1936,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
             extras=self.extras, idnum=idnum, window=window, load=load)
            
-        self._cache_L_[(z, wave, band, idnum, window)] = L
+        self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
            
         return L
             
-    def LuminosityFunction(self, z, x, mags=True, wave=1600., band=None):
+    def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1, 
+        band=None):
         """
         Compute the luminosity function from discrete histories.
         
@@ -1972,9 +1973,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         ##
         # Run in batch.
-        L = self.Luminosity(z, wave=wave, band=band)
+        L = self.Luminosity(z, wave=wave, band=band, window=window)
         ##    
-
+        
         zarr = raw['z']         
         tarr = raw['t']
 
