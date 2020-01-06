@@ -52,13 +52,14 @@ class CalibrateModel(object):
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
     def __init__(self, fit_lf=[5.9], fit_smf=False, fit_beta=False,
-        fit_gs=False, idnum=0, use_ensemble=True, add_suffix=True,
+        fit_gs=None, idnum=0, use_ensemble=True, add_suffix=True,
         include_sfe=True, free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
         save_lf=True, save_smf=False, save_sam=False, include_fyield=False,
-        save_sfrd=False, save_beta=False, save_dust=False, zmap={}):
+        save_sfrd=False, save_beta=False, save_dust=False, zmap={},
+        monotonic_beta=False):
         """
         Calibrate a galaxy model to available data.
         
@@ -102,6 +103,7 @@ class CalibrateModel(object):
         self.fit_beta = fit_beta
         self.idnum = idnum
         self.zmap = zmap        
+        self.monotonic_beta = monotonic_beta
                 
         self.include_sfe = include_sfe
         self.include_fshock = int(include_fshock)
@@ -806,8 +808,27 @@ class CalibrateModel(object):
             if self.include_fyield:
                 self._base_kwargs.update(PB('in_prep:fyield'))
         
+            
             if self.fit_gs is None:
-                self._base_kwargs = self._base_kwargs.pars_by_pop(self.idnum, 1)
+                tmp = {}
+                for par in self._base_kwargs:
+                    
+                    # Leave out populations with ID num != self.idnum
+                    skip = False
+                    for k in range(5):
+                        if k == self.idnum:
+                            continue
+                        if '{{{}}}'.format(k) in par:
+                            skip = True
+                            break
+                    
+                    if skip:
+                        continue
+                    
+                    new = par.replace('{{{}}}'.format(self.idnum), '')
+                    tmp[new] = self._base_kwargs[par]
+                    
+                self._base_kwargs = PB(**tmp)
             
             # Initialize with best guesses mostly for debugging purposes
             for i, par in enumerate(self.parameters):
@@ -854,6 +875,7 @@ class CalibrateModel(object):
         # Setup LF fitter
         fitter_lf = FitGalaxyPopulation()
         fitter_lf.zmap = self.zmap
+        fitter_lf.monotonic_beta = self.monotonic_beta
 
         data = []
         include = []

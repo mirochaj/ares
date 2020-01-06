@@ -637,14 +637,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         if wave is not None:
             raise NotImplemented('careful')    
-            
-        tab = np.zeros_like(zarr)
-        
+                    
         hist = self.histories
         
+        tab = np.zeros_like(zarr)
         for i, z in enumerate(zarr):
+            
+            # This will be [erg/s]
             L = self.synth.Luminosity(sfh=hist['SFR'], zobs=z, band=band,
-                zarr=hist['z'])
+                zarr=hist['z'], extras=self.extras)
             
             # OK, we've got a whole population here.
             nh = self.get_field(z, 'nh')
@@ -658,8 +659,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 elif band in [(10.2, 13.6), (E_LyA, E_LL)]:
                     fesc = self.guide.fesc_LW(z=z, Mh=Mh)
                 else:
-                    fesc = 1.    
+                    fesc = 1.  
+            else:
+                fesc = 1.          
             
+            # Integrate over halo population.
             tab[i] = np.sum(L * fesc * nh)
 
         return zarr, tab / cm_per_mpc**3
@@ -1360,6 +1364,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if self.pf['pop_dust_scatter'] is not None:
                 sigma = self.guide.dust_scatter(z=z2d, Mh=Mh)
                 noise = np.zeros_like(Sd)
+                np.random.seed(self.pf['pop_dust_scatter_seed'])
                 for _i, _z in enumerate(z):
                     noise[:,_i] = self.noise_lognormal(Sd[:,_i], sigma[:,_i])
                                 
@@ -1578,7 +1583,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             bin_c = np.log10(Mh)
             
         nh = self.get_field(z, 'nh')    
-        x, y, z = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
+        x, y, z, N = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)    
 
         if return_mean_only:
             return y
@@ -2228,7 +2233,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
                 method=magmethod, presets=presets)
                                         
-            MAB, beta, _std = bin_samples(_MAB, beta_r, Mbins, weights=nh)
+            MAB, beta, _std, N1 = bin_samples(_MAB, beta_r, Mbins, weights=nh)
                         
         else:
             beta = beta_r
@@ -2238,7 +2243,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if Mstell is not None:
             Ms_r = self.get_field(z, 'Ms')
             nh_r = self.get_field(z, 'nh')
-            x1, y1, err1 = bin_samples(np.log10(Ms_r), beta_r, massbins, 
+            x1, y1, err1, N1 = bin_samples(np.log10(Ms_r), beta_r, massbins, 
                 weights=nh_r)
             return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
         
@@ -2291,7 +2296,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 magbins = np.arange(-30, -10, 0.25)
 
             nh = self.get_field(z, 'nh')
-            _x, _y, _z = bin_samples(MAB, AUV_r, magbins, weights=nh)
+            _x, _y, _z, _N = bin_samples(MAB, AUV_r, magbins, weights=nh)
 
             MAB = _x
             AUV = _y
@@ -2311,7 +2316,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Ms_r = self.get_field(z, 'Ms')
             nh_r = self.get_field(z, 'nh')
             
-            x1, y1, err1 = bin_samples(np.log10(Ms_r), AUV_r, massbins, 
+            x1, y1, err1, N1 = bin_samples(np.log10(Ms_r), AUV_r, massbins, 
                 weights=nh_r)
             return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
 
@@ -2345,7 +2350,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh_r = self.get_field(z, 'nh')
 
         # Compute binned version of Beta(Mstell).
-        _x1, _y1, _err = bin_samples(np.log10(Ms_r), beta_c94, massbins, 
+        _x1, _y1, _err, _N = bin_samples(np.log10(Ms_r), beta_c94, massbins, 
             weights=nh_r)
 
         # Compute slopes with Mstell

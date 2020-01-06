@@ -1185,13 +1185,33 @@ class UniformBackground(object):
                         fix = 1.
                         
                 in_band = np.logical_and(E >= b[0], E <= b[1])
-                                
-                # Should be any filled elements yet
+                                                
+                # Shouldn't be any filled elements yet
                 if np.any(epsilon[:,in_band==1] > 0):
                     raise ValueError("Non-zero elements already!")
                 
                 if not np.any(in_band):
                     continue            
+
+                ###
+                # No need for spectral correction in this case, at least
+                # in Lyman continuum. Treat LWB more carefully.
+                if pop.is_aging and band == (13.6, 24.6):
+                    fix = 1. / Inu_hat[in_band==1]
+                                
+                elif pop.is_aging and band == (10.2, 13.6):
+                    
+                    if pop.pf['pop_synth_lwb_method'] == 0:
+                        # No approximation: loop over energy below
+                        raise NotImplemented('sorry dude')
+                    elif pop.pf['pop_synth_lwb_method'] == 1:
+                        # Assume SED of continuousy-star-forming source.
+                        Inu_hat_p = pop._src_csfr.Spectrum(E[in_band==1]) \
+                            / E[in_band==1] 
+                        fix = Inu_hat_p / Inu_hat[in_band==1][0]
+                    else:
+                        raise NotImplemented('sorry dude')
+                ###
 
                 # By definition, rho_L integrates to unity in (b[0], b[1]) band
                 # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band, 

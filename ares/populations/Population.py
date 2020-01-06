@@ -534,6 +534,30 @@ class Population(object):
                 self._src = None
 
         return self._src
+    
+    @property
+    def _src_csfr(self):
+        """
+        Exact clone of `src` except forces source_ssp=False.
+        """
+        if not hasattr(self, '_src_csfr_'):
+            if self.pf['pop_psm_instance'] is not None:
+                # Should phase this out for more generate approach below.
+                self._src_csfr_ = self.pf['pop_psm_instance']
+            elif self.pf['pop_src_instance'] is not None:
+                self._src_csfr_ = self.pf['pop_src_instance']
+            elif self._Source is not None:
+                try:
+                    kw = self.src_kwargs.copy()
+                    kw['source_ssp'] = False
+                    self._src_csfr_ = self._Source(cosm=self.cosm, **kw)
+                except TypeError:
+                    # For litdata
+                    self._src_csfr_ = self._Source
+            else:
+                self._src_csfr_ = None
+
+        return self._src_csfr_    
 
     @property
     def yield_per_sfr(self):

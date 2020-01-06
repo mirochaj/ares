@@ -540,6 +540,10 @@ def PopulationParameters():
     "pop_synth_age_interp": 'cubic',
     "pop_synth_cache_phot": {},
     
+    # Need to avoid doing synthesis in super duper detail for speed.
+    # Still need to implement 'full' method.
+    "pop_synth_lwb_method": 0, 
+    
     "pop_tau_bc": 0,
     "pop_age_bc": 10.,
     
@@ -681,6 +685,7 @@ def PopulationParameters():
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     "pop_dust_scatter": None,
+    "pop_dust_scatter_seed": None,
     
     
     "pop_fpoll": 1.0,         # uniform pollution
