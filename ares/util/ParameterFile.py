@@ -51,6 +51,24 @@ def bracketify(**kwargs):
     
     return kw
 
+def check_for_brackets(pf):
+    has_brackets = False
+    for par in pf:
+        # Spare us from using re.search if we can. 
+        if not (par.startswith('pop') or par.startswith('pq') or par.startswith('source')):
+            continue
+        
+        # Look for integers within curly braces
+        m = re.search(r"\{([0-9])\}", par)
+        
+        if m is None:
+            continue
+            
+        has_brackets = True
+        break 
+        
+    return has_brackets       
+
 def pop_id_num(par):
     """
     Split apart parameter prefix and ID number.
@@ -377,6 +395,12 @@ class ParameterFile(dict):
                                             
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
+                        
+            has_brackets = check_for_brackets(kwargs)
+                        
+            if has_brackets:
+                raise ValueError("For single population models, must eliminate ID numbers from parameter names!")
+            
             pfs_by_pop = self.update_pq_pars([pf_base], **kwargs)
             pfs_by_pop[0].update(kwargs)
             
