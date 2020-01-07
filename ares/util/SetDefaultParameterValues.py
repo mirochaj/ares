@@ -1260,7 +1260,7 @@ def ControlParameters():
     "sam_dz": None, # Usually good enough!
     "sam_atol": 1e-4,
     "sam_rtol": 1e-4,
-    
+
     # File format
     "preferred_format": 'hdf5',
 

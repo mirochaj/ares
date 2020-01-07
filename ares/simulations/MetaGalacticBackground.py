@@ -47,7 +47,7 @@ def NH2(z, Mh, fH2=3.5e-4):
     return 1e17 * (fH2 / 3.5e-4) * (Mh / 1e6)**(1. / 3.) * ((1. + z) / 20.)**2.
 
 def f_sh_fl13(zz, Mmin):
-    return np.minimum(1, (NH2(zz, Mh=Mmin) / 1e14)**-0.75)    
+    return np.minimum(1, (NH2(zz, Mh=Mmin) / 1e14)**-0.75)
 
 def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     
@@ -158,8 +158,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         include_pops : list
             For internal use only!
 
-        """    
-
+        """
+        
         # In this case, we can evolve all LW sources first, and wait 
         # to do other populations until the very end.
         if self.pf['feedback_LW'] and (include_pops is None):
