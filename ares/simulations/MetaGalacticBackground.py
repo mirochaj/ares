@@ -280,7 +280,7 @@ class MetaGalacticBackground(AnalyzeMGB):
     
             # Much faster to only read in first redshift element in this case.
             z, E, flux = self.get_history(popid=popid, flatten=True, 
-                today_only=True)
+                today_only=False)
             
             if zf is None:
                 k = 0

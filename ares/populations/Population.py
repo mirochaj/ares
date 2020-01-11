@@ -18,7 +18,9 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
 from ..util import MagnitudeSystem
+from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
+from ..util.PrintInfo import print_pop
 from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy
@@ -113,6 +115,14 @@ class Population(object):
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
         pass    
+    
+    @property
+    def info(self):
+        if not self.parameterized:
+            try:
+                print_pop(self)
+            except AttributeError:
+                pass    
 
     @property
     def id_num(self):

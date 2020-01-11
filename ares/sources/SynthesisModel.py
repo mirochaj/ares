@@ -601,7 +601,6 @@ class SynthesisModel(SynthesisMaster):
         if not hasattr(self, '_neb_cont_'):
             self._neb_cont_ = np.zeros_like(self._data)
             if self.pf['source_nebular'] > 1:
-                print('hello', self.pf['source_nebular'])
                 for i, t in enumerate(self.times):
                     spec = self._data[:,i] * self.dwdn
                     self._neb_cont_[:,i] = self._nebula.Continuum(spec) / self.dwdn

@@ -289,7 +289,7 @@ class CalibrateModel(object):
                         guesses['pq_func_par7[0]{}'.format(_suff)] = 0.
                         is_log.extend([False])
                         jitter.extend([2.])
-                        ps.add_distribution(UniformDistribution(-5, 5.), 
+                        ps.add_distribution(UniformDistribution(-6, 6.), 
                             'pq_func_par7[0]{}'.format(_suff))
                         
                 # Slope at low-mass side of peak
@@ -316,7 +316,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par3[0]{}'.format(_suff)] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-3., 0.1), 
+                    ps.add_distribution(UniformDistribution(-3., 0.3), 
                         'pq_func_par3[0]{}'.format(_suff))
                     
                     # Allow to evolve with redshift?

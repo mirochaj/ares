@@ -517,6 +517,21 @@ class ModelSet(BlobFactory):
         return self._saved_checkpoints
 
     @property
+    def strictly_positive(self):
+        if not hasattr(self, '_strictly_positive'):
+            self._strictly_positive = []
+        return self._strictly_positive
+        
+    @strictly_positive.setter
+    def strictly_positive(self, value):
+        if type(value) not in [list, tuple]:
+            val = [value]
+        else:
+            val = list(value)
+            
+        self._strictly_positive = val    
+        
+    @property
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
@@ -637,7 +652,12 @@ class ModelSet(BlobFactory):
                     print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
                         self.prefix, t2 - t1))
             else:
-                self._chain = None            
+                self._chain = None         
+                
+        if self.strictly_positive != []:
+            for key in self.strictly_positive:
+                k = self.parameters.index(key)
+                self._chain[:,k] = np.abs(self._chain[:,k])
 
         return self._chain        
         
@@ -2685,7 +2705,11 @@ class ModelSet(BlobFactory):
                     bvp = np.log10(self.axes[par])
                 else:
                     bvp = self.axes[par]
-        
+                    
+            ##
+            # Round
+            bvp = [round(val, 3) for val in bvp]
+                    
             if type(to_hist) is dict:
                 binvec[par] = bvp
             else:
@@ -3007,15 +3031,15 @@ class ModelSet(BlobFactory):
                 
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
-
+                
         # Rotate ticks?
         for tick in ax.get_xticklabels():
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-    
+                
         pl.draw()
-
+        
         return ax
 
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
@@ -3667,7 +3691,7 @@ class ModelSet(BlobFactory):
         return x, y, zarr
         
     def RetrieveModels(self, skip=0, stop=None, Nmods=1, seed=None, 
-        limit_to=None, limit_all=False, tol=None, **kwargs):
+        limit_to=None, limit_all=False, tol=None, force_positive=False, **kwargs):
         """
         Return a set of model parameters close to those requested.
         
@@ -3684,7 +3708,10 @@ class ModelSet(BlobFactory):
             if par not in kwargs:
                 continue
                  
-            nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
+            if force_positive:
+                nearby = np.abs(np.abs(self.chain[skip:stop,i]) - kwargs[par])
+            else:    
+                nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
             
             # Grab top 1000 hits
             nsorted = np.argsort(nearby)

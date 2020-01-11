@@ -115,8 +115,62 @@ class OpticalDepth(object):
             self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm
     
+    @property
+    def hydr(self):
+        if not hasattr(self, '_hydr'):
+            self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
+        return self._hydr    
+    
     def OpticalDepth(self):
         return self.DiffuseOpticalDepth()    
+        
+    def ClumpyOpticalDepth(self, z, owaves):
+        """
+        Compute Lyman series line blanketing following Madau (1995).
+    
+        Parameters
+        ----------
+        zobs : int, float
+            Redshift of object.
+        owaves : np.ndarray
+            Observed wavelengths in microns.
+    
+        """
+        
+        if self.pf['absorption_model'] is None:
+            return 0.0
+        
+        assert self.pf['absorption_model'].lower() == 'madau1995', \
+            "absorption_model='madau1995' is currently the sole option!"
+        
+        rwaves = owaves * 1e4 / (1. + z)
+        tau = np.zeros_like(owaves)
+    
+        # Text just after Eq. 15.
+        A = 0.0036, 1.7e-3, 1.2e-3, 9.3e-4
+        l = [h_p * c * 1e8 / (self.hydr.ELyn(n) * erg_per_ev) for n in range(2, 7)]
+    
+        for i in range(len(A)):    
+            ok = np.logical_and(rwaves < l[i], rwaves > l[i+1])
+        
+            tau[ok==1] += A[i] * (owaves[ok==1] * 1e4 / l[i])**3.46
+    
+        #tau[np.logical_and(rwaves < l[-1], rwaves > 912.)] = np.inf  
+    
+        # Metals
+        tau += 0.0017 * (owaves * 1e4 / l[0])**1.68
+      
+        # Photo-electric absorption. This is footnote 3 in Madau (1995).  
+        xem = 1. + z
+        xc  = owaves * 1e4 / l[0]
+        tau_bf = 0.25 * xc**3 * (xem**0.46 - xc**0.46) \
+               + 9.4 * xc**1.5 * (xem**0.18 - xc**0.18) \
+               - 0.7 * xc**3 * (xc**-1.32 - xem**-1.32) \
+               - 0.023 * (xem**1.68 - xc**1.68)
+    
+        tau[rwaves < 912.] += tau_bf[rwaves < 912.]
+    
+        return tau    
         
     def DiffuseOpticalDepth(self, z1, z2, E, **kwargs):
         """

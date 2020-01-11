@@ -27,6 +27,8 @@ prefixes = ['igm_', 'cgm_']
 ## Common axis labels
 label_flux_nrg = r'$J_{\nu} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'
 label_flux_phot = r'$J_{\nu} \ (\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'    
+label_flux_nw = r'$J_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
+label_flux_nuInu = r'$\nu I_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
 label_nrg = r'$h\nu \ (\mathrm{eV})$'
 label_heat_mpc = r'$\epsilon_{\mathrm{heat}} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3})$'
 label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
@@ -83,6 +85,8 @@ common = \
  't_myr': r'$t \ (\mathrm{Myr})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
+ 'flux_nW': label_flux_nw, 
+ 'flux_nuInu': label_flux_nuInu,
  'intensity_AA': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{\AA}^{-1}$', 
  'lambda_AA': r'$\lambda \ (\AA)$', 
  'E': label_nrg,  

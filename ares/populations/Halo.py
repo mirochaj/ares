@@ -17,7 +17,6 @@ from types import FunctionType
 from .Population import Population
 from scipy.integrate import cumtrapz
 from ..physics import HaloMassFunction
-from ..util.PrintInfo import print_pop
 from ..util.Math import central_difference, forward_difference
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
@@ -37,14 +36,6 @@ class HaloPopulation(Population):
             self._parameterized = not not_parameterized
 
         return self._parameterized
-
-    @property
-    def info(self):
-        if not self.parameterized:
-            try:
-                print_pop(self)
-            except AttributeError:
-                pass
 
     #@property
     #def dndm(self):

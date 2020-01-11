@@ -451,14 +451,14 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
                 pval, pcov = curve_fit(_model, yc_fit, pdf_fit,
                     p0=p0, maxfev=100000)
             except RuntimeError:
+                print("Gaussian fit failed!")
                 pval = [-np.inf] * (3 + int('skewnormal' in method_std)) 
 
-            
             if '-pars' in method_std:        
                 ysca.append(pval)
-            else:    
+            else:
                 ysca.append(pval[2])
-                
+
         elif method_std == 'bounds':
             ysca.append((np.min(f), np.max(f)))
         elif type(method_std) in [int, float, np.float64]:
