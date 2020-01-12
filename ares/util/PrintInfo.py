@@ -415,7 +415,7 @@ def print_pop(pop):
             print(line(("SF          : in halos w/ M >= 10**{0:g} " +\
                 "Msun").format(round(np.log10(pop.pf['pop_Mmin']), 2))))
         print(line("HMF         : {!s}".format(pop.pf['hmf_model'])))
-        print(line("HMF         : {!s}".format(pop.pf['pop_scatter_mar'])))
+        print(line("MAR scatter : {!s} dex".format(pop.pf['pop_scatter_mar'])))
 
     # Parameterized halo properties
     if pop.pf.Npqs > 0:
@@ -490,14 +490,15 @@ def print_pop(pop):
     if pop.pf['pop_calib_L1600'] is not None:
         s1 = "+ pop_calib_L1600 != None, which means".format(i)
         s1 += ' changes to pop_Z will *not* affect UVLF.'
-        s2 = '  Set pop_calib_L1600=None to restore "normal" behavior.'
+        s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
+        s2 += ' (see S3.4 in Mirocha et al. 2017).'
         print(line(s1))
         print(line(s2))
     if pop.pf['pop_sfr_model'] == 'ensemble':
         s1 = "+ pop_sfr_model == 'ensemble', which means".format(i)
         s1 += ' luminosity at all wavelengths is determined via spectral'
-        s2 = '  synthesis, which can be slow. Set pop_sed_degrade > 0 for'
-        s2 += ' speed-up.'
+        s2 = '  synthesis, which can be slow. Set pop_sed_degrade > 0'
+        s2 += ' [in Angstroms] for speed-up.'
         print(line(s1))
         print(line(s2))
         
@@ -596,9 +597,12 @@ def print_sim(sim):
     print(line('-' * twidth))
     for i, pop in enumerate(sim.pops):
         if pop.pf['pop_calib_L1600'] is not None:
-            s = "pop #{} has pop_calib_L1600 != None, which means".format(i)
-            s += ' changes to pop_Z will *not* affect UVLF.'
-            print(line(s))
+            s1 = "+ pop_calib_L1600 != None, which means".format(i)
+            s1 += ' changes to pop_Z will *not* affect UVLF.'
+            s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
+            s2 += ' (see S3.4 in Mirocha et al. 2017).'
+            print(line(s1))
+            print(line(s2))
         
         # Other noteworthy things?    
     
