@@ -636,7 +636,7 @@ class HaloMassFunction(object):
                 continue
             MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
                                              
-            pb.update(i+self.tab_z.size-1)     
+            pb.update(i+self.tab_z.size-1)
             
         pb.finish()                                
                                                 
