@@ -95,13 +95,13 @@ class NebularEmission(object):
     	return temp
         
     def _FreeFree(self, spec):
-    	x = self.energies / E_LyA
+        x = self.energies / E_LyA
         e_ff = np.exp(-x * E_LyA * erg_per_ev / k_B / self.pf['pop_nebula_Tgas']) / (x * E_LyA * erg_per_ev)
         e_ff /= self._norm_free
         return e_ff
         
     def _FreeBound(self, spec):
-    	x = self.energies / E_LyA
+        x = self.energies / E_LyA
         e_fb = np.exp(-x * E_LyA * erg_per_ev / k_B / self.pf['pop_nebula_Tgas']) / (x * E_LyA * erg_per_ev)
         e_fb /= self._norm_free
         return e_fb
