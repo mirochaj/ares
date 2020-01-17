@@ -699,6 +699,9 @@ class ParameterBundle(dict):
         pops = []
         for key in self:
             prefix, idnum = pop_id_num(key)    
+            if idnum is None:
+                continue
+                
             if idnum not in pops:
                 pops.append(idnum)
     

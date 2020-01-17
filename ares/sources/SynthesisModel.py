@@ -304,12 +304,12 @@ class SynthesisMaster(Source):
         
     @property
     def L1600_per_sfr(self):
-        return self.L_per_sfr()   
+        return self.L_per_sfr()
         
     def _cache_L_per_sfr(self, wave, avg, Z):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
-        
+                    
         if (wave, avg, Z) in self._cache_L_per_sfr_:
             return self._cache_L_per_sfr_[(wave, avg, Z)]
         
@@ -332,9 +332,9 @@ class SynthesisMaster(Source):
             erg / s / Hz / Msun
 
         """
-        
+                        
         cached = self._cache_L_per_sfr(wave, avg, Z)
-        
+                
         if cached is not None:
             return cached
         
@@ -348,11 +348,9 @@ class SynthesisMaster(Source):
             if self.times[k] > self.pf['source_tsf']:
                 k -= 1
                 
-            if not hasattr(self, '_LUV_interp'):
-                self._LUV_interp = interp1d(self.times, yield_UV, kind='linear')
-            
-            result = self._LUV_interp(self.pf['source_tsf'])
-            
+            func = interp1d(self.times, yield_UV, kind='linear')
+            result = func(self.pf['source_tsf'])
+                        
         self._cache_L_per_sfr_[(wave, avg, Z)] = result
             
         return result
@@ -601,7 +599,6 @@ class SynthesisModel(SynthesisMaster):
         if not hasattr(self, '_neb_cont_'):
             self._neb_cont_ = np.zeros_like(self._data)
             if self.pf['source_nebular'] > 1:
-                print('hello', self.pf['source_nebular'])
                 for i, t in enumerate(self.times):
                     spec = self._data[:,i] * self.dwdn
                     self._neb_cont_[:,i] = self._nebula.Continuum(spec) / self.dwdn

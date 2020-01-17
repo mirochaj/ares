@@ -316,7 +316,7 @@ class DoublePowerLawEvolvingPeak(BasePQ):
 
 
 class DoublePowerLawEvolvingNormPeak(BasePQ):
-    def __call__(self, **kwargs):     
+    def __call__(self, **kwargs):
         x = kwargs[self.x]
                 
         if self.t == '1+z':

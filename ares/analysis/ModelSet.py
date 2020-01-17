@@ -517,6 +517,21 @@ class ModelSet(BlobFactory):
         return self._saved_checkpoints
 
     @property
+    def strictly_positive(self):
+        if not hasattr(self, '_strictly_positive'):
+            self._strictly_positive = []
+        return self._strictly_positive
+        
+    @strictly_positive.setter
+    def strictly_positive(self, value):
+        if type(value) not in [list, tuple]:
+            val = [value]
+        else:
+            val = list(value)
+            
+        self._strictly_positive = val    
+        
+    @property
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
@@ -637,7 +652,12 @@ class ModelSet(BlobFactory):
                     print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
                         self.prefix, t2 - t1))
             else:
-                self._chain = None            
+                self._chain = None         
+                
+        if self.strictly_positive != []:
+            for key in self.strictly_positive:
+                k = self.parameters.index(key)
+                self._chain[:,k] = np.abs(self._chain[:,k])
 
         return self._chain        
         
@@ -2685,7 +2705,11 @@ class ModelSet(BlobFactory):
                     bvp = np.log10(self.axes[par])
                 else:
                     bvp = self.axes[par]
-        
+                    
+            ##
+            # Round
+            bvp = [round(val, 3) for val in bvp]
+                    
             if type(to_hist) is dict:
                 binvec[par] = bvp
             else:
@@ -3007,15 +3031,15 @@ class ModelSet(BlobFactory):
                 
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
-
+                
         # Rotate ticks?
         for tick in ax.get_xticklabels():
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-    
+                
         pl.draw()
-
+        
         return ax
 
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
@@ -3665,6 +3689,88 @@ class ModelSet(BlobFactory):
                     zarr[i,j] = flat[k]
         
         return x, y, zarr
+        
+    def RetrieveModels(self, skip=0, stop=None, Nmods=1, seed=None, 
+        limit_to=None, limit_all=False, tol=None, force_positive=False, **kwargs):
+        """
+        Return a set of model parameters close to those requested.
+        
+        Do this by searching the posterior distribution for nearby points, 
+        potentially within some tolerance of the value requested and/or within
+        the bulk of the distribution, quantified by `limit_to`. 
+        """
+                
+        if len(kwargs.keys()) > 1:
+            raise NotImplemented('help')
+        
+        # Grab element closest to requested 
+        for i, par in enumerate(self.parameters):
+            if par not in kwargs:
+                continue
+                 
+            if force_positive:
+                nearby = np.abs(np.abs(self.chain[skip:stop,i]) - kwargs[par])
+            else:    
+                nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
+            
+            # Grab top 1000 hits
+            nsorted = np.argsort(nearby)
+            break
+        
+        # Make this deterministic. if we want
+        #np.random.seed(seed)
+        #np.random.shuffle(nsorted)
+        
+        ct = 0
+        models = []
+        for n, item in enumerate(nsorted): 
+            
+            if ct >= Nmods:
+                break
+                
+            val = self.chain[skip:stop,:][item,i]
+            
+            if tol is not None:
+                if abs(val - kwargs[par]) > tol:
+                    continue
+            
+            if limit_to is not None:
+                mu, (hi, lo) = self.get_1d_error(par, nu=limit_to)
+                                
+                if not lo <= val <= hi:
+                    #print("Match n={} outside {} range".format(n, limit_to))
+                    continue
+                    
+            if limit_all:
+                for _i, _par in enumerate(self.parameters):
+                    if _i == i:
+                        # Already did this one!
+                        continue
+                        
+                mu, (hi, lo) = self.get_1d_error(_par, nu=limit_to)
+                
+                if not lo <= self.chain[skip:stop,:][item,_i] <= hi:
+                    continue
+                    
+            print("Matched val={} (actual={}) at index={}".format(kwargs[par],    
+                val, item))
+            
+            # Make sure this element is in the high-likelihood region
+            p = {}
+            for m, par in enumerate(self.parameters):
+                #if self.chain[skip:stop,:][item,m] == p[par]:
+                #    print('Parameter \#{} identical to previous iteration'.format(m))
+                    
+                if self.is_log[m]:
+                    p[par] = 10**self.chain[skip:stop,:][item,m]
+                else:
+                    p[par] = self.chain[skip:stop,:][item,m]
+        
+            models.append(p)
+            
+            ct += 1
+        
+        return models
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 

@@ -1312,7 +1312,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         slope = lambda M: self.gamma_sfe(z, M)
         
-        low = fsolve(slope, 1e11)
+        low = fsolve(slope, 1e12)
         
         Mpeak = low[0]
         
@@ -2803,6 +2803,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # of elements in the 2-D table are filled.
             for key in keys:  
                 dat = _results[key].copy()
+                print(key)
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat.squeeze()
             
@@ -2909,7 +2910,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     
         zarr = self.halos.tab_z[in_range][::zfreq]
         Nz = zarr.size
-        
+        zrev = zarr[-1::-1]
+        dzrev = dz[-1::-1]
+                
         # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0
         MZ0 = 0.0
@@ -2964,7 +2967,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    break    
             
             # In descending order
-            redshifts.append(zarr[-1::-1][i])
+            redshifts.append(zrev[i])
             Mh_t.append(solver.y[0])
             Mg_t.append(solver.y[1])
             Mst_t.append(solver.y[2])
@@ -2998,7 +3001,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if 'sfe' in self.pf['pop_sfr_model']:
                 sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
             
-            z = redshifts[-1]
+            z = zrev[i]
                         
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
@@ -3134,8 +3137,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     zmax = max(zmax, zmax_t)
 
             #print(i, Nz, zarr[-1::-1][i], solver.t, dz[-1::-1][i], solver.t - dz[-1::-1][i])
-            solver.integrate(solver.t-dz[-1::-1][i])
-            #print(solver.t)
+            solver.integrate(solver.t-dzrev[i])
             
             #raw_input('<enter>')
 

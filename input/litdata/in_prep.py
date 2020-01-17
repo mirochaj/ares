@@ -17,7 +17,7 @@ _base = \
  'pq_func_var2[0]{0}': '1+z',
  
  # DPL in Mh
- 'pq_func_par0[0]{0}': 0.05,           # Table 1 in paper (last 4 rows)
+ 'pq_func_par0[0]{0}': 0.05 * 2 * (1e10 / 2.8e11)**0.49, # adjust peak-norm
  'pq_func_par1[0]{0}': 2.8e11,
  'pq_func_par2[0]{0}': 0.49,       
  'pq_func_par3[0]{0}': -0.61,      
@@ -31,7 +31,6 @@ _base = \
  'pop_thin_hist{0}': 10,
  'pop_aging{0}': True,
  'pop_ssp{0}': True,
- 'pop_mass_yield{0}': 0.15,
  'pop_calib_L1600{0}': None,
  'pop_Z{0}': 0.002, 
  'pop_zdead{0}': 3.5,

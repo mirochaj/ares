@@ -61,7 +61,7 @@ def parse_attribute(blob_name, obj_base):
         ares.simulation class.
         
     """
-            
+                
     # Check for decimals
     decimals = []
     for i in range(1, len(blob_name) - 1):
@@ -93,7 +93,7 @@ def parse_attribute(blob_name, obj_base):
         
         # One particular chunk of the attribute name
         s = attr_split[i]
-
+        
         new_obj = eval('obj_base.{!s}'.format(s))
         obj_list.append(new_obj)
 
