@@ -24,7 +24,7 @@ from ..physics import Hydrogen, Cosmology
 from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
 from scipy.integrate import quad, romberg, romb, trapz, simps
-from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
+from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, h_p
 #from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
 #    flatten_emissivities
 try:
@@ -172,7 +172,11 @@ class UniformBackground(object):
         return self._solve_rte
         
     def _needs_tau(self, popid):
-        if self.solve_rte[popid] and self.pops[popid].pf['pop_Emin'] >= E_LL:
+        
+        ionizing = self.pops[popid].pf['pop_Emin'] >= E_LL
+        clumpy_tau = self.pf['absorption_model'] is not None
+        
+        if self.solve_rte[popid] and (ionizing or clumpy_tau):
             return True
         else:
             return False
@@ -410,12 +414,8 @@ class UniformBackground(object):
                     # A list of lists!                    
                     E.append(EofN)
                 
-                if compute_tau:
-                    # Don't allow optical depth in this region 
-                    #if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
-                    tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
-                    #else:
-                    #    tau = [self._set_tau(z, Earr, pop) for Earr in E]
+                if compute_tau and self.pf['absorption_model'] is not None:
+                    tau = [self._set_tau(z, Earr, pop)[2] for Earr in E]                    
                 else:
                     tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
                 
@@ -500,18 +500,21 @@ class UniformBackground(object):
         
         Returns
         -------
-        A 2-D array of optical depths, of shape (len(z), len(E)).    
-            
+        A 2-D array of optical depths, of shape (len(z), len(E)). 
+                
         """
-                                
+                                        
         # Default to optically thin if nothing is supplied
         if self.pf['tau_approx'] == True:
             return z, E, np.zeros([len(z), len(E)])
-            
+
         # Not necessarily true in the future if we include H2 opacity    
-        if E.max() <= E_LL:
+        if (E.max() <= E_LL) and (self.pf['absorption_model'] is None):
             return z, E, np.zeros([len(z), len(E)])
-                    
+            
+        #if (E.min() >= E_LL) and (E.max() < 4 * E_LL):
+        #    return z, E, np.inf * np.ones([len(z), len(E)])
+
         # See if we've got an instance of OpticalDepth already handy
         if self.pf['tau_instance'] is not None:
             self.tau_solver = self.pf['tau_instance']
@@ -521,13 +524,18 @@ class UniformBackground(object):
             # Assumed to be (z, E, tau)
             z, E, tau = self.pf['tau_arrays']
             return z, E, tau
-            
+
         # Create an ares.simulations.OpticalDepth instance
         # (if we don't have one already)
         tau_solver = self.tau_solver
         
         # Try to load file from disk.
-        _z, _E, tau = tau_solver._fetch_tau(pop, z, E)
+        if pop.is_src_xray:
+            _z, _E, tau = tau_solver._fetch_tau(pop, z, E)
+        else:
+            _z = z
+            _E = E
+            tau = np.zeros((_z.size, _E.size))
                         
         # Generate it now if no file was found.
         if tau is None:
@@ -542,10 +550,22 @@ class UniformBackground(object):
             else:                                                          
                 raise NotImplemented('Unrecognized approx_tau option.')
 
-            tau = tau_solver.TabulateOpticalDepth()   
-
+            tau = tau_solver.TabulateOpticalDepth() 
+            
+        ##
+        # Optional: optical depth from discrete absorbers
+        if self.pf['absorption_model'] is not None:
+            assert self.pf['tau_instance'] is None
+            assert self.pf['tau_arrays'] is None
+            tau_d = np.zeros((_z.size, _E.size))
+            lam = c * 1e8 / (_E * erg_per_ev / h_p)
+            for i, _z_ in enumerate(_z):
+                tau_d[i] = tau_solver.ClumpyOpticalDepth(_z_, lam)
+        else:
+            tau_d = 0.0
+                        
         # Return what we got, not what we asked for
-        return _z, _E, tau
+        return _z, _E, tau + tau_d
 
     @property
     def generators(self):

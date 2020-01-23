@@ -274,7 +274,7 @@ class HaloMassFunction(object):
             
         if self.pf['pop_hmf_data'] is not None:
             self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
-                self.tab_ngtm, self.tab_MAR, self.tab_Mmin_floor = \
+                self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
                     self.pf['pop_hmf_data']            
             return
             
@@ -293,7 +293,7 @@ class HaloMassFunction(object):
             self.tab_ngtm = np.array(f[('tab_ngtm')])
             self.tab_mgtm = np.array(f[('tab_mgtm')])
             if 'tab_MAR' in f:
-                self.tab_MAR = np.array(f[('tab_MAR')])
+                self._tab_MAR = np.array(f[('tab_MAR')])
             self.tab_growth = np.array(f[('tab_growth')])
             
             f.close()
@@ -305,7 +305,7 @@ class HaloMassFunction(object):
             self.tab_ngtm = f['tab_ngtm']
             self.tab_mgtm = f['tab_mgtm']
             if 'tab_MAR' in f:
-                self.tab_MAR = f['tab_MAR']
+                self._tab_MAR = f['tab_MAR']
             if 'tab_Mmin_floor' in f:
                 self.tab_Mmin_floor = f['tab_Mmin_floor']
             self.tab_growth = f['tab_growth']
@@ -331,7 +331,7 @@ class HaloMassFunction(object):
             self.tab_dndm = pickle.load(f)            
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
-            self.tab_MAR = pickle.load(f)
+            self._tab_MAR = pickle.load(f)
             self.tab_Mmin_floor = pickle.load(f)
             
             if self.pf['hmf_load_ps']:
@@ -503,7 +503,7 @@ class HaloMassFunction(object):
             else:
                 dt = self.pf['hmf_dt'] # Myr
             
-                tmin = max(self.pf['hmf_tmin'] - 2*dt, 0.0)
+                tmin = max(self.pf['hmf_tmin'] - 2*dt, 20.)
                 tmax = self.pf['hmf_tmax'] + 2*dt
             
                 Nt = Nz = int(round(((tmax - tmin) / dt) + 1, 1))
@@ -563,7 +563,7 @@ class HaloMassFunction(object):
                 
             if i % size != rank:
                 continue
-                
+                                
             # Undo little h for all main quantities
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
             self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
@@ -611,7 +611,10 @@ class HaloMassFunction(object):
         ##
         if not save_MAR:
             return
-            
+    
+        self.TabulateMAR()
+    
+    def TabulateMAR(self):
         ##
         # Generate halo growth histories
         ##   
@@ -704,16 +707,26 @@ class HaloMassFunction(object):
             arr[i] = np.exp(np.interp(np.log(self.tab_M), np.log(M[ok==1]), 
                 np.log(Mdot[ok==1])))
                             
-        self.tab_MAR = arr    
+        self._tab_MAR = arr    
 
         if size > 1:
             tmp = np.zeros_like(self.tab_MAR)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_MAR, tmp)
-            self.tab_MAR = tmp
+            self._tab_MAR = tmp
         
         ##
         # OK, *now* we're done.
         ##
+            
+    @property
+    def tab_MAR(self):
+        if not hasattr(self, '_tab_MAR'):
+            self.TabulateMAR()
+        return self._tab_MAR    
+        
+    @tab_MAR.setter
+    def tab_MAR(self, value):
+        self._tab_MAR = value
             
     @property
     def fcoll_Tmin(self):

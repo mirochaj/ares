@@ -14,17 +14,18 @@ import inspect
 import numpy as np
 import os, re, types, sys
 from ..util.Pickling import read_pickle_file, write_pickle_file
-from ..physics import Cosmology
 from scipy.integrate import quad
+from ..physics import Cosmology, Hydrogen
 from scipy.interpolate import interp1d as interp1d_scipy
-from ..physics.Constants import c
 from ..util.Misc import num_freq_bins
+from ..physics.Constants import c, h_p, erg_per_ev
 from ..util.Math import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection, \
     ApproximatePhotoIonizationCrossSection
 from ..util.Warnings import tau_tab_z_mismatch, tau_tab_E_mismatch
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -106,9 +107,6 @@ class OpticalDepth(object):
         else:    
             self._ionization_history = value        
         
-    def ClumpyOpticalDepth(self):
-        pass
-
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -124,7 +122,7 @@ class OpticalDepth(object):
     def OpticalDepth(self):
         return self.DiffuseOpticalDepth()    
         
-    def ClumpyOpticalDepth(self, z, owaves):
+    def ClumpyOpticalDepth(self, z, rwaves):
         """
         Compute Lyman series line blanketing following Madau (1995).
     
@@ -132,8 +130,8 @@ class OpticalDepth(object):
         ----------
         zobs : int, float
             Redshift of object.
-        owaves : np.ndarray
-            Observed wavelengths in microns.
+        rwaves : np.ndarray
+            Rest wavelengths in Angstroms.
     
         """
         
@@ -143,9 +141,10 @@ class OpticalDepth(object):
         assert self.pf['absorption_model'].lower() == 'madau1995', \
             "absorption_model='madau1995' is currently the sole option!"
         
-        rwaves = owaves * 1e4 / (1. + z)
+        owaves = rwaves * 1e-4 * (1. + z)
         tau = np.zeros_like(owaves)
     
+        ## Ly series line blanketing
         # Text just after Eq. 15.
         A = 0.0036, 1.7e-3, 1.2e-3, 9.3e-4
         l = [h_p * c * 1e8 / (self.hydr.ELyn(n) * erg_per_ev) for n in range(2, 7)]
@@ -157,8 +156,12 @@ class OpticalDepth(object):
     
         #tau[np.logical_and(rwaves < l[-1], rwaves > 912.)] = np.inf  
     
-        # Metals
-        tau += 0.0017 * (owaves * 1e4 / l[0])**1.68
+        # Ly-a line blanketing hits photons at wavelengths shorter than 121.6 nm
+        # in rest frame.
+        ok = rwaves < l[0]
+        
+        # High column density systems (traced by metal absorbers)
+        tau[ok==1] += 0.0017 * (owaves[ok==1] * 1e4 / l[0])**1.68
       
         # Photo-electric absorption. This is footnote 3 in Madau (1995).  
         xem = 1. + z
@@ -169,6 +172,7 @@ class OpticalDepth(object):
                - 0.023 * (xem**1.68 - xc**1.68)
     
         tau[rwaves < 912.] += tau_bf[rwaves < 912.]
+        #tau[rwaves < 912.] = np.inf
     
         return tau    
         

@@ -529,7 +529,7 @@ class ModelSet(BlobFactory):
         else:
             val = list(value)
             
-        self._strictly_positive = val    
+        self._strictly_positive = val
         
     @property
     def chain(self):
@@ -654,10 +654,11 @@ class ModelSet(BlobFactory):
             else:
                 self._chain = None         
                 
-        if self.strictly_positive != []:
-            for key in self.strictly_positive:
-                k = self.parameters.index(key)
-                self._chain[:,k] = np.abs(self._chain[:,k])
+            if self.strictly_positive != []:
+                for key in self.strictly_positive:
+                    print("Taking absolute value of parameter={}".format(key))
+                    k = self.parameters.index(key)
+                    self._chain[:,k] = np.abs(self._chain[:,k])
 
         return self._chain        
         

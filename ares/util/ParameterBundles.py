@@ -633,13 +633,30 @@ class ParameterBundle(dict):
     @property
     def num(self):
         if not hasattr(self, '_num'):
+            #idnums = []
+            #for key in self.keys():
+            #    if not (key.startswith('pop_') or key.startswith('pq_')):
+            #        continue
+            #        
+            #    prefix, idnum = pop_id_num(key)      
+            #    
+            #    if idnum is None:
+            #        continue
+            #        
+            #    if idnum not in idnums:
+            #        idnum.append(idnums)
+            #
+            #if len(idnums) == 1:
+            #    self._num = idnums[0]
+            #else:
             self._num = None
+            
         return self._num
     
     @num.setter
     def num(self, value):
         assert value % 1 == 0
-        self._value = value
+        self._num = value
 
         if self.Npops > 1:
             raise ValueError('This bundle has {} populations! Setting `num` is too dangerous.'.format(self.Npops))
@@ -759,6 +776,7 @@ class ParameterBundle(dict):
             prefix, idnum = pop_id_num(par)
             if (idnum == num) or prefix.startswith('hmf_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
+                or prefix.startswith('feedback_') \
                 or prefix.startswith('master'):
                                 
                 if strip_id:

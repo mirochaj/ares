@@ -912,13 +912,13 @@ class CalibrateModel(object):
         ##
         pars = self.base_kwargs
         pars.update(self.blobs)
-        
+
         # Master fitter
         fitter = ModelFit(**pars)
-            
+
         if fit_galaxies:
             fitter.add_fitter(fitter_lf)
-            
+
         if self.fit_gs is not None:
             fitter.add_fitter(fitter_gs)
         
