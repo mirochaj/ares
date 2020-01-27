@@ -170,10 +170,7 @@ def AbsorberParameters():
     'cddf_beta': 1.4,
     'cddf_gamma': 1.5,
     'cddf_zlow': 1.5,
-    'cddf_gamma_low': 0.2,
-    
-    'absorption_model': None,
-    
+    'cddf_gamma_low': 0.2,    
     }
     
     pf.update(rcParams)
@@ -1090,6 +1087,7 @@ def ControlParameters():
     "tau_instance": None,
     "tau_redshift_bins": 400,
     "tau_approx": True,
+    "tau_clumpy": None,
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
     "tau_Emin_pin": True,

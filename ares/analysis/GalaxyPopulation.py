@@ -23,7 +23,7 @@ from ..util.Aesthetics import labels
 from scipy.optimize import curve_fit
 import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
-from ..util.SpectralSynthesis import what_filters
+from ..util.Photometry import what_filters
 from .MultiPlot import MultiPanel, add_master_legend
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples

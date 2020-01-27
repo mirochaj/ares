@@ -15,6 +15,7 @@ import collections
 import numpy as np
 from ..util import Survey
 from ..util import ProgressBar
+from ..phenom import Madau1995
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
@@ -35,35 +36,6 @@ all_cameras = ['wfc', 'wfc3', 'nircam']
 
 def _powlaw(x, p0, p1):
     return p0 * (x / 1.)**p1
-
-def what_filters(z, fset, wave_lo=1300., wave_hi=2600., picky=True):
-    """
-    Given a redshift and a full filter set, return the filters that probe
-    the rest UV continuum only.
-    """
-    
-    # Compute observed wavelengths in microns
-    l1 = wave_lo * (1. + z) * 1e-4
-    l2 = wave_hi * (1. + z) * 1e-4
-    
-    out = []
-    for filt in fset.keys():
-        # Hack out numbers
-        _x, _y, mid, dx, Tbar = fset[filt]
-        
-        fhi = mid + dx[0]
-        flo = mid - dx[1]
-        
-        if picky:
-            if not ((flo >= l1) and (fhi <= l2)):
-                continue
-        else:
-            if not ((flo <= l1 <= fhi) or (flo <= l2 <= fhi)):
-                continue
-        
-        out.append(filt)
-        
-    return out
 
 class SpectralSynthesis(object):
     def __init__(self, **kwargs):
@@ -139,7 +111,14 @@ class SpectralSynthesis(object):
         if not hasattr(self, '_hydr'):
             from ..physics.Hydrogen import Hydrogen
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
-        return self._hydr    
+        return self._hydr 
+        
+    @property
+    def madau1995(self):
+        if not hasattr(self, '_madau1995'):
+            self._madau1995 = Madau1995(hydr=self.hydr, cosm=self.cosm, 
+                **self.pf)
+        return self._madau1995
     
     def OpticalDepth(self, z, owaves):
         """
@@ -154,41 +133,14 @@ class SpectralSynthesis(object):
     
         """
         
-        if self.pf['absorption_model'] is None:
+        if self.pf['tau_clumpy'] is None:
             return 0.0
         
-        assert self.pf['absorption_model'].lower() == 'madau1995', \
-            "absorption_model='madau1995' is currently the sole option!"
+        assert self.pf['tau_clumpy'].lower() == 'madau1995', \
+            "tau_clumpy='madau1995' is currently the sole option!"
         
-        rwaves = owaves * 1e4 / (1. + z)
-        tau = np.zeros_like(owaves)
-    
-        # Text just after Eq. 15.
-        A = 0.0036, 1.7e-3, 1.2e-3, 9.3e-4
-        l = [h_p * c * 1e8 / (self.hydr.ELyn(n) * erg_per_ev) for n in range(2, 7)]
-    
-        for i in range(len(A)):    
-            ok = np.logical_and(rwaves < l[i], rwaves > l[i+1])
+        return self.madau1995(z, owaves)
         
-            tau[ok==1] += A[i] * (owaves[ok==1] * 1e4 / l[i])**3.46
-    
-        #tau[np.logical_and(rwaves < l[-1], rwaves > 912.)] = np.inf  
-    
-        # Metals
-        tau += 0.0017 * (owaves * 1e4 / l[0])**1.68
-      
-        # Photo-electric absorption. This is footnote 3 in Madau (1995).  
-        xem = 1. + z
-        xc  = owaves * 1e4 / l[0]
-        tau_bf = 0.25 * xc**3 * (xem**0.46 - xc**0.46) \
-               + 9.4 * xc**1.5 * (xem**0.18 - xc**0.18) \
-               - 0.7 * xc**3 * (xc**-1.32 - xem**-1.32) \
-               - 0.023 * (xem**1.68 - xc**1.68)
-    
-        tau[rwaves < 912.] += tau_bf[rwaves < 912.]
-    
-        return tau
-    
     def L_of_Z_t(self, wave):
         
         if not hasattr(self, '_L_of_Z_t'):
@@ -808,7 +760,7 @@ class SpectralSynthesis(object):
 
             if ct + 1 == len(ages):
                 break
-        
+
         ifin = -1 - ct                                                            
         ages_x = np.arange(ages[-1], ages[ifin], 1.)[-1::-1]
         
@@ -840,12 +792,11 @@ class SpectralSynthesis(object):
                 xSFR[slc] = _sfh_rs * np.ones(N)[None,:]
             else:
                 xSFR[slc] = sfh[-_i-2] * np.ones(N)
-        
+                            
         # Need to tack on the SFH at ages older than our 
         # oversampling approach kicks in.
         if batch_mode:
             if ct + 1 == len(ages):
-                print(sfh[:,0].shape, xSFR.shape)
                 _SFR = np.hstack((sfh[:,0][:,None], xSFR))
             else:
                 _SFR = np.hstack((sfh[:,0:i+1][:,0:ifin+1], xSFR))
@@ -855,7 +806,7 @@ class SpectralSynthesis(object):
                 _SFR = np.hstack((sfh[0], xSFR))
             else:
                 _SFR = np.hstack((sfh[0:i+1][0:ifin+1], xSFR))
-                        
+                
         return _ages, _SFR
         
     @property
@@ -941,7 +892,7 @@ class SpectralSynthesis(object):
                     if np.all(kwds[key] == kw[key]):
                         continue
                     else:
-                        print("Does this ever happen?")
+                        # This happens when, e.g., we pass SFH by hand.
                         notok += 1
                         break
                 elif type(kwds[key]) == dict:
@@ -1041,7 +992,7 @@ class SpectralSynthesis(object):
                 zarr = hist['z']
             else:    
                 tarr = hist['t']
-
+                
         kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr, 
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist, 
             'extras':extras, 'window': window}
@@ -1129,7 +1080,7 @@ class SpectralSynthesis(object):
         # accurately solve for young stellar populations.
         oversample = self.oversampling_enabled and (dt[-2] > 1.01e6)
         # Used to also require zobs is not None. Why?
-                        
+                                
         ##
         # Done parsing time/redshift
         
@@ -1139,7 +1090,7 @@ class SpectralSynthesis(object):
                 energy_units=True)
             #raise NotImplemented('help!')
         else:
-            Loft = self.src.L_per_SFR_of_t(wave, avg=window)
+            Loft = self.src.L_per_SFR_of_t(wave=wave, avg=window)
             
         #print("Synth. Lum = ", wave, window)    
         #
@@ -1187,7 +1138,6 @@ class SpectralSynthesis(object):
             # of this loop. This is just a dumb way to generalize this function
             # to either do one redshift or return a whole history.
             if not do_all_time:
-                
                 if (zarr[i] > zobs):
                     continue
 
@@ -1195,6 +1145,16 @@ class SpectralSynthesis(object):
             # at previous times. First, retrieve ages of stars formed in all 
             # past star forming episodes.
             ages = tarr[i] - tarr[0:i+1]
+            # Note: this will be in order of *descending* age, i.e., the 
+            # star formation episodes furthest in the past are first in the 
+            # array.
+            
+            # Recall also that `sfh` contains SFRs for all time, so any
+            # z < zobs will contain zeroes, hence all the 0:i+1 slicing below.
+            
+            #print('hello', i, _tobs, zarr[i], tarr[i], tarr[0:i+1])
+            #print(ages)
+            #print(sfh[0,0:i+1])
 
             # Treat metallicity evolution? If so, need to grab luminosity as 
             # function of age and Z.
@@ -1225,7 +1185,7 @@ class SpectralSynthesis(object):
 
                 _ages = ages    
             else:
-                
+                                
                 ##
                 # If time resolution is >= 2 Myr, over-sample final interval.
                 if oversample and len(ages) > 1:
@@ -1237,23 +1197,26 @@ class SpectralSynthesis(object):
                         
                     _dt = np.abs(np.diff(_ages) * 1e6)
                     
+                    # `_ages` is in order of old to young.
+                        
                     # Now, compute luminosity at expanded ages.
                     L_per_msun = np.exp(_func(np.log(_ages)))   
                                     
                     # Interpolate linearly at t < 1 Myr    
                     L_per_msun[_ages < 1] = L_small_t(_ages[_ages < 1])   
-                    #L_per_msun[_ages < 20] = 0.   
-                    
-                    # erg/s/Hz
+                    #L_per_msun[_ages < 10] = 0.   
+                                        
+                    # erg/s/Hz/yr
                     if batch_mode:
                         Lall = L_per_msun * _SFR
                     else:    
                         Lall = L_per_msun * _SFR
-                                                               
+                    
                 else:    
-                    L_per_msun = np.exp(np.interp(np.log(ages), 
-                        np.log(self.src.times), np.log(Loft),
-                        left=np.log(Loft[0]), right=np.log(Loft[-1])))
+                    L_per_msun = np.exp(_func(np.log(ages)))   
+                    #L_per_msun = np.exp(np.interp(np.log(ages), 
+                    #    np.log(self.src.times), np.log(Loft),
+                    #    left=np.log(Loft[0]), right=np.log(Loft[-1])))
 
                     _dt = dt[0:i]
 
@@ -1262,12 +1225,12 @@ class SpectralSynthesis(object):
         
                     _ages = ages
                             
-                    # erg/s/Hz
+                    # erg/s/Hz/yr
                     if batch_mode:
                         Lall = L_per_msun * sfh[:,0:i+1]
                     else:    
                         Lall = L_per_msun * sfh[0:i+1]
-                                                    
+                                                                
                 # Correction for IMF sampling (can't use SPS).
                 #if self.pf['pop_sample_imf'] and np.any(bursty):
                 #    life = self._stars.tab_life
@@ -1306,11 +1269,11 @@ class SpectralSynthesis(object):
             if batch_mode:
                 if not do_all_time:
                     #print('hello', Lall.shape, _dt.shape)
-                    Lhist = np.trapz(Lall, dx=_dt, axis=1)
-                    #Lhist = np.sum(Lall[:,0:-1] * _dt, axis=1)
+                    #Lhist = np.trapz(Lall, dx=_dt, axis=1)
+                    Lhist = np.sum(Lall[:,0:-1] * _dt, axis=1)
                 else:
-                    Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
-                    #Lhist[:,i] = np.sum(Lall * _dt, axis=1)
+                    #Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
+                    Lhist[:,i] = np.sum(Lall * _dt, axis=1)
             else:
                 if not do_all_time:
                     Lhist = np.trapz(Lall, dx=_dt)                

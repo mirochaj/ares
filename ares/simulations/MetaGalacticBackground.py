@@ -19,6 +19,7 @@ from ..util.Math import smooth
 from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
+from ..phenom import Madau1995
 from ..util.Math import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
@@ -253,7 +254,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         freq = E * erg_per_ev / h_p
         return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
                     
-    def flux_today(self, zf=None, popids=None, units='cgs'):
+    def flux_today(self, zf=None, popids=None, units='cgs', xunits='eV'):
         """
         Propage radiation background from `zf` to z=0 assuming optically
         thin universe.
@@ -284,6 +285,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             raise NotImplemented('need to fix this now that today_only option in place')    
                 
         ct = 0
+        _zf = [] # for debugging
         # Loop over pops: assumes energy ranges are non-overlapping!
         for popid, pop in enumerate(self.pops):
     
@@ -299,6 +301,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             
             if zf is None:
                 k = 0
+                _zf.append(z[k])
             else:
                 k = np.argmin(np.abs(zf - z))
             
@@ -309,9 +312,6 @@ class MetaGalacticBackground(AnalyzeMGB):
             _fluxes_today.append(ft)
     
             ct += 1
-    
-        if ct == 1:    
-            return np.array(_energies_today[0]), np.array(_fluxes_today[0])
     
         ##
         # Add the fluxes! Interpolate to common energy grid first.
@@ -325,6 +325,21 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         f = np.sum(_f, axis=0)
         
+        # Wavelength in microns (might need it below)
+        _lam = h_p * c * 1e4 / erg_per_ev / _E
+        
+        # Attenuate by HI absorbers in IGM at z < zf?
+        if self.pf['tau_clumpy'] is not None:
+            assert self.pf['tau_clumpy'].lower() == 'madau1995'
+            
+            m95 = Madau1995(hydr=self.grid.hydr, **self.pf)
+            
+            if zf is None:
+                assert np.allclose(np.array(_zf) - _zf[0], 0)
+                zf = _zf[0]
+            
+            f *= np.exp(-m95(zf, _lam))
+        
         if units.lower() == 'cgs':
             pass
         elif units.lower() == 'si':
@@ -332,6 +347,13 @@ class MetaGalacticBackground(AnalyzeMGB):
             f *= nu * _E * erg_per_ev * cm_per_m**2 / ergs_per_s_per_nW
         else:
             raise ValueError('Unrecognized units=`{}`.'.format(units))
+            
+        if xunits.lower() == 'ev':
+            pass
+        elif xunits.lower() in ['angstrom', 'ang', 'a']:
+            _E = _lam
+        else:
+            raise NotImplemented("'don't recognize xunits={}".format(xunits))    
             
         return _E, f                    
                            

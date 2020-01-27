@@ -769,14 +769,14 @@ class ParameterBundle(dict):
         
         This will take any parameters with ID numbers, and any parameters
         with the `hmf_` prefix, since populations need to know about that 
-        stuff. Also, dustcorr parameters.
+        stuff. Also, dustcorr parameters, optical depth stuff.
         """
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
             if (idnum == num) or prefix.startswith('hmf_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
-                or prefix.startswith('feedback_') \
+                or prefix.startswith('feedback_') or prefix.startswith('tau_') \
                 or prefix.startswith('master'):
                                 
                 if strip_id:

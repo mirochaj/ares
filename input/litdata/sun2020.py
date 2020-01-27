@@ -12,7 +12,7 @@ _nirb_updates['pop_solve_rte'] = (0.42, 13.61)
 _nirb_updates['pop_fesc'] = 0.1
 _nirb_updates['tau_redshift_bins'] = 1000 # probably overkill
 _nirb_updates['tau_approx'] = False
-_nirb_updates['absorption_model'] = 'madau1995'
+_nirb_updates['tau_clumpy'] = 'madau1995'
 
 _base.update(_nirb_updates)
 
@@ -59,7 +59,7 @@ def add_lya(pop1):
     pars = pop1 + pop2
     
     return pars
-    
+
 base = add_lya(_base)
 
 _low_st = PB(**_low).pars_by_pop(2, 1)

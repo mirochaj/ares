@@ -135,11 +135,11 @@ class OpticalDepth(object):
     
         """
         
-        if self.pf['absorption_model'] is None:
+        if self.pf['tau_clumpy'] is None:
             return 0.0
         
-        assert self.pf['absorption_model'].lower() == 'madau1995', \
-            "absorption_model='madau1995' is currently the sole option!"
+        assert self.pf['tau_clumpy'].lower() == 'madau1995', \
+            "tau_clumpy='madau1995' is currently the sole option!"
         
         owaves = rwaves * 1e-4 * (1. + z)
         tau = np.zeros_like(owaves)
