@@ -16,7 +16,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import s_per_myr
 
-def test(show_bpass=False, oversample_age=30., dt_coarse=20):
+def test(show_bpass=False, oversample_age=30., dt_coarse=10):
 
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
         source_Emax=54.4, source_toysps_beta=-3.5)
@@ -40,7 +40,8 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=20):
     pop1 = ares.populations.GalaxyPopulation(**pars)
     
     if show_bpass:
-        src = ares.sources.SynthesisModel(source_sed='eldridge2009', source_ssp=True)
+        src = ares.sources.SynthesisModel(source_sed='eldridge2009', 
+            source_ssp=True)
     
     fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
     fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
@@ -116,10 +117,10 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=20):
     sfh1 = np.ones_like(tarr1)
     sfh2 = np.ones_like(tarr2)
     
-    ss = ares.util.SpectralSynthesis()
+    ss = ares.static.SpectralSynthesis()
     ss.src = toy
     
-    ss2 = ares.util.SpectralSynthesis()
+    ss2 = ares.static.SpectralSynthesis()
     ss2.src = toy
     ss2.oversampling_enabled = False
     ss2.oversampling_below = oversample_age
@@ -167,7 +168,7 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=20):
         return y    
     
     ##
-    # Test with 'staircase' SFH?
+    # Test with 'staircase' SFH.
     ##
     fig4 = pl.figure(4)
     ax4a = fig4.add_subplot(211)

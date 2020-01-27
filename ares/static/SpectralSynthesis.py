@@ -1267,13 +1267,13 @@ class SpectralSynthesis(object):
             ###
             ## Integrate over all times up to this tobs
             if batch_mode:
-                if not do_all_time:
-                    #print('hello', Lall.shape, _dt.shape)
-                    #Lhist = np.trapz(Lall, dx=_dt, axis=1)
-                    Lhist = np.sum(Lall[:,0:-1] * _dt, axis=1)
+                # Should really just np.sum here...using trapz assumes that
+                # the SFH is a smooth function and not a series of constant 
+                # SFRs. Doesn't really matter in practice, though.
+                if not do_all_time
+                    Lhist = np.trapz(Lall, dx=_dt, axis=1)
                 else:
-                    #Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
-                    Lhist[:,i] = np.sum(Lall * _dt, axis=1)
+                    Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
             else:
                 if not do_all_time:
                     Lhist = np.trapz(Lall, dx=_dt)                
