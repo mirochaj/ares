@@ -16,7 +16,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import s_per_myr
 
-def test(show_bpass=False, oversample_age=30.):
+def test(show_bpass=False, oversample_age=30., dt_coarse=10):
 
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
         source_Emax=54.4, source_toysps_beta=-3.5)
@@ -40,7 +40,8 @@ def test(show_bpass=False, oversample_age=30.):
     pop1 = ares.populations.GalaxyPopulation(**pars)
     
     if show_bpass:
-        src = ares.sources.SynthesisModel(source_sed='eldridge2009', source_ssp=True)
+        src = ares.sources.SynthesisModel(source_sed='eldridge2009', 
+            source_ssp=True)
     
     fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
     fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
@@ -112,14 +113,14 @@ def test(show_bpass=False, oversample_age=30.):
     ##
     
     tarr1 = np.arange(0, 1000, 1.)
-    tarr2 = np.arange(0, 1000, 10.)
+    tarr2 = np.arange(0, 1000, dt_coarse)
     sfh1 = np.ones_like(tarr1)
     sfh2 = np.ones_like(tarr2)
     
-    ss = ares.util.SpectralSynthesis()
+    ss = ares.static.SpectralSynthesis()
     ss.src = toy
     
-    ss2 = ares.util.SpectralSynthesis()
+    ss2 = ares.static.SpectralSynthesis()
     ss2.src = toy
     ss2.oversampling_enabled = False
     ss2.oversampling_below = oversample_age
@@ -133,7 +134,7 @@ def test(show_bpass=False, oversample_age=30.):
     t1 = time.time()
     L2 = ss.Luminosity(sfh=sfh2, tarr=tarr2, load=False)
     t2 = time.time()
-    print('dt=10, oversampling ON:', t2 - t1)
+    print('dt={}, oversampling ON:'.format(dt_coarse), t2 - t1)
     
     t1 = time.time()
     L3 = ss2.Luminosity(sfh=sfh2, tarr=tarr2, load=False)
@@ -167,14 +168,14 @@ def test(show_bpass=False, oversample_age=30.):
         return y    
     
     ##
-    # Test with 'staircase' SFH?
+    # Test with 'staircase' SFH.
     ##
     fig4 = pl.figure(4)
     ax4a = fig4.add_subplot(211)
     ax4b = fig4.add_subplot(212)
     
     sfh1 = staircase(tarr1, dx=100)
-    sfh2 = staircase(tarr2)
+    sfh2 = staircase(tarr2, dx=100//dt_coarse)
     ax4a.scatter(tarr1, sfh1, edgecolors='k', marker='.', s=1)
     ax4a.scatter(tarr2, sfh2, facecolors='none', edgecolors='b')
     ax4a.set_xlim(0, 300)

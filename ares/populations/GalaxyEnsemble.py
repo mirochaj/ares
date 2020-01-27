@@ -20,13 +20,13 @@ from ..util.Math import smooth
 from ..util import ProgressBar
 from ..util.Survey import Survey
 from .Halo import HaloPopulation
-from ..util import SpectralSynthesis
 from scipy.optimize import curve_fit
+from ..static import SpectralSynthesis
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
+from ..util.Photometry import what_filters
 from ..analysis.BlobFactory import BlobFactory
-from ..util.SpectralSynthesis import what_filters
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
@@ -1307,6 +1307,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_flag_sSFR'] is not None:
             sSFR = SFR / Ms
             
+        ##
+        # Introduce some by-hand quenching.
+        if self.pf['pop_quench'] is not None:
+            is_quenched = self.pf['pop_quench'](z=z2d, Mh=Mh)
+            SFR *= np.logical_not(is_quenched)
+                        
         ##          
         # Dust           
         ##

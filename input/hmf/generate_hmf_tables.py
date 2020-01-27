@@ -17,8 +17,8 @@ import sys
 import ares
 
 ## INPUT
-fit = 'ST'
-fmt = 'npz'
+fit = 'Tinker10'
+fmt = 'hdf5'
 
 hmf_pars = \
 {
@@ -30,14 +30,14 @@ hmf_pars = \
  #"hmf_window": 'sharpk',
 
  # Redshift sampling
- "hmf_zmin": 0.,
- "hmf_zmax": 60.,
- "hmf_dz": 0.05, 
+#"hmf_zmin": 0.,
+#"hmf_zmax": 60.,
+#"hmf_dz": 0.05, 
  
  # Can do constant timestep instead of constant dz 
- #"hmf_dt": 1.,
- #"hmf_tmin": 30.,
- #"hmf_tmax": 2000.,
+ "hmf_dt": 20.,
+ "hmf_tmin": 20.,
+ "hmf_tmax": 2000.,
  
  # Cosmology
  "sigma_8": 0.8159, 

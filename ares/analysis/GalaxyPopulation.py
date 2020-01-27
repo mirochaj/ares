@@ -23,7 +23,7 @@ from ..util.Aesthetics import labels
 from scipy.optimize import curve_fit
 import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
-from ..util.SpectralSynthesis import what_filters
+from ..util.Photometry import what_filters
 from .MultiPlot import MultiPanel, add_master_legend
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples
@@ -228,7 +228,7 @@ class GalaxyPopulation(object):
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
-        show_Mstell=True, show_MUV=True, label=None, zcal=None,
+        show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
         dmag=0.5, dlam_c94=10, fill=False, extra_pane=False, square=False,
         **kwargs):
         """
@@ -490,7 +490,7 @@ class GalaxyPopulation(object):
         # Plot models
         ##
         Ms = np.arange(6, 13.25, 0.25)
-        mags = np.arange(-25, -12, 0.1)
+        mags = np.arange(-25, -11.9, 0.1)
         mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
@@ -673,9 +673,9 @@ class GalaxyPopulation(object):
             if ax is None:
                 continue
             
-            ax.set_xlim(-24, -15)
-            ax.set_xticks(np.arange(-24, -15, 2))
-            ax.set_xticks(np.arange(-24, -15, 1), minor=True)            
+            ax.set_xlim(-24, Mlim)
+            ax.set_xticks(np.arange(-24, Mlim, 2))
+            ax.set_xticks(np.arange(-24, Mlim, 1), minor=True)            
             
             if i > (num_uvlf_panels - 1):
                 if show_MUV:

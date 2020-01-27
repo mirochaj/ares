@@ -578,6 +578,10 @@ class Population(object):
                     
         return self._yield_per_sfr
         
+    @yield_per_sfr.setter
+    def yield_per_sfr(self, value):
+        self._yield_per_sfr = value
+        
     @property
     def is_deterministic(self):
         if not hasattr(self, '_is_deterministic'):
@@ -597,10 +601,10 @@ class Population(object):
                     self._is_deterministic = False
                 
                 if self.pf['feedback_ion'] or self.pf['feedback_LW']:
-                    self._is_deterministic = False                    
-                
+                    self._is_deterministic = False
+
         return self._is_deterministic
-    
+
     @property
     def is_fcoll_model(self):
         return self.pf['pop_sfr_model'].lower() == 'fcoll'
@@ -697,12 +701,12 @@ class Population(object):
             if (Emin, Emax) in self._conversion_factors:
                 return self._conversion_factors[(Emin, Emax)]
     
-            if Emin < self.pf['pop_Emin']:
-                print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+            if round(Emin, 2) < round(self.pf['pop_Emin'], 2):
+                print(("WARNING: Emin ({0:.2f} eV) < pop_Emin ({1:.2f} eV) " +\
                     "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
                     self.id_num))
             if Emax > self.pf['pop_Emax']:
-                print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+                print(("WARNING: Emax ({0:.2f} eV) > pop_Emax ({1:.2f} eV) " +\
                     "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                     self.id_num))
     
