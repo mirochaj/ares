@@ -159,6 +159,7 @@ class UniformBackground(object):
                         elif np.allclose(band, pop.pf['pop_solve_rte'], 
                             atol=1e-1, rtol=0.):
                             tmp.append(True)
+                        # Is this too restrictive?    
                         elif (band[0] >= pop.pf['pop_solve_rte'][0]) and \
                              (band[1] <= pop.pf['pop_solve_rte'][1]):
                             tmp.append(True)

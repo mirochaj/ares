@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.util.SpectralSynthesis import what_filters
+from ares.util.Photometry import what_filters
 from ares.physics.Constants import flux_AB, cm_per_pc, s_per_myr
 
 def test(tol=0.25):
