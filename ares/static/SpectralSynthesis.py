@@ -1270,7 +1270,7 @@ class SpectralSynthesis(object):
                 # Should really just np.sum here...using trapz assumes that
                 # the SFH is a smooth function and not a series of constant 
                 # SFRs. Doesn't really matter in practice, though.
-                if not do_all_time
+                if not do_all_time:
                     Lhist = np.trapz(Lall, dx=_dt, axis=1)
                 else:
                     Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
