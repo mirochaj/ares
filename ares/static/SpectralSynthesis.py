@@ -935,7 +935,7 @@ class SpectralSynthesis(object):
 
     def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
-        load=True):
+        load=True, use_cache=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -1408,9 +1408,10 @@ class SpectralSynthesis(object):
                              
         ##
         # Will be unhashable types so just save to a unique identifier
-        ##                          
-        self._cache_lum_[self._cache_lum_ctr] = kw, Lout
-        self._cache_lum_ctr_ += 1
+        ##            
+        if use_cache:              
+            self._cache_lum_[self._cache_lum_ctr] = kw, Lout
+            self._cache_lum_ctr_ += 1
                                     
         # Get outta here.
         return Lout

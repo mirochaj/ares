@@ -1307,6 +1307,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_flag_sSFR'] is not None:
             sSFR = SFR / Ms
             
+        if self.pf['pop_Mmin'] is not None:
+            above_Mmin = Mh >= self.pf['pop_Mmin']
+        else:
+            raise NotImplemented('help with Tmin!')
+            
+        # Bye bye guys
+        SFR *= above_Mmin
+            
         ##
         # Introduce some by-hand quenching.
         if self.pf['pop_quench'] is not None:
@@ -1332,6 +1340,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             # Bye bye guys
             SFR *= np.logical_not(is_quenched)
+                        
+                        
                         
         ##          
         # Dust           
@@ -1932,7 +1942,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return Mout
             
     def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True):
+        load=True, use_cache=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
         
@@ -1952,6 +1962,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         idnum : int
             If supplied, will only determine the luminosity for a single object
             (the one at this position in the array).
+        cache : bool
+            If False, don't save luminosities to cache. Needed sometimes to
+            conserve memory if, e.g., computing luminosity for a ton of 
+            wavelengths for many (millions) of halos.
         
         Returns
         -------
@@ -1965,9 +1979,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         raw = self.histories
         L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
-            extras=self.extras, idnum=idnum, window=window, load=load)
+            extras=self.extras, idnum=idnum, window=window, load=load,
+            use_cache=use_cache)
            
-        self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
+        if use_cache:
+            self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
            
         return L
             
