@@ -264,6 +264,16 @@ class FitGalaxyPopulation(FitBase):
             self.info
 
         return self._loglikelihood
+        
+    @property
+    def monotonic_beta(self):
+        if not hasattr(self, '_monotonic_beta'):
+            self._monotonic_beta = False
+        return self._monotonic_beta
+        
+    @monotonic_beta.setter
+    def monotonic_beta(self, value):
+        self._monotonic_beta = bool(value)
 
     @property
     def zmap(self):

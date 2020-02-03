@@ -662,7 +662,7 @@ class ModelSet(BlobFactory):
 
         return self._chain        
         
-    def identify_bad_walkers(self, tol=1e-2, axis=0):
+    def identify_bad_walkers(self, tol=1e-2, skip=0, limits=False):
         """
         Find trajectories that are flat. They are probably walkers stuck
         in some "no man's land" region of parameter space. Poor guys.
@@ -671,17 +671,49 @@ class ModelSet(BlobFactory):
         -------
         Lists of walker ID numbers. First, the good walkers, then the bad.
         """
+                
+        Ns = self.chain.shape[0]
+        steps_per_walker = Ns // self.nwalkers
         
+        if skip > steps_per_walker:
+            raise ValueError("`skip` must be < steps_per_walker={}".format(steps_per_walker))
+        
+        errs = [tuple(self.get_1d_error(par, skip=skip*self.nwalkers)[1]) \
+            for par in self.parameters]
+                    
         bad_walkers = []
         good_walkers = []
         mask = np.zeros_like(self.chain, dtype=int)
         for i in range(self.nwalkers):
             chain, logL, elements = self.get_walker(i)
-            if np.allclose(np.diff(chain[:,axis]), 0.0, atol=tol, rtol=0):
-                bad_walkers.append(i)
-                mask += elements
-            else:
+            
+            good_walker = True
+            for j, par in enumerate(self.parameters):
+                
+                err = np.abs(np.diff(errs[j]))[0]
+
+                diff = np.diff(chain[skip:,j])
+
+                dp = chain[skip:,j].max() - chain[skip:,j].min()
+                
+                #print(par, err, dp, tol * err, dp < tol * err, 
+                #    np.allclose(diff, 0.0, atol=tol * err, rtol=0))
+                
+                if limits:
+                    if (dp < tol * err):
+                        good_walker = False
+                        break
+                elif np.allclose(diff, 0.0, atol=tol * err, rtol=0):
+                    good_walker = False
+                    break
+                else:
+                    continue
+                    
+            if good_walker:
                 good_walkers.append(i)
+            else:
+                bad_walkers.append(i)
+                mask += elements        
                         
         return good_walkers, bad_walkers, np.minimum(mask, 1)
         
@@ -4482,8 +4514,8 @@ class ModelSet(BlobFactory):
         if ax is None:
             fig = pl.figure(fig); ax = fig.add_subplot(111)
 
-        cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
-            vmin=-1, vmax=1)
+        cax = ax.imshow(corr.T, interpolation='none', cmap='RdBu_r', 
+            vmin=-1, vmax=1, origin='lower left')
         cb = pl.colorbar(cax)
 
         return ax

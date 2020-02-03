@@ -1310,7 +1310,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_Mmin'] is not None:
             above_Mmin = Mh >= self.pf['pop_Mmin']
         else:
-            raise NotImplemented('help with Tmin!')
+            above_Mmin = np.ones_like(Mh)
+            print('WARNING: help with Tmin!')
             
         # Bye bye guys
         SFR *= above_Mmin

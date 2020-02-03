@@ -949,6 +949,10 @@ def HaloMassFunctionParameters():
     
     # Note that this is not passed to hmf yet.
     "hmf_window": 'tophat',
+    "hmf_wdm_mass": None,
+    "hmf_wdm_interp": True,
+    
+    "hmf_path": None,
     
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
