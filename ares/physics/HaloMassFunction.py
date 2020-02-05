@@ -450,6 +450,9 @@ class HaloMassFunction(object):
                 
         self._is_loaded = True
         
+        if self.pf['verbose'] and rank == 0:
+            print("Loaded {}.".format(self.tab_name))
+        
         if self.pf['hmf_func'] is not None:
             if self.pf['verbose']:
                 print("Overriding tabulated HMF in favor of user-supplied ``hmf_func``.")
@@ -821,7 +824,10 @@ class HaloMassFunction(object):
     @property
     def tab_MAR(self):
         if not hasattr(self, '_tab_MAR'):
-            self.TabulateMAR()
+            if not self._is_loaded:
+                poke = self.tab_dndm
+            else:    
+                self.TabulateMAR()
         return self._tab_MAR    
         
     @tab_MAR.setter

@@ -2881,10 +2881,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             iz = np.argmin(np.abs(z0 - self.halos.tab_z))
 
-            if np.allclose(z0, self.halos.tab_z[iz]):
+            if np.allclose(z0, self.halos.tab_z[iz], rtol=1e-2):
                 n0 = self._tab_n_Mmin[iz]
             else:
-                print('hay problemas!')
+                print('hay problemas!', z0, self.halos.tab_z[iz])
             
         elif (M0 > 1):
             if z0 >= self.pf['initial_redshift']:
