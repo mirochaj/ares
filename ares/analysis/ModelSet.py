@@ -14,6 +14,7 @@ import pickle
 import shutil
 import numpy as np
 import matplotlib as mpl
+from ..util.Math import smooth
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 from ..physics import Cosmology
@@ -1415,7 +1416,7 @@ class ModelSet(BlobFactory):
         return num, step
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
-        skip=0, stop=None, **kwargs):
+        skip=0, stop=None, ivar=None, multiplier=1., **kwargs):
         """
         Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
@@ -1453,11 +1454,14 @@ class ModelSet(BlobFactory):
                 y = data[:,self.parameters.index(par)]        
             else:
                 keep = elements[:,0]
-                tmp = self.ExtractData(par)[par]
-                y = tmp[keep == 1]
+                tmp = self.ExtractData(par, ivar=ivar)[par]
+                y = tmp[keep == 1] * multiplier
                                                     
             x = np.arange(0, len(y))
             ax.plot(x[skip:stop], y[skip:stop], **kwargs)
+
+        iML = np.argmax(self.logL)
+        ax.plot([])
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -3724,7 +3728,8 @@ class ModelSet(BlobFactory):
         return x, y, zarr
         
     def RetrieveModels(self, skip=0, stop=None, Nmods=1, seed=None, 
-        limit_to=None, limit_all=False, tol=None, force_positive=False, **kwargs):
+        limit_to=None, limit_all=False, tol=None, force_positive=False, 
+        percentile=None, **kwargs):
         """
         Return a set of model parameters close to those requested.
         
@@ -3740,13 +3745,10 @@ class ModelSet(BlobFactory):
         for i, par in enumerate(self.parameters):
             if par not in kwargs:
                 continue
-                 
-            if force_positive:
-                nearby = np.abs(np.abs(self.chain[skip:stop,i]) - kwargs[par])
-            else:    
-                nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
+
+            nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
             
-            # Grab top 1000 hits
+            # Sort samples in order of closeness to our request.
             nsorted = np.argsort(nearby)
             break
         
@@ -3754,6 +3756,19 @@ class ModelSet(BlobFactory):
         #np.random.seed(seed)
         #np.random.shuffle(nsorted)
         
+        logL_sorted = self.logL[skip:stop][nsorted]
+        good_sorted = self.chain[skip:stop,i][nsorted]
+        
+        # Compute likelihood percentiles, pick a cutoff.
+        if percentile is not None:
+            q1 = 0.5 * 100 * (1. - percentile)
+            q2 = 100 * percentile + q1
+            lo, hi = np.percentile(logL_sorted[np.isfinite(logL_sorted)], 
+                (q1, q2))
+            logL_cut = hi
+        else:
+            logL_cut = -np.inf
+            
         ct = 0
         models = []
         for n, item in enumerate(nsorted): 
@@ -3761,30 +3776,38 @@ class ModelSet(BlobFactory):
             if ct >= Nmods:
                 break
                 
-            val = self.chain[skip:stop,:][item,i]
+            val = good_sorted[n]
             
+            if np.ma.is_masked(val):
+                continue
+            
+            logL = logL_sorted[n]
+            
+            if logL < logL_cut:
+                continue
+                        
             if tol is not None:
                 if abs(val - kwargs[par]) > tol:
                     continue
             
             if limit_to is not None:
                 mu, (hi, lo) = self.get_1d_error(par, nu=limit_to)
-                                
+
                 if not lo <= val <= hi:
                     #print("Match n={} outside {} range".format(n, limit_to))
                     continue
-                    
-            if limit_all:
-                for _i, _par in enumerate(self.parameters):
-                    if _i == i:
-                        # Already did this one!
+
+                if limit_all:
+                    for _i, _par in enumerate(self.parameters):
+                        if _i == i:
+                            # Already did this one!
+                            continue
+
+                    mu, (hi, lo) = self.get_1d_error(_par, nu=limit_to)
+
+                    if not lo <= self.chain[skip:stop,:][item,_i] <= hi:
                         continue
-                        
-                mu, (hi, lo) = self.get_1d_error(_par, nu=limit_to)
-                
-                if not lo <= self.chain[skip:stop,:][item,_i] <= hi:
-                    continue
-                    
+
             print("Matched val={} (actual={}) at index={}".format(kwargs[par],    
                 val, item))
             
@@ -3798,7 +3821,7 @@ class ModelSet(BlobFactory):
                     p[par] = 10**self.chain[skip:stop,:][item,m]
                 else:
                     p[par] = self.chain[skip:stop,:][item,m]
-        
+
             models.append(p)
             
             ct += 1
@@ -3807,7 +3830,7 @@ class ModelSet(BlobFactory):
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 
-        expr=None, new_x=None, is_logx=False,
+        expr=None, new_x=None, is_logx=False, smooth_boundary=False,
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
         E_to_freq=False, **kwargs):
@@ -3985,9 +4008,16 @@ class ModelSet(BlobFactory):
             elif type(samples) is int:
                 ax.plot(xarr, yblob[keep==1].T, **kwargs)    
             elif use_best and self.is_mcmc:
-                ax.plot(xarr, yblob[keep==1][loc], **kwargs)
+                y = yblob[keep==1][loc]
+                if smooth_boundary:
+                    y = smooth(y, smooth_boundary)
+                ax.plot(xarr, y, **kwargs)
             elif percentile:
                 lo, hi = np.percentile(yblob[keep==1], (q1, q2), axis=0)
+                
+                if smooth_boundary:
+                    lo = smooth(lo, smooth_boundary)
+                    hi = smooth(hi, smooth_boundary)
                                 
                 if fill:
                     ax.fill_between(xarr, lo, hi, **kwargs)
@@ -4083,11 +4113,18 @@ class ModelSet(BlobFactory):
                 else:
                     
                     loc = np.argmax(self.logL[keep == 1])    
+                    
+                y = yblob[keep==1][loc]
+                if smooth_boundary:
+                    y = smooth(y, smooth_boundary)    
             
-                ax.plot(xarr, yblob[keep==1][loc], **kwargs)    
+                ax.plot(xarr, y, **kwargs)    
             # Plot contours enclosing some amount of likelihood
             elif percentile:
                 lo, hi = np.nanpercentile(yblob[keep == 1], (q1, q2), axis=0)
+                if smooth_boundary:
+                    lo = smooth(lo, smooth_boundary)
+                    hi = smooth(hi, smooth_boundary)
 
                 if fill:
                     ax.fill_between(xarr, lo, hi, **kwargs)

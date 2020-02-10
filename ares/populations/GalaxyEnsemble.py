@@ -1604,7 +1604,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
         iz = np.argmin(np.abs(z - self.histories['z']))
-        
+                
         _Ms = self.histories[field][:,iz]
         _Mh = self.histories['Mh'][:,iz]
         logMh = np.log10(_Mh)

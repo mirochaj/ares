@@ -665,7 +665,7 @@ class CalibrateModel(object):
             blob_k = [{}, {'return_mean_only': True}]    
             
             if 'pop_dust_yield' in self.base_kwargs:
-                if self.base_kwargs['pop_dust_yield'] is not None:
+                if self.base_kwargs['pop_dust_yield'] != 0:
                     blob_n.append('Md')
                     blob_f.append('XMHM')
                     blob_k.append({'return_mean_only': True, 'field': 'Md'})
@@ -803,10 +803,10 @@ class CalibrateModel(object):
                 raise ValueError('Unrecognized option for `include_sfe`.')
         
             if self.include_fduty:
-                self._base_kwargs.update(PB('in_prep:fduty'))
+                self._base_kwargs.update(PB('mirocha2020:fduty'))
                 
             if self.include_fyield:
-                self._base_kwargs.update(PB('in_prep:fyield'))
+                self._base_kwargs.update(PB('mirocha2020:fyield'))
         
             
             if self.fit_gs is None:

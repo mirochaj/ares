@@ -711,13 +711,13 @@ class GalaxyPopulation(object):
             ax_smf.set_ylabel(labels['galaxy_smf'])
             ax_smf.set_xscale('log')   
             ax_smf.set_ylim(1e-7, 1e-1)
-            ax_smf.set_xlim(1e7, 1.5e12)
+            ax_smf.set_xlim(1e7, 7e11)
             
             if num_uvlf_panels == 2:
                 ax_smf2.set_xlabel(r'$M_{\ast} / M_{\odot}$')
                 ax_smf2.set_xscale('log')   
                 ax_smf2.set_ylim(1e-7, 1e-1)
-                ax_smf2.set_xlim(1e7, 1.5e12)
+                ax_smf2.set_xlim(1e7, 7e11)
                 ax_smf2.set_yticklabels([])
                 
             for i, ax in enumerate([ax_cMs4, ax_cMs6, ax_cMs8, ax_cMs10]):    
@@ -726,7 +726,7 @@ class GalaxyPopulation(object):
                     continue
                      
                 ax.set_xscale('log')
-                ax.set_xlim(1e7, 1e11)
+                ax.set_xlim(1e7, 7e11)
                 ax.set_ylabel(r'$\beta_{\mathrm{c94}}$')
                 ax.set_yticks(np.arange(-2.8, -0.8, 0.4))
                 ax.set_yticks(np.arange(-2.9, -1., 0.1), minor=True)
