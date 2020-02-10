@@ -21,14 +21,17 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
         source_Emax=54.4, source_toysps_beta=-3.5)
     
-    pars = ares.util.ParameterBundle('in_prep:base').pars_by_pop(0, 1)
+    pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars['pop_sed'] = 'sps-toy'
+    pars['pop_dust_yield'] = 0
     pars['pop_dlam'] = 1.
     pars['pop_thin_hist'] = 0
     pars['pop_scatter_mar'] = 0
     pars['pop_Tmin'] = None # So we don't have to read in HMF table for Mmin
     pars['pop_Mmin'] = 1e8
     pars['pop_synth_minimal'] = False
+    pars['tau_clumpy'] = None
+    pars['pop_sed_degrade'] = None
     
     # Prevent use of hmf table
     tarr = np.arange(50, 1000, 1.)[-1::-1]
@@ -106,7 +109,8 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     
     ok = beta != -99999
     
-    assert np.allclose(beta[ok==1], -2), "Not recovering beta=-2!"
+    assert np.allclose(beta[ok==1], -2), \
+        "Not recovering beta=-2! Mean={}".format(beta[ok==1].mean())
     
     ##
     # Test adaptive time-stepping in spectral synthesis.

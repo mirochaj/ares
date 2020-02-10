@@ -1,9 +1,9 @@
 import numpy as np
+from ares.physics.Constants import E_LyA, E_LL
 
 _base = \
 {
  'pop_sfr_model': 'ensemble', 
- 'pop_sed': 'eldridge2009',
  
  # SFE
  'pop_fstar': 'pq[0]',
@@ -12,8 +12,9 @@ _base = \
  'pq_func_var2[0]': '1+z',
  
  # NIRB
- 'tau_approx': False,
+ 'tau_approx': 'neutral',
  'tau_clumpy': 'madau1995',
+ 
  
  # DPL in Mh: same base parameters as M17
  'pq_func_par0[0]': 0.05 * 2 * (1e10 / 2.8e11)**0.49, # adjust peak-norm
@@ -28,6 +29,14 @@ _base = \
  'pq_func_par9[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
  
  # Spectral synthesis
+ 'pop_sed': 'eldridge2009',
+ 'pop_binaries': False,
+ 'pop_rad_yield': 'from_sed',
+ 'pop_Emin': E_LyA,
+ 'pop_Emax': 24.6,
+ 'pop_fesc': 0.2,
+ 
+  
  'pop_sed_degrade': 10,
  'pop_thin_hist': 10,
  'pop_aging': True,
@@ -55,6 +64,10 @@ _base = \
  # Add scatter to SFRs
  'pop_scatter_mar': 0.3,
  
+ # For reproducibility
+ 'pop_scatter_mar_seed': 01062020,
+ 'pop_dust_scatter_seed': 87112948,
+ 
  # Use cosmology consistent with Paul's simulations.
  "sigma_8": 0.8159, 
  'primordial_index': 0.9652, 
@@ -63,9 +76,6 @@ _base = \
  'hubble_0': 0.6726,
  'omega_l_0': 1. - 0.315579,
  
- # For reproducibility
- 'pop_scatter_mar_seed': 01062020,
- 'pop_dust_scatter_seed': 87112948,
 }
 
 _screen = \
@@ -148,11 +158,13 @@ _univ_best = \
 
 univ.update(_univ_best)
 
-univ_nodust = univ.copy()
-univ_nodust['pop_dust_yield'] = 0
-
 # Not yet implemented
 _univ_nodust_best = {}
+
+univ_nodust = univ.copy()
+univ_nodust['pop_dust_yield'] = None
+univ_nodust.update(_univ_nodust_best)
+
 
 _peak_best = \
 {
@@ -167,7 +179,7 @@ _peak_best = \
  'pq_func_par0[33]': 0.0503,
 }
 
-evo_peak = base.copy()
+evo_peak = univ.copy()
 evo_peak['pq_func[0]'] = 'dpl_evolNPS'
 evo_peak.update(_peak_best)
 evo_peak.update(_evol)
@@ -203,7 +215,7 @@ _fduty_best = \
  'pq_func_par0[33]': 0.0896,    
 }
 
-evo_duty = base.copy()
+evo_duty = univ.copy()
 evo_duty.update(_fduty)
 evo_duty.update(_fduty_best)
 evo_duty.update(_evol)
@@ -236,7 +248,7 @@ _dtmr_best = \
  'pq_func_par0[33]': 0.2331,    
 }
 
-evo_dtmr = base.copy()
+evo_dtmr = univ.copy()
 evo_dtmr.update(_dtmr)
 evo_dtmr.update(_dtmr_best)
 evo_dtmr.update(_evol)
