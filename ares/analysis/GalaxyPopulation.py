@@ -387,11 +387,13 @@ class GalaxyPopulation(object):
             if z_only is not None:
                 if zstr != z_only:
                     continue
+                
+            zint = round(z, 0)        
 
             if z in z_uvlf_flat:
                 
                 if num_uvlf_panels == 2:
-                    if z in z_uvlf[0]:
+                    if zint in z_uvlf[0]:
                         _ax = ax_uvlf
                         k = 0
                     else:
@@ -406,18 +408,18 @@ class GalaxyPopulation(object):
                     k = 0
                 
                 
-                _ax_ = self.PlotLF(z, ax=_ax, color=colors[z], mfc=colors[z],
-                    mec=colors[z], sources=sources, round_z=0.21, use_labels=0)
+                _ax_ = self.PlotLF(z, ax=_ax, color=colors[zint], mfc=colors[zint],
+                    mec=colors[zint], sources=sources, round_z=0.21, use_labels=0)
                 
                 if show_MUV and (not had_axes):
                     if zcal is not None and z in zcal:
-                        bbox = dict(facecolor='none', edgecolor=colors[z], fc='w',
+                        bbox = dict(facecolor='none', edgecolor=colors[zint], fc='w',
                             boxstyle='round,pad=0.3', alpha=1., zorder=1000)
                     else:
                         bbox = None    
                         
                     _ax.text(0.95, 0.3-0.1*ct_lf[k], r'$z \sim {}$'.format(z),  
-                        transform=_ax.transAxes, color=colors[z], 
+                        transform=_ax.transAxes, color=colors[zint], 
                         ha='right', va='top', bbox=bbox, fontsize=20)
                                             
                     #ax_uvlf.annotate(r'$z \sim {}$'.format(z), (0.95, 0.25-0.05*ct_lf), 
@@ -431,12 +433,12 @@ class GalaxyPopulation(object):
                     else:
                         _ax2 = ax_smf
                     
-                    _ax_ = self.PlotSMF(z, ax=_ax2, color=colors[z], mfc=colors[z],
-                        mec=colors[z], sources=sources, round_z=0.21, use_labels=0)
+                    _ax_ = self.PlotSMF(z, ax=_ax2, color=colors[zint], mfc=colors[zint],
+                        mec=colors[zint], sources=sources, round_z=0.21, use_labels=0)
                     
                     if not had_axes:
                         _ax2.annotate(r'$z \sim {}$'.format(z), (0.05, 0.3-0.1*ct_lf[k]), 
-                            xycoords='axes fraction', color=colors[z], 
+                            xycoords='axes fraction', color=colors[zint], 
                             ha='left', va='top', fontsize=20)
 
                 ct_lf[k] += 1
@@ -444,11 +446,11 @@ class GalaxyPopulation(object):
             if z not in z_beta:
                 continue
 
-            if z in b14.data['beta'] and show_MUV:
-                err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']
-                ax_cmd[j].errorbar(b14.data['beta'][z]['M'], b14.data['beta'][z]['beta'], 
+            if zint in b14.data['beta'] and show_MUV:
+                err = b14.data['beta'][zint]['err'] + b14.data['beta'][zint]['sys']
+                ax_cmd[j].errorbar(b14.data['beta'][zint]['M'], b14.data['beta'][zint]['beta'], 
                     yerr=err, 
-                    fmt='o', color=colors[z], label=r'Bouwens+ 2014' if j == 0 else None,
+                    fmt='o', color=colors[zint], label=r'Bouwens+ 2014' if j == 0 else None,
                     **mkw)
                                                 
             #if z in l11.data['beta']:
@@ -460,14 +462,14 @@ class GalaxyPopulation(object):
             if not had_axes:
                 
                 if zcal is not None and z in zcal:
-                    bbox= dict(facecolor='none', edgecolor=colors[z], fc='w',
+                    bbox= dict(facecolor='none', edgecolor=colors[zint], fc='w',
                         boxstyle='round,pad=0.3', alpha=1., zorder=1000)
                 else:
                     bbox = None    
                     
                 if show_MUV:
-                    ax_cmd[j].text(0.05, 0.05, r'$z \sim {}$'.format(z),  
-                        transform=ax_cmd[j].transAxes, color=colors[z], 
+                    ax_cmd[j].text(0.05, 0.05, r'$z \sim {}$'.format(zint),  
+                        transform=ax_cmd[j].transAxes, color=colors[zint], 
                         ha='left', va='bottom', bbox=bbox, fontsize=20)
                     
                 #ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
@@ -479,10 +481,10 @@ class GalaxyPopulation(object):
                 continue
                 
             if z in f12.data['beta']:    
-                err = f12.data['beta'][z]['err']
-                ax_cMs[j].errorbar(10**f12.data['beta'][z]['Ms'], 
-                    f12.data['beta'][z]['beta'], err.T[-1::-1],
-                    fmt='o', color=colors[z],
+                err = f12.data['beta'][zint]['err']
+                ax_cMs[j].errorbar(10**f12.data['beta'][zint]['Ms'], 
+                    f12.data['beta'][zint]['beta'], err.T[-1::-1],
+                    fmt='o', color=colors[zint],
                     label=r'Finkelstein+ 2012' if j == 0 else None,
                     **mkw)
                         
@@ -513,6 +515,8 @@ class GalaxyPopulation(object):
                 if z_only is not None:
                     if zstr != z_only:
                         continue
+                        
+                zint = round(z, 0)        
                 
                 if z in z_uvlf_flat:
                 
@@ -532,7 +536,7 @@ class GalaxyPopulation(object):
                         uvlf_by_pop[h][z] = phi
                         
                         if not fill:
-                            _ax.semilogy(mags, phi, color=colors[z],
+                            _ax.semilogy(mags, phi, color=colors[zint],
                                 label=label if j == 0 else None, **kwargs)
             
                     if show_Mstell:
@@ -547,7 +551,7 @@ class GalaxyPopulation(object):
                         
                         if not fill:
                             _ax2.semilogy(10**Ms, phi, 
-                                color=colors[z], 
+                                color=colors[zint], 
                                 label=label if j == 0 else None,**kwargs)    
                 
                 if z not in z_beta:
@@ -578,7 +582,7 @@ class GalaxyPopulation(object):
                 # Mask 
                 ok = np.logical_and(np.isfinite(beta), beta > -99999)
                 if not fill:
-                    ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors[z], **kwargs)
+                    ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors[zint], **kwargs)
                 
                 if show_Mstell:
                     
@@ -596,17 +600,17 @@ class GalaxyPopulation(object):
                     bc94_by_pop[h][z] = _b
                     
                     if not fill:
-                        ax_cMs[j].plot(10**_x, _b, color=colors[z], **kwargs)
+                        ax_cMs[j].plot(10**_x, _b, color=colors[zint], **kwargs)
                         
-                    ax_cMs[j].annotate(r'$z \sim {}$'.format(z), (0.05, 0.95), 
+                    ax_cMs[j].annotate(r'$z \sim {}$'.format(zint), (0.05, 0.95), 
                         ha='left', va='top', xycoords='axes fraction', 
-                        color=colors[z], fontsize=20)
+                        color=colors[zint], fontsize=20)
                     
                 if repeat_z and (j == 0) and (not fill):
                     for k in range(1, 4):
-                        ax_cmd[k].plot(mags_cr, beta, color=colors[z], **kwargs)
+                        ax_cmd[k].plot(mags_cr, beta, color=colors[zint], **kwargs)
                         if show_Mstell:
-                            ax_cMs[k].plot(10**Ms, _b, color=colors[z], **kwargs)
+                            ax_cMs[k].plot(10**Ms, _b, color=colors[zint], **kwargs)
         
         ##
         # Plot filled contours under certain conditions
@@ -637,7 +641,7 @@ class GalaxyPopulation(object):
                         
                     if show_Mstell:
                         ax_smf.fill_between(10**Ms, smf_by_pop[0][z], 
-                            smf_by_pop[1][z], color=colors[z], **kwargs)
+                            smf_by_pop[1][z], color=colors[zint], **kwargs)
                 
                 if z not in z_beta:
                     continue        
@@ -645,11 +649,11 @@ class GalaxyPopulation(object):
                 #ok = np.logical_and(np.isfinite(beta), beta > -99999)
                                                               
                 ax_cmd[j].fill_between(mags_cr, bphot_by_pop[0][z], 
-                    bphot_by_pop[1][z], color=colors[z], **kwargs)
+                    bphot_by_pop[1][z], color=colors[zint], **kwargs)
                     
                 if show_Mstell:    
                     ax_cMs[j].fill_between(10**Ms, bc94_by_pop[0][z], 
-                        bc94_by_pop[1][z], color=colors[z], **kwargs)
+                        bc94_by_pop[1][z], color=colors[zint], **kwargs)
                                             
         ##
         # Clean-up

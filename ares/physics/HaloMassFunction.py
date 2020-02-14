@@ -1215,7 +1215,7 @@ class HaloMassFunction(object):
                     if hasattr(self, '_tab_Mmin_floor'):
                         return self._tab_Mmin_floor
                         
-            self._tab_Mmin_floor = np.array(map(self._tegmark, self.tab_z))
+            self._tab_Mmin_floor = np.array([self._tegmark(z) for z in self.tab_z])
         return self._tab_Mmin_floor
             
     @tab_Mmin_floor.setter
@@ -1226,7 +1226,9 @@ class HaloMassFunction(object):
     @property        
     def Tegmark(self):
         if not hasattr(self, '_Tegmark'):
-            self._Tegmark = lambda z: np.interp(z, self.tab_z, self.tab_Mmin_floor)
+            def func(z):
+                return np.interp(z, self.tab_z, self.tab_Mmin_floor)
+            self._Tegmark = func
         return self._Tegmark
         
     def _tegmark(self, z):

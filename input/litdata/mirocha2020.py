@@ -78,6 +78,26 @@ _base = \
  
 }
 
+_legacy = _base.copy()
+_legacy['pop_sfr_model'] = 'sfe-func'
+_legacy['pop_scatter_mar'] = 0
+_legacy['pop_sed_degrade'] = None
+_legacy['pop_thin_hist'] =None
+_legacy['pop_aging'] = False
+_legacy['pop_ssp'] = False
+
+# NEEDS UPDATE
+_legacy_best = \
+{
+ 'pq_func_par0[0]': 0.05,
+ 'pq_func_par1[0]': 2.8e11,
+ 'pq_func_par2[0]': 0.49,  
+ 'pq_func_par3[0]': -0.61,   
+}
+
+legacy = _legacy.copy()
+legacy.update(_legacy_best)
+
 _screen = \
 {
  'pop_dust_yield': 0.4,
