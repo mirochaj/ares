@@ -82,7 +82,7 @@ _legacy = _base.copy()
 _legacy['pop_sfr_model'] = 'sfe-func'
 _legacy['pop_scatter_mar'] = 0
 _legacy['pop_sed_degrade'] = None
-_legacy['pop_thin_hist'] =None
+_legacy['pop_thin_hist'] = 1
 _legacy['pop_aging'] = False
 _legacy['pop_ssp'] = False
 
