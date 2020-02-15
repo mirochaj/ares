@@ -15,7 +15,6 @@ _base = \
  'tau_approx': 'neutral',
  'tau_clumpy': 'madau1995',
  
- 
  # DPL in Mh: same base parameters as M17
  'pq_func_par0[0]': 0.05 * 2 * (1e10 / 2.8e11)**0.49, # adjust peak-norm
  'pq_func_par1[0]': 2.8e11,

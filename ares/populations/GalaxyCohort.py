@@ -1009,7 +1009,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def is_uvlf_parametric(self):
         if not hasattr(self, '_is_uvlf_parametric'):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
-        return self._is_uvlf_parametric 
+        return self._is_uvlf_parametric
     
     def UVLF_M(self, MUV, z=None, wave=1600.):
         if self.is_uvlf_parametric:
@@ -1029,7 +1029,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Setup interpolant. x_phi is in descending, remember!
         interp = interp1d(x_phi[ok][-1::-1], np.log10(phi[ok][-1::-1]), 
             kind=self.pf['pop_interp_lf'],
-            bounds_error=False, fill_value=-np.inf)
+            bounds_error=False, fill_value=np.log10(tiny_phi))
 
         phi_of_x = 10**interp(MUV)
         
@@ -1046,7 +1046,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Setup interpolant
         interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), 
             kind=self.pf['pop_interp_lf'], 
-            bounds_error=False, fill_value=-np.inf)
+            bounds_error=False, fill_value=np.log10(tiny_phi))
     
         phi_of_x = 10**interp(np.log10(LUV))
         
@@ -1251,6 +1251,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             MAB = _MAB
 
         phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
+        
+        phi_of_M[phi_of_M==0] = 1e-15
 
         self._phi_of_M[z] = MAB[0:-1], phi_of_M
 

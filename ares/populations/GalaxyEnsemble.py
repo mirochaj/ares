@@ -1319,16 +1319,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Introduce some by-hand quenching.
         if self.pf['pop_quench'] is not None:
-            q = self.pf['pop_quench']
-            if type(q) == np.ndarray:
-                assert q.size == Nhalos, \
+            zreion = self.pf['pop_quench']
+            if type(zreion) == np.ndarray:
+                assert zreion.size == Nhalos, \
                     "Supplied array of reionization redshifts is the wrong size!"
                     
-                is_quenched = z2d < q[:,None]
-                
+                is_quenched = np.logical_and(z2d <= zreion[:,None], 
+                    Mh < self.pf['pop_Mmin'])
+                        
             else:    
-                is_quenched = q(z=z2d, Mh=Mh)
-
+                is_quenched = zreion(z=z2d, Mh=Mh)
+                
             # Print some quenched fraction vs. redshift to help debug?
             if self.pf['debug']:
                 k = np.argmin(np.abs(z - 10.))
@@ -1341,9 +1342,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             # Bye bye guys
             SFR *= np.logical_not(is_quenched)
-                        
-                        
-                        
+                                                
         ##          
         # Dust           
         ##
