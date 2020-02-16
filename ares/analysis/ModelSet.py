@@ -1394,6 +1394,9 @@ class ModelSet(BlobFactory):
         steps_per_walker = self.chain.shape[0] // nw
         nchunks = steps_per_walker // sf
         
+        if nchunks == 0:
+            raise ValueError("Looks like save_freq > steps per walker. For some reason this causes problems.")
+        
         # "size" of each chunk in # of MCMC steps
         schunk = nw * sf
         
@@ -1410,7 +1413,7 @@ class ModelSet(BlobFactory):
             
             if broken:
                 break        
-                                
+                  
         step = i * sf + (loc - mi)
                                                                 
         return num, step

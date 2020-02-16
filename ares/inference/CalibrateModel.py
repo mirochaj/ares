@@ -803,12 +803,11 @@ class CalibrateModel(object):
                 raise ValueError('Unrecognized option for `include_sfe`.')
         
             if self.include_fduty:
-                self._base_kwargs.update(PB('mirocha2020:fduty'))
+                self._base_kwargs.update(PB('mirocha2020:evo_duty'))
                 
             if self.include_fyield:
-                self._base_kwargs.update(PB('mirocha2020:fyield'))
+                self._base_kwargs.update(PB('mirocha2020:evo_dtmr'))
         
-            
             if self.fit_gs is None:
                 tmp = {}
                 for par in self._base_kwargs:
