@@ -64,7 +64,7 @@ _base = \
  'pop_scatter_mar': 0.3,
  
  # For reproducibility
- 'pop_scatter_mar_seed': 01062020,
+ 'pop_scatter_mar_seed': 10620202,
  'pop_dust_scatter_seed': 87112948,
  
  # Use cosmology consistent with Paul's simulations.
@@ -79,6 +79,7 @@ _base = \
 
 _legacy = _base.copy()
 _legacy['pop_sfr_model'] = 'sfe-func'
+_legacy['pop_dust_yield'] = None
 _legacy['pop_scatter_mar'] = 0
 _legacy['pop_sed_degrade'] = None
 _legacy['pop_thin_hist'] = 1

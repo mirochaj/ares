@@ -1093,7 +1093,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # updated from SAM.
             sfr = self.SFR(z) 
             
-            if self.pf['pop_dust_yield'] is not None:                
+            if self.pf['pop_dust_yield'] not in [None,0]:
                 L_sfr = self.src.L_per_sfr(wave)                                
                 Lh = L_sfr * sfr
                 

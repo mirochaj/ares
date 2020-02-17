@@ -13,7 +13,7 @@ info = \
  'fits': 'Table 6', 
 }
 
-redshifts = [3.8, 4.9, 5.9, 6.9, 7.9, 10.4]
+redshifts = np.array([3.8, 4.9, 5.9, 6.9, 7.9, 10.4])
 wavelength = 1600.
 
 color_selection = \
