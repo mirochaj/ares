@@ -168,8 +168,8 @@ class loglikelihood(LogLikelihood):
                     p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
                                                                                 
                     if not np.isfinite(p):
-                        print('LF is inf or nan!', zmod, M)
-                        raise ValueError('LF is inf or nan!', zmod, M)
+                        print('LF is inf or nan!', zmod, xdat)
+                        raise ValueError('LF is inf or nan!', zmod, xdat)
                                                                 
                 elif quantity == 'smf':
                     M = np.log10(xdat)
@@ -264,6 +264,16 @@ class FitGalaxyPopulation(FitBase):
             self.info
 
         return self._loglikelihood
+        
+    @property
+    def monotonic_beta(self):
+        if not hasattr(self, '_monotonic_beta'):
+            self._monotonic_beta = False
+        return self._monotonic_beta
+        
+    @monotonic_beta.setter
+    def monotonic_beta(self, value):
+        self._monotonic_beta = bool(value)
 
     @property
     def zmap(self):

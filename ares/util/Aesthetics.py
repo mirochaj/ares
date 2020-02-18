@@ -103,6 +103,8 @@ common = \
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'sfr': r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$',
+ 'logsfr': r'$\log_{10} \dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$',
  'emissivity': r'$\epsilon \ [\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3}]$',
  'nh': r'$n_h \ [\mathrm{cMpc}^{-3}]$',
  'extinction_redshift': r'$z_{\mathrm{ext}}$',

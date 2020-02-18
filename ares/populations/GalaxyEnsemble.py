@@ -43,6 +43,8 @@ try:
     have_pymp = True
 except ImportError:
     have_pymp = False
+    
+tiny_MAR = 1e-30    
            
 _linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
 _cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
@@ -309,7 +311,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             MAR_z = dM / dt
 
-            zeros = np.zeros((Mh_raw.shape[0], 1))
+            zeros = np.ones((Mh_raw.shape[0], 1)) * tiny_MAR
             # Follow ARES convention of forward differencing, so must pad MAR
             # array with zeros at the lowest redshift snapshot.
             mar_raw = np.hstack((zeros, MAR_z))
@@ -511,7 +513,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     value[key] = value[key][-1::-1]
                 else:    
                     value[key] = value[key][:,-1::-1]
-        
+                    
         self._histories = value
         
     def Trajectories(self):
@@ -1307,12 +1309,42 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_flag_sSFR'] is not None:
             sSFR = SFR / Ms
             
+        if self.pf['pop_Mmin'] is not None:
+            above_Mmin = Mh >= self.pf['pop_Mmin']
+        else:
+            above_Mmin = np.ones_like(Mh)
+            print('WARNING: help with Tmin!')
+            
+        # Bye bye guys
+        SFR *= above_Mmin
+            
         ##
         # Introduce some by-hand quenching.
         if self.pf['pop_quench'] is not None:
-            is_quenched = self.pf['pop_quench'](z=z2d, Mh=Mh)
-            SFR *= np.logical_not(is_quenched)
+            zreion = self.pf['pop_quench']
+            if type(zreion) == np.ndarray:
+                assert zreion.size == Nhalos, \
+                    "Supplied array of reionization redshifts is the wrong size!"
+                    
+                is_quenched = np.logical_and(z2d <= zreion[:,None], 
+                    Mh < self.pf['pop_Mmin'])
                         
+            else:    
+                is_quenched = zreion(z=z2d, Mh=Mh)
+                
+            # Print some quenched fraction vs. redshift to help debug?
+            if self.pf['debug']:
+                k = np.argmin(np.abs(z - 10.))
+                print('Quenched fraction at z=10:', 
+                    np.sum(is_quenched[:,k]) / float(Nhalos))
+                
+                k = np.argmin(np.abs(z - 7.))
+                print('Quenched fraction at z=7:', 
+                    np.sum(is_quenched[:,k]) / float(Nhalos))
+            
+            # Bye bye guys
+            SFR *= np.logical_not(is_quenched)
+                                                
         ##          
         # Dust           
         ##
@@ -1573,7 +1605,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
     def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
         iz = np.argmin(np.abs(z - self.histories['z']))
-        
+                
         _Ms = self.histories[field][:,iz]
         _Mh = self.histories['Mh'][:,iz]
         logMh = np.log10(_Mh)
@@ -1912,7 +1944,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return Mout
             
     def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True):
+        load=True, use_cache=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
         
@@ -1932,6 +1964,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         idnum : int
             If supplied, will only determine the luminosity for a single object
             (the one at this position in the array).
+        cache : bool
+            If False, don't save luminosities to cache. Needed sometimes to
+            conserve memory if, e.g., computing luminosity for a ton of 
+            wavelengths for many (millions) of halos.
         
         Returns
         -------
@@ -1945,9 +1981,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         raw = self.histories
         L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
-            extras=self.extras, idnum=idnum, window=window, load=load)
+            extras=self.extras, idnum=idnum, window=window, load=load,
+            use_cache=use_cache)
            
-        self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
+        if use_cache:
+            self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
            
         return L
             
@@ -1987,7 +2025,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         L = self.Luminosity(z, wave=wave, band=band, window=window)
         ##    
         
-        zarr = raw['z']         
+        zarr = raw['z']
         tarr = raw['t']
 
         # Need to be more careful here as nh can change when using
@@ -2498,10 +2536,26 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 f = h5py.File(fn_hist, 'r')
                 prefix = fn_hist.split('.hdf5')[0]
                 
+                if 'mask' in f:
+                    mask = np.array(f[('mask')])
+                else:
+                    mask = np.zeros_like(f[('Mh')])
+                
                 hist = {}
                 for key in f.keys():
-                    hist[key] = np.array(f[(key)])
-                                
+                    if key not in ['cosmology', 't', 'z', 'child']:
+                        #hist[key] = np.ma.array(f[(key)], mask=mask,
+                        #    fill_value=-np.inf)
+                        
+                        # Oddly, masking causes a weird issue with a huge
+                        # spike at log10(MAR) ~ 1.
+                        hist[key] = np.array(f[(key)]) * np.logical_not(mask)
+                        
+                        #else:
+                        #    hist[key] = np.ma.array(f[(key)], mask=mask)
+                    else:
+                        hist[key] = np.array(f[(key)])
+                            
                 zall = hist['z']
                 
                 f.close()

@@ -368,7 +368,6 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
         # Upper edge of bin
         hi = xbin_e[i+1]
 
-        
         if inclusive and i == 0:
             ok = x < hi
             ok = np.logical_and(ok, np.isfinite(y))

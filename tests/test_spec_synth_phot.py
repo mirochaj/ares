@@ -18,8 +18,9 @@ from ares.physics.Constants import flux_AB, cm_per_pc, s_per_myr
 
 def test(tol=0.25):
 
-    pars = ares.util.ParameterBundle('in_prep:base').pars_by_pop(0, 1)
+    pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars['pop_sed'] = 'sps-toy'
+    pars['pop_dust_yield'] = 0
     pars['pop_dlam'] = 1.
     pars['pop_Emin'] = 1.
     pars['pop_thin_hist'] = 0
@@ -27,6 +28,8 @@ def test(tol=0.25):
     pars['pop_Tmin'] = None # So we don't have to read in HMF table for Mmin
     pars['pop_Mmin'] = 1e8
     pars['pop_synth_minimal'] = False
+    pars['pop_sed_degrade'] = None
+    pars['tau_clumpy'] = None
     
     # Prevent use of hmf table
     tarr = np.arange(50, 2000, 1.)[-1::-1]
@@ -108,7 +111,7 @@ def test(tol=0.25):
             
         assert np.all(np.abs(np.diff(results)) < tol), \
             "Error in magnitudes! z={}".format(z)
-
+    
 
 if __name__ == '__main__':
     test()
