@@ -43,6 +43,8 @@ try:
     have_pymp = True
 except ImportError:
     have_pymp = False
+    
+tiny_MAR = 1e-30    
            
 _linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
 _cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
@@ -309,7 +311,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             MAR_z = dM / dt
 
-            zeros = np.zeros((Mh_raw.shape[0], 1))
+            zeros = np.ones((Mh_raw.shape[0], 1)) * tiny_MAR
             # Follow ARES convention of forward differencing, so must pad MAR
             # array with zeros at the lowest redshift snapshot.
             mar_raw = np.hstack((zeros, MAR_z))
@@ -511,7 +513,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     value[key] = value[key][-1::-1]
                 else:    
                     value[key] = value[key][:,-1::-1]
-        
+                    
         self._histories = value
         
     def Trajectories(self):
@@ -2023,7 +2025,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         L = self.Luminosity(z, wave=wave, band=band, window=window)
         ##    
         
-        zarr = raw['z']         
+        zarr = raw['z']
         tarr = raw['t']
 
         # Need to be more careful here as nh can change when using
@@ -2534,10 +2536,26 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 f = h5py.File(fn_hist, 'r')
                 prefix = fn_hist.split('.hdf5')[0]
                 
+                if 'mask' in f:
+                    mask = np.array(f[('mask')])
+                else:
+                    mask = np.zeros_like(f[('Mh')])
+                
                 hist = {}
                 for key in f.keys():
-                    hist[key] = np.array(f[(key)])
-                                
+                    if key not in ['cosmology', 't', 'z', 'child']:
+                        #hist[key] = np.ma.array(f[(key)], mask=mask,
+                        #    fill_value=-np.inf)
+                        
+                        # Oddly, masking causes a weird issue with a huge
+                        # spike at log10(MAR) ~ 1.
+                        hist[key] = np.array(f[(key)]) * np.logical_not(mask)
+                        
+                        #else:
+                        #    hist[key] = np.ma.array(f[(key)], mask=mask)
+                    else:
+                        hist[key] = np.array(f[(key)])
+                            
                 zall = hist['z']
                 
                 f.close()
