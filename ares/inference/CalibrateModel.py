@@ -271,7 +271,7 @@ class CalibrateModel(object):
             # Slope at high-mass side of peak        
             if 'slope-high' in self.free_params_sfe:
                 free_pars.append('pq_func_par3[0]{}'.format(_suff))
-                guesses['pq_func_par3[0]{}'.format(_suff)] = 0.
+                guesses['pq_func_par3[0]{}'.format(_suff)] = -0.5
                 is_log.extend([False])
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(-3., 0.3), 

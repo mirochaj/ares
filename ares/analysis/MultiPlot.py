@@ -519,13 +519,16 @@ class MultiPanel(object):
                        
             row_tmp = [row_ylim[k][0] * (1. + tighten_up * np.sign(row_ylim[k][0])),
                        row_ylim[k][1] * (1. - tighten_up * np.sign(row_ylim[k][1]))]
-            
-            self.grid[i].set_xlim(col_tmp)
+
+            # Kludge
+            if np.all(np.isfinite(col_tmp)):
+                self.grid[i].set_xlim(col_tmp)
             
             if self.diagonal and i in self.diag:
                 continue
 
-            self.grid[i].set_ylim(row_tmp)
+            if np.all(np.isfinite(row_tmp)):
+                self.grid[i].set_ylim(row_tmp)
 
         pl.draw()
 

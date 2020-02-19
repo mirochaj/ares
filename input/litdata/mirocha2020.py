@@ -16,7 +16,7 @@ _base = \
  'tau_clumpy': 'madau1995',
  
  # DPL in Mh: same base parameters as M17
- 'pq_func_par0[0]': 0.05 * 2 * (1e10 / 2.8e11)**0.49, # adjust peak-norm
+ 'pq_func_par0[0]': 0.03, # adjust peak-norm
  'pq_func_par1[0]': 2.8e11,
  'pq_func_par2[0]': 0.49,       
  'pq_func_par3[0]': -0.61,      
@@ -35,7 +35,6 @@ _base = \
  'pop_Emax': 24.6,
  'pop_fesc': 0.2,
  
-  
  'pop_sed_degrade': 10,
  'pop_thin_hist': 10,
  'pop_aging': True,
@@ -63,9 +62,10 @@ _base = \
  # Add scatter to SFRs
  'pop_scatter_mar': 0.3,
  
- # For reproducibility
+ # For reproducibility. 
  'pop_scatter_mar_seed': 10620202,
  'pop_dust_scatter_seed': 87112948,
+ 'pop_fduty_seed': 982323505,
  
  # Use cosmology consistent with Paul's simulations.
  "sigma_8": 0.8159, 
@@ -184,7 +184,6 @@ _univ_nodust_best = {}
 univ_nodust = univ.copy()
 univ_nodust['pop_dust_yield'] = None
 univ_nodust.update(_univ_nodust_best)
-
 
 _peak_best = \
 {

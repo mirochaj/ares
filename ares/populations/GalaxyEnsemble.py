@@ -1285,6 +1285,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if T_on is not None:
                 raise NotImplemented('help')
             else:
+                np.random.seed(self.pf['pop_fduty_seed'])
                 # Random numbers for all mass and redshift points
                 r = np.reshape(np.random.rand(Mh.size), Mh.shape)
                 

@@ -415,6 +415,7 @@ def PopulationParameters():
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": None,
+    "pop_fduty_seed": None,
     "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
                           # it's coherent.
     
