@@ -38,16 +38,18 @@ except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
 
-datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
-    'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
-    'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018')
-datasets_smf = ('song2016', 'tomczak2014', 'stefanon2017')
+datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019', 
+    'mclure2013', 'parsa2016', 'atek2015',  'alavi2016', 
+    'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018', 'oesch2013', 
+    'oesch2014', 'vanderburg2010')
+datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014')
 datasets_mzr = ('sanders2015',)
 
 groups_lf = \
 {
- 'dropouts': ('oesch2013', 'oesch2014', 'bouwens2015', 'parsa2016', 
-    'finkelstein2015', 'vanderburg2010', 'reddy2009', 'oesch2018'),
+ 'dropouts': ('parsa2016', 'bouwens2015',
+    'finkelstein2015', 'bowler2020','stefanon2019', 'mclure2013',
+    'vanderburg2010', 'reddy2009', 'oesch2018', 'oesch2013', 'oesch2014'),
  'lensing': ('alavi2016', 'atek2015', 'bouwens2017'),
  'local': ('weisz2014,'),
  'all': datasets_lf,
@@ -58,7 +60,7 @@ groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf,
     'smf_tot': groups_smf, 
     'mzr': {'all': datasets_mzr}}
 
-colors_cyc = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
+colors_cyc = ['m', 'c', 'r', 'g', 'b', 'y', 'orange', 'gray'] * 3
 markers = ['o', 's', 'p', 'h', 'D', 'd', '^', 'v', '<', '>'] * 3
     
 default_colors = {}
@@ -140,12 +142,14 @@ class GalaxyPopulation(object):
             
             if quantity in ['lf']:
                 data[source]['wavelength'] = src.wavelength            
-                        
+                                                        
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
                 data[source]['M'] = M.data
+                mask = M.mask
             else:
                 data[source]['M'] = np.array(M)
+                mask = np.zeros_like(data[source]['M'])
             
             if src.units[quantity] == 'log10':
                 err_lo = []; err_hi = []; uplims = []
@@ -183,7 +187,7 @@ class GalaxyPopulation(object):
             else:                
                 
                 if hasattr(src.data[quantity][z]['phi'], 'data'):
-                    data[source]['phi'] = src.data[quantity][z]['phi'].data
+                    data[source]['phi'] = src.data[quantity][z]['phi']#.data
                 else:
                     data[source]['phi'] = np.array(src.data[quantity][z]['phi'])
                 
@@ -208,8 +212,11 @@ class GalaxyPopulation(object):
                             
                         uplims.append(err < 0)    
                 
-                data[source]['ulim'] = uplims
-                data[source]['err'] = (err_lo, err_hi)
+                data[source]['ulim'] = np.array(uplims)
+                data[source]['err'] = np.array((err_lo, err_hi))
+            
+            data[source]['phi'] = np.ma.array(data[source]['phi'], mask=mask)  
+            data[source]['M'] = np.ma.array(data[source]['M'], mask=mask)
                 
         return data
                 
@@ -393,7 +400,7 @@ class GalaxyPopulation(object):
         ##
         # Plot data
         ##
-        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1}
                 
         ct_lf = np.zeros(num_uvlf_panels)
         ct_b = 0
@@ -404,7 +411,7 @@ class GalaxyPopulation(object):
                 if zstr != z_only:
                     continue
                 
-            zint = round(z, 0)        
+            zint = int(round(z, 0))
 
             if z in z_uvlf_flat:
                 
@@ -532,7 +539,7 @@ class GalaxyPopulation(object):
                     if zstr != z_only:
                         continue
                         
-                zint = round(z, 0)        
+                zint = int(round(z, 0))
                 
                 if z in z_uvlf_flat:
                 
@@ -766,7 +773,8 @@ class GalaxyPopulation(object):
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
         wave_lo=1300., wave_hi=2600., which_nircam='W', show_beta_spec=True,
         show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
-        magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', **kwargs):
+        magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
+        return_data=True, data=None, **kwargs):
         """
         Plot Beta(z) at fixed MUV and (optionally) Mstell.
         """
@@ -774,8 +782,8 @@ class GalaxyPopulation(object):
         if axes is None:
             fig = pl.figure(tight_layout=False, figsize=(8, 8), num=fig)
             fig.subplots_adjust(left=0.2)
-            gs = gridspec.GridSpec(2, 1+include_Mstell, hspace=0.2, 
-                wspace=0.4, figure=fig)
+            gs = gridspec.GridSpec(2, 1+include_Mstell, hspace=0.05, 
+                wspace=0.05, figure=fig)
 
             axB = fig.add_subplot(gs[0,0])
             axD = fig.add_subplot(gs[1,0])
@@ -872,9 +880,9 @@ class GalaxyPopulation(object):
         # samples later (parallelize, on cluster).
         ##
         _colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
-        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}    
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 1}    
             
-        pb = ProgressBar(zarr.size, name='beta(z)')    
+        pb = ProgressBar(zarr.size, name='beta(z)')
         pb.start()
             
         B195_hst       = -99999 * np.ones((len(zarr), len(MUV)))
@@ -890,6 +898,9 @@ class GalaxyPopulation(object):
         BMstell        = -99999 * np.ones((len(zarr), len(Ms_b)))
         dBMstell       = -99999 * np.ones((len(zarr), len(Ms_b)))
         for j, z in enumerate(zarr):
+            
+            if data is not None:
+                break
             
             t1 = time.time()
             print("Colors at z={}...".format(z))
@@ -983,22 +994,6 @@ class GalaxyPopulation(object):
                     _yy = beta[_i195-1:_i195+2]
                     
                     if not np.any(np.isfinite(_yy)):
-                        #if k == 0:
-                        #    B195_spec.append(-99999)
-                        #    dBdM195_spec.append(-99999)
-                        #elif k == 1:
-                        #    B195_hst.append(-99999)
-                        #    dBdM195_hst.append(-99999)
-                        #elif k == 2:
-                        #    B195_jwst.append(-99999)   
-                        #    dBdM195_jwst.append(-99999) 
-                        #elif k == 3:
-                        #    B195_M.append(-99999)   
-                        #    dBdM195_M.append(-99999)    
-                        #else:
-                        #    B195_spec_2.append(-99999)   
-                        #    dBdM195_spec_2.append(-99999)
-                    
                         continue
                     
                     func = lambda xx, p0, p1: p0 + p1 * xx
@@ -1029,7 +1024,11 @@ class GalaxyPopulation(object):
             
             print(t2 - t1)
                        
-        pb.finish()                
+        pb.finish()      
+        
+        if data is not None:
+            B195_spec, B195_hst, B195_jwst, B195_M, dBdM195_spec, dBdM195_hst, \
+                dBdM195_jwst, dBdM195_M = data#, BMstell, dBMstell = data         
                     
         ##
         # Finish up and plot.
@@ -1120,37 +1119,55 @@ class GalaxyPopulation(object):
         axD.set_yticks(np.arange(-0.1, 0.6, 0.1), minor=True)
         axB.legend(loc='lower left', frameon=True, fontsize=8,
             handlelength=2, ncol=2)
-        
+        axB.set_ylim(-2.8, -1.4)   
+        axB.set_xticklabels([]) 
+            
         if include_Mstell:
             axB2.set_ylim(-3.05, -1.3)
             axB2.set_xlim(3.5, zarr.max()+0.5)
             axD2.set_xlim(3.5, zarr.max()+0.5)
             axD2.set_ylim(-0.1, 0.5)
-            axB2.yaxis.set_ticks_position('both')
-            axD2.yaxis.set_ticks_position('both')
             axB2.set_yticks(np.arange(-3, -1.3, 0.1), minor=True)
             axD2.set_yticks(np.arange(-0.1, 0.6, 0.1), minor=True) 
             #axB2.legend(loc='lower left', frameon=True, fontsize=8,
             #    handlelength=2, ncol=1)
             if axes is None:
-                axB2.set_ylabel(r'$\beta_{\ast}$')
-                axD2.set_ylabel(r'$d\beta_{\ast}/dlog_{10}M_{\ast}$')
+                axB2.set_ylabel(r'$\beta_{\mathrm{c94}}$')
+                axD2.set_ylabel(r'$d\beta_{\mathrm{c94}}/dlog_{10}M_{\ast}$')
                 axD2.set_xlabel(r'$z$')
-                axB2.set_xlabel(r'$z$')
+                #axB2.set_xlabel(r'$z$')
+                axB2.set_xticklabels([])
+                axB2.yaxis.tick_right()
+                axD2.yaxis.tick_right()
+                axB2.yaxis.set_ticks_position('both')
+                axD2.yaxis.set_ticks_position('both')
+                axB2.yaxis.set_label_position("right")
+                axD2.yaxis.set_label_position("right")
+                axB2.set_ylim(-2.8, -1.4)
+                
+
+        
 
         if axes is None:
-            axB.set_ylabel(r'$\beta$')
+            axB.set_ylabel(r'$\beta_{\mathrm{phot}}$')
             axD.set_ylabel(r'$-d\beta/dM_{\mathrm{UV}}$')
             axD.set_xlabel(r'$z$')
-            axB.set_xlabel(r'$z$')
+            #axB.set_xlabel(r'$z$')
         
-        for ax in [axB, axD, axB2, axD2]:
-            if ax is None:
-                continue
-            ax.yaxis.set_label_coords(-0.1-0.08*include_Mstell, 0.5)
-            ax.yaxis.set_label_coords(-0.1-0.08*include_Mstell, 0.5)
+        #for ax in [axB, axD, axB2, axD2]:
+        #    if ax is None:
+        #        continue
+        #    ax.yaxis.set_label_coords(-0.1-0.08*include_Mstell, 0.5)
+        #    ax.yaxis.set_label_coords(-0.1-0.08*include_Mstell, 0.5)
+            
+        if return_data:
+            data = (B195_spec, B195_hst, B195_jwst, B195_M, 
+                dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M)
+            return (axB, axD, axB2, axD2), data    
+        else:
+            data = None        
         
-        return axB, axD, axB2, axD2
+            return axB, axD, axB2, axD2
         
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
@@ -1201,12 +1218,12 @@ class GalaxyPopulation(object):
             if source not in data:
                 continue                             
                                         
-            M = np.array(data[source]['M'])
-            phi = np.array(data[source]['phi'])
-            err = np.array(data[source]['err'])
-            ulim = np.array(data[source]['ulim'])
+            M = data[source]['M']
+            phi = data[source]['phi']
+            err = data[source]['err']
+            ulim = data[source]['ulim']
 
-            kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 'mew': 2, 
+            kw = {'fmt':'o', 'ms':4, 'elinewidth':2, 'mew': 2, 
                 'mec':default_colors[source],
                 'fmt': default_markers[source],
                 'color':default_colors[source], 'capthick':2}
@@ -1233,12 +1250,12 @@ class GalaxyPopulation(object):
                     print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
                         source, data[source]['wavelength'], wavelength))
             #else:
-            if source in ['stefanon2017']:
+            if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25
-                print("Shifting stefanon stellar masses by 0.25 dex (Chabrier -> Salpeter)")
+                print("Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
             else:    
                 shift = 0.    
-                          
+                                                    
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **kw)
 
@@ -1782,8 +1799,9 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('fstar', ivar=[z, None], ax=ax_sfe,
                 color=colors[j], **kwargs)    
         
-            anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
-                color=colors[j], is_logx=True, **kwargs)
+            if 'galaxy_smf' in anl.all_blob_names:
+                anl.ReconstructedFunction('galaxy_smf', ivar=[z, None], ax=ax_smf,
+                    color=colors[j], is_logx=True, **kwargs)
             
             #if 'MUV_gm' in anl.all_blob_namess:
             #    _z, _MUV = anl.get_ivars('MUV_gm')
