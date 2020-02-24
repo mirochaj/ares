@@ -297,7 +297,7 @@ class CalibrateModel(object):
                 is_log.extend([False, False])
                 jitter.extend([0.1, 0.1])
                 ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[40]')
-                ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par2[40]')
+                ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[40]')
                 
                 if self.zevol_fduty:
                     free_pars.append('pq_func_par4[40]')
@@ -333,7 +333,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par2[22]'] = 0.45
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-0.2, 2.), 'pq_func_par2[22]')
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
 
                     if self.include_dust in ['screen-dpl', 'patchy']:
                         free_pars.append('pq_func_par3[22]')

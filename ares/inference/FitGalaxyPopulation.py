@@ -204,35 +204,42 @@ class loglikelihood(LogLikelihood):
         ## 
         # Apply restrictions to beta    
         if self.monotonic_beta:
+                                    
+            if type(self.monotonic_beta) in [int, float, np.float64]:
+                Mlim = self.monotonic_beta
+            else:    
         
-            # Don't let beta turn-over in the range of magnitudes that
-            # overlap with UVLF constraints, or 2 extra mags if no UVLF fitting
-            # happening (rare). 
-            
-            xmod = []
-            ymod = []
-            xlf = []
-            for i, quantity in enumerate(self.metadata):
-                if quantity == 'lf':
-                    xlf.append(self.xdata[i])
-
-                if quantity != 'beta':
-                    continue
-                    
-                xmod.append(self.xdata[i])
-                ymod.append(phi[i])
+                # Don't let beta turn-over in the range of magnitudes that
+                # overlap with UVLF constraints, or 2 extra mags if no UVLF fitting
+                # happening (rare). 
                 
-            i_lo = np.argmin(xmod)
-            M_lo = xmod[i_lo]
-            b_lo = ymod[i_lo]
+                xmod = []
+                ymod = []
+                xlf = []
+                for i, quantity in enumerate(self.metadata):
+                    if quantity == 'lf':
+                        xlf.append(self.xdata[i])
+                
+                    if quantity != 'beta':
+                        continue
+                        
+                    xmod.append(self.xdata[i])
+                    ymod.append(phi[i])
+                    
+                i_lo = np.argmin(xmod)
+                M_lo = xmod[i_lo]
+                b_lo = ymod[i_lo]
+                
+                if 'lf' in self.metadata:
+                    Mlim = np.nanmin(xlf) - 1.
+                else:
+                    Mlim = M_lo - 2.    
             
-            if 'lf' in self.metadata:
-                M_lf = np.min(xlf)
-            else:
-                M_lf = M_lo - 2.    
-            
-            b_hi = pop.Beta(zmod, MUV=M_lf, presets='hst', dlam=20., 
+            b_hi = pop.Beta(zmod, MUV=Mlim, presets='hst', dlam=20., 
                 return_binned=True, rest_wave=None)
+                
+            if not (np.isfinite(Mlim) or np.isfinite(b_hi)):
+                raise ValueError("")
                 
             if b_hi < b_lo:
                 print('beta is not monotonic!', b_hi, b_lo)

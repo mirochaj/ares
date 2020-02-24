@@ -880,7 +880,7 @@ class GalaxyPopulation(object):
         # samples later (parallelize, on cluster).
         ##
         _colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
-        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 1}    
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1}    
             
         pb = ProgressBar(zarr.size, name='beta(z)')
         pb.start()
@@ -1999,7 +1999,7 @@ class GalaxyPopulation(object):
             redshifts = [4, 6, 8, 10]
             
         colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
-        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1}
 
         # UVLF and Beta
         for j, z in enumerate(redshifts):
@@ -2141,7 +2141,7 @@ class GalaxyPopulation(object):
         ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 0.5, 'capsize': 4}
+        mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1}
         
         if redshifts is None:
             redshifts = [4, 6, 8, 10]

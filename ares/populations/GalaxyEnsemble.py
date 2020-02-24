@@ -1979,11 +1979,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_L((z, wave, band, idnum, window))
         if load and (cached_result is not None):
             return cached_result
+            
+        if band is not None:
+            assert self.pf['pop_dust_yield'] in [0, None], \
+                "Going to get weird answers for L(band != None) if dust is ON."
         
         raw = self.histories
         L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
             extras=self.extras, idnum=idnum, window=window, load=load,
-            use_cache=use_cache)
+            use_cache=use_cache, band=band)
            
         if use_cache:
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()

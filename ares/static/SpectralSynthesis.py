@@ -21,9 +21,8 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from ..physics.Cosmology import Cosmology
 from scipy.interpolate import RectBivariateSpline
-from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev
+from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB
 
-flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
 try: 
@@ -1086,8 +1085,16 @@ class SpectralSynthesis(object):
         
         # Is this luminosity in some bandpass or monochromatic?
         if band is not None:
-            Loft = self.src.IntegratedEmission(band[0], band[1], 
+            # Will have been supplied in Angstroms
+            b = h_p * c / (np.array(band) * 1e-8) / erg_per_ev
+            
+            Loft = self.src.IntegratedEmission(b[1], b[0], 
                 energy_units=True)
+            
+            # Need to get Hz^-1 units back
+            db = b[0] - b[1]
+            Loft = Loft / (db * erg_per_ev / h_p)
+                                    
             #raise NotImplemented('help!')
         else:
             Loft = self.src.L_per_SFR_of_t(wave=wave, avg=window)
