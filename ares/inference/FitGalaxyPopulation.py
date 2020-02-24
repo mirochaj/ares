@@ -239,7 +239,7 @@ class loglikelihood(LogLikelihood):
                 return_binned=True, rest_wave=None)
                 
             if not (np.isfinite(Mlim) or np.isfinite(b_hi)):
-                raise ValueError("")
+                raise ValueError("Mlim={}, beta_hi={}".format(Mlim, b_hi))
                 
             if b_hi < b_lo:
                 print('beta is not monotonic!', b_hi, b_lo)

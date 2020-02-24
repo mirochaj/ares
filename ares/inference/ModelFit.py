@@ -864,12 +864,13 @@ class ModelFit(FitBase):
             not_ok = np.logical_or(not_ok_hi, not_ok_lo)
             
             bad_mask = np.argwhere(not_ok)
+            ok = np.logical_not(not_ok)
             
             for j in bad_mask:
                 print("Fixing position of walker {0} (parameter {1!s})".format(
                     j[0], par))
-                new = self.prior_set_P.draw()[par]
-                print("Moved from {} to {}".format(guesses[j,i], new))    
+                new = np.random.choice(guesses[ok==1,i])
+                print("Moved from {} to {}".format(guesses[j,i][0], new))    
                 guesses[j[0],i] = new
         
         return guesses
