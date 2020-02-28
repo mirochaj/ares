@@ -1206,7 +1206,7 @@ class ModelFit(FitBase):
         # the distribution.
         j = 0
         ok = False
-        while (not ok):
+        while (not ok) and (j < len(ilogL) - 2):
             for i in range(chain.shape[1]):
                 pdf, _bins = np.histogram(chain[:,i], bins=100)
             
@@ -1224,8 +1224,15 @@ class ModelFit(FitBase):
         
             if not ok:        
                 j += 1
-                
+                                
             mlpt = chain[ilogL[j]]
+            
+        # If we got to the end of the chain without finding a point
+        # in the bulk of the distribution, just revert to the max
+        # likelihood pt. This usually only happens during testing
+        # when we have very few samples to work with.
+        if j == (len(logL) - 1):
+            mlpt = chain[np.argmax(logL)]
         
         # Add the systematic difference between the PDF and best fit?
         syst = abs(chain[np.argmax(logL)] - mlpt) * 0.5
