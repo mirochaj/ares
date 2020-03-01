@@ -347,7 +347,7 @@ class SpectralSynthesis(object):
             logy = np.log10(y)
             
             A = np.vstack([logx, np.ones(len(logx))]).T
-            
+                        
             if batch_mode:
                 N = y.shape[1]
                 
