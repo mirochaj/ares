@@ -42,7 +42,7 @@ except:
 datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019', 
     'mclure2013', 'parsa2016', 'atek2015',  'alavi2016', 
     'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018', 'oesch2013', 
-    'oesch2014', 'vanderburg2010')
+    'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020')
 datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014')
 datasets_mzr = ('sanders2015',)
 
@@ -50,7 +50,8 @@ groups_lf = \
 {
  'dropouts': ('parsa2016', 'bouwens2015',
     'finkelstein2015', 'bowler2020','stefanon2019', 'mclure2013',
-    'vanderburg2010', 'reddy2009', 'oesch2018', 'oesch2013', 'oesch2014'),
+    'vanderburg2010', 'reddy2009', 'oesch2018', 'oesch2013', 'oesch2014',
+    'morishita2018', 'rojasruiz2020'),
  'lensing': ('alavi2016', 'atek2015', 'bouwens2017'),
  'local': ('weisz2014,'),
  'all': datasets_lf,
@@ -140,6 +141,9 @@ class GalaxyPopulation(object):
                 continue    
                 
             data[source] = {}
+            
+            if 'label' in src.info:
+                data[source]['label'] = src.info['label']
             
             if quantity in ['lf']:
                 data[source]['wavelength'] = src.wavelength            
@@ -433,7 +437,8 @@ class GalaxyPopulation(object):
                 
                 
                 _ax_ = self.PlotLF(z, ax=_ax, color=colors(zint), mfc=colors(zint),
-                    mec=colors(zint), sources=sources, round_z=0.21, use_labels=0)
+                    mec=colors(zint), sources=sources, round_z=0.21, 
+                    use_labels=0)
                 
                 if show_MUV and (not had_axes):
                     if zcal is not None and z in zcal:
@@ -474,7 +479,7 @@ class GalaxyPopulation(object):
                 err = b14.data['beta'][zint]['err'] + b14.data['beta'][zint]['sys']
                 ax_cmd[j].errorbar(b14.data['beta'][zint]['M'], b14.data['beta'][zint]['beta'], 
                     yerr=err, 
-                    fmt='o', color=colors(zint), label=r'Bouwens+ 2014' if j == 0 else None,
+                    fmt='o', color=colors(zint), label=b14.info['label'] if j == 0 else None,
                     **mkw)
                                                 
             #if z in l11.data['beta']:
@@ -509,7 +514,7 @@ class GalaxyPopulation(object):
                 ax_cMs[j].errorbar(10**f12.data['beta'][zint]['Ms'], 
                     f12.data['beta'][zint]['beta'], err.T[-1::-1],
                     fmt='o', color=colors(zint),
-                    label=r'Finkelstein+ 2012' if j == 0 else None,
+                    label=f12.info['label'] if j == 0 else None,
                     **mkw)
                         
         ##
@@ -1231,21 +1236,24 @@ class GalaxyPopulation(object):
             phi = data[source]['phi']
             err = data[source]['err']
             ulim = data[source]['ulim']
-
-            kw = {'fmt':'o', 'ms':4, 'elinewidth':2, 'mew': 2, 
+            
+            mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1,
                 'mec':default_colors[source],
                 'fmt': default_markers[source],
-                'color':default_colors[source], 'capthick':2}
-            
+                'color':default_colors[source]}
+
             if not use_labels:
                 label = None
             elif ('label' not in kwargs):
-                label = source
+                if 'label' in data[source]:
+                    label = data[source]['label']
+                else:
+                    label = source
             else:
                 label = kwargs['label']
             
-            kw['label'] = label
-            kw.update(kwargs)
+            mkw['label'] = label
+            mkw.update(kwargs)
                 
             if AUV is not None:
                 dc = AUV(z, np.array(M))
@@ -1266,7 +1274,7 @@ class GalaxyPopulation(object):
                 shift = 0.    
                                                     
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
-                **kw)
+                **mkw)
 
         if quantity == 'lf' and ((not gotax) or force_labels):
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)

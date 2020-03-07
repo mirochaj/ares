@@ -89,10 +89,10 @@ _legacy['pop_ssp'] = False
 # NEEDS UPDATE
 _legacy_best = \
 {
- 'pq_func_par0[0]': 0.05,
- 'pq_func_par1[0]': 2.8e11,
- 'pq_func_par2[0]': 0.49,  
- 'pq_func_par3[0]': -0.61,   
+ "pq_func_par0[0]": 0.0212164143778,
+ "pq_func_par1[0]": 1.53251065358e+11,
+ "pq_func_par2[0]": 0.62472798893,
+ "pq_func_par3[0]": -0.505353685155,
 }
 
 legacy = _legacy.copy()
@@ -101,6 +101,16 @@ legacy.update(_legacy_best)
 legacy_irxb = legacy.copy()
 legacy_irxb['dustcorr_method'] = 'meurer1999'
 legacy_irxb['dustcorr_beta'] = 'bouwens2014'
+
+_legacy_irxb_best = \
+{
+ "pq_func_par0[0]": 0.0132638378597,
+ "pq_func_par1[0]": 1.56678321186e+11,
+ "pq_func_par2[0]": 1.15512990164,
+ "pq_func_par3[0]": -0.203660179418,
+}
+
+legacy_irxb.update(_legacy_irxb_best)
 
 _screen = \
 {
@@ -155,11 +165,19 @@ plrd.update(_screen)
 
 # Just energy-regulated model for now with dust scale length going
 # like the virial radius.
-_evol = \
+_evol_ereg = \
 {
-'pq_func_par2[0]': 0.666,
+'pq_func_par2[0]': 0.66666,
 'pq_func_par6[0]': 1.0,
-'pq_func_par2[22]': 0.33,
+'pq_func_par2[22]': 0.33333,
+'pq_func_par4[33]': -1.,
+}
+
+_evol_mreg = \
+{
+'pq_func_par2[0]': 0.33333,
+'pq_func_par6[0]': 0.5,
+'pq_func_par2[22]': 0.33333,
 'pq_func_par4[33]': -1.,
 }
 
@@ -169,15 +187,15 @@ univ.update(_screen_dpl)
 
 _univ_best = \
 {
- 'pq_func_par0[0]': 0.0303,
- 'pq_func_par1[0]': 289049667789.4576,
- 'pq_func_par2[0]': 0.6627,
- 'pq_func_par3[0]': -0.5206,
- 'pq_func_par0[22]': 0.9626,
- 'pq_func_par2[22]': 0.6884,
- 'pq_func_par3[22]': 0.1365,
- 'pq_func_par1[22]': 735886684008.5193,
- 'pq_func_par0[33]': 0.0856,    
+ "pq_func_par0[0]": 0.034246583808,
+ "pq_func_par1[0]": 3.12550045089e+11,
+ "pq_func_par2[0]": 0.669152766422,
+ "pq_func_par3[0]": -0.522155223676,
+ "pq_func_par0[22]": 0.737193500696,
+ "pq_func_par2[22]": 0.955286059788,
+ "pq_func_par3[22]": 0.328688130603,
+ "pq_func_par1[22]": 60700098134.7,
+ "pq_func_par0[33]": 0.0561104319417,
 }
 
 univ.update(_univ_best)
@@ -191,21 +209,25 @@ univ_nodust.update(_univ_nodust_best)
 
 _peak_best = \
 {
- 'pq_func_par0[0]': 0.0285,
- 'pq_func_par1[0]': 183781388072.8878,
- 'pq_func_par7[0]': -4.9649,
- 'pq_func_par3[0]': 0.0286,
- 'pq_func_par9[0]': -1.1267,
- 'pq_func_par0[22]': 1.5598,
- 'pq_func_par3[22]': 0.5158,
- 'pq_func_par1[22]': 38397972076.8372,
- 'pq_func_par0[33]': 0.0503,
+ "pq_func_par0[0]": 0.0248695915993,
+ "pq_func_par1[0]": 4.90587733667e+11,
+ "pq_func_par7[0]": -0.0569331018797,
+ "pq_func_par3[0]": -1.12413838053,
+ "pq_func_par9[0]": 0.180419416177,
+ "pq_func_par0[22]": 1.01045060124,
+ "pq_func_par2[22]": 0.68365346273,
+ "pq_func_par3[22]": 0.300420364685,
+ "pq_func_par1[22]": 6.2296335743e+11,
+ "pq_func_par0[33]": 0.110077637149,
 }
 
-evo_peak = univ.copy()
-evo_peak['pq_func[0]'] = 'dpl_evolNPS'
-evo_peak.update(_peak_best)
-evo_peak.update(_evol)
+ereg_epeak = univ.copy()
+ereg_epeak['pq_func[0]'] = 'dpl_evolNPS'
+ereg_epeak.update(_peak_best)
+ereg_epeak.update(_evol_ereg)
+
+mreg_epeak = ereg_epeak.copy()
+mreg_epeak.update(_evol_mreg)
 
 # Only difference between `univ` and `evol` models is through
 # changes to evolution parameters.
@@ -226,22 +248,27 @@ _fduty = \
 
 _fduty_best = \
 {
- 'pq_func_par0[0]': 0.0236,
- 'pq_func_par1[0]': 413760555599.5621,
- 'pq_func_par3[0]': -0.9839,
- 'pq_func_par0[40]': 0.9067,
- 'pq_func_par2[40]': 0.0133,
- 'pq_func_par4[40]': -0.4039,
- 'pq_func_par0[22]': 1.0544,
- 'pq_func_par3[22]': 0.6609,
- 'pq_func_par1[22]': 516887256852.3492,
- 'pq_func_par0[33]': 0.0896,    
+ "pq_func_par0[0]": 0.0255141297829,
+ "pq_func_par1[0]": 4.06615553432e+11,
+ "pq_func_par3[0]": -0.791000907754,
+ "pq_func_par0[40]": 0.826491313083,
+ "pq_func_par2[40]": 0.492503004257,
+ "pq_func_par4[40]": -0.0294978445953,
+ "pq_func_par0[22]": 0.898270573333,
+ "pq_func_par2[22]": 0.700416744489,
+ "pq_func_par3[22]": 0.0906373682257,
+ "pq_func_par1[22]": 1.0445802287e+12,
+ "pq_func_par0[33]": 0.125370496993,
 }
 
-evo_duty = univ.copy()
-evo_duty.update(_fduty)
-evo_duty.update(_fduty_best)
-evo_duty.update(_evol)
+
+ereg_eduty = univ.copy()
+ereg_eduty.update(_fduty)
+ereg_eduty.update(_fduty_best)
+ereg_eduty.update(_evol_ereg)
+
+mreg_eduty = ereg_eduty.copy()
+mreg_eduty.update(_evol_mreg)
 
 _dtmr = \
 {
@@ -259,22 +286,40 @@ _dtmr = \
 
 _dtmr_best = \
 {
- 'pq_func_par0[0]': 0.0224,
- 'pq_func_par1[0]': 577933312045.8309,
- 'pq_func_par3[0]': -0.8118,
- 'pq_func_par0[22]': 1.9526,
- 'pq_func_par3[22]': 0.6356,
- 'pq_func_par1[22]': 103593129846.6359,
- 'pq_func_par0[50]': 0.5278,
- 'pq_func_par2[50]': 0.1777,
- 'pq_func_par4[50]': 1.4848,
- 'pq_func_par0[33]': 0.2331,    
+ "pq_func_par0[0]": 0.0270948826563,
+ "pq_func_par1[0]": 4.34144238121e+11,
+ "pq_func_par3[0]": -0.929436652888,
+ "pq_func_par0[22]": 1.16510135547,
+ "pq_func_par2[22]": 0.672887955656,
+ "pq_func_par3[22]": 0.192258001389,
+ "pq_func_par1[22]": 3.80649012601e+11,
+ "pq_func_par0[50]": 0.278584104596,
+ "pq_func_par2[50]": -0.085758644535,
+ "pq_func_par4[50]": 0.751410876772,
+ "pq_func_par0[33]": 0.181775151977,
 }
 
-evo_dtmr = univ.copy()
-evo_dtmr.update(_dtmr)
-evo_dtmr.update(_dtmr_best)
-evo_dtmr.update(_evol)
+ereg_edtmr = univ.copy()
+ereg_edtmr.update(_dtmr)
+ereg_edtmr.update(_dtmr_best)
+ereg_edtmr.update(_evol_ereg)
+
+mreg_edtmr = ereg_edtmr.copy()
+mreg_edtmr.update(_evol_mreg)
+
+ereg_epeak_plRd = ereg_epeak.copy()
+ereg_eduty_plRd = ereg_eduty.copy()
+ereg_edtmr_plRd = ereg_edtmr.copy()
+mreg_epeak_plRd = mreg_epeak.copy()
+mreg_eduty_plRd = mreg_eduty.copy()
+mreg_edtmr_plRd = mreg_edtmr.copy()
+
+ereg_epeak_plRd.update(_screen)
+ereg_eduty_plRd.update(_screen)
+ereg_edtmr_plRd.update(_screen)
+mreg_epeak_plRd.update(_screen)
+mreg_eduty_plRd.update(_screen)
+mreg_edtmr_plRd.update(_screen)
 
 # These parameters are designed to reproduce Park et al. (2019) src model
 smhm = \

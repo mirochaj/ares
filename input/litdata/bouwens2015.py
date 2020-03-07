@@ -11,6 +11,7 @@ info = \
  'reference': 'Bouwens et al., 2015, ApJ, 803, 34',
  'data': 'Table 5', 
  'fits': 'Table 6', 
+ 'label': 'Bouwens+ (2015)',
 }
 
 redshifts = np.array([3.8, 4.9, 5.9, 6.9, 7.9, 10.4])

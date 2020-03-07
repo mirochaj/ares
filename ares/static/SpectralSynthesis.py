@@ -694,11 +694,18 @@ class SpectralSynthesis(object):
         shape.append(len(waves))
         
         # Do kappa up front?
-        
+                
         ##
         # Can thread this calculation
         ##
         if (self.pf['nthreads'] is not None) and have_pymp:
+            
+            pymp.config.num_threads = self.pf['nthreads']
+            
+            if self.pf['verbose']:
+                print("Setting nthreads={} for spectral synthesis.".format(
+                        self.pf['nthreads']))
+            
             spec = pymp.shared.array(shape, dtype='float64')
             with pymp.Parallel(self.pf['nthreads']) as p:
                 for i in p.range(0, waves.size):
@@ -725,10 +732,10 @@ class SpectralSynthesis(object):
             #tmp = np.abs(np.diff(waves) / np.diff(freqs))
             #dwdn = np.concatenate((tmp, [tmp[-1]]))
             dwdn = waves**2 / (c * 1e8)
-            spec /= dwdn    
-        
+            spec /= dwdn
+
         return spec
-        
+
     def Magnitude(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
         

@@ -10,6 +10,7 @@ info = \
 {
  'reference': 'Morishita et al., 2018, MNRAS',
  'data': 'Table 3', 
+ 'label': 'Morishita+ (2018)',
 }
 
 redshifts = np.array([9., 10.])

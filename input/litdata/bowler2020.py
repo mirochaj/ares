@@ -11,6 +11,7 @@ info = \
  'reference': 'Bowler et al., 2020, MNRAS',
  'data': 'Table 6', 
  'fits': 'Table 7', 
+ 'label': 'Bowler+ (2020)',
 }
 
 redshifts = np.array([8., 9.])

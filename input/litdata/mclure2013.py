@@ -11,6 +11,7 @@ info = \
  'reference': 'McLure et al., 2013, MNRAS, 432, 2696',
  'data': 'Table 2', 
  'fits': 'Table 3', 
+ 'label': 'McLure+ (2013)',
 }
 
 redshifts = np.array([7., 8.])

@@ -246,7 +246,7 @@ class DoublePowerLaw(BasePQ):
         # This is to conserve memory.
         y  = (x / self.args[1])**-self.args[2]
         y += (x / self.args[1])**-self.args[3]
-        np.divide(1., y, out=y)        
+        np.divide(1., y, out=y)
         y *= normcorr * self.args[0]
 
         return y
@@ -279,7 +279,7 @@ class DoublePowerLawEvolvingNorm(BasePQ):
         # This is to conserve memory.
         y  = (x / self.args[1])**-self.args[2]
         y += (x / self.args[1])**-self.args[3]
-        np.divide(1., y, out=y)      
+        np.divide(1., y, out=y)
         
         if self.t == '1+z':  
             y *= normcorr * self.args[0] \

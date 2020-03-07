@@ -10,6 +10,7 @@ info = \
 {
  'reference': 'Stefanon et al., 2019, ApJ, 883, 99',
  'data': 'Table 6', 
+ 'label': 'Stefanon+ (2019)',
 }
 
 redshifts = np.array([8., 9.])

@@ -9,7 +9,8 @@ info = \
  'reference': 'Duncan et al., 2014, MNRAS, 444, 2960',
  'data': 'http://dunkenj.github.io/#data', 
  'imf': ('chabrier', (0.1, 100.)),
- 'other': 'data from http://dunkenj.github.io/#data'
+ 'other': 'data from http://dunkenj.github.io/#data',
+ 'label': 'Duncan+ (2014)',
 }
 
 redshifts = [4, 5, 6, 7]

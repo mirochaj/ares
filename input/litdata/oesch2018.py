@@ -8,8 +8,9 @@ import numpy as np
 
 info = \
 {
- 'reference': 'Oesch et al., 2017, arXiv',
+ 'reference': 'Oesch et al., 2018, arXiv',
  'data': 'Table 4', 
+ 'label': 'Oesch+ (2018)'
 }
 
 redshifts = [10.]

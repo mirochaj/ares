@@ -310,7 +310,7 @@ class CalibrateModel(object):
             ##
             # DUST REDDENING
             ##
-            if self.include_dust in ['screen', 'screen-dpl', 'patchy']:
+            if self.include_dust in ['screen', 'screen-dpl']:
                 
                 if 'norm' in self.free_params_dust:
                     
@@ -322,6 +322,7 @@ class CalibrateModel(object):
                                         
                     if 'norm' in self.zevol_dust:
                         assert self.include_dust == 'screen'
+                        # If screen-dpl need to change parameter number!
                         free_pars.append('pq_func_par4[22]')
                         guesses['pq_func_par4[22]'] = 0.
                         is_log.extend([False])
@@ -335,7 +336,7 @@ class CalibrateModel(object):
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
 
-                    if self.include_dust in ['screen-dpl', 'patchy']:
+                    if self.include_dust == 'screen-dpl':
                         free_pars.append('pq_func_par3[22]')
                         guesses['pq_func_par3[22]'] = 0.45
                         is_log.extend([False])
@@ -343,6 +344,7 @@ class CalibrateModel(object):
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                 elif 'slope-high' in self.free_params_dust:
+                    assert self.include_dust == 'screen-dpl'
                     free_pars.append('pq_func_par3[22]')
                     guesses['pq_func_par3[22]'] = 0.45
                     is_log.extend([False])
@@ -353,7 +355,7 @@ class CalibrateModel(object):
                         raise NotImplemented('help')
                 
                 if 'peak' in self.free_params_dust:
-                    assert self.include_dust in ['screen-dpl', 'patchy']
+                    assert self.include_dust == 'screen-dpl'
                     
                     free_pars.append('pq_func_par1[22]')
                     guesses['pq_func_par1[22]'] = 11.5

@@ -5,6 +5,7 @@ info = \
  'reference': 'Bouwens et al., 2014',
  'data': 'Table 2', 
  'fits': 'Table 4', 
+ 'label': 'Bouwens+ (2014)',
 }
 
 redshifts = [4, 5, 6, 7, 8]
