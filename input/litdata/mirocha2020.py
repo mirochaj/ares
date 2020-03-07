@@ -40,13 +40,13 @@ _base = \
  'pop_aging': True,
  'pop_ssp': True,
  'pop_calib_L1600': None,
- 'pop_Z': 0.002, 
+ 'pop_Z': 0.004, 
  'pop_zdead': 3.5,
  
  # Synthesis control
  'pop_synth_cache_level': 0,    # 1 = more careful = slower
  'pop_synth_minimal': True,
- 'pop_Tmin': 2e4,
+ 'pop_Tmin': 1e4,
  
  # Metallicity evolution!?
  'pop_enrichment': False,

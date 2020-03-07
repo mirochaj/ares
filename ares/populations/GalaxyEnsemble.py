@@ -1313,8 +1313,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_Mmin'] is not None:
             above_Mmin = Mh >= self.pf['pop_Mmin']
         else:
-            above_Mmin = np.ones_like(Mh)
-            print('WARNING: help with Tmin!')
+            Mmin = self.halos.VirialMass(z2d, self.pf['pop_Tmin'])
+            above_Mmin = Mh >= Mmin
             
         # Bye bye guys
         SFR *= above_Mmin
