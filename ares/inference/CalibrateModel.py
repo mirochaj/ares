@@ -336,12 +336,12 @@ class CalibrateModel(object):
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
 
-                    if self.include_dust == 'screen-dpl':
-                        free_pars.append('pq_func_par3[22]')
-                        guesses['pq_func_par3[22]'] = 0.45
-                        is_log.extend([False])
-                        jitter.extend([0.1])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                    #if self.include_dust == 'screen-dpl':
+                    #    free_pars.append('pq_func_par3[22]')
+                    #    guesses['pq_func_par3[22]'] = 0.45
+                    #    is_log.extend([False])
+                    #    jitter.extend([0.1])
+                    #    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                 elif 'slope-high' in self.free_params_dust:
                     assert self.include_dust == 'screen-dpl'
