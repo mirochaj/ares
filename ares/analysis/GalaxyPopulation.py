@@ -383,8 +383,8 @@ class GalaxyPopulation(object):
             for element in z_uvlf:
                 z_uvlf_flat.extend(element)
         else:
-            z_uvlf_flat = z_uvlf    
-        
+            z_uvlf_flat = z_uvlf
+                
         zall = np.sort(np.unique(np.concatenate((z_uvlf_flat, z_beta))))
 
         if cmap is not None:
@@ -421,7 +421,7 @@ class GalaxyPopulation(object):
             if z in z_uvlf_flat:
                 
                 if num_uvlf_panels == 2:
-                    if zint in z_uvlf[0]:
+                    if z in z_uvlf[0]:
                         _ax = ax_uvlf
                         k = 0
                     else:
@@ -437,7 +437,7 @@ class GalaxyPopulation(object):
                 
                 
                 _ax_ = self.PlotLF(z, ax=_ax, color=colors(zint), mfc=colors(zint),
-                    mec=colors(zint), sources=sources, round_z=0.21, 
+                    mec=colors(zint), sources=sources, round_z=0.23, 
                     use_labels=0)
                 
                 if show_MUV and (not had_axes):
@@ -466,7 +466,7 @@ class GalaxyPopulation(object):
                         mec=colors(zint), sources=sources, round_z=0.21, use_labels=0)
                     
                     if not had_axes:
-                        _ax2.annotate(r'$z \sim {}$'.format(z), (0.05, 0.3-0.1*ct_lf[k]), 
+                        _ax2.annotate(r'$z \sim {}$'.format(zint), (0.05, 0.3-0.1*ct_lf[k]), 
                             xycoords='axes fraction', color=colors(zint), 
                             ha='left', va='top', fontsize=20)
 

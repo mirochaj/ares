@@ -86,13 +86,13 @@ _legacy['pop_thin_hist'] = 1
 _legacy['pop_aging'] = False
 _legacy['pop_ssp'] = False
 
-# NEEDS UPDATE
+# Dust-free, zcal=4
 _legacy_best = \
 {
- "pq_func_par0[0]": 0.0212164143778,
- "pq_func_par1[0]": 1.53251065358e+11,
- "pq_func_par2[0]": 0.62472798893,
- "pq_func_par3[0]": -0.505353685155,
+ 'pq_func_par0[0]': 0.0489,
+ 'pq_func_par1[0]': 340476075081.6909,
+ 'pq_func_par2[0]': 0.3037,
+ 'pq_func_par3[0]': -0.7307, 
 }
 
 legacy = _legacy.copy()
@@ -104,10 +104,10 @@ legacy_irxb['dustcorr_beta'] = 'bouwens2014'
 
 _legacy_irxb_best = \
 {
- "pq_func_par0[0]": 0.0132638378597,
- "pq_func_par1[0]": 1.56678321186e+11,
- "pq_func_par2[0]": 1.15512990164,
- "pq_func_par3[0]": -0.203660179418,
+ 'pq_func_par0[0]': 0.0583,
+ 'pq_func_par1[0]': 293722906438.2641,
+ 'pq_func_par2[0]': 0.5989,
+ 'pq_func_par3[0]': -0.5594,
 }
 
 legacy_irxb.update(_legacy_irxb_best)
@@ -324,46 +324,46 @@ mreg_eduty_plRd.update(_screen)
 mreg_edtmr_plRd.update(_screen)
 
 # These parameters are designed to reproduce Park et al. (2019) src model
-smhm = \
-{
- 'pop_Tmin{0}': None,    
- 'pop_Mmin{0}': 1e5,  # Let focc do the work.
- 'pop_sfr_model{0}': 'smhm-func',
- 
- 'pop_tstar{0}': 0.5,
- 'pop_fstar{0}': 'pq[0]',
- 'pq_func[0]{0}': 'pl',
- 'pq_func_par0[0]{0}': 0.05,
- 'pq_func_par1[0]{0}': 1e10,
- 'pq_func_par2[0]{0}': 0.5,
- 'pq_val_ceil[0]{0}': 1.,
-    
- # Need something close to kappa_UV = 1.15e-28 Msun/yr/(erg/s/Hz)
- # 2x solar metallicity with BPASS single-stars is pretty close.
- 'pop_Z{0}': 0.04,
- 
- 'pop_focc{0}': 'pq[40]',
- "pq_func[40]{0}": 'exp-',
- 'pq_func_var[40]{0}': 'Mh',
- 'pq_func_par0[40]{0}': 1.,
- 'pq_func_par1[40]{0}': 5e8,
- 'pq_func_par2[40]{0}': -1.,
-   
- 'pop_sfr_cross_threshold{0}': False,
- 
- #'pop_ion_src_cgm{0}': False,
- 
- # KLUDGE-TOWN
- 'pop_fesc_LW{0}': 1.0,
-  
- 'pop_sfr_model{1}': 'link:sfrd:0',
- 'pop_rad_yield{1}': 10**40.5,
- 'pop_alpha{1}': -1.,
- 'pop_Emin{1}': 500.,
- 'pop_Emax{1}': 3e4,
- 'pop_EminNorm{1}': 500.,
- 'pop_EmaxNorm{1}': 2e3,
- 'pop_ion_src_igm{1}': 1, 
-}
+#smhm = \
+#{
+# 'pop_Tmin{0}': None,    
+# 'pop_Mmin{0}': 1e5,  # Let focc do the work.
+# 'pop_sfr_model{0}': 'smhm-func',
+# 
+# 'pop_tstar{0}': 0.5,
+# 'pop_fstar{0}': 'pq[0]',
+# 'pq_func[0]{0}': 'pl',
+# 'pq_func_par0[0]{0}': 0.05,
+# 'pq_func_par1[0]{0}': 1e10,
+# 'pq_func_par2[0]{0}': 0.5,
+# 'pq_val_ceil[0]{0}': 1.,
+#    
+# # Need something close to kappa_UV = 1.15e-28 Msun/yr/(erg/s/Hz)
+# # 2x solar metallicity with BPASS single-stars is pretty close.
+# 'pop_Z{0}': 0.04,
+# 
+# 'pop_focc{0}': 'pq[40]',
+# "pq_func[40]{0}": 'exp-',
+# 'pq_func_var[40]{0}': 'Mh',
+# 'pq_func_par0[40]{0}': 1.,
+# 'pq_func_par1[40]{0}': 5e8,
+# 'pq_func_par2[40]{0}': -1.,
+#   
+# 'pop_sfr_cross_threshold{0}': False,
+# 
+# #'pop_ion_src_cgm{0}': False,
+# 
+# # KLUDGE-TOWN
+# 'pop_fesc_LW{0}': 1.0,
+#  
+# 'pop_sfr_model{1}': 'link:sfrd:0',
+# 'pop_rad_yield{1}': 10**40.5,
+# 'pop_alpha{1}': -1.,
+# 'pop_Emin{1}': 500.,
+# 'pop_Emax{1}': 3e4,
+# 'pop_EminNorm{1}': 500.,
+# 'pop_EmaxNorm{1}': 2e3,
+# 'pop_ion_src_igm{1}': 1, 
+#}
 
 

@@ -877,12 +877,12 @@ _gs_4par = _PB('pop:fcoll', id_num=0, verbose=0) \
          
          
 # Build a template four-parameter model
-_lw = _PB('pop:fcoll') + _PB('src:toy-lya')
+_lw = _PB('pop:fcoll', verbose=0) + _PB('src:toy-lya', verbose=0)
 _lw.num = 0
-_xr = _PB('src:toy-xray')
+_xr = _PB('src:toy-xray', verbose=0)
 _xr.num = 1
 _xr.link_sfrd_to = 0
-_uv = _PB('src:toy-ion')
+_uv = _PB('src:toy-ion', verbose=0)
 _uv.num = 2
 _uv.link_sfrd_to = 0
          

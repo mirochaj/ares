@@ -4026,6 +4026,9 @@ class ModelSet(BlobFactory):
                     ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
                     ax.plot(xarr, lo, **kwargs)
+                    if 'label' in kwargs:
+                        del kwargs['label']
+                    print('hello')
                     ax.plot(xarr, hi, **kwargs)
             else:
                 raise NotImplemented('help')
@@ -4133,6 +4136,8 @@ class ModelSet(BlobFactory):
                     ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
                     ax.plot(xarr, lo, **kwargs)
+                    if 'label' in kwargs:
+                        del kwargs['label']
                     ax.plot(xarr, hi, **kwargs)
             else:
                 raise NotImplemented('help')        

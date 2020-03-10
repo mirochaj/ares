@@ -694,6 +694,9 @@ class SpectralSynthesis(object):
         shape.append(len(waves))
         
         # Do kappa up front?
+        
+        pb = ProgressBar(waves.size, name='l(nu)', use=self.pf['progress_bar'])
+        pb.start()
                 
         ##
         # Can thread this calculation
@@ -715,6 +718,8 @@ class SpectralSynthesis(object):
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
                         band=band, hist=hist, idnum=idnum, 
                         extras=extras, window=window, load=load)
+                        
+                    pb.update(i)    
                             
         else:    
         
@@ -726,6 +731,10 @@ class SpectralSynthesis(object):
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs, 
                     band=band, hist=hist, idnum=idnum,
                     extras=extras, window=window, load=load)
+                    
+                pb.update(i)    
+                
+        pb.finish()        
                 
         if units in ['A', 'Ang']:
             #freqs = c / (waves / 1e8)

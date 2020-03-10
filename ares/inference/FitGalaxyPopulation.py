@@ -242,7 +242,7 @@ class loglikelihood(LogLikelihood):
                 raise ValueError("Mlim={}, beta_hi={}".format(Mlim, b_hi))
                 
             if b_hi < b_lo:
-                print('beta is not monotonic!', b_hi, b_lo)
+                print('beta is not monotonic!', Mlim, b_hi, M_lo, b_lo)
                 return -np.inf
    
         #except:
