@@ -53,6 +53,8 @@ label_flux_nuInu = r'$\nu I_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}
 label_nrg = r'$h\nu \ (\mathrm{eV})$'
 label_heat_mpc = r'$\epsilon_{\mathrm{heat}} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3})$'
 label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
+label_MAR = r'$\dot{M}_h \ [M_{\odot} \ \mathrm{yr}^{-1}]$'
+label_logMAR = r'$\log_{10} \left(\dot{M}_h / [M_{\odot} \ \mathrm{yr}^{-1}]\right)$'
 
 states = \
 {
@@ -118,6 +120,9 @@ common = \
  'fesc': r'$f_{\mathrm{esc}}$',
  'Nion': r'$N_{\mathrm{ion}}$',
  'Tmin': r'$T_{\mathrm{min}}$',
+ 'MAR': label_MAR,
+ 'logMAR': label_logMAR,
+ 
  'Nlw': r'$N_{\alpha}$',
  'fbh': r'$f_{\bullet}$',
  'xi_XR': r'$\xi_{X}$',
@@ -268,6 +273,7 @@ sfe_parameters = \
 {
  "lf": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_lf": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "galaxy_lf_mag": r'$\phi(M) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_lf_1500": r'$\phi(M_{1500}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$', 
  "galaxy_lf_1600": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$', 
  "galaxy_smf": r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$',

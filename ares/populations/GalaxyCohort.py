@@ -1363,6 +1363,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     @Mmin.setter
     def Mmin(self, value):
+        print("Mmin setter being called", value)
         if ismethod(value):
             self._Mmin = value
         else:
@@ -1399,7 +1400,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def _tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin_'):
-                        
+                                    
             # First, compute threshold mass vs. redshift
             if self.pf['feedback_LW_guesses'] is not None and (not self._loaded_guesses):
                 guess = self._guess_Mmin()
@@ -1408,8 +1409,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     return self._tab_Mmin_
             
             if self.pf['pop_Mmin'] is not None:
+                print("Setting Mmin...{}".format(type(self.pf['pop_Mmin'])))
                 if ismethod(self.pf['pop_Mmin']) or \
-                   type(self.pf['pop_Mmin']) == FunctionType:
+                   (type(self.pf['pop_Mmin']) == FunctionType):
                     self._tab_Mmin_ = \
                         np.array(map(self.pf['pop_Mmin'], self.halos.tab_z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
@@ -1427,6 +1429,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 else:    
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones_like(self.halos.tab_z)
+                                                
             else:
                 self._tab_Mmin_ = self.halos.VirialMass(
                     self.halos.tab_z, self.pf['pop_Tmin'], mu=self.pf['mu'])

@@ -333,6 +333,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         if self.pf['pop_synth_minimal'] and (self.pf['pop_histories'] is None):
             Mmin = self.guide.Mmin(zall)
+                        
             ilo = Mh_raw.shape[0] - 1
             ihi = 0
             for i, _z in enumerate(zall):
@@ -1367,7 +1368,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Introduce some by-hand quenching.
         if self.pf['pop_quench'] is not None:
             zreion = self.pf['pop_quench']
-            if type(zreion) == np.ndarray:
+            if type(zreion) in [np.ndarray, np.ma.core.MaskedArray]:
                 assert zreion.size == Nhalos, \
                     "Supplied array of reionization redshifts is the wrong size!"
                     
@@ -1681,13 +1682,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         return None
 
-    def _cache_lf(self, z, x=None):
+    def _cache_lf(self, z, x=None, wave=None):
         if not hasattr(self, '_cache_lf_'):
             self._cache_lf_ = {}
 
-        if z in self._cache_lf_:            
+        if (z, wave) in self._cache_lf_:            
 
-            _x, _phi = self._cache_lf_[z]
+            _x, _phi = self._cache_lf_[(z, wave)]
             
             # If no x supplied, return bin centers
             if x is None:
@@ -2003,7 +2004,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         """
         
-        cached_result = self._cache_lf(z, x)
+        cached_result = self._cache_lf(z, x, wave)
         if cached_result is not None:
             return cached_result
                                 
@@ -2060,9 +2061,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         phi = hist * N
                 
-        self._cache_lf_[z] = bin_c, phi
+        self._cache_lf_[(z, wave)] = bin_c, phi
         
-        return self._cache_lf(z, x)
+        return self._cache_lf(z, x, wave)
         
     def _cache_beta(self, kw_tup):
     
