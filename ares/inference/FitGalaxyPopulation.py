@@ -210,11 +210,12 @@ class loglikelihood(LogLikelihood):
             else:    
         
                 # Don't let beta turn-over in the range of magnitudes that
-                # overlap with UVLF constraints, or 2 extra mags if no UVLF fitting
-                # happening (rare). 
+                # overlap with UVLF constraints, or 2 extra mags if no UVLF
+                # fitting happening (rare). 
                 
                 xmod = []
                 ymod = []
+                zmod = []
                 xlf = []
                 for i, quantity in enumerate(self.metadata):
                     if quantity == 'lf':
@@ -223,8 +224,16 @@ class loglikelihood(LogLikelihood):
                     if quantity != 'beta':
                         continue
                         
+                    z = self.redshifts[i]
+                        
+                    if quantity in self.zmap:
+                        _zmod = self.zmap[quantity][z]
+                    else:
+                        _zmod = z    
+                        
                     xmod.append(self.xdata[i])
                     ymod.append(phi[i])
+                    zmod.append(_zmod)
                     
                 i_lo = np.argmin(xmod)
                 M_lo = xmod[i_lo]
@@ -233,17 +242,29 @@ class loglikelihood(LogLikelihood):
                 if 'lf' in self.metadata:
                     Mlim = np.nanmin(xlf) - 1.
                 else:
-                    Mlim = M_lo - 2.    
+                    Mlim = M_lo - 2.
             
-            b_hi = pop.Beta(zmod, MUV=Mlim, presets='hst', dlam=20., 
-                return_binned=True, rest_wave=None)
+            b_hi = {}                    
+            for i, quantity in enumerate(self.metadata):
+                if quantity != 'beta':
+                    continue
+            
+                if zmod[i] not in b_hi:
+                    b_hi[zmod[i]] = pop.Beta(zmod[i], MUV=Mlim, presets='hst', 
+                        dlam=20., return_binned=True, rest_wave=None)
+            
+                if not (np.isfinite(Mlim) or np.isfinite(b_hi[zmod[i]])):
+                    raise ValueError("Mlim={}, beta_hi={}".format(Mlim, b_hi))
                 
-            if not (np.isfinite(Mlim) or np.isfinite(b_hi)):
-                raise ValueError("Mlim={}, beta_hi={}".format(Mlim, b_hi))
-                
-            if b_hi < b_lo:
-                print('beta is not monotonic!', Mlim, b_hi, M_lo, b_lo)
-                return -np.inf
+                # Bit overkill to check every magnitude, but will *really*
+                # enforce monotonic behavior.
+                if b_hi[zmod[i]] < ymod[i]:
+                    print('beta is not monotonic!', zmod[i], 
+                        Mlim, b_hi[zmod[i]], xmod[i], ymod[i])
+                    return -np.inf
+                #else:
+                #    print("beta monotonic at z={}: beta(MUV={})={}, beta(MUV={})={}".format(zmod[i],
+                #        Mlim, b_hi[zmod[i]], xmod[i], ymod[i]))
    
         #except:
         #    return -np.inf, self.blank_blob
