@@ -283,9 +283,9 @@ class CalibrateModel(object):
                     guesses['pq_func_par9[0]{}'.format(_suff)] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-3, 3.), 
+                    ps.add_distribution(UniformDistribution(-6, 6.), 
                         'pq_func_par9[0]{}'.format(_suff))
-                
+
             ##
             # fduty
             ##
@@ -874,8 +874,13 @@ class CalibrateModel(object):
             nw = nwalkers
         
         fitter.nwalkers = nw
-        fitter.jitter = self.jitter
-        fitter.guesses = self.guesses
+        
+        if restart:
+            # Just to suppress confusing output to screen, e.g., fixing
+            # of guesses that lie outside prior. For restart, the guesses
+            # aren't actually used.
+            fitter.jitter = self.jitter
+            fitter.guesses = self.guesses
 
         if cache_tricks:
             fitter.save_hmf = True

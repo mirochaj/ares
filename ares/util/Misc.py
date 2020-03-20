@@ -39,7 +39,12 @@ def get_cmd_line_kwargs(argv):
     cmd_line_kwargs = {}
 
     for arg in argv[1:]:
-        pre, post = arg.split('=')
+        try:
+            pre, post = arg.split('=')
+        except ValueError:
+            # To deal with parameter values that have an '=' in them.
+            pre = arg[0:arg.find('=')]
+            post = arg[arg.find('=')+1:]
 
         # Need to do some type-casting
         if post.isdigit():

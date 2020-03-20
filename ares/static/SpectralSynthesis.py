@@ -25,12 +25,6 @@ from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB
 
 nanoJ = 1e-23 * 1e-9
 
-try: 
-    import pymp
-    have_pymp = True
-except ImportError:
-    have_pymp = False
-
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
 def _powlaw(x, p0, p1):
@@ -701,7 +695,15 @@ class SpectralSynthesis(object):
         ##
         # Can thread this calculation
         ##
-        if (self.pf['nthreads'] is not None) and have_pymp:
+        if (self.pf['nthreads'] is not None):
+            
+            try: 
+                import pymp
+                have_pymp = True
+            except ImportError:
+                have_pymp = False
+            
+            assert have_pymp, "Need pymp installed to run with nthreads!=None!"
             
             pymp.config.num_threads = self.pf['nthreads']
             
@@ -711,7 +713,7 @@ class SpectralSynthesis(object):
             
             spec = pymp.shared.array(shape, dtype='float64')
             with pymp.Parallel(self.pf['nthreads']) as p:
-                for i in p.range(0, waves.size):
+                for i in p.xrange(0, waves.size):
                     slc = (Ellipsis, i) if (batch_mode or time_series) else i
                     
                     spec[slc] = self.Luminosity(wave=waves[i], 
@@ -1348,19 +1350,22 @@ class SpectralSynthesis(object):
                 block = ~clear                
                                 
                 if idnum is not None:
-                    if self.pf['pop_dust_holes'] == 'big':
-                        Lout = Lhist * clear[izobs] \
-                             + Lhist * np.exp(-tau[izobs]) * block[izobs]
-                    else:
-                        Lout = Lhist * (1. - fcov[izobs]) \
-                             + Lhist * fcov[izobs] * np.exp(-tau[izobs])
+                    Lout = Lhist * np.exp(-tau[izobs])
+                    #if self.pf['pop_dust_holes'] == 'big':
+                    #    Lout = Lhist * clear[izobs] \
+                    #         + Lhist * np.exp(-tau[izobs]) * block[izobs]
+                    #else:
+                    #    Lout = Lhist * (1. - fcov[izobs]) \
+                    #         + Lhist * fcov[izobs] * np.exp(-tau[izobs])
                 else:    
-                    if self.pf['pop_dust_holes'] == 'big':
-                        Lout = Lhist * clear[:,izobs] \
-                             + Lhist * np.exp(-tau[:,izobs]) * block[:,izobs]
-                    else:
-                        Lout = Lhist * (1. - fcov[:,izobs]) \
-                             + Lhist * fcov[:,izobs] * np.exp(-tau[:,izobs])
+                    Lout = Lhist * np.exp(-tau[:,izobs])
+                    #if self.pf['pop_dust_holes'] == 'big':
+                    #    print(Lhist.shape, clear.shape, tau.shape, block.shape)
+                    #    Lout = Lhist * clear[:,izobs] \
+                    #         + Lhist * np.exp(-tau[:,izobs]) * block[:,izobs]
+                    #else:
+                    #    Lout = Lhist * (1. - fcov[:,izobs]) \
+                    #         + Lhist * fcov[:,izobs] * np.exp(-tau[:,izobs])
             else:
                 Lout = Lhist.copy()
         else:

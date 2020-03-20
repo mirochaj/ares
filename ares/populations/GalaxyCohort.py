@@ -1910,8 +1910,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 above_Mmax = np.interp(np.log(self._tab_Mmax[i]), 
                         np.log(self.halos.tab_M), tot - cumtot)    
                 
-                if above_Mmin < above_Mmax:
-                    print("WARNING: SFRD(>Mmin) < SFRD(>Mmax) at z={}".format(z))
+                #if above_Mmin < above_Mmax:
+                #    print("WARNING: SFRD(>Mmin) < SFRD(>Mmax) at z={}".format(z))
                                     
                 self._tab_sfrd_total_[i] = above_Mmin - above_Mmax
                 

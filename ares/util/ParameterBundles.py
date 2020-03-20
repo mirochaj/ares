@@ -609,7 +609,7 @@ class ParameterBundle(dict):
                             tmp[key])
                     else:
                         msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
-                        
+
                     print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]
@@ -862,20 +862,7 @@ class ParameterBundle(dict):
 
 
 _PB = ParameterBundle
-_uv_pop = _PB('pop:fcoll', id_num=0, verbose=0) \
-        + _PB('sed:uv',    id_num=0, verbose=0)
-_xr_pop = _PB('pop:fcoll', id_num=1, verbose=0) \
-        + _PB('sed:xray',  id_num=1, verbose=0)
 
-_gs_4par = _PB('pop:fcoll', id_num=0, verbose=0) \
-         + _PB('sed:lw',    id_num=0, verbose=0) \
-         + _PB('pop:fcoll', id_num=1, verbose=0) \
-         + _PB('sed:lyc',   id_num=1, verbose=0) \
-         + _PB('pop:fcoll', id_num=2, verbose=0) \
-         + _PB('sed:xray',  id_num=2, verbose=0)
-         
-         
-         
 # Build a template four-parameter model
 _lw = _PB('pop:fcoll', verbose=0) + _PB('src:toy-lya', verbose=0)
 _lw.num = 0
@@ -885,8 +872,8 @@ _xr.link_sfrd_to = 0
 _uv = _PB('src:toy-ion', verbose=0)
 _uv.num = 2
 _uv.link_sfrd_to = 0
-         
-_gs_4par = _lw + _xr + _uv         
+
+_gs_4par = _lw + _xr + _uv
 
 _tanh_sim = {'problem_type': 100, 'tanh_model': True,
     'output_frequencies': np.arange(30., 201.)}
@@ -895,7 +882,8 @@ _param_sim = {'problem_type': 100, 'parametric_model': True,
     'output_frequencies': np.arange(30., 201.)}
 
 _gs_min = {'problem_type': 100, 'load_ics': True, 'cosmological_ics': True}
-_tmp = {'2pop': _uv_pop+_xr_pop, '4par': _gs_4par,
+_tmp = {'4par': _gs_4par,
     'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 
 _Bundles['gs'] = _tmp
+

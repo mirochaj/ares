@@ -138,7 +138,7 @@ class ModelSet(BlobFactory):
 
             # This means we're sitting in the right directory already
             if i == - 1:
-                self.path = './'
+                self.path = '.'
                 self.fn = prefix
             else:
                 self.path = prefix[0:i+1]

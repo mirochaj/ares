@@ -38,12 +38,6 @@ try:
 except ImportError:
     pass
     
-try: 
-    import pymp
-    have_pymp = True
-except ImportError:
-    have_pymp = False
-    
 tiny_MAR = 1e-30    
            
 _linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
@@ -446,8 +440,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'Z' in raw:
             histories['Z'] = raw['Z']
             
-        if 'child' in raw:
-            histories['child'] = raw['child']
+        if 'children' in raw:
+            histories['children'] = raw['children']
+            
+        if 'pos' in raw:
+            histories['pos'] = raw['pos']
 
         self.tab_z = zall
         #self._cache_halos = histories
@@ -1493,8 +1490,56 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Merge halos, sum stellar masses, SFRs.
         # Only add masses after progenitors are absorbed.
         # Need to add luminosity from progenitor history even after merger.
-        # NOTE: right now, only correcting MAR (above).
+        # NOTE: no transferrance of gas, metals, or stars, as of yet.
         ##        
+        if self.pf['pop_mergers'] > 0:
+            children = halos['children'][:,-1::-1]
+            iz, iM = children.T
+            uni = np.all(Mh.mask == False, axis=1)
+            merged = np.logical_and(iz != -1, uni == True)
+                                  
+            pos = halos['pos'][:,-1::-1,:]
+                                    
+            for i in range(iz.size):
+                if iz[i] == -1:
+                    continue
+                
+                # May not be necessary
+                if not merged[i]:
+                    continue
+                
+                # Fill-in positions of merged parents                        
+                #pos[i,0:iz[i],:] = pos[iM[i],iz[i],:]
+                # Add SFR so luminosities include that of parent halos
+                #SFR[iM[i],iz[i]:] += SFR[i,iz[i]:]
+                
+                # Assume merged mass has same stellar fraction as progenitor?
+                
+        # Limit to main branch        
+        elif self.pf['pop_mergers'] == -1:
+            children = halos['children'][:,-1::-1]
+            iz, iM = children.T
+            main_branch = iz == -1
+            
+            nh = nh[main_branch==1]
+            Ms = Ms[main_branch==1]
+            Mh = Mh[main_branch==1]
+            #MAR = MAR[main_branch==1]
+            #MZ = MZ[main_branch==1]
+            Md = Md[main_branch==1]
+            Sd = Sd[main_branch==1]
+            #fcov = fcov[main_branch==1]
+            #Mg = Mg[main_branch==1]
+            #Z = Z[main_branch==1]
+            SFR = SFR[main_branch==1]
+            zeros_like_Mh = zeros_like_Mh[main_branch==1]
+            
+            if 'pos' in halos:
+                pos = halos['pos'][main_branch==1,-1::-1,:]
+            else:
+                pos = None
+        else:
+            pos = None
             
         # Pack up                
         results = \
@@ -1517,6 +1562,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'Mg': Mg,
          'Z': Z,
          'bursty': zeros_like_Mh,
+         'pos': pos,
          #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
         }
@@ -2548,12 +2594,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 hist = {}
                 for key in f.keys():
-                    
-                    # Don't need halo positions in ARES
-                    if key == 'pos':
-                        continue
-                        
-                    if key not in ['cosmology', 't', 'z', 'child']:
+                                            
+                    if key not in ['cosmology', 't', 'z', 'children', 'pos']:
                         #hist[key] = np.ma.array(f[(key)], mask=mask,
                         #    fill_value=-np.inf)
                         
