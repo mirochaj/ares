@@ -41,6 +41,8 @@ class Survey(object):
             self.path = '{}/wfc3'.format(_path)
         elif cam == 'wfc':
             self.path = '{}/wfc'.format(_path)
+        elif cam == 'irac':
+            self.path = '{}/irac'.format(_path)    
         else:
             raise NotImplemented('Unrecognized camera \'{}\''.format(cam))
                     
@@ -146,6 +148,8 @@ class Survey(object):
             return self._read_wfc3(filter_set, filters)
         elif self.camera == 'wfc':
             return self._read_wfc(filter_set, filters)
+        elif self.camera == 'irac':
+            return self._read_irac(filter_set, filters)    
         else:
             raise NotImplemented('help')
             
@@ -247,7 +251,14 @@ class Survey(object):
             
         data = {}
         for fn in os.listdir(self.path):
-        
+            
+            # Mac OS creates a bunch of ._wfc_* files. Argh.
+            if not fn.startswith('wfc_'):
+                continue
+                
+            if fn.endswith('tar.gz'):
+                continue
+                
             pre = fn.split('wfc_')[1].split('.dat')[0]
                         
             if get_all or (pre in filters):
@@ -354,6 +365,30 @@ class Survey(object):
                     self._filter_cache[pre] = copy.deepcopy(data[pre])
 
         return data
+
+    def _read_irac(self, filter_set='W', filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+            
+        data = {}
+        for fn in os.listdir(self.path):
+            x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+                skiprows=1)
+                
+            if 'ch1' in fn:
+                cent = 3.6
+                pre = 'ch1'
+            elif 'ch2' in fn:
+                cent = 4.5
+                pre = 'ch2'
+            else:
+                raise ValueError('Unrecognized IRAC file: {}'.format(fn))
+                
+            data[pre] = self._get_filter_prop(x, y, cent)
+        
+            self._filter_cache[pre] = copy.deepcopy(data[pre])
+            
+        return data    
 
     def _get_filter_prop(self, x, y, cent):
         Tmax = max(y)

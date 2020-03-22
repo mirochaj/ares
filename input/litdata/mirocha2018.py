@@ -100,7 +100,7 @@ _generic_updates = \
  'pop_zform{0}': 60,
  'pop_zform{1}': 60,
  'feedback_LW': True,
- 'sam_dz': 0.1,
+ 'sam_dz': None, # != None is causing crashes nowadays...
  'kill_redshift': 5.6,
  
  'feedback_LW_Mmin_rtol': 0,

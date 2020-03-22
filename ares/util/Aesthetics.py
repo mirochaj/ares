@@ -11,7 +11,28 @@ Description:
 """
 
 import os, imp, re
+import numpy as np
+from matplotlib import cm
 from .ParameterFile import par_info
+from matplotlib.colors import ListedColormap
+
+# Charlotte's color-maps
+_charlotte1 = ['#301317','#3F2A3D','#2D4A60','#036B66','#48854D','#9D9436','#F69456']
+_charlotte2 = ['#001316', '#2d2779', '#9c207e', '#c5492a', '#819c0c', '#3dd470', '#64cdf6']
+
+cmap_charlotte1 = ListedColormap(_charlotte1, name='charlotte1')
+cmap_charlotte2 = ListedColormap(_charlotte2, name='charlotte2')
+
+_zall = np.arange(4, 11, 1)
+
+_znormed = (_zall - _zall[0]) / float(_zall[-1] - _zall[0])
+_ch_c1 = cm.get_cmap(cmap_charlotte1, _zall.size)
+_ch_c2 = cm.get_cmap(cmap_charlotte2, _zall.size)
+_normz = lambda zz: (zz - _zall[0]) / float(_zall[-1] - _zall[0])
+
+colors_charlotte1 = lambda z: _ch_c1(_normz(z))
+colors_charlotte2 = lambda z: _ch_c2(_normz(z))
+
 
 # Load custom defaults    
 HOME = os.environ.get('HOME')
@@ -27,9 +48,13 @@ prefixes = ['igm_', 'cgm_']
 ## Common axis labels
 label_flux_nrg = r'$J_{\nu} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'
 label_flux_phot = r'$J_{\nu} \ (\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'    
+label_flux_nw = r'$J_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
+label_flux_nuInu = r'$\nu I_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
 label_nrg = r'$h\nu \ (\mathrm{eV})$'
 label_heat_mpc = r'$\epsilon_{\mathrm{heat}} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3})$'
 label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
+label_MAR = r'$\dot{M}_h \ [M_{\odot} \ \mathrm{yr}^{-1}]$'
+label_logMAR = r'$\log_{10} \left(\dot{M}_h / [M_{\odot} \ \mathrm{yr}^{-1}]\right)$'
 
 states = \
 {
@@ -83,6 +108,8 @@ common = \
  't_myr': r'$t \ (\mathrm{Myr})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
+ 'flux_nW': label_flux_nw, 
+ 'flux_nuInu': label_flux_nuInu,
  'intensity_AA': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{\AA}^{-1}$', 
  'lambda_AA': r'$\lambda \ (\AA)$', 
  'E': label_nrg,  
@@ -93,12 +120,17 @@ common = \
  'fesc': r'$f_{\mathrm{esc}}$',
  'Nion': r'$N_{\mathrm{ion}}$',
  'Tmin': r'$T_{\mathrm{min}}$',
+ 'MAR': label_MAR,
+ 'logMAR': label_logMAR,
+ 
  'Nlw': r'$N_{\alpha}$',
  'fbh': r'$f_{\bullet}$',
  'xi_XR': r'$\xi_{X}$',
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'sfr': r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$',
+ 'logsfr': r'$\log_{10} \dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$',
  'emissivity': r'$\epsilon \ [\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3}]$',
  'nh': r'$n_h \ [\mathrm{cMpc}^{-3}]$',
  'extinction_redshift': r'$z_{\mathrm{ext}}$',
@@ -241,6 +273,9 @@ sfe_parameters = \
 {
  "lf": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_lf": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "galaxy_lf_mag": r'$\phi(M) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "galaxy_lf_1500": r'$\phi(M_{1500}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$', 
+ "galaxy_lf_1600": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$', 
  "galaxy_smf": r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$',
 }
 

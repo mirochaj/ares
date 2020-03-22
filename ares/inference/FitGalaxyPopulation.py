@@ -98,7 +98,17 @@ class loglikelihood(LogLikelihood):
                 self._include.append(item)
                 
         return self._include
-
+    
+    @property
+    def monotonic_beta(self):
+        if not hasattr(self, '_monotonic_beta'):
+            self._monotonic_beta = False
+        return self._monotonic_beta
+        
+    @monotonic_beta.setter
+    def monotonic_beta(self, value):
+        self._monotonic_beta = bool(value)
+        
     def __call__(self, sim):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -156,10 +166,10 @@ class loglikelihood(LogLikelihood):
                                     
                     # Compute LF
                     p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
-                                        
+                                                                                
                     if not np.isfinite(p):
-                        print('LF is inf or nan!', zmod, M)
-                        raise ValueError('LF is inf or nan!', zmod, M)
+                        print('LF is inf or nan!', zmod, xdat)
+                        raise ValueError('LF is inf or nan!', zmod, xdat)
                                                                 
                 elif quantity == 'smf':
                     M = np.log10(xdat)
@@ -168,22 +178,21 @@ class loglikelihood(LogLikelihood):
                 elif quantity == 'beta':
                     
                     zstr = int(round(zmod))
-                    
+
                     if zstr >= 7:
                         filt_hst = hst_deep
                     else:
                         filt_hst = hst_shallow
-                                        
+
                     M = xdat
-                    p = pop.Beta(zmod, MUV=M, cam=('wfc', 'wfc3'),
-                        return_binned=True, filters=filt_hst[zstr], dlam=20., 
-                        rest_wave=None)
+                    p = pop.Beta(zmod, MUV=M, presets='hst', dlam=20., 
+                        return_binned=True, rest_wave=None)
 
                     if not np.isfinite(p):
                         print('beta is inf or nan!', z, M)
                         return -np.inf
                         #raise ValueError('beta is inf or nan!', z, M)
-                    
+                                            
                 else:
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
@@ -191,7 +200,72 @@ class loglikelihood(LogLikelihood):
                 # If UVLF or SMF, could do multi-pop in which case we'd 
                 # increment here.        
                 phi[i] = p   
-                            
+                                
+        ## 
+        # Apply restrictions to beta    
+        if self.monotonic_beta:
+                                    
+            if type(self.monotonic_beta) in [int, float, np.float64]:
+                Mlim = self.monotonic_beta
+            else:    
+        
+                # Don't let beta turn-over in the range of magnitudes that
+                # overlap with UVLF constraints, or 2 extra mags if no UVLF
+                # fitting happening (rare). 
+                
+                xmod = []
+                ymod = []
+                zmod = []
+                xlf = []
+                for i, quantity in enumerate(self.metadata):
+                    if quantity == 'lf':
+                        xlf.append(self.xdata[i])
+                
+                    if quantity != 'beta':
+                        continue
+                        
+                    z = self.redshifts[i]
+                        
+                    if quantity in self.zmap:
+                        _zmod = self.zmap[quantity][z]
+                    else:
+                        _zmod = z    
+                        
+                    xmod.append(self.xdata[i])
+                    ymod.append(phi[i])
+                    zmod.append(_zmod)
+                    
+                i_lo = np.argmin(xmod)
+                M_lo = xmod[i_lo]
+                b_lo = ymod[i_lo]
+                
+                if 'lf' in self.metadata:
+                    Mlim = np.nanmin(xlf) - 1.
+                else:
+                    Mlim = M_lo - 2.
+            
+            b_hi = {}                    
+            for i, quantity in enumerate(self.metadata):
+                if quantity != 'beta':
+                    continue
+            
+                if zmod[i] not in b_hi:
+                    b_hi[zmod[i]] = pop.Beta(zmod[i], MUV=Mlim, presets='hst', 
+                        dlam=20., return_binned=True, rest_wave=None)
+            
+                if not (np.isfinite(Mlim) or np.isfinite(b_hi[zmod[i]])):
+                    raise ValueError("Mlim={}, beta_hi={}".format(Mlim, b_hi))
+                
+                # Bit overkill to check every magnitude, but will *really*
+                # enforce monotonic behavior.
+                if b_hi[zmod[i]] < ymod[i]:
+                    print('beta is not monotonic!', zmod[i], 
+                        Mlim, b_hi[zmod[i]], xmod[i], ymod[i])
+                    return -np.inf
+                #else:
+                #    print("beta monotonic at z={}: beta(MUV={})={}, beta(MUV={})={}".format(zmod[i],
+                #        Mlim, b_hi[zmod[i]], xmod[i], ymod[i]))
+   
         #except:
         #    return -np.inf, self.blank_blob
 
@@ -213,10 +287,21 @@ class FitGalaxyPopulation(FitBase):
             self._loglikelihood.redshifts = self.redshifts_flat
             self._loglikelihood.metadata = self.metadata_flat
             self._loglikelihood.zmap = self.zmap
+            self._loglikelihood.monotonic_beta = self.monotonic_beta
 
             self.info
 
         return self._loglikelihood
+        
+    @property
+    def monotonic_beta(self):
+        if not hasattr(self, '_monotonic_beta'):
+            self._monotonic_beta = False
+        return self._monotonic_beta
+        
+    @monotonic_beta.setter
+    def monotonic_beta(self, value):
+        self._monotonic_beta = bool(value)
 
     @property
     def zmap(self):

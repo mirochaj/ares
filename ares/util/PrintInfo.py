@@ -366,7 +366,7 @@ def print_pop(pop):
 
     if rank > 0 or not pop.pf['verbose']:
         return
-
+    
     warnings = []
 
     alpha = pop.pf['pop_alpha']
@@ -391,11 +391,12 @@ def print_pop(pop):
         EminNorm = list([EminNorm])
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
-
+    
+    header = 'ARES Population: Summary'
     print("\n" + ("#" * width))
     print("{0!s} {1!s} {2!s}".format(pre, header.center(twidth), post))
     print("#" * width)
-
+    
     print(line('-' * twidth))
     print(line('Star Formation'))
     print(line('-' * twidth))
@@ -414,6 +415,7 @@ def print_pop(pop):
             print(line(("SF          : in halos w/ M >= 10**{0:g} " +\
                 "Msun").format(round(np.log10(pop.pf['pop_Mmin']), 2))))
         print(line("HMF         : {!s}".format(pop.pf['hmf_model'])))
+        print(line("MAR scatter : {!s} dex".format(pop.pf['pop_scatter_mar'])))
 
     # Parameterized halo properties
     if pop.pf.Npqs > 0:
@@ -424,7 +426,7 @@ def print_pop(pop):
 
         for i, par in enumerate(pop.pf.pqs):
 
-            pname = par.replace('pop_', '').ljust(20)
+            pname = par.replace('pop_', '').ljust(9)
 
             s = pop.pf['pq_func{!s}'.format(sf(i))]
 
@@ -439,44 +441,77 @@ def print_pop(pop):
                     s += ' * {!s}'.format(pop.pf['pq_faux{!s}'.format(sf(i))])
                 
             print(line("{0!s}: {1!s}".format(pname, s)))
-                
-    print(line('-' * twidth))
-    print(line('Radiative Output'))
-    print(line('-' * twidth))
-    
-    if hasattr(pop, 'yield_per_sfr'):
-        print(line("yield (erg / s / SFR) : {0:g}".format(\
-            pop.yield_per_sfr * g_per_msun / s_per_yr)))
-    
-    print(line("Emin (eV)             : {0:g}".format(pop.pf['pop_Emin'])))
-    print(line("Emax (eV)             : {0:g}".format(pop.pf['pop_Emax'])))
-    print(line("EminNorm (eV)         : {0:g}".format(pop.pf['pop_EminNorm'])))
-    print(line("EmaxNorm (eV)         : {0:g}".format(pop.pf['pop_EmaxNorm'])))    
-
+                    
     ##
     # SPECTRUM STUFF
     ##
-    if pop.pf['pop_solve_rte']:
-        print(line('-' * twidth))
-        print(line('Spectrum'))
-        print(line('-' * twidth))
+    print(line('-' * twidth))
+    print(line('Spectrum'))
+    print(line('-' * twidth))
     
-        print(line("SED               : {!s}".format(pop.pf['pop_sed'])))
+    print(line("SED         : {!s}".format(pop.pf['pop_sed'])))
+    
+    if pop.pf['pop_sed'] == 'pl':
+        print(line("alpha       : {0:g}".format(\
+            pop.pf['pop_alpha'])))
+        print(line("logN        : {0:g}".format(pop.pf['pop_logN'])))
+    elif pop.pf['pop_sed'] == 'mcd':
+        print(line("mass (Msun) : {0:g}".format(pop.pf['pop_mass'])))
+        print(line("rmax (Rg)   : {0:g}".format(pop.pf['pop_rmax'])))
+    elif pop.pf['pop_sed'] in ['eldridge2009', 'leitherer1999']:
+        print(line("Z           : {0:g}".format(pop.pf['pop_Z'])))
+        print(line("IMF         : {0:g}".format(pop.pf['pop_imf'])))
+        print(line("binaries?   : {0:g}".format(pop.pf['pop_binaries'])))
+        print(line("burst       : {0:g}".format(pop.pf['pop_ssp'])))
+        print(line("aging       : {0:g}".format(pop.pf['pop_aging'])))
         
-        if pop.pf['pop_sed'] == 'pl':
-            print(line("alpha             : {0:g}".format(\
-                pop.pf['pop_alpha'])))
-            print(line("logN              : {0:g}".format(pop.pf['pop_logN'])))
-        elif pop.pf['pop_sed'] == 'mcd':
-            print(line("mass (Msun)       : {0:g}".format(pop.pf['pop_mass'])))
-            print(line("rmax (Rg)         : {0:g}".format(pop.pf['pop_rmax'])))
-        else:
-            print(line("from source       : {!s}".format(pop.pf['pop_sed'])))
+    ##
+    # Dust stuff    
+        
+    # If SED not tabulated, print out radiative output.        
+    if pop.pf['pop_sed'] not in ['eldridge2009', 'leitherer1999']:      
+        print(line('-' * twidth))
+        print(line('Radiative Output'))
+        print(line('-' * twidth))  
+        if hasattr(pop, 'yield_per_sfr'):
+            print(line("yield (erg / s / SFR) : {0:g}".format(\
+                pop.yield_per_sfr * g_per_msun / s_per_yr)))
+        
+        print(line("Emin (eV)             : {0:g}".format(pop.pf['pop_Emin'])))
+        print(line("Emax (eV)             : {0:g}".format(pop.pf['pop_Emax'])))
+        print(line("EminNorm (eV)         : {0:g}".format(pop.pf['pop_EminNorm'])))
+        print(line("EmaxNorm (eV)         : {0:g}".format(pop.pf['pop_EmaxNorm'])))        
+            
+    ##
+    # NOTES!
+    print(line('-' * twidth))
+    print(line('Special Notes'))
+    print(line('-' * twidth))
+    if pop.pf['pop_calib_L1600'] is not None:
+        s1 = "+ pop_calib_L1600 != None, which means".format(i)
+        s1 += ' changes to pop_Z will *not* affect UVLF.'
+        s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
+        s2 += ' (see S3.4 in Mirocha et al. 2017).'
+        print(line(s1))
+        print(line(s2))
+    if pop.pf['pop_sfr_model'] == 'ensemble':
+        s1 = "+ pop_sfr_model == 'ensemble', which means".format(i)
+        s1 += ' luminosity at all wavelengths is determined via spectral'
+        s2 = '  synthesis, which can be slow. Set pop_sed_degrade > 0'
+        s2 += ' [in Angstroms] for speed-up.'
+        print(line(s1))
+        print(line(s2))
+        
+    # Other noteworthy things?
+    
+    if warnings != []:
+        print(line('-' * twidth))
+        print(line('Warnings'))
+        print(line('-' * twidth))
+        for warning in warnings:
+            print_warning(warning)
     
     print("#" * width)
-
-    for warning in warnings:
-        print_warning(warning)
         
 def _rad_type(sim, fluctuations=False):
     rows = []
@@ -559,6 +594,21 @@ def print_sim(sim, mgb=False):
     if mgb:
         print("#" * width)
         return
+    
+    print(line('-' * twidth))
+    print(line('Notes'))
+    print(line('-' * twidth))
+    for i, pop in enumerate(sim.pops):
+        if pop.pf['pop_calib_L1600'] is not None:
+            s1 = "+ pop_calib_L1600 != None, which means".format(i)
+            s1 += ' changes to pop_Z will *not* affect UVLF.'
+            s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
+            s2 += ' (see S3.4 in Mirocha et al. 2017).'
+            print(line(s1))
+            print(line(s2))
+        
+        # Other noteworthy things?    
+    
     
     print(line('-' * twidth))
     print(line('Physics'))

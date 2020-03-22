@@ -21,6 +21,7 @@ cm_per_kpc = cm_per_pc*1e3
 cm_per_mpc = cm_per_pc*1e6
 cm_per_gpc = cm_per_mpc*1e3
 cm_per_km = 1e5
+cm_per_m = 1e2
 cm_per_rsun = 695500. * cm_per_km
 cm_per_rEarth = 637100000.
 cm_per_au = 1.49597871e13
@@ -60,6 +61,8 @@ Ryd = 2.1798719e-11             # Rydberg in erg
 erg_per_j = 1e-7
 erg_per_ev = e / erg_per_j
 erg_per_kev = 1e3 * erg_per_ev
+
+ergs_per_s_per_nW = 1e7 / 1e9
 
 # Convert specific intensities from eV^-1 to Hz^-1
 ev_per_hz = h / erg_per_ev

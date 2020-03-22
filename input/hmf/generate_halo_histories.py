@@ -38,6 +38,7 @@ cosmo = \
 }
 
 pars.update(cosmo)
+pars['pop_Tmin'] = 500
 
 pop = ares.populations.GalaxyPopulation(**pars)
 
@@ -70,3 +71,6 @@ if not os.path.exists(fn):
         
     f.close()    
     print("Wrote {}".format(fn))
+    
+else:
+    print("File {} exists. Exiting.".format(fn))    

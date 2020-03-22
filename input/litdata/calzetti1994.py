@@ -10,6 +10,7 @@ info = \
 {
  'reference': 'Calzetti et al., 1994, ApJ, 429, 582',
  'data': 'Table 2', 
+ 'label': 'Calzetti+ (1994)', 
 }
 
 # Wavelength windows used to compute UV slope.

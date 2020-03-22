@@ -172,10 +172,7 @@ def AbsorberParameters():
     'cddf_beta': 1.4,
     'cddf_gamma': 1.5,
     'cddf_zlow': 1.5,
-    'cddf_gamma_low': 0.2,
-    
-    'absorption_model': None,
-    
+    'cddf_gamma_low': 0.2,    
     }
     
     pf.update(rcParams)
@@ -532,6 +529,7 @@ def PopulationParameters():
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": None,
+    "pop_fduty_seed": None,
     "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
                           # it's coherent.
     
@@ -662,6 +660,10 @@ def PopulationParameters():
     "pop_synth_cache_level": 1, # Bigger = more careful
     "pop_synth_age_interp": 'cubic',
     "pop_synth_cache_phot": {},
+    
+    # Need to avoid doing synthesis in super duper detail for speed.
+    # Still need to implement 'full' method.
+    "pop_synth_lwb_method": 0, 
     
     "pop_tau_bc": 0,
     "pop_age_bc": 10.,
@@ -811,6 +813,7 @@ def PopulationParameters():
     "pop_dust_geom": 'screen',  # or 'mixed'
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     "pop_dust_scatter": None,
+    "pop_dust_scatter_seed": None,
     
     
     "pop_fpoll": 1.0,         # uniform pollution
@@ -826,7 +829,9 @@ def PopulationParameters():
     "pop_dlam": 1.,
     
     "pop_L1600_per_sfr": None,
+    
     "pop_calib_L1600": None,
+    "pop_calib_Z": None,        # not implemented
     
     "pop_Lh_scatter": 0.0,
     
@@ -1099,6 +1104,10 @@ def HaloMassFunctionParameters():
 
     # Note that this is not passed to hmf yet.
     "hmf_window": 'tophat',
+    "hmf_wdm_mass": None,
+    "hmf_wdm_interp": True,
+    
+    "hmf_path": None,
     
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',
@@ -1252,6 +1261,7 @@ def ControlParameters():
     "tau_instance": None,
     "tau_redshift_bins": 400,
     "tau_approx": True,
+    "tau_clumpy": None,
     "tau_Emin": 2e2,
     "tau_Emax": 3e4,
     "tau_Emin_pin": True,

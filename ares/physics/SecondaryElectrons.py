@@ -54,16 +54,16 @@ class SecondaryElectrons(object):
             f = h5py.File(self.fn, 'r')
 
             # Read in Furlanetto & Stoever lookup tables
-            self.E = f["electron_energy"].value
-            self._x = f["ionized_fraction"].value
+            self.E = np.array(f[("electron_energy")])
+            self._x = np.array(f[("ionized_fraction")])
             
-            self.fh_tab = f["f_heat"].value
-            self.fionHI_tab = f["fion_HI"].value
-            self.fionHeI_tab = f["fion_HeI"].value
-            self.fionHeII_tab = f["fion_HeII"].value
-            self.fexc_tab = f["fexc"].value
-            self.flya_tab = f['f_Lya'].value
-            self.fion_tab = f['fion'].value
+            self.fh_tab = np.array(f[("f_heat")])
+            self.fionHI_tab = np.array(f[("fion_HI")])
+            self.fionHeI_tab = np.array(f[("fion_HeI")])
+            self.fionHeII_tab = np.array(f[("fion_HeII")])
+            self.fexc_tab = np.array(f[("fexc")])
+            self.flya_tab = np.array(f[('f_Lya')])
+            self.fion_tab = np.array(f[('fion')])
             
             f.close()
         else:

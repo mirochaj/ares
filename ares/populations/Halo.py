@@ -39,14 +39,6 @@ class HaloPopulation(Population):
 
         return self._parameterized
 
-    @property
-    def info(self):
-        if not self.parameterized:
-            try:
-                print_pop(self)
-            except AttributeError:
-                pass
-
     #@property
     #def dndm(self):
     #    if not hasattr(self, '_fcoll'):

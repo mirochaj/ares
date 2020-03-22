@@ -17,7 +17,6 @@ from scipy.integrate import quad, ode
 from ..util.Math import interp1d
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
-from ..util.ParameterBundles import ParameterBundle
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, cm_per_kpc, k_B, m_p
     
@@ -539,6 +538,10 @@ class Cosmology(object):
            
         return dz
         
+    def DeltaZed(self, z0, dR):
+        f = lambda z2: self.ComovingRadialDistance(z0, z2) / cm_per_mpc - dR
+        return fsolve(f, x0=z0+0.1)[0] - z0
+        
     def ComovingRadialDistance(self, z0, z):
         """
         Return comoving distance between redshift z0 and z, z0 < z.
@@ -623,7 +626,17 @@ class Cosmology(object):
             
         return 4. * np.pi * (l_J / 2)**3 * self.rho_b_z0 / 3. / g_per_msun
         
+    def ComovingLengthToAngle(self, z, R):
+        """
+        Convert a length scale (co-moving) to an observed angle [arcmin].
+        """
+        f = lambda ang: self.AngleToComovingLength(z, ang) - R
+        return fsolve(f, x0=0.1)[0]
+        
     def AngleToComovingLength(self, z, angle):
+        return self.AngleToProperLength(z, angle) * (1. + z)
+        
+    def AngleToProperLength(self, z, angle):
         """
         Convert an angle to a co-moving length-scale at the observed redshift.
         

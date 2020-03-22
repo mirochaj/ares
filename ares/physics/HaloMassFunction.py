@@ -51,6 +51,7 @@ except ImportError:
 try:
     import hmf
     from hmf import MassFunction
+    from hmf.wdm import MassFunctionWDM
     have_hmf = True
     hmf_vers = float(hmf.__version__[0])
 except ImportError:
@@ -141,11 +142,17 @@ class HaloMassFunction(object):
         #    if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
         #        assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
         #            "Tmax must exceed Tmin!"
+        
+        if self.pf['hmf_path'] is not None:
+            _path = self.pf['hmf_path']
+        else:
+            _path = '{0!s}/input/hmf'.format(ARES)
                 
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.tab_name is None):
             prefix = self.tab_prefix_hmf(True)
-            fn = '{0!s}/input/hmf/{1!s}'.format(ARES, prefix)
+            fn = '{0!s}/{1!s}'.format(_path, prefix)
+                    
             # First, look for a perfect match
             if os.path.exists('{0!s}.{1!s}'.format(fn,\
                 self.pf['preferred_format'])):
@@ -265,16 +272,104 @@ class HaloMassFunction(object):
                 raise AttributeError('Should get caught by `hasattr` (#2).')
 
         return self.__dict__[name]
-
+        
+    def _load_hmf_wdm(self):
+        m_X = self.pf['hmf_wdm_mass']
+        
+        _fn = self.tab_prefix_hmf(True)
+        
+        if self.pf['hmf_path'] is not None:
+            _path = self.pf['hmf_path'] + '/'
+        else:
+            _path = "{0!s}/input/hmf/".format(ARES)
+        
+        if not os.path.exists(_path+_fn) and (not self.pf['hmf_wdm_interp']):
+            raise ValueError("Couldn't find file {} and wdm_interp=False!".format(_fn))
+        
+        ##
+        # Find some files to interpolate
+        
+        # Hack of _wdm_?.?? suffix
+        prefix = _fn[:_fn.find('_wdm_')]
+        
+        # Look for bracketing files
+        m_X_l = int(m_X)
+        m_X_r = m_X_l + 1
+        fn_l = prefix + '_wdm_{:.2f}.hdf5'.format(m_X_l)
+        fn_r = prefix + '_wdm_{:.2f}.hdf5'.format(m_X_r)
+        
+        dndm = []
+        ngtm = []
+        mgtm = []
+        tmar = []
+        interp = True
+        mass = [m_X_l, m_X_r]
+        for i, fn in enumerate([fn_l, fn_r]):
+            with h5py.File(_path + fn, 'r') as f:
+                
+                tab_z = np.array(f[('tab_z')])
+                tab_M = np.array(f[('tab_M')])
+                tab_dndm = np.array(f[('tab_dndm')])
+                
+                #self.tab_k_lin = np.array(f[('tab_k_lin')])
+                #self.tab_ps_lin = np.array(f[('tab_ps_lin')])
+                #self.tab_sigma = np.array(f[('tab_sigma')])
+                #self.tab_dlnsdlnm = np.array(f[('tab_dlnsdlnm')])
+                
+                tab_ngtm = np.array(f[('tab_ngtm')])
+                tab_mgtm = np.array(f[('tab_mgtm')])
+                                
+                if 'tab_MAR' in f:
+                    tab_MAR = np.array(f[('tab_MAR')])
+                else:
+                    print("No maR in file {}.".format(_path+fn))    
+                #self.tab_growth = np.array(f[('tab_growth')])
+                
+                if m_X == mass[i]:                
+                    interp = False
+                    break
+                
+            dndm.append(tab_dndm)
+            ngtm.append(tab_ngtm)
+            mgtm.append(tab_mgtm) 
+            tmar.append(tab_MAR)
+                    
+        self.tab_z = tab_z
+        self.tab_M = tab_M
+        
+        if (not interp):
+            self.tab_dndm = tab_dndm
+            self.tab_ngtm = tab_ngtm
+            self.tab_mgtm = tab_mgtm
+            self._tab_MAR = tab_MAR
+        else:    
+            # Interpolate 
+            log_dndm = np.log10(dndm)
+            log_ngtm = np.log10(ngtm)
+            log_mgtm = np.log10(mgtm)
+            log_tmar = np.log10(tmar)
+            
+            self.tab_dndm = 10**(np.diff(log_dndm, axis=0).squeeze() \
+                * (m_X - m_X_l) + log_dndm[0])
+            self.tab_ngtm = 10**(np.diff(log_ngtm, axis=0).squeeze() \
+                * (m_X - m_X_l) + log_ngtm[0])
+            self.tab_mgtm = 10**(np.diff(log_mgtm, axis=0).squeeze() \
+                * (m_X - m_X_l) + log_mgtm[0])
+            self._tab_MAR = 10**(np.diff(log_tmar, axis=0).squeeze() \
+                * (m_X - m_X_l) + log_tmar[0])            
+                    
     def _load_hmf(self):
         """ Load table from HDF5 or binary. """
 
         if self._is_loaded:
             return
             
+        if self.pf['hmf_wdm_mass'] is not None:
+            return self._load_hmf_wdm()
+                        
         if self.pf['pop_hmf_data'] is not None:
             self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
-                self.tab_ngtm, self.tab_MAR, self.tab_Mmin_floor = \
+                self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
                     self.pf['pop_hmf_data']            
             return
             
@@ -293,7 +388,7 @@ class HaloMassFunction(object):
             self.tab_ngtm = np.array(f[('tab_ngtm')])
             self.tab_mgtm = np.array(f[('tab_mgtm')])
             if 'tab_MAR' in f:
-                self.tab_MAR = np.array(f[('tab_MAR')])
+                self._tab_MAR = np.array(f[('tab_MAR')])
             self.tab_growth = np.array(f[('tab_growth')])
             
             f.close()
@@ -306,7 +401,7 @@ class HaloMassFunction(object):
             self.tab_ngtm = f['tab_ngtm']
             self.tab_mgtm = f['tab_mgtm']
             if 'tab_MAR' in f:
-                self.tab_MAR = f['tab_MAR']
+                self._tab_MAR = f['tab_MAR']
             if 'tab_Mmin_floor' in f:
                 self.tab_Mmin_floor = f['tab_Mmin_floor']
             self.tab_growth = f['tab_growth']
@@ -333,7 +428,7 @@ class HaloMassFunction(object):
             self.tab_dndm = pickle.load(f)            
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
-            self.tab_MAR = pickle.load(f)
+            self._tab_MAR = pickle.load(f)
             self.tab_Mmin_floor = pickle.load(f)
             
             if self.pf['hmf_load_ps']:
@@ -356,6 +451,9 @@ class HaloMassFunction(object):
             raise IOError('Unrecognized format for hmf_table.')    
                 
         self._is_loaded = True
+        
+        if self.pf['verbose'] and rank == 0:
+            print("Loaded {}.".format(self.tab_name))
         
         if self.pf['hmf_func'] is not None:
             if self.pf['verbose']:
@@ -431,7 +529,7 @@ class HaloMassFunction(object):
             logMmin = self.pf['hmf_logMmin']
             logMmax = self.pf['hmf_logMmax']
             dlogM = self.pf['hmf_dlogM']
-            
+
             from hmf.filters import SharpK, TopHat
             if self.pf['hmf_window'] == 'tophat':
                 # This is the default in hmf
@@ -440,15 +538,20 @@ class HaloMassFunction(object):
                 window = SharpK
             else:
                 raise ValueError("Unrecognized window function.")
+                
+            MFclass = MassFunction if self.pf['hmf_wdm_mass'] is None \
+                else MassFunctionWDM
+            xtras = {'wdm_mass': self.pf['hmf_wdm_mass']} \
+                if self.pf['hmf_wdm_mass'] is not None else {}
             
             # Initialize Perturbations class            
-            self._MF_ = MassFunction(Mmin=logMmin, Mmax=logMmax, 
+            self._MF_ = MFclass(Mmin=logMmin, Mmax=logMmax, 
                 dlog10m=dlogM, z=self.tab_z[0], filter_model=window, 
                 hmf_model=self.hmf_func, cosmo_params=self.pars_cosmo,
                 growth_params=self.pars_growth, sigma_8=self.cosm.sigma8, 
                 n=self.cosm.primordial_index, transfer_params=self.pars_transfer,
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
-                lnk_max=self.pf['hmf_lnk_max'])
+                lnk_max=self.pf['hmf_lnk_max'], **xtras)
                 
         return self._MF_
 
@@ -505,7 +608,7 @@ class HaloMassFunction(object):
             else:
                 dt = self.pf['hmf_dt'] # Myr
             
-                tmin = max(self.pf['hmf_tmin'] - 2*dt, 0.0)
+                tmin = max(self.pf['hmf_tmin'] - 2*dt, 20.)
                 tmax = self.pf['hmf_tmax'] + 2*dt
             
                 Nt = Nz = int(round(((tmax - tmin) / dt) + 1, 1))
@@ -609,7 +712,10 @@ class HaloMassFunction(object):
         ##
         if not save_MAR:
             return
-            
+    
+        self.TabulateMAR()
+    
+    def TabulateMAR(self):
         ##
         # Generate halo growth histories
         ##   
@@ -634,7 +740,7 @@ class HaloMassFunction(object):
                 continue
             MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
                                              
-            pb.update(i+self.tab_z.size-1)     
+            pb.update(i+self.tab_z.size-1)
             
         pb.finish()                                
                                                 
@@ -702,26 +808,29 @@ class HaloMassFunction(object):
             arr[i] = np.exp(np.interp(np.log(self.tab_M), np.log(M[ok==1]), 
                 np.log(Mdot[ok==1])))
                             
-        self.tab_MAR = arr    
+        self._tab_MAR = arr    
 
         if size > 1:
             tmp = np.zeros_like(self.tab_MAR)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_MAR, tmp)
-            self.tab_MAR = tmp
+            self._tab_MAR = tmp
         
         ##
         # OK, *now* we're done.
         ##
             
     @property
-    def logM_min(self):
-        if not hasattr(self, '_logM_min'):
-            self.build_1d_splines(Tmin=self.pf['pop_Tmin'], mu=self.pf['mu'])
-        return self._logM_min
-    
-    @logM_min.setter
-    def logM_min(self, value):
-        self._logM_min = value
+    def tab_MAR(self):
+        if not hasattr(self, '_tab_MAR'):
+            if not self._is_loaded:
+                poke = self.tab_dndm
+            else:    
+                self.TabulateMAR()
+        return self._tab_MAR    
+        
+    @tab_MAR.setter
+    def tab_MAR(self, value):
+        self._tab_MAR = value
             
     @property
     def fcoll_Tmin(self):
@@ -867,17 +976,29 @@ class HaloMassFunction(object):
                
         # Note also that this is also HMF's definition of nu
         delta_sc = 1.686
-        nu = (delta_sc / self.tab_sigma / G)**2  
+        nu = (delta_sc / self.tab_sigma / G)
+        nu_sq = nu**2
         
         # Cooray & Sheth (2002) Equations 68-69
         if self.hmf_func == 'PS':
-            bias = 1. + (nu - 1.) / delta_sc
+            bias = 1. + (nu_sq - 1.) / delta_sc
         elif self.hmf_func == 'ST':
             ap, qp = 0.707, 0.3
             
             bias = 1. \
-                + (ap * nu - 1.) / delta_sc \
-                + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
+                + (ap * nu_sq - 1.) / delta_sc \
+                + (2. * qp / delta_sc) / (1. + (ap * nu_sq)**qp)
+        elif self.hmf_func == 'Tinker10':
+            y = np.log10(200.)
+            A = 1. + 0.24 * y * np.exp(-(4. / y)**4)
+            a = 0.44 * y - 0.88
+            B = 0.183
+            b = 1.5
+            C = 0.019 + 0.107 * y + 0.19 * np.exp(-(4. / y)**4)
+            c = 2.4
+            
+            bias = 1. - A * (nu**a / (nu**a + delta_sc**a)) + B * nu**b \
+                 + C * nu**c
         else:
             raise NotImplemented('No bias for non-PS non-ST MF yet!')
     
@@ -1097,7 +1218,7 @@ class HaloMassFunction(object):
                     if hasattr(self, '_tab_Mmin_floor'):
                         return self._tab_Mmin_floor
                         
-            self._tab_Mmin_floor = np.array(map(self._tegmark, self.tab_z))
+            self._tab_Mmin_floor = np.array([self._tegmark(z) for z in self.tab_z])
         return self._tab_Mmin_floor
             
     @tab_Mmin_floor.setter
@@ -1108,7 +1229,9 @@ class HaloMassFunction(object):
     @property        
     def Tegmark(self):
         if not hasattr(self, '_Tegmark'):
-            self._Tegmark = lambda z: np.interp(z, self.tab_z, self.tab_Mmin_floor)
+            def func(z):
+                return np.interp(z, self.tab_z, self.tab_Mmin_floor)
+            self._Tegmark = func
         return self._Tegmark
         
     def _tegmark(self, z):
@@ -1207,6 +1330,10 @@ class HaloMassFunction(object):
                 
         if self.pf['hmf_window'].lower() != 'tophat':
             s += '_{}'.format(self.pf['hmf_window'].lower())
+            
+        if self.pf['hmf_wdm_mass'] is not None:
+            assert self.pf['hmf_window'].lower() == 'sharpk'
+            s += '_wdm_{:.2f}'.format(self.pf['hmf_wdm_mass'])
                         
         return s   
                                
