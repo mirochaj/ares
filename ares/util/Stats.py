@@ -11,9 +11,17 @@ Description:
 """
 
 import numpy as np
-from scipy.optimize import fmin
+from scipy.special import erf
 from scipy.integrate import quad
 from scipy.interpolate import griddata
+from scipy.optimize import fmin, curve_fit
+
+root2 = np.sqrt(2.)
+rootpi = np.sqrt(np.pi)
+
+_normal = lambda x, p0, p1, p2: p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
+_normal_skew = lambda x, p0, p1, p2, p3: 2 * _normal(x, p0, p1, p2) \
+    * 0.5 * (1. + erf((x - p1) * p3 / root2 / p2))
 
 def symmetrize_errors(mu, err, operation='min'):
     
@@ -307,53 +315,192 @@ def bin_c2e(bins):
     
     return np.concatenate(([bins[0] - 0.5 * dx], bins + 0.5 * dx))
     
-def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None):
+def skewness(data):
+    return np.sum((data - np.mean(data))**3) \
+        / float(data.size) / np.std(data)**3
+    
+def kurtosis(data):
+    return np.sum((data - np.mean(data))**4) \
+        / float(data.size) / np.std(data)**4
+    
+_dist_opts = ['normal', 'lognormal', 'skewnormal', 
+    'normal-pars', 'lognormal-pars', 'skewnormal-pars', 'pdf', 'cdf']    
+    
+def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False, 
+    method_avg='avg', method_std='std', cdf_lim=0.7, pdf_bins=50):
     """
-    Take samples and bin up.
+    Quantify the scatter in some relationship between two variables, x and y.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        Independent variable
+    y : np.array
+        Dependent variable
+    xbin_c : np.ndarray
+        Bin centers for `x`
+    weights : np.ndarray
+        Can weight each samples by some factor.
+    inclusive : bool
+        Include samples above or below bounding bins in said bins.
+    method_avg : str
+        How to quantify the average y value in each x bin.
+        Options: 'avg', 'median', 'mode'
+    method_std : str, float
+        How to quantify the spread in y in each x bin.
+        Options: 'std', 'normal', 'lognormal', 'bounds', 'pdf', float
+        If a float is provided, assume it's a percentile, e.g., 
+        method_std=0.68 will return boundaries of region containing 68% of
+        samples.
+    cdf_lim : float
+        If fitting a normal or log-normal function to the distribution in each
+        bin, include the PDF up until this value of the CDF when fitting the
+        distribution. Essentially a kludge to exclude long tails in fit, to
+        better capture peak and width of (main part of) the distribution.
+    
     """
 
     xbin_e = bin_c2e(xbin_c)
 
     if weights is None:
         weights = np.ones_like(x)
-
-    ystd = []
+        
+    ysca = []
     yavg = []
+    N = []
     for i, lo in enumerate(xbin_e):
         if i == len(xbin_e) - 1:
             break
 
+        # Upper edge of bin
         hi = xbin_e[i+1]
 
-        ok = np.logical_and(x >= lo, x < hi)
-        ok = np.logical_and(ok, np.isfinite(y))
+        if inclusive and i == 0:
+            ok = x < hi
+            ok = np.logical_and(ok, np.isfinite(y))
+        elif inclusive and i == len(xbin_e) - 1:
+            ok = x >= lo
+            ok = np.logical_and(ok, np.isfinite(y))    
+        else:   
+            ok = np.logical_and(x >= lo, x < hi)
+            ok = np.logical_and(ok, np.isfinite(y))
         
         f = y[ok==1]
 
+        # What to do when there aren't any samples in a bin?
+        # Move on, that's what. Add masked elements.
         if (f.size == 0) or (weights[ok==1].sum() == 0):
             
             yavg.append(-np.inf)
-            if limits:
-                ystd.append((-np.inf, -np.inf))
+            if method_std == 'bounds' or type(method_std) in [int, float, np.float64]:
+                ysca.append((-np.inf, -np.inf))
             else:    
-                ystd.append(-np.inf)
+                ysca.append(-np.inf)
             
+            N.append(0)
             continue
         
+        # If we made it here, we've got some samples.
+        # Record the number of samples in this bin, the average value, 
+        # and some measure of the scatter.
+        N.append(sum(ok==1))
+
         yavg.append(np.average(f, weights=weights[ok==1]))
         
-        if percentile is not None:
-            q1 = 0.5 * 100 * (1. - percentile)
-            q2 = 100 * percentile + q1                
+        if method_std == 'std':
+            ysca.append(np.std(f))
+        elif method_std in _dist_opts:
+            
+            if method_std.startswith('lognormal'):
+                pdf, ye = np.histogram(np.log10(y[ok==1]), density=1,
+                    weights=weights[ok==1], bins=pdf_bins)
+            else:
+                pdf, ye = np.histogram(y[ok==1], density=1,
+                    weights=weights[ok==1], bins=pdf_bins)
+            
+            yc = bin_e2c(ye)
+                    
+            if method_std == 'pdf':
+                ysca.append((yc, pdf))
+                continue
+            
+            cdf = np.cumsum(pdf) / np.sum(pdf)
+            
+            if method_std == 'cdf':
+                ysca.append((yc, cdf))
+                continue
+                                    
+            # Compute median to use as initial guess
+            med = np.interp(0.5, cdf, yc)
+            std = np.nanstd(y[ok==1]) if method_std.startswith('norm') \
+                else np.nanstd(np.log10(y[ok==1]))
+            
+            # Make sure we go a little past the peak in the fit.
+            yc_fit = yc[cdf <= cdf_lim]
+            pdf_fit = pdf[cdf <= cdf_lim]
+            
+            # If CDF very sharp, just use all of it.
+            if len(pdf_fit) < 3 + int('skewnormal' in method_std):
+                yc_fit = yc
+                pdf_fit = pdf
+  
+            if 'skew' in method_std:
+                _model = _normal_skew
+                p0 = [pdf.max(), med, std, 1.1]
+            else:
+                _model = _normal
+                p0 = [pdf.max(), med, std]
+                
+            print("guesses: {}".format(p0))    
+  
+            try:
+                pval, pcov = curve_fit(_model, yc_fit, pdf_fit,
+                    p0=p0, maxfev=100000)
+            except RuntimeError:
+                print("Gaussian fit failed!")
+                pval = [-np.inf] * (3 + int('skewnormal' in method_std)) 
+
+            if '-pars' in method_std:        
+                ysca.append(pval)
+            else:
+                ysca.append(pval[2])
+
+        elif method_std == 'bounds':
+            ysca.append((np.min(f), np.max(f)))
+        elif type(method_std) in [int, float, np.float64]:
+            q1 = 0.5 * 100 * (1. - method_std)
+            q2 = 100 * method_std + q1                
             lo, hi = np.percentile(f, (q1, q2))
-            ystd.append((lo, hi))
-        elif limits:
-            ystd.append((np.min(f), np.max(f)))
-        else:        
-            ystd.append(np.std(f))
+            ysca.append((lo, hi))
+        else:
+            raise NotImplemented('help')
 
-    return np.array(xbin_c), np.array(yavg), np.array(ystd)
+    return np.array(xbin_c), np.array(yavg), np.array(ysca), np.array(N)
 
+def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
+    return_N=False, inclusive=False):
+    """
+    Bin samples in x and y.
+    
+    This is for backward compatibility. It's just a wrapper around
+    `quantify_scatter` defined above.
+    """
+    
+    if limits:
+        return quantify_scatter(x, y, xbin_c, weights=weights,
+            method_std='bounds', inclusive=inclusive)
+    elif percentile is not None:
+        a, b, c, d = quantify_scatter(x, y, xbin_c, weights=weights,
+            method_std=percentile, inclusive=inclusive)
+            
+        if not return_N:
+            return a, b, c
+        else:
+            return a, b, c, d
+    else:
+        return quantify_scatter(x, y, xbin_c, weights=weights,
+            method_std='std', inclusive=inclusive)            
+         
 def rebin(bins):
     """
     Take in an array of bin edges and convert them to bin centers.        

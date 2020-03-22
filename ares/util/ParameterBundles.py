@@ -609,7 +609,7 @@ class ParameterBundle(dict):
                             tmp[key])
                     else:
                         msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
-                        
+
                     print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]
@@ -633,13 +633,30 @@ class ParameterBundle(dict):
     @property
     def num(self):
         if not hasattr(self, '_num'):
+            #idnums = []
+            #for key in self.keys():
+            #    if not (key.startswith('pop_') or key.startswith('pq_')):
+            #        continue
+            #        
+            #    prefix, idnum = pop_id_num(key)      
+            #    
+            #    if idnum is None:
+            #        continue
+            #        
+            #    if idnum not in idnums:
+            #        idnum.append(idnums)
+            #
+            #if len(idnums) == 1:
+            #    self._num = idnums[0]
+            #else:
             self._num = None
+            
         return self._num
     
     @num.setter
     def num(self, value):
         assert value % 1 == 0
-        self._value = value
+        self._num = value
 
         if self.Npops > 1:
             raise ValueError('This bundle has {} populations! Setting `num` is too dangerous.'.format(self.Npops))
@@ -699,6 +716,9 @@ class ParameterBundle(dict):
         pops = []
         for key in self:
             prefix, idnum = pop_id_num(key)    
+            if idnum is None:
+                continue
+                
             if idnum not in pops:
                 pops.append(idnum)
     
@@ -749,13 +769,14 @@ class ParameterBundle(dict):
         
         This will take any parameters with ID numbers, and any parameters
         with the `hmf_` prefix, since populations need to know about that 
-        stuff. Also, dustcorr parameters.
+        stuff. Also, dustcorr parameters, optical depth stuff.
         """
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
             if (idnum == num) or prefix.startswith('hmf_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
+                or prefix.startswith('feedback_') or prefix.startswith('tau_') \
                 or prefix.startswith('master'):
                                 
                 if strip_id:
@@ -841,29 +862,18 @@ class ParameterBundle(dict):
 
 
 _PB = ParameterBundle
-_uv_pop = _PB('pop:fcoll', id_num=0, verbose=0) \
-        + _PB('sed:uv',    id_num=0, verbose=0)
-_xr_pop = _PB('pop:fcoll', id_num=1, verbose=0) \
-        + _PB('sed:xray',  id_num=1, verbose=0)
 
-_gs_4par = _PB('pop:fcoll', id_num=0, verbose=0) \
-         + _PB('sed:lw',    id_num=0, verbose=0) \
-         + _PB('pop:fcoll', id_num=1, verbose=0) \
-         + _PB('sed:lyc',   id_num=1, verbose=0) \
-         + _PB('pop:fcoll', id_num=2, verbose=0) \
-         + _PB('sed:xray',  id_num=2, verbose=0)
-         
 
-         
 # Build a template four-parameter model
-_lw = _PB('pop:fcoll') + _PB('src:toy-lya')
+_lw = _PB('pop:fcoll', verbose=0) + _PB('src:toy-lya', verbose=0)
 _lw.num = 0
-_xr = _PB('src:toy-xray')
+_xr = _PB('src:toy-xray', verbose=0)
 _xr.num = 1
 _xr.link_sfrd_to = 0
-_uv = _PB('src:toy-ion')
+_uv = _PB('src:toy-ion', verbose=0)
 _uv.num = 2
 _uv.link_sfrd_to = 0
+<<<<<<< working copy
          
 _gs_4par = _lw + _xr + _uv
 
@@ -874,7 +884,8 @@ _param_sim = {'problem_type': 100, 'parametric_model': True,
     'output_frequencies': np.arange(30., 201.)}
 
 _gs_min = {'problem_type': 100, 'load_ics': True, 'cosmological_ics': True}
-_tmp = {'2pop': _uv_pop+_xr_pop, '4par': _gs_4par,
+_tmp = {'4par': _gs_4par,
     'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 
 _Bundles['gs'] = _tmp
+

@@ -9,7 +9,8 @@ info = \
  'reference': 'Stefanon et al., 2017, ApJ, 843, 36',
  'data': 'Table 2', 
  'imf': ('chabrier', (0.1, 100.)),
- 'other': 'data from arxiv version'
+ 'other': 'data from arxiv version',
+ 'label': 'Stefanon+ (2017)', 
 }
 
 redshifts = [4., 5., 6., 7.]

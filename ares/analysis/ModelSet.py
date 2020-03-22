@@ -14,6 +14,7 @@ import pickle
 import shutil
 import numpy as np
 import matplotlib as mpl
+from ..util.Math import smooth
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 from ..physics import Cosmology
@@ -100,7 +101,7 @@ def err_str(label, mu, err, log, labels=None):
 class ModelSubSet(object):
     def __init__(self):
         pass
-
+        
 class ModelSet(BlobFactory):
     def __init__(self, data, subset=None, verbose=True):
         """
@@ -119,6 +120,8 @@ class ModelSet(BlobFactory):
         
         self.subset = subset
                 
+        self.is_single_output = True        
+                
         # Read in data from file (assumed to be pickled)
         if isinstance(data, basestring):
             
@@ -135,7 +138,7 @@ class ModelSet(BlobFactory):
 
             # This means we're sitting in the right directory already
             if i == - 1:
-                self.path = './'
+                self.path = '.'
                 self.fn = prefix
             else:
                 self.path = prefix[0:i+1]
@@ -146,13 +149,44 @@ class ModelSet(BlobFactory):
                     print_model_set(self)
                 except:
                     pass
-                    
+
         elif isinstance(data, ModelSet):
             self.prefix = data.prefix
             self._chain = data.chain
             self._is_log = data.is_log
             self._base_kwargs = data.base_kwargs
 
+        elif type(data) in [list, tuple]:
+            
+            self.is_single_output = False
+            
+            fn = []
+            self.paths = []
+            self.prefix = data
+            for h, prefix in enumerate(data):
+                i = prefix.rfind('/') # forward slash index
+                
+                # This means we're sitting in the right directory already
+                if i == - 1:
+                    path = '.'
+                    fn.append(prefix)
+                else:
+                    path = prefix[0:i+1]
+                    fn.append(prefix[i+1:])
+                    
+                self.paths.append(path[0:-1] if path[-1] == '/' else path)    
+                    
+                if h > 0:
+                    assert fn[h] == fn[h-1], \
+                        "File prefix different between {} and {}".format(
+                            fn[h], fn[h-1])
+
+            self.fn = fn[0]
+            print("# Will load MCMC outputs from {} directories:".format(len(self.paths)))
+            for path in self.paths:
+                print("#     {}".format(path))
+            print("# Each with file prefix `{}`".format(self.fn))    
+            
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
 
@@ -277,16 +311,12 @@ class ModelSet(BlobFactory):
     def base_kwargs(self):
         if not hasattr(self, '_base_kwargs'):  
             
-            burn = self.prefix.endswith('.burn')
-            if burn:
-                pre = self.prefix.replace('.burn', '')
-            else:
-                pre = self.prefix
+            pre, post = self._get_pre_post()
                       
-            if os.path.exists('{!s}.binfo.pkl'.format(pre)):
-                fn = '{!s}.binfo.pkl'.format(pre)
-            elif os.path.exists('{!s}.setup.pkl'.format(pre)):
-                fn = '{!s}.setup.pkl'.format(pre)
+            if os.path.exists('{!s}/{!s}.binfo.pkl'.format(pre, post)):
+                fn = '{!s}/{!s}.binfo.pkl'.format(pre, post)
+            elif os.path.exists('{!s}/{!s}.setup.pkl'.format(pre, post)):
+                fn = '{!s}/{!s}.setup.pkl'.format(pre, post)
             else:    
                 print("WARNING: No files with prefix={} were found.".format(pre))
                 self._base_kwargs = None
@@ -300,31 +330,42 @@ class ModelSet(BlobFactory):
             except:
                 self._base_kwargs = {}
             
-        return self._base_kwargs    
+        return self._base_kwargs   
+        
+    def _get_pre_post(self):
+        if self.is_single_output:
+            pre = self.path
+            burn = self.prefix.endswith('.burn')
+        else:
+            pre = self.paths[0]
+            burn = self.fn[0].endswith('.burn')
+        
+        if burn:
+            post = self.fn.replace('.burn', '')
+        else:
+            post = self.fn
+            
+        return pre, post    
 
     @property
     def parameters(self):
         # Read parameter names and info
-        if not hasattr(self, '_parameters'):
+        if not hasattr(self, '_parameters'):            
             
-            burn = self.prefix.endswith('.burn')
-            if burn:
-                pre = self.prefix.replace('.burn', '')
-            else:
-                pre = self.prefix
-            
-            if os.path.exists('{!s}.pinfo.pkl'.format(pre)):
+            pre, post = self._get_pre_post()
+                
+            if os.path.exists('{!s}/{!s}.pinfo.pkl'.format(pre, post)):
                 (self._parameters, self._is_log) =\
-                    read_pickle_file('{!s}.pinfo.pkl'.format(pre), nloads=1,\
-                    verbose=False)
-            elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
-                f = h5py.File('{!s}.hdf5'.format(self.prefix))
+                    read_pickle_file('{!s}/{!s}.pinfo.pkl'.format(pre, post), 
+                        nloads=1, verbose=False)
+            elif os.path.exists('{!s}/{!s}.hdf5'.format(pre, post)):
+                f = h5py.File('{!s}/{!s}.hdf5'.format(pre, post))
                 self._parameters = list(f['chain'].attrs.get('names'))
                 #self._is_log = list(f['chain'].attrs.get('is_log'))
                 self._is_log = [False] * len(self._parameters)
                 f.close()
             else:
-                print("WARNING: No files with prefix={} were found.".format(pre))
+                print("WARNING: No files following naming convention {}/{} were found.".format(pre, post))
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p{}'.format(i) \
                     for i in range(self.chain.shape[-1])]
@@ -338,20 +379,16 @@ class ModelSet(BlobFactory):
     def nwalkers(self):
         # Read parameter names and info
         if not hasattr(self, '_nwalkers'):
-            burn = self.prefix.endswith('.burn')
-            if burn:
-                pre = self.prefix.replace('.burn', '')
-            else:
-                pre = self.prefix
+            pre, post = self._get_pre_post()
                 
-            if os.path.exists('{!s}.rinfo.pkl'.format(pre)):
+            if os.path.exists('{!s}/{!s}.rinfo.pkl'.format(pre, post)):
                 loaded =\
-                    read_pickle_file('{!s}.rinfo.pkl'.format(pre),\
+                    read_pickle_file('{!s}/{!s}.rinfo.pkl'.format(pre, post),\
                     nloads=1, verbose=False)
                 self._nwalkers, self._save_freq, self._steps = \
                     list(map(int, loaded))
             else:
-                print("WARNING: No files with prefix={} were found.".format(pre))
+                print("WARNING: No files following naming convention {}/{} were found.".format(pre, post))
                 self._nwalkers = self._save_freq = self._steps = None
     
         return self._nwalkers
@@ -370,10 +407,13 @@ class ModelSet(BlobFactory):
     
     @property
     def priors(self):
-        if not hasattr(self, '_priors'):   
-            if os.path.exists('{!s}.priors.pkl'.format(self.prefix)):
-                self._priors =\
-                    read_pickle_file('{!s}.priors.pkl'.format(self.prefix),\
+        if not hasattr(self, '_priors'):
+            
+            pre, post = self._get_pre_post()
+            
+            if os.path.exists('{!s}/{!s}.priors.pkl'.format(pre, post)):
+                self._priors = \
+                    read_pickle_file('{!s}/{!s}.priors.pkl'.format(pre, post),
                     nloads=1, verbose=False)
             else:
                 self._priors = {}
@@ -520,139 +560,170 @@ class ModelSet(BlobFactory):
         return self._saved_checkpoints
 
     @property
+    def strictly_positive(self):
+        if not hasattr(self, '_strictly_positive'):
+            self._strictly_positive = []
+        return self._strictly_positive
+        
+    @strictly_positive.setter
+    def strictly_positive(self, value):
+        if type(value) not in [list, tuple]:
+            val = [value]
+        else:
+            val = list(value)
+            
+        self._strictly_positive = val
+        
+    @property
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
-            have_chain_f = os.path.exists('{!s}.chain.pkl'.format(self.prefix))
-            have_f = os.path.exists('{!s}.pkl'.format(self.prefix))
-
-            if have_chain_f or have_f:
-                if have_chain_f:
-                    fn = '{!s}.chain.pkl'.format(self.prefix)
-                else:
-                    fn = '{!s}.pkl'.format(self.prefix)
-                
-                if rank == 0:
-                    print("Loading {!s}...".format(fn))
-
-                t1 = time.time()
-                self._chain = read_pickled_chain(fn)
-                t2 = time.time()
-
-                if rank == 0:
-                    print("Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
-                        t2-t1))
-                        
-                if hasattr(self, '_mask'):
-                    if self.mask.ndim == 1:
-                        mask2d = np.array([self.mask] * self._chain.shape[1]).T
-                    elif self.mask.ndim == 2:
-                        mask2d = self.mask
-                        #mask2d = np.zeros_like(self._chain)
-                else:
-                    mask2d = 0
-
-                self._chain = np.ma.array(self._chain, mask=mask2d)
-
-            # We might have data stored by processor
-            elif os.path.exists('{!s}.000.chain.pkl'.format(self.prefix)):
-                i = 0
-                full_chain = []
-                full_mask = []
-                fn = '{!s}.000.chain.pkl'.format(self.prefix)
-                while True:
-          
-                    if not os.path.exists(fn):
-                        break
-
-                    try:
-                        this_chain = read_pickled_chain(fn)
-                        full_chain.extend(this_chain.copy())
-                    except ValueError:
-                        #import pickle
-                        #f = open(fn, 'rb')
-                        #data = pickle.load(f)
-                        #f.close()
-                        #print data
-                        print("Error loading {!s}.".format(fn))
-                    
-                    i += 1
-                    fn = '{0!s}.{1!s}.chain.pkl'.format(self.prefix,\
-                        str(i).zfill(3))  
-                    
-                self._chain = np.ma.array(full_chain, 
-                    mask=np.zeros_like(full_chain))
-
-                # So we don't have to stitch them together again.
-                # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
-                # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
-                # Hence, it is commented out (for now).
-                #if rank == 0:
-                #    write_pickle_file(self._chain,\
-                #        '{!s}.chain.pkl'.format(self.prefix), ndumps=1,\
-                #        open_mode='w', safe_mode=False, verbose=False)
-
-            elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
-                f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                chain = np.array(f[('chain')])
-                    
-                if hasattr(self, '_mask'):
-                    if self.mask.ndim == 1:
-                        mask2d = np.repeat(self.mask, 2).reshape(len(self.mask), 2)
-                    else:
-                        mask2d = self.mask#np.zeros_like(self._chain)
-                else:
-                    mask2d = np.zeros(chain.shape)    
-                    self.mask = mask2d
-                                                                    
-                self._chain = np.ma.array(chain, mask=mask2d)
-                f.close()
-
-            elif os.path.exists('%s.hdf5' % self.prefix):
-                f = h5py.File('%s.hdf5' % self.prefix)
-                chain = f['chain'].value
-                mask = f['mask'].value
-                self.mask = np.array([mask] * chain.shape[1]).T
-                self._chain = np.ma.array(chain, mask=self.mask)
-                f.close()
-
-            # If each "chunk" gets its own file.
-            elif glob.glob('{!s}.dd*.chain.pkl'.format(self.prefix)):
-                
-                if self.include_checkpoints is not None:
-                    outputs_to_read = []
-                    for output_num in self.include_checkpoints:
-                        dd = str(output_num).zfill(4)
-                        fn = '{0!s}.dd{1!s}.chain.pkl'.format(self.prefix, dd)
-                        outputs_to_read.append(fn)
-                else:
-                    # Only need to use "sorted" on the second time around
-                    outputs_to_read = sorted(glob.glob(\
-                        '{!s}.dd*.chain.pkl'.format(self.prefix)))
-                                
-                full_chain = []
-                if rank == 0:
-                    print("Loading {!s}.dd*.chain.pkl...".format(self.prefix))
-                    t1 = time.time()
-                for fn in outputs_to_read:
-                    if not os.path.exists(fn):
-                        print("Found no output: {!s}".format(fn))
-                        continue
-                    this_chain = read_pickled_chain(fn)
-                    full_chain.extend(this_chain)
-                    
-                self._chain = np.ma.array(full_chain, mask=0)
-                
-                if rank == 0:
-                    t2 = time.time()
-                    print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
-                        self.prefix, t2 - t1))
+            
+            pre, post = self._get_pre_post()
+            
+            if self.is_single_output:
+                paths = [self.path]
             else:
-                self._chain = None            
+                paths = self.paths
+            
+            ##
+            # Loop below just in case we're stitching together many MCMCs
+            chains = []
+            for h, path in enumerate(paths):
+            
+                have_chain_f = os.path.exists('{!s}/{!s}.chain.pkl'.format(path, 
+                    self.fn))
+                have_f = os.path.exists('{!s}/{!s}.pkl'.format(path, 
+                    self.fn))
+
+                if have_chain_f or have_f:
+                    if have_chain_f:
+                        fn = '{!s}/{!s}.chain.pkl'.format(path, self.fn)
+                    else:
+                        fn = '{!s}/{!s}.pkl'.format(path, self.fn)
+                    
+                    if rank == 0:
+                        print("Loading {!s}...".format(fn))
+                
+                    t1 = time.time()
+                    _chain = read_pickled_chain(fn)
+                    t2 = time.time()
+                
+                    if rank == 0:
+                        print("Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
+                            t2-t1))
+                            
+                    if hasattr(self, '_mask'):
+                        if self.mask.ndim == 1:
+                            mask2d = np.array([self.mask] * _chain.shape[1]).T
+                        elif self.mask.ndim == 2:
+                            mask2d = self.mask
+                            #mask2d = np.zeros_like(self._chain)
+                    else:
+                        mask2d = 0
+                
+                    _chain = np.ma.array(_chain, mask=mask2d)
+                
+                # We might have data stored by processor
+                elif os.path.exists('{!s}.000.chain.pkl'.format(self.prefix)):
+                    i = 0
+                    full_chain = []
+                    full_mask = []
+                    fn = '{!s}.000.chain.pkl'.format(self.prefix)
+                    while True:
+              
+                        if not os.path.exists(fn):
+                            break
+                
+                        try:
+                            this_chain = read_pickled_chain(fn)
+                            full_chain.extend(this_chain.copy())
+                        except ValueError:
+                            #import pickle
+                            #f = open(fn, 'rb')
+                            #data = pickle.load(f)
+                            #f.close()
+                            #print data
+                            print("Error loading {!s}.".format(fn))
+                        
+                        i += 1
+                        fn = '{0!s}.{1!s}.chain.pkl'.format(self.prefix,\
+                            str(i).zfill(3))  
+                        
+                    self._chain = np.ma.array(full_chain, 
+                        mask=np.zeros_like(full_chain))
+                
+                    # So we don't have to stitch them together again.
+                    # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
+                    # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
+                    # Hence, it is commented out (for now).
+                    #if rank == 0:
+                    #    write_pickle_file(self._chain,\
+                    #        '{!s}.chain.pkl'.format(self.prefix), ndumps=1,\
+                    #        open_mode='w', safe_mode=False, verbose=False)                
+                elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
+                    f = h5py.File('{!s}.hdf5'.format(self.prefix))
+                    chain = np.array(f[('chain')])
+                        
+                    if hasattr(self, '_mask'):
+                        if self.mask.ndim == 1:
+                            mask2d = np.repeat(self.mask, 2).reshape(len(self.mask), 2)
+                        else:
+                            mask2d = self.mask#np.zeros_like(self._chain)
+                    else:
+                        mask2d = np.zeros(chain.shape)    
+                        self.mask = mask2d
+                                                                        
+                    self._chain = np.ma.array(chain, mask=mask2d)
+                    f.close()
+                
+                # If each "chunk" gets its own file.
+                elif glob.glob('{!s}.dd*.chain.pkl'.format(self.prefix)):
+                    
+                    if self.include_checkpoints is not None:
+                        outputs_to_read = []
+                        for output_num in self.include_checkpoints:
+                            dd = str(output_num).zfill(4)
+                            fn = '{0!s}.dd{1!s}.chain.pkl'.format(self.prefix, dd)
+                            outputs_to_read.append(fn)
+                    else:
+                        # Only need to use "sorted" on the second time around
+                        outputs_to_read = sorted(glob.glob(\
+                            '{!s}.dd*.chain.pkl'.format(self.prefix)))
+                                    
+                    full_chain = []
+                    if rank == 0:
+                        print("Loading {!s}.dd*.chain.pkl...".format(self.prefix))
+                        t1 = time.time()
+                    for fn in outputs_to_read:
+                        if not os.path.exists(fn):
+                            print("Found no output: {!s}".format(fn))
+                            continue
+                        this_chain = read_pickled_chain(fn)
+                        full_chain.extend(this_chain)
+                        
+                    self._chain = np.ma.array(full_chain, mask=0)
+                    
+                    if rank == 0:
+                        t2 = time.time()
+                        print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
+                            self.prefix, t2 - t1))
+                else:
+                    self._chain = None         
+                
+                if self.strictly_positive != []:
+                    for key in self.strictly_positive:
+                        print("Taking absolute value of parameter={}".format(key))
+                        k = self.parameters.index(key)
+                        self._chain[:,k] = np.abs(self._chain[:,k])
+                        
+                chains.append(_chain)        
+                
+            self._chain = np.concatenate(chains, axis=0)    
 
         return self._chain        
         
-    def identify_bad_walkers(self, tol=1e-2, axis=0):
+    def identify_bad_walkers(self, tol=1e-2, skip=0, limits=False):
         """
         Find trajectories that are flat. They are probably walkers stuck
         in some "no man's land" region of parameter space. Poor guys.
@@ -662,17 +733,49 @@ class ModelSet(BlobFactory):
         Lists of walker ID numbers. First, the good walkers, then the bad, as
         well as the mask itself.
         """
+                
+        Ns = self.chain.shape[0]
+        steps_per_walker = Ns // self.nwalkers
         
+        if skip > steps_per_walker:
+            raise ValueError("`skip` must be < steps_per_walker={}".format(steps_per_walker))
+        
+        errs = [tuple(self.get_1d_error(par, skip=skip*self.nwalkers)[1]) \
+            for par in self.parameters]
+                    
         bad_walkers = []
         good_walkers = []
         mask = np.zeros_like(self.chain, dtype=int)
         for i in range(self.nwalkers):
             chain, logL, elements = self.get_walker(i)
-            if np.allclose(np.diff(chain[:,axis]), 0.0, atol=tol, rtol=0):
-                bad_walkers.append(i)
-                mask += elements
-            else:
+            
+            good_walker = True
+            for j, par in enumerate(self.parameters):
+                
+                err = np.abs(np.diff(errs[j]))[0]
+
+                diff = np.diff(chain[skip:,j])
+
+                dp = chain[skip:,j].max() - chain[skip:,j].min()
+                
+                #print(par, err, dp, tol * err, dp < tol * err, 
+                #    np.allclose(diff, 0.0, atol=tol * err, rtol=0))
+                
+                if limits:
+                    if (dp < tol * err):
+                        good_walker = False
+                        break
+                elif np.allclose(diff, 0.0, atol=tol * err, rtol=0):
+                    good_walker = False
+                    break
+                else:
+                    continue
+                    
+            if good_walker:
                 good_walkers.append(i)
+            else:
+                bad_walkers.append(i)
+                mask += elements        
                         
         return good_walkers, bad_walkers, np.minimum(mask, 1)
         
@@ -1352,6 +1455,9 @@ class ModelSet(BlobFactory):
         steps_per_walker = self.chain.shape[0] // nw
         nchunks = steps_per_walker // sf
         
+        if nchunks == 0:
+            raise ValueError("Looks like save_freq > steps per walker. For some reason this causes problems.")
+        
         # "size" of each chunk in # of MCMC steps
         schunk = nw * sf
         
@@ -1368,13 +1474,13 @@ class ModelSet(BlobFactory):
             
             if broken:
                 break        
-                                
+                  
         step = i * sf + (loc - mi)
                                                                 
         return num, step
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
-        skip=0, stop=None, **kwargs):
+        skip=0, stop=None, ivar=None, multiplier=1., **kwargs):
         """
         Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
@@ -1412,11 +1518,14 @@ class ModelSet(BlobFactory):
                 y = data[:,self.parameters.index(par)]        
             else:
                 keep = elements[:,0]
-                tmp = self.ExtractData(par)[par]
-                y = tmp[keep == 1]
+                tmp = self.ExtractData(par, ivar=ivar)[par]
+                y = tmp[keep == 1] * multiplier
                                                     
             x = np.arange(0, len(y))
             ax.plot(x[skip:stop], y[skip:stop], **kwargs)
+
+        iML = np.argmax(self.logL)
+        ax.plot([])
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -2698,7 +2807,11 @@ class ModelSet(BlobFactory):
                     bvp = np.log10(self.axes[par])
                 else:
                     bvp = self.axes[par]
-        
+                    
+            ##
+            # Round
+            bvp = [round(val, 3) for val in bvp]
+                    
             if type(to_hist) is dict:
                 binvec[par] = bvp
             else:
@@ -3020,15 +3133,15 @@ class ModelSet(BlobFactory):
                 
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
-
+                
         # Rotate ticks?
         for tick in ax.get_xticklabels():
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-    
+                
         pl.draw()
-
+        
         return ax
 
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
@@ -3679,9 +3792,110 @@ class ModelSet(BlobFactory):
         
         return x, y, zarr
         
+    def RetrieveModels(self, skip=0, stop=None, Nmods=1, seed=None, 
+        limit_to=None, limit_all=False, tol=None, force_positive=False, 
+        percentile=None, **kwargs):
+        """
+        Return a set of model parameters close to those requested.
+        
+        Do this by searching the posterior distribution for nearby points, 
+        potentially within some tolerance of the value requested and/or within
+        the bulk of the distribution, quantified by `limit_to`. 
+        """
+                
+        if len(kwargs.keys()) > 1:
+            raise NotImplemented('help')
+        
+        # Grab element closest to requested 
+        for i, par in enumerate(self.parameters):
+            if par not in kwargs:
+                continue
+
+            nearby = np.abs(self.chain[skip:stop,i] - kwargs[par])
+            
+            # Sort samples in order of closeness to our request.
+            nsorted = np.argsort(nearby)
+            break
+        
+        # Make this deterministic. if we want
+        #np.random.seed(seed)
+        #np.random.shuffle(nsorted)
+        
+        logL_sorted = self.logL[skip:stop][nsorted]
+        good_sorted = self.chain[skip:stop,i][nsorted]
+        
+        # Compute likelihood percentiles, pick a cutoff.
+        if percentile is not None:
+            q1 = 0.5 * 100 * (1. - percentile)
+            q2 = 100 * percentile + q1
+            lo, hi = np.percentile(logL_sorted[np.isfinite(logL_sorted)], 
+                (q1, q2))
+            logL_cut = hi
+        else:
+            logL_cut = -np.inf
+            
+        ct = 0
+        models = []
+        for n, item in enumerate(nsorted): 
+            
+            if ct >= Nmods:
+                break
+                
+            val = good_sorted[n]
+            
+            if np.ma.is_masked(val):
+                continue
+            
+            logL = logL_sorted[n]
+            
+            if logL < logL_cut:
+                continue
+                        
+            if tol is not None:
+                if abs(val - kwargs[par]) > tol:
+                    continue
+            
+            if limit_to is not None:
+                mu, (hi, lo) = self.get_1d_error(par, nu=limit_to)
+
+                if not lo <= val <= hi:
+                    #print("Match n={} outside {} range".format(n, limit_to))
+                    continue
+
+                if limit_all:
+                    for _i, _par in enumerate(self.parameters):
+                        if _i == i:
+                            # Already did this one!
+                            continue
+
+                    mu, (hi, lo) = self.get_1d_error(_par, nu=limit_to)
+
+                    if not lo <= self.chain[skip:stop,:][item,_i] <= hi:
+                        continue
+
+            print("Matched val={} (actual={}) at index={}".format(kwargs[par],    
+                val, item))
+            
+            # Make sure this element is in the high-likelihood region
+            p = {}
+            for m, par in enumerate(self.parameters):
+                #if self.chain[skip:stop,:][item,m] == p[par]:
+                #    print('Parameter \#{} identical to previous iteration'.format(m))
+                    
+                if self.is_log[m]:
+                    p[par] = 10**self.chain[skip:stop,:][item,m]
+                else:
+                    p[par] = self.chain[skip:stop,:][item,m]
+
+            models.append(p)
+            
+            ct += 1
+        
+        return models
+        
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 
-        expr=None, new_x=None, is_logx=False,
+        expr=None, new_x=None, is_logx=False, smooth_boundary=False,
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
         E_to_freq=False, **kwargs):
@@ -3859,14 +4073,24 @@ class ModelSet(BlobFactory):
             elif type(samples) is int:
                 ax.plot(xarr, yblob[keep==1].T, **kwargs)    
             elif use_best and self.is_mcmc:
-                ax.plot(xarr, yblob[keep==1][loc], **kwargs)
+                y = yblob[keep==1][loc]
+                if smooth_boundary:
+                    y = smooth(y, smooth_boundary)
+                ax.plot(xarr, y, **kwargs)
             elif percentile:
                 lo, hi = np.percentile(yblob[keep==1], (q1, q2), axis=0)
+                
+                if smooth_boundary:
+                    lo = smooth(lo, smooth_boundary)
+                    hi = smooth(hi, smooth_boundary)
                                 
                 if fill:
                     ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
                     ax.plot(xarr, lo, **kwargs)
+                    if 'label' in kwargs:
+                        del kwargs['label']
+                    print('hello')
                     ax.plot(xarr, hi, **kwargs)
             else:
                 raise NotImplemented('help')
@@ -3957,16 +4181,25 @@ class ModelSet(BlobFactory):
                 else:
                     
                     loc = np.argmax(self.logL[keep == 1])    
+                    
+                y = yblob[keep==1][loc]
+                if smooth_boundary:
+                    y = smooth(y, smooth_boundary)    
             
-                ax.plot(xarr, yblob[keep==1][loc], **kwargs)    
+                ax.plot(xarr, y, **kwargs)    
             # Plot contours enclosing some amount of likelihood
             elif percentile:
                 lo, hi = np.nanpercentile(yblob[keep == 1], (q1, q2), axis=0)
+                if smooth_boundary:
+                    lo = smooth(lo, smooth_boundary)
+                    hi = smooth(hi, smooth_boundary)
 
                 if fill:
                     ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
                     ax.plot(xarr, lo, **kwargs)
+                    if 'label' in kwargs:
+                        del kwargs['label']
                     ax.plot(xarr, hi, **kwargs)
             else:
                 raise NotImplemented('help')        
@@ -4388,8 +4621,8 @@ class ModelSet(BlobFactory):
         if ax is None:
             fig = pl.figure(fig); ax = fig.add_subplot(111)
 
-        cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
-            vmin=-1, vmax=1)
+        cax = ax.imshow(corr.T, interpolation='none', cmap='RdBu_r', 
+            vmin=-1, vmax=1, origin='lower left')
         cb = pl.colorbar(cax)
 
         return ax

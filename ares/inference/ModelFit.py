@@ -813,6 +813,9 @@ class ModelFit(FitBase):
             self._guesses = guesses_tmp
         else:
             raise ValueError('Dunno about this shape')
+            
+        # Make sure we haven't jittered our way outside the prior.
+        self._guesses = self._fix_guesses(self._guesses)
 
     def _adjust_guesses(self, pos, mlpt):
         if rank > 0:
@@ -829,16 +832,13 @@ class ModelFit(FitBase):
             while is_outside_prior(newpos[iguess]):
                 newpos[iguess] = sample_ball(mlpt, std, size=1)[0]
         return newpos
-            
                         
     def _fix_guesses(self, pos):
         """
         If any walkers have been re-initialized to locations outside the
         prior range, push them back into the acceptable range.
         """
-        
-        raise NotImplemented('needs fixing with DistributionSet stuff.')
-        
+                
         if rank > 0:
             return
         
@@ -846,13 +846,10 @@ class ModelFit(FitBase):
         
         # Fix parameters whose values lie outside prior space
         for i, par in enumerate(self.parameters):
-            if par not in self.priors:
+            if par not in self.prior_set_P.params:
                 continue
                 
-            if self.prior_set[par][0] != 'uniform':
-                continue
-            
-            mi, ma = self.priors[par][1:]
+            mi, ma = self.prior_set_P.bounds[par]
             
             ok_lo = guesses[:,i] >= mi
             ok_hi = guesses[:,i] <= ma
@@ -861,17 +858,19 @@ class ModelFit(FitBase):
                 continue
                 
             # Draw from uniform distribution for failed cases
-            
             not_ok_lo = np.logical_not(ok_lo)
             not_ok_hi = np.logical_not(ok_hi)
             not_ok = np.logical_or(not_ok_hi, not_ok_lo)
             
             bad_mask = np.argwhere(not_ok)
+            ok = np.logical_not(not_ok)
             
             for j in bad_mask:
-                print ("Fixing guess for walker {0} parameter " +\
-                    "{1!s}").format(j[0], par)
-                guesses[j[0],i] = np.random.uniform(mi, ma)
+                print("Fixing position of walker {0} (parameter {1!s})".format(
+                    j[0], par))
+                new = np.random.choice(guesses[ok==1,i])
+                print("Moved from {} to {}".format(guesses[j,i][0], new))    
+                guesses[j[0],i] = new
         
         return guesses
         
@@ -1199,13 +1198,14 @@ class ModelFit(FitBase):
         # If burn_method==1, just re-initialize all walkers around
         # max-likelihood point with jitter, not standard deviation of samples
         if burn_method == 1:
-            return sample_ball(mlpt, self.jitter, size=self.nwalkers)
+            pos = sample_ball(mlpt, self.jitter, size=self.nwalkers)
+            return self._fix_guesses(pos)
            
         # Find out if max likelihood point is within the bulk of 
         # the distribution.
         j = 0
         ok = False
-        while (not ok):
+        while (not ok) and (j < len(ilogL) - 2):
             for i in range(chain.shape[1]):
                 pdf, _bins = np.histogram(chain[:,i], bins=100)
             
@@ -1223,8 +1223,15 @@ class ModelFit(FitBase):
         
             if not ok:        
                 j += 1
-                
+                                
             mlpt = chain[ilogL[j]]
+            
+        # If we got to the end of the chain without finding a point
+        # in the bulk of the distribution, just revert to the max
+        # likelihood pt. This usually only happens during testing
+        # when we have very few samples to work with.
+        if j == (len(logL) - 1):
+            mlpt = chain[np.argmax(logL)]
         
         # Add the systematic difference between the PDF and best fit?
         syst = abs(chain[np.argmax(logL)] - mlpt) * 0.5
@@ -1243,7 +1250,7 @@ class ModelFit(FitBase):
             print("         final walker positions). As a result, we have re-centered")
             print("         around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
     
-        return pos
+        return self._fix_guesses(pos)
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, reboot=False, recenter=False, burn_method=0):

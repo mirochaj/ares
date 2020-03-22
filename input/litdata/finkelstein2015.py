@@ -8,7 +8,8 @@ info = \
 {
  'reference': 'Finkelstein et al., 2015, ApJ, 810, 71',
  'data': 'Table 5', 
- 'fits': 'Table 4', 
+ 'fits': 'Table 4',
+ 'label': 'Finkelstein+ (2015)',
 }
 
 redshifts = [4, 5, 6, 7, 8]

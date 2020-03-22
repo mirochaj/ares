@@ -520,13 +520,16 @@ class MultiPanel(object):
                        
             row_tmp = [row_ylim[k][0] * (1. + tighten_up * np.sign(row_ylim[k][0])),
                        row_ylim[k][1] * (1. - tighten_up * np.sign(row_ylim[k][1]))]
-            
-            self.grid[i].set_xlim(col_tmp)
+
+            # Kludge
+            if np.all(np.isfinite(col_tmp)):
+                self.grid[i].set_xlim(col_tmp)
             
             if self.diagonal and i in self.diag:
                 continue
 
-            self.grid[i].set_ylim(row_tmp)
+            if np.all(np.isfinite(row_tmp)):
+                self.grid[i].set_ylim(row_tmp)
 
         pl.draw()
 
@@ -688,29 +691,36 @@ class MultiPanel(object):
     
             if style is not None: 
                 self.grid[i].ticklabel_format(style=style)
-                                
+                                       
         # Loop over columns, force those not in row 0 to share ticks with 
         # whatever tick marks there are in row #0
         if axis == 'x':
-            
             for k in range(len(self.elements_by_column)):
                 loc = self.axis_number(0, k)
                 xticks = self.grid[loc].get_xticks()
-                xlim = self.grid[loc].get_xlim()
+                xticks = [round(tick, 3) for tick in xticks]
+                xlim = [round(lim, 3) for lim in self.grid[loc].get_xlim()]
                 
+                xticks = [0 if abs(tick) < 1e-8 * max(np.abs(xticks)) else tick \
+                    for tick in xticks]
+                                                                        
                 for h, element in enumerate(self.elements_by_column[k]):
                     if element in self.bottom:
                         continue        
                         
                     self.grid[element].set_xticks(xticks)
                     self.grid[element].set_xlim(xlim)
-            
+                                                    
         # Same deal for y ticks
         if axis == 'y':
             for k in range(len(self.elements_by_row)):
                 loc = self.axis_number(k, 0)
                 yticks = self.grid[loc].get_yticks()
-                ylim = self.grid[loc].get_ylim()
+                yticks = [round(tick, 3) for tick in yticks]
+                ylim = [round(lim, 3) for lim in self.grid[loc].get_ylim()]
+                
+                yticks = [0 if abs(tick) < 1e-8 * max(np.abs(yticks)) else tick \
+                    for tick in yticks]
                 
                 for h, element in enumerate(self.elements_by_row[k]):
                     if element in self.left:
@@ -721,22 +731,22 @@ class MultiPanel(object):
                         
                     self.grid[element].set_yticks(yticks)
                     self.grid[element].set_ylim(ylim)
-                                  
+                                          
         # Remove ticklabels of interior panels completely
         if shared:
-            for i in range(self.N):
-                if self.grid[i] is None:
+            for k in range(self.N):
+                if self.grid[k] is None:
                     continue
                 
                 if (self.diagonal is not None):
-                    if self.above_diagonal(i):
+                    if self.above_diagonal(k):
                         continue
                     
-                if i not in axes:
-                    eval("self.grid[{0}].{1!s}([])".format(i, set_ticklabels))
-                
+                if k not in axes:
+                    eval("self.grid[{0}].{1!s}([])".format(k, set_ticklabels))
+                                
         pl.draw()
-
+                        
     def fix_axes_labels(self):
         for i in range(self.N):
 
@@ -793,7 +803,7 @@ class MultiPanel(object):
                     self.grid[i].set_yticks(bins)    
         
         pl.draw()
-
+        
     def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
         rotate_x=False, rotate_y=False, xticklabels=None, yticklabels=None, 
         oned=True):
@@ -810,14 +820,15 @@ class MultiPanel(object):
         
         self.fix_axes_labels()
         
-        self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
+        self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)        
         self.fix_axes_ticks(axis='y', N=N, rotate_y=rotate_y)
+        
         
         if self.diagonal == 'lower' and oned:
             self.grid[np.intersect1d(self.left, self.top)[0]].set_yticklabels([])
         
         self.remove_all_ticks(noxticks, noyticks)
-        
+                
         pl.draw()     
         
     def fix_auto(self):

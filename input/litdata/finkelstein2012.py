@@ -10,6 +10,7 @@ info = \
 {
  'reference': 'Finkelstein et al., 2012, ApJ, 756, 164',
  'data': 'Table 5', 
+ 'label': 'Finkelstein+ (2012)',
 }
 
 redshifts = [4, 5, 6, 7, 8]

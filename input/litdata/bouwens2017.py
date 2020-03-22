@@ -8,6 +8,7 @@ info = \
 {
  'reference': 'Bouwens et al., 2017, ApJ, 843, 129',
  'data': 'Table 5', 
+ 'label': 'Bouwens+ (2017)' 
 }
 
 import numpy as np

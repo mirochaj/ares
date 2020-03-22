@@ -21,7 +21,9 @@ from scipy.integrate import quad
 from ..util.Warnings import no_lya_warning
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..util import MagnitudeSystem
+from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
+from ..util.PrintInfo import print_pop
 from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy
@@ -116,6 +118,14 @@ class Population(object):
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
         pass    
+    
+    @property
+    def info(self):
+        if not self.parameterized:
+            try:
+                print_pop(self)
+            except AttributeError:
+                pass    
 
     @property
     def id_num(self):
@@ -529,6 +539,30 @@ class Population(object):
                 self._src = None
 
         return self._src
+    
+    @property
+    def _src_csfr(self):
+        """
+        Exact clone of `src` except forces source_ssp=False.
+        """
+        if not hasattr(self, '_src_csfr_'):
+            if self.pf['pop_psm_instance'] is not None:
+                # Should phase this out for more generate approach below.
+                self._src_csfr_ = self.pf['pop_psm_instance']
+            elif self.pf['pop_src_instance'] is not None:
+                self._src_csfr_ = self.pf['pop_src_instance']
+            elif self._Source is not None:
+                try:
+                    kw = self.src_kwargs.copy()
+                    kw['source_ssp'] = False
+                    self._src_csfr_ = self._Source(cosm=self.cosm, **kw)
+                except TypeError:
+                    # For litdata
+                    self._src_csfr_ = self._Source
+            else:
+                self._src_csfr_ = None
+
+        return self._src_csfr_    
 
     @property
     def yield_per_sfr(self):
@@ -538,6 +572,10 @@ class Population(object):
             self._yield_per_sfr = normalize_sed(self)
                     
         return self._yield_per_sfr
+        
+    @yield_per_sfr.setter
+    def yield_per_sfr(self, value):
+        self._yield_per_sfr = value
         
     @property
     def is_deterministic(self):
@@ -558,14 +596,10 @@ class Population(object):
                     self._is_deterministic = False
                 
                 if self.pf['feedback_ion'] or self.pf['feedback_LW']:
-                    self._is_deterministic = False                    
-                
+                    self._is_deterministic = False
+
         return self._is_deterministic
-    
-    @yield_per_sfr.setter
-    def yield_per_sfr(self, value):
-        self._yield_per_sfr = value
-        
+
     @property
     def is_fcoll_model(self):
         return self.pf['pop_sfr_model'].lower() == 'fcoll'
@@ -662,12 +696,12 @@ class Population(object):
             if (Emin, Emax) in self._conversion_factors:
                 return self._conversion_factors[(Emin, Emax)]
     
-            if Emin < self.pf['pop_Emin']:
-                print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+            if round(Emin, 2) < round(self.pf['pop_Emin'], 2):
+                print(("WARNING: Emin ({0:.2f} eV) < pop_Emin ({1:.2f} eV) " +\
                     "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
                     self.id_num))
             if Emax > self.pf['pop_Emax']:
-                print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+                print(("WARNING: Emax ({0:.2f} eV) > pop_Emax ({1:.2f} eV) " +\
                     "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                     self.id_num))
     

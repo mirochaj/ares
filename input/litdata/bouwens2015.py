@@ -11,10 +11,23 @@ info = \
  'reference': 'Bouwens et al., 2015, ApJ, 803, 34',
  'data': 'Table 5', 
  'fits': 'Table 6', 
+ 'label': 'Bouwens+ (2015)',
 }
 
-redshifts = [3.8, 4.9, 5.9, 6.9, 7.9, 10.4]
+redshifts = np.array([3.8, 4.9, 5.9, 6.9, 7.9, 10.4])
 wavelength = 1600.
+
+color_selection = \
+{
+ # First color > first cut, second color < second cut
+ 4: [('F435W', 'F606W', 1.), ('F775W', 'F125W', 1.), (1., 1.6)],
+ 5: [('F606W', 'F775W', 1.2), ('F850LP', 'F160W', 1.3), (1.2, 0.8)],
+ 6: [('F775W', 'F850LP', 1.), ('F105W', 'F160W', 1.), (0.78, 1.0)],
+ 7: [('F850LP', 'F105W', 0.7), ('F125W', 'F160W', 0.45), (0.8, 0.7),
+     ('F814W', 'F125W', 1.0), (None, None)],
+ 8: [('F105W', 'F125W', 0.45), ('F125W', 'F160W', 0.5), (0.75, 0.525)],     
+}
+
 
 ULIM = -1e10
 
