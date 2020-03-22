@@ -333,7 +333,7 @@ class Global21cm(AnalyzeGlobal21cm):
         #    # Fix Ja in history
         
         self.history['dTb'] = self.history['igm_dTb']
-        self.history['dTb_bulk'] = self.history['igm_dTb_bulk']
+        #self.history['dTb_bulk'] = self.history['igm_dTb_bulk']
         
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
@@ -398,8 +398,8 @@ class Global21cm(AnalyzeGlobal21cm):
             self.history['dTb_no_radio'] = self.history['dTb'].copy()
             self.history['dTb'] = dTb
             
-            self.history['dTb_bulk'] = \
-               self.medium.parcel_igm.grid.hydr.dTb(zall, 0.0, Ts, Tr)
+            #self.history['dTb_bulk'] = \
+            #   self.medium.parcel_igm.grid.hydr.dTb(zall, 0.0, Ts, Tr)
 
         t2 = time.time()
 
@@ -447,7 +447,7 @@ class Global21cm(AnalyzeGlobal21cm):
             dTb_b = self.medium.parcel_igm.grid.hydr.dTb(z, 0.0, Ts)
 
             # Add derived fields to data
-            data_igm.update({'Ts': Ts, 'dTb': dTb, 'dTb_bulk': dTb_b, 
+            data_igm.update({'Ts': Ts, 'dTb': dTb, #'dTb_bulk': dTb_b, 
                 'Ja': Ja, 'Jlw': Jlw})
 
             # Yield!            

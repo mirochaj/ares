@@ -367,10 +367,10 @@ class HaloMassFunction(object):
         if self.pf['hmf_wdm_mass'] is not None:
             return self._load_hmf_wdm()
                         
-        if self.pf['pop_hmf_data'] is not None:
+        if self.pf['hmf_cache'] is not None:
             self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
                 self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
-                    self.pf['pop_hmf_data']            
+                    self.pf['hmf_cache']            
             return
             
         if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):

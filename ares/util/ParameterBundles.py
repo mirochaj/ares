@@ -873,7 +873,6 @@ _xr.link_sfrd_to = 0
 _uv = _PB('src:toy-ion', verbose=0)
 _uv.num = 2
 _uv.link_sfrd_to = 0
-<<<<<<< working copy
          
 _gs_4par = _lw + _xr + _uv
 

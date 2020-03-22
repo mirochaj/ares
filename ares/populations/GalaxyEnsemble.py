@@ -21,13 +21,13 @@ from ..util import ProgressBar
 from ..util.Survey import Survey
 from .Halo import HaloPopulation
 from scipy.optimize import curve_fit
-from ..static import SpectralSynthesis
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 from ..util.Photometry import what_filters
 from ..analysis.BlobFactory import BlobFactory
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
+from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \

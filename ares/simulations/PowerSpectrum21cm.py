@@ -419,8 +419,8 @@ class PowerSpectrum21cm(AnalyzePS):
                                 
             data['dTb'] = dTb_ps
             
-            data['dTb_bulk'] = np.interp(z, self.gs.history['z'][-1::-1], 
-                self.gs.history['dTb_bulk'][-1::-1])
+            #data['dTb_bulk'] = np.interp(z, self.gs.history['z'][-1::-1], 
+            #    self.gs.history['dTb_bulk'][-1::-1])
 
             
             ##
@@ -428,10 +428,10 @@ class PowerSpectrum21cm(AnalyzePS):
             # and densities!
             ##            
             if self.pf['ps_include_temp']:
-                data['dTb_vcorr'] = (1 - Qh - Qi) * data['dTb_bulk'] \
-                    + Qh * self.hydr.dTb(z, 0.0, Th)
+                data['dTb_vcorr'] = None#(1 - Qh - Qi) * data['dTb_bulk'] \
+                    #+ Qh * self.hydr.dTb(z, 0.0, Th)
             else:
-                data['dTb_vcorr'] = data['dTb_bulk'] * (1. - Qi)
+                data['dTb_vcorr'] = None#data['dTb_bulk'] * (1. - Qi)
             
             if self.pf['ps_include_xcorr_ion_rho']:
                 pass
@@ -479,7 +479,7 @@ class PowerSpectrum21cm(AnalyzePS):
             data['Qi'] = Qi
             data['xibar'] = xibar
             data['dTb0'] = Tbar            
-            data['dTb_bulk'] = dTb_ps / (1. - xavg_gs)
+            #data['dTb_bulk'] = dTb_ps / (1. - xavg_gs)
                         
             ##
             # 21-cm fluctuations

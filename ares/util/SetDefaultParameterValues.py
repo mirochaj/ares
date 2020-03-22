@@ -563,7 +563,6 @@ def PopulationParameters():
     
     # Cache tricks: must be pickleable for MCMC to work.
     "pop_sps_data": None,
-    "pop_hmf_data": None,
     
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
@@ -1058,6 +1057,7 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
+    "hmf_cache": None,
     "hmf_load_ps": True,
     "hmf_load_growth": False,
     "hmf_table": None,

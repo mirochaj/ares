@@ -47,3 +47,6 @@ input/nircam/*
 *.zip
 input/cosmo_params/*
 input/inits/cr.log
+tests/htmlcov*
+tests/.coverage
+
