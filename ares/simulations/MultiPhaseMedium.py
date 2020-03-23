@@ -15,9 +15,9 @@ from ..static import Grid
 from types import FunctionType
 from .GasParcel import GasParcel
 from ..physics.Cosmology import Cosmology
+from ..util.ReadData import _sort_history
 from ..util.ParameterFile import get_pq_pars
 from ..util import ParameterFile, ProgressBar
-from ..util.ReadData import _sort_history, _load_inits
 from .MetaGalacticBackground import MetaGalacticBackground
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.SetDefaultParameterValues import MultiPhaseParameters

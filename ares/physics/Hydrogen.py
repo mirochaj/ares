@@ -13,7 +13,6 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
-from ..util.ReadData import _load_inits
 from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
@@ -588,7 +587,7 @@ class Hydrogen(object):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            self._inits = _load_inits()
+            self._inits = self.cosm.get_inits()
         return self._inits
 
     def saturated_limit(self, z):

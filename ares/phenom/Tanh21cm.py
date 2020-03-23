@@ -14,7 +14,6 @@ import time
 import numpy as np
 from ..util import ParameterFile
 from scipy.misc import derivative
-from ..util.ReadData import _load_inits
 from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients

@@ -44,7 +44,7 @@ def test():
     # Plot 21-cm signature
     mp.grid[0].semilogx(z, dTb(z), color='k', label='analytic')
     
-    CR = ares.util.ReadData._load_inits()
+    CR = hydr.cosm.get_inits()
     
     # Assume neutral medium for simplicity
     Ts_CR = hydr.SpinTemperature(CR['z'], CR['Tk'], 0.0, 0.0, 0.0)

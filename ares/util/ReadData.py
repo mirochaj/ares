@@ -228,44 +228,6 @@ def _sort_history(all_data, prefix='', squeeze=False):
 
     return data
 
-def _load_hdf5(fn):    
-    inits = {}
-    f = h5py.File(fn, 'r')
-    for key in f.keys():
-        inits[key] = np.array(f[key].value)
-    f.close()
-
-    return inits
-
-def _load_npz(fn):
-    data = np.load(fn)
-    new = {'z': data['z'].copy(), 'Tk': data['Tk'].copy(), 'xe': data['xe'].copy()}
-    data.close()
-    return new
-
-def _load_txt(fn):
-    z, xe, Te = np.loadtxt(fn, unpack=True)
-    inits = {'z': z, 'Tk': Te, 'xe': xe}
-    return inits
-
-def _load_inits(fn=None):
-
-    if fn is None:
-        assert ARES is not None, "$ARES environment variable has not been set!"
-        fn = '{!s}/input/inits/initial_conditions.txt'.format(ARES)
-        inits = _load_txt(fn)
-
-    else:
-        if re.search('.hdf5', fn):
-            inits = _load_hdf5(fn)
-        elif re.search('.npz', fn):
-            inits = _load_npz(fn)
-        else:
-            inits = _load_txt(fn)
-            
-
-    return inits        
-
 def read_pickled_blobs(fn):
     """
     Reads arbitrary meta-data blobs from emcee that have been pickled.

@@ -15,7 +15,6 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
 from ..util.Math import interp1d
-from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from .InitialConditions import InitialConditions
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
