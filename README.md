@@ -86,7 +86,7 @@ and optionally,
 - [descartes](https://pypi.python.org/pypi/descartes)
 
 
-.. note :: **ares** has been tested only with Python 2.7.x and Python 3.3.x.
+Note: **ares** has been tested only with Python 2.7.x and Python 3.3.x.
 
 ## Quick Example
 
@@ -134,7 +134,7 @@ via pip:
 pip install sphinx
 ```
 
-This depends on [numpydoc](https://github.com/numpy/numpydoc>), which can also
+This depends on [numpydoc](https://github.com/numpy/numpydoc), which can also
 be installed via pip:
 
 ```
