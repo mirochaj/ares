@@ -23,15 +23,15 @@ Plus some more applications:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-If you'd like to live on the bleeding edge, check out the ares-dev branch! Once you clone *ares* you can switch via: ::
+If you'd like to live on the bleeding edge, check out the ares-dev branch! Once you clone **ares** you can switch via: ::
     
-    hg up ares-dev
+    git checkout ares-dev
 
 The [documentation](http://ares.readthedocs.org/en/latest/) is still a work in progress.
 
 ## Citation
 
-If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M0 if it's an application of the global 21-cm modeling machinery and `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_ if you use the 1-D radiative transfer and/or SED optimization. Either way, please provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
+If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M0) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. Either way, please provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
 
 ## Getting started
 
@@ -49,7 +49,7 @@ You'll need to set an environment variable which points to the *ares* install di
 export ARES=/users/<yourusername>/ares
 ```
 
-*ares* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run:
+**ares** will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run:
 
 ```
 python remote.py
@@ -76,11 +76,11 @@ and optionally,
 
 - [hmf](https://github.com/steven-murray/hmf)
 - [mpi4py](http://mpi4py.scipy.org)
-- [pymp <https://github.com/classner/pymp)
-- [emcee <http://dan.iel.fm/emcee/current/)
-- [distpy <https://bitbucket.org/ktausch/distpy)
-- [progressbar2 <http://progressbar-2.readthedocs.io/en/latest/)
-- [setuptools <https://pypi.python.org/pypi/setuptools)
+- [pymp](https://github.com/classner/pymp)
+- [emcee](http://dan.iel.fm/emcee/current/)
+- [distpy](https://bitbucket.org/ktausch/distpy)
+- [progressbar2](http://progressbar-2.readthedocs.io/en/latest/)
+- [setuptools](https://pypi.python.org/pypi/setuptools)
 - [mpmath](http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html)
 - [shapely](https://pypi.python.org/pypi/Shapely)
 - [descartes](https://pypi.python.org/pypi/descartes)
