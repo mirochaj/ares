@@ -94,7 +94,7 @@ def normalize_sed(pop):
 
 
 class Population(object):
-    def __init__(self, grid=None, **kwargs):
+    def __init__(self, grid=None, cosm=None, **kwargs):
 
         # why is this necessary?
         if 'problem_type' in kwargs:
@@ -105,6 +105,7 @@ class Population(object):
         assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)
         
         self.grid = grid
+        self._cosm_ = cosm
 
         self.zform = min(self.pf['pop_zform'], self.pf['first_light_redshift'])
         self.zdead = self.pf['pop_zdead']
@@ -152,10 +153,12 @@ class Population(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
-            if self.grid is None:
-                self._cosm = Cosmology(pf=self.pf, **self.pf)
-            else:
+            if self.grid is not None:
                 self._cosm = grid.cosm
+            elif self._cosm_ is not None:
+                self._cosm = self._cosm_
+            else:    
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
                 
         return self._cosm
         

@@ -333,6 +333,13 @@ def print_hmf(hmf):
     print("#" * width)
 
     print(line('-' * twidth))
+    print(line('Underlying Model'))
+    print(line('-' * twidth))
+    print(line("fittin function       : {0!s}".format(hmf.pf['hmf_model'])))
+    if hmf.pf['hmf_wdm_mass'] is not None:
+        print(line("wdm_mass              : {0:g}".format(hmf.pf['hmf_wdm_mass'])))
+
+    print(line('-' * twidth))
     print(line('Table Limits & Resolution'))
     print(line('-' * twidth))
     
@@ -565,12 +572,15 @@ def print_sim(sim, mgb=False):
     
     if rank > 0 or not sim.pf['verbose']:
         return 
-        
+
+    # Poke sim.pops just to get loads in before print-out
+    _pops = sim.pops   
+
     header = 'ARES Simulation: Overview'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
-    print "#"*width    
-    
+    print "#"*width
+
     # Check for phenomenological models
     if sim.is_phenom:
         print "Phenomenological model! Not much to report..."
@@ -584,29 +594,33 @@ def print_sim(sim, mgb=False):
     data, rows, cols = _rad_type(sim)    
     tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
     
-    print line('-'*twidth)
-    print line('Fluctuating Backgrounds')
-    print line('-'*twidth)
-    
-    data, rows, cols = _rad_type(sim, fluctuations=True)
-    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
+    #print line('-'*twidth)
+    #print line('Fluctuating Backgrounds')
+    #print line('-'*twidth)
+    #
+    #data, rows, cols = _rad_type(sim, fluctuations=True)
+    #tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
     
     if mgb:
         print("#" * width)
         return
     
-    print(line('-' * twidth))
-    print(line('Notes'))
-    print(line('-' * twidth))
+    ct = 0
     for i, pop in enumerate(sim.pops):
         if pop.pf['pop_calib_L1600'] is not None:
+            if ct == 0:
+                print(line('-' * twidth))
+                print(line('Notes'))
+                print(line('-' * twidth))
+                
             s1 = "+ pop_calib_L1600 != None, which means".format(i)
             s1 += ' changes to pop_Z will *not* affect UVLF.'
             s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
             s2 += ' (see S3.4 in Mirocha et al. 2017).'
             print(line(s1))
             print(line(s2))
-        
+            ct += 1
+            
         # Other noteworthy things?    
     
     

@@ -14,11 +14,12 @@ which handles grid initialization, time-stepping, data storage, etc.
 import numpy as np
 from ..static import Grid
 from ..solvers import Chemistry
+from ..physics.Cosmology import Cosmology
 from ..util.ReadData import _sort_history
 from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
 class GasParcel(object):
-    def __init__(self, **kwargs):
+    def __init__(self, cosm=None, **kwargs):
         """
         Initialize a GasParcel object.
         """
@@ -26,8 +27,10 @@ class GasParcel(object):
         # This typically isn't the entire parameter file, Grid knows only
         # about a few things.
         self.pf = ParameterFile(**kwargs)
-
-        self.grid = Grid(**self.pf)
+        
+        self._cosm_ = cosm
+        self.grid = Grid(cosm=cosm, **self.pf)
+        
         #self.grid = \
         #Grid(
         #    grid_cells=self.pf['grid_cells'], 
@@ -60,6 +63,12 @@ class GasParcel(object):
         # To compute timestep
         self.timestep = RestrictTimestep(self.grid, self.pf['epsilon_dt'], 
             self.pf['verbose'])
+        
+    @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology(pf=self.pf, **self.pf)
+        return self._cosm 
         
     def _set_chemistry(self):
         self.chem = Chemistry(self.grid, rt=self.pf['radiative_transfer'],

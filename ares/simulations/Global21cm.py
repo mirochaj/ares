@@ -109,7 +109,7 @@ class Global21cm(AnalyzeGlobal21cm):
     def medium(self):
         if not hasattr(self, '_medium'):
             from .MultiPhaseMedium import MultiPhaseMedium
-            self._medium = MultiPhaseMedium(**self.kwargs)
+            self._medium = MultiPhaseMedium(cosm=self.cosm, **self.kwargs)
             #self.pf = self._medium.pf
                         
         return self._medium
@@ -240,7 +240,7 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.is_complete:
             print("Already ran simulation!")
             return    
-
+            
         # Need to generate radiation backgrounds first.
         if self.pf['radiative_transfer']:
             self.medium.field.run()
@@ -271,8 +271,7 @@ class Global21cm(AnalyzeGlobal21cm):
             element['Jlw'] = 0.0
 
         # List for extrema-finding
-        self.all_dTb = self._init_dTb()
-
+        self.all_dTb = self._init_dTb()        
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():            
 
             # Occasionally the progress bar breaks if we're not careful
@@ -285,9 +284,9 @@ class Global21cm(AnalyzeGlobal21cm):
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
                 pb.start()
-                        
+                   
             pb.update(t)
-                                        
+                                                    
             # Save data
             self.all_z.append(z)
             self.all_t.append(t)
@@ -331,7 +330,7 @@ class Global21cm(AnalyzeGlobal21cm):
         #    #self._f_Jlw = self.medium.field._f_Jlw
         #
         #    # Fix Ja in history
-        
+                
         self.history['dTb'] = self.history['igm_dTb']
         #self.history['dTb_bulk'] = self.history['igm_dTb_bulk']
         

@@ -14,6 +14,7 @@ import numpy as np
 from ..static import Grid
 from types import FunctionType
 from .GasParcel import GasParcel
+from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import get_pq_pars
 from ..util import ParameterFile, ProgressBar
 from ..util.ReadData import _sort_history, _load_inits
@@ -24,7 +25,7 @@ from ..util.SetDefaultParameterValues import MultiPhaseParameters
 _mpm_defs = MultiPhaseParameters()
 
 class MultiPhaseMedium(object):
-    def __init__(self, pf=None, **kwargs):
+    def __init__(self, pf=None, cosm=None, **kwargs):
         """
         Initialize a MultiPhaseMedium object.
         
@@ -37,6 +38,8 @@ class MultiPhaseMedium(object):
         
         if pf is not None:
             self.pf = pf
+            
+        self._cosm_ = cosm    
             
         self.kwargs = kwargs
                 
@@ -108,10 +111,20 @@ class MultiPhaseMedium(object):
     #    return self.field.grid        
 
     @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            if self._cosm_ is None:
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
+            else:
+                self._cosm = self._cosm_
+                
+        return self._cosm 
+
+    @property
     def grid(self):
         if not hasattr(self, '_grid'):
-            self._grid = Grid(**self.pf)
-            self._grid.set_properties(**self.pf)    
+            self._grid = Grid(cosm=self.cosm, **self.pf)
+            self._grid.set_properties(**self.pf)
                 
         return self._grid
 
@@ -189,7 +202,7 @@ class MultiPhaseMedium(object):
             if zone == 'igm':
                 self.kw_igm = kw.copy()
 
-                parcel_igm = GasParcel(**self.kw_igm)
+                parcel_igm = GasParcel(cosm=self.cosm, **self.kw_igm)
                 
                 self.gen_igm = parcel_igm.step()
 
@@ -201,7 +214,7 @@ class MultiPhaseMedium(object):
                     
             else:
                 self.kw_cgm = kw.copy()
-                parcel_cgm = GasParcel(**self.kw_cgm)
+                parcel_cgm = GasParcel(cosm=self.cosm, **self.kw_cgm)
                 parcel_cgm.grid.set_recombination_rate(True)
                 parcel_cgm._set_chemistry()
                 self.gen_cgm = parcel_cgm.step()

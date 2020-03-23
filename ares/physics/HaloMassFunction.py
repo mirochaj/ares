@@ -136,7 +136,7 @@ class HaloMassFunction(object):
         self.tab_name = self.pf["hmf_table"]
         self.hmf_func = self.pf['hmf_model']
         self.hmf_analytic = self.pf['hmf_analytic']
-        
+                
         # Verify that Tmax is set correctly
         #if self.pf['pop_Tmax'] is not None:
         #    if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
@@ -260,6 +260,12 @@ class HaloMassFunction(object):
         if name not in self.__dict__.keys():
             if self.pf['hmf_load']:
                 self._load_hmf()
+            else:
+                # Can generate on the fly!
+                if name == 'tab_MAR':
+                    self.TabulateMAR()
+                else:
+                    self.TabulateHMF(save_MAR=False)
 
         # If we loaded the HMF and still don't see this attribute, then
         # either (1) something is wrong with the HMF tables we have or
@@ -453,7 +459,7 @@ class HaloMassFunction(object):
         self._is_loaded = True
         
         if self.pf['verbose'] and rank == 0:
-            print("Loaded {}.".format(self.tab_name))
+            print("# Loaded {}.".format(self.tab_name))
         
         if self.pf['hmf_func'] is not None:
             if self.pf['verbose']:
@@ -626,6 +632,10 @@ class HaloMassFunction(object):
             'tab_MAR', 'tab_Mmin_floor']
         hist = [self.__getattribute__(key) for key in keys]
         return hist
+        
+    def info(self):
+        if rank == 0:
+            print_hmf(self)
                                     
     def TabulateHMF(self, save_MAR=True):
         """
@@ -634,10 +644,6 @@ class HaloMassFunction(object):
         Can be run in parallel.
         """
                         
-        if rank == 0:
-            print_hmf(self)
-            print("\nComputing {!s} mass function...".format(self.hmf_func))    
-
         # Initialize the MassFunction object.
         # Will setup an array of masses
         MF = self._MF
@@ -727,20 +733,20 @@ class HaloMassFunction(object):
         # This is actually the slowest part.
         MM = np.zeros((self.tab_z.size+self.tab_M.size, self.tab_z.size))
 
-        for i in range(self.tab_z.size-1, 0, -1):
+        for j, i in enumerate(range(self.tab_z.size-1, 0, -1)):
             if i % size != rank:
                 continue
             MM[i] = self._run_CND(i,0)
             
-            pb.update(i)
+            pb.update(j)
             
         # Find trajectories for more massive halos with zform=zfirst    
-        for i in range(1, self.tab_M.size):
+        for j, i in enumerate(range(1, self.tab_M.size)):
             if i % size != rank:
                 continue
             MM[i+self.tab_z.size-1] = self._run_CND(self.tab_z.size-1, i)
                                              
-            pb.update(i+self.tab_z.size-1)
+            pb.update(j+self.tab_z.size-1)
             
         pb.finish()                                
                                                 
@@ -1320,13 +1326,14 @@ class HaloMassFunction(object):
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))    
              
-            s = 'hmf_{0!s}_logM_{1}_{2}-{3}_{4}_{5}_{6}-{7}'.format(\
-                self.hmf_func, logMsize, M1, M2, s, zsize, z1, z2)            
+            s = 'hmf_{0!s}_{1!s}_logM_{2}_{3}-{4}_{5}_{6}_{7}-{8}'.format(\
+                self.hmf_func, self.cosm.get_prefix(),
+                logMsize, M1, M2, s, zsize, z1, z2)            
                                 
         else:
             
-            s = 'hmf_{0!s}_logM_*_{1}-{2}_{3}_*_{4}-{5}'.format(\
-                self.hmf_func, M1, M2, s, z1, z2) 
+            s = 'hmf_{0!s}_{1!s}_logM_*_{2}-{3}_{4}_*_{5}-{6}'.format(\
+                self.hmf_func, self.cosm.get_prefix(), M1, M2, s, z1, z2) 
                 
         if self.pf['hmf_window'].lower() != 'tophat':
             s += '_{}'.format(self.pf['hmf_window'].lower())
@@ -1337,7 +1344,7 @@ class HaloMassFunction(object):
                         
         return s   
                                
-    def SaveHMF(self, fn=None, clobber=False, destination=None, format='hdf5',
+    def SaveHMF(self, fn=None, clobber=False, destination=None, fmt='hdf5',
         save_MAR=True):
         """
         Save mass function table to HDF5 or binary (via pickle).
@@ -1368,9 +1375,9 @@ class HaloMassFunction(object):
         # Determine filename
         if fn is None:
             fn = '{0!s}/{1!s}.{2!s}'.format(destination,\
-                self.tab_prefix_hmf(True), format)
+                self.tab_prefix_hmf(True), fmt)
         else:
-            if format not in fn:
+            if fmt not in fn:
                 print("Suffix of provided filename does not match chosen format.")
                 print("Will go with format indicated by filename suffix.")
         
@@ -1380,6 +1387,7 @@ class HaloMassFunction(object):
             elif rank != 0:
                 pass
             else:
+                print('hey', self.hmf_func, self.pf['hmf_model'])
                 raise IOError(('File {!s} exists! Set clobber=True or ' +\
                     'remove manually.').format(fn))    
         
@@ -1388,8 +1396,8 @@ class HaloMassFunction(object):
         
         if rank > 0:
             return
-                
-        if format == 'hdf5':
+                                
+        if fmt == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('tab_z', data=self.tab_z)
             f.create_dataset('tab_M', data=self.tab_M)
@@ -1401,11 +1409,12 @@ class HaloMassFunction(object):
                 f.create_dataset('tab_MAR', data=self.tab_MAR)
                 
             f.create_dataset('tab_Mmin_floor', data=self.tab_Mmin_floor)
-            f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
             f.create_dataset('tab_growth', data=self.tab_growth)
             f.create_dataset('tab_sigma', data=self.tab_sigma)
             f.create_dataset('tab_dlnsdlnm', data=self.tab_dlnsdlnm)
             f.create_dataset('tab_k_lin', data=self.tab_k_lin)
+            f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
+            
             f.create_dataset('hmf-version', data=hmf_v)
             
             # Save cosmology            
@@ -1416,11 +1425,14 @@ class HaloMassFunction(object):
             grp.create_dataset('sigma_8', data=self.cosm.sigma_8)
             grp.create_dataset('h70', data=self.cosm.h70)
             grp.create_dataset('omega_b_0', data=self.cosm.omega_b_0)
-            grp.create_dataset('omega_cdn_0', data=self.cosm.omega_cdm_0)
+            grp.create_dataset('omega_cdm_0', data=self.cosm.omega_cdm_0)
+            grp.create_dataset('helium_by_mass', data=self.cosm.Y)
+            grp.create_dataset('cmb_temp_0', data=self.cosm.cmb_temp_0)
+            grp.create_dataset('primordial_index', data=self.cosm.primordial_index)
             
             f.close()
 
-        elif format == 'npz':
+        elif fmt == 'npz':
             data = {'tab_z': self.tab_z, 
                     'tab_M': self.tab_M, 
                     'tab_dndm': self.tab_dndm,
@@ -1466,5 +1478,6 @@ class HaloMassFunction(object):
             f.close()
             
         print('Wrote {!s}.'.format(fn))
+        
         return
         

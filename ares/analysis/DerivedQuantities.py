@@ -141,7 +141,7 @@ registry_special_Q = \
 }
 
 class DerivedQuantities(object):
-    def __init__(self, ModelSet=None, pf=None, data=None):
+    def __init__(self, ModelSet=None, pf=None, data=None, cosm=None):
         self._ms = ModelSet
         
         if pf is None:
@@ -153,10 +153,13 @@ class DerivedQuantities(object):
         else:
             self.pf = pf
         
-        try:
-            self.cosm = self._ms.cosm
-        except AttributeError:
-            self.cosm = Cosmology(**self.pf)
+        if cosm is not None:
+            self.cosm = cosm
+        else:    
+            try:
+                self.cosm = self._ms.cosm
+            except AttributeError:
+                self.cosm = Cosmology(**self.pf)
         
         self._data = {}
         

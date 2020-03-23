@@ -8,8 +8,6 @@ except:
 
 options = sys.argv[1:]
 
-ares_link = 'https://bitbucket.org/mirochaj/ares'
-
 # Auxiliary data downloads
 # Format: [URL, file 1, file 2, ..., file to run when done]
 
@@ -18,18 +16,18 @@ _bpass_v1_links = ['sed_bpass_z{!s}_tar.gz'.format(Z) \
 
 aux_data = \
 {
- 'hmf': ['{!s}/downloads'.format(ares_link),
-    'hmf.tar.gz',
+ 'hmf': ['https://www.dropbox.com/s/7ui8qqvl6eutyk2/hmf.tar.gz?dl=1',
+     'hmf.tar.gz',
     None],
- 'inits': ['{!s}/downloads'.format(ares_link),
-     'initial_conditions.txt',
-     None],    
- 'optical_depth': ['{!s}/downloads'.format(ares_link),
-    'tau.tar.gz',
+ 'inits': ['https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1',
+     'inits.tar.gz',
+    None],    
+ 'optical_depth': ['https://www.dropbox.com/s/dqeeetvaea4ap8q/tau.tar.gz?dl=1',
+     'tau.tar.gz',
     None],
- 'secondary_electrons': ['{!s}/downloads'.format(ares_link),
-    'elec_interp.tar.gz',
-    'read_FJS10.py'],
+ 'secondary_electrons': ['https://www.dropbox.com/s/jidsccfnhizm7q2/elec_interp.tar.gz?dl=1',
+     'elec_interp.tar.gz',
+     'read_FJS10.py'],
  'starburst99': ['http://www.stsci.edu/science/starburst99/data',
     'data.tar.gz',
     None],
@@ -52,13 +50,13 @@ aux_data = \
  'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
     'IR.zip',
      None],
- 'wfc': ['{!s}/downloads'.format(ares_link),
-    'wfc.tar.gz',
+ 'wfc': ['https://www.dropbox.com/s/zv8qomgka9fkiek/wfc.tar.gz?dl=1',
+     'wfc.tar.gz',
     None],
  'irac': ['https://irsa.ipac.caltech.edu/data/SPITZER/docs/irac/calibrationfiles/spectralresponse/',
     '080924ch1trans_full.txt',
     '080924ch2trans_full.txt',
-    None],    
+    None],
  #'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
  #   'wfc_F435W.dat',
  #   'wfc_F606W.dat',
@@ -66,11 +64,12 @@ aux_data = \
  #   'wfc_F814W.dat',
  #   'wfc_F850LP.dat',
  #   None],
- 'cosmo_params': ['https://pla.esac.esa.int/pla/aio',
-    'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.tgz',
+ 'planck': ['https://pla.esac.esa.int/pla/aio',
+    'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.zip',
+    'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-zre6p5_R3.01.zip',
+    'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM_R3.01.zip',
     None]
 }
-
 
 if not os.path.exists('input'):
     os.mkdir('input')
@@ -86,6 +85,7 @@ if (len(options) > 0) and ('clean' not in options):
         to_download = aux_data.keys()
         files = [None] * len(to_download)
     else:
+        ct = 0
         to_download = []
         for key in options:
             if key == 'fresh':
@@ -98,6 +98,11 @@ if (len(options) > 0) and ('clean' not in options):
             else:
                 to_download.append(key)
                 files.append(None)
+                
+            if 'basic' in options:
+                break
+                
+            ct += 1    
                 
         if to_download == [] and 'fresh' in options:
             to_download = aux_data.keys()
@@ -138,13 +143,22 @@ for i, direc in enumerate(to_download):
         if 'clean' in options:
             continue
     
-        print("Downloading {0!s}/{1!s}...".format(web, fn))
-        
-        try:
-            urlretrieve('{0!s}/{1!s}'.format(web, fn), _fn)
-        except:
-            print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
-            continue
+        if 'dropbox' in web:
+            print("Downloading {0!s} to {1!s}...".format(web, fn))
+                        
+            try:
+                urlretrieve('{0!s}'.format(web), fn)
+            except:
+                print("WARNING: Error downloading {0!s}".format(web))
+                continue
+        else:    
+            print("Downloading {0!s}/{1!s}...".format(web, fn))
+            
+            try:
+                urlretrieve('{0!s}/{1!s}'.format(web, fn), _fn)
+            except:
+                print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
+                continue
         
         # If it's a zip, unzip and move on.
         if re.search('.zip', _fn) and (not re.search('tar', _fn)):
@@ -163,7 +177,7 @@ for i, direc in enumerate(to_download):
             tar.extractall()
             tar.close()
         except:
-            print("WARNING: Error unpacking {0!s}/{1!s}".format(web, fn))
+            print("WARNING: Error unpacking {0!s}".format(_fn))
         
         if direc != 'cosmo_params': 
             continue

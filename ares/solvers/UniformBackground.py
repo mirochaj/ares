@@ -251,7 +251,8 @@ class UniformBackground(object):
     @property
     def pops(self):
         if not hasattr(self, '_pops'):
-            self._pops = CompositePopulation(pf=self.pf, **self._kwargs).pops
+            self._pops = CompositePopulation(pf=self.pf, cosm=self.cosm,
+                **self._kwargs).pops
             
         return self._pops
 

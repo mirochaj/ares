@@ -22,19 +22,19 @@ except IndexError:
 try:
     cosmology_name = sys.argv[2]
 except:
-    cosmology_name = None
+    cosmology_name = 'user'
 
 try:
-    cosmology_num = int(sys.argv[3])
+    cosmology_id = sys.argv[3]
 except:
-    cosmology_num = None
+    cosmology_id = None
     
 _pf = ares.util.SetDefaultParameterValues.CosmologyParameters()
 
-if cosmology_name is not None:
-    _pf['cosmology_name'] = cosmology_name
-    assert cosmology_num is not None
-    _pf['cosmology_number'] = cosmology_num
+_pf['cosmology_name'] = cosmology_name
+if cosmology_id is not None:
+    _pf['cosmology_id'] = cosmology_id if cosmology_id.isalnum() else \
+        int(cosmology_id)
     
 cosm = ares.physics.Cosmology(**_pf)
 pf = cosm.pf
@@ -115,17 +115,10 @@ new_data = \
  'Tk': data[:,2][-1::-1],
 }
 
-if cosmology_name is None:
-    fn_out = 'initial_conditions.txt'
-else:
-    
-    pre, post = cosmology_name.split('/')
-    if not os.path.exists(pre):
-        os.mkdir(pre)
-    
-    fn_out = '{}/{}_{}.txt'.format(pre, post, str(cosmology_num).zfill(5))
 
-np.savetxt(fn_out, data[-1::-1,0:3], header='z xe Te')
-#np.savez('initial_conditions.npz', **new_data)
+fn_out = '{}/input/inits/inits_{}.txt'.format(cosm.path_ARES, 
+    post, cosm.get_prefix())
+
+np.savetxt(fn_out, data[-1::-1,0:3], header='z; xe; Te')
 print("Wrote {}".format(fn_out))
 

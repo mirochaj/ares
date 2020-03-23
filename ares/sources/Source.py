@@ -112,12 +112,12 @@ class Source(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            if self.grid is None:
-                self._cosm = Cosmology(pf=self.pf, **self.pf)
-            elif self._cosm_ is not None:
+            if self._cosm_ is not None:
                 self._cosm = self._cosm_
-            else:
+            elif self.grid is not None:
                 self._cosm = self.grid.cosm
+            else:
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
         
         return self._cosm
     

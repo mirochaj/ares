@@ -69,7 +69,7 @@ util = fake_chianti()
 tiny_number = 1e-8  # A relatively small species fraction
 
 class Grid(object):
-    def __init__(self, **kwargs):
+    def __init__(self, cosm=None, **kwargs):
         """
         Initialize grid object.
         
@@ -91,6 +91,7 @@ class Grid(object):
         self.start_radius = self.pf['start_radius']
         self.approx_Salpha = self.pf['approx_Salpha']
         self.log_grid = self.pf['logarithmic_grid']
+        self._cosm_ = cosm
 
         # Compute cell centers and edges
         if self.pf['logarithmic_grid']:
@@ -346,7 +347,10 @@ class Grid(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(pf=self.pf, **self.pf)
+            if self._cosm_ is None:
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
+            else:
+                self._cosm = self._cosm_
         return self._cosm            
                 
     def set_properties(self, **kwargs):
@@ -403,9 +407,7 @@ class Grid(object):
         self._is_cgm_patch = is_cgm_patch    
         
     def set_cosmology(self, **kwargs):
-        
         self.zi = self.pf['initial_redshift']
-        self._cosm = Cosmology(pf=self.pf, **self.pf)        
         
     def set_chemistry(self, include_He=False):
         """

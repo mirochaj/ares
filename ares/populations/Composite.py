@@ -30,7 +30,7 @@ after_instance = ['pop_rad_yield']
 allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd']
 
 class CompositePopulation(object):
-    def __init__(self, pf=None, **kwargs):
+    def __init__(self, pf=None, cosm=None, **kwargs):
         """
         Initialize a CompositePopulation object, i.e., a list of *Population instances.
         """
@@ -42,6 +42,7 @@ class CompositePopulation(object):
         
         N = self.Npops = self.pf.Npops
         self.pfs = self.pf.pfs
+        self._cosm_ = cosm
 
         self.BuildPopulationInstances()
 
@@ -85,7 +86,7 @@ class CompositePopulation(object):
             assert ct < 2
     
             if ct == 0:
-                self.pops[i] = GalaxyPopulation(**pf)
+                self.pops[i] = GalaxyPopulation(cosm=self._cosm_, **pf)
     
             # This is poor design, but things are setup such that only one
             # quantity can be linked. This is a way around that.
@@ -122,19 +123,19 @@ class CompositePopulation(object):
                 raise ValueError('Only one link allowed right now!')
     
             if to_quantity[i] in ['sfrd', 'emissivity']:
-                self.pops[i] = GalaxyAggregate(**tmp)
+                self.pops[i] = GalaxyAggregate(cosm=self._cosm_, **tmp)
                 self.pops[i]._sfrd = self.pops[entry]._sfrd_func
             elif to_quantity[i] in ['frd']:
-                self.pops[i] = BlackHoleAggregate(**tmp)
+                self.pops[i] = BlackHoleAggregate(cosm=self._cosm_, **tmp)
                 self.pops[i]._frd = self.pops[entry]._frd_func
             elif to_quantity[i] in ['sfe', 'fstar']:
-                self.pops[i] = GalaxyCohort(**tmp)
+                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                 self.pops[i]._fstar = self.pops[entry].SFE
             elif to_quantity[i] in ['Mmax_active']:
-                self.pops[i] = GalaxyCohort(**tmp)
+                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                 self.pops[i]._tab_Mmin = self.pops[entry]._tab_Mmax_active
             elif to_quantity[i] in ['Mmax']:
-                self.pops[i] = GalaxyCohort(**tmp)
+                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                 # You'll notice that we're assigning what appears to be an 
                 # array to something that is a function. Fear not! The setter
                 # for _tab_Mmin will sort this out.

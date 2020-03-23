@@ -40,9 +40,9 @@ class HistoryContainer(dict):
     """
     A wrapper around DerivedQuantities.
     """
-    def __init__(self, pf={}):
+    def __init__(self, pf={}, cosm=None):
         self._data = {}
-        self._dq = DQ(ModelSet=None, pf=pf)
+        self._dq = DQ(ModelSet=None, cosm=cosm, pf=pf)
 
     def add_data(self, data):
         self._dq._add_data(data)

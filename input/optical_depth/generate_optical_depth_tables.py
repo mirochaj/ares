@@ -14,63 +14,35 @@ Note: This can be run in parallel, e.g.,
 
 """
 
+import sys
 import ares
-import numpy as np
-import os, time
-from ares.physics.Constants import E_LL, E_LyA
-
-try:
-    import h5py
-except:
-    pass
-
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
-
-#
-## INPUT
-zf, zi = (5, 60)
-Emin = 2e2
-Emax = 3e4
-Nz = [200]
-pin_Emin = True
-Nz = [400]
-fmt = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
-helium = 1
-xavg = lambda z: 0.0  # neutral
-##
-#
 
 # Initialize radiation background
-pars = \
+def_kwargs = \
 {
- 'include_He': helium,
- 'tau_Emin': Emin,
- 'tau_Emax': Emax,
- 'tau_Emin_pin': pin_Emin,
- 'approx_He': helium,
- 'initial_redshift': zi,
- 'first_light_redshift': zi,
- 'final_redshift': zf,
+ 'tau_Emin': 2e2,
+ 'tau_Emax': 3e4,
+ 'tau_Emin_pin': True,
+ 'tau_fmt': 'hdf5',
+ 'tau_redshift_bins': 400,
+ 'approx_He': 1,
+ 'include_He': 1,
+ 'initial_redshift': 60,
+ 'final_redshift': 5,
+ 'first_light_redshift': 60,
 }
 
-for res in Nz:
+kwargs = def_kwargs.copy()
+kwargs.update(ares.util.get_cmd_line_kwargs(sys.argv))
 
-    pars.update({'tau_redshift_bins': res})
+# Create OpticalDepth instance
+igm = ares.solvers.OpticalDepth(**kwargs)
+    
+# Impose an ionization history: neutral for all times
+igm.ionization_history = lambda z: 0.0
 
-    # Create OpticalDepth instance
-    igm = ares.solvers.OpticalDepth(**pars)
-    
-    # Impose an ionization history: neutral for all times
-    igm.ionization_history = xavg
-    
-    # Tabulate tau
-    tau = igm.TabulateOpticalDepth()
-    igm.save(suffix=fmt, clobber=True)
+# Tabulate tau and save
+tau = igm.TabulateOpticalDepth()
+igm.save(suffix=kwargs['tau_fmt'], clobber=False)
 
     

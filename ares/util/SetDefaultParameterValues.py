@@ -1054,7 +1054,6 @@ def HaloMassFunctionParameters():
     {
     "hmf_model": 'ST',
     
-    
     "hmf_instance": None,
     "hmf_load": True,
     "hmf_cache": None,
@@ -1075,7 +1074,6 @@ def HaloMassFunctionParameters():
     "hmf_tmin": 30.,
     "hmf_tmax": 1000.,
     "hmf_dt": None,     # if not None, will switch this one.
-    
     
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
@@ -1137,21 +1135,46 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
-    "cosmology_propagation": True,
+    #"cosmology_propagation": True,
     "cosmology_inits_location": None,
     "omega_m_0": 0.3089,
     "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
     "omega_l_0": 1. - 0.3089,
+    "omega_k_0": 0.0,
     "hubble_0": 0.6774,
     "helium_by_number": 0.0813,
     "helium_by_mass": 0.2453,   # predicted by BBN
     "cmb_temp_0": 2.7255,
     "sigma_8": 0.8159,
     "primordial_index": 0.9667,
+    'relativistic_species': 3.04,
     "approx_highz": False,    
-    "cosmology_name": None,  # Can pass 'named cosmologies'
+    "cosmology_id": 'best',
+    "cosmology_name": 'planck_TTTEEE_lowl_lowE',  # Can pass 'named cosmologies'
     "cosmology_number": None,
     "cosmology_generator": None,
+    "path_to_CosmoRec": None,
+    
+    # As you might have guessed, these parameters are all unique to CosmoRec
+    'cosmorec_nz': 1000,
+    'cosmorec_z0': 3000,
+    'cosmorec_zf': 0,
+    'cosmorec_recfast_fudge': 1.14,
+    'cosmorec_nshells_H': 3,
+    'cosmorec_nS': 500,
+    'cosmorec_dm_annhil': 0,
+    'cosmorec_A2s1s': 0,                   # will use internal default if zero
+    'cosmorec_nshells_He': 3,
+    'cosmorec_HI_abs': 2,                  # during He recombination 
+    'cosmorec_spin_forb': 1,
+    'cosmorec_feedback_He': 0,
+    'cosmorec_run_pde': 1,
+    'cosmorec_corr_2s1s': 2,
+    'cosmorec_2phot': 3,
+    'cosmorec_raman': 2,
+    'cosmorec_path': None,
+    'cosmorec_output': 'input/inits/outputs/',
+    'cosmorec_fmt': '.dat',
     }
 
     pf.update(rcParams)
