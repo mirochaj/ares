@@ -76,11 +76,14 @@ if not os.path.exists('input'):
 
 os.chdir('input')
 
+needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
+    'planck']
+
 files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
-        to_download = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 'planck']
-        files = [None, None, None, None, None]
+        to_download = needed_for_tests
+        files = [None] * len(to_download)
     elif 'clean' in options:
         to_download = aux_data.keys()
         files = [None] * len(to_download)
@@ -108,7 +111,7 @@ else:
     to_download = list(aux_data.keys())
     to_download.remove('cosmo_params')
     files = [None] * len(to_download)
-        
+                
 for i, direc in enumerate(to_download):
                 
     if not os.path.exists(direc):
@@ -117,7 +120,7 @@ for i, direc in enumerate(to_download):
     os.chdir(direc)
     
     web = aux_data[direc][0]
-    
+        
     if files[i] is None:
         fns = aux_data[direc][1:-1]
     else:
