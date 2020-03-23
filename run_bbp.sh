@@ -2,6 +2,7 @@ pip install numpy
 pip install matplotlib
 pip install scipy
 pip install pytest
+pip install h5py
 export ARES=$BITBUCKET_CLONE_DIR
 cd $ARES          
 python setup.py install

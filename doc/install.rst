@@ -5,6 +5,7 @@ Installation
 * `numpy <http://numpy.scipy.org/>`_
 * `scipy <http://www.scipy.org/>`_ 
 * `matplotlib <http://matplotlib.sourceforge.net>`_
+* `h5py <http://www.h5py.org/>`_
 
 and optionally:
 
@@ -14,7 +15,6 @@ and optionally:
 * `distpy <https://bitbucket.org/ktausch/distpy>`_
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `pymp <https://github.com/classner/pymp>`_
-* `h5py <http://www.h5py.org/>`_
 * `setuptools <https://pypi.python.org/pypi/setuptools>`_
 * `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
 * `shapely <https://pypi.python.org/pypi/Shapely>`_
