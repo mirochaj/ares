@@ -79,7 +79,7 @@ os.chdir('input')
 files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
-        to_download = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3']
+        to_download = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 'planck']
         files = [None, None, None, None, None]
     elif 'clean' in options:
         to_download = aux_data.keys()
@@ -98,10 +98,7 @@ if (len(options) > 0) and ('clean' not in options):
             else:
                 to_download.append(key)
                 files.append(None)
-                
-            if 'basic' in options:
-                break
-                
+                                
             ct += 1    
                 
         if to_download == [] and 'fresh' in options:
@@ -126,7 +123,10 @@ for i, direc in enumerate(to_download):
     else:
         fns = [aux_data[direc][1:-1][files[i]]]
         
-    for fn in fns:
+    for i, fn in enumerate(fns):
+        
+        if (i > 0) and ('basic' in options):
+            break
          
         if '/' in fn:
             _fn = fn[fn.rfind('/')+1:]#fn.split('/') 
