@@ -573,9 +573,9 @@ class PowerSpectrum21cm(AnalyzePS):
                 f.close()
     
                 if self.pf['verbose']:
-                    print 'Wrote %s.blobs.%s' % (prefix, suffix)
+                    print('Wrote {}.blobs.{}'.format(prefix, suffix))
             except AttributeError:
-                print 'Error writing %s.blobs.%s' % (prefix, suffix)
+                print('Error writing {}.blobs.{}'.format(prefix, suffix))
     
         elif suffix in ['hdf5', 'h5']:
             import h5py
@@ -630,7 +630,7 @@ class PowerSpectrum21cm(AnalyzePS):
             f.close()
     
         if self.pf['verbose']:
-            print 'Wrote %s.fluctuations.%s' % (prefix, suffix)
+            print('Wrote {}.fluctuations.{}'.format(prefix, suffix))
         
         #write_pf = True
         #if os.path.exists('%s.parameters.pkl' % prefix):

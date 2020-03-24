@@ -1198,7 +1198,7 @@ class HaloModel(HaloMassFunction):
             pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
     
-        print 'Wrote %s.' % fn
+        print('Wrote %s.' % fn)
         return
     
     
