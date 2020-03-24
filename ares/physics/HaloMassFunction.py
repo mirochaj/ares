@@ -19,7 +19,7 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumtrapz, simps
 from ..util.PrintInfo import print_hmf
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
@@ -28,8 +28,8 @@ from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import CosmologyParameters
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
     m_H, k_B, s_per_myr
-from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
-
+from scipy.interpolate import UnivariateSpline, RectBivariateSpline, \
+    interp1d, InterpolatedUnivariateSpline
 try:
     from scipy.special import erfc
 except ImportError:
