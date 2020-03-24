@@ -51,7 +51,7 @@ for i, fn in enumerate(xi_files):
     # Read data 
     nrg, f_ion, f_heat, f_exc, n_Lya, n_ionHI, n_ionHeI, n_ionHeII, \
         shull_heat = np.loadtxt('x_int_tables/{!s}'.format(fn), skiprows=3,
-        unpack=True)
+            unpack=True)
        
     if i == 0:          
         for j, energy in enumerate(nrg):

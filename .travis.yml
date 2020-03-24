@@ -9,3 +9,5 @@ install:
 # command to run tests
 script:
   - bash deploy.sh
+after_success:
+  - coveralls
