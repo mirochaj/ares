@@ -52,7 +52,6 @@ class SynthesisModelHybrid(SynthesisMaster):
 
             interpolated_b = sci.interp2d(self.bpass.wavelengths, self.bpass.times, smooth_bpass)
             interpolated_s = sci.interp2d(self.starburst.wavelengths, self.starburst.times, smooth_starburst)
-            print(self.pf['source_coef'])
             self.interpolated_data =\
             (self.pf['source_coef']*interpolated_b(self.wavelengths, self.times)+(1-self.pf['source_coef'])*interpolated_s(self.wavelengths, self.times)).T
         
