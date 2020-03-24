@@ -12,4 +12,9 @@ input/wfc/
 input/wfc3/
 input/inits/outputs/
 input/bpass_v1/SEDS
+input/bpass_v1/*tar.gz
 tests/.coverage
+.coverage
+coverage.xml
+htmlcov
+.DS_Store
