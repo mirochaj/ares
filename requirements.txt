@@ -5,3 +5,4 @@ h5py==2.9.0
 coveralls==1.11.1
 pytest==3.6.4
 pytest-cov==2.8.1
+pyyaml==5.3.1
