@@ -1,0 +1,12 @@
+*.pyc
+*.c
+*.h
+*.hdf5
+ares.egg-info
+*.png
+*.tar.gz
+*.txt
+input/planck/
+input/secondary_electrons/x_int_tables/
+input/wfc/
+input/wfc3/
