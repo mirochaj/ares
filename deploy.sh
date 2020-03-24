@@ -1,10 +1,4 @@
-pip install numpy
-pip install matplotlib
-pip install scipy
-pip install pytest
-pip install h5py
-export ARES=$BITBUCKET_CLONE_DIR
-cd $ARES          
+export ARES=$TRAVIS_BUILD_DIR    
 python setup.py install
 python remote.py minimal basic
 cd tests
