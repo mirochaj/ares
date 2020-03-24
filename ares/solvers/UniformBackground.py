@@ -275,7 +275,7 @@ class UniformBackground(object):
     @property
     def effects_by_pop(self):
         if not hasattr(self, '_effects_by_pop'):
-            self._effects_by_pop = [[] for i in xrange(self.Npops)]
+            self._effects_by_pop = [[] for i in range(self.Npops)]
 
             for i, pop in enumerate(self.pops):
                 bands = self.bands_by_pop[i]
@@ -319,9 +319,9 @@ class UniformBackground(object):
         if not hasattr(self, '_bands_by_pop'):
             # Figure out which band each population emits in
             if self.approx_all_pops:
-                self._energies = [[None] for i in xrange(self.Npops)]
-                self._redshifts = [None for i in xrange(self.Npops)]
-                self._bands_by_pop = [[None] for i in xrange(self.Npops)]
+                self._energies = [[None] for i in range(self.Npops)]
+                self._redshifts = [None for i in range(self.Npops)]
+                self._bands_by_pop = [[None] for i in range(self.Npops)]
             else:    
                 # Really just need to know if it emits ionizing photons, 
                 # or has any sawtooths we need to care about
@@ -1483,7 +1483,7 @@ class UniformBackground(object):
                 tau[i], my_id=(my_id[0], my_id[1]+i), accept_photons=i!=imax))
 
         # Generator over redshift
-        for i in xrange(z.size):  
+        for i in range(z.size):  
             flux = []
             for gen in gens:
                 z, new_flux = next(gen)

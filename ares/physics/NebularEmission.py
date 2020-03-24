@@ -75,7 +75,7 @@ class NebularEmission(object):
         if not hasattr(self, '_gamma_fb_'):
             _gaunt_fb = 1.05
             _sum = np.zeros_like(self.frequencies)
-            for n in xrange(2, 100, 1):
+            for n in range(2, 100, 1):
                 _xn = Ryd / k_B / self.pf['pop_nebula_Tgas'] / n ** 2
                 ok = (Ryd / h_p / n**2) < self.frequencies
                 _sum[ok==1] += _xn * (np.exp(_xn) / n) * _gaunt_fb

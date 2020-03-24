@@ -612,7 +612,7 @@ class PowerSpectrum21cm(AnalyzePS):
             print >> f, ''
     
             # Now, the data
-            for i in xrange(len(self.history[key])):
+            for i in range(len(self.history[key])):
                 s = ''
     
                 for key in self.history:

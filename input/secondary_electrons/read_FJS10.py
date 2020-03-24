@@ -17,22 +17,8 @@ important, and will be used when secondary_ionization = 3.
 
 import os
 import sys
-import urllib
-import pickle
+import h5py
 import numpy as np
-
-try:
-    import h5py
-    have_h5py = True
-except ImportError:
-    have_h5py = False
-
-python_major_version = sys.version_info.major
-if python_major_version in [2, 3]:
-    is_python3 = (python_major_version == 3)
-else:
-    raise ValueError("The check for which Python version is being used " +\
-        "failed for some unknown reason.")
     
 E_th = [13.6, 24.6, 54.4]
 
@@ -88,42 +74,19 @@ fLya_xi = np.array(list(zip(*fLya)))
 fHI_xi = np.array(list(zip(*fHI)))
 fHeI_xi = np.array(list(zip(*fHeI)))
 fHeII_xi = np.array(list(zip(*fHeII)))
-          
-# Make pickle file
-to_write = [np.array(energies), np.array(x), heat_xi, fexc_xi, fLya_xi,\
-    fHI_xi, fHeI_xi, fHeII_xi, fion_xi]
-#write_pickle_file(to_write, 'secondary_electron_data.pkl',\
-#    ndumps=len(to_write), open_mode='w', safe_mode=False, verbose=False)
 
-with open('secondary_electron_data.pkl', 'wb') as pickle_file:
-    for object_to_pickle in to_write:
-        if is_python3:
-            # extra 'protocol' keyword argument necessary for python2
-            # to be able to unpickle python3-pickled files
-            pickle.dump(object_to_pickle, pickle_file, protocol=2)
-        else:
-            pickle.dump(object_to_pickle, pickle_file, -1)         
-
-         
-# Make npz file
-data = {'electron_energy': np.array(energies), 'ionized_fraction': np.array(x),
-    'f_heat': heat_xi, 'fion_HI': fHI_xi, 'fion_HeI': fHeI_xi,
-    'fion_HeII': fHeII_xi, 'f_Lya': fLya_xi, 'fion': fion_xi, 'fexc': fexc_xi}
-np.savez('secondary_electron_data.npz', **data)
-                
-# Make HDF5 file
-if have_h5py:
-    f = h5py.File('secondary_electron_data.hdf5', 'w')
-    f.create_dataset('electron_energy', data=energies)
-    f.create_dataset('ionized_fraction', data=np.array(x))
-    f.create_dataset('f_heat', data=heat_xi)
-    f.create_dataset('fion_HI', data=fHI_xi)
-    f.create_dataset('fion_HeI', data=fHeI_xi)
-    f.create_dataset('fion_HeII', data=fHeII_xi)
-    f.create_dataset('f_Lya', data=fLya_xi)
-    f.create_dataset('fion', data=fion_xi)
-    f.create_dataset('fexc', data=fexc_xi)
-    f.close()
+# Write to hfd5          
+f = h5py.File('secondary_electron_data.hdf5', 'w')
+f.create_dataset('electron_energy', data=energies)
+f.create_dataset('ionized_fraction', data=np.array(x))
+f.create_dataset('f_heat', data=heat_xi)
+f.create_dataset('fion_HI', data=fHI_xi)
+f.create_dataset('fion_HeI', data=fHeI_xi)
+f.create_dataset('fion_HeII', data=fHeII_xi)
+f.create_dataset('f_Lya', data=fLya_xi)
+f.create_dataset('fion', data=fion_xi)
+f.create_dataset('fexc', data=fexc_xi)
+f.close()
 
     
 
