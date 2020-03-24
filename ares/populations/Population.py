@@ -26,7 +26,7 @@ from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
-    SynthesisModel, SynthesisModelToy
+    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p
 
@@ -39,7 +39,7 @@ from ..util.SetDefaultParameterValues import StellarParameters, \
     
 _synthesis_models = ['leitherer1999', 'eldridge2009']
 _single_star_models = ['schaerer2002']
-_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002']
+_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002', 'hybrid']
 
 def normalize_sed(pop):
     """
@@ -457,6 +457,8 @@ class Population(object):
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
+            elif self.pf['pop_sed'] in ['hybrid']:
+                self._Source_ = SynthesisModelHybrid
             elif self.pf['pop_sed'] in _single_star_models:
                 self._Source_ = StarQS
             elif self.pf['pop_sed'] == 'sps-toy':

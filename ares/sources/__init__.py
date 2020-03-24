@@ -9,3 +9,4 @@ from ares.sources.Composite import Composite
 from ares.sources.SynthesisModel import SynthesisModel
 from ares.sources.SynthesisModelToy import SynthesisModelToy
 from ares.sources.SynthesisModelSBS import SynthesisModelSBS
+from ares.sources.SynthesisModelHybrid import SynthesisModelHybrid
