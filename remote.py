@@ -76,7 +76,8 @@ if not os.path.exists('input'):
 
 os.chdir('input')
 
-needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3']
+needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
+    'planck']
 
 files = []
 if (len(options) > 0) and ('clean' not in options):
