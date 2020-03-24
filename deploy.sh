@@ -4,5 +4,5 @@ python remote.py minimal basic
 cd tests
 echo "backend : Agg" > $HOME/matplotlibrc
 export MATPLOTLIBRC=$HOME
-py.test -v test_*.py
+py.test -v test_*.py --cov=ares
 
