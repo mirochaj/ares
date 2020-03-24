@@ -992,7 +992,7 @@ class HaloModel(HaloMassFunction):
                     _cf.append(tmp[2])
                 
                 if _z != []:
-                    print "Processor {} loaded checkpoints for z={}".format(rank, _z)
+                    print("Processor {} loaded checkpoints for z={}".format(rank, _z))
             
             elif os.path.exists(fn):
                 os.remove(fn)

@@ -1,6 +1,4 @@
-[![Documentation](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest)
-
-[![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares)
+[![Documentation](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares)
 
 
 

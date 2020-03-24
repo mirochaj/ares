@@ -90,7 +90,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     
                 norm = dTb0**2
             else:
-                print "dunno norm for field=%s" % field
+                print("dunno norm for field={}".format(field))
                 norm = 1.
 
             ps = norm * self.history[ps_s][iz] * k**3 / 2. / np.pi**2
