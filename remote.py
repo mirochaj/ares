@@ -202,8 +202,10 @@ for i, direc in enumerate(to_download):
     if aux_data[direc][-1] is not None:
         try:
             execfile(aux_data[direc][-1])
+        except NameError:
+            exec(open(aux_data[direc][-1]).read())
         except:
             print("WARNING: Error running {!s}".format(aux_data[direc][-1]))
-
+            
     os.chdir('..')
 

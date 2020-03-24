@@ -1836,11 +1836,6 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
                 color=colors[j], new_x=new_x, **kwargs)
             
-            if 'use_best' in kwargs:
-                if kwargs['use_best']:
-                    anl.ReconstructedFunction('beta_spec', ivar=[z, None], ax=ax_bet,
-                        color=colors[j], ls='--', lw=3, **kwargs)    
-            
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
                 color=colors[j], **kwargs)
                         
@@ -2255,18 +2250,20 @@ class GalaxyPopulation(object):
         ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
         ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
         ax_phi.set_ylabel(labels['galaxy_lf'])
+        ax_phi.set_yscale('log')
         ax_bet.set_ylabel(r'$\beta$')
 
-        
         ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
         ax_MsMUV.set_xlabel(r'$M_{1500}$')
 
         ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')
         
+        ax_smf.set_yscale('log')
+        
         ax_sfms.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         ax_sfms.set_ylabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
-
+        
         ax_sfrd.set_xlabel(r'$z$')
         ax_sfrd.set_ylabel(labels['sfrd'])
         ax_sfrd.set_ylim(1e-4, 1e-1)

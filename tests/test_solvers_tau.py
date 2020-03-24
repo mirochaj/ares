@@ -45,7 +45,7 @@ def test(tol=1e-1):
      'pop_logN': -np.inf,
      'pop_solve_rte': True,
      'tau_approx': False,
-     'tau_redshift_bins': 1e2,
+     'tau_redshift_bins': 100,
     }
     
     colors = 'k', 'b'

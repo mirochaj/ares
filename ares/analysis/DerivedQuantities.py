@@ -143,6 +143,7 @@ registry_special_Q = \
 class DerivedQuantities(object):
     def __init__(self, ModelSet=None, pf=None, data=None, cosm=None):
         self._ms = ModelSet
+        self._cosm_ = cosm
         
         if pf is None:
             if ModelSet is not None:
@@ -152,20 +153,24 @@ class DerivedQuantities(object):
                 self.pf.Npops = 1
         else:
             self.pf = pf
-        
-        if cosm is not None:
-            self.cosm = cosm
-        else:    
-            try:
-                self.cosm = self._ms.cosm
-            except AttributeError:
-                self.cosm = Cosmology(**self.pf)
-        
+                
         self._data = {}
         
         if data is not None:
             self._data.update(data)
-                
+        
+    @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            if self._cosm_ is not None:
+                self._cosm = self._cosm_
+            else:    
+                try:
+                    self._cosm = self._ms.cosm
+                except AttributeError:
+                    self._cosm = Cosmology(**self.pf)   
+        return self._cosm_
+                             
     @property
     def _shape(self):
         if not hasattr(self, '__shape'):
