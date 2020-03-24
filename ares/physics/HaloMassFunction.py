@@ -132,6 +132,16 @@ class HaloMassFunction(object):
         """
         self.pf = ParameterFile(**kwargs)
                 
+        # If no hmf table is specified but a matching table exists
+        if self.pf['cosmology_name'] is not None:
+            if self.pf['hmf_cosmology_location'] is not None:
+                if self.pf['cosmology_number'] is None:
+                    self.pf['cosmology_number'] = 0
+                self.pf['hmf_table'] = (self.pf['hmf_cosmology_location']
+                                        + '/{}.hdf5'.format(self.pf['cosmology_number']))
+            else:
+                print('cosmology name provided without specifying the hmf table location')
+
         # Read in a few parameters for convenience        
         self.tab_name = self.pf["hmf_table"]
         self.hmf_func = self.pf['hmf_model']
@@ -378,8 +388,58 @@ class HaloMassFunction(object):
                 self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
                     self.pf['hmf_cache']            
             return
+
+        if self.pf['hmf_pca'] is not None:
+            f = h5py.File(self.pf['hmf_pca'], 'r')
+            self.tab_z = np.array(f[('tab_z')])
+            self.tab_M = np.array(f[('tab_M')])
+
+            tab_dndm_pca = self.pf['hmf_pca_coef0'] * np.array(f[('e_vec')])[0]
+            for i in range(1, len(f[('e_vec')])):
+                tab_dndm_pca += self.pf['hmf_pca_coef{}'.format(i)] * np.array(f[('e_vec')])[i]
+
+            self.tab_dndm = 10**np.array(tab_dndm_pca)
+            ngtm, mgtm = [], []
+
+            # Generates ngtm and mgtm with Murray's formulas
+            for i in range(len(self.tab_z)):
+                m = self.tab_M[np.logical_not(np.isnan(self.tab_M))]
+                dndm = self.tab_dndm[i][np.logical_not(np.isnan(self.tab_dndm[i]))]
+                dndlnm = m * dndm
+                if m[-1] < m[0] * 10 ** 20 / m[3]:
+                    m_upper = np.arange(np.log(m[-1]), np.log(10 ** 18), np.log(m[1]) - np.log(m[0]))
+                    mf_func = InterpolatedUnivariateSpline(np.log(m), np.log(dndlnm), k=1)
+                    mf = mf_func(m_upper)
+
+                    int_upper_n = simps(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
+                    int_upper_m = simps(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
+                else:
+                    int_upper_n = 0
+                    int_upper_m = 0
+
+                ngtm_ = np.concatenate((cumtrapz(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+                mgtm_ = np.concatenate((cumtrapz(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+                
+                ngtm.append(ngtm_ + int_upper_n)
+                mgtm.append(mgtm_ + int_upper_m)
+
+            self.tab_ngtm, self.tab_mgtm = np.array(ngtm), np.array(mgtm)
             
-        if ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
+            f.close()
+            
+            if self.pf['hmf_gen_MAR'] is False and ARES is not None:
+                g = np.load('{}/input/hmf/hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz'.format(ARES))
+                if 'tab_MAR' in g:
+                   tab_MAR_complete = g['tab_MAR']
+                tab_MAR_Mstrip = []
+                for item in tab_MAR_complete:
+                    tab_MAR_Mstrip.append(item[::2][142:440])
+                tab_MAR_strip = tab_MAR_Mstrip[::2][(602-555):]
+                final_tab_MAR = tab_MAR_strip[:261]
+                self.tab_MAR = final_tab_MAR
+                g.close()
+            
+        elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
             self.tab_z = np.array(f[('tab_z')])
             self.tab_M = np.array(f[('tab_M')])
@@ -596,7 +656,7 @@ class HaloMassFunction(object):
     @property
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
-            if self.pf['hmf_table'] is not None:
+            if (self.pf['hmf_table'] is not None) or (self.pf['hmf_pca'] is not None):
                 
                 if self._is_loaded:
                     raise AttributeError('this shouldnt happen!')
