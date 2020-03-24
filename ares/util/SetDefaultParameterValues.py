@@ -1052,6 +1052,9 @@ def SynthesisParameters():
     "source_dlam": 1.,
     "source_Emin": 1.,
     "source_Emax": 54.4,
+
+    # Coefficient of Bpass in Hybrid synthesis model
+    "source_coef": 0.5,
     }
 
     return pf
@@ -1117,8 +1120,6 @@ def HaloMassFunctionParameters():
     "hmf_database": None,
 
     # Directory where cosmology hmf tables are located
-    "hmf_cosmology_location": None,
-    
     # For halo model.
     "hps_zmin": 6,
     "hps_zmax": 30,
@@ -1138,6 +1139,32 @@ def HaloMassFunctionParameters():
     "hmf_wdm_mass": None,
     "hmf_wdm_interp": True,
     
+    "hmf_cosmology_location": None, 
+    # PCA eigenvectors
+    "hmf_pca": None,
+    "hmf_pca_coef0":None,
+    "hmf_pca_coef1":None,
+    "hmf_pca_coef2":None,
+    "hmf_pca_coef3":None,
+    "hmf_pca_coef4":None,
+    "hmf_pca_coef5":None,
+    "hmf_pca_coef6":None,
+    "hmf_pca_coef7":None,
+    "hmf_pca_coef8":None,
+    "hmf_pca_coef9":None,
+    "hmf_pca_coef10": None,
+    "hmf_pca_coef11": None,
+    "hmf_pca_coef12": None,
+    "hmf_pca_coef13": None,
+    "hmf_pca_coef14": None,
+    "hmf_pca_coef15": None,
+    "hmf_pca_coef16": None,
+    "hmf_pca_coef17": None,
+    "hmf_pca_coef18": None,
+    "hmf_pca_coef19": None,
+
+    # If a new tab_MAR should be computed when using the PCA
+    "hmf_gen_MAR":True,    
     }
     
     pf.update(rcParams)
@@ -1148,7 +1175,7 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
-    #"cosmology_propagation": True,
+    "cosmology_propagation": False,
     "cosmology_inits_location": None,
     "omega_m_0": 0.3089,
     "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
@@ -1165,7 +1192,6 @@ def CosmologyParameters():
     "cosmology_id": 'best',
     "cosmology_name": 'planck_TTTEEE_lowl_lowE',  # Can pass 'named cosmologies'
     "cosmology_number": None,
-    "cosmology_generator": None,
     "path_to_CosmoRec": None,
     
     # As you might have guessed, these parameters are all unique to CosmoRec
