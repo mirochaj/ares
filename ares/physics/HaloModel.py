@@ -1132,8 +1132,8 @@ class HaloModel(HaloMassFunction):
             fn = '%s/%s.%s' % (destination, self.tab_prefix_ps(True), format)
         else:
             if format not in fn:
-                print "Suffix of provided filename does not match chosen format."
-                print "Will go with format indicated by filename suffix."
+                print("Suffix of provided filename does not match chosen format.")
+                print("Will go with format indicated by filename suffix.")
         
         if os.path.exists(fn):
             if clobber:
