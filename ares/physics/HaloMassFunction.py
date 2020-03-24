@@ -459,7 +459,8 @@ class HaloMassFunction(object):
         self._is_loaded = True
         
         if self.pf['verbose'] and rank == 0:
-            print("# Loaded {}.".format(self.tab_name))
+            name = self.tab_name
+            print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
         
         if self.pf['hmf_func'] is not None:
             if self.pf['verbose']:

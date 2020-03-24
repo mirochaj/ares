@@ -10,3 +10,5 @@ input/planck/
 input/secondary_electrons/x_int_tables/
 input/wfc/
 input/wfc3/
+input/inits/outputs/
+tests/.coverage

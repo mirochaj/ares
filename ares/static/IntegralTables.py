@@ -29,7 +29,7 @@ except ImportError:
 
 E_th = [13.6, 24.6, 54.4]
 
-scipy.seterr(all='ignore')
+#scipy.seterr(all='ignore')
 
 class IntegralTable: 
     def __init__(self, pf, source, grid, logN=None):

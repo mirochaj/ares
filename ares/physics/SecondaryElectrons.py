@@ -13,11 +13,19 @@ Gnedin, & Shull (2002) also available.
 """
 
 import os
+import sys
 import numpy as np
-from collections import Iterable
 from ..util.Pickling import read_pickle_file
 from ..util.Math import LinearNDInterpolator
     
+if sys.version_info[0] >= 3:
+    if sys.version_info[1] > 3:
+        from collections.abc import Iterable
+    else:
+        from collections import Iterable
+else:
+    from collections import Iterable
+        
 try:
     import h5py
     have_h5py = True

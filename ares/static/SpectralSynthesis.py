@@ -11,7 +11,6 @@ Description:
 """
 
 import time
-import collections
 import numpy as np
 from ..util import Survey
 from ..util import ProgressBar
@@ -906,7 +905,7 @@ class SpectralSynthesis(object):
                     notok += 1 
                     break
                 elif type(kwds[key]) == np.ndarray:
-                    if np.all(kwds[key] == kw[key]):
+                    if np.array_equal(kwds[key], kw[key]):
                         continue
                     else:
                         # This happens when, e.g., we pass SFH by hand.

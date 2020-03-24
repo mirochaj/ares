@@ -207,11 +207,11 @@ class GalaxyAggregate(HaloPopulation):
         # Models based on photons / baryon
         ##      
         if not self.pf['pop_sed_model']:
-            if (Emin, Emax) == (10.2, 13.6):
+            if (round(Emin, 1), round(Emax, 1)) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
                     * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
                     / self.cosm.g_per_baryon
-            elif (Emin, Emax) == (13.6, 24.6):
+            elif round(Emin, 1) == 13.6:
                 return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
                     * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
                     / self.cosm.g_per_baryon #/ (Emax - Emin)

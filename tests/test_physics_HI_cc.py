@@ -23,8 +23,7 @@ def test():
     # bounds are obeyed.
     T = np.logspace(-0.5, 4.5, 500)
     
-    fig1 = pl.figure(1)#; fig2 = pl.figure(2)
-    ax1 = fig1.add_subplot(111)#; ax2 = fig2.add_subplot(111)
+    fig1, ax1 = pl.subplots(1, 1)
     
     # Plot coupling coefficients vs. temperature (tabulated)
     ax1.scatter(hydr.tabulated_coeff['T_H'], 

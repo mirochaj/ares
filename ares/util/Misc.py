@@ -10,14 +10,23 @@ Description:
 
 """
 
+import sys
 import re, os
 import numpy as np
 import matplotlib.pyplot as pl
-from collections import Iterable
 from scipy.integrate import cumtrapz
 from ..physics.Constants import sigma_T
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
+
+if sys.version_info[0] >= 3:
+    if sys.version_info[1] > 3:
+        from collections.abc import Iterable
+    else:
+        from collections import Iterable
+else:
+    from collections import Iterable
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring

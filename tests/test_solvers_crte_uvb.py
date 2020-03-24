@@ -49,7 +49,7 @@ def test(tol=1e-2):
     
     z, E, flux = mgb.get_history(flatten=True)
     
-    f1 = pl.figure(1); ax1 = f1.add_subplot(111)
+    f1, ax1 = pl.subplots(1, 1)    
     
     ax1.semilogy(E, flux[0] * E * erg_per_ev, color='k', ls='--')
     

@@ -37,7 +37,8 @@ class InitialConditions(object):
         if os.path.exists(fn):
             z, xe, Tk = np.loadtxt(fn, unpack=True)
             if self.pf['verbose']:
-                print("# Loaded {}.".format(fn))
+                name = fn
+                print("# Loaded {}.".format(fn.replace(self.path_ARES, '$ARES')))
             return {'z': z, 'xe': xe, 'Tk': Tk}
         else:
             if self.pf['verbose']:

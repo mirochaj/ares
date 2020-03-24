@@ -106,9 +106,9 @@ def test():
     ax2.semilogy(*pop_dpl.phi_of_M(z=10), color='m', ls=':', alpha=0.5)
         
     ax1 = gpop.Plot(z=10., sources='oesch2014', ax=ax1, color='m',
-        mec='m', label=r'$z\sim10$') 
+        mec='m', label=r'$z\sim 10$') 
     ax2 = gpop.Plot(z=10., sources='oesch2014', ax=ax2, color='m',
-        mec='m', label=r'$z\sim10$')       
+        mec='m', label=r'$z\sim 10$')       
     
     # Make nice
     ax1.legend(loc='lower right', fontsize=12, numpoints=1)

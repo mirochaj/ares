@@ -2705,7 +2705,7 @@ class ModelSet(BlobFactory):
                     mask = self.mask[:,j]
                 else:
                     mask = self.mask
-            elif not np.all(np.array(val.shape) == np.array(self.mask.shape)):
+            elif not np.array_equal(val.shape,self.mask.shape):
                 
                 # If no masked elements, don't worry any more. Just set -> 0.
                 if not np.any(self.mask == 1):
