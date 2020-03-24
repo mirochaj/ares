@@ -1,4 +1,8 @@
-[![documentation](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest)
+[![Documentation](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest)
+
+[![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares)
+
+
 
 # **ares**
 The Accelerated Reionization Era Simulations (ARES) code was designed to
@@ -86,7 +90,7 @@ and optionally,
 - [descartes](https://pypi.python.org/pypi/descartes)
 
 
-Note: **ares** has been tested only with Python 2.7.x and Python 3.3.x.
+Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
 
 ## Quick Example
 

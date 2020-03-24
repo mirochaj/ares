@@ -577,19 +577,19 @@ def print_sim(sim, mgb=False):
     _pops = sim.pops   
 
     header = 'ARES Simulation: Overview'
-    print "\n" + "#"*width
-    print "%s %s %s" % (pre, header.center(twidth), post)
-    print "#"*width
+    print("\n" + "#"*width)
+    print("%s %s %s" % (pre, header.center(twidth), post))
+    print("#"*width)
 
     # Check for phenomenological models
     if sim.is_phenom:
-        print "Phenomenological model! Not much to report..."
-        print "#"*width    
+        print("Phenomenological model! Not much to report...")
+        print("#"*width)
         return    
     
-    print line('-'*twidth)
-    print line('Uniform Backgrounds')
-    print line('-'*twidth)
+    print(line('-'*twidth))
+    print(line('Uniform Backgrounds'))
+    print(line('-'*twidth))
     
     data, rows, cols = _rad_type(sim)    
     tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
