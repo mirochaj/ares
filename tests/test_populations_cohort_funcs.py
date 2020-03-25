@@ -22,6 +22,7 @@ def test():
     zarr = np.arange(6, 30, 0.1)
     
     pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0,1)
+    pars['pop_sed'] = 'sps-toy' # don't try to read-in bpass
     pars['pop_L1600_per_sfr'] = 1e28
     pop = ares.populations.GalaxyPopulation(**pars)
     
@@ -31,7 +32,6 @@ def test():
     assert np.all(sfrd < 1)
     assert 1e-6 <= np.mean(sfrd) <= 1e-1
     
-    # UVLF: need a population synthesis model.
     phi_M = pop.LuminosityFunction(zarr[0], mags, mags=True, wave=1600.)
     
 if __name__ == '__main__':
