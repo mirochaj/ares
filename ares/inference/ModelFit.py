@@ -26,7 +26,7 @@ from types import FunctionType#, InstanceType # InstanceType not in Python3
 from ..analysis.BlobFactory import BlobFactory
 from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
-from ..util.Stats import Gauss1D, GaussND, rebin, get_nu, bin_e2c
+from ..util.Stats import Gauss1D, GaussND, get_nu, bin_e2c
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
@@ -52,7 +52,9 @@ except ImportError:
 try:
     import emcee
     from emcee.utils import sample_ball
+    emcee_v = int(emcee.__version__[0])
 except ImportError:
+    emcee_v = None
     pass
 
 emcee_mpipool = False
@@ -1534,11 +1536,16 @@ class ModelFit(FitBase):
             ct = save_freq * (1 + max(self._saved_checkpoints(prefix)))
         else:
             ct = 0
+            
+        if emcee_v >= 3:
+            kw = {}
+        else:
+            kw = {'storechain': False}    
 
         # Take steps, append to pickle file every save_freq steps
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
-            iterations=steps, rstate0=state, storechain=False):
+            iterations=steps, rstate0=state, **kw):
                         
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename

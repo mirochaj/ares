@@ -503,15 +503,4 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
         return quantify_scatter(x, y, xbin_c, weights=weights,
             method_std='std', inclusive=inclusive)            
          
-def rebin(bins):
-    """
-    Take in an array of bin edges and convert them to bin centers.        
-    """
-
-    bins = np.array(bins)
-    result = np.zeros(bins.size - 1)
-    for i, element in enumerate(result):
-        result[i] = (bins[i] + bins[i + 1]) / 2.
-
-    return result
 
