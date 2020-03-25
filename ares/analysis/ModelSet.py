@@ -36,7 +36,7 @@ from ..util.ParameterFile import count_populations, par_info
 from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
-    rebin, correlation_matrix
+    bin_e2c, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
     read_pickled_logL
 try:
@@ -2357,7 +2357,7 @@ class ModelSet(BlobFactory):
         # Recover bin centers
         bc = []
         for i, edges in enumerate([xedges, yedges]):
-            bc.append(rebin(edges))
+            bc.append(bin_e2c(edges))
                 
         # Determine mapping between likelihood and confidence contours
 
@@ -2807,11 +2807,7 @@ class ModelSet(BlobFactory):
                     bvp = np.log10(self.axes[par])
                 else:
                     bvp = self.axes[par]
-                    
-            ##
-            # Round
-            bvp = [round(val, 3) for val in bvp]
-                    
+                                        
             if type(to_hist) is dict:
                 binvec[par] = bvp
             else:
@@ -3035,7 +3031,7 @@ class ModelSet(BlobFactory):
             hist, bin_edges = \
                 np.histogram(tohist, density=True, bins=b, weights=weights)
 
-            bc = rebin(bin_edges)
+            bc = bin_e2c(bin_edges)
 
             # Take CDF
             if cdf:
@@ -3075,7 +3071,7 @@ class ModelSet(BlobFactory):
             # Recover bin centers
             bc = []
             for i, edges in enumerate([xedges, yedges]):
-                bc.append(rebin(edges))
+                bc.append(bin_e2c(edges))
 
             # Determine mapping between likelihood and confidence contours
             if color_by_like:

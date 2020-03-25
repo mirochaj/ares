@@ -19,7 +19,6 @@ import gc, os, sys, copy, types, time, re
 from .ModelFit import ModelFit, LogLikelihood, FitBase
 from ..simulations import Global21cm as simG21
 from ..analysis import Global21cm as anlGlobal21cm
-from ..analysis.InlineAnalysis import InlineAnalysis
 from ..simulations import Global21cm as simGlobal21cm
 try:
     # this runs with no issues in python 2 but raises error in python 3

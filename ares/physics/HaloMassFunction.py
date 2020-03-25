@@ -17,7 +17,6 @@ from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
 from scipy.optimize import fsolve
-from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz
 from ..util.PrintInfo import print_hmf

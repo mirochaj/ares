@@ -13,7 +13,6 @@ Description:
 import sys
 import copy, types
 import numpy as np
-from ..util.Stats import rebin
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile, get_pq_pars
@@ -113,7 +112,7 @@ class Grid(object):
         # Compute interior cell walls, spacing, and mid-points        
         self.r_int = self.r_edg[0:-1]
         self.dr = np.diff(self.r_edg)
-        self.r_mid = rebin(self.r_edg)
+        self.r_mid = self.r_int + 0.5 * self.dr[0]
         
         self.zi = 0
         

@@ -68,7 +68,7 @@ def get_cmd_line_kwargs(argv):
                 cmd_line_kwargs[pre] = str(post)
         elif post[0] == '[':
             vals = post[1:-1].split(',')
-            cmd_line_kwargs[pre] = np.array(map(float, vals))
+            cmd_line_kwargs[pre] = np.array([float(val) for val in vals])
         else:
             try:
                 cmd_line_kwargs[pre] = float(post)
@@ -78,27 +78,22 @@ def get_cmd_line_kwargs(argv):
     
     return cmd_line_kwargs
 
-def get_hg_rev():
+def get_rev():
     import subprocess
     try:
-        ARES = os.getenv('ARES')
-        pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
+        ARES = os.environ.get('ARES')
+        cwd = os.getcwd()
+        os.chdir(ARES)
+        # git rev-parse HEAD
+        #os.popen('git rev-parse HEAD').read()
+        pipe = subprocess.Popen(["git", "rev-parse", "HEAD"], 
+            stdout=subprocess.PIPE)
+        os.chdir(cwd)
     except:
         return 'unknown'
         
     return pipe.stdout.read().strip()
     
-class evolve:
-    """ Make things that may or may not evolve with time callable. """
-    def __init__(self, val):
-        self.val = val
-        self.callable = val == types.FunctionType
-    def __call__(self, z = None):
-        if self.callable:
-            return self.val(z)
-        else:
-            return self.val
-            
 def sort(pf, prefix='spectrum', make_list=True, make_array=False):
     """
     Turn any item that starts with prefix_ into a list, if it isn't already.
@@ -158,108 +153,6 @@ def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
 
     return n-2
 
-def tau_post_EoR(sim):
-    """
-    Compute Thomson optical depth from z=0 to the lowest redshift contained
-    in an ares.simulations.MultiPhaseMedium calculation.
-    
-    .. note:: Assumes ___ about helium EoR?
-    
-    Parameters
-    ----------
-    sim : instance of ares.simulations.MultiPhaseMedium or Global21cm
-    
-    Returns
-    -------
-    Array of redshifts and (cumulative) optical depth out to those redshifts.
-    
-    """
-    
-    zmin = sim.history['z'].min()
-    ztmp = np.arange(0, zmin+0.001, 0.001)
-
-    QHII = 1.0
-    nH = sim.grid.cosm.nH(ztmp)
-    dldz = sim.grid.cosm.dldz(ztmp)
-
-    integrand = QHII * nH
-
-    if 'igm_he_1' in sim.history:
-        QHeII = 1.0
-        xHeIII = 1.0
-        nHe = sim.grid.cosm.nHe(ztmp)
-        integrand += (QHeII + 2. * xHeIII) * nHe 
-
-    integrand *= sigma_T * dldz
-
-    tau = cumtrapz(integrand, ztmp, initial=0)
-    
-    return ztmp, tau
-
-def tau_CMB(sim):
-    """
-    Compute CMB optical depth history.
-    
-    Parameters
-    ----------
-    sim : instance of ares.simulations.MultiPhaseMedium or Global21cm
-    
-    
-    
-    """
-    
-    # Sort in ascending order
-    zall = sim.history['z'][-1::-1]
-    
-    zmin = zall.min()
-    
-    # Create array of redshifts from z=0 up to final snapshot
-    ztmp = np.arange(0, zmin+0.001, 0.001)
-    
-    QHII = sim.history['cgm_h_2'][-1::-1]
-    
-    if 'igm_h_2' in sim.history:
-        xHII = sim.history['igm_h_2'][-1::-1]
-    else:
-        xHII = 0.0
-        
-    nH = sim.grid.cosm.nH(zall)
-    dldz = sim.grid.cosm.dldz(zall)
-
-    integrand = (QHII + (1. - QHII) * xHII) * nH
-
-    # Add helium optical depth
-    if 'igm_he_1' in sim.history:
-        QHeII = sim.history['cgm_h_2'][-1::-1]
-        xHeII = sim.history['igm_he_2'][-1::-1]
-        xHeIII = sim.history['igm_he_3'][-1::-1]        
-    else:
-        QHeII = sim.history['cgm_h_2'][-1::-1]
-        xHeII = 0.0
-        xHeIII = 0.0
-        
-    nHe = sim.grid.cosm.nHe(zall)    
-        
-    integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
-        * nHe
-
-    integrand *= sigma_T * dldz
-
-    tau = cumtrapz(integrand, zall, initial=0)
-        
-    tau[zall > 100] = 0.0    
-    
-    # Make no arrays that go to z=0
-    zlo, tlo = tau_post_EoR(sim)
-            
-    tau_tot = tlo[-1] + tau
-
-    zarr = np.concatenate((zlo, zall))
-    tau_all_z = np.concatenate((tlo, tau_tot))
-    
-    return zarr, tau_all_z
-
-
 def get_attribute(s, ob):
     """
     Break apart a string `s` and recursively fetch attributes from object `ob`.
@@ -291,35 +184,4 @@ def split_by_sign(x, y):
         xch = np.split(x, splits)
 
     return xch, ych
-    
-def plot_by_chunk(x, y, ax, **kwargs):
-    xx, yy = split_by_sign(x, y)
-    
-    if 'label' in kwargs:
-        label = kwargs['label']
-        del kwargs['label']
-    else:
-        label = None
-    
-    apply_label = False
-    applied_label = False
-    for i, chunk in enumerate(yy):
-        pos = np.all(chunk > 0)
-        
-        apply_label = pos
-        
-        if apply_label and applied_label:
-            apply_label = False
-        
-        if i == (len(yy) - 1) and (not applied_label):
-            apply_label = True
-            
-                
-        ax.loglog(xx[i], np.abs(yy[i]), lw=3 if pos else 1,
-            label=label if apply_label else None, **kwargs)
-    
-        if apply_label:
-            applied_label = True
-            
-    
-    return ax
+

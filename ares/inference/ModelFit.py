@@ -14,7 +14,7 @@ from __future__ import print_function
 
 import glob
 import numpy as np
-from ..util import get_hg_rev
+from ..util import get_rev
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
@@ -26,7 +26,6 @@ from types import FunctionType#, InstanceType # InstanceType not in Python3
 from ..analysis.BlobFactory import BlobFactory
 from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
-from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, rebin, get_nu, bin_e2c
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
@@ -1148,7 +1147,7 @@ class ModelFit(FitBase):
             tmp[key] = to_up[key]
             
         # If possible, include ares revision used to run this fit.
-        tmp['revision'] = get_hg_rev()
+        tmp['revision'] = get_rev()
             
         # Write to disk.
         write_pickle_file(tmp, '{!s}.binfo.pkl'.format(self.prefix), ndumps=1,\

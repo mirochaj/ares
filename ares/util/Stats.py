@@ -24,7 +24,9 @@ _normal_skew = lambda x, p0, p1, p2, p3: 2 * _normal(x, p0, p1, p2) \
     * 0.5 * (1. + erf((x - p1) * p3 / root2 / p2))
 
 def symmetrize_errors(mu, err, operation='min'):
-    
+    """
+    Take asymmetric errorbars and return symmetrized version.
+    """
     if type(err) not in [int, float]:
         err1 = err[0]
         err2 = err[1]

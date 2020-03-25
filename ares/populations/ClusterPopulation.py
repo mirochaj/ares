@@ -16,7 +16,6 @@ import inspect
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from ..util.Stats import rebin
 from ..util.Math import interp1d
 from .Population import Population
 from ..util.ParameterFile import get_pq_pars

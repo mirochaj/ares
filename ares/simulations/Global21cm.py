@@ -20,7 +20,7 @@ from ..util.Math import interp1d
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util.Pickling import write_pickle_file
-from ..util import ParameterFile, ProgressBar, get_hg_rev
+from ..util import ParameterFile, ProgressBar, get_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 from ..physics.Constants import nu_0_mhz, E_LyA, h_p, erg_per_ev, k_B, c
 
@@ -578,7 +578,7 @@ class Global21cm(AnalyzeGlobal21cm):
             #    pf[key] = self.pf[key]
             
             if 'revision' not in self.pf:
-                self.pf['revision'] = get_hg_rev()
+                self.pf['revision'] = get_rev()
             
             # Save parameter file
             write_pickle_file(self.pf, '{!s}.parameters.pkl'.format(prefix),\
