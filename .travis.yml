@@ -1,13 +1,26 @@
 language: python
+
 python:
   - "2.7"
   - "3.6"
   - "3.7"
+
+notifications:
+  email:
+    recipients:
+      - mirochaj@gmail.com
+    on_success: never
+    on_failure: always
+  
 # command to install dependencies
 install:
   - pip install -r requirements.txt
+
 # command to run tests
 script:
   - bash deploy.sh
+
 after_success:
   - coveralls
+  
+     

@@ -24,7 +24,9 @@ _normal_skew = lambda x, p0, p1, p2, p3: 2 * _normal(x, p0, p1, p2) \
     * 0.5 * (1. + erf((x - p1) * p3 / root2 / p2))
 
 def symmetrize_errors(mu, err, operation='min'):
-    
+    """
+    Take asymmetric errorbars and return symmetrized version.
+    """
     if type(err) not in [int, float]:
         err1 = err[0]
         err2 = err[1]
@@ -501,15 +503,4 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
         return quantify_scatter(x, y, xbin_c, weights=weights,
             method_std='std', inclusive=inclusive)            
          
-def rebin(bins):
-    """
-    Take in an array of bin edges and convert them to bin centers.        
-    """
-
-    bins = np.array(bins)
-    result = np.zeros(bins.size - 1)
-    for i, element in enumerate(result):
-        result[i] = (bins[i] + bins[i + 1]) / 2.
-
-    return result
 

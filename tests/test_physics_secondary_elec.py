@@ -29,7 +29,7 @@ def test():
     esec3 = ares.physics.SecondaryElectrons(method=3)
     
     # Re-make Figure 1 from FJS10
-    fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
+    fig1, ax1 = pl.subplots(1, 1)    
     
     for channel in ['heat', 'h_1', 'he_1', 'lya', 'exc']:
         func = lambda EE: esec3.DepositionFraction(E=EE, channel=channel, xHII=0.01)

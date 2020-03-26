@@ -157,8 +157,9 @@ class GalaxyPopulation(object):
                 mask = np.zeros_like(data[source]['M'])
             
             if src.units[quantity] == 'log10':
-                err_lo = []; err_hi = []; uplims = []
+                err_lo = []; err_hi = []; uplims = []; err_mask = []
                 for i, err in enumerate(src.data[quantity][z]['err']):
+                    
                     
                     if type(err) not in [int, float]:
                         err = np.mean(err)
@@ -181,32 +182,48 @@ class GalaxyPopulation(object):
                         err_lo.append(err1)
                         err_hi.append(err2)
                         
-                    uplims.append(err < 0)    
+                    uplims.append(err < 0) 
+                    
+                    if np.ma.is_masked(err):
+                        err_mask.append(True)   
+                    else:
+                        err_mask.append(False)
                     
                 data[source]['err'] = (err_lo, err_hi) 
                 if hasattr(src.data[quantity][z]['phi'], 'data'):       
-                    data[source]['phi'] = 10**src.data[quantity][z]['phi'].data
+                    data[source]['phi'] = \
+                        np.ma.array(10**src.data[quantity][z]['phi'].data,
+                            mask=src.data[quantity][z]['phi'].mask)
                 else:
-                    data[source]['phi'] = 10**np.array(src.data[quantity][z]['phi'])
+                    data[source]['phi'] = \
+                        np.ma.array(10**np.array(src.data[quantity][z]['phi'].data),
+                            mask=src.data[quantity][z]['phi'].mask)
+                            
                 data[source]['ulim'] = uplims
             else:                
                 
                 if hasattr(src.data[quantity][z]['phi'], 'data'):
-                    data[source]['phi'] = src.data[quantity][z]['phi']#.data
+                    data[source]['phi'] = \
+                        np.ma.array(src.data[quantity][z]['phi'].data,
+                            mask=src.data[quantity][z]['phi'].mask)
                 else:
-                    data[source]['phi'] = np.array(src.data[quantity][z]['phi'])
+                    data[source]['phi'] = \
+                        np.ma.array(src.data[quantity][z]['phi'].data,
+                            mask=src.data[quantity][z]['phi'])
                 
-                err_lo = []; err_hi = []; uplims = []
+                err_lo = []; err_hi = []; uplims = []; err_mask = []
                 for i, err in enumerate(src.data[quantity][z]['err']):
                     
                     if type(err) in [list, tuple, np.ndarray]:
                         err_hi.append(err[0])
                         err_lo.append(err[1])
                         uplims.append(False)
+                        err_mask.append(False)
                     elif err is None:
                         err_lo.append(0)
                         err_hi.append(0)
                         uplims.append(False)
+                        err_mask.append(True)
                     else:    
                         if (err < 0):
                             err_hi.append(0.0)
@@ -215,10 +232,15 @@ class GalaxyPopulation(object):
                             err_hi.append(err)
                             err_lo.append(err)
                             
-                        uplims.append(err < 0)    
+                        uplims.append(err < 0)
+                        err_mask.append(err < 0)
                 
                 data[source]['ulim'] = np.array(uplims)
-                data[source]['err'] = np.array((err_lo, err_hi))
+                
+                err_lo = np.ma.array(err_lo, mask=err_mask)
+                err_hi = np.ma.array(err_hi, mask=err_mask)
+                mask2 = np.array([err_lo.mask==1, err_hi.mask==1])
+                data[source]['err'] = np.ma.array((err_lo, err_hi), mask=mask2)
             
             data[source]['phi'] = np.ma.array(data[source]['phi'], mask=mask)  
             data[source]['M'] = np.ma.array(data[source]['M'], mask=mask)
@@ -1836,11 +1858,6 @@ class GalaxyPopulation(object):
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,
                 color=colors[j], new_x=new_x, **kwargs)
             
-            if 'use_best' in kwargs:
-                if kwargs['use_best']:
-                    anl.ReconstructedFunction('beta_spec', ivar=[z, None], ax=ax_bet,
-                        color=colors[j], ls='--', lw=3, **kwargs)    
-            
             anl.ReconstructedFunction('AUV', ivar=[z, None], ax=ax_AUV,
                 color=colors[j], **kwargs)
                         
@@ -2131,20 +2148,18 @@ class GalaxyPopulation(object):
         ax_sfms.annotate(r'$(1+z)^{5/2}$', (2e10, 1.5e-1), ha='center', va='bottom', 
             rotation=0, fontsize=8)
 
-        mh = np.logspace(7., 8, 50.)
+        mh = np.logspace(7., 8, 50)
         ax_sfms.loglog(mh, 200 * func(4., 3./3.), 
             color=colors[0], lw=1, ls='-', alpha=0.5)    
         ax_sfms.annotate(r'$1$',   (mh[-1]*1.1, 200 * func(4., 3./3.)[-1]), ha='left')
                 
     def _MegaPlotPredData(self, kw, redshifts=None):
         
-        
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
         ax_rdu = kw['ax_rdu']
         ax_phi = kw['ax_phi']
         ax_bet = kw['ax_bet']
-        
         
         ax_smf    = kw['ax_smf']
         ax_smhm   = kw['ax_smhm']
@@ -2255,18 +2270,20 @@ class GalaxyPopulation(object):
         ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
         ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
         ax_phi.set_ylabel(labels['galaxy_lf'])
+        ax_phi.set_yscale('log')
         ax_bet.set_ylabel(r'$\beta$')
 
-        
         ax_MsMUV.set_ylabel(r'$\log_{10} M_{\ast} / M_{\odot}$')
         ax_MsMUV.set_xlabel(r'$M_{1500}$')
 
         ax_AUV.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax_AUV.set_ylabel(r'$A_{\mathrm{UV}}$')
         
+        ax_smf.set_yscale('log')
+        
         ax_sfms.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         ax_sfms.set_ylabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
-
+        
         ax_sfrd.set_xlabel(r'$z$')
         ax_sfrd.set_ylabel(labels['sfrd'])
         ax_sfrd.set_ylim(1e-4, 1e-1)

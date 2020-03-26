@@ -6,7 +6,6 @@ from ares.analysis.Population import Population
 from ares.analysis.Global21cm import Global21cm
 from ares.analysis.PowerSpectrum import PowerSpectrum
 from ares.analysis.ModelSelection import ModelSelection
-from ares.analysis.InlineAnalysis import InlineAnalysis
 from ares.analysis.GalaxyPopulation import GalaxyPopulation
 from ares.analysis.Animation import Animation, AnimationSet
 from ares.analysis.MultiPhaseMedium import MultiPhaseMedium

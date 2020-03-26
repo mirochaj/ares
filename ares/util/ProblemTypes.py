@@ -26,7 +26,7 @@ More notes:
 
 import numpy as np
 from .SetDefaultParameterValues import SetAllDefaults
-from ..physics.Constants import m_H, cm_per_kpc, cm_per_mpc, s_per_myr
+from ..physics.Constants import m_H, cm_per_kpc, cm_per_mpc, s_per_myr, E_LL
 
 defs = SetAllDefaults()
     
@@ -90,7 +90,7 @@ def RaySegmentProblem(ptype):
               "source_sed": 'bb',
               "tau_ifront": [0],
 
-              "source_Emin": 13.6,
+              "source_Emin": E_LL,
               "source_Emax": 100.,
               "source_EminNorm": 0.1,
               "source_EmaxNorm": 100.,
@@ -111,7 +111,7 @@ def RaySegmentProblem(ptype):
               "initial_ionization": [1.-1.2e-3, 1.2e-3, 1-2e-8, 1e-8, 1e-8],
               "source_type": 'toy',
               "source_qdot": 5e48,
-              "source_E": [13.6],
+              "source_E": [E_LL],
               "source_LE": [1.0],
              }
 
@@ -160,7 +160,7 @@ def RaySegmentProblem(ptype):
 
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
 
-              "source_Emin": 13.6,
+              "source_Emin": E_LL,
               "source_Emax": 100.,
               "source_EminNorm": 1e-1,
               "source_EmaxNorm": 5e2,
@@ -229,9 +229,9 @@ def ReionizationProblem(ptype):
          'pop_sfrd': 'robertson2015',
          'pop_sed': 'pl',
          'pop_alpha': 1.0,
-         'pop_Emin': 13.6,
+         'pop_Emin': E_LL,
          'pop_Emax': 24.6,
-         'pop_EminNorm': 13.6,
+         'pop_EminNorm': E_LL,
          'pop_EmaxNorm': 24.6,
          'pop_rad_yield': 10**53.14,
          'pop_rad_yield_units': 'photons/s/sfr',
@@ -270,9 +270,9 @@ def ReionizationProblem(ptype):
         "pop_heat_src_igm{0}": False,
         
         "pop_Emin{0}": 10.2,
-        "pop_Emax{0}": 13.6,
+        "pop_Emax{0}": E_LL,
         "pop_EminNorm{0}": 10.2,
-        "pop_EmaxNorm{0}": 13.6,        
+        "pop_EmaxNorm{0}": E_LL,        
         "pop_rad_yield{0}": 9690., 
         "pop_rad_yield_units{0}": 'photons/baryon',
         "pop_solve_rte{0}": False,
@@ -310,9 +310,9 @@ def ReionizationProblem(ptype):
 
         "pop_fesc{2}": 0.1,
         
-        "pop_Emin{2}": 13.6,
+        "pop_Emin{2}": E_LL,
         "pop_Emax{2}": 1e2,
-        "pop_EminNorm{2}": 13.6,
+        "pop_EminNorm{2}": E_LL,
         "pop_EmaxNorm{2}": 1e2,        
         "pop_rad_yield{2}": 4000., 
         "pop_rad_yield_units{2}": 'photons/baryon',
@@ -339,7 +339,7 @@ def ReionizationProblem(ptype):
         
         "pop_Emin{0}": 10.2,
         "pop_Emax{0}": 24.6,
-        "pop_EminNorm{0}": 13.6,
+        "pop_EminNorm{0}": E_LL,
         "pop_EmaxNorm{0}": 24.6, 
         
         "pop_sed{0}": 'eldridge2009',

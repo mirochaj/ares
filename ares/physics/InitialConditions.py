@@ -37,7 +37,8 @@ class InitialConditions(object):
         if os.path.exists(fn):
             z, xe, Tk = np.loadtxt(fn, unpack=True)
             if self.pf['verbose']:
-                print("# Loaded {}.".format(fn))
+                name = fn
+                print("# Loaded {}.".format(fn.replace(self.path_ARES, '$ARES')))
             return {'z': z, 'xe': xe, 'Tk': Tk}
         else:
             if self.pf['verbose']:
@@ -56,18 +57,24 @@ class InitialConditions(object):
         # Some defaults copied over from CosmoRec.
         CR_pars = [self.pf[par] for par in _pars_CosmoRec]
         
-        # Correct output dir
+        # Correct output dir. Just add provided path on top of $ARES
         CR_pars[-2] = '{}/{}/'.format(self.path_ARES, CR_pars[-2])
         
+        fn_pars = 'cosmorec_{}.dat'.format(self.get_prefix())
+        
         # Create parameter file for reference
-        to_outputs = '{}/input/inits/outputs'.format(self.path_ARES)
-        with open(to_outputs + '/CosmoRec.parameters.dat', 'w') as f:
+        to_outputs = CR_pars[-2]
+        
+        if not os.path.exists(to_outputs):
+            os.mkdir(to_outputs)
+        
+        with open(to_outputs + '/' + fn_pars, 'w') as f:
             for element in CR_pars:
                 print(element, file=f)
 
         # Run the thing
-        str_to_exec = '{}/CosmoRec {}/CosmoRec.parameters.dat >> cr.log'.format(
-            self.pf['cosmorec_path'], to_outputs)
+        str_to_exec = '{}/CosmoRec {}/{} >> cr.log'.format(
+            self.pf['cosmorec_path'], to_outputs, fn_pars)
         os.system(str_to_exec)
                 
         for fn in os.listdir(to_outputs):

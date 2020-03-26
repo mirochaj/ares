@@ -10,10 +10,9 @@ Description:
 
 """
 
+import sys
 import copy, types
 import numpy as np
-from ..util.Stats import rebin
-from collections import Iterable
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile, get_pq_pars
@@ -21,6 +20,14 @@ from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity    
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, \
     mHe_amu
+
+if sys.version_info[0] >= 3:
+    if sys.version_info[1] > 3:
+        from collections.abc import Iterable
+    else:
+        from collections import Iterable
+else:
+    from collections import Iterable    
 
 class fake_chianti:
     def __init__(self):
@@ -105,7 +112,7 @@ class Grid(object):
         # Compute interior cell walls, spacing, and mid-points        
         self.r_int = self.r_edg[0:-1]
         self.dr = np.diff(self.r_edg)
-        self.r_mid = rebin(self.r_edg)
+        self.r_mid = self.r_int + 0.5 * self.dr[0]
         
         self.zi = 0
         

@@ -12,7 +12,7 @@ Description: Defaults for all different kinds of parameters.
 import os, imp
 import numpy as np
 from ares import rcParams
-from ..physics.Constants import m_H, cm_per_kpc, s_per_myr
+from ..physics.Constants import m_H, cm_per_kpc, s_per_myr, E_LL
 
 inf = np.inf
 ARES = os.environ.get('ARES')
@@ -907,7 +907,7 @@ def SourceParameters():
     
     "source_multigroup": False,
 
-    "source_Emin": 13.6,  
+    "source_Emin": E_LL,  
     "source_Emax": 1e2,
     "source_Enorm": None,
     "source_EminNorm": None,

@@ -23,7 +23,6 @@ import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.colors import Normalize
 from matplotlib.patches import Rectangle
-from ..phenom.DustCorrection import DustCorrection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..physics.Constants import nu_0_mhz, erg_per_ev, h_p
 from ..util import labels as default_labels
@@ -36,7 +35,7 @@ from ..util.ParameterFile import count_populations, par_info
 from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
-    rebin, correlation_matrix
+    bin_e2c, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
     read_pickled_logL
 try:
@@ -196,12 +195,6 @@ class ModelSet(BlobFactory):
         #    self._fix_up()
         #except AttributeError:
         #    pass
-
-    @property
-    def dust(self):
-        if not hasattr(self, '_dust'):
-            self._dust = DustCorrection(**self.pf)
-        return self._dust
 
     @property
     def mask(self):
@@ -560,21 +553,6 @@ class ModelSet(BlobFactory):
         return self._saved_checkpoints
 
     @property
-    def strictly_positive(self):
-        if not hasattr(self, '_strictly_positive'):
-            self._strictly_positive = []
-        return self._strictly_positive
-        
-    @strictly_positive.setter
-    def strictly_positive(self, value):
-        if type(value) not in [list, tuple]:
-            val = [value]
-        else:
-            val = list(value)
-            
-        self._strictly_positive = val
-        
-    @property
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
@@ -650,7 +628,7 @@ class ModelSet(BlobFactory):
                         fn = '{0!s}.{1!s}.chain.pkl'.format(self.prefix,\
                             str(i).zfill(3))  
                         
-                    self._chain = np.ma.array(full_chain, 
+                    _chain = np.ma.array(full_chain, 
                         mask=np.zeros_like(full_chain))
                 
                     # So we don't have to stitch them together again.
@@ -711,12 +689,6 @@ class ModelSet(BlobFactory):
                 else:
                     self._chain = None         
                 
-                if self.strictly_positive != []:
-                    for key in self.strictly_positive:
-                        print("Taking absolute value of parameter={}".format(key))
-                        k = self.parameters.index(key)
-                        self._chain[:,k] = np.abs(self._chain[:,k])
-                        
                 chains.append(_chain)        
                 
             self._chain = np.concatenate(chains, axis=0)    
@@ -1575,8 +1547,8 @@ class ModelSet(BlobFactory):
                     data[:,self.parameters.index(par2)], color=c, **kwargs)
                 
             
-        self.set_axis_labels(ax, [par1, par2], take_log=False, un_log=False,
-            labels={})
+        #self.set_axis_labels(ax, [par1, par2], take_log=False, un_log=False,
+        #    labels={})
         
         return ax
         
@@ -1596,94 +1568,10 @@ class ModelSet(BlobFactory):
             
         return to_plot[slc]
 
-    def sort_by_Tmin(self):
-        """
-        If doing a multi-pop fit, re-assign population ID numbers in 
-        order of increasing Tmin.
-        
-        Doesn't return anything. Replaces attribute 'chain' with new array.
-        """
-
-        # Determine number of populations
-        tmp_pf = {key : None for key in self.parameters}
-        Npops = count_populations(**tmp_pf)
-
-        if Npops == 1:
-            return
-        
-        # Check to see if Tmin is common among all populations or not    
-    
-    
-        # Determine which indices correspond to Tmin, and population #
-    
-        i_Tmin = []
-        
-        # Determine which indices 
-        pops = [[] for i in range(Npops)]
-        for i, par in enumerate(self.parameters):
-
-            # which pop?
-            m = re.search(r"\{([0-9])\}", par)
-
-            if m is None:
-                continue
-
-            num = int(m.group(1))
-            prefix = par.split(m.group(0))[0]
-            
-            if prefix == 'Tmin':
-                i_Tmin.append(i)
-
-        self._unsorted_chain = self.chain.copy()
-
-        # Otherwise, proceed to re-sort data
-        tmp_chain = np.zeros_like(self.chain)
-        for i in range(self.chain.shape[0]):
-
-            # Pull out values of Tmin
-            Tmin = [self.chain[i,j] for j in i_Tmin]
-            
-            # If ordering is OK, move on to next link in the chain
-            if np.all(np.diff(Tmin) > 0):
-                tmp_chain[i,:] = self.chain[i,:].copy()
-                continue
-
-            # Otherwise, we need to fix some stuff
-
-            # Determine proper ordering of Tmin indices
-            i_Tasc = np.argsort(Tmin)
-            
-            # Loop over populations, and correct parameter values
-            tmp_pars = np.zeros(len(self.parameters))
-            for k, par in enumerate(self.parameters):
-                
-                # which pop?
-                m = re.search(r"\{([0-9])\}", par)
-
-                if m is None:
-                    tmp_pars.append()
-                    continue
-
-                pop_num = int(m.group(1))
-                prefix = par.split(m.group(0))[0]
-                
-                new_pop_num = i_Tasc[pop_num]
-                
-                new_loc = self.parameters.index('{0!s}{{{1}}}'.format(prefix,\
-                    new_pop_num))
-                
-                tmp_pars[new_loc] = self.chain[i,k]
-
-            tmp_chain[i,:] = tmp_pars.copy()
-                        
-        del self.chain
-        self.chain = tmp_chain
-
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
             self._cosm = Cosmology(**self.pf)
-        
         return self._cosm
         
     @property
@@ -2166,10 +2054,14 @@ class ModelSet(BlobFactory):
         return prefix
     
     @property
-    def weights(self):        
-        if (not self.is_mcmc) and hasattr(self, 'logL') \
-            and (not hasattr(self, '_weights')):
-            self._weights = np.exp(self.logL)
+    def weights(self):
+        
+        if (not self.is_mcmc) and hasattr(self, 'logL'):
+            if self.logL is not None:
+                raise NotImplemented('need to do something here')
+            
+        if (not self.is_mcmc) and (not hasattr(self, '_weights')):
+            self._weights = np.ones_like(self.chain)
 
         return self._weights
 
@@ -2357,7 +2249,7 @@ class ModelSet(BlobFactory):
         # Recover bin centers
         bc = []
         for i, edges in enumerate([xedges, yedges]):
-            bc.append(rebin(edges))
+            bc.append(bin_e2c(edges))
                 
         # Determine mapping between likelihood and confidence contours
 
@@ -2705,7 +2597,7 @@ class ModelSet(BlobFactory):
                     mask = self.mask[:,j]
                 else:
                     mask = self.mask
-            elif not np.all(np.array(val.shape) == np.array(self.mask.shape)):
+            elif not np.array_equal(val.shape,self.mask.shape):
                 
                 # If no masked elements, don't worry any more. Just set -> 0.
                 if not np.any(self.mask == 1):
@@ -2807,11 +2699,7 @@ class ModelSet(BlobFactory):
                     bvp = np.log10(self.axes[par])
                 else:
                     bvp = self.axes[par]
-                    
-            ##
-            # Round
-            bvp = [round(val, 3) for val in bvp]
-                    
+                                        
             if type(to_hist) is dict:
                 binvec[par] = bvp
             else:
@@ -3035,7 +2923,7 @@ class ModelSet(BlobFactory):
             hist, bin_edges = \
                 np.histogram(tohist, density=True, bins=b, weights=weights)
 
-            bc = rebin(bin_edges)
+            bc = bin_e2c(bin_edges)
 
             # Take CDF
             if cdf:
@@ -3075,7 +2963,7 @@ class ModelSet(BlobFactory):
             # Recover bin centers
             bc = []
             for i, edges in enumerate([xedges, yedges]):
-                bc.append(rebin(edges))
+                bc.append(bin_e2c(edges))
 
             # Determine mapping between likelihood and confidence contours
             if color_by_like:
@@ -3897,8 +3785,8 @@ class ModelSet(BlobFactory):
         use_best=False, percentile=0.68, take_log=False, un_logy=False, 
         expr=None, new_x=None, is_logx=False, smooth_boundary=False,
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
-        E_to_freq=False, **kwargs):
+        best='mode', fill=True, samples=None, ivars=None, E_to_freq=False, 
+        **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -4111,11 +3999,7 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                
-            # This assumes scalar is z!
-            if apply_dc:
-                xarr = self.dust.Mobs(scalar, xarr)
-                                            
+                                       
             # Convert redshifts to frequencies    
             if z_to_freq:
                 xarr = nu_0_mhz / (1. + xarr)
@@ -4328,175 +4212,7 @@ class ModelSet(BlobFactory):
             return ax, xarr, yblob
         else:
             return ax
-        
-    def ReconstructedRelation(self, names, ivar, xgrid, samples=None, **kwargs):
-        """
-        This is different from ReconstructedFunction because we're essentially
-        plotting two reconstructed quantities against eachother.
-        
-        This just results in some gridding issues.
-        
-        Parameters
-        ----------
-        names : list, tuple
-            
-        
-        """
-
-        if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        else:
-            gotax = True
-        
-        # Extract data
-        data = self.ExtractData(names, ivar=ivar)
-        
-        # Pull out samples
-        xs = data[names[0]]
-        ys = data[names[1]]
-        
-        # Now, each sample will have a different array of x values, which is
-        # where 'xgrid' comes into play
-        
-        
-        
-        """
-        Should really hack out plotting piece of ReconstructedFunction, and
-        make it so it accepts arrays of samples.
-        """
-        
-        if samples is not None:
-            if type(samples) is int:
-                for i in range(samples):
-                    ax.plot(xs[i], ys[i], **kwargs)
-        
-        return ax    
-        
-        
-    def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
-        like=0.68, take_log=False, bins=20, label=None,
-        plot_bands=False, limit=None, **kwargs):
-        """
-        Plot constraints on the redshift evolution of given quantity.
-
-        Parameters
-        ----------
-        blob : str
-
-        Note
-        ----
-        If you get a "ValueError: attempt to get argmin of an empty sequence"
-        you might consider setting take_log=True.    
-
-        """    
-
-        if plot_bands and (limit is not None):
-            raise ValueError('Choose bands or a limit, not both!')
-        
-        if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        else:
-            gotax = True      
-        
-        try:
-            ylabel = default_labels[blob]
-        except KeyError:
-            ylabel = blob
-        
-        if redshifts is None:
-            redshifts = self.blob_redshifts
-            
-        if plot_bands or (limit is not None):
-            x = []; ymin = []; ymax = []
-            
-        for i, z in enumerate(redshifts):
-            
-            # Skip turning points for banded plots
-            if isinstance(z, basestring) and plot_bands:
-                continue
-            
-            # Only plot label once
-            if i == 0:
-                l = label
-            else:
-                l = None
-            
-            try:
-                value, (blob_err1, blob_err2) = \
-                    self.get_1d_error(blob, ivar=z, like=like, take_log=take_log,
-                    bins=bins, limit=limit)
-            except TypeError:
-                continue
-            
-            if value is None:
-                continue    
-            
-            # Error on redshift
-            if isinstance(z, basestring) and not plot_bands:
-                if blob == 'dTb':
-                    mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('nu', ivar=z, nu=like, bins=bins)
-                else:
-                    mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('z', ivar=z, nu=like, bins=bins)
-
-                xerr = np.array(z_err1, z_err2).T
-            else:
-                mu_z = z
-                xerr = None
-            
-            if plot_bands:
-                if blob == 'dTb':
-                    x.append(nu_0_mhz / (1. + mu_z))
-                else:
-                    x.append(z)
-                ymin.append(value - blob_err1)
-                ymax.append(value + blob_err2)
-            elif limit is not None:
-                if blob == 'dTb':
-                    x.append(nu_0_mhz / (1. + mu_z))
-                else:
-                    x.append(z)
-                ymin.append(value)
-            else:                                    
-                ax.errorbar(mu_z, value, 
-                    xerr=xerr, 
-                    yerr=np.array(blob_err1, blob_err2).T, 
-                    lw=2, elinewidth=2, capsize=3, capthick=1, label=l,
-                    **kwargs)        
-        
-        if plot_bands:
-            ax.fill_between(x, ymin, ymax, **kwargs)
-        elif limit is not None:
-            ax.plot(x, ymin, **kwargs)
-        
-        # Look for populations
-        m = re.search(r"\{([0-9])\}", blob)
-        
-        if m is None:
-            prefix = blob
-        else:
-            # Population ID number
-            num = int(m.group(1))
-            
-            # Pop ID excluding curly braces
-            prefix = blob.split(m.group(0))[0]
-        
-        if blob == 'dTb':
-            ax.set_xlabel(r'$\nu \ (\mathrm{MHz})$')
-        else:
-            ax.set_xlabel(r'$z$')
-            
-        ax.set_ylabel(ylabel)
-
-        pl.draw()
-        
-        return ax
-        
+                        
     def CovarianceMatrix(self, pars, ivar=None):
         """
         Compute covariance matrix for input parameters.

@@ -17,7 +17,6 @@ from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
 from scipy.optimize import fsolve
-from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz, simps
 from ..util.PrintInfo import print_hmf
@@ -519,7 +518,8 @@ class HaloMassFunction(object):
         self._is_loaded = True
         
         if self.pf['verbose'] and rank == 0:
-            print("# Loaded {}.".format(self.tab_name))
+            name = self.tab_name
+            print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
         
         if self.pf['hmf_func'] is not None:
             if self.pf['verbose']:

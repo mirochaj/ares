@@ -3,8 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-*ARES*
-==============================
+========
+**ARES**
+========
+
+.. image:: https://readthedocs.org/projects/ares/badge/?version=latest 
+	:target: https://ares.readthedocs.io/en/latest/?badge=latest
+.. image:: https://travis-ci.com/mirochaj/ares.svg?branch=master
+    :target: https://travis-ci.com/mirochaj/ares
+.. image:: https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master
+	:target: https://coveralls.io/github/mirochaj/ares?branch=master
+
 The Accelerated Reionization Era Simulations (*ARES*) code was designed to rapidly generate models for the global 21-cm signal. It can also be used as a 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or meta-galactic radiation background calculator. As of late 2016, it also contains a home-grown semi-analytic model of galaxy formation.
 
 
@@ -24,12 +33,6 @@ Plus some more applications:
 
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed. This documentation is as much of a work in progress as the code itself, so if you encounter gaps or errors please do let me know.
-
-Current status:
-
-.. image:: https://readthedocs.org/projects/ares/badge/?version=latest
-   :target: http://ares.readthedocs.io/en/latest/?badge=latest
-
 
 Quick-Start
 -----------

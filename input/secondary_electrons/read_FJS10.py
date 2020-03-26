@@ -15,8 +15,6 @@ important, and will be used when secondary_ionization = 3.
      
 """
 
-import os
-import sys
 import h5py
 import numpy as np
     

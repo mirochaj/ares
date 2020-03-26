@@ -47,44 +47,7 @@ def _add_pq_tag(par, num):
         return '{0!s}[{1}]'.format(prefix, num)
     else:
         return '{0!s}[{1}]'.format(par, num)
-        
-
-
-class PreBundle(dict):
-    
-    @property
-    def typical_free_parameters(self):
-        return self._typical_free_parameters
-        
-    @typical_free_parameters.setter
-    def typical_free_parameters(self, value):
-        if type(value) in [list, tuple]:
-            self._typical_free_parameters = value
-        elif type(value) == dict:
-            self._typical_free_parameters = []
-            for key in value:
-                self._typical_free_parameters.append(key)
-                self._common_names = {key: value}
-
-    @property
-    def common_names(self):
-        return self._common_names
-        
-    @common_names.setter
-    def common_names(self, value):
-        if not hasattr(self, '_common_names'):
-            self._common_names = {}
-            
-        assert type(value) is dict
-            
-        for key in value:
-            if key in self._common_names:
-                print(("Overwriting common name for {0!s}: {1!s}->" +\
-                    "{2!s}").format(key, self._common_names[key], value[key]))
-            
-            self._common_names[key] = value[key]
-
-        
+                
 _pop_fcoll = \
 {
  'pop_sfr_model': 'fcoll',
@@ -633,37 +596,28 @@ class ParameterBundle(dict):
     @property
     def num(self):
         if not hasattr(self, '_num'):
-            #idnums = []
-            #for key in self.keys():
-            #    if not (key.startswith('pop_') or key.startswith('pq_')):
-            #        continue
-            #        
-            #    prefix, idnum = pop_id_num(key)      
-            #    
-            #    if idnum is None:
-            #        continue
-            #        
-            #    if idnum not in idnums:
-            #        idnum.append(idnums)
-            #
-            #if len(idnums) == 1:
-            #    self._num = idnums[0]
-            #else:
-            self._num = None
-            
+            self._num = None         
         return self._num
     
     @num.setter
     def num(self, value):
         assert value % 1 == 0
         self._num = value
-
+        
         if self.Npops > 1:
-            raise ValueError('This bundle has {} populations! Setting `num` is too dangerous.'.format(self.Npops))
-
-        for key in self.keys():
+            s = 'This bundle has {} populations!'.format(self.Npops)
+            s += ' Setting `num` is too dangerous.'
+            raise ValueError(s)
+            
+        # Previously if just looping over self.keys() straight-away,
+        # one parameter would get skipped! Not clear what's going on there,
+        # but this fixes it.
+        keys = tuple(self.keys())
+        
+        for key in keys:
             if not (key.startswith('pop_') or key.startswith('pq_')):
                 continue
+
             self[_add_pop_tag(key, value)] = self.pop(key)
 
     def tag_pq_id(self, par, num):
@@ -725,10 +679,8 @@ class ParameterBundle(dict):
         return pops      
     
     def link_sfrd_to(self, num):
-        if self.num is not None:
-            self['pop_tunnel{{{}}}'.format(self.num)] = num
-        else:
-            self['pop_tunnel'] = num
+        self['pop_sfr_model{{{}}}'.format(self.num)] = \
+            'link:sfrd:{}'.format(num)
 
     @property    
     def info(self):
@@ -869,10 +821,10 @@ _lw = _PB('pop:fcoll', verbose=0) + _PB('src:toy-lya', verbose=0)
 _lw.num = 0
 _xr = _PB('src:toy-xray', verbose=0)
 _xr.num = 1
-_xr.link_sfrd_to = 0
+_xr.link_sfrd_to(0)
 _uv = _PB('src:toy-ion', verbose=0)
 _uv.num = 2
-_uv.link_sfrd_to = 0
+_uv.link_sfrd_to(0)
          
 _gs_4par = _lw + _xr + _uv
 
