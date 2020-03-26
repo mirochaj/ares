@@ -2,7 +2,7 @@
 
 
 
-# **ares**
+# **ARES**
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a 
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or

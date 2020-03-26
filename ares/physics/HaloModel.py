@@ -190,174 +190,198 @@ class HaloModel(HaloMassFunction):
         if lc == True:
             ans *= np.exp(-r/r_star)
         return ans
-    
-    def PS_OneHalo(self, z, k, profile_1=None, Mmin_1=None, profile_2=None,
-        Mmin_2=None):
+
+    def dndm_sm(self, z, M):
         """
-        Compute the one halo term of the halo model for given input profile.
+        Interpolate the halo mass function dn/dm
+        """
+        sm = RectBivariateSpline(self.tab_z, self.tab_M, self.tab_dndm)
+        return sm(z, M)
+        
+    def _get_ps_integrals(self, k, iz, prof1, prof2, lum1, lum2, mmin1, mmin2,
+        term):
+        """
+        Compute integrals over profile, weighted by bias, dndm, etc.,
+        needed for halo model.
+        
+        .. note :: This is really just a wrapper around _integrate_over_prof,
+            that handles the fact that `k` can be a number or an array.
+        
         """
         
-        iz = np.argmin(np.abs(z - self.tab_z))
-
-        # Can plug-in any profile, but will default to dark matter halo profile
-        if profile_1 is None:
-            profile_1 = self.u_nfw
-            
-        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
-            
-        if profile_2 is None:
-            prof2 = prof1
-        else:
-            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
-
-        dndlnm = self.tab_dndm[iz,:] * self.tab_M
-        rho_bar = self.cosm.mean_density0
-
-        if Mmin_1 is None:
-            fcoll_1 = 1.
-            iM_1 = 0
-        else:
-            fcoll_1 = self.fcoll_2d(z, np.log10(Mmin_1))#self.fcoll_Tmin[iz]
-            iM_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
+        if type(k) == np.ndarray:
+            integ1 = []; integ2 = []
+            for _k in k:
+                _integ1, _integ2 = self._integrate_over_prof(_k, iz, 
+                    prof1, prof2, lum1, lum2, mmin1, mmin2, term)
+                integ1.append(_integ1)
+                integ2.append(_integ2)
+                
+            integ1 = np.array(integ1)
+            integ2 = np.array(integ2)    
+        else:    
+            integ1, integ2 = self._integrate_over_prof(k, iz, 
+                prof1, prof2, lum1, lum2, mmin1, mmin2, term)
         
-        if Mmin_2 is None:
-            fcoll_2 = 1.
-            iM_2 = 0
-        else:
-            fcoll_2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
-            iM_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
+        return integ1, integ2
         
-        iM = max(iM_1, iM_2)
-        
-        integrand = dndlnm * (self.tab_M / rho_bar / fcoll_1) \
-            * (self.tab_M / rho_bar / fcoll_2) * prof1 * prof2 
-
-        result = np.trapz(integrand[iM:], x=np.log(self.tab_M[iM:]))
-
-        return result
-        
-    def PS_OneHalo_Lum(self, z, k, LofM_1, LofM_2, profile_1=None, Mmin_1=None, Mmax_1=None,
-                       profile_2=None, Mmin_2=None, Mmax_2=None):
+    def _integrate_over_prof(self, k, iz, prof1, prof2, lum1, lum2, mmin1, 
+        mmin2, term):
         """
-        Compute the one halo term of the halo model for given input profile.
+        Compute integrals over profile, weighted by bias, dndm, etc.,
+        needed for halo model.
         """
-
-        iz = np.argmin(np.abs(z - self.tab_z))
-
-        # Can plug-in any profile, but will default to dark matter halo profile
-        if profile_1 is None:
-            profile_1 = self.u_nfw
-
-        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
-
-        if profile_2 is None:
-            prof2 = prof1
-        else:
-            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
-
-        dndlnm = self.tab_dndm[iz, :] * self.tab_M
-        # bias = self.bias_of_M(z)
+        
+        p1 = np.abs([prof1(k, M, self.tab_z[iz]) for M in self.tab_M])
+        p2 = np.abs([prof2(k, M, self.tab_z[iz]) for M in self.tab_M])
+        
+        bias = self.tab_bias[iz]#Bias(z)#np.array([self.Bias(i) for i in z]).T
         rho_bar = self.cosm.rho_m_z0 * rho_cgs
-
-        if Mmin_1 is None:
-            iMmin_1 = 0
-        else:
-            iMmin_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
-
-        if Mmin_2 is None:
-            iMmin_2 = 0
-        else:
-            iMmin_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
-
-        if Mmax_1 is None:
-            iMmax_1 = 0
-        else:
-            iMmax_1 = np.argmin(np.abs(Mmax_1 - self.tab_M))
-
-        if Mmax_2 is None:
-            iMmax_2 = 0
-        else:
-            iMmax_2 = np.argmin(np.abs(Mmax_2 - self.tab_M))
-
-        iMmin = max(iMmin_1, iMmin_2)
-        iMmax = min(iMmax_1, iMmax_2)
-
-        assert np.size(self.tab_M) == np.size(LofM_1)
-        assert np.size(self.tab_M) == np.size(LofM_2)
-
-        integrand = dndlnm * LofM_1 * LofM_2 * prof1 * prof2
-
-        result = np.trapz(integrand[iMmin:iMmax], x=np.log(self.tab_M[iMmin:iMmax]))
-
-        return result    
-
-    def PS_TwoHalo(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
-        Mmin_2=None):
-        """
-        Compute the two halo term of the halo model for given input profile.
+        dndlnm = self.tab_dndm[iz] * self.tab_M
         
-        .. note :: Assumption of linearity?
-        
-        Parameters
-        ----------
-        
-        """
-        
-        iz = np.argmin(np.abs(z - self.tab_z))
-        
-        # Can plug-in any profile, but will default to dark matter halo profile
-        if profile_1 is None:
-            profile_1 = self.u_nfw
-            
-        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.tab_M))
-            
-        if profile_2 is None:
-            prof2 = prof1
-        else:
-            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.tab_M))
-                        
-        # Short-cuts
-        dndlnm = self.tab_dndm[iz,:] * self.tab_M
-        bias = self.Bias(z)
-        #rho_bar = self.mgtm[iz,0]
-        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+        if mmin1 is None:
+            fcoll1 = 1.
 
-        if Mmin_1 is None:
-            fcoll_1 = 1.#self.mgtm[iz,0] / rho_bar
-            iM_1 = 0
-            
-            # Small halo correction.
-            # Make use of Cooray & Sheth Eq. 71
+            # Small halo correction. Make use of Cooray & Sheth Eq. 71
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
-            correction_1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+            corr1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         else:
-            fcoll_1 = self.fcoll_2d(z, np.log10(Mmin_1))#self.fcoll_Tmin[iz]
-            iM_1 = np.argmin(np.abs(Mmin_1 - self.tab_M))
-            correction_1 = 0.0
+            fcoll1 = self.tab_fcoll[iz,np.argmin(np.abs(mmin1-self.tab_M))]
+            corr1 = 0.0
                     
-        if Mmin_2 is None:
-            fcoll_2 = 1.#self.mgtm[iz,0] / rho_bar
-            iM_2 = 0
+        if mmin2 is None:
+            fcoll2 = 1.#self.mgtm[iz,0] / rho_bar
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
-            correction_2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+            corr2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         else:
-            fcoll_2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
-            iM_2 = np.argmin(np.abs(Mmin_2 - self.tab_M))
-            correction_2 = 0.0
+            fcoll2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
+            corr2 = 0.0
+        
+        ok = self.tab_fcoll[iz] > 0
+        
+        ##
+        # Are we doing the 1-h or 2-h term?
+        if term == 1:
+            integrand = dndlnm * (self.tab_M / rho_bar / fcoll1) \
+                * (self.tab_M / rho_bar / fcoll2) * p1 * p2 
 
-        # Compute two-halo integral with profile in there
-        integrand1 = dndlnm * (self.tab_M / rho_bar / fcoll_1) * prof1 * bias
-        integral1 = np.trapz(integrand1[iM_1:], x=np.log(self.tab_M[iM_1:])) \
-                  + correction_1
-
-        if profile_2 is not None:
-            integrand2 = dndlnm * (self.tab_M / rho_bar / fcoll_2) * prof2 * bias
-            integral2 = np.trapz(integrand2[iM_2:], x=np.log(self.tab_M[iM_2:])) \
-                      + correction_2
+            result = np.trapz(integrand[ok==1], x=np.log(self.tab_M[ok==1]))
+            
+            return result, None
+            
+        elif term == 2:
+            integrand1 = dndlnm * lum1 * p1 * bias * self.tab_M \
+                / rho_bar / fcoll1
+            integrand2 = dndlnm * lum2 * p2 * bias * self.tab_M \
+                / rho_bar / fcoll2
+        
+            integral1 = np.trapz(integrand1[ok==1], x=np.log(self.tab_M[ok==1]), 
+                axis=0)
+            integral2 = np.trapz(integrand2[ok==1], x=np.log(self.tab_M[ok==1]), 
+                axis=0)
+            
+            return integral1 + corr1, integral2 + corr2
+            
         else:
-            integral2 = integral1
+            raise NotImplemented('dunno man')        
+        
+    def _prep_for_ps(self, z, k, prof1, prof2, ztol):    
+        """
+        Basic prep: fill prof1=None or prof2=None with defaults, determine
+        the index of the requested redshift in our lookup tables.
+        """
+        
+        iz = np.argmin(np.abs(z - self.tab_z))
+            
+        if abs(self.tab_z[iz] - z) > ztol:
+            raise ValueError('Requested z={} not in grid (ztol={}).'.format(z,
+                ztol))
+                
+        if prof1 is None:
+            prof1 = self.u_nfw
+        if prof2 is None:
+            prof2 = prof1
+        
+        if k is None:
+            k = self.tab_k_lin    
+            
+        return iz, k, prof1, prof2
+        
+    def _get_ps_lin(self, k, iz):
+        """
+        Return linear matter power spectrum for requested wavenumber `k`.
+        
+        .. note :: Assumes we already know the index of the redshift of interest
+            in our lookup tables, `iz`.
+        
+        """  
+        if k is None:
+            k = self.tab_k_lin
+            ps_lin = self.tab_ps_lin[iz]    
+        else:
+            ps_lin = np.exp(np.interp(np.log(k), np.log(self.tab_k_lin),
+                np.log(self.tab_ps_lin[iz])))
+            
+        return ps_lin    
+            
+    def get_ps_1h(self, z, k, prof1=None, prof2=None, lum1=None, lum2=None,
+        mmin1=None, mmin2=None, ztol=1e-3):
+        iz, prof1, prof2 = self._prep_for_ps(z, prof1, prof2, ztol)
+        """
+        Compute 1-halo term of power spectrum.
+        """
 
-        return integral1 * integral2 * float(self.LinearPS(z, np.log(k)))
+        iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
+                
+        integ1, none = self._get_ps_integrals(k, iz, prof1, prof2, 
+            lum1, lum2, mmin1, mmin2, term=1)
+            
+        return integ1    
+    
+    def get_ps_2h(self, z, k=None, prof1=None, prof2=None, lum1=1, lum2=1, 
+        mmin1=None, mmin2=None, ztol=1e-3):
+        """
+        Get 2-halo term of power spectrum.
+        """
+        
+        iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
+        
+        ps_lin = self._get_ps_lin(k, iz)
+        
+        integ1, integ2 = self._get_ps_integrals(k, iz, prof1, prof2, 
+            lum1, lum2, mmin1, mmin2, term=2)
+
+        ps = integ1 * integ2 * ps_lin
+        
+        return ps
+    
+    def get_ps_tot(self, z, k=None, prof1=None, prof2=None, lum1=1, lum2=1, 
+        mmin1=None, mmin2=None, ztol=1e-3):
+        """
+        Return total power spectrum as sum of 1h and 2h terms.
+        """
+        ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)    
+        ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)    
+        
+        return ps1h + ps2h
+        
+    def PS_TwoHalo_Lum_New(self, z, k, LofM_1, LofM_2, profile_1=None, profile_2=None, iM_mask=None):
+        """
+        Compute the two halo term quickly
+        """
+        prof1 = np.abs([profile_1(k, M, z) for M in self.tab_M])
+        prof2 = np.abs([profile_2(k, M, z) for M in self.tab_M])
+        bias = self.Bias(z)#np.array([self.Bias(i) for i in z]).T
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+        #dndlnm = (self.dndm_sm(z, M) * self.tab_M).T
+        dndlnm = self.tab_dndm[np.argmin(np.abs(z - self.tab_z))]
+        integrand1 = dndlnm * LofM_1 * prof1 * bias
+        integrand2 = dndlnm * LofM_2 * prof2 * bias
+        integral1 = np.trapz(integrand1 * iM_mask, x=np.log(self.tab_M), axis=0)
+        integral2 = np.trapz(integrand2 * iM_mask, x=np.log(self.tab_M), axis=0)
+        temp = integral1 * integral2
+        temp *= np.array([float(self.LinearPS(z[i], np.log(k[i]))) for i in range(np.size(z))])
+        return temp
 
     def PS_TwoHalo_Lum(self, z, k, LofM_1, LofM_2, profile_1=None, Mmin_1=None, Mmax_1=None,
                        profile_2=None, Mmin_2=None, Mmax_2=None):
@@ -793,8 +817,8 @@ class HaloModel(HaloMassFunction):
         k-vector constructed from mps parameters.
         """
         if not hasattr(self, '_tab_k'):
-            dlogk = self.pf['mps_dlnk']
-            kmi, kma = self.pf['mps_lnk_min'], self.pf['mps_lnk_max']
+            dlogk = self.pf['hps_dlnk']
+            kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
             logk = np.arange(kmi, kma+dlogk, dlogk)
             self._tab_k = np.exp(logk)
         
@@ -810,8 +834,8 @@ class HaloModel(HaloMassFunction):
         R-vector constructed from mps parameters.
         """
         if not hasattr(self, '_tab_R'):        
-            dlogR = self.pf['mps_dlnR']
-            Rmi, Rma = self.pf['mps_lnR_min'], self.pf['mps_lnR_max']
+            dlogR = self.pf['hps_dlnR']
+            Rmi, Rma = self.pf['hps_lnR_min'], self.pf['hps_lnR_max']
             logR = np.arange(Rmi, Rma+dlogR, dlogR)
             self._tab_R = np.exp(logR)
             
@@ -823,9 +847,9 @@ class HaloModel(HaloMassFunction):
         Redshift array -- different than HMF redshifts!
         """
         if not hasattr(self, '_tab_z_ps'):        
-            zmin = self.pf['mps_zmin']
-            zmax = self.pf['mps_zmax']
-            dz = self.pf['mps_dz']
+            zmin = self.pf['hps_zmin']
+            zmax = self.pf['hps_zmax']
+            dz = self.pf['hps_dz']
             
             Nz = int(round(((zmax - zmin) / dz) + 1, 1))
             self._tab_z_ps = np.linspace(zmin, zmax, Nz)
@@ -888,7 +912,7 @@ class HaloModel(HaloMassFunction):
             self.tab_cf_mm = pickle.load(f)
             f.close()
         else:
-            raise IOError('Unrecognized format for mps_table.')    
+            raise IOError('Unrecognized format for hps_table.')    
 
     def tab_prefix_ps(self, with_size=True):
         """
@@ -906,15 +930,15 @@ class HaloModel(HaloMassFunction):
         
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
 
-        z1, z2 = self.pf['mps_zmin'], self.pf['mps_zmax']
+        z1, z2 = self.pf['hps_zmin'], self.pf['hps_zmax']
         
-        dlogk = self.pf['mps_dlnk']
-        kmi, kma = self.pf['mps_lnk_min'], self.pf['mps_lnk_max']
+        dlogk = self.pf['hps_dlnk']
+        kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
         #logk = np.arange(kmi, kma+dlogk, dlogk)
         #karr = np.exp(logk)
         
-        dlogR = self.pf['mps_dlnR']
-        Rmi, Rma = self.pf['mps_lnR_min'], self.pf['mps_lnR_max']
+        dlogR = self.pf['hps_dlnR']
+        Rmi, Rma = self.pf['hps_lnR_min'], self.pf['hps_lnR_max']
         #logR = np.arange(np.log(Rmi), np.log(Rma)+dlogR, dlogR)
         #Rarr = np.exp(logR)
         
@@ -922,8 +946,8 @@ class HaloModel(HaloMassFunction):
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = ((self.pf['mps_zmax'] - self.pf['mps_zmin']) \
-                / self.pf['mps_dz']) + 1
+            zsize = ((self.pf['hps_zmax'] - self.pf['hps_zmin']) \
+                / self.pf['hps_dz']) + 1
 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)
@@ -931,7 +955,7 @@ class HaloModel(HaloMassFunction):
             zsize = int(round(zsize, 1))
                 
             # Should probably save NFW information etc. too
-            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnR_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
+            return 'hps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnR_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
                    Rmi, Rma, dlogR, kmi, kma, dlogk)
         else:

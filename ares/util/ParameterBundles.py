@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ares import rcParams
 from .ReadData import read_lit
 from .ProblemTypes import ProblemType
 from .ParameterFile import pop_id_num, par_info
@@ -516,18 +517,21 @@ class ParameterBundle(dict):
         # Assume format: "modeltype:model", e.g., "pop:fcoll" or "sed:uv"
         pre, post = bundle.split(':')
         
+        kw = rcParams.copy()
+        
         if pre in self.bset.keys():
-            kw = self.bset[pre][post]
+            _kw = self.bset[pre][post]
         elif pre == 'prob':
-            kw = ProblemType(float(post))
+            _kw = ProblemType(float(post))
         else:
             mod = read_lit(pre) 
-            kw = mod.__dict__[post]
+            _kw = mod.__dict__[post]
             
             # Save where we found it for future reference / sanity checking.
             if hasattr(mod, 'path'):
                 self.path = mod.path
         
+        kw.update(_kw)
         pars = kw.keys()
 
         for key in pars:

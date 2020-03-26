@@ -198,7 +198,7 @@ def identify_pqs(**kwargs):
 
         if (kwargs[par] != 'pq') and (kwargs[par][0:3] != 'pq['):
             continue
-            
+                        
         # This will NOT have a pop ID
         just_php, nothing, phpid = par_info(kwargs[par])
         
@@ -291,13 +291,20 @@ defaults = SetAllDefaults()
    
 # Defaults w/o all parameters that are population-specific
 # This is to-be-used in reconstructing a master parameter file
+pops_need = 'pop_', 'source_'
 defaults_pop_dep = {}
 defaults_pop_indep = {}
 for key in defaults:
-    if re.search('pop_', key) or re.search('source_', key): #or re.search('pq_', key):
+    
+    ct = 0
+    for pop_par in pops_need:
+        if re.search(pop_par, key):
+            ct += 1
+    
+    if ct > 0:        
         defaults_pop_dep[key] = defaults[key]
         continue
-    
+
     defaults_pop_indep[key] = defaults[key]
 
 class ParameterFile(dict):
@@ -320,8 +327,7 @@ class ParameterFile(dict):
         #        
         #        print "WARNING: {!s} is cosmological parameter.".format(par)
         #        print "       : Must update initial conditions and HMF tables!"
-        
-        
+                
         # Fix up everything
         self._parse(**kwargs)
                 
@@ -385,10 +391,10 @@ class ParameterFile(dict):
         # Start w/ problem specific parameters (always)
         if 'problem_type' not in kw:
             kw['problem_type'] = defaults['problem_type']
-            
+                        
         # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
-                
+                        
         # Read in kwargs for this problem type
         kwargs = ProblemType(kw['problem_type'])
                                 

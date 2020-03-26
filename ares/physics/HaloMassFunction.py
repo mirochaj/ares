@@ -1038,11 +1038,11 @@ class HaloMassFunction(object):
 
     def Bias(self, z):
                 
-        G = np.interp(z, self.tab_z, self.tab_growth)
+        g = np.interp(z, self.tab_z, self.tab_growth)
                
         # Note also that this is also HMF's definition of nu
         delta_sc = 1.686
-        nu = (delta_sc / self.tab_sigma / G)
+        nu = (delta_sc / self.tab_sigma / g)
         nu_sq = nu**2
         
         # Cooray & Sheth (2002) Equations 68-69

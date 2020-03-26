@@ -354,7 +354,7 @@ class Cosmology(InitialConditions):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):             
-            self._inits = self.get_inits()
+            self._inits = self.get_inits_rec()
         return self._inits
         
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):

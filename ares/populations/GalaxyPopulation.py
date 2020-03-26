@@ -42,7 +42,7 @@ def GalaxyPopulation(**kwargs):
     # First. Identify all ParameterizedQuantity parameters and 
     # if the user has directly supplied ionization/heating rates.
     ##
-
+    
     Npq = 0
     Nparam = 0
     pqs = []
