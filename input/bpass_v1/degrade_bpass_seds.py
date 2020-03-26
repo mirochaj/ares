@@ -43,7 +43,7 @@ for fn in os.listdir('SEDS'):
     ok = wave % degrade_to == 0
     
     new_wave = wave[ok==1]
-    new_data = np.zeros((data.shape[0] / degrade_to, data.shape[1]))
+    new_data = np.zeros((data.shape[0] // degrade_to, data.shape[1]))
     new_data[:,0] = new_wave
     
     for i in range(data.shape[1]):

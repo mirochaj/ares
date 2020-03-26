@@ -46,9 +46,9 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
         src = ares.sources.SynthesisModel(source_sed='eldridge2009', 
             source_ssp=True)
     
-    fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-    fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
-    fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
+    fig1, ax1 = pl.subplots(1, 1, num=1)
+    fig2, ax2 = pl.subplots(1, 1, num=2)
+    fig3, ax3 = pl.subplots(1, 1, num=3)
     
     colors = 'k', 'b', 'c'
     

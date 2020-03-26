@@ -52,7 +52,7 @@ class CalibrateModel(object):
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
     def __init__(self, fit_lf=[5.9], fit_smf=False, fit_beta=False,
-        fit_gs=None, idnum=0, add_suffix=True,
+        fit_gs=None, idnum=0, add_suffix=True, ztol=0.21,
         free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
@@ -103,6 +103,7 @@ class CalibrateModel(object):
         self.fit_beta = fit_beta
         self.idnum = idnum
         self.zmap = zmap        
+        self.ztol = ztol
         self.monotonic_beta = monotonic_beta
                 
         self.include_fshock = int(include_fshock)
@@ -395,7 +396,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[33]'] = 0.15
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[33]')
+                    ps.add_distribution(UniformDistribution(0., 0.6), 'pq_func_par0[33]')
                     
                 
                     if 'scatter-slope' in self.free_params_dust:
@@ -510,7 +511,7 @@ class CalibrateModel(object):
                     
         MUV = np.arange(-30, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
-        Ms = np.arange(7, 13.1, 0.1)
+        Ms = np.arange(7, 13.2, 0.2)
         
         ##
         # Now, start assembling blobs
@@ -805,6 +806,7 @@ class CalibrateModel(object):
         # Setup LF fitter
         fitter_lf = FitGalaxyPopulation()
         fitter_lf.zmap = self.zmap
+        fitter_lf.ztol = self.ztol
         fitter_lf.monotonic_beta = self.monotonic_beta
 
         data = []
@@ -875,10 +877,9 @@ class CalibrateModel(object):
         
         fitter.nwalkers = nw
         
-        if restart:
-            # Just to suppress confusing output to screen, e.g., fixing
-            # of guesses that lie outside prior. For restart, the guesses
-            # aren't actually used.
+        # Set initial positions of walkers
+        if (not restart):
+            # Important the jitter comes first!
             fitter.jitter = self.jitter
             fitter.guesses = self.guesses
 

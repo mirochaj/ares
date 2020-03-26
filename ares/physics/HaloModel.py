@@ -324,9 +324,8 @@ class HaloModel(HaloMassFunction):
             
         return ps_lin    
             
-    def get_ps_1h(self, z, k, prof1=None, prof2=None, lum1=None, lum2=None,
+    def get_ps_1h(self, z, k=None, prof1=None, prof2=None, lum1=1, lum2=1,
         mmin1=None, mmin2=None, ztol=1e-3):
-        iz, prof1, prof2 = self._prep_for_ps(z, prof1, prof2, ztol)
         """
         Compute 1-halo term of power spectrum.
         """
