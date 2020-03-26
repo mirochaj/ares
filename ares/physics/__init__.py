@@ -1,6 +1,7 @@
 import ares.physics.Constants
 from ares.physics.Hydrogen import Hydrogen
 from ares.physics.Cosmology import Cosmology
+from ares.physics.HaloModel import HaloModel
 from ares.physics.ExcursionSet import ExcursionSet
 from ares.physics.NebularEmission import NebularEmission
 from ares.physics.HaloMassFunction import HaloMassFunction

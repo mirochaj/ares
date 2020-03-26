@@ -345,9 +345,9 @@ class Population(object):
                     and self.pf['pop_ion_src_cgm']
             else:
                 self._is_src_uv = self.pf['pop_ion_src_cgm']
-    
+
         return self._is_src_uv
-        
+
     @property
     def is_src_xray(self):
         if not hasattr(self, '_is_src_xray'):

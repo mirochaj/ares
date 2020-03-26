@@ -25,7 +25,6 @@ pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population',
     'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum',
     'Halo', 'Absorber']
 
-
 # Blob stuff
 _blob_redshifts = list('BCD')
 _blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
@@ -1085,26 +1084,7 @@ def HaloMassFunctionParameters():
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
-    
-    # For matter power spectrum
-    "mps_zmin": 6,
-    "mps_zmax": 30,
-    "mps_dz": 0.5,
-    
-    "mps_linear": False,
-    
-    'mps_dlnk': 0.001,
-    'mps_dlnR': 0.001,
-    'mps_lnk_min': -10.,
-    'mps_lnk_max': 10.,
-    'mps_lnR_min': -10.,
-    'mps_lnR_max': 10.,
-
-    # Note that this is not passed to hmf yet.
-    "hmf_window": 'tophat',
-    "hmf_wdm_mass": None,
-    "hmf_wdm_interp": True,
-    
+        
     "hmf_path": None,
     
     # For, e.g., fcoll, etc
@@ -1123,7 +1103,26 @@ def HaloMassFunctionParameters():
     "hmf_database": None,
 
     # Directory where cosmology hmf tables are located
-    "hmf_cosmology_location": None, #'/home/henri/Documents/HERA/Cosmology/HMF_tables/PS/hdf5'
+    "hmf_cosmology_location": None,
+    
+    # For halo model.
+    "hps_zmin": 6,
+    "hps_zmax": 30,
+    "hps_dz": 0.5,
+    
+    "hps_linear": False,
+    
+    'hps_dlnk': 0.001,
+    'hps_dlnR': 0.001,
+    'hps_lnk_min': -10.,
+    'hps_lnk_max': 10.,
+    'hps_lnR_min': -10.,
+    'hps_lnR_max': 10.,
+
+    # Note that this is not passed to hmf yet.
+    "hmf_window": 'tophat',
+    "hmf_wdm_mass": None,
+    "hmf_wdm_interp": True,
     
     }
     

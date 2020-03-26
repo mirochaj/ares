@@ -68,6 +68,8 @@ _base = \
  'pop_fduty_seed': 982323505,
  
  # Use cosmology consistent with Paul's simulations.
+ 'cosmology_name': 'user',
+ 'cosmology_id': 'paul',
  "sigma_8": 0.8159, 
  'primordial_index': 0.9652, 
  'omega_m_0': 0.315579, 

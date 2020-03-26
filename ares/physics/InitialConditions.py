@@ -16,6 +16,12 @@ import os
 import re
 import numpy as np
 
+try:
+    import camb
+    have_camb = True
+except ImportError:
+    have_camb = False
+
 _pars_CosmoRec = ['cosmorec_nz', 'cosmorec_z0', 'cosmorec_zf',
     'helium_by_mass', 'cmb_temp_0', 'omega_m_0', 'omega_b_0', 'omega_l_0',
     'omega_k_0', 'hubble_0', 'relativistic_species', 'cosmorec_recfast_fudge',
@@ -28,8 +34,10 @@ class InitialConditions(object):
     """
     This should be inherited by Cosmology.
     """
-    def get_inits(self):
-        
+    def get_inits_rec(self):
+        """
+        Get recombination history from file or directly from CosmoRec.
+        """
         fn = '{}/input/inits/inits_{}.txt'.format(self.path_ARES, 
             self.get_prefix())
         
@@ -50,10 +58,30 @@ class InitialConditions(object):
             if self.pf['verbose']:    
                 print("# Will generate from scratch using {}/CosmoRec.".format(
                     self.pf['cosmorec_path']))
-                
-            return self._run_CosmoRec()    
+
+            return self._run_CosmoRec()
+
+    def get_inits_ps(self):
+        """
+        Get matter power spectrum from file or directly from CAMB or CLASS.
+        
+        .. note :: Must supply this to HMF, if not None. Perhaps add a parameter
+            that tells ARES to use CAMB or CLASS. How about, e.g., setting
+            "use_boltzmann='camb'" or something?
+        """
+        
+        pass
     
     def _run_CosmoRec(self, save=True):
+        """
+        Run CosmoRec. Assumes we've got an executable waiting for us in 
+        directory supplied via ``cosmorec_path`` parameter in ARES.
+        
+        Will save to $ARES/input/inits. Can check in $ARES/input/inits/outputs
+        for CosmoRec parameter files should any debugging be necessary. They
+        will have the same naming convention, just different filename prefix
+        ("cosmorec" instead of "inits").
+        """
         # Some defaults copied over from CosmoRec.
         CR_pars = [self.pf[par] for par in _pars_CosmoRec]
         

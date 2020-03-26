@@ -35,8 +35,8 @@ fits['lf'] = {}
 
 # Table 4
 # Note: not currently including any of the upper limits
-data = {}
-data['lf'] = \
+tmp_data = {}
+tmp_data['lf'] = \
 {
  9.: {'M': [-20.66, -19.66, -18.66, -17.66],
       'phi': [0.18e-3, 0.15e-3, 0.35e-3, 1.6e-3],
@@ -50,3 +50,14 @@ data['lf'] = \
 
 units = {'lf': 1.}
 
+data = {}
+data['lf'] = {}
+for key in tmp_data['lf']:
+    #mask = np.array(tmp_data['lf'][key]['err']) == ULIM
+    N = len(tmp_data['lf'][key]['M'])
+    mask = np.array([tmp_data['lf'][key]['err'][i] == ULIM for i in range(N)])
+    
+    data['lf'][key] = {}
+    data['lf'][key]['M'] = np.ma.array(tmp_data['lf'][key]['M'], mask=mask) 
+    data['lf'][key]['phi'] = np.ma.array(tmp_data['lf'][key]['phi'], mask=mask) 
+    data['lf'][key]['err'] = tmp_data['lf'][key]['err']
