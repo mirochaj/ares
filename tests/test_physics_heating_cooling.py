@@ -19,9 +19,9 @@ def test():
     dims = 32
     T = np.logspace(3.5, 6, 500)
     
-    fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-    fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
-    
+    fig1, ax1 = pl.subplots(1, 1, num=1)
+    fig2, ax2 = pl.subplots(1, 1, num=2)
+
     colors = list('kb')
     for i, src in enumerate(['fk94']):
     

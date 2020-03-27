@@ -289,7 +289,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             zall = raw['z']
             
         # Should be in ascending redshift.
-        assert np.all(np.diff(zall) > 0)    
+        assert np.all(np.diff(zall) > 0)
 
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
@@ -326,47 +326,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Throw away halos with Mh < Mmin or Mh > Mmax
         ##
         if self.pf['pop_synth_minimal'] and (self.pf['pop_histories'] is None):
+                        
             Mmin = self.guide.Mmin(zall)
                         
-            ilo = Mh_raw.shape[0] - 1
-            ihi = 0
-            for i, _z in enumerate(zall):
-                
-                # Edge effects
-                if i < 5:
-                    continue
-                    
-                if _z < self.pf['pop_synth_zmin']:
-                    continue
-                if _z > self.pf['pop_synth_zmax']:
-                    continue
-                    
-                if not np.all(Mh_raw[:,i] > Mmin[i]):
-                    j1 = np.argmin(np.abs(Mh_raw[:,i] - Mmin[i]))
-                    if Mh_raw[j1,i] > Mmin[i]:
-                        j1 -= 1
-                else:
-                    j1 = 0        
-                
-                if not np.all(Mh_raw[:,i] < self.pf['pop_synth_Mmax']):
-                    j2 = np.argmin(np.abs(Mh_raw[:,i] - self.pf['pop_synth_Mmax']))
-                    if Mh_raw[j1,i] < self.pf['pop_synth_Mmax']:
-                        j2 += 1
-                else:
-                    j2 = Mh_raw.shape[0] - 1
-                               
-                ilo = min(ilo, j1)
-                ihi = max(ihi, j2)
-                
-            if ihi == Mh_raw.shape[0] - 1:
-                ihi = None
-            else:
-                ihi += 1 
-                
+            # Find boundary between halos that never cross Mmin and those
+            # that do.
+            is_viable = Mh_raw > Mmin[:,None]
+                                     
+            any_viable = np.sum(is_viable, axis=1)
+            
+            # Cut out halos that never exist in our mass range of interest.
+            ilo = np.min(np.argwhere(any_viable > 0))
+            ihi = np.max(np.argwhere(any_viable > 0)) + 1
+
             # Also cut out some redshift range.        
             zok = np.logical_and(zall >= self.pf['pop_synth_zmin'],
                 zall <= self.pf['pop_synth_zmax'])
             zall = zall[zok==1]
+            
+            # Modify our arrays            
             Mh_raw = Mh_raw[ilo:ihi,zok==1]
             nh_raw = nh_raw[ilo:ihi,zok==1]
             mar_raw = mar_raw[ilo:ihi,zok==1]
@@ -2571,7 +2549,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             suffix = fn[fn.rfind('.')+1:]
             path = os.getenv("ARES") + '/input/hmf/'
             fn_hist = path + prefix.replace('hmf', 'hgh') + '.' + suffix
-                    
+        else:
+            # Check to see if parameters match
+            if self.pf['verbose']:
+                print("Should check that HMF parameters match!")
+                        
         # Read output
         if type(fn_hist) is str:
             if fn_hist.endswith('.pkl'):
@@ -2630,11 +2612,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     print("Read `pop_histories` as dictionary")
                 
             hist['zform'] = zall
-            hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
-            
-            ## Check to see if parameters match
-            if self.pf['verbose']:
-                print("Need to check that HMF parameters match!")
+            hist['zobs'] = np.array([zall] * hist['nh'].shape[0])            
                 
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']

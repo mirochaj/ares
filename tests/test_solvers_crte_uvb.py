@@ -80,7 +80,7 @@ def test(tol=1e-2):
     ax1.set_ylabel(ares.util.labels['flux_E'])
     
     # Plot Lyman alpha flux evolution
-    f2 = pl.figure(2); ax2 = f2.add_subplot(111)
+    f2, ax2 = pl.subplots(1, 1, num=2)
     k = np.argmin(np.abs(E - E_LyA))
     
     ax2.semilogy(z, flux[:,k] * E[k] * erg_per_ev, color='k')

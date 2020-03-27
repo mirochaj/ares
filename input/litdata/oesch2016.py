@@ -4,6 +4,8 @@ Oesch et al., 2016, arxiv
 Table 2 and volume estimate from text.
 """
 
+import numpy as np
+
 #info = \
 #{
 # 'reference': 'Oesch et al., 2016, ApJ, 786, 108',

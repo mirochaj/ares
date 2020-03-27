@@ -21,8 +21,7 @@ def test():
     redshifts = np.array([3, 3.8, 4, 4.9, 5, 5.9, 6, 6.9, 7, 7.9, 8])
     MUV = np.arange(-28, -8.8, 0.2)
     
-    #fit_z = [4.9, 5.9, 6.9, 7.9]
-    fit_z = [5.9]
+    fit_z = [6]
     
     # blob 1: the LF. Give it a name, and the function needed to calculate it.
     blob_n1 = ['galaxy_lf']
@@ -112,56 +111,70 @@ def test():
         ps.add_distribution(UniformDistribution(-2, 2), 'pq_func_par6')
         
     
-    # Initialize a fitter object and give it the data to be fit
-    fitter_lf = ares.inference.FitGalaxyPopulation(**base_pars)
-    
-    # The data can also be provided more explicitly
-    fitter_lf.data = 'bouwens2015'
-    
-    fitter_lf.redshifts = {'lf': fit_z}
+    # Test error-handling
+    for ztol in [0, 0.3]:
+        # Initialize a fitter object and give it the data to be fit
+        fitter_lf = ares.inference.FitGalaxyPopulation(**base_pars)
         
-    fitz_s = 'z_'
-    for red in np.sort(fit_z):
-        fitz_s += str(int(round(red)))
+        # The data can also be provided more explicitly
+        fitter_lf.ztol = ztol
+        fitter_lf.redshifts = {'lf': fit_z}
         
-    fitter = ares.inference.ModelFit(**base_pars)        
-    fitter.add_fitter(fitter_lf)
-    
-    # Establish the object to which we'll pass parameters
-    from ares.populations.GalaxyCohort import GalaxyCohort
-    fitter.simulator = GalaxyCohort
-    
-    fitter.parameters = free_pars
-    fitter.is_log = is_log
-    fitter.prior_set = ps
-    
-    # In general, the more the merrier (~hundreds)
-    fitter.nwalkers = 2 * len(fitter.parameters)
-    
-    fitter.jitter = [0.1] * len(fitter.parameters)
-    fitter.guesses = guesses
-    
-    # Run the thing
-    fitter.run('test_uvlf', burn=10, steps=10, save_freq=10, 
-        clobber=True, restart=False)
-    
-    # Make sure things make sense
-    anl = ares.analysis.ModelSet('test_uvlf')
-    ax = anl.ReconstructedFunction('galaxy_lf', ivar=[6,None], fig=3, 
-        color='gray', alpha=0.3) 
+        if ztol == 0:
+            try:    
+                fitter_lf.data = 'bouwens2015'
+            except ValueError:
+                print("Correctly caught error! Moving on.")        
+                continue
+        else:
+            # This should would if ztol >= 0.1, so we want this to crash
+            # visibly if there's a failure internally.
+            fitter_lf.data = 'bouwens2015'
+            
+        print('#### hey', ztol)
+            
+        fitz_s = 'z_'
+        for red in np.sort(fit_z):
+            fitz_s += str(int(round(red)))
+            
+        fitter = ares.inference.ModelFit(**base_pars)        
+        fitter.add_fitter(fitter_lf)
         
-    anl.ReconstructedFunction('galaxy_lf', ivar=[6,None], 
-        ax=ax, fig=3, 
-        color='b', alpha=0.3, fill=False, samples='all') 
-    anl.ReconstructedFunction('galaxy_lf', ivar=[6,None], 
-        ax=ax, fig=3, 
-        color='y', alpha=1.0, use_best=True, ls='--', lw=3)     
-    
-    ax.set_yscale('log')
-    ax.set_ylim(1e-8, 1)
-    
-    gpop = ares.analysis.GalaxyPopulation()
-    gpop.PlotLF(5.9, sources='bouwens2015', ax=ax)
+        # Establish the object to which we'll pass parameters
+        from ares.populations.GalaxyCohort import GalaxyCohort
+        fitter.simulator = GalaxyCohort
+        
+        fitter.parameters = free_pars
+        fitter.is_log = is_log
+        fitter.prior_set = ps
+        
+        # In general, the more the merrier (~hundreds)
+        fitter.nwalkers = 2 * len(fitter.parameters)
+        
+        fitter.jitter = [0.1] * len(fitter.parameters)
+        fitter.guesses = guesses
+        
+        # Run the thing
+        fitter.run('test_uvlf', burn=10, steps=10, save_freq=10, 
+            clobber=True, restart=False)
+                    
+        # Make sure things make sense
+        anl = ares.analysis.ModelSet('test_uvlf')
+        ax = anl.ReconstructedFunction('galaxy_lf', ivar=[6,None], fig=3, 
+            color='gray', alpha=0.3) 
+            
+        anl.ReconstructedFunction('galaxy_lf', ivar=[6,None], 
+            ax=ax, fig=3, 
+            color='b', alpha=0.3, fill=False, samples='all') 
+        anl.ReconstructedFunction('galaxy_lf', ivar=[6,None], 
+            ax=ax, fig=3, 
+            color='y', alpha=1.0, use_best=True, ls='--', lw=3)     
+        
+        ax.set_yscale('log')
+        ax.set_ylim(1e-8, 1)
+        
+        gpop = ares.analysis.GalaxyPopulation()
+        gpop.PlotLF(5.9, sources='bouwens2015', ax=ax)
     
     # Clean-up
     mcmc_files = glob.glob('{}/tests/test_uvlf*'.format(os.environ.get('ARES')))

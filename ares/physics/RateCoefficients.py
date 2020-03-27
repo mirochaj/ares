@@ -16,15 +16,8 @@ from scipy.misc import derivative
 from ..util.Math import interp1d
 from ..util.Math import central_difference
 
-#try:
-#    import chianti.core as cc
-#    have_chianti = True        
-#    T = np.logspace(2, 6, 500)
-#except ImportError:
 T = None
-have_chianti = False
-
-rate_sources = ['fk94', 'chianti']
+rate_sources = ['fk94']
 
 class RateCoefficients(object):
     def __init__(self, grid=None, rate_src='fk94', T=T, recombination='B',
@@ -46,50 +39,10 @@ class RateCoefficients(object):
         self.rec = recombination
         
         self.Tarr = 10**np.arange(-1, 6.1, 0.1)
-            
-        if self.rate_src == 'chianti':
-            if not have_chianti:
-                raise ValueError('ChiantiPy not found.')
-            else:    
-                self._init_chianti()
                 
         if rate_src not in rate_sources:
             raise ValueError(('Unrecognized rate coefficient source ' +\
                 '\'{!s}\'').format(rate_src))
-        
-    def _init_chianti(self):  
-        """
-        Create lookup tables for Chianti atomic database rates.
-        """      
-        
-        self.ions = {}
-        self.neutrals = {}
-        
-        for neutral in self.grid.neutrals:
-            atom = cc.ion(neutral, temperature=self.T)
-            atom.ionizRate()
-            
-            self.neutrals[neutral] = {}
-            
-            self.neutrals[neutral]['ionizRate'] = \
-                interp1d(self.T, atom.IonizRate['rate'], kind='cubic')
-                
-            T, dRdT = central_difference(self.T, atom.IonizRate['rate'])
-            self.neutrals[neutral]['dionizRate'] = \
-                interp1d(T, dRdT, kind='cubic')    
-                
-        for ion in self.grid.ions:
-            atom = cc.ion(ion, temperature=self.T)
-            atom.recombRate()
-            
-            self.ions[ion] = {}
-            
-            self.ions[ion]['recombRate'] = \
-                interp1d(self.T, atom.RecombRate['rate'], kind='cubic')  
-            
-            T, dRdT = central_difference(self.T, atom.RecombRate['rate'])
-            self.ions[ion]['drecombRate'] = \
-                interp1d(T, dRdT, kind='cubic')          
         
     def CollisionalIonizationRate(self, species, T):
         """

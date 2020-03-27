@@ -157,7 +157,7 @@ class loglikelihood(LogLikelihood):
                 zmod = z
                         
             for j, pop in enumerate(pops):
-                            
+                                                        
                 # Generate model LF
                 if quantity == 'lf':
                                     
@@ -200,11 +200,11 @@ class loglikelihood(LogLikelihood):
                 # If UVLF or SMF, could do multi-pop in which case we'd 
                 # increment here.        
                 phi[i] = p   
-                                
+
         ## 
         # Apply restrictions to beta    
         if self.monotonic_beta:
-                                    
+
             if type(self.monotonic_beta) in [int, float, np.float64]:
                 Mlim = self.monotonic_beta
             else:    
@@ -220,27 +220,24 @@ class loglikelihood(LogLikelihood):
                 for i, quantity in enumerate(self.metadata):
                     if quantity == 'lf':
                         xlf.append(self.xdata[i])
-                
-                    if quantity != 'beta':
-                        continue
-                        
+
                     z = self.redshifts[i]
-                        
+
                     if quantity in self.zmap:
                         _zmod = self.zmap[quantity][z]
                     else:
                         _zmod = z    
-                        
+
                     xmod.append(self.xdata[i])
                     ymod.append(phi[i])
                     zmod.append(_zmod)
-                    
+
                 i_lo = np.argmin(xmod)
                 M_lo = xmod[i_lo]
                 b_lo = ymod[i_lo]
-                
+
                 if 'lf' in self.metadata:
-                    Mlim = np.nanmin(xlf) - 1.
+                    Mlim = np.nanmin(xlf)
                 else:
                     Mlim = M_lo - 2.
             
@@ -248,7 +245,7 @@ class loglikelihood(LogLikelihood):
             for i, quantity in enumerate(self.metadata):
                 if quantity != 'beta':
                     continue
-            
+                            
                 if zmod[i] not in b_hi:
                     b_hi[zmod[i]] = pop.Beta(zmod[i], MUV=Mlim, presets='hst', 
                         dlam=20., return_binned=True, rest_wave=None)
@@ -346,7 +343,17 @@ class FitGalaxyPopulation(FitBase):
             value = [value]                
             
         self._redshifts = value
+        
+    @property
+    def ztol(self):
+        if not hasattr(self, '_ztol'):
+            self._ztol = 0.
+        return self._ztol
     
+    @ztol.setter
+    def ztol(self, value):
+        self._ztol = value
+        
     @property
     def data(self):
         if not hasattr(self, '_data'):
@@ -405,7 +412,7 @@ class FitGalaxyPopulation(FitBase):
                         srczarr = redshifts
                     else:
                         srczarr = []
-                        srcdata = {}   
+                        srcdata = {}
                         for z in redshifts:
                             
                             if z_by_range:
@@ -416,17 +423,52 @@ class FitGalaxyPopulation(FitBase):
                                     continue
                             
                             # z by hand from here down.
-                            if z not in self._redshifts[quantity]:
+                            # Find closest redshift to those requested,
+                            # see if it meets our tolerance.
+                            zreq = np.array(self._redshifts[quantity])
+                            iz = np.argmin(np.abs(z - zreq))
+                                                        
+                            # Does this redshift match any we've requested?
+                            if abs(z - zreq[iz]) > self.ztol:
                                 continue
-                                
+                                                        
                             srczarr.append(z)
-                            srcdata[z] = data[z]   
-                                                    
+                            srcdata[z] = data[z]
+                                                                           
                     self._data[quantity].append(srcdata)
                     
                     if not z_by_hand:
                         self._redshifts[quantity].append(srczarr)
-                            
+                        
+            # Check to make sure we find requested measurements.
+            for quantity in self.include: 
+                zlit = []
+                for element in self._data[quantity]:
+                    zlit.extend(list(element.keys()))
+                    
+                zlit = np.array(zlit).ravel()
+                zreq = self._redshifts[quantity]
+                                
+                # Problems straight away if we don't have enough redshifts
+                if len(zlit) != len(zreq):
+                    s = "Found {} suitable redshifts for {}.".format(len(zlit),
+                        quantity)
+                    s += " Requested {}.".format(len(zreq))  
+                    s += "z_requested={}, z_found={}.".format(zreq, zlit)  
+                    s += " Perhaps rounding issue? Toggle `ztol` attribute"
+                    s += " to be more lenient in finding match with measurements."
+                    raise ValueError(s)
+                
+                # Need to loop over all sources. When we're done, should be
+                # able to account for all requested redshifts.
+                for j, z in enumerate(zreq):
+                    
+                    if z != zlit[j]:
+                        s = "Will fit to {} at z={}".format(quantity, zlit[j])
+                        s += " as it lies within ztol={} of requested z={}".format(
+                            self.ztol, z)
+                        if rank == 0:
+                            print(s)
 
         else:
             raise NotImplemented('help!')
@@ -434,7 +476,7 @@ class FitGalaxyPopulation(FitBase):
     @property
     def include(self):
         if not hasattr(self, '_include'):
-            self._include = ['lf', 'smf']
+            self._include = ['lf']
         return self._include
                                  
     @include.setter

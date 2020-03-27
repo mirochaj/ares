@@ -52,7 +52,7 @@ class CalibrateModel(object):
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
     def __init__(self, fit_lf=[5.9], fit_smf=False, fit_beta=False,
-        fit_gs=None, idnum=0, add_suffix=True,
+        fit_gs=None, idnum=0, add_suffix=True, ztol=0.21,
         free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fduty=False, zevol_fduty=False,
@@ -103,6 +103,7 @@ class CalibrateModel(object):
         self.fit_beta = fit_beta
         self.idnum = idnum
         self.zmap = zmap        
+        self.ztol = ztol
         self.monotonic_beta = monotonic_beta
                 
         self.include_fshock = int(include_fshock)
@@ -219,7 +220,7 @@ class CalibrateModel(object):
             # Normalization of SFE
             if 'norm' in self.free_params_sfe:
                 free_pars.append('pq_func_par0[0]{}'.format(_suff))
-                guesses['pq_func_par0[0]{}'.format(_suff)] = -1.4
+                guesses['pq_func_par0[0]{}'.format(_suff)] = -1.5
                 is_log.extend([True])
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(-7, 1.), 
@@ -238,7 +239,7 @@ class CalibrateModel(object):
                 free_pars.append('pq_func_par1[0]{}'.format(_suff))
                 guesses['pq_func_par1[0]{}'.format(_suff)] = 11.5
                 is_log.extend([True])
-                jitter.extend([0.3])
+                jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(9., 13.), 
                     'pq_func_par1[0]{}'.format(_suff))
                 
@@ -315,10 +316,10 @@ class CalibrateModel(object):
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[22]')
-                    guesses['pq_func_par0[22]'] = 1.6
+                    guesses['pq_func_par0[22]'] = 1.15
                     is_log.extend([False])
-                    jitter.extend([0.5])
-                    ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[22]')
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(0.01, 10.), 'pq_func_par0[22]')
                                         
                     if 'norm' in self.zevol_dust:
                         assert self.include_dust == 'screen'
@@ -331,9 +332,9 @@ class CalibrateModel(object):
 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
-                    guesses['pq_func_par2[22]'] = 0.45
+                    guesses['pq_func_par2[22]'] = 0.5
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
 
                     #if self.include_dust == 'screen-dpl':
@@ -346,9 +347,9 @@ class CalibrateModel(object):
                 if 'slope-high' in self.free_params_dust:
                     assert self.include_dust == 'screen-dpl'
                     free_pars.append('pq_func_par3[22]')
-                    guesses['pq_func_par3[22]'] = 0.45
+                    guesses['pq_func_par3[22]'] = 0.5
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                     if 'slope-high' in self.zevol_dust:
@@ -358,9 +359,9 @@ class CalibrateModel(object):
                     assert self.include_dust == 'screen-dpl'
                     
                     free_pars.append('pq_func_par1[22]')
-                    guesses['pq_func_par1[22]'] = 11.5
+                    guesses['pq_func_par1[22]'] = 11.
                     is_log.extend([True])
-                    jitter.extend([0.5])
+                    jitter.extend([0.2])
                     ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[22]')                    
 
                     if 'peak' in self.zevol_dust:
@@ -392,10 +393,10 @@ class CalibrateModel(object):
                       
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
-                    guesses['pq_func_par0[33]'] = 0.15
+                    guesses['pq_func_par0[33]'] = 0.0
                     is_log.extend([False])
-                    jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par0[33]')
+                    jitter.extend([0.02])
+                    ps.add_distribution(UniformDistribution(0., 0.6), 'pq_func_par0[33]')
                     
                 
                     if 'scatter-slope' in self.free_params_dust:
@@ -508,9 +509,9 @@ class CalibrateModel(object):
         else:
             red_beta = red_lf    
                     
-        MUV = np.arange(-30, 5., 0.5)
+        MUV = np.arange(-26, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
-        Ms = np.arange(7, 13.1, 0.1)
+        Ms = np.arange(7, 13.2, 0.2)
         
         ##
         # Now, start assembling blobs
@@ -805,6 +806,7 @@ class CalibrateModel(object):
         # Setup LF fitter
         fitter_lf = FitGalaxyPopulation()
         fitter_lf.zmap = self.zmap
+        fitter_lf.ztol = self.ztol
         fitter_lf.monotonic_beta = self.monotonic_beta
 
         data = []
@@ -875,10 +877,9 @@ class CalibrateModel(object):
         
         fitter.nwalkers = nw
         
-        if restart:
-            # Just to suppress confusing output to screen, e.g., fixing
-            # of guesses that lie outside prior. For restart, the guesses
-            # aren't actually used.
+        # Set initial positions of walkers
+        if (not restart):
+            # Important the jitter comes first!
             fitter.jitter = self.jitter
             fitter.guesses = self.guesses
 
