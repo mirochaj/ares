@@ -207,6 +207,7 @@ class GalaxyPopulation(object):
                         np.ma.array(src.data[quantity][z]['phi'].data,
                             mask=src.data[quantity][z]['phi'].mask)
                 else:
+                    print(source)
                     data[source]['phi'] = \
                         np.ma.array(src.data[quantity][z]['phi'].data,
                             mask=src.data[quantity][z]['phi'])
@@ -1298,24 +1299,32 @@ class GalaxyPopulation(object):
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 **mkw)
 
-        if quantity == 'lf' and ((not gotax) or force_labels):
+        if quantity == 'lf':
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
             ax.set_xlim(-26.5, -10)
-            ax.set_xlabel(r'$M_{\mathrm{UV}}$')
-            ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'smf' and ((not gotax) or force_labels):
+            ax.set_yscale('log')
+            ax.set_ylim(1e-7, 1)
+            if (not gotax) or force_labels:
+                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+                ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        elif quantity == 'smf':
             try:
                 ax.set_xscale('log')
+                ax.set_yscale('log')
             except ValueError:
                 pass
             ax.set_xlim(1e7, 1e13)
-            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
-            ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'mzr' and ((not gotax) or force_labels):
-            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
-            ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
+            ax.set_ylim(1e-7, 1)
+            if (not gotax) or force_labels:
+                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+                ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        elif quantity == 'mzr':
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
+            
+            if (not gotax) or force_labels:
+                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+                ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
 
         pl.draw()
 
@@ -1622,7 +1631,9 @@ class GalaxyPopulation(object):
             self._MegaPlotPredData(axes, redshifts=redshifts)
             self._MegaPlotGuideEye(axes, redshifts=redshifts)
 
-        if isinstance(pop, GalaxyEnsemble):
+        if pop is None:
+            pass
+        elif isinstance(pop, GalaxyEnsemble):
             self._MegaPlotPop(axes, pop, redshifts=redshifts)
         elif hasattr(pop, 'chain'):
             if fresh:
@@ -1633,8 +1644,7 @@ class GalaxyPopulation(object):
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
-            raise TypeError("Unrecognized object pop={}".format(pop))
-         
+            raise NotImplemented("Unrecognized object pop={}".format(pop))
          
         self._MegaPlotCleanup(axes)
         
@@ -1737,7 +1747,6 @@ class GalaxyPopulation(object):
                 
             ax_bet.plot(Mbins, _beta, color=colors[j])
             
-            fcov = pop.guide.dust_fcov(z=z, Mh=Mh)
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
             ydust = pop.guide.dust_yield(z=z, Mh=Mh)
             
@@ -1745,17 +1754,11 @@ class GalaxyPopulation(object):
                 fduty = pop.guide.fduty(z=z, Mh=Mh)
             else:
                 fduty = np.zeros_like(Mh)
-            
-            if type(fcov) in [int, float, np.float64]:
-                fcov = fcov * np.ones_like(Mh)
-            
+                        
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
                         
-            if type(pop.pf['pop_dust_fcov']) is str:
-                ax_fco.semilogx(Mh, fcov, color=colors[j])
-                ax_fco.set_ylabel(r'$f_{\mathrm{cov}}$')
-            elif type(pop.pf['pop_dust_yield']) is str:
+            if type(pop.pf['pop_dust_yield']) is str:
                 ax_fco.semilogx(Mh, ydust, color=colors[j])
                 ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
             elif type(pop.pf['pop_fduty']) is str:
@@ -1771,17 +1774,17 @@ class GalaxyPopulation(object):
             ax_AUV.plot(Mbins, AUV, color=colors[j])
                             
             # LAE stuff
-            _x, _y, _z, _N = bin_samples(mags, fcov, Mbins)
-            ax_lae_m.plot(_x, 1. - _y, color=colors[j])
+            #_x, _y, _z, _N = bin_samples(mags, fcov, Mbins)
+            #ax_lae_m.plot(_x, 1. - _y, color=colors[j])
+            #
+            #faint  = np.logical_and(Mbins >= -20.25, Mbins < -18.)
+            #bright = Mbins < -20.25
+            #
+            #xa_f.append(1. - np.mean(_y[faint==1]))    
+            #xa_b.append(1. - np.mean(_y[bright==1]))
             
-            faint  = np.logical_and(Mbins >= -20.25, Mbins < -18.)
-            bright = Mbins < -20.25
-            
-            xa_f.append(1. - np.mean(_y[faint==1]))    
-            xa_b.append(1. - np.mean(_y[bright==1]))
-            
-        ax_lae_z.plot(redshifts, xa_b, color='k', alpha=1.0, ls='-')
-        ax_lae_z.plot(redshifts, xa_f, color='k', alpha=1.0, ls='--')
+        #ax_lae_z.plot(redshifts, xa_b, color='k', alpha=1.0, ls='-')
+        #ax_lae_z.plot(redshifts, xa_f, color='k', alpha=1.0, ls='--')
         
         zarr = np.arange(4, 25, 0.1)
         sfrd = np.array([pop.SFRD(zarr[i]) for i in range(zarr.size)])
@@ -1800,12 +1803,12 @@ class GalaxyPopulation(object):
         
         
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         _mst  = np.arange(6, 12, 0.2)
@@ -1816,14 +1819,7 @@ class GalaxyPopulation(object):
 
         dc1 = DustCorrection(dustcorr_method='meurer1999',
             dustcorr_beta='bouwens2014')
-            
-            
-        # Compute X_LAE, etc.
-        if 'dust_fcov' in anl.all_blob_names:
-            func = lambda data, ivars: 1. - data['dust_fcov']
-            anl.DeriveBlob(name='x_LAE', func=func, clobber=True,
-                fields='dust_fcov', ivar=None) 
-                              
+                                              
         xa_b = []
         xa_f = []
         for j, z in enumerate(redshifts):
@@ -1848,7 +1844,7 @@ class GalaxyPopulation(object):
             new_x = None
             
             anl.ReconstructedFunction('sfrd', ivar=None, ax=ax_sfrd,
-                color=colors[j], **kwargs)
+                color=colors[j], multiplier=rhodot_cgs, **kwargs)
                 
             if 'pop_dust_yield' not in anl.base_kwargs:
                 continue
@@ -1867,17 +1863,7 @@ class GalaxyPopulation(object):
             if 'fduty' in anl.all_blob_names:
                 anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)
-            
-            if 'dust_fcov' in anl.all_blob_names:
-                anl.ReconstructedFunction('dust_fcov', ivar=[z, None], ax=ax_fco,
-                    color=colors[j], **kwargs)    
-            
-                # Need to convert to MUV!
-                anl.ReconstructedFunction('x_LAE', ivar=[z, None], ax=ax_lae_m,
-                    color=colors[j], **kwargs)
-                
-                    
-                
+                        
                 
     def _MegaPlotLimitsAndTicks(self, kw):
         ax_sfe = kw['ax_sfe']
@@ -1887,12 +1873,12 @@ class GalaxyPopulation(object):
         ax_bet = kw['ax_bet']
 
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         
@@ -1909,12 +1895,12 @@ class GalaxyPopulation(object):
         ax_smf.set_xscale('log')
         ax_smf.set_xlim(1e7, 1e12)
         ax_smf.set_ylim(1e-7, 2e-1)
-        ax_smhm.set_xscale('log')
-        ax_smhm.set_yscale('log')
+        #ax_smhm.set_xscale('log')
+        #ax_smhm.set_yscale('log')
         #ax_smhm.set_ylim(-4, 1.)
         #ax_smhm.set_yscale('log', nonposy='clip')
-        ax_smhm.set_xlim(1e9, 1e12)
-        ax_smhm.set_ylim(5e-4, 1.5e-1)
+        #ax_smhm.set_xlim(1e9, 1e12)
+        #ax_smhm.set_ylim(5e-4, 1.5e-1)
         ax_bet.set_xlim(-25, -12)
         ax_bet.set_ylim(-3, -1)
         ax_phi.set_xlim(-25, -12)
@@ -1930,19 +1916,20 @@ class GalaxyPopulation(object):
         ax_sfms.set_xlim(1e7, 1e12)
         ax_sfms.set_ylim(1e-2, 2e3)
         
-        ax_lae_m.set_xlim(-25, -12)
-        ax_lae_z.set_xlim(3., 7.2)
-        ax_lae_m.set_ylim(-0.05, 1.05)
-        ax_lae_z.set_ylim(-0.05, 1.05)
+        #ax_lae_m.set_xlim(-25, -12)
+        #ax_lae_z.set_xlim(3., 7.2)
+        #ax_lae_m.set_ylim(-0.05, 1.05)
+        #ax_lae_z.set_ylim(-0.05, 1.05)
 
         ax_sfrd.set_yscale('log')
+        ax_sfrd.set_xlim(4, 20)
         ax_sfrd.set_ylim(1e-4, 1e-1)
 
         # Set ticks for all MUV scales
-        for ax in [ax_bet, ax_phi, ax_MsMUV, ax_lae_m, ax_AUV]:
+        for ax in [ax_bet, ax_phi, ax_MsMUV, ax_AUV]:
             ax.set_xticks(np.arange(-24, -12, 1), minor=True)
             
-        for ax in [ax_MsMUV, ax_lae_m, ax_AUV]:
+        for ax in [ax_MsMUV, ax_AUV]:
             ax.set_xlim(-25, -15)    
         
         return kw
@@ -1955,22 +1942,25 @@ class GalaxyPopulation(object):
         
         # Inputs
         ax_sfe = fig.add_subplot(gs[0,0:3])
-        ax_fco = fig.add_subplot(gs[1,0:3])
-        ax_rdu = fig.add_subplot(gs[2,0:3])
+        ax_rdu = fig.add_subplot(gs[1,0:3])
+        ax_fco = fig.add_subplot(gs[2,0:3])
+        
+        # Rest UV stuff / calibration
+        ax_phi = fig.add_subplot(gs[0:2,3:7])
+        ax_bet = fig.add_subplot(gs[2,3:7])
         
         # Predictions
-        ax_smf = fig.add_subplot(gs[0:2,6:9])
-        ax_smhm = fig.add_subplot(gs[2,12:])
-        ax_MsMUV = fig.add_subplot(gs[2,9:12])
-        ax_AUV = fig.add_subplot(gs[0,9:12])
-        ax_sfrd = fig.add_subplot(gs[0,12:])
-        ax_lae_z = fig.add_subplot(gs[1,12:])
-        ax_lae_m = fig.add_subplot(gs[1,9:12])
-        ax_sfms = fig.add_subplot(gs[2,6:9])
+        ax_smf = fig.add_subplot(gs[0:2,7:11])
+        ax_sfms = fig.add_subplot(gs[2,7:11])
         
+        #ax_smhm = fig.add_subplot(gs[2,12:])        
+        ax_AUV = fig.add_subplot(gs[0,11:14])
+        ax_MsMUV = fig.add_subplot(gs[1,11:14])
+        ax_sfrd = fig.add_subplot(gs[2,11:14])
+                
         # Cal
-        ax_phi = fig.add_subplot(gs[0:2,3:6])
-        ax_bet = fig.add_subplot(gs[2,3:6])
+        
+        
 
         # Placeholder
         #ax_tau = fig.add_subplot(gs[0:1,9])
@@ -1983,12 +1973,9 @@ class GalaxyPopulation(object):
          'ax_phi': ax_phi,
          'ax_bet': ax_bet,
          'ax_smf': ax_smf,
-         'ax_smhm': ax_smhm,
          'ax_MsMUV': ax_MsMUV,
          'ax_AUV': ax_AUV, 
          'ax_sfrd': ax_sfrd,
-         'ax_lae_z': ax_lae_z,
-         'ax_lae_m': ax_lae_m,
          'ax_sfms': ax_sfms,
         }
         
@@ -2004,12 +1991,12 @@ class GalaxyPopulation(object):
         
         
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         
@@ -2086,12 +2073,12 @@ class GalaxyPopulation(object):
         
         
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         ax_rdu.annotate(r'$R_h \propto M_h^{1/3} (1+z)^{-1}$', (1.5e8, 30))
@@ -2162,12 +2149,12 @@ class GalaxyPopulation(object):
         ax_bet = kw['ax_bet']
         
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1}
@@ -2180,8 +2167,8 @@ class GalaxyPopulation(object):
         xarr = np.arange(-22, -18, 0.5)
         yarr = [0.1, 0.08, 0.08, 0.1, 0.18, 0.3, 0.47, 0.6]
         yerr = [0.1, 0.05, 0.03, 0.05, 0.05, 0.1, 0.15, 0.2]
-        ax_lae_m.errorbar(xarr, yarr, yerr=yerr, color='k', 
-            label='Stark+ 2010 (3 < z < 6.2)', fmt='o', **mkw)
+        #ax_lae_m.errorbar(xarr, yarr, yerr=yerr, color='k', 
+        #    label='Stark+ 2010 (3 < z < 6.2)', fmt='o', **mkw)
 
         zlist = [4., 5, 6.1]
         x25_b = [0.13, 0.25, 0.2]
@@ -2189,25 +2176,25 @@ class GalaxyPopulation(object):
         err_b = [0.05, 0.05, 0.08]
         err_f = [0.05, 0.1, 0.15]
         
-        _colors = 'k', 'g', 'b'
-        for j, z in enumerate(zlist):
-            ax_lae_z.errorbar(zlist[j], x25_b[j], yerr=err_b[j], 
-                color=_colors[j], ms=5, 
-                label=r'Stark+ 2011' if j == 0 else None,
-                fmt='s', mfc='none', **mkw)
-            ax_lae_z.errorbar(zlist[j], x25_f[j], yerr=err_f[j],
-                color=_colors[j], ms=5,
-                fmt='o', mfc='none', **mkw)
+        #_colors = 'k', 'g', 'b'
+        #for j, z in enumerate(zlist):
+        #    ax_lae_z.errorbar(zlist[j], x25_b[j], yerr=err_b[j], 
+        #        color=_colors[j], ms=5, 
+        #        label=r'Stark+ 2011' if j == 0 else None,
+        #        fmt='s', mfc='none', **mkw)
+        #    ax_lae_z.errorbar(zlist[j], x25_f[j], yerr=err_f[j],
+        #        color=_colors[j], ms=5,
+        #        fmt='o', mfc='none', **mkw)
 
     
-        # De Barros et al. (2017)    
-        ax_lae_z.errorbar(5.9, 0.1, 0.05, color='b', fmt='*', mfc='none', ms=5,
-            label=r'deBarros+ 2017', **mkw)
-        ax_lae_z.errorbar(5.9, 0.38, 0.12, color='b', fmt='*', mfc='none', ms=5,
-            **mkw)
-
-        ax_lae_z.legend(loc='upper left', frameon=True, fontsize=6)
-        ax_lae_m.legend(loc='upper left', frameon=True, fontsize=6)
+        ## De Barros et al. (2017)    
+        #ax_lae_z.errorbar(5.9, 0.1, 0.05, color='b', fmt='*', mfc='none', ms=5,
+        #    label=r'deBarros+ 2017', **mkw)
+        #ax_lae_z.errorbar(5.9, 0.38, 0.12, color='b', fmt='*', mfc='none', ms=5,
+        #    **mkw)
+        #
+        #ax_lae_z.legend(loc='upper left', frameon=True, fontsize=6)
+        #ax_lae_m.legend(loc='upper left', frameon=True, fontsize=6)
 
         # Salmon et al. 2015
         data = \
@@ -2245,30 +2232,28 @@ class GalaxyPopulation(object):
         
         
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         ax_sfe.set_title('Model Inputs', fontsize=18)
-
-        ax_rdu.set_xlabel(r'$M_h / M_{\odot}$')
         ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
         
-        ax_fco.set_ylabel(r'$f_{\mathrm{cov,dust}}$')
+        ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+        ax_fco.set_xlabel(r'$M_h / M_{\odot}$')
             
         ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
         
         ax_AUV.set_title('Predictions', fontsize=18)
         ax_smf.set_title('Predictions', fontsize=18)
-        ax_sfrd.set_title('Predictions', fontsize=18)
 
         ax_smf.set_ylabel(labels['galaxy_smf'])
-        ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
-        ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
+        #ax_smhm.set_xlabel(r'$M_h / M_{\odot}$')
+        #ax_smhm.set_ylabel(r'$M_{\ast} / M_h$')
         ax_phi.set_ylabel(labels['galaxy_lf'])
         ax_phi.set_yscale('log')
         ax_bet.set_ylabel(r'$\beta$')
@@ -2288,10 +2273,10 @@ class GalaxyPopulation(object):
         ax_sfrd.set_ylabel(labels['sfrd'])
         ax_sfrd.set_ylim(1e-4, 1e-1)
 
-        ax_lae_z.set_xlabel(r'$z$')
-        ax_lae_z.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
-        ax_lae_m.set_xlabel(r'$M_{\mathrm{UV}}$')
-        ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
+        #ax_lae_z.set_xlabel(r'$z$')
+        #ax_lae_z.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
+        #ax_lae_m.set_xlabel(r'$M_{\mathrm{UV}}$')
+        #ax_lae_m.set_ylabel(r'$X_{\mathrm{LAE}}, 1 - f_{\mathrm{cov}}$')
         
 
         ##
@@ -2306,9 +2291,8 @@ class GalaxyPopulation(object):
         ax_smf.legend(loc='lower left', fontsize=8)
         ax_bet.legend(loc='lower left', fontsize=8)
         ax_AUV.legend(loc='upper right', fontsize=8)
-        ax_sfe.legend(loc='lower right', fontsize=8, frameon=True, handlelength=1)
-        ax_lae_z.legend(loc='upper left', frameon=True, fontsize=6)
-        ax_lae_m.legend(loc='upper left', frameon=True, fontsize=6)
+        #ax_lae_z.legend(loc='upper left', frameon=True, fontsize=6)
+        #ax_lae_m.legend(loc='upper left', frameon=True, fontsize=6)
         ax_MsMUV.legend(loc='upper right', fontsize=8)
         
         

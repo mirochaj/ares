@@ -109,7 +109,6 @@ if (len(options) > 0) and ('clean' not in options):
             files = [None] * len(to_download)
 else:
     to_download = list(aux_data.keys())
-    to_download.remove('cosmo_params')
     files = [None] * len(to_download)
                 
 for i, direc in enumerate(to_download):

@@ -331,8 +331,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         
             # Find boundary between halos that never cross Mmin and those
             # that do.
-            is_viable = np.logical_and(Mh_raw > Mmin[:,None],
-                                       Mh_raw < self.pf['pop_synth_Mmax'])
+            is_viable = Mh_raw > Mmin[:,None]
                                      
             any_viable = np.sum(is_viable, axis=1)
             
@@ -2550,7 +2549,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             suffix = fn[fn.rfind('.')+1:]
             path = os.getenv("ARES") + '/input/hmf/'
             fn_hist = path + prefix.replace('hmf', 'hgh') + '.' + suffix
-                    
+        else:
+            # Check to see if parameters match
+            if self.pf['verbose']:
+                print("Should check that HMF parameters match!")
+                        
         # Read output
         if type(fn_hist) is str:
             if fn_hist.endswith('.pkl'):
@@ -2609,11 +2612,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     print("Read `pop_histories` as dictionary")
                 
             hist['zform'] = zall
-            hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
-            
-            ## Check to see if parameters match
-            if self.pf['verbose']:
-                print("Need to check that HMF parameters match!")
+            hist['zobs'] = np.array([zall] * hist['nh'].shape[0])            
                 
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']

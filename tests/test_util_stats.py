@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 
-def test(tol=1e-2):
+def test(tol=1e-1):
     
     # Make unit Gaussian, test that we recover 68% confidence region
     x = np.arange(-5, 5, 0.001)

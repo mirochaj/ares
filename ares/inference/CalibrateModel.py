@@ -220,7 +220,7 @@ class CalibrateModel(object):
             # Normalization of SFE
             if 'norm' in self.free_params_sfe:
                 free_pars.append('pq_func_par0[0]{}'.format(_suff))
-                guesses['pq_func_par0[0]{}'.format(_suff)] = -1.4
+                guesses['pq_func_par0[0]{}'.format(_suff)] = -1.5
                 is_log.extend([True])
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(-7, 1.), 
@@ -239,7 +239,7 @@ class CalibrateModel(object):
                 free_pars.append('pq_func_par1[0]{}'.format(_suff))
                 guesses['pq_func_par1[0]{}'.format(_suff)] = 11.5
                 is_log.extend([True])
-                jitter.extend([0.3])
+                jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(9., 13.), 
                     'pq_func_par1[0]{}'.format(_suff))
                 
@@ -316,10 +316,10 @@ class CalibrateModel(object):
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[22]')
-                    guesses['pq_func_par0[22]'] = 1.6
+                    guesses['pq_func_par0[22]'] = 1.15
                     is_log.extend([False])
-                    jitter.extend([0.5])
-                    ps.add_distribution(UniformDistribution(0.1, 10.), 'pq_func_par0[22]')
+                    jitter.extend([0.1])
+                    ps.add_distribution(UniformDistribution(0.01, 10.), 'pq_func_par0[22]')
                                         
                     if 'norm' in self.zevol_dust:
                         assert self.include_dust == 'screen'
@@ -332,9 +332,9 @@ class CalibrateModel(object):
 
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
-                    guesses['pq_func_par2[22]'] = 0.45
+                    guesses['pq_func_par2[22]'] = 0.5
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
 
                     #if self.include_dust == 'screen-dpl':
@@ -347,9 +347,9 @@ class CalibrateModel(object):
                 if 'slope-high' in self.free_params_dust:
                     assert self.include_dust == 'screen-dpl'
                     free_pars.append('pq_func_par3[22]')
-                    guesses['pq_func_par3[22]'] = 0.45
+                    guesses['pq_func_par3[22]'] = 0.5
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                     if 'slope-high' in self.zevol_dust:
@@ -359,9 +359,9 @@ class CalibrateModel(object):
                     assert self.include_dust == 'screen-dpl'
                     
                     free_pars.append('pq_func_par1[22]')
-                    guesses['pq_func_par1[22]'] = 11.5
+                    guesses['pq_func_par1[22]'] = 11.
                     is_log.extend([True])
-                    jitter.extend([0.5])
+                    jitter.extend([0.2])
                     ps.add_distribution(UniformDistribution(9., 13.), 'pq_func_par1[22]')                    
 
                     if 'peak' in self.zevol_dust:
@@ -393,9 +393,9 @@ class CalibrateModel(object):
                       
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
-                    guesses['pq_func_par0[33]'] = 0.15
+                    guesses['pq_func_par0[33]'] = 0.0
                     is_log.extend([False])
-                    jitter.extend([0.1])
+                    jitter.extend([0.02])
                     ps.add_distribution(UniformDistribution(0., 0.6), 'pq_func_par0[33]')
                     
                 
@@ -509,7 +509,7 @@ class CalibrateModel(object):
         else:
             red_beta = red_lf    
                     
-        MUV = np.arange(-30, 5., 0.5)
+        MUV = np.arange(-26, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
         Ms = np.arange(7, 13.2, 0.2)
         

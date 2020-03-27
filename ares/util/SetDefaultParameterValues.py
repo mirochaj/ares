@@ -651,7 +651,7 @@ def PopulationParameters():
     
     "pop_mag_bin": 0.5,
     "pop_synth_dz": 0.5,
-    "pop_synth_zmax": 20.,
+    "pop_synth_zmax": 60.,
     "pop_synth_zmin": 3.5,
     "pop_synth_Mmax": 1e14,
     "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
