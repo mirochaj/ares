@@ -21,21 +21,26 @@ def test():
     sigma = PhotoIonizationCrossSection
     sigma_approx = ApproximatePhotoIonizationCrossSection
     
-    pl.loglog(E, [sigma(EE, 0) for EE in E], color='k', ls='-', label=r'H')
-    pl.loglog(E, [sigma(EE, 1) for EE in E], color='k', ls='--', label=r'HeI')
-    pl.loglog(E, [sigma_approx(EE, 0) for EE in E], color='b', ls='-')
-    pl.loglog(E, [sigma_approx(EE, 1) for EE in E], color='b', ls='--')
+    fig1, ax1 = pl.subplots(1, 1)
     
-    pl.legend(frameon=False)
+    ax1.loglog(E, [sigma(EE, 0) for EE in E], color='k', ls='-', label=r'H')
+    ax1.loglog(E, [sigma(EE, 1) for EE in E], color='k', ls='--', label=r'HeI')
+    ax1.loglog(E, [sigma_approx(EE, 0) for EE in E], color='b', ls='-')
+    ax1.loglog(E, [sigma_approx(EE, 1) for EE in E], color='b', ls='--')
     
-    pl.xlabel(r'$h\nu \ (\mathrm{eV})$')
-    pl.ylabel(r'$\sigma_{\nu} \ (\mathrm{cm}^2)$')
+    ax1.legend(frameon=False)
     
-    pl.annotate(r'Verner & Ferland (1996)', (20, 1e-24), ha='left')
-    pl.annotate(r'Approximate', (20, 1e-25), color='b', ha='left')
+    ax1.set_xlim(10, 1e4)
+    ax1.set_ylim(1e-25, 1e-16)
+    
+    ax1.set_xlabel(r'$h\nu \ (\mathrm{eV})$')
+    ax1.set_ylabel(r'$\sigma_{\nu} \ (\mathrm{cm}^2)$')
+    
+    ax1.annotate(r'Verner & Ferland (1996)', (20, 1e-24), ha='left')
+    ax1.annotate(r'Approximate', (20, 1e-25), color='b', ha='left')
     
     pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
-    pl.close()    
+    pl.close()
     
     assert True
 
