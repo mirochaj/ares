@@ -3,7 +3,7 @@ Oesch et al., 2013, ApJ, 773, 75
 
 Table 6. 4 the last 5 rows.
 """
-
+import numpy as np
 info = \
 {
  'reference': 'Oesch et al., 2013, ApJ, 773, 75',
