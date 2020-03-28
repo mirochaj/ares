@@ -8,6 +8,8 @@ except:
 
 options = sys.argv[1:]
 
+
+
 # Auxiliary data downloads
 # Format: [URL, file 1, file 2, ..., file to run when done]
 
@@ -80,7 +82,7 @@ os.chdir('input')
 
 needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
     'planck', 'bpass_v1']
-needed_for_tests_fn = ['inits.tar.gz', 'elec_inter.tar.gz', 'hmf.tar.gz',
+needed_for_tests_fn = ['inits.tar.gz', 'elec_interp.tar.gz', 'hmf.tar.gz',
     'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz']    
 
 files = []
@@ -135,8 +137,9 @@ for i, direc in enumerate(to_download):
             _web = web
             _fn = fn
         
-        if 'minimal' in options:
+        if ('minimal' in options) or ('test' in options):
             if _fn not in needed_for_tests_fn:
+                print("File {} not needed for minimal build.".format(_fn))
                 continue
          
         if '/' in _fn:
@@ -215,9 +218,10 @@ for i, direc in enumerate(to_download):
     # Run a script [optional]
     if aux_data[direc][-1] is not None:
         try:
-            execfile(aux_data[direc][-1])
-        except NameError:
-            exec(open(aux_data[direc][-1]).read())
+            if sys.version_info[0] < 3:
+                execfile(aux_data[direc][-1])
+            else:
+                exec(open(aux_data[direc][-1]).read())
         except:
             print("WARNING: Error running {!s}".format(aux_data[direc][-1]))
             
