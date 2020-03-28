@@ -83,7 +83,8 @@ os.chdir('input')
 needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
     'planck', 'bpass_v1', 'optical_depth']
 needed_for_tests_fn = ['inits.tar.gz', 'elec_interp.tar.gz', 'hmf.tar.gz',
-    'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz']    
+    'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz', 
+    'tau.tar.gz']    
 
 files = []
 if (len(options) > 0) and ('clean' not in options):
