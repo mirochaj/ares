@@ -476,16 +476,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         if not hasattr(self, '_rho_N'):
             self._rho_N = {}
-                    
+
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_N:    
             return self._rho_N[(Emin, Emax)](z)
-            
+
         tab = np.ones_like(self.halos.tab_z)
 
         # For all halos
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
-                                        
+
         if Emin in [13.6, E_LL]:
             fesc = self.fesc(z=z, Mh=self.halos.tab_M)
         elif (Emin, Emax) == (10.2, 13.6):
@@ -499,18 +499,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 * self._tab_focc[i] * N_per_Msun * fesc * ok[i]
     
             tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-            cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
+            cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), 
+                initial=0.0)
 
             tab[i] = tot - \
                 np.interp(np.log(self._tab_Mmin[i]), np.log(self.halos.tab_M), cumtot)
 
         tab *= 1. / s_per_yr / cm_per_mpc**3
-        
+
         self._rho_N[(Emin, Emax)] = interp1d(self.halos.tab_z, tab, 
             kind=self.pf['pop_interp_sfrd'])
-    
+
         return self._rho_N[(Emin, Emax)](z)
-        
+
     def _sfrd_func(self, z):
         # This is a cheat so that the SFRD spline isn't constructed
         # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 

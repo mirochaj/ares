@@ -86,7 +86,7 @@ class GalaxyAggregate(HaloPopulation):
                     bounds_error=False, fill_value=-np.inf)
                     
                 self._sfrd_ = lambda **kw: np.exp(interp(kw['z']))
-            elif isinstance(self.pf['pop_sfrd'], interp1d):
+            elif isinstance(self.pf['pop_sfrd'], interp1d_scipy):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif self.pf['pop_sfrd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)

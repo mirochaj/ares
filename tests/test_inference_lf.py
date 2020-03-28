@@ -177,7 +177,7 @@ def test():
         gpop.PlotLF(5.9, sources='bouwens2015', ax=ax)
     
     # Clean-up
-    mcmc_files = glob.glob('{}/tests/test_uvlf*'.format(os.environ.get('ARES')))
+    mcmc_files = glob.glob('{}/test_uvlf*'.format(os.environ.get('ARES')))
      
     # Iterate over the list of filepaths & remove each file.
     for fn in mcmc_files:
