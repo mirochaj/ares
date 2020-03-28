@@ -393,9 +393,9 @@ class CalibrateModel(object):
                       
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
-                    guesses['pq_func_par0[33]'] = 0.0
+                    guesses['pq_func_par0[33]'] = 0.05
                     is_log.extend([False])
-                    jitter.extend([0.02])
+                    jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(0., 0.6), 'pq_func_par0[33]')
                     
                 

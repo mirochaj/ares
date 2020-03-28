@@ -237,7 +237,7 @@ class loglikelihood(LogLikelihood):
                 b_lo = ymod[i_lo]
 
                 if 'lf' in self.metadata:
-                    Mlim = np.nanmin(xlf)
+                    Mlim = np.nanmin(xlf) - 1.
                 else:
                     Mlim = M_lo - 2.
             

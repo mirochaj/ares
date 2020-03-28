@@ -1634,10 +1634,10 @@ class ModelFit(FitBase):
             safe_mode=False, verbose=False)
         
         if self.checkpoint_append:
-            print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+            print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,\
                 time.ctime()))
         else:
-            print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
+            print("# Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
                 time.ctime()))
 
         ##################################################################

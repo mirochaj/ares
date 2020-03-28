@@ -70,11 +70,6 @@ if not os.path.exists(fn):
         if key not in ['z', 't', 'nh', 'Mh', 'MAR']:
             continue
         f.create_dataset(key, data=hist[key])
-    
-    # Save cosmology
-    grp = f.create_group('cosmology')
-    for key in cosmo:
-        grp.create_dataset(key, data=cosmo[key])
         
     f.close()    
     print("Wrote {}".format(fn))

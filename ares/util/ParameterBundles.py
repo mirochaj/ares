@@ -469,7 +469,7 @@ _planck2015 = \
 _galaxies_testing = \
 {
  'hmf_dt': 1,
- 'hmf_tmin': 200.,
+ 'hmf_tmin': 30.,
  'hmf_tmax': 1000.,
  'hmf_model': 'ST',
  "cosmology_id": 'best',

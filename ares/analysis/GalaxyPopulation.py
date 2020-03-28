@@ -1670,7 +1670,7 @@ class GalaxyPopulation(object):
         
         _mst = np.arange(6, 14, 0.2)
         _mh = np.logspace(6, 13, 100)
-        _mags = np.arange(-25, -10, 0.2)
+        _mags = np.arange(-25, -10, pop.pf['pop_mag_bin'])
         
         if redshifts is None:
             redshifts = [4, 6, 8, 10]
@@ -1812,7 +1812,7 @@ class GalaxyPopulation(object):
         ax_sfms   = kw['ax_sfms']
         
         _mst  = np.arange(6, 12, 0.2)
-        _mags = np.arange(-25, -10, 0.2)
+        _mags = np.arange(-25, -10, anl.base_kwargs['pop_mag_bin'])
 
         redshifts = [4, 6, 8, 10]
         colors = ['k', 'b', 'c', 'm', 'g', 'y', 'r']
