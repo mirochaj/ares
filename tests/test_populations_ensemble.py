@@ -31,21 +31,23 @@ def test():
     # Test UVLF
     mags = np.arange(-25, -10, 0.1)
     phi = pop.LuminosityFunction(6., mags)
+    ok = np.isfinite(phi)
     
     assert 1e-4 <= np.interp(-18, mags, phi) <= 1e-1, "UVLF unreasonable!"
     
     phi_c = pop.LuminosityFunction(6., mags)
     
-    assert np.array_equal(phi, phi_c), "UVLF cache not working!"
+    assert np.array_equal(phi[ok==1], phi_c[ok==1]), "UVLF cache not working!"
     
     # Test stellar mass function
     log10Ms = np.arange(6, 13, 0.1)
     phi = pop.StellarMassFunction(6., log10Ms)
+    ok = np.isfinite(phi)
     
     assert 1e-4 <= np.interp(9, log10Ms, phi) <= 1e-1, "GSMF unreasonable!"
     
     phi_c = pop.StellarMassFunction(6., log10Ms)
-    assert np.array_equal(phi, phi_c), "GSMF cache not working!"
+    assert np.array_equal(phi[ok==1], phi_c[ok==1]), "GSMF cache not working!"
     
     # Just check dust masss etc.
     Md = pop.get_field(6., 'Md')
