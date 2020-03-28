@@ -80,7 +80,7 @@ os.chdir('input')
 
 needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
     'planck', 'bpass_v1']
-needed_for_tests_fn = ['inits.tar.tz', 'elec_inter.tar.gz', 'hmf.tar.gz',
+needed_for_tests_fn = ['inits.tar.gz', 'elec_inter.tar.gz', 'hmf.tar.gz',
     'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz']    
 
 files = []
@@ -136,7 +136,7 @@ for i, direc in enumerate(to_download):
             _fn = fn
         
         if 'minimal' in options:
-            if fn not in needed_for_tests_fn:
+            if _fn not in needed_for_tests_fn:
                 continue
          
         if '/' in _fn:
