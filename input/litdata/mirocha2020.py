@@ -44,8 +44,10 @@ _base = \
  'pop_zdead': 3.5,
  
  # Synthesis control
+ 'pop_mag_bin': 0.5,            # Will bin to this mag-resolution for LF
  'pop_synth_cache_level': 0,    # 1 = more careful = slower
  'pop_synth_minimal': True,
+ 'pop_synth_zmax': 15.,
  'pop_Tmin': 1e4,
  
  # Metallicity evolution!?

@@ -1363,7 +1363,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     return self._tab_Mmin_
     
             if self.pf['pop_Mmin'] is not None:
-                print("Setting Mmin...{}".format(type(self.pf['pop_Mmin'])))
                 if ismethod(self.pf['pop_Mmin']) or \
                    (type(self.pf['pop_Mmin']) == FunctionType):
                     self._tab_Mmin_ = \
@@ -1406,13 +1405,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, s='min')
 
     @property
-    def _tab_n_Mmin(self):
-        """
-        Number of objects in each Mmin bin. Only use this for setting
-        up Ensemble objects?
-        """
-        if not hasattr(self, '_tab_n_Mmin_'):
-            
+    def _spline_ngtm(self):
+        if not hasattr(self, '_spline_ngtm_'):
             # Need to setup spline for n(>M)                        
             log10_ngtm = np.log10(self.halos.tab_ngtm)
             not_ok = np.isinf(log10_ngtm)
@@ -1422,10 +1416,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
             _spl = RectBivariateSpline(self.halos.tab_z, 
                np.log10(self.halos.tab_M), log10_ngtm)
-            spl = lambda z, log10M: 10**_spl(z, log10M).squeeze()
-
+            self._spline_ngtm_  = \
+                lambda z, log10M: 10**_spl(z, log10M).squeeze()
+            
+        return self._spline_ngtm_    
+        
+    @property
+    def _tab_n_Mmin(self):
+        """
+        Number of objects in each Mmin bin. Only use this for setting
+        up Ensemble objects?
+        """
+        if not hasattr(self, '_tab_n_Mmin_'):
+            
             # Interpolate halo abundances onto Mmin axis.
-            ngtm_Mmin = np.array([spl(self.halos.tab_z[i],
+            ngtm_Mmin = np.array([self._spline_ngtm(self.halos.tab_z[i],
                 np.log10(self._tab_Mmin)[i]) \
                     for i in range(self.halos.tab_z.size)])
 
@@ -2695,20 +2700,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Dictionary of quantities, each having shape (z, z). 
 
         The first dimension corresponds to formation time, the second axis
-        repreesents trajectories. So, e.g., to pick out all halo masses at a 
+        represents trajectories. So, e.g., to pick out all halo masses at a 
         given observed redshift (say z=6) you would do:
         
             zarr, data = self.Trajectories()
             k = np.argmin(np.abs(zarr - 6))
             Mh = data[:,k]
-        
+
         A check on this
-        
+
         """
         
         if hasattr(self, '_trajectories'):
-            return self._trajectories
-        
+            return self._trajectories        
         
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'SFE', 'MAR', 
             'Md', 'Sd', 'nh', 'Z', 't']
@@ -2726,9 +2730,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= zi)            
         zarr = self.halos.tab_z[in_range][::zfreq]
-        results = {key:np.zeros([zarr.size]*2) for key in keys}                
         zmax = []
         zform = []
+        
+        if self.pf['hgh_dlogMmin'] is not None:
+            dMmin = self.pf['hgh_dlogMmin']
+            M0_aug = np.arange(1.+dMmin, self.pf['hgh_Mmax']+dMmin, dMmin)
+            results = {key:np.zeros(((zarr.size+M0_aug.size, zarr.size))) \
+                for key in keys}
+        else:    
+            results = {key:np.zeros([zarr.size]*2) for key in keys}                
 
         for i, z in enumerate(zarr):
                         
@@ -2738,7 +2749,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    zmax.append(zarr[i])
             #    zform.append(z)
             #    continue
-                        
+                                                
             # If M0 is 0, assume it's the minimum mass at this redshift.
             _zarr, _results = self.RunSAM(z0=z, M0=M0)        
 
@@ -2753,9 +2764,44 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zform.append(z)
             
             zmax.append(_results['zmax'])
-
+            
+        ##
+        # Fill-in high-mass end?    
+        # Because we "launch" halos at Mmin(z), we may miss out on very 
+        # high-mass halos at late times if we set Tmin very small, and of 
+        # course we'll miss out on the early histories of small halos if 
+        # Tmin is large. So, fill in histories by incrementing above Mmin
+        # at highest available redshsift.
+        if self.pf['hgh_dlogMmin'] is not None:
+            
+            _z0 = zarr.max()
+            i0 = zarr.size
+            
+            if self.pf['verbose']:
+                print("# Augmenting suite of halos at z_form={:.2f}".format(_z0))
+                print("# Will generate halos with M0 up to M0={:.1f}*Mmin".format(
+                    M0_aug.max()))
+            
+            for i, _M0 in enumerate(M0_aug):
+                # If M0 is 0, assume it's the minimum mass at this redshift.
+                _zarr, _results = self.RunSAM(z0=_z0, M0=_M0)        
+                
+                # Need to splice into the right elements of 2-D array.
+                # SAM is run from zform to final_redshift, so only a subset
+                # of elements in the 2-D table are filled.
+                for key in keys:  
+                    dat = _results[key].copy()
+                    k = np.argmin(abs(_zarr.min() - zarr))
+                    results[key][i0+i,k:k+len(dat)] = dat.squeeze()
+                
+                zform.append(z)
+                zmax.append(_results['zmax'])
+        
+        ##
+        # Array-ify results
         results['zmax'] = np.array(zmax)
-        results['z'] = np.array(zform)
+        results['zform'] = np.array(zform)
+        results['z'] = zarr
         
         self._trajectories = np.array(zform), results
         
@@ -2811,13 +2857,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##
         # Outputs have shape (z, z)
         ##
-
         n0 = 0.0
-        
+                
         # Our results don't depend on this, unless SFE depends on z
         if (z0 is None) and (M0 == 0):
             z0 = self.halos.tab_z.max()
             M0 = self._tab_Mmin[-1]
+            raise NotImplemented('Is this used anymore?')
         elif (M0 <= 1):
             
             # If we're treating a continuum of halos.
@@ -2830,10 +2876,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 print('hay problemas!', z0, self.halos.tab_z[iz])
         elif (M0 > 1):
-            if z0 >= self.pf['initial_redshift']:
-                M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
-            else:
-                M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
+            _M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
+            M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
+
+            dM = self.pf['hgh_dlogMmin']
+            
+            # Set number density of these guys.
+            _marr_ = np.arange(np.log10(M0) - 3 * dM, np.log10(M0) + 3 * dM, 
+                dM * 0.2)
+            _ngtm = [self._spline_ngtm(z0, _m_) for _m_ in _marr_]
+            func = interp1d(_marr_, _ngtm, kind='cubic')
+            n0 = func(np.log10(M0 - dM)) - func(np.log10(M0))
 
         # Setup time-stepping
         zf = max(float(self.halos.tab_z.min()), self.zdead)

@@ -544,7 +544,7 @@ class GalaxyPopulation(object):
         # Plot models
         ##
         Ms = np.arange(6, 13.25, 0.25)
-        mags = np.arange(-25, -11.9, 0.1)
+        mags = np.arange(-25, -12-dmag, dmag)
         mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep

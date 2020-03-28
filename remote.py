@@ -78,6 +78,8 @@ os.chdir('input')
 
 needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
     'planck']
+needed_for_tests_fn = ['inits.tar.tz', 'elec_inter.tar.gz', 'hmf.tar.gz',
+    'IR.zip', 'wfc.tar.gz', aux_data['planck'][1]]    
 
 files = []
 if (len(options) > 0) and ('clean' not in options):
@@ -127,8 +129,9 @@ for i, direc in enumerate(to_download):
         
     for i, fn in enumerate(fns):
         
-        if (i > 0) and ('basic' in options):
-            break
+        if 'minimal' in options:
+            if fn not in needed_for_tests_fn:
+                continue
          
         if '/' in fn:
             _fn = fn[fn.rfind('/')+1:]#fn.split('/') 
@@ -181,7 +184,7 @@ for i, direc in enumerate(to_download):
         except:
             print("WARNING: Error unpacking {0!s}".format(_fn))
         
-        if direc != 'cosmo_params': 
+        if direc != 'planck': 
             continue
             
         _files = os.listdir(os.curdir)

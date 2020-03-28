@@ -188,11 +188,11 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     sim = simulator(**kw)
         
     if debug:
-        print("Processor {} simulation starting: {}".format(rank, time.ctime()))
+        print("# Processor {} simulation starting: {}".format(rank, time.ctime()))
         sim.run()
-        print("Processor {} simulation complete: {}".format(rank, time.ctime()))
+        print("# Processor {} simulation complete: {}".format(rank, time.ctime()))
         blobs = sim.blobs
-        print("Processor {} generated blobs    : {}".format(rank, time.ctime()))
+        print("# Processor {} generated blobs    : {}".format(rank, time.ctime()))
         
     try:
         if not debug:

@@ -557,7 +557,8 @@ class HaloMassFunction(object):
                 growth_params=self.pars_growth, sigma_8=self.cosm.sigma8, 
                 n=self.cosm.primordial_index, transfer_params=self.pars_transfer,
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
-                lnk_max=self.pf['hmf_lnk_max'], **xtras)
+                lnk_max=self.pf['hmf_lnk_max'], 
+                use_splined_growth=self.pf['hmf_use_splined_growth'], **xtras)
                 
         return self._MF_
 
@@ -1384,10 +1385,7 @@ class HaloMassFunction(object):
         if os.path.exists(fn):
             if clobber and rank == 0:
                 os.remove(fn)
-            elif rank != 0:
-                pass
             else:
-                print('hey', self.hmf_func, self.pf['hmf_model'])
                 raise IOError(('File {!s} exists! Set clobber=True or ' +\
                     'remove manually.').format(fn))    
         
@@ -1477,7 +1475,7 @@ class HaloMassFunction(object):
             pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
             
-        print('Wrote {!s}.'.format(fn))
+        print('# Wrote {!s}.'.format(fn))
         
         return
         

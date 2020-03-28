@@ -466,6 +466,19 @@ _planck2015 = \
  "primordial_index": 0.9667,
 }
 
+_galaxies_testing = \
+{
+ 'hmf_dt': 1,
+ 'hmf_tmin': 200.,
+ 'hmf_tmax': 1000.,
+ 'hmf_model': 'ST',
+ "cosmology_id": 'best',
+ "cosmology_name": 'planck_TTTEEE_lowl_lowE', 
+ 'pop_sed_degrade': 100,
+ 'pop_Z': 0.02,
+ 'pop_sed': 'eldridge2009',
+}
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -483,7 +496,8 @@ _Bundles = \
  'cosmology': {'planck2015': _planck2015},
  'exotic': {'cooling':_cooling},
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
-    'careless': _careless}
+    'careless': _careless},
+ 'testing': {'galaxies': _galaxies_testing},
 }
 
 class ParameterBundle(dict):

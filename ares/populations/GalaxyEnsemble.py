@@ -331,7 +331,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         
             # Find boundary between halos that never cross Mmin and those
             # that do.
-            is_viable = Mh_raw > Mmin[:,None]
+            is_viable = Mh_raw > Mmin[None,:]
                                      
             any_viable = np.sum(is_viable, axis=1)
             
@@ -2562,7 +2562,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zall, traj_all = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
-                    print("Loaded {}.".format(fn_hist))
+                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
                 hist = traj_all
                       
             elif fn_hist.endswith('.hdf5'):
@@ -2595,7 +2595,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 f.close()
                 if self.pf['verbose']:
-                    print("Loaded {}.".format(fn_hist))
+                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
                 
             else:
                 # Assume pickle?
@@ -2604,16 +2604,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zall, traj_all = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
-                    print("Loaded {}.".format(fn_hist+'.pkl'))
+                    name = fn_hist + '.pkl'
+                    print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
             
                 hist = traj_all
                 
                 if self.pf['verbose']:
-                    print("Read `pop_histories` as dictionary")
-                
+                    print("# Read `pop_histories` as dictionary")
+
             hist['zform'] = zall
-            hist['zobs'] = np.array([zall] * hist['nh'].shape[0])            
-                
+            hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
+
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']
             # Assume you know what you're doing.

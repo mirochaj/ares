@@ -626,16 +626,23 @@ class SynthesisModel(SynthesisMaster):
                     _tmp = self.pf['source_sed_by_Z'][1]
                     self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
                 else:
-                    self._wavelengths, self._data = \
+                    self._wavelengths, self._data, _fn = \
                         self._litinst._load(**self.pf)
+                    
+                    if self.pf['verbose']:
+                        print("# Loaded {}".format(_fn.replace(self.cosm.path_ARES, '$ARES')))
             else:
                 if self.pf['source_sed_by_Z'] is not None:
                     _tmp = self.pf['source_sed_by_Z'][1]
                     assert len(_tmp) == len(Zall)
                 else:
                     # Will load in all metallicities
-                    self._wavelengths, _tmp = \
+                    self._wavelengths, _tmp, _fn = \
                         self._litinst._load(**self.pf)
+                        
+                    if self.pf['verbose']:
+                        for _fn_ in _fn:
+                            print("# Loaded {}".format(_fn_.replace(self.cosm.path_ARES, '$ARES')))   
 
                 # Shape is (Z, wavelength, time)?
                 to_interp = np.array(_tmp)
