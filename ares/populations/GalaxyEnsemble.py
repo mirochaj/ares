@@ -432,47 +432,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return histories
         
-    def get_timestamps(self, zform):
-        """
-        For a halo forming at z=zform, return series of time and redshift
-        steps based on halo dynamical time or other.
-        """
-        
-        t0 = self.cosm.t_of_z(zform) / s_per_yr
-        tf = self.cosm.t_of_z(0) / s_per_yr
-        
-        if self.pf['pop_update_dt'] == 'dynamical':
-            t = t0
-            steps_t = [t0]           # time since Big Bang
-            steps_z = [zform]
-            while t < tf:
-                z = self.cosm.z_of_t(t * s_per_yr)
-                _tdyn = self.halos.DynamicalTime(z, 1e10) / s_per_yr
-            
-                if t + _tdyn > tf:
-                    steps_t.append(self.cosm.t_of_z(0.) / s_per_yr)
-                    steps_z.append(0.)
-                    break
-            
-                steps_t.append(t+_tdyn)
-                steps_z.append(self.cosm.z_of_t((t+_tdyn) * s_per_yr))
-                t += _tdyn
-                
-            steps_t = np.array(steps_t)
-            steps_z = np.array(steps_z)
-                
-        else:
-            dt = self.pf['pop_update_dt'] * 1e6     
-            steps_t = np.arange(t0, tf+dt, dt)
-            
-            # Correct last timestep to make sure final timestamp == tf
-            if steps_t[-1] > tf:
-                steps_t[-1] = tf
-            
-            steps_z = np.array(map(self.cosm.z_of_t, steps_t * s_per_yr))
-            
-        return steps_t, steps_z
-        
     @property
     def histories(self):
         if not hasattr(self, '_histories'):
