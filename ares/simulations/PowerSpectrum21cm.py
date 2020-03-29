@@ -22,7 +22,7 @@ defaults = \
  'load_ics': True,
 }
 
-class PowerSpectrum21cm(AnalyzePS):
+class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
     def __init__(self, **kwargs):
         """ Set up a power spectrum calculation. """
         

@@ -43,7 +43,7 @@ def halve_list(li):
     N = len(li)
     return li[0:N//2], li[N//2:]    
     
-class SpectrumOptimization(object):
+class SpectrumOptimization(object): # pragma: no cover
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
         self.base_kwargs = self.pf

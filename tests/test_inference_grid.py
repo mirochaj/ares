@@ -33,11 +33,21 @@ def test():
     
     z0 = np.arange(6, 13, 1)
     dz = np.arange(1, 8, 1)
+    size = z0.size * dz.size
     
     mg.axes = {'tanh_xz0': z0, 'tanh_xdz': dz}
     
-    mg.run('test_grid', clobber=True, save_freq=100)
+    # Basic checks
+    assert mg.grid.Nd == 2
+    assert mg.grid.structured == True
+    assert len(mg.grid.coords) == size
+    assert [mg.grid.axis(i) for i in range(2)] \
+        == [mg.grid.axis(par) for par in mg.grid.axes_names]
+        
+    assert mg.grid.meshgrid(mg.grid.axes_names[0]).size == size
     
+    mg.run('test_grid', clobber=True, save_freq=100)
+        
     anl = ares.analysis.ModelSet('test_grid')
     ax1 = anl.Scatter(anl.parameters, c='tau_e', fig=1)
     

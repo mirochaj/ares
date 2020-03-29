@@ -17,7 +17,7 @@ from ..analysis.PowerSpectrum import PowerSpectrum as analyzePS
 # 'load_ics': True,
 #}
 
-class PowerSpectrum(analyzePS):
+class PowerSpectrum(analyzePS): # pragma: no cover
     def __init__(self, **kwargs):
         """ Set up a power spectrum calculation. """
         

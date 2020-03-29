@@ -30,7 +30,7 @@ from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \
 root2 = np.sqrt(2.)
 four_pi = 4. * np.pi
 
-class Fluctuations(object):
+class Fluctuations(object): # pragma: no cover
     def __init__(self, grid=None, **kwargs):
         """
         Initialize a FluctuatingBackground object.

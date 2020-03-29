@@ -38,7 +38,7 @@ try:
 except ImportError:
     pass
 
-class AbundanceMatching(GalaxyCohort):
+class AbundanceMatching(GalaxyCohort): # pragma: no cover
 
     @property
     def mags(self):
