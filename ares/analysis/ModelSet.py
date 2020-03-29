@@ -641,7 +641,7 @@ class ModelSet(BlobFactory):
                     #        open_mode='w', safe_mode=False, verbose=False)                
                 elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                     f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                    chain = np.array(f[('chain')])
+                    _chain = np.array(f[('chain')])
                         
                     if hasattr(self, '_mask'):
                         if self.mask.ndim == 1:
@@ -652,7 +652,7 @@ class ModelSet(BlobFactory):
                         mask2d = np.zeros(chain.shape)    
                         self.mask = mask2d
                                                                         
-                    self._chain = np.ma.array(chain, mask=mask2d)
+                    _chain = np.ma.array(chain, mask=mask2d)
                     f.close()
                 
                 # If each "chunk" gets its own file.
@@ -680,7 +680,7 @@ class ModelSet(BlobFactory):
                         this_chain = read_pickled_chain(fn)
                         full_chain.extend(this_chain)
                         
-                    self._chain = np.ma.array(full_chain, mask=0)
+                    _chain = np.ma.array(full_chain, mask=0)
                     
                     if rank == 0:
                         t2 = time.time()

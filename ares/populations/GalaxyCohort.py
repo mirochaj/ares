@@ -492,7 +492,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             fesc = self.fesc_LW(z=z, Mh=self.halos.tab_M)
 
         else:
-            raise NotImplemented('help!')
+            raise NotImplementedError('help!')
     
         ok = ~self._tab_sfr_mask
         for i, z in enumerate(self.halos.tab_z):
