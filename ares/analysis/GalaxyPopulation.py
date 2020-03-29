@@ -1660,12 +1660,12 @@ class GalaxyPopulation(object):
         ax_bet = kw['ax_bet']        
         
         ax_smf    = kw['ax_smf']
-        ax_smhm   = kw['ax_smhm']
+        #ax_smhm   = kw['ax_smhm']
         ax_MsMUV  = kw['ax_MsMUV']
         ax_AUV    = kw['ax_AUV']
         ax_sfrd   = kw['ax_sfrd']
-        ax_lae_z  = kw['ax_lae_z']
-        ax_lae_m  = kw['ax_lae_m']
+        #ax_lae_z  = kw['ax_lae_z']
+        #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
         _mst = np.arange(6, 14, 0.2)
@@ -1689,12 +1689,15 @@ class GalaxyPopulation(object):
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
             
             # Binned version
-            Mbins = np.arange(-25, -10, 1.0)
-            if pop.pf['pop_dust_yield'] is not None:
-                _beta = pop.Beta(z, Mwave=1600, return_binned=True,
-                    Mbins=Mbins)
-            else:
-                _beta = np.zeros_like(Mbins)        
+            if z <= 7:
+                Mbins = np.arange(-25, -10, 1.0)
+                if pop.pf['pop_dust_yield'] is not None:
+                    _beta = pop.Beta(z, Mwave=1600., return_binned=True,
+                        Mbins=Mbins, presets='hst', rest_wave=None, dlam=20.)
+                else:
+                    _beta = np.zeros_like(Mbins)   
+                    
+                ax_bet.plot(Mbins, _beta, color=colors[j])         
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
@@ -1719,16 +1722,16 @@ class GalaxyPopulation(object):
             # SMHM
             _Mh = 10**np.arange(8, 12.5, 0.1)
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
-            ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
+            #ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
             
             mags1500 = pop.Magnitude(z, wave=1500.)
             
             
-            mags = pop.Magnitude(z, wave=1600.)
-            if pop.pf['pop_dust_yield'] is not None:
-                beta = pop.Beta(z, Mwave=1600., return_binned=False)
-            else:
-                beta = np.zeros_like(mags)
+            #mags = pop.Magnitude(z, wave=1600.)
+            #if pop.pf['pop_dust_yield'] is not None:
+            #    beta = pop.Beta(z, Mwave=1600., return_binned=False)
+            #else:
+            #    beta = np.zeros_like(mags)
             
             # M1500-Mstell
             _x, _y, _z, _N = bin_samples(mags1500, np.log10(Ms), Mbins)
@@ -1745,7 +1748,6 @@ class GalaxyPopulation(object):
                 
                 continue
                 
-            ax_bet.plot(Mbins, _beta, color=colors[j])
             
             Rdust = pop.guide.dust_scale(z=z, Mh=Mh)
             ydust = pop.guide.dust_yield(z=z, Mh=Mh)
