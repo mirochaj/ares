@@ -515,10 +515,7 @@ class Hydrogen(object):
         Tc = Tk
         
         Tref = self.cosm.TCMB(z) + Tr
-
-        Ts = (1.0 + x_c + x_a) / \
-            (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
-            
+ 
         if self.approx_S < 4:
             x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
             Tc = Tk

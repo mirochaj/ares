@@ -26,6 +26,9 @@ def test():
         Sa = np.array([hydr.Sa(20., Tarr[k]) for k in range(Tarr.size)])
         pl.plot(Tarr, 1 - Sa, color='k', ls=ls[i], label=labels[i])
         res.append(Sa)
+        
+        # Check Ts while we're here
+        Ts = hydr.SpinTemperature(20., hydr.cosm.Tgas(20.), 1, 0., 0.)
      
     pl.xlim(0.5, 100)
     pl.ylim(1e-1, 1.1)
@@ -45,6 +48,21 @@ def test():
     # Just set to a level that I know is tight enough to pickup
     # any errors we might accidentally introduce later.
     assert np.all(diff.ravel() < 0.3)
+    
+    # Check frec
+    for n in range(2, 31):
+        frec = hydr.frec(n)
+        
+    assert hydr.Tbg is None
+        
+    # Check various limits
+    dTb_sat = hydr.saturated_limit(10.)
+    dTb_low = hydr.adiabatic_floor(10.)
+    dTb_phy = hydr.dTb_no_astrophysics(10.)
+    
+    assert 0 <= dTb_sat <= 50
+    assert -350 <= dTb_low <= -200
+    assert abs(dTb_phy) < 1
 
 if __name__ == '__main__':
     test()

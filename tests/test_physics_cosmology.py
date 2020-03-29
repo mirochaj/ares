@@ -42,6 +42,12 @@ def test(rtol=1e-3):
     
     assert abs(R_a - R_n) / R_a < rtol, \
         "Comoving radial distance @ high-z not accurate to < {:.3g}%.".format(rtol)
+        
+    # Test a user-supplied cosmology and one that grabs a row from Planck chain
+    # Remember: test suite doesn't have CosmoRec, so don't use get_inits_rec.
+    cosm = Cosmology(cosmology_name='user', cosmology_id='jordan')
+    
+    cosm = Cosmology(cosmology_id=100)
                 
 if __name__ == '__main__':
     test()    
