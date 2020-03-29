@@ -381,7 +381,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if kwargs == {}:
             ax.fill_between(nu, 
                 -2e3 * np.ones_like(dTb) * conv, dTb * conv, 
-                color='none', hatch='X', edgecolor='k', linewidth=0.0)
+                color='none', hatch='X', edgecolor='k', linewidth=0.)
         else:
             if gap is None:
                 ax.plot(nu, dTb * conv, **kwargs)
@@ -638,25 +638,30 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             inset = self.add_inset(ax, inset=inset, width=width, height=height, 
                 loc=loc, lo=lo, hi=hi, padding=padding, mu=None, sigma=None,
                 borderpad=borderpad, **kwargs)
-        else:
-            inset.fill_between([0., self.cosm.Tgas(z)], 0, 1, 
-                color='k', facecolor='none', hatch='//')
-            #inset.plot([self.cosm.Tgas(z)]*2, [0, 1], 
-            #    color='k')    
-            inset.fill_between([self.cosm.Tgas(z), lo], 0, 1, 
-                color='lightgray')    
-            #inset.fill_between([self.cosm.TCMB(z), hi], 0, 1, 
-            #    color='k', facecolor='none', hatch='-')    
-            xticks = [1, 10, 100]
-            inset.set_xticks(xticks)
-            inset.set_xlim(0.8, hi)
+
+        inset.fill_between([0., self.cosm.Tgas(z)], 0, 1, 
+            color='k', facecolor='none', hatch='//')
+        #inset.plot([self.cosm.Tgas(z)]*2, [0, 1], 
+        #    color='k')    
+        inset.fill_between([self.cosm.Tgas(z), lo], 0, 1, 
+            color='lightgray')    
+        #inset.fill_between([self.cosm.TCMB(z), hi], 0, 1, 
+        #    color='k', facecolor='none', hatch='-')    
+        xticks = [1, 10, 100]
+        inset.set_xticks(xticks)
+        
+        if hi is None:
+            hi = max(self.history['Ts'])
+        
+        inset.set_xlim(0.8, hi)
     
-            inset.set_title(r'$T_S(z={0:.2g})$'.format(z), fontsize=16, y=1.08)
-            inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
+        inset.set_title(r'$T_S(z={0:.2g})$'.format(z), fontsize=16, y=1.08)
+        inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
             
         Ts = np.interp(z, self.history_asc['z'], self.history_asc['igm_Ts'])
         inset.plot([Ts]*2, [0, 1], **kwargs)
         inset.set_xscale('log')
+        
         pl.draw()
     
         return inset        

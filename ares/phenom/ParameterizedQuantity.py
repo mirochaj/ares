@@ -74,12 +74,19 @@ class BasePQ(object):
         
 class PowerLaw(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+
         return self.args[0] * (x / self.args[1])**self.args[2]
 
 class PowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         
         if self.t == '1+z':
             t = 1. + kwargs['z']
@@ -90,33 +97,48 @@ class PowerLawEvolvingNorm(BasePQ):
         
         return p0 * (x / self.args[1])**self.args[2]
 
-
 class Exponential(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         return self.args[0] * np.exp((x / self.args[1])**self.args[2])
 
 class ExponentialInverse(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+            
         return self.args[0] * np.exp(-(x / self.args[1])**self.args[2])
     
 class Normal(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         return self.args[0] * np.exp(-(x - self.args[1])**2 
             / 2. / self.args[2]**2)
 
 class LogNormal(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         logx = np.log10(x)
         return self.args[0] * np.exp(-(logx - self.args[1])**2 
             / 2. / self.args[2]**2)
     
 class PiecewisePowerLaw(BasePQ):    
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
     
         lo = x < self.args[4]
         hi = x >= self.args[4]
@@ -128,7 +150,10 @@ class PiecewisePowerLaw(BasePQ):
         
 class Ramp(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         
         # ramp slope
         m = (self.args[2] - self.args[0]) / (self.args[3] - self.args[1])
@@ -144,7 +169,11 @@ class Ramp(BasePQ):
         
 class LogRamp(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+            
         logx = np.log10(x)
         
         # ramp slope
@@ -163,7 +192,10 @@ class LogRamp(BasePQ):
         
 class TanhAbs(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         
         step = (self.args[0] - self.args[1]) * 0.5        
         y = self.args[1] \
@@ -172,7 +204,10 @@ class TanhAbs(BasePQ):
 
 class TanhRel(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         
         y = self.args[1] \
           + self.args[1] * self.args[0] * 0.5 \
@@ -182,7 +217,11 @@ class TanhRel(BasePQ):
     
 class LogTanhAbs(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+            
         logx = np.log10(x)
         
         step = (self.args[0] - self.args[1]) * 0.5        
@@ -192,7 +231,11 @@ class LogTanhAbs(BasePQ):
 
 class LogTanhRel(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+            
         logx = np.log10(x)
         
         y = self.args[1] \
@@ -203,10 +246,13 @@ class LogTanhRel(BasePQ):
 
 class StepRel(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         
-        lo = x < self.args[2]
-        hi = x >= self.args[2]
+        lo = x <= self.args[2]
+        hi = x > self.args[2]
 
         y = lo * self.args[0] * self.args[1] + hi * self.args[1]
 
@@ -214,15 +260,17 @@ class StepRel(BasePQ):
     
 class StepAbs(BasePQ):
     def __call__(self, **kwargs):
-        x = kwargs[self.x]
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
         
-        lo = x < self.args[2]
-        hi = x >= self.args[2]
+        lo = x <= self.args[2]
+        hi = x > self.args[2]
 
         y = lo * self.args[0] + hi * self.args[1] 
 
         return y
-
 
 class DoublePowerLawPeakNorm(BasePQ):
     def __call__(self, **kwargs):
@@ -513,6 +561,10 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
         elif kwargs['pq_func'] == 'exp':
             self.func = Exponential(**kwargs)  
+        elif kwargs['pq_func'] in ['normal', 'gaussian']:
+            self.func = Normal(**kwargs)
+        elif kwargs['pq_func'] == 'lognormal':
+            self.func = LogNormal(**kwargs)        
         elif kwargs['pq_func'] == 'exp-':
             self.func = ExponentialInverse(**kwargs)
         elif kwargs['pq_func'] == 'pwpl':
@@ -525,6 +577,10 @@ class ParameterizedQuantity(object):
             self.func = TanhAbs(**kwargs)
         elif kwargs['pq_func'] == 'tanh_rel':
             self.func = TanhRel(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs':
+            self.func = LogTanhAbs(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_rel':
+            self.func = LogTanhRel(**kwargs)    
         elif kwargs['pq_func'] == 'step_abs':
             self.func = StepAbs(**kwargs)
         elif kwargs['pq_func'] == 'step_rel':

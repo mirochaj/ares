@@ -152,6 +152,7 @@ def _load(**kwargs):
             
     if kwargs['source_Z'] not in Zvals:
         
+        _fn = []
         data = []
         for Z in Zvals:
             tmp = kwargs.copy()
@@ -159,6 +160,7 @@ def _load(**kwargs):
             fn = _figure_name(**tmp)
             _data = _reader(fn)
             data.append(_data[:,1:])
+            _fn.append(fn)
         
         # Has dimensions (metallicity, wavelengths, times)
         data_3d = np.array(data)
@@ -169,11 +171,11 @@ def _load(**kwargs):
         data = 10**data_3d
                     
     else:        
-        fn = _figure_name(**kwargs)
+        fn = _fn = _figure_name(**kwargs)
         _raw_data = _reader(fn)
         wavelengths = _raw_data[:,0]
         data = 10**_raw_data[:,1:]
         
-    return wavelengths, data    
+    return wavelengths, data, _fn
         
         

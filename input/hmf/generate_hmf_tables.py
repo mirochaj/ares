@@ -28,27 +28,27 @@ def_kwargs = \
  "hmf_window": 'tophat',
 
  # Redshift sampling
- #"hmf_zmin": 0.,
- #"hmf_zmax": 60.,
- #"hmf_dz": 0.05,
+ "hmf_zmin": 0.,
+ "hmf_zmax": 60.,
+ "hmf_dz": 0.05,
  
  # Can do constant timestep instead of constant dz 
- "hmf_dt": 1.,
+ "hmf_dt": None,
  "hmf_tmin": 20.,
  "hmf_tmax": 2000.,
  
  # Cosmology
- #"cosmology_id": 'best',
- #"cosmology_name": 'planck_TTTEEE_lowl_lowE',
+ "cosmology_id": 'best',
+ "cosmology_name": 'planck_TTTEEE_lowl_lowE',
  
- "cosmology_id": 'paul',
- "cosmology_name": 'user',
- "sigma_8": 0.8159, 
- 'primordial_index': 0.9652, 
- 'omega_m_0': 0.315579, 
- 'omega_b_0': 0.0491, 
- 'hubble_0': 0.6726,
- 'omega_l_0': 1. - 0.315579, 
+ #"cosmology_id": 'paul',
+ #"cosmology_name": 'user',
+ #"sigma_8": 0.8159, 
+ #'primordial_index': 0.9652, 
+ #'omega_m_0': 0.315579, 
+ #'omega_b_0': 0.0491, 
+ #'hubble_0': 0.6726,
+ #'omega_l_0': 1. - 0.315579, 
  
 }
 
@@ -61,7 +61,11 @@ hmf = ares.physics.HaloMassFunction(hmf_analytic=False,
     hmf_load=False, **kwargs)
 
 hmf.info()
-hmf.SaveHMF(fmt=kwargs['hmf_fmt'], clobber=False)
+
+try:
+    hmf.SaveHMF(fmt=kwargs['hmf_fmt'], clobber=False)
+except IOError as err:
+    print(err)
 
 
 

@@ -40,9 +40,12 @@ def test():
     
     anl = ares.analysis.ModelSet('test_grid')
     ax1 = anl.Scatter(anl.parameters, c='tau_e', fig=1)
+    
+    #ax2 = anl.ContourScatter(anl.parameters[0], anl.parameters[1], 'tau_e',
+    #    fig=3)
 
     # Clean-up
-    mcmc_files = glob.glob('{}/tests/test_grid*'.format(os.environ.get('ARES')))
+    mcmc_files = glob.glob('{}/test_grid*'.format(os.environ.get('ARES')))
  
     # Iterate over the list of filepaths & remove each file.
     for fn in mcmc_files:

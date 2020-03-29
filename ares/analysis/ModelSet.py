@@ -856,17 +856,6 @@ class ModelSet(BlobFactory):
         return self._L    
         
     @property
-    def betas(self):
-        if not hasattr(self, '_betas'):
-            if os.path.exists('{!s}.betas.pkl'.format(self.prefix)):
-                self._betas =\
-                    read_pickled_logL('{!s}.betas.pkl'.format(self.prefix))
-            else:
-                self._betas = None
-        
-        return self._betas
-                
-    @property
     def fails(self):
         if not hasattr(self, '_fails'):
             if os.path.exists('{!s}.fails.pkl'.format(self.prefix)):
@@ -3182,9 +3171,8 @@ class ModelSet(BlobFactory):
 
         if c in self.parameters:        
             zax = self.chain[:,self.parameters.index(c)].ravel()
-        elif c in self.blob_names:   
-            zax = self.blobs[:,self.blob_redshifts.index(z[-1]),
-                self.blob_names.index(c)]
+        elif c in self.all_blob_names:   
+            zax = self.ExtractData(c)[c]
         elif c in self.derived_blob_names:   
             zax = self.derived_blobs[:,self.blob_redshifts.index(z[-1]),
                 self.derived_blob_names.index(c)]

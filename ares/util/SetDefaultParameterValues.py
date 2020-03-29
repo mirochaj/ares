@@ -651,7 +651,7 @@ def PopulationParameters():
     
     "pop_mag_bin": 0.5,
     "pop_synth_dz": 0.5,
-    "pop_synth_zmax": 60.,
+    "pop_synth_zmax": 15.,
     "pop_synth_zmin": 3.5,
     "pop_synth_Mmax": 1e14,
     "pop_synth_minimal": False,  # Can turn off for testing (so we don't need MF)
@@ -1061,6 +1061,7 @@ def HaloMassFunctionParameters():
     "hmf_cache": None,
     "hmf_load_ps": True,
     "hmf_load_growth": False,
+    "hmf_use_splined_growth": True,
     "hmf_table": None,
     "hmf_analytic": False,
 
@@ -1076,6 +1077,10 @@ def HaloMassFunctionParameters():
     "hmf_tmin": 30.,
     "hmf_tmax": 1000.,
     "hmf_dt": None,     # if not None, will switch this one.
+    
+    # Augment suite of halo growth histories
+    "hgh_dlogMmin": None,
+    'hgh_Mmax': 10,
     
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2

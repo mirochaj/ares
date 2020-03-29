@@ -188,11 +188,11 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     sim = simulator(**kw)
         
     if debug:
-        print("Processor {} simulation starting: {}".format(rank, time.ctime()))
+        print("# Processor {} simulation starting: {}".format(rank, time.ctime()))
         sim.run()
-        print("Processor {} simulation complete: {}".format(rank, time.ctime()))
+        print("# Processor {} simulation complete: {}".format(rank, time.ctime()))
         blobs = sim.blobs
-        print("Processor {} generated blobs    : {}".format(rank, time.ctime()))
+        print("# Processor {} generated blobs    : {}".format(rank, time.ctime()))
         
     try:
         if not debug:
@@ -308,7 +308,7 @@ def guesses_from_priors(pars, prior_set, nwalkers):
         Number of walkers
 
     """
-    print("Making guesses from prior_set...")
+    print("# Making guesses from prior_set...")
     guesses = []
     for i in range(nwalkers):
         draw = prior_set.draw()
@@ -867,10 +867,10 @@ class ModelFit(FitBase):
             ok = np.logical_not(not_ok)
             
             for j in bad_mask:
-                print("Fixing position of walker {0} (parameter {1!s})".format(
+                print("# Fixing position of walker {0} (parameter {1!s})".format(
                     j[0], par))
                 new = np.random.choice(guesses[ok==1,i])
-                print("Moved from {} to {}".format(guesses[j,i][0], new))    
+                print("# Moved from {} to {}".format(guesses[j,i][0], new))    
                 guesses[j[0],i] = new
         
         return guesses
@@ -1246,10 +1246,10 @@ class ModelFit(FitBase):
                 sup = 'rd'
             else:
                 sup = 'th'
-            print("WARNING: Burn-in may have been too short based on location of") 
-            print("         maximum likelihood position (outside 1-sigma dist. of")
-            print("         final walker positions). As a result, we have re-centered")
-            print("         around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
+            print("# WARNING: Burn-in may have been too short based on location of") 
+            print("#          maximum likelihood position (outside 1-sigma dist. of")
+            print("#          final walker positions). As a result, we have re-centered")
+            print("#          around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
     
         return self._fix_guesses(pos)
         
@@ -1451,7 +1451,7 @@ class ModelFit(FitBase):
         
         # Optional re-centering of walkers
         if restart and recenter:
-            print("Recentering walkers...")
+            print("# Recentering walkers...")
             mlpt = pos[np.argmax(prob)]
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
         
@@ -1467,7 +1467,7 @@ class ModelFit(FitBase):
                 if not hasattr(self, '_jitter'):
                     raise AttributeError("Must set jitter!")
             
-            print("Starting burn-in: {!s}".format(time.ctime()))
+            print("# Starting burn-in: {!s}".format(time.ctime()))
             
             t1 = time.time()
             pos, prob, state, blobs = \
@@ -1475,7 +1475,7 @@ class ModelFit(FitBase):
                     restart=False, prefix=self.prefix+'.burn')
             t2 = time.time()
 
-            print("Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
+            print("# Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
           
             pos = self._reinitialize_walkers(pos, prob, burn_method)
             self.sampler.reset()
@@ -1496,7 +1496,7 @@ class ModelFit(FitBase):
         # MAIN MCMC
         ##
         if rank == 0:
-            print("Starting MCMC: {!s}".format(time.ctime())) 
+            print("# Starting MCMC: {!s}".format(time.ctime())) 
             
             pos, prob, state, blobs = \
                 self._run(pos, steps, state=state, save_freq=save_freq, 
@@ -1508,7 +1508,7 @@ class ModelFit(FitBase):
             self.pool.stop()
 
         if rank == 0:
-            print("Finished on {!s}".format(time.ctime()))
+            print("# Finished on {!s}".format(time.ctime()))
           
         ##
         # New option: Reboot. See if destruction of Pool affects memory.
@@ -1522,7 +1522,7 @@ class ModelFit(FitBase):
         self.counter = self.counter + 1    
         
         if rank == 0:
-            print("Commence reboot #{} (proc={})".format(self.counter, rank))
+            print("# Commence reboot #{} (proc={})".format(self.counter, rank))
           
         self.run(prefix, steps=steps, burn=0, clobber=False, restart=True, 
             save_freq=save_freq, reboot=self.counter < reboot) 
@@ -1634,10 +1634,10 @@ class ModelFit(FitBase):
             safe_mode=False, verbose=False)
         
         if self.checkpoint_append:
-            print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+            print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,\
                 time.ctime()))
         else:
-            print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
+            print("# Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
                 time.ctime()))
 
         ##################################################################

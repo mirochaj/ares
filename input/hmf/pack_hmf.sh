@@ -28,12 +28,18 @@ echo \# Generating HMF tables using ST mass function with $np processors...
 if [ $np -eq 1 ]
 then
   python generate_hmf_tables.py hmf_model=ST
+  python generate_hmf_tables.py hmf_model=ST hmf_dt=1 hmf_tmin=200 hmf_tmax=1000
 else
   mpirun -np $np python generate_hmf_tables.py hmf_model=ST
+  mpirun -np $np python generate_hmf_tables.py hmf_model=ST hmf_dt=1 hmf_tmin=30 hmf_tmax=1000
 fi
 
+python generate_halo_histories.py hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000.hdf5
+
 tar -czvf hmf.tar.gz \
-	hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_z_1201_0-60.hdf5
+	hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_z_1201_0-60.hdf5 \
+	hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000.hdf5 \
+	hgh_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000.hdf5
 
 echo Created tarball hmf.tar.gz.
 
