@@ -1325,7 +1325,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         prefix : str
             Prefix of save filename
         suffix : str
-            Suffix of save filename. Can be hdf5 (or h5), pkl, or npz. 
+            Suffix of save filename. Can be hdf5 (or h5) or pkl. 
             Anything else will be assumed to be ASCII format (e.g., .txt).
         clobber : bool
             Overwrite pre-existing files of same name?
@@ -1363,11 +1363,6 @@ class MetaGalacticBackground(AnalyzeMGB):
             elif suffix in ['hdf5', 'h5']:
                 raise NotImplementedError('no hdf5 support for this yet.')
 
-            elif suffix == 'npz':
-                f = open(fn, 'w')
-                np.savez(f, **data)
-                f.close()
-            
             # ASCII format
             else:  
                 raise NotImplementedError('No ASCII support for this.')          

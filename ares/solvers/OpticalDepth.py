@@ -524,17 +524,9 @@ class OpticalDepth(object):
             self.tau = self._tau = np.array(f[('tau')])
             f.close()
     
-        elif re.search('npz', fn) or re.search('pkl', fn):    
-            if re.search('pkl', fn):
-                data = read_pickle_file(fn, nloads=1, verbose=False)
-            else:
-                data = np.load(fn)
-                data = dict(data)
-                # For some reason Python 3 doesn't like this.
-                #f = open(fn, 'r')
-                #data = dict(np.load(f))
-                #f.close()
-    
+        elif re.search('pkl', fn):    
+            data = read_pickle_file(fn, nloads=1, verbose=False)
+
             self.E0 = data['E'].min()
             self.E1 = data['E'].max()            
             self.E = data['E']
@@ -680,7 +672,7 @@ class OpticalDepth(object):
                     continue    
     
                 # Continue with possible matches
-                for fmt in ['pkl', 'npz', 'hdf5']:
+                for fmt in ['pkl', 'hdf5']:
     
                     if fn1 == fn and fmt == self.pf['preferred_format']:
                         perfect_matches.append(tab_name)
@@ -909,12 +901,6 @@ class OpticalDepth(object):
             f.create_dataset('tau', data=self.tau)
             f.create_dataset('redshift', data=self.z)
             f.create_dataset('photon_energy', data=self.E)
-            f.close()
-        elif suffix == 'npz':
-            to_write = {'tau': self.tau, 'z': self.z, 'E': self.E}
-
-            f = open(fn, 'w')
-            np.savez(f, **to_write)
             f.close()
 
         elif suffix == 'pkl':

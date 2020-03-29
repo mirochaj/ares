@@ -75,25 +75,7 @@ class SecondaryElectrons(object):
             
             f.close()
         else:
-            try:
-                loaded = read_pickle_file(self.fn, nloads=9, verbose=False)
-                (self.E, self._x, self.fh_tab, self.fexc_tab) = loaded[0:4]
-                (self.flya_tab, self.fionHI_tab) = loaded[4:6]
-                (self.fionHeI_tab, self.fionHeII_tab) = loaded[6:8]
-                self.fion_tab = loaded[8]
-            except:
-                self.fn = os.path.join(ARES,prefix,'secondary_electron_data.npz')
-                f = np.load(self.fn)
-                self.E = f["electron_energy"]
-                self._x = f["ionized_fraction"]
-
-                self.fh_tab = f["f_heat"]
-                self.fionHI_tab = f["fion_HI"]
-                self.fionHeI_tab = f["fion_HeI"]
-                self.fionHeII_tab = f["fion_HeII"]
-                self.fexc_tab = f["fexc"]
-                self.flya_tab = f['f_Lya']
-                self.fion_tab = f['fion']
+            raise NotImplementedError('only know how to read hdf5 table.')
             
         self._logx = np.log10(self.x)    
          
