@@ -1457,7 +1457,7 @@ class GalaxyPopulation(object):
         
         Nz = len(redshifts)
         
-        if fig is None:
+        if (fig is None) or (type(fig) is int):
             fig = pl.figure(tight_layout=False, 
                 figsize=(4*Nz, 4 * (1+show_false_neg)), num=fig)
             fig.subplots_adjust(left=0.15, bottom=0.15, top=0.9, right=0.9)
@@ -1523,10 +1523,10 @@ class GalaxyPopulation(object):
             ph_dx = []
             ph_fil = []
             for j, _cam in enumerate(cam):
-    
+                    
                 _filters, xphot, dxphot, ycorr = \
                     pop.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
-                        hist=hist, dlam=20., cam=_cam, filters=names.keys(),
+                        hist=hist, dlam=20., cam=_cam, filters=list(names.keys()),
                         extras=pop.extras, rest_wave=None, load=False)
             
                 ph_mags.extend(list(np.array(ycorr) - magcorr))
@@ -1614,7 +1614,7 @@ class GalaxyPopulation(object):
     def add_master_legend(self, mp, **kwargs):
         return add_master_legend(mp, **kwargs)
         
-    def MegaPlot(self, pop, axes=None, fig=1, use_best=True, method='mode',
+    def PlotSummary(self, pop, axes=None, fig=1, use_best=True, method='mode',
         fresh=False, redshifts=None, **kwargs):
         """
         Make a huge plot.
@@ -1850,7 +1850,9 @@ class GalaxyPopulation(object):
                 
             if 'pop_dust_yield' not in anl.base_kwargs:
                 continue
-            if anl.base_kwargs['pop_dust_yield'] is None:
+                
+            dtmr = anl.base_kwargs['pop_dust_yield']
+            if (dtmr is None) or (dtmr == 0):
                 continue
             
             anl.ReconstructedFunction('beta_hst', ivar=[z, None], ax=ax_bet,

@@ -242,7 +242,7 @@ class CalibrateModel(object):
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(9., 13.), 
                     'pq_func_par1[0]{}'.format(_suff))
-                
+
                 if 'peak' in self.zevol_sfe:
                     free_pars.append('pq_func_par7[0]{}'.format(_suff))
                     guesses['pq_func_par7[0]{}'.format(_suff)] = 0.
@@ -250,7 +250,7 @@ class CalibrateModel(object):
                     jitter.extend([2.])
                     ps.add_distribution(UniformDistribution(-6, 6.), 
                         'pq_func_par7[0]{}'.format(_suff))
-                    
+
             # Slope at low-mass side of peak
             if 'slope-low' in self.free_params_sfe:                    
                 free_pars.append('pq_func_par2[0]{}'.format(_suff))
@@ -259,7 +259,7 @@ class CalibrateModel(object):
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(0.0, 1.5), 
                     'pq_func_par2[0]{}'.format(_suff))
-                
+
                 # Allow to evolve with redshift?
                 if 'slope-low' in self.zevol_sfe:
                     free_pars.append('pq_func_par8[0]{}'.format(_suff))
@@ -268,8 +268,8 @@ class CalibrateModel(object):
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-3, 3.), 
                         'pq_func_par8[0]{}'.format(_suff))
-            
-            # Slope at high-mass side of peak        
+
+            # Slope at high-mass side of peak
             if 'slope-high' in self.free_params_sfe:
                 free_pars.append('pq_func_par3[0]{}'.format(_suff))
                 
