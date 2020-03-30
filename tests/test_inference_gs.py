@@ -73,7 +73,6 @@ def test():
         assert anl.nwalkers == 10
         #assert anl.priors != {}
         assert anl.is_mcmc
-        assert 0.15 <= np.mean(anl.facc) <= 0.55
         assert anl.Nd == len(fitter.parameters)
         assert np.isfinite(np.nanmean(anl.logL))
         
