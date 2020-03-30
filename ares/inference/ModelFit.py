@@ -1125,6 +1125,10 @@ class ModelFit(FitBase):
                     to_axe.append(key)    
             if re.search('hmf_table', key):
                 to_axe.append(key)
+            if re.search('hmf_data', key):
+                to_axe.append(key)  
+            if re.search('pop_sps_data', key):
+                to_axe.append(key)      
             if re.search('pop_synth_phot_cache', key):
                 to_axe.append(key)
                 

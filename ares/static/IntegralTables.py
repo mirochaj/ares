@@ -828,13 +828,12 @@ class IntegralTable:
                                   
     def save(self, prefix=None):
         """ 
-        Write table to hdf5 or npz. 
+        Write table to hdf5. 
         
         Parameters
         ----------
         prefix : str
-            Prefix for output files. Suffix will be .npz, unless you have
-            hdf5 and h5py installed, in which case it will be .hdf5.
+            Prefix for output files. Suffix will be .hdf5.
         
         """
         
@@ -853,110 +852,58 @@ class IntegralTable:
             prefix = 'rt1d_integral_table.{!s}'.format(\
                 time.ctime().replace(' ', '_'))    
             
-        if have_h5py:
-            fn = '{!s}.hdf5'.format(prefix)
-        else:
-            fn = '{!s}.npz'.format(prefix)
+        fn = '{!s}.hdf5'.format(prefix)
+ 
+        f = h5py.File(fn, 'w')
+        for i, axis in enumerate(self.axes):
+            ds = f.create_dataset(self.axes_names[i], data=axis)
+            ds.attrs.create('axis', data=i)
+            ds.attrs.create('logN', data=int(self.axes_names[i][0:4]=='logN'))
         
-        if have_h5py:
-        
-            f = h5py.File(fn, 'w')
-            for i, axis in enumerate(self.axes):
-                ds = f.create_dataset(self.axes_names[i], data=axis)
-                ds.attrs.create('axis', data=i)
-                ds.attrs.create('logN', data=int(self.axes_names[i][0:4]=='logN'))
+        for tab in self.tabs:
+            f.create_dataset(tab, data=self.tabs[tab])
             
-            for tab in self.tabs:
-                f.create_dataset(tab, data=self.tabs[tab])
-                
-            # Save parameter file
-            pf_grp = f.create_group('parameters')
-            for par in self.pf:
-                if self.pf[par] is not None:
-                    try:
-                        pf_grp.create_dataset(par, data=self.pf[par])
-                    except TypeError:
-                        if type(self.pf[par]) is list:
-                            Nones = 0
-                            for i in range(len(self.pf[par])):
-                                if self.pf[par] is None:
-                                    Nones += 1
-                            
-                            if Nones == len(self.pf[par]):
-                                pf_grp.create_dataset(par, data=[-99999] * Nones)
-                        else:
-                            raise ValueError('Dunno what to do here.')        
+        # Save parameter file
+        pf_grp = f.create_group('parameters')
+        for par in self.pf:
+            if self.pf[par] is not None:
+                try:
+                    pf_grp.create_dataset(par, data=self.pf[par])
+                except TypeError:
+                    if type(self.pf[par]) is list:
+                        Nones = 0
+                        for i in range(len(self.pf[par])):
+                            if self.pf[par] is None:
+                                Nones += 1
                         
-                        
-                else:
-                    pf_grp.create_dataset(par, data=-99999)
-                
-            f.close()
+                        if Nones == len(self.pf[par]):
+                            pf_grp.create_dataset(par, data=[-99999] * Nones)
+                    else:
+                        raise ValueError('Dunno what to do here.')        
+                    
+                    
+            else:
+                pf_grp.create_dataset(par, data=-99999)
             
-        else:
-            f = open(fn, 'w')
-
-            kw = {tab:self.tabs[tab] for tab in self.tabs}
-            for i, axis in enumerate(self.axes):
-                kw.update({self.axes_names[i]: self.axes[i]})
-                
-            np.savez(f, **kw)
-                
-            f.close()
+        f.close()
             
-            write_pickle_file(self.pf, '{!s}.pars.pkl'.format(prefix),\
-                safe_mode=False, open_mode='w', verbose=False)
-            if rank == 0:
-                print('Wrote {!s} and {!s}.pars.pkl'.format(fn, prefix))
-
     def load(self, fn):
         """
         Load table from hdf5. 
         """
         
-        if re.search('npz', fn):
-                        
-            data = np.load(fn)
-        
-            axes = []
-            self.tabs = {}
-            for key in data.keys():
-                if re.search('logN', key):
-                    if re.search('h_1', key):
-                        i = 0
-                    elif re.search('he_1', key):
-                        i = 1
-                    elif re.search('he_1', key):
-                        i = 2
-                    else:
-                        i = None        
-
-                    if i is None:
-                        continue
-                    
-                    axes.append([i, key, data[key]])
-        
-                    continue
-                elif re.search('t', key):
-                    raise NotImplemented('fix reader for time dimension!')
-                elif re.search('x', key):
-                    raise NotImplemented('fix reader for x_i dimension!')
+        axes = []
+        self.tabs = {}
+        f = h5py.File(fn, 'r')
+        for element in f.keys():
+            if f[element].attrs.get('axis') is not None:
+                axes.append([int(f[element].attrs.get('axis')), element, 
+                    f[element].value])
+                continue
             
-                self.tabs[key] = data[key]
-
-        else:
-            axes = []
-            self.tabs = {}
-            f = h5py.File(fn, 'r')
-            for element in f.keys():
-                if f[element].attrs.get('axis') is not None:
-                    axes.append([int(f[element].attrs.get('axis')), element, 
-                        f[element].value])
-                    continue
-                
-                self.tabs[element] = f[element].value
-            
-            f.close()
+            self.tabs[element] = f[element].value
+        
+        f.close()
         
         print('Read integral table from {!s}.'.format(fn))
         

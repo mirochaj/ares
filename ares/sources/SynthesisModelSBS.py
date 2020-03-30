@@ -29,7 +29,7 @@ def _Planck(E, T):
     return 2.0 * h_p * nu**3 / c**2 / (np.exp(h_p * nu / k_B / T) - 1.0)
 
 
-class SynthesisModelSBS(Source):
+class SynthesisModelSBS(Source): # pragma: no cover
     """
     Make this look like a SynthesisModel class. Could output to disk
     to save time...

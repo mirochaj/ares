@@ -17,7 +17,7 @@ from ..analysis.PowerSpectrum import PowerSpectrum as analyzePS
 # 'load_ics': True,
 #}
 
-class PowerSpectrum(analyzePS):
+class PowerSpectrum(analyzePS): # pragma: no cover
     def __init__(self, **kwargs):
         """ Set up a power spectrum calculation. """
         
@@ -116,95 +116,3 @@ class PowerSpectrum(analyzePS):
                 ps_by_pop.append(ps)
             
             yield k, ps_by_pop
-
-    #def save(self, prefix, suffix='pkl', clobber=False):
-    #    """
-    #    Save results of calculation. Pickle parameter file dict.
-    #
-    #    Notes
-    #    -----
-    #    1) will save files as prefix.history.suffix and prefix.parameters.pkl.
-    #    2) ASCII files will fail if simulation had multiple populations.
-    #
-    #    Parameters
-    #    ----------
-    #    prefix : str
-    #        Prefix of save filename
-    #    suffix : str
-    #        Suffix of save filename. Can be hdf5 (or h5), pkl, or npz. 
-    #        Anything else will be assumed to be ASCII format (e.g., .txt).
-    #    clobber : bool
-    #        Overwrite pre-existing files of same name?
-    #
-    #    """
-    #
-    #    fn = '%s.snapshot.%s' % (prefix, suffix)
-    #
-    #    if os.path.exists(fn):
-    #        if clobber:
-    #            os.remove(fn)
-    #        else: 
-    #            raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
-    #
-    #    if suffix == 'pkl':                        
-    #        f = open(fn, 'wb')
-    #        pickle.dump(self.history, f)
-    #        f.close()
-    #
-    #    elif suffix in ['hdf5', 'h5']:
-    #        import h5py
-    #        
-    #        f = h5py.File(fn, 'w')
-    #        for key in self.history:
-    #            f.create_dataset(key, data=np.array(self.history[key]))
-    #        f.close()
-    #
-    #    elif suffix == 'npz':
-    #        f = open(fn, 'w')
-    #        np.savez(f, **self.history)
-    #        f.close()
-    #
-    #    # ASCII format
-    #    else:            
-    #        f = open(fn, 'w')
-    #        print >> f, "#",
-    #
-    #        for key in self.history:
-    #            print >> f, '%-18s' % key,
-    #
-    #        print >> f, ''
-    #
-    #        # Now, the data
-    #        for i in range(len(self.history[key])):
-    #            s = ''
-    #
-    #            for key in self.history:
-    #                s += '%-20.8e' % (self.history[key][i])
-    #
-    #            if not s.strip():
-    #                continue
-    #
-    #            print >> f, s
-    #
-    #        f.close()
-    #
-    #    print 'Wrote %s.history_f.%s' % (prefix, suffix)
-    #
-    #    write_pf = True
-    #    if os.path.exists('%s.parameters.pkl' % prefix):
-    #        if clobber:
-    #            os.remove('%s.parameters.pkl' % prefix)
-    #        else: 
-    #            write_pf = False
-    #            print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
-    #
-    #    if write_pf:
-    #        # Save parameter file
-    #        f = open('%s.parameters.pkl' % prefix, 'wb')
-    #        pickle.dump(self.pf, f)
-    #        f.close()
-    #
-    #        print 'Wrote %s.parameters.pkl' % prefix
-    #    
-    #
-    #

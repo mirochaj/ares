@@ -276,8 +276,7 @@ class CheckPoints:
             f.close() 
         
         else:
-            
-            raise NotImplemented('need to implement npz writer for data dumps.')       
+            raise NotImplemented('only hdf5 support at this stage.')       
 
          
         

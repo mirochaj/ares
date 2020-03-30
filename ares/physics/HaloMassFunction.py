@@ -171,8 +171,6 @@ class HaloMassFunction(object):
                 self.tab_name = '{!s}.pkl'.format(fn)
             elif os.path.exists('{!s}.hdf5'.format(fn)):
                 self.tab_name = '{!s}.hdf5'.format(fn)
-            elif os.path.exists('{!s}.npz'.format(fn)):
-                self.tab_name = '{!s}.npz'.format(fn)
             else:
                 # Leave resolution blank, but enforce ranges
                 prefix = self.tab_prefix_hmf()
@@ -457,25 +455,7 @@ class HaloMassFunction(object):
             self.tab_growth = np.array(f[('tab_growth')])
             
             f.close()
-
-        elif re.search('.npz', self.tab_name):
-            f = np.load(self.tab_name)
-            self.tab_z = f['tab_z']
-            self.tab_M = f['tab_M']
-            self.tab_dndm = f['tab_dndm']
-            self.tab_ngtm = f['tab_ngtm']
-            self.tab_mgtm = f['tab_mgtm']
-            if 'tab_MAR' in f:
-                self._tab_MAR = f['tab_MAR']
-            if 'tab_Mmin_floor' in f:
-                self.tab_Mmin_floor = f['tab_Mmin_floor']
-            self.tab_growth = f['tab_growth']
-            self.tab_sigma = f['tab_sigma']
-            self.tab_dlnsdlnm = f['tab_dlnsdlnm']
-            self.tab_ps_lin = f['tab_ps_lin']
-            self.tab_k_lin = f['tab_k_lin']
-
-            f.close()                        
+                      
         elif re.search('.pkl', self.tab_name):
             
             ##
@@ -1489,28 +1469,6 @@ class HaloMassFunction(object):
             grp.create_dataset('primordial_index', data=self.cosm.primordial_index)
             
             f.close()
-
-        elif fmt == 'npz':
-            data = {'tab_z': self.tab_z, 
-                    'tab_M': self.tab_M, 
-                    'tab_dndm': self.tab_dndm,
-                    'tab_ngtm': self.tab_ngtm, 
-                    'tab_mgtm': self.tab_mgtm,
-                    'tab_Mmin_floor': self.tab_Mmin_floor,
-                    'tab_growth': self.tab_growth,
-                    'tab_ps_lin': self.tab_ps_lin,
-                    'tab_sigma': self.tab_sigma,
-                    'tab_dlnsdlnm': self.tab_dlnsdlnm,
-                    'tab_k_lin': self.tab_k_lin,
-                    # Causing problems with pickling
-                    #'pars': {'pars_growth': self.pars_growth,
-                    #         'pars_transfer': self.pars_transfer},
-                    'hmf-version': hmf_v}
-                    
-            if save_MAR:
-                data['tab_MAR'] = self.tab_MAR
-                       
-            np.savez(fn, **data)
 
         # Otherwise, pickle it!    
         else:   

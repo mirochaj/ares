@@ -242,7 +242,7 @@ class CalibrateModel(object):
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(9., 13.), 
                     'pq_func_par1[0]{}'.format(_suff))
-                
+
                 if 'peak' in self.zevol_sfe:
                     free_pars.append('pq_func_par7[0]{}'.format(_suff))
                     guesses['pq_func_par7[0]{}'.format(_suff)] = 0.
@@ -250,7 +250,7 @@ class CalibrateModel(object):
                     jitter.extend([2.])
                     ps.add_distribution(UniformDistribution(-6, 6.), 
                         'pq_func_par7[0]{}'.format(_suff))
-                    
+
             # Slope at low-mass side of peak
             if 'slope-low' in self.free_params_sfe:                    
                 free_pars.append('pq_func_par2[0]{}'.format(_suff))
@@ -259,7 +259,7 @@ class CalibrateModel(object):
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(0.0, 1.5), 
                     'pq_func_par2[0]{}'.format(_suff))
-                
+
                 # Allow to evolve with redshift?
                 if 'slope-low' in self.zevol_sfe:
                     free_pars.append('pq_func_par8[0]{}'.format(_suff))
@@ -268,11 +268,13 @@ class CalibrateModel(object):
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-3, 3.), 
                         'pq_func_par8[0]{}'.format(_suff))
-            
-            # Slope at high-mass side of peak        
+
+            # Slope at high-mass side of peak
             if 'slope-high' in self.free_params_sfe:
                 free_pars.append('pq_func_par3[0]{}'.format(_suff))
+                
                 guesses['pq_func_par3[0]{}'.format(_suff)] = -0.1
+                    
                 is_log.extend([False])
                 jitter.extend([0.1])
                 ps.add_distribution(UniformDistribution(-3., 0.3), 
@@ -293,10 +295,10 @@ class CalibrateModel(object):
             if self.include_fduty:
                 # Normalization of SFE
                 free_pars.extend(['pq_func_par0[40]', 'pq_func_par2[40]'])
-                guesses['pq_func_par0[40]'] = 0.8
-                guesses['pq_func_par2[40]'] = 0.4
+                guesses['pq_func_par0[40]'] = 0.5
+                guesses['pq_func_par2[40]'] = 0.25
                 is_log.extend([False, False])
-                jitter.extend([0.1, 0.1])
+                jitter.extend([0.2, 0.2])
                 ps.add_distribution(UniformDistribution(0., 1.), 'pq_func_par0[40]')
                 ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[40]')
                 
@@ -316,7 +318,12 @@ class CalibrateModel(object):
                 if 'norm' in self.free_params_dust:
                     
                     free_pars.append('pq_func_par0[22]')
-                    guesses['pq_func_par0[22]'] = 1.15
+                    
+                    if 'slope-high' not in self.free_params_dust:
+                        guesses['pq_func_par0[22]'] = 2.4
+                    else:
+                        guesses['pq_func_par0[22]'] = 1.2
+                        
                     is_log.extend([False])
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(0.01, 10.), 'pq_func_par0[22]')
@@ -336,13 +343,6 @@ class CalibrateModel(object):
                     is_log.extend([False])
                     jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
-
-                    #if self.include_dust == 'screen-dpl':
-                    #    free_pars.append('pq_func_par3[22]')
-                    #    guesses['pq_func_par3[22]'] = 0.45
-                    #    is_log.extend([False])
-                    #    jitter.extend([0.1])
-                    #    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
                 
                 if 'slope-high' in self.free_params_dust:
                     assert self.include_dust == 'screen-dpl'
@@ -377,7 +377,7 @@ class CalibrateModel(object):
                     assert self.include_fdtmr
                     
                     free_pars.extend(['pq_func_par0[50]', 'pq_func_par2[50]'])
-                    guesses['pq_func_par0[50]'] = 0.3
+                    guesses['pq_func_par0[50]'] = 0.4
                     guesses['pq_func_par2[50]'] = 0.
                     is_log.extend([False, False])
                     jitter.extend([0.1, 1.0])
@@ -393,7 +393,10 @@ class CalibrateModel(object):
                       
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
-                    guesses['pq_func_par0[33]'] = 0.05
+                    if 'slope-high' not in self.free_params_dust:
+                        guesses['pq_func_par0[33]'] = 0.25
+                    else:    
+                        guesses['pq_func_par0[33]'] = 0.05
                     is_log.extend([False])
                     jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(0., 0.6), 'pq_func_par0[33]')
@@ -511,7 +514,7 @@ class CalibrateModel(object):
                     
         MUV = np.arange(-26, 5., 0.5)
         Mh = np.logspace(7, 13, 61)
-        Ms = np.arange(7, 13.2, 0.2)
+        Ms = np.arange(7, 13.25, 0.25)
         
         ##
         # Now, start assembling blobs
@@ -792,6 +795,16 @@ class CalibrateModel(object):
                 self._Npops = max(self.base_kwargs.Npops, 1)
         else:
             self._Npops = max(self.base_kwargs.Npops, 1)
+
+    def get_initial_walker_position(self):
+        guesses = {}
+        for i, par in enumerate(self.parameters): 
+            if self.is_log[i]: 
+                guesses[par] = 10**self.guesses[par] 
+            else: 
+                guesses[par] = self.guesses[par]
+                
+        return guesses    
 
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,

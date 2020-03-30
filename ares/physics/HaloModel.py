@@ -881,7 +881,7 @@ class HaloModel(HaloMassFunction):
     
         return self.__dict__[name]
     
-    def _load_ps(self, suffix='npz'):
+    def _load_ps(self, suffix='hdf5'):
         """ Load table from HDF5 or binary. """
         
         fn = '%s/input/hmf/%s.%s' % (ARES, self.tab_prefix_ps(), suffix)
@@ -893,15 +893,7 @@ class HaloModel(HaloMassFunction):
             self.tab_k = f['tab_k'].value
             self.tab_ps_mm = f['tab_ps_mm'].value
             self.tab_cf_mm = f['tab_cf_mm'].value
-            f.close()
-        elif re.search('.npz', fn):
-            f = np.load(fn)
-            self.tab_z_ps = f['tab_z_ps']
-            self.tab_R = f['tab_R']
-            self.tab_k = f['tab_k']
-            self.tab_ps_mm = f['tab_ps_mm']
-            self.tab_cf_mm = f['tab_cf_mm']    
-            f.close()                        
+            f.close()                   
         elif re.search('.pkl', fn):
             f = open(fn, 'rb')
             self.tab_z_ps = pickle.load(f)
@@ -1128,7 +1120,7 @@ class HaloModel(HaloMassFunction):
             
         # Done!    
 
-    def SavePS(self, fn=None, clobber=True, destination=None, format='npz',
+    def SavePS(self, fn=None, clobber=True, destination=None, format='hdf5',
         checkpoint=True, **ftkwargs):
         """
         Save matter power spectrum table to HDF5 or binary (via pickle).
@@ -1195,21 +1187,6 @@ class HaloModel(HaloMassFunction):
             f.create_dataset('tab_cf_mm', data=self.tab_cf_mm)
   
             f.close()
-    
-        elif format == 'npz':
-            data = {'tab_z_ps': self.tab_z_ps, 
-                    'tab_R': self.tab_R,
-                    'tab_k': self.tab_k,
-                    'tab_ps_mm': self.tab_ps_mm,
-                    'tab_cf_mm': self.tab_cf_mm,
-                    'hmf-version': hmf_v}
-                    
-            try:
-                np.savez(fn, **data)
-            except IOError:
-                f = open(fn, 'wb')
-                np.savez(f, **data)
-    
         # Otherwise, pickle it!    
         else:   
             f = open(fn, 'wb')

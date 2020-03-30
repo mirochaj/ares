@@ -25,8 +25,9 @@ def test():
     #pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
     #pop = ares.populations.GalaxyPopulation(**pars)
     
-    # Should run with a pop at some point
-    ax_mega = gpop.MegaPlot(None, fig=4)    
+    # We run this inside test_inference_cal_model.py with a population object
+    # and MCMC output.
+    ax_mega = gpop.PlotSummary(None, fig=4)    
     
     #gpop.PlotColors()
     #gpop.PlotColorEvolution()

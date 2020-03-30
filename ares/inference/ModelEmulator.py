@@ -37,7 +37,7 @@ try:
 except ImportError:
     pass    
 
-class ModelEmulator(object):
+class ModelEmulator(object): # pragma: no cover
     def __init__(self, tset):
         if type(tset) == str:
             self.tset = ModelSet(tset)

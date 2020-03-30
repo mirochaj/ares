@@ -32,7 +32,7 @@ except ImportError:
     rank = 0
     size = 1
 
-class Animation(object):
+class Animation(object): # pragma: no cover
     def __init__(self, prefix=None):
         self._prefix = prefix
 

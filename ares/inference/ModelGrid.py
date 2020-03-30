@@ -31,19 +31,6 @@ except ImportError:
     rank = 0
     size = 1
         
-def run_prog(prefix):
-    
-    pfn = '{!s}.fork_par.pkl'.format(prefix)
-    sfn = '{!s}.fork_sim'.format(prefix)
-    
-    s += "from ares.util.Pickling import read_pickle_file; pars = "
-    s += "read_pickle_file(\'{!s}\', nloads=1, verbose=False);".format(pfn)
-    s += "import ares; sim = ares.simulations.Global21cm(**pars); "
-    s += "sim.run(); sim.save(\'{!s}\', clobber=True)".format(sfn)
-    
-    #subprocess.call(s)
-    os.system('python -c \"{!s}\"'.format(s))    
-    
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
     

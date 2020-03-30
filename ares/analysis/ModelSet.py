@@ -1826,7 +1826,7 @@ class ModelSet(BlobFactory):
 
         kw = {}
         for _kw in kwargs:
-            if _kw not in ['color', 'mec', 'mfc', 'alpha', 'ms']:
+            if _kw not in ['color', 'mec', 'mfc', 'alpha', 'ms', 'm']:
                 continue
             
             kw[_kw] = kwargs[_kw]
@@ -1834,8 +1834,6 @@ class ModelSet(BlobFactory):
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
                 label=rung_label, label_on_top=rung_label_top, **kw)
-        elif hasattr(self, 'weights') and cdata is None:
-            scat = func(xd[keep==1], yd[keep==1], c=self.weights[keep==1], **kw)
         elif line_plot:
             scat = func(xd[keep==1], yd[keep==1], **kw)
         elif (cdata is not None) and (filter_z is None):

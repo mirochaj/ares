@@ -30,11 +30,11 @@ def test():
      'blob_funcs': None,
     }
     
-    for i in range(2):
+    for i in range(3):
     
         fitter_gs = ares.inference.FitGlobal21cm()
         
-        fitter_gs.checkpoint_append = i
+        fitter_gs.checkpoint_append = min(i, 1)
         fitter_gs.frequencies = freq = np.arange(40, 200) # MHz
         fitter_gs.data = -100 * np.exp(-(80. - freq)**2 / 2. / 20.**2)
         
@@ -65,7 +65,7 @@ def test():
         nsteps = 5
         # Do a quick burn-in and then run for 50 steps (per walker)
         fitter.run(prefix='test_tanh', burn=nsteps, steps=nsteps, save_freq=1, 
-            clobber=True)
+            clobber=i<2, restart=i==2)
         
         anl = ares.analysis.ModelSet('test_tanh')
         
@@ -73,13 +73,12 @@ def test():
         assert anl.nwalkers == 10
         #assert anl.priors != {}
         assert anl.is_mcmc
-        assert 0.15 <= np.mean(anl.facc) <= 0.55
         assert anl.Nd == len(fitter.parameters)
         assert np.isfinite(np.nanmean(anl.logL))
         
         # Make sure walkers are moving
-        for i in range(len(anl.parameters)):
-            assert np.unique(np.diff(anl.chain[:,i])).size > 1
+        for j in range(len(anl.parameters)):
+            assert np.unique(np.diff(anl.chain[:,j])).size > 1
         
         # Make some plots
         mp = anl.WalkerTrajectoriesMultiPlot(anl.parameters, 
@@ -97,8 +96,9 @@ def test():
             
         # Isolate walker, check shape etc.
         w0, logL, flags = anl.get_walker(0)   
-             
-        assert w0.shape[0] == nsteps
+            
+        assert w0.shape[0] == nsteps * (1 + int(i==2)), \
+            "Shape wrong {}".format(w0.shape[0])
         assert w0.shape[1] == len(fitter.parameters)
             
         # Make sure skipping elements produces a dataset of the right (reduced)    
@@ -129,15 +129,15 @@ def test():
         
         bad_walkers = anl.identify_bad_walkers()
 
-        # Clean-up. Assumes test suite is being run from $ARES
-        #mcmc_files = glob.glob('{}/test_tanh*'.format(os.environ.get('ARES')))
-        # 
-        ## Iterate over the list of filepaths & remove each file.
-        #for fn in mcmc_files:
-        #    try:
-        #        os.remove(fn)
-        #    except:
-        #        print("Error while deleting file : ", filePath)
+    # Clean-up. Assumes test suite is being run from $ARES
+    mcmc_files = glob.glob('{}/test_tanh*'.format(os.environ.get('ARES')))
+     
+    # Iterate over the list of filepaths & remove each file.
+    for fn in mcmc_files:
+        try:
+            os.remove(fn)
+        except:
+            print("Error while deleting file : ", filePath)
     
 if __name__ == '__main__':
     test()

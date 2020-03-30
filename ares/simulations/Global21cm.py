@@ -466,7 +466,7 @@ class Global21cm(AnalyzeGlobal21cm):
         prefix : str
             Prefix of save filename
         suffix : str
-            Suffix of save filename. Can be hdf5 (or h5), pkl, or npz. 
+            Suffix of save filename. Can be hdf5 (or h5) or pkl.
             Anything else will be assumed to be ASCII format (e.g., .txt).
         clobber : bool
             Overwrite pre-existing files of same name?
@@ -502,16 +502,6 @@ class Global21cm(AnalyzeGlobal21cm):
                         continue
                 f.create_dataset(key, data=np.array(self.history[key]))
             f.close()
-    
-        elif suffix == 'npz':
-            f = open(fn, 'w')
-            np.savez(f, **self.history._data)
-            f.close()
-            
-            if self.blobs:
-                f = open('{0!s}.blobs.{1!s}'.format(prefix, suffix), 'wb')
-                np.savez(f, self.blobs)
-                f.close()
 
         # ASCII format
         else:            
