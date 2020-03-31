@@ -494,10 +494,10 @@ def print_pop(pop):
     print(line('-' * twidth))
     print(line('Special Notes'))
     print(line('-' * twidth))
-    if pop.pf['pop_calib_L1600'] is not None:
-        s1 = "+ pop_calib_L1600 != None, which means".format(i)
+    if pop.pf['pop_calib_lum'] is not None:
+        s1 = "+ pop_calib_lum != None, which means".format(i)
         s1 += ' changes to pop_Z will *not* affect UVLF.'
-        s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
+        s2 = '  Set pop_calib_lum=None to restore "normal" behavior'
         s2 += ' (see S3.4 in Mirocha et al. 2017).'
         print(line(s1))
         print(line(s2))
@@ -607,15 +607,15 @@ def print_sim(sim, mgb=False):
     
     ct = 0
     for i, pop in enumerate(sim.pops):
-        if pop.pf['pop_calib_L1600'] is not None:
+        if pop.pf['pop_calib_lum'] is not None:
             if ct == 0:
                 print(line('-' * twidth))
                 print(line('Notes'))
                 print(line('-' * twidth))
                 
-            s1 = "+ pop_calib_L1600 != None, which means".format(i)
+            s1 = "+ pop_calib_lum != None, which means".format(i)
             s1 += ' changes to pop_Z will *not* affect UVLF.'
-            s2 = '  Set pop_calib_L1600=None to restore "normal" behavior'
+            s2 = '  Set pop_calib_lum=None to restore "normal" behavior'
             s2 += ' (see S3.4 in Mirocha et al. 2017).'
             print(line(s1))
             print(line(s2))

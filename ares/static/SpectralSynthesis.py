@@ -145,7 +145,7 @@ class SpectralSynthesis(object):
         Zarr = np.sort(list(self.src.metallicities.values()))
         L = np.zeros((tarr.size, Zarr.size))
         for j, Z in enumerate(Zarr):
-            L[:,j] = self.src.L_per_SFR_of_t(wave, Z=Z)
+            L[:,j] = self.src.L_per_sfr_of_t(wave, Z=Z)
             
         # Interpolant
         self._L_of_Z_t[wave] = RectBivariateSpline(np.log10(tarr), 
@@ -1114,7 +1114,7 @@ class SpectralSynthesis(object):
                                     
             #raise NotImplemented('help!')
         else:
-            Loft = self.src.L_per_SFR_of_t(wave=wave, avg=window)
+            Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window)
             
         #print("Synth. Lum = ", wave, window)    
         #

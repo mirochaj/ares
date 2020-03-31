@@ -235,29 +235,40 @@ class HaloModel(HaloMassFunction):
         p1 = np.abs([prof1(k, M, self.tab_z[iz]) for M in self.tab_M])
         p2 = np.abs([prof2(k, M, self.tab_z[iz]) for M in self.tab_M])
         
-        bias = self.tab_bias[iz]#Bias(z)#np.array([self.Bias(i) for i in z]).T
+        bias = self.tab_bias[iz]
         rho_bar = self.cosm.rho_m_z0 * rho_cgs
         dndlnm = self.tab_dndm[iz] * self.tab_M
         
-        if mmin1 is None:
+        if (mmin1 is None) and (lum1 is None):
             fcoll1 = 1.
 
             # Small halo correction. Make use of Cooray & Sheth Eq. 71
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
             corr1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+        elif lum1 is not None:
+            corr1 = 0.0
+            fcoll1 = 1.
         else:
             fcoll1 = self.tab_fcoll[iz,np.argmin(np.abs(mmin1-self.tab_M))]
             corr1 = 0.0
                     
-        if mmin2 is None:
+        if (mmin2 is None) and (lum2 is None):
             fcoll2 = 1.#self.mgtm[iz,0] / rho_bar
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
             corr2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+        elif lum2 is not None:
+            corr2 = 0.0
+            fcoll2 = 1.    
         else:
             fcoll2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
             corr2 = 0.0
         
         ok = self.tab_fcoll[iz] > 0
+        
+        if lum1 is None:
+            lum1 = 1
+        if lum2 is None:
+            lum2 = 1
         
         ##
         # Are we doing the 1-h or 2-h term?
@@ -324,7 +335,7 @@ class HaloModel(HaloMassFunction):
             
         return ps_lin    
             
-    def get_ps_1h(self, z, k=None, prof1=None, prof2=None, lum1=1, lum2=1,
+    def get_ps_1h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
         mmin1=None, mmin2=None, ztol=1e-3):
         """
         Compute 1-halo term of power spectrum.
@@ -337,7 +348,7 @@ class HaloModel(HaloMassFunction):
             
         return integ1    
     
-    def get_ps_2h(self, z, k=None, prof1=None, prof2=None, lum1=1, lum2=1, 
+    def get_ps_2h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None, 
         mmin1=None, mmin2=None, ztol=1e-3):
         """
         Get 2-halo term of power spectrum.
@@ -353,8 +364,24 @@ class HaloModel(HaloMassFunction):
         ps = integ1 * integ2 * ps_lin
         
         return ps
+        
+    def get_ps_shot(self, z, k=None, lum1=None, lum2=None, mmin1=None, mmin2=None, 
+        ztol=1e-3):
+        """
+        Compute the two halo term quickly
+        """
+        
+        iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
+        
+        ps_lin = self._get_ps_lin(k, iz)
+        
+        dndlnm = self.tab_dndlnm[iz]
+        integrand = dndlnm * lum1 * lum2
+        shot = np.trapz(integrand, x=np.log(self.tab_M), axis=0)
+                
+        return shot    
     
-    def get_ps_tot(self, z, k=None, prof1=None, prof2=None, lum1=1, lum2=1, 
+    def get_ps_tot(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None, 
         mmin1=None, mmin2=None, ztol=1e-3):
         """
         Return total power spectrum as sum of 1h and 2h terms.

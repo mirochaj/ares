@@ -70,7 +70,7 @@ def test():
     
     # Test suite doesn't download BPASS models, so supply L1600 by hand.
     m17['pop_sed'] = None
-    m17['pop_L1600_per_sfr'] = 1.019e28
+    m17['pop_lum_per_sfr'] = 1.019e28
     
     # Make the population
     pop_dpl = ares.populations.GalaxyPopulation(**m17)

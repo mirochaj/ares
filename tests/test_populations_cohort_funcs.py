@@ -23,7 +23,8 @@ def test():
     
     pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0,1)
     pars['pop_sed'] = 'sps-toy' # don't try to read-in bpass
-    pars['pop_L1600_per_sfr'] = 1e28
+    pars['pop_lum_per_sfr'] = 1e28
+    pars['pop_calib_lum'] = None
     pop = ares.populations.GalaxyPopulation(**pars)
     
     sfrd = pop.SFRD(zarr) * rhodot_cgs

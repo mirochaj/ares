@@ -44,8 +44,9 @@ dpl = \
  'pq_func_par0{0}[0]': 0.05,           # Table 1 in paper (last 4 rows)
  'pq_func_par1{0}[0]': 2.8e11,
  'pq_func_par2{0}[0]': 0.49,       
- 'pq_func_par3{0}[0]': -0.61,      
- 'pop_calib_L1600{0}': 1.0185e28,      # Enforces Equation 13 in paper 
+ 'pq_func_par3{0}[0]': -0.61,   
+ 'pop_calib_wave{0}': 1600., 
+ 'pop_calib_lum{0}': 1.0185e28,      # Enforces Equation 13 in paper 
  ##
  #
  ##

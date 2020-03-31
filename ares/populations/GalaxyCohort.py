@@ -44,7 +44,8 @@ except:
 ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18
-_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']
+_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
+    'L_per_sfr']
     
 class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
@@ -115,7 +116,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     val = att(self.src.Emin, self.src.Emax)
                 else:
                     val = att
-
+                    
                 result = lambda **kwargs: val
 
         elif is_php:
@@ -1028,14 +1029,35 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             phi_of_x = self.UVLF_L(x, z, wave=wave)
     
         return phi_of_x
-
+        
+    
     def Lh(self, z, wave=1600.):
+        """
+        For backward compatibility. Just calls self.Luminosity.
+        """
+        return self.Luminosity(z, wave)
+    
+    def _cache_L(self, z, wave):
+        if not hasattr(self, '_cache_L_'):
+            self._cache_L_ = {}
+            
+        if (z, wave) in self._cache_L_:
+            return self._cache_L_[(z, wave)]
+            
+        return None    
+            
+    def Luminosity(self, z, wave=1600):
         """
         This is the rest-frame UV band in which the LF is measured.
         
         NOT generally use-able!!!
         
         """
+        
+        cached_result = self._cache_L(z, wave)
+        
+        if cached_result is not None:
+            return cached_result
         
         if self.pf['pop_star_formation']:
             
@@ -1059,8 +1081,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 raise NotImplemented('help')
 
             else:
-                L_sfr = self.L1600_per_sfr(z=z, Mh=self.halos.tab_M)
-                return sfr * L_sfr
+                if self.pf['pop_lum_per_sfr'] is None:
+                    assert self.pf['pop_calib_lum'] is None, \
+                        "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
+                    L_sfr = self.src.L_per_sfr(wave=wave)
+                else:
+                    L_sfr = self.pf['pop_lum_per_sfr']
+                    
+                Lh = sfr * L_sfr
+                
+                self._cache_L_[(z, wave)] = Lh
+                
+                return Lh
             
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
@@ -1082,7 +1114,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             E = h_p * c / (wave * 1e-8) / erg_per_ev
             I_E = self.src.Spectrum(E)
             
-            return Lbol * I_E * ev_per_hz
+            Lh = Lbol * I_E * ev_per_hz
+            
+            self._cache_L_[(z, wave)] = Lh
+            
+            return Lh
 
             # Don't need to do trajectories unless we're letting
             # BHs grow via accretion, i.e., scaling laws can just get
@@ -2031,8 +2067,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             
             assert self.pf['pop_sfr'] is None
 
-            if self.pf['pop_calib_L1600'] is not None:
-                boost = self.pf['pop_calib_L1600'] / self.L1600_per_sfr()
+            if self.pf['pop_calib_lum'] is not None:
+                assert self.pf['pop_ssp'] == False
+                wave = self.pf['pop_calib_wave']
+                boost = self.pf['pop_calib_lum'] / self.src.L_per_sfr(wave)
             else:
                 boost = 1.
 
@@ -3301,6 +3339,66 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         return np.trapz(_numerator * rarr, dx=dlogr) \
              / np.trapz(_denominator * rarr, dx=dlogr)
+             
+    def _profile_delta(self, k, M, z):
+        """
+        Delta-function profile for the delta component of power spectrum (discrete galaxies)
+        """
+        return 1. * k**0       
+        
+    def get_ps_shot(self, z, k, wave=1600):
+        """
+        Return shot noise term of halo power spectrum.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        k : int, float, np.ndarray
+            Wave-numbers of interests [1 / cMpc].
+        wave : int, float
+            Rest wavelength of interest [Angstrom]
+        
+        Returns
+        -------
+        P(k)
+        """
+        
+        lum = self.Luminosity(z, wave)
+        
+        ps = self.halos.get_ps_shot(z, k=k, 
+            lum1=lum, lum2=lum, 
+            mmin1=None, mmin2=None, ztol=1e-3)
+        
+        return ps
+             
+    def get_ps_2h(self, z, k, wave=1600.):
+        """
+        Return 2-halo term of 3-d power spectrum.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        k : int, float, np.ndarray
+            Wave-numbers of interests [1 / cMpc].
+        wave : int, float
+            Rest wavelength of interest [Angstrom]
+        
+        Returns
+        -------
+        P(k)
+        
+        """
+        
+        prof = self._profile_delta
+        lum = self.Luminosity(z, wave)
+        
+        ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof, 
+            lum1=lum, lum2=lum, 
+            mmin1=None, mmin2=None, ztol=1e-3)
+            
+        return ps
               
     def _guess_Mmin(self):
         """

@@ -134,7 +134,10 @@ class SynthesisModelToy(Source):
         
         return None
     
-    def L_per_SFR_of_t(self, wave=1600., avg=1, Z=None):
+    def L_per_sfr(self):
+        raise NotImplemented("Shouldn't be necessary?")
+    
+    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None):
         """
         UV luminosity per unit SFR.
         """

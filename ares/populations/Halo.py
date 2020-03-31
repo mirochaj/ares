@@ -86,7 +86,8 @@ class HaloPopulation(Population):
             if self.pf['hmf_instance'] is not None:
                 self._halos = self.pf['hmf_instance']
             else:
-                self._halos = HaloMassFunction(**self.pf)
+                self._halos = HaloModel(**self.pf)
+                #self._halos = HaloMassFunction(**self.pf)
                 
         return self._halos
         
