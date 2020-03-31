@@ -20,7 +20,8 @@ wspace = pl.rcParams['figure.subplot.wspace']
 hspace = pl.rcParams['figure.subplot.hspace']
 
 def AxisConstructor(fig, nr, nc, panel): 
-    return fig.add_subplot(nr, nc, panel)
+    ax = fig.add_subplot(nr, nc, panel)
+    return ax
     
 defs = \
 {
