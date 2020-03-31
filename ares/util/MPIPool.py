@@ -61,7 +61,7 @@ class MPIPool(object):
 
             if workerset and tasklist:
                 worker = workerset.pop()
-                taskid, task = tasklist.pop()                
+                taskid, task = tasklist.pop()    
                 comm.send(task, dest=worker, tag=taskid)
 
             if tasklist:

@@ -94,10 +94,7 @@ class Cosmology(InitialConditions):
         self.nHe0 = self.y * self.nH0
         self.ne0 = self.nH0 + 2. * self.nHe0
         #self.n0 = self.nH0 + self.nHe0 + self.ne0
-        
-        self.nH = lambda z: self.nH0 * (1. + z)**3
-        self.nHe = lambda z: self.nHe0 * (1. + z)**3
-        
+                
         self.delta_c0 = 1.686
         self.TcmbNow = self.cmb_temp_0
         
@@ -113,6 +110,12 @@ class Cosmology(InitialConditions):
         # 'sigma_8':self.sigma8,
         # 'n': self.primordial_index}
          
+    def nH(self, z):
+        return self.nH0 * (1. + z)**3
+    
+    def nHe(self, z):
+        return self.nHe0 * (1. + z)**3
+        
     @property
     def path_ARES(self):
         if not hasattr(self, '_path_ARES'):

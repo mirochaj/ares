@@ -1064,6 +1064,7 @@ def HaloMassFunctionParameters():
     "hmf_use_splined_growth": True,
     "hmf_table": None,
     "hmf_analytic": False,
+    "hmf_params": None,
 
     # Table resolution
     "hmf_logMmin": 4,

@@ -1,5 +1,4 @@
-[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares) [![Coverage Status](https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master)](https://coveralls.io/github/mirochaj/ares?branch=master)
-
+[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares) [![Coverage Status](https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master)](https://coveralls.io/github/mirochaj/ares?branch=master) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
 
 
 # **ARES**
