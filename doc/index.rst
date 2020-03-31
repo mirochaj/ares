@@ -14,9 +14,10 @@
 .. image:: https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master
 	:target: https://coveralls.io/github/mirochaj/ares?branch=master
 
+.. image:: https://img.shields.io/github/last-commit/mirochaj/ares
+	:target: https://img.shields.io/github/last-commit/mirochaj/ares
+
 The Accelerated Reionization Era Simulations (*ARES*) code was designed to rapidly generate models for the global 21-cm signal. It can also be used as a 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or meta-galactic radiation background calculator. As of late 2016, it also contains a home-grown semi-analytic model of galaxy formation.
-
-
 
 A few papers on how it works:
 
