@@ -1164,7 +1164,8 @@ def HaloMassFunctionParameters():
     "hmf_pca_coef19": None,
 
     # If a new tab_MAR should be computed when using the PCA
-    "hmf_gen_MAR":True,    
+    "hmf_gen_MAR":False,    
+
     }
     
     pf.update(rcParams)
