@@ -62,7 +62,7 @@ erg_per_j = 1e-7
 erg_per_ev = e / erg_per_j
 erg_per_kev = 1e3 * erg_per_ev
 
-ergs_per_s_per_nW = 1e7 / 1e9
+erg_per_s_per_nW = 1e7 / 1e9
 
 # Convert specific intensities from eV^-1 to Hz^-1
 ev_per_hz = h / erg_per_ev

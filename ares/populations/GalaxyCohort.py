@@ -1082,10 +1082,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             else:
                 if self.pf['pop_lum_per_sfr'] is None:
-                    assert self.pf['pop_calib_lum'] is None, \
-                        "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
                     L_sfr = self.src.L_per_sfr(wave=wave)
                 else:
+                    assert self.pf['pop_calib_lum'] is None, \
+                        "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
                     L_sfr = self.pf['pop_lum_per_sfr']
                     
                 Lh = sfr * L_sfr
@@ -3344,8 +3344,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Delta-function profile for the delta component of power spectrum (discrete galaxies)
         """
-        return 1. * k**0       
-        
+        return 1. * k**0      
+                
     def get_ps_shot(self, z, k, wave=1600):
         """
         Return shot noise term of halo power spectrum.
@@ -3369,9 +3369,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ps = self.halos.get_ps_shot(z, k=k, 
             lum1=lum, lum2=lum, 
             mmin1=None, mmin2=None, ztol=1e-3)
-        
+                
         return ps
              
+    def _cache_ps_2h(self, z, k, wave):
+        if not hasattr(self, '_cache_ps_2h_'):
+            self._cache_ps_2h_ = {}     
+            
+        if (z, wave) in self._cache_ps_2h_:
+            
+            _k_, _ps_ = self._cache_ps_2h_[(z, wave)]
+            
+            print("# Note: interpolating cached power spectrum at z={}".format(z))
+            ps = np.exp(np.interp(np.log(k), np.log(_k_), np.log(_ps_)))
+            
+            return ps
+            
+        return None
+                 
     def get_ps_2h(self, z, k, wave=1600.):
         """
         Return 2-halo term of 3-d power spectrum.
@@ -3391,15 +3406,138 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         """
         
+        cached_result = self._cache_ps_2h(z, k, wave)
+        if cached_result is not None:
+            return cached_result
+        
         prof = self._profile_delta
         lum = self.Luminosity(z, wave)
         
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof, 
             lum1=lum, lum2=lum, 
             mmin1=None, mmin2=None, ztol=1e-3)
+        
+        if type(k) is np.ndarray:
+            self._cache_ps_2h_[(z, wave)] = k, ps
             
         return ps
-              
+        
+    def get_ps_obs(self, scale, wave_obs, include_shot=True, 
+        scale_units='arcsec', use_pb=True, time_res=1):
+        """
+        Compute the angular power spectrum of these galaxies.
+        
+        .. note :: This is q^2 * P(q) / 2 / pi, as in, e.g., 
+            Kashlinsky et al. 2018 (Eq. 3).
+        
+        .. note :: This expression uses the Limber (1953) approximation.
+        
+        Parameters
+        ----------
+        z : int, float
+        scale : int, float, np.ndarray
+            Angular scale [arcseconds]
+        wave_obs : int, float
+            Observed wavelength of interest [microns].
+        scale_units : str
+            So far, allowed to be 'arcsec' or 'arcmin'.
+        time_res : int
+            Can degrade native time or redshift resolution by this factor
+            to speed-up integral. Do so at your own peril.
+        
+        """
+        
+        _zarr = self.halos.tab_z
+        _zok  = np.logical_and(_zarr > self.zdead, _zarr <= self.zform)
+        zarr  = self.halos.tab_z[_zok==1]
+        
+        if time_res != 1:
+            zarr = zarr[::time_res]
+        
+        dtdz = self.cosm.dtdz(zarr)
+        
+        if type(scale) is np.ndarray:
+        
+            ps = np.zeros_like(scale)
+            
+            pb = ProgressBar(scale.shape[0], use=use_pb and self.pf['progress_bar'], 
+                name='p(k)')
+            pb.start()
+            
+            for h, _scale_ in enumerate(scale):
+                
+                integrand = np.zeros_like(zarr)
+                for i, z in enumerate(zarr):
+                    integrand[i] = self._get_ps_angular(z, _scale_, wave_obs, 
+                        include_shot=include_shot, scale_units=scale_units)
+                
+                ps[h] = np.trapz(integrand * dtdz * zarr, x=np.log(zarr))
+                
+                pb.update(h)    
+                
+            pb.finish() 
+        
+        else:
+            
+            integrand = np.zeros_like(zarr)
+            for i, z in enumerate(zarr):
+                integrand[i] = self._get_ps_angular(z, scale, wave_obs, 
+                    include_shot=include_shot, scale_units=scale_units)
+                               
+            ps = np.trapz(integrand * dtdz**2 * zarr, x=np.log(zarr))
+        
+        return ps  
+                
+    def _get_ps_angular(self, z, scale, wave_obs, include_shot=True, 
+        scale_units='arcsec'):
+        """
+        Compute integrand of angular power spectrum integral.
+        """
+        # Convert to Angstroms
+        wave = wave_obs * 1e4 / (1. + z)
+                     
+        # Must retrieve redhsift-dependent k given fixed angular scale.       
+        if scale_units in ['arcsec', 'arcmin', 'deg']:
+            d = self.cosm.ComovingRadialDistance(0., z) / cm_per_mpc
+            rad = scale * (np.pi / 180.)
+            
+            if scale_units == 'arcsec':
+                rad /= 360.
+            elif scale_units == 'arcmin':
+                rad /= 60.
+            else:
+                raise NotImplemented('Unrecognized scale_units={}'.format(
+                    scale_units
+                ))
+            
+            q = 2. * np.pi / rad
+            k = q / d
+        else:
+            raise NotImplemented('Unrecognized scale_units={}'.format(scale_units))
+                            
+        ps3d = self.get_ps_2h(z, k, wave)
+        
+        if include_shot:
+            ps3d += self.get_ps_shot(z, k, wave)
+                     
+        #
+        if scale_units in ['arcsec', 'arcmin', 'deg']:
+
+            del_sq = k**2 * ps3d * self.cosm.HubbleParameter(z) / 2. / np.pi
+
+            # Get the emissivity at some wavelength [Angstrom]
+            enu = self.Emissivity(z, E=h_p * c / (wave * 1e-8))
+
+            # In principle should hit this with post-EoR optical depth.
+            dfdz = enu * (c / 4. / np.pi) / (1. + z)
+            
+            integrand = dfdz**2 * del_sq
+            # Need to integrate
+        else:
+            raise NotImplemented('angular=False not implemented.')
+            
+        return integrand
+        
     def _guess_Mmin(self):
         """
         Super non-general at the moment sorry.

@@ -331,7 +331,7 @@ class Animation(object): # pragma: no cover
         return inset
         
         
-class AnimationSet(object):
+class AnimationSet(object): # pragma: no cover
     def __init__(self, prefix):
         self._prefix = prefix
 
