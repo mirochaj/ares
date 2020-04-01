@@ -422,7 +422,7 @@ class HaloMassFunction(object):
             
             f.close()
             
-            if self.pf['hmf_gen_MAR'] is False and ARES is not None:hmf_gen_MAR
+            if self.pf['hmf_gen_MAR'] is False and ARES is not None:hmf_gen_MAR:
                 g = np.load('{}/input/hmf/hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz'.format(ARES))
                 if 'tab_MAR' in g:
                    tab_MAR_complete = g['tab_MAR']
