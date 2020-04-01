@@ -1062,7 +1062,7 @@ def HaloMassFunctionParameters():
     "hmf_load_ps": True,
     "hmf_load_growth": False,
     "hmf_use_splined_growth": True,
-    "hmf_table": None,
+    "hmf_table": 'hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_z_1201_0-60.hdf5',
     "hmf_analytic": False,
     "hmf_params": None,
 
