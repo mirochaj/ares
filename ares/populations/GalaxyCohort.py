@@ -3414,7 +3414,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         # If `wave` is a number, this will have units of erg/s/Hz.
         # If `wave` is a tuple, this will just be in erg/s.
-        lum = self.Luminosity(z, wave)
+        if np.all(np.array(wave) <= 912):
+            lum = 0
+        else:
+            lum = self.Luminosity(z, wave)
         
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof, 
             lum1=lum, lum2=lum, 
@@ -3425,7 +3428,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return ps
         
-    def get_ps_obs(self, scale, wave_obs, include_shot=True, 
+    def get_ps_obs(self, scale, wave_obs, include_shot=True,
         scale_units='arcsec', use_pb=True, time_res=1):
         """
         Compute the angular power spectrum of this galaxy population.
@@ -3454,6 +3457,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         _zok  = np.logical_and(_zarr > self.zdead, _zarr <= self.zform)
         zarr  = self.halos.tab_z[_zok==1]
         
+        # Degrade native time resolution by factor of `time_res`
         if time_res != 1:
             zarr = zarr[::time_res]
                 
@@ -3476,7 +3480,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     integrand[i] = self._get_ps_obs(z, _scale_, wave_obs, 
                         include_shot=include_shot, scale_units=scale_units)
                 
-                ps[h] = np.trapz(integrand * dtdz**2 * zarr, x=np.log(zarr))
+                ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
                 
                 pb.update(h)
                 
@@ -3490,7 +3494,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 integrand[i] = self._get_ps_obs(z, scale, wave_obs, 
                     include_shot=include_shot, scale_units=scale_units)
                                
-            ps = np.trapz(integrand * dtdz**2 * zarr, x=np.log(zarr))
+            ps = np.trapz(integrand * zarr, x=np.log(zarr))
         
         return ps  
                 
@@ -3513,8 +3517,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             wave = wave_obs * 1e4 / (1. + z)
             # Convert to photon energy since that what we work with internally
             E = h_p * c / (wave * 1e-8) / erg_per_ev
-            
-            enu = self.Emissivity(z, E=E) * ev_per_hz
+            nu = c / (wave * 1e-8)
+
+            # [enu] = erg/s/cm^3/Hz            
+            enu = self.Emissivity(z, E=E) * ev_per_hz * nu
+            # Not clear about * nu at the end
         else:
             is_band_avg = True
             
@@ -3525,6 +3532,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             E1 = h_p * c / (wave[0] * 1e-8) / erg_per_ev
             E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev 
             
+            # [enu] = erg/s/cm^3
             enu = self.Emissivity(z, Emin=E2, Emax=E1)
             
         # Need distance and H(z) for all that follows    
@@ -3536,8 +3544,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
             rad = scale * (np.pi / 180.)
             
+            # Convert to degrees retroactively
             if scale_units == 'arcsec':
-                rad /= 360.
+                rad /= 3600.
             elif scale_units == 'arcmin':
                 rad /= 60.
             else:
@@ -3560,44 +3569,42 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ps3d += self.get_ps_shot(z, k, wave)
 
         # The 3-d PS should have units of luminosity^2 * cMpc^3.
-        # HOWEVER, since the inner-workings don't know about the emissivity,
-        # it currently has units of (erg/s)^2 cMpc^3 * cMpc^-6, where the
-        # latter factor is from dn/dm in the halo model integrals.
+        # HOWEVER, since the inner-workings in ares.physics.HaloModel 
+        # don't know about the emissivity, it currently has units of (erg/s)^2 
+        # cMpc^3 * cMpc^-6, where the latter factor is from dn/dm in the halo 
+        # model integrals not being cancelled out by volume emissivity (squared)
         
         # So, we need to first convert our emissivity from cm^-3 to cMpc^-3,
         # then divide out the normalization factor of emissivity^2
-        enu *= cm_per_mpc**3
-        ps3d /= enu**2
+        ps3d /= (enu * cm_per_mpc**3)**2
+                
+        # Now, this PS has units of cMpc^3. Emissivity is still in cgs.
 
         ##
         # Angular scales in arcsec, arcmin, or deg
         if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
-            if is_band_avg:
-                raise NotImplemented('this needs fixing.')
-                del_sq = k**2 * ps3d / Hofz / 2. / np.pi
-                
-                # In principle should hit this with post-EoR optical depth.
-                dfdz = enu * (c / 4. / np.pi) / (1. + z)
-
-                integrand = dfdz**2 * del_sq
-            else:    
-                
-                del_sq = k**2 * ps3d * Hofz / 2. / np.pi / c
-                
-                dfdz = enu * (c / 4. / np.pi) / (1. + z)
-
-                integrand = dfdz**2 * del_sq
-                
+            
+            # e.g., Kashlinsky et al. 2018 Eq. 1, 3
+            dfdz = c * enu * self.cosm.dtdz(z) / 4. / np.pi / (1. + z)
+            delsq = (k / cm_per_mpc)**2 * (ps3d * cm_per_mpc**3) * Hofz \
+                / 2. / np.pi / c
+            
+            if is_band_avg:                
+                integrand = 2. * np.pi * dfdz**2 * delsq / q**2
+            else: 
+                integrand = 2. * np.pi * dfdz**2 * delsq / q**2
                 
         # Spherical harmonics
-        elif scale_units.lower() in ['l', 'ell']:  
-            # Fernandez+ (2010) Eq. A9 or 37          
+        elif scale_units.lower() in ['l', 'ell']:
+            # Fernandez+ (2010) Eq. A9 or 37     
             if is_band_avg:
-                # [ps3d] = (erg / s)^2 cm^3 
-                integrand = c * ps3d / Hofz / d**2 / (1. + z)**4 / (4. * np.pi)**2
+                # [ps3d] = cm^3
+                integrand = c * (ps3d * cm_per_mpc**3) * enu**2 / Hofz / d**2 \
+                    / (1. + z)**4 / (4. * np.pi)**2
             # Fernandez+ (2010) Eq. A10
             else:    
-                integrand = c * ps3d / Hofz / d**2 / (1. + z)**2 / (4. * np.pi)**2
+                integrand = c * (ps3d * cm_per_mpc**3) * enu**2 / Hofz / d**2 \
+                    / (1. + z)**2 / (4. * np.pi)**2
         else:
             raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
             

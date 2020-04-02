@@ -1385,24 +1385,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 np.random.seed(self.pf['pop_dust_scatter_seed'])
                 for _i, _z in enumerate(z):
                     noise[:,_i] = self.noise_lognormal(Sd[:,_i], sigma[:,_i])
-                                
+
                 Sd += noise
-                
+
             # Convert to cgs. Do in two steps in case conserve_memory==True.
             Sd *= g_per_msun / cm_per_kpc**2
-                             
+
             if self.pf['pop_dust_fcov'] is not None:
                 fcov = self.guide.dust_fcov(z=z2d, Mh=Mh)
             else:
                 fcov = 1.
-                
+
         else:
             Md = Sd = 0.
             Rd = np.inf
             fcov = 1.0
-            
+
         del z2d    
-        
+
         # Metal mass
         if 'Z' in halos:
             Z = halos['Z']
