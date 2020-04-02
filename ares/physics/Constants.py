@@ -26,6 +26,7 @@ cm_per_rsun = 695500. * cm_per_km
 cm_per_rEarth = 637100000.
 cm_per_au = 1.49597871e13
 cm_per_ang = 1e-8
+m_per_mpc = cm_per_mpc * 1e-2
 
 # masses
 g_per_amu = 1.660538921e-24    
@@ -62,6 +63,8 @@ erg_per_j = 1e-7
 erg_per_ev = e / erg_per_j
 erg_per_kev = 1e3 * erg_per_ev
 
+# 10^7 erg / J, so 1 W = 1 J / s = 10^7 erg/s
+erg_per_s_per_W = 1e7
 erg_per_s_per_nW = 1e7 / 1e9
 
 # Convert specific intensities from eV^-1 to Hz^-1

@@ -3409,8 +3409,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         cached_result = self._cache_ps_2h(z, k, wave)
         if cached_result is not None:
             return cached_result
-        
+                
         prof = self._profile_delta
+        
+        # If `wave` is a number, this will have units of erg/s/Hz.
+        # If `wave` is a tuple, this will just be in erg/s.
         lum = self.Luminosity(z, wave)
         
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof, 
@@ -3425,25 +3428,25 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def get_ps_obs(self, scale, wave_obs, include_shot=True, 
         scale_units='arcsec', use_pb=True, time_res=1):
         """
-        Compute the angular power spectrum of these galaxies.
+        Compute the angular power spectrum of this galaxy population.
         
-        .. note :: This is q^2 * P(q) / 2 / pi, as in, e.g., 
-            Kashlinsky et al. 2018 (Eq. 3).
-        
-        .. note :: This expression uses the Limber (1953) approximation.
+        .. note :: This function uses the Limber (1953) approximation.
         
         Parameters
         ----------
         z : int, float
         scale : int, float, np.ndarray
             Angular scale [arcseconds]
-        wave_obs : int, float
-            Observed wavelength of interest [microns].
+        wave_obs : int, float, tuple
+            Observed wavelength of interest [microns]. If tuple, will assume
+            elements define the edges of a spectral channel.
         scale_units : str
             So far, allowed to be 'arcsec' or 'arcmin'.
         time_res : int
             Can degrade native time or redshift resolution by this factor
-            to speed-up integral. Do so at your own peril.
+            to speed-up integral. Do so at your own peril. By default, will
+            sample time/redshift integrand at native resolution (set by
+            `hmf_dz` or `hmf_dt`).
         
         """
         
@@ -3453,9 +3456,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         if time_res != 1:
             zarr = zarr[::time_res]
-        
-        dtdz = self.cosm.dtdz(zarr)
-        
+                
+        dtdz = self.cosm.dtdz(zarr)        
+                
+        ##
+        # Loop over scales of interest if given an array.
         if type(scale) is np.ndarray:
         
             ps = np.zeros_like(scale)
@@ -3468,37 +3473,67 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
-                    integrand[i] = self._get_ps_angular(z, _scale_, wave_obs, 
+                    integrand[i] = self._get_ps_obs(z, _scale_, wave_obs, 
                         include_shot=include_shot, scale_units=scale_units)
                 
-                ps[h] = np.trapz(integrand * dtdz * zarr, x=np.log(zarr))
+                ps[h] = np.trapz(integrand * dtdz**2 * zarr, x=np.log(zarr))
                 
-                pb.update(h)    
+                pb.update(h)
                 
             pb.finish() 
         
+        # Otherwise, just compute PS at a single k.
         else:
             
             integrand = np.zeros_like(zarr)
             for i, z in enumerate(zarr):
-                integrand[i] = self._get_ps_angular(z, scale, wave_obs, 
+                integrand[i] = self._get_ps_obs(z, scale, wave_obs, 
                     include_shot=include_shot, scale_units=scale_units)
                                
             ps = np.trapz(integrand * dtdz**2 * zarr, x=np.log(zarr))
         
         return ps  
                 
-    def _get_ps_angular(self, z, scale, wave_obs, include_shot=True, 
+    def _get_ps_obs(self, z, scale, wave_obs, include_shot=True, 
         scale_units='arcsec'):
         """
         Compute integrand of angular power spectrum integral.
         """
-        # Convert to Angstroms
-        wave = wave_obs * 1e4 / (1. + z)
-                     
+        
+        ##
+        # Convert to Angstroms in rest frame. Determine emissivity.
+        # Note: the units of the emisssivity will be different if `wave_obs`
+        # is a tuple vs. a number. In the former case, it will simply 
+        # be in erg/s/cMpc^3, while in the latter, it will carry an extra
+        # factor of Hz^-1.
+        if type(wave_obs) in [int, float, np.float64]:
+            is_band_avg = False
+            
+            # Get rest wavelength
+            wave = wave_obs * 1e4 / (1. + z)
+            # Convert to photon energy since that what we work with internally
+            E = h_p * c / (wave * 1e-8) / erg_per_ev
+            
+            enu = self.Emissivity(z, E=E) * ev_per_hz
+        else:
+            is_band_avg = True
+            
+            # Get rest wavelengths
+            wave = tuple(np.array(wave_obs) * 1e4 / (1. + z))
+            
+            # Convert to photon energies since that what we work with internally
+            E1 = h_p * c / (wave[0] * 1e-8) / erg_per_ev
+            E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev 
+            
+            enu = self.Emissivity(z, Emin=E2, Emax=E1)
+            
+        # Need distance and H(z) for all that follows    
+        d = self.cosm.ComovingRadialDistance(0., z) # [cm]
+        Hofz = self.cosm.HubbleParameter(z)         # [s^-1]
+        
+        ##
         # Must retrieve redhsift-dependent k given fixed angular scale.       
-        if scale_units in ['arcsec', 'arcmin', 'deg']:
-            d = self.cosm.ComovingRadialDistance(0., z) / cm_per_mpc
+        if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
             rad = scale * (np.pi / 180.)
             
             if scale_units == 'arcsec':
@@ -3511,30 +3546,60 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 ))
             
             q = 2. * np.pi / rad
-            k = q / d
+            k = q / (d / cm_per_mpc)
+        elif scale_units.lower() in ['l', 'ell']:
+            k = scale / (d / cm_per_mpc)
         else:
-            raise NotImplemented('Unrecognized scale_units={}'.format(scale_units))
-                            
+            raise NotImplemented('Unrecognized scale_units={}'.format(
+                scale_units))
+
+        ##
+        # First: compute 3-D power spectrum
         ps3d = self.get_ps_2h(z, k, wave)
-        
         if include_shot:
             ps3d += self.get_ps_shot(z, k, wave)
-                     
-        #
-        if scale_units in ['arcsec', 'arcmin', 'deg']:
 
-            del_sq = k**2 * ps3d * self.cosm.HubbleParameter(z) / 2. / np.pi
+        # The 3-d PS should have units of luminosity^2 * cMpc^3.
+        # HOWEVER, since the inner-workings don't know about the emissivity,
+        # it currently has units of (erg/s)^2 cMpc^3 * cMpc^-6, where the
+        # latter factor is from dn/dm in the halo model integrals.
+        
+        # So, we need to first convert our emissivity from cm^-3 to cMpc^-3,
+        # then divide out the normalization factor of emissivity^2
+        enu *= cm_per_mpc**3
+        ps3d /= enu**2
 
-            # Get the emissivity at some wavelength [Angstrom]
-            enu = self.Emissivity(z, E=h_p * c / (wave * 1e-8))
+        ##
+        # Angular scales in arcsec, arcmin, or deg
+        if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
+            if is_band_avg:
+                raise NotImplemented('this needs fixing.')
+                del_sq = k**2 * ps3d / Hofz / 2. / np.pi
+                
+                # In principle should hit this with post-EoR optical depth.
+                dfdz = enu * (c / 4. / np.pi) / (1. + z)
 
-            # In principle should hit this with post-EoR optical depth.
-            dfdz = enu * (c / 4. / np.pi) / (1. + z)
-            
-            integrand = dfdz**2 * del_sq
-            # Need to integrate
+                integrand = dfdz**2 * del_sq
+            else:    
+                
+                del_sq = k**2 * ps3d * Hofz / 2. / np.pi / c
+                
+                dfdz = enu * (c / 4. / np.pi) / (1. + z)
+
+                integrand = dfdz**2 * del_sq
+                
+                
+        # Spherical harmonics
+        elif scale_units.lower() in ['l', 'ell']:  
+            # Fernandez+ (2010) Eq. A9 or 37          
+            if is_band_avg:
+                # [ps3d] = (erg / s)^2 cm^3 
+                integrand = c * ps3d / Hofz / d**2 / (1. + z)**4 / (4. * np.pi)**2
+            # Fernandez+ (2010) Eq. A10
+            else:    
+                integrand = c * ps3d / Hofz / d**2 / (1. + z)**2 / (4. * np.pi)**2
         else:
-            raise NotImplemented('angular=False not implemented.')
+            raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
             
         return integrand
         

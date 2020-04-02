@@ -251,31 +251,40 @@ class SynthesisMaster(Source):
         if cached_result is not None:
             return cached_result
                 
-        j = np.argmin(np.abs(wave - self.wavelengths))
-        
-        if Z is not None:
-            Zvals = np.sort(self.metallicities.values())
-            k = np.argmin(np.abs(Z - Zvals))
-            raw = self.data # just to be sure it has been read in.
-            data = self._data_all_Z[k,j]
-        else:
-            data = self.data[j,:]
-
-        if avg == 1:
-            if units == 'Hz':
-                yield_UV = data * np.abs(self.dwdn[j])
-            else:    
-                yield_UV = data
-        else:
+        if type(wave) in [list, tuple, np.ndarray]:
+                        
+            E1 = h_p * c / (wave[0] * 1e-8) / erg_per_ev
+            E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev            
+            
+            yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
+                energy_units=True)
+            
+        else:    
+            j = np.argmin(np.abs(wave - self.wavelengths))
+            
             if Z is not None:
-                raise NotImplemented('hey!')
-            assert avg % 2 != 0, "avg must be odd"
-            avg = int(avg)
-            s = (avg - 1) / 2
-            if units == 'Hz':
-                yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
+                Zvals = np.sort(self.metallicities.values())
+                k = np.argmin(np.abs(Z - Zvals))
+                raw = self.data # just to be sure it has been read in.
+                data = self._data_all_Z[k,j]
             else:
-                yield_UV = np.mean(self.data[j-s:j+s,:])
+                data = self.data[j,:]
+            
+            if avg == 1:
+                if units == 'Hz':
+                    yield_UV = data * np.abs(self.dwdn[j])
+                else:    
+                    yield_UV = data
+            else:
+                if Z is not None:
+                    raise NotImplemented('hey!')
+                assert avg % 2 != 0, "avg must be odd"
+                avg = int(avg)
+                s = (avg - 1) / 2
+                if units == 'Hz':
+                    yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
+                else:
+                    yield_UV = np.mean(self.data[j-s:j+s,:])
         
         # Current units: 
         # if pop_ssp: 
