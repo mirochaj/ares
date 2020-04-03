@@ -1232,7 +1232,7 @@ class ModelFit(FitBase):
                 j += 1
                                 
             mlpt = chain[ilogL[j]]
-            
+
         # If we got to the end of the chain without finding a point
         # in the bulk of the distribution, just revert to the max
         # likelihood pt. This usually only happens during testing
