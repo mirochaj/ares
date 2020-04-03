@@ -725,7 +725,7 @@ class ModelSet(BlobFactory):
             for j, par in enumerate(self.parameters):
                 
                 err = np.abs(np.diff(errs[j]))[0]
-
+                
                 diff = np.diff(chain[skip:,j])
 
                 dp = chain[skip:,j].max() - chain[skip:,j].min()

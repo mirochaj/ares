@@ -19,7 +19,7 @@ except ImportError:
     rank = 0
     size = 1
     
-class MPIPool(object):
+class MPIPool(object): # pragma: no cover
 
     def __init__(self, comm=None, master=0):
         """
