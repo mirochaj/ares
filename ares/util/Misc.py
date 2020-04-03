@@ -63,7 +63,7 @@ def get_cmd_line_kwargs(argv):
             if post == 'None':
                 cmd_line_kwargs[pre] = None
             elif post in ['True', 'False']:
-                cmd_line_kwargs[pre] = bool(post)    
+                cmd_line_kwargs[pre] = True if post == 'True' else False   
             else:    
                 cmd_line_kwargs[pre] = str(post)
         elif post[0] == '[':

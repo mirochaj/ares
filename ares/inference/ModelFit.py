@@ -399,70 +399,6 @@ class LogLikelihood(object):
                              -  np.sum(np.log(self.error))
         return self._const_term
 
-    #def _compute_blob_prior(self, sim):
-    #    blob_vals = {}
-    #    for key in self.priors_B.params:
-    #
-    #        grp, i, nd, dims = sim.blob_info(key)
-    #        
-    #        #if nd == 0:
-    #        #    blob_vals[key] = sim.get_blob(key)
-    #        #elif nd == 1:    
-    #        blob_vals[key] = sim.get_blob(key)
-    #        #else:
-    #        #    raise NotImplementedError('help')
-    #
-    #    try:
-    #        # will return 0 if there are no blobs
-    #        return self.priors_B.log_value(blob_vals)
-    #    except:
-    #        # some of the blobs were not retrieved (then they are Nones)!
-    #        return -np.inf
-    #
-    #@property
-    #def blank_blob(self):
-    #    if not hasattr(self, '_blank_blob'):
-    #        
-    #        if self.blob_names is None:
-    #            self._blank_blob = []
-    #            return []
-    #
-    #        self._blank_blob = []
-    #        for i, group in enumerate(self.blob_names):
-    #            if self.blob_ivars[i] is None:
-    #                self._blank_blob.append([np.inf] * len(group))
-    #            else:
-    #                if self.blob_nd[i] == 0:
-    #                    self._blank_blob.append([np.inf] * len(group))
-    #                elif self.blob_nd[i] == 1:
-    #                    arr = np.ones([len(group), self.blob_dims[i][0]])
-    #                    self._blank_blob.append(arr * np.inf)
-    #                elif self.blob_nd[i] == 2:
-    #                    dims = len(group), self.blob_dims[i][0], \
-    #                        self.blob_dims[i][1]
-    #                    arr = np.ones(dims)
-    #                    self._blank_blob.append(arr * np.inf)
-    #
-    #    return self._blank_blob
-    #    
-    #def checkpoint(self, **kwargs):
-    #    if self.checkpoint_by_proc:
-    #        procid = str(rank).zfill(3)
-    #        fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
-    #        write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',\
-    #            safe_mode=False, verbose=False)
-    #        
-    #        fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-    #        with open(fn, 'w') as f:
-    #            print("Simulation began: {!s}".format(time.ctime()), file=f)
-    #        
-    #def checkpoint_on_completion(self, **kwargs):
-    #    if self.checkpoint_by_proc:
-    #        procid = str(rank).zfill(3)
-    #        fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-    #        with open(fn, 'a') as f:
-    #            print("Simulation finished: {!s}".format(time.ctime()), file=f)
-            
 class FitBase(BlobFactory):
     def __init__(self, **kwargs):
         """
@@ -1450,7 +1386,7 @@ class ModelFit(FitBase):
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, loglikelihood, pool=self.pool, args=args)
-                
+                            
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
         pos = self.prep_output_files(restart, clobber)
