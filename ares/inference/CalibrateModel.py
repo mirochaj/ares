@@ -342,7 +342,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par2[22]'] = 0.5
                     is_log.extend([False])
                     jitter.extend([0.05])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
+                    ps.add_distribution(UniformDistribution(0, 2.), 'pq_func_par2[22]')
                 
                 if 'slope-high' in self.free_params_dust:
                     assert self.include_dust == 'screen-dpl'
@@ -350,7 +350,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par3[22]'] = 0.5
                     is_log.extend([False])
                     jitter.extend([0.05])
-                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par3[22]')
                 
                     if 'slope-high' in self.zevol_dust:
                         raise NotImplemented('help')
