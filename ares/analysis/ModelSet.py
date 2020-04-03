@@ -1341,8 +1341,8 @@ class ModelSet(BlobFactory):
         self._plot_info = value
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
-        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
-        use_top=1, skip=0, stop=None, **kwargs):
+        mp=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
+        use_top=1, skip=0, stop=None, offset=0, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1356,8 +1356,11 @@ class ModelSet(BlobFactory):
         Npars = len(pars)
         while (Npars / float(ncols)) % 1 != 0:
             Npars += 1
-            
-        mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
+        
+        had_mp = True
+        if mp is None:
+            had_mp = False    
+            mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
 
         w = self._get_walker_subset(N, walkers)
 
@@ -1385,7 +1388,7 @@ class ModelSet(BlobFactory):
     
         for i, par in enumerate(pars):
             self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], 
-                skip=skip, stop=stop, **kwargs)
+                skip=skip, stop=stop, offset=offset, **kwargs)
 
             if loc is None:
                 continue
@@ -1393,11 +1396,11 @@ class ModelSet(BlobFactory):
             # Plot current maximum likelihood value
             if par in self.parameters:
                 k = self.parameters.index(par)
-                mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
+                mp.grid[i].plot([0, offset+self.chain[:,k].size / float(self.nwalkers)], 
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
                 
                 for j, (walk, step) in enumerate(best):
-                    mp.grid[i].scatter(step-1, self.chain[ibest[j],k], 
+                    mp.grid[i].scatter(offset+step-1, self.chain[ibest[j],k], 
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
                         s=150, color='k', lw=1)
             else:
@@ -1441,7 +1444,7 @@ class ModelSet(BlobFactory):
         return num, step
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
-        skip=0, stop=None, ivar=None, multiplier=1., **kwargs):
+        skip=0, stop=None, ivar=None, multiplier=1., offset=0, **kwargs):
         """
         Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
@@ -1482,7 +1485,7 @@ class ModelSet(BlobFactory):
                 tmp = self.ExtractData(par, ivar=ivar)[par]
                 y = tmp[keep == 1] * multiplier
                                                     
-            x = np.arange(0, len(y))
+            x = np.arange(offset, len(y)+offset)
             ax.plot(x[skip:stop], y[skip:stop], **kwargs)
 
         iML = np.argmax(self.logL)
@@ -4616,15 +4619,18 @@ class ModelSet(BlobFactory):
             # Require ivars of component fields to be the same?
             ##
             
+            # I think keys() no longer returns a list in Python 3.?
+            keys = list(ivars.keys())
+            
             ivars_f = {}
             if len(ivars.keys()) == 1:
-                ivars_f[name] = ivars[ivars.keys()[0]]
+                ivars_f[name] = ivars[list(ivars.keys())[0]]
             else:
-                keys = ivars.keys()
+                ivars = dict(ivars)
                 for k in range(1, len(keys)):
                     assert ivars[keys[k]] == ivars[keys[k-1]]
                 
-                ivars_f[name] = ivars[ivars.keys()[0]]
+                ivars_f[name] = ivars[keys[0]]
                          
             # Save metadata about this derived blob
             fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)

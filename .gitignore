@@ -13,6 +13,7 @@ input/wfc3/
 input/inits/outputs/
 input/bpass_v1/SEDS
 input/bpass_v1/*tar.gz
+input/nircam
 tests/.coverage
 .coverage
 coverage.xml

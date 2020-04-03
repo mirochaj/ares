@@ -1200,10 +1200,12 @@ class ModelFit(FitBase):
         orig = mlpt.copy()
         sigm = np.std(chain, axis=0)
         
-        # If burn_method==1, just re-initialize all walkers around
-        # max-likelihood point with jitter, not standard deviation of samples
-        if burn_method == 1:
-            pos = sample_ball(mlpt, self.jitter, size=self.nwalkers)
+        # If burn_method==0, just re-initialize all walkers around
+        # max-likelihood point with jitter, not standard deviation of samples.
+        # Use half the jitter prescribed by hand to initially set walkers
+        # going.
+        if burn_method == 0:
+            pos = sample_ball(mlpt, self.jitter * 0.5, size=self.nwalkers)
             return self._fix_guesses(pos)
            
         # Find out if max likelihood point is within the bulk of 
@@ -1467,7 +1469,7 @@ class ModelFit(FitBase):
         ##
         if (burn > 0) and (not restart):
             
-            if burn_method == 1:
+            if burn_method == 0:
                 if not hasattr(self, '_jitter'):
                     raise AttributeError("Must set jitter!")
             

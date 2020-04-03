@@ -3429,7 +3429,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return ps
         
     def get_ps_obs(self, scale, wave_obs, include_shot=True,
-        scale_units='arcsec', use_pb=True, time_res=1):
+        include_2h=True, scale_units='arcsec', use_pb=True, time_res=1):
         """
         Compute the angular power spectrum of this galaxy population.
         
@@ -3478,7 +3478,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
                     integrand[i] = self._get_ps_obs(z, _scale_, wave_obs, 
-                        include_shot=include_shot, scale_units=scale_units)
+                        include_shot=include_shot, include_2h=include_2h,
+                        scale_units=scale_units)
                 
                 ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
                 
@@ -3492,14 +3493,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             integrand = np.zeros_like(zarr)
             for i, z in enumerate(zarr):
                 integrand[i] = self._get_ps_obs(z, scale, wave_obs, 
-                    include_shot=include_shot, scale_units=scale_units)
+                    include_shot=include_shot, include_2h=include_2h,
+                    scale_units=scale_units)
                                
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
         
         return ps  
                 
     def _get_ps_obs(self, z, scale, wave_obs, include_shot=True, 
-        scale_units='arcsec'):
+        include_2h=True, scale_units='arcsec'):
         """
         Compute integrand of angular power spectrum integral.
         """
@@ -3564,7 +3566,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         ##
         # First: compute 3-D power spectrum
-        ps3d = self.get_ps_2h(z, k, wave)
+        if include_2h:
+            ps3d = self.get_ps_2h(z, k, wave)
+        else:
+            ps3d = np.zeros_like(k)
+                
         if include_shot:
             ps3d += self.get_ps_shot(z, k, wave)
 
