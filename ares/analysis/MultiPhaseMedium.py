@@ -694,13 +694,6 @@ class MultiPhaseMedium(object):
         
         return ax
         
-        
-    def OverplotDAREWindow(self, ax, color='r', alpha=0.5):        
-        ax.fill_between(np.arange(11, 36), -150, 50, 
-            facecolor = color, alpha = alpha)    
-            
-        pl.draw()        
-        
     def OpticalDepthHistory(self, ax=None, fig=1, 
         scatter=False, show_xi=True, show_xe=True, show_xibar=True, 
         obs_mu=0.066, obs_sigma=0.012, show_obs=False, annotate_obs=False,
@@ -762,59 +755,6 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def RadiationBackground(self, z, ax=None, fig=1, band='lw', **kwargs):
-        """
-        Plot radiation background at supplied redshift and band.
-        """
-        
-        if band != 'lw':
-            raise NotImplemented('Only know LW background so far...')
-            
-        if not hasattr(self.sim, '_Jrb'):
-            raise ValueError('This simulation didnt evolve JLw...')
-            
-        hasax = True
-        if ax is None:
-            hasax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)    
-
-        for i, element in enumerate(self.sim._Jrb):
-
-            if element is None:
-                continue
-
-            # Read data for this radiation background
-            zlw, Elw, Jlw = element 
-
-            # Determine redshift
-            ilo = np.argmin(np.abs(zlw - z))
-            if zlw[ilo] > z:
-                ilo -= 1
-            ihi = ilo + 1
-
-            zlo, zhi = zlw[ilo], zlw[ihi]
-
-            for j, band in enumerate(Elw):
-
-                # Interpolate: flux is (Nbands x Nz x NE)
-                Jlo = Jlw[j][zlo]
-                Jhi = Jlw[j][zhi]
-
-                J = np.zeros_like(Jlw[j][zlo])
-                for k, nrg in enumerate(band):
-                    J[k] = np.interp(z, [zlo, zhi], [Jlo[k], Jhi[k]])
-
-                ax.plot(band, J, **kwargs)
-
-                # Fill in sawtooth
-                if j > 0:
-                    ax.semilogy([band[0]]*2, [J[0] / 1e4, J[0]], **kwargs)
-        
-        pl.draw()
-        
-        return ax
-
     def tau_post_EoR(self, include_He=True, z_HeII_EoR=3.):
         """
         Compute optical depth to electron scattering of the CMB.
@@ -853,37 +793,6 @@ class MultiPhaseMedium(object):
         
         return ztmp, tau
     
-    def blob_analysis(self, field, z):    
-        """
-        Compute value of given field at given redshift.
-        
-        Parameters
-        ----------
-        fields : str
-            Fields to extract
-        z : list
-            Redshift at which to compute value of input fields.
-            'B', 'C', 'D', as well as numerical values are acceptable.
-        
-        Returns
-        -------
-        Value of field at input redshift, z.
-        
-        """
-
-        # Convert turning points to actual redshifts
-        if isinstance(z, basestring):
-            z = self.turning_points[z][0]
-            
-        # Redshift x blobs
-        if field in self.history_asc:
-            interp = interp1d(self.history_asc['z'],
-                self.history_asc[field])
-        else:
-            raise NotImplemented('help!')
-            
-        return float(interp(z))
-
 def add_redshift_axis(ax, twin_ax=None, zlim=80):
     """
     Take plot with frequency on x-axis and add top axis with corresponding 

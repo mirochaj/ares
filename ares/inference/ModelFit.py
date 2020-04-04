@@ -1498,7 +1498,7 @@ class ModelFit(FitBase):
             
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
-            blobs_all.append(blobs.copy())
+            blobs_all.append(blobs)
             
             #del blobs
 

@@ -11,7 +11,7 @@ from ..analysis.BlobFactory import BlobFactory
 from .MultiPhaseMedium import MultiPhaseMedium
 
 # Distinguish between mean history and fluctuations?
-class PowerSpectrum(MultiPhaseMedium,BlobFactory):
+class PowerSpectrum(MultiPhaseMedium,BlobFactory): # pragma: no cover
     def __init__(self, data=None, suffix='fluctuations', **kwargs):
         """
         Initialize analysis object.
