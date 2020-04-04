@@ -918,6 +918,7 @@ class ModelFit(FitBase):
     def _latest_checkpoint_chain_file(self, prefix):
         all_chain_fns = self._saved_checkpoint_chain_files(prefix)
         ckpt_numbers = [int(fn[-14:-10]) for fn in all_chain_fns]
+        
         return all_chain_fns[np.argmax(ckpt_numbers)]
 
     
@@ -1192,9 +1193,9 @@ class ModelFit(FitBase):
             print("#          maximum likelihood position (outside 1-sigma dist. of")
             print("#          final walker positions). As a result, we have re-centered")
             print("#          around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
-    
+
         return self._fix_guesses(pos)
-        
+
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, reboot=False, recenter=False, burn_method=0):
         """
@@ -1256,8 +1257,20 @@ class ModelFit(FitBase):
             # Should make sure file isn't empty, either.
             # Is it too dangerous to set clobber=True, here?
             try:
-                _chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
-            except ValueError:
+                if self.checkpoint_append:
+                    fn_last_chain = '{!s}.chain.pkl'.format(prefix)
+                    _chain = read_pickled_chain(fn_last_chain)
+                                        
+                else:
+                                                        
+                    fn_last_chain = self._latest_checkpoint_chain_file(prefix)
+                                        
+                    _chain = read_pickled_chain(fn_last_chain)
+                                        
+                if rank == 0:
+                    print("# Will restart from {}".format(fn_last_chain))    
+                    
+            except ValueError:        
                 if rank == 0:
                     has_burn = os.path.exists('{!s}.burn.chain.pkl'.format(prefix))
                     if not has_burn:
@@ -1411,6 +1424,9 @@ class ModelFit(FitBase):
             
             print("# Starting burn-in: {!s}".format(time.ctime()))
             
+            if save_freq >= burn:
+                print("# Note: you might want to set `save_freq` < `burn`!")
+            
             t1 = time.time()
             pos, prob, state, blobs = \
                 self._run(self.guesses, burn, state=state, save_freq=save_freq, 
@@ -1439,6 +1455,9 @@ class ModelFit(FitBase):
         ##
         if rank == 0:
             print("# Starting MCMC: {!s}".format(time.ctime())) 
+            
+            if save_freq >= steps:
+                print("# Note: you might want to set `save_freq` < `steps`!")
             
             pos, prob, state, blobs = \
                 self._run(pos, steps, state=state, save_freq=save_freq, 
@@ -1569,18 +1588,22 @@ class ModelFit(FitBase):
                 write_pickle_file(data[i], fn, ndumps=1,\
                     open_mode=mode[0], safe_mode=False, verbose=False)
                 
+        if self.checkpoint_append:
+            fn_facc = '{0!s}.facc.pkl'.format(prefix)
+        else:
+            fn_facc = '{0!s}.{1!s}.facc.pkl'.format(prefix, dd)
+                
         # This is a running total already so just save the end result 
         # for this set of steps
-        write_pickle_file(self.sampler.acceptance_fraction,\
-            '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
+        write_pickle_file(self.sampler.acceptance_fraction,
+            fn_facc, ndumps=1, open_mode=mode[0],\
             safe_mode=False, verbose=False)
         
         if self.checkpoint_append:
-            print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+            print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,
                 time.ctime()))
         else:
-            print("# Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
-                time.ctime()))
+            print("# Wrote {0!s}: {1!s}".format(fn_facc, time.ctime()))
 
         ##################################################################
         write_pickle_file(data[-1], '{!s}.rstate.pkl'.format(prefix),\

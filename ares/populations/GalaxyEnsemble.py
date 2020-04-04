@@ -660,12 +660,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                                                               
         return rhoL / np.mean(erg_per_phot)
 
-    def _gen_stars(self, idnum, Mh):
+    def _gen_stars(self, idnum, Mh): # pragma: no cover
         """
         Take draws from cluster mass function until stopping criterion met.
         
         Return the amount of mass formed in this burst.
         """
+    
+        raise NotImplemented('this will need a lot of fixing.')
         
         z = self._arr_z[idnum]
         t = self._arr_t[idnum]
