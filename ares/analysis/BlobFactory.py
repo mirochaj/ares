@@ -759,6 +759,8 @@ class BlobFactory(object):
             for data_chunk in data_chunks:
                 all_data.extend(data_chunk)
             del data_chunks
+            
+            print("# Loaded {}".format(fn))
                 
             # Used to have a squeeze() here for no apparent reason...
             # somehow it resolved itself.

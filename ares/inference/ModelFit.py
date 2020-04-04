@@ -1498,7 +1498,7 @@ class ModelFit(FitBase):
             
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
-            blobs_all.append(blobs)
+            blobs_all.append(blobs.copy())
             
             #del blobs
 
@@ -1609,17 +1609,30 @@ class ModelFit(FitBase):
         # Weird shape: must re-organize a bit
         # First, get rid of # walkers dimension and compress
         # the # of steps dimension
+        
+        # Right now, len(blobs) = save_freq
+        # Each element within it has `nwalkers` elements.
+        
+        # Only need to deal with walkers for MCMC data, i.e., ModelGrid runs
+        # don't have walkers.
         if uncompress:
             blobs_now = []
-            for k in range(blen):
-                blobs_now.extend(blobs[k])
+            for j in range(0, self.nwalkers):
+                for k in range(blen):
+                    blobs_now.append(blobs[k][j])
         else:
             blobs_now = blobs
+            
+        # Now, len(blobs_now) = save_freq * nwalkers
+                        
         # We're saving one file per blob
         # The shape of the array will be just blob_nd
         
         if self.blob_names is None:
             return
+            
+        # At this moment, blobs_now has dims = 
+        # (nwalkers * nsteps, num blob groups, num blobs by group)    
 
         for j, group in enumerate(self.blob_names):
             for k, blob in enumerate(group):
@@ -1627,7 +1640,7 @@ class ModelFit(FitBase):
                 for l in range(self.nwalkers * blen):  
                     # indices: walkers*steps, blob group, blob
                     barr = blobs_now[l][j][k]
-                    to_write.append(barr)   
+                    to_write.append(barr)
 
                 if self.checkpoint_append:
                     mode = 'ab'

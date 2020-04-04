@@ -581,14 +581,14 @@ class ModelSet(BlobFactory):
                         fn = '{!s}/{!s}.pkl'.format(path, self.fn)
                     
                     if rank == 0:
-                        print("Loading {!s}...".format(fn))
+                        print("# Loading {!s}...".format(fn))
                 
                     t1 = time.time()
                     _chain = read_pickled_chain(fn)
                     t2 = time.time()
                 
                     if rank == 0:
-                        print("Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
+                        print("# Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
                             t2-t1))
                             
                     if hasattr(self, '_mask'):
@@ -622,7 +622,7 @@ class ModelSet(BlobFactory):
                             #data = pickle.load(f)
                             #f.close()
                             #print data
-                            print("Error loading {!s}.".format(fn))
+                            print("# Error loading {!s}.".format(fn))
                         
                         i += 1
                         fn = '{0!s}.{1!s}.chain.pkl'.format(self.prefix,\
@@ -671,11 +671,11 @@ class ModelSet(BlobFactory):
                                     
                     full_chain = []
                     if rank == 0:
-                        print("Loading {!s}.dd*.chain.pkl...".format(self.prefix))
+                        print("# Loading {!s}.dd*.chain.pkl...".format(self.prefix))
                         t1 = time.time()
                     for fn in outputs_to_read:
                         if not os.path.exists(fn):
-                            print("Found no output: {!s}".format(fn))
+                            print("# Found no output: {!s}".format(fn))
                             continue
                         this_chain = read_pickled_chain(fn)
                         full_chain.extend(this_chain)
@@ -684,7 +684,7 @@ class ModelSet(BlobFactory):
                     
                     if rank == 0:
                         t2 = time.time()
-                        print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
+                        print("# Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
                             self.prefix, t2 - t1))
                 else:
                     self._chain = None         
@@ -3807,7 +3807,7 @@ class ModelSet(BlobFactory):
             function. Otherwise, will use `percentile` and plot shaded region.
         samples : int, str
             If 'all', will plot all realizations individually. If an integer,
-            will plot only that many realizations, drawn randomly.
+            will plot only the last `samples` realizations.
  
         """
 
@@ -3923,7 +3923,7 @@ class ModelSet(BlobFactory):
                 keep[stop:]  *= 0
                 
             if (samples is not None) and (type(samples) != str):
-                keep[0:-samples] = 0
+                keep[-samples:] = 0
             
             # Grab the maximum likelihood point
             if use_best and self.is_mcmc:
