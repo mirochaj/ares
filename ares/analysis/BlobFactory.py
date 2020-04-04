@@ -571,7 +571,7 @@ class BlobFactory(object):
                             func = parse_attribute(fname, self)
                         else:
 
-                            print('{!s}'.format(fname))
+                            print('hey {!s}'.format(fname))
                             raise ValueError('pretty sure this is broken!')
 
                             # fname is a slice, like ('igm_k_heat', 0)
@@ -739,12 +739,14 @@ class BlobFactory(object):
                         tmp = "{0!s}.dd{1!s}.blob_{2}d.{3!s}.pkl".format(\
                             self.prefix, ddid, nd, name)
                         ddf.append(tmp)
+                             
+                # Need to put in order if we want to match up with
+                # chain etc.
+                ddf = np.sort(ddf)
                 
-                print('{!s}'.format(ddf))
-             
-                # Start with the first...
-                fn = ddf[0]        
-        
+                # Start with the first
+                fn = ddf[0]
+                        
         fid = 0
         to_return = []
         while True:
@@ -757,6 +759,8 @@ class BlobFactory(object):
             for data_chunk in data_chunks:
                 all_data.extend(data_chunk)
             del data_chunks
+            
+            print("# Loaded {}".format(fn))
                 
             # Used to have a squeeze() here for no apparent reason...
             # somehow it resolved itself.

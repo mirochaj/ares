@@ -198,7 +198,7 @@ class CalibrateModel(object):
                 s = self.name    
         
         if rank == 0:
-            print("Will save to files with prefix {}.".format(s))
+            print("# Will save to files with prefix {}.".format(s))
 
         return s
         
@@ -309,7 +309,6 @@ class CalibrateModel(object):
                     jitter.extend([0.1])
                     ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par4[40]')
             
-            
             ##
             # DUST REDDENING
             ##
@@ -342,7 +341,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par2[22]'] = 0.5
                     is_log.extend([False])
                     jitter.extend([0.05])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[22]')
+                    ps.add_distribution(UniformDistribution(0, 2.), 'pq_func_par2[22]')
                 
                 if 'slope-high' in self.free_params_dust:
                     assert self.include_dust == 'screen-dpl'
@@ -350,7 +349,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par3[22]'] = 0.5
                     is_log.extend([False])
                     jitter.extend([0.05])
-                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par3[22]')
+                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par3[22]')
                 
                     if 'slope-high' in self.zevol_dust:
                         raise NotImplemented('help')
@@ -808,7 +807,8 @@ class CalibrateModel(object):
 
     def run(self, steps, burn=0, nwalkers=None, save_freq=10, prefix=None, 
         debug=True, restart=False, clobber=False, verbose=True,
-        cache_tricks=False, burn_method=0, recenter=False):
+        cache_tricks=False, burn_method=0, recenter=False,
+        checkpoints=True):
         """
         Create a fitter class and run the fit!
         """
@@ -879,12 +879,14 @@ class CalibrateModel(object):
         fitter.debug = debug
         fitter.verbose = verbose
         
+        fitter.checkpoint_append = not checkpoints
+        
         fitter.prior_set = self.priors
         
         if nwalkers is None:
             nw = 2 * len(self.parameters)
             if rank == 0:
-                print("Running with {} walkers.".format(nw))
+                print("# Running with {} walkers.".format(nw))
         else:
             nw = nwalkers
         

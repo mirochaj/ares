@@ -39,7 +39,7 @@ _base = \
  'pop_thin_hist': 10,
  'pop_aging': True,
  'pop_ssp': True,
- 'pop_calib_L1600': None,
+ 'pop_calib_lum': None,
  'pop_Z': 0.004, 
  'pop_zdead': 3.5,
  

@@ -399,70 +399,6 @@ class LogLikelihood(object):
                              -  np.sum(np.log(self.error))
         return self._const_term
 
-    #def _compute_blob_prior(self, sim):
-    #    blob_vals = {}
-    #    for key in self.priors_B.params:
-    #
-    #        grp, i, nd, dims = sim.blob_info(key)
-    #        
-    #        #if nd == 0:
-    #        #    blob_vals[key] = sim.get_blob(key)
-    #        #elif nd == 1:    
-    #        blob_vals[key] = sim.get_blob(key)
-    #        #else:
-    #        #    raise NotImplementedError('help')
-    #
-    #    try:
-    #        # will return 0 if there are no blobs
-    #        return self.priors_B.log_value(blob_vals)
-    #    except:
-    #        # some of the blobs were not retrieved (then they are Nones)!
-    #        return -np.inf
-    #
-    #@property
-    #def blank_blob(self):
-    #    if not hasattr(self, '_blank_blob'):
-    #        
-    #        if self.blob_names is None:
-    #            self._blank_blob = []
-    #            return []
-    #
-    #        self._blank_blob = []
-    #        for i, group in enumerate(self.blob_names):
-    #            if self.blob_ivars[i] is None:
-    #                self._blank_blob.append([np.inf] * len(group))
-    #            else:
-    #                if self.blob_nd[i] == 0:
-    #                    self._blank_blob.append([np.inf] * len(group))
-    #                elif self.blob_nd[i] == 1:
-    #                    arr = np.ones([len(group), self.blob_dims[i][0]])
-    #                    self._blank_blob.append(arr * np.inf)
-    #                elif self.blob_nd[i] == 2:
-    #                    dims = len(group), self.blob_dims[i][0], \
-    #                        self.blob_dims[i][1]
-    #                    arr = np.ones(dims)
-    #                    self._blank_blob.append(arr * np.inf)
-    #
-    #    return self._blank_blob
-    #    
-    #def checkpoint(self, **kwargs):
-    #    if self.checkpoint_by_proc:
-    #        procid = str(rank).zfill(3)
-    #        fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
-    #        write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',\
-    #            safe_mode=False, verbose=False)
-    #        
-    #        fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-    #        with open(fn, 'w') as f:
-    #            print("Simulation began: {!s}".format(time.ctime()), file=f)
-    #        
-    #def checkpoint_on_completion(self, **kwargs):
-    #    if self.checkpoint_by_proc:
-    #        procid = str(rank).zfill(3)
-    #        fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-    #        with open(fn, 'a') as f:
-    #            print("Simulation finished: {!s}".format(time.ctime()), file=f)
-            
 class FitBase(BlobFactory):
     def __init__(self, **kwargs):
         """
@@ -982,6 +918,7 @@ class ModelFit(FitBase):
     def _latest_checkpoint_chain_file(self, prefix):
         all_chain_fns = self._saved_checkpoint_chain_files(prefix)
         ckpt_numbers = [int(fn[-14:-10]) for fn in all_chain_fns]
+        
         return all_chain_fns[np.argmax(ckpt_numbers)]
 
     
@@ -1200,10 +1137,12 @@ class ModelFit(FitBase):
         orig = mlpt.copy()
         sigm = np.std(chain, axis=0)
         
-        # If burn_method==1, just re-initialize all walkers around
-        # max-likelihood point with jitter, not standard deviation of samples
-        if burn_method == 1:
-            pos = sample_ball(mlpt, self.jitter, size=self.nwalkers)
+        # If burn_method==0, just re-initialize all walkers around
+        # max-likelihood point with jitter, not standard deviation of samples.
+        # Use half the jitter prescribed by hand to initially set walkers
+        # going.
+        if burn_method == 0:
+            pos = sample_ball(mlpt, self.jitter * 0.5, size=self.nwalkers)
             return self._fix_guesses(pos)
            
         # Find out if max likelihood point is within the bulk of 
@@ -1230,7 +1169,7 @@ class ModelFit(FitBase):
                 j += 1
                                 
             mlpt = chain[ilogL[j]]
-            
+
         # If we got to the end of the chain without finding a point
         # in the bulk of the distribution, just revert to the max
         # likelihood pt. This usually only happens during testing
@@ -1254,9 +1193,9 @@ class ModelFit(FitBase):
             print("#          maximum likelihood position (outside 1-sigma dist. of")
             print("#          final walker positions). As a result, we have re-centered")
             print("#          around the {}{} best point from last snapshot of burn.".format(j+1, sup)) 
-    
+
         return self._fix_guesses(pos)
-        
+
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, reboot=False, recenter=False, burn_method=0):
         """
@@ -1318,8 +1257,20 @@ class ModelFit(FitBase):
             # Should make sure file isn't empty, either.
             # Is it too dangerous to set clobber=True, here?
             try:
-                _chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
-            except ValueError:
+                if self.checkpoint_append:
+                    fn_last_chain = '{!s}.chain.pkl'.format(prefix)
+                    _chain = read_pickled_chain(fn_last_chain)
+                                        
+                else:
+                                                        
+                    fn_last_chain = self._latest_checkpoint_chain_file(prefix)
+                                        
+                    _chain = read_pickled_chain(fn_last_chain)
+                                        
+                if rank == 0:
+                    print("# Will restart from {}".format(fn_last_chain))    
+                    
+            except ValueError:        
                 if rank == 0:
                     has_burn = os.path.exists('{!s}.burn.chain.pkl'.format(prefix))
                     if not has_burn:
@@ -1448,7 +1399,7 @@ class ModelFit(FitBase):
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, loglikelihood, pool=self.pool, args=args)
-                
+                            
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
         pos = self.prep_output_files(restart, clobber)
@@ -1467,11 +1418,14 @@ class ModelFit(FitBase):
         ##
         if (burn > 0) and (not restart):
             
-            if burn_method == 1:
+            if burn_method == 0:
                 if not hasattr(self, '_jitter'):
                     raise AttributeError("Must set jitter!")
             
             print("# Starting burn-in: {!s}".format(time.ctime()))
+            
+            if save_freq >= burn:
+                print("# Note: you might want to set `save_freq` < `burn`!")
             
             t1 = time.time()
             pos, prob, state, blobs = \
@@ -1501,6 +1455,9 @@ class ModelFit(FitBase):
         ##
         if rank == 0:
             print("# Starting MCMC: {!s}".format(time.ctime())) 
+            
+            if save_freq >= steps:
+                print("# Note: you might want to set `save_freq` < `steps`!")
             
             pos, prob, state, blobs = \
                 self._run(pos, steps, state=state, save_freq=save_freq, 
@@ -1631,18 +1588,22 @@ class ModelFit(FitBase):
                 write_pickle_file(data[i], fn, ndumps=1,\
                     open_mode=mode[0], safe_mode=False, verbose=False)
                 
+        if self.checkpoint_append:
+            fn_facc = '{0!s}.facc.pkl'.format(prefix)
+        else:
+            fn_facc = '{0!s}.{1!s}.facc.pkl'.format(prefix, dd)
+                
         # This is a running total already so just save the end result 
         # for this set of steps
-        write_pickle_file(self.sampler.acceptance_fraction,\
-            '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
+        write_pickle_file(self.sampler.acceptance_fraction,
+            fn_facc, ndumps=1, open_mode=mode[0],\
             safe_mode=False, verbose=False)
         
         if self.checkpoint_append:
-            print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+            print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,
                 time.ctime()))
         else:
-            print("# Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
-                time.ctime()))
+            print("# Wrote {0!s}: {1!s}".format(fn_facc, time.ctime()))
 
         ##################################################################
         write_pickle_file(data[-1], '{!s}.rstate.pkl'.format(prefix),\
@@ -1671,17 +1632,30 @@ class ModelFit(FitBase):
         # Weird shape: must re-organize a bit
         # First, get rid of # walkers dimension and compress
         # the # of steps dimension
+        
+        # Right now, len(blobs) = save_freq
+        # Each element within it has `nwalkers` elements.
+        
+        # Only need to deal with walkers for MCMC data, i.e., ModelGrid runs
+        # don't have walkers.
         if uncompress:
             blobs_now = []
-            for k in range(blen):
-                blobs_now.extend(blobs[k])
+            for j in range(0, self.nwalkers):
+                for k in range(blen):
+                    blobs_now.append(blobs[k][j])
         else:
             blobs_now = blobs
+            
+        # Now, len(blobs_now) = save_freq * nwalkers
+                        
         # We're saving one file per blob
         # The shape of the array will be just blob_nd
         
         if self.blob_names is None:
             return
+            
+        # At this moment, blobs_now has dims = 
+        # (nwalkers * nsteps, num blob groups, num blobs by group)    
 
         for j, group in enumerate(self.blob_names):
             for k, blob in enumerate(group):
@@ -1689,7 +1663,7 @@ class ModelFit(FitBase):
                 for l in range(self.nwalkers * blen):  
                     # indices: walkers*steps, blob group, blob
                     barr = blobs_now[l][j][k]
-                    to_write.append(barr)   
+                    to_write.append(barr)
 
                 if self.checkpoint_append:
                     mode = 'ab'

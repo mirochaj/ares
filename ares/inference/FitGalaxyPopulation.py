@@ -464,7 +464,7 @@ class FitGalaxyPopulation(FitBase):
                 for j, z in enumerate(zreq):
                     
                     if z != zlit[j]:
-                        s = "Will fit to {} at z={}".format(quantity, zlit[j])
+                        s = "# Will fit to {} at z={}".format(quantity, zlit[j])
                         s += " as it lies within ztol={} of requested z={}".format(
                             self.ztol, z)
                         if rank == 0:

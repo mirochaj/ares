@@ -26,7 +26,7 @@ from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
     sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c, h_p, k_B, \
-    cm_per_m, ergs_per_s_per_nW
+    cm_per_m, erg_per_s_per_nW
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -341,7 +341,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             pass
         elif units.lower() == 'si':
             nu = _E * erg_per_ev / h_p
-            f *= nu * _E * erg_per_ev * cm_per_m**2 / ergs_per_s_per_nW
+            f *= nu * _E * erg_per_ev * cm_per_m**2 / erg_per_s_per_nW
         else:
             raise ValueError('Unrecognized units=`{}`.'.format(units))
             

@@ -85,16 +85,17 @@ class BlackHoleAggregate(HaloPopulation):
         new = self.FRD(z) * rho_cgs
         old = self.pf['pop_fduty'] \
             * rho_bh[0] * 4.0 * np.pi * G * m_p / sigma_T / c / self.pf['pop_eta']
-                    
+                                        
         # In Msun / cMpc^3 / dz
-        return -np.array([new + old]) * self.cosm.dtdz(z)#(new + old) * self.cosm.dtdz(z)
+        return -np.array([new + old]) * self.cosm.dtdz(z)
         
     @property
     def _BHMD(self):
         if not hasattr(self, '_BHMD_'):
             
-            z0 = self.halos.tab_z.max()
+            z0 = min(self.halos.tab_z.max(), self.zform)
             zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
+            zf = max(zf, self.zdead)
             
             if self.pf['sam_dz'] is not None:
                 dz = self.pf['sam_dz']
@@ -105,9 +106,11 @@ class BlackHoleAggregate(HaloPopulation):
    
             # Initialize solver
             solver = ode(self._BHGRD).set_integrator('lsoda', nsteps=1e4, 
-                atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
+                atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'],
+                with_jacobian=False)
                 
-            in_range = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+            in_range = np.logical_and(self.halos.tab_z >= zf, 
+                self.halos.tab_z <= z0)
             zarr = self.halos.tab_z[in_range][::zfreq]
             Nz = zarr.size
 
@@ -121,8 +124,9 @@ class BlackHoleAggregate(HaloPopulation):
                     
             solver.set_initial_value(np.array([0.0]), z0)
 
-            zflip = zarr[-1::-1]
 
+            zflip = zarr[-1::-1]
+            
             rho_bh = []
             redshifts = []
             for i in range(Nz):

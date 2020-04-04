@@ -552,7 +552,7 @@ class ClusterPopulation(Population):
     def _tab_L1600(self):
         if not hasattr(self, '_tab_L1600_'):
             self._tab_L1600_ = np.interp(self.tab_ages, self.src.times,
-                self.src.L_per_SFR_of_t())
+                self.src.L_per_sfr_of_t())
 
         return self._tab_L1600_
     

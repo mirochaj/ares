@@ -58,10 +58,14 @@ def test():
     k = sim.kurtosis
     s = sim.skewness
     
-    ax2 = sim.OpticalDepthHistory(fig=2)
+    ax2 = sim.OpticalDepthHistory(fig=2, show_obs=True, 
+        obs_mu=0.055, obs_sigma=0.009)
     ax3 = sim.TemperatureHistory(fig=3)
-    ax4 = sim.GlobalSignatureDerivative(fig=4)
-    ax5 = sim.GlobalSignatureDerivative(fig=5, show_signal=True)
+    ax3 = sim.TemperatureHistory(ax=ax3, show_Ts=True, show_Tk=False, 
+        show_Tcmb=True)
+    ax4 = sim.IonizationHistory(fig=4)
+    ax5 = sim.GlobalSignatureDerivative(fig=5)
+    ax6 = sim.GlobalSignatureDerivative(fig=6, show_signal=True)
     
     for i in range(1, 6):
         pl.figure(i)

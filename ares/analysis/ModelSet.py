@@ -581,14 +581,14 @@ class ModelSet(BlobFactory):
                         fn = '{!s}/{!s}.pkl'.format(path, self.fn)
                     
                     if rank == 0:
-                        print("Loading {!s}...".format(fn))
+                        print("# Loading {!s}...".format(fn))
                 
                     t1 = time.time()
                     _chain = read_pickled_chain(fn)
                     t2 = time.time()
                 
                     if rank == 0:
-                        print("Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
+                        print("# Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
                             t2-t1))
                             
                     if hasattr(self, '_mask'):
@@ -622,7 +622,7 @@ class ModelSet(BlobFactory):
                             #data = pickle.load(f)
                             #f.close()
                             #print data
-                            print("Error loading {!s}.".format(fn))
+                            print("# Error loading {!s}.".format(fn))
                         
                         i += 1
                         fn = '{0!s}.{1!s}.chain.pkl'.format(self.prefix,\
@@ -671,11 +671,11 @@ class ModelSet(BlobFactory):
                                     
                     full_chain = []
                     if rank == 0:
-                        print("Loading {!s}.dd*.chain.pkl...".format(self.prefix))
+                        print("# Loading {!s}.dd*.chain.pkl...".format(self.prefix))
                         t1 = time.time()
                     for fn in outputs_to_read:
                         if not os.path.exists(fn):
-                            print("Found no output: {!s}".format(fn))
+                            print("# Found no output: {!s}".format(fn))
                             continue
                         this_chain = read_pickled_chain(fn)
                         full_chain.extend(this_chain)
@@ -684,7 +684,7 @@ class ModelSet(BlobFactory):
                     
                     if rank == 0:
                         t2 = time.time()
-                        print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
+                        print("# Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
                             self.prefix, t2 - t1))
                 else:
                     self._chain = None         
@@ -725,7 +725,7 @@ class ModelSet(BlobFactory):
             for j, par in enumerate(self.parameters):
                 
                 err = np.abs(np.diff(errs[j]))[0]
-
+                
                 diff = np.diff(chain[skip:,j])
 
                 dp = chain[skip:,j].max() - chain[skip:,j].min()
@@ -1341,8 +1341,8 @@ class ModelSet(BlobFactory):
         self._plot_info = value
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
-        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
-        use_top=1, skip=0, stop=None, **kwargs):
+        mp=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, 
+        use_top=1, skip=0, stop=None, offset=0, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1356,8 +1356,11 @@ class ModelSet(BlobFactory):
         Npars = len(pars)
         while (Npars / float(ncols)) % 1 != 0:
             Npars += 1
-            
-        mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
+        
+        had_mp = True
+        if mp is None:
+            had_mp = False    
+            mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
 
         w = self._get_walker_subset(N, walkers)
 
@@ -1385,7 +1388,7 @@ class ModelSet(BlobFactory):
     
         for i, par in enumerate(pars):
             self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], 
-                skip=skip, stop=stop, **kwargs)
+                skip=skip, stop=stop, offset=offset, **kwargs)
 
             if loc is None:
                 continue
@@ -1393,11 +1396,11 @@ class ModelSet(BlobFactory):
             # Plot current maximum likelihood value
             if par in self.parameters:
                 k = self.parameters.index(par)
-                mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
+                mp.grid[i].plot([0, offset+self.chain[:,k].size / float(self.nwalkers)], 
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
                 
                 for j, (walk, step) in enumerate(best):
-                    mp.grid[i].scatter(step-1, self.chain[ibest[j],k], 
+                    mp.grid[i].scatter(offset+step-1, self.chain[ibest[j],k], 
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
                         s=150, color='k', lw=1)
             else:
@@ -1441,7 +1444,7 @@ class ModelSet(BlobFactory):
         return num, step
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
-        skip=0, stop=None, ivar=None, multiplier=1., **kwargs):
+        skip=0, stop=None, ivar=None, multiplier=1., offset=0, **kwargs):
         """
         Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
@@ -1482,7 +1485,7 @@ class ModelSet(BlobFactory):
                 tmp = self.ExtractData(par, ivar=ivar)[par]
                 y = tmp[keep == 1] * multiplier
                                                     
-            x = np.arange(0, len(y))
+            x = np.arange(offset, len(y)+offset)
             ax.plot(x[skip:stop], y[skip:stop], **kwargs)
 
         iML = np.argmax(self.logL)
@@ -3804,7 +3807,7 @@ class ModelSet(BlobFactory):
             function. Otherwise, will use `percentile` and plot shaded region.
         samples : int, str
             If 'all', will plot all realizations individually. If an integer,
-            will plot only that many realizations, drawn randomly.
+            will plot only the last `samples` realizations.
  
         """
 
@@ -3920,7 +3923,7 @@ class ModelSet(BlobFactory):
                 keep[stop:]  *= 0
                 
             if (samples is not None) and (type(samples) != str):
-                keep[0:-samples] = 0
+                keep[-samples:] = 0
             
             # Grab the maximum likelihood point
             if use_best and self.is_mcmc:
@@ -3930,9 +3933,7 @@ class ModelSet(BlobFactory):
                     loc = psorted[int(N / 2.)]
                 else:
                     loc = np.argmax(self.logL[keep == 1])
-                
-                print('loc={}'.format(loc), keep.sum(), keep.size)
-                
+                                
             # A few NaNs ruin everything
             if np.any(nans):
                 print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), name))
@@ -4616,15 +4617,18 @@ class ModelSet(BlobFactory):
             # Require ivars of component fields to be the same?
             ##
             
+            # I think keys() no longer returns a list in Python 3.?
+            keys = list(ivars.keys())
+            
             ivars_f = {}
             if len(ivars.keys()) == 1:
-                ivars_f[name] = ivars[ivars.keys()[0]]
+                ivars_f[name] = ivars[list(ivars.keys())[0]]
             else:
-                keys = ivars.keys()
+                ivars = dict(ivars)
                 for k in range(1, len(keys)):
                     assert ivars[keys[k]] == ivars[keys[k-1]]
                 
-                ivars_f[name] = ivars[ivars.keys()[0]]
+                ivars_f[name] = ivars[keys[0]]
                          
             # Save metadata about this derived blob
             fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)

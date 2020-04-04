@@ -18,7 +18,7 @@ import ares
 
 def_kwargs = \
 {
- "hmf_model": 'Tinker10',
+ "hmf_model": 'ST',
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
@@ -34,7 +34,7 @@ def_kwargs = \
  
  # Can do constant timestep instead of constant dz 
  "hmf_dt": None,
- "hmf_tmin": 20.,
+ "hmf_tmin": 30.,
  "hmf_tmax": 2000.,
  
  # Cosmology

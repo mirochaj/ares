@@ -230,7 +230,7 @@ class SynthesisMaster(Source):
         return (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
     
     def LUV_of_t(self):
-        return self.L_per_SFR_of_t()
+        return self.L_per_sfr_of_t()
     
     def _cache_L(self, wave, avg, Z):
         if not hasattr(self, '_cache_L_'):
@@ -241,7 +241,7 @@ class SynthesisMaster(Source):
         
         return None
     
-    def L_per_SFR_of_t(self, wave=1600., avg=1, Z=None, units='Hz'):
+    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz'):
         """
         UV luminosity per unit SFR.
         """
@@ -251,31 +251,40 @@ class SynthesisMaster(Source):
         if cached_result is not None:
             return cached_result
                 
-        j = np.argmin(np.abs(wave - self.wavelengths))
-        
-        if Z is not None:
-            Zvals = np.sort(self.metallicities.values())
-            k = np.argmin(np.abs(Z - Zvals))
-            raw = self.data # just to be sure it has been read in.
-            data = self._data_all_Z[k,j]
-        else:
-            data = self.data[j,:]
-
-        if avg == 1:
-            if units == 'Hz':
-                yield_UV = data * np.abs(self.dwdn[j])
-            else:    
-                yield_UV = data
-        else:
+        if type(wave) in [list, tuple, np.ndarray]:
+                        
+            E1 = h_p * c / (wave[0] * 1e-8) / erg_per_ev
+            E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev            
+            
+            yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
+                energy_units=True)
+            
+        else:    
+            j = np.argmin(np.abs(wave - self.wavelengths))
+            
             if Z is not None:
-                raise NotImplemented('hey!')
-            assert avg % 2 != 0, "avg must be odd"
-            avg = int(avg)
-            s = (avg - 1) / 2
-            if units == 'Hz':
-                yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
+                Zvals = np.sort(self.metallicities.values())
+                k = np.argmin(np.abs(Z - Zvals))
+                raw = self.data # just to be sure it has been read in.
+                data = self._data_all_Z[k,j]
             else:
-                yield_UV = np.mean(self.data[j-s:j+s,:])
+                data = self.data[j,:]
+            
+            if avg == 1:
+                if units == 'Hz':
+                    yield_UV = data * np.abs(self.dwdn[j])
+                else:    
+                    yield_UV = data
+            else:
+                if Z is not None:
+                    raise NotImplemented('hey!')
+                assert avg % 2 != 0, "avg must be odd"
+                avg = int(avg)
+                s = (avg - 1) / 2
+                if units == 'Hz':
+                    yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
+                else:
+                    yield_UV = np.mean(self.data[j-s:j+s,:])
         
         # Current units: 
         # if pop_ssp: 
@@ -287,13 +296,6 @@ class SynthesisMaster(Source):
             
         return yield_UV
 
-    def LUV(self):
-        return self.L_per_SFR_of_t()[-1]
-
-    @property
-    def L1600_per_sfr(self):
-        return self.L_per_sfr()
-        
     def _cache_L_per_sfr(self, wave, avg, Z):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
@@ -302,10 +304,15 @@ class SynthesisMaster(Source):
             return self._cache_L_per_sfr_[(wave, avg, Z)]
         
         return None
-                    
+                                        
     def L_per_sfr(self, wave=1600., avg=1, Z=None):
         """
-        Specific emissivity at provided wavelength.
+        Specific emissivity at provided wavelength at `source_tsf`.
+        
+        .. note :: This is just taking self.L_per_sfr_of_t and interpolating
+            to some time, source_tsf. This is generally used when assuming
+            constant star formation -- in the UV, L_per_sfr_of_t will
+            asymptote to a ~constant value after ~100s of Myr.
         
         Parameters
         ----------
@@ -326,7 +333,7 @@ class SynthesisMaster(Source):
         if cached is not None:
             return cached
         
-        yield_UV = self.L_per_SFR_of_t(wave)
+        yield_UV = self.L_per_sfr_of_t(wave)
             
         # Interpolate in time to obtain final LUV
         if self.pf['source_tsf'] in self.times:
@@ -342,27 +349,6 @@ class SynthesisMaster(Source):
         self._cache_L_per_sfr_[(wave, avg, Z)] = result
             
         return result
-        
-    def kappa_UV_of_t(self):        
-        return 1. / self.LUV_of_t()
-        
-    def kappa_UV(self):    
-        """
-        Number of photons emitted per stellar baryon of star formation.
-        
-        If star formation is continuous, this will have units of:
-            (Msun / yr) / (erg / s / Hz)
-        If star formation is in a burst, this will have units of:
-            Msun / (erg / s / Hz)
-        Returns
-        -------
-        Two-dimensional array containing photon yield per unit stellar baryon per
-        second per angstrom. First axis corresponds to photon wavelength (or energy), 
-        and second axis to time.
-        
-        """
-        
-        return 1. / self.LUV()
 
     def integrated_emissivity(self, l0, l1, unit='A'):
         # Find band of interest -- should be more precise and interpolate

@@ -826,9 +826,10 @@ def PopulationParameters():
     "pop_dE": None,
     "pop_dlam": 1.,
     
-    "pop_L1600_per_sfr": None,
-    
-    "pop_calib_L1600": None,
+    "pop_calib_wave": 1600,
+    "pop_calib_lum": None,
+    "pop_lum_per_sfr": None,
+
     "pop_calib_Z": None,        # not implemented
     
     "pop_Lh_scatter": 0.0,

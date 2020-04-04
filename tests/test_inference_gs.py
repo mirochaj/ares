@@ -59,6 +59,7 @@ def test():
         ps.add_distribution(UniformDistribution(0.1, 20), 'tanh_Tdz')
         
         fitter.prior_set = ps
+        fitter.jitter = [0.1] * len(fitter.parameters)
         
         fitter.nwalkers = 2 * len(fitter.parameters)
         
@@ -82,7 +83,7 @@ def test():
         
         # Make some plots
         mp = anl.WalkerTrajectoriesMultiPlot(anl.parameters, 
-            color='b', alpha=0.2, fig=1)    
+            color='b', alpha=0.2, fig=1)
         #mp = anl.WalkerTrajectory2D(anl.parameters[0:2], N=anl.nwalkers,
         #     color='b', alpha=0.2, fig=2)    
         

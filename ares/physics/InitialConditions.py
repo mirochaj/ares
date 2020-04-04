@@ -72,7 +72,7 @@ class InitialConditions(object):
         
         pass
     
-    def _run_CosmoRec(self, save=True):
+    def _run_CosmoRec(self, save=True): # pragma: no cover
         """
         Run CosmoRec. Assumes we've got an executable waiting for us in 
         directory supplied via ``cosmorec_path`` parameter in ARES.
