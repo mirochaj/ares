@@ -433,6 +433,8 @@ class HaloMassFunction(object):
                 final_tab_MAR = tab_MAR_strip[:261]
                 self.tab_MAR = final_tab_MAR
                 g.close()
+            elif self.pf['hmf_gen_MAR'] is True and ARES is not None:
+                self.TabulateMAR()
             
         elif self.tab_name is None:
             raise IOError(no_hmf(self))
