@@ -435,6 +435,8 @@ class HaloMassFunction(object):
                 final_tab_MAR = tab_MAR_strip[:261]
                 self.tab_MAR = final_tab_MAR
                 g.close()
+            elif self.pf['hmf_gen_MAR'] is True and ARES is not None:
+                self.TabulateMAR()
             
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
