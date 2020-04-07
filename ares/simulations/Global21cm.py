@@ -54,7 +54,7 @@ class Global21cm(AnalyzeGlobal21cm):
             kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
-                
+
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)

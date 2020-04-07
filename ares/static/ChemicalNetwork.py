@@ -302,10 +302,10 @@ class ChemicalNetwork(object):
             else:    
                 dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton \
                     - hubcool - q[-1] * n_H * dqdt['e'] / ntot
-                                
+    
         else:
             dqdt['Tk'] = 0.0
-            
+
         ##
         # Add in exotic heating
         ##    

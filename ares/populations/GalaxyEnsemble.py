@@ -2387,6 +2387,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         _x1, _y1, _err, _N = bin_samples(np.log10(Ms_r), beta_c94, massbins, 
             weights=nh_r)
 
+        ok = np.isfinite(_y1)
+        
+        _x1 = _x1[ok==1]
+        _y1 = _y1[ok==1]
+        _err = _err[ok==1]
+
         # Compute slopes with Mstell
         popt, pcov = curve_fit(_linfunc, _x1, _y1, p0=[0.3, 0.], maxfev=100)
         popt2, pcov2 = curve_fit(_cubfunc, _x1, _y1, p0=[0.0, 0.3, 0.], 

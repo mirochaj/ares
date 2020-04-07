@@ -616,7 +616,8 @@ class SynthesisModel(SynthesisMaster):
                         self._litinst._load(**self.pf)
                     
                     if self.pf['verbose']:
-                        print("# Loaded {}".format(_fn.replace(self.cosm.path_ARES, '$ARES')))
+                        print("# Loaded {}".format(_fn.replace(self.cosm.path_ARES, 
+                            '$ARES')))
             else:
                 if self.pf['source_sed_by_Z'] is not None:
                     _tmp = self.pf['source_sed_by_Z'][1]

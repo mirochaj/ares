@@ -944,10 +944,10 @@ class GalaxyPopulation(object):
             else:
                 hst_filt = hst_shallow
         
+            fset = None
             if zstr <= 8:
                 cam = ('wfc', 'wfc3')
                 filt = hst_filt[zstr]
-                fset = None
 
                 beta_hst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     cam=cam, filters=filt, filter_set=fset, rest_wave=None,
@@ -956,6 +956,7 @@ class GalaxyPopulation(object):
                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
                #    magmethod='mono')
             else:
+                
                 beta_hst = beta_hst_M1600 = -np.inf * np.ones_like(mags_cr)
                 
             # Compute raw beta and compare to Mstell    
@@ -968,10 +969,12 @@ class GalaxyPopulation(object):
                 beta_Mst = pop.Beta(z, Mwave=1600., return_binned=False,
                     cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
                     Mstell=10**Ms_b, massbins=Ms_b)
+                                                
+                dbeta = pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
+                    massbins=Ms_b, dlam=1.)
                 
                 BMstell[j,:] = beta_Mst
-                dBMstell[j,:] = pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
-                    massbins=Ms_b, dlam=1.)
+                dBMstell[j,:] = dbeta
                     
             # Compute beta given JWST W only
             # 
@@ -1071,6 +1074,7 @@ class GalaxyPopulation(object):
             for l, mag in enumerate(MUV):
                 _beta = B195_spec[:,l]
                 ok = _beta > -99999
+                                
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=1,
                     label=r'$\beta_{\mathrm{c94}}$' if l == 0 else None,
                     color='k', ls=ls[l])

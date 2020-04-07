@@ -139,7 +139,7 @@ class MultiPanel(object):
             self.bottom = pl.rcParams['figure.subplot.bottom']
         if self.top is None:
             self.top = pl.rcParams['figure.subplot.top']
-            
+                        
         self.l = self.left
         self.r = self.right
         self.b = self.bottom
@@ -157,7 +157,7 @@ class MultiPanel(object):
         
         if type(self.padding) is float:
             self.padding = tuple([self.padding]* 2)
-                
+                        
         # Size of an individual panel (in inches)
         self.pane_size = np.array(self.figsize) * np.array([self.r-self.l, self.t-self.b])
         self.pane_size *= np.array(self.panel_size)
@@ -207,17 +207,17 @@ class MultiPanel(object):
                 wspace=self.padding[0], hspace=self.padding[1])
         
         self.l, self.r, self.b, self.t = l, r, b, t
-        
+
         # Important attributes for identifying individual panels
         self.N = int(np.prod(self.dims))
         self.elements = list(np.reshape(np.arange(self.N), self.dims))
         self.elements.reverse()
         self.elements = np.array(self.elements)
-        
+
         # Dimensions of everything (in fractional units)
         #self.window = {'left': l, 'right': r, 'top': t, 
         #    'bottom': b, 'pane': ((r-l) / float(dims[0]), (t-b) / float(dims[1]))}
-        
+
         self.xaxes = self.elements[-1]
         self.yaxes = list(zip(*self.elements))[0]                  
         self.lowerleft = self.elements[-1][0]

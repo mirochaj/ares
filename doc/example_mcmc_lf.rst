@@ -51,9 +51,9 @@ Now, let's make our master dictionary of parameters, with one important addition
     base_pars.update(blob_pars)
     
     # This is important!
-    base_pars['pop_calib_L1600'] = None
+    base_pars['pop_calib_lum'] = None
     
-The ``pop_calib_L1600`` parameter tells *ARES* the :math:`1600\AA` luminosity per unit star formation conversion used to derive the input SFE parameters. This can be useful, for example, if you'd like to vary the parameters of a stellar population (e.g., the metallicity ``pop_Z``) *without* impacting the luminosity function. Of course, when we're fitting the LF, the whole point to allow parameter variations to affect the LF, which is why we must turn it off by hand here.
+The ``pop_calib_lum`` parameter tells *ARES* the :math:`1600\AA` luminosity per unit star formation conversion used to derive the input SFE parameters (or at another wavelength through `pop_calib_wave` parameter). This can be useful, for example, if you'd like to vary the parameters of a stellar population (e.g., the metallicity ``pop_Z``) *without* impacting the luminosity function. Of course, when we're fitting the LF, the whole point to allow parameter variations to affect the LF, which is why we must turn it off by hand here.
     
 .. note:: By default, *ARES* does not apply a dust correction. This can be useful, for example, if you want to generate a single physical model and study the effects of dust after the fact (see :doc:`example_pop_galaxy`). However, when fitting data, we must make a choice about the dust correction ahead of time since each evaluation of the likelihood will depend on it.
     

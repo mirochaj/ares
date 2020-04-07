@@ -85,25 +85,27 @@ def _load(**kwargs):
     if kwargs['source_Z'] not in Zvals_l:
         tmp = kwargs.copy()
                 
+        _fn = []
         spectra = []
         del tmp['source_Z']
         for Z in Zvals:
-            _w1, _d1, _fn = _load(source_Z=Z, **tmp)
+            _w1, _d1, fn = _load(source_Z=Z, **tmp)
             spectra.append(_d1.copy())
-        
+            _fn.append(fn)
+            
         wavelengths = wave = _w1
         data = spectra
 
     # No interpolation necessary
     else:        
         fn = _fn = _kwargs_to_fn(**kwargs)
+                
         _raw_data = np.loadtxt(fn)
                 
         data = np.array(_raw_data[:,1:])
         wavelengths = _raw_data[:,0]
 
         data *= Lsun
-        
 
     return wavelengths, data, _fn
     
