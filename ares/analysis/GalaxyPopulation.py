@@ -895,9 +895,10 @@ class GalaxyPopulation(object):
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
 
-        nircam = Survey(cam='nircam')
-        nircam_M = nircam._read_nircam(filter_set='M')
-        nircam_W = nircam._read_nircam(filter_set='W')
+        if show_beta_jwst:
+            nircam = Survey(cam='nircam')
+            nircam_M = nircam._read_nircam(filter_set='M')
+            nircam_W = nircam._read_nircam(filter_set='W')
 
         ##
         # Loop over models and reconstruct best-fitting Beta(z).
@@ -978,39 +979,45 @@ class GalaxyPopulation(object):
                     
             # Compute beta given JWST W only
             # 
-            nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
-            # Extend the wavelength range until we get two filters
-            ct = 1
-            while len(nircam_W_fil) < 2:
-                nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                    wave_hi + 20 * ct)
+            if show_beta_jwst:
+                nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                # Extend the wavelength range until we get two filters
+                ct = 1
+                while len(nircam_W_fil) < 2:
+                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                        wave_hi + 20 * ct)
+                    
+                    ct += 1
                 
-                ct += 1
-            
-            if ct > 1:    
-                print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
-                    wave_hi + 10 * (ct - 1)))    
-        
-            filt2 = tuple(nircam_W_fil)
+                if ct > 1:    
+                    print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
+                        wave_hi + 10 * (ct - 1)))    
                 
-            beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                cam=('nircam', ), filters=filt2, filter_set=fset, 
-                rest_wave=None, magmethod=magmethod)
+                filt2 = tuple(nircam_W_fil)
+                    
+                beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    cam=('nircam', ), filters=filt2, filter_set=fset, 
+                    rest_wave=None, magmethod=magmethod)
+                    
+                # Compute beta w/ JWST 'M' only
+                nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
                 
-            # Compute beta w/ JWST 'M' only
-            nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
-
-            filt3 = tuple(nircam_M_fil)
-            
-            if z >= 6:
-                beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=('nircam',), filters=filt3, rest_wave=None,
-                    magmethod=magmethod)
+                filt3 = tuple(nircam_M_fil)
+                
+                if z >= 6:
+                    beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        cam=('nircam',), filters=filt3, rest_wave=None,
+                        magmethod=magmethod)
+                else:
+                    beta_M = -np.inf * np.ones_like(mags_cr)  
             else:
-                beta_M = -np.inf * np.ones_like(mags_cr)  
-    
+                beta_W = beta_M = None
+                    
             # Compute Beta at MUV=-19.5 (or others)
             for k, beta in enumerate([beta_c94, beta_hst, beta_W, beta_M]):
+                
+                if (not show_beta_jwst) and k > 1:
+                    continue
                 
                 for l, mag in enumerate(MUV):
                 

@@ -450,6 +450,7 @@ class SynthesisMaster(Source):
         i1 = np.argmin(np.abs(self.energies - Emax))
         
         if i0 == i1:
+            print("Emin={}, Emax={}".format(Emin, Emax))
             raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
         # Count up the photons in each spectral bin for all times

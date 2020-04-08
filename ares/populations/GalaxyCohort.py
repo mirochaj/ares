@@ -1350,21 +1350,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 np.interp(z, self.halos.tab_z, self._tab_Mmin)
 
         return self._Mmin
-    
+
     @Mmin.setter
     def Mmin(self, value):
-        print("Mmin setter being called", value)
         if ismethod(value):
             self._Mmin = value
         else:
             self._tab_Mmin = value
             self._Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
-    
+
     def Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.
         # Long story.
         return np.interp(z, self.halos.tab_z, self._tab_Mmax)
-    
+
     @property
     def _tab_logMmin(self):
         if not hasattr(self, '_tab_logMmin_'):
@@ -2564,7 +2563,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         return zform, zfin, Mfin, duration#, np.array(Mend)
 
-    def MassAfter(self, M0=None):
+    def MassAfter(self, M0=0):
         """
         Compute the final mass of a halos that begin at Mmin and grow for dt.
 

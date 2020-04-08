@@ -59,8 +59,8 @@ class BlackHole(Source):
         if self.pf['source_fduty'] is None:
             self.fduty = 1.0
         else:
-            assert type(self.fduty) in [int, float, np.float64]    
             self.fduty = self.pf['source_fduty'] 
+            assert type(self.fduty) in [int, float, np.float64]    
             
         self.variable = self.fduty < 1
         #if self.src_pars['fduty'] == 1:

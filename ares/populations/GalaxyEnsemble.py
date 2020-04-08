@@ -31,7 +31,7 @@ from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
-    erg_per_ev
+    erg_per_ev, h_p
 
 try:
     import h5py
@@ -574,7 +574,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self.pf['pop_synth_zmax'] + dz, dz)
         
         if (Emin is not None) and (Emax is not None):
-            band = (Emin, Emax)
+            # Need to send off in Angstroms
+            band = (1e8 * h_p * c / (Emax * erg_per_ev),  
+                    1e8 * h_p * c / (Emin * erg_per_ev))
         else:
             band = None
         
@@ -596,7 +598,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # OK, we've got a whole population here.
             nh = self.get_field(z, 'nh')
             Mh = self.get_field(z, 'Mh')
-            
+                        
             # Modify by fesc
             if band is not None:
                 if band[0] in [13.6, E_LL]:
@@ -611,6 +613,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             # Integrate over halo population.
             tab[i] = np.sum(L * fesc * nh)
+
+            print(i, z, L, tab[i])
 
         return zarr, tab / cm_per_mpc**3
         
