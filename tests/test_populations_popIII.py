@@ -23,12 +23,17 @@ def test():
     pars = ares.util.ParameterBundle('mirocha2017:base') \
          + ares.util.ParameterBundle('mirocha2018:high')
     
+    updates = ares.util.ParameterBundle('testing:galaxies')
+    updates.num = 0
+    pars.update(updates)
+    
     # Just testing: speed this up.
     pars['feedback_LW'] = False
     pars['feedback_LW_maxiter'] = 2
     pars['tau_redshift_bins'] = 400
     pars['hmf_dt'] = 1
     pars['hmf_tmax'] = 1000
+    
     # Use sam_dz?
     
     sim = ares.simulations.Global21cm(**pars)
