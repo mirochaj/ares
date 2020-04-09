@@ -3965,7 +3965,6 @@ class ModelSet(BlobFactory):
                     ax.plot(xarr, lo, **kwargs)
                     if 'label' in kwargs:
                         del kwargs['label']
-                    print('hello')
                     ax.plot(xarr, hi, **kwargs)
             else:
                 raise NotImplemented('help')

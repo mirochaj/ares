@@ -1070,9 +1070,11 @@ class GalaxyPopulation(object):
         pb.finish()      
         
         if data is not None:
-            B195_spec, B195_hst, B195_jwst, B195_M, BMstell, \
+            _MUV, B195_spec, B195_hst, B195_jwst, B195_M, BMstell, \
                 dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M, \
                 dBMstell = data         
+                
+            assert np.array_equal(_MUV, MUV)    
                     
         ##
         # Finish up and plot.
@@ -1081,9 +1083,9 @@ class GalaxyPopulation(object):
             for l, mag in enumerate(MUV):
                 _beta = B195_spec[:,l]
                 ok = _beta > -99999
-                                
+                                                
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=1,
-                    label=r'$\beta_{\mathrm{c94}}$' if l == 0 else None,
+                    label=r'$M_{\mathrm{UV}}=%.1f$' % mag,
                     color='k', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_spec[ok==1,l], lw=1, 
                     label=r'$M_{\mathrm{UV}}=%.1f$' % mag, 
@@ -1099,7 +1101,6 @@ class GalaxyPopulation(object):
                 _beta = B195_hst[:,l]
                 ok = _beta > -99999
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2, 
-                    label=r'$\beta_{\mathrm{hst}}$' if l == 0 else None,
                     color='b', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_hst[ok==1,l], lw=2, 
                     color='b', ls=ls[l])
@@ -1117,7 +1118,6 @@ class GalaxyPopulation(object):
                 _beta = B195_jwst[:,l]
                 ok = np.logical_and(_beta > -99999, zarr <= 9.)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2,
-                    label=r'$\beta_{\mathrm{jwst-W}}$' if l == 0 else None,
                     color='m', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
                     color='m', ls=ls[l])
@@ -1128,7 +1128,6 @@ class GalaxyPopulation(object):
                 ok = _beta > -99999
                 ok = np.logical_and(ok, zarr >= 6)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2, 
-                    label=r'$\beta_{\mathrm{jwst-M}}$' if l==0 else None, 
                     color='c', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_M[ok==1,l], lw=2,
                     color='c', ls=ls[l])
@@ -1137,12 +1136,12 @@ class GalaxyPopulation(object):
         # Plot Mstell stuff
         ##
         if include_Mstell:
-            ls = '-', '--', ':', '-.'
+            _ls = '-', '--', ':', '-.'
             for _j, logM in enumerate([7.5, 8.5, 9.5]):
                 j = np.argmin(np.abs(Ms_b - logM))
-                axB2.plot(zarr, BMstell[:,j], ls=ls[_j], color='k',
+                axB2.plot(zarr, BMstell[:,j], ls=_ls[_j], color='k',
                     label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)    
-                axD2.plot(zarr, dBMstell[:,j], ls=ls[_j], color='k',
+                axD2.plot(zarr, dBMstell[:,j], ls=_ls[_j], color='k',
                     label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)
             
         
@@ -1151,7 +1150,7 @@ class GalaxyPopulation(object):
         ##
         axD.set_yticks(np.arange(0.0, 0.6, 0.2))
         axD.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True)
-        axD.legend(loc='upper left', frameon=True, fontsize=8,
+        axD.legend(loc='upper right', frameon=True, fontsize=8,
             handlelength=2, ncol=1)
         axD.set_xlim(3.5, zarr.max()+0.5)
         axD.set_ylim(0., 0.5)
@@ -1162,8 +1161,8 @@ class GalaxyPopulation(object):
         axB.yaxis.set_ticks_position('both')
         axB.set_yticks(np.arange(-3, -1.3, 0.25), minor=False)
         axB.set_yticks(np.arange(-3, -1.3, 0.05), minor=True)
-        axB.legend(loc='lower left', frameon=True, fontsize=8,
-            handlelength=2, ncol=2)
+        axB.legend(loc='upper right', frameon=True, fontsize=8,
+            handlelength=2, ncol=1)
         axB.set_ylim(-2.8, -1.4)   
         axB.set_xticklabels([])
             
@@ -1172,13 +1171,16 @@ class GalaxyPopulation(object):
             axB2.set_xlim(3.5, zarr.max()+0.5)
             axB2.set_yticks(np.arange(-3, -1.3, 0.25), minor=False)
             axB2.set_yticks(np.arange(-3, -1.3, 0.05), minor=True)
-            
+            axB2.legend(loc='upper right', frameon=True, fontsize=8,
+                handlelength=2, ncol=1)
+                
             axD2.set_xlim(3.5, zarr.max()+0.5)
             axD2.set_ylim(0., 0.5)
             axD2.set_yticks(np.arange(0.0, 0.6, 0.2))
             axD2.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True) 
-            #axB2.legend(loc='lower left', frameon=True, fontsize=8,
-            #    handlelength=2, ncol=1)
+            axD2.legend(loc='upper right', frameon=True, fontsize=8,
+                handlelength=2, ncol=1)
+                
             if axes is None:
                 axD2.set_xlabel(r'$z$')
                 #axB2.set_xlabel(r'$z$')
@@ -1209,7 +1211,7 @@ class GalaxyPopulation(object):
         #    ax.yaxis.set_label_coords(-0.1-0.08*include_Mstell, 0.5)
             
         if return_data:
-            data = (B195_spec, B195_hst, B195_jwst, B195_M, BMstell, 
+            data = (MUV, B195_spec, B195_hst, B195_jwst, B195_M, BMstell, 
                 dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M, dBMstell)
             return (axB, axD, axB2, axD2), data    
         else:

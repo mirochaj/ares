@@ -138,12 +138,7 @@ class Global21cm(AnalyzeGlobal21cm):
         for i, data_igm in enumerate(self.all_data_igm):
                         
             n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
-            
-            #print(z[i], n_H, data_igm)
-            #print(z[i], data_igm['Tk'], 0.0, data_igm['h_2'],
-            #        data_igm['e'], n_H)
-            #raw_input('<enter>')
-            
+
             Ts = \
                 self.medium.parcel_igm.grid.hydr.Ts(
                     z[i], data_igm['Tk'], 0.0, data_igm['h_2'],
