@@ -1199,7 +1199,7 @@ class GalaxyPopulation(object):
         
 
         if axes is None:
-            axB.set_ylabel(r'$\beta_{\mathrm{phot}}$')
+            axB.set_ylabel(r'$\beta$')
             axD.set_ylabel(r'$-d\beta/dM_{\mathrm{UV}}$')
             axD.set_xlabel(r'$z$')
             #axB.set_xlabel(r'$z$')

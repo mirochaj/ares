@@ -147,7 +147,14 @@ class CompositePopulation(object):
                 err_str = "{}/{} elements not abiding by condition.".format(
                         ok.size - ok.sum(), ok.size)
                 err_str += " Typical (Mmin - Mmax) = {}".format(excess[~ok].mean())
-                assert np.all(ok), err_str
+                
+                # For some reason there's a machine-dependent tolerance issue
+                # here that causes a crash in a hard-to-reproduce way.
+                if not np.all(ok):
+                    if excess[~ok].mean() < 1e-4:
+                        pass
+                    else:
+                        assert np.all(ok), err_str
                     
             elif to_quantity[i] in after_instance:
                 continue

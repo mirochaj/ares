@@ -3343,7 +3343,7 @@ class ModelSet(BlobFactory):
             Use filled contours? If False, will use open contours instead.
         color_by_like : bool
             If True, set contour levels by confidence regions enclosing nu-%
-            of the likelihood. Set parameter `nu` to modify these levels.
+            of the likelihood. Set parameter `like` to modify these levels.
         like : list
             List of levels, default is 1,2, and 3 sigma contours (i.e., 
             like=[0.68, 0.95])
