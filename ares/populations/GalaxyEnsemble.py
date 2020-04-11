@@ -1309,27 +1309,52 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_quench'] is not None:
             zreion = self.pf['pop_quench']
             if type(zreion) in [np.ndarray, np.ma.core.MaskedArray]:
-                assert zreion.size == Nhalos, \
-                    "Supplied array of reionization redshifts is the wrong size!"
+                assert zreion.size == Mh.size, \
+                    "Supplied `is_quenched` mask is the wrong size!"
                     
-                is_quenched = np.logical_and(z2d <= zreion[:,None], 
-                    Mh < self.pf['pop_Mmin'])
-                        
+                is_quenched = self.pf['pop_quench']
+                
+                assert np.unique(is_quenched).size == 2, \
+                    "`pop_quench` should be a mask of ones and zeros!"
             else:    
+                # In this case, the supplied function isn't zreion, it tells
+                # us whether halos are quenched or not.
                 is_quenched = zreion(z=z2d, Mh=Mh)
                 
             # Print some quenched fraction vs. redshift to help debug?
             if self.pf['debug']:
-                k = np.argmin(np.abs(z - 10.))
-                print('Quenched fraction at z=10:', 
-                    np.sum(is_quenched[:,k]) / float(Nhalos))
                 
-                k = np.argmin(np.abs(z - 7.))
-                print('Quenched fraction at z=7:', 
-                    np.sum(is_quenched[:,k]) / float(Nhalos))
-            
+                for _z_ in [8, 6, 5, 4]:
+
+                    if _z_ < z.min():
+                        break
+
+                    k = np.argmin(np.abs(z - _z_))
+                    print('Quenched fraction at z={}: {}'.format(_z_, 
+                        np.sum(is_quenched[:,k]) / float(Nhalos)))
+                    
+                    if self.pf['pop_Mmin'] == 0:
+                        continue
+                        
+                    hfrac = Mh[:,k] < self.pf['pop_Mmin']
+                    print('Halo fraction below Mmin = {}'.format(hfrac.sum() / float(hfrac.size)))
+
             # Bye bye guys
-            SFR *= np.logical_not(is_quenched)
+            SFR = np.multiply(SFR, np.logical_not(is_quenched))            
+            
+            # Sanity check.
+            SFR_eq0 = SFR == 0.0
+            if SFR[SFR == 0].size < is_quenched.sum():
+                err = "SFR should be == 0 for all quenched galaxies."
+                err += " Only {}/{} SFR elements are zero, ".format(SFR_eq0.sum(),
+                    SFR.size)
+                err += "despite {} quenched elements".format(is_quenched.sum())
+                
+                # See if this is just a masking thing.
+                ok = SFR.mask == 0
+                if sum(SFR[ok==1] == 0) < sum(is_quenched[ok==1]):
+                    raise ValueError(err)
+                
                                                 
         ##          
         # Dust           
