@@ -1295,7 +1295,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             above_Mmin = Mh >= Mmin
             
         # Bye bye guys
-        SFR[~above_Mmin] = 0
+        SFR[above_Mmin==False] = 0
             
         ##
         # Introduce some by-hand quenching.
@@ -1319,19 +1319,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                                 
                 for _z_ in [10, 8, 6, 5, 4]:
 
-                    if _z_ < z.min():
-                        break
-
                     k = np.argmin(np.abs(z - _z_))
-                    print('# Quenched fraction at z={}: {:.4f}'.format(_z_, 
+                    print('# Quenched fraction at z={}: {:.4f}'.format(z[k], 
                         np.sum(is_quenched[:,k]) / float(Nhalos)))
-                    print('# Quenched number at z={}: {}'.format(_z_, 
+                    print('# Quenched number at z={}: {}'.format(z[k], 
                         np.sum(is_quenched[:,k])))    
                     
                     Mh_active = Mh[~is_quenched[:,k],k]
                     print("# Least massive active halos at z={}: {:.2e}".format(
-                        _z_, Mh_active[Mh_active>0].min()))
-                    
+                        z[k], Mh_active[Mh_active>0].min()))
+                    print("# Most massive active halos at z={}: {:.2e}".format(
+                        z[k], Mh_active[Mh_active>0].max()))
+                    print("# Most massive halo (period) at z={}: {:.2e}".format(
+                        z[k], Mh[:,k].max()))
+                                        
                     if self.pf['pop_Mmin'] == 0:
                         continue
                         
@@ -1340,7 +1341,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Bye bye guys
             #SFR = np.multiply(SFR, np.logical_not(is_quenched))
-            SFR[is_quenched] = 0
+            SFR[is_quenched==True] = 0
             
             # Sanity check.
             SFR_eq0 = SFR == 0.0
