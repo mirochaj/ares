@@ -210,12 +210,12 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if hasattr(self, '_sfrd_bank') and self.count >= 2:
                     pid = self.pf['feedback_LW_sfrd_popid']
                     z_maxerr = self.pops[pid].halos.tab_z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
-                    print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
+                    print(("# LWB cycle #{0} complete: mean_err={1:.2e}, " +\
                         "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
                         self.count, np.mean(self._sfrd_rerr[self._ok]),\
                         np.max(self._sfrd_rerr[self._ok]), z_maxerr))
                 else:
-                    print("LWB cycle #{} complete.".format(self.count))
+                    print("# LWB cycle #{} complete.".format(self.count))
 
                             
             self.reboot()

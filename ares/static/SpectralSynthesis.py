@@ -1104,7 +1104,7 @@ class SpectralSynthesis(object):
         if band is not None:
             # Will have been supplied in Angstroms
             b = h_p * c / (np.array(band) * 1e-8) / erg_per_ev
-            
+                        
             Loft = self.src.IntegratedEmission(b[1], b[0], 
                 energy_units=True)
             

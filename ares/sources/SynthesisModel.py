@@ -450,6 +450,7 @@ class SynthesisMaster(Source):
         i1 = np.argmin(np.abs(self.energies - Emax))
         
         if i0 == i1:
+            print("Emin={}, Emax={}".format(Emin, Emax))
             raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
         # Count up the photons in each spectral bin for all times
@@ -616,7 +617,8 @@ class SynthesisModel(SynthesisMaster):
                         self._litinst._load(**self.pf)
                     
                     if self.pf['verbose']:
-                        print("# Loaded {}".format(_fn.replace(self.cosm.path_ARES, '$ARES')))
+                        print("# Loaded {}".format(_fn.replace(self.cosm.path_ARES, 
+                            '$ARES')))
             else:
                 if self.pf['source_sed_by_Z'] is not None:
                     _tmp = self.pf['source_sed_by_Z'][1]

@@ -31,7 +31,7 @@ from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
-    erg_per_ev
+    erg_per_ev, h_p
 
 try:
     import h5py
@@ -574,7 +574,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self.pf['pop_synth_zmax'] + dz, dz)
         
         if (Emin is not None) and (Emax is not None):
-            band = (Emin, Emax)
+            # Need to send off in Angstroms
+            band = (1e8 * h_p * c / (Emax * erg_per_ev),  
+                    1e8 * h_p * c / (Emin * erg_per_ev))
         else:
             band = None
         
@@ -596,7 +598,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # OK, we've got a whole population here.
             nh = self.get_field(z, 'nh')
             Mh = self.get_field(z, 'Mh')
-            
+                        
             # Modify by fesc
             if band is not None:
                 if band[0] in [13.6, E_LL]:
@@ -611,6 +613,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             # Integrate over halo population.
             tab[i] = np.sum(L * fesc * nh)
+
+            print(i, z, L, tab[i])
 
         return zarr, tab / cm_per_mpc**3
         
@@ -1281,16 +1285,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             dtype = np.float64
             
         zeros_like_Mh = np.zeros((Nhalos, 1), dtype=dtype)
-
-        # Stellar mass should have zeros padded at the 0th time index
-        Ms = np.hstack((zeros_like_Mh,
-            np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
-
-        #Ms = np.zeros_like(Mh)
-
-        if self.pf['pop_flag_sSFR'] is not None:
-            sSFR = SFR / Ms
-
+        
+        ##
+        # Cut out Mh < Mmin galaxies
         if self.pf['pop_Mmin'] is not None:
             above_Mmin = Mh >= self.pf['pop_Mmin']
         else:
@@ -1298,34 +1295,76 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             above_Mmin = Mh >= Mmin
             
         # Bye bye guys
-        SFR *= above_Mmin
+        SFR[above_Mmin==False] = 0
             
         ##
         # Introduce some by-hand quenching.
         if self.pf['pop_quench'] is not None:
             zreion = self.pf['pop_quench']
             if type(zreion) in [np.ndarray, np.ma.core.MaskedArray]:
-                assert zreion.size == Nhalos, \
-                    "Supplied array of reionization redshifts is the wrong size!"
+                assert zreion.size == Mh.size, \
+                    "Supplied `is_quenched` mask is the wrong size!"
                     
-                is_quenched = np.logical_and(z2d <= zreion[:,None], 
-                    Mh < self.pf['pop_Mmin'])
-                        
+                is_quenched = self.pf['pop_quench']
+                                
+                assert np.unique(is_quenched).size == 2, \
+                    "`pop_quench` should be a mask of ones and zeros!"
             else:    
+                # In this case, the supplied function isn't zreion, it tells
+                # us whether halos are quenched or not.
                 is_quenched = zreion(z=z2d, Mh=Mh)
                 
             # Print some quenched fraction vs. redshift to help debug?
             if self.pf['debug']:
-                k = np.argmin(np.abs(z - 10.))
-                print('Quenched fraction at z=10:', 
-                    np.sum(is_quenched[:,k]) / float(Nhalos))
-                
-                k = np.argmin(np.abs(z - 7.))
-                print('Quenched fraction at z=7:', 
-                    np.sum(is_quenched[:,k]) / float(Nhalos))
-            
+                                
+                for _z_ in [10, 8, 6, 5, 4]:
+
+                    k = np.argmin(np.abs(z - _z_))
+                    print('# Quenched fraction at z={}: {:.4f}'.format(z[k], 
+                        np.sum(is_quenched[:,k]) / float(Nhalos)))
+                    print('# Quenched number at z={}: {}'.format(z[k], 
+                        np.sum(is_quenched[:,k])))    
+                    
+                    Mh_active = Mh[~is_quenched[:,k],k]
+                    print("# Least massive active halos at z={}: {:.2e}".format(
+                        z[k], Mh_active[Mh_active>0].min()))
+                    print("# Most massive active halos at z={}: {:.2e}".format(
+                        z[k], Mh_active[Mh_active>0].max()))
+                    print("# Most massive halo (period) at z={}: {:.2e}".format(
+                        z[k], Mh[:,k].max()))
+                                        
+                    if self.pf['pop_Mmin'] == 0:
+                        continue
+                        
+                    hfrac = Mh[:,k] < self.pf['pop_Mmin']
+                    print('# Halo fraction below Mmin = {}'.format(hfrac.sum() / float(hfrac.size)))
+
             # Bye bye guys
-            SFR *= np.logical_not(is_quenched)
+            #SFR = np.multiply(SFR, np.logical_not(is_quenched))
+            SFR[is_quenched==True] = 0
+            
+            # Sanity check.
+            SFR_eq0 = SFR == 0.0
+            if SFR[SFR == 0].size < is_quenched.sum():
+                err = "SFR should be == 0 for all quenched galaxies."
+                err += " Only {}/{} SFR elements are zero, ".format(SFR_eq0.sum(),
+                    SFR.size)
+                err += "despite {} quenched elements".format(is_quenched.sum())
+                
+                # See if this is just a masking thing.
+                ok = SFR.mask == 0
+                if sum(SFR[ok==1] == 0) < sum(is_quenched[ok==1]):
+                    raise ValueError(err)
+                
+                                                
+        # Stellar mass should have zeros padded at the 0th time index
+        Ms = np.hstack((zeros_like_Mh,
+            np.cumsum(SFR[:,0:-1] * dt * fml, axis=1)))
+
+        #Ms = np.zeros_like(Mh)
+
+        if self.pf['pop_flag_sSFR'] is not None:
+            sSFR = SFR / Ms                                        
                                                 
         ##          
         # Dust           
@@ -2386,6 +2425,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Compute binned version of Beta(Mstell).
         _x1, _y1, _err, _N = bin_samples(np.log10(Ms_r), beta_c94, massbins, 
             weights=nh_r)
+
+        ok = np.isfinite(_y1)
+        
+        _x1 = _x1[ok==1]
+        _y1 = _y1[ok==1]
+        _err = _err[ok==1]
 
         # Compute slopes with Mstell
         popt, pcov = curve_fit(_linfunc, _x1, _y1, p0=[0.3, 0.], maxfev=100)

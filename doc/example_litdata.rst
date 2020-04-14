@@ -89,7 +89,7 @@ The following parameters are uncertain and typically treated as free parameters 
     * ``pop_rad_yield{1}``, :math:`[10^{38}, 10^{42}]` :math:`2.6 \times 10^{39}` by default
     * ``pop_logN{1}``, :math:`[18, 23]`, :math:`-\infty` by default.
 
-.. note :: Changes in the metallicity (``pop_Z{0}``) in general affect the luminosity function (LF). However, by default, the normalization of the star formation efficiency will automatically be adjusted to guarantee that the LF does *not* change upon changes to ``pop_Z{0}``. Set the ``pop_calib_L1600{0}`` parameter to ``None`` to remove this behavior.
+.. note :: Changes in the metallicity (``pop_Z{0}``) in general affect the luminosity function (LF). However, by default, the normalization of the star formation efficiency will automatically be adjusted to guarantee that the LF does *not* change upon changes to ``pop_Z{0}``. Set the ``pop_calib_lum{0}`` parameter to ``None`` to remove this behavior.
 
 To re-make the right-hand panel of Figure 1 from the paper, you could do something like: ::
 

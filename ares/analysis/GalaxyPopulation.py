@@ -895,9 +895,10 @@ class GalaxyPopulation(object):
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
 
-        nircam = Survey(cam='nircam')
-        nircam_M = nircam._read_nircam(filter_set='M')
-        nircam_W = nircam._read_nircam(filter_set='W')
+        if show_beta_jwst:
+            nircam = Survey(cam='nircam')
+            nircam_M = nircam._read_nircam(filter_set='M')
+            nircam_W = nircam._read_nircam(filter_set='W')
 
         ##
         # Loop over models and reconstruct best-fitting Beta(z).
@@ -944,10 +945,10 @@ class GalaxyPopulation(object):
             else:
                 hst_filt = hst_shallow
         
+            fset = None
             if zstr <= 8:
                 cam = ('wfc', 'wfc3')
                 filt = hst_filt[zstr]
-                fset = None
 
                 beta_hst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     cam=cam, filters=filt, filter_set=fset, rest_wave=None,
@@ -956,6 +957,7 @@ class GalaxyPopulation(object):
                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
                #    magmethod='mono')
             else:
+                
                 beta_hst = beta_hst_M1600 = -np.inf * np.ones_like(mags_cr)
                 
             # Compute raw beta and compare to Mstell    
@@ -968,46 +970,54 @@ class GalaxyPopulation(object):
                 beta_Mst = pop.Beta(z, Mwave=1600., return_binned=False,
                     cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
                     Mstell=10**Ms_b, massbins=Ms_b)
+                                                
+                dbeta = pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
+                    massbins=Ms_b, dlam=1.)
                 
                 BMstell[j,:] = beta_Mst
-                dBMstell[j,:] = pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
-                    massbins=Ms_b, dlam=1.)
+                dBMstell[j,:] = dbeta
                     
             # Compute beta given JWST W only
             # 
-            nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
-            # Extend the wavelength range until we get two filters
-            ct = 1
-            while len(nircam_W_fil) < 2:
-                nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                    wave_hi + 20 * ct)
+            if show_beta_jwst:
+                nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                # Extend the wavelength range until we get two filters
+                ct = 1
+                while len(nircam_W_fil) < 2:
+                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                        wave_hi + 20 * ct)
+                    
+                    ct += 1
                 
-                ct += 1
-            
-            if ct > 1:    
-                print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
-                    wave_hi + 10 * (ct - 1)))    
-        
-            filt2 = tuple(nircam_W_fil)
+                if ct > 1:    
+                    print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
+                        wave_hi + 10 * (ct - 1)))    
                 
-            beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                cam=('nircam', ), filters=filt2, filter_set=fset, 
-                rest_wave=None, magmethod=magmethod)
+                filt2 = tuple(nircam_W_fil)
+                    
+                beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                    cam=('nircam', ), filters=filt2, filter_set=fset, 
+                    rest_wave=None, magmethod=magmethod)
+                    
+                # Compute beta w/ JWST 'M' only
+                nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
                 
-            # Compute beta w/ JWST 'M' only
-            nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
-
-            filt3 = tuple(nircam_M_fil)
-            
-            if z >= 6:
-                beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=('nircam',), filters=filt3, rest_wave=None,
-                    magmethod=magmethod)
+                filt3 = tuple(nircam_M_fil)
+                
+                if z >= 6:
+                    beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        cam=('nircam',), filters=filt3, rest_wave=None,
+                        magmethod=magmethod)
+                else:
+                    beta_M = -np.inf * np.ones_like(mags_cr)  
             else:
-                beta_M = -np.inf * np.ones_like(mags_cr)  
-    
+                beta_W = beta_M = None
+                    
             # Compute Beta at MUV=-19.5 (or others)
             for k, beta in enumerate([beta_c94, beta_hst, beta_W, beta_M]):
+                
+                if (not show_beta_jwst) and k > 1:
+                    continue
                 
                 for l, mag in enumerate(MUV):
                 
@@ -1060,9 +1070,11 @@ class GalaxyPopulation(object):
         pb.finish()      
         
         if data is not None:
-            B195_spec, B195_hst, B195_jwst, B195_M, BMstell, \
+            _MUV, B195_spec, B195_hst, B195_jwst, B195_M, BMstell, \
                 dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M, \
                 dBMstell = data         
+                
+            assert np.array_equal(_MUV, MUV)    
                     
         ##
         # Finish up and plot.
@@ -1071,8 +1083,9 @@ class GalaxyPopulation(object):
             for l, mag in enumerate(MUV):
                 _beta = B195_spec[:,l]
                 ok = _beta > -99999
+                                                
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=1,
-                    label=r'$\beta_{\mathrm{c94}}$' if l == 0 else None,
+                    label=r'$M_{\mathrm{UV}}=%.1f$' % mag,
                     color='k', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_spec[ok==1,l], lw=1, 
                     label=r'$M_{\mathrm{UV}}=%.1f$' % mag, 
@@ -1088,7 +1101,6 @@ class GalaxyPopulation(object):
                 _beta = B195_hst[:,l]
                 ok = _beta > -99999
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2, 
-                    label=r'$\beta_{\mathrm{hst}}$' if l == 0 else None,
                     color='b', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_hst[ok==1,l], lw=2, 
                     color='b', ls=ls[l])
@@ -1106,7 +1118,6 @@ class GalaxyPopulation(object):
                 _beta = B195_jwst[:,l]
                 ok = np.logical_and(_beta > -99999, zarr <= 9.)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2,
-                    label=r'$\beta_{\mathrm{jwst-W}}$' if l == 0 else None,
                     color='m', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
                     color='m', ls=ls[l])
@@ -1117,7 +1128,6 @@ class GalaxyPopulation(object):
                 ok = _beta > -99999
                 ok = np.logical_and(ok, zarr >= 6)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2, 
-                    label=r'$\beta_{\mathrm{jwst-M}}$' if l==0 else None, 
                     color='c', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_M[ok==1,l], lw=2,
                     color='c', ls=ls[l])
@@ -1126,12 +1136,12 @@ class GalaxyPopulation(object):
         # Plot Mstell stuff
         ##
         if include_Mstell:
-            ls = '-', '--', ':', '-.'
+            _ls = '-', '--', ':', '-.'
             for _j, logM in enumerate([7.5, 8.5, 9.5]):
                 j = np.argmin(np.abs(Ms_b - logM))
-                axB2.plot(zarr, BMstell[:,j], ls=ls[_j], color='k',
+                axB2.plot(zarr, BMstell[:,j], ls=_ls[_j], color='k',
                     label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)    
-                axD2.plot(zarr, dBMstell[:,j], ls=ls[_j], color='k',
+                axD2.plot(zarr, dBMstell[:,j], ls=_ls[_j], color='k',
                     label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)
             
         
@@ -1140,7 +1150,7 @@ class GalaxyPopulation(object):
         ##
         axD.set_yticks(np.arange(0.0, 0.6, 0.2))
         axD.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True)
-        axD.legend(loc='upper left', frameon=True, fontsize=8,
+        axD.legend(loc='upper right', frameon=True, fontsize=8,
             handlelength=2, ncol=1)
         axD.set_xlim(3.5, zarr.max()+0.5)
         axD.set_ylim(0., 0.5)
@@ -1151,8 +1161,8 @@ class GalaxyPopulation(object):
         axB.yaxis.set_ticks_position('both')
         axB.set_yticks(np.arange(-3, -1.3, 0.25), minor=False)
         axB.set_yticks(np.arange(-3, -1.3, 0.05), minor=True)
-        axB.legend(loc='lower left', frameon=True, fontsize=8,
-            handlelength=2, ncol=2)
+        axB.legend(loc='upper right', frameon=True, fontsize=8,
+            handlelength=2, ncol=1)
         axB.set_ylim(-2.8, -1.4)   
         axB.set_xticklabels([])
             
@@ -1161,13 +1171,16 @@ class GalaxyPopulation(object):
             axB2.set_xlim(3.5, zarr.max()+0.5)
             axB2.set_yticks(np.arange(-3, -1.3, 0.25), minor=False)
             axB2.set_yticks(np.arange(-3, -1.3, 0.05), minor=True)
-            
+            axB2.legend(loc='upper right', frameon=True, fontsize=8,
+                handlelength=2, ncol=1)
+                
             axD2.set_xlim(3.5, zarr.max()+0.5)
             axD2.set_ylim(0., 0.5)
             axD2.set_yticks(np.arange(0.0, 0.6, 0.2))
             axD2.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True) 
-            #axB2.legend(loc='lower left', frameon=True, fontsize=8,
-            #    handlelength=2, ncol=1)
+            axD2.legend(loc='upper right', frameon=True, fontsize=8,
+                handlelength=2, ncol=1)
+                
             if axes is None:
                 axD2.set_xlabel(r'$z$')
                 #axB2.set_xlabel(r'$z$')
@@ -1186,7 +1199,7 @@ class GalaxyPopulation(object):
         
 
         if axes is None:
-            axB.set_ylabel(r'$\beta_{\mathrm{phot}}$')
+            axB.set_ylabel(r'$\beta$')
             axD.set_ylabel(r'$-d\beta/dM_{\mathrm{UV}}$')
             axD.set_xlabel(r'$z$')
             #axB.set_xlabel(r'$z$')
@@ -1198,7 +1211,7 @@ class GalaxyPopulation(object):
         #    ax.yaxis.set_label_coords(-0.1-0.08*include_Mstell, 0.5)
             
         if return_data:
-            data = (B195_spec, B195_hst, B195_jwst, B195_M, BMstell, 
+            data = (MUV, B195_spec, B195_hst, B195_jwst, B195_M, BMstell, 
                 dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M, dBMstell)
             return (axB, axD, axB2, axD2), data    
         else:

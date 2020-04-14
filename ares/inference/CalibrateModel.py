@@ -307,7 +307,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par4[40]'] = 0.
                     is_log.extend([False])
                     jitter.extend([0.1])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par4[40]')
+                    ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par4[40]')
             
             ##
             # DUST REDDENING
@@ -379,7 +379,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par0[50]'] = 0.4
                     guesses['pq_func_par2[50]'] = 0.
                     is_log.extend([False, False])
-                    jitter.extend([0.1, 1.0])
+                    jitter.extend([0.1, 0.2])
                     ps.add_distribution(UniformDistribution(0., 1.0), 'pq_func_par0[50]')
                     ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[50]')
 
@@ -388,7 +388,7 @@ class CalibrateModel(object):
                         guesses['pq_func_par4[50]'] = 0.0
                         is_log.extend([False])
                         jitter.extend([0.5])
-                        ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[50]')
+                        ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par4[50]')
                       
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])

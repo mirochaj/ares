@@ -35,8 +35,9 @@ def test():
     
     phi_M = pop.LuminosityFunction(zarr[0], mags, mags=True, wave=1600.)
     
+    # A bit slow :/
+    phi_Ms = pop.StellarMassFunction(zarr[0])
+    
 if __name__ == '__main__':
     test()
 
-    
-    

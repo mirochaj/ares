@@ -56,7 +56,8 @@ class StarQS(Source):
     def ideal(self):
         if not hasattr(self, '_ideal'):
             self._ideal = Star(source_temperature=self.Teff,
-                source_Emin=1, source_Emax=2e2)
+                source_Emin=1, source_Emax=2e2, 
+                source_EminNorm=1, source_EmaxNorm=2e2)
         return self._ideal
   
     @property

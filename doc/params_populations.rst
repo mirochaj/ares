@@ -102,8 +102,13 @@ The following parameters control the star-formation history of a population. See
     
     Default: ``g/s/cm^3``
     
-``pop_calib_L1600``
-    If not ``None``, this parameter will guarantee that the :math:`1600\AA` luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_ for further discussion of this.
+``pop_calib_lum``
+    If not ``None``, this parameter will guarantee that the :math:`1600\AA` ( by default) luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_ for further discussion of this.
+
+``pop_calib_wave``
+	Wavelength to which ``pop_calib_lum`` refers. 
+	
+	Default: :math:`1600 \ \AA`
     
 Radiation Fields
 ----------------

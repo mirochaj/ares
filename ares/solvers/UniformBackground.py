@@ -103,12 +103,6 @@ class UniformBackground(object):
         self._set_integrator()
         
     @property
-    def OpticalDepth(self):
-        if not hasattr(self, '_OpticalDepth'):
-            self._OpticalDepth = OpticalDepth(**self.pf)
-        return self._OpticalDepth
-        
-    @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)

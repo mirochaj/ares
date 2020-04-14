@@ -70,7 +70,7 @@ def test():
     #assert -3 <= np.mean(b_jwst) <= -1, "UV slopes unreasonable!"
 
     # Get single halo history
-    hist = pop.get_history(1000)
+    hist = pop.get_history(100)
 
 if __name__ == '__main__':
     test()

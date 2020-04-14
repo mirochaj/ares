@@ -32,7 +32,7 @@ The [documentation](http://ares.readthedocs.org/en/latest/) is still a work in p
 
 ## Citation
 
-If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M0) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. Either way, please provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
+If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. Either way, please provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
 
 ## Getting started
 

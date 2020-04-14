@@ -1434,7 +1434,7 @@ class ModelFit(FitBase):
             t2 = time.time()
 
             print("# Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
-          
+
             pos = self._reinitialize_walkers(pos, prob, burn_method)
             self.sampler.reset()
             gc.collect()
@@ -1566,12 +1566,12 @@ class ModelFit(FitBase):
         # The flattened version of pos_all has 
         # shape = (save_freq * nwalkers, ndim)
 
+        if self.checkpoint_append:
+            mode = 'ab'
+        else:
+            mode = 'wb'
+        
         for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-
-            if self.checkpoint_append:
-                mode = 'ab'
-            else:
-                mode = 'wb'
                 
             # Blobs
             if suffix == 'blobs':

@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import numpy as np
 
 def test():
     
@@ -29,8 +30,13 @@ def test():
     # and MCMC output.
     ax_mega = gpop.PlotSummary(None, fig=4)    
     
-    #gpop.PlotColors()
-    #gpop.PlotColorEvolution()
+    pars = ares.util.ParameterBundle('mirocha2020:univ') \
+         + ares.util.ParameterBundle('testing:galaxies')
+    pop = ares.populations.GalaxyPopulation(**pars)
+    
+    gpop.PlotColors(pop, fig=4)
+    gpop.PlotColorEvolution(pop, show_beta_jwst=False, include_Mstell=False,
+        zarr=np.array([4, 6]), fig=5)
     
     
 if __name__ == '__main__':

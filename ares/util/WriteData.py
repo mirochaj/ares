@@ -29,7 +29,7 @@ except ImportError:
     rank = 0
     size = 1
 
-class CheckPoints:
+class CheckPoints(object):
     def __init__(self, pf=None, grid=None, time_units=s_per_myr,
         dtDataDump=5., dzDataDump=None, logdtDataDump=None, logdzDataDump=None,
         stop_time=100., initial_timestep=1.0, source_lifetime=np.inf,
@@ -121,25 +121,7 @@ class CheckPoints:
         initial dataset as both dd and rd.
         """
         nothing = self.update(data, t=0., z=self.initial_redshift)
-    
-    def store_kwargs(self, t=None, z=None, kwargs=None):
-        """
-        Add datasets to self.data (fields that aren't in the grid by default).
-        """
-        
-        to_write, dump_type = self.write_now(t=t, z=z)
-        
-        if not to_write:
-            return    
-        
-        if dump_type == 'dd':
-            name = self.name(t=t)
-        else:
-            name = self.name(z=z)
-        
-        for kwarg in kwargs:
-            self.data[name][kwarg] = kwargs[kwarg]
-        
+            
     def update(self, data, t=None, z=None):
         """
         Store data or don't.  If (t + dt) or (z + dz) passes our next checkpoint,
@@ -213,19 +195,6 @@ class CheckPoints:
         
         return self.source_lifetime - t 
         
-    def next_dz(self, z, dz):
-        """
-        Compute next redshift-step based on when our next redshift dump is.
-        """
-        
-        last_rd = int(self.dd(z=z)[1])
-        next_rd = last_rd + 1
-
-        if next_rd == self.NRD:
-            return None
-            
-        return z - self.DDredshifts[next_rd]
-            
     def dd(self, t=None, z=None):
         """ What data dump are we at currently? Doesn't have to be integer. """
         if t is not None:
@@ -246,38 +215,4 @@ class CheckPoints:
             return '{0!s}{1!s}'.format(self.t_basename, str(int(dd)).zfill(self.fill))
         else:
             return '{0!s}{1!s}'.format(self.z_basename, str(int(rd)).zfill(self.fill))
-        
-    def dump(self, fn):
-        """ Write out data to file. """
-    
-        if have_h5py:
-            f = h5py.File(fn, 'w')
-            basename = fn[0:fn.rfind('.')]
-            
-            pf = f.create_group('parameters')
-            for key in self.pf:
-                if type(self.pf[key]) is types.NoneType:
-                    continue
-                
-                try:    
-                    pf.create_dataset(key, data=self.pf[key])
-                except TypeError:
-                    pass
-            
-            for dd in self.data.keys():
-                grp = f.create_group(dd)
-                grp.attrs.create('is_data', data=True)
-                
-                for key in self.data[dd]:
-                    grp.create_dataset(key, data=self.data[dd][key])
-                    
-                del grp    
-                
-            f.close() 
-        
-        else:
-            raise NotImplemented('only hdf5 support at this stage.')       
-
-         
-        
         
