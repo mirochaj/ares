@@ -431,44 +431,13 @@ class SpectralSynthesis(object):
             
         owaves = waves * (1. + zobs) / 1e4
         
-        T = np.exp(-self.OpticalDepth(zobs, owaves))    
+        tau = self.OpticalDepth(zobs, owaves)        
+        T = np.exp(-tau)    
 
         return owaves, f * T
-        
-    def _select_filters(self, zobs, cam='wfc3', lmin=912., lmax=3000., tol=0.0, 
-        filter_set=None, filters='all'):
-        # Get transmission curves
-        filter_data = self.cameras[cam]._read_throughputs(filter_set=None, 
-            filters='all')
-        all_filters = filter_data.keys()    
-        
-        ok_cent = []
-        ok_filters = []
-        for filt in filter_data:
-            
-            # Don't use narrow filters! Maybe come back to this.
-            if filt.endswith('N'):
-                continue
-                
-            x, y, cent, dx, Tavg, norm = filter_data[filt]
-        
-            lo = (cent - dx[1]) * 1e4 / (1. + zobs)
-            hi = (cent + dx[0]) * 1e4 / (1. + zobs)
-            
-            if lo < (lmin - tol):
-                continue
-            if hi > (lmax + tol):
-                continue    
-                
-            ok_filters.append(filt)
-            ok_cent.append(cent)
-            
-        isort = np.argsort(ok_cent)    
-        
-        return tuple(np.array(ok_filters)[isort])
-                
+                        
     def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all', 
-        filter_set=None, dlam=10., rest_wave=None, extras={}, window=1,
+        filter_set=None, dlam=20., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None, 
         hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
         ospec=None, owaves=None, load=True):
