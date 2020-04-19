@@ -472,6 +472,7 @@ _galaxies_testing = \
  'hmf_tmin': 30.,
  'hmf_tmax': 1000.,
  'hmf_model': 'ST',
+ 'hgh_Mmax': None,
  "cosmology_id": 'best',
  "cosmology_name": 'planck_TTTEEE_lowl_lowE', 
  'pop_sed_degrade': 100,
