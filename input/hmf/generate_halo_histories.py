@@ -47,7 +47,7 @@ pars.update(cosmo_pars)
 pars['pop_Tmin'] = None
 pars['pop_Mmin'] = 1e4
 pars['hgh_dlogMmin'] = 0.1
-pars['hgh_Mmax'] = 10
+pars['hgh_Mmax'] = None # by default, None, but 10 is good enough for most apps
 
 pop = ares.populations.GalaxyPopulation(**pars)
 
@@ -58,7 +58,7 @@ elif 'hdf5' in fn_hmf:
 else:
     raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))
     
-if pars['hgh_dlogMmin'] is not None:
+if pars['hgh_Mmax'] is not None:
     pref += '_xM_{:.0f}_{:.2f}'.format(pars['hgh_Mmax'], pars['hgh_dlogMmin'])
     
 fn = '{}.hdf5'.format(pref)

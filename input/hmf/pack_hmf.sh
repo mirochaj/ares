@@ -39,7 +39,7 @@ python generate_halo_histories.py hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_
 tar -czvf hmf.tar.gz \
 	hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_z_1201_0-60.hdf5 \
 	hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000.hdf5 \
-	hgh_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000_xM_10_0.10.hdf5
+	hgh_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000.hdf5
 
 echo Created tarball hmf.tar.gz.
 
