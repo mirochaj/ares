@@ -1723,6 +1723,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             _x, _phi = self._cache_lf_[(z, wave)]
             
+            if self.pf['debug']:
+                print("# Read LF from cache at (z={}, wave={})".format(
+                    z, wave
+                ))
+            
             # If no x supplied, return bin centers
             if x is None:
                 return _x, _phi  
@@ -1730,8 +1735,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if type(x) != np.ndarray:
                 k = np.argmin(np.abs(x - _x))
                 if abs(x - _x[k]) < 1e-3:
+                    if self.pf['debug']:
+                        print("# Found exact match for MUV={})".format(x))
                     return _phi[k]
                 else:
+                    if self.pf['debug']:
+                        print("# Will interpolate to MUV={}".format(x))
+                    #_func_ = interp1d(_x, np.log10(_phi), kind='cubic',
+                    #    fill_value=-np.inf)
+                    #
+                    #phi = 10**_func_(_x)
                     phi = 10**np.interp(x, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
                     
@@ -1742,6 +1755,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if _x.size == x.size:
                 if np.allclose(_x, x):
                     return _phi
+                    
+            if self.pf['debug']:
+                print("# Will interpolate to new MUV array.")
+
+            #_func_ = interp1d(_x, np.log10(_phi), kind='cubic',    
+            #    fill_value=-np.inf)    
+            #
+            #return 10**_func_(x)
             
             return 10**np.interp(x, _x, np.log10(_phi), 
                 left=-np.inf, right=-np.inf)
@@ -2087,14 +2108,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         hist, bin_edges = np.histogram(MAB[Misok==1],
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
-            
-        bin_c = _x
-        
-        N = np.sum(w[Misok==1])
-        
+         
+        N = np.sum(w[Misok==1]) 
         phi = hist * N
-                
-        self._cache_lf_[(z, wave)] = bin_c, phi
+                          
+        self._cache_lf_[(z, wave)] = _x, phi
         
         return self._cache_lf(z, x, wave)
         
@@ -2706,7 +2724,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
             suffix = fn[fn.rfind('.')+1:]
             path = os.getenv("ARES") + '/input/hmf/'
-            fn_hist = path + prefix.replace('hmf', 'hgh') + '.' + suffix
+            pref = prefix.replace('hmf', 'hgh') 
+            if self.pf['hgh_dlogMmin'] is not None:
+                pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'], 
+                    self.pf['hgh_dlogMmin'])
+                    
+            fn_hist = path + pref + '.' + suffix
         else:
             # Check to see if parameters match
             if self.pf['verbose']:

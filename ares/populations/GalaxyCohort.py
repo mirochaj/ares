@@ -2770,7 +2770,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zmax = []
         zform = []
         
-        if self.pf['hgh_dlogMmin'] is not None:
+        if self.pf['hgh_Mmax'] is not None:
             dMmin = self.pf['hgh_dlogMmin']
             M0_aug = np.arange(1.+dMmin, self.pf['hgh_Mmax']+dMmin, dMmin)
             results = {key:np.zeros(((zarr.size+M0_aug.size, zarr.size))) \
@@ -2809,7 +2809,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # course we'll miss out on the early histories of small halos if 
         # Tmin is large. So, fill in histories by incrementing above Mmin
         # at highest available redshsift.
-        if self.pf['hgh_dlogMmin'] is not None:
+        if self.pf['hgh_Mmax'] is not None:
             
             _z0 = zarr.max()
             i0 = zarr.size
@@ -2821,7 +2821,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             for i, _M0 in enumerate(M0_aug):
                 # If M0 is 0, assume it's the minimum mass at this redshift.
-                _zarr, _results = self.RunSAM(z0=_z0, M0=_M0)        
+                _zarr, _results = self.RunSAM(z0=_z0, M0=_M0)
                 
                 # Need to splice into the right elements of 2-D array.
                 # SAM is run from zform to final_redshift, so only a subset
@@ -2913,7 +2913,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 print('hay problemas!', z0, self.halos.tab_z[iz])
         elif (M0 > 1):
-            _M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
             M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
 
             dM = self.pf['hgh_dlogMmin']
@@ -2923,7 +2922,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 dM * 0.2)
             _ngtm = [self._spline_ngtm(z0, _m_) for _m_ in _marr_]
             func = interp1d(_marr_, _ngtm, kind='cubic')
-            n0 = func(np.log10(M0 - dM)) - func(np.log10(M0))
+            n0 = func(np.log10(M0)) - func(np.log10(M0) + dM)
 
         # Setup time-stepping
         zf = max(float(self.halos.tab_z.min()), self.zdead)

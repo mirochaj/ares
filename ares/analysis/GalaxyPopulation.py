@@ -265,7 +265,7 @@ class GalaxyPopulation(object):
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
-        dmag=0.5, dlam_c94=10, fill=False, extra_pane=False, square=False,
+        dmag=0.5, dlam=20, dlam_c94=10, fill=False, extra_pane=False, square=False,
         cmap=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
@@ -470,7 +470,7 @@ class GalaxyPopulation(object):
                     else:
                         bbox = None    
                         
-                    _ax.text(0.95, 0.3-0.1*ct_lf[k], r'$z \sim {}$'.format(z),  
+                    _ax.text(0.95, 0.4-0.1*ct_lf[k], r'$z \sim {}$'.format(z),  
                         transform=_ax.transAxes, color=colors(zint), 
                         ha='right', va='top', bbox=bbox, fontsize=20)
                                             
@@ -489,7 +489,7 @@ class GalaxyPopulation(object):
                         mec=colors(zint), sources=sources, round_z=0.21, use_labels=0)
                     
                     if not had_axes:
-                        _ax2.annotate(r'$z \sim {}$'.format(zint), (0.05, 0.3-0.1*ct_lf[k]), 
+                        _ax2.annotate(r'$z \sim {}$'.format(zint), (0.05, 0.4-0.1*ct_lf[k]), 
                             xycoords='axes fraction', color=colors(zint), 
                             ha='left', va='top', fontsize=20)
 
@@ -614,9 +614,9 @@ class GalaxyPopulation(object):
                 else:
                     hst_filt = hst_shallow
             
-                cam = 'wfc', 'wfc3' if zstr <= 7 else 'nircam'    
-                filt = hst_filt[zstr] if zstr <= 7 else None
-                fset = None if zstr <= 7 else 'M'
+                cam = 'wfc', 'wfc3' if zstr <= 8 else 'nircam'    
+                filt = hst_filt[zstr] if zstr <= 8 else None
+                fset = None if zstr <= 8 else 'M'
             
                 #_mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
                 #    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
@@ -624,10 +624,10 @@ class GalaxyPopulation(object):
                 if beta_phot:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                        dlam=20.)
+                        dlam=dlam)
                 else:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                        rest_wave=(1600., 3000.), dlam=20.)
+                        rest_wave=(1600., 3000.), dlam=dlam)
                 
                 bphot_by_pop[h][z] = beta
                 
@@ -1279,12 +1279,12 @@ class GalaxyPopulation(object):
             if quantity in ['lf']:
                 if data[source]['wavelength'] != wavelength:
                     #shift = sed_model.
-                    print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
+                    print("# WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
                         source, data[source]['wavelength'], wavelength))
             #else:
             if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25
-                print("Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
+                print("# Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
             else:    
                 shift = 0.    
                                                     
@@ -1805,7 +1805,7 @@ class GalaxyPopulation(object):
         #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        _mst  = np.arange(6, 12, 0.2)
+        _mst  = np.arange(6, 12.25, 0.25)
         _mags = np.arange(-25, -10, anl.base_kwargs['pop_mag_bin'])
 
         redshifts = [4, 6, 8, 10]

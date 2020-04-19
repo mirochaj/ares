@@ -1078,8 +1078,8 @@ def HaloMassFunctionParameters():
     "hmf_dt": None,     # if not None, will switch this one.
     
     # Augment suite of halo growth histories
-    "hgh_dlogMmin": None,
-    'hgh_Mmax': 10,
+    "hgh_dlogMmin": 0.1,
+    'hgh_Mmax': None,
     
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2

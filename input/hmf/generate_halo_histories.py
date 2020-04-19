@@ -20,29 +20,30 @@ import matplotlib.pyplot as pl
 try:
     fn_hmf = sys.argv[1]
 except IndexError:
-    fn_hmf = 'hmf_ST_logM_1400_4-18_z_1201_0-60.npz'
+    fn_hmf = 'hmf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_z_1201_0-60.hdf5'
 
 pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1) \
      + ares.util.ParameterBundle('mirocha2017:dflex').pars_by_pop(0, 1)
 
 pars['hmf_table'] = fn_hmf
 
-def_kwargs = \
-{
- "cosmology_id": 'best',
- "cosmology_name": 'planck_TTTEEE_lowl_lowE',
- #"sigma_8": 0.8159, 
- #'primordial_index': 0.9652, 
- #'omega_m_0': 0.315579, 
- #'omega_b_0': 0.0491, 
- #'hubble_0': 0.6726,
- #'omega_l_0': 1. - 0.315579,
-}
+with h5py.File(fn_hmf, 'r') as f:
+    grp = f['cosmology']
+    
+    cosmo_pars = {}
+    cosmo_pars['cosmology_name'] = grp.attrs.get('cosmology_name')
+    cosmo_pars['cosmology_id'] = grp.attrs.get('cosmology_id')
+    
+    for key in grp:
+        buff = np.zeros(1)
+        grp[key].read_direct(buff)
+        cosmo_pars[key] = buff[0]
+            
+    print("Read cosmology from {}.".format(fn_hmf))
 
-kwargs = def_kwargs.copy()
-kwargs.update(ares.util.get_cmd_line_kwargs(sys.argv[1:]))
+pars.update(cosmo_pars)
 
-pars.update(kwargs)
+# We might periodically tinker with these things but these are good defaults.
 pars['pop_Tmin'] = None
 pars['pop_Mmin'] = 1e4
 pars['hgh_dlogMmin'] = 0.1
@@ -56,6 +57,9 @@ elif 'hdf5' in fn_hmf:
     pref = fn_hmf.replace('.hdf5', '').replace('hmf', 'hgh')
 else:
     raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))
+    
+if pars['hgh_dlogMmin'] is not None:
+    pref += '_xM_{:.0f}_{:.2f}'.format(pars['hgh_Mmax'], pars['hgh_dlogMmin'])
     
 fn = '{}.hdf5'.format(pref)
 if not os.path.exists(fn):

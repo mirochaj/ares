@@ -44,11 +44,11 @@ _base = \
  'pop_zdead': 3.5,
  
  # Synthesis control
- 'pop_mag_bin': 0.5,            # Will bin to this mag-resolution for LF
+ 'pop_mag_bin': 1.0,            # Will bin to this mag-resolution for LF
  'pop_synth_cache_level': 0,    # 1 = more careful = slower
  'pop_synth_minimal': True,
  'pop_synth_zmax': 20.,
- 'pop_Tmin': 1e4,
+ 'pop_Tmin': 1e4,               # Just for sake of SFRD
  
  # Metallicity evolution!?
  'pop_enrichment': False,
@@ -60,6 +60,11 @@ _base = \
  'hmf_dt': 1.,
  'hmf_tmax': 2e3,
  'hmf_model': 'Tinker10',
+ 
+ # Need to build enough halo histories at early times to get massive
+ # halos at late times.
+ 'hgh_dlogMmin': 0.1,
+ 'hgh_Mmax': 10,
  
  # Add scatter to SFRs
  'pop_scatter_mar': 0.3,
@@ -78,7 +83,6 @@ _base = \
  'omega_b_0': 0.0491, 
  'hubble_0': 0.6726,
  'omega_l_0': 1. - 0.315579,
- 
 }
 
 _legacy = _base.copy()
@@ -191,15 +195,15 @@ univ.update(_screen_dpl)
 
 _univ_best = \
 {
- "pq_func_par0[0]": 0.034246583808,
- "pq_func_par1[0]": 3.12550045089e+11,
- "pq_func_par2[0]": 0.669152766422,
- "pq_func_par3[0]": -0.522155223676,
- "pq_func_par0[22]": 0.737193500696,
- "pq_func_par2[22]": 0.955286059788,
- "pq_func_par3[22]": 0.328688130603,
- "pq_func_par1[22]": 60700098134.7,
- "pq_func_par0[33]": 0.0561104319417,
+ "pq_func_par0[0]": 0.04505759213804557,
+ "pq_func_par1[0]": 289087186674.5159,
+ "pq_func_par2[0]": 0.6524711721934323,
+ "pq_func_par3[0]": -0.6615949817995457,
+ "pq_func_par0[22]": 1.0105945780080616,
+ "pq_func_par2[22]": 0.6755443766399062,
+ "pq_func_par3[22]": 0.06402817960317375,
+ "pq_func_par1[22]": 1477953138808.743,
+ "pq_func_par0[33]": 0.02102967598493136,
 }
 
 univ.update(_univ_best)
