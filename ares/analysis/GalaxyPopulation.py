@@ -1626,12 +1626,14 @@ class GalaxyPopulation(object):
         if pop is None:
             pass
         elif isinstance(pop, GalaxyEnsemble):
+            self._pop = pop
             self._MegaPlotPop(axes, pop, redshifts=redshifts)
         elif hasattr(pop, 'chain'):
             if fresh:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
                 pop = GP(**bkw)
+                self._pop = pop
                 self._MegaPlotPop(axes, pop, redshifts=redshifts)
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
@@ -1880,7 +1882,7 @@ class GalaxyPopulation(object):
         
         
         ax_sfe.set_xlim(1e8, 1e13)
-        ax_sfe.set_ylim(1e-3, 1.0)
+        ax_sfe.set_ylim(1e-3, 1.5)
         ax_fco.set_xscale('log')
         ax_fco.set_xlim(1e8, 1e13)
         ax_fco.set_yscale('linear')
@@ -2032,7 +2034,10 @@ class GalaxyPopulation(object):
             self.PlotSMF(z, ax=ax_smf, sources=['stefanon2017'], mew=1, fmt='s',
                 round_z=0.11, color=colors[j], mec=colors[j], mfc='none',
                 label='Stefanon+ 2017' if j == 0 else None, **mkw)
-
+            self.PlotSMF(z, ax=ax_smf, sources=['duncan2014'],
+                round_z=0.11, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
+                label='Duncan+ 2014' if j == 0 else None, **mkw)
+                
             if z in b14.data['beta']:
         
                 err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']

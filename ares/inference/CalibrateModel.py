@@ -349,7 +349,7 @@ class CalibrateModel(object):
                     guesses['pq_func_par3[22]'] = 0.5
                     is_log.extend([False])
                     jitter.extend([0.05])
-                    ps.add_distribution(UniformDistribution(0., 2.), 'pq_func_par3[22]')
+                    ps.add_distribution(UniformDistribution(-1.0, 2.), 'pq_func_par3[22]')
                 
                     if 'slope-high' in self.zevol_dust:
                         raise NotImplemented('help')
@@ -490,7 +490,7 @@ class CalibrateModel(object):
 
         if self.fit_lf:
             if 'lf' in self.zmap:
-                red_lf = np.sort(self.zmap['lf'].values())
+                red_lf = np.sort([item for item in self.zmap['lf'].values()])
             else:
                 red_lf = np.array(self.fit_lf)
         else:

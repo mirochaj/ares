@@ -26,6 +26,8 @@ _base = \
  'pq_func_par7[0]': 0.0,   # Mp 
  'pq_func_par8[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_func_par9[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_val_ceil[0]': 1.,     # Cap SFE at <= 1
+ 
  
  # Spectral synthesis
  'pop_sed': 'eldridge2009',
