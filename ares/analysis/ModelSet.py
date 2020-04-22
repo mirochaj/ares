@@ -1028,7 +1028,7 @@ class ModelSet(BlobFactory):
             
         return self._blob_redshifts_float
     
-    def SelectModels(self):
+    def SelectModels(self): # pragma: no cover
         """
         Draw a rectangle on supplied matplotlib.axes.Axes instance, return
         information about those models.
@@ -1042,11 +1042,11 @@ class ModelSet(BlobFactory):
         self._or = self._ax.figure.canvas.mpl_connect('button_release_event', 
             self._on_release)
                             
-    def _on_press(self, event):
+    def _on_press(self, event): # pragma: no cover
         self.x0 = event.xdata
         self.y0 = event.ydata
         
-    def _on_release(self, event):
+    def _on_release(self, event): # pragma: no cover
         self.x1 = event.xdata
         self.y1 = event.ydata
         

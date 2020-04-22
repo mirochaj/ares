@@ -1112,7 +1112,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return data
             
-    def _gen_galaxy_histories(self, zstop=0):     
+    def _gen_galaxy_histories(self, zstop=0): # pragma: no cover
         """
         Take halo histories and paint on galaxy histories in some way.
         

@@ -157,8 +157,6 @@ class HaloMassFunction(object):
                 self.pf['preferred_format'])):
                 self.tab_name = '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
             # Next, look for same table different format
-            elif os.path.exists('{!s}.pkl'.format(fn)):
-                self.tab_name = '{!s}.pkl'.format(fn)
             elif os.path.exists('{!s}.hdf5'.format(fn)):
                 self.tab_name = '{!s}.hdf5'.format(fn)
             else:
@@ -276,7 +274,7 @@ class HaloMassFunction(object):
 
         return self.__dict__[name]
         
-    def _load_hmf_wdm(self):
+    def _load_hmf_wdm(self): # pragma: no cover
         m_X = self.pf['hmf_wdm_mass']
         
         _fn = self.tab_prefix_hmf(True)
@@ -395,43 +393,6 @@ class HaloMassFunction(object):
             self.tab_growth = np.array(f[('tab_growth')])
             
             f.close()
-                      
-        elif re.search('.pkl', self.tab_name):
-            
-            ##
-            # In this case, order matters!
-            ##
-            
-            #loaded = read_pickle_file(self.tab_name, nloads=6, verbose=False)
-            #(self.z, self.logM, self.fcoll_spline_2d) = loaded[0:3]
-            #(self.tab_dndm, self.tab_ngtm, self._tabmgtm) = loaded[3:6]
-            #self.M = 10**self.logM
-
-            raise IOError('broken')
-
-            #self.fcoll_spline_2d = pickle.load(f)
-            self.tab_dndm = pickle.load(f)            
-            self.ngtm = pickle.load(f)
-            self.mgtm = pickle.load(f)
-            self._tab_MAR = pickle.load(f)
-            self.tab_Mmin_floor = pickle.load(f)
-            
-            if self.pf['hmf_load_ps']:
-                self.bias_tab = pickle.load(f)
-                self.tab_ps_lin = pickle.load(f)
-                self.tab_sigma = pickle.load(f)
-                self.tab_dlnsdlnm = pickle.load(f)
-                self.tab_k_lin = pickle.load(f)
-            
-            if self.pf['hmf_load_growth']:
-                self.tab_growth = pickle.load(f)
-            
-            # Axes these?
-            self.tab_ngtm = pickle.load(f)
-            self.tab_mgtm = pickle.load(f)
-
-            f.close()
-
         else:
             raise IOError('Unrecognized format for hmf_table.')    
                 
