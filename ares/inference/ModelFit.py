@@ -23,6 +23,7 @@ from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
 from types import FunctionType#, InstanceType # InstanceType not in Python3
+from ..analysis import ModelSet
 from ..analysis.BlobFactory import BlobFactory
 from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
@@ -828,18 +829,22 @@ class ModelFit(FitBase):
                 
             self._jitter = np.array(value)
             
-    def prep_output_files(self, restart, clobber):
+    def prep_output_files(self, restart, clobber, prefix_burn=None):
         if restart:
-            pos = self._prep_from_restart()
+            pos = self._prep_from_restart(prefix_burn)
         else:
             pos = None
             self._prep_from_scratch(clobber)    
     
         return pos
     
-    def _prep_from_restart(self):
+    def _prep_from_restart(self, prefix_restart=None):
 
+        #if prefix is None:
         prefix = self.prefix
+        
+        if prefix_restart is None:
+            prefix_restart = prefix
 
         (pars, is_log) = read_pickle_file('{!s}.pinfo.pkl'.format(prefix),\
             nloads=1, verbose=False)
@@ -891,7 +896,7 @@ class ModelFit(FitBase):
             else:
                 # lec = largest existing checkpoint
                 chain = \
-                    read_pickled_chain(self._latest_checkpoint_chain_file(prefix))
+                    read_pickled_chain(self._latest_checkpoint_chain_file(prefix_restart))
 
             pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]
 
@@ -1237,6 +1242,9 @@ class ModelFit(FitBase):
         #        raise IOError(("This can't be a restart, {!s}*.pkl not " +\
         #            "found.").format(prefix))
                 
+        burn_prev = 0
+        pref_prev = prefix + '.burn'
+        restart_from_burn = False        
         if restart:
             
             if clobber:
@@ -1249,27 +1257,51 @@ class ModelFit(FitBase):
             cptapdflsfl = ((not self.checkpoint_append) and\
                 (not glob.glob('{!s}.dd*.pkl'.format(prefix))))
             
+            cptapdtrfl_b = (self.checkpoint_append and\
+                (not os.path.exists('{!s}.burn.chain.pkl'.format(prefix))))
+            # below checks for checkpoint_append==False failure
+            cptapdflsfl_b = ((not self.checkpoint_append) and\
+                (not glob.glob('{!s}.burn.dd*.pkl'.format(prefix))))
+            
             # either way, produce error
-            if cptapdtrfl or cptapdflsfl:
-                raise IOError(("This can't be a restart, {!s}*.pkl not " +\
-                    "found.").format(prefix))
-                    
+            if (cptapdtrfl or cptapdflsfl):
+                
+                if (cptapdtrfl_b + cptapdflsfl_b == 0):
+                    restart_from_burn = True
+                else:    
+                    raise IOError(("This can't be a restart, {!s}*.pkl not " +\
+                        "found.").format(prefix))
+
             # Should make sure file isn't empty, either.
             # Is it too dangerous to set clobber=True, here?
+            burn_prev = 0
             try:
                 if self.checkpoint_append:
-                    fn_last_chain = '{!s}.chain.pkl'.format(prefix)
+                    if restart_from_burn:
+                        fn_last_chain = '{!s}.burn.chain.pkl'.format(prefix)
+                    else:    
+                        fn_last_chain = '{!s}.chain.pkl'.format(prefix)
+                        
                     _chain = read_pickled_chain(fn_last_chain)
                                         
                 else:
-                                                        
-                    fn_last_chain = self._latest_checkpoint_chain_file(prefix)
+                    if restart_from_burn:
+                        pref_prev = prefix + '.burn'
+                    else:
+                        pref_prev = prefix
+                                        
+                    fn_last_chain = \
+                        self._latest_checkpoint_chain_file(pref_prev)                    
                                         
                     _chain = read_pickled_chain(fn_last_chain)
-                                        
-                if rank == 0:
+                                                            
+                    if restart_from_burn:
+                        _anl_ = ModelSet(pref_prev, verbose=False)
+                        burn_prev = _anl_.chain.shape[0] // self.nwalkers
+                                                            
+                if (rank == 0) and (burn-burn_prev > 0):
                     print("# Will restart from {}".format(fn_last_chain))    
-                    
+                                        
             except ValueError:        
                 if rank == 0:
                     has_burn = os.path.exists('{!s}.burn.chain.pkl'.format(prefix))
@@ -1402,7 +1434,10 @@ class ModelFit(FitBase):
                             
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
-        pos = self.prep_output_files(restart, clobber)
+        if restart_from_burn:
+            pos = self.prep_output_files(restart, clobber, pref_prev)
+        else:    
+            pos = self.prep_output_files(restart, clobber)
         
         # Optional re-centering of walkers
         if restart and recenter:
@@ -1410,34 +1445,50 @@ class ModelFit(FitBase):
             mlpt = pos[np.argmax(prob)]
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
         
-        
         state = None #np.random.RandomState(self.seed)  
-        
+                
         ##
         # Run burn-in
-        ##
-        if (burn > 0) and (not restart):
+        ##        
+        if (burn-burn_prev > 0) and ((not restart) or restart_from_burn):
             
-            if burn_method == 0:
+            if (burn_method == 0) and (not restart_from_burn):
                 if not hasattr(self, '_jitter'):
                     raise AttributeError("Must set jitter!")
             
-            print("# Starting burn-in: {!s}".format(time.ctime()))
-            
-            if save_freq >= burn:
+            if restart_from_burn:                
+                if os.path.exists('{!s}.rstate.pkl'.format(prefix)):
+                    state = read_pickle_file('{!s}.rstate.pkl'.format(prefix),\
+                        nloads=1, verbose=False)
+                    if rank == 0:
+                        print("# Using pre-restart RandomState.")    
+                
+                print("# Re-starting burn-in: {!s}".format(time.ctime()))
+                if burn_prev > 0:
+                    print("# Previous burn-in: {} step per walker complete.".format(burn_prev))
+                    print("# Will burn-in for {} more steps per walker.".format(burn - burn_prev))
+            else:
+                print("# Starting burn-in: {!s}".format(time.ctime()))
+                        
+            if save_freq >= (burn - burn_prev):
                 print("# Note: you might want to set `save_freq` < `burn`!")
+            
+            if pos is None:
+                pos = self.guesses
             
             t1 = time.time()
             pos, prob, state, blobs = \
-                self._run(self.guesses, burn, state=state, save_freq=save_freq, 
-                    restart=False, prefix=self.prefix+'.burn')
+                self._run(pos, burn-burn_prev, state=state, 
+                    save_freq=save_freq, 
+                    restart=restart_from_burn, prefix=pref_prev)
             t2 = time.time()
 
             print("# Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
-
-            pos = self._reinitialize_walkers(pos, prob, burn_method)
-            self.sampler.reset()
-            gc.collect()
+            
+            if steps > 0:
+                pos = self._reinitialize_walkers(pos, prob, burn_method)
+                self.sampler.reset()
+                gc.collect()
         elif not restart:
             pos = self.guesses
             state = None
@@ -1445,10 +1496,24 @@ class ModelFit(FitBase):
             state = read_pickle_file('{!s}.rstate.pkl'.format(prefix),\
                 nloads=1, verbose=False)
             if rank == 0:
-                print("Using pre-restart RandomState. Should we do this?")
+                print("# Using pre-restart RandomState.")
         else:
             state = None
-            
+                      
+        ##
+        # Burn-only mode.
+        if steps == 0:
+            if self.pool is not None and emcee_mpipool:
+                self.pool.close()
+            elif self.pool is not None:
+                self.pool.stop()
+                
+            if rank == 0:
+                print("# Burn-in complete, and `step`=0.")
+                print("# Exiting: {!s}".format(time.ctime()))
+            return
+          
+          
           
         ##
         # MAIN MCMC
@@ -1461,7 +1526,8 @@ class ModelFit(FitBase):
             
             pos, prob, state, blobs = \
                 self._run(pos, steps, state=state, save_freq=save_freq, 
-                    restart=restart, prefix=self.prefix)
+                    restart=restart and (not restart_from_burn), 
+                    prefix=self.prefix)
             
         if self.pool is not None and emcee_mpipool:
             self.pool.close()
@@ -1501,13 +1567,13 @@ class ModelFit(FitBase):
         if emcee_v >= 3:
             kw = {}
         else:
-            kw = {'storechain': False}    
-
+            kw = {'storechain': False}   
+            
         # Take steps, append to pickle file every save_freq steps
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, **kw):
-                        
+                                                        
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
             dd = 'dd' + str(ct // save_freq).zfill(4)

@@ -265,7 +265,7 @@ class GalaxyPopulation(object):
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
-        dmag=0.5, dlam_c94=10, fill=False, extra_pane=False, square=False,
+        dmag=0.5, dlam=20, dlam_c94=10, fill=False, extra_pane=False, square=False,
         cmap=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
@@ -470,7 +470,7 @@ class GalaxyPopulation(object):
                     else:
                         bbox = None    
                         
-                    _ax.text(0.95, 0.3-0.1*ct_lf[k], r'$z \sim {}$'.format(z),  
+                    _ax.text(0.95, 0.4-0.1*ct_lf[k], r'$z \sim {}$'.format(z),  
                         transform=_ax.transAxes, color=colors(zint), 
                         ha='right', va='top', bbox=bbox, fontsize=20)
                                             
@@ -489,7 +489,7 @@ class GalaxyPopulation(object):
                         mec=colors(zint), sources=sources, round_z=0.21, use_labels=0)
                     
                     if not had_axes:
-                        _ax2.annotate(r'$z \sim {}$'.format(zint), (0.05, 0.3-0.1*ct_lf[k]), 
+                        _ax2.annotate(r'$z \sim {}$'.format(zint), (0.05, 0.4-0.1*ct_lf[k]), 
                             xycoords='axes fraction', color=colors(zint), 
                             ha='left', va='top', fontsize=20)
 
@@ -614,9 +614,9 @@ class GalaxyPopulation(object):
                 else:
                     hst_filt = hst_shallow
             
-                cam = 'wfc', 'wfc3' if zstr <= 7 else 'nircam'    
-                filt = hst_filt[zstr] if zstr <= 7 else None
-                fset = None if zstr <= 7 else 'M'
+                cam = 'wfc', 'wfc3' if zstr <= 8 else 'nircam'    
+                filt = hst_filt[zstr] if zstr <= 8 else None
+                fset = None if zstr <= 8 else 'M'
             
                 #_mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
                 #    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
@@ -624,10 +624,10 @@ class GalaxyPopulation(object):
                 if beta_phot:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                        dlam=20.)
+                        dlam=dlam)
                 else:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                        rest_wave=(1600., 3000.), dlam=20.)
+                        rest_wave=(1600., 3000.), dlam=dlam)
                 
                 bphot_by_pop[h][z] = beta
                 
@@ -800,7 +800,7 @@ class GalaxyPopulation(object):
         return ax_uvlf, ax_cmd, ax_smf, ax_cMs, ax_extra
         
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
-        wave_lo=None, wave_hi=None, show_beta_spec=True,
+        wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
         show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
         return_data=True, data=None, **kwargs):
@@ -957,29 +957,52 @@ class GalaxyPopulation(object):
                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
                #    magmethod='mono')
             else:
-                
                 beta_hst = beta_hst_M1600 = -np.inf * np.ones_like(mags_cr)
                 
-            # Compute raw beta and compare to Mstell    
-            beta_c94 = pop.Beta(z, Mwave=1600., Mbins=mags_cr, return_binned=True,
-                cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
-                magmethod='mono')
+            # Fit smooth function to Beta(MUV), use to interpolate
+            # and compute derivatives.
             
+            # First up: HST Beta.
+            if z <= 8:
+                slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
+                    return_funcs=True, model='quad3', presets='hst',
+                    maglim=(-22.5, -16.5))
+                    
+                # Compute beta and dBeta/dMUV at a few magnitudes
+                if func is not None:
+                    B195_hst[j,:] = func(MUV)
+                    dBdM195_hst[j,:] = func_p(MUV)
+                else:
+                    print("# WARNING: z={} dBeta_dMUV yielded fully-masked dataset.".format(z))
+
+            ##
+            # Slope of UV slope in Calzetti windows vs. magnitude     
+            slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
+                magmethod='mono', 
+                return_funcs=True, model='quad3', presets='calzetti', dlam=1.,
+                maglim=(-22.5, -16.5))    
+                
+            if func is not None:
+                B195_spec[j,:] = func(MUV)
+                dBdM195_spec[j,:] = func_p(MUV)
+            else:
+                print("# WARNING: z={} dBeta_dMUV yielded fully-masked dataset.".format(z))
+                        
             # Compute beta(Mstell)
             if include_Mstell:
                 beta_Mst = pop.Beta(z, Mwave=1600., return_binned=False,
-                    cam='calzetti', filters=calzetti, dlam=1., rest_wave=None,
+                    cam='calzetti', filters=calzetti, dlam=dlam, rest_wave=None,
                     Mstell=10**Ms_b, massbins=Ms_b)
                                                 
-                dbeta = pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
-                    massbins=Ms_b, dlam=1.)
+                dbeta_Mst, func, func_p = pop.dBeta_dMstell(z, Mstell=10**Ms_b, 
+                    massbins=Ms_b, dlam=1., return_funcs=True)
                 
-                BMstell[j,:] = beta_Mst
-                dBMstell[j,:] = dbeta
+                BMstell[j,:] = func(Ms_b)
+                dBMstell[j,:] = func_p(Ms_b)
                     
             # Compute beta given JWST W only
             # 
-            if show_beta_jwst:
+            if show_beta_jwst and z >= 5:
                 nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
                 # Extend the wavelength range until we get two filters
                 ct = 1
@@ -999,6 +1022,16 @@ class GalaxyPopulation(object):
                     cam=('nircam', ), filters=filt2, filter_set=fset, 
                     rest_wave=None, magmethod=magmethod)
                     
+                slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
+                    return_funcs=True, model='quad3', presets='nircam-w',
+                    maglim=(-22.5, -16.5))
+                
+                if func is not None:
+                    # Compute beta and dBeta/dMUV at a few magnitudes    
+                    #for l, mag in enumerate(MUV):
+                    B195_jwst[j,:] = func(MUV)
+                    dBdM195_jwst[j,:] = func_p(MUV) 
+                            
                 # Compute beta w/ JWST 'M' only
                 nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
                 
@@ -1008,59 +1041,20 @@ class GalaxyPopulation(object):
                     beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         cam=('nircam',), filters=filt3, rest_wave=None,
                         magmethod=magmethod)
+                    
+                    slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
+                        return_funcs=True, model='quad3', presets='nircam-m',
+                        maglim=(-22.5, -16.5))
+                    
+                    if func is not None:
+                        # Compute beta and dBeta/dMUV at a few magnitudes    
+                        B195_M[j,:] = func(MUV)
+                        dBdM195_M[j,:] = func_p(MUV)
+                        
                 else:
                     beta_M = -np.inf * np.ones_like(mags_cr)  
             else:
                 beta_W = beta_M = None
-                    
-            # Compute Beta at MUV=-19.5 (or others)
-            for k, beta in enumerate([beta_c94, beta_hst, beta_W, beta_M]):
-                
-                if (not show_beta_jwst) and k > 1:
-                    continue
-                
-                for l, mag in enumerate(MUV):
-                
-                    _i195 = np.argmin(np.abs(mags_cr - mag))
-                    _B195 = beta[_i195]
-                                    
-                    # Compute dBeta/dMag via finite difference.
-                    #_xx = mags[_i195-3:_i195+4]
-                    #_yy = beta[_i195-3:_i195+4]
-                    #
-                    #xx, yy = central_difference(_xx, _yy)
-                    #
-                    ## Smooth this out by just using last two points
-                    #slope = np.interp(-19.5, [xx[0], xx[-1]], [yy[0], yy[-1]])
-                    
-                    # Compute dBeta/dMag by fitting PL to points.
-                    _xx = mags_cr[_i195-1:_i195+2]
-                    _yy = beta[_i195-1:_i195+2]
-                    
-                    if not np.any(np.isfinite(_yy)):
-                        continue
-                    
-                    func = lambda xx, p0, p1: p0 + p1 * xx
-                    popt, pcov = curve_fit(func, _xx, _yy, 
-                        p0=np.array([-2., 0.]))
-                    
-                    norm = popt[0]
-                    slope = popt[1]
-                    
-                    if k == 0:
-                        B195_spec[j,l] = _B195
-                        dBdM195_spec[j,l] = slope
-                    elif k == 1:
-                        B195_hst[j,l] = _B195
-                        dBdM195_hst[j,l] = slope
-                    elif k == 2:
-                        B195_jwst[j,l] = _B195
-                        dBdM195_jwst[j,l] = slope
-                    elif k == 3:
-                        B195_M[j,l] = _B195
-                        dBdM195_M[j,l] = slope
-                    else:
-                        pass
                         
             pb.update(j)            
             t2 = time.time()
@@ -1091,11 +1085,6 @@ class GalaxyPopulation(object):
                     label=r'$M_{\mathrm{UV}}=%.1f$' % mag, 
                     color='k', ls=ls[l])
                 
-                #boff = -0.2 if l == 0 else 0.2
-                #axB.annotate(r'$M_{\mathrm{UV}}=%.1f$' % mag,
-                #    (zarr[ok==1][-1]+0.2, _beta[ok==1][-1]+boff), 
-                #    ha='right', va='top' if l == 0 else 'bottom')
-                
         if show_beta_hst:
             for l, mag in enumerate(MUV):
                 _beta = B195_hst[:,l]
@@ -1105,14 +1094,6 @@ class GalaxyPopulation(object):
                 axD.plot(zarr[ok==1], -dBdM195_hst[ok==1,l], lw=2, 
                     color='b', ls=ls[l])
             
-            #B195_spec_2 = np.array(B195_spec_2)        
-            #dBdM195_spec_2 = np.array(dBdM195_spec_2)
-            #ok_spec = B195_spec_2 > -99999
-            #axB.plot(zarr[ok_spec==1], B195_spec_2[ok_spec==1], lw=2, 
-            #    color='k', ls=':')
-            #axD.plot(zarr[ok_spec==1], -dBdM195_spec_2[ok_spec==1], lw=2, ls=ls,
-            #    color='k', ls=':')    
-        
         if show_beta_combo:
             for l, mag in enumerate(MUV):
                 _beta = B195_jwst[:,l]
@@ -1175,9 +1156,9 @@ class GalaxyPopulation(object):
                 handlelength=2, ncol=1)
                 
             axD2.set_xlim(3.5, zarr.max()+0.5)
-            axD2.set_ylim(0., 0.5)
             axD2.set_yticks(np.arange(0.0, 0.6, 0.2))
             axD2.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True) 
+            axD2.set_ylim(0., 0.5)
             axD2.legend(loc='upper right', frameon=True, fontsize=8,
                 handlelength=2, ncol=1)
                 
@@ -1195,8 +1176,6 @@ class GalaxyPopulation(object):
                 axD2.set_ylabel(r'$d\beta_{\mathrm{c94}}/dlog_{10}M_{\ast}$')
                 axB2.set_ylim(-2.8, -1.4)
                 
-
-        
 
         if axes is None:
             axB.set_ylabel(r'$\beta$')
@@ -1300,12 +1279,12 @@ class GalaxyPopulation(object):
             if quantity in ['lf']:
                 if data[source]['wavelength'] != wavelength:
                     #shift = sed_model.
-                    print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
+                    print("# WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
                         source, data[source]['wavelength'], wavelength))
             #else:
             if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25
-                print("Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
+                print("# Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
             else:    
                 shift = 0.    
                                                     
@@ -1647,12 +1626,14 @@ class GalaxyPopulation(object):
         if pop is None:
             pass
         elif isinstance(pop, GalaxyEnsemble):
+            self._pop = pop
             self._MegaPlotPop(axes, pop, redshifts=redshifts)
         elif hasattr(pop, 'chain'):
             if fresh:
                 bkw = pop.base_kwargs.copy()
                 bkw.update(pop.max_likelihood_parameters(method=method))
                 pop = GP(**bkw)
+                self._pop = pop
                 self._MegaPlotPop(axes, pop, redshifts=redshifts)
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
@@ -1826,7 +1807,7 @@ class GalaxyPopulation(object):
         #ax_lae_m  = kw['ax_lae_m']
         ax_sfms   = kw['ax_sfms']
         
-        _mst  = np.arange(6, 12, 0.2)
+        _mst  = np.arange(6, 12.25, 0.25)
         _mags = np.arange(-25, -10, anl.base_kwargs['pop_mag_bin'])
 
         redshifts = [4, 6, 8, 10]
@@ -1901,7 +1882,7 @@ class GalaxyPopulation(object):
         
         
         ax_sfe.set_xlim(1e8, 1e13)
-        ax_sfe.set_ylim(1e-3, 1.0)
+        ax_sfe.set_ylim(1e-3, 1.5)
         ax_fco.set_xscale('log')
         ax_fco.set_xlim(1e8, 1e13)
         ax_fco.set_yscale('linear')
@@ -2053,7 +2034,10 @@ class GalaxyPopulation(object):
             self.PlotSMF(z, ax=ax_smf, sources=['stefanon2017'], mew=1, fmt='s',
                 round_z=0.11, color=colors[j], mec=colors[j], mfc='none',
                 label='Stefanon+ 2017' if j == 0 else None, **mkw)
-
+            self.PlotSMF(z, ax=ax_smf, sources=['duncan2014'],
+                round_z=0.11, color=colors[j], mec=colors[j], mfc=colors[j], mew=1, fmt='o',
+                label='Duncan+ 2014' if j == 0 else None, **mkw)
+                
             if z in b14.data['beta']:
         
                 err = b14.data['beta'][z]['err'] + b14.data['beta'][z]['sys']

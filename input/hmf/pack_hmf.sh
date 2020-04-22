@@ -28,7 +28,7 @@ echo \# Generating HMF tables using ST mass function with $np processors...
 if [ $np -eq 1 ]
 then
   python generate_hmf_tables.py hmf_model=ST
-  python generate_hmf_tables.py hmf_model=ST hmf_dt=1 hmf_tmin=200 hmf_tmax=1000
+  python generate_hmf_tables.py hmf_model=ST hmf_dt=1 hmf_tmin=30 hmf_tmax=1000
 else
   mpirun -np $np python generate_hmf_tables.py hmf_model=ST
   mpirun -np $np python generate_hmf_tables.py hmf_model=ST hmf_dt=1 hmf_tmin=30 hmf_tmax=1000

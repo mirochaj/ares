@@ -2770,7 +2770,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zmax = []
         zform = []
         
-        if self.pf['hgh_dlogMmin'] is not None:
+        if self.pf['hgh_Mmax'] is not None:
             dMmin = self.pf['hgh_dlogMmin']
             M0_aug = np.arange(1.+dMmin, self.pf['hgh_Mmax']+dMmin, dMmin)
             results = {key:np.zeros(((zarr.size+M0_aug.size, zarr.size))) \
@@ -2809,7 +2809,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # course we'll miss out on the early histories of small halos if 
         # Tmin is large. So, fill in histories by incrementing above Mmin
         # at highest available redshsift.
-        if self.pf['hgh_dlogMmin'] is not None:
+        if self.pf['hgh_Mmax'] is not None:
             
             _z0 = zarr.max()
             i0 = zarr.size
@@ -2821,7 +2821,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             for i, _M0 in enumerate(M0_aug):
                 # If M0 is 0, assume it's the minimum mass at this redshift.
-                _zarr, _results = self.RunSAM(z0=_z0, M0=_M0)        
+                _zarr, _results = self.RunSAM(z0=_z0, M0=_M0)
                 
                 # Need to splice into the right elements of 2-D array.
                 # SAM is run from zform to final_redshift, so only a subset
@@ -2913,7 +2913,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 print('hay problemas!', z0, self.halos.tab_z[iz])
         elif (M0 > 1):
-            _M0 = np.interp(z0, self.halos.tab_z, self._tab_Mmin)
             M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
 
             dM = self.pf['hgh_dlogMmin']
@@ -2923,7 +2922,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 dM * 0.2)
             _ngtm = [self._spline_ngtm(z0, _m_) for _m_ in _marr_]
             func = interp1d(_marr_, _ngtm, kind='cubic')
-            n0 = func(np.log10(M0 - dM)) - func(np.log10(M0))
+            n0 = func(np.log10(M0)) - func(np.log10(M0) + dM)
 
         # Setup time-stepping
         zf = max(float(self.halos.tab_z.min()), self.zdead)
@@ -3436,7 +3435,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         Parameters
         ----------
-        z : int, float
         scale : int, float, np.ndarray
             Angular scale [arcseconds]
         wave_obs : int, float, tuple
@@ -3496,6 +3494,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     scale_units=scale_units)
                                
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
+            
+        ##
+        # Extra factor of nu^2 to eliminate Hz^{-1} units for monochromatic PS  
+        if type(wave_obs) not in [tuple, list]:
+            ps *= (c / (wave_obs * 1e-4))**2
         
         return ps  
                 
@@ -3514,14 +3517,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if type(wave_obs) in [int, float, np.float64]:
             is_band_avg = False
             
-            # Get rest wavelength
+            # Get rest wavelength in Angstroms
             wave = wave_obs * 1e4 / (1. + z)
             # Convert to photon energy since that what we work with internally
             E = h_p * c / (wave * 1e-8) / erg_per_ev
             nu = c / (wave * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz            
-            enu = self.Emissivity(z, E=E) * ev_per_hz * nu
+            enu = self.Emissivity(z, E=E) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_avg = True
@@ -3536,9 +3539,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # [enu] = erg/s/cm^3
             enu = self.Emissivity(z, Emin=E2, Emax=E1)
             
-        # Need distance and H(z) for all that follows    
-        d = self.cosm.ComovingRadialDistance(0., z) # [cm]
-        Hofz = self.cosm.HubbleParameter(z)         # [s^-1]
+        # Need angular diameter distance and H(z) for all that follows    
+        d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
+        Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
         
         ##
         # Must retrieve redhsift-dependent k given fixed angular scale.       
@@ -3594,6 +3597,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             delsq = (k / cm_per_mpc)**2 * (ps3d * cm_per_mpc**3) * Hofz \
                 / 2. / np.pi / c
             
+            assert not is_band_avg
+            
             if is_band_avg:                
                 integrand = 2. * np.pi * dfdz**2 * delsq / q**2
             else: 
@@ -3612,7 +3617,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     / (1. + z)**2 / (4. * np.pi)**2
         else:
             raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
-            
+                        
         return integrand
         
     def _guess_Mmin(self):

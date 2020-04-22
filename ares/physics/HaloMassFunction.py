@@ -1459,7 +1459,9 @@ class HaloMassFunction(object):
             
             # Save cosmology            
             grp = f.create_group('cosmology')
-
+            grp.attrs.update(cosmology_name=self.pf['cosmology_name'],
+                cosmology_id=self.pf['cosmology_id'])
+            
             grp.create_dataset('omega_m_0', data=self.cosm.omega_m_0)
             grp.create_dataset('omega_l_0', data=self.cosm.omega_l_0)
             grp.create_dataset('sigma_8', data=self.cosm.sigma_8)

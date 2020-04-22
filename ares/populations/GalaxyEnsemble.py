@@ -40,8 +40,14 @@ except ImportError:
     
 tiny_MAR = 1e-30    
            
-_linfunc = lambda x, p0, p1: p0 * (x - 8.) + p1
-_cubfunc = lambda x, p0, p1, p2: p0 * (x - 8.)**2 + p1 * (x - 8.) + p2       
+def _linfunc(x, x0, p0, p1):
+    return p0 * (x - x0) + p1
+
+def _quadfunc2(x, x0, p0, p1):  
+    return p0 * (x - x0)**2 + p1
+ 
+def _quadfunc3(x, x0, p0, p1, p2):  
+    return p0 * (x - x0)**2 + p1 * (x - x0) + p2
        
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
@@ -1517,7 +1523,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 pos = None
         else:
-            pos = None
+            if 'pos' in halos:
+                pos = halos['pos'][:,-1::-1,:]
+            else:
+                pos = None
             
         # Pack up                
         results = \
@@ -1714,6 +1723,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             _x, _phi = self._cache_lf_[(z, wave)]
             
+            if self.pf['debug']:
+                print("# Read LF from cache at (z={}, wave={})".format(
+                    z, wave
+                ))
+            
             # If no x supplied, return bin centers
             if x is None:
                 return _x, _phi  
@@ -1721,8 +1735,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if type(x) != np.ndarray:
                 k = np.argmin(np.abs(x - _x))
                 if abs(x - _x[k]) < 1e-3:
+                    if self.pf['debug']:
+                        print("# Found exact match for MUV={})".format(x))
                     return _phi[k]
                 else:
+                    if self.pf['debug']:
+                        print("# Will interpolate to MUV={}".format(x))
+                    #_func_ = interp1d(_x, np.log10(_phi), kind='cubic',
+                    #    fill_value=-np.inf)
+                    #
+                    #phi = 10**_func_(_x)
                     phi = 10**np.interp(x, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
                     
@@ -1733,6 +1755,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if _x.size == x.size:
                 if np.allclose(_x, x):
                     return _phi
+                    
+            if self.pf['debug']:
+                print("# Will interpolate to new MUV array.")
+
+            #_func_ = interp1d(_x, np.log10(_phi), kind='cubic',    
+            #    fill_value=-np.inf)    
+            #
+            #return 10**_func_(x)
             
             return 10**np.interp(x, _x, np.log10(_phi), 
                 left=-np.inf, right=-np.inf)
@@ -2078,14 +2108,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         hist, bin_edges = np.histogram(MAB[Misok==1],
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
-            
-        bin_c = _x
-        
-        N = np.sum(w[Misok==1])
-        
+         
+        N = np.sum(w[Misok==1]) 
         phi = hist * N
-                
-        self._cache_lf_[(z, wave)] = bin_c, phi
+                          
+        self._cache_lf_[(z, wave)] = _x, phi
         
         return self._cache_lf(z, x, wave)
         
@@ -2153,7 +2180,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 filt_hst = hst_shallow
                 
         if ('jwst' in presets.lower()) or ('nircam' in presets.lower()):
-            nircam_W, nircam_M = self._nircam
+            nircam_M, nircam_W = self._nircam
         
         ##
         # Hubble only
@@ -2165,7 +2192,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 raise NotImplemented('help')
         
         # JWST only    
-        elif presets.lower() in ['nircam', 'jwst']:
+        elif ('jwst' in presets.lower()) or ('nircam' in presets.lower()):
             
             if for_beta:
                 # Override
@@ -2176,11 +2203,34 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
                 wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
                 
-                filters = list(what_filters(z, nircam_M, wave_lo, wave_hi))
-                filters.extend(list(what_filters(z, nircam_M, wave_lo, wave_hi)))
+                if presets.lower() in ['jwst-m', 'jwst', 'nircam-m', 'nircam']:
+                    filters = list(what_filters(z, nircam_M, wave_lo, wave_hi))                    
+                else:
+                    filters = []
+                
+                if presets.lower() in ['jwst-w', 'jwst', 'nircam-w', 'nircam']:  
+                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                    
+                    ct = 1
+                    while len(nircam_W_fil) < 2:
+                        nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                            wave_hi + 20 * ct)
+                    
+                        ct += 1
+                
+                    if ct > 1:    
+                        print("For JWST W filters at z={}, extended wave_hi to {}A".format(z,
+                            wave_hi + 10 * (ct - 1)))
+                    
+                    filters.extend(list(nircam_W_fil))
+                    
                 filters = tuple(filters)
+                
+                if len(filters) < 2:
+                    raise ValueError('Need at least 2 filters to compute slope.')
+                                
             else:
-                 raise NotImplemented('help')
+                raise NotImplemented('help')
         
         # Combo    
         elif presets == 'hst+jwst':
@@ -2205,6 +2255,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return ('calzetti', ), self._c94
         else:
             raise NotImplemented('No presets={} option yet!'.format(presets))
+        
+        if self.pf['debug']:
+            print("# Filters (z={}): {}".format(z, filters))
         
         ##
         # Done!
@@ -2322,6 +2375,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
         # Get out.
         if return_scatter:
+            assert return_binned
+            
             return beta, _std
         
         if return_err:
@@ -2396,7 +2451,84 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Otherwise, return raw (or binned) results
         return AUV
         
-    def dBeta_dMstell(self, z, dlam=20., Mstell=None, massbins=None):
+    def dBeta_dMUV(self, z, presets=None, magbins=None, model='quad3',
+        return_funcs=False, maglim=None, dlam=20., magmethod='gmean', Mwave=1600.):
+        """
+        Compute gradient in UV slope with respect to UV magnitude.
+        """
+        
+        assert magbins is not None
+        
+        _mags = self.Magnitude(z, presets=presets, wave=Mwave, dlam=dlam)
+        _beta = self.Beta(z, presets=presets, dlam=dlam, magmethod=magmethod)
+        
+        _nh = self.get_field(z, 'nh')
+
+        # Compute binned version of Beta(Mstell).
+        _x1, _y1, _err, _N = bin_samples(_mags, _beta, magbins, weights=_nh)
+
+        ok = np.isfinite(_y1)
+        
+        if maglim is not None:
+            _ok = np.logical_and(_x1 >= maglim[0], _x1 <= maglim[1])
+            ok = np.logical_and(ok, _ok)              
+                        
+        _x1 = _x1[ok==1]
+        _y1 = _y1[ok==1]
+        _err = _err[ok==1]
+        
+        if not np.any(ok):
+            print("# All elements masked for dBeta/dMUV at z={}".format(z))
+            print("# _y1=", _y1)
+            return (None, None, None) if return_funcs else None
+        
+        # Arbitrary pivot magnitude
+        x0 = -16.
+                
+        # Compute slopes with Mstell        
+        if model == 'quad2':
+            def func(x, p0, p1):
+                return _quadfunc2(x, x0, p0, p1)
+                
+            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2.], 
+                sigma=_err, maxfev=10000)
+            recon = popt[0] * (_x1 - x0)**2 + popt[1]
+            eder = 2 * popt[0] * (_x1 - x0)
+        elif model == 'quad3':
+            def func(x, p0, p1, p2):
+                return _quadfunc3(x, x0, p0, p1, p2)
+                
+            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2., 0.], 
+                sigma=_err, maxfev=10000)
+                     
+            recon = popt[0] * (_x1 - x0)**2 + popt[1] * (_x1 - x0) + popt[2]
+            eder = 2 * popt[0] * (_x1 - x0) + popt[1]
+        elif model == 'linear':
+            def func(x, p0, p1):
+                return _linfunc(x, x0, p0, p1)
+                
+            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2.], 
+                sigma=_err, maxfev=10000)
+            recon = popt[0] * (_x1 - x0) + popt[1]
+            eder = popt[0] * np.ones_like(_x1)
+        else:
+            raise NotImplemented('Unrecognized model={}.'.format(model))
+                        
+        # Create interpolants for Beta and its derivative    
+        _interp_ = lambda xx: np.interp(xx, _x1, recon)    
+        _interpp_ = lambda xx: np.interp(xx, _x1, eder)    
+             
+        dBeta = []
+        for _x in _x1:
+            dBeta.append(_interp_(_x))
+        
+        if return_funcs:
+            return np.array(dBeta), _interp_, _interpp_
+        else:
+            return np.array(dBeta)
+            
+    def dBeta_dMstell(self, z, dlam=20., Mstell=None, massbins=None, 
+        model='quad3', return_funcs=False, masslim=None):
         """
         Compute gradient in UV color at fixed stellar mass.
         
@@ -2409,6 +2541,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Mstell : int, float, np.ndarray
             Stellar mass at which to evaluate slope. Can be None, in which 
             case we'll return over a grid with resolution 0.5 dex.
+        model : str
+            Fit Beta(Mstell) with this function and then 
+            determine slope at given Mstell via interpolation (after 
+            analytic differentiation). Options: 'quad2', 'quad3', 
+            or 'linear'.
         """
         
         zstr = round(z)
@@ -2428,27 +2565,60 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         ok = np.isfinite(_y1)
         
+        if masslim is not None:
+            _ok = np.logical_and(_x1 >= masslim[0], _x1 <= masslim[1])
+            ok = np.logical_and(ok, _ok)
+        
         _x1 = _x1[ok==1]
         _y1 = _y1[ok==1]
         _err = _err[ok==1]
+        
+        # Pivot at log10(Mstell) = 7
+        x0 = 7.
 
-        # Compute slopes with Mstell
-        popt, pcov = curve_fit(_linfunc, _x1, _y1, p0=[0.3, 0.], maxfev=100)
-        popt2, pcov2 = curve_fit(_cubfunc, _x1, _y1, p0=[0.0, 0.3, 0.], 
-            maxfev=1000)
-        cubrecon = popt2[0] * (_x1 - 8.)**2 + popt2[1] * _x1 + popt2[2]
-        cubeder = 2 * popt2[0] * (_x1 - 8.) + popt2[1]
+        # Compute slopes with Mstell        
+        if model == 'quad2':
+            def func(x, p0, p1):
+                return _quadfunc2(x, x0, p0, p1)
+                
+            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2.], 
+                sigma=_err, maxfev=10000)
+            recon = popt[0] * (_x1 - x0)**2 + popt[1]
+            eder = 2 * popt[0] * (_x1 - x0)
+        elif model == 'quad3':
+            def func(x, p0, p1, p2):
+                return _quadfunc3(x, x0, p0, p1, p2)
+                
+            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2., 0.], 
+                sigma=_err, maxfev=10000)
+                     
+            recon = popt[0] * (_x1 - x0)**2 + popt[1] * (_x1 - x0) + popt[2]
+            eder = 2 * popt[0] * (_x1 - x0) + popt[1]
+        elif model == 'linear':
+            def func(x, p0, p1):
+                return _linfunc(x, x0, p0, p1)
+                
+            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2.], 
+                sigma=_err, maxfev=10000)
+            recon = popt[0] * (_x1 - x0) + popt[1]
+                        
+        else:
+            raise NotImplemented('Unrecognized model={}.'.format(model))
+            
+        # Create interpolants for Beta and its derivative    
+        _interp_ = lambda xx: np.interp(xx, _x1, recon)    
+        _interpp_ = lambda xx: np.interp(xx, _x1, eder)
              
         norm = [] 
         dBMstell = []
         for _x in _x1:
-            dBMstell.append(np.interp(_x, _x1, cubeder))
-        
-        if Mstell is None:
-            return np.array(_x1), np.array(dBMstell)
+            dBMstell.append(_interpp_(_x))
+            
+        if return_funcs:
+            return np.array(dBMstell), _interp_, _interpp_
         else:
-            return np.interp(np.log10(Mstell), _x1, dBMstell)
-    
+            return np.array(dBMstell)
+        
     def dColor_dz(self, logM, dlam=1., zmin=4, zmax=10, dz=1):
         
         out = []
@@ -2554,7 +2724,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         
             suffix = fn[fn.rfind('.')+1:]
             path = os.getenv("ARES") + '/input/hmf/'
-            fn_hist = path + prefix.replace('hmf', 'hgh') + '.' + suffix
+            pref = prefix.replace('hmf', 'hgh') 
+            if self.pf['hgh_Mmax'] is not None:
+                pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'], 
+                    self.pf['hgh_dlogMmin'])
+                    
+            fn_hist = path + pref + '.' + suffix
         else:
             # Check to see if parameters match
             if self.pf['verbose']:
@@ -2583,7 +2758,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 hist = {}
                 for key in f.keys():
                                             
-                    if key not in ['cosmology', 't', 'z', 'children', 'pos']:
+                    if key not in ['cosmology', 't', 'z', 'children']:
                         #hist[key] = np.ma.array(f[(key)], mask=mask,
                         #    fill_value=-np.inf)
                         
