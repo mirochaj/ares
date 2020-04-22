@@ -1445,9 +1445,8 @@ class ModelFit(FitBase):
             mlpt = pos[np.argmax(prob)]
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
         
-        
         state = None #np.random.RandomState(self.seed)  
-        
+                
         ##
         # Run burn-in
         ##        
@@ -1457,9 +1456,7 @@ class ModelFit(FitBase):
                 if not hasattr(self, '_jitter'):
                     raise AttributeError("Must set jitter!")
             
-            if restart_from_burn:
-                _pos_ = _chain[-self.nwalkers:,:]
-                
+            if restart_from_burn:                
                 if os.path.exists('{!s}.rstate.pkl'.format(prefix)):
                     state = read_pickle_file('{!s}.rstate.pkl'.format(prefix),\
                         nloads=1, verbose=False)
@@ -1468,18 +1465,20 @@ class ModelFit(FitBase):
                 
                 print("# Re-starting burn-in: {!s}".format(time.ctime()))
                 if burn_prev > 0:
-                    print("# Previous run: {} step per walker complete.".format(burn_prev))
-                    print("# Will burn {} more steps per walker.".format(burn - burn_prev))
+                    print("# Previous burn-in: {} step per walker complete.".format(burn_prev))
+                    print("# Will burn-in for {} more steps per walker.".format(burn - burn_prev))
             else:
-                _pos_ = self.guesses
                 print("# Starting burn-in: {!s}".format(time.ctime()))
                         
             if save_freq >= (burn - burn_prev):
                 print("# Note: you might want to set `save_freq` < `burn`!")
             
+            if pos is None:
+                pos = self.guesses
+            
             t1 = time.time()
             pos, prob, state, blobs = \
-                self._run(_pos_, burn-burn_prev, state=state, 
+                self._run(pos, burn-burn_prev, state=state, 
                     save_freq=save_freq, 
                     restart=restart_from_burn, prefix=pref_prev)
             t2 = time.time()
@@ -1500,8 +1499,7 @@ class ModelFit(FitBase):
                 print("# Using pre-restart RandomState.")
         else:
             state = None
-            
-          
+                      
         ##
         # Burn-only mode.
         if steps == 0:
@@ -1569,13 +1567,13 @@ class ModelFit(FitBase):
         if emcee_v >= 3:
             kw = {}
         else:
-            kw = {'storechain': False}    
-
+            kw = {'storechain': False}   
+            
         # Take steps, append to pickle file every save_freq steps
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, **kw):
-                        
+                                                        
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
             dd = 'dd' + str(ct // save_freq).zfill(4)
