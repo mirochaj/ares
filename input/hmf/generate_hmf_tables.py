@@ -18,7 +18,7 @@ import ares
 
 def_kwargs = \
 {
- "hmf_model": 'Tinker10',
+ "hmf_model": 'ST',
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,

@@ -2725,7 +2725,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             suffix = fn[fn.rfind('.')+1:]
             path = os.getenv("ARES") + '/input/hmf/'
             pref = prefix.replace('hmf', 'hgh') 
-            if self.pf['hgh_dlogMmin'] is not None:
+            if self.pf['hgh_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'], 
                     self.pf['hgh_dlogMmin'])
                     

@@ -3435,7 +3435,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         Parameters
         ----------
-        z : int, float
         scale : int, float, np.ndarray
             Angular scale [arcseconds]
         wave_obs : int, float, tuple
@@ -3495,6 +3494,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     scale_units=scale_units)
                                
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
+            
+        ##
+        # Extra factor of nu^2 to eliminate Hz^{-1} units for monochromatic PS  
+        if type(wave_obs) not in [tuple, list]:
+            ps *= (c / (wave_obs * 1e-4))**2
         
         return ps  
                 
@@ -3513,14 +3517,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if type(wave_obs) in [int, float, np.float64]:
             is_band_avg = False
             
-            # Get rest wavelength
+            # Get rest wavelength in Angstroms
             wave = wave_obs * 1e4 / (1. + z)
             # Convert to photon energy since that what we work with internally
             E = h_p * c / (wave * 1e-8) / erg_per_ev
             nu = c / (wave * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz            
-            enu = self.Emissivity(z, E=E) * ev_per_hz * nu
+            enu = self.Emissivity(z, E=E) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_avg = True
@@ -3535,9 +3539,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # [enu] = erg/s/cm^3
             enu = self.Emissivity(z, Emin=E2, Emax=E1)
             
-        # Need distance and H(z) for all that follows    
-        d = self.cosm.ComovingRadialDistance(0., z) # [cm]
-        Hofz = self.cosm.HubbleParameter(z)         # [s^-1]
+        # Need angular diameter distance and H(z) for all that follows    
+        d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
+        Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
         
         ##
         # Must retrieve redhsift-dependent k given fixed angular scale.       
@@ -3593,6 +3597,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             delsq = (k / cm_per_mpc)**2 * (ps3d * cm_per_mpc**3) * Hofz \
                 / 2. / np.pi / c
             
+            assert not is_band_avg
+            
             if is_band_avg:                
                 integrand = 2. * np.pi * dfdz**2 * delsq / q**2
             else: 
@@ -3611,7 +3617,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     / (1. + z)**2 / (4. * np.pi)**2
         else:
             raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
-            
+                        
         return integrand
         
     def _guess_Mmin(self):

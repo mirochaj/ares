@@ -893,9 +893,10 @@ class CalibrateModel(object):
         fitter.nwalkers = nw
         
         # Set initial positions of walkers
+        
+        # Important the jitter comes first!
+        fitter.jitter = self.jitter
         if (not restart):
-            # Important the jitter comes first!
-            fitter.jitter = self.jitter
             fitter.guesses = self.guesses
 
         if cache_tricks:
