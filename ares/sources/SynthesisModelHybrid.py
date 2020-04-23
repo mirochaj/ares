@@ -23,21 +23,22 @@ class SynthesisModelHybrid(SynthesisMaster):
         Source.__init__(self, **kwargs)
         self.starburst = None
         self.bpass = None
-        self.interpolated_data = None
+        self.smooth_data = None
 
     @property
     def data(self):
         if self.pf['pop_sps_data'] is not None:
             self.bpass = self.pf['pop_sps_data'][2]
             self.starburst = self.pf['pop_sps_data'][3]
+            self.smooth_data = self.pf['pop_sps_data'][4]
+
         if self.bpass is None:
             model = SynthesisModel(source_sed='eldridge2009', source_Z=self.pf['source_Z'], source_ssp=False)
             self.bpass = [model.data, model.wavelenghts, model.times]
         if self.starburst is None:
             model = SynthesisModel(source_sed='leitherer1999',source_Z=self.pf['source_Z'], source_ssp=False)
             self.starburst = [model.data, model.wavelenghts, model.times]
-
-        if self.interpolated_data is None:
+        if self.smooth_data is None:
             b_interp = 150
             b_data = np.array(self.bpass[0]).T
             smooth_bpass = []
@@ -58,12 +59,14 @@ class SynthesisModelHybrid(SynthesisMaster):
             for i in range(len(smooth_starburst)):
                 smooth_starburst[i] = np.convolve(s_data[i], kernel_s, mode='same')
 
-            interpolated_b = sci.interp2d(self.bpass[1], self.bpass[2], smooth_bpass)
-            interpolated_s = sci.interp2d(self.starburst[1], self.starburst[2], smooth_starburst)
-            self.interpolated_data =\
-            (self.pf['source_coef']*interpolated_b(self.wavelengths, self.times)+(1-self.pf['source_coef'])*interpolated_s(self.wavelengths, self.times)).T
+            self.smooth_data = [smooth_bpass, smooth_starburst]
+
+        interpolated_b = sci.interp2d(self.bpass[1], self.bpass[2], self.smooth_data[0])
+        interpolated_s = sci.interp2d(self.starburst[1], self.starburst[2], self.smooth_data[1])
+        data = (self.pf['source_coef']*interpolated_b(self.wavelengths, self.times)+\
+            (1-self.pf['source_coef'])*interpolated_s(self.wavelengths, self.times)).T
         
-        return self.interpolated_data
+        return data
 
     @property
     def wavelengths(self):
