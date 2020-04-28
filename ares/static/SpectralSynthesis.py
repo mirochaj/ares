@@ -24,6 +24,7 @@ from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB
 
 nanoJ = 1e-23 * 1e-9
 
+tiny_lum = 1e-8
 all_cameras = ['wfc', 'wfc3', 'nircam']
 
 def _powlaw(x, p0, p1):
@@ -1088,10 +1089,11 @@ class SpectralSynthesis(object):
         #print("Synth. Lum = ", wave, window)    
         #
 
-        # Setup interpolant for luminosity as a function of SSP age.      
+        # Setup interpolant for luminosity as a function of SSP age.
+        Loft[Loft == 0] = tiny_lum
         _func = interp1d(np.log(self.src.times), np.log(Loft),
             kind=self.pf['pop_synth_age_interp'], bounds_error=False, 
-            fill_value=Loft[-1])
+            fill_value=(Loft[0], Loft[-1]))
             
         # Extrapolate linearly at times < 1 Myr
         _m = (Loft[1] - Loft[0]) / (self.src.times[1] - self.src.times[0])

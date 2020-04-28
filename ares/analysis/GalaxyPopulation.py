@@ -265,8 +265,8 @@ class GalaxyPopulation(object):
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
-        dmag=0.5, dlam=20, dlam_c94=10, fill=False, extra_pane=False, square=False,
-        cmap=None, **kwargs):
+        dmag=0.5, dMst=0.25, dlam=20, dlam_c94=10, fill=False, extra_pane=False, 
+        square=False, cmap=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -543,7 +543,7 @@ class GalaxyPopulation(object):
         ##
         # Plot models
         ##
-        Ms = np.arange(6, 13.25, 0.25)
+        Ms = np.arange(6, 13.+dMst, dMst)
         mags = np.arange(-25, -12-dmag, dmag)
         mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
@@ -1192,6 +1192,7 @@ class GalaxyPopulation(object):
         if return_data:
             data = (MUV, B195_spec, B195_hst, B195_jwst, B195_M, BMstell, 
                 dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M, dBMstell)
+                
             return (axB, axD, axB2, axD2), data    
         else:
             data = None        

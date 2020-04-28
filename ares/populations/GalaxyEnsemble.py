@@ -306,20 +306,28 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             assert thin < 2
             assert sigma_mar == sigma_env == 0
             
-            print("Generating MARs from Mh trajectories...")
-            dM = -1. * np.diff(Mh_raw, axis=1)
-            
-            t = self.cosm.t_of_z(zall) * 1e6 / s_per_myr
-            
-            dt = -1. * np.diff(t) # in yr already    
-            
-            MAR_z = dM / dt
-
-            zeros = np.ones((Mh_raw.shape[0], 1)) * tiny_MAR
-            # Follow ARES convention of forward differencing, so must pad MAR
-            # array with zeros at the lowest redshift snapshot.
-            mar_raw = np.hstack((zeros, MAR_z))
-            
+            if self.pf['pop_MAR_from_hist']:
+                print("Generating MARs from Mh trajectories...")
+                dM = -1. * np.diff(Mh_raw, axis=1)
+                
+                t = self.cosm.t_of_z(zall) * 1e6 / s_per_myr
+                
+                dt = -1. * np.diff(t) # in yr already    
+                
+                MAR_z = dM / dt
+                
+                zeros = np.ones((Mh_raw.shape[0], 1)) * tiny_MAR
+                # Follow ARES convention of forward differencing, so must pad MAR
+                # array with zeros at the lowest redshift snapshot.
+                mar_raw = np.hstack((zeros, MAR_z))
+                
+            else:
+                print("Generating MARs from `guide` population...")   
+                z2d = zall[None,:]
+                mar_raw = np.zeros_like(Mh_raw)
+                for i, z in enumerate(zall):
+                    mar_raw[:,i] = self.guide.MAR(z=z, Mh=Mh_raw[:,i])
+                
         else:
             if 'MAR' in raw:
                 mar_raw = raw['MAR']
