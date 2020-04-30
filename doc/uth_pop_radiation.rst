@@ -195,7 +195,57 @@ Right now, these sources are implemented as "litdata" modules, i.e., in the same
 
 .. note :: The spectral resolution of these SED models is needlessly high for certain applications. To degrade BPASS spectra and get a slight boost in performance, you can run the script ``$ARES/input/bpass_v1/degrade_bpass_seds.py`` with a command-line argument indicating the desired spectral resolution in :math:`\AA`. Just be sure to also set ``pop_sed_degrade`` to this same number in subsequent calculations in order to read-in the new tables.
 
+If you'd like to access the SPS data directly, you can do so via, e.g.,
 
+::
+
+	src = ares.sources.SynthesisModel(source_sed='eldridge2009', source_Z=0.02)
+
+which will initialize a BPASS version 1.0 model with solar metallicity, :math:`Z=0.02=Z_{\odot}`. The raw data is stored in an aptly-named attribute, ``src.data``, which is a 2-D array: the first dimension corresponds to the wavelengths at which we have spectra (in Angstroms), while the second dimension is the times at which we have spectra (in Myr). To see the corresponding ``wavelengths``, and ``times``, see attributes of the same name.
+
+So, for example, to plot the SED at a few times, you could do something like
+
+::
+
+    pl.figure(1)
+    for i in range(3):
+        t = src.times[i]
+        pl.loglog(src.wavelengths, src.data[:,i], label=r'$t = {}$ Myr'.format(t))
+		
+    pl.legend()
+
+or alternatively, the luminosity at a single wavelength vs. time:
+
+::
+
+    pl.figure(2)
+    for i in range(0, 1000, 200):
+        wave = src.wavelengths[i]
+        pl.loglog(src.times, src.data[i,:], label=r'$\lambda = {} \AA$'.format(wave))
+    pl.legend()	
+
+	
+By default, it is assumed that stars form continuously, so you should see a quick ramp-up of the luminosity in the above examples before reaching a plateau at late times. To instead focus on an instantaneous burst of star formation, we need to instead use a "simple stellar population," which we can do by setting ``source_ssp=True`` when initializing the ``SynthesisModel`` instance above.
+
+If you already have some kind of ``ares.populations`` class instance in hand, you can access the associated SPS model via the ``src`` attribute, e.g.,
+
+::
+
+	src = pop.src
+	
+Just know that to vary the ``SynthesisModel`` parameters through ``ares.populations`` objects, you should change the parameter prefixes from ``source_`` to ``pop_``. For example, 
+
+::
+
+	pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
+	
+	pars['pop_sed] = 'eldridge2009'
+	pars['pop_Z] = 0.02
+	
+	pop = ares.populations.GalaxyPopulation(**pars)
+	src = pop.src # will be the same as in previous example
+
+	
 
 
 Normalizing the Emission of Source Populations

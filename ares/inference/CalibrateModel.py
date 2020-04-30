@@ -393,7 +393,7 @@ class CalibrateModel(object):
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
                     if 'slope-high' not in self.free_params_dust:
-                        guesses['pq_func_par0[33]'] = 0.25
+                        guesses['pq_func_par0[33]'] = 0.1
                     else:    
                         guesses['pq_func_par0[33]'] = 0.05
                     is_log.extend([False])

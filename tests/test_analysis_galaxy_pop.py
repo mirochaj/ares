@@ -34,9 +34,14 @@ def test():
          + ares.util.ParameterBundle('testing:galaxies')
     pop = ares.populations.GalaxyPopulation(**pars)
     
-    gpop.PlotColors(pop, fig=4)
+    axes5 = gpop.PlotColors(pop, fig=5)
+    axes6 = gpop.PlotColors(pop, fig=6, show_Mstell=True, show_MUV=False,
+        dlam_c94=10)
     gpop.PlotColorEvolution(pop, show_beta_jwst=False, include_Mstell=False,
-        zarr=np.array([4, 6]), fig=5)
+        zarr=np.array([4, 6]), fig=7)
+    #gpop.PlotColorEvolution(pop, show_beta_jwst=False, show_beta_hst=False,
+    #    include_Mstell=True,
+    #    zarr=np.array([4, 6]), fig=8, dlam=2)    
     
     
 if __name__ == '__main__':

@@ -803,7 +803,7 @@ class GalaxyPopulation(object):
         wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
         show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
-        return_data=True, data=None, **kwargs):
+        return_data=True, data=None, augment_filters=True, **kwargs):
         """
         Plot Beta(z) at fixed MUV and (optionally) Mstell.
         """
@@ -1002,19 +1002,22 @@ class GalaxyPopulation(object):
                     
             # Compute beta given JWST W only
             # 
-            if show_beta_jwst and z >= 5:
+            if show_beta_jwst and z >= 4:
                 nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
                 # Extend the wavelength range until we get two filters
-                ct = 1
-                while len(nircam_W_fil) < 2:
-                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                        wave_hi + 20 * ct)
-                    
-                    ct += 1
                 
-                if ct > 1:    
-                    print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
-                        wave_hi + 10 * (ct - 1)))    
+                if augment_filters:
+                
+                    ct = 1
+                    while len(nircam_W_fil) < 2:
+                        nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                            wave_hi + 10 * ct)
+                        
+                        ct += 1
+                    
+                    if ct > 1:    
+                        print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
+                            wave_hi + 10 * (ct - 1)))    
                 
                 filt2 = tuple(nircam_W_fil)
                     
@@ -1035,9 +1038,22 @@ class GalaxyPopulation(object):
                 # Compute beta w/ JWST 'M' only
                 nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
                 
+                if augment_filters:
+                
+                    ct = 1
+                    while len(nircam_M_fil) < 2:
+                        nircam_M_fil = what_filters(z, nircam_M, wave_lo, 
+                            wave_hi + 10 * ct)
+                        
+                        ct += 1
+                    
+                    if ct > 1:    
+                        print("For JWST M filters at z={}, extend wave_hi to {}A".format(z,
+                            wave_hi + 10 * (ct - 1)))
+                
                 filt3 = tuple(nircam_M_fil)
                 
-                if z >= 6:
+                if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
                     beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         cam=('nircam',), filters=filt3, rest_wave=None,
                         magmethod=magmethod)
@@ -1097,7 +1113,8 @@ class GalaxyPopulation(object):
         if show_beta_combo:
             for l, mag in enumerate(MUV):
                 _beta = B195_jwst[:,l]
-                ok = np.logical_and(_beta > -99999, zarr <= 9.)
+                ok = _beta > -99999
+                #ok = np.logical_and(_beta > -99999, zarr <= 9.)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2,
                     color='m', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
