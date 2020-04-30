@@ -16,7 +16,7 @@ import numpy as np
 def test():
     
     src = ares.sources.SynthesisModel(source_sed='eldridge2009', 
-        sourcec_sed_degrade=100, source_Z=0.02)
+        source_sed_degrade=100, source_Z=0.02)
         
     Ebar = src.AveragePhotonEnergy(13.6, 1e2)
     assert 13.6 <= Ebar <= 1e2
