@@ -1919,11 +1919,14 @@ class GalaxyPopulation(object):
         ax_fco.set_xlim(1e8, 1e13)
         ax_fco.set_yscale('linear')
         
-        if 'pop_dust_growth' in anl.pf:
-            ax_fco.set_yscale('log')
-            ax_fco.set_ylim(1e9, 1e13)
+        if anl is not None:
+            if 'pop_dust_growth' in anl.pf:
+                ax_fco.set_yscale('log')
+                ax_fco.set_ylim(1e9, 1e13)
+            else:
+                ax_fco.set_ylim(0, 1.05)
         else:
-            ax_fco.set_ylim(0, 1.05)
+            ax_fco.set_ylim(0, 1.05)        
             
         ax_rdu.set_xlim(1e8, 1e13)
         ax_rdu.set_ylim(1e-2, 100)
