@@ -1099,6 +1099,9 @@ class SpectralSynthesis(object):
         _m = (Loft[1] - Loft[0]) / (self.src.times[1] - self.src.times[0])
         L_small_t = lambda age: _m * age + Loft[0]
         
+        if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
+            L_asympt = np.exp(_func(np.log(self.src.pf['source_tsf'])))
+        
         #L_small_t = lambda age: Loft[0]
         
         # Extrapolate as PL at t < 1 Myr based on first two
@@ -1135,6 +1138,19 @@ class SpectralSynthesis(object):
             if not do_all_time:
                 if (zarr[i] > zobs):
                     continue
+                    
+            ##
+            # Life if easy for constant SFR models        
+            if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
+                                
+                if not do_all_time:
+                    Lhist = L_asympt * sfh[:,i]
+                    break
+                
+                raise NotImplemented('does this happne?')
+                Lhist[:,i] = L_asympt * sfh[:,i]
+                    
+                continue
 
             # If we made it here, it's time to integrate over star formation
             # at previous times. First, retrieve ages of stars formed in all 

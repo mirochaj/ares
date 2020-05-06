@@ -263,7 +263,7 @@ class GalaxyPopulation(object):
             force_labels=force_labels, **kwargs)              
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
-        z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
+        z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True, 
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
         dmag=0.5, dMst=0.25, dlam=20, dlam_c94=10, fill=False, extra_pane=False, 
         square=False, cmap=None, **kwargs):
@@ -1658,7 +1658,7 @@ class GalaxyPopulation(object):
         else:
             raise NotImplemented("Unrecognized object pop={}".format(pop))
          
-        self._MegaPlotCleanup(axes)
+        self._MegaPlotCleanup(pop, axes)
         
         return axes
         
@@ -1768,6 +1768,11 @@ class GalaxyPopulation(object):
                 fduty = pop.guide.fduty(z=z, Mh=Mh)
             else:
                 fduty = np.zeros_like(Mh)
+                
+            if pop.pf['pop_dust_growth'] not in [0, None]:
+                fgrowth = pop.guide.dust_growth(z=z, Mh=Mh)
+            else:
+                fgrowth = np.zeros_like(Mh)    
                         
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
@@ -1778,6 +1783,9 @@ class GalaxyPopulation(object):
             elif type(pop.pf['pop_fduty']) is str:
                 ax_fco.semilogx(Mh, fduty, color=colors[j])
                 ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+            elif type(pop.pf['pop_dust_growth']) is str:
+                ax_fco.semilogx(Mh, fgrowth, color=colors[j])
+                ax_fco.set_ylabel(r'$f_{\mathrm{growth}}$')    
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
 
@@ -1879,9 +1887,15 @@ class GalaxyPopulation(object):
             if 'fduty' in anl.all_blob_names:
                 anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)
+                
+            if 'fgrowth' in anl.all_blob_names:
+                anl.ReconstructedFunction('fgrowth', ivar=[z, None], ax=ax_fco,
+                    color=colors[j], **kwargs) 
+                ax_fco.set_yscale('log')
+                ax_fco.set_ylim(1e9, 1e13)
                         
                 
-    def _MegaPlotLimitsAndTicks(self, kw):
+    def _MegaPlotLimitsAndTicks(self, anl, kw):
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
         ax_rdu = kw['ax_rdu']
@@ -1904,7 +1918,13 @@ class GalaxyPopulation(object):
         ax_fco.set_xscale('log')
         ax_fco.set_xlim(1e8, 1e13)
         ax_fco.set_yscale('linear')
-        ax_fco.set_ylim(0, 1.05)
+        
+        if 'pop_dust_growth' in anl.pf:
+            ax_fco.set_yscale('log')
+            ax_fco.set_ylim(1e9, 1e13)
+        else:
+            ax_fco.set_ylim(0, 1.05)
+            
         ax_rdu.set_xlim(1e8, 1e13)
         ax_rdu.set_ylim(1e-2, 100)
         
@@ -2240,7 +2260,7 @@ class GalaxyPopulation(object):
 
         ax_MsMUV.legend(loc='upper right', fontsize=8)
                 
-    def _MegaPlotCleanup(self, kw):
+    def _MegaPlotCleanup(self, anl, kw):
         
         
         ax_sfe = kw['ax_sfe']
@@ -2262,7 +2282,6 @@ class GalaxyPopulation(object):
         ax_sfe.set_title('Model Inputs', fontsize=18)
         ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
         
-        ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
         ax_fco.set_xlabel(r'$M_h / M_{\odot}$')
             
         ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
@@ -2315,4 +2334,4 @@ class GalaxyPopulation(object):
         ax_MsMUV.legend(loc='upper right', fontsize=8)
         
         
-        self._MegaPlotLimitsAndTicks(kw)
+        self._MegaPlotLimitsAndTicks(anl, kw)

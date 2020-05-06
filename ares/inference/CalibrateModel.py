@@ -45,7 +45,7 @@ _zcal_beta = [4, 5, 6, 7]
 
 acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
 acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield', 'scatter',
-    'kappa', 'slope-high']
+    'kappa', 'slope-high', 'growth']
 
 class CalibrateModel(object):
     """
@@ -55,7 +55,8 @@ class CalibrateModel(object):
         fit_gs=None, idnum=0, add_suffix=True, ztol=0.21,
         free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
-        include_dust='var_beta', include_fduty=False, zevol_fduty=False,
+        include_dust='var_beta', include_fgrowth=False, 
+        include_fduty=False, zevol_fduty=False,
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
         save_lf=True, save_smf=False, save_sam=False, include_fdtmr=False,
         save_sfrd=False, save_beta=False, save_dust=False, zmap={},
@@ -110,6 +111,7 @@ class CalibrateModel(object):
         self.include_scatter_mar = int(include_scatter_mar)
         
         self.include_dust = include_dust
+        self.include_fgrowth = include_fgrowth
         self.include_fduty = include_fduty
         self.include_fdtmr = include_fdtmr
 
@@ -273,7 +275,7 @@ class CalibrateModel(object):
             if 'slope-high' in self.free_params_sfe:
                 free_pars.append('pq_func_par3[0]{}'.format(_suff))
                 
-                guesses['pq_func_par3[0]{}'.format(_suff)] = -0.1
+                guesses['pq_func_par3[0]{}'.format(_suff)] = -0.3
                     
                 is_log.extend([False])
                 jitter.extend([0.1])
@@ -335,7 +337,7 @@ class CalibrateModel(object):
                         is_log.extend([False])
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par4[22]')
-
+                        
                 if 'slope' in self.free_params_dust:
                     free_pars.append('pq_func_par2[22]')
                     guesses['pq_func_par2[22]'] = 0.5
@@ -390,6 +392,26 @@ class CalibrateModel(object):
                         jitter.extend([0.5])
                         ps.add_distribution(UniformDistribution(-3., 3.), 'pq_func_par4[50]')
                       
+                if 'growth' in self.free_params_dust:
+                    
+                    assert self.include_fgrowth
+                    
+                    free_pars.extend(['pq_func_par0[60]', 'pq_func_par2[60]'])
+                    guesses['pq_func_par0[60]'] = 11.
+                    guesses['pq_func_par2[60]'] = 0.
+                    is_log.extend([True, False])
+                    jitter.extend([0.5, 0.2])
+                    ps.add_distribution(UniformDistribution(7., 14.), 'pq_func_par0[60]')
+                    ps.add_distribution(UniformDistribution(-2., 2.), 'pq_func_par2[60]')
+
+                    if 'growth' in self.zevol_dust:
+                        free_pars.append('pq_func_par4[60]')
+                        guesses['pq_func_par4[60]'] = 0.
+                        is_log.extend([False])
+                        jitter.extend([0.5])
+                        ps.add_distribution(UniformDistribution(-4., 4.), 'pq_func_par4[60]')
+                      
+                      
                 if 'scatter' in self.free_params_dust:
                     free_pars.extend(['pq_func_par0[33]'])
                     if 'slope-high' not in self.free_params_dust:
@@ -399,7 +421,6 @@ class CalibrateModel(object):
                     is_log.extend([False])
                     jitter.extend([0.05])
                     ps.add_distribution(UniformDistribution(0., 0.6), 'pq_func_par0[33]')
-                    
                 
                     if 'scatter-slope' in self.free_params_dust:
                         free_pars.extend(['pq_func_par2[33]'])
@@ -624,6 +645,11 @@ class CalibrateModel(object):
                 if type(self.base_kwargs['pop_dust_scatter'] == str):
                     blob_n.append('sigma_d')
                     blob_f.append('guide.dust_scatter')
+                    
+            if 'pop_dust_growth' in self.base_kwargs:
+                if type(self.base_kwargs['pop_dust_growth'] == str):
+                    blob_n.append('fgrowth')
+                    blob_f.append('guide.dust_growth')        
                         
             blob_pars['blob_names'].append(blob_n)
             blob_pars['blob_ivars'].append(blob_i)
@@ -708,70 +734,6 @@ class CalibrateModel(object):
     def base_kwargs(self, value):
         self._base_kwargs = PB(**value)
         
-    #        
-    #        #if self.include_sfe in [1, True, 'dpl', 'flex']:
-    #        #    self._base_kwargs = \
-    #        #        PB('mirocha2017:base') \
-    #        #      + PB('mirocha2017:flex') \
-    #        #      + PB('dust:{}'.format(self.include_dust))
-    #        #elif self.include_sfe == ['dflex']:
-    #        #    self._base_kwargs = \
-    #        #        PB('mirocha2017:base') \
-    #        #      + PB('mirocha2017:dflex') \
-    #        #      + PB('dust:{}'.format(self.include_dust))  
-    #        #elif self.include_sfe in ['f17-p', 'f17-E']:
-    #        #    s = 'energy' if self.include_sfe.split('-')[1] == 'E' \
-    #        #        else 'momentum'
-    #        #    
-    #        #    self._base_kwargs = \
-    #        #        PB('furlanetto2017:{}'.format(s)) \
-    #        #      + PB('dust:{}'.format(self.include_dust))
-    #        #      
-    #        #    if self.include_fshock:
-    #        #        self._base_kwargs = self._base_kwargs \
-    #        #            + PB('furlanetto2017:fshock')
-    #        #      
-    #        #    # Make sure 'pop_L1600_per_sfr' is None?  
-    #        #      
-    #        #else:
-    #        #    raise ValueError('Unrecognized option for `include_sfe`.')
-    #        #
-    #        ##if self.include_fduty:
-    #        ##    self._base_kwargs.update(PB('mirocha2020:evo_duty'))
-    #        ##    
-    #        ##if self.include_fyield:
-    #        ##    self._base_kwargs.update(PB('mirocha2020:evo_dtmr'))
-    #        #
-    #        #if self.fit_gs is None:
-    #        #    tmp = {}
-    #        #    for par in self._base_kwargs:
-    #        #        
-    #        #        # Leave out populations with ID num != self.idnum
-    #        #        skip = False
-    #        #        for k in range(5):
-    #        #            if k == self.idnum:
-    #        #                continue
-    #        #            if '{{{}}}'.format(k) in par:
-    #        #                skip = True
-    #        #                break
-    #        #        
-    #        #        if skip:
-    #        #            continue
-    #        #        
-    #        #        new = par.replace('{{{}}}'.format(self.idnum), '')
-    #        #        tmp[new] = self._base_kwargs[par]
-    #        #        
-    #        #    self._base_kwargs = PB(**tmp)
-    #        #
-    #        ## Initialize with best guesses mostly for debugging purposes
-    #        #for i, par in enumerate(self.parameters):
-    #        #    if self.is_log[i]:
-    #        #        self._base_kwargs[par] = 10**self.guesses[par]
-    #        #    else:
-    #        #        self._base_kwargs[par] = self.guesses[par]
-    #                            
-    #    return self._base_kwargs
-    #
     def update_kwargs(self, **kwargs):
         bkw = self.base_kwargs
         self._base_kwargs.update(kwargs)
