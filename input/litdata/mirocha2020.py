@@ -349,6 +349,9 @@ ereg_edtmr.update(_dtmr)
 ereg_edtmr.update(_dtmr_best)
 ereg_edtmr.update(_evol_ereg_dplrd)
 
+ereg_eduty_edtmr = ereg_edtmr.copy()
+ereg_eduty_edtmr.update(_fduty)
+
 mreg_edtmr = ereg_edtmr.copy()
 mreg_edtmr.update(_evol_mreg_dplrd)
 

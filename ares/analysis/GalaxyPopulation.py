@@ -1778,12 +1778,12 @@ class GalaxyPopulation(object):
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
                         
             if type(pop.pf['pop_dust_yield']) is str:
-                ax_fco.semilogx(Mh, ydust, color=colors[j])
+                ax_fco.semilogx(Mh, ydust, color=colors[j], ls='--')
                 ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
-            elif type(pop.pf['pop_fduty']) is str:
+            if type(pop.pf['pop_fduty']) is str:
                 ax_fco.semilogx(Mh, fduty, color=colors[j])
                 ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
-            elif type(pop.pf['pop_dust_growth']) is str:
+            if type(pop.pf['pop_dust_growth']) is str:
                 ax_fco.semilogx(Mh, fgrowth, color=colors[j])
                 ax_fco.set_ylabel(r'$f_{\mathrm{growth}}$')    
                 
@@ -1888,6 +1888,10 @@ class GalaxyPopulation(object):
                 anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)
                 
+            if 'dust_yield' in anl.all_blob_names:
+                anl.ReconstructedFunction('dust_yield', ivar=[z, None], ax=ax_fco,
+                    color=colors[j], ls='--', **kwargs)        
+                
             if 'fgrowth' in anl.all_blob_names:
                 anl.ReconstructedFunction('fgrowth', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs) 
@@ -1926,7 +1930,13 @@ class GalaxyPopulation(object):
             else:
                 ax_fco.set_ylim(0, 1.05)
         else:
-            ax_fco.set_ylim(0, 1.05)        
+            ax_fco.set_ylim(0, 1.05)      
+            
+        if ('dust_scale' in anl.all_blob_names) and ('fduty' in anl.all_blob_names):
+            ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+            ax_fco2 = ax_fco.twinx()
+            ax_fco2.set_ylabel(r'$f_{\mathrm{dtmr}}$')
+            ax_fco2.set_ylim(0, 1.05)
             
         ax_rdu.set_xlim(1e8, 1e13)
         ax_rdu.set_ylim(1e-2, 100)
