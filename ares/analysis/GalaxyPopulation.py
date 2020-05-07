@@ -1929,15 +1929,15 @@ class GalaxyPopulation(object):
                 ax_fco.set_ylim(1e9, 1e13)
             else:
                 ax_fco.set_ylim(0, 1.05)
+                
+            if ('dust_scale' in anl.all_blob_names) and ('fduty' in anl.all_blob_names):
+                ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+                ax_fco2 = ax_fco.twinx()
+                ax_fco2.set_ylabel(r'$f_{\mathrm{dtmr}}$')
+                ax_fco2.set_ylim(0, 1.05)    
         else:
             ax_fco.set_ylim(0, 1.05)      
-            
-        if ('dust_scale' in anl.all_blob_names) and ('fduty' in anl.all_blob_names):
-            ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
-            ax_fco2 = ax_fco.twinx()
-            ax_fco2.set_ylabel(r'$f_{\mathrm{dtmr}}$')
-            ax_fco2.set_ylim(0, 1.05)
-            
+                        
         ax_rdu.set_xlim(1e8, 1e13)
         ax_rdu.set_ylim(1e-2, 100)
         

@@ -123,10 +123,13 @@ To create the ``GalaxyPopulation`` used above from scratch (i.e., without using 
      'pq_func_par1': 2.8e11,
      'pq_func_par2': 0.51,
      'pq_func_par3': -0.61,
+     'pq_func_par4': 1e10,  # halo mass at which SFE is normalized
     }
     
     pop = ares.populations.GalaxyPopulation(**pars)
     
+	
+.. note :: Beware that by default, the double power-law is normalized at :math:`M_h = 10^{10} \ M_{\odot}` (see ``ps_func_par4`` above), whereas the Equation above for :math:`f_{\ast}` is defined such that ``pq_func_par0`` refers to the SFE at the peak mass. If you prefer a peak-normalized SFE, you can set ``pq_func='dpl_normP'`` instead.
     
 Accretion Models
 ~~~~~~~~~~~~~~~~
