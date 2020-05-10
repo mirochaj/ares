@@ -3293,7 +3293,7 @@ class ModelSet(BlobFactory):
         bins=20,  scatter=False, polygons=False, 
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
         show_errors=False, label_panels=None, return_axes=False, 
-        fix=True, skip_panels=[], mp_kwargs={}, 
+        fix=True, skip_panels=[], mp_kwargs={}, inputs_scatter=False,
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3504,6 +3504,9 @@ class ModelSet(BlobFactory):
                         
                     self.plot_info[k]['input'] = xin
                         
+                    if inputs_scatter:
+                        continue    
+                        
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
                             color='k', ls=':', lw=2, zorder=20)
@@ -3567,6 +3570,11 @@ class ModelSet(BlobFactory):
 
                 mult = np.array([0.995, 1.005])
 
+                if inputs_scatter:
+                    mp.grid[k].scatter([xin]*2, [yin]*2, 
+                        color='k', marker='+', zorder=20)
+                    continue
+                        
                 # Plot as dotted lines
                 if xin is not None:
                     mp.grid[k].plot([xin]*2, mult * np.array(mp.grid[k].get_ylim()), 
@@ -3959,13 +3967,22 @@ class ModelSet(BlobFactory):
                     lo = smooth(lo, smooth_boundary)
                     hi = smooth(hi, smooth_boundary)
                                 
-                if fill:
+                if fill:    
                     ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
-                    ax.plot(xarr, lo, **kwargs)
+                    
+                    kw_lo = kwargs.copy()
+                    kw_hi = kwargs.copy()
+                    
+                    if 'ls' in kwargs:
+                        if type(kwargs['ls']) in [list, tuple]:
+                            kw_lo['ls'] = kwargs['ls'][0]
+                            kw_hi['ls'] = kwargs['ls'][1]
+                    
+                    ax.plot(xarr, lo, **kw_lo)
                     if 'label' in kwargs:
-                        del kwargs['label']
-                    ax.plot(xarr, hi, **kwargs)
+                        del kwargs['label'], kw_hi['label']
+                    ax.plot(xarr, hi, **kw_hi)
             else:
                 raise NotImplemented('help')
                 ax.plot(xarr, yblob.T[0], **kwargs)
@@ -4067,10 +4084,18 @@ class ModelSet(BlobFactory):
                 if fill:
                     ax.fill_between(xarr, lo, hi, **kwargs)
                 else:
-                    ax.plot(xarr, lo, **kwargs)
+                    kw_lo = kwargs.copy()
+                    kw_hi = kwargs.copy()
+                    
+                    if 'ls' in kwargs:
+                        if type(kwargs['ls']) in [list, tuple]:
+                            kw_lo['ls'] = kwargs['ls'][0]
+                            kw_hi['ls'] = kwargs['ls'][1]
+                            
+                    ax.plot(xarr, lo, **kw_lo)
                     if 'label' in kwargs:
-                        del kwargs['label']
-                    ax.plot(xarr, hi, **kwargs)
+                        del kwargs['label'], kw_hi['label']
+                    ax.plot(xarr, hi, **kw_hi)
             else:
                 raise NotImplemented('help')        
                 

@@ -321,6 +321,7 @@ class GalaxyPopulation(object):
 
             if show_Mstell and show_MUV:
                 ax_uvlf = fig.add_subplot(gs[:4,0:2])
+                                
                 ax_cmr4 = fig.add_subplot(gs[0,2:4])
                 ax_cmr6 = fig.add_subplot(gs[1,2:4])
                 ax_cmr8 = fig.add_subplot(gs[2,2:4])
@@ -350,6 +351,7 @@ class GalaxyPopulation(object):
                 else:
                     ax_uvlf = fig.add_subplot(gs[:,0+4*xp:4*xp+3])
                     ax_uvlf2 = None
+                    
                     ax_cmr4 = fig.add_subplot(gs[0,3+4*xp:])
                     ax_cmr6 = fig.add_subplot(gs[1,3+4*xp:])
                     ax_cmr8 = fig.add_subplot(gs[2,3+4*xp:])

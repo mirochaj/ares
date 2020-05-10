@@ -131,6 +131,8 @@ _screen = \
  "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
  "pq_func[20]": 'pl',
  'pq_func_var[20]': 'wave',
+ 'pq_func_var_lim[20]': (912., np.inf),
+ 'pq_func_var_fill[20]': 0.0,
  'pq_func_par0[20]': 1e5,      # opacity at wavelength below
  'pq_func_par1[20]': 1e3,
  'pq_func_par2[20]': -1.,
