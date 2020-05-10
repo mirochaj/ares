@@ -263,10 +263,10 @@ class GalaxyPopulation(object):
             force_labels=force_labels, **kwargs)              
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
-        z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=True, beta_phot=True, 
+        z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True, 
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
-        dmag=0.5, dlam=20, dlam_c94=10, fill=False, extra_pane=False, square=False,
-        cmap=None, **kwargs):
+        dmag=0.5, dMst=0.25, dlam=20, dlam_c94=10, fill=False, extra_pane=False, 
+        square=False, cmap=None, **kwargs):
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -543,7 +543,7 @@ class GalaxyPopulation(object):
         ##
         # Plot models
         ##
-        Ms = np.arange(6, 13.25, 0.25)
+        Ms = np.arange(6, 13.+dMst, dMst)
         mags = np.arange(-25, -12-dmag, dmag)
         mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
@@ -803,7 +803,7 @@ class GalaxyPopulation(object):
         wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
         show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
-        return_data=True, data=None, **kwargs):
+        return_data=True, data=None, augment_filters=True, **kwargs):
         """
         Plot Beta(z) at fixed MUV and (optionally) Mstell.
         """
@@ -1002,19 +1002,22 @@ class GalaxyPopulation(object):
                     
             # Compute beta given JWST W only
             # 
-            if show_beta_jwst and z >= 5:
+            if show_beta_jwst and z >= 4:
                 nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
                 # Extend the wavelength range until we get two filters
-                ct = 1
-                while len(nircam_W_fil) < 2:
-                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                        wave_hi + 20 * ct)
-                    
-                    ct += 1
                 
-                if ct > 1:    
-                    print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
-                        wave_hi + 10 * (ct - 1)))    
+                if augment_filters:
+                
+                    ct = 1
+                    while len(nircam_W_fil) < 2:
+                        nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                            wave_hi + 10 * ct)
+                        
+                        ct += 1
+                    
+                    if ct > 1:    
+                        print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
+                            wave_hi + 10 * (ct - 1)))    
                 
                 filt2 = tuple(nircam_W_fil)
                     
@@ -1035,9 +1038,22 @@ class GalaxyPopulation(object):
                 # Compute beta w/ JWST 'M' only
                 nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
                 
+                if augment_filters:
+                
+                    ct = 1
+                    while len(nircam_M_fil) < 2:
+                        nircam_M_fil = what_filters(z, nircam_M, wave_lo, 
+                            wave_hi + 10 * ct)
+                        
+                        ct += 1
+                    
+                    if ct > 1:    
+                        print("For JWST M filters at z={}, extend wave_hi to {}A".format(z,
+                            wave_hi + 10 * (ct - 1)))
+                
                 filt3 = tuple(nircam_M_fil)
                 
-                if z >= 6:
+                if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
                     beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         cam=('nircam',), filters=filt3, rest_wave=None,
                         magmethod=magmethod)
@@ -1097,7 +1113,8 @@ class GalaxyPopulation(object):
         if show_beta_combo:
             for l, mag in enumerate(MUV):
                 _beta = B195_jwst[:,l]
-                ok = np.logical_and(_beta > -99999, zarr <= 9.)
+                ok = _beta > -99999
+                #ok = np.logical_and(_beta > -99999, zarr <= 9.)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2,
                     color='m', ls=ls[l])
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
@@ -1192,6 +1209,7 @@ class GalaxyPopulation(object):
         if return_data:
             data = (MUV, B195_spec, B195_hst, B195_jwst, B195_M, BMstell, 
                 dBdM195_spec, dBdM195_hst, dBdM195_jwst, dBdM195_M, dBMstell)
+                
             return (axB, axD, axB2, axD2), data    
         else:
             data = None        
@@ -1640,7 +1658,7 @@ class GalaxyPopulation(object):
         else:
             raise NotImplemented("Unrecognized object pop={}".format(pop))
          
-        self._MegaPlotCleanup(axes)
+        self._MegaPlotCleanup(pop, axes)
         
         return axes
         
@@ -1750,16 +1768,24 @@ class GalaxyPopulation(object):
                 fduty = pop.guide.fduty(z=z, Mh=Mh)
             else:
                 fduty = np.zeros_like(Mh)
+                
+            if pop.pf['pop_dust_growth'] not in [0, None]:
+                fgrowth = pop.guide.dust_growth(z=z, Mh=Mh)
+            else:
+                fgrowth = np.zeros_like(Mh)    
                         
             #any_fcov = np.any(np.diff(fcov, axis=1) != 0)
             #any_fduty = np.any(np.diff(fduty, axis=1) != 0)
                         
             if type(pop.pf['pop_dust_yield']) is str:
-                ax_fco.semilogx(Mh, ydust, color=colors[j])
+                ax_fco.semilogx(Mh, ydust, color=colors[j], ls='--')
                 ax_fco.set_ylabel(r'$y_{\mathrm{dust}}$')
-            elif type(pop.pf['pop_fduty']) is str:
+            if type(pop.pf['pop_fduty']) is str:
                 ax_fco.semilogx(Mh, fduty, color=colors[j])
                 ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+            if type(pop.pf['pop_dust_growth']) is str:
+                ax_fco.semilogx(Mh, fgrowth, color=colors[j])
+                ax_fco.set_ylabel(r'$f_{\mathrm{growth}}$')    
                 
             ax_rdu.loglog(Mh, Rdust, color=colors[j])
 
@@ -1861,9 +1887,19 @@ class GalaxyPopulation(object):
             if 'fduty' in anl.all_blob_names:
                 anl.ReconstructedFunction('fduty', ivar=[z, None], ax=ax_fco,
                     color=colors[j], **kwargs)
+                
+            if 'dust_yield' in anl.all_blob_names:
+                anl.ReconstructedFunction('dust_yield', ivar=[z, None], ax=ax_fco,
+                    color=colors[j], ls='--', **kwargs)        
+                
+            if 'fgrowth' in anl.all_blob_names:
+                anl.ReconstructedFunction('fgrowth', ivar=[z, None], ax=ax_fco,
+                    color=colors[j], **kwargs) 
+                ax_fco.set_yscale('log')
+                ax_fco.set_ylim(1e9, 1e13)
                         
                 
-    def _MegaPlotLimitsAndTicks(self, kw):
+    def _MegaPlotLimitsAndTicks(self, anl, kw):
         ax_sfe = kw['ax_sfe']
         ax_fco = kw['ax_fco']
         ax_rdu = kw['ax_rdu']
@@ -1886,7 +1922,22 @@ class GalaxyPopulation(object):
         ax_fco.set_xscale('log')
         ax_fco.set_xlim(1e8, 1e13)
         ax_fco.set_yscale('linear')
-        ax_fco.set_ylim(0, 1.05)
+        
+        if anl is not None:
+            if 'pop_dust_growth' in anl.pf:
+                ax_fco.set_yscale('log')
+                ax_fco.set_ylim(1e9, 1e13)
+            else:
+                ax_fco.set_ylim(0, 1.05)
+        else:
+            ax_fco.set_ylim(0, 1.05)      
+            
+        if ('dust_scale' in anl.all_blob_names) and ('fduty' in anl.all_blob_names):
+            ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+            ax_fco2 = ax_fco.twinx()
+            ax_fco2.set_ylabel(r'$f_{\mathrm{dtmr}}$')
+            ax_fco2.set_ylim(0, 1.05)
+            
         ax_rdu.set_xlim(1e8, 1e13)
         ax_rdu.set_ylim(1e-2, 100)
         
@@ -2222,7 +2273,7 @@ class GalaxyPopulation(object):
 
         ax_MsMUV.legend(loc='upper right', fontsize=8)
                 
-    def _MegaPlotCleanup(self, kw):
+    def _MegaPlotCleanup(self, anl, kw):
         
         
         ax_sfe = kw['ax_sfe']
@@ -2244,7 +2295,6 @@ class GalaxyPopulation(object):
         ax_sfe.set_title('Model Inputs', fontsize=18)
         ax_sfe.set_ylabel(r'$f_{\ast} \equiv \dot{M}_{\ast} / f_b \dot{M}_h$')
         
-        ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
         ax_fco.set_xlabel(r'$M_h / M_{\odot}$')
             
         ax_rdu.set_ylabel(r'$R_{\mathrm{dust}} \ [\mathrm{kpc}]$')
@@ -2297,4 +2347,4 @@ class GalaxyPopulation(object):
         ax_MsMUV.legend(loc='upper right', fontsize=8)
         
         
-        self._MegaPlotLimitsAndTicks(kw)
+        self._MegaPlotLimitsAndTicks(anl, kw)

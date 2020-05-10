@@ -96,13 +96,13 @@ _legacy['pop_thin_hist'] = 1
 _legacy['pop_aging'] = False
 _legacy['pop_ssp'] = False
 
-# Dust-free, zcal=4
+# Dust-free, zcal=6
 _legacy_best = \
 {
- 'pq_func_par0[0]': 0.0489,
- 'pq_func_par1[0]': 340476075081.6909,
- 'pq_func_par2[0]': 0.3037,
- 'pq_func_par3[0]': -0.7307, 
+ "pq_func_par0[0]": 0.021318903793597695,
+ "pq_func_par1[0]": 161183780620.5577,
+ "pq_func_par2[0]": 0.6194118468916575,
+ "pq_func_par3[0]": -0.5196731558295137,
 }
 
 legacy = _legacy.copy()
@@ -112,12 +112,13 @@ legacy_irxb = legacy.copy()
 legacy_irxb['dustcorr_method'] = 'meurer1999'
 legacy_irxb['dustcorr_beta'] = 'bouwens2014'
 
+# zcal=4
 _legacy_irxb_best = \
 {
- 'pq_func_par0[0]': 0.0583,
- 'pq_func_par1[0]': 293722906438.2641,
- 'pq_func_par2[0]': 0.5989,
- 'pq_func_par3[0]': -0.5594,
+ "pq_func_par0[0]": 0.057287817296223634,
+ "pq_func_par1[0]": 271199488032.99377,
+ "pq_func_par2[0]": 0.619643952297192,
+ "pq_func_par3[0]": -0.5355086718805019,
 }
 
 legacy_irxb.update(_legacy_irxb_best)
@@ -175,20 +176,38 @@ plrd.update(_screen)
 
 # Just energy-regulated model for now with dust scale length going
 # like the virial radius.
-_evol_ereg = \
+_evol_ereg_plrd = \
 {
 'pq_func_par2[0]': 0.66666,
 'pq_func_par6[0]': 1.0,
 'pq_func_par2[22]': 0.33333,
-'pq_func_par4[33]': -1.,
+'pq_func_par4[22]': -1.,
 }
 
-_evol_mreg = \
+_evol_ereg_dplrd = \
+{
+'pq_func_par2[0]': 0.66666,
+'pq_func_par6[0]': 1.0,
+'pq_func_par2[22]': 0.33333,
+'pq_func_par3[22]': 0.33333,
+'pq_func_par6[22]': -1.,
+}
+
+_evol_mreg_plrd = \
 {
 'pq_func_par2[0]': 0.33333,
 'pq_func_par6[0]': 0.5,
 'pq_func_par2[22]': 0.33333,
-'pq_func_par4[33]': -1.,
+'pq_func_par4[22]': -1.,
+}
+
+_evol_mreg_dplrd = \
+{
+'pq_func_par2[0]': 0.33333,
+'pq_func_par6[0]': 0.5,
+'pq_func_par2[22]': 0.33333,
+'pq_func_par3[22]': 0.33333,
+'pq_func_par6[22]': -1.,
 }
 
 # Add models for no dust and IRX-beta approaches
@@ -197,15 +216,15 @@ univ.update(_screen_dpl)
 
 _univ_best = \
 {
- "pq_func_par0[0]": 0.04505759213804557,
- "pq_func_par1[0]": 289087186674.5159,
- "pq_func_par2[0]": 0.6524711721934323,
- "pq_func_par3[0]": -0.6615949817995457,
- "pq_func_par0[22]": 1.0105945780080616,
- "pq_func_par2[22]": 0.6755443766399062,
- "pq_func_par3[22]": 0.06402817960317375,
- "pq_func_par1[22]": 1477953138808.743,
- "pq_func_par0[33]": 0.02102967598493136,
+ "pq_func_par0[0]": 0.05358923552624397,
+ "pq_func_par1[0]": 158546446923.62747,
+ "pq_func_par2[0]": 0.7885338344023041,
+ "pq_func_par3[0]": -0.5204155471526877,
+ "pq_func_par0[22]": 1.0781509973135333,
+ "pq_func_par2[22]": 0.09247381008339602,
+ "pq_func_par3[22]": 0.7207135144954646,
+ "pq_func_par1[22]": 691804567964.6238,
+ "pq_func_par0[33]": 0.021514155153596976,
 }
 
 univ.update(_univ_best)
@@ -234,10 +253,10 @@ _peak_best = \
 ereg_epeak = univ.copy()
 ereg_epeak['pq_func[0]'] = 'dpl_evolNPS'
 ereg_epeak.update(_peak_best)
-ereg_epeak.update(_evol_ereg)
+ereg_epeak.update(_evol_ereg_dplrd)
 
 mreg_epeak = ereg_epeak.copy()
-mreg_epeak.update(_evol_mreg)
+mreg_epeak.update(_evol_mreg_dplrd)
 
 # Only difference between `univ` and `evol` models is through
 # changes to evolution parameters.
@@ -271,14 +290,30 @@ _fduty_best = \
  "pq_func_par0[33]": 0.125370496993,
 }
 
+_fgrowth = \
+{
+ 'pop_dust_growth': 'pq[60]',
+ 'pq_func_var[60]': 'Mh',
+ 'pq_func_var2[60]': '1+z',
+ 'pq_func[60]': 'pl_evolN',
+ 'pq_func_par0[60]': 3e10, # in yr     
+ 'pq_func_par1[60]': 3e11,    
+ 'pq_func_par2[60]': 0.,    
+ 'pq_func_par3[60]': 5.,   
+ 'pq_func_par4[60]': 0.0,
+}
 
 ereg_eduty = univ.copy()
 ereg_eduty.update(_fduty)
 ereg_eduty.update(_fduty_best)
-ereg_eduty.update(_evol_ereg)
+ereg_eduty.update(_evol_ereg_dplrd)
+
+ereg_egrowth = univ.copy()
+ereg_egrowth.update(_fgrowth)
+ereg_egrowth.update(_evol_ereg_dplrd)
 
 mreg_eduty = ereg_eduty.copy()
-mreg_eduty.update(_evol_mreg)
+mreg_eduty.update(_evol_mreg_dplrd)
 
 _dtmr = \
 {
@@ -312,10 +347,13 @@ _dtmr_best = \
 ereg_edtmr = univ.copy()
 ereg_edtmr.update(_dtmr)
 ereg_edtmr.update(_dtmr_best)
-ereg_edtmr.update(_evol_ereg)
+ereg_edtmr.update(_evol_ereg_dplrd)
+
+ereg_eduty_edtmr = ereg_edtmr.copy()
+ereg_eduty_edtmr.update(_fduty)
 
 mreg_edtmr = ereg_edtmr.copy()
-mreg_edtmr.update(_evol_mreg)
+mreg_edtmr.update(_evol_mreg_dplrd)
 
 univ_plRd = univ.copy()
 ereg_epeak_plRd = ereg_epeak.copy()

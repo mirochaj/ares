@@ -334,9 +334,8 @@ def ParameterizedQuantityParameters():
      "pq_val_ceil": None,
      "pq_val_floor": None,
      "pq_var_ceil": None,
-     "pq_var_floor": None,      
-
-    }  
+     "pq_var_floor": None,
+    }
 
     pf.update(rcParams)
 
@@ -514,6 +513,7 @@ def PopulationParameters():
     "pop_MAR_interp": 'linear',
     "pop_MAR_corr": None,
     "pop_MAR_delay": None,
+    "pop_MAR_from_hist": True,
 
     "pop_interp_MAR": 'linear',
     "pop_interp_sfrd": 'linear',

@@ -20,35 +20,6 @@ from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz
-
-class DummyClass(object):
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.Nt = 11
-    
-    @property 
-    def times(self):
-        return np.linspace(0, 500, self.Nt)
-    
-    @property
-    def weights(self):
-        return np.ones_like(self.times)
-    
-    def _load(self, **kwargs):
-        # Energies must be in *descending* order
-        if np.all(np.diff(kwargs['pop_E']) > 0):
-            E = kwargs['pop_E'][-1::-1]
-            L = kwargs['pop_L'][-1::-1]
-        else:
-            E = kwargs['pop_E']
-            L = kwargs['pop_L'] 
-
-        data = np.array([L] * self.Nt).T
-        wave = 1e8 * h_p * c / (E * erg_per_ev)
-        
-        assert len(wave) == data.shape[0], "len(pop_L) must == len(pop_E)."
-                
-        return wave, data
         
 class SynthesisMaster(Source):        
     def AveragePhotonEnergy(self, Emin, Emax):
@@ -182,13 +153,6 @@ class SynthesisMaster(Source):
         if not hasattr(self, '_frequencies'):
             self._frequencies = c / (self.wavelengths / 1e8)
         return self._frequencies
-                
-    @property
-    def time_averaged_sed(self):
-        if not hasattr(self, '_tavg_sed'):
-            self._tavg_sed = np.dot(self.data, self.weights) / self.times.max()
-        
-        return self._tavg_sed
 
     @property
     def emissivity_per_sfr(self):
@@ -202,18 +166,13 @@ class SynthesisMaster(Source):
 
         return self._E_per_M
 
-    @property
-    def uvslope(self):
-        if not hasattr(self, '_uvslope'):
-            self._uvslope = np.zeros_like(self.data)
-            for i in range(self.times.size):
-                self._uvslope[1:,i] = np.diff(np.log(self.data[:,i])) \
-                    / np.diff(np.log(self.wavelengths))
-
-        return self._uvslope
-        
     def get_beta(self, wave1=1600, wave2=2300, data=None):
+        """
+        Return UV slope in band between `wave1` and `wave2`. 
         
+        .. note :: This is just finite-differencing in log space. Should use
+            routines in GalaxyEnsemble for more precision.
+        """
         if data is None:
             data = self.data
             
@@ -531,10 +490,7 @@ class SynthesisModel(SynthesisMaster):
     @property
     def _litinst(self):
         if not hasattr(self, '_litinst_'):
-            if self.pf['source_sed'] == 'user':
-                self._litinst_ = DummyClass()
-            else:    
-                self._litinst_ = read_lit(self.pf['source_sed'])
+            self._litinst_ = read_lit(self.pf['source_sed'])
                 
         return self._litinst_
         

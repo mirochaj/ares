@@ -40,7 +40,7 @@ def test():
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "UVLF cache not working!"
     
     # Test stellar mass function
-    log10Ms = np.arange(6, 13, 0.1)
+    log10Ms = np.arange(6, 13, 0.5)
     phi = pop.StellarMassFunction(6., log10Ms)
     ok = np.isfinite(phi)
     

@@ -18,8 +18,8 @@ wavelength = 1500.
 
 ULIM = -1e10
 
-data = {}
-data['lf'] = \
+tmp_data = {}
+tmp_data['lf'] = \
 {
  1.65: {'M': list(np.arange(-18, -12, 1)),
        'phi': [0.527e-2, 0.733e-2, 1.329e-2, 1.150e-2, 8.566e-2, 10.477e-2],
@@ -43,4 +43,16 @@ data['lf'] = \
 }
 
 units = {'lf': 1., 'wavelength': 1500.}
+
+data = {}
+data['lf'] = {}
+for key in tmp_data['lf']:
+    #mask = np.array(tmp_data['lf'][key]['err']) == ULIM
+    N = len(tmp_data['lf'][key]['M'])
+    mask = np.array([tmp_data['lf'][key]['err'][i] == ULIM for i in range(N)])
+    
+    data['lf'][key] = {}
+    data['lf'][key]['M'] = np.ma.array(tmp_data['lf'][key]['M'], mask=mask) 
+    data['lf'][key]['phi'] = np.ma.array(tmp_data['lf'][key]['phi'], mask=mask) 
+    data['lf'][key]['err'] = tmp_data['lf'][key]['err']
 

@@ -306,20 +306,28 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             assert thin < 2
             assert sigma_mar == sigma_env == 0
             
-            print("Generating MARs from Mh trajectories...")
-            dM = -1. * np.diff(Mh_raw, axis=1)
-            
-            t = self.cosm.t_of_z(zall) * 1e6 / s_per_myr
-            
-            dt = -1. * np.diff(t) # in yr already    
-            
-            MAR_z = dM / dt
-
-            zeros = np.ones((Mh_raw.shape[0], 1)) * tiny_MAR
-            # Follow ARES convention of forward differencing, so must pad MAR
-            # array with zeros at the lowest redshift snapshot.
-            mar_raw = np.hstack((zeros, MAR_z))
-            
+            if self.pf['pop_MAR_from_hist']:
+                print("Generating MARs from Mh trajectories...")
+                dM = -1. * np.diff(Mh_raw, axis=1)
+                
+                t = self.cosm.t_of_z(zall) * 1e6 / s_per_myr
+                
+                dt = -1. * np.diff(t) # in yr already    
+                
+                MAR_z = dM / dt
+                
+                zeros = np.ones((Mh_raw.shape[0], 1)) * tiny_MAR
+                # Follow ARES convention of forward differencing, so must pad MAR
+                # array with zeros at the lowest redshift snapshot.
+                mar_raw = np.hstack((zeros, MAR_z))
+                
+            else:
+                print("Generating MARs from `guide` population...")   
+                z2d = zall[None,:]
+                mar_raw = np.zeros_like(Mh_raw)
+                for i, z in enumerate(zall):
+                    mar_raw[:,i] = self.guide.MAR(z=z, Mh=Mh_raw[:,i])
+                
         else:
             if 'MAR' in raw:
                 mar_raw = raw['MAR']
@@ -1112,7 +1120,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return data
             
-    def _gen_galaxy_histories(self, zstop=0):     
+    def _gen_galaxy_histories(self, zstop=0): # pragma: no cover
         """
         Take halo histories and paint on galaxy histories in some way.
         
@@ -2196,15 +2204,27 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
             if for_beta:
                 # Override
-                if z < 5:
-                    raise ValueError("JWST too red for UV slope measurements at z<5!")
+                if z < 4:
+                    raise ValueError("JWST too red for UV slope measurements at z<4!")
                 
                 cam = ('nircam',)
                 
                 wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
                 
                 if presets.lower() in ['jwst-m', 'jwst', 'nircam-m', 'nircam']:
-                    filters = list(what_filters(z, nircam_M, wave_lo, wave_hi))                    
+                    filters = list(what_filters(z, nircam_M, wave_lo, wave_hi))    
+                    
+                    ct = 1
+                    while len(filters) < 2:
+                        filters = what_filters(z, nircam_M, wave_lo, 
+                            wave_hi + 10 * ct)
+                    
+                        ct += 1
+                
+                    if ct > 1:    
+                        print("For JWST M filters at z={}, extended wave_hi to {}A".format(z,
+                            wave_hi + 10 * (ct - 1)))
+                                    
                 else:
                     filters = []
                 
@@ -2214,7 +2234,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     ct = 1
                     while len(nircam_W_fil) < 2:
                         nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                            wave_hi + 20 * ct)
+                            wave_hi + 10 * ct)
                     
                         ct += 1
                 

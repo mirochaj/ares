@@ -19,7 +19,8 @@ from ares.physics.Constants import s_per_myr
 def test(show_bpass=False, oversample_age=30., dt_coarse=10):
 
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
-        source_Emax=54.4, source_toysps_beta=-3.5)
+        source_Emax=54.4, source_toysps_beta=-3.5,
+        source_ssp=True, source_aging=True)
     
     pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars['pop_sed'] = 'sps-toy'
@@ -128,7 +129,7 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     ss2.src = toy
     ss2.oversampling_enabled = False
     ss2.oversampling_below = oversample_age
-    
+        
     t1 = time.time()
     L1 = ss.Luminosity(sfh=sfh1, tarr=tarr1, load=False)
     t2 = time.time()

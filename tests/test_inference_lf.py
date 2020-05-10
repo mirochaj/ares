@@ -175,6 +175,18 @@ def test():
         
         gpop = ares.analysis.GalaxyPopulation()
         gpop.PlotLF(5.9, sources='bouwens2015', ax=ax)
+        
+        # Other random stuff
+        all_kwargs = anl.AssembleParametersList(include_bkw=True)
+        assert len(all_kwargs) == anl.chain.shape[0]
+        
+        iML = np.argmax(anl.logL)
+        best_pars = anl.max_likelihood_parameters()
+        
+        for i, par in enumerate(best_pars.keys()):
+            assert all_kwargs[iML][par] == best_pars[par]
+        
+        anl.CorrelationMatrix(anl.parameters, fig=4)
     
     # Clean-up
     mcmc_files = glob.glob('{}/test_uvlf*'.format(os.environ.get('ARES')))

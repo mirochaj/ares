@@ -1,7 +1,7 @@
 """
 Atek et al., 2015, arxiv
 
-Their Tables 4 and 5
+Their Tables 2 and 5
 """
 
 import numpy as np
@@ -9,6 +9,16 @@ import numpy as np
 redshifts = [7.]
 
 wavelength = 1500.
+ULIM = -1e10
+
+info = \
+{
+ 'reference': 'Atek et al., 2015, ApJ, 814, 69',
+ 'data': 'Table 2', 
+ 'fits': 'Table 5',
+ 'label': 'Atek+ (2015)',
+}
+
 
 fits = {}
 
@@ -30,8 +40,8 @@ fits['lf']['err'] = \
 }
 
 # Table 4
-data = {}
-data['lf'] = \
+tmp_data = {}
+tmp_data['lf'] = \
 {
  7.: {'M': list(np.arange(-20.25, -14.75, 0.5)),
       'phi': [-3.4184, -3.0263, -2.9044, -2.7418, -2.3896, -2.1032,
@@ -43,6 +53,19 @@ data['lf'] = \
 
 
 units = {'lf': 'log10'}
+
+data = {}
+data['lf'] = {}
+for key in tmp_data['lf']:
+    #mask = np.array(tmp_data['lf'][key]['err']) == ULIM
+    N = len(tmp_data['lf'][key]['M'])
+    mask = np.array([tmp_data['lf'][key]['err'][i] == ULIM for i in range(N)])
+    
+    data['lf'][key] = {}
+    data['lf'][key]['M'] = np.ma.array(tmp_data['lf'][key]['M'], mask=mask) 
+    data['lf'][key]['phi'] = np.ma.array(tmp_data['lf'][key]['phi'], mask=mask) 
+    data['lf'][key]['err'] = tmp_data['lf'][key]['err']
+
 
 
 

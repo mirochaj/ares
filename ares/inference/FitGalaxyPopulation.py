@@ -251,7 +251,7 @@ class loglikelihood(LogLikelihood):
                         dlam=20., return_binned=True, rest_wave=None)
             
                 if not (np.isfinite(Mlim) or np.isfinite(b_hi[zmod[i]])):
-                    raise ValueError("Mlim={}, beta_hi={}".format(Mlim, b_hi))
+                    raise ValueError("Mlim={}, beta_hi={:.2f}".format(Mlim, b_hi))
                 
                 # Bit overkill to check every magnitude, but will *really*
                 # enforce monotonic behavior.

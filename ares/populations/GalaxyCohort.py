@@ -2302,7 +2302,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
         return np.array(results)
         
-    def _SAM_1z_jac(self, z, y):
+    def _SAM_1z_jac(self, z, y): # pragma: no cover
         """
         Jacobian for _SAM_1z
         """
@@ -2433,7 +2433,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         return np.diag(results)    
     
-    def _SAM_2z(self, z, y):
+    def _SAM_2z(self, z, y): # pragma: no cover
         raise NotImplemented('Super not done with this!')
         
         Mh, Mg_cgm, Mg_ism_c, Mg_ism_h, Mst, MZ_ism, MZ_cgm = y
