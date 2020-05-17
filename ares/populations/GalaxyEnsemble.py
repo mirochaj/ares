@@ -1456,8 +1456,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Rd = np.inf
             fcov = 1.0
 
-        del z2d    
-
         # Metal mass
         if 'Z' in halos:
             Z = halos['Z']
@@ -1470,13 +1468,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mg = np.hstack((zeros_like_Mh, 
                     np.cumsum((MAR[:,0:-1] * fb - SFR[:,0:-1]) * dt, axis=1)))
 
-                Z = MZ / Mg / self.pf['pop_fpoll']
+                if self.pf['pop_enrichment'] == 2:
+                    Vd = 4. * np.pi * self.guide.dust_scale(z=z2d, Mh=Mh)**3 / 3.
+                    rho_Z = MZ / Vd
+                    Vg = 4. * np.pi * self.halos.VirialRadius(z2d, Mh)**3 / 3.
+                    rho_g = Mg / Vg
+                    Z = rho_Z / rho_g / self.pf['pop_fpoll']
+                else:
+                    Z = MZ / Mg / self.pf['pop_fpoll']
 
                 Z[Mg==0] = 1e-3
                 Z = np.maximum(Z, 1e-3)
 
             else:
                 MZ = Mg = Z = 0.0
+                           
+        del z2d                       
                                 
         ##
         # Merge halos, sum stellar masses, SFRs.

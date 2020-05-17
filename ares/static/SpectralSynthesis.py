@@ -995,7 +995,7 @@ class SpectralSynthesis(object):
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
             if 'Z' in hist:
-                Z = hist['Z'][idnum]
+                Z = hist['Z'][idnum,:]
             
             # Don't necessarily need Mh here.
             if 'Mh' in hist:
@@ -1163,38 +1163,34 @@ class SpectralSynthesis(object):
             # Recall also that `sfh` contains SFRs for all time, so any
             # z < zobs will contain zeroes, hence all the 0:i+1 slicing below.
             
-            #print('hello', i, _tobs, zarr[i], tarr[i], tarr[0:i+1])
-            #print(ages)
-            #print(sfh[0,0:i+1])
-
             # Treat metallicity evolution? If so, need to grab luminosity as 
             # function of age and Z.
             if self.pf['pop_enrichment']:
 
+                assert batch_mode
+
                 logA = np.log10(ages)
-                logZ = np.log10(Z[0:i+1])
+                logZ = np.log10(Z[:,0:i+1])
                 L_per_msun = np.zeros_like(ages)
                 logL_at_wave = self.L_of_Z_t(wave)
-                
-                L_per_msun = 10**logL_at_wave(logA, logZ, grid=False)
-                
-                #print(logA.shape, logZ.shape)
-                #for j in range(ages.size):
-                #    L_per_msun[j] = 10**logL_at_wave(logA[j], logZ[j], 
-                #        grid=False)
-                                        
+                                
+                L_per_msun = np.zeros_like(logZ)
+                for j, _Z_ in enumerate(range(logZ.shape[0])):
+                    L_per_msun[j,:] = 10**logL_at_wave(logA, logZ[j,:], 
+                        grid=False)
+                 
                 # erg/s/Hz
                 if batch_mode:
-                    Lall = L_per_msun * sfh[:,0:i+1]
+                    Lall = L_per_msun[:,0:i+1] * sfh[:,0:i+1]
                 else:
-                    Lall = L_per_msun * sfh[0:i+1]
+                    Lall = L_per_msun[0:i+1] * sfh[0:i+1]
                     
                 if oversample:
                     raise NotImplemented('help!')    
                 else:
                     _dt = dt[0:i]
 
-                _ages = ages    
+                _ages = ages
             else:
                                 
                 ##
@@ -1212,7 +1208,7 @@ class SpectralSynthesis(object):
                         
                     # Now, compute luminosity at expanded ages.
                     L_per_msun = np.exp(_func(np.log(_ages)))   
-                                    
+                                                                        
                     # Interpolate linearly at t < 1 Myr    
                     L_per_msun[_ages < 1] = L_small_t(_ages[_ages < 1])   
                     #L_per_msun[_ages < 10] = 0.   

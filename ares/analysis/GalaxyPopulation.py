@@ -1715,6 +1715,7 @@ class GalaxyPopulation(object):
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
+            nh = pop.get_field(z, 'nh')
             SFR = pop.get_field(z, 'SFR')
             
             SFE = pop.guide.SFE(z=z, Mh=_mh)
@@ -1724,7 +1725,8 @@ class GalaxyPopulation(object):
                 
             if (pop.pf['pop_scatter_mar'] > 0) or (pop.pf['pop_histories'] is not None):
                 _bins = np.arange(7, 12.1, 0.1)
-                x, y, std, N = bin_samples(np.log10(Ms), np.log10(SFR), _bins)
+                x, y, std, N = bin_samples(np.log10(Ms), np.log10(SFR), _bins,
+                    weights=nh)
                 ax_sfms.loglog(10**x, 10**y, color=colors[j])
             else:    
                 ax_sfms.loglog(Ms, SFR, color=colors[j])
@@ -1748,7 +1750,8 @@ class GalaxyPopulation(object):
             #    beta = np.zeros_like(mags)
             
             # M1500-Mstell
-            _x, _y, _z, _N = bin_samples(mags1500, np.log10(Ms), Mbins)
+            _x, _y, _z, _N = bin_samples(mags1500, np.log10(Ms), Mbins,
+                weights=nh)
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'

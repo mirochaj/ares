@@ -222,7 +222,7 @@ class SynthesisMaster(Source):
             j = np.argmin(np.abs(wave - self.wavelengths))
             
             if Z is not None:
-                Zvals = np.sort(self.metallicities.values())
+                Zvals = np.sort(list(self.metallicities.values()))
                 k = np.argmin(np.abs(Z - Zvals))
                 raw = self.data # just to be sure it has been read in.
                 data = self._data_all_Z[k,j]
@@ -516,7 +516,7 @@ class SynthesisModel(SynthesisMaster):
             
     @property
     def metallicities(self):
-        return self._litinst.metallicities 
+        return self._litinst.metallicities
            
     @property
     def _nebula(self):
