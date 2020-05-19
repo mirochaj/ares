@@ -513,7 +513,6 @@ def PopulationParameters():
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
-    #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
     "pop_MAR_corr": None,
     "pop_MAR_delay": None,

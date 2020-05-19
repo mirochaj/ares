@@ -733,10 +733,17 @@ class HaloModel(HaloMassFunction):
             return HaloMassFunction.__dict__[name].__get__(self, HaloMassFunction)
         
         if (name[0] == '_'):
-            raise AttributeError('This will get caught. Don\'t worry!')
+            raise AttributeError('This will get caught. Don\'t worry! {}'.format(name))
     
         if name not in self.__dict__.keys():
-            self._load_hmf()
+            if self.pf['hmf_load']:
+                self._load_hmf()
+            else:
+                # Can generate on the fly!
+                if name == 'tab_MAR':
+                    self.TabulateMAR()
+                else:
+                    self.TabulateHMF(save_MAR=False)
             
             if name not in self.__dict__.keys():
                 self._load_ps()

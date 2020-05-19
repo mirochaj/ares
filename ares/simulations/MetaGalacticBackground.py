@@ -186,7 +186,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         count = self.count   # Just to make sure attribute exists
         self._count += 1
-        
+                
         is_converged = self._is_Mmin_converged(self._lwb_sources)
         
         ## 
@@ -864,6 +864,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._LW_felt_by_    
     
     def _is_Mmin_converged(self, include_pops):
+                
         # Need better long-term fix: Lya sources aren't necessarily LW 
         # sources, if (for example) approx_all_pops = True. 
         if not self.pf['feedback_LW']:
@@ -881,7 +882,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         self._Ja = Ja
         self._Jlw = Jlw
-                
+                        
         if not self.pf['feedback_LW']:
             return True
         
@@ -1174,7 +1175,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not converged:
             self._Mmin_bank.append(self._Mmin_now.copy())
             self._Jlw_bank.append(Jlw)
-                
+                                
         return converged
             
     def get_uvb(self, popid):

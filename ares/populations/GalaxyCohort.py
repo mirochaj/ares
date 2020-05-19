@@ -1557,7 +1557,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 else:
                     zform, zfin, Mfin, raw = self.MassAfter(M0=M0x)
                     new_data = self._sort_sam(self.pf['initial_redshift'], 
-                        zform, raw, sort_by='form') 
+                        zform, raw, sort_by='form')
                                                         
                 # This is the redshift at which the first star-forming halo,
                 # formed at (zi, M0), transitions to PopII.
@@ -1694,7 +1694,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Why am I getting a NaN?
             isnan = np.isnan(self._tab_sfr_)
-
+            
             if isnan.sum() > 1 and self.pf['debug']:                
                 # Find bounds in redshift and mass?
                 i_nan = np.argwhere(isnan==1)
@@ -1712,6 +1712,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 print("WARNING: {} Nans detected in _tab_sfr_".format(isnan.sum()))
                 print("WARNING: Found in range {}<=z<={} and {}<=Mh<={}".format(zlo, 
                     zhi, Mlo, Mhi))
+                print("Note: pop_sfr_model={}".format(self.pf['pop_sfr_model']))
                             
             self._tab_sfr_[isnan] = 0.
                                             
@@ -2216,15 +2217,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         fb = self.cosm.fbar_over_fcdm
         
-
         # Convert from s/dz to yr/dz
         dtdz_s = -self.cosm.dtdz(z)
         dtdz = dtdz_s / s_per_yr
         
         # Splitting up the inflow. P = pristine.
         # Units = Msun / yr -> Msun / dz
+        #if self.pf['pop_sfr_model'] in ['sfe-func']:
         PIR = fb * self.MAR(z, Mh) * dtdz
         NPIR = fb * self.MDR(z, Mh) * dtdz
+        MGR = self.MGR(z, Mh)
+        #else:
+        #    PIR = NPIR = MGR = 0.0    
 
         # Measured relative to baryonic inflow
         Mb = fb * Mh
@@ -2246,7 +2250,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         fsmooth = self.fsmooth(**kw)
 
         # Eq. 1: halo mass.
-        y1p = self.MGR(z, Mh) * dtdz
+        y1p = MGR * dtdz
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:
@@ -2326,11 +2330,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         # Splitting up the inflow. P = pristine.
         # Units = Msun / yr -> Msun / dz
+        #if self.pf['pop_sfr_model'] in ['sfe-func']:
         PIR = fb * self.MAR(z, Mh) * dtdz
         NPIR = fb * self.MDR(z, Mh) * dtdz
-        #PIR = lambda _Mh: fb * self.MAR(z, _Mh) * dtdz
-        #NPIR = lambda _Mh: fb * self.MDR(z, _Mh) * dtdz
-        #
+        #else:
+        #    PIR = NPIR = 0.0 # unused
+            
         # Measured relative to baryonic inflow
         Mb = fb * Mh
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
@@ -2794,6 +2799,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # SAM is run from zform to final_redshift, so only a subset
             # of elements in the 2-D table are filled.
             for key in keys:  
+                #print(key, z, M0, _zarr)
                 dat = _results[key].copy()
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat.squeeze()
@@ -2841,7 +2847,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         results['z'] = zarr
         
         self._trajectories = np.array(zform), results
-        
+                
         return np.array(zform), results
 
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
@@ -3005,8 +3011,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
             sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
-            mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
             nh_t.append(n0)
+            
+            if self.pf['pop_sfr_model'] in ['sfe-func']:
+                mar_t.append(self.MGR(redshifts[-1], Mh_t[-1]))
+            else:
+                mar_t.append(0.0)    
             
             Mmin = np.interp(redshifts[-1], self.halos.tab_z, self._tab_Mmin)
                         

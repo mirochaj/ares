@@ -149,7 +149,7 @@ class CompositePopulation(object):
                 if not np.all(ok):
                     err_str = "{}/{} elements not abiding by condition.".format(
                             ok.size - ok.sum(), ok.size)
-                    err_str += " Typical (Mmin - Mmax) = {}".format(excess[~ok].mean())
+                    err_str += " Typical (Mmin - Mmax) = {}".format(np.mean(excess[~ok]))
                     
                     if excess[~ok].mean() < 1e-4:
                         pass

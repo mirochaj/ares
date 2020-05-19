@@ -17,7 +17,6 @@ dpl = \
  'pop_sfr_model{0}': 'sfe-func',
  'pop_sfr_model{1}': 'link:sfrd:0',
  'pop_MAR{0}': 'hmf',
- 'pop_MAR_conserve_norm{0}': False,
  
  # Stellar pop + fesc
  'pop_sed{0}': 'eldridge2009',
