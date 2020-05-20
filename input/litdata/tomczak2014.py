@@ -42,8 +42,6 @@ tmp_data['smf_tot'] = \
 }
 
 
-units = {'smf_tot': 'log10', 'smf_sf': 'log10', 'smf': 'log10'}
-
 tmp_data['smf_sf'] = \
 {
  2.25: {'M': list(10**np.arange(9.25, 11.75, 0.25)),
@@ -60,10 +58,33 @@ tmp_data['smf_sf'] = \
     },            
 }
 
+
+tmp_data['smf_q'] = \
+{
+ #1.75: {'M': list(10**np.arange(9.25, 11.75, 0.25)),
+ #     'phi': [-2.53, -2.50, -2.63, -2.74, -2.91, -3.07, -3.35, -3.54, -3.89, -4.41],
+ #     'err': [(0.06, 0.07), (0.06, 0.07), (0.06, 0.07), (0.07, 0.08),
+ #             (0.08, 0.09), (0.09, 0.10), (0.10, 0.13), (0.12, 0.16),
+ #             (0.12, 0.17), (0.14, 0.19)],
+ 2.25: {'M': list(10**np.arange(9.75, 11.75, 0.25)),
+     'phi': [-3.72, -3.76, -3.64, -3.53, -3.82, -4.08, -4.54, -4.89],
+     'err': [(0.11, 0.12), (0.11, 0.13), (0.11, 0.12), (0.10, 0.12),
+             (0.13, 0.16), (0.17, 0.22), (0.15, 0.21), (0.19, 0.26)],
+    },
+ 2.75: {'M': list(10**np.arange(9.75, 11.75, 0.25)),
+     'phi': [-4.16, -4.08, -3.89, -3.74, -4.12, -4.51, -4.61, -4.14],
+     'err': [(0.17, 0.20), (0.16, 0.18), (0.13, 0.15), (0.12, 0.15), 
+             (0.18, 0.22), (0.27, 0.38), (0.19, 0.32), (0.34, 2.00)],
+    },            
+}
+
+units = {'smf_tot': 'log10', 'smf_sf': 'log10', 'smf': 'log10', 'smf_q': 'log10'}
+
 data = {}
 data['smf_tot'] = {}
 data['smf_sf'] = {}
-for group in ['smf_tot', 'smf_sf']:
+data['smf_q'] = {}
+for group in ['smf_tot', 'smf_sf', 'smf_q']:
     
     for key in tmp_data[group]:
         
@@ -84,7 +105,7 @@ for group in ['smf_tot', 'smf_sf']:
         data[group][key] = {}
         data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask) 
         data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask) 
-        data[group][key]['err'] = tmp_data['smf_sf'][key]['err']
+        data[group][key]['err'] = tmp_data[group][key]['err']
 
-
+#default is the star-forming galaxies data only
 data['smf'] = data['smf_sf']

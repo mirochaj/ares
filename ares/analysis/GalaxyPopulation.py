@@ -59,7 +59,7 @@ groups_lf = \
 
 groups_smf = {'all': datasets_smf}
 groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf, 
-    'smf_tot': groups_smf, 
+    'smf_tot': groups_smf, 'smf_q': groups_smf,
     'mzr': {'all': datasets_mzr}}
 
 colors_cyc = ['m', 'c', 'r', 'g', 'b', 'y', 'orange', 'gray'] * 3
@@ -256,10 +256,10 @@ class GalaxyPopulation(object):
             force_labels=force_labels, **kwargs)  
         
     def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
-            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
-    
+            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, **kwargs):
+
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', 
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
             force_labels=force_labels, **kwargs)              
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
@@ -1319,7 +1319,7 @@ class GalaxyPopulation(object):
             if (not gotax) or force_labels:
                 ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                 ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'smf':
+        elif quantity in ['smf', 'smf_sf', 'smf_q']:
             try:
                 ax.set_xscale('log')
                 ax.set_yscale('log')
