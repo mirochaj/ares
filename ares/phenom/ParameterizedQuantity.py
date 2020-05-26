@@ -92,11 +92,18 @@ class PowerLaw(BasePQ):
             x = 1. + kwargs['z']
         else:
             x = kwargs[self.x]
-            
-        if not (self.xlim[0] <= x <= self.xlim[1]):
-            return self.xfill
+        
+        if type(x) in [int, float, np.float64]:    
+            if not (self.xlim[0] <= x <= self.xlim[1]):
+                x = self.xfill
+            ok = 1.    
+        else:
+            if self.xfill is not None:
+                x[~ok] = self.xfill
+            else:
+                ok = np.logical_and(self.xlim[0] <= x, x <= self.xlim[1])
 
-        return self.args[0] * (x / self.args[1])**self.args[2]
+        return ok * self.args[0] * (x / self.args[1])**self.args[2]
 
 class PowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):

@@ -1354,7 +1354,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     print('# Halo fraction below Mmin = {}'.format(hfrac.sum() / float(hfrac.size)))
 
             # Bye bye guys
-            #SFR = np.multiply(SFR, np.logical_not(is_quenched))
             SFR[is_quenched==True] = 0
             
             # Sanity check.
