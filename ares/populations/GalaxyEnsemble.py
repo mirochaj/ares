@@ -1481,9 +1481,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             else:
                 MZ = Mg = Z = 0.0
-                           
-        del z2d                       
-                                
+
         ##
         # Merge halos, sum stellar masses, SFRs.
         # Only add masses after progenitors are absorbed.
@@ -1514,11 +1512,21 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # Looks like a potential double-counting issue but SFR
                 # will have been set to zero post-merger.
                 
-                # Assume merged mass has same stellar fraction as progenitor?
+                # Add stellar mass of progenitors
                 Ms[iM[i],iz[i]:] += max(Ms[i,:])
                 
+                #Mg[iM[i],iz[i]:] += max(Mg[i,:])
                 
-                
+                # Add dust mass of progenitors
+                if np.any(fd > 0):
+                    Md[iM[i],iz[i]:] += max(Md[i,:])
+                    #MZ[iM[i],iz[i]:] += max(MZ[i,:])
+            
+            # Re-compute dust surface density
+            if np.any(fd > 0) and (self.pf['pop_dust_scatter'] is not None):
+                Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                Sd += noise
+                Sd *= g_per_msun / cm_per_kpc**2    
                 
         # Limit to main branch        
         elif self.pf['pop_mergers'] == -1:
@@ -1548,6 +1556,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pos = halos['pos'][:,-1::-1,:]
             else:
                 pos = None
+                
+        del z2d        
             
         # Pack up                
         results = \
