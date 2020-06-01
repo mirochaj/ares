@@ -43,7 +43,8 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'mclure2013', 'parsa2016', 'atek2015',  'alavi2016', 
     'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018', 'oesch2013', 
     'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020')
-datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014', 'Moustakas2013')
+datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014', 
+	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
 
 groups_lf = \
