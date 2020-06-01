@@ -98,10 +98,10 @@ class PowerLaw(BasePQ):
                 x = self.xfill
             ok = 1.    
         else:
+            ok = np.logical_and(self.xlim[0] <= x, x <= self.xlim[1])
             if self.xfill is not None:
                 x[~ok] = self.xfill
-            else:
-                ok = np.logical_and(self.xlim[0] <= x, x <= self.xlim[1])
+                ok = np.ones_like(x)                
 
         return ok * self.args[0] * (x / self.args[1])**self.args[2]
 

@@ -1505,13 +1505,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # May not be necessary
                 if not merged[i]:
                     continue
-                
+                                        
                 # Fill-in positions of merged parents                        
                 #pos[i,0:iz[i],:] = pos[iM[i],iz[i],:]
+                
                 # Add SFR so luminosities include that of parent halos
-                #SFR[iM[i],iz[i]:] += SFR[i,iz[i]:]
+                SFR[iM[i],:] += SFR[i,:]
+                # Looks like a potential double-counting issue but SFR
+                # will have been set to zero post-merger.
                 
                 # Assume merged mass has same stellar fraction as progenitor?
+                Ms[iM[i],iz[i]:] += max(Ms[i,:])
+                
+                
+                
                 
         # Limit to main branch        
         elif self.pf['pop_mergers'] == -1:
