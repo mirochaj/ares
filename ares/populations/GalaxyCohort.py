@@ -2776,8 +2776,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zform = []
         
         if self.pf['hgh_Mmax'] is not None:
-            dMmin = self.pf['hgh_dlogMmin']
-            M0_aug = np.arange(1.+dMmin, self.pf['hgh_Mmax']+dMmin, dMmin)
+            dMmin = self.pf['hgh_dlogM']
+            
+            M0_aug = 10**np.arange(0+dMmin, np.log10(self.pf['hgh_Mmax'])+dMmin,
+                dMmin)
+            
             results = {key:np.zeros(((zarr.size+M0_aug.size, zarr.size))) \
                 for key in keys}
         else:    
@@ -2921,7 +2924,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         elif (M0 > 1):
             M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
 
-            dM = self.pf['hgh_dlogMmin']
+            dM = self.pf['hgh_dlogM']
             
             # Set number density of these guys.
             _marr_ = np.arange(np.log10(M0) - 3 * dM, np.log10(M0) + 3 * dM, 
