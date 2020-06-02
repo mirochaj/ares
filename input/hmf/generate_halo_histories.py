@@ -46,7 +46,7 @@ pars.update(cosmo_pars)
 # We might periodically tinker with these things but these are good defaults.
 pars['pop_Tmin'] = None
 pars['pop_Mmin'] = 1e4
-pars['hgh_dlogM'] = None # Mass bins [in units of Mmin]
+pars['hgh_dlogM'] = 0.1 # Mass bins [in units of Mmin]
 pars['hgh_Mmax'] = 10 # by default, None, but 10 is good enough for most apps
 
 pop = ares.populations.GalaxyPopulation(**pars)

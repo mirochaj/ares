@@ -803,7 +803,7 @@ class GalaxyPopulation(object):
         
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
         wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
-        show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
+        show_beta_hst=True, show_beta_jwst_W=True, show_beta_jwst_M=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
         return_data=True, data=None, augment_filters=True, **kwargs):
         """
@@ -897,7 +897,7 @@ class GalaxyPopulation(object):
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
 
-        if show_beta_jwst:
+        if (show_beta_jwst_W or show_beta_jwst_M):
             nircam = Survey(cam='nircam')
             nircam_M = nircam._read_nircam(filter_set='M')
             nircam_W = nircam._read_nircam(filter_set='W')
@@ -1004,73 +1004,77 @@ class GalaxyPopulation(object):
                     
             # Compute beta given JWST W only
             # 
-            if show_beta_jwst and z >= 4:
-                nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
-                # Extend the wavelength range until we get two filters
+            if (show_beta_jwst_W or show_beta_jwst_M) and z >= 4:
                 
-                if augment_filters:
-                
-                    ct = 1
-                    while len(nircam_W_fil) < 2:
-                        nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                            wave_hi + 10 * ct)
-                        
-                        ct += 1
+                if show_beta_jwst_W:
+                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                    # Extend the wavelength range until we get two filters
                     
-                    if ct > 1:    
-                        print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
-                            wave_hi + 10 * (ct - 1)))    
-                
-                filt2 = tuple(nircam_W_fil)
+                    if augment_filters:
                     
-                beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=('nircam', ), filters=filt2, filter_set=fset, 
-                    rest_wave=None, magmethod=magmethod)
-                    
-                slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
-                    return_funcs=True, model='quad3', presets='nircam-w',
-                    maglim=(-22.5, -16.5))
-                
-                if func is not None:
-                    # Compute beta and dBeta/dMUV at a few magnitudes    
-                    #for l, mag in enumerate(MUV):
-                    B195_jwst[j,:] = func(MUV)
-                    dBdM195_jwst[j,:] = func_p(MUV) 
+                        ct = 1
+                        while len(nircam_W_fil) < 2:
+                            nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                                wave_hi + 10 * ct)
                             
-                # Compute beta w/ JWST 'M' only
-                nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
-                
-                if augment_filters:
-                
-                    ct = 1
-                    while len(nircam_M_fil) < 2:
-                        nircam_M_fil = what_filters(z, nircam_M, wave_lo, 
-                            wave_hi + 10 * ct)
+                            ct += 1
                         
-                        ct += 1
+                        if ct > 1:    
+                            print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
+                                wave_hi + 10 * (ct - 1)))    
                     
-                    if ct > 1:    
-                        print("For JWST M filters at z={}, extend wave_hi to {}A".format(z,
-                            wave_hi + 10 * (ct - 1)))
-                
-                filt3 = tuple(nircam_M_fil)
-                
-                if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
-                    beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                        cam=('nircam',), filters=filt3, rest_wave=None,
-                        magmethod=magmethod)
                     
+                    filt2 = tuple(nircam_W_fil)
+                        
+                    beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        cam=('nircam', ), filters=filt2, filter_set=fset, 
+                        rest_wave=None, magmethod=magmethod)
+                        
                     slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
-                        return_funcs=True, model='quad3', presets='nircam-m',
+                        return_funcs=True, model='quad3', presets='nircam-w',
                         maglim=(-22.5, -16.5))
                     
                     if func is not None:
                         # Compute beta and dBeta/dMUV at a few magnitudes    
-                        B195_M[j,:] = func(MUV)
-                        dBdM195_M[j,:] = func_p(MUV)
+                        #for l, mag in enumerate(MUV):
+                        B195_jwst[j,:] = func(MUV)
+                        dBdM195_jwst[j,:] = func_p(MUV) 
+                            
+                # Compute beta w/ JWST 'M' only
+                if show_beta_jwst_M:
+                    nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
+                    
+                    if augment_filters:
+                    
+                        ct = 1
+                        while len(nircam_M_fil) < 2:
+                            nircam_M_fil = what_filters(z, nircam_M, wave_lo, 
+                                wave_hi + 10 * ct)
+                            
+                            ct += 1
                         
-                else:
-                    beta_M = -np.inf * np.ones_like(mags_cr)  
+                        if ct > 1:    
+                            print("For JWST M filters at z={}, extend wave_hi to {}A".format(z,
+                                wave_hi + 10 * (ct - 1)))
+                    
+                    filt3 = tuple(nircam_M_fil)
+                    
+                    if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
+                        beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                            cam=('nircam',), filters=filt3, rest_wave=None,
+                            magmethod=magmethod)
+                        
+                        slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
+                            return_funcs=True, model='quad3', presets='nircam-m',
+                            maglim=(-22.5, -16.5))
+                        
+                        if func is not None:
+                            # Compute beta and dBeta/dMUV at a few magnitudes    
+                            B195_M[j,:] = func(MUV)
+                            dBdM195_M[j,:] = func_p(MUV)
+                            
+                    else:
+                        beta_M = -np.inf * np.ones_like(mags_cr)  
             else:
                 beta_W = beta_M = None
                         
@@ -1112,7 +1116,7 @@ class GalaxyPopulation(object):
                 axD.plot(zarr[ok==1], -dBdM195_hst[ok==1,l], lw=2, 
                     color='b', ls=ls[l])
             
-        if show_beta_combo:
+        if show_beta_jwst_W:
             for l, mag in enumerate(MUV):
                 _beta = B195_jwst[:,l]
                 ok = _beta > -99999
@@ -1122,7 +1126,7 @@ class GalaxyPopulation(object):
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
                     color='m', ls=ls[l])
                         
-        if show_beta_jwst:
+        if show_beta_jwst_M:
             for l, mag in enumerate(MUV):
                 _beta = B195_M[:,l]
                 ok = _beta > -99999
