@@ -499,10 +499,12 @@ class GalaxyPopulation(object):
 
             if z not in z_beta:
                 continue
+                
+            kcmd = np.argmin(np.abs(z - np.array(z_beta)))    
 
-            if zint in b14.data['beta'] and show_MUV:
+            if zint in b14.data['beta'] and show_MUV:                
                 err = b14.data['beta'][zint]['err'] + b14.data['beta'][zint]['sys']
-                ax_cmd[j].errorbar(b14.data['beta'][zint]['M'], b14.data['beta'][zint]['beta'], 
+                ax_cmd[kcmd].errorbar(b14.data['beta'][zint]['M'], b14.data['beta'][zint]['beta'], 
                     yerr=err, 
                     fmt='o', color=colors(zint), label=b14.info['label'] if j == 0 else None,
                     **mkw)
@@ -522,8 +524,8 @@ class GalaxyPopulation(object):
                     bbox = None    
                     
                 if show_MUV:
-                    ax_cmd[j].text(0.05, 0.05, r'$z \sim {}$'.format(zint),  
-                        transform=ax_cmd[j].transAxes, color=colors(zint), 
+                    ax_cmd[kcmd].text(0.05, 0.05, r'$z \sim {}$'.format(zint),  
+                        transform=ax_cmd[kcmd].transAxes, color=colors(zint), 
                         ha='left', va='bottom', bbox=bbox, fontsize=20)
                     
                 #ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
@@ -536,7 +538,7 @@ class GalaxyPopulation(object):
                 
             if z in f12.data['beta']:    
                 err = f12.data['beta'][zint]['err']
-                ax_cMs[j].errorbar(10**f12.data['beta'][zint]['Ms'], 
+                ax_cMs[kcmd].errorbar(10**f12.data['beta'][zint]['Ms'], 
                     f12.data['beta'][zint]['beta'], err.T[-1::-1],
                     fmt='o', color=colors(zint),
                     label=f12.info['label'] if j == 0 else None,
@@ -610,6 +612,8 @@ class GalaxyPopulation(object):
                 
                 if z not in z_beta:
                     continue
+                    
+                kcmd = np.argmin(np.abs(z - np.array(z_beta)))    
                 
                 if zstr >= 7:
                     hst_filt = hst_deep
@@ -636,7 +640,7 @@ class GalaxyPopulation(object):
                 # Mask 
                 ok = np.logical_and(np.isfinite(beta), beta > -99999)
                 if not fill:
-                    ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
+                    ax_cmd[kcmd].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
                 
                 if show_Mstell:
                     
@@ -654,9 +658,9 @@ class GalaxyPopulation(object):
                     bc94_by_pop[h][z] = _b
                     
                     if not fill:
-                        ax_cMs[j].plot(10**_x, _b, color=colors(zint), **kwargs)
+                        ax_cMs[kcmd].plot(10**_x, _b, color=colors(zint), **kwargs)
                         
-                    ax_cMs[j].annotate(r'$z \sim {}$'.format(zint), (0.05, 0.95), 
+                    ax_cMs[kcmd].annotate(r'$z \sim {}$'.format(zint), (0.05, 0.95), 
                         ha='left', va='top', xycoords='axes fraction', 
                         color=colors(zint), fontsize=20)
                     
@@ -701,12 +705,14 @@ class GalaxyPopulation(object):
                     continue        
                 
                 #ok = np.logical_and(np.isfinite(beta), beta > -99999)
+                                
+                kcmd = np.argmin(np.abs(z - np.array(z_beta)))
                                                               
-                ax_cmd[j].fill_between(mags_cr, bphot_by_pop[0][z], 
+                ax_cmd[kcmd].fill_between(mags_cr, bphot_by_pop[0][z], 
                     bphot_by_pop[1][z], color=colors(zint), **kwargs)
                     
                 if show_Mstell:    
-                    ax_cMs[j].fill_between(10**Ms, bc94_by_pop[0][z], 
+                    ax_cMs[kcmd].fill_between(10**Ms, bc94_by_pop[0][z], 
                         bc94_by_pop[1][z], color=colors(zint), **kwargs)
                                             
         ##
@@ -825,7 +831,11 @@ class GalaxyPopulation(object):
             else:
                 axB2 = axD2 = None
         else:
-            axB, axD, axB2, axD2 = axes
+            if include_Mstell:
+                axB, axD, axB2, axD2 = axes
+            else:
+                axB, axD = axes    
+                axB2 = axD2 = None
 
         # Plot the Bouwens data
         zbrack = [3.8, 5.0, 5.9, 7.0, 8.0]
