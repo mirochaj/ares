@@ -32,6 +32,7 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
 func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
+ 'pl_10': '10**(p[0] * (x / p[1])**p[2])',
  'exp': 'p[0] * exp((x / p[1])**p[2])',
  'exp-m': 'p[0] * exp(-(x / p[1])**p[2])',
  'exp_flip': 'p[0] * exp(-(x / p[1])**p[2])', 
@@ -97,6 +98,18 @@ class PowerLaw(BasePQ):
             return self.xfill
 
         return self.args[0] * (x / self.args[1])**self.args[2]
+
+class PowerLaw10(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+            
+        if not (self.xlim[0] <= x <= self.xlim[1]):
+            return self.xfill
+
+        return 10**(self.args[0] * (x / self.args[1])**self.args[2])
 
 class PowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
@@ -558,6 +571,8 @@ class ParameterizedQuantity(object):
     def __init__(self, **kwargs):
         if kwargs['pq_func'] == 'pl':
             self.func = PowerLaw(**kwargs)
+        elif kwargs['pq_func'] == 'pl_10':
+            self.func = PowerLaw10(**kwargs)
         elif kwargs['pq_func'] == 'pl_evolN':
             self.func = PowerLawEvolvingNorm(**kwargs)
         elif kwargs['pq_func'] in ['dpl', 'dpl_arbnorm']:
@@ -610,6 +625,8 @@ class ParameterizedQuantity(object):
             self.func = Schechter(**kwargs)
         elif kwargs['pq_func'] in ['schechter_evol']:
             self.func = SchechterEvolving(**kwargs)
+        elif kwargs['pq_func'] in ['linear']:
+            self.func = Linear(**kwargs)
         else:
             raise NotImplemented('help')
             
