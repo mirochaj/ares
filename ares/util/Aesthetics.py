@@ -50,8 +50,9 @@ label_flux_nrg = r'$J_{\nu} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2}
 label_flux_phot = r'$J_{\nu} \ (\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'    
 label_flux_nw = r'$J_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
 label_power_nw = r'$q^2 P(q)/(2\pi) \ (\mathrm{nW}^2 \ \mathrm{m}^{-4} \ \mathrm{sr}^{-2})$'    
-label_power_Cl_sqrt = r'$\left[ l(l+1) C_l^{\nu \nu^{\prime}} / 2\pi \right]^{1/2} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
-label_power_Cl = r'$l(l+1) C_l^{\nu \nu^{\prime}} / 2\pi \ (\mathrm{nW}^{2} \ \mathrm{m}^{-4} \ \mathrm{sr}^{-2})$'    
+label_power_nw_sqrt = r'$\sqrt{q^2 P(q)/(2\pi)} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$' 
+label_power_Cl_sqrt = r'$\left[ l(l+1) C_l^{\nu \nu^{\prime}} / (2\pi) \right]^{1/2} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
+label_power_Cl = r'$l(l+1) C_l^{\nu \nu^{\prime}} / (2\pi) \ (\mathrm{nW}^{2} \ \mathrm{m}^{-4} \ \mathrm{sr}^{-2})$'    
 label_flux_nuInu = r'$\nu I_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
 label_nrg = r'$h\nu \ (\mathrm{eV})$'
 label_heat_mpc = r'$\epsilon_{\mathrm{heat}} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3})$'
@@ -113,9 +114,11 @@ common = \
  'flux_E': label_flux_nrg, 
  'flux_nW': label_flux_nw, 
  'power_nirb': label_power_nw,
+ 'power_nirb_sqrt': label_power_nw_sqrt, 
  'power_nirb_Cl_sqrt': label_power_Cl_sqrt,
  'power_nirb_Cl': label_power_Cl,
- 'angular_scale_q': r'$2 \pi / q \ [\mathrm{arcsec}]$',
+ 'angular_scale_q_min': r'$2 \pi / q \ [\mathrm{arcmin}]$',
+ 'angular_scale_q_sec': r'$2 \pi / q \ [\mathrm{arcsec}]$',
  'angular_scale_l': r'Multipole moment, $l$',
  'flux_nuInu': label_flux_nuInu,
  'intensity_AA': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{\AA}^{-1}$', 

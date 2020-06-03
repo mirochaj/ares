@@ -3589,28 +3589,27 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if include_shot:
             ps3d += self.get_ps_shot(z, k, wave)
 
-        # The 3-d PS should have units of luminosity^2 * cMpc^3.
-        # HOWEVER, since the inner-workings in ares.physics.HaloModel 
-        # don't know about the emissivity, it currently has units of (erg/s)^2 
-        # cMpc^3 * cMpc^-6, where the latter factor is from dn/dm in the halo 
-        # model integrals not being cancelled out by volume emissivity (squared)
+        # The 3-d PS should have units of luminosity^2 * cMpc^-3.
+        # Yes, that's cMpc^-3, a factor of volume^2 different than what
+        # we're used to (e.g., matter power spectrum).
         
-        # So, we need to first convert our emissivity from cm^-3 to cMpc^-3,
-        # then divide out the normalization factor of emissivity^2
-        ps3d /= (enu * cm_per_mpc**3)**2
-                
-        # Now, this PS has units of cMpc^3. Emissivity is still in cgs.
-
+        # Must convert length units from cMpc (inheriteed from HMF)
+        # to cgs. 
+        # Right now, ps3d \propto n^2 Plin(k)
+        # [ps3d] = (erg/s)^2 (cMpc)^-6 right now
+        # Hence the (ps3d / cm_per_mpc) factors below to get in cgs units.
+        
         ##
         # Angular scales in arcsec, arcmin, or deg
         if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
             
             # e.g., Kashlinsky et al. 2018 Eq. 1, 3
-            dfdz = c * enu * self.cosm.dtdz(z) / 4. / np.pi / (1. + z)
-            delsq = (k / cm_per_mpc)**2 * (ps3d * cm_per_mpc**3) * Hofz \
+            # Note: no emissivities here.
+            dfdz = c * self.cosm.dtdz(z) / 4. / np.pi / (1. + z)
+            delsq = (k / cm_per_mpc)**2 * (ps3d / cm_per_mpc**3) * Hofz \
                 / 2. / np.pi / c
             
-            assert not is_band_avg
+            #assert not is_band_avg
             
             if is_band_avg:                
                 integrand = 2. * np.pi * dfdz**2 * delsq / q**2
@@ -3622,11 +3621,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Fernandez+ (2010) Eq. A9 or 37     
             if is_band_avg:
                 # [ps3d] = cm^3
-                integrand = c * (ps3d * cm_per_mpc**3) * enu**2 / Hofz / d**2 \
+                integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**4 / (4. * np.pi)**2
             # Fernandez+ (2010) Eq. A10
             else:    
-                integrand = c * (ps3d * cm_per_mpc**3) * enu**2 / Hofz / d**2 \
+                integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**2 / (4. * np.pi)**2
         else:
             raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
