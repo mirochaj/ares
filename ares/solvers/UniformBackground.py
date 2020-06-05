@@ -190,7 +190,7 @@ class UniformBackground(object):
         """
         
         Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
-        
+                
         # Pure X-ray
         if (Emin > E_LL) and (Emin > 4 * E_LL):
             return [(Emin, Emax)]
@@ -203,14 +203,15 @@ class UniformBackground(object):
             return bands
         
         # Emission straddling Ly-a -- break off low energy chunk.
-        if (Emin < E_LyA) and (Emax >= E_LyA):
+        if (Emin < E_LyA) and (Emax > E_LyA):
             bands.append((Emin, E_LyA))
-        
+                
         # Check for sawtooth
-        if (Emax > E_LyA) and (Emax < E_LL):
-            bands.append((E_LyA, Emax))
-        elif (Emin < E_LL) and (Emax >= E_LL):
-            bands.append((max(E_LyA, Emin), E_LL))    
+        #if (Emax > E_LyA) and abs(Emax - E_LL) < 0.1:
+        if (abs(Emin - E_LyA) < 0.1) and (Emax >= E_LL):
+            bands.append((E_LyA, E_LL))
+        elif abs(Emin - E_LL) < 0.1 and (Emax < E_LL):
+            bands.append((max(E_LyA, E_LL), Emax))
 
         if Emax <= E_LL:
             return bands
@@ -222,7 +223,7 @@ class UniformBackground(object):
             bands.append((4 * E_LL, Emax))
         else:
             bands.append((E_LL, Emax))
-
+                                
         return bands
 
     @property
@@ -408,11 +409,15 @@ class UniformBackground(object):
         energies_by_band = []
         emissivity_by_band = []
         for j, band in enumerate(bands):
-                        
-            E0, E1 = band
-            has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
-            has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
 
+            E0, E1 = band
+            
+            # Identify bands that should be split into sawtooth components.
+            # Be careful to not punish users unnecessarily if Emin and Emax
+            # aren't set exactly to Ly-a energy or Lyman limit.
+            has_sawtooth  = (abs(E0 - E_LyA) < 0.1) or (abs(E0 - 4 * E_LyA) < 0.1)
+            has_sawtooth &= E1 > E_LyA
+            
             # Special treatment if LWB or UVB
             if has_sawtooth:
 
@@ -1164,16 +1169,16 @@ class UniformBackground(object):
             Array of photon energies [eV]
         pop : object
             Better be some kind of Galaxy population object.
-            
+
         Returns
         -------
         A 2-D array, first axis corresponding to redshift, second axis for
         photon energy.
-        
+
         Units of emissivity are: erg / s / Hz / cMpc
-            
+
         """
-        
+
         Nz, Nf = len(z), len(E)
 
         Inu = np.zeros(Nf)
@@ -1205,7 +1210,7 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-            Lbol = pop.Emissivity(z)        
+            Lbol = pop.Emissivity(z)
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
@@ -1217,8 +1222,9 @@ class UniformBackground(object):
             # to keep the different emissivity chunks separate.                                              
             ct = 0
             for band in [(10.2, 13.6), (13.6, 24.6), None]:
-  
+        
                 if band is not None:
+                    
                     if pop.pf['pop_Emin'] > band[1]:
                         continue
                     

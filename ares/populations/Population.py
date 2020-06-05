@@ -369,8 +369,7 @@ class Population(object):
                 self._is_src_lw = False
             elif self.pf['pop_sed_model']:
                 self._is_src_lw = \
-                    (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \
-                    (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
+                    (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax'])
             else:
                 self._is_src_lw = False
                 

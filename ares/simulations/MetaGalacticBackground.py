@@ -537,7 +537,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                     self._subgen_[popid] = None
                     continue
                 
-                if len(gen) == 1:
+                # This is kludgey.
+                if len(gen) == 1 and (not pop.is_src_lw):
                     self._subgen_[popid] = False
                 else:
                     self._subgen_[popid] = True
@@ -1283,20 +1284,23 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             # First loop is over redshift.
             f = np.zeros([len(z), E.size])
-            
-            # Looping over redshift?
+
+            # Looping over redshift, flatten energy, store.
             for i, flux in enumerate(hist):
                 if today_only:
                     if zflip[i] != zmin:
                         continue
                 
                 fzflat = []
+                # This is each 'super-'band, may be broken down into more
+                # chunks, e.g., for sawtooth bands (hence the flattening)
                 for j in range(len(self.solver.energies[popid])):
+
                     if not self.solver.solve_rte[popid][j]:
                         fzflat.extend(np.zeros_like(flatten_energies(self.solver.energies[popid][j])))
                     else:
                         fzflat.extend(flux[j])
-
+                        
                 f[i] = np.array(fzflat)
                 
             # "tr" = "to return"

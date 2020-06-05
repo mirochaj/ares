@@ -620,28 +620,24 @@ class GalaxyPopulation(object):
                 else:
                     hst_filt = hst_shallow
             
-                cam = 'wfc', 'wfc3' if zstr <= 8 else 'nircam'    
-                filt = hst_filt[zstr] if zstr <= 8 else None
-                fset = None if zstr <= 8 else 'M'
-            
-                #_mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
-                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+                presets = 'hst' if zstr <= 8 else 'jwst-m'
                  
                 if beta_phot:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                        cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                        presets=presets, rest_wave=None,
                         dlam=dlam)
+                    
                 else:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         rest_wave=(1600., 3000.), dlam=dlam)
                 
                 bphot_by_pop[h][z] = beta
-                
+                                
                 # Mask 
                 ok = np.logical_and(np.isfinite(beta), beta > -99999)
                 if not fill:
                     ax_cmd[kcmd].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
-                
+                                
                 if show_Mstell:
                     
                     _beta_c94 = pop.Beta(z, return_binned=False,
@@ -964,7 +960,7 @@ class GalaxyPopulation(object):
 
                 beta_hst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                    magmethod=magmethod) 
+                    magmethod=magmethod)
                #beta_hst_M1600 = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
                #    magmethod='mono')
@@ -1070,9 +1066,13 @@ class GalaxyPopulation(object):
                     filt3 = tuple(nircam_M_fil)
                     
                     if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
+                        #beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        #    cam=('nircam',), filters=filt3, rest_wave=None,
+                        #    magmethod=magmethod)
+                        
                         beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                            cam=('nircam',), filters=filt3, rest_wave=None,
-                            magmethod=magmethod)
+                            presets='jwst', rest_wave=None,
+                            magmethod=magmethod)     
                         
                         slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
                             return_funcs=True, model='quad3', presets='nircam-m',

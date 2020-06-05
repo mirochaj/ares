@@ -487,9 +487,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # For all halos
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
 
-        if Emin in [13.6, E_LL]:
+        if abs(Emin - E_LL) < 0.1:
             fesc = self.fesc(z=z, Mh=self.halos.tab_M)
-        elif (Emin, Emax) == (10.2, 13.6):
+        elif (abs(Emin - E_LyA) < 0.1 and abs(Emax - E_LL) < 0.1):
             fesc = self.fesc_LW(z=z, Mh=self.halos.tab_M)
         else:
             raise NotImplemented('help!')
