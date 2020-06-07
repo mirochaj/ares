@@ -422,18 +422,18 @@ class HaloMassFunction(object):
             
             f.close()
             
-            if self.pf['hmf_gen_MAR'] is False and ARES is not None:
+            if (self.pf['hmf_gen_MAR'] is False) and (ARES is not None):
                 g = np.load('{}/input/hmf/hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz'.format(ARES))
                 if 'tab_MAR' in g:
                    tab_MAR_complete = g['tab_MAR']
                 tab_MAR_Mstrip = []
                 for item in tab_MAR_complete:
-                    tab_MAR_Mstrip.append(item[::2][142:440])
+                    tab_MAR_Mstrip.append(item[::2][142:435])
                 tab_MAR_strip = tab_MAR_Mstrip[::2][(602-555):]
                 final_tab_MAR = tab_MAR_strip[:261]
                 self.tab_MAR = final_tab_MAR
                 g.close()
-            elif self.pf['hmf_gen_MAR'] is True and ARES is not None:
+            elif (self.pf['hmf_gen_MAR'] is True) and (ARES is not None):
                 self.TabulateMAR()
             
         elif self.tab_name is None:
@@ -459,7 +459,7 @@ class HaloMassFunction(object):
             
             f.close()
         else:
-            raise IOError('Unrecognized format for hmf_table.')    
+            raise IOError('Unrecognized format for hmf_table.')   
                 
         self._is_loaded = True
         
@@ -719,19 +719,19 @@ class HaloMassFunction(object):
             tmp7 = np.zeros_like(self.tab_growth)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_growth, tmp7)
             self.tab_growth = tmp7
-        
         ##
         # Done!
         ##
         if not save_MAR:
             return
-    
+        
         self.TabulateMAR()
     
     def TabulateMAR(self):
         ##
         # Generate halo growth histories
-        ##   
+        ##
+
         
         pb = ProgressBar(self.tab_z.size+self.tab_M.size, 'mar')
         pb.start()
@@ -746,7 +746,7 @@ class HaloMassFunction(object):
             MM[i] = self._run_CND(i,0)
             
             pb.update(j)
-            
+        
         # Find trajectories for more massive halos with zform=zfirst    
         for j, i in enumerate(range(1, self.tab_M.size)):
             if i % size != rank:
@@ -755,9 +755,10 @@ class HaloMassFunction(object):
                                              
             pb.update(j+self.tab_z.size-1)
             
-        pb.finish()                                
+        pb.finish()                              
                                                 
         self.tab_traj = MM
+
         
         if size > 1:
             tmp = np.zeros_like(self.tab_traj)
@@ -772,7 +773,6 @@ class HaloMassFunction(object):
         # of masses at corresponding redshifts in self.tab_z.
         
         dtdz = self.cosm.dtdz(self.tab_z)[1:-1]
-        
         # Step 0: Compute dMdt for each history.
         # Step 1: Interpolate dMdt onto tab_M grid.
         tab_dMdt_of_z = np.zeros((self.tab_traj.shape[0], self.tab_z.size))
@@ -797,7 +797,7 @@ class HaloMassFunction(object):
                             
             tab_dMdt_of_M[i,:] = dmdt_rg1
             tab_dMdt_of_z[i,:] = dmdt_rg2
-        
+
         ##    
         # Convert from trajectories to (z, Mh) table.
         arr = np.zeros((self.tab_z.size, self.tab_M.size))
@@ -827,7 +827,7 @@ class HaloMassFunction(object):
             tmp = np.zeros_like(self.tab_MAR)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_MAR, tmp)
             self._tab_MAR = tmp
-        
+
         ##
         # OK, *now* we're done.
         ##
@@ -837,7 +837,7 @@ class HaloMassFunction(object):
         if not hasattr(self, '_tab_MAR'):
             if (not self._is_loaded) and self.pf['hmf_load']:
                 poke = self.tab_dndm
-            else:    
+            else:
                 self.TabulateMAR()
                 
         return self._tab_MAR    
