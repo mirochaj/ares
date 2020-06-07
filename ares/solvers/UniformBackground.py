@@ -720,239 +720,11 @@ class UniformBackground(object):
                 band=k, **kwargs)
                         
             self.k_ion[i,0,j] += Gamma
-                
-    def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
-        """
-        Compute flux at observed redshift z and energy E (eV).
-
-        Local flux (i.e. flux at redshift z) depends (potentially) on emission 
-        from sources at all redshifts z' > z. This method performs an integral
-        over redshift, properly accounting for geometrical dilution, redshift,
-        source SEDs, and the fact that emissivities were (possibly) different
-        at higher redshift. That is, we actually solve the cosmological 
-        radiative transfer equation.
-
-        Parameters
-        ----------
-        z : float
-            observer redshift
-        E : float
-            observed photon energy (eV)
-
-        ===============
-        relevant kwargs
-        ===============
-        tau : func, e.g. tau = lambda E, z1, z2: 0.0
-            If supplied, represents the optical depth between redshifts z1
-            and z2 as a function of observed energy E.
-        xavg : func, array
-            Average ionized fraction. Can be function of redshift, or array
-            of values.
-        zxavg : array
-            If xavg is an array, this is the array of corresponding redshifts.  
-        zf : float
-            Upper limit of redshift integration (i.e. exclude emission from
-            sources at z' > zf).
-    
-        Notes
-        -----
-        If none of the "relevant kwargs" are passed, will assume a neutral 
-        medium.
-    
-        Returns
-        -------
-        Flux in units of s**-1 cm**-2 Hz**-1 sr**-1.
-    
-        See Also
-        --------
-        AngleAveragedFluxSlice : the function we're integrating over.
-    
-        """
-        
-        pop = self.pops[popid]
-    
-        if E < E_LyA:
-            thin = False
-            if 'tau' in kwargs:
-                if kwargs['tau'] == 0.0:
-                    thin = True
-    
-            flux = self.LymanWernerFlux(z, E, **kwargs)  
-    
-            if thin:
-                return flux
-    
-            ze = (E_LyA / E) * (1. + z) - 1.
-            return flux + self.LymanAlphaFlux(ze, **kwargs) \
-                * ((1. + z) / (1. + ze))**2
-    
-        if E <= E_LL:
-            return self.LymanWernerFlux(z, E, **kwargs)
-    
-        kw = defkwargs.copy()
-        kw.update(kwargs)
-    
-        # Set limits of integration in redshift space
-        zi = max(z, pop.zdead)
-        if kw['zf'] is None:
-            zf = min(pop.zform, self.pf['first_light_redshift'])
-        else:
-            zf = kw['zf']
-    
-        # Normalize to help integrator
-        Jc = 1e-21
-    
-        # Define integrand              
-        #if kw['tau'] is not None:  # like zarr
-        #    if type(kw['tau']) is types.FunctionType:
-        #        integrand = lambda zz: self.AngleAveragedFluxSlice(z, E, zz,
-        #            **kwargs) / Jc
-        #    else:
-        #        # Compute flux at this energy due to emission at z' > z
-        #        integrand = np.zeros(len(kw['zxavg']))
-        #        for i in np.arange(len(kw['zxavg'])):
-        #            integrand[i] = self.AngleAveragedFluxSlice(z, E, 
-        #                kw['zxavg'][i], tau=kw['tau'][i],
-        #                xray_emissivity=None) / Jc
-    
-        #if kw[''] is not None:
-        #if type(kw['xavg']) is types.FunctionType:
-        integrand = lambda zu: self.AngleAveragedFluxSlice(z, E, zu,
-            xavg=kw['xavg']) / Jc
-        #else:
-        #    integrand = np.array(list(map(lambda zu: \
-        #        self.AngleAveragedFluxSlice(z, E, zu,
-        #        xavg=kw['xavg'], zxavg=kw['zxavg']), kw['zxavg']))) / Jc
-        #else:
-        #    # Assume neutral medium
-        #    integrand = lambda zu: self.AngleAveragedFluxSlice(z, E, zu,
-        #        h_2=lambda zz: 0.0) / Jc
-    
-        # Compute integral
-        if type(integrand) == types.FunctionType:
-            if pop.burst:
-                raise ValueError('Burst needs correctness-check.')
-                #flux = integrand(self.pop.zform)
-            elif self._integrator == 'quad':
-                flux = quad(integrand, zi, zf,
-                    epsrel=self._rtol, epsabs=self._atol, limit=self._divmax)[0]
-            elif self._integrator == 'romb':
-                flux = romberg(integrand, zi, zf,
-                    tol=self._atol, divmax=self._divmax)
-            else:
-                raise ValueError('Uncrecognized integrator \'{!s}\''.format(\
-                    self._integrator))
-        else:
-            if self._sampled_integrator == 'simps':
-                flux = simps(integrand, x=kw['zxavg'], even='first')
-            elif self._sampled_integrator == 'trapz':
-                flux = trapz(integrand, x=kw['zxavg'])
-            elif self._sampled_integrator == 'romb':
-    
-                assert logbx(2, len(kw['zxavg']) - 1) % 1 == 0, \
-                    "If sampled_integrator == 'romb', redshift_bins must be a power of 2 plus one."
-    
-                flux = romb(integrand, dx=np.diff(kw['zxavg'])[0])   
-            else:
-                raise ValueError('Uncrecognized integrator \'{!s}\''.format(\
-                    self._sampled_integrator))
-    
-        # Flux in units of photons s^-1 cm^-2 Hz^-1 sr^-1                                        
-        flux *= Jc
-    
-        # Possibly convert to energy flux units
-        if kw['energy_units']:
-            flux *= E * erg_per_ev
-
-        return flux
-
-    def AngleAveragedFluxSlice(self, z, E, zp, popid=0, **kwargs):
-        """
-        Compute flux at observed redshift z due to sources at higher redshift.
-    
-        This is the integrand of 'AngleAveragedFlux,' the integral over 
-        redshift we must compute to determine the specific flux at any given 
-        redshift. It is the contribution to the specific flux at observed
-        redshift z from sources at a single redshift, zp > z.
-    
-        Parameters
-        ----------
-        z : float
-            observer redshift
-        E : float
-            observed photon energy (eV)
-        zp : float
-            redshift where photons were emitted
-    
-        Notes
-        -----
-        Will assume optically thin medium if none of the following kwargs
-        are passed: tau, xavg, emissivity.    
-    
-        ===============
-        relevant kwargs
-        ===============
-        tau : func, e.g. tau = lambda z1, z2, E: 0.0 # const. tau
-            If supplied, represents the optical depth between redshifts z1
-            and z2 as a function of observed energy E. 
-        xavg : func, np.ndarray
-            Average ionized fraction. Can be function of redshift, or array
-            of values
-        zxavg : np.ndarray
-            If xavg is an array, this is the array of corresponding redshifts.
-        xray_emissivity : np.ndarray
-    
-        Returns
-        -------
-        Flux in units of s**-1 cm**-2 Hz**-1 sr**-1.
-    
-        See Also
-        --------
-        AngleAveragedFlux : integrates over this function.
-    
-        """
-    
-        pop = self.pops[popid]
-    
-        kw = defkwargs.copy()
-        kw.update(kwargs)
-    
-        if kw['xray_emissivity'] is None: # should include LyA too
-            H = self.cosm.HubbleParameter(zp)
-            E0 = self.volume.RestFrameEnergy(z, E, zp)
-            epsilonhat = pop.NumberEmissivity(zp, E0)
-            epsilonhat_over_H = epsilonhat / H
-    
-            if (E0 > pop.src.Emax) or (E0 < pop.src.Emin):
-                return 0.0
-    
-        else:
-            epsilonhat_over_H = kw['xray_emissivity']
-    
-        # Compute optical depth (perhaps)
-        if kw['tau'] is not None:
-            if type(kw['tau']) is types.FunctionType:
-                tau = kw['tau'](z, zp, E)
-            else:
-                tau = kw['tau']
-        elif kw['xavg'] is not None:
-            if E > E_LL:
-                tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'],
-                    zxavg=kw['zxavg'])
-            else:
-                tau = 0.0
-        else:
-            raise NotImplemented('this needs fixing')
-            tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'])
-    
-        return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
-        
+                        
     def LymanWernerFlux(self, z, E=None, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
-    
-        Same as AngleAveragedFlux, but for emission in the Lyman-Werner band.
-    
+        
         Parameters
         ----------
         z : float
@@ -979,10 +751,6 @@ class UniformBackground(object):
         -------
         Flux in units of erg s**-1 cm**-2 Hz**-1 sr**-1
     
-        See Also
-        --------
-        AngleAveragedFluxSlice : the function we're integrating over.
-    
         """
         
         pop = self.pops[popid]
@@ -1001,6 +769,9 @@ class UniformBackground(object):
             dnu_LW = (E_LL - 11.18) / ev_per_hz
             return 0.5 * (11.2 + 13.6) * erg_per_ev * norm * (1. + z)**3 \
                 * rhoLW / dnu_LW
+                
+        else:
+            raise NotImplemented('this shouldnt happen')        
 
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))

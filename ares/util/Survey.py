@@ -153,7 +153,7 @@ class Survey(object):
         else:
             raise NotImplemented('help')
             
-    def _read_nircam(self, filter_set='W', filters=None):
+    def _read_nircam(self, filter_set='W', filters=None): # pragma: no cover
 
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}

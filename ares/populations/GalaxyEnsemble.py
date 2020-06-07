@@ -113,7 +113,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return self._c94_
                 
     @property
-    def _nircam(self):
+    def _nircam(self): # pragma: no cover
         if not hasattr(self, '_nircam_'):
             nircam = Survey(cam='nircam')
             nircam_M = nircam._read_nircam(filter_set='M')
@@ -128,6 +128,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def cSFRD(self, z, Mh):
         """
         Compute cumulative SFRD as a function of lower-mass bound.
+        
+        Returns
+        -------
+        Cumulative *FRACTION* of SFRD in halos above Mh.
         """
         
         if type(Mh) not in [list, np.ndarray]:
@@ -929,253 +933,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ifut = np.argmin(np.abs((tfut - tnow) - delay))
                 
         return inow + ifut
-                
-    def _gen_galaxy_history(self, halo, zobs=0):
-        """
-        Evolve a single galaxy in time. 
-        
-        Parameters
-        ----------
-        halo : dict
-            Contains growth history of the halo of interest in order of
-            *ascending redshift*. Must contain (at least) 'z', 't', 'Mh',
-            and 'nh' keys.
-        
-        """
-        
-        # Grab key pieces of info
-        z = halo['z'][-1::-1]
-        t = halo['t'][-1::-1]
-        Mh_s = halo['Mh'][-1::-1]
-        MAR = halo['MAR'][-1::-1]
-        nh = halo['nh'][-1::-1]
-        
-        self._arr_t = t
-        self._arr_z = z
-        
-        zeros_like_t = np.zeros_like(t)
-        
-        self._arr_SN = zeros_like_t.copy()
-        self._arr_UV = zeros_like_t.copy()
-        self._arr_Mg_c = zeros_like_t.copy()
-        self._arr_Mg_t = zeros_like_t.copy()
-        
-        # Short-hand
-        fb = self.cosm.fbar_over_fcdm
-        Mg_s = fb * Mh_s
-        Nt = len(t)
-        
-        assert np.all(np.diff(t) >= 0)
-
-        zform = max(z[Mh_s>0])
-
-        SFR = np.zeros_like(Mh_s)
-        Ms  = np.zeros_like(Mh_s)
-        Msc = np.zeros_like(Mh_s)
-        #Mg_t  = np.zeros_like(Mh_s)
-        #Mg_c = np.zeros_like(Mh_s)
-        Mw  = np.zeros_like(Mh_s)
-        E_SN  = np.zeros_like(Mh_s)
-        Nsn  = np.zeros_like(Mh_s)
-        L1600 = np.zeros_like(Mh_s)
-        bursty = np.zeros_like(Mh_s)
-        #imf = np.zeros((Mh_s.size, self.tab_imf_mc.size))
-        #fc_r = np.ones_like(Mh_s)
-        #fc_i = np.ones_like(Mh_s)
-                        
-        ok = Mh_s > 0                
-                        
-        # Generate smooth histories 'cuz sometimes we need that.
-        MAR_s = np.array([self.guide.MAR(z=z[k], Mh=Mh_s[k]).squeeze() \
-            for k in range(Nt)])
-        SFE_s = np.array([self.guide.SFE(z=z[k], Mh=Mh_s[k]) \
-            for k in range(Nt)])
-        SFR_s = fb * SFE_s * MAR_s
-        
-        # Some characteristic timescales...
-        tdyn = self.halos.DynamicalTime(z) / s_per_myr
-        
-        # in Myr
-        delay_fb = self.pf['pop_delay_sne_feedback']
-        
-        
-        ###
-        ## THIS SHOULD ONLY HAPPEN WHEN NOT DETERMINISTIC
-        ###
-        ct = 0
-        for i, _Mh in enumerate(Mh_s):
-
-            if _Mh == 0:
-                continue
-
-            if z[i] < zobs:
-                break
-                
-            if i == Nt - 1:
-                break
-
-            # In years    
-            dt = (t[i+1] - t[i]) * 1e6
-
-            if z[i] == zform:
-                self._arr_Mg_t[i] = fb * _Mh
-                
-            # Determine gas supply
-            if self.pf['pop_multiphase']:
-                ifut = self.deposit_in(t[i], tdyn[i])
-                self._arr_Mg_c[ifut] = self._arr_Mg_t[i] * 1
-            else:
-                self._arr_Mg_c[i] = self._arr_Mg_t[i] * 1
-                    
-            E_h = self.halos.BindingEnergy(z[i], _Mh)
-            
-            ##
-            # Override switch to smooth inflow-driven star formation model.s
-            ##
-            if E_h > (1e51 * self.pf['pop_force_equilibrium']):
-                vesc = self.halos.EscapeVelocity(z[i], _Mh)
-                NSN_per_M = self._stars.nsn_per_m
-                
-                # Assume 1e51 * SNR * dt = 1e51 * SFR * SN/Mstell * dt = E_h
-                eta = 2. * self.pf['pop_coupling_sne'] * 1e51 * NSN_per_M \
-                    / g_per_msun / vesc**2
-                                
-                # SFR = E_h / 1e51 / (SN/Ms) / dt
-                SFR[i]  = fb * MAR[i] / (1. + eta)
-                Ms[i+1] = 0.5 * (SFR[i] + SFR[i-1]) * dt
-                Mg[i+1] = Mg[i] + Macc - Ms[i+1]
-                continue
-                        
-            ##
-            # FORM STARS!
-            ##
-            
-            # Gas we will accrete on this timestep
-            Macc = fb * 0.5 * (MAR[i+1] + MAR[i]) * dt
-            
-            # What fraction of gas is in a phase amenable to star formation?
-            if self.pf['pop_multiphase']:
-                ifut = self.deposit_in(t[i], tdyn[i])
-                self._arr_Mg_c[ifut] += Macc
-            else:
-                # New gas available to me right away in this model.
-                self._arr_Mg_c[i] += Macc
-                
-            ##
-            # Here we go.
-            ##    
-            _Mnew, _Mw, _imf = self._gen_stars(i, _Mh)    
-
-            self._arr_Mg_t[i+1] = \
-                max(self._arr_Mg_t[i] + Macc - _Mnew - _Mw, 0.)
- 
-            # Deal with cold gas.    
-            if self.pf['pop_multiphase']:    
-                #pass
-                # Add remaining cold gas to reservoir for next timestep?
-                # Keep gas hot for longer?
-                # Subtract wind from cold gas reservoir?
-                # Question is, do we feedback on gas that's already hot,
-                # or gas that was "on deck" to form stars?
-                
-                #ifut = self.deposit_in(t[i], tdyn[i])
-                #
-                #self._arr_Mg_c[i:ifut] -= _Mw / (float(ifut - i))
-                
-                if self._arr_Mg_c[i+1] < 0:
-                    print("Correcting for negative mass.", z[i])
-                    self._arr_Mg_c[i+1] = 0
-                
-            #else:    
-            #    self._arr_Mg_c[i+1] = self._arr_Mg_t[i+1]
-            
-            # Flag this step as bursty.
-            bursty[i] = 1
                             
-            # Save SFR. Set Ms, Mg for next iteration.
-            SFR[i]   = _Mnew / dt
-            imf[i]   = _imf
-            Ms[i+1]  = _Mnew # just the stellar mass *formed this step*
-            Msc[i+1] = Msc[i] + _Mnew
-            
-            ct += 1
-            
-        
-        keep = np.ones_like(z)#np.logical_and(z > zobs, z <= zform)
-        
-        data = \
-        { 
-         'SFR': SFR[keep==1],
-         'MAR': MAR_s[keep==1],
-         'Mg': self._arr_Mg_t[keep==1], 
-         'Mg_c':self._arr_Mg_c[keep==1], 
-         'Ms': Msc[keep==1], # *cumulative* stellar mass!
-         'Mh': Mh_s[keep==1], 
-         'nh': nh[keep==1],
-         'Nsn': Nsn[keep==1],
-         'bursty': bursty[keep==1],
-         #'imf': imf[keep==1],
-         'z': z[keep==1],
-         't': t[keep==1],
-         'zthin': halo['zthin'][-1::-1],
-        }
-        
-        if 'rand' in halo:
-            data['rand'] = halo['rand'][-1::-1]
-        
-                
-        return data
-            
-    def _gen_prescribed_galaxy_histories(self, zstop=0): # pragma: no cover
+    def _gen_prescribed_galaxy_histories(self, zstop=0):
         """
-        Take halo histories and paint on galaxy histories in some way.
-        
-        If pop_stochastic, must operate on each galaxy individually using
-        `self._gen_galaxy_history`, otherwise, can 'evolve' galaxies
-        deterministically all at once.
+        Take halo histories and paint on galaxy histories in deterministic way.
         """
                 
         # First, grab halos
         halos = self._gen_halo_histories()
                                         
-        ## 
-        # Stochastic model
-        ##
-        if self.pf['pop_sample_cmf']:
-            
-            fields = ['SFR', 'MAR', 'Mg', 'Ms', 'Mh', 'nh', 
-                'Nsn', 'bursty', 'rand']
-            num = halos['Mh'].shape[0]
-            
-            hist = {key:np.zeros_like(halos['Mh']) for key in fields}
-            
-            # This guy is 3-D
-            #hist['imf'] = np.zeros((halos['Mh'].size, halos['z'].size,
-            #    self.tab#_imf_mc.size))
-            
-            for i in range(num):
-                
-                print(i)
-                #halo = {key:halos[key][i] for key in keys}
-                halo = {'t': halos['t'], 'z': halos['z'], 
-                    'zthin': halos['zthin'], 'rand': halos['rand'],
-                    'Mh': halos['Mh'][i], 'nh': halos['nh'][i],
-                    'MAR': halos['MAR'][i]}
-                data = self._gen_galaxy_history(halo, zstop)
-                
-                for key in fields:
-                    hist[key][i] = data[key]
-        
-            hist['z'] = halos['z']
-            hist['t'] = halos['t']
-            hist['zthin'] = halos['zthin']
-        
-            flip = {key:hist[key][-1::-1] for key in hist.keys()}
-        
-            self.histories = flip
-            return flip                                            
-        
-        
         ##
         # Simpler models. No need to loop over all objects individually.
         ##
@@ -1895,22 +1661,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
             Mbin=Mbin)
         
-    def find_trajectory(self, Mh, zh):
-        l = np.argmin(np.abs(zh - self.tab_z))
-        mass_at_zh = np.zeros_like(self.tab_z)
-        for j, zform in enumerate(self.tab_z):
-            if zform < zh:
-                continue
-                
-            hist = self.histories['Mh'][j]
-            
-            mass_at_zh[j] = hist[l]
-        
-        # Find trajectory with mass closest to Mh at zh
-        k = np.argmin(np.abs(Mh - mass_at_zh))
-        
-        return k
-        
     @property
     def _stars(self):
         if not hasattr(self, '_stars_'):
@@ -2403,7 +2153,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 raise NotImplemented('help')
         
         # JWST only    
-        elif ('jwst' in presets.lower()) or ('nircam' in presets.lower()):
+        elif ('jwst' in presets.lower()) or ('nircam' in presets.lower()): # pragma: no cover
             
             if for_beta:
                 # Override
@@ -2891,30 +2641,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             
         return x, np.array(slopes)    
         
-    def get_contours(self, x, y, bins):
-        """
-        Take 'raw' data and recover contours. 
-        """
-
-        bin_e = bin_c2e(bins)
-        
-        band = []
-        for i in range(len(bins)):
-            ok = np.logical_and(x >= bin_e[i], x < bin_e[i+1])
-            
-            if ok.sum() == 0:
-                band.append((-np.inf, -np.inf, -np.inf))
-                continue
-            
-            yok = y[ok==1]
-            
-            y1, y2 = np.percentile(yok, (16., 84.))
-            ym = np.mean(yok)
-            
-            band.append((y1, y2, ym))
-            
-        return np.array(band).T
-        
     def MainSequence(self, z):
         """
         How best to plot this?
@@ -3027,68 +2753,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return hist
         
-    def SaveCatalog(self, prefix, redshifts=None, waves=None, fields=None,
-        dlam=20., filters=None, save_spec=True):
-        """
-        Create a galaxy catalog over a series of redshifts.
-        """
-                        
-        hist = self.histories
-        zarr = hist['z']
-        tarr = hist['t']
-        
-        if redshifts is None:
-            zmin = round(min(zarr))
-            redshifts = np.arange(zmin, 13, 1.)
-        
-        if waves is None:
-            waves = np.arange(40., 3000.+dlam, dlam)
-        
-        if fields is None:
-            fields = 'Mh', 'Ms', 'SFR', 'Md'
-            # Also, MUV, beta....
-        
-        for i, z in enumerate(redshifts):
-            
-            _iz = np.argmin(np.abs(z - zarr))
-            if zarr[_iz] > z:
-                _iz -= 1
-            zactual = zarr[_iz]    
-            
-            ##
-            # Save spectra
-            if save_spec:
-                spec = self.synth.Spectrum(waves, sfh=hist['SFR'], zarr=zarr, 
-                    window=1, zobs=zactual, units='Hz', hist=hist)
-                    
-                fn_spec = '{}.z={}.spec.hdf5'.format(prefix, zactual)    
-                    
-                with h5py.File(fn_spec, 'w') as f:
-                    ds = f.create_dataset('spec', data=spec)
-                    ds = f.create_dataset('wave', data=waves)
-                print("Wrote {}.".format(fn_spec))
-            
-            ##
-            # Save basics
-            fn_prop = '{}.z={}.prop.hdf5'.format(prefix, zactual)    
-                
-            with h5py.File(fn_prop, 'w') as f:
-                pass
-            print("Wrote {}.".format(fn_prop))    
-            
-            if filters is None:
-                continue
-                
-            fn_phot = '{}.z={}.phot.hdf5'.format(prefix, zactual)    
-            with h5py.File(fn_phot, 'w') as f:
-                pass
-            print("Wrote {}.".format(fn_phot))
-            
-            
-        # Save files with galaxy properties ('prop') and spectra ('spec').
-        # Could derive photometry and beta later.
-            
-    
     def save(self, prefix, clobber=False):
         """
         Output model (i.e., galaxy trajectories) to file.

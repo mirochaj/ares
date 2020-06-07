@@ -67,6 +67,9 @@ def test():
     ax5 = sim.GlobalSignatureDerivative(fig=5)
     ax6 = sim.GlobalSignatureDerivative(fig=6, show_signal=True)
     
+    sim.save('test_gs_4par', 'pkl', clobber=True)
+    sim.save('test_gs_4par', 'txt', clobber=True)
+    
     for i in range(1, 6):
         pl.figure(i)
         pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))     
