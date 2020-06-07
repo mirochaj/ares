@@ -17,10 +17,11 @@ import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
 from ares.physics.Constants import h_p, c, erg_per_ev
 
-def test(spsmodel='leitherer1999'):    
+def test(spsmodel='eldridge2009'):    
 
     # Setup pure continuum source
     pars_con = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
+    pars_con.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_con['pop_Z'] = 1e-3
     pars_con['pop_sed'] = spsmodel
     pars_con['pop_nebular'] = 0
@@ -28,6 +29,7 @@ def test(spsmodel='leitherer1999'):
     dwdn = pop_con.src.dwdn
 
     pars_ares = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
+    pars_ares.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_ares['pop_Z'] = 1e-3
     pars_ares['pop_sed'] = spsmodel
     pars_ares['pop_nebular'] = 2
@@ -35,6 +37,7 @@ def test(spsmodel='leitherer1999'):
 
     # Setup source with BPASS-generated (CLOUDY) nebular emission
     pars_sps = pars_ares.copy()
+    pars_sps.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_sps['pop_nebular'] = 1
     pars_sps['pop_fesc'] = 0.
     pars_sps['pop_nebula_Tgas'] = 2e4
