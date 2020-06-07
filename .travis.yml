@@ -8,7 +8,7 @@ python:
 # safelist
 branches:
   only:
-  - master  
+  - master
 
 notifications:
   email:
