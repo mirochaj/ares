@@ -1,5 +1,10 @@
 language: python
 
+# safelist
+branches:
+  only:
+  - master
+
 python:
   - "2.7"
   - "3.6"
