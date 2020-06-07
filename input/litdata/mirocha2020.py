@@ -2,9 +2,7 @@ import numpy as np
 from ares.physics.Constants import E_LyA, E_LL
 
 _base = \
-{
- 'pop_sfr_model': 'ensemble', 
- 
+{ 
  # SFE
  'pop_fstar': 'pq[0]',
  'pq_func[0]': 'dpl_evolNP',
@@ -27,8 +25,12 @@ _base = \
  'pq_func_par8[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_func_par9[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_val_ceil[0]': 1.,     # Cap SFE at <= 1
- 
- 
+} 
+
+_sed_updates = \
+{ 
+ 'pop_sfr_model': 'ensemble',     
+    
  # Spectral synthesis
  'pop_sed': 'eldridge2009',
  'pop_binaries': False,
@@ -57,7 +59,14 @@ _base = \
  'pop_metal_yield': 0.1,
  'pop_mass_yield': 0.15,
  'pop_fpoll': 1,
-   
+ 
+ # For reproducibility. 
+ 'pop_dust_scatter_seed': 87112948,
+ 'pop_fduty_seed': 982323505,
+}
+
+_halo_updates = \
+{   
  # Use constant timestep
  'hmf_dt': 1.,
  'hmf_tmax': 2e3,
@@ -65,7 +74,7 @@ _base = \
  
  # Need to build enough halo histories at early times to get massive
  # halos at late times.
- 'hgh_dlogMmin': 0.1,
+ 'hgh_dlogM': 0.1,
  'hgh_Mmax': 10,
  
  # Add scatter to SFRs
@@ -73,8 +82,6 @@ _base = \
  
  # For reproducibility. 
  'pop_scatter_mar_seed': 10620202,
- 'pop_dust_scatter_seed': 87112948,
- 'pop_fduty_seed': 982323505,
  
  # Use cosmology consistent with Paul's simulations.
  'cosmology_name': 'user',
@@ -86,6 +93,9 @@ _base = \
  'hubble_0': 0.6726,
  'omega_l_0': 1. - 0.315579,
 }
+
+_base.update(_sed_updates)
+_base.update(_halo_updates)
 
 _legacy = _base.copy()
 _legacy['pop_sfr_model'] = 'sfe-func'
@@ -131,6 +141,8 @@ _screen = \
  "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
  "pq_func[20]": 'pl',
  'pq_func_var[20]': 'wave',
+ 'pq_func_var_lim[20]': (912., np.inf),
+ 'pq_func_var_fill[20]': 0.0,
  'pq_func_par0[20]': 1e5,      # opacity at wavelength below
  'pq_func_par1[20]': 1e3,
  'pq_func_par2[20]': -1.,
@@ -344,6 +356,23 @@ _dtmr_best = \
  "pq_func_par0[33]": 0.181775151977,
 }
 
+_duty_dtmr_best = \
+{
+ 'pq_func_par0[0]': 0.0790,
+ 'pq_func_par1[0]': 232724847444.1578,
+ 'pq_func_par3[0]': -0.2998,
+ 'pq_func_par0[40]': 0.7407,
+ 'pq_func_par2[40]': 0.1449,
+ 'pq_func_par4[40]': -0.7621,
+ 'pq_func_par0[22]': 1.2186,
+ 'pq_func_par2[22]': 0.9433,
+ 'pq_func_par1[22]': 70572481473.5389,
+ 'pq_func_par0[50]': 0.6056,
+ 'pq_func_par2[50]': 0.2497,
+ 'pq_func_par4[50]': -0.6536,
+ 'pq_func_par0[33]': 0.2157,
+}
+
 ereg_edtmr = univ.copy()
 ereg_edtmr.update(_dtmr)
 ereg_edtmr.update(_dtmr_best)
@@ -351,6 +380,7 @@ ereg_edtmr.update(_evol_ereg_dplrd)
 
 ereg_eduty_edtmr = ereg_edtmr.copy()
 ereg_eduty_edtmr.update(_fduty)
+ereg_eduty_edtmr.update(_duty_dtmr_best)
 
 mreg_edtmr = ereg_edtmr.copy()
 mreg_edtmr.update(_evol_mreg_dplrd)

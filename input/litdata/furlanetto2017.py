@@ -27,11 +27,15 @@ energy = \
 
 }
 
+ereg = energy
+
 momentum = energy.copy()
 momentum['pop_fstar_max'] = 0.2
 momentum['pq_func_par0[0]'] = 5.   # actually not sure what Steve uses here.
 momentum['pq_func_par2[0]'] = -1./3.
 momentum['pq_func_par4[0]'] = -0.5
+
+mreg = momentum
 
 fshock = \
 {

@@ -39,6 +39,7 @@ except ImportError:
     pass
     
 tiny_MAR = 1e-30    
+num_types = [int, float, np.float64]
            
 def _linfunc(x, x0, p0, p1):
     return p0 * (x - x0) + p1
@@ -482,8 +483,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Run models. If deterministic, will just return pre-determined
         histories. Otherwise, will do some time integration.
         """
-                
-        return self._gen_galaxy_histories()
+               
+        if self.pf['pop_sam_method'] == 0:
+            return self._gen_prescribed_galaxy_histories()
+        elif self.pf['pop_sam_method'] == 1:
+            return self._gen_active_galaxy_histories()
+        else:
+            raise NotImplemented('Unrecognized pop_sam_method={}.'.format(self.pf['pop_sam_method']))
     
     @property
     def guide(self):
@@ -1120,7 +1126,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         return data
             
-    def _gen_galaxy_histories(self, zstop=0): # pragma: no cover
+    def _gen_prescribed_galaxy_histories(self, zstop=0): # pragma: no cover
         """
         Take halo histories and paint on galaxy histories in some way.
         
@@ -1239,6 +1245,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
             
+            # Means a halos lost some mass. 
+            SFR[SFR < 0] = 0.0
+            
         ##
         # Duty cycle effects
         ##
@@ -1354,7 +1363,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     print('# Halo fraction below Mmin = {}'.format(hfrac.sum() / float(hfrac.size)))
 
             # Bye bye guys
-            #SFR = np.multiply(SFR, np.logical_not(is_quenched))
             SFR[is_quenched==True] = 0
             
             # Sanity check.
@@ -1456,8 +1464,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Rd = np.inf
             fcov = 1.0
 
-        del z2d    
-
         # Metal mass
         if 'Z' in halos:
             Z = halos['Z']
@@ -1470,14 +1476,21 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mg = np.hstack((zeros_like_Mh, 
                     np.cumsum((MAR[:,0:-1] * fb - SFR[:,0:-1]) * dt, axis=1)))
 
-                Z = MZ / Mg / self.pf['pop_fpoll']
+                if self.pf['pop_enrichment'] == 2:
+                    Vd = 4. * np.pi * self.guide.dust_scale(z=z2d, Mh=Mh)**3 / 3.
+                    rho_Z = MZ / Vd
+                    Vg = 4. * np.pi * self.halos.VirialRadius(z2d, Mh)**3 / 3.
+                    rho_g = Mg / Vg
+                    Z = rho_Z / rho_g / self.pf['pop_fpoll']
+                else:
+                    Z = MZ / Mg / self.pf['pop_fpoll']
 
                 Z[Mg==0] = 1e-3
                 Z = np.maximum(Z, 1e-3)
 
             else:
                 MZ = Mg = Z = 0.0
-                                
+
         ##
         # Merge halos, sum stellar masses, SFRs.
         # Only add masses after progenitors are absorbed.
@@ -1499,13 +1512,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # May not be necessary
                 if not merged[i]:
                     continue
-                
+                                        
                 # Fill-in positions of merged parents                        
                 #pos[i,0:iz[i],:] = pos[iM[i],iz[i],:]
-                # Add SFR so luminosities include that of parent halos
-                #SFR[iM[i],iz[i]:] += SFR[i,iz[i]:]
                 
-                # Assume merged mass has same stellar fraction as progenitor?
+                # Add SFR so luminosities include that of parent halos
+                SFR[iM[i],:] += SFR[i,:]
+                # Looks like a potential double-counting issue but SFR
+                # will have been set to zero post-merger.
+                
+                # Add stellar mass of progenitors
+                Ms[iM[i],iz[i]:] += max(Ms[i,:])
+                
+                #Mg[iM[i],iz[i]:] += max(Mg[i,:])
+                
+                # Add dust mass of progenitors
+                if np.any(fd > 0):
+                    Md[iM[i],iz[i]:] += max(Md[i,:])
+                    #MZ[iM[i],iz[i]:] += max(MZ[i,:])
+            
+            # Re-compute dust surface density
+            if np.any(fd > 0) and (self.pf['pop_dust_scatter'] is not None):
+                Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                Sd += noise
+                Sd *= g_per_msun / cm_per_kpc**2    
                 
         # Limit to main branch        
         elif self.pf['pop_mergers'] == -1:
@@ -1535,6 +1565,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pos = halos['pos'][:,-1::-1,:]
             else:
                 pos = None
+                
+        del z2d        
             
         # Pack up                
         results = \
@@ -1569,6 +1601,177 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         self.histories = results
                                 
         return results
+        
+    def _gen_active_galaxy_histories(self):
+        """
+        This is called when pop_sam_method == 1.
+        
+        The main difference between this model and pop_sam_method == 0 is that
+        we try to 'do feedback properly', i.e., rather than prescribing the
+        SFE as a function of redshift and mass, we dump energy/momentum in,
+        with possible delay, and compare to binding energy etc. on a timestep
+        by timestep basis. Should recover minimalist model when delay is zero.
+        
+        """
+        # First, grab halos
+        halos = self._gen_halo_histories()
+        
+        
+        # Eventually generalize
+        assert self.pf['pop_update_dt'].startswith('native')
+        native_sampling = True
+
+        ##
+        # Grab some basic info about the halos
+        Nhalos = halos['Mh'].shape[0]
+        zeros_like_Mh = np.zeros((Nhalos, 1))
+
+        # Flip arrays to be in ascending time.
+        z = halos['z'][-1::-1]
+        z2d = z[None,:]
+        t = halos['t'][-1::-1]
+        Mh = halos['Mh'][:,-1::-1]
+        nh = halos['nh'][:,-1::-1]
+        
+        # Will have been corrected for mergers in `load` if pop_mergers==1
+        MAR = halos['MAR'][:,-1::-1]
+        
+        t_ind = np.arange(0, t.size, 1)
+                        
+        # 't' is in Myr, convert to yr
+        dt = np.abs(np.diff(t)) * 1e6
+        dt_myr = dt / 1e6
+                        
+        fb = self.cosm.fbar_over_fcdm
+        fmr = self.pf['pop_mass_yield']    
+        fml = (1. - fmr)
+        fZy = fmr * self.pf['pop_metal_yield']
+        
+        #######################################################################
+        
+        #
+        # Time to actually run the SAM.
+        
+        # Loop over time.
+        # Determine gas mass in SF phase
+        # Determine energy injection from SNe.
+        # Unbind some gas.
+        # Continue
+        
+        Mg = np.zeros((Nhalos, len(t)))
+        SFR = np.zeros((Nhalos, len(t)))
+        SNR = np.zeros((Nhalos, len(t)))
+        EIR = np.zeros((Nhalos, len(t)))
+        Ms = np.zeros((Nhalos, len(t)))
+        MZ = np.zeros((Nhalos, len(t)))
+        
+        vesc = self.halos.EscapeVelocity(z2d, Mh) # in cm/s
+        
+        if type(self.pf['pop_fshock']) is str:
+            fshock = self.guide.fshock(z=z2d, Mh=Mh)
+        else:
+            fshock = np.ones_like(z2d) * self.pf['pop_fshock']    
+                
+        fstar = self.pf['pop_fstar']
+        fstar_max = self.pf['pop_fstar_max']
+        fb_delay = self.pf['pop_delay_sne_feedback']
+        
+        # Hard-coding some stuff for now
+        A_r = 0.02
+
+        for i, _t_ in enumerate(t[0:-1]):
+                        
+            # At the start, assume we've got a cosmic baryon fraction's worth 
+            # of gas.
+            if i == 0:
+                Mg[:,i] = fb * Mh[:,i]
+
+            # Myr -> yr
+            torb = 18. * (A_r / 0.02) * (7. / (1. + z[i]))**-1.5 * 1e6 
+
+            SFR[:,i] = Mg[:,i] * np.minimum(fstar / torb, fstar_max)
+            
+            # Cap SFR?
+            #SFR[:,i] = np.minimum(SFR[:,i], )
+            
+            
+            # Increment stellar mass
+            Ms[:,i] += SFR[:,i] * dt[i]
+            
+            # Set when supernovae happen.
+            
+            
+            if self.pf['pop_delay_sne_feedback']:
+                
+                if type(fb_delay) in num_types:
+                    
+                    j = np.argmin(np.abs(t[i] + fb_delay - t))
+                    
+                    EIR[:,j] = SFR[:,i] * self.pf['pop_omega_51'] * 1e51
+                    
+                else:
+                    
+                    raise NotImplemented('help')
+                    
+                
+                
+            else:                            
+                # Energy injection rate from SNe.
+                # This is like assuming 10% of stars blow up and their
+                # typical mass is 10 Msun.
+                EIR[:,i] = SFR[:,i] * self.pf['pop_omega_51'] * 1e51
+            
+            # Mass ejection rates
+            Mg_ej = self.pf['pop_coupling_sne'] * EIR[:,i] * dt[i] \
+                / vesc[:,i]**2 / g_per_msun
+            
+                
+            ##
+            # Updates for next timestep below.
+            ##    
+
+            # Gas in halo (less new stars) at the end of this timestep
+            Mg_in = Mg[:,i] + fb * MAR[:,i] * fshock[:,i] * dt[i] \
+                  - SFR[:,i] * dt[i] \
+                  
+            # Can't eject more gas than we've got.    
+            Mg_ej = np.minimum(Mg_in, Mg_ej) 
+            
+            # Set gas mass for next time-step.
+            Mg[:,i+1] = Mg_in - Mg_ej
+            
+            
+            
+            
+            
+        # Pack up                
+        results = \
+        {
+         'nh': nh,
+         'Mh': Mh,
+         'MAR': MAR,  # May use this 
+         't': t,
+         'z': z,
+         #'child': child,
+         'zthin': halos['zthin'][-1::-1],
+         #'z2d': z2d,
+         'SFR': SFR,
+         'Ms': Ms,
+         #'MZ': MZ,
+         #'Md': Md, 
+         #'Sd': Sd,
+         #'fcov': fcov,
+         'Mh': Mh,
+         'Mg': Mg,
+         #'Z': Z,
+         #'bursty': zeros_like_Mh,
+         #'pos': pos,
+         #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
+         'Nsn': zeros_like_Mh,
+        }
+        
+        return results
+        
                 
     def Slice(self, z, slc):
         """
@@ -2747,7 +2950,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             pref = prefix.replace('hmf', 'hgh') 
             if self.pf['hgh_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'], 
-                    self.pf['hgh_dlogMmin'])
+                    self.pf['hgh_dlogM'])
                     
             fn_hist = path + pref + '.' + suffix
         else:

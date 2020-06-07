@@ -205,7 +205,7 @@ class OpticalDepth(object):
         kw = self._fix_kwargs(functionify=True, **kwargs)
     
         # Compute normalization factor to help numerical integrator
-        norm = self.cosm.hubble_0 / c / Mbarn
+        #norm = self.cosm.hubble_0 / c / Mbarn
     
         # Temporary function to compute emission energy of observed photon
         Erest = lambda z: self.RestFrameEnergy(z1, E, z)
@@ -234,12 +234,12 @@ class OpticalDepth(object):
             nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
             nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
     
-        tau_integrand = lambda z: norm * self.cosm.dldz(z) \
+        tau_integrand = lambda z: self.cosm.dldz(z) \
             * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
-    
+                
         # Integrate using adaptive Gaussian quadrature
         tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
-            epsabs=self.atol, limit=self.divmax)[0] / norm
+            epsabs=self.atol, limit=self.divmax)[0] #/ norm
     
         return tau
         
@@ -485,7 +485,8 @@ class OpticalDepth(object):
         self.dlogE = np.diff(self.logE)
     
         # Pre-compute cross-sections
-        self.sigma_E = np.array([np.array([self.sigma(E, i) for E in self.E]) for i in range(3)])
+        self.sigma_E = np.array([np.array([self.sigma(E, i) for E in self.E]) \
+            for i in range(3)])
         self.log_sigma_E = np.log10(self.sigma_E)
     
     def load(self, fn):
@@ -577,6 +578,9 @@ class OpticalDepth(object):
         self.logx = np.log10(self.x)
         self.logz = np.log10(self.z)
         
+        if self.pf['verbose']:
+            print("# Loaded {}.".format(fn))
+        
         return self.z, self.E, self.tau
     
     def tau_name(self, prefix=None, suffix='pkl'):
@@ -627,8 +631,11 @@ class OpticalDepth(object):
             if not ares_dir:
                 print("No ARES environment variable.")
                 return None
-    
-            input_dirs = ['{!s}/input/optical_depth'.format(ares_dir)]
+                
+            if self.pf['tau_path'] is None:
+                input_dirs = ['{!s}/input/optical_depth'.format(ares_dir)]
+            else:
+                input_dirs = [self.pf['tau_path']]
     
         else:
             if isinstance(prefix, basestring):
@@ -656,7 +663,7 @@ class OpticalDepth(object):
                     continue
     
                 tab_name = '{0!s}/{1!s}'.format(input_dir, fn1)
-    
+                    
                 try:
                     zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
                         self._parse_tab(fn1)
@@ -753,8 +760,8 @@ class OpticalDepth(object):
             self.tabname = self.find_tau(self.pf['tau_prefix'])
         else:
             self.tabname = self.pf['tau_table']
-            
-        if not self.tabname:
+                        
+        if self.tabname is None:
             return zpf, Epf, None
             
         if not os.path.exists(self.tabname):
@@ -768,7 +775,8 @@ class OpticalDepth(object):
             return ztab, Etab, tau
         
         # Figure out if the tables need fixing    
-        zmax_ok = (ztab.max() >= self.pf['first_light_redshift'])
+        zmax_ok = (round(ztab.max(), 2) >= self.pf['first_light_redshift'])
+                
         zmin_ok = \
             (ztab.min() <= zpf.min()) or \
             np.allclose(ztab.min(), zpf.min())

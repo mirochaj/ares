@@ -186,7 +186,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         count = self.count   # Just to make sure attribute exists
         self._count += 1
-        
+                
         is_converged = self._is_Mmin_converged(self._lwb_sources)
         
         ## 
@@ -537,7 +537,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                     self._subgen_[popid] = None
                     continue
                 
-                if len(gen) == 1:
+                # This is kludgey.
+                if len(gen) == 1 and (not pop.is_src_lw):
                     self._subgen_[popid] = False
                 else:
                     self._subgen_[popid] = True
@@ -864,6 +865,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._LW_felt_by_    
     
     def _is_Mmin_converged(self, include_pops):
+                
         # Need better long-term fix: Lya sources aren't necessarily LW 
         # sources, if (for example) approx_all_pops = True. 
         if not self.pf['feedback_LW']:
@@ -881,7 +883,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         self._Ja = Ja
         self._Jlw = Jlw
-                
+                        
         if not self.pf['feedback_LW']:
             return True
         
@@ -1174,7 +1176,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not converged:
             self._Mmin_bank.append(self._Mmin_now.copy())
             self._Jlw_bank.append(Jlw)
-                
+                                
         return converged
             
     def get_uvb(self, popid):
@@ -1282,20 +1284,23 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             # First loop is over redshift.
             f = np.zeros([len(z), E.size])
-            
-            # Looping over redshift?
+
+            # Looping over redshift, flatten energy, store.
             for i, flux in enumerate(hist):
                 if today_only:
                     if zflip[i] != zmin:
                         continue
                 
                 fzflat = []
+                # This is each 'super-'band, may be broken down into more
+                # chunks, e.g., for sawtooth bands (hence the flattening)
                 for j in range(len(self.solver.energies[popid])):
+
                     if not self.solver.solve_rte[popid][j]:
                         fzflat.extend(np.zeros_like(flatten_energies(self.solver.energies[popid][j])))
                     else:
                         fzflat.extend(flux[j])
-
+                        
                 f[i] = np.array(fzflat)
                 
             # "tr" = "to return"

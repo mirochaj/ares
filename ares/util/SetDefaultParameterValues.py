@@ -317,6 +317,10 @@ def ParameterizedQuantityParameters():
      "pq_func_fun": None,  # only used if pq_func == 'user'
      "pq_func_var": 'Mh',
      "pq_func_var2": None, 
+     "pq_func_var_lim": None,
+     "pq_func_var2_lim": None,
+     "pq_func_var_fill": 0.0,
+     "pq_func_var2_fill": 0.0,
      "pq_func_par0": None,
      "pq_func_par1": None,
      "pq_func_par2": None,
@@ -509,7 +513,6 @@ def PopulationParameters():
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
-    #"pop_MAR_conserve_norm": False,
     "pop_MAR_interp": 'linear',
     "pop_MAR_corr": None,
     "pop_MAR_delay": None,
@@ -687,8 +690,8 @@ def PopulationParameters():
     # Cluster-centric model
     "pop_feedback_rad": False,
     "pop_feedback_sne": False,
-    "pop_delay_rad_feedback": 0.0,
-    "pop_delay_sne_feedback": 0.0,
+    "pop_delay_rad_feedback": 0,
+    "pop_delay_sne_feedback": 0,
     "pop_force_equilibrium": np.inf,
     "pop_sample_imf": False,
     "pop_sample_cmf": False,
@@ -699,6 +702,9 @@ def PopulationParameters():
     # Feedback for single-stars
     "pop_coupling_sne": 0.1,
     "pop_coupling_rad": 0.1,
+    
+    # Energy per SNe in units of 1e51 erg.
+    "pop_omega_51": 0.01,
     
     # Baryon cycling
     "pop_multiphase": False,
@@ -799,6 +805,7 @@ def PopulationParameters():
     "pop_rad_yield_Z_index": None,
     
     # Parameters for simple galaxy SAM
+    "pop_sam_method": 0,    
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
@@ -1081,7 +1088,7 @@ def HaloMassFunctionParameters():
     "hmf_dt": None,     # if not None, will switch this one.
     
     # Augment suite of halo growth histories
-    "hgh_dlogMmin": 0.1,
+    "hgh_dlogM": 0.1,
     'hgh_Mmax': None,
     
     # to CAMB

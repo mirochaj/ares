@@ -321,6 +321,7 @@ class GalaxyPopulation(object):
 
             if show_Mstell and show_MUV:
                 ax_uvlf = fig.add_subplot(gs[:4,0:2])
+                                
                 ax_cmr4 = fig.add_subplot(gs[0,2:4])
                 ax_cmr6 = fig.add_subplot(gs[1,2:4])
                 ax_cmr8 = fig.add_subplot(gs[2,2:4])
@@ -350,6 +351,7 @@ class GalaxyPopulation(object):
                 else:
                     ax_uvlf = fig.add_subplot(gs[:,0+4*xp:4*xp+3])
                     ax_uvlf2 = None
+                    
                     ax_cmr4 = fig.add_subplot(gs[0,3+4*xp:])
                     ax_cmr6 = fig.add_subplot(gs[1,3+4*xp:])
                     ax_cmr8 = fig.add_subplot(gs[2,3+4*xp:])
@@ -497,10 +499,12 @@ class GalaxyPopulation(object):
 
             if z not in z_beta:
                 continue
+                
+            kcmd = np.argmin(np.abs(z - np.array(z_beta)))    
 
-            if zint in b14.data['beta'] and show_MUV:
+            if zint in b14.data['beta'] and show_MUV:                
                 err = b14.data['beta'][zint]['err'] + b14.data['beta'][zint]['sys']
-                ax_cmd[j].errorbar(b14.data['beta'][zint]['M'], b14.data['beta'][zint]['beta'], 
+                ax_cmd[kcmd].errorbar(b14.data['beta'][zint]['M'], b14.data['beta'][zint]['beta'], 
                     yerr=err, 
                     fmt='o', color=colors(zint), label=b14.info['label'] if j == 0 else None,
                     **mkw)
@@ -520,8 +524,8 @@ class GalaxyPopulation(object):
                     bbox = None    
                     
                 if show_MUV:
-                    ax_cmd[j].text(0.05, 0.05, r'$z \sim {}$'.format(zint),  
-                        transform=ax_cmd[j].transAxes, color=colors(zint), 
+                    ax_cmd[kcmd].text(0.05, 0.05, r'$z \sim {}$'.format(zint),  
+                        transform=ax_cmd[kcmd].transAxes, color=colors(zint), 
                         ha='left', va='bottom', bbox=bbox, fontsize=20)
                     
                 #ax_cmd[j].annotate(r'$z \sim {}$'.format(z), (0.95, 0.95), 
@@ -534,7 +538,7 @@ class GalaxyPopulation(object):
                 
             if z in f12.data['beta']:    
                 err = f12.data['beta'][zint]['err']
-                ax_cMs[j].errorbar(10**f12.data['beta'][zint]['Ms'], 
+                ax_cMs[kcmd].errorbar(10**f12.data['beta'][zint]['Ms'], 
                     f12.data['beta'][zint]['beta'], err.T[-1::-1],
                     fmt='o', color=colors(zint),
                     label=f12.info['label'] if j == 0 else None,
@@ -608,34 +612,32 @@ class GalaxyPopulation(object):
                 
                 if z not in z_beta:
                     continue
+                    
+                kcmd = np.argmin(np.abs(z - np.array(z_beta)))    
                 
                 if zstr >= 7:
                     hst_filt = hst_deep
                 else:
                     hst_filt = hst_shallow
             
-                cam = 'wfc', 'wfc3' if zstr <= 8 else 'nircam'    
-                filt = hst_filt[zstr] if zstr <= 8 else None
-                fset = None if zstr <= 8 else 'M'
-            
-                #_mags = pop.Beta(z, Mbins=mags_cr, dlam=20.,
-                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None)
+                presets = 'hst' if zstr <= 8 else 'jwst-m'
                  
                 if beta_phot:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                        cam=cam, filters=filt, filter_set=fset, rest_wave=None,
+                        presets=presets, rest_wave=None,
                         dlam=dlam)
+                    
                 else:
                     beta = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                         rest_wave=(1600., 3000.), dlam=dlam)
                 
                 bphot_by_pop[h][z] = beta
-                
+                                
                 # Mask 
                 ok = np.logical_and(np.isfinite(beta), beta > -99999)
                 if not fill:
-                    ax_cmd[j].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
-                
+                    ax_cmd[kcmd].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
+                                
                 if show_Mstell:
                     
                     _beta_c94 = pop.Beta(z, return_binned=False,
@@ -652,9 +654,9 @@ class GalaxyPopulation(object):
                     bc94_by_pop[h][z] = _b
                     
                     if not fill:
-                        ax_cMs[j].plot(10**_x, _b, color=colors(zint), **kwargs)
+                        ax_cMs[kcmd].plot(10**_x, _b, color=colors(zint), **kwargs)
                         
-                    ax_cMs[j].annotate(r'$z \sim {}$'.format(zint), (0.05, 0.95), 
+                    ax_cMs[kcmd].annotate(r'$z \sim {}$'.format(zint), (0.05, 0.95), 
                         ha='left', va='top', xycoords='axes fraction', 
                         color=colors(zint), fontsize=20)
                     
@@ -699,12 +701,14 @@ class GalaxyPopulation(object):
                     continue        
                 
                 #ok = np.logical_and(np.isfinite(beta), beta > -99999)
+                                
+                kcmd = np.argmin(np.abs(z - np.array(z_beta)))
                                                               
-                ax_cmd[j].fill_between(mags_cr, bphot_by_pop[0][z], 
+                ax_cmd[kcmd].fill_between(mags_cr, bphot_by_pop[0][z], 
                     bphot_by_pop[1][z], color=colors(zint), **kwargs)
                     
                 if show_Mstell:    
-                    ax_cMs[j].fill_between(10**Ms, bc94_by_pop[0][z], 
+                    ax_cMs[kcmd].fill_between(10**Ms, bc94_by_pop[0][z], 
                         bc94_by_pop[1][z], color=colors(zint), **kwargs)
                                             
         ##
@@ -801,7 +805,7 @@ class GalaxyPopulation(object):
         
     def PlotColorEvolution(self, pop, zarr=None, axes=None, fig=1, 
         wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
-        show_beta_hst=True, show_beta_combo=True, show_beta_jwst=True, 
+        show_beta_hst=True, show_beta_jwst_W=True, show_beta_jwst_M=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
         return_data=True, data=None, augment_filters=True, **kwargs):
         """
@@ -823,7 +827,11 @@ class GalaxyPopulation(object):
             else:
                 axB2 = axD2 = None
         else:
-            axB, axD, axB2, axD2 = axes
+            if include_Mstell:
+                axB, axD, axB2, axD2 = axes
+            else:
+                axB, axD = axes    
+                axB2 = axD2 = None
 
         # Plot the Bouwens data
         zbrack = [3.8, 5.0, 5.9, 7.0, 8.0]
@@ -895,7 +903,7 @@ class GalaxyPopulation(object):
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
 
-        if show_beta_jwst:
+        if (show_beta_jwst_W or show_beta_jwst_M):
             nircam = Survey(cam='nircam')
             nircam_M = nircam._read_nircam(filter_set='M')
             nircam_W = nircam._read_nircam(filter_set='W')
@@ -952,7 +960,7 @@ class GalaxyPopulation(object):
 
                 beta_hst = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                     cam=cam, filters=filt, filter_set=fset, rest_wave=None,
-                    magmethod=magmethod) 
+                    magmethod=magmethod)
                #beta_hst_M1600 = pop.Beta(z, Mbins=mags_cr, return_binned=True,
                #    cam=cam, filters=filt, filter_set=fset, rest_wave=None,
                #    magmethod='mono')
@@ -1002,73 +1010,81 @@ class GalaxyPopulation(object):
                     
             # Compute beta given JWST W only
             # 
-            if show_beta_jwst and z >= 4:
-                nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
-                # Extend the wavelength range until we get two filters
+            if (show_beta_jwst_W or show_beta_jwst_M) and z >= 4:
                 
-                if augment_filters:
-                
-                    ct = 1
-                    while len(nircam_W_fil) < 2:
-                        nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
-                            wave_hi + 10 * ct)
-                        
-                        ct += 1
+                if show_beta_jwst_W:
+                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                    # Extend the wavelength range until we get two filters
                     
-                    if ct > 1:    
-                        print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
-                            wave_hi + 10 * (ct - 1)))    
-                
-                filt2 = tuple(nircam_W_fil)
+                    if augment_filters:
                     
-                beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                    cam=('nircam', ), filters=filt2, filter_set=fset, 
-                    rest_wave=None, magmethod=magmethod)
-                    
-                slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
-                    return_funcs=True, model='quad3', presets='nircam-w',
-                    maglim=(-22.5, -16.5))
-                
-                if func is not None:
-                    # Compute beta and dBeta/dMUV at a few magnitudes    
-                    #for l, mag in enumerate(MUV):
-                    B195_jwst[j,:] = func(MUV)
-                    dBdM195_jwst[j,:] = func_p(MUV) 
+                        ct = 1
+                        while len(nircam_W_fil) < 2:
+                            nircam_W_fil = what_filters(z, nircam_W, wave_lo, 
+                                wave_hi + 10 * ct)
                             
-                # Compute beta w/ JWST 'M' only
-                nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
-                
-                if augment_filters:
-                
-                    ct = 1
-                    while len(nircam_M_fil) < 2:
-                        nircam_M_fil = what_filters(z, nircam_M, wave_lo, 
-                            wave_hi + 10 * ct)
+                            ct += 1
                         
-                        ct += 1
+                        if ct > 1:    
+                            print("For JWST W filters at z={}, extend wave_hi to {}A".format(z,
+                                wave_hi + 10 * (ct - 1)))    
                     
-                    if ct > 1:    
-                        print("For JWST M filters at z={}, extend wave_hi to {}A".format(z,
-                            wave_hi + 10 * (ct - 1)))
-                
-                filt3 = tuple(nircam_M_fil)
-                
-                if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
-                    beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
-                        cam=('nircam',), filters=filt3, rest_wave=None,
-                        magmethod=magmethod)
                     
+                    filt2 = tuple(nircam_W_fil)
+                        
+                    beta_W = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        cam=('nircam', ), filters=filt2, filter_set=fset, 
+                        rest_wave=None, magmethod=magmethod)
+                        
                     slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
-                        return_funcs=True, model='quad3', presets='nircam-m',
+                        return_funcs=True, model='quad3', presets='nircam-w',
                         maglim=(-22.5, -16.5))
                     
                     if func is not None:
                         # Compute beta and dBeta/dMUV at a few magnitudes    
-                        B195_M[j,:] = func(MUV)
-                        dBdM195_M[j,:] = func_p(MUV)
+                        #for l, mag in enumerate(MUV):
+                        B195_jwst[j,:] = func(MUV)
+                        dBdM195_jwst[j,:] = func_p(MUV) 
+                            
+                # Compute beta w/ JWST 'M' only
+                if show_beta_jwst_M:
+                    nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
+                    
+                    if augment_filters:
+                    
+                        ct = 1
+                        while len(nircam_M_fil) < 2:
+                            nircam_M_fil = what_filters(z, nircam_M, wave_lo, 
+                                wave_hi + 10 * ct)
+                            
+                            ct += 1
                         
-                else:
-                    beta_M = -np.inf * np.ones_like(mags_cr)  
+                        if ct > 1:    
+                            print("For JWST M filters at z={}, extend wave_hi to {}A".format(z,
+                                wave_hi + 10 * (ct - 1)))
+                    
+                    filt3 = tuple(nircam_M_fil)
+                    
+                    if (z >= 4 and augment_filters) or (z >= 6 and not augment_filters):
+                        #beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                        #    cam=('nircam',), filters=filt3, rest_wave=None,
+                        #    magmethod=magmethod)
+                        
+                        beta_M = pop.Beta(z, Mbins=mags_cr, return_binned=True,
+                            presets='jwst', rest_wave=None,
+                            magmethod=magmethod)     
+                        
+                        slope, func, func_p = pop.dBeta_dMUV(z, magbins=mags_cr, 
+                            return_funcs=True, model='quad3', presets='nircam-m',
+                            maglim=(-22.5, -16.5))
+                        
+                        if func is not None:
+                            # Compute beta and dBeta/dMUV at a few magnitudes    
+                            B195_M[j,:] = func(MUV)
+                            dBdM195_M[j,:] = func_p(MUV)
+                            
+                    else:
+                        beta_M = -np.inf * np.ones_like(mags_cr)  
             else:
                 beta_W = beta_M = None
                         
@@ -1110,7 +1126,7 @@ class GalaxyPopulation(object):
                 axD.plot(zarr[ok==1], -dBdM195_hst[ok==1,l], lw=2, 
                     color='b', ls=ls[l])
             
-        if show_beta_combo:
+        if show_beta_jwst_W:
             for l, mag in enumerate(MUV):
                 _beta = B195_jwst[:,l]
                 ok = _beta > -99999
@@ -1120,7 +1136,7 @@ class GalaxyPopulation(object):
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
                     color='m', ls=ls[l])
                         
-        if show_beta_jwst:
+        if show_beta_jwst_M:
             for l, mag in enumerate(MUV):
                 _beta = B195_M[:,l]
                 ok = _beta > -99999
@@ -1713,6 +1729,7 @@ class GalaxyPopulation(object):
             
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
+            nh = pop.get_field(z, 'nh')
             SFR = pop.get_field(z, 'SFR')
             
             SFE = pop.guide.SFE(z=z, Mh=_mh)
@@ -1722,7 +1739,8 @@ class GalaxyPopulation(object):
                 
             if (pop.pf['pop_scatter_mar'] > 0) or (pop.pf['pop_histories'] is not None):
                 _bins = np.arange(7, 12.1, 0.1)
-                x, y, std, N = bin_samples(np.log10(Ms), np.log10(SFR), _bins)
+                x, y, std, N = bin_samples(np.log10(Ms), np.log10(SFR), _bins,
+                    weights=nh)
                 ax_sfms.loglog(10**x, 10**y, color=colors[j])
             else:    
                 ax_sfms.loglog(Ms, SFR, color=colors[j])
@@ -1746,7 +1764,8 @@ class GalaxyPopulation(object):
             #    beta = np.zeros_like(mags)
             
             # M1500-Mstell
-            _x, _y, _z, _N = bin_samples(mags1500, np.log10(Ms), Mbins)
+            _x, _y, _z, _N = bin_samples(mags1500, np.log10(Ms), Mbins,
+                weights=nh)
             ax_MsMUV.plot(_x, _y, color=colors[j])    
             
             # Beta just to get 'mags'
@@ -1929,15 +1948,15 @@ class GalaxyPopulation(object):
                 ax_fco.set_ylim(1e9, 1e13)
             else:
                 ax_fco.set_ylim(0, 1.05)
+                
+            if ('dust_scale' in anl.all_blob_names) and ('fduty' in anl.all_blob_names):
+                ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
+                ax_fco2 = ax_fco.twinx()
+                ax_fco2.set_ylabel(r'$f_{\mathrm{dtmr}}$')
+                ax_fco2.set_ylim(0, 1.05)    
         else:
             ax_fco.set_ylim(0, 1.05)      
-            
-        if ('dust_scale' in anl.all_blob_names) and ('fduty' in anl.all_blob_names):
-            ax_fco.set_ylabel(r'$f_{\mathrm{duty}}$')
-            ax_fco2 = ax_fco.twinx()
-            ax_fco2.set_ylabel(r'$f_{\mathrm{dtmr}}$')
-            ax_fco2.set_ylim(0, 1.05)
-            
+                        
         ax_rdu.set_xlim(1e8, 1e13)
         ax_rdu.set_ylim(1e-2, 100)
         

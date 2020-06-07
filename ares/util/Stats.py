@@ -89,8 +89,8 @@ def get_nu(sigma, nu_in, nu_out):
     pdf = lambda x, s: np.exp(-x**2 / 2. / s**2) / np.sqrt(s**2 * 2 * np.pi)
         
     # Integral (relative to total) from -sigma to sigma
-    integral = lambda s: quad(lambda x: pdf(x, s=s), 
-        -abs(sigma), abs(sigma))[0]
+    integral = lambda s: quad(lambda x: 1e12 * pdf(x, s=s), 
+        -abs(sigma), abs(sigma), epsrel=1e-15, epsabs=1e-15)[0] / 1e12
     
     # Minimize difference between integral (as function of variance) and
     # specified area (i.e., supplied confidence interval).

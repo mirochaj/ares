@@ -37,8 +37,8 @@ def test():
     axes5 = gpop.PlotColors(pop, fig=5)
     axes6 = gpop.PlotColors(pop, fig=6, show_Mstell=True, show_MUV=False,
         dlam_c94=10)
-    gpop.PlotColorEvolution(pop, show_beta_jwst=False, include_Mstell=False,
-        zarr=np.array([4, 6]), fig=7)
+    gpop.PlotColorEvolution(pop, show_beta_jwst_W=False, show_beta_jwst_M=False,
+        include_Mstell=False, zarr=np.array([4, 6]), fig=7)
     #gpop.PlotColorEvolution(pop, show_beta_jwst=False, show_beta_hst=False,
     #    include_Mstell=True,
     #    zarr=np.array([4, 6]), fig=8, dlam=2)    

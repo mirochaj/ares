@@ -10,6 +10,7 @@ info = \
 {
  'reference': 'Sanders et al. 2015',
  'data': 'Table 1', 
+ 'label': 'Sanders+ (2015)'
 }
 
 # u, g, and r dropouts, respectively

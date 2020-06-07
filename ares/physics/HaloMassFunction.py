@@ -832,10 +832,11 @@ class HaloMassFunction(object):
     @property
     def tab_MAR(self):
         if not hasattr(self, '_tab_MAR'):
-            if not self._is_loaded:
+            if (not self._is_loaded) and self.pf['hmf_load']:
                 poke = self.tab_dndm
             else:
                 self.TabulateMAR()
+                
         return self._tab_MAR    
         
     @tab_MAR.setter

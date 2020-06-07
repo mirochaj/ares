@@ -63,6 +63,13 @@ class BasePQ(object):
 
         self.x = kwargs['pq_func_var']
         
+        self.xlim = (-np.inf, np.inf)
+        self.xfill = None
+        if 'pq_func_var_lim' in kwargs:
+            if kwargs['pq_func_var_lim'] is not None:
+                self.xlim = kwargs['pq_func_var_lim']
+                self.xfill = kwargs['pq_func_var_fill']            
+        
         for key in optional_kwargs:
             if key not in kwargs:
                 setattr(self, key[3:], None)
@@ -71,6 +78,13 @@ class BasePQ(object):
                 
         if 'pq_func_var2' in kwargs:
             self.t = kwargs['pq_func_var2']
+            
+            self.tlim = (-np.inf, np.inf)
+            self.tfill = None
+            if 'pq_func_var2_lim' in kwargs:
+                if kwargs['pq_func_var2_lim'] is not None:
+                    self.tlim = kwargs['pq_func_var2_lim']
+                    self.tfill = kwargs['pq_func_var2_fill']            
         
 class PowerLaw(BasePQ):
     def __call__(self, **kwargs):
@@ -78,8 +92,18 @@ class PowerLaw(BasePQ):
             x = 1. + kwargs['z']
         else:
             x = kwargs[self.x]
+        
+        if type(x) in [int, float, np.float64]:    
+            if not (self.xlim[0] <= x <= self.xlim[1]):
+                x = self.xfill
+            ok = 1.    
+        else:
+            ok = np.logical_and(self.xlim[0] <= x, x <= self.xlim[1])
+            if self.xfill is not None:
+                x[~ok] = self.xfill
+                ok = np.ones_like(x)                
 
-        return self.args[0] * (x / self.args[1])**self.args[2]
+        return ok * self.args[0] * (x / self.args[1])**self.args[2]
 
 class PowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
