@@ -17,26 +17,21 @@ import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
 from ares.physics.Constants import h_p, c, erg_per_ev
 
-def test(spsmodel='eldridge2009'):    
+def test():    
 
     # Setup pure continuum source
     pars_con = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
     pars_con.update(ares.util.ParameterBundle('testing:galaxies'))
-    pars_con['pop_Z'] = 1e-3
-    pars_con['pop_sed'] = spsmodel
     pars_con['pop_nebular'] = 0
     pop_con = ares.populations.GalaxyPopulation(**pars_con)
-    dwdn = pop_con.src.dwdn
 
     pars_ares = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
     pars_ares.update(ares.util.ParameterBundle('testing:galaxies'))
-    pars_ares['pop_Z'] = 1e-3
-    pars_ares['pop_sed'] = spsmodel
     pars_ares['pop_nebular'] = 2
     pop_ares = ares.populations.GalaxyPopulation(**pars_ares)
 
     # Setup source with BPASS-generated (CLOUDY) nebular emission
-    pars_sps = pars_ares.copy()
+    pars_sps = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
     pars_sps.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_sps['pop_nebular'] = 1
     pars_sps['pop_fesc'] = 0.
@@ -51,12 +46,19 @@ def test(spsmodel='eldridge2009'):
 
     ax_spec = fig.add_subplot(gs[0,0])
     ax_err = fig.add_subplot(gs[1,0])
-
+    
     colors = 'k', 'b', 'c', 'm', 'r'
     for k, t in enumerate([1, 5, 10, 20, 50]):
         i = np.argmin(np.abs(pop_ares.src.times - t))
-    
-        err = np.abs(pop_ares.src.data[:,i] - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
+        
+        # For some reason, the BPASS+CLOUDY tables only go up to 29999A,
+        # so the degraded tables will be one element shorter than their
+        # pop_nebular=False counterparts. So, interpolate for errors.
+        # (this is really just making shapes the same, since common
+        # wavelengths will be identical)
+        y_ares = np.interp(pop_sps.src.wavelengths,
+            pop_ares.src.wavelengths, pop_ares.src.data[:,i])
+        err = np.abs(y_ares - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
         ax_err.semilogx(pop_sps.src.wavelengths, err, color=colors[k],
             label=r'$t = {}$ Myr'.format(t))
                 
@@ -64,12 +66,12 @@ def test(spsmodel='eldridge2009'):
             continue
 
         # Plot BPASS continuum vs. BPASS nebular solution
-        ax_spec.loglog(pop_con.src.wavelengths, pop_con.src.data[:,i] * dwdn, color='k', 
-            alpha=1, lw=1, label=r'{} continuum'.format(code))
-        ax_spec.loglog(pop_ares.src.wavelengths, pop_ares.src.data[:,i] * dwdn, color='b', 
-            alpha=0.5, label='{} continuum + ares nebula'.format(code))
-        ax_spec.loglog(pop_sps.src.wavelengths, pop_sps.src.data[:,i] * dwdn, color='r', 
-            alpha=0.5, label='{} continuum + {} nebula'.format(code, code))
+        ax_spec.loglog(pop_con.src.wavelengths, pop_con.src.data[:,i] * pop_con.src.dwdn, 
+            color='k', alpha=1, lw=1, label=r'{} continuum'.format(code))
+        ax_spec.loglog(pop_ares.src.wavelengths, pop_ares.src.data[:,i] * pop_ares.src.dwdn, 
+            color='b', alpha=0.5, label='{} continuum + ares nebula'.format(code))
+        ax_spec.loglog(pop_sps.src.wavelengths, pop_sps.src.data[:,i] * pop_sps.src.dwdn, 
+            color='r', alpha=0.5, label='{} continuum + {} nebula'.format(code, code))
         ax_spec.annotate(r'$t = {}$ Myr'.format(t), (0.05, 0.95),
             xycoords='axes fraction')
         
