@@ -15,7 +15,7 @@ options = sys.argv[1:]
 
 _bpass_v1_links = ['sed_bpass_z{!s}_tar.gz'.format(Z) \
     for Z in ['001', '004', '008', '020', '040']]
-_bpass_tests = 'https://www.dropbox.com/s/oclkjmltwiiiglv/sed_degraded.tar.gz?dl=1'
+_bpass_tests = 'https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl=1'
 
 aux_data = \
 {

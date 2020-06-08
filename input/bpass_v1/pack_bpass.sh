@@ -27,7 +27,8 @@ python degrade_bpass_seds.py $degrade
 
 tar -czvf sed_degraded.tar.gz \
 	SEDS/sed.bpass.constant.nocont.sin.z020.deg$degrade \
-	SEDS/sed.bpass.instant.nocont.sin.z020.deg$degrade
+	SEDS/sed.bpass.instant.nocont.sin.z020.deg$degrade \
+	SEDS/sed.bpass.constant.cloudy.sin.z020.deg$degrade
 
 echo Created tarball sed_degraded.tar.gz.
 
