@@ -47,7 +47,7 @@ datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014',
 	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
 datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010', 
-	'karim2011', 'noeske2007', 'whitaker2012')
+	'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
 
 groups_lf = \
 {
