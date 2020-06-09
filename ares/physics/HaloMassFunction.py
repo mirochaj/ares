@@ -417,7 +417,7 @@ class HaloMassFunction(object):
                 
                 # Interpolate to common (z, Mh) grid
                 _MAR_ = RectBivariateSpline(_hmf_def_.tab_z, 
-                    np.log10(_hmf_def_.tab_M), _hmf_def_.tab_MAR)
+                    np.log10(_hmf_def_.tab_M), np.log10(_hmf_def_.tab_MAR))
                 
                 logM = np.log10(self.tab_M)
                 self.tab_MAR = np.zeros((self.tab_z.size, self.tab_M.size))
