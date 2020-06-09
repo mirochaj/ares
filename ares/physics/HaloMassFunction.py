@@ -412,7 +412,7 @@ class HaloMassFunction(object):
 
             f.close()
 
-            if self.pf['hmf_gen_MAR'] and (ARES is not None):
+            if (not self.pf['hmf_gen_MAR']) and (ARES is not None):
                 _hmf_def_ = HaloMassFunction()
                 
                 # Interpolate to common (z, Mh) grid
@@ -424,10 +424,10 @@ class HaloMassFunction(object):
                 
                 for i, z in enumerate(self.tab_z):
                     self.tab_MAR[i,:] = 10**_MAR_(z, logM)
-                
-            elif (not self.pf['hmf_gen_MAR']) and (ARES is not None):
+
+            elif self.pf['hmf_gen_MAR']:
                 self.TabulateMAR()
-            
+
         elif self.tab_name is None:
             raise IOError(no_hmf(self))
             
