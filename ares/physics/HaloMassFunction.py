@@ -131,16 +131,6 @@ class HaloMassFunction(object):
         """
         self.pf = ParameterFile(**kwargs)
                 
-        # If no hmf table is specified but a matching table exists
-        if self.pf['cosmology_name'] is not None:
-            if self.pf['hmf_cosmology_location'] is not None:
-                if self.pf['cosmology_number'] is None:
-                    self.pf['cosmology_number'] = 0
-                self.pf['hmf_table'] = (self.pf['hmf_cosmology_location']
-                                        + '/{}.hdf5'.format(self.pf['cosmology_number']))
-            else:
-                print('cosmology name provided without specifying the hmf table location')
-
         # Read in a few parameters for convenience        
         self.tab_name = self.pf["hmf_table"]
         self.hmf_func = self.pf['hmf_model']
@@ -161,7 +151,7 @@ class HaloMassFunction(object):
         if ARES is not None and self.pf['hmf_load'] and (self.tab_name is None):
             prefix = self.tab_prefix_hmf(True)
             fn = '{0!s}/{1!s}'.format(_path, prefix)
-                    
+
             # First, look for a perfect match
             if os.path.exists('{0!s}.{1!s}'.format(fn,\
                 self.pf['preferred_format'])):
@@ -374,14 +364,14 @@ class HaloMassFunction(object):
 
         if self._is_loaded:
             return
-            
+
         if self.pf['hmf_wdm_mass'] is not None:
             return self._load_hmf_wdm()
-                        
+
         if self.pf['hmf_cache'] is not None:
             self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
                 self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
-                    self.pf['hmf_cache']            
+                    self.pf['hmf_cache']
             return
 
         if self.pf['hmf_pca'] is not None:
@@ -419,21 +409,23 @@ class HaloMassFunction(object):
                 mgtm.append(mgtm_ + int_upper_m)
 
             self.tab_ngtm, self.tab_mgtm = np.array(ngtm), np.array(mgtm)
-            
+
             f.close()
-            
-            if (self.pf['hmf_gen_MAR'] is False) and (ARES is not None):
-                g = np.load('{}/input/hmf/hmf_Tinker10_logM_1400_4-18_z_1201_0-60.npz'.format(ARES))
-                if 'tab_MAR' in g:
-                   tab_MAR_complete = g['tab_MAR']
-                tab_MAR_Mstrip = []
-                for item in tab_MAR_complete:
-                    tab_MAR_Mstrip.append(item[::2][142:435])
-                tab_MAR_strip = tab_MAR_Mstrip[::2][(602-555):]
-                final_tab_MAR = tab_MAR_strip[:261]
-                self.tab_MAR = final_tab_MAR
-                g.close()
-            elif (self.pf['hmf_gen_MAR'] is True) and (ARES is not None):
+
+            if self.pf['hmf_gen_MAR'] and (ARES is not None):
+                _hmf_def_ = HaloMassFunction()
+                
+                # Interpolate to common (z, Mh) grid
+                _MAR_ = RectBivariateSpline(_hmf_def_.tab_z, 
+                    np.log10(_hmf_def_.tab_M), _hmf_def_.tab_MAR)
+                
+                logM = np.log10(self.tab_M)
+                self.tab_MAR = np.zeros((self.tab_z.size, self.tab_M.size))
+                
+                for i, z in enumerate(self.tab_z):
+                    self.tab_MAR[i,:] = 10**_MAR_(z, logM)
+                
+            elif (not self.pf['hmf_gen_MAR']) and (ARES is not None):
                 self.TabulateMAR()
             
         elif self.tab_name is None:
@@ -671,7 +663,7 @@ class HaloMassFunction(object):
         self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
                     
-        pb = ProgressBar(len(self.tab_z), 'hmf')
+        pb = ProgressBar(len(self.tab_z), 'hmf', use=self.pf['progress_bar'])
         pb.start()
 
         for i, z in enumerate(self.tab_z):
