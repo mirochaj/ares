@@ -46,6 +46,8 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
 datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014', 
 	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
+datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010', 
+	'karim2011', 'noeske2007', 'whitaker2012')
 
 groups_lf = \
 {
@@ -57,11 +59,12 @@ groups_lf = \
  'local': ('weisz2014,'),
  'all': datasets_lf,
 }
+groups_ssfr = {'all': datasets_ssfr}
 
 groups_smf = {'all': datasets_smf}
 groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf, 
     'smf_tot': groups_smf, 'smf_q': groups_smf,
-    'mzr': {'all': datasets_mzr}}
+    'mzr': {'all': datasets_mzr}, 'ssfr': groups_ssfr}
 
 colors_cyc = ['m', 'c', 'r', 'g', 'b', 'y', 'orange', 'gray'] * 3
 markers = ['o', 's', 'p', 'h', 'D', 'd', '^', 'v', '<', '>'] * 3
@@ -78,7 +81,11 @@ for i, dataset in enumerate(datasets_smf):
 
 for i, dataset in enumerate(datasets_mzr):
     default_colors[dataset] = colors_cyc[i]
-    default_markers[dataset] = markers[i]  
+    default_markers[dataset] = markers[i]
+
+for i, dataset in enumerate(datasets_ssfr):
+    default_colors[dataset] = colors_cyc[i]
+    default_markers[dataset] = markers[i]
     
 default_markers['stefanon2017'] = 's'
 
@@ -254,14 +261,21 @@ class GalaxyPopulation(object):
                 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', 
-            force_labels=force_labels, **kwargs)  
+            force_labels=force_labels, **kwargs)
         
     def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
             AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
-            force_labels=force_labels, **kwargs)              
+            force_labels=force_labels, **kwargs)
+
+    def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False, 
+            AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs):
+
+        return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
+            force_labels=force_labels, **kwargs)             
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True, 
@@ -1338,6 +1352,16 @@ class GalaxyPopulation(object):
             if (not gotax) or force_labels:
                 ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
                 ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
+        elif quantity in ['ssfr']:
+        	try:
+        	    ax.set_xscale('log')
+        	    # ax.set_yscale('log')
+        	except ValueError:
+        	    pass
+        	if (not gotax) or force_labels:
+        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+        	    ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
+
 
         pl.draw()
 
