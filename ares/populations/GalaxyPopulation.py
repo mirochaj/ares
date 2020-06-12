@@ -17,6 +17,7 @@ from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
 from .ClusterPopulation import ClusterPopulation
 from .BlackHoleAggregate import BlackHoleAggregate
+from .GalaxyHOD import GalaxyHOD
 from ..util.SetDefaultParameterValues import PopulationParameters
 from .Parameterized import ParametricPopulation, parametric_options
 try:
@@ -90,6 +91,8 @@ def GalaxyPopulation(**kwargs):
         return BlackHoleAggregate(**kwargs)
     elif model in ['toy']:
         return Toy(**kwargs)    
+    elif model in ['HOD']:
+        return GalaxyHOD(**kwargs)
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
 
