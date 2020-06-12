@@ -193,8 +193,7 @@ class NebularEmission(object):
             x=np.log(self.frequencies[ok==1][-1::-1]))
         return self.L_ion(spec) / temp
 
-    def Continuum(self, spec, include_ff=True, include_fb=True,
-        include_tp=True):
+    def Continuum(self, spec):
         """
         Add together nebular continuum contributions, i.e., free-free, 
         free-bound, and two-photon.
@@ -238,11 +237,11 @@ class NebularEmission(object):
         #    x=np.log(self.frequencies[-1::-1]))
             
         tot = np.zeros_like(self.wavelengths)
-        if include_ff:
+        if self.pf['source_nebular_ff']:
             tot += frep_ff * Labs
-        if include_fb:              
+        if self.pf['source_nebular_fb']:
             tot += frep_fb * Labs
-        if include_tp:
+        if self.pf['source_nebular_2phot']:
             tot += frep_tp * Labs 
         
         return tot
