@@ -98,13 +98,13 @@ class NebularEmission(object):
     @property
     def _gamma_fb(self):
         if not hasattr(self, '_gamma_fb_'):
-        
+            # Assuming fully-ionized hydrogen-only nebular for now.
             _sum = np.zeros_like(self.frequencies)
             for n in range(2, 100, 1):
                 _xn = Ryd / k_B / self.pf['pop_nebula_Tgas'] / n ** 2
                 ok = (Ryd / h_p / n**2) < self.frequencies
                 _sum[ok==1] += _xn * (np.exp(_xn) / n) * self._gaunt_avg_fb
-                                    
+
             self._gamma_fb_ = self._f_k * _sum
             
         return self._gamma_fb_    
@@ -120,7 +120,7 @@ class NebularEmission(object):
         The continuum emission coefficient, over (ne * np * gamma_c).
         
         .. note :: This is Eq. 6.22 in Dopita & Sutherland (2003).
-        
+        .. note :: Pretty sure their F_k in that equation should be f_k.        
         .. note :: We don't need the ne * np bit thanks to our assumption
             of photo-ionization equilibrium.
         
@@ -266,11 +266,11 @@ class NebularEmission(object):
         freq = nrg * erg_per_ev / h_p
         fesc = self.pf['pop_fesc']
         _Tg = self.pf['pop_nebula_Tgas']
-                
+
         ion = nrg >= E_LL
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
-        
+
         # This will be in [erg/s]
         Lion = self.N_ion(spec)
         Labs = Lion * (1. - fesc)
