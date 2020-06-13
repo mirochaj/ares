@@ -562,6 +562,7 @@ def PopulationParameters():
     "pop_nebular_ff": True,
     "pop_nebular_fb": True,
     "pop_nebular_2phot": True,    
+    "pop_nebular_lookup": None,
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_psm_instance": None,
     "pop_src_instance": None,
@@ -853,7 +854,7 @@ def PopulationParameters():
                            # treating background in approximate way
 
     # Nebular emission stuff
-    "pop_nebula_Tgas": 2e4,
+    "pop_nebular_Tgas": 2e4,
 
     "pop_solve_rte": False,
     "pop_lya_permeable": False,
@@ -947,6 +948,8 @@ def SourceParameters():
     "source_nebular_ff": True,
     "source_nebular_fb": True,
     "source_nebular_2phot": True,
+    "source_nebular_lookup": None,
+    "source_nebular_Tgas": 2e4,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
@@ -1050,6 +1053,9 @@ def SynthesisParameters():
     "source_nebular_ff": True,
     "source_nebular_fb": True,
     "source_nebular_2phot": True,
+    "source_nebular_lookup": None,
+    "source_nebular_Tgas": 2e4,
+    
     "source_fesc": 0.,
     
     

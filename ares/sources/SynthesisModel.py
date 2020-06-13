@@ -78,7 +78,7 @@ class SynthesisMaster(Source):
             #if np.allclose(np.diff(np.diff(self.wavelengths)), 0):
             self._dwdn = self.wavelengths**2 / (c * 1e8)
             #else:
-            #    tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
+            #tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
             #    self._dwdn = np.concatenate((tmp, [tmp[-1]]))    
         return self._dwdn
         
