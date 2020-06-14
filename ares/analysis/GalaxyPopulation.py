@@ -277,7 +277,7 @@ class GalaxyPopulation(object):
             assert not (show_Mstell and show_MUV)
             assert not square
             assert not extra_pane
-                
+
         if axes is None:
 
             xp = extra_pane or num_uvlf_panels == 2
