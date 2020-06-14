@@ -3941,7 +3941,7 @@ class ModelSet(BlobFactory):
                     loc = psorted[int(N / 2.)]
                 else:
                     loc = np.argmax(self.logL[keep == 1])
-                                
+                                                                
             # A few NaNs ruin everything
             if np.any(nans):
                 print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), name))
