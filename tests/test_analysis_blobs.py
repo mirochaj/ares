@@ -145,7 +145,10 @@ def test(Ns=500, Nd=4, prefix='test'):
         
     anl.TrianglePlot(anl.all_blob_names, ivar=ivars, fig=4)
     
-    for i in range(1, 5):
+    anl.ContourScatter(anl.parameters[0], anl.parameters[1], anl.parameters[2],
+        fig=5, color_by_like=True)
+    
+    for i in range(1, 6):
         pl.figure(i)
         pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))     
     

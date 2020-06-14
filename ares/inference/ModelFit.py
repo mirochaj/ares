@@ -16,7 +16,6 @@ import glob
 import numpy as np
 from ..util import get_rev
 from ..util.MPIPool import MPIPool
-from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..util.Warnings import not_a_restart
 from ..util.ParameterFile import par_info
@@ -418,7 +417,7 @@ class FitBase(BlobFactory):
         
     @property
     def info(self):
-        print_fit(self)      
+        print("No information at this time.")    
     
     @property
     def pf(self):

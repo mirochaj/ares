@@ -191,11 +191,6 @@ class ModelSet(BlobFactory):
 
         self.derived_blobs = DQ(self)
 
-        #try:
-        #    self._fix_up()
-        #except AttributeError:
-        #    pass
-
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
@@ -274,14 +269,7 @@ class ModelSet(BlobFactory):
             
         print("Masked out {} elements using `stop`.".format(max(x) - self._stop))    
         self.mask = mask
-        
-    def reset_mask(self):
-        if hasattr(self, '_skip'):
-            del self._skip
-        
-        if hasattr(self, '_stop'):
-            del self._stop
-        
+                
     @property
     def load(self):
         if not hasattr(self, '_load'):
@@ -492,26 +480,13 @@ class ModelSet(BlobFactory):
         
         return self._Nd
     
-    def last_n_checkpoints(self, num):
-        return self.saved_checkpoints[-num:]
-
-    def last_checkpoint(self):
-        return self.saved_checkpoints[-1]
-    
     @property
     def unique_samples(self):
         if not hasattr(self, '_unique_samples'):
             self._unique_samples = \
                 [np.unique(self.chain[:,i].data) for i in range(self.Nd)]
         return self._unique_samples
-    
-    @property
-    def unique_samples(self):
-        if not hasattr(self, '_unique_samples'):
-            self._unique_samples = \
-                [np.unique(self.chain[:,i].data) for i in range(self.Nd)]
-        return self._unique_samples
-    
+        
     @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
@@ -531,26 +506,6 @@ class ModelSet(BlobFactory):
         if hasattr(self, '_chain'):
             print("WARNING: the chain has already been read. Be sure to " +\
                 "delete `_chain` attribute before continuing.")
-
-    @property
-    def largest_checkpoint(self):
-        if not hasattr(self, '_largest_checkpoint'):
-            self._largest_checkpoint = max(self.saved_checkpoints)
-        return self._largest_checkpoint
-    
-    @property
-    def saved_checkpoints(self):
-        """
-        The sorted checkpoint numbers of data files saved in the prefix
-        associated with this ModelSet. This property uses the counting
-        convention which starts with zero.
-        """
-        if not hasattr(self, '_saved_checkpoints'):
-            fns = glob.glob(self.prefix + '.dd*.chain.pkl')
-            self._saved_checkpoints = [(int(fn[-14:-10])) for fn in fns]
-            self._saved_checkpoints = sorted(self._saved_checkpoints)
-            self._saved_checkpoints = np.array(self._saved_checkpoints)
-        return self._saved_checkpoints
 
     @property
     def chain(self):
@@ -975,32 +930,6 @@ class ModelSet(BlobFactory):
             self._Npops = 1
     
         return self._Npops
-    
-    def _fix_up(self):
-        
-        if not hasattr(self, 'blobs'):
-            return
-        
-        if not hasattr(self, 'chain'):
-            return
-        
-        if self.blobs.shape[0] == self.chain.shape[0]:
-            return
-            
-        # Force them to be the same shape. The shapes might mismatch if
-        # one processor fails to write to disk (or just hasn't quite yet),
-        # or for more pathological reasons I haven't thought of yet.
-                        
-        if self.blobs.shape[0] > self.chain.shape[0]:
-            tmp = self.blobs[0:self.chain.shape[0]]
-            self.blobs = tmp
-        else:
-            tmp = self.chain[0:self.blobs.shape[0]]
-            self.chain = tmp
-    
-    #def _load(self, fn):
-    #    if os.path.exists(fn):
-    #        return read_pickle_file(fn, nloads=1, verbose=False)
     
     @property    
     def blob_redshifts_float(self):
@@ -1659,16 +1588,6 @@ class ModelSet(BlobFactory):
         mask = np.isnan(self.logL)
 
         self.logL[mask] = -np.inf
-        
-    def LinePlot(self, pars, ivar=None, ax=None, fig=1, c=None,
-        take_log=False, un_log=False, multiplier=1., use_colorbar=False, 
-        sort_by='z', filter_z=None, **kwargs):
-        ax = self.Scatter(pars, ivar=None, ax=ax, fig=fig, c=c,
-            take_log=take_log, un_log=un_log, multiplier=multiplier, 
-            use_colorbar=use_colorbar, line_plot=True, sort_by=sort_by, 
-            **kwargs)
-
-        return ax
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None, aux=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
@@ -1874,19 +1793,8 @@ class ModelSet(BlobFactory):
         else:    
             return ax
         
-    def _fix_tick_labels(self, ax):
-        tx = list(map(int, ax.get_xticks()))
-        ax.set_xticklabels(list(map(str, tx)))
-        
-        ty = list(map(int, ax.get_yticks()))
-        ax.set_yticklabels(list(map(str, ty)))
-        
-        pl.draw()
-        
-        return ax
-    
     def _add_rungs(self, _x, _y, c, ax, cond, tick_size=1, label=None, 
-        label_on_top=True, **kwargs):
+        label_on_top=True, **kwargs): # pragma: no cover
     
         assert cond.sum() == 1
         
@@ -1950,7 +1858,7 @@ class ModelSet(BlobFactory):
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., add_patch=True,
         skip=0, skim=1, stop=None,
-        boundary_type='convex', alpha=0.3, return_polygon=False, **kwargs):
+        boundary_type='convex', alpha=0.3, return_polygon=False, **kwargs): # pragma: no cover
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
@@ -3112,9 +3020,10 @@ class ModelSet(BlobFactory):
             
         return ax, cb
 
-    def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
-        cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
-        labels=None, **kwargs):
+    def ContourScatter(self, x, y, c, z=None, ax=None, fig=1, Nscat=1e4, 
+        take_log=False, cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, 
+        color_by_like=False, like=[0.95, 0.68], zbins=None, labels=None, 
+        **kwargs):
         """
         Show contour plot in 2-D plane, and add colored points for third axis.
         
@@ -3193,7 +3102,8 @@ class ModelSet(BlobFactory):
 
         z.pop(-1)
         ax = self.PosteriorPDF(pars, z=z, take_log=take_log, fill=False, 
-            bins=bins, **kwargs)
+            bins=bins, ax=ax, fig=fig, color_by_like=color_by_like, like=like,
+            **kwargs)
 
         # Pick out Nscat random points to plot
         mask = np.zeros_like(xax, dtype=bool)
@@ -3238,55 +3148,6 @@ class ModelSet(BlobFactory):
         pl.draw()
         
         return ax, scat, cb
-        
-    def ExtractPanel(self, panel, mp, ax=None, fig=99):
-        """
-        Save panel of a triangle plot as separate file.
-        
-        panel : int, str
-            Integer or letter corresponding to plot panel you want.
-        mp : MultiPlot instance
-            Object representation of the triangle plot
-        fig : int
-            Figure number.
-        
-        """    
-        
-        letters = list(string.ascii_lowercase)
-        letters.extend([let*2 for let in list(string.ascii_lowercase)])
-        
-        
-        if isinstance(panel, basestring):
-            panel = letters.index(panel)
-        
-        info = self.plot_info[panel]
-        kw = self.plot_info['kwargs']
-        
-        ax = self.PosteriorPDF(info['axes'], z=info['z'], bins=info['bins'],
-            multiplier=info['multiplier'], take_log=info['take_log'],
-            fig=fig, ax=ax, **kw)
-        
-        ax.set_xticks(mp.grid[panel].get_xticks())
-        ax.set_yticks(mp.grid[panel].get_yticks())
-        
-        xt = []
-        for i, x in enumerate(mp.grid[panel].get_xticklabels()):
-            xt.append(x.get_text())
-        
-        ax.set_xticklabels(xt, rotation=45.)
-        
-        yt = []
-        for i, x in enumerate(mp.grid[panel].get_yticklabels()):
-            yt.append(x.get_text())
-            
-        ax.set_yticklabels(yt, rotation=rotate_y)
-        
-        ax.set_xlim(mp.grid[panel].get_xlim())
-        ax.set_ylim(mp.grid[panel].get_ylim())
-        
-        pl.draw()
-        
-        return ax
                 
     def TrianglePlot(self, pars=None, ivar=None, take_log=False, un_log=False, 
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
@@ -4795,6 +4656,8 @@ class ModelSet(BlobFactory):
 
             # Loop over parameters and save to disk
             for par in pars:   
+                if par in self.parameters:
+                    continue
                 
                 # Tag ivars on as attribute if blob
                 if 'blobs' not in f:

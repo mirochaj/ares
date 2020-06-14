@@ -130,9 +130,7 @@ def test():
             # This should would if ztol >= 0.1, so we want this to crash
             # visibly if there's a failure internally.
             fitter_lf.data = 'bouwens2015'
-            
-        print('#### hey', ztol)
-            
+                        
         fitz_s = 'z_'
         for red in np.sort(fit_z):
             fitz_s += str(int(round(red)))

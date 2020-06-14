@@ -14,7 +14,6 @@ import gc, os
 import numpy as np
 from ..util import read_lit
 from ..util.Pickling import write_pickle_file
-from ..util.PrintInfo import print_fit
 from ..util.ParameterFile import par_info
 from ..util.Stats import symmetrize_errors
 from ..populations import GalaxyCohort, GalaxyEnsemble

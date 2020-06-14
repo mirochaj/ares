@@ -31,7 +31,7 @@ def test():
     #pars.update(updates)
     
     pop = ares.populations.GalaxyPopulation(**pars)
-    
+        
     sfrd = pop.SFRD(zarr) * rhodot_cgs
     
     # Check for reasonable values

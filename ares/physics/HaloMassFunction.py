@@ -632,6 +632,7 @@ class HaloMassFunction(object):
         hist = [self.__getattribute__(key) for key in keys]
         return hist
         
+    @property    
     def info(self):
         if rank == 0:
             print_hmf(self)

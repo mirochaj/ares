@@ -16,6 +16,7 @@ import matplotlib.pyplot as pl
 
 def test():
     sim = ares.simulations.Global21cm()
+    sim.info
     sim.run()
     ax, zax = sim.GlobalSignature(fig=1, ymin=-400)
     
