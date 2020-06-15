@@ -46,7 +46,7 @@ The additional resulting file, ``hgh_Tinker10_user_paul_logM_1400_4-18_t_1971_30
 
 Example
 ~~~~~~~
-With the required lookup tables now at hand, we can start in the usual way:
+With the required lookup tables now in hand, we can start in the usual way:
 
 ::
 
