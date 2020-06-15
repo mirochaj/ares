@@ -2,6 +2,7 @@
 #the start of my ares class
 from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
+from ..util.ParameterFile import get_pq_pars
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -101,9 +102,21 @@ class GalaxyHOD(HaloPopulation):
 
         return StellarMass
 
-    def _SMF_PQ(self):
+    def _SMF_PQ(self, **kwargs):
 
         #could have these as defaults for variables passed?
+
+        Npq = 0
+        Nparam = 0
+        pqs = []
+        for kwarg in kwargs:
+
+            if isinstance(kwargs[kwarg], basestring):
+                if kwargs[kwarg][0:2] == 'pq':
+                    Npq += 1
+                    pqs.append(kwarg)
+            elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
+                Nparam += 1
 
         #From Moster2010, table 7 - eventually user should be able to change these (also do fits so default ones are better)
         logM_0 = 11.88 #(0.01)
@@ -115,12 +128,13 @@ class GalaxyHOD(HaloPopulation):
         beta_0 = 1.06 #(0.06)
         beta_1 = 0.17 #(0.12)
 
-        parsB = {}
-        parsB['pq_func'] = 'linear' # double power-law with evolution in norm
-        parsB['pq_func_var'] = 'z'
-        parsB['pq_func_par0'] = beta_0
-        parsB['pq_func_par1'] = 0
-        parsB['pq_func_par2'] = beta_1
+        # parsB = {}
+        # parsB['pq_func'] = 'linear' # double power-law with evolution in norm
+        # parsB['pq_func_var'] = 'z'
+        # parsB['pq_func_par0'] = beta_0
+        # parsB['pq_func_par1'] = 0
+        # parsB['pq_func_par2'] = beta_1
+        parsB = get_pq_pars(self.pf['pop_smhm_beta'], self.pf)
 
         parsN = {}
         parsN['pq_func'] = 'pl' # double power-law with evolution in norm
@@ -151,16 +165,16 @@ class GalaxyHOD(HaloPopulation):
         return N, M_1, beta, gamma
 
     
-    def StellarMassFunction(self, z, bins, text=True):
+    def StellarMassFunction(self, z, bins, text=True, **kwargs):
         """
-        Stellar Mass Function from a double power law, following Moter2010
+        Stellar Mass Function from a double power law, following Moster2010
         
         Parameters
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
         bins : bool
-            per stellar mass
+            Stellar mass bins. per stellar mass
         
         Returns
         -------

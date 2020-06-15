@@ -91,7 +91,7 @@ def GalaxyPopulation(**kwargs):
         return BlackHoleAggregate(**kwargs)
     elif model in ['toy']:
         return Toy(**kwargs)    
-    elif model in ['HOD']:
+    elif model in ['hod']:
         return GalaxyHOD(**kwargs)
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
