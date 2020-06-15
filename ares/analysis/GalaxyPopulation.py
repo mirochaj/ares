@@ -807,7 +807,7 @@ class GalaxyPopulation(object):
         wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
         show_beta_hst=True, show_beta_jwst_W=True, show_beta_jwst_M=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
-        colors='r',
+        colors=['r'],
         return_data=True, data=None, augment_filters=True, **kwargs):
         """
         Plot Beta(z) at fixed MUV and (optionally) Mstell.
@@ -884,7 +884,7 @@ class GalaxyPopulation(object):
                         lab = None
                         
                     axB2.errorbar(z, y, yerr=yerr, fmt=markers[i], 
-                        color='k', alpha=1., facecolors='none')
+                        color=colors[-1::-1][i], alpha=1.)
                         
                     #if z == 4:
                     #    axB2.annotate(lab, (0.95, 0.95-0.05*i), ha='right', va='top',
@@ -892,7 +892,7 @@ class GalaxyPopulation(object):
                                 
                 axD2.errorbar(z, f12.data['slope_wrt_mass'][z]['slope'],
                     yerr=f12.data['slope_wrt_mass'][z]['err'],
-                    color='k', fmt='o', alpha=1., facecolors='none')
+                    color='k', fmt='o', alpha=1.)
             
         ##
         # Continue with model predictions
@@ -1107,11 +1107,10 @@ class GalaxyPopulation(object):
             for l, mag in enumerate(MUV):
                 _beta = B195_spec[:,l]
                 ok = _beta > -99999
-                                                
+                
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=1,
                     color=colors[l], ls=':', label='c94' if l==0 else None)
                 axD.plot(zarr[ok==1], -dBdM195_spec[ok==1,l], lw=1, 
-                    label=r'$M_{\mathrm{UV}}=%.1f$' % mag, 
                     color=colors[l], ls=':')
                 
         if show_beta_hst:
@@ -1148,11 +1147,11 @@ class GalaxyPopulation(object):
         ##
         if include_Mstell:
             _ls = '-', '--', ':', '-.'
-            for _j, logM in enumerate([7.5, 8.5, 9.5]):
+            for _j, logM in enumerate([9.5, 8.5, 7.5]):
                 j = np.argmin(np.abs(Ms_b - logM))
-                axB2.plot(zarr, BMstell[:,j], ls=_ls[_j], color='k',
+                axB2.plot(zarr, BMstell[:,j], ls=':', color=colors[_j],
                     label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)    
-                axD2.plot(zarr, dBMstell[:,j], ls=_ls[_j], color='k',
+                axD2.plot(zarr, dBMstell[:,j], ls=':', color=colors[_j],
                     label=r'$M_{\ast} = 10^{%i} \ M_{\odot}$' % logM)
             
         
@@ -1161,10 +1160,10 @@ class GalaxyPopulation(object):
         ##
         axD.set_yticks(np.arange(0.0, 0.6, 0.2))
         axD.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True)
-        axD.legend(loc='upper right', frameon=True, fontsize=8,
-            handlelength=2, ncol=1)
+        #axD.legend(loc='upper right', frameon=True, fontsize=8,
+        #    handlelength=2, ncol=1)
         axD.set_xlim(3.5, zarr.max()+0.5)
-        axD.set_ylim(0., 0.5)
+        axD.set_ylim(-0.05, 0.5)
         axD.yaxis.set_ticks_position('both')
         
         axB.set_xlim(3.5, zarr.max()+0.5)
@@ -1188,7 +1187,7 @@ class GalaxyPopulation(object):
             axD2.set_xlim(3.5, zarr.max()+0.5)
             axD2.set_yticks(np.arange(0.0, 0.6, 0.2))
             axD2.set_yticks(np.arange(0.0, 0.6, 0.1), minor=True) 
-            axD2.set_ylim(0., 0.5)
+            axD2.set_ylim(-0.05, 0.5)
             axD2.legend(loc='upper right', frameon=True, fontsize=8,
                 handlelength=2, ncol=1)
                 
@@ -1572,9 +1571,9 @@ class GalaxyPopulation(object):
     
             #for _ax in axes:
             ax.scatter(_color1[is_highz==1], _color2[is_highz==1], color='b',
-                facecolors='b', edgecolors='none', alpha=0.01)
+                facecolor='b', edgecolors='none', alpha=0.01)
             ax.scatter(_color1[is_highz==0], _color2[is_highz==0], color='r',
-                facecolors='r', edgecolors='none', alpha=0.01)    
+                facecolor='r', edgecolors='none', alpha=0.01)    
                 
             ax.set_xlim(-0.5, 3.5)
             ax.set_ylim(-0.5, 2)

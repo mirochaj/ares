@@ -22,6 +22,8 @@ Source Populations
 * :doc:`uth_pop_halo`
 * :doc:`uth_pop_sfrd` 
 * :doc:`uth_pop_radiation` 
+* :doc:`example_pop_sps`
+
 .. * :doc:`uth_pop_sam` 
 .. * :doc:`uth_pop_new`
 

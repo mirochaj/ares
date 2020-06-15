@@ -118,7 +118,7 @@ class Population(object):
         
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
-        pass    
+        pass
     
     @property
     def info(self):

@@ -1311,7 +1311,6 @@ class ModelSet(BlobFactory):
         ibest = np.argsort(self.logL)[-1::-1]
         best = []
         for i in range(use_top):
-            print('hi', i, ibest[i])
             walker, step = self.index_to_walker_step(ibest[i])
             best.append((walker, step))
       
@@ -1330,7 +1329,6 @@ class ModelSet(BlobFactory):
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
                 
                 for j, (walk, step) in enumerate(best):
-                    print('hey', walk, step, offset+step-1)
                     mp.grid[i].scatter(offset+step-1, self.chain[ibest[j],k], 
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
                         s=150, color='k', lw=1)
@@ -1389,9 +1387,7 @@ class ModelSet(BlobFactory):
             
                 if broken:
                     break
-                    
-            print('hey', i*sf, mi, steps_per_walker % self.save_freq, loc)
-                  
+                                      
         step = i * sf + (loc - mi)
                                                                 
         return num, step

@@ -100,7 +100,7 @@ To verify that this has worked, let's again plot the SFE, now as a function of r
    :align:   center
    :width:   600
 
-   A model with an :math:`M_h`-dependent :doc:`f_{\ast}` (dashed) and a model in which :doc:`f_{\ast}` depends on both :math:`M_h` and :math:`z` (solid).
+   A model with an :math:`M_h`-dependent :math:`f_{\ast}` (dashed) and a model in which :math:`f_{\ast}` depends on both :math:`M_h` and :math:`z` (solid).
     
 .. note:: The only method of ParameterizedQuantity objects ever called is the 
     ``__call__`` method, which accepts ``**kwargs``. As a result, we must 

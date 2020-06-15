@@ -2,7 +2,7 @@
 
 More General Star Formation Histories and Spectral Synthesis
 ============================================================
-By default, *ARES* does not perform spectral synthesis. For example, in :doc:`example_pop_galaxy`, the luminosity of galaxies is determined using a fixed conversion factor between :math:`1600\AA` luminosity and star formation rate (SFR). The proper way to do this is to sum the luminosity from stars of all ages. In practice, the constant conversion factor works well for rest UV studies, since the rest UV depends largely on massive, short-lived stars. However, for non-trivial star formation histories (SFHs), or predictions at longer wavelengths, performing spectral synthesis in details is a must.
+By default, *ARES* does not perform spectral synthesis. For example, in :doc:`example_pop_galaxy`, the luminosity of galaxies is determined using a fixed conversion factor between :math:`1600\unicode{x212B}` luminosity and star formation rate (SFR). The proper way to do this is to sum the luminosity from stars of all ages. In practice, the constant conversion factor works well for rest UV studies, since the rest UV depends largely on massive, short-lived stars. However, for non-trivial star formation histories (SFHs), or predictions at longer wavelengths, performing spectral synthesis in details is a must.
 
 To enable a more general treatment of galaxy growth histories, including the proper synthesis of their spectra, we must use the ``GalaxyEnsemble`` object, which supercedes the ``GalaxyCohort`` object. We describe this object in more detail below.
 
