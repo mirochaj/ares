@@ -86,16 +86,6 @@ class Global21cm(AnalyzeGlobal21cm):
         print_sim(self)
     
     @property
-    def rank(self):
-        try:
-            from mpi4py import MPI
-            rank = MPI.COMM_WORLD.rank
-        except ImportError:
-            rank = 0
-        
-        return rank
-
-    @property
     def pf(self):
         if not hasattr(self, '_pf'):
             self._pf = ParameterFile(**self.kwargs)

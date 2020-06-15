@@ -1311,6 +1311,7 @@ class ModelSet(BlobFactory):
         ibest = np.argsort(self.logL)[-1::-1]
         best = []
         for i in range(use_top):
+            print('hi', i, ibest[i])
             walker, step = self.index_to_walker_step(ibest[i])
             best.append((walker, step))
       
@@ -1329,6 +1330,7 @@ class ModelSet(BlobFactory):
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
                 
                 for j, (walk, step) in enumerate(best):
+                    print('hey', walk, step, offset+step-1)
                     mp.grid[i].scatter(offset+step-1, self.chain[ibest[j],k], 
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+', 
                         s=150, color='k', lw=1)
@@ -1366,7 +1368,29 @@ class ModelSet(BlobFactory):
                     break
             
             if broken:
-                break        
+                break
+        
+        # Must do correction if last chunk different size, e.g., if
+        # steps_per_walker % save_freq != 0
+        if not broken:
+            # Go again, with modified 'schunk'
+            schunk_last = self.chain.shape[0] % schunk
+            sf_last = schunk_last // nw
+            for num in range(self.nwalkers):
+                
+                mi = self.chain.shape[0] - schunk_last \
+                   + num * sf_last
+                ma = self.chain.shape[0] - schunk_last \
+                   + (num + 1) * sf_last
+            
+                if mi <= loc <= ma:
+                    broken = True
+                    break
+            
+                if broken:
+                    break
+                    
+            print('hey', i*sf, mi, steps_per_walker % self.save_freq, loc)
                   
         step = i * sf + (loc - mi)
                                                                 

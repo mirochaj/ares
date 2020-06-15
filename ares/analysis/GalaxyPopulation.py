@@ -807,6 +807,7 @@ class GalaxyPopulation(object):
         wave_lo=None, wave_hi=None, show_beta_spec=True, dlam=1,
         show_beta_hst=True, show_beta_jwst_W=True, show_beta_jwst_M=True, 
         magmethod='gmean', include_Mstell=True, MUV=[-19.5], ls='-', 
+        colors='r',
         return_data=True, data=None, augment_filters=True, **kwargs):
         """
         Plot Beta(z) at fixed MUV and (optionally) Mstell.
@@ -868,7 +869,6 @@ class GalaxyPopulation(object):
         # Plot data: use same color-conventions as F12 for Mstell-beta stuff.
         ##
         if include_Mstell:
-            colors = 'r', 'r', 'r'
             markers = 'v', 's', '^'
             Mstell = np.array([7.5, 8.5, 9.5])
             for z in [4,5,6,7,8]:
@@ -884,7 +884,7 @@ class GalaxyPopulation(object):
                         lab = None
                         
                     axB2.errorbar(z, y, yerr=yerr, fmt=markers[i], 
-                        color=colors[i], alpha=1.)
+                        color='k', alpha=1., facecolors='none')
                         
                     #if z == 4:
                     #    axB2.annotate(lab, (0.95, 0.95-0.05*i), ha='right', va='top',
@@ -892,7 +892,7 @@ class GalaxyPopulation(object):
                                 
                 axD2.errorbar(z, f12.data['slope_wrt_mass'][z]['slope'],
                     yerr=f12.data['slope_wrt_mass'][z]['err'],
-                    color='r', fmt='o', alpha=1.)
+                    color='k', fmt='o', alpha=1., facecolors='none')
             
         ##
         # Continue with model predictions
@@ -912,7 +912,6 @@ class GalaxyPopulation(object):
         # Loop over models and reconstruct best-fitting Beta(z).
         ##
         Ms_b = np.arange(6.5, 11., 0.5)
-        colors = 'k', 'k', 'k', 'k'
 
         if len(MUV) != len(ls):
             ls = ['-'] * len(MUV)
@@ -922,7 +921,6 @@ class GalaxyPopulation(object):
         # saved at one redshift :( Will be crude for others. Could re-generate
         # samples later (parallelize, on cluster).
         ##
-        _colors = {4: 'k', 5: 'r', 6: 'b', 7: 'y', 8: 'c', 9: 'g', 10: 'm'}
         mkw = {'capthick': 1, 'elinewidth': 1, 'alpha': 1.0, 'capsize': 1}    
             
         pb = ProgressBar(zarr.size, name='beta(z)')
@@ -1111,20 +1109,19 @@ class GalaxyPopulation(object):
                 ok = _beta > -99999
                                                 
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=1,
-                    label=r'$M_{\mathrm{UV}}=%.1f$' % mag,
-                    color='k', ls=ls[l])
+                    color=colors[l], ls=':', label='c94' if l==0 else None)
                 axD.plot(zarr[ok==1], -dBdM195_spec[ok==1,l], lw=1, 
                     label=r'$M_{\mathrm{UV}}=%.1f$' % mag, 
-                    color='k', ls=ls[l])
+                    color=colors[l], ls=':')
                 
         if show_beta_hst:
             for l, mag in enumerate(MUV):
                 _beta = B195_hst[:,l]
                 ok = _beta > -99999
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2, 
-                    color='b', ls=ls[l])
+                    color=colors[l], ls='-', label='hst' if l==0 else None)
                 axD.plot(zarr[ok==1], -dBdM195_hst[ok==1,l], lw=2, 
-                    color='b', ls=ls[l])
+                    color=colors[l], ls='-')
             
         if show_beta_jwst_W:
             for l, mag in enumerate(MUV):
@@ -1132,9 +1129,9 @@ class GalaxyPopulation(object):
                 ok = _beta > -99999
                 #ok = np.logical_and(_beta > -99999, zarr <= 9.)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2,
-                    color='m', ls=ls[l])
+                    color=colors[l], ls='-.', label='jwst-W' if l==0 else None)
                 axD.plot(zarr[ok==1], -dBdM195_jwst[ok==1,l], lw=2,
-                    color='m', ls=ls[l])
+                    color=colors[l], ls='-.')
                         
         if show_beta_jwst_M:
             for l, mag in enumerate(MUV):
@@ -1142,9 +1139,9 @@ class GalaxyPopulation(object):
                 ok = _beta > -99999
                 ok = np.logical_and(ok, zarr >= 6)
                 axB.plot(zarr[ok==1], _beta[ok==1], lw=2, 
-                    color='c', ls=ls[l])
+                    color=colors[l], ls='--', label='jwst-M' if l==0 else None)
                 axD.plot(zarr[ok==1], -dBdM195_M[ok==1,l], lw=2,
-                    color='c', ls=ls[l])
+                    color=colors[l], ls='--')
         
         ##
         # Plot Mstell stuff
