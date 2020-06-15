@@ -701,27 +701,7 @@ class ParameterBundle(dict):
     def link_sfrd_to(self, num):
         self['pop_sfr_model{{{}}}'.format(self.num)] = \
             'link:sfrd:{}'.format(num)
-
-    @property    
-    def info(self):
-        """ Print out info about this bundle. """
-
-        header('Bundle Info')
-        for key in self.kwargs.keys():
-            if key == self.bundle:
-                found = True
-                print(line('*{!s}*'.format(self.base)))
-            else:
-                found = False
-                print(line(key))
-            
-        if not found:
-            print(line('*{!s}*'.format(self.base)))
-        
-        separator()
-        print(line('Run \'reinitialize\' with one of the above as argument to change.'))
-        footer()
-    
+                
     @property    
     def orphans(self):
         """

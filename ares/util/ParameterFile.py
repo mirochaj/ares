@@ -13,7 +13,6 @@ Description:
 import re
 from .ProblemTypes import ProblemType
 from .BackwardCompatibility import backward_compatibility
-from .CheckForParameterConflicts import CheckForParameterConflicts
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
 try:
@@ -50,24 +49,6 @@ def bracketify(**kwargs):
         kw['{0!s}{{{1}}}'.format(prefix, int(m.group(1)))] = kwargs[par]
     
     return kw
-    
-def check_for_brackets(pf):
-    has_brackets = False
-    for par in pf:
-        # Spare us from using re.search if we can. 
-        if not (par.startswith('pop') or par.startswith('pq') or par.startswith('source')):
-            continue
-        
-        # Look for integers within curly braces
-        m = re.search(r"\{([0-9])\}", par)
-        
-        if m is None:
-            continue
-            
-        has_brackets = True
-        break 
-        
-    return has_brackets    
 
 def check_for_brackets(pf):
     has_brackets = False
@@ -567,11 +548,7 @@ class ParameterFile(dict):
                 else:
                     self[key] = poppf[key]
                     
-        # Distribute 'master' parameters.
-                    
-                    
-                    
-                    
+        # Distribute 'master' parameters.  
 
     def update_pq_pars(self, pfs_by_pop, **kwargs):
         # In a given population, there may be 1+ parameterized halo
@@ -620,29 +597,6 @@ class ParameterFile(dict):
                             self._not_default[key] = self[key]
                 
         return self._not_default
-
-    @property    
-    def orphans(self):
-        """
-        Return dictionary of parameters that aren't associated with a population.
-        """
-        
-        if not hasattr(self, '_orphans'):
-        
-            if self.Npops == 1:
-                self._orphans = {}
-            else:
-                self._orphans = {}
-                for par in self._kwargs:
-                    if par[0:3] != 'pop':
-                        continue
-                        
-                    prefix, idnum = pop_id_num(par)
-                    
-                    if idnum is None:
-                        self._orphans[par] = self._kwargs[par]
-                
-        return self._orphans
     
     def _check_for_conflicts(self, **kwargs):
         """
@@ -672,9 +626,5 @@ class ParameterFile(dict):
             if verbose:
                 print('WARNING: Unrecognized parameter: {!s}'.format(par))
     
-        #conflicts = CheckForParameterConflicts(kwargs)
-    
-        #if conflicts:
-        #    raise Exception('Conflict(s) in input parameters.')
-    
+
     

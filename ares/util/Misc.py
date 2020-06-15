@@ -10,22 +10,8 @@ Description:
 
 """
 
-import sys
-import re, os
+import os
 import numpy as np
-import matplotlib.pyplot as pl
-from scipy.integrate import cumtrapz
-from ..physics.Constants import sigma_T
-from .SetDefaultParameterValues import SetAllDefaults
-from .CheckForParameterConflicts import CheckForParameterConflicts
-
-if sys.version_info[0] >= 3:
-    if sys.version_info[1] > 3:
-        from collections.abc import Iterable
-    else:
-        from collections import Iterable
-else:
-    from collections import Iterable
 
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -33,16 +19,6 @@ try:
 except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
-
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
-
-logbx = lambda b, x: np.log10(x) / np.log10(b)
 
 def get_cmd_line_kwargs(argv):
     
@@ -93,41 +69,6 @@ def get_rev():
         return 'unknown'
         
     return pipe.stdout.read().strip()
-    
-def sort(pf, prefix='spectrum', make_list=True, make_array=False):
-    """
-    Turn any item that starts with prefix_ into a list, if it isn't already.
-    Hack off the prefix when we're done.
-    """            
-
-    result = {}
-    for par in pf.keys():
-        if par[0:len(prefix)] != prefix:
-            continue
-
-        new_name = par.partition('_')[-1]
-        if (isinstance(pf[par], Iterable) and not isinstance(pf[par], basestring)) \
-            or (not make_list):
-            result[new_name] = pf[par]
-        elif make_list:
-            result[new_name] = [pf[par]]
-
-    # Make sure all elements are the same length?      
-    if make_list or make_array:  
-        lmax = 1
-        for par in result:
-            lmax = max(lmax, len(result[par]))
-
-        for par in result:
-            if len(result[par]) == lmax:
-                continue
-
-            result[par] = lmax * [result[par][0]]
-
-            if make_array:
-                result[par] = np.array(result[par])
-
-    return result
 
 def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
     """

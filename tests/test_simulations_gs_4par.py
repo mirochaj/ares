@@ -16,9 +16,14 @@ import matplotlib.pyplot as pl
 
 def test():
     sim = ares.simulations.Global21cm()
+    
     sim.info
+    pf = sim.pf
+    sim.pf._check_for_conflicts()
+    assert sim.pf.Npops == 3
+    
     sim.run()
-    ax, zax = sim.GlobalSignature(fig=1, ymin=-400)
+    ax, zax = sim.GlobalSignature(fig=0, ymin=-400)
     
     sim.AdiabaticFloor(ax, color='k', ls=':')
     sim.AdiabaticFloor(ax)
@@ -27,6 +32,8 @@ def test():
     
     inset_tau = sim.add_tau_inset(ax)
     inset_Ts = sim.add_Ts_inset(ax)
+    
+    ax1b, zax1b = sim.GlobalSignature(fig=1, ymin=-400, time_ax=True)
     
     #
     # Make sure it's not a null signal.
@@ -71,11 +78,11 @@ def test():
     sim.save('test_gs_4par', 'pkl', clobber=True)
     sim.save('test_gs_4par', 'txt', clobber=True)
     
-    for i in range(1, 6):
+    for i in range(0, 6):
         pl.figure(i)
         pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))     
     
-    pl.close('all')
+    #pl.close('all')
     
 if __name__ == '__main__':
     test()

@@ -13,7 +13,6 @@ Description:
 import numpy as np
 from math import ceil
 import os, re, types, gc
-from ..util.Misc import logbx
 from ..util import ParameterFile
 from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
