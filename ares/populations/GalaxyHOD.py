@@ -106,17 +106,17 @@ class GalaxyHOD(HaloPopulation):
 
         #could have these as defaults for variables passed?
 
-        Npq = 0
-        Nparam = 0
-        pqs = []
-        for kwarg in kwargs:
+        # Npq = 0
+        # Nparam = 0
+        # pqs = []
+        # for kwarg in kwargs:
 
-            if isinstance(kwargs[kwarg], basestring):
-                if kwargs[kwarg][0:2] == 'pq':
-                    Npq += 1
-                    pqs.append(kwarg)
-            elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
-                Nparam += 1
+        #     if isinstance(kwargs[kwarg], basestring):
+        #         if kwargs[kwarg][0:2] == 'pq':
+        #             Npq += 1
+        #             pqs.append(kwarg)
+        #     elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
+        #         Nparam += 1
 
         #From Moster2010, table 7 - eventually user should be able to change these (also do fits so default ones are better)
         logM_0 = 11.88 #(0.01)
@@ -128,34 +128,14 @@ class GalaxyHOD(HaloPopulation):
         beta_0 = 1.06 #(0.06)
         beta_1 = 0.17 #(0.12)
 
-        # parsB = {}
-        # parsB['pq_func'] = 'linear' # double power-law with evolution in norm
-        # parsB['pq_func_var'] = 'z'
-        # parsB['pq_func_par0'] = beta_0
-        # parsB['pq_func_par1'] = 0
-        # parsB['pq_func_par2'] = beta_1
+
         parsB = get_pq_pars(self.pf['pop_smhm_beta'], self.pf)
 
-        parsN = {}
-        parsN['pq_func'] = 'pl' # double power-law with evolution in norm
-        parsN['pq_func_var'] = '1+z'
-        parsN['pq_func_par0'] = N_0
-        parsN['pq_func_par1'] = 1.0
-        parsN['pq_func_par2'] = nu
+        parsN = get_pq_pars(self.pf['pop_smhm_n'], self.pf)
 
-        parsG = {}
-        parsG['pq_func'] = 'pl' # double power-law with evolution in norm
-        parsG['pq_func_var'] = '1+z'
-        parsG['pq_func_par0'] = gamma_0
-        parsG['pq_func_par1'] = 1.0
-        parsG['pq_func_par2'] = gamma_1
+        parsG = get_pq_pars(self.pf['pop_smhm_gamma'], self.pf)
 
-        parsM = {}
-        parsM['pq_func'] = 'pl_10' # double power-law with evolution in norm
-        parsM['pq_func_var'] = '1+z'
-        parsM['pq_func_par0'] = logM_0
-        parsM['pq_func_par1'] = 1.0
-        parsM['pq_func_par2'] = mu
+        parsM = get_pq_pars(self.pf['pop_smhm_m'], self.pf)
 
         N = ParameterizedQuantity(**parsN) #N_0 * (z + 1)**nu #PL
         M_1 = ParameterizedQuantity(**parsM) #10**(logM_0*(z+1)**mu)
