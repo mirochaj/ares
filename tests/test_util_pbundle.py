@@ -6,9 +6,9 @@ def test():
 
     orph = pars.orphans
     bkw  = pars.get_base_kwargs()
-
+    
     assert pars.pqids == [0]
-    assert pars.pqs == ['pq_func[0]{0}']
+    assert pars.pqs == ['pop_fstar{0}']
     
     sfe_pars = pars.pars_by_pq(0)
         

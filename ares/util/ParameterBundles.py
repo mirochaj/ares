@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 import numpy as np
 from ares import rcParams
 from .ReadData import read_lit
@@ -763,9 +764,17 @@ class ParameterBundle(dict):
             for par in self:                
                 if self[par] == 'pq':
                     pqid = 'None'
+                    popid = None    
+                elif type(self[par]) == str:
+                    if self[par].startswith('pq['):
+                        prefix, popid, pqid = par_info(par)
+                        _pqid = re.search(r"\[(\d+(\.\d*)?)\]", self[par])
+                        pqid = int(_pqid.group(1))
+                    else:
+                        continue
                 else:
-                    prefix, popid, pqid = par_info(par)
-                
+                    continue    
+                                                    
                 if pqid is None:
                     continue
 
