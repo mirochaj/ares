@@ -1161,28 +1161,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_M[z]
         
-    def Beta(self, z, wave=1600., dlam=10):
-        """
-        UV slope.
-        """
-        
-
-        ok = np.logical_and(wave-dlam <= self.src.wavelengths, 
-                            self.src.wavelengths <= wave+dlam)
-
-        arr = self.src.wavelengths[ok==1]
-                
-        Lh = np.array([self.Lh(z, w) for w in arr])
-        
-        Llam = Lh / self.src.dwdn[ok==1][:,None]
-        
-        logw = np.log(arr)
-        logL = np.log(Llam)
-                
-        beta = (logL[0,:] - logL[-1,:]) / (logw[0] - logw[-1])
-
-        return beta
-
     def MUV(self, z, Mh, wave=1600.):
         Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z, wave=wave))
         MAB = self.magsys.L_to_MAB(Lh, z=z)
