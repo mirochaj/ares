@@ -1,4 +1,5 @@
 
+#From Moster2010, table 7
 logM_0 = 11.88 #(0.01)
 mu = 0.019 #(0.002)
 N_0 = 0.0282 #(0.0003)
@@ -13,6 +14,17 @@ model1 = \
 {
 	'pop_sfr_model':'hod',
 
+	#for LF
+	# 'pop_lf': 3e-4,
+	'pop_lf': 'pq[4]',
+	'pq_func[4]': 'linear',
+	'pq_func_var[4]': 'z',
+	'pq_func_par0[4]': 3e-4,
+	'pq_func_par1[4]': 0,
+	'pq_func_par2[4]': 0, 
+
+
+	#for SMF
 	#beta
 	'pop_smhm_beta': 'pq[0]',
 	'pq_func[0]': 'linear',

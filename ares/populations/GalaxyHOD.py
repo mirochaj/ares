@@ -40,22 +40,16 @@ class GalaxyHOD(HaloPopulation):
         hmf = self.halos.tab_dndm
         haloMass = self.halos.tab_M
 
-        #might be overkill here
-        # pars = {}
-        # pars['pq_func'] = 'linear' # double power-law with evolution in norm
-        # pars['pq_func_var'] = 'z'
-        # pars['pq_func_par0'] = 3e-4
-        # pars['pq_func_par1'] = 0
-        # pars['pq_func_par2'] = 0
-
-        # c = ParameterizedQuantity(**pars) #really just a constant
+        #default is really just a constant
+        pars = get_pq_pars(self.pf['pop_lf'], self.pf)
+        c = ParameterizedQuantity(**pars) #N_0 * (z + 1)**nu #PL
 
         #LF loglinear models
-        c = 3e-4
+        # c = 3e-4
         k = np.argmin(np.abs(z - self.halos.tab_z))
         
         LF = (np.log(10)*haloMass)/2.5 * hmf[k, :]
-        MUV = -2.5*np.log10(c*haloMass)
+        MUV = -2.5*np.log10(c(z=z)*haloMass)
 
         #check if requested magnitudes are in MUV, else interpolate LF function
         result =  all(elem in MUV for elem in mags)
@@ -104,30 +98,7 @@ class GalaxyHOD(HaloPopulation):
 
     def _SMF_PQ(self, **kwargs):
 
-        #could have these as defaults for variables passed?
-
-        # Npq = 0
-        # Nparam = 0
-        # pqs = []
-        # for kwarg in kwargs:
-
-        #     if isinstance(kwargs[kwarg], basestring):
-        #         if kwargs[kwarg][0:2] == 'pq':
-        #             Npq += 1
-        #             pqs.append(kwarg)
-        #     elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
-        #         Nparam += 1
-
-        #From Moster2010, table 7 - eventually user should be able to change these (also do fits so default ones are better)
-        logM_0 = 11.88 #(0.01)
-        mu = 0.019 #(0.002)
-        N_0 = 0.0282 #(0.0003)
-        nu = -0.72 #(0.06)
-        gamma_0 = 0.556 #0.001
-        gamma_1 = -0.26 #(0.05)
-        beta_0 = 1.06 #(0.06)
-        beta_1 = 0.17 #(0.12)
-
+        #could have these as defaults can be found in emma.py
 
         parsB = get_pq_pars(self.pf['pop_smhm_beta'], self.pf)
 
