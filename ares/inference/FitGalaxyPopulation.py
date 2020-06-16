@@ -447,7 +447,7 @@ class FitGalaxyPopulation(FitBase):
                     zlit.extend(list(element.keys()))
                     
                 zlit = np.array(zlit).ravel()
-                zreq = self._redshifts[quantity]
+                zreq = np.array(self._redshifts[quantity]).squeeze()
                                 
                 # Problems straight away if we don't have enough redshifts
                 if len(zlit) != len(zreq):
