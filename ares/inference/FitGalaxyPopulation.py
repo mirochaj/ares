@@ -17,7 +17,7 @@ from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_fit
 from ..util.ParameterFile import par_info
 from ..util.Stats import symmetrize_errors
-from ..populations import GalaxyCohort, GalaxyEnsemble
+from ..populations import GalaxyCohort, GalaxyEnsemble, GalaxyHOD
 from .ModelFit import LogLikelihood, FitBase, def_kwargs
 
 try:
@@ -122,7 +122,7 @@ class loglikelihood(LogLikelihood):
         # Figure out if `sim` is a population object or not.
         # OK if it's a simulation, will loop over LF-bearing populations.        
         if not (isinstance(sim, GalaxyCohort.GalaxyCohort) \
-            or isinstance(sim, GalaxyEnsemble.GalaxyEnsemble)):
+            or isinstance(sim, GalaxyEnsemble.GalaxyEnsemble) or isinstance(sim, GalaxyHOD.GalaxyHOD) ):
             pops = []
             for pop in sim.pops:
                 if not hasattr(pop, 'LuminosityFunction'):
@@ -438,7 +438,7 @@ class FitGalaxyPopulation(FitBase):
                     self._data[quantity].append(srcdata)
                     
                     if not z_by_hand:
-                        self._redshifts[quantity].append(srczarr)
+                        self._redshifts[quantity].extend(srczarr)
                         
             # Check to make sure we find requested measurements.
             for quantity in self.include: 
@@ -447,7 +447,7 @@ class FitGalaxyPopulation(FitBase):
                     zlit.extend(list(element.keys()))
                     
                 zlit = np.array(zlit).ravel()
-                zreq = np.array(self._redshifts[quantity]).squeeze()
+                zreq = self._redshifts[quantity]
                                 
                 # Problems straight away if we don't have enough redshifts
                 if len(zlit) != len(zreq):

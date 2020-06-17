@@ -3,6 +3,7 @@
 from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import get_pq_pars
+from ..analysis.BlobFactory import BlobFactory
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -13,13 +14,13 @@ import astropy.units as u
 cosmo = FlatLambdaCDM(H0=70*u.km/u.s/u.Mpc, Om0=0.3)
 
 
-class GalaxyHOD(HaloPopulation):
+class GalaxyHOD(HaloPopulation, BlobFactory):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
         HaloPopulation.__init__(self, **kwargs)
         
-    def LuminosityFunction(self, z, mags, text=True):
+    def LuminosityFunction(self, z, x, text=True, mags=True):
         """
         Reconstructed luminosity function from a simple model of L = c*HaloMadd
         
@@ -27,8 +28,8 @@ class GalaxyHOD(HaloPopulation):
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
-        mags : bool
-            If True, x-values will be in absolute (AB) magnitudes
+        x : bool
+            Magnitude. If True, x-values will be in absolute (AB) magnitudes
         
         Returns
         -------
@@ -36,16 +37,21 @@ class GalaxyHOD(HaloPopulation):
         
         """
 
+        #catch if only one magnitude is passed
+        if type(x) not in [list, np.ndarray]:
+            mags = [x]
+        else:
+            mags = x
+
         #get halo mass function and array of halo masses
         hmf = self.halos.tab_dndm
         haloMass = self.halos.tab_M
 
-        #default is really just a constant
+        #default is really just a constant, c = 3e-4
         pars = get_pq_pars(self.pf['pop_lf'], self.pf)
-        c = ParameterizedQuantity(**pars) #N_0 * (z + 1)**nu #PL
+        c = ParameterizedQuantity(**pars)
 
         #LF loglinear models
-        # c = 3e-4
         k = np.argmin(np.abs(z - self.halos.tab_z))
         
         LF = (np.log(10)*haloMass)/2.5 * hmf[k, :]
@@ -59,8 +65,8 @@ class GalaxyHOD(HaloPopulation):
             findMags = np.array([elem in mags for elem in MUV])
             NumDensity = LF[findMags]
         else:
-            if text:
-                print("Interpolating")
+            # if text:
+            #     print("Interpolating")
             f = interp1d(MUV, LF, kind='cubic')    
 
             NumDensity = f(mags)
@@ -245,6 +251,16 @@ class GalaxyHOD(HaloPopulation):
             print("Warning, age out of well fitting zone of this model.")
 
         error = np.ones(len(Ms)) * 0.2 #[dex] the stated "true" scatter
+
+        # pars1 = get_pq_pars(self.pf['pop_sfr_1'], self.pf)
+        # pars2 = get_pq_pars(self.pf['pop_sfr_2'], self.pf)
+
+        # func1 = ParameterizedQuantity(**pars1)
+        # func2 = ParameterizedQuantity(**pars2)
+
+        # logSFR = func1(t=t)*np.log10(Ms) - func2(t=t) #Equ 28
+
+
         logSFR = (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t) #Equ 28
 
         return logSFR
