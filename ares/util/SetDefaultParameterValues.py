@@ -860,6 +860,17 @@ def PopulationParameters():
     "pop_kwargs": {},
 
     "pop_test_param": None,
+
+
+    #HOD model - should not use defaults here
+    'pop_lf': 3e-4,
+    'pop_smhm_beta': 1.06,
+    'pop_smhm_n': 0.0282,
+    'pop_smhm_gamma': 0.556,
+    'pop_smhm_m': 11.88,
+    'pop_sfr_1': 0.84,
+    'pop_sfr_2': 6.51,
+
     
     # Utility
     "pop_user_par0": None,

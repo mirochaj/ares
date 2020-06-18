@@ -24,7 +24,7 @@ model1 = \
 	'pq_func_par2[4]': 0, 
 
 
-	#for SMF
+	#for SMF - parameter for dpl
 	#beta
 	'pop_smhm_beta': 'pq[0]',
 	'pq_func[0]': 'linear',
@@ -58,21 +58,19 @@ model1 = \
 	'pq_func_par2[3]': mu, 
 
 
-	#SFR
-	# (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t)
+	#SFR - added with log10(_1)
+	'pop_sfr_1': 'pq[5]',
+	'pq_func[5]': 'linear',
+	'pq_func_var[5]': 't',
+	'pq_func_par0[5]': 0.84,
+	'pq_func_par1[5]': 0.,
+	'pq_func_par2[5]': -0.026, 
 
-	# 'pop_sfr_1': 'pq[5]',
-	# 'pq_func[5]': 'linear',
-	# 'pq_func_var[5]': 't',
-	# 'pq_func_par0[5]': 0.84,
-	# 'pq_func_par1[5]': -0.026,
-	# 'pq_func_par2[5]': 0, 
-
-	# 'pop_sfr_2': 'pq[6]',
-	# 'pq_func[6]': 'linear',
-	# 'pq_func_var[6]': 't',
-	# 'pq_func_par0[6]': 6.51,
-	# 'pq_func_par1[6]': -0.11,
-	# 'pq_func_par2[6]': 0, 
+	'pop_sfr_2': 'pq[6]',
+	'pq_func[6]': 'linear',
+	'pq_func_var[6]': 't',
+	'pq_func_par0[6]': 6.51,
+	'pq_func_par1[6]': 0.,
+	'pq_func_par2[6]': -0.11, 
 
 }
