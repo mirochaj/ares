@@ -68,8 +68,11 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             # if text:
             #     print("Interpolating")
             f = interp1d(MUV, LF, kind='cubic')    
-
-            NumDensity = f(mags)
+            try:
+                NumDensity = f(mags)
+            except:
+                print("Error, magnitude(s) out of interpolation bounds")
+                NumDensity = -np.inf * np.ones(len(mags))
 
         return NumDensity
 
@@ -139,6 +142,10 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             Number density of galaxies [cMpc^-3 dex^-1]
         """
 
+        #catch if only one magnitude is passed
+        if type(bins) not in [list, np.ndarray]:
+            bins = [bins]
+
         #get halo mass function and array of halo masses
         hmf = self.halos.tab_dndm
         haloMass = self.halos.tab_M
@@ -159,11 +166,16 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             phi = SMF[findMass]           
         else:
             #interpolate
-            if text:
-                print("Interpolating")
+            # if text:
+            #     print("Interpolating")
             f = interp1d(StellarMass, SMF, kind='cubic')
             #ADD error catch if SM is out of the range
-            phi = f(bins)
+            try:
+                phi = f(bins)
+            except:
+                print("Error, bin(s) out of interpolation bounds")
+                phi = -np.inf * np.ones(len(bins))
+
 
         return phi    
         
@@ -252,16 +264,16 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         error = np.ones(len(Ms)) * 0.2 #[dex] the stated "true" scatter
 
-        # pars1 = get_pq_pars(self.pf['pop_sfr_1'], self.pf)
-        # pars2 = get_pq_pars(self.pf['pop_sfr_2'], self.pf)
+        pars1 = get_pq_pars(self.pf['pop_sfr_1'], self.pf)
+        pars2 = get_pq_pars(self.pf['pop_sfr_2'], self.pf)
 
-        # func1 = ParameterizedQuantity(**pars1)
-        # func2 = ParameterizedQuantity(**pars2)
+        func1 = ParameterizedQuantity(**pars1)
+        func2 = ParameterizedQuantity(**pars2)
 
-        # logSFR = func1(t=t)*np.log10(Ms) - func2(t=t) #Equ 28
+        logSFR = func1(t=t)*np.log10(Ms) - func2(t=t) #Equ 28
 
 
-        logSFR = (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t) #Equ 28
+        # logSFR = (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t) #Equ 28
 
         return logSFR
 
