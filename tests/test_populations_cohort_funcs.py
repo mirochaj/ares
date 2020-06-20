@@ -51,6 +51,10 @@ def test():
         
     assert -15 <= pop.get_MUV_lim(6.) <= 0., "Limiting magnitude unreasonable."
     
+    Mmin = pop.Mmin(10.)
+    
+    assert 1e7 <= Mmin <= 1e9
+    
 if __name__ == '__main__':
     test()
 

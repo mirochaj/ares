@@ -80,6 +80,8 @@ def test():
         priors = anl.priors
         assert np.all(np.array(anl.is_log) == np.array(fitter.is_log))
         
+        logL = anl.logL
+        
         # Be generous
         assert 0.05 <= np.mean(anl.facc) <= 0.95, np.mean(anl.facc)
         

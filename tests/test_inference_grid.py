@@ -57,6 +57,8 @@ def test():
     ax2, cb2 = anl.Contour(anl.parameters, 'tau_e', fig=2)
     ax3, cb3 = anl.Contour(anl.parameters, 'tau_e', fig=3, fill=False)
     
+    slices_xdz = anl.SliceIteratively('tanh_xdz')
+        
     # Clean-up
     mcmc_files = glob.glob('{}/test_grid*'.format(os.environ.get('ARES')))
     

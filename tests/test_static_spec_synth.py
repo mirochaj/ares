@@ -21,6 +21,12 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     toy = ares.sources.SynthesisModelToy(source_dlam=10., source_Emin=1., 
         source_Emax=54.4, source_toysps_beta=-3.5,
         source_ssp=True, source_aging=True)
+        
+    # Just checking    
+    E = toy.energies   
+    dE = toy.dE
+    dndE = toy.dndE 
+    f = toy.frequencies
     
     pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars['pop_sed'] = 'sps-toy'

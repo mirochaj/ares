@@ -29,6 +29,12 @@ def test():
     pars_ares.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_ares['pop_nebular'] = 2
     pop_ares = ares.populations.GalaxyPopulation(**pars_ares)
+    
+    pars_ares2 = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
+    pars_ares2.update(ares.util.ParameterBundle('testing:galaxies'))
+    pars_ares2['pop_nebular'] = 2
+    pars_ares2['pop_nebular_lookup'] = 'ferland1980'
+    pop_ares2 = ares.populations.GalaxyPopulation(**pars_ares)
 
     # Setup source with BPASS-generated (CLOUDY) nebular emission
     pars_sps = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
@@ -58,9 +64,14 @@ def test():
         # wavelengths will be identical)
         y_ares = np.interp(pop_sps.src.wavelengths,
             pop_ares.src.wavelengths, pop_ares.src.data[:,i])
+        y_ares2 = np.interp(pop_sps.src.wavelengths,
+            pop_ares2.src.wavelengths, pop_ares2.src.data[:,i])    
         err = np.abs(y_ares - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
+        err2 = np.abs(y_ares2 - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
         ax_err.semilogx(pop_sps.src.wavelengths, err, color=colors[k],
             label=r'$t = {}$ Myr'.format(t))
+        ax_err.semilogx(pop_sps.src.wavelengths, err2, color=colors[k],
+            label=r'$t = {}$ Myr'.format(t))    
                 
         if t > 1:
             continue
@@ -70,6 +81,8 @@ def test():
             color='k', alpha=1, lw=1, label=r'{} continuum'.format(code))
         ax_spec.loglog(pop_ares.src.wavelengths, pop_ares.src.data[:,i] * pop_ares.src.dwdn, 
             color='b', alpha=0.5, label='{} continuum + ares nebula'.format(code))
+        ax_spec.loglog(pop_ares2.src.wavelengths, pop_ares2.src.data[:,i] * pop_ares.src.dwdn, 
+            color='c', alpha=0.5, label='{} continuum + ares nebula (ferland1980)'.format(code))    
         ax_spec.loglog(pop_sps.src.wavelengths, pop_sps.src.data[:,i] * pop_sps.src.dwdn, 
             color='r', alpha=0.5, label='{} continuum + {} nebula'.format(code, code))
         ax_spec.annotate(r'$t = {}$ Myr'.format(t), (0.05, 0.95),
@@ -83,7 +96,7 @@ def test():
     ax_spec.set_ylabel(r'$L_{\nu} \ [\mathrm{erg} \ \mathrm{s}^{-1} \mathrm{Hz}^{-1}]$')
     ax_err.set_ylabel(r'rel. error')
     ax_err.legend(loc='upper left', fontsize=10)
-    ax_spec.legend(loc='upper right', fontsize=10)
+    ax_spec.legend(loc='lower right', fontsize=10)
 
     if pars_ares['pop_sed'] == 'eldridge2009':
         pl.savefig('ares_v_bpass.png')

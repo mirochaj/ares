@@ -15,7 +15,8 @@ from .SynthesisModel import SynthesisMaster, SynthesisModel
 import scipy.interpolate as sci
 from .Source import Source
 
-class SynthesisModelHybrid(SynthesisMaster):
+# Not in test suite because we only pull-down BPASS to save time.
+class SynthesisModelHybrid(SynthesisMaster): # pragma: no cover
 
     def __init__(self, **kwargs):
         self.pf = kwargs

@@ -833,6 +833,10 @@ class GalaxyPopulation(object):
             else:
                 axB, axD = axes    
                 axB2 = axD2 = None
+            
+            
+        assert len(colors) == len(MUV), \
+            "`MUV` and `colors` must be of same length."
 
         # Plot the Bouwens data
         zbrack = [3.8, 5.0, 5.9, 7.0, 8.0]
