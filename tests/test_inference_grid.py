@@ -47,6 +47,14 @@ def test():
     assert mg.grid.meshgrid(mg.grid.axes_names[0]).size == size
     
     mg.run('test_grid', clobber=True, save_freq=100)
+    
+    ##
+    # Test re-start stuff
+    mg = ares.inference.ModelGrid(**base_pars)
+    mg.axes = {'tanh_xz0': z0, 'tanh_xdz': np.arange(9, 12, 1)}
+    mg.run('test_grid', clobber=False, restart=True, save_freq=100)
+    
+    blank_blob = mg.blank_blob # gets used when models fail (i.e., not now)
         
     anl = ares.analysis.ModelSet('test_grid')
     ax1 = anl.Scatter(anl.parameters, c='tau_e', fig=1)

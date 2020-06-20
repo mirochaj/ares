@@ -90,11 +90,6 @@ class Source(object):
     
     @property
     def is_delta(self):
-        return self.pf['source_sed'] == 'delta'    
-        
-    
-    @property
-    def is_delta(self):
         return self.pf['source_sed'] == 'delta'
         
     def SourceOn(self, t):

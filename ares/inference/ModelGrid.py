@@ -404,7 +404,7 @@ class ModelGrid(ModelFit):
     def is_restart(self, value):
         self._is_restart = value
         
-    def _prep_tricks(self):
+    def _prep_tricks(self): # pragma: no cover
         """
         Super non-general at the moment sorry.
         """
@@ -484,14 +484,14 @@ class ModelGrid(ModelFit):
         self._trick_funcs.update(value)
         
     @property
-    def exit_if_fail_streak(self):
-        if not hasattr(self, '_exit_if_fail_streak'):
-            self._exit_if_fail_streak = False
-        return self._exit_if_fail_streak
+    def _exit_if_fail_streak(self):
+        if not hasattr(self, '_exit_if_fail_streak_'):
+            self._exit_if_fail_streak_ = False
+        return self._exit_if_fail_streak_
         
-    @exit_if_fail_streak.setter
-    def exit_if_fail_streak(self, value):
-        self._exit_if_fail_streak = bool(value)
+    @_exit_if_fail_streak.setter
+    def _exit_if_fail_streak(self, value):
+        self._exit_if_fail_streak_ = bool(value)
             
     def _run_sim(self, kw, p):
         
@@ -906,7 +906,7 @@ class ModelGrid(ModelFit):
             
             # If, after the first checkpoint, we only have 'failed' models,
             # raise an error.
-            if (ct == failct) and self.exit_if_fail_streak:
+            if (ct == failct) and self._exit_if_fail_streak:
                 raise ValueError('Only failed models up to first checkpoint!')
                 
             # This is meant to prevent crashes due to memory fragmentation. 
@@ -1007,26 +1007,6 @@ class ModelGrid(ModelFit):
             self._load = np.array(self._load)    
         
         return self._load
-        
-    @property
-    def will_hit_final_checkpoint(self):
-        if not hasattr(self, '_will_hit_final_checkpoint'):
-            self._will_hit_final_checkpoint = self.load % self.save_freq == 0
-        
-        return self._will_hit_final_checkpoint
-    
-    @property
-    def wont_hit_final_checkpoint(self):
-        if not hasattr(self, '_will_hit_final_checkpoint'):
-            self._wont_hit_final_checkpoint = self.load % self.save_freq != 0
-    
-        return self._wont_hit_final_checkpoint
-    
-    @property
-    def Ncheckpoints(self):
-        if not hasattr(self, '_Ncheckpoints'):
-            self._Ncheckpoints = self.load // self.save_freq
-        return self._Ncheckpoints
         
     @property
     def LB(self):

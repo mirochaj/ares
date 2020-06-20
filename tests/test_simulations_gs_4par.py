@@ -44,6 +44,7 @@ def test():
     
     # Test that the turning points are there, that tau_e is reasonable, etc.
     assert 80 <= sim.z_A <= 90
+    assert 10 <= sim.nu_A <= 20
     assert -50 <= sim.dTb_A <= -40
     
     assert 25 <= sim.z_B <= 35
@@ -66,6 +67,11 @@ def test():
     k = sim.kurtosis
     s = sim.skewness
     
+    slope1 = sim.dTbdz
+    slope2 = sim.dTbdnu
+    curv1 = sim.dTb2dz2
+    curv2 = sim.dTb2dnu2
+        
     ax2 = sim.OpticalDepthHistory(fig=2, show_obs=True, 
         obs_mu=0.055, obs_sigma=0.009)
     ax3 = sim.TemperatureHistory(fig=3)

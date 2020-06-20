@@ -21,18 +21,6 @@ from matplotlib.ticker import ScalarFormatter
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import interp1d, splrep, splev
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
-
-def add_master_legend(ax, **kwargs):
-    """
-    Make a big legend!
-    """
-
-    h, l = ax.get_legend_handles_labels()
-
-    ax.legend(h, l, loc='upper center',
-        bbox_to_anchor=(0.5, 1.3), **kwargs)
-              
-    return ax
     
 class Global21cm(MultiPhaseMedium,BlobFactory):
         
