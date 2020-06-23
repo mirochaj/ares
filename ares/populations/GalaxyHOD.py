@@ -28,7 +28,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
-        x : bool
+        x : float
             Magnitude. If True, x-values will be in absolute (AB) magnitudes
         
         Returns
@@ -71,7 +71,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             try:
                 NumDensity = f(mags)
             except:
-                print("Error, magnitude(s) out of interpolation bounds")
+                # print("Error, magnitude(s) out of interpolation bounds")
                 NumDensity = -np.inf * np.ones(len(mags))
 
         return NumDensity
@@ -133,7 +133,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
-        bins : bool
+        bins : float
             Stellar mass bins. per stellar mass
         
         Returns
@@ -173,7 +173,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             try:
                 phi = f(bins)
             except:
-                print("Error, bin(s) out of interpolation bounds")
+                # print("Error, bin(s) out of interpolation bounds")
                 phi = -np.inf * np.ones(len(bins))
 
 
