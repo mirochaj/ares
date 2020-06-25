@@ -315,6 +315,20 @@ _fgrowth = \
  'pq_func_par4[60]': 0.0,
 }
 
+_kappa_evol = \
+{
+ "pq_func[20]": 'pl_evolS',
+ 'pq_func_var[20]': 'wave',
+ 'pq_func_var2[20]': '1+z',
+ 'pq_func_var_lim[20]': (912., np.inf),
+ 'pq_func_var_fill[20]': 0.0,
+ 'pq_func_par0[20]': 1e5 * (1e3 / 1600.),      # opacity at wavelength below
+ 'pq_func_par1[20]': 1.6e3,
+ 'pq_func_par2[20]': -1.,
+ 'pq_func_par3[20]': 5.,
+ 'pq_func_par4[20]': 0.,
+}
+
 ereg_eduty = univ.copy()
 ereg_eduty.update(_fduty)
 ereg_eduty.update(_fduty_best)
@@ -324,8 +338,13 @@ ereg_egrowth = univ.copy()
 ereg_egrowth.update(_fgrowth)
 ereg_egrowth.update(_evol_ereg_dplrd)
 
+ereg_ekappa = univ.copy()
+ereg_ekappa.update(_kappa_evol)
+ereg_ekappa.update(_evol_ereg_dplrd)
+
 mreg_eduty = ereg_eduty.copy()
 mreg_eduty.update(_evol_mreg_dplrd)
+
 
 _dtmr = \
 {
@@ -373,10 +392,17 @@ _duty_dtmr_best = \
  'pq_func_par0[33]': 0.2157,
 }
 
+ereg = univ.copy()
+ereg['pop_dust_yield'] = 0.05
+ereg.update(_evol_ereg_dplrd)
+
 ereg_edtmr = univ.copy()
 ereg_edtmr.update(_dtmr)
 ereg_edtmr.update(_dtmr_best)
 ereg_edtmr.update(_evol_ereg_dplrd)
+
+ereg_edtmr_ekappa = ereg_edtmr.copy()
+ereg_edtmr_ekappa.update(_kappa_evol)
 
 ereg_eduty_edtmr = ereg_edtmr.copy()
 ereg_eduty_edtmr.update(_fduty)
@@ -384,6 +410,7 @@ ereg_eduty_edtmr.update(_duty_dtmr_best)
 
 mreg_edtmr = ereg_edtmr.copy()
 mreg_edtmr.update(_evol_mreg_dplrd)
+
 
 univ_plRd = univ.copy()
 ereg_epeak_plRd = ereg_epeak.copy()

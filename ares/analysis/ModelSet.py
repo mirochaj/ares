@@ -4489,12 +4489,16 @@ class ModelSet(BlobFactory):
 
         if not hasattr(self, '_custom_labels'):
             self._custom_labels = {}
-            
+
         for key in value:
             #if key not in self.parameters:
             #    print("WARNING: custom_label for par `{}` no in parameters list.".format(key))
-        
+
             self._custom_labels[key] = value[key]
+    
+        # Force us to re-make the labeler if one already exists
+        if hasattr(self, '_labeler'):
+            del self._labeler
     
     @property
     def labeler(self):

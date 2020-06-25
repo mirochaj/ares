@@ -121,6 +121,22 @@ You can bin points in the :math:`M_{\text{UV}}-\beta` plane, if you prefer it, v
 
 Recall that each galaxy in the model actually represents an "average" galaxy in some halo mass bin, i.e., there is not a 1:1 correspondence between galaxies and elements in ``mags`` and ``beta`` above, which is why we generally weight by halo abundance in each bin. The default mass-bins have :math:`\Delta \log_{10} M_h = 0.01` wide, within which ARES inject ``pop_thin_hist`` halos and down-weights their abundance accordingly.
 
+Lastly, to extract the ``raw'' galaxy population properties, like SFR, stellar mass, etc., you can use the ``get_field`` method, e.g.,
+
+::
+
+	Ms = pop.get_field(6., 'Ms') # stellar mass
+	Md = pop.get_field(6., 'Md') # dust mass
+	Sd = pop.get_field(6., 'Sd') # dust surface density
+	# etc.
+	
+To see what's available, check out
+
+::
+
+	pop.histories.keys()
+	
+
 From these simple commands, most plots and analyses from the paper can be reproduced in relatively short order.
 	
 	

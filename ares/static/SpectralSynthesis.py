@@ -1300,16 +1300,16 @@ class SpectralSynthesis(object):
             
             # Redden away!        
             if np.any(hist['Sd'] > 0) and (band is None):
-                                
+
                 assert 'kappa' in extras
-                
-                _kappa = self._cache_kappa(wave)
-                
-                if _kappa is None:
-                    kappa = extras['kappa'](wave=wave, Mh=Mh)
-                    self._cache_kappa_[wave] = kappa
-                else:
-                    kappa = _kappa
+
+                #_kappa = self._cache_kappa(wave)
+
+                #if _kappa is None:
+                kappa = extras['kappa'](wave=wave, Mh=Mh, z=zobs)
+                #self._cache_kappa_[wave] = kappa
+                #else:
+                #    kappa = _kappa
                                                                 
                 kslc = idnum if idnum is not None else Ellipsis                
                                 

@@ -21,3 +21,6 @@ htmlcov
 .DS_Store
 tests/*.pkl
 tests/*.txt
+doc/*.py
+doc/*.txt
+doc/*.pkl
