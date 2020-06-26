@@ -1,5 +1,14 @@
+"""
+GalaxyHOD.py
 
-#the start of my ares class
+Author: Emma Klemets
+Affiliation: McGill University
+Created on: June 3, 2020
+
+Description: LF and SMF model based off Moster2010, as well as main sequence SFR, SSFR and SFRD models (based on Speagle2014)
+
+"""
+
 from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import get_pq_pars
