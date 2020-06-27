@@ -317,7 +317,7 @@ _fgrowth = \
 
 _kappa_evol = \
 {
- "pq_func[20]": 'pl_evolS',
+ "pq_func[20]": 'pl_evolS2',
  'pq_func_var[20]': 'wave',
  'pq_func_var2[20]': '1+z',
  'pq_func_var_lim[20]': (912., np.inf),
@@ -325,8 +325,11 @@ _kappa_evol = \
  'pq_func_par0[20]': 1e5 * (1e3 / 1600.),      # opacity at wavelength below
  'pq_func_par1[20]': 1.6e3,
  'pq_func_par2[20]': -1.,
- 'pq_func_par3[20]': 5.,
- 'pq_func_par4[20]': 0.,
+ 'pq_func_par3[20]': 5.,        # time evolution
+ 'pq_func_par4[20]': 0.,        # time evolution
+ 'pq_func_par5[20]': 1e10,      # Mh-dep
+ 'pq_func_par6[20]': 0.,        # Mh-dep
+ 
 }
 
 ereg_eduty = univ.copy()
@@ -401,8 +404,8 @@ ereg_edtmr.update(_dtmr)
 ereg_edtmr.update(_dtmr_best)
 ereg_edtmr.update(_evol_ereg_dplrd)
 
-ereg_edtmr_ekappa = ereg_edtmr.copy()
-ereg_edtmr_ekappa.update(_kappa_evol)
+ereg_ekappa_edtmr = ereg_edtmr.copy()
+ereg_ekappa_edtmr.update(_kappa_evol)
 
 ereg_eduty_edtmr = ereg_edtmr.copy()
 ereg_eduty_edtmr.update(_fduty)

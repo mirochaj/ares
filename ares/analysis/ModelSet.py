@@ -3591,6 +3591,11 @@ class ModelSet(BlobFactory):
                 print("WARNING: {} elements with infs detected in field={}. Will be discarded.".format(infs.sum(), name))
                 keep[infs == 1] = 0    
             
+            #
+            if not np.any(keep==1):
+                print("WARNING: no finite elements for field={}.".format(name))
+                return
+            
             # Plot time        
             if samples == 'all':
                 ax.plot(xarr, yblob.T, **kwargs)

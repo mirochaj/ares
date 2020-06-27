@@ -2383,7 +2383,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return None
         
         Mh = self.get_field(z, 'Mh')
-        kappa = self.guide.dust_kappa(wave=Mwave, Mh=Mh)
+        kappa = self.guide.dust_kappa(wave=Mwave, Mh=Mh, z=z)
         Sd = self.get_field(z, 'Sd')
         tau = kappa * Sd
         

@@ -422,7 +422,8 @@ class FitBase(BlobFactory):
         
     @property
     def info(self):
-        print("No information at this time.")    
+        pass
+        #print("No information at this time.")    
     
     @property
     def pf(self):
