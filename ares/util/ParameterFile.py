@@ -316,11 +316,11 @@ class ParameterFile(dict):
         if self['debug']:
             self._check_for_conflicts(**kwargs)
         
-            if self.orphans:
-                if (rank == 0) and self['verbose']:
-                    for key in self.orphans:
-                        print("WARNING: {!s} is an `orphan` parameter.".format(\
-                            key))
+            #if self.orphans:
+            #    if (rank == 0) and self['verbose']:
+            #        for key in self.orphans:
+            #            print("WARNING: {!s} is an `orphan` parameter.".format(\
+            #                key))
 
     @property
     def Npops(self):

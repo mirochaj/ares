@@ -1960,7 +1960,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return Mout
             
     def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, use_cache=True):
+        load=True, use_cache=True, energy_units=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
         
@@ -1995,14 +1995,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if load and (cached_result is not None):
             return cached_result
             
-        if band is not None:
-            assert self.pf['pop_dust_yield'] in [0, None], \
-                "Going to get weird answers for L(band != None) if dust is ON."
+        #if band is not None:
+        #    assert self.pf['pop_dust_yield'] in [0, None], \
+        #        "Going to get weird answers for L(band != None) if dust is ON."
         
         raw = self.histories
         L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
             extras=self.extras, idnum=idnum, window=window, load=load,
-            use_cache=use_cache, band=band)
+            use_cache=use_cache, band=band, energy_units=energy_units)
            
         if use_cache:
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()

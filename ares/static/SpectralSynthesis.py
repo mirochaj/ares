@@ -921,7 +921,7 @@ class SpectralSynthesis(object):
 
     def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
-        load=True, use_cache=True):
+        load=True, use_cache=True, energy_units=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -1074,18 +1074,18 @@ class SpectralSynthesis(object):
         if band is not None:
             # Will have been supplied in Angstroms
             b = h_p * c / (np.array(band) * 1e-8) / erg_per_ev
-                        
+
             Loft = self.src.IntegratedEmission(b[1], b[0], 
-                energy_units=True)
-            
+                energy_units=energy_units)
+
             # Need to get Hz^-1 units back
-            db = b[0] - b[1]
-            Loft = Loft / (db * erg_per_ev / h_p)
-                                    
+            #db = b[0] - b[1]
+            #Loft = Loft / (db * erg_per_ev / h_p)
+
             #raise NotImplemented('help!')
         else:
             Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window)
-            
+            assert energy_units
         #print("Synth. Lum = ", wave, window)    
         #
 
