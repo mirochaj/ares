@@ -134,7 +134,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return N, M_1, beta, gamma
 
     
-    def StellarMassFunction(self, z, bins, text=True, **kwargs):
+    def StellarMassFunction(self, z, logbins, text=True, **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
         
@@ -142,8 +142,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
-        bins : float
-            Stellar mass bins. per stellar mass
+        logbins : float
+            log10 of Stellar mass bins. per stellar mass
         
         Returns
         -------
@@ -152,8 +152,10 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         """
 
         #catch if only one magnitude is passed
-        if type(bins) not in [list, np.ndarray]:
-            bins = [bins]
+        if type(logbins) not in [list, np.ndarray]:
+            bins = [10**logbins]
+        else:
+            bins = [10**i for i in logbins]
 
         #get halo mass function and array of halo masses
         hmf = self.halos.tab_dndm
@@ -219,9 +221,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             SM_bins = self._SM_fromHM(zi, haloMass, N, M_1, beta, gamma)
 
             #get number density
-            numberD = self.StellarMassFunction(zi, SM_bins, False)
+            numberD = self.StellarMassFunction(zi, np.log10(SM_bins), False)
 
-            SFR = 10**self.SFR(zi, SM_bins)/SM_bins
+            SFR = 10**self.SFR(zi, np.log10(SM_bins))/SM_bins
             error = 0.2 * SFR * np.log(10)
 
             dbin = []
@@ -238,7 +240,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return SFRD
     
 
-    def SFR(self, z, mass, haloMass=False):   
+    def SFR(self, z, logmass, haloMass=False):   
         """
         Main sequence stellar formation rate from Speagle2014
         
@@ -247,8 +249,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         z : int, float
             Redshift.
         mass : float (array)
-            if haloMass=False (default) is the stellar masses [stellar mass]
-            else halo masses [stellar mass]
+            if haloMass=False (default) is the log10 stellar masses [stellar mass]
+            else log10 halo masses [stellar mass]
         
         Returns
         -------
@@ -261,9 +263,10 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         if haloMass:
             #convert from halo mass to stellar mass
             N, M_1, beta, gamma = self._SMF_PQ()
+            mass = [10**i for i in logmass]
             Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
         else:
-            Ms = mass
+            Ms = [10**i for i in logmass]
 
         # t: age of universe in Gyr
         t = cosmo.age(z).value
@@ -287,7 +290,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return logSFR
 
     #specific sfr
-    def SSFR(self, z, mass, haloMass=False):
+    def SSFR(self, z, logmass, haloMass=False):
         """
         Specific stellar formation rate.
         
@@ -296,8 +299,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         z : int, float
             Redshift.
         mass : float (array)
-            if haloMass=False (default) is the stellar masses [stellar mass]
-            else halo masses [stellar mass]
+            if haloMass=False (default) is the log10 stellar masses [stellar mass]
+            else log10 halo masses [stellar mass]
         
         Returns
         -------
@@ -308,11 +311,12 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         if haloMass:
             #convert from halo mass to stellar mass
             N, M_1, beta, gamma = self._SMF_PQ()
+            mass = [10**i for i in logmass]
             Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
         else:
-            Ms = mass
+            Ms = [10**i for i in logmass]
 
-        logSSFR = self.SFR(z, Ms) - np.log10(Ms)
+        logSSFR = self.SFR(z, np.log10(Ms)) - np.log10(Ms)
 
         return logSSFR
       

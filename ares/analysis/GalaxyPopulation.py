@@ -264,11 +264,11 @@ class GalaxyPopulation(object):
             force_labels=force_labels, **kwargs)
         
     def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
-            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
-            force_labels=force_labels, **kwargs)
+            force_labels=force_labels, log10Mass=log10Mass, **kwargs)
 
     def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False, 
             AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs):
@@ -1235,7 +1235,7 @@ class GalaxyPopulation(object):
         
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
-        take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
+        take_log=False, imf=None, mags='intrinsic', sources_except=[], log10Mass=False, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         
@@ -1322,9 +1322,11 @@ class GalaxyPopulation(object):
                 print("# Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
             else:    
                 shift = 0.    
-                                                    
-            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
-                **mkw)
+            
+            if log10Mass:
+                ax.errorbar(np.log10(M+shift-dc), phi, yerr=err, uplims=ulim, zorder=10, **mkw)
+            else:                            
+                ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **mkw)
 
         if quantity == 'lf':
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
@@ -1335,16 +1337,29 @@ class GalaxyPopulation(object):
                 ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                 ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         elif quantity in ['smf', 'smf_sf', 'smf_q']:
+
+            if log10Mass:
+                ax.set_xlim(7, 13)
+                if (not gotax) or force_labels:
+                    ax.set_xlabel(r'log$_{10}(M_{\ast} / M_{\odot})$')   
+
+            else:
+                try:
+                    ax.set_xscale('log')
+                except ValueError:
+                    pass
+                ax.set_xlim(1e7, 1e13)
+                if (not gotax) or force_labels:
+                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+
             try:
-                ax.set_xscale('log')
                 ax.set_yscale('log')
             except ValueError:
                 pass
-            ax.set_xlim(1e7, 1e13)
             ax.set_ylim(1e-7, 1)
             if (not gotax) or force_labels:
-                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
                 ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+
         elif quantity == 'mzr':
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
