@@ -19,7 +19,7 @@ _bpass_tests = 'https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl
 
 aux_data = \
 {
- 'hmf': ['https://www.dropbox.com/s/iyd3b2ja8epm55x/hmf.tar.gz?dl=1',
+ 'hmf': ['https://www.dropbox.com/s/y5bsvsojcfyvis8/hmf.tar.gz?dl=1',
      'hmf.tar.gz',
     None],
  'inits': ['https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1',

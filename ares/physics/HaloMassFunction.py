@@ -429,7 +429,7 @@ class HaloMassFunction(object):
                 self.TabulateMAR()
 
         elif self.tab_name is None:
-            raise IOError(no_hmf(self))
+            raise IOError("Did not find HMF table suitable for given parameters.")
             
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
