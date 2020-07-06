@@ -13,15 +13,11 @@ from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import get_pq_pars
 from ..analysis.BlobFactory import BlobFactory
+from ..physics.Constants import s_per_gyr
+from ..physics.Cosmology import Cosmology
+
 import numpy as np
 from scipy.interpolate import interp1d
-
-#Is there a built in thing in ARES for this?
-from astropy.cosmology import FlatLambdaCDM
-import astropy.units as u
-
-cosmo = FlatLambdaCDM(H0=70*u.km/u.s/u.Mpc, Om0=0.3)
-
 
 class GalaxyHOD(HaloPopulation, BlobFactory):
     def __init__(self, **kwargs):
@@ -258,8 +254,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             log10 of MS SFR [yr^-1]
         """
 
-        # cosmo = FlatLambdaCDM(H0=70*u.km/u.s/u.Mpc, Om0=0.3)
-
         if haloMass:
             #convert from halo mass to stellar mass
             N, M_1, beta, gamma = self._SMF_PQ()
@@ -268,10 +262,12 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         else:
             Ms = [10**i for i in logmass]
 
-        # t: age of universe in Gyr
-        t = cosmo.age(z).value
+        cos = Cosmology()
 
-        if t < cosmo.age(6).value: # if t > z=6
+        # t: age of universe in Gyr
+        t = cos.t_of_z(z=z) / s_per_gyr
+
+        if t < cos.t_of_z(z=6) / s_per_gyr: # if t > z=6
             print("Warning, age out of well fitting zone of this model.")
 
         error = np.ones(len(Ms)) * 0.2 #[dex] the stated "true" scatter
