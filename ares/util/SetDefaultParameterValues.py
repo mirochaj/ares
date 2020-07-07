@@ -653,6 +653,9 @@ def PopulationParameters():
     "pop_flag_tau": None,
     
     "pop_mag_bin": 0.5,
+    "pop_mag_min": -25,
+    "pop_mag_max": 0,
+    
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 15.,
     "pop_synth_zmin": 3.5,
