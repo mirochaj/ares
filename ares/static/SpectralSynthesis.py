@@ -1066,10 +1066,10 @@ class SpectralSynthesis(object):
         # accurately solve for young stellar populations.
         oversample = self.oversampling_enabled and (dt[-2] > 1.01e6)
         # Used to also require zobs is not None. Why?
-                                
+
         ##
         # Done parsing time/redshift
-        
+
         # Is this luminosity in some bandpass or monochromatic?
         if band is not None:
             # Will have been supplied in Angstroms

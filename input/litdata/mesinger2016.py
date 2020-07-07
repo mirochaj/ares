@@ -4,7 +4,9 @@ import numpy as np
 _input = os.getenv('ARES') + '/input/eos'
 
 def load(model='faint_galaxies'):
-
+    """
+    Assumes you downloaded the raw EoS data into $ARES/input/eos.
+    """
     k = []
     z = []
     ps = []

@@ -223,3 +223,7 @@ class ExcursionSet(object):
         p = norm * np.exp(-(dcrit - dzero)**2 / 2. / S)
         
         return p
+        
+        
+        
+        

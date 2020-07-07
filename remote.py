@@ -60,7 +60,7 @@ aux_data = \
  'irac': ['https://irsa.ipac.caltech.edu/data/SPITZER/docs/irac/calibrationfiles/spectralresponse/',
     '080924ch1trans_full.txt',
     '080924ch2trans_full.txt',
-    None],
+    None],  
  #'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
  #   'wfc_F435W.dat',
  #   'wfc_F606W.dat',
