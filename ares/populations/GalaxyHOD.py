@@ -164,24 +164,36 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         SMF = hmf[k, :] / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
-        #check if requested mass bins are in StellarMass, else interpolate SMF function
-        result =  all(elem in StellarMass for elem in bins)
+        # print("SMF first")
+        # print(SMF)
 
-        if result:
-            #slice list to get the values requested
-            findMass = np.array([elem in bins for elem in StellarMass])
-            phi = SMF[findMass]           
+        # print("SM now")
+        # print(StellarMass)
+
+        if np.isinf(StellarMass).all():
+            #something is wrong with the parameters and _SM_fromHM returned +/- infs
+            print("SM is inf!")
+            phi = -np.inf * np.ones(len(bins))
         else:
-            #interpolate
-            # if text:
-            #     print("Interpolating")
-            f = interp1d(StellarMass, SMF, kind='cubic')
-            #ADD error catch if SM is out of the range
-            try:
-                phi = f(bins)
-            except:
-                # print("Error, bin(s) out of interpolation bounds")
-                phi = -np.inf * np.ones(len(bins))
+
+            #check if requested mass bins are in StellarMass, else interpolate SMF function
+            result =  all(elem in StellarMass for elem in bins)
+
+            if result:
+                #slice list to get the values requested
+                findMass = np.array([elem in bins for elem in StellarMass])
+                phi = SMF[findMass]           
+            else:
+                #interpolate
+                # if text:
+                #     print("Interpolating")
+                f = interp1d(StellarMass, SMF, kind='cubic')
+                #ADD error catch if SM is out of the range
+                try:
+                    phi = f(bins)
+                except:
+                    # print("Error, bin(s) out of interpolation bounds")
+                    phi = -np.inf * np.ones(len(bins))
 
 
         return phi    
