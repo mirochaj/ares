@@ -170,9 +170,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         # print("SM now")
         # print(StellarMass)
 
-        if np.isinf(StellarMass).all():
+        if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) == 0:
             #something is wrong with the parameters and _SM_fromHM returned +/- infs
-            print("SM is inf!")
+            # print("SM is inf!")
             phi = -np.inf * np.ones(len(bins))
         else:
 
