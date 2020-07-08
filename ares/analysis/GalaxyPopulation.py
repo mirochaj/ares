@@ -1176,7 +1176,7 @@ class GalaxyPopulation(object):
         axB.set_yticks(np.arange(-3, -1.3, 0.25), minor=False)
         axB.set_yticks(np.arange(-3, -1.3, 0.05), minor=True)
         axB.legend(loc='upper right', frameon=True, fontsize=8,
-            handlelength=2, ncol=1)
+            handlelength=4, ncol=1)
         axB.set_ylim(-2.8, -1.4)   
         axB.set_xticklabels([])
             

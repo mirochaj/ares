@@ -2278,7 +2278,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         if type(filters) is dict:
             filters = filters[round(z)]
-        
+                
         # Don't put any binning stuff in here!
         kw = {'z':z, 'waves':waves, 'rest_wave':rest_wave, 'cam': cam, 
             'filters': filters, 'filter_set': filter_set,
@@ -2299,7 +2299,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 
         else:
             raw = self.histories
-          
+                      
             ##
             # Run in batch.
             _beta_r = self.synth.Slope(zobs=z, sfh=raw['SFR'], waves=waves, 

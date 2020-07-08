@@ -416,6 +416,18 @@ mreg_edtmr.update(_evol_mreg_dplrd)
 
 
 univ_plRd = univ.copy()
+_univ_plRd_best = \
+{
+ "pq_func_par0[0]": 0.06358664984423915,
+ "pq_func_par1[0]": 383422238216.8667,
+ "pq_func_par2[0]": 0.6176456842054336,
+ "pq_func_par3[0]": -1.2836704145518527,
+ "pq_func_par0[22]": 1.530198199301002,
+ "pq_func_par2[22]": 0.49041401581181127,
+ "pq_func_par0[33]": 0.19401544545500612,
+}
+univ_plRd.update(_univ_plRd_best)
+
 ereg_epeak_plRd = ereg_epeak.copy()
 ereg_eduty_plRd = ereg_eduty.copy()
 ereg_edtmr_plRd = ereg_edtmr.copy()
