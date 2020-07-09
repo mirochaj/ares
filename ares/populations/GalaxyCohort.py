@@ -1643,6 +1643,28 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_sfr_mask_ = mask
         return self._tab_sfr_mask_
         
+    def _ngtm_from_ham(self, z):
+        if not hasattr(self, '_ngtm_from_ham_'):
+            self._ngtm_from_ham_ = {}
+            
+        if z in self._ngtm_from_ham_:
+            return self._ngtm_from_ham_[z]    
+            
+        # Compute n(>m) from discrete set of halos.
+        hist = self.pf['pop_histories']
+        iz = np.argmin(np.abs(hist['z'] - z))
+        _Mh_ = hist['Mh'][:,iz]
+        nh = hist['nh'][:,iz]
+        
+        print('ngtm', z)
+        
+        # Make ngtm so it looks like it came from self.halos
+        self._ngtm_from_ham_[z] = np.zeros_like(self.halos.tab_M)
+        for iM, _M_ in enumerate(self.halos.tab_M):
+            self._ngtm_from_ham_[z][iM] = np.sum(nh[_Mh_ > _M_])
+            
+        return self._ngtm_from_ham_[z]
+        
     def _abundance_match(self, z, Mh):
         """
         These are the star-formation efficiencies derived from abundance
@@ -1665,8 +1687,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             mags.append(mag-self.dust.AUV(z, mag))
     
         # Mass function
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
-        ngtm = self.halos.tab_ngtm[iz]
+        if self.pf['pop_histories'] is not None:
+            iz = np.argmin(np.abs(self.pf['pop_histories']['z'] - z))
+            ngtm = self._ngtm_from_ham(z)
+        else:    
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            ngtm = self.halos.tab_ngtm[iz]
     
         # Use dust-corrected magnitudes here
         LUV_dc = np.array([self.magsys.MAB_to_L(mag, z=z) for mag in mags])
@@ -1692,9 +1718,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             _Mh_ = 10**fsolve(to_min, 10., factor=0.001, 
                 maxfev=10000)[0]
-                                
-            MAR = 10**np.interp(np.log10(_Mh_), np.log10(self.halos.tab_M), 
-                np.log10(self.halos.tab_MAR[iz,:]))
+            
+            if self.pf['pop_histories'] is not None:
+                # Compute mean MAR for halos in this bin?
+                _Mh_hist = np.log10(self.pf['pop_histories']['Mh'][:,iz])
+                ok = np.logical_and(_Mh_hist >= np.log10(_Mh_)-0.05,
+                                    _Mh_hist <  np.log10(_Mh_)+0.05)
+                MAR = np.mean(self.pf['pop_histories']['MAR_acc'][:,iz])
+            else:    
+                MAR = 10**np.interp(np.log10(_Mh_), np.log10(self.halos.tab_M), 
+                    np.log10(self.halos.tab_MAR[iz,:]))
+            
             MAR *= self.cosm.fbar_over_fcdm    
             
             _fstar_ = LUV_dc[j] / L_per_sfr / MAR
