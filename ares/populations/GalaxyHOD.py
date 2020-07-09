@@ -245,7 +245,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         SFRD = np.transpose(SFRD) # [sfrd, err]
 
-        return SFRD
+
+        return SFRD[0]
     
 
     def SFR(self, z, logmass, haloMass=False):   
