@@ -1382,7 +1382,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # First, grab halos
         halos = self._gen_halo_histories()
         
-        
         # Eventually generalize
         assert self.pf['pop_update_dt'].startswith('native')
         native_sampling = True
@@ -1400,7 +1399,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh = halos['nh'][:,-1::-1]
         
         # Will have been corrected for mergers in `load` if pop_mergers==1
-        MAR = halos['MAR'][:,-1::-1]
+        MAR = np.maximum(halos['MAR'][:,-1::-1], 0)
         
         t_ind = np.arange(0, t.size, 1)
                         
@@ -1424,19 +1423,26 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Unbind some gas.
         # Continue
         
+        dt_over = self.pf['pop_sfh_oversample']
+        if dt_over > 0:
+            raise NotImplemented('help')
+        
+        
         Mg = np.zeros((Nhalos, len(t)))
         SFR = np.zeros((Nhalos, len(t)))
         SNR = np.zeros((Nhalos, len(t)))
         EIR = np.zeros((Nhalos, len(t)))
         Ms = np.zeros((Nhalos, len(t)))
         MZ = np.zeros((Nhalos, len(t)))
-        
+
         vesc = self.halos.EscapeVelocity(z2d, Mh) # in cm/s
-        
+        # Some Mh = 0, need to prevent NaNs from muddying the waters.
+        vesc[Mh==0] = np.inf
+
         if type(self.pf['pop_fshock']) is str:
             fshock = self.guide.fshock(z=z2d, Mh=Mh)
         else:
-            fshock = np.ones_like(z2d) * self.pf['pop_fshock']    
+            fshock = np.ones_like(z2d) * self.pf['pop_fshock']
                 
         fstar = self.pf['pop_fstar']
         fstar_max = self.pf['pop_fstar_max']
@@ -1499,16 +1505,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Gas in halo (less new stars) at the end of this timestep
             Mg_in = Mg[:,i] + fb * MAR[:,i] * fshock[:,i] * dt[i] \
-                  - SFR[:,i] * dt[i] \
+                  - SFR[:,i] * dt[i]
                   
             # Can't eject more gas than we've got.    
             Mg_ej = np.minimum(Mg_in, Mg_ej) 
             
             # Set gas mass for next time-step.
             Mg[:,i+1] = Mg_in - Mg_ej
-            
-            
-            
             
             
         # Pack up                

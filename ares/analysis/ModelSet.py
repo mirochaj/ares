@@ -3669,7 +3669,7 @@ class ModelSet(BlobFactory):
             tmp = self.ExtractData(name, ivar=ivar,                            
                 take_log=take_log, un_log=un_logy)
                 
-            _yblob = tmp[name]    
+            _yblob = tmp[name]
             
             if expr is not None:
                 _yblob = eval(expr)

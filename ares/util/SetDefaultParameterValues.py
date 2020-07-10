@@ -574,6 +574,7 @@ def PopulationParameters():
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
     
+    "pop_sfh_oversample": 0,
     "pop_ssp_oversample": False,
     "pop_ssp_oversample_age": 30.,
     
@@ -655,8 +656,11 @@ def PopulationParameters():
     "pop_quench_by": 'mass',
     "pop_flag_sSFR": None,
     "pop_flag_tau": None,
-    
+
     "pop_mag_bin": 0.5,
+    "pop_mag_min": -25,
+    "pop_mag_max": 0,
+
     "pop_synth_dz": 0.5,
     "pop_synth_zmax": 15.,
     "pop_synth_zmin": 3.5,
