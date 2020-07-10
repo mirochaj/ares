@@ -1453,6 +1453,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mg[:,i] = fb * Mh[:,i]
 
             # Myr -> yr
+            # Use halo properties from sims to compute this?
             torb = 18. * (A_r / 0.02) * (7. / (1. + z[i]))**-1.5 * 1e6 
 
             SFR[:,i] = Mg[:,i] * np.minimum(fstar / torb, fstar_max)
