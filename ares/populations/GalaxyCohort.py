@@ -1520,8 +1520,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         _Mh_ = hist['Mh'][:,iz]
         nh = hist['nh'][:,iz]
         
-        print('ngtm', z)
-        
         # Make ngtm so it looks like it came from self.halos
         self._ngtm_from_ham_[z] = np.zeros_like(self.halos.tab_M)
         for iM, _M_ in enumerate(self.halos.tab_M):
@@ -1538,8 +1536,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         assert self.pf['pop_sfr_model'] == 'uvlf'
         
         # Poke PQ
-        if 'uvlf' not in self._pq_registry:
-            _phi_ = self.LuminosityFunction(6., -20)
+        #if 'uvlf' not in self._pq_registry:
+        _phi_ = self.LuminosityFunction(6., -20)
         
         uvlf = self._pq_registry['uvlf']  
         
@@ -1561,7 +1559,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Use dust-corrected magnitudes here
         LUV_dc = np.array([self.magsys.MAB_to_L(mag, z=z) for mag in mags])
 
-        L_per_sfr = self.src.L_per_sfr(wave=self.pf['pop_calib_wave'])
+        assert self.pf['pop_lum_per_sfr'] is not None
+        L_per_sfr = self.pf['pop_lum_per_sfr']
 
         # Loop over luminosities and perform abundance match
         mh_of_mag = []
@@ -2021,9 +2020,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                 z = np.unique(kwargs['z'])
                 Mh = np.unique(kwargs['Mh'])
-                
-                if self.pf['verbose']:
-                    print("# Tabulating SFE derived from abundance matching over z...")
                 
                 pb = ProgressBar(z.size, use=self.pf['progress_bar'], name='ham')
                 pb.start()

@@ -29,17 +29,12 @@ def test():
     blob_i1 = [('z', redshifts), ('x', MUV)]
     blob_f1 = ['LuminosityFunction']
     
-    # blob 2: the sfrd
-    blob_n2 = ['sfrd']
-    blob_i2 = [('z', redshifts)]
-    blob_f2 = ['SFRD']
-    
     blob_pars = \
     {
-     'blob_names': [blob_n1, blob_n2],
-     'blob_ivars': [blob_i1, blob_i2],
-     'blob_funcs': [blob_f1, blob_f2],
-     'blob_kwargs': [None]*2,
+     'blob_names': [blob_n1],
+     'blob_ivars': [blob_i1],
+     'blob_funcs': [blob_f1],
+     'blob_kwargs': [None],
     }
     
     # Do a Schechter function fit just for speed
@@ -48,7 +43,8 @@ def test():
      'pop_sfr_model': 'uvlf',
      
      # Stellar pop + fesc
-     'pop_L1600_per_sfr': 0.2e28, # to avoid using synthesis models
+     'pop_calib_wave': 1600.,
+     'pop_lum_per_sfr': 0.2e28, # to avoid using synthesis models
      
      'pop_uvlf': 'pq',
      'pq_func': 'schechter_evol',
@@ -179,20 +175,7 @@ def test():
         
         gpop = ares.analysis.GalaxyPopulation()
         gpop.PlotLF(5.9, sources='bouwens2015', ax=ax)
-        
-        #ax2 = anl.ReconstructedFunction('sfrd', fig=4, 
-        #    color='gray', multiplier=rhodot_cgs, alpha=0.3) 
-        #    
-        #anl.ReconstructedFunction('sfrd', 
-        #    ax=ax2, fig=4, multiplier=rhodot_cgs,
-        #    color='b', alpha=0.3, fill=False, samples='all') 
-        #anl.ReconstructedFunction('sfrd',
-        #    ax=ax2, fig=4, multiplier=rhodot_cgs,
-        #    color='y', alpha=1.0, use_best=True, ls='--', lw=3)     
-        #
-        #ax2.set_yscale('log')
-        #ax2.set_ylim(1e-5, 1)
-        #
+                
         # Other random stuff
         all_kwargs = anl.AssembleParametersList(include_bkw=True)
         assert len(all_kwargs) == anl.chain.shape[0]
