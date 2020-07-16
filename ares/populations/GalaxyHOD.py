@@ -25,7 +25,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         HaloPopulation.__init__(self, **kwargs)
         
-    def LuminosityFunction(self, z, x, text=True, mags=True):
+    def LuminosityFunction(self, z, x, text=True):
         """
         Reconstructed luminosity function from a simple model of L = c*HaloMadd
         
@@ -34,7 +34,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
         x : float
-            Magnitude. If True, x-values will be in absolute (AB) magnitudes
+            Absolute (AB) magnitudes.
         
         Returns
         -------
