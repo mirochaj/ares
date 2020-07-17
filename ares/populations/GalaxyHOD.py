@@ -88,6 +88,17 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return dydx
 
+    def SMHM(self, z, **kwargs):
+        # hmf = self.halos.tab_dndm
+        haloMass = self.halos.tab_M
+
+        N, M_1, beta, gamma = self._SMF_PQ()
+
+        # k = np.argmin(np.abs(z - self.halos.tab_z))
+
+        SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
+
+        return SM
 
     def _SM_fromHM(self, z, haloMass, N, M_1, beta, gamma):
         """
@@ -115,11 +126,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         #could have these as defaults can be found in emma.py
 
         parsB = get_pq_pars(self.pf['pop_smhm_beta'], self.pf)
-
         parsN = get_pq_pars(self.pf['pop_smhm_n'], self.pf)
-
         parsG = get_pq_pars(self.pf['pop_smhm_gamma'], self.pf)
-
         parsM = get_pq_pars(self.pf['pop_smhm_m'], self.pf)
 
         N = ParameterizedQuantity(**parsN) #N_0 * (z + 1)**nu #PL
@@ -168,14 +176,36 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         # print(SMF)
 
        # print("SM now")
-        if StellarMass[-1] < 1e-5:
+        # print(StellarMass)
+
+        if StellarMass[-1] < 1e-10:
             print(StellarMass)
 
-        if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) != len(StellarMass):
+        """this guy is the problem
+            maybe only catch if all the SM are very small (like above for printing)
+            else, just cut out the values that are pretty small, and don't interp those ones,
+            as my bins aren't going to be in that range anyways
+        """
+
+        if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins):
             #something is wrong with the parameters and _SM_fromHM returned +/- infs
-            # print("SM is inf!")
+            #if there are less non-zero SM than SM values requested from bins
+            print("SM is inf or too many zeros!")
             phi = -np.inf * np.ones(len(bins))
+
+        if np.array([i < 1e-1 for i in StellarMass]).all():
+            print("SM range is way too small!")
+            phi = -np.inf * np.ones(len(bins))
+
         else:
+
+            #removes duplicate 0s from list
+            if len(StellarMass) != len(set(StellarMass)):
+                print("removing some zeros")
+                removeMask = [0 != i for i in StellarMass]
+                
+                StellarMass = StellarMass[removeMask]
+                SMF = SMF[removeMask]
 
             #check if requested mass bins are in StellarMass, else interpolate SMF function
             result =  all(elem in StellarMass for elem in bins)
@@ -188,14 +218,18 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                 #interpolate
                 # if text:
                 #     print("Interpolating")
-                f = interp1d(StellarMass, SMF, kind='cubic')
+
+                # f = interp1d(StellarMass, SMF, kind='cubic')
+                f = interp1d(np.log10(StellarMass), np.log10(SMF), kind='linear')
+
                 #ADD error catch if SM is out of the range
                 try:
-                    phi = f(bins)
-                except:
-                    # print("Error, bin(s) out of interpolation bounds")
-                    phi = -np.inf * np.ones(len(bins))
+                    # phi = f(bins)
+                    phi = 10**(f(np.log10(bins)))
 
+                except:
+                    print("Error, bin(s) out of interpolation bounds")
+                    phi = -np.inf * np.ones(len(bins))
 
         return phi    
         
