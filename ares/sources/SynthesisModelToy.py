@@ -26,14 +26,17 @@ class SynthesisModelToy(Source):
     @property
     def energies(self):
         if not hasattr(self, '_energies'):
-            dE = self.pf['source_dE']
-            dl = self.pf['source_dlam']
-            if dE is not None:
-                self._energies = np.arange(self.Emin, self.Emax+dE, dE)
-            elif dl is not None:
+            if self.pf['source_wavelengths'] is not None:
                 self._energies = h_p * c / self.wavelengths / cm_per_ang
-            else:
-                raise ValueError('help')    
+            else:    
+                dE = self.pf['source_dE']
+                dl = self.pf['source_dlam']
+                if dE is not None:
+                    self._energies = np.arange(self.Emin, self.Emax+dE, dE)
+                elif dl is not None:
+                    self._energies = h_p * c / self.wavelengths / cm_per_ang
+                else:
+                    raise ValueError('help')    
             
             assert (dE is not None) + (dl is not None) == 1    
                 
@@ -42,15 +45,18 @@ class SynthesisModelToy(Source):
     @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
-            dE = self.pf['source_dE']
-            dl = self.pf['source_dlam']
-            if dE is not None:
-                self._wavelengths = h_p * c / self.energies / erg_per_ev \
-                    / cm_per_ang
+            if self.pf['source_wavelengths'] is not None:
+                self._wavelengths = self.pf['source_wavelengths']
             else:    
-                w1 = h_p * c / self.Emin / erg_per_ev / cm_per_ang
-                w2 = h_p * c / self.Emax / erg_per_ev / cm_per_ang
-                self._wavelengths = np.arange(w2, w1+dl, dl)
+                dE = self.pf['source_dE']
+                dl = self.pf['source_dlam']
+                if dE is not None:
+                    self._wavelengths = h_p * c / self.energies / erg_per_ev \
+                        / cm_per_ang
+                else:    
+                    w1 = h_p * c / self.Emin / erg_per_ev / cm_per_ang
+                    w2 = h_p * c / self.Emax / erg_per_ev / cm_per_ang
+                    self._wavelengths = np.arange(w2, w1+dl, dl)
             
         return self._wavelengths
         
@@ -63,8 +69,11 @@ class SynthesisModelToy(Source):
     @property
     def times(self):
         if not hasattr(self, '_times'):
-            # Standard SPS time gridding
-            self._times = 10**np.arange(0, 4.1, 0.1)
+            if self.pf['source_times'] is not None:
+                self._times = self.pf['source_times']
+            else:    
+                # Standard SPS time gridding
+                self._times = 10**np.arange(0, 4.1, 0.1)
         return self._times
         
     @property
@@ -93,15 +102,21 @@ class SynthesisModelToy(Source):
         beta = self.pf["source_toysps_beta"]
         _norm = self.pf["source_toysps_norm"]
         gamma = self.pf["source_toysps_gamma"]
+        delta = self.pf["source_toysps_delta"]
         alpha = self.pf["source_toysps_alpha"]
+        trise = self.pf['source_toysps_trise']
         _t0 = self.pf['source_toysps_t0']
+        lmin = self.pf['source_toysps_lmin']
+        
+        ok = wave >= lmin
         
         # Normalization of each wavelength is set by UV slope
-        norm = _norm * (wave / 1600.)**(beta + 1.)
+        norm = _norm * (wave / 1600.)**beta
         
         # Assume that all wavelengths initially decline as a power-law
         # with the same index
-        pl_decay = (t / 1.)**gamma
+        _gamma_ = gamma * (wave / 1600.)**delta
+        pl_decay = (t / 1.)**_gamma_
         
         # Assume an exponential decay at some critical (wavelength-dependent)
         # timescale.
@@ -109,7 +124,14 @@ class SynthesisModelToy(Source):
         exp_decay = np.exp(-t / t0)
 
         # Put it all together.
-        return norm * pl_decay * exp_decay
+        spec = norm * pl_decay * exp_decay
+        spec[ok==0] = 0
+        
+        # Assume log-linear at t < trise
+        if t < trise:
+            spec *= (t / trise)**1.5
+        
+        return spec
         
         
     @property

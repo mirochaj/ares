@@ -1641,7 +1641,7 @@ class GalaxyPopulation(object):
         return add_master_legend(mp, **kwargs)
         
     def PlotSummary(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        fresh=False, redshifts=None, **kwargs):
+        fresh=False, redshifts=None, include_colors=True, **kwargs):
         """
         Make a huge plot.
         """
@@ -1668,7 +1668,8 @@ class GalaxyPopulation(object):
                 bkw.update(pop.max_likelihood_parameters(method=method))
                 pop = GP(**bkw)
                 self._pop = pop
-                self._MegaPlotPop(axes, pop, redshifts=redshifts)
+                self._MegaPlotPop(axes, pop, redshifts=redshifts,
+                    include_colors=include_colors)
             else:
                 self._MegaPlotChain(axes, pop, use_best=use_best, **kwargs)
         else:
@@ -1678,7 +1679,8 @@ class GalaxyPopulation(object):
         
         return axes
         
-    def _MegaPlotPop(self, kw, pop, redshifts=None, **kwargs):
+    def _MegaPlotPop(self, kw, pop, redshifts=None, include_colors=True,
+        **kwargs):
         
         
         ax_sfe = kw['ax_sfe']
@@ -1753,6 +1755,9 @@ class GalaxyPopulation(object):
             _Mh = 10**np.arange(8, 12.5, 0.1)
             fstar = pop.SMHM(z, _Mh, return_mean_only=True)
             #ax_smhm.loglog(_Mh, 10**fstar, color=colors[j])
+            
+            if not include_colors:
+                continue
             
             mags1500 = pop.Magnitude(z, wave=1500.)
             

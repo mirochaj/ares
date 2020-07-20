@@ -50,12 +50,18 @@ except ImportError:
 try:
     import hmf
     from hmf import MassFunction
-    from hmf.wdm import MassFunctionWDM
     have_hmf = True
-    hmf_vers = float(hmf.__version__[0])
+    hmf_vstr = hmf.__version__
+    hmf_vers = float(hmf_vstr[0:hmf_vstr.rfind('.')])
 except ImportError:
     have_hmf = False
     hmf_vers = 0
+    
+if 0 < hmf_vers < 3.1:
+    try:
+        from hmf.wdm import MassFunctionWDM    
+    except ImportError:
+        pass
     
 # Old versions of HMF
 try:

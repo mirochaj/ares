@@ -588,6 +588,12 @@ def PopulationParameters():
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
     
+    "pop_lmin": None,
+    "pop_lmax": None,
+    "pop_dlam": None,
+    "pop_wavelengths": None,
+    "pop_times": None,
+    
     # Reserved for delta function sources
     "pop_E": None,
     "pop_LE": None,
@@ -930,11 +936,19 @@ def SourceParameters():
     "source_dE": None,
     "source_dlam": None,
     
-    "source_toysps_beta": -3.5,
-    "source_toysps_norm": 2e33,  # at 1600A
-    "source_toysps_gamma": -0.8,
-    "source_toysps_alpha": 5.,
-    "source_toysps_t0": 100.,
+    "source_lmin": None,
+    "source_lmax": None,
+    "source_wavelengths": None,
+    "source_times": None,
+    
+    "source_toysps_beta": -2.5,
+    "source_toysps_norm": 3e33,  # at 1600A
+    "source_toysps_gamma": -1.,
+    "source_toysps_delta": -0.25,
+    "source_toysps_alpha": 2.5,
+    "source_toysps_t0": 350.,
+    "source_toysps_lmin": 912.,
+    "source_toysps_trise": 3,
     
     "source_Ekill": None,
     
@@ -1076,6 +1090,19 @@ def SynthesisParameters():
     "source_dlam": 1.,
     "source_Emin": 1.,
     "source_Emax": 54.4,
+    
+    "source_times": None,
+    "source_wavelengths": None,
+    
+    "source_toysps_beta": -2.,
+    "source_toysps_norm": 2e33,  # at 1600A
+    "source_toysps_gamma": -0.8,
+    "source_toysps_delta": 0.0,
+    "source_toysps_alpha": 5.,
+    "source_toysps_t0": 100.,
+    "source_toysps_lmin": 912.,
+    "source_toysps_trise": 3,
+    
 
     # Coefficient of Bpass in Hybrid synthesis model
     "source_coef": 0.5,
