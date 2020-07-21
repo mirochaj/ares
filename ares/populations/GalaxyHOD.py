@@ -70,8 +70,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             findMags = np.array([elem in mags for elem in MUV])
             NumDensity = LF[findMags]
         else:
-            # if text:
-            #     print("Interpolating")
             f = interp1d(MUV, LF, kind='cubic')    
             try:
                 NumDensity = f(mags)
@@ -89,13 +87,13 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return dydx
 
     def SMHM(self, z, **kwargs):
-        # hmf = self.halos.tab_dndm
+        """
+        Wrapper for getting stellar mass from a halo mass using the SMHM ratio. 
+        """
+
         haloMass = self.halos.tab_M
 
         N, M_1, beta, gamma = self._SMF_PQ()
-
-        # k = np.argmin(np.abs(z - self.halos.tab_z))
-
         SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
         return SM
@@ -123,7 +121,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
     def _SMF_PQ(self, **kwargs):
 
-        #could have these as defaults can be found in emma.py
+        #default values can be found in emma.py
 
         parsB = get_pq_pars(self.pf['pop_smhm_beta'], self.pf)
         parsN = get_pq_pars(self.pf['pop_smhm_n'], self.pf)
@@ -172,36 +170,31 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         SMF = hmf[k, :] / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
-        # print("SMF first")
         # print(SMF)
-
-       # print("SM now")
         # print(StellarMass)
 
         #if StellarMass[-1] < 1e-10:
             #print(StellarMass)
 
-        """this guy is the problem
-            maybe only catch if all the SM are very small (like above for printing)
-            else, just cut out the values that are pretty small, and don't interp those ones,
-            as my bins aren't going to be in that range anyways
-        """
-
         if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins):
-            #something is wrong with the parameters and _SM_fromHM returned +/- infs
+            #something is wrong with the parameters and _SM_fromHM returned +/- infs, or
             #if there are less non-zero SM than SM values requested from bins
-            print("SM is inf or too many zeros!")
+
+            if text:
+                print("SM is inf or too many zeros!")
             phi = -np.inf * np.ones(len(bins))
 
         if np.array([i < 1e-1 for i in StellarMass]).all():
-            print("SM range is way too small!")
+            if text:
+                print("SM range is way too small!")
             phi = -np.inf * np.ones(len(bins))
 
         else:
 
-            #removes duplicate 0s from list
             if len(StellarMass) != len(set(StellarMass)):
-                print("removing some zeros")
+                #removes duplicate 0s from list
+                if text:
+                    print("removing some zeros")
                 removeMask = [0 != i for i in StellarMass]
                 
                 StellarMass = StellarMass[removeMask]
@@ -216,19 +209,16 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                 phi = SMF[findMass]           
             else:
                 #interpolate
-                # if text:
-                #     print("Interpolating")
-
-                # f = interp1d(StellarMass, SMF, kind='cubic')
+                #values that are out of the range will return as -inf
                 f = interp1d(np.log10(StellarMass), np.log10(SMF), kind='linear', fill_value=-np.inf, bounds_error=False)
 
-                #ADD error catch if SM is out of the range
                 try:
-                    # phi = f(bins)
                     phi = 10**(f(np.log10(bins)))
 
                 except:
-                    print("Error, bin(s) out of interpolation bounds")
+                    #catch if SM is completely out of the range
+                    if text:
+                        print("Error, bins out of interpolation bounds")
                     phi = -np.inf * np.ones(len(bins))
 
         return phi    
@@ -280,7 +270,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         SFRD = np.transpose(SFRD) # [sfrd, err]
 
-
+        #not returning error right now
         return SFRD[0]
     
 
