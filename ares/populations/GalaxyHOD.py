@@ -178,8 +178,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
        # print("SM now")
         # print(StellarMass)
 
-        if StellarMass[-1] < 1e-10:
-            print(StellarMass)
+        #if StellarMass[-1] < 1e-10:
+            #print(StellarMass)
 
         """this guy is the problem
             maybe only catch if all the SM are very small (like above for printing)
@@ -220,7 +220,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                 #     print("Interpolating")
 
                 # f = interp1d(StellarMass, SMF, kind='cubic')
-                f = interp1d(np.log10(StellarMass), np.log10(SMF), kind='linear')
+                f = interp1d(np.log10(StellarMass), np.log10(SMF), kind='linear', fill_value=-np.inf, bounds_error=False)
 
                 #ADD error catch if SM is out of the range
                 try:
