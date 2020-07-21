@@ -25,7 +25,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         HaloPopulation.__init__(self, **kwargs)
         
-    def LuminosityFunction(self, z, x, text=True):
+    def LuminosityFunction(self, z, x, text=False):
         """
         Reconstructed luminosity function from a simple model of L = c*HaloMadd
         
@@ -136,7 +136,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return N, M_1, beta, gamma
 
     
-    def StellarMassFunction(self, z, logbins, text=True, **kwargs):
+    def StellarMassFunction(self, z, logbins, text=False, **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
         

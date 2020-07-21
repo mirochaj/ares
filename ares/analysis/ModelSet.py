@@ -4439,9 +4439,6 @@ class ModelSet(BlobFactory):
                 iML = np.argmax(self.logL[skip:stop])
             else:
                 iML = np.argmin(self.logL[skip:stop])
-
-        print(iML)
-        print( np.argwhere(self.logL[skip:stop] == np.amax(self.logL[skip:stop])) )
                          
         # Require that the best-fit model be in the bulk of the distribution?  
         if limit_to_dist:                                        
