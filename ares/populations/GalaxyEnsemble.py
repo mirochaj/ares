@@ -32,6 +32,7 @@ from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
     erg_per_ev, h_p
+from ..sources import DustPopulation
 
 try:
     import h5py
@@ -2775,4 +2776,86 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         pickle.dump(self.pf)
         f.close()
         
-        
+    @property
+    def dust(self):
+        """
+        (void) -> DustPopulation
+
+        Creates and / or returns an instance of a DustPopulation object used to calculate
+        dust emissions from all the galaxies at all redshifts for a given frequency band.
+
+        To adjust the frequency band, set the "dust_fmin", "dust_fmax", and "dust_Nfreqs"
+        keywords to the desired frequencies (in Hz) and number of frequencies between
+        dust_fmin and dust_fmax to be probed.
+
+        To adjust the band of redshifts, set the "dust_zmin", "dust_zmax", and "dust_Nz"
+        keywords.
+        """
+        if not hasattr(self, "_dust"):
+            
+            # fetching keywords provided
+            if self.pf.get('dust_fmin') is None:
+                fmin = 1e14
+            else:
+                fmin = self.pf['dust_fmin']
+
+            if self.pf.get('dust_fmax') is None:
+                fmax = 1e17
+            else:
+                fmax = self.pf['dust_fmax']
+                
+            if self.pf.get('dust_Nfreqs') is None:
+                Nfreqs = 500
+            else:
+                Nfreqs = self.pf['dust_Nfreqs']
+                
+            if self.pf.get('dust_zmin') is None:
+                zmin = 4
+            else:
+                zmin = self.pf['dust_zmin']
+                
+            if self.pf.get('dust_zmax') is None:
+                zmax = 10
+            else:
+                zmax = self.pf['dust_zmax']
+                
+            if self.pf.get('dust_Nz') is None:
+                Nz = 7
+            else:
+                Nz = self.pf['dust_Nz']
+
+            # creating instance
+            self._dust = DustPopulation.DustPopulation(self, fmin, fmax, Nfreqs, zmin, zmax, Nz)
+
+        return self._dust
+
+    def dust_sed(self, fmin, fmax, Nfreqs):
+        """
+        (number, number, integer) -> 1darray, 3darray
+
+        This is a wrapper for DustPopulation.dust_sed.
+
+        -----------
+
+        RETURNS
+
+        frequencies, SED : 1darray, 3darray
+
+        first axis: galaxy index
+        second axis: frequency index
+        third axis: redshift index
+
+        -----------
+
+        PARAMETERS
+
+        fmin: number
+            minimum frequency of the band
+
+        fmax: number
+            maximum frequency of the band
+
+        Nfreqs: integer
+            number of frequencies between fmin and fmax to be calculated
+        """
+        return self.dust.dust_sed(fmin, fmax, Nfreqs)
