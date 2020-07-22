@@ -6,11 +6,12 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Sun Oct 19 19:50:31 MDT 2014
 
-Description: 
+Description:
 
 """
 
 import os
+import subprocess
 import numpy as np
 
 try:
@@ -21,7 +22,7 @@ except:
     basestring = str
 
 def get_cmd_line_kwargs(argv):
-    
+
     cmd_line_kwargs = {}
 
     for arg in argv[1:]:
@@ -39,8 +40,8 @@ def get_cmd_line_kwargs(argv):
             if post == 'None':
                 cmd_line_kwargs[pre] = None
             elif post in ['True', 'False']:
-                cmd_line_kwargs[pre] = True if post == 'True' else False   
-            else:    
+                cmd_line_kwargs[pre] = True if post == 'True' else False
+            else:
                 cmd_line_kwargs[pre] = str(post)
         elif post[0] == '[':
             vals = post[1:-1].split(',')
@@ -51,23 +52,65 @@ def get_cmd_line_kwargs(argv):
             except ValueError:
                 # strings with underscores will return False from isalpha
                 cmd_line_kwargs[pre] = str(post)
-    
+
     return cmd_line_kwargs
 
-def get_rev():
-    import subprocess
+def get_hash(repo_path=None, repo_env='ARES'):
+    """
+    Return the unique git hash associated with the HEAD of some repository.
+
+    This intended to be used to save the current version of some code you're
+    using with any output files to help with debugging later. For example,
+    I have some output files for a calculation I've done that change over time,
+    indicating a problem/development, and I want to know precisely when that
+    change happened. In practice, I usually save the output of this function
+    as metadata in an hdf5 file (e.g., as an attribute of some dataset or
+    as a dataset of its own).
+
+    Parameters
+    ----------
+    repo_path : str, None
+        Absolute path to root directory of repo of interest (where .git lives)
+    repo_env : str, None
+        Name of environment variable that points to repo (again, the root
+        directory where .git lives).
+
+    Returns
+    -------
+    A string containing the unique hash of the current HEAD of git repo.
+
+    Known Flaws
+    -----------
+    If you run your code with uncommitted changes, then this hash may not help
+    you find a bug, as the bug could have been in your uncommitted changes.
+    There's not really a good solution to this, other than to always run your
+    code with a 'clean' install!
+
+    """
+
+    assert (repo_path is not None) or (repo_env is not None), \
+        "Must supply path to git repo or environment variable that points to it."
+
     try:
-        ARES = os.environ.get('ARES')
         cwd = os.getcwd()
-        os.chdir(ARES)
+
+        if repo_env is not None:
+            PATH = os.environ.get(repo_env)
+        else:
+            PATH = repo_path
+
+        os.chdir(PATH)
+
         # git rev-parse HEAD
-        #os.popen('git rev-parse HEAD').read()
-        pipe = subprocess.Popen(["git", "rev-parse", "HEAD"], 
+        pipe = subprocess.Popen(["git", "rev-parse", "HEAD"],
             stdout=subprocess.PIPE)
+
+        # Move back to where we were
         os.chdir(cwd)
-    except:
+    except Exception as err:
+        print(f"Failure to obtain hash due to following error: {err}")
         return 'unknown'
-        
+
     return pipe.stdout.read().strip()
 
 def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
@@ -75,7 +118,7 @@ def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
     Compute number of frequency bins required for given log-x grid.
 
     Defining the variable x = 1 + z, and setting up a grid in log-x containing
-    Nx elements, compute the number of frequency bins required for a 1:1 
+    Nx elements, compute the number of frequency bins required for a 1:1
     mapping between redshift and frequency.
 
     """
@@ -104,9 +147,9 @@ def get_attribute(s, ob):
     for part in spart:
         if part == '.':
             continue
-        
+
         f = f.__getattribute__(part)
-        
+
     return f
 
 def split_by_sign(x, y):
@@ -125,4 +168,3 @@ def split_by_sign(x, y):
         xch = np.split(x, splits)
 
     return xch, ych
-
