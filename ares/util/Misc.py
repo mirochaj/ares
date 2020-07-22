@@ -108,7 +108,7 @@ def get_hash(repo_path=None, repo_env='ARES'):
         # Move back to where we were
         os.chdir(cwd)
     except Exception as err:
-        print(f"Failure to obtain hash due to following error: {err}")
+        print("Failure to obtain hash due to following error: {}".format(err))
         return 'unknown'
 
     return pipe.stdout.read().strip()

@@ -588,9 +588,9 @@ def PopulationParameters():
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
 
-    "pop_lmin": None,
-    "pop_lmax": None,
-    "pop_dlam": None,
+    "pop_lmin": 900,
+    "pop_lmax": 1e4,
+    "pop_dlam": 10.,
     "pop_wavelengths": None,
     "pop_times": None,
 
@@ -600,8 +600,6 @@ def PopulationParameters():
 
     # Artificially kill emission in some band.
     "pop_Ekill": None,
-
-    "pop_Ekill": None,    # see also source_Ekill
     "pop_Emin_xray": 2e2,
 
     # Controls IGM ionization for approximate CXB treatments
@@ -868,15 +866,15 @@ def PopulationParameters():
 
     "pop_lmin": 912.,
     "pop_lmax": 1e4,
-    "pop_lres": 10,
+    "pop_dlam": 10,
     "pop_wavelengths": None,
     "pop_times": None,
 
     "pop_toysps_beta": -2.,
-    "pop_toysps_norm": 2e33,  # at 1600A
+    "pop_toysps_norm": 2e33,    # at 1600A
     "pop_toysps_gamma": -0.8,
-    "pop_toysps_delta": 0.0,
-    "pop_toysps_alpha": 5.,
+    "pop_toysps_delta": -0.25,
+    "pop_toysps_alpha": 8.,
     "pop_toysps_t0": 100.,
     "pop_toysps_lmin": 912.,
     "pop_toysps_trise": 3,
@@ -953,7 +951,6 @@ def SourceParameters():
 
     "source_lmin": 912.,
     "source_lmax": 1e4,
-    "source_lres": 10,
     "source_wavelengths": None,
     "source_times": None,
 
@@ -961,7 +958,7 @@ def SourceParameters():
     "source_toysps_norm": 3e33,  # at 1600A
     "source_toysps_gamma": -1.,
     "source_toysps_delta": -0.25,
-    "source_toysps_alpha": 2.5,
+    "source_toysps_alpha":8.,
     "source_toysps_t0": 350.,
     "source_toysps_lmin": 912.,
     "source_toysps_trise": 3,
@@ -1103,21 +1100,20 @@ def SynthesisParameters():
 
     # Only used by toy SPS
     "source_dE": None,
-    "source_dlam": 1.,
+    "source_dlam": 10.,
     "source_Emin": 1.,
     "source_Emax": 54.4,
 
     "source_lmin": 912.,
     "source_lmax": 1e4,
-    "source_lres": 10,
     "source_times": None,
     "source_wavelengths": None,
 
     "source_toysps_beta": -2.,
     "source_toysps_norm": 2e33,  # at 1600A
     "source_toysps_gamma": -0.8,
-    "source_toysps_delta": 0.0,
-    "source_toysps_alpha": 5.,
+    "source_toysps_delta": -0.25,
+    "source_toysps_alpha": 8.,
     "source_toysps_t0": 100.,
     "source_toysps_lmin": 912.,
     "source_toysps_trise": 3,

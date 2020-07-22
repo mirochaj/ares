@@ -34,12 +34,10 @@ class SynthesisModelToy(Source):
                 dl = self.pf['source_dlam']
                 if dE is not None:
                     self._energies = np.arange(self.Emin, self.Emax+dE, dE)
-                elif dl is not None:
-                    self._energies = h_p * c / self.wavelengths / cm_per_ang
                 else:
-                    raise ValueError('help')
+                    self._energies = h_p * c / self.wavelengths / cm_per_ang
 
-            assert (dE is not None) + (dl is not None) == 1
+                assert (dE is not None) + (dl is not None) == 1
 
         return self._energies
 
@@ -50,8 +48,8 @@ class SynthesisModelToy(Source):
                 self._wavelengths = self.pf['source_wavelengths']
             elif self.pf['source_lmin'] is not None:
                 self._wavelengths = np.arange(self.pf['source_lmin'],
-                    self.pf['source_lmax']+self.pf['source_lres'],
-                    self.pf['source_lres'])
+                    self.pf['source_lmax']+self.pf['source_dlam'],
+                    self.pf['source_dlam'])
             else:
                 dE = self.pf['source_dE']
                 dl = self.pf['source_dlam']
