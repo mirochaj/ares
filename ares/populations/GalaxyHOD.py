@@ -274,7 +274,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return SFRD[0]
     
 
-    def SFR(self, z, logmass, haloMass=False):   
+    def SFR(self, z, logmass, haloMass=False, log10=True):   
         """
         Main sequence stellar formation rate from Speagle2014
         
@@ -292,13 +292,19 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             log10 of MS SFR [yr^-1]
         """
 
+
+        if log10:
+            mass = [10**i for i in logmass]
+        else:
+            mass = logmass
+
         if haloMass:
             #convert from halo mass to stellar mass
             N, M_1, beta, gamma = self._SMF_PQ()
-            mass = [10**i for i in logmass]
+
             Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
         else:
-            Ms = [10**i for i in logmass]
+            Ms = mass
 
         cos = Cosmology()
 
