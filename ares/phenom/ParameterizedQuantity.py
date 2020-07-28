@@ -109,7 +109,7 @@ class PowerLaw10(BasePQ):
         if not (self.xlim[0] <= x <= self.xlim[1]):
             return self.xfill
 
-        return 10**(self.args[0] * (x / self.args[1])**self.args[2])
+        return 10**(self.args[0]) * (x / self.args[1])**self.args[2]
 
 class PowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):

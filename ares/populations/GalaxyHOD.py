@@ -129,7 +129,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         parsM = get_pq_pars(self.pf['pop_smhm_m'], self.pf)
 
         N = ParameterizedQuantity(**parsN) #N_0 * (z + 1)**nu #PL
-        M_1 = ParameterizedQuantity(**parsM) #10**(logM_0*(z+1)**mu)
+        M_1 = ParameterizedQuantity(**parsM) #10**(logM_0) * (z+1)**mu #different from Moster2010 paper
         beta = ParameterizedQuantity(**parsB) #beta_1*z+beta_0 #linear
         gamma = ParameterizedQuantity(**parsG) #gamma_0*(z + 1)**gamma_1 #PL
 
