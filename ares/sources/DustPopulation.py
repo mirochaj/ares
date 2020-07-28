@@ -312,3 +312,38 @@ class DustPopulation:
             / (np.exp(h * freqs[None,:,None] / k_B / self.T_dust[:,None,:]) - 1) \
             * self.M_dust[:,None,:] * g_per_msun
         return freqs, SED
+
+    def Luminosity(self, z, wave = None):
+        """
+        (num, num) -> 1darray
+
+        Calculates the luminosity function for dust emissions in galaxies.
+        The results are returned in ergs / s / Hz.
+
+        PARAMETERS
+
+        z: number
+            redshift where the luminosity function will be calculated
+        
+        wave: number
+            wavelength (in Angtroms) where the luminosity function will be
+            calculated
+
+        RETURNS
+
+        luminosities: 1darray
+            luminosity of each galaxy for the given redshift and wavelength
+        """
+        # is cached
+        if z in self.z and hasattr(self, '_L_nu'):
+            index = np.where(self.z == z)[0][0]
+            # Here we have the luminosities in ergs / s / Hz
+            luminosities = (self.dust_sed(c / (wave * 1e-8), 0, 1))[1][:, 0, index]
+
+        # is not cached
+        else:
+            waves = c / self.frequencies * 1e8
+            temp_L_nu = self.pop.synth.Spectrum(waves, \
+                    zobs = z, sfh = self.histories['SFR'], tarr = self.histories['t'])
+
+        return luminosities
