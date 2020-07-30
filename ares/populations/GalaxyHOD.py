@@ -98,6 +98,26 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return SM
 
+    def HM_fromSM(self, z, log_SM, **kwargs):
+        """
+        For getting halo mass from a stellar mass using the SMHM ratio. 
+        """
+
+        haloMass = self.halos.tab_M
+
+        N, M_1, beta, gamma = self._SMF_PQ()
+        # SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
+
+        ratio = 2*N(z=z) / ( (haloMass/M_1(z=z))**(-beta(z=z)) + (haloMass/M_1(z=z))**(gamma(z=z)) ) #equ 2
+
+        #just inverse the relation and interpolate, instead of trying to invert equ 2.
+        f = interp1d(ratio*haloMass, haloMass, fill_value=-np.inf, bounds_error=False)
+
+        log_HM = np.log10( f(10**log_SM))
+
+        return log_HM
+
+
     def _SM_fromHM(self, z, haloMass, N, M_1, beta, gamma):
         """
         Using the SMHM ratio, given a halo mass, returns the corresponding stellar mass
