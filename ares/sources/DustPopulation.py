@@ -313,7 +313,8 @@ class DustPopulation:
             * self.M_dust[:,None,:] * g_per_msun
         return freqs, SED
 
-    def Luminosity(self, z, wave):
+    def Luminosity(self, z, wave = 3e5, band=None, idnum=None, window=1,
+        load=True, use_cache=True, energy_units=True):
         """
         (num, num) -> 1darray
 
@@ -334,8 +335,12 @@ class DustPopulation:
         luminosities: 1darray
             luminosity in [ergs / s / Hz] of each galaxy for the given redshift and wavelength
         """
+        # TODO add functionality for the keywords: band, window, load, energy_units
+
+        # print("CALLING DUST LUMINOSITY FUNCTION")
+
         # is cached, we take it from the cache
-        if z in self.z and hasattr(self, '_L_nu'):
+        if use_cache and (z in self.z) and hasattr(self, '_L_nu'):
             index = np.where(self.z == z)[0][0]
             # Here we have the luminosities in ergs / s / Hz
             luminosities = (self.dust_sed(c / (wave * 1e-8), 0, 1))[1][:, 0, index]
@@ -343,6 +348,8 @@ class DustPopulation:
         # is not cached, we calculate everything for the given z and wave
         else:
             # All this code is just to get the dust temperature
+            # (if we want to not repeat code maybe need to rewrite the class
+            # in a more modular way)
 
             waves = c / self.frequencies * 1e8
             L_nu = self.pop.synth.Spectrum(waves, \
@@ -384,5 +391,9 @@ class DustPopulation:
             kappa_nu = 0.1 * (nu / 1e12)**2
             luminosities = 8 * np.pi * h / c**2 * nu**3 * kappa_nu \
                 / (np.exp(h * nu / k_B / T_dust) - 1) * (M_dust * g_per_msun)               # 1darray galaxy (ergs / s / Hz)
+
+
+        if idnum is not None:
+            return luminosities[idnum]
 
         return luminosities

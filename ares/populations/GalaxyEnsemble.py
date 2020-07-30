@@ -2001,9 +2001,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #        "Going to get weird answers for L(band != None) if dust is ON."
         
         raw = self.histories
-        L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
-            extras=self.extras, idnum=idnum, window=window, load=load,
-            use_cache=use_cache, band=band, energy_units=energy_units)
+        if wave > self.src.wavelengths.max():
+            L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum, 
+                window=window, load=load, use_cache=use_cache, energy_units=energy_units)
+        else:
+            L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
+                extras=self.extras, idnum=idnum, window=window, load=load,
+                use_cache=use_cache, band=band, energy_units=energy_units)
            
         if use_cache:
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
