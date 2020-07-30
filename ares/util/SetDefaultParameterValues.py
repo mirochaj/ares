@@ -862,7 +862,8 @@ def PopulationParameters():
     "pop_test_param": None,
 
 
-    #HOD model - should not use defaults here
+    #HOD model - set for z = 0, no quiescent galaxies
+    'pop_sf_fract': 1.0,
     'pop_lf': 3e-4,
     'pop_smhm_beta': 1.06,
     'pop_smhm_n': 0.0282,

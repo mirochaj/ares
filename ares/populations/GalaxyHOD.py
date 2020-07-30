@@ -155,6 +155,28 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return N, M_1, beta, gamma
 
+    def _SF_fraction_PQ(self, **kwargs):
+
+        #default values can be found in emma.py
+
+        pars = get_pq_pars(self.pf['pop_sf_fract'], self.pf)
+
+        #trying to go from SM to HM but these depend on z, just start with HM for now
+        # pars['pq_func_par0'] = self.HM_fromSM(z, pars['pq_func_par0'])
+        # pars['pq_func_par1'] = self.HM_fromSM(z, pars['pq_func_par1'])
+
+        sf_fract = ParameterizedQuantity(**pars) #(perc_maxHM - perc_minHM)/(maxHM - minHM) * (x - maxHM) + perc_maxHM
+
+        if self.pf['pop_sf_type'] == 'tot':
+            fract = lambda x: 1.0*x/x #the fraction is just 1, but it's still an array of len(x)
+
+        elif self.pf['pop_sf_type'] == 'q':
+            fract = lambda x: 1-sf_fract(x=x) # (1-sf_fract)
+        else:
+            fract = sf_fract
+
+        return fract
+
     
     def StellarMassFunction(self, z, logbins, text=False, **kwargs):
         """
@@ -184,17 +206,15 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         haloMass = self.halos.tab_M
 
         N, M_1, beta, gamma = self._SMF_PQ()
+        sf_fract = self._SF_fraction_PQ()
 
         k = np.argmin(np.abs(z - self.halos.tab_z))
 
-        SMF = hmf[k, :] / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
+        SMF = hmf[k, :] * sf_fract(x=haloMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
         # print(SMF)
         # print(StellarMass)
-
-        #if StellarMass[-1] < 1e-10:
-            #print(StellarMass)
 
         if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins):
             #something is wrong with the parameters and _SM_fromHM returned +/- infs, or
