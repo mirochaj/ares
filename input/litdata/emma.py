@@ -14,12 +14,12 @@ model1 = \
 {
 	'pop_sfr_model':'hod',
 
-	'pop_sf_type': 'tot', #tot, sf, q
+'pop_sf_type': 'tot', #tot, sf, q
 
 	#star-forming fraction, linear wrt log10(HM)
 	'pop_sf_fract': 'pq[7]',
 	'pq_func[7]': 'p_linear',
-	'pq_func_var[7]': 'x',
+	'pq_func_var[7]': 'Mh',
 	'pq_func_par0[7]': 11, #log10_minSM,  8 SM
 	'pq_func_par1[7]': 16, #log10_maxSM, 12.5 SM
 	'pq_func_par2[7]': 0.95, #percent_for_minSM

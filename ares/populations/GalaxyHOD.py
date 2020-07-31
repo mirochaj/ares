@@ -165,13 +165,13 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         # pars['pq_func_par0'] = self.HM_fromSM(z, pars['pq_func_par0'])
         # pars['pq_func_par1'] = self.HM_fromSM(z, pars['pq_func_par1'])
 
-        sf_fract = ParameterizedQuantity(**pars) #(perc_maxHM - perc_minHM)/(maxHM - minHM) * (x - maxHM) + perc_maxHM
+        sf_fract = ParameterizedQuantity(**pars) #(perc_maxHM - perc_minHM)/(maxHM - minHM) * (Mh - maxHM) + perc_maxHM
 
         if self.pf['pop_sf_type'] == 'tot':
-            fract = lambda x: 1.0*x/x #the fraction is just 1, but it's still an array of len(x)
+            fract = lambda Mh: 1.0*Mh/Mh#the fraction is just 1, but it's still an array of len(Mh)
 
         elif self.pf['pop_sf_type'] == 'q':
-            fract = lambda x: 1-sf_fract(x=x) # (1-sf_fract)
+            fract = lambda Mh: 1-sf_fract(Mh=Mh) # (1-sf_fract)
         else:
             fract = sf_fract
 
@@ -210,7 +210,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         k = np.argmin(np.abs(z - self.halos.tab_z))
 
-        SMF = hmf[k, :] * sf_fract(x=haloMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
+        SMF = hmf[k, :] * sf_fract(Mh=haloMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
         # print(SMF)
