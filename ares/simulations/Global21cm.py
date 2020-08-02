@@ -100,7 +100,6 @@ class Global21cm(AnalyzeGlobal21cm):
         if not hasattr(self, '_medium'):
             from .MultiPhaseMedium import MultiPhaseMedium
             self._medium = MultiPhaseMedium(cosm=self.cosm, **self.kwargs)
-            #self.pf = self._medium.pf
 
         return self._medium
 

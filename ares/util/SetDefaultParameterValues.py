@@ -776,7 +776,6 @@ def PopulationParameters():
 
     # Should
     "pop_fesc_LW": 1.,
-    "pop_fesc_LyC": 0.1,
 
     # Parameters that sweep fstar under the rug
     "pop_xi_XR": None,     # product of fstar and fX
@@ -1088,7 +1087,6 @@ def SynthesisParameters():
     "source_nebular_Tgas": 2e4,
 
     "source_fesc": 0.,
-
 
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
