@@ -1188,7 +1188,7 @@ def HaloMassFunctionParameters():
     "hps_zmax": 30,
     "hps_dz": 0.5,
 
-    "hps_linear": False,
+    "hps_assume_linear": False,
 
     'hps_dlnk': 0.001,
     'hps_dlnR': 0.001,
