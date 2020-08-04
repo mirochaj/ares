@@ -14,16 +14,45 @@ model1 = \
 {
 	'pop_sfr_model':'hod',
 
-'pop_sf_type': 'tot', #tot, sf, q
+	'pop_sf_type': 'tot', #tot, sf, q
 
 	#star-forming fraction, linear wrt log10(HM)
-	'pop_sf_fract': 'pq[7]',
-	'pq_func[7]': 'p_linear',
-	'pq_func_var[7]': 'Mh',
-	'pq_func_par0[7]': 11, #log10_minSM,  8 SM
-	'pq_func_par1[7]': 16, #log10_maxSM, 12.5 SM
-	'pq_func_par2[7]': 0.95, #percent_for_minSM
-	'pq_func_par3[7]': 0.25, #percent_for_maxSM
+	# 'pop_sf_fract': 'pq[7]',
+	# 'pq_func[7]': 'p_linear',
+	# 'pq_func_var[7]': 'Mh',
+	# 'pq_func_par0[7]': 11, #log10_minSM,  8 SM
+	# 'pq_func_par1[7]': 16, #log10_maxSM, 12.5 SM
+	# 'pq_func_par2[7]': 0.95, #percent_for_minSM
+	# 'pq_func_par3[7]': 0.25, #percent_for_maxSM
+
+	'pop_sf_A': 'pq[7]',
+	'pq_func[7]': 'linear',
+	'pq_func_var[7]': 'z',
+	'pq_func_par0[7]': -1, #const
+	'pq_func_par1[7]': 0.875, #offset
+	'pq_func_par2[7]': -0.8, #m
+
+	'pop_sf_B': 'pq[8]',
+	'pq_func[8]': 'linear',
+	'pq_func_var[8]': 'z',
+	'pq_func_par0[8]': 10.84, #const
+	'pq_func_par1[8]': 1.75, #offset
+	'pq_func_par2[8]': 0.902857, #m
+
+	'pop_sf_C': 'pq[9]',
+	'pq_func[9]': 'linear',
+	'pq_func_var[9]': 'z',
+	'pq_func_par0[9]': 3.0, #const
+	'pq_func_par1[9]': 0, #offset
+	'pq_func_par2[9]': 0, #m
+
+	'pop_sf_D': 'pq[10]',
+	'pq_func[10]': 'linear',
+	'pq_func_var[10]': 'z',
+	'pq_func_par0[10]': 2.0, #const
+	'pq_func_par1[10]': 0, #offset
+	'pq_func_par2[10]': 0, #m
+ 
 
 
 	#for LF

@@ -863,7 +863,7 @@ def PopulationParameters():
 
 
     #HOD model - set for z = 0, no quiescent galaxies
-    'pop_sf_fract': 1.0,
+    # 'pop_sf_fract': 1.0,
     'pop_lf': 3e-4,
     'pop_smhm_beta': 1.06,
     'pop_smhm_n': 0.0282,
@@ -871,6 +871,12 @@ def PopulationParameters():
     'pop_smhm_m': 11.88,
     'pop_sfr_1': 0.84,
     'pop_sfr_2': 6.51,
+    
+    #HOD model - set for z = 0, some quiescent galaxies
+    'pop_sf_A': -1,
+    'pop_sf_B': -10.5,
+    'pop_sf_C': 3.0,
+    'pop_sf_D': 2.0,
 
     
     # Utility

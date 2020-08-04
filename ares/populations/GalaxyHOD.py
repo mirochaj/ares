@@ -86,12 +86,17 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return dydx
 
-    def SMHM(self, z, **kwargs):
+    def SMHM(self, z, log_HM, **kwargs):
         """
         Wrapper for getting stellar mass from a halo mass using the SMHM ratio. 
         """
-
-        haloMass = self.halos.tab_M
+        if log_HM == 0:
+            haloMass = self.halos.tab_M
+        elif type(log_HM) not in [list, np.ndarray]:
+            haloMass = [10**log_HM]
+        else:
+            haloMass = [10**i for i in log_HM]
+        
 
         N, M_1, beta, gamma = self._SMF_PQ()
         SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
@@ -159,19 +164,31 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         #default values can be found in emma.py
 
-        pars = get_pq_pars(self.pf['pop_sf_fract'], self.pf)
 
-        #trying to go from SM to HM but these depend on z, just start with HM for now
-        # pars['pq_func_par0'] = self.HM_fromSM(z, pars['pq_func_par0'])
-        # pars['pq_func_par1'] = self.HM_fromSM(z, pars['pq_func_par1'])
+        parsA = get_pq_pars(self.pf['pop_sf_A'], self.pf)
+        parsB = get_pq_pars(self.pf['pop_sf_B'], self.pf)
 
-        sf_fract = ParameterizedQuantity(**pars) #(perc_maxHM - perc_minHM)/(maxHM - minHM) * (Mh - maxHM) + perc_maxHM
+        parsC = get_pq_pars(self.pf['pop_sf_C'], self.pf)
+        parsD = get_pq_pars(self.pf['pop_sf_D'], self.pf)
+
+        A = ParameterizedQuantity(**parsA) 
+        B = ParameterizedQuantity(**parsB)
+        C = ParameterizedQuantity(**parsC)
+        D = ParameterizedQuantity(**parsD)
+
+        sf_fract = lambda z, Sh: (np.tanh(A(z=z)*(np.log10(Sh) + B(z=z))) + D(z=z))/C(z=z)
+
+        # pars = get_pq_pars(self.pf['pop_sf_fract'], self.pf)
+        # sf_fract = ParameterizedQuantity(**pars) #(perc_maxHM - perc_minHM)/(maxHM - minHM) * (Mh - maxHM) + perc_maxHM
+
 
         if self.pf['pop_sf_type'] == 'tot':
-            fract = lambda Mh: 1.0*Mh/Mh#the fraction is just 1, but it's still an array of len(Mh)
+            fract = lambda z, Sh: 1.0*Sh/Sh#the fraction is just 1, but it's still an array of len(Mh)
 
         elif self.pf['pop_sf_type'] == 'q':
-            fract = lambda Mh: 1-sf_fract(Mh=Mh) # (1-sf_fract)
+            # fract = lambda Mh: 1-sf_fract(Mh=Mh) # (1-sf_fract)
+            fract = lambda z, Sh: 1-sf_fract(z=z, Sh=Sh) # (1-sf_fract)
+
         else:
             fract = sf_fract
 
@@ -210,8 +227,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         k = np.argmin(np.abs(z - self.halos.tab_z))
 
-        SMF = hmf[k, :] * sf_fract(Mh=haloMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
+        SMF = hmf[k, :] * sf_fract(z=z, Sh=StellarMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
 
         # print(SMF)
         # print(StellarMass)
