@@ -13,7 +13,7 @@ for each galaxy in a GalaxyEnsemble object.
 
 import numpy as np
 from scipy.integrate import simps
-from ares.physics.Constants import c, h, k_B, g_per_msun, cm_per_kpc
+from ares.physics.Constants import c, h, k_B, g_per_msun, cm_per_kpc, Lsun
 
 class DustPopulation:
     def __init__(self, galaxyEnsemble, fmin = 1e14, fmax = 1e17, Nfreqs = 500,\
@@ -319,7 +319,7 @@ class DustPopulation:
         (num, num) -> 1darray
 
         Calculates the luminosity function for dust emissions in galaxies.
-        The results are returned in [ergs / s / Hz].
+        The results are returned in [ergs / s / Hz]. Returns nu * L_nu
 
         PARAMETERS
 
