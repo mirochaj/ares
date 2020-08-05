@@ -2056,13 +2056,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Need to be more careful here as nh can change when using
         # simulated halos
         w = raw['nh'][:,izobs+1]
-                                                        
-        _MAB = self.magsys.L_to_MAB(L, z=z)
-        
-        if self.pf['dustcorr_method'] is not None:
-            MAB = self.dust.Mobs(z, _MAB)
+
+        if mags:
+            MAB = self.magsys.L_to_MAB(L, z=z)
         else:
-            MAB = _MAB
+            MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
+        
+        # if self.pf['dustcorr_method'] is not None:
+        #     MAB = self.dust.Mobs(z, _MAB)
+        # else:
+        #     MAB = _MAB
 
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
@@ -2070,9 +2073,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Misok = np.logical_and(L > 0, np.isfinite(L))
         
         # Always bin to setup cache, interpolate from then on.
-        _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+        if mags:
+            _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+        else:
+            _x = np.arange(4, 12, 0.25)
 
-        hist, bin_edges = np.histogram(MAB[Misok==1],
+        hist, bin_histedges = np.histogram(MAB[Misok==1],
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
          
         N = np.sum(w[Misok==1]) 
