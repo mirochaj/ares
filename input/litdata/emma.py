@@ -35,7 +35,7 @@ model1 = \
 	'pop_sf_B': 'pq[8]',
 	'pq_func[8]': 'linear',
 	'pq_func_var[8]': 'z',
-	'pq_func_par0[8]': 10.84, #const
+	'pq_func_par0[8]': -10.84, #const
 	'pq_func_par1[8]': 1.75, #offset
 	'pq_func_par2[8]': 0.902857, #m
 

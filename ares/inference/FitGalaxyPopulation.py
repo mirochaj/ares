@@ -171,7 +171,7 @@ class loglikelihood(LogLikelihood):
                         print('LF is inf or nan!', zmod, xdat)
                         raise ValueError('LF is inf or nan!', zmod, xdat)
                                                                 
-                elif quantity == 'smf':
+                elif quantity in ['smf', 'smf_sf', 'smf_q']:
                     M = np.log10(xdat)
                     p = pop.StellarMassFunction(zmod, M)
                                         
