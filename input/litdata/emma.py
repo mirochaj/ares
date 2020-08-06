@@ -14,7 +14,7 @@ model1 = \
 {
 	'pop_sfr_model':'hod',
 
-	'pop_sf_type': 'tot', #tot, sf, q
+	'pop_sf_type': 'smf_tot', #tot, sf, q
 
 	#star-forming fraction, linear wrt log10(HM)
 	# 'pop_sf_fract': 'pq[7]',

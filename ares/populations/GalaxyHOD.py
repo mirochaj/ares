@@ -160,10 +160,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return N, M_1, beta, gamma
 
-    def _SF_fraction_PQ(self, **kwargs):
+    def _SF_fraction_PQ(self, sf_type, **kwargs):
 
         #default values can be found in emma.py
-
 
         parsA = get_pq_pars(self.pf['pop_sf_A'], self.pf)
         parsB = get_pq_pars(self.pf['pop_sf_B'], self.pf)
@@ -178,24 +177,22 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         sf_fract = lambda z, Sh: (np.tanh(A(z=z)*(np.log10(Sh) + B(z=z))) + D(z=z))/C(z=z)
 
-        # pars = get_pq_pars(self.pf['pop_sf_fract'], self.pf)
-        # sf_fract = ParameterizedQuantity(**pars) #(perc_maxHM - perc_minHM)/(maxHM - minHM) * (Mh - maxHM) + perc_maxHM
-
-
-        if self.pf['pop_sf_type'] == 'tot':
+        if sf_type == 'smf_tot':
+            # print("tot")
             fract = lambda z, Sh: 1.0*Sh/Sh#the fraction is just 1, but it's still an array of len(Mh)
 
-        elif self.pf['pop_sf_type'] == 'q':
-            # fract = lambda Mh: 1-sf_fract(Mh=Mh) # (1-sf_fract)
+        elif sf_type == 'smf_q':
+            # print("q guy")
             fract = lambda z, Sh: 1-sf_fract(z=z, Sh=Sh) # (1-sf_fract)
 
         else:
+            # print("smf_sf")
             fract = sf_fract
 
         return fract
 
     
-    def StellarMassFunction(self, z, logbins, text=False, **kwargs):
+    def StellarMassFunction(self, z, logbins, sf_type='smf_tot', text=False, **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
         
@@ -211,6 +208,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         Phi : float (array)
             Number density of galaxies [cMpc^-3 dex^-1]
         """
+        # print(sf_type)
 
         #catch if only one magnitude is passed
         if type(logbins) not in [list, np.ndarray]:
@@ -223,7 +221,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         haloMass = self.halos.tab_M
 
         N, M_1, beta, gamma = self._SMF_PQ()
-        sf_fract = self._SF_fraction_PQ()
+        sf_fract = self._SF_fraction_PQ(sf_type=sf_type)
 
         k = np.argmin(np.abs(z - self.halos.tab_z))
 
