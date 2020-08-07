@@ -314,7 +314,7 @@ class DustPopulation:
         return freqs, SED
 
     def Luminosity(self, z, wave = 3e5, band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True):
+        load=True, use_cache=True, energy_units=True, total_IR = False):
         """
         (num, num) -> 1darray
 
@@ -327,13 +327,25 @@ class DustPopulation:
             redshift where the luminosity function will be calculated
         
         wave: number
-            wavelength (in Angtroms) where the luminosity function will be
+            wavelength (in Angstroms) where the luminosity will be
             calculated
+
+        band: tuple
+            tuple of wavelengths (in Angstroms) where the luminosity
+            will be calculated and then averaged over the band
+            !! NOT IMPLEMENTED YET !!
+
+        total_IR: boolean
+            if False: returns the luminosity at the given wavelength in [ergs / s / Hz]
+            if True: ignore wave, and returns the total luminosity in [ergs / s]
+            integrated between 8 and 1000 microns
 
         RETURNS
 
         luminosities: 1darray
             luminosity in [ergs / s / Hz] of each galaxy for the given redshift and wavelength
+            OR
+            total luminosity in [ergs / s] integrated between 8 and 1000 microns
         """
         # TODO add functionality for the keywords: band, window, load, energy_units
 
@@ -343,7 +355,13 @@ class DustPopulation:
         if use_cache and (z in self.z) and hasattr(self, '_L_nu'):
             index = np.where(self.z == z)[0][0]
             # Here we have the luminosities in ergs / s / Hz
-            luminosities = (self.dust_sed(c / (wave * 1e-8), 0, 1))[1][:, 0, index]
+            if not total_IR:
+                luminosities = (self.dust_sed(c / (wave * 1e-8), 0, 1))[1][:, 0, index]
+            else:
+                fmax = c / (8 * 1e-4)
+                fmin = c / (1000 * 1e-4)
+                freqs, luminosities = self.dust_sed(fmin, fmax, 1000)
+                luminosities = simps(luminosities[:,:,index], freqs, axis = 1)
 
         # is not cached, we calculate everything for the given z and wave
         else:
@@ -353,44 +371,53 @@ class DustPopulation:
 
             waves = c / self.frequencies * 1e8
             L_nu = self.pop.synth.Spectrum(waves, \
-                    zobs = z, sfh = self.histories['SFR'], tarr = self.histories['t'])      # 2darray galaxy, frequency (in ergs / s / Hz)
+                    zobs = z, sfh = self.histories['SFR'], tarr = self.histories['t'])                      # 2darray galaxy, frequency (in ergs / s / Hz)
             
-            R_dust = self.pop.halos.VirialRadius(z, self.pop.get_field(z, 'Mh')) * 0.018    # 1darray galaxy (in kpc)
+            R_dust = self.pop.halos.VirialRadius(z, self.pop.get_field(z, 'Mh')) * 0.018                    # 1darray galaxy (in kpc)
 
-            kappa_nu = 0.1 * (self.frequencies / 1e12)**2                                   # 1darray frequency (in cm^2/g)
+            kappa_nu = 0.1 * (self.frequencies / 1e12)**2                                                   # 1darray frequency (in cm^2/g)
 
-            M_dust = self.pop.get_field(z, 'Md')                                            # 1darray galaxy (in solar masses)
+            M_dust = self.pop.get_field(z, 'Md')                                                            # 1darray galaxy (in solar masses)
 
             tau_nu = 3 * (M_dust[:, None] * g_per_msun) * kappa_nu[None, :]\
-                 / (4 * np.pi * (R_dust[:, None] * cm_per_kpc)**2)                          # 2darray galaxy, frequency (dim. less)
+                 / (4 * np.pi * (R_dust[:, None] * cm_per_kpc)**2)                                          # 2darray galaxy, frequency (dim. less)
 
-            f_geom = (1 - np.exp(-tau_nu)) / tau_nu                                         # 2darray galaxy, frequency (dim. less)
+            f_geom = (1 - np.exp(-tau_nu)) / tau_nu                                                         # 2darray galaxy, frequency (dim. less)
 
-            f_star = self.pop.histories['fcov']                                             # just a number (dim. less)
+            f_star = self.pop.histories['fcov']                                                             # just a number (dim. less)
 
-            T_cmb = self.pop.cosm.TCMB(z)                                                   # just a number (in K)
+            T_cmb = self.pop.cosm.TCMB(z)                                                                   # just a number (in K)
 
             stellar = L_nu * f_geom * f_star * kappa_nu[None, :] \
-                / (R_dust[:, None] * cm_per_kpc)**2                                         # 2darray galaxy, frequency
+                / (R_dust[:, None] * cm_per_kpc)**2                                                         # 2darray galaxy, frequency
             cmb = 8 * np.pi * h / c**2 * self.frequencies**3 * kappa_nu \
-                / (np.exp(h * self.frequencies / k_B / T_cmb) - 1)                          # 1darray frequency
+                / (np.exp(h * self.frequencies / k_B / T_cmb) - 1)                                          # 1darray frequency
             
-            absorb = stellar + cmb[None,:]                                                  # 2darray galaxy, frequency
+            absorb = stellar + cmb[None,:]                                                                  # 2darray galaxy, frequency
 
-            power = simps(absorb, self.frequencies, axis = 1)                               # 1darray galaxy
+            power = simps(absorb, self.frequencies, axis = 1)                                               # 1darray galaxy
 
-            prefactor = 64e-25 / 63 * np.pi**7 * k_B**6 / c**2 / h**5                       # just a number, cgs units
+            prefactor = 64e-25 / 63 * np.pi**7 * k_B**6 / c**2 / h**5                                       # just a number, cgs units
 
             T_dust = (power / prefactor)**(1/6)
             NaNs = np.isnan(T_dust)
-            T_dust[NaNs] = 0                                                                # 1darray galaxy
+            T_dust[NaNs] = 0                                                                                # 1darray galaxy
 
             # Now we can finally calculate the luminosities
             
-            nu = c / wave * 1e8
-            kappa_nu = 0.1 * (nu / 1e12)**2
-            luminosities = 8 * np.pi * h / c**2 * nu**3 * kappa_nu \
-                / (np.exp(h * nu / k_B / T_dust) - 1) * (M_dust * g_per_msun)               # 1darray galaxy (ergs / s / Hz)
+            if not total_IR:
+                nu = c / wave * 1e8
+                kappa_nu = 0.1 * (nu / 1e12)**2
+                luminosities = 8 * np.pi * h / c**2 * nu**3 * kappa_nu \
+                    / (np.exp(h * nu / k_B / T_dust) - 1) * (M_dust * g_per_msun)                           # 1darray galaxy (ergs / s / Hz)
+            else:
+                fmax = c / (8 * 1e-4)
+                fmin = c / (1000 * 1e-4)
+                nu = np.linspace(fmin, fmax, 1000)                                                          # 1darray freqs (Hz)
+                kappa_nu = 0.1 * (nu / 1e12)**2                                                             # 1darray freqs (cm^2 / g)
+                luminosities = 8 * np.pi * h / c**2 * nu[None,:]**3 * kappa_nu[None,:] \
+                    / (np.exp(h * nu[None,:] / k_B / T_dust[:,None]) - 1) * (M_dust[:,None] * g_per_msun)   # 2darray galaxy, freqs (ergs / s / Hz)
+                luminosities = simps(luminosities, nu, axis = 1)
 
 
         if idnum is not None:

@@ -2015,17 +2015,50 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return L
             
     def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1, 
-        band=None):
+        band=None, total_IR = False):
         """
         Compute the luminosity function from discrete histories.
         
         Need to be a little careful about indexing here. For example, if we
         request the LF at a redshift not present in the grid, we need to...
+
+        PARAMETERS
+
+        z: number
+            redshift to be looked at
+
+        x: I'm not sure what it does, Jordan can help you (Felix writing this,
+        I just input None and it seems to work)
+
+        mags : boolean
+            if True: returns bin centers in absolute magnitudes
+            if False: returns bin centers in log(L / Lsun)
+
+        wave : number
+            wavelength in Angstroms to be looked at. If wave > 3e5, then
+            the luminosity function comes from the dust in the galaxies.
+
+        window : int
+            Can alternatively retrive the average luminosity at specified
+            wavelength after smoothing intrinsic spectrum with a boxcar window
+            of this width (in pixels).
+
+        band : tuple
+            Can alternatively request the average luminosity in some wavelength
+            interval (again, rest wavelengths in Angstrom).
+
+        total_IR : boolean
+            if False: returns luminosity function at the given wavelength
+            if True: returns the total infrared luminosity function for wavelengths
+            between 8 and 1000 microns.
+            Note: if True, ignores wave and band keywords, and always returns in log(L / Lsun)
         
         """
-        
+        if total_IR:
+            wave = 'total'
         cached_result = self._cache_lf(z, x, wave)
-        if cached_result is not None:
+
+        if (cached_result is not None):
             return cached_result
                                 
         # These are kept in descending redshift just to make life difficult.
@@ -2047,7 +2080,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         ##
         # Run in batch.
-        L = self.Luminosity(z, wave=wave, band=band, window=window)
+        if not total_IR:
+            L = self.Luminosity(z, wave=wave, band=band, window=window)
+        else:
+            L = self.dust.Luminosity(z, total_IR = True)
+            mags = False
         ##    
         
         zarr = raw['z']
@@ -2059,6 +2096,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         if mags:
             MAB = self.magsys.L_to_MAB(L, z=z)
+        elif total_IR:
+            MAB = np.log10(L / Lsun)
         else:
             MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
         
@@ -2075,18 +2114,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Always bin to setup cache, interpolate from then on.
         if mags:
             _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
-        else:
+        elif not total_IR:
             _x = np.arange(4, 12, 0.25)
+        else:
+            _x = np.arange(6.5, 14, 0.25)
 
         hist, bin_histedges = np.histogram(MAB[Misok==1],
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
          
         N = np.sum(w[Misok==1]) 
         phi = hist * N
-                          
-        self._cache_lf_[(z, wave)] = _x, phi
         
+        self._cache_lf_[(z, wave)] = _x, phi
         return self._cache_lf(z, x, wave)
+        
         
     def _cache_beta(self, kw_tup):
     
