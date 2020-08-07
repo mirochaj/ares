@@ -111,9 +111,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         haloMass = self.halos.tab_M
 
         N, M_1, beta, gamma = self._SMF_PQ()
-        # SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
-        ratio = 2*N(z=z) / ( (haloMass/M_1(z=z))**(-beta(z=z)) + (haloMass/M_1(z=z))**(gamma(z=z)) ) #equ 2
+        ratio = 2*N(z=z) / ( (haloMass/M_1(z=z))**(-beta(z=z)) + (haloMass/M_1(z=z))**(gamma(z=z)) )
 
         #just inverse the relation and interpolate, instead of trying to invert equ 2.
         f = interp1d(ratio*haloMass, haloMass, fill_value=-np.inf, bounds_error=False)
@@ -145,7 +144,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return StellarMass
 
     def _SMF_PQ(self, **kwargs):
-
+        #Gets the Parameterized Quantities for the SMF double power law
         #default values can be found in emma.py
 
         parsB = get_pq_pars(self.pf['pop_smhm_beta'], self.pf)
@@ -161,6 +160,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return N, M_1, beta, gamma
 
     def _SF_fraction_PQ(self, sf_type, **kwargs):
+        #Gets the Parameterized Quantities for the star-forming fraction tanh equation
 
         #default values can be found in emma.py
 
@@ -178,15 +178,12 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         sf_fract = lambda z, Sh: (np.tanh(A(z=z)*(np.log10(Sh) + B(z=z))) + D(z=z))/C(z=z)
 
         if sf_type == 'smf_tot':
-            # print("tot")
-            fract = lambda z, Sh: 1.0*Sh/Sh#the fraction is just 1, but it's still an array of len(Mh)
+            fract = lambda z, Sh: 1.0*Sh/Sh #the fraction is just 1, but it's still an array of len(Mh)
 
         elif sf_type == 'smf_q':
-            # print("q guy")
             fract = lambda z, Sh: 1-sf_fract(z=z, Sh=Sh) # (1-sf_fract)
 
         else:
-            # print("smf_sf")
             fract = sf_fract
 
         return fract
@@ -202,6 +199,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
         logbins : float
             log10 of Stellar mass bins. per stellar mass
+        sf_type: string
+            Specifies which galaxy population to use: total ='smf_tot' (default), 
+            star-forming ='smf_sf', quiescent ='smf_q'
         
         Returns
         -------
@@ -227,9 +227,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
         SMF = hmf[k, :] * sf_fract(z=z, Sh=StellarMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
-
-        # print(SMF)
-        # print(StellarMass)
 
         if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins):
             #something is wrong with the parameters and _SM_fromHM returned +/- infs, or
@@ -378,8 +375,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         func2 = ParameterizedQuantity(**pars2)
 
         logSFR = func1(t=t)*np.log10(Ms) - func2(t=t) #Equ 28
-
-
         # logSFR = (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t) #Equ 28
 
         return logSFR
