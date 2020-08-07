@@ -15,6 +15,7 @@ import glob
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
+from ares.physics.Constants import rhodot_cgs
 
 def test():
     # Will save UVLF at these redshifts and magnitudes
@@ -42,7 +43,8 @@ def test():
      'pop_sfr_model': 'uvlf',
      
      # Stellar pop + fesc
-     'pop_L1600_per_sfr': 0.2e28, # to avoid using synthesis models
+     'pop_calib_wave': 1600.,
+     'pop_lum_per_sfr': 0.2e28, # to avoid using synthesis models
      
      'pop_uvlf': 'pq',
      'pq_func': 'schechter_evol',
@@ -173,7 +175,7 @@ def test():
         
         gpop = ares.analysis.GalaxyPopulation()
         gpop.PlotLF(5.9, sources='bouwens2015', ax=ax)
-        
+                
         # Other random stuff
         all_kwargs = anl.AssembleParametersList(include_bkw=True)
         assert len(all_kwargs) == anl.chain.shape[0]
@@ -184,7 +186,7 @@ def test():
         for i, par in enumerate(best_pars.keys()):
             assert all_kwargs[iML][par] == best_pars[par]
         
-        anl.CorrelationMatrix(anl.parameters, fig=4)
+        anl.CorrelationMatrix(anl.parameters, fig=5)
     
     # Clean-up
     mcmc_files = glob.glob('{}/test_uvlf*'.format(os.environ.get('ARES')))

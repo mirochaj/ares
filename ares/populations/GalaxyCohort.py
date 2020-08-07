@@ -41,6 +41,11 @@ try:
 except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
+    
+try:
+    import mpmath
+except ImportError:
+    pass    
 
 ztol = 1e-4
 z0 = 9. # arbitrary
@@ -1502,6 +1507,108 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_sfr_mask_ = mask
         return self._tab_sfr_mask_
         
+    def _ngtm_from_ham(self, z):
+        if not hasattr(self, '_ngtm_from_ham_'):
+            self._ngtm_from_ham_ = {}
+            
+        if z in self._ngtm_from_ham_:
+            return self._ngtm_from_ham_[z]    
+            
+        # Compute n(>m) from discrete set of halos.
+        hist = self.pf['pop_histories']
+        iz = np.argmin(np.abs(hist['z'] - z))
+        _Mh_ = hist['Mh'][:,iz]
+        nh = hist['nh'][:,iz]
+        
+        # Make ngtm so it looks like it came from self.halos
+        self._ngtm_from_ham_[z] = np.zeros_like(self.halos.tab_M)
+        for iM, _M_ in enumerate(self.halos.tab_M):
+            self._ngtm_from_ham_[z][iM] = np.sum(nh[_Mh_ > _M_])
+            
+        return self._ngtm_from_ham_[z]
+        
+    def _abundance_match(self, z, Mh):
+        """
+        These are the star-formation efficiencies derived from abundance
+        matching.
+        """
+
+        assert self.pf['pop_sfr_model'] == 'uvlf'
+        
+        # Poke PQ
+        #if 'uvlf' not in self._pq_registry:
+        _phi_ = self.LuminosityFunction(6., -20)
+        
+        uvlf = self._pq_registry['uvlf']  
+        
+        mags_obs = np.arange(self.pf['pop_mag_min'],
+            self.pf['pop_mag_max']+self.pf['pop_mag_bin'], self.pf['pop_mag_bin'])
+
+        mags = []
+        for mag in mags_obs:
+            mags.append(mag-self.dust.AUV(z, mag))
+    
+        # Mass function
+        if self.pf['pop_histories'] is not None:
+            iz = np.argmin(np.abs(self.pf['pop_histories']['z'] - z))
+            ngtm = self._ngtm_from_ham(z)
+        else:    
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            ngtm = self.halos.tab_ngtm[iz]
+    
+        # Use dust-corrected magnitudes here
+        LUV_dc = np.array([self.magsys.MAB_to_L(mag, z=z) for mag in mags])
+
+        assert self.pf['pop_lum_per_sfr'] is not None
+        L_per_sfr = self.pf['pop_lum_per_sfr']
+
+        # Loop over luminosities and perform abundance match
+        mh_of_mag = []
+        fstar_tab = []
+        for j, _mag_ in enumerate(mags_obs):
+            
+            # Number of galaxies with MUV <= _mag_
+            int_phiM = quad(lambda xx: uvlf(MUV=xx, z=z), -np.inf, _mag_)[0]
+        
+            # Number density of halos at masses > M
+            ngtM_spl = interp1d(np.log10(self.halos.tab_M), np.log10(ngtm), 
+                kind='linear', bounds_error=False)
+    
+            def to_min(logMh):
+                int_nMh = 10**(ngtM_spl(logMh))[0]
+
+                return abs(int_phiM - int_nMh)
+
+            _Mh_ = 10**fsolve(to_min, 10., factor=0.001, 
+                maxfev=10000)[0]
+            
+            if self.pf['pop_histories'] is not None:
+                # Compute mean MAR for halos in this bin?
+                _Mh_hist = np.log10(self.pf['pop_histories']['Mh'][:,iz])
+                ok = np.logical_and(_Mh_hist >= np.log10(_Mh_)-0.05,
+                                    _Mh_hist <  np.log10(_Mh_)+0.05)
+                MAR = np.mean(self.pf['pop_histories']['MAR_acc'][:,iz])
+            else:    
+                MAR = 10**np.interp(np.log10(_Mh_), np.log10(self.halos.tab_M), 
+                    np.log10(self.halos.tab_MAR[iz,:]))
+            
+            MAR *= self.cosm.fbar_over_fcdm    
+            
+            _fstar_ = LUV_dc[j] / L_per_sfr / MAR
+            
+            mh_of_mag.append(_Mh_)
+            fstar_tab.append(_fstar_)
+                
+        ##
+        # Interpolate results onto provided Mh
+        fstar = 10**np.interp(np.log10(Mh), np.log10(mh_of_mag[-1::-1]), 
+            np.log10(fstar_tab[-1::-1]))
+        
+        # Enforce minimum mass
+        fstar[Mh < self.Mmin(z)] = 0.0
+        
+        return fstar
+        
     @property
     def _tab_sfr(self):
         """
@@ -1548,7 +1655,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 tstar = self.pf['pop_tstar']
                 H = self.cosm.HubbleParameter(self.halos.tab_z) * s_per_yr
                 self._tab_sfr_ = np.array([Mb * fst[i] * H[i] / tstar \
-                    for i in range(H.size)])
+                    for i in range(H.size)])                
             else:   
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \
@@ -1908,13 +2015,32 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Just a wrapper around self.fstar.
         """
         
-        return self.fstar(**kwargs)
-        
+        if self.pf['pop_sfr_model'] == 'uvlf':
+            if type(kwargs['z']) == np.ndarray:
+                
+                z = np.unique(kwargs['z'])
+                Mh = np.unique(kwargs['Mh'])
+                
+                pb = ProgressBar(z.size, use=self.pf['progress_bar'], name='ham')
+                pb.start()
+                fstar = np.zeros((z.size, Mh.size))    
+                for iz, _z_ in enumerate(z):
+                    fstar[iz,:] = self._abundance_match(z=_z_, Mh=Mh)
+                    pb.update(iz)
+                    
+                pb.finish()
+                                    
+                return fstar
+            else:    
+                return self._abundance_match(z=kwargs['z'], Mh=kwargs['Mh'])
+        else:    
+            return self.fstar(**kwargs)
+
     @property
     def yield_per_sfr(self):
         # Need this to avoid inheritance issue with GalaxyAggregate
         if not hasattr(self, '_yield_per_sfr'):
-                        
+
             if type(self.rad_yield) is FunctionType:
                 self._yield_per_sfr = self.rad_yield()
             else:
