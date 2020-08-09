@@ -1,11 +1,10 @@
 """
-Leitherer, C., Schaerer, D., Goldader, J. D., Delgado, R. M. G., Robert, C.,
-Kune, D. F., de Mello, D. F., Devost, D., & Heckman, T. M. 1999, ApJS,
-123, 3
+BPASS version 2
 
-Notes
------
+Eldridge, Stanway et al, 2017, PASA 34, 58
 
+Paper describes version 2.1. Latest updates in 2.2 described in
+Stanway & Eldridge (2018).
 """
 
 import re, os
