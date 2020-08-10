@@ -262,8 +262,18 @@ class DustPopulation:
         """
         if not hasattr(self, '_T_dust'):
             # Calculate total power absorbed per dust mass
-            tmp_stellar = self.L_nu * (1 - np.exp(-self.tau_nu)) \
-                / self.tau_nu * self.pop.histories['fcov'] * self.kappa_nu \
+
+            if (self.pf.get('pop_dust_distrib') is None) or (self.pf['pop_dust_distrib'] == 'homogeneous'):
+                f_geom = (1 - np.exp(-self.tau_nu)) / self.tau_nu
+
+            elif self.pf['pop_dust_distrib'] == 'pt src':
+                f_geom = np.exp(-self.tau_nu)
+                
+            else:
+                raise ValueError("Parameter pop_dust_distrib must be 'homogeneous' or 'pt src'.")
+
+            tmp_stellar = self.L_nu * f_geom \
+                * self.pop.histories['fcov'] * self.kappa_nu \
                 / (self.R_dust[:,None,:] * cm_per_kpc)**2
             
             tmp_cmb = 8 * np.pi * h / c**2 * self.kappa_nu * (self.frequencies[None, :, None])**3 \
