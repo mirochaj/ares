@@ -2849,35 +2849,35 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if not hasattr(self, "_dust"):
             
             # fetching keywords provided
-            if self.pf.get('dust_fmin') is None:
+            if self.pf.get('pop_dust_fmin') is None:
                 fmin = 1e14
             else:
-                fmin = self.pf['dust_fmin']
+                fmin = self.pf['pop_dust_fmin']
 
-            if self.pf.get('dust_fmax') is None:
+            if self.pf.get('pop_dust_fmax') is None:
                 fmax = 1e17
             else:
-                fmax = self.pf['dust_fmax']
+                fmax = self.pf['pop_dust_fmax']
                 
-            if self.pf.get('dust_Nfreqs') is None:
+            if self.pf.get('pop_dust_Nfreqs') is None:
                 Nfreqs = 500
             else:
-                Nfreqs = self.pf['dust_Nfreqs']
+                Nfreqs = self.pf['pop_dust_Nfreqs']
                 
-            if self.pf.get('dust_zmin') is None:
+            if self.pf.get('pop_dust_zmin') is None:
                 zmin = 4
             else:
-                zmin = self.pf['dust_zmin']
+                zmin = self.pf['pop_dust_zmin']
                 
-            if self.pf.get('dust_zmax') is None:
+            if self.pf.get('pop_dust_zmax') is None:
                 zmax = 10
             else:
-                zmax = self.pf['dust_zmax']
+                zmax = self.pf['pop_dust_zmax']
                 
-            if self.pf.get('dust_Nz') is None:
+            if self.pf.get('pop_dust_Nz') is None:
                 Nz = 7
             else:
-                Nz = self.pf['dust_Nz']
+                Nz = self.pf['pop_dust_Nz']
 
             # creating instance
             self._dust = DustPopulation.DustPopulation(self, fmin, fmax, Nfreqs, zmin, zmax, Nz)
