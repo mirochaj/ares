@@ -12,14 +12,9 @@ import ares
 import numpy as np
 
 def test():
+    #set up basic pop
     pars = ares.util.ParameterBundle('emma:model2')
-
     pop = ares.populations.GalaxyPopulation(**pars)
-    
-#    assert 1e-3 <= sfrd <= 1, "SFRD unreasonable"
-#    assert 1e4 <= np.mean(Md) <= 1e10, "Dust masses unreasonable!"
-#     assert 1e-4 <= np.interp(-18, mags, phi) <= 1e-1, "UVLF unreasonable!"
-#    assert np.array_equal(phi[ok==1], phi_c[ok==1]), "UVLF cache not working!"
 
     z = 5
     mags = np.linspace(-24, -12)
@@ -55,7 +50,7 @@ def test():
     assert all(-10 <= i <= -7 for i in SSFR), "SSFR unreasonable"
     
     #test SFRD
-    Zs = np.linspace(0, 8, 50)
+    Zs = np.linspace(0, 6, 50)
     SFRD = pop.SFRD(Zs)
     assert all(1e-6 <= i <= 1 for i in SFRD), "SFRD unreasonable"
 

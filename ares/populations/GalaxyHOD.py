@@ -12,6 +12,7 @@ Description: LF and SMF model based off Moster2010, as well as main sequence SFR
 from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import get_pq_pars
+from ..util.MagnitudeSystem import MagnitudeSystem
 from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import s_per_gyr
 from ..physics.Cosmology import Cosmology
@@ -24,6 +25,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         self.kwargs = kwargs
 
         HaloPopulation.__init__(self, **kwargs)
+
         
     def LuminosityFunction(self, z, x, text=False):
         """
@@ -70,7 +72,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             findMags = np.array([elem in mags for elem in MUV])
             NumDensity = LF[findMags]
         else:
-            f = interp1d(MUV, LF, kind='cubic')    
+            f = interp1d(MUV, LF, kind='cubic', fill_value=-np.inf, bounds_error=False)    
             try:
                 NumDensity = f(mags)
             except:
@@ -79,12 +81,78 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return NumDensity
 
+
+    def Gen_LuminosityFunction(self, z, x, Lambda):
+        """
+        Reconstructed luminosity function for a given wavelength.
+        **Only for Star-forming populations currently
+
+        Population must be set with pars:
+            pop_sed = 'eldridge2009' 
+            pop_tsf = 12 -  population age [Myr]
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
+        x : float
+            Absolute (AB) magnitudes.
+        Lambda : float
+            Wavelength in Ångströms
+        
+        Returns
+        -------
+        Number density.
+        
+        """
+
+        if type(x) not in [list, np.ndarray]:
+            mags = [x]
+        else:
+            mags = x
+
+        Hm = self.halos.tab_M
+
+        Lum = self.src.L_per_sfr(Lambda) * 10**self.SFR(z, Hm, True, log10=False) #[erg/s/Hz]
+        
+        k = np.argmin(np.abs(z - self.halos.tab_z))
+        dndM = self.halos.tab_dndm[k, :][:-1]
+
+        MagSys = MagnitudeSystem()
+        MUV = MagSys.L_to_MAB(L=Lum, z=z)
+
+        diff = []
+        for i in range(len(MUV)-1):
+            diff.append( (MUV[i+1] - MUV[i])/(Hm[i+1] - Hm[i]) )
+
+        dLdM = np.abs(diff)
+      
+        LF = dndM/dLdM
+
+        #check if requested magnitudes are in MUV, else interpolate LF function
+        result =  all(elem in MUV for elem in mags)
+
+        if result:
+            #slice list to get the values requested
+            findMags = np.array([elem in mags for elem in MUV])
+            NumDensity = LF[findMags]
+        else:
+            f = interp1d(MUV[:-1], LF, kind='cubic', fill_value=-np.inf, bounds_error=False)    
+            try:
+                NumDensity = f(mags)
+            except:
+                NumDensity = -np.inf * np.ones(len(mags))
+
+        return NumDensity
+
+
     def _dlogm_dM(self, N, M_1, beta, gamma):
         #derivative of log10( m ) wrt M for SMF
         
         dydx = -1* ((gamma-1)*(self.halos.tab_M/M_1)**(gamma+beta) - beta - 1) / (np.log(10)*self.halos.tab_M*((self.halos.tab_M/M_1)**(gamma+beta) + 1))
 
         return dydx
+
 
     def SMHM(self, z, log_HM, **kwargs):
         """
@@ -102,6 +170,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
 
         return SM
+
 
     def HM_fromSM(self, z, log_SM, **kwargs):
         """
@@ -143,6 +212,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return StellarMass
 
+
     def _SMF_PQ(self, **kwargs):
         #Gets the Parameterized Quantities for the SMF double power law
         #default values can be found in emma.py
@@ -158,6 +228,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         gamma = ParameterizedQuantity(**parsG) #gamma_0*(z + 1)**gamma_1 #PL
 
         return N, M_1, beta, gamma
+
 
     def _SF_fraction_PQ(self, sf_type, **kwargs):
         #Gets the Parameterized Quantities for the star-forming fraction tanh equation
@@ -188,7 +259,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return fract
 
-    
+   
     def StellarMassFunction(self, z, logbins, sf_type='smf_tot', text=False, **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
@@ -208,7 +279,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         Phi : float (array)
             Number density of galaxies [cMpc^-3 dex^-1]
         """
-        # print(sf_type)
 
         #catch if only one magnitude is passed
         if type(logbins) not in [list, np.ndarray]:
@@ -274,6 +344,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                     phi = -np.inf * np.ones(len(bins))
 
         return phi    
+     
         
     def SFRD(self, z):
         """
@@ -378,6 +449,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         # logSFR = (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t) #Equ 28
 
         return logSFR
+
 
     #specific sfr
     def SSFR(self, z, logmass, haloMass=False):
