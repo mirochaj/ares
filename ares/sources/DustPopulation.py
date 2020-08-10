@@ -268,19 +268,30 @@ class DustPopulation:
 
             elif self.pf['pop_dust_distrib'] == 'pt src':
                 f_geom = np.exp(-self.tau_nu)
-                
+
             else:
                 raise ValueError("Parameter pop_dust_distrib must be 'homogeneous' or 'pt src'.")
 
             tmp_stellar = self.L_nu * f_geom \
                 * self.pop.histories['fcov'] * self.kappa_nu \
                 / (self.R_dust[:,None,:] * cm_per_kpc)**2
-            
-            tmp_cmb = 8 * np.pi * h / c**2 * self.kappa_nu * (self.frequencies[None, :, None])**3 \
-                / (np.exp(h * self.frequencies[None,:,None] / k_B / self.T_cmb[:,None,:]) - 1)
 
-            tmp_power = simps(tmp_stellar + tmp_cmb, self.frequencies, axis = 1)
-            # This prefactor is based on analytically performing the integral
+            
+            cmb_freqs = np.linspace(1, 1e14, 1000)
+
+            cmb_kappa_nu = np.zeros((self.Ngalaxies, 1000, self.Nz))
+            cmb_kappa_nu += (0.1 * (cmb_freqs / 1e12)**2)[None, :, None]
+            
+            tmp_cmb = 8 * np.pi * h / c**2 * cmb_kappa_nu * (cmb_freqs[None, :, None])**3 \
+                / (np.exp(h * cmb_freqs[None,:,None] / k_B / self.T_cmb[:,None,:]) - 1)
+
+            tmp_power = simps(tmp_stellar, self.frequencies, axis = 1)
+            tmp_power += simps(tmp_cmb, cmb_freqs, axis = 1)
+
+            # This prefactor is based on analytically performing the integral,
+            # so getting the dust temperature for a different model
+            # would work differently
+
             tmp_prefactor = 64e-25 / 63 * np.pi**7 * k_B**6 / c**2 / h**5
             tmp_T_dust = (tmp_power / tmp_prefactor)**(1/6)
             NaNs = np.isnan(tmp_T_dust)
@@ -400,12 +411,17 @@ class DustPopulation:
 
             stellar = L_nu * f_geom * f_star * kappa_nu[None, :] \
                 / (R_dust[:, None] * cm_per_kpc)**2                                                         # 2darray galaxy, frequency
-            cmb = 8 * np.pi * h / c**2 * self.frequencies**3 * kappa_nu \
-                / (np.exp(h * self.frequencies / k_B / T_cmb) - 1)                                          # 1darray frequency
-            
-            absorb = stellar + cmb[None,:]                                                                  # 2darray galaxy, frequency
 
-            power = simps(absorb, self.frequencies, axis = 1)                                               # 1darray galaxy
+            
+            cmb_freqs = np.linspace(1, 1e14, 1000)
+
+            cmb_kappa_nu = 0.1 * (cmb_freqs / 1e12)**2
+            
+            cmb = 8 * np.pi * h / c**2 * cmb_kappa_nu * (cmb_freqs)**3 \
+                / (np.exp(h * cmb_freqs / k_B / T_cmb) - 1)                                                 # 1darray frequency
+
+            power = simps(stellar, self.frequencies, axis = 1)                                              # 1darray galaxy
+            power += simps(cmb, cmb_freqs)
 
             prefactor = 64e-25 / 63 * np.pi**7 * k_B**6 / c**2 / h**5                                       # just a number, cgs units
 
