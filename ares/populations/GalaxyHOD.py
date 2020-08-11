@@ -248,8 +248,15 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         sf_fract = lambda z, Sh: (np.tanh(A(z=z)*(np.log10(Sh) + B(z=z))) + D(z=z))/C(z=z)
 
+        test = sf_fract(z=1, Sh=1e11)
+        # print(test)
+
         if sf_type == 'smf_tot':
             fract = lambda z, Sh: 1.0*Sh/Sh #the fraction is just 1, but it's still an array of len(Mh)
+
+        elif test > 1 or test < 0:
+            # print("Fraction is unreasonable")
+            fract = lambda z, Sh: -np.inf * Sh/Sh
 
         elif sf_type == 'smf_q':
             fract = lambda z, Sh: 1-sf_fract(z=z, Sh=Sh) # (1-sf_fract)
