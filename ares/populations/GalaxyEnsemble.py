@@ -2336,7 +2336,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
                 method=magmethod, presets=presets)
 
-            MAB, beta, _std, N1 = bin_samples(_MAB, beta_r, Mbins, weights=nh)
+            if np.all(np.diff(np.diff(nh)) == 0):
+                Mh = self.get_field(z, 'Mh')
+                ok = Mh > 0
+            else:
+                ok = np.ones_like(_MAB)
+
+            MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
+                Mbins, weights=nh)
 
         else:
             beta = beta_r
