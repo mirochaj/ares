@@ -1591,16 +1591,26 @@ class GalaxyPopulation(object):
             sfr_bins = np.arange(-3, 3, 0.2)
 
             # y is irrelevant here
-            x1, y1, std1, N1 = bin_samples(np.log10(sfr[is_highz==1]),
-                Mh[is_highz==1],
-                sfr_bins, return_N=True, inclusive=True)
-            x2, y2, std2, N2 = bin_samples(np.log10(sfr[is_highz==0]),
-                Mh[is_highz==0],
-                sfr_bins, return_N=True, inclusive=True)
+            if np.any(is_highz==1):
+                x1, y1, std1, N1 = bin_samples(np.log10(sfr[is_highz==1]),
+                    Mh[is_highz==1],
+                    sfr_bins, return_N=True, inclusive=True)
+            else:
+                N1 = 0
+
+            if np.any(is_highz==0):
+                x1, y2, std2, N2 = bin_samples(np.log10(sfr[is_highz==0]),
+                    Mh[is_highz==0],
+                    sfr_bins, return_N=True, inclusive=True)
+            else:
+                N2 = 0
+
+            x_all, y_all, std_all, N_all = bin_samples(np.log10(sfr),
+                Mh, sfr_bins, return_N=True, inclusive=True)
 
             tot_by_bin = N1 + N2
 
-            ax2.semilogx(10**x1, N2 / tot_by_bin.astype('float'), color='k')
+            ax2.semilogx(10**x_all, N2 / tot_by_bin.astype('float'), color='k')
             ax2.set_ylim(-0.05, 1.05)
             ax2.set_xlabel(r'$\dot{M}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1}]$')
 
