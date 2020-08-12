@@ -306,7 +306,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         StellarMass = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
         SMF = hmf[k, :] * sf_fract(z=z, Sh=StellarMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
 
-        if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins):
+        if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins) or np.isinf(SMF).all():
             #something is wrong with the parameters and _SM_fromHM returned +/- infs, or
             #if there are less non-zero SM than SM values requested from bins
 
