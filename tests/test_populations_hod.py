@@ -5,7 +5,7 @@ Author: Emma Klemets
 Affiliation: McGill
 Created on: Aug 7, 2020
 
-Description: 
+Description: Test the main functions of GalaxyHOD.py.
 """
 
 import ares

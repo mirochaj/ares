@@ -5,7 +5,7 @@ Author: Emma Klemets
 Affiliation: McGill University
 Created on: June 3, 2020
 
-Description: LF and SMF model based off Moster2010, as well as main sequence SFR, SSFR and SFRD models (based on Speagle2014)
+Description: LF and SMF model (based on Moster2010), as well as main sequence SFR, SSFR and SFRD models (based on Speagle2014)
 
 """
 
@@ -250,7 +250,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         SM = np.logspace(8, 12)
         test = sf_fract(z=1, Sh=SM)
-        # print(test)
 
         if sf_type == 'smf_tot':
             fract = lambda z, Sh: 1.0*Sh/Sh #the fraction is just 1, but it's still an array of len(Mh)
@@ -307,8 +306,8 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         SMF = hmf[k, :] * sf_fract(z=z, Sh=StellarMass) / self._dlogm_dM(N(z=z), M_1(z=z), beta(z=z), gamma(z=z)) #dn/dM / d(log10(m))/dM
 
         if np.isinf(StellarMass).all() or np.count_nonzero(StellarMass) < len(bins) or np.isinf(SMF).all():
-            #something is wrong with the parameters and _SM_fromHM returned +/- infs, or
-            #if there are less non-zero SM than SM values requested from bins
+            #something is wrong with the parameters and _SM_fromHM or _SF_fraction_PQ returned +/- infs,
+            #or if there are less non-zero SM than SM values requested from bins
 
             if text:
                 print("SM is inf or too many zeros!")
@@ -459,7 +458,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return logSFR
 
 
-    #specific sfr
     def SSFR(self, z, logmass, haloMass=False):
         """
         Specific stellar formation rate.

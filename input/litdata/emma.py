@@ -18,9 +18,9 @@ model1 = \
 	'pop_sf_A': 'pq[7]',
 	'pq_func[7]': 'pl',
 	'pq_func_var[7]': '1+z',
-	'pq_func_par0[7]': -1.5, #const
+	'pq_func_par0[7]': -1.5,
 	'pq_func_par1[7]': 1.0,
-	'pq_func_par2[7]': 0.4, #m
+	'pq_func_par2[7]': 0.4,
 
 	'pop_sf_B': 'pq[8]',
 	'pq_func[8]': 'pl',
@@ -386,39 +386,40 @@ model4 = \
 
 }
 
-#hopefully all the best fit values
+
+#Best fit values for sf_fract and SMF
 model5 = \
 {
 	'pop_sfr_model':'hod',
 
-	#star-forming fraction - a, b linear z dependance, c, d constant 
+	#star-forming fraction - a, b dpl z dependance, other linear
 	'pop_sf_A': 'pq[7]',
-	'pq_func[7]': 'linear',
-	'pq_func_var[7]': 'z',
-	'pq_func_par0[7]': -1.5, #const
+	'pq_func[7]': 'pl',
+	'pq_func_var[7]': '1+z',
+	'pq_func_par0[7]': -1.1847036287831372,
 	'pq_func_par1[7]': 1.0,
-	'pq_func_par2[7]': 0.4, #m
+	'pq_func_par2[7]': 0.41859919954205005,
 
 	'pop_sf_B': 'pq[8]',
-	'pq_func[8]': 'linear',
-	'pq_func_var[8]': 'z',
-	'pq_func_par0[8]': -10.7,
+	'pq_func[8]': 'pl',
+	'pq_func_var[8]': '1+z',
+	'pq_func_par0[8]': -10.70135313806234,
 	'pq_func_par1[8]': 1.0,
-	'pq_func_par2[8]': -0.1,
+	'pq_func_par2[8]': -0.022495626306877965,
 
 	'pop_sf_C': 'pq[9]',
 	'pq_func[9]': 'linear',
 	'pq_func_var[9]': 'z',
-	'pq_func_par0[9]': 1.8, #const
-	'pq_func_par1[9]': 0,
-	'pq_func_par2[9]': 0,
+	'pq_func_par0[9]': 1.7148405951932986, #const
+	'pq_func_par1[9]': 0, #offset
+	'pq_func_par2[9]': 0.8788516704318952, #m
 
 	'pop_sf_D': 'pq[10]',
 	'pq_func[10]': 'linear',
 	'pq_func_var[10]': 'z',
-	'pq_func_par0[10]': 0.5, #const
-	'pq_func_par1[10]': 0,
-	'pq_func_par2[10]': 0,
+	'pq_func_par0[10]': 0.5368355259379274, #const
+	'pq_func_par1[10]': 0, #offset
+	'pq_func_par2[10]': 0.9642440270517514, #m
 
 	#for LF
 	'pop_lf': 'pq[4]',
@@ -429,38 +430,38 @@ model5 = \
 	'pq_func_par2[4]': 0, 
 
 
-	#for SMF - default parameters for dpl
+	#for SMF - best fit parameters for dpl
 	#beta
 	'pop_smhm_beta': 'pq[0]',
 	'pq_func[0]': 'linear',
 	'pq_func_var[0]': 'z',
-	'pq_func_par0[0]': beta_0,
+	'pq_func_par0[0]': 0.8828985178317218,
 	'pq_func_par1[0]': 0,
-	'pq_func_par2[0]': beta_1, 
+	'pq_func_par2[0]': -0.03363387618820308, 
 
 	#norm
 	'pop_smhm_n': 'pq[1]',
 	'pq_func[1]': 'pl',
 	'pq_func_var[1]': '1+z',
-	'pq_func_par0[1]': N_0,
+	'pq_func_par0[1]': 0.010358061397412294,
 	'pq_func_par1[1]': 1.0,
-	'pq_func_par2[1]': nu, 
+	'pq_func_par2[1]': 0.28690793780049106, 
 
 	#gamma
 	'pop_smhm_gamma': 'pq[2]',
 	'pq_func[2]': 'pl',
 	'pq_func_var[2]': '1+z',
-	'pq_func_par0[2]': gamma_0,
+	'pq_func_par0[2]': 0.5633902051902832,
 	'pq_func_par1[2]': 1.0,
-	'pq_func_par2[2]': gamma_1, 
+	'pq_func_par2[2]': 0.18194904277970236, 
 
 	#peak mass
 	'pop_smhm_m': 'pq[3]',
 	'pq_func[3]': 'pl_10',
 	'pq_func_var[3]': '1+z',
-	'pq_func_par0[3]': logM_0,
+	'pq_func_par0[3]': 11.750289778904255,
 	'pq_func_par1[3]': 1.0,
-	'pq_func_par2[3]': mu, 
+	'pq_func_par2[3]': 1.855774245368317, 
 
 
 	#SFR - added with log10(_1)
