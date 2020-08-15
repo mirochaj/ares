@@ -429,7 +429,7 @@ ereg_eduty_edtmr = ereg_edtmr.copy()
 ereg_eduty_edtmr.update(_fduty)
 ereg_eduty_edtmr.update(_duty_dtmr_best_ereg)
 
-evol = ereg_eduty_edtmr
+evol_e = ereg_eduty_edtmr
 
 mreg_edtmr = ereg_edtmr.copy()
 mreg_edtmr.update(_evol_mreg_dplrd)
@@ -438,6 +438,7 @@ mreg_eduty_edtmr = mreg_edtmr.copy()
 mreg_eduty_edtmr.update(_fduty)
 mreg_eduty_edtmr.update(_duty_dtmr_best_mreg)
 
+evol_m = mreg_eduty_edtmr
 
 univ_plRd = univ.copy()
 _univ_plRd_best = \

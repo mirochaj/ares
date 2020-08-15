@@ -988,8 +988,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         if self.pf['pop_dust_yield'] is not None:
             fd = self.guide.dust_yield(z=z2d, Mh=Mh)
+            have_dust = np.any(fd > 0)
         else:
             fd = 0.0
+            have_dust = False
 
         if self.pf['pop_dust_growth'] is not None:
             fg = self.guide.dust_growth(z=z2d, Mh=Mh)
@@ -1157,7 +1159,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Dust
         ##
-        if np.any(fd > 0):
+        if have_dust:
 
             delay = self.pf['pop_dust_yield_delay']
 
@@ -1288,17 +1290,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # will have been set to zero post-merger.
 
                 # Add stellar mass of progenitors
-                Ms[iM[i],iz[i]:] += max(Ms[i,:])
+                Ms[iM[i],iz[i]:] += np.max(Ms[i,:])
 
                 #Mg[iM[i],iz[i]:] += max(Mg[i,:])
 
                 # Add dust mass of progenitors
-                if np.any(fd > 0):
-                    Md[iM[i],iz[i]:] += max(Md[i,:])
+                if have_dust:
+                    Md[iM[i],iz[i]:] += np.max(Md[i,:])
                     #MZ[iM[i],iz[i]:] += max(MZ[i,:])
 
             # Re-compute dust surface density
-            if np.any(fd > 0) and (self.pf['pop_dust_scatter'] is not None):
+            if have_dust and (self.pf['pop_dust_scatter'] is not None):
                 Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
                 Sd += noise
                 Sd *= g_per_msun / cm_per_kpc**2
