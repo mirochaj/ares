@@ -536,33 +536,59 @@ class HaloMassFunction(object):
     def _MF(self):
         if not hasattr(self, '_MF_'):
 
-            logMmin = self.pf['hmf_logMmin']
-            logMmax = self.pf['hmf_logMmax']
-            dlogM = self.pf['hmf_dlogM']
+            if self.pf['hmf_package'] == 'hmf':
+                logMmin = self.pf['hmf_logMmin']
+                logMmax = self.pf['hmf_logMmax']
+                dlogM = self.pf['hmf_dlogM']
 
-            from hmf.filters import SharpK, TopHat
-            if self.pf['hmf_window'] == 'tophat':
-                # This is the default in hmf
-                window = TopHat
-            elif self.pf['hmf_window'].lower() == 'sharpk':
-                window = SharpK
+                from hmf.filters import SharpK, TopHat
+                if self.pf['hmf_window'] == 'tophat':
+                    # This is the default in hmf
+                    window = TopHat
+                elif self.pf['hmf_window'].lower() == 'sharpk':
+                    window = SharpK
+                else:
+                    raise ValueError("Unrecognized window function.")
+
+                MFclass = MassFunction if self.pf['hmf_wdm_mass'] is None \
+                    else MassFunctionWDM
+
+                xtras = {'wdm_mass': self.pf['hmf_wdm_mass']} \
+                    if self.pf['hmf_wdm_mass'] is not None else {}
+
+                # Initialize Perturbations class
+                self._MF_ = MFclass(Mmin=logMmin, Mmax=logMmax,
+                    dlog10m=dlogM, z=self.tab_z[0], filter_model=window,
+                    hmf_model=self.hmf_func, cosmo_params=self.pars_cosmo,
+                    growth_params=self.pars_growth, sigma_8=self.cosm.sigma8,
+                    n=self.cosm.primordial_index,
+                    transfer_params=self.pars_transfer,
+                    dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
+                    lnk_max=self.pf['hmf_lnk_max'],
+                    hmf_params=self.pf['hmf_params'],
+                    use_splined_growth=self.pf['hmf_use_splined_growth'],
+                    **xtras)
+
+            elif self.pf['hmf_package'] == 'ccl':
+
+                assert self.pf['cosmology_package'] == 'ccl', \
+                    "Must use ccl for `cosmolog_package` for consisteny."
+
+                import pyccl
+
+                if self.pf['hmf_model'] == 'ST':
+                    self._MF_ = pyccl.halos.MassFuncSheth99(self.cosm._ccl_instance)
+                elif self.pf['hmf_model'] == 'PS':
+                    self._MF_ = pyccl.halos.MassFuncPress74(self.cosm._ccl_instance)
+                elif self.pf['hmf_model'] == 'Tinker10':
+                    self._MF_ = pyccl.halos.MassFuncTinker10(self.cosm._ccl_instance)
+                else:
+                    raise NotImplemented("Unrecognized hmf_model={}!".format(
+                        self.pf['hmf_model']))
+
             else:
-                raise ValueError("Unrecognized window function.")
-
-            MFclass = MassFunction if self.pf['hmf_wdm_mass'] is None \
-                else MassFunctionWDM
-            xtras = {'wdm_mass': self.pf['hmf_wdm_mass']} \
-                if self.pf['hmf_wdm_mass'] is not None else {}
-
-            # Initialize Perturbations class
-            self._MF_ = MFclass(Mmin=logMmin, Mmax=logMmax,
-                dlog10m=dlogM, z=self.tab_z[0], filter_model=window,
-                hmf_model=self.hmf_func, cosmo_params=self.pars_cosmo,
-                growth_params=self.pars_growth, sigma_8=self.cosm.sigma8,
-                n=self.cosm.primordial_index, transfer_params=self.pars_transfer,
-                dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
-                lnk_max=self.pf['hmf_lnk_max'], hmf_params=self.pf['hmf_params'],
-                use_splined_growth=self.pf['hmf_use_splined_growth'], **xtras)
+                raise NotImplemented("Unrecognized hmf_package={}!".format(
+                    self.pf['hmf_package']))
 
         return self._MF_
 
@@ -655,10 +681,18 @@ class HaloMassFunction(object):
         MF = self._MF
 
         # Masses in hmf are really Msun / h
-        if hmf_vers < 3:
-            self.tab_M = self._MF.M / self.cosm.h70
+        if self.pf['hmf_package'] == 'hmf':
+            if hmf_vers < 3:
+                self.tab_M = self._MF.M / self.cosm.h70
+            else:
+                self.tab_M = self._MF.m / self.cosm.h70
         else:
-            self.tab_M = self._MF.m / self.cosm.h70
+            logMmin = self.pf['hmf_logMmin']
+            logMmax = self.pf['hmf_logMmax']
+            dlogM = self.pf['hmf_dlogM']
+
+            log10M = np.arange(logMmin, logMmax+dlogM, dlogM)
+            self.tab_M = 10**log10M
 
         # Main quantities of interest.
         self.tab_dndm = np.zeros([self.tab_z.size, self.tab_M.size])
@@ -666,8 +700,9 @@ class HaloMassFunction(object):
         self.tab_ngtm = np.zeros_like(self.tab_dndm)
 
         # Extras
-        self.tab_k_lin  = self._MF.k * self.cosm.h70
-        self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
+        if self.pf['hmf_package'] == 'hmf':
+            self.tab_k_lin  = self._MF.k * self.cosm.h70
+            self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
 
         pb = ProgressBar(len(self.tab_z), 'hmf', use=self.pf['progress_bar'])
@@ -675,27 +710,40 @@ class HaloMassFunction(object):
 
         for i, z in enumerate(self.tab_z):
 
-            if i > 0:
-                self._MF.update(z=z)
-
             if i % size != rank:
                 continue
 
-            # Undo little h for all main quantities
-            self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
-            self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
-            self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
+            if self.pf['hmf_package'] == 'hmf':
 
-            self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3
-            self.tab_growth[i] = self._MF.growth_factor * 1.
+                self._MF.update(z=z)
+
+                # Undo little h for all main quantities
+                self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
+                self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
+                self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
+
+                self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3
+                self.tab_growth[i] = self._MF.growth_factor * 1.
+
+            else:
+
+                dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance,
+                    self.tab_M, 1./(1.+z))
+
+                self.tab_dndm[i] = dndlog10m / self.tab_M
+
+                self.tab_ngtm[i] = np.trapz(dndlog10m, x=np.log10(self.tab_M)) \
+                    - cumtrapz(dndlog10m, x=np.log10(self.tab_M), initial=0.)
+
 
             pb.update(i)
 
         pb.finish()
 
         # All processors will have this.
-        self.tab_sigma = self._MF._sigma_0
-        self.tab_dlnsdlnm = self._MF._dlnsdlnm
+        if self.pf['hmf_package'] == 'hmf':
+            self.tab_sigma = self._MF._sigma_0
+            self.tab_dlnsdlnm = self._MF._dlnsdlnm
 
         # Collect results!
         if size > 1:
@@ -1290,7 +1338,6 @@ class HaloMassFunction(object):
 
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
 
-
         if self.pf['hmf_dt'] is None:
             z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
 
@@ -1338,9 +1385,13 @@ class HaloMassFunction(object):
                 logMsize, M1, M2, s, zsize, z1, z2)
 
         else:
-
             s = 'hmf_{0!s}_{1!s}_logM_*_{2}-{3}_{4}_*_{5}-{6}'.format(\
                 self.hmf_func, self.cosm.get_prefix(), M1, M2, s, z1, z2)
+
+        if self.pf['hmf_package'] == 'ccl':
+            s.replace('hmf', 'hmfccl')
+
+        print('HELLO', s)
 
         if self.pf['hmf_window'].lower() != 'tophat':
             s += '_{}'.format(self.pf['hmf_window'].lower())

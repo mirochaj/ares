@@ -1126,6 +1126,8 @@ def SynthesisParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
+    "hmf_package": 'hmf',
+
     "hmf_model": 'ST',
 
     "hmf_instance": None,
@@ -1240,6 +1242,7 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
+    "cosmology_package": None,
     "cosmology_propagation": False,
     "cosmology_inits_location": None,
     "omega_m_0": 0.3089,
