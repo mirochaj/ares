@@ -20,6 +20,10 @@ except ImportError:
     pass
 
 class CosmologyCCL(CosmologyARES):
+    """
+    Create a class instance that looks like a CosmologyARES instance but is
+    calling CCL under the hood.
+    """
 
     @property
     def _ccl_instance(self):
@@ -28,6 +32,20 @@ class CosmologyCCL(CosmologyARES):
                 Omega_b=self.omega_b_0, h=self.h70, n_s=self.primordial_index,
                 sigma8=self.sigma_8,
                 transfer_function='bbks')
+
+            #'hmf_dlna': 2e-6,           # hmf default value is 1e-2
+            #'hmf_dlnk': 1e-2,
+            #'hmf_lnk_min': -20.,
+            #'hmf_lnk_max': 10.,
+            #'hmf_transfer_k_per_logint': 11,
+            #'hmf_transfer_kmax': 100.,
+
+            #self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_MIN = 4
+            #self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_MAX = 18
+            #self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_NM = 1401
+            self._ccl_instance.cosmo.spline_params.K_MIN = 1e-9
+            self._ccl_instance.cosmo.spline_params.K_MAX = 2e4
+            self._ccl_instance.cosmo.spline_params.K_MAX_SPLINE = 2e4
 
         return self._ccl_instance_
 

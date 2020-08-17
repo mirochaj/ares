@@ -669,6 +669,11 @@ class HaloMassFunction(object):
         if rank == 0:
             print_hmf(self)
 
+    #@property
+    #def tab_k_lin(self):
+#        self.tab_k_lin  = self._MF.k * self.cosm.h70
+    #    self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
+
     def TabulateHMF(self, save_MAR=True):
         """
         Build a lookup table for the halo mass function / collapsed fraction.
@@ -702,7 +707,11 @@ class HaloMassFunction(object):
         # Extras
         if self.pf['hmf_package'] == 'hmf':
             self.tab_k_lin  = self._MF.k * self.cosm.h70
-            self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
+        else:
+            # Placeholder for now
+            self.tab_k_lin = np.logspace(-5, 5, 1000)
+
+        self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
 
         pb = ProgressBar(len(self.tab_z), 'hmf', use=self.pf['progress_bar'])
@@ -735,6 +744,8 @@ class HaloMassFunction(object):
                 self.tab_ngtm[i] = np.trapz(dndlog10m, x=np.log10(self.tab_M)) \
                     - cumtrapz(dndlog10m, x=np.log10(self.tab_M), initial=0.)
 
+                #self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3
+                #self.tab_growth[i] = self._MF.growth_factor * 1.
 
             pb.update(i)
 
