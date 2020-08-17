@@ -2340,7 +2340,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             if np.all(np.diff(np.diff(nh)) == 0):
                 Mh = self.get_field(z, 'Mh')
-                ok = Mh > 0
+                # L may be zero (and so MUV -inf) even for elements with Mh>0
+                # because we generally (should) mask out first timestep MAR.
+                ok = np.logical_and(Mh > 0, np.isfinite(_MAB))
             else:
                 ok = np.ones_like(_MAB)
 

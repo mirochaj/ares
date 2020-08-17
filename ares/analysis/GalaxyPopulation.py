@@ -207,7 +207,6 @@ class GalaxyPopulation(object):
                         np.ma.array(src.data[quantity][z]['phi'].data,
                             mask=src.data[quantity][z]['phi'].mask)
                 else:
-                    print(source)
                     data[source]['phi'] = \
                         np.ma.array(src.data[quantity][z]['phi'].data,
                             mask=src.data[quantity][z]['phi'])
