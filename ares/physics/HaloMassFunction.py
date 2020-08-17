@@ -57,6 +57,11 @@ except ImportError:
     have_hmf = False
     hmf_vers = 0
 
+try:
+    import pyccl
+except ImportError:
+    pass
+
 if 0 < hmf_vers < 3.1:
     try:
         from hmf.wdm import MassFunctionWDM
@@ -574,8 +579,6 @@ class HaloMassFunction(object):
                 assert self.pf['cosmology_package'] == 'ccl', \
                     "Must use ccl for `cosmolog_package` for consisteny."
 
-                import pyccl
-
                 if self.pf['hmf_model'] == 'ST':
                     self._MF_ = pyccl.halos.MassFuncSheth99(self.cosm._ccl_instance)
                 elif self.pf['hmf_model'] == 'PS':
@@ -697,7 +700,8 @@ class HaloMassFunction(object):
             dlogM = self.pf['hmf_dlogM']
 
             log10M = np.arange(logMmin, logMmax+dlogM, dlogM)
-            self.tab_M = 10**log10M
+            tab_M = 10**log10M
+            self.tab_M = tab_M #/ self.cosm.h70
 
         # Main quantities of interest.
         self.tab_dndm = np.zeros([self.tab_z.size, self.tab_M.size])
@@ -708,8 +712,11 @@ class HaloMassFunction(object):
         if self.pf['hmf_package'] == 'hmf':
             self.tab_k_lin  = self._MF.k * self.cosm.h70
         else:
-            # Placeholder for now
-            self.tab_k_lin = np.logspace(-5, 5, 1000)
+            dlogk = self.pf['hps_dlnk']
+            kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
+            logk = np.arange(kmi, kma+dlogk, dlogk)
+            tab_k_lin = np.exp(logk)
+            self.tab_k_lin = tab_k_lin #* self.cosm.h70
 
         self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
@@ -737,15 +744,17 @@ class HaloMassFunction(object):
             else:
 
                 dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance,
-                    self.tab_M, 1./(1.+z))
+                    tab_M, 1./(1.+z))
 
-                self.tab_dndm[i] = dndlog10m / self.tab_M
+                self.tab_dndm[i] = (dndlog10m / tab_M) #* self.cosm.h70**4
 
-                self.tab_ngtm[i] = np.trapz(dndlog10m, x=np.log10(self.tab_M)) \
-                    - cumtrapz(dndlog10m, x=np.log10(self.tab_M), initial=0.)
+                self.tab_ngtm[i] = np.trapz(dndlog10m, x=np.log10(tab_M)) \
+                    - cumtrapz(dndlog10m, x=np.log10(tab_M), initial=0.)
 
-                #self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3
-                #self.tab_growth[i] = self._MF.growth_factor * 1.
+                self.tab_ps_lin[i] = pyccl.linear_matter_power(self.cosm._ccl_instance,
+                    tab_k_lin, 1./(1.+z)) #/ self.cosm.h70**3
+                self.tab_growth[i] = pyccl.growth_factor(self.cosm._ccl_instance,
+                    1./(1.+z))
 
             pb.update(i)
 
@@ -1401,8 +1410,6 @@ class HaloMassFunction(object):
 
         if self.pf['hmf_package'] == 'ccl':
             s.replace('hmf', 'hmfccl')
-
-        print('HELLO', s)
 
         if self.pf['hmf_window'].lower() != 'tophat':
             s += '_{}'.format(self.pf['hmf_window'].lower())

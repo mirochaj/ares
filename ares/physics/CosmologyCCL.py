@@ -31,7 +31,7 @@ class CosmologyCCL(CosmologyARES):
             self._ccl_instance_ = pyccl.Cosmology(Omega_c=self.omega_cdm_0,
                 Omega_b=self.omega_b_0, h=self.h70, n_s=self.primordial_index,
                 sigma8=self.sigma_8,
-                transfer_function='bbks')
+                transfer_function='boltzmann_camb')
 
             #'hmf_dlna': 2e-6,           # hmf default value is 1e-2
             #'hmf_dlnk': 1e-2,
@@ -40,12 +40,27 @@ class CosmologyCCL(CosmologyARES):
             #'hmf_transfer_k_per_logint': 11,
             #'hmf_transfer_kmax': 100.,
 
-            #self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_MIN = 4
-            #self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_MAX = 18
-            #self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_NM = 1401
-            self._ccl_instance.cosmo.spline_params.K_MIN = 1e-9
-            self._ccl_instance.cosmo.spline_params.K_MAX = 2e4
-            self._ccl_instance.cosmo.spline_params.K_MAX_SPLINE = 2e4
+            self._ccl_instance_.cosmo.gsl_params.INTEGRATION_EPSREL = 1e-8
+            self._ccl_instance_.cosmo.gsl_params.INTEGRATION_DISTANCE_EPSREL = 1e-5
+            self._ccl_instance_.cosmo.gsl_params.INTEGRATION_SIGMAR_EPSREL = 1e-12
+            self._ccl_instance_.cosmo.gsl_params.ODE_GROWTH_EPSREL = 1e-8
+            self._ccl_instance_.cosmo.gsl_params.EPS_SCALEFAC_GROWTH = 1e-8
+
+            # User responsible for making sure NM and DELTA are consistent.
+            self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_MIN = 4
+            self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_MAX = 18
+            self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_NM = 1400
+            self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_DELTA = 0.01
+
+            self._ccl_instance_.cosmo.spline_params.K_MIN = 1e-9
+            self._ccl_instance_.cosmo.spline_params.K_MAX = 10000
+            self._ccl_instance_.cosmo.spline_params.K_MAX_SPLINE = 10000
+            self._ccl_instance_.cosmo.spline_params.N_K = 1000
+
+            self._ccl_instance.cosmo.spline_params.A_SPLINE_NA = 500
+            #self._ccl_instance.cosmo.spline_params.A_SPLINE_MIN_PK = 0.01
+
+
 
         return self._ccl_instance_
 
