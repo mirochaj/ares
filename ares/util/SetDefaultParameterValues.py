@@ -67,6 +67,10 @@ def GridParameters():
     "include_cgm": True,
     "include_igm": True,
 
+    # For Dark Matter heating
+    "include_dm": False,
+    "initial_V_chi_b": 0,
+
     # Line photons
     "include_injected_lya": True,
 
@@ -1280,6 +1284,14 @@ def CosmologyParameters():
     'cosmorec_path': None,
     'cosmorec_output': 'input/inits/outputs/',
     'cosmorec_fmt': '.dat',
+
+    # Instantiated class instance if using class cosmology name
+    'cosmology_inits': None,
+
+    # Dark matter interaction params
+    "m_dmeff": None,
+    "sigma_dmeff": None,
+    "npow_dmeff": None,
     }
 
     pf.update(rcParams)

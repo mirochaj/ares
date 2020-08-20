@@ -549,13 +549,13 @@ class MultiPanel(object):
         shared = eval("self.share_{!s}".format(axis))
         
         # Get locations of ticks on bottom row
-        if axis is 'x':
+        if axis == 'x':
             ticks_by_col = []
             for i in self.bottom:
                 ticks_by_col.append(self.grid[i].get_xticks())
         
         # Get locations of ticks on left column
-        if axis is 'y':
+        if axis == 'y':
             ticks_by_row = []
             for i in self.left:
                 ticks_by_row.append(self.grid[i].get_xticks())

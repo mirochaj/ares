@@ -50,7 +50,12 @@ class Cosmology(InitialConditions):
             self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
             self.h70 = self.pf['hubble_0']
             self.helium_by_mass = self.Y = self.pf['helium_by_mass']
-            
+
+            # Dark matter cosmology params
+            self.m_dmeff = self.pf['m_dmeff']
+            self.sigma_dmeff = self.pf['sigma_dmeff']
+            self.npow_dmeff = self.pf['npow_dmeff']
+
         ####################################################################
         
         # Everything beyond this point is a derived quantity of some sort.
@@ -266,8 +271,11 @@ class Cosmology(InitialConditions):
                  
     @property
     def inits(self):
-        if not hasattr(self, '_inits'):             
-            self._inits = self.get_inits_rec()
+        if not hasattr(self, '_inits'):
+            if self.pf['cosmology_inits'] is None:
+                self._inits = self.get_inits_rec()
+            else:
+                self._inits = self.pf['cosmology_inits']
         return self._inits
         
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):

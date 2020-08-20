@@ -51,13 +51,12 @@ try:
     import hmf
     from hmf import MassFunction
     have_hmf = True
-    hmf_vstr = hmf.__version__
-    hmf_vers = float(hmf_vstr[0:hmf_vstr.rfind('.')])
+    hmf_vers = hmf.__version__
 except ImportError:
     have_hmf = False
-    hmf_vers = 0
+    hmf_vers = "0"
 
-if 0 < hmf_vers < 3.1:
+if "0" < hmf_vers < "3.1":
     try:
         from hmf.wdm import MassFunctionWDM
     except ImportError:
@@ -214,6 +213,7 @@ class HaloMassFunction(object):
 
                         self.tab_name = candidate
 
+        print(self.tab_name)
         # Override switch: compute Press-Schechter function analytically
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.tab_name = None
@@ -655,7 +655,7 @@ class HaloMassFunction(object):
         MF = self._MF
 
         # Masses in hmf are really Msun / h
-        if hmf_vers < 3:
+        if hmf_vers < '3':
             self.tab_M = self._MF.M / self.cosm.h70
         else:
             self.tab_M = self._MF.m / self.cosm.h70

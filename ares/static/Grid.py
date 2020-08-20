@@ -358,8 +358,8 @@ class Grid(object):
                 self._cosm = Cosmology(pf=self.pf, **self.pf)
             else:
                 self._cosm = self._cosm_
-        return self._cosm            
-                
+        return self._cosm
+
     def set_properties(self, **kwargs):
         """
         Initialize grid properties all in one go.
@@ -372,6 +372,22 @@ class Grid(object):
         self.set_density(kwargs['density_units'])
         self.set_ionization(kwargs['initial_ionization'])
         self.set_temperature(kwargs['initial_temperature'])
+
+        if self.include_dm:
+            # Sets initial conditions based on cosmology object.
+            inits = {
+                k: np.interp(self.zi, self.cosm.inits['z'], self.cosm.inits[k])
+                for k in ['xe', 'Tk', 'T_chi']
+            }
+            inits['V_chi_b'] = self.cosm.inits['V_chi_b']
+            for k in inits:
+                inits[k] *= np.ones(self.dims)
+
+            self.data['e'] = inits['xe']
+            self.data['h_2'] = inits['xe']
+            self.data['Tk'] = inits['Tk']
+            self.data['T_chi'] = inits['T_chi']
+            self.data['V_chi_b'] = inits['V_chi_b']
 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
@@ -416,7 +432,7 @@ class Grid(object):
     def set_cosmology(self, **kwargs):
         self.zi = self.pf['initial_redshift']
         
-    def set_chemistry(self, include_He=False):
+    def set_chemistry(self, include_He=False, include_dm=False):
         """
         Initialize chemistry.
         
@@ -427,6 +443,8 @@ class Grid(object):
         ----------
         include_He : bool
             Solve for helium?
+        include_dm : bool
+            include for Dark Matter heating?
 
         Example
         -------
@@ -447,7 +465,7 @@ class Grid(object):
         self.elements = []       # Just a list of element names
         self.all_ions = []       # All ion species          
         self.evolving_fields = []# Anything with an ODE we'll later solve
-          
+        self._include_dm = include_dm
         for i, element in enumerate(self.Z):
             element_name = util.z2element(element)
                 
@@ -460,23 +478,28 @@ class Grid(object):
                 self.parents_by_ion[name] = element_name
                 self.evolving_fields.append(name)
 
-        self.solve_ge = False      
+        self.solve_ge = False
         self.evolving_fields.append('e')
         if not self.isothermal:
             self.evolving_fields.append('Tk')
+
+            if include_dm:
+                self.evolving_fields.extend(['T_chi', 'V_chi_b'])
+
+        self.fields_key = {k: v for v, k in enumerate(self.evolving_fields)}
 
         # Create blank data fields    
         if not hasattr(self, 'data'):            
             self.data = {}
             for field in self.evolving_fields:
                 self.data[field] = np.zeros(self.dims)
-                                        
+
         self.abundances_by_number = self.abundances
         self.element_abundances = [1.0]
         if include_He:
             self.element_abundances.append(self.cosm.helium_by_number)
-                               
-        # Initialize mapping between q-vector and physical quantities (dengo)                
+
+        # Initialize mapping between q-vector and physical quantities (dengo)
         self._set_qmap()
 
     def set_density(self, nH=None):
@@ -573,32 +596,33 @@ class Grid(object):
         
         if self.solve_ge:
             self.set_gas_energy()
-        
+
+
     def set_ics(self, data):
         """
-        Simple way of setting all initial conditions at once with a data 
+        Simple way of setting all initial conditions at once with a data
         dictionary.
         """
-        
+
         self.data = {}
         for key in data.keys():
             if type(data[key]) is float:
                 self.data[key] = data[key]
                 continue
-                
+
             self.data[key] = data[key].copy()
-    
+
     def create_slab(self, **kwargs):
         """ Create a slab. """
-                
+
         if not kwargs['slab']:
-            return        
-                
+            return
+
         # Figure out where the clump is
         gridarr = np.linspace(0, 1, self.dims)
         isslab = (gridarr >= (kwargs['slab_position'] - kwargs['slab_radius'])) \
                 & (gridarr <= (kwargs['slab_position'] + kwargs['slab_radius']))
-                
+
         # First, modify density and temperature
         if kwargs['slab_profile'] == 0:
             self.data['rho'][isslab] *= kwargs['slab_overdensity']
@@ -606,64 +630,64 @@ class Grid(object):
             self.data['Tk'][isslab] = kwargs['slab_temperature']
         else:
             raise NotImplemented('only know uniform slabs')
-                
+
         # Ionization state - could generalize this more
         for j, species in enumerate(self.species):
             element, state = species.split('_')
             Z = util.element2z(element)
             i = int(state)
-                     
+
             name = util.zion2name(Z, i)
             self.data[name][isslab] = np.ones(isslab.sum()) \
                 * kwargs['slab_ionization'][j]
-                
+
         # Reset electron density, particle density, and gas energy
         self._set_electron_fraction()
-                
-        if hasattr(self, '_x_to_n_converter'):        
+
+        if hasattr(self, '_x_to_n_converter'):
             del self._x_to_n_converter
-        
+
     def _set_electron_fraction(self):
         """
         Set electron density - must have run set_density beforehand.
         """
-        
+
         self.data['e'] = np.zeros(self.dims)
         for i, Z in enumerate(self.Z):
             for j in np.arange(1, 1 + Z):   # j = number of electrons donated by ion j + 1
                 x_i_jp1 = self.data[util.zion2name(Z, j + 1)]
                 self.data['e'] += j * x_i_jp1 * self.n_ref \
-                    * self.element_abundances[i]  
-                    
-        self.data['e'] /= self.n_H              
-                
+                    * self.element_abundances[i]
+
+        self.data['e'] /= self.n_H
+
     def particle_density(self, data, z=0):
         """
         Compute total particle number density.
-        """    
-        
+        """
+
         n = data['e'].copy()
         #for ion in self.all_ions:
         #    n += data[ion] * self.x_to_n[ion] * (1. + z)**3 \
         #        / (1. + self.zi)**3
-        
+
         if self.expansion:
             n *= self.cosm.nH(z)
             n += self.cosm.nH(z)
-            
+
             if 2 in self.Z:
                 n += self.cosm.nHe(z)
-                
+
         else:
             n *= self.n_H
-            
+
             n += self.n_H
-            
+
             if 2 in self.Z:
                 n += self.n_H * self.cosm.helium_by_number
-             
-        return n 
-            
+
+        return n
+
     def electron_fraction(self, data, z):
         de = np.zeros(self.dims)
         for i, Z in enumerate(self.Z):

@@ -14,9 +14,10 @@ Description: ChemicalNetwork object just needs to have methods called
 import copy, sys
 import numpy as np
 from scipy.misc import derivative
+from scipy.special import erf
 from ..util.Warnings import solver_error
 from ..physics.RateCoefficients import RateCoefficients
-from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h          
+from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h, m_H
         
 rad_const = (8. * sigma_T / 3. / m_e / c)
         
@@ -37,6 +38,7 @@ class ChemicalNetwork(object):
             recombination=recombination, interp_rc=interp_rc)
 
         self.isothermal = self.grid.isothermal
+        self.include_dm = self.grid.include_dm
         self.secondary_ionization = self.grid.secondary_ionization
         
         # For convenience 
@@ -61,35 +63,7 @@ class ChemicalNetwork(object):
         
         if not self.expansion:
             self.C = self.grid.clumping_factor(0.0)
-        
-        ##  
-        # Figure out mapping from q vector to things with names
-        ##
-        
-        # Hydrogen-only, isothermal
-        if self.Nev == 3:
-            self._parse_q = lambda q, n_H: \
-                ({'h_1': q[0], 'h_2': q[1]}, {'h': n_H}, q[2]  * n_H)
-        
-        # Hydrogen-only, non-isothermal
-        elif self.Nev == 4:
-            self._parse_q = lambda q, n_H: \
-                ({'h_1': q[0], 'h_2': q[1]}, {'h': n_H}, q[2]  * n_H)
-            
-        # Helium included, isothermal
-        elif self.Nev == 6:
-            self._parse_q = lambda q, n_H: \
-                ({'h_1': q[0], 'h_2': q[1], 'he_1': q[2], 'he_2': q[3], \
-                    'he_3': q[4]}, {'h': n_H, 'he': self.y * n_H}, \
-                    q[-1] * n_H)
-            
-        # Helium included, non-isothermal    
-        elif self.Nev == 7:
-            self._parse_q = lambda q, n_H: \
-                ({'h_1': q[0], 'h_2': q[1], 'he_1': q[2], 'he_2': q[3], \
-                    'he_3': q[4]}, {'h': n_H, 'he': self.y * n_H}, \
-                    q[-2] * n_H)
-    
+
     @property
     def monotonic_EoR(self):
         if not hasattr(self, '_monotonic_EoR'):
@@ -142,8 +116,10 @@ class ChemicalNetwork(object):
             n_He = 0.0
 
         # Read q vector quantities into dictionaries
-        x, n, n_e = self._parse_q(q, n_H)
-        
+        x = {k: q[self.grid.fields_key[k]] for k in self.grid.fields_key}
+        n = {'h': n_H, 'he': n_He}
+        n_e = x['e'] * n_H
+
         xe = n_e / n_H
         
         # In two-zone model, this phase is assumed to be fully ionized
@@ -286,7 +262,7 @@ class ChemicalNetwork(object):
             
             # Hubble Cooling
             if self.expansion:
-                hubcool = 2. * self.cosm.HubbleParameter(z) * q[-1]
+                hubcool = 2. * self.cosm.HubbleParameter(z) * x['Tk']
 
                 # Compton cooling
                 if self.grid.compton_scattering:
@@ -294,11 +270,11 @@ class ChemicalNetwork(object):
                     ucmb = self.cosm.UCMB(z)
 
                     # Seager, Sasselov, & Scott (2000) Equation 54
-                    compton = rad_const * ucmb * n_e * (Tcmb - q[-1]) / ntot
+                    compton = rad_const * ucmb * n_e * (Tcmb - x['Tk']) / ntot
             
             if self.grid.cosm.pf['approx_thermal_history']:
                 dqdt['Tk'] = heat * to_temp \
-                    - self.cosm.cooling_rate(z, q[-1]) / self.cosm.dtdz(z)
+                    - self.cosm.cooling_rate(z, x['Tk']) / self.cosm.dtdz(z)
             else:    
                 dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton \
                     - hubcool - q[-1] * n_H * dqdt['e'] / ntot
@@ -306,12 +282,52 @@ class ChemicalNetwork(object):
         else:
             dqdt['Tk'] = 0.0
 
+        # Add in dark matter evolution functions here!!
+        if self.include_dm:
+            if not self.isothermal:
+
+                mb, mchi = m_H, self.cosm.m_dmeff
+
+                Tb, Tchi, V_chi_b = x['Tk'], x['T_chi'], x['V_chi_b']
+
+                uth = np.sqrt(Tb / mb + Tchi / mchi)
+                r = V_chi_b / uth
+                F = erf(r/np.sqrt(2)) - np.sqrt(2/np.pi) * np.exp(-r**2 /2)*r
+
+                rho_chi = self.cosm.MeanDarkMatterDensity(z)
+                rho_m = self.cosm.MeanMatterDensity(z)
+                rho_b = self.cosm.MeanBaryonDensity(z)
+
+                if V_chi_b == 0:
+                    drag = 0
+                else:
+                    drag = rho_m*self.cosm.sigma_dmeff*F / (mb + mchi) / V_chi_b ** 2
+
+                # Equation (16) from Munoz et al. 2015
+                dQb_dt1 = 2*mb*rho_chi*self.cosm.sigma_dmeff*(Tchi - Tb)*np.exp(-r**2/2)
+                dQb_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
+                dQb_dt2 = rho_chi/rho_m*(mchi * mb)/(mchi + mb) * V_chi_b * drag
+                dQb_dt = dQb_dt1 + dQb_dt2
+
+                dQchi_dt1 = 2*mchi*rho_b*self.cosm.sigma_dmeff*(Tb - Tchi)*np.exp(-r**2/2)
+                dQchi_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
+                dQchi_dt2 = rho_b/rho_m*(mchi * mb) / (mchi + mb) * V_chi_b * drag
+                dQchi_dt = dQchi_dt1 + dQchi_dt2
+
+                # Equations 18 - 20 of munoz et al.
+                dqdt['T_chi'] = 2 * self.cosm.HubbleParameter(z) * Tchi - 2./3. * dQchi_dt
+                dqdt['Tk'] += -2./3. * dQb_dt
+                dqdt['V_chi_b'] = self.cosm.HubbleParameter(z) * V_chi_b + drag
+            else:
+                dqdt['T_chi'] = 0
+                dqdt['Tk'] = 0
+                dqdt['V_chi_b'] = 0
         ##
         # Add in exotic heating
         ##    
         if self.exotic_heating:
             dqdt['Tk'] += self.grid._exotic_func(z=z) * to_temp
-            
+
         # Can effectively turn off ionization equations once EoR is over.
         if self.monotonic_EoR:
             if x['h_1'] <= self.monotonic_EoR:
@@ -352,10 +368,11 @@ class ChemicalNetwork(object):
         else:
             n_H = self.grid.n_H[cell]
             CF = self.C
-                    
-        # Read q vector quantities into dictionaries
-        x, n, n_e = self._parse_q(q, n_H)
-        
+
+        x = {k: q[self.grid.fields_key[k]] for k in self.grid.fields_key}
+        n = {'h': n_H, 'he': self.Y * n_H}
+        ne = x['e'] * n_H
+
         if self.include_He:
             y = self.grid.element_abundances[1]
             n_He = self.grid.element_abundances[1] * n_H
