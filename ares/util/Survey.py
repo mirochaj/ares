@@ -41,9 +41,9 @@ class Survey(object):
             self.path = '{}/wfc3'.format(_path)
         elif cam == 'wfc':
             self.path = '{}/wfc'.format(_path)
-        elif cam == 'irac':
+        elif cam.lower() in ['spitzer', 'irac']:
             self.path = '{}/irac'.format(_path)
-        elif cam == 'roman':
+        elif cam.lower() in ['roman', 'ngrst', 'wfirst']:
             self.path = '{}/roman'.format(_path)
         else:
             raise NotImplemented('Unrecognized camera \'{}\''.format(cam))

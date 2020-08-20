@@ -2318,8 +2318,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             raw = self.histories
 
-            print(z, cam, filters)
-
             ##
             # Run in batch.
             _beta_r = self.synth.Slope(zobs=z, sfh=raw['SFR'], waves=waves,

@@ -466,7 +466,6 @@ class SpectralSynthesis(object):
             filters = filters[round(zobs)]
 
         # Get transmission curves
-        print(cam, self.cameras.keys())
         if cam in self.cameras.keys():
             filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set,
                 filters=filters)
