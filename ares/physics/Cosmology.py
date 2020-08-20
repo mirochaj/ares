@@ -551,7 +551,10 @@ class Cosmology(InitialConditions):
     
     def MeanMatterDensity(self, z):
         return self.OmegaMatter(z) * self.CriticalDensity(z)
-        
+
+    def MeanDarkMatterDensity(self, z):
+        return (self.omega_cdm_0 / self.omega_m_0) * self.MeanMatterDensity(z)
+
     def MeanBaryonDensity(self, z):
         return (self.omega_b_0 / self.omega_m_0) * self.MeanMatterDensity(z)
     

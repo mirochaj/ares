@@ -282,46 +282,19 @@ class ChemicalNetwork(object):
         else:
             dqdt['Tk'] = 0.0
 
-        # Add in dark matter evolution functions here!!
-        if self.include_dm:
-            if not self.isothermal:
+        if self.include_dm and not self.isothermal:
+            Tk, Tchi, Vchib = x['Tk'], x['Tchi'], x['Vchib']
+            dTk_dt, dTchi_dt, dVchib_dt = self.dm_heating(z, Tk, Tchi, Vchib)
 
-                mb, mchi = m_H, self.cosm.m_dmeff
+            H = self.cosm.HubbleParameter(z)
+            dqdt['Tchi'] = -2*H*x['Tchi'] + dTchi_dt
+            dqdt['Tk'] += dTk_dt
+            dqdt['Vchib'] = -H*Vchib + dVchib_dt
 
-                Tb, Tchi, V_chi_b = x['Tk'], x['T_chi'], x['V_chi_b']
-
-                uth = np.sqrt(Tb / mb + Tchi / mchi)
-                r = V_chi_b / uth
-                F = erf(r/np.sqrt(2)) - np.sqrt(2/np.pi) * np.exp(-r**2 /2)*r
-
-                rho_chi = self.cosm.MeanDarkMatterDensity(z)
-                rho_m = self.cosm.MeanMatterDensity(z)
-                rho_b = self.cosm.MeanBaryonDensity(z)
-
-                if V_chi_b == 0:
-                    drag = 0
-                else:
-                    drag = rho_m*self.cosm.sigma_dmeff*F / (mb + mchi) / V_chi_b ** 2
-
-                # Equation (16) from Munoz et al. 2015
-                dQb_dt1 = 2*mb*rho_chi*self.cosm.sigma_dmeff*(Tchi - Tb)*np.exp(-r**2/2)
-                dQb_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
-                dQb_dt2 = rho_chi/rho_m*(mchi * mb)/(mchi + mb) * V_chi_b * drag
-                dQb_dt = dQb_dt1 + dQb_dt2
-
-                dQchi_dt1 = 2*mchi*rho_b*self.cosm.sigma_dmeff*(Tb - Tchi)*np.exp(-r**2/2)
-                dQchi_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
-                dQchi_dt2 = rho_b/rho_m*(mchi * mb) / (mchi + mb) * V_chi_b * drag
-                dQchi_dt = dQchi_dt1 + dQchi_dt2
-
-                # Equations 18 - 20 of munoz et al.
-                dqdt['T_chi'] = 2 * self.cosm.HubbleParameter(z) * Tchi - 2./3. * dQchi_dt
-                dqdt['Tk'] += -2./3. * dQb_dt
-                dqdt['V_chi_b'] = self.cosm.HubbleParameter(z) * V_chi_b + drag
-            else:
-                dqdt['T_chi'] = 0
+            if self.isothermal:
+                dqdt['Tchi'] = 0
                 dqdt['Tk'] = 0
-                dqdt['V_chi_b'] = 0
+                dqdt['Vchib'] = 0
         ##
         # Add in exotic heating
         ##    
@@ -711,4 +684,61 @@ class ChemicalNetwork(object):
         return {'Beta': self.Beta, 'alpha': self.alpha,
                 'zeta': self.zeta, 'eta': self.eta, 'psi': self.psi,
                 'xi': self.xi, 'omega': self.omega}
+
+    def dm_heating(self, z, Tb, Tchi, Vchib):
+        """
+        Dark Matter heating differential equations.
+        Equations 16 - 20 of Munoz et al. 2015
+
+        Returns dTb_dt, dTchi_dt, and dVchib_dt components from heating and
+        drag, not including the change due to hubble expansion.
+
+        Parameters
+        ------------
+        z : float
+            redshift.
+        Tb : float
+            baryon temperature
+        Tchi : float
+            Dark matter temp
+        Vchib : float
+            DM-b relative velocity
+        """
+        #### MAKE SURE THESE ALL HAVE THE RIGHT UNITS!!!
+        #### Putting everything in [K]/[sec] because of reasons...
+        mb = m_H * c ** 2 / k_B  # Baryon mass [K]
+        mchi = self.cosm.m_dmeff * 1e9 / k_B  # DM mass [K]
+
+        sig = self.cosm.sigma_dmeff * c ** 2
+
+        rho_chi = self.cosm.MeanDarkMatterDensity(z) / k_B / c
+        rho_m = self.cosm.MeanMatterDensity(z) / k_B / c
+        rho_b = self.cosm.MeanBaryonDensity(z) / k_B / c
+
+        uth = np.sqrt(Tb / mb + Tchi / mchi)
+        r = Vchib / uth
+        F = erf(r / np.sqrt(2)) - np.sqrt(2 / np.pi) * np.exp(-r ** 2 / 2) * r
+
+        if Vchib == 0:
+            drag = 0
+        else:
+            drag = rho_m * sig * F / (mb + mchi) / Vchib ** 2
+
+        # Equation (16) from Munoz et al. 2015
+        dQb_dt1 = 2 * mb * rho_chi * sig * (Tchi - Tb) * np.exp(-r ** 2 / 2)
+        dQb_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
+        dQb_dt2 = rho_chi / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
+        dQb_dt = dQb_dt1 + dQb_dt2
+
+        dQchi_dt1 = 2 * mchi * rho_b * sig * (Tb - Tchi) * np.exp(-r ** 2 / 2)
+        dQchi_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
+        dQchi_dt2 = rho_b / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
+        dQchi_dt = dQchi_dt1 + dQchi_dt2
+
+        # Equations 18 - 20 of munoz et al.
+        dTchi_dt = 2./3. * dQchi_dt
+        dTb_dt = 2/3 * dQb_dt
+        dVchib_dt = -drag
+
+        return dTb_dt, dTchi_dt, dVchib_dt
 

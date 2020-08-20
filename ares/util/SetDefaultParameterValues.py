@@ -69,7 +69,7 @@ def GridParameters():
 
     # For Dark Matter heating
     "include_dm": False,
-    "initial_V_chi_b": 0,
+    "initial_Vchib": 0,
 
     # Line photons
     "include_injected_lya": True,
@@ -1289,9 +1289,9 @@ def CosmologyParameters():
     'cosmology_inits': None,
 
     # Dark matter interaction params
-    "m_dmeff": None,
-    "sigma_dmeff": None,
-    "npow_dmeff": None,
+    "m_dmeff": None,  # Dark Matter mass [GeV]
+    "sigma_dmeff": None,  # DM/b cross-section [1/cm^2]
+    "npow_dmeff": None,  # Interaction Order
     }
 
     pf.update(rcParams)

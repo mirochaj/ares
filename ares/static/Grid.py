@@ -118,7 +118,7 @@ class Grid(object):
         
         # Override, to set ICs by cosmology
         self.cosmological_ics = self.pf['cosmological_ics']
-                
+
     @property
     def zeros_absorbers(self):
         return np.zeros(self.N_absorbers)
@@ -350,7 +350,11 @@ class Grid(object):
         if not hasattr(self, '_hydr'):
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
         return self._hydr    
-            
+
+    @property
+    def include_dm(self):
+        return self._include_dm
+
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -368,7 +372,7 @@ class Grid(object):
         self.set_physics(**kwargs)
         self.set_cosmology(**kwargs)
 
-        self.set_chemistry(kwargs['include_He'])
+        self.set_chemistry(kwargs['include_He'], kwargs['include_dm'])
         self.set_density(kwargs['density_units'])
         self.set_ionization(kwargs['initial_ionization'])
         self.set_temperature(kwargs['initial_temperature'])
@@ -377,17 +381,17 @@ class Grid(object):
             # Sets initial conditions based on cosmology object.
             inits = {
                 k: np.interp(self.zi, self.cosm.inits['z'], self.cosm.inits[k])
-                for k in ['xe', 'Tk', 'T_chi']
+                for k in ['xe', 'Tk', 'Tchi']
             }
-            inits['V_chi_b'] = self.cosm.inits['V_chi_b']
+            inits['Vchib'] = self.cosm.inits['Vchib']
             for k in inits:
                 inits[k] *= np.ones(self.dims)
 
             self.data['e'] = inits['xe']
             self.data['h_2'] = inits['xe']
             self.data['Tk'] = inits['Tk']
-            self.data['T_chi'] = inits['T_chi']
-            self.data['V_chi_b'] = inits['V_chi_b']
+            self.data['Tchi'] = inits['Tchi']
+            self.data['Vchib'] = inits['Vchib']
 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
@@ -484,7 +488,7 @@ class Grid(object):
             self.evolving_fields.append('Tk')
 
             if include_dm:
-                self.evolving_fields.extend(['T_chi', 'V_chi_b'])
+                self.evolving_fields.extend(['Tchi', 'Vchib'])
 
         self.fields_key = {k: v for v, k in enumerate(self.evolving_fields)}
 

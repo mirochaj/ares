@@ -499,7 +499,7 @@ class MultiPhaseMedium(object):
                 if key in inits_all.keys():
                     snapshot[key] = inits_all[key][i]
                     continue
-            
+
             # Electron fraction
             snapshot['e'] = inits_all['xe'][i]
   
@@ -525,6 +525,18 @@ class MultiPhaseMedium(object):
             snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
             snapshot['n'] = \
                 self.parcel_igm.grid.particle_density(snapshot.copy(), red)
+
+            if self.pf['cosmology_inits'] is not None:
+                for k in self.cosm.inits:
+                    if k == 'z':
+                        continue
+                    if isinstance(self.cosm.inits[k], (int, float)):
+                        snapshot[k] = self.cosm.inits[k]
+                    else:
+                        snapshot[k] = np.interp(
+                            red, self.cosm.inits['z'], self.cosm.inits[k]
+                        )
+
 
             # Need to keep the cell number dimension for consistency
             for element in snapshot:
