@@ -376,10 +376,10 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
     if not have_weights:
         print("Deferring to scipy.stats.binned_statistic since weights=None.")
 
-        assert method_std == 'std'
+        assert method_std in ['std', 'sum']
         assert method_avg == 'avg'
         yavg, _b, binid = binned_statistic(x, y, statistic='mean', bins=xbin_e)
-        ysca, _b, binid = binned_statistic(x, y, statistic='std', bins=xbin_e)
+        ysca, _b, binid = binned_statistic(x, y, statistic=method_std, bins=xbin_e)
         N, _b, binid = binned_statistic(x, y, statistic='count', bins=xbin_e)
 
         return xbin_c, yavg, ysca, N
@@ -428,6 +428,8 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
 
         if method_std == 'std':
             ysca.append(np.std(f))
+        elif method_std == 'sum':
+            ysca.append(np.sum(f * weights[ok==1]))
         elif method_std in _dist_opts:
 
             if method_std.startswith('lognormal'):
