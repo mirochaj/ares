@@ -25,7 +25,7 @@ from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB
 nanoJ = 1e-23 * 1e-9
 
 tiny_lum = 1e-8
-all_cameras = ['wfc', 'wfc3', 'nircam']
+all_cameras = ['wfc', 'wfc3', 'nircam', 'roman', 'irac']
 
 def _powlaw(x, p0, p1):
     return p0 * (x / 1.)**p1

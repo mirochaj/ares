@@ -123,6 +123,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._nircam_ = nircam_M, nircam_W
         return self._nircam_
 
+    @property
+    def _roman(self): # pragma: no cover
+        if not hasattr(self, '_roman_'):
+            roman = Survey(cam='roman')
+            roman_f = roman._read_roman()
+            self._roman_ = roman_f
+        return self._roman_
+
     def run(self):
         return
 
@@ -2284,6 +2292,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         elif presets.lower() in ['c94', 'calzetti', 'calzetti1994']:
             return ('calzetti', ), self._c94
+        elif presets.lower() in ['roman', 'rst', 'wfirst']:
+            cam = 'roman',
+            wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
+            filters = tuple((what_filters(z, self._roman, wave_lo, wave_hi)))
         else:
             raise NotImplemented('No presets={} option yet!'.format(presets))
 
