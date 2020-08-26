@@ -501,7 +501,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         elif self.pf['pop_sam_method'] == 1:
             return self._gen_active_galaxy_histories()
         else:
-            raise NotImplemented('Unrecognized pop_sam_method={}.'.format(self.pf['pop_sam_method']))
+            raise NotImplemented('Unrecognized      pop_sam_method={}.'.format(self.pf['pop_sam_method']))
 
     @property
     def guide(self):
@@ -633,10 +633,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Modify by fesc
             if band is not None:
-                if band[0] in [13.6, E_LL]:
+                if Emin in [13.6, E_LL]:
                     # Doesn't matter what Emax is
                     fesc = self.guide.fesc(z=z, Mh=Mh)
-                elif band in [(10.2, 13.6), (E_LyA, E_LL)]:
+                elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
                     fesc = self.guide.fesc_LW(z=z, Mh=Mh)
                 else:
                     fesc = 1.
@@ -646,7 +646,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Integrate over halo population.
             tab[i] = np.sum(L * fesc * nh)
 
-            print(i, z, L, tab[i])
+            if np.isnan(tab[i]):
+                tab[i] = 0
 
         return zarr, tab / cm_per_mpc**3
 
