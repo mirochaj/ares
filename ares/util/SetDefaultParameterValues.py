@@ -511,6 +511,8 @@ def PopulationParameters():
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": inf,
 
+    "pop_ham_z": None,
+
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_interp": 'linear',

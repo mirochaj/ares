@@ -1022,7 +1022,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
 
-            # Means a halos lost some mass.
+            # Means a halo lost some mass. Now should be caught pre-emptively
+            # in MAR build.
             SFR[SFR < 0] = 0.0
 
         ##

@@ -1535,8 +1535,29 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         assert self.pf['pop_sfr_model'] == 'uvlf'
 
+        #assert np.all(np.sign(np.diff(Mh)) == 1.)
+
+        if self.pf['pop_ham_z'] is not None:
+            z_ham = self.pf['pop_ham_z']
+
+            if hasattr(self, '_ham_results'):
+
+                _Mh, _fstar = self._ham_results
+
+                if not _Mh.size == Mh.size:
+                    fstar = np.exp(np.interp(np.log(Mh), np.log(_Mh),
+                        np.log(_fstar)))
+                else:
+                    fstar = _fstar
+
+                # Enforce minimum mass
+                fstar[Mh < self.Mmin(z)] = 0.0
+
+                return fstar
+        else:
+            z_ham = z
+
         # Poke PQ
-        #if 'uvlf' not in self._pq_registry:
         _phi_ = self.LuminosityFunction(6., -20)
 
         uvlf = self._pq_registry['uvlf']
@@ -1546,18 +1567,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         mags = []
         for mag in mags_obs:
-            mags.append(mag-self.dust.AUV(z, mag))
+            mags.append(mag-self.dust.AUV(z_ham, mag))
 
         # Mass function
         if self.pf['pop_histories'] is not None:
-            iz = np.argmin(np.abs(self.pf['pop_histories']['z'] - z))
-            ngtm = self._ngtm_from_ham(z)
+            iz = np.argmin(np.abs(self.pf['pop_histories']['z'] - z_ham))
+            ngtm = self._ngtm_from_ham(z_ham)
         else:
-            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            iz = np.argmin(np.abs(z_ham - self.halos.tab_z))
             ngtm = self.halos.tab_ngtm[iz]
 
         # Use dust-corrected magnitudes here
-        LUV_dc = np.array([self.magsys.MAB_to_L(mag, z=z) for mag in mags])
+        LUV_dc = np.array([self.magsys.MAB_to_L(mag, z=z_ham) for mag in mags])
 
         assert self.pf['pop_lum_per_sfr'] is not None
         L_per_sfr = self.pf['pop_lum_per_sfr']
@@ -1568,7 +1589,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         for j, _mag_ in enumerate(mags_obs):
 
             # Number of galaxies with MUV <= _mag_
-            int_phiM = quad(lambda xx: uvlf(MUV=xx, z=z), -np.inf, _mag_)[0]
+            int_phiM = quad(lambda xx: uvlf(MUV=xx, z=z_ham), -np.inf, _mag_)[0]
 
             # Number density of halos at masses > M
             ngtM_spl = interp1d(np.log10(self.halos.tab_M), np.log10(ngtm),
@@ -1603,6 +1624,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Interpolate results onto provided Mh
         fstar = 10**np.interp(np.log10(Mh), np.log10(mh_of_mag[-1::-1]),
             np.log10(fstar_tab[-1::-1]))
+
+        # In this case, cache
+        if self.pf['pop_ham_z'] is not None:
+            self._ham_results = Mh, fstar
 
         # Enforce minimum mass
         fstar[Mh < self.Mmin(z)] = 0.0
@@ -2018,14 +2043,27 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_sfr_model'] == 'uvlf':
             if type(kwargs['z']) == np.ndarray:
 
-                z = np.unique(kwargs['z'])
-                Mh = np.unique(kwargs['Mh'])
+                if hasattr(self, '_sfe_ham'):
+                    return self._sfe_ham(kwargs['z'], kwargs['Mh'])
 
-                pb = ProgressBar(z.size, use=self.pf['progress_bar'], name='ham')
+                #
+                z = np.unique(kwargs['z'])
+                Mh = kwargs['Mh']
+
+                if Mh.ndim == 2:
+                    fstar = np.zeros_like(Mh)
+                else:
+                    fstar = np.zeros((z.size, Mh.size))
+
+                pb = ProgressBar(z.size, use=self.pf['progress_bar'],
+                    name='ham')
                 pb.start()
-                fstar = np.zeros((z.size, Mh.size))
                 for iz, _z_ in enumerate(z):
-                    fstar[iz,:] = self._abundance_match(z=_z_, Mh=Mh)
+                    if Mh.ndim == 1:
+                        fstar[iz,:] = self._abundance_match(z=_z_, Mh=Mh)
+                    else:
+                        fstar[:,iz] = self._abundance_match(z=_z_, Mh=Mh[:,iz])
+
                     pb.update(iz)
 
                 pb.finish()
@@ -2082,6 +2120,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_fstar'] is not None:
                 if type(self.pf['pop_fstar']) in [float, np.float64]:
                     self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
+                elif hasattr(self.pf['pop_fstar'], '__call__'):
+                    self._fstar = \
+                        lambda **kwargs: self.pf['pop_fstar'](**kwargs) * boost
                 elif self.pf['pop_fstar'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
 
@@ -2135,7 +2176,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_fstar_'):
             yy, xx = self._tab_Mz
             # Should be like tab_dndm
-            self._tab_fstar_ = self.SFE(z=xx, Mh=yy)
+            if self.is_uvlf_parametric:
+                self._tab_fstar_ = np.zeros_like(yy)
+                for i, _z_ in enumerate(self.halos.tab_z):
+                    self._tab_fstar_[i] = self.SFE(z=_z_, Mh=self.halos.tab_M)
+            else:
+                self._tab_fstar_ = self.SFE(z=xx, Mh=yy)
 
         return self._tab_fstar_
 
