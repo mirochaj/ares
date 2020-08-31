@@ -12,7 +12,6 @@ Description:
 
 import signal
 import numpy as np
-from ..util.PrintInfo import print_fit
 from ..util.Pickling import write_pickle_file
 from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re

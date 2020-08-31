@@ -47,6 +47,14 @@ def test():
     assert mg.grid.meshgrid(mg.grid.axes_names[0]).size == size
     
     mg.run('test_grid', clobber=True, save_freq=100)
+    
+    ##
+    # Test re-start stuff
+    mg = ares.inference.ModelGrid(**base_pars)
+    mg.axes = {'tanh_xz0': z0, 'tanh_xdz': np.arange(9, 12, 1)}
+    mg.run('test_grid', clobber=False, restart=True, save_freq=100)
+    
+    blank_blob = mg.blank_blob # gets used when models fail (i.e., not now)
         
     anl = ares.analysis.ModelSet('test_grid')
     ax1 = anl.Scatter(anl.parameters, c='tau_e', fig=1)
@@ -54,9 +62,11 @@ def test():
     anl_2 = anl.Slice((0.06, 0.08), ['tau_e'])
     anl_2.Scatter(anl_2.parameters, ax=ax1, color='k')
     
-    #ax2 = anl.ContourScatter(anl.parameters[0], anl.parameters[1], 'tau_e',
-    #    fig=3)
+    ax2, cb2 = anl.Contour(anl.parameters, 'tau_e', fig=2)
+    ax3, cb3 = anl.Contour(anl.parameters, 'tau_e', fig=3, fill=False)
     
+    slices_xdz = anl.SliceIteratively('tanh_xdz')
+        
     # Clean-up
     mcmc_files = glob.glob('{}/test_grid*'.format(os.environ.get('ARES')))
     

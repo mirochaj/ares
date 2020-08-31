@@ -82,6 +82,30 @@ class Fluctuations(object): # pragma: no cover
                     
         return self._hydr
         
+    @property
+    def xset(self):
+        if not hasattr(self, '_xset'):
+        
+        
+            xset_pars = \
+            {
+             'xset_window': 'tophat-real',
+             'xset_barrier': 'constant',
+             'xset_pdf': 'gaussian',
+            }
+            
+            xset = ares.physics.ExcursionSet(**xset_pars)
+            xset.tab_M = pop.halos.tab_M
+            xset.tab_sigma = pop.halos.tab_sigma
+            xset.tab_ps = pop.halos.tab_ps_lin
+            xset.tab_z = pop.halos.tab_z
+            xset.tab_k = pop.halos.tab_k_lin
+            xset.tab_growth = pop.halos.tab_growth
+        
+            self._xset = xset
+            
+        return self._xset    
+        
     def _overlap_region(self, dr, R1, R2):
         """
         Volume of intersection between two spheres of radii R1 < R2.
@@ -751,7 +775,7 @@ class Fluctuations(object): # pragma: no cover
                       / np.diff(np.log10(self.halos.tab_M[-2:]))
                 self._sigma[bigm == 1] = self.halos.tab_sigma[-1] \
                     * (self.m[bigm == 1] / self.halos.tab_M.max())**slope
-            
+
         return self._sigma
         
     @property
@@ -800,16 +824,16 @@ class Fluctuations(object): # pragma: no cover
         if (not ion) and not self.pf['ps_include_temp']:
             R_i = M_b = dndm = np.zeros_like(self.m)    
             return R_i, M_b, dndm
-            
+
         reionization_over = False 
-           
+
         # Comoving matter density
         rho0_m = self.cosm.mean_density0
         rho0_b = rho0_m * self.cosm.fbaryon 
-        
+
         # Mean (over-)density of bubble material
         delta_B = self._B(z, ion)
-           
+
         if self.bsd_model is None:
             if self.pf['bubble_density'] is not None:
                 R_i = self.pf['bubble_size']
@@ -817,7 +841,7 @@ class Fluctuations(object): # pragma: no cover
                 dndm = self.pf['bubble_density']
             else:
                 raise NotImplementedError('help')
-        
+
         elif self.bsd_model == 'hmf':
             M_b = self.halos.tab_M * zeta
             # Assumes bubble material is at cosmic mean density
@@ -912,14 +936,14 @@ class Fluctuations(object): # pragma: no cover
             for i, pop in enumerate(self.pops):
                 if not pop.is_src_heat_fl:
                     continue
-                    
+
                 if xrpop is not None:
                     raise AttributeError('help! can only handle 1 X-ray pop right now')
-                    
+
                 xrpop = pop
-                
+
             self._Emin_X = pop.src.Emin
-            
+
         return self._Emin_X
 
     def get_Nion(self, z, R_i):

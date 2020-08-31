@@ -17,8 +17,8 @@ import ares
 import numpy as np
 
 ## INPUT
-fit = 'PS'
-format = 'npz'
+fit = 'ST'
+fmt = 'hdf5'
 ##
 
 pars = \
@@ -26,21 +26,22 @@ pars = \
  "hmf_model": fit,
  # Should add halo concentration model here.
  "hmf_dlogM": 0.01,
+ "hmf_logMmin": 4,
  "hmf_logMmax": 18,
- "hmf_zmin": 3,
- "hmf_zmax": 60,
+ "hmf_zmin": 5,
+ "hmf_zmax": 30,
  "hmf_dz": 0.05,
  
- "mps_zmin": 6,
- "mps_zmax": 30,
- "mps_dz": 0.5,
+ "hps_zmin": 6,
+ "hps_zmax": 30,
+ "hps_dz": 0.5,
  
- 'mps_dlnk': 0.001,
- 'mps_dlnR': 0.001,
- 'mps_lnk_min': -10.,
- 'mps_lnk_max': 10.,
- 'mps_lnR_min': -10.,
- 'mps_lnR_max': 10.,
+ 'hps_dlnk': 0.001,
+ 'hps_dlnR': 0.001,
+ 'hps_lnk_min': -10.,
+ 'hps_lnk_max': 10.,
+ 'hps_lnR_min': -10.,
+ 'hps_lnR_max': 10.,
 }
 
 kwargs = \
@@ -52,10 +53,10 @@ kwargs = \
 
 ##
 
-hmf = ares.physics.HaloModel.HaloModel(hmf_load=True, hmf_load_ps=False, 
+hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False, 
     **pars)
 
-hmf.SavePS(format=format, clobber=False, checkpoint=True, **kwargs)
+hmf.SavePS(format=fmt, clobber=False, checkpoint=True, **kwargs)
 
 
 

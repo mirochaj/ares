@@ -62,21 +62,34 @@ def test():
         fitter.jitter = [0.1] * len(fitter.parameters)
         
         fitter.nwalkers = 2 * len(fitter.parameters)
-        
+                
         nsteps = 5
         # Do a quick burn-in and then run for 50 steps (per walker)
         fitter.run(prefix='test_tanh', burn=nsteps, steps=nsteps, save_freq=1, 
             clobber=i<2, restart=i==2)
         
         anl = ares.analysis.ModelSet('test_tanh')
-        
+                
         # Read-in some attributes
         assert anl.nwalkers == 10
         #assert anl.priors != {}
         assert anl.is_mcmc
         assert anl.Nd == len(fitter.parameters)
         assert np.isfinite(np.nanmean(anl.logL))
+        assert anl.steps == nsteps
+        priors = anl.priors
+        assert np.all(np.array(anl.is_log) == np.array(fitter.is_log))
         
+        logL = anl.logL
+        
+        # Be generous
+        assert 0.05 <= np.mean(anl.facc) <= 0.95, np.mean(anl.facc)
+        
+        checkpts = anl.checkpoints
+        
+        unique = anl.unique_samples
+        assert len(unique) == anl.chain.shape[1]
+        assert np.all(np.array([len(elem) for elem in unique]) <= anl.chain.shape[0])
         # Make sure walkers are moving
         for j in range(len(anl.parameters)):
             assert np.unique(np.diff(anl.chain[:,j])).size > 1
@@ -102,7 +115,7 @@ def test():
             "Shape wrong {}".format(w0.shape[0])
         assert w0.shape[1] == len(fitter.parameters)
             
-        # Make sure skipping elements produces a dataset of the right (reduced)    
+        # Make sure skipping elements produces a dataset of the right (reduced)
         # size.
         shape_all = anl.chain.shape    
         anl.skip = 2
@@ -129,6 +142,14 @@ def test():
         assert models != []
         
         bad_walkers = anl.identify_bad_walkers()
+        
+        # Export to hdf5 and read back in just for fun.
+        anl.export(anl.parameters, prefix='test_tanh', clobber=True)
+        
+        anl_hdf5 = ares.analysis.ModelSet('test_tanh')
+        assert np.all(anl.chain == anl_hdf5.chain)
+        assert np.all([anl.parameters[i] == anl_hdf5.parameters[i] \
+            for i in range(len(anl.parameters))])
 
     # Clean-up. Assumes test suite is being run from $ARES
     mcmc_files = glob.glob('{}/test_tanh*'.format(os.environ.get('ARES')))

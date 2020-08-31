@@ -16,8 +16,14 @@ import matplotlib.pyplot as pl
 
 def test():
     sim = ares.simulations.Global21cm()
+    
+    sim.info
+    pf = sim.pf
+    sim.pf._check_for_conflicts()
+    assert sim.pf.Npops == 3
+    
     sim.run()
-    ax, zax = sim.GlobalSignature(fig=1, ymin=-400)
+    ax, zax = sim.GlobalSignature(fig=0, ymin=-400)
     
     sim.AdiabaticFloor(ax, color='k', ls=':')
     sim.AdiabaticFloor(ax)
@@ -26,6 +32,8 @@ def test():
     
     inset_tau = sim.add_tau_inset(ax)
     inset_Ts = sim.add_Ts_inset(ax)
+    
+    ax1b, zax1b = sim.GlobalSignature(fig=1, ymin=-400, time_ax=True)
     
     #
     # Make sure it's not a null signal.
@@ -36,6 +44,7 @@ def test():
     
     # Test that the turning points are there, that tau_e is reasonable, etc.
     assert 80 <= sim.z_A <= 90
+    assert 10 <= sim.nu_A <= 20
     assert -50 <= sim.dTb_A <= -40
     
     assert 25 <= sim.z_B <= 35
@@ -58,6 +67,11 @@ def test():
     k = sim.kurtosis
     s = sim.skewness
     
+    slope1 = sim.dTbdz
+    slope2 = sim.dTbdnu
+    curv1 = sim.dTb2dz2
+    curv2 = sim.dTb2dnu2
+        
     ax2 = sim.OpticalDepthHistory(fig=2, show_obs=True, 
         obs_mu=0.055, obs_sigma=0.009)
     ax3 = sim.TemperatureHistory(fig=3)
@@ -67,11 +81,14 @@ def test():
     ax5 = sim.GlobalSignatureDerivative(fig=5)
     ax6 = sim.GlobalSignatureDerivative(fig=6, show_signal=True)
     
-    for i in range(1, 6):
+    sim.save('test_gs_4par', 'pkl', clobber=True)
+    sim.save('test_gs_4par', 'txt', clobber=True)
+    
+    for i in range(0, 6):
         pl.figure(i)
         pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))     
     
-    pl.close('all')
+    #pl.close('all')
     
 if __name__ == '__main__':
     test()

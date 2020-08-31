@@ -120,6 +120,39 @@ class PowerLawEvolvingNorm(BasePQ):
         p0 = self.args[0] * (t / self.args[3])**self.args[4]
         
         return p0 * (x / self.args[1])**self.args[2]
+    
+class PowerLawEvolvingSlope(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+        
+        if self.t == '1+z':
+            t = 1. + kwargs['z']
+        else:
+            t = kwargs[self.t]
+        
+        p2 = self.args[2] * (t / self.args[3])**self.args[4]
+        
+        return self.args[0] * (x / self.args[1])**p2
+        
+class PowerLawEvolvingSlopeWithGradient(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+        
+        if self.t == '1+z':
+            t = 1. + kwargs['z']
+        else:
+            t = kwargs[self.t]
+        
+        p2 = self.args[2] * (t / self.args[3])**self.args[4] \
+            * (x / self.args[5])**self.args[6]
+        
+        return self.args[0] * (x / self.args[1])**p2        
 
 class Exponential(BasePQ):
     def __call__(self, **kwargs):
@@ -567,12 +600,16 @@ class ParameterizedQuantity(object):
             self.func = PowerLaw(**kwargs)
         elif kwargs['pq_func'] == 'pl_evolN':
             self.func = PowerLawEvolvingNorm(**kwargs)
+        elif kwargs['pq_func'] == 'pl_evolS':
+            self.func = PowerLawEvolvingSlope(**kwargs)  
+        elif kwargs['pq_func'] == 'pl_evolS2':
+            self.func = PowerLawEvolvingSlopeWithGradient(**kwargs)      
         elif kwargs['pq_func'] in ['dpl', 'dpl_arbnorm']:
             self.func = DoublePowerLaw(**kwargs)
         elif kwargs['pq_func'] == 'dplx':
             self.func = DoublePowerLawExtended(**kwargs)
         elif kwargs['pq_func'] in ['dpl_normP']:
-            self.func = DoublePowerLawPeakNorm(**kwargs)    
+            self.func = DoublePowerLawPeakNorm(**kwargs)
         elif kwargs['pq_func'] == 'dpl_evolN':
             self.func = DoublePowerLawEvolvingNorm(**kwargs)
         elif kwargs['pq_func'] == 'dpl_evolP':

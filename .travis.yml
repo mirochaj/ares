@@ -1,10 +1,15 @@
 language: python
 
+# safelist
+branches:
+  only:
+  - master
+
 python:
   - "2.7"
   - "3.6"
   - "3.7"
-
+  
 notifications:
   email:
     recipients:
@@ -23,4 +28,3 @@ script:
 after_success:
   - coveralls
   
-     

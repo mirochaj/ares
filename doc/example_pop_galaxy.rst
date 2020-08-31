@@ -48,7 +48,7 @@ If you glance at the contents of ``pars``, you'll notice that the parameters tha
     You can access population objects used in a simulation via the ``pops`` attribute, which is a list of population objects that belongs to instances of  common simulation classes like ``Global21cm``, ``MetaGalacticBackground``, etc.
 
 
-Now, to generate a model for the luminosity function, simply define your redshift of interest and array of magnitudes (assumed to be rest-frame :math:`1600 \AA` AB magnitudes), and pass them to the aptly named ``LuminosityFunction`` function,
+Now, to generate a model for the luminosity function, simply define your redshift of interest and array of magnitudes (assumed to be rest-frame :math:`1600 \unicode{x212B}` AB magnitudes), and pass them to the aptly named ``LuminosityFunction`` function,
 
 ::
 
@@ -162,6 +162,7 @@ Some common dust corrections can be accessed by name and passed in via the ``dus
 
 By default, *ARES* will assume a constant :math:`\beta=-2`. However, in general this is a poor approximation: fainter galaxies are known to suffer less from dust reddening than bright galaxies. Simply set ``dustcorr_beta='bouwens2014'``, for example, to adopt the Bouwens et al. 2014 :math:`M_{\text{UV}}-\beta` relation.
 
-.. UPDATE Evolving dust
+To employ the self-consistent model put forth in `Mirocha, Mason, & Stark (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200507208M/abstract>`_, see :doc:`example_pop_dusty`.
+
 
 

@@ -21,7 +21,7 @@ def test():
      'pop_sfr_model': 'bhmd',
      'pop_Tmin': 2e3,
      'pop_Tmax': 1e4,
-     'pop_bh_seed_eff': 1e-5,
+     'pop_bh_seed_eff': 1e-4,
      'pop_eta': 0.1,
      'pop_fduty': 1.,
      'pop_rad_yield': 0.1, # in this case, fraction of Lbol in (EminNorm, EmaxNorm)
@@ -33,12 +33,15 @@ def test():
      'pop_solve_rte': True,
      'pop_sed': 'pl',
      'pop_alpha': -1.5,
-     'sam_dz': 0.05,
-     'sam_atol': 1e-6,
-     'sam_rtol': 1e-8,
+     'hmf_dt': 1.,
+     #'sam_dz': 0.05,
+     #'sam_atol': 1e-6,
+     #'sam_rtol': 1e-8,
     }
     
     pop = ares.populations.GalaxyPopulation(**bh_pars)
+    pop.info
+    pop.halos.info
     
     zarr = np.arange(5, 40)
     
@@ -61,7 +64,7 @@ def test():
 
     # Crude checks
     assert 1e-9 <= np.mean(frd) <= 1e-1, "BH FRD unreasonable!"
-    assert 1e2 <= np.interp(10, zarr, bhmd) <= 1e9, "BHMD unreasonable!"
+    assert 1 <= np.interp(10, zarr, bhmd) <= 1e9, "BHMD unreasonable!"
     
     
 if __name__ == '__main__':

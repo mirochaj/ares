@@ -21,18 +21,6 @@ from matplotlib.ticker import ScalarFormatter
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import interp1d, splrep, splev
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
-
-def add_master_legend(ax, **kwargs):
-    """
-    Make a big legend!
-    """
-
-    h, l = ax.get_legend_handles_labels()
-
-    ax.legend(h, l, loc='upper center',
-        bbox_to_anchor=(0.5, 1.3), **kwargs)
-              
-    return ax
     
 class Global21cm(MultiPhaseMedium,BlobFactory):
         
@@ -501,9 +489,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     
         if yscale == 'linear':
             if (not gotax) or force_draw:
-                ax.set_yticks(np.arange(int(ymin / 50) * 50, 
-                    100, 50) * conv)
-                
+                yticks = np.arange(int(ymin / 50) * 50, 100, 50) * conv
+                ax.set_yticks(yticks)
             else:
                 # Minor y-ticks - 10 mK increments
                 yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1)) * conv
@@ -527,19 +514,24 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             ax.set_xticks(xticks, minor=False)
             ax.set_xticks(xticks_minor, minor=True)
 
-            if rotate_xticks:
-                xt = []
-                for x in ax.get_xticklabels():
-                    xt.append(x.get_text())
 
-                ax.set_xticklabels(xt, rotation=45.)
-            if rotate_yticks:
-                yt = []
-                for y in ax.get_yticklabels():
-                    yt.append(y.get_text())
+            xt = []
+            for x in ax.get_xticklabels():
+                xt.append(x.get_text())
+
+            ax.set_xticklabels(xt, rotation=45. if rotate_xticks else 0)
             
-                ax.set_yticklabels(yt, rotation=45.)    
-                    
+            yt = []
+            for y in ax.get_yticklabels():
+                if not y.get_text().strip():
+                    break
+                yt.append(y.get_text())
+            
+            if yt == []:
+                yt = yticks
+            
+            ax.set_yticklabels(yt, rotation=45. if rotate_yticks else 0)    
+                                     
         if ax.get_xlabel() == '':  
             if xaxis == 'z':  
                 ax.set_xlabel(labels['z'], fontsize='x-large')

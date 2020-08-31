@@ -331,7 +331,7 @@ class RaySegment(object):
         maxt = max(self.t / self.trec)
         
         if plot_error:
-            mp.grid[0].plot(self.t / self.trec, self.rIF / self.ranl, 
+            mp.grid[0].plot(self.t / self.trec, self.rIF / self.ranl,
                 color=color, ls=ls, label=label)
             mp.grid[0].set_xlim(0, maxt)
             mp.grid[0].set_ylim(0.8, 1.04)
