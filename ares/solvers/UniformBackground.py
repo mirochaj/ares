@@ -197,7 +197,7 @@ class UniformBackground(object):
         bands = []
 
         # Check for optical/IR
-        if (Emin < E_LyA) and (Emax < E_LyA):
+        if (Emin < E_LyA) and (Emax <= E_LyA):
             bands.append((Emin, Emax))
             return bands
 

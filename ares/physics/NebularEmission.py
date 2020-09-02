@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: McGill
 Created on: Sun 21 Jul 2019 14:31:38 AEST
 
-Description: 
+Description:
 
 """
 
@@ -16,73 +16,73 @@ from ares.physics.Hydrogen import Hydrogen
 from ares.physics.RateCoefficients import RateCoefficients
 from ares.physics.Constants import h_p, c, k_B, erg_per_ev, E_LyA, E_LL, Ryd, \
     ev_per_hz, nu_alpha, m_p
-    
+
 try:
     from scipy.special import kn as bessel_2
 except ImportError:
-    pass    
+    pass
 
 class NebularEmission(object):
     def __init__(self, cosm=None, **kwargs):
         self.pf = ParameterFile(**kwargs)
         self.cosm = cosm
-        
+
     @property
     def coeff(self):
         if not hasattr(self, '_coeff'):
             self._coeff = RateCoefficients(grid=None)#, rate_src=rate_src,
                     #recombination=recombination, interp_rc=interp_rc)
-        return self._coeff            
-        
+        return self._coeff
+
     @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
             raise AttributeError('Must set `wavelengths` by hand.')
-        return self._wavelengths    
-            
+        return self._wavelengths
+
     @wavelengths.setter
     def wavelengths(self, value):
         self._wavelengths = value
-        
+
     @property
     def energies(self):
         if not hasattr(self, '_energies'):
             self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
-        return self._energies    
-        
+        return self._energies
+
     @property
     def Emin(self):
         return np.min(self.energies)
-    
+
     @property
     def Emax(self):
-        return np.max(self.energies)    
-        
+        return np.max(self.energies)
+
     @property
     def frequencies(self):
         if not hasattr(self, '_frequencies'):
             self._frequencies = c / (self.wavelengths / 1e8)
-        return self._frequencies    
-        
+        return self._frequencies
+
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
             self._dwdn = self.wavelengths**2 / (c * 1e8)
-        return self._dwdn        
-        
+        return self._dwdn
+
     @property
     def dE(self):
         if not hasattr(self, '_dE'):
             tmp = np.abs(np.diff(self.energies))
             self._dE = np.concatenate((tmp, [tmp[-1]]))
-        return self._dE    
-        
+        return self._dE
+
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
-        return self._hydr    
-        
+        return self._hydr
+
     @property
     def _gaunt_avg_fb(self):
         # Karzas & Latter 1961
@@ -90,12 +90,12 @@ class NebularEmission(object):
     @property
     def _gaunt_avg_ff(self):
         # Karzas & Latter 1961
-        return 1.1   
-    
+        return 1.1
+
     @property
     def _f_k(self):
         return 5.44436e-39
-    
+
     @property
     def _gamma_fb(self):
         if not hasattr(self, '_gamma_fb_'):
@@ -105,108 +105,108 @@ class NebularEmission(object):
                 _xn = Ryd / k_B / self.pf['source_nebular_Tgas'] / n**2
                 ok = (Ryd / h_p / n**2) < self.frequencies
                 _sum[ok==1] += _xn * (np.exp(_xn) / n) * self._gaunt_avg_fb
-            
+
             self._gamma_fb_ = self._f_k * _sum
-            
+
         return self._gamma_fb_
-        
+
     @property
     def _gamma_ferland(self):
         if not hasattr(self, '_gamma_ferland_'):
-            
+
             e_ryd, T10, T20 = read_lit('ferland1980')._load()
-            
+
             assert 1e4 <= self.pf['source_nebular_Tgas'] <= 2e4
-            
+
             if self.pf['source_nebular_Tgas'] == 1e4:
                 coeff = T10
             elif self.pf['source_nebular_Tgas'] == 2e4:
                 coeff = T20
             else:
                 raise NotImplemented('No interpolation scheme yet.')
-            
+
             nrg_Ryd = self.energies / (Ryd / erg_per_ev)
             self._gamma_ferland_ = np.zeros_like(self.energies)
             for i in range(len(e_ryd)-1):
-            
+
                 if i % 2 != 0:
                     continue
-            
+
                 x = np.array([e_ryd[i], e_ryd[i+1]])
                 y = np.log10([coeff[i], coeff[i+1]])
-            
+
                 m = (y[1] - y[0]) / (x[1] - x[0])
-                                    
+
                 # Energies stored in descending order in Ferland table.
                 ok = np.logical_and(nrg_Ryd < x[0], nrg_Ryd >= x[1])
-            
+
                 self._gamma_ferland_[ok==1] = \
                     10**(m * (nrg_Ryd[ok==1] - x[0]) + y[0])
-                    
+
             self._gamma_ferland_ /= self._p_of_c
-                        
-        return self._gamma_ferland_        
-        
+
+        return self._gamma_ferland_
+
     @property
     def _gamma_ff(self):
         if self.pf['source_nebular_lookup'] == 'ferland1980':
             return 0.0
         return self._f_k * self._gaunt_avg_ff
-        
+
     @property
     def _p_of_c(self):
         """
         The continuum emission coefficient, over (ne * np * gamma_c).
-        
+
         .. note :: This is Eq. 6.22 in Dopita & Sutherland (2003).
-        .. note :: Pretty sure their F_k in that equation should be f_k.        
+        .. note :: Pretty sure their F_k in that equation should be f_k.
         .. note :: We don't need the ne * np bit thanks to our assumption
             of photo-ionization equilibrium.
-        
+
         """
-        
+
         if not hasattr(self, '_p_of_c_'):
             hnu = self.energies * erg_per_ev
             kT = k_B * self.pf['source_nebular_Tgas']
             self._p_of_c_ = 4. * np.pi * np.exp(-hnu / kT) \
                 / np.sqrt(self.pf['source_nebular_Tgas'])
-        
+
         return self._p_of_c_
-                    
+
     @property
-    def _prob_2phot(self):    
+    def _prob_2phot(self):
         # This is Eq. 22 of Fernandez & Komatsu 2006, a fit to the measurements
         # of Brown & Matthews (1970; their Table 4)
         if not hasattr(self, '_prob_2phot_'):
-        
+
             x = self.energies / E_LyA
-            
+
             P = np.zeros_like(self.energies)
             # Fernandez & Komatsu 2006
             P[x<1.] = 1.307 \
                     - 2.627 * (x[x<1.] - 0.5)**2 \
                     + 2.563 * (x[x<1.] - 0.5)**4 \
                     - 51.69 * (x[x<1.] - 0.5)**6
-            
+
             self._prob_2phot_ = P
-                    
+
         return self._prob_2phot_
-        
+
     def f_rep(self, spec, Tgas=2e4, channel='ff', net=False):
         """
         Fraction of photons reprocessed into different channels.
-        
+
             .. note :: This carries units of Hz^{-1}.
         """
 
         erg_per_phot = self.energies * erg_per_ev
-        
+
         Tgas = self.pf['source_nebular_Tgas']
         #A_H = 1. / (1. + self.cosm.y)
         #u = 143.9 / self.wavelengths / (Tgas / 1e6)
         #ne = 1.
         alpha = self.coeff.RadiativeRecombinationRate(0, Tgas)
-        
+
         #gamma_pre = 2.051e-22 * (Tgas / 1e6)**-0.5 * self.wavelengths**-2. \
         #    * np.exp(-u) * self.dwdn
 
@@ -214,12 +214,12 @@ class NebularEmission(object):
         # Read from source?
         lookup = self.pf['source_nebular_lookup']
         if (lookup is not None) and (channel != 'tp'):
-            if self.pf['source_nebular_lookup'] == 'ferland1980': 
+            if self.pf['source_nebular_lookup'] == 'ferland1980':
                 # Ferland 1980 results have ff+fb as package deal.
-                if channel == 'fb':               
+                if channel == 'fb':
                     return self._p_of_c * self._gamma_ferland / alpha
                 else:
-                    return 0.0    
+                    return 0.0
             else:
                 raise NotImplemented('help')
 
@@ -232,12 +232,12 @@ class NebularEmission(object):
             frep = 2. * self.energies * erg_per_ev * self._prob_2phot / nu_alpha
         else:
             raise NotImplemented("Do not recognize channel `{}`".format(channel))
-    
+
         if net:
             return np.trapz(frep[-1::-1] * nu[-1::-1], x=np.log(nu[-1::-1]))
         else:
             return frep
-            
+
     @property
     def is_ionizing(self):
         return self.energies >= E_LL
@@ -247,32 +247,32 @@ class NebularEmission(object):
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        return np.trapz(spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1], 
+        return np.trapz(spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1],
             x=np.log(self.frequencies[ok==1][-1::-1]))
-            
+
     def N_ion(self, spec):
         ion = self.energies >= E_LL
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
-        
+
         erg_per_phot = self.energies[ok==1][-1::-1] * erg_per_ev
 
         integ = spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1] \
               / erg_per_phot
-        return np.trapz(integ, x=np.log(self.frequencies[ok==1][-1::-1]))        
-            
+        return np.trapz(integ, x=np.log(self.frequencies[ok==1][-1::-1]))
+
     def Ebar_ion(self, spec):
         ion = self.energies >= E_LL
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        temp = np.trapz(spec[ok==1][-1::-1] / (self.energies[ok==1][-1::-1] * erg_per_ev) * self.frequencies[ok==1][-1::-1], 
+        temp = np.trapz(spec[ok==1][-1::-1] / (self.energies[ok==1][-1::-1] * erg_per_ev) * self.frequencies[ok==1][-1::-1],
             x=np.log(self.frequencies[ok==1][-1::-1]))
         return self.L_ion(spec) / temp
 
     def Continuum(self, spec):
         """
-        Add together nebular continuum contributions, i.e., free-free, 
+        Add together nebular continuum contributions, i.e., free-free,
         free-bound, and two-photon.
 
         Parameters
@@ -280,23 +280,23 @@ class NebularEmission(object):
         Return L_\nu in [erg/s/Hz]
 
         """
-        
+
         fesc = self.pf['source_fesc']
         Tgas = self.pf['source_nebular_Tgas']
         flya = 2. / 3.
         erg_per_phot = self.energies * erg_per_ev
-                
+
         # This is in [#/s]
         Nion = self.N_ion(spec)
-        
+
         # Reprocessing fraction in [erg/Hz]
         frep_ff = self.f_rep(spec, Tgas, 'ff')
         frep_fb = self.f_rep(spec, Tgas, 'fb')
         frep_tp = (1. - flya) * self.f_rep(spec, Tgas, 'tp')
-        
+
         # Amount of UV luminosity absorbed in ISM
         Nabs = Nion * (1. - fesc)
-            
+
         tot = np.zeros_like(self.wavelengths)
         if self.pf['source_nebular_ff']:
             tot += frep_ff * Nabs
@@ -304,15 +304,15 @@ class NebularEmission(object):
             tot += frep_fb * Nabs
         if self.pf['source_nebular_2phot']:
             tot += frep_tp * Nabs
-        
+
         return tot
-                
+
     def LymanSeries(self, spec):
         return self.HydrogenLines(spec, ninto=1)
-        
+
     def BalmerSeries(self, spec):
         return self.HydrogenLines(spec, ninto=2)
-        
+
     def HydrogenLines(self, spec, ninto=1):
         neb = np.zeros_like(self.wavelengths)
         nrg = h_p * c / (self.wavelengths * 1e-8) / erg_per_ev
@@ -328,18 +328,18 @@ class NebularEmission(object):
         Lion = self.N_ion(spec)
         Labs = Lion * (1. - fesc)
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
-        
+
         fout = np.zeros_like(self.wavelengths)
         for n in range(ninto+1, 5):
-            
+
             # Need to generalize
             frec = 2. / 3.
-            
+
             En = self.hydr.BohrModel(ninto=ninto, nfrom=n)
-            
+
             prof = np.exp(-0.5 * (nrg - E_LyA)**2 / 2. / sigm**2) \
-                 / np.sqrt(2. * np.pi) * erg_per_ev * ev_per_hz / sigm 
-            
+                 / np.sqrt(2. * np.pi) * erg_per_ev * ev_per_hz / sigm
+
             # See if the line is resolved
             if not np.all(prof == 0):
                 fout += Labs * frec * prof
@@ -350,12 +350,6 @@ class NebularEmission(object):
                 fout[loc] += Labs * frec / corr
 
         return fout
-        
+
     def LinesByElement(self, element='helium'):
         pass
-        
-        
-        
-        
-        
-        
