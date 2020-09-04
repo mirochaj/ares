@@ -56,7 +56,7 @@ class CalibrateModel(object):
         free_params_sfe=[], zevol_sfe=[],
         include_fshock=False, include_scatter_mar=False, name=None,
         include_dust='var_beta', include_fgrowth=False, 
-        include_fduty=False, zevol_fduty=False,
+        include_fduty=False, zevol_fduty=False, include_kappa=False, 
         zevol_fshock=False, zevol_dust=False, free_params_dust=[],
         save_lf=True, save_smf=False, save_sam=False, include_fdtmr=False,
         save_sfrd=False, save_beta=False, save_dust=False, zmap={},
@@ -114,6 +114,7 @@ class CalibrateModel(object):
         self.include_fgrowth = include_fgrowth
         self.include_fduty = include_fduty
         self.include_fdtmr = include_fdtmr
+        self.include_kappa = include_kappa
 
         # Set SFE free parameters
         self.free_params_sfe = free_params_sfe        
@@ -438,13 +439,13 @@ class CalibrateModel(object):
                     
 
                 if 'kappa' in self.free_params_dust:
-                    free_pars.extend(['pq_func_par2[31]', 'pq_func_par0[31]'])
-                    guesses['pq_func_par2[31]'] = 0.0
-                    guesses['pq_func_par0[31]'] = -1
+                    free_pars.extend(['pq_func_par4[20]', 'pq_func_par6[20]'])
+                    guesses['pq_func_par4[20]'] = 0.0
+                    guesses['pq_func_par6[20]'] = 0.0
                     is_log.extend([False, False])
-                    jitter.extend([0.1, 0.03])
-                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par2[31]')
-                    ps.add_distribution(UniformDistribution(-1, 1.), 'pq_func_par0[31]')
+                    jitter.extend([0.2, 0.2])
+                    ps.add_distribution(UniformDistribution(-3, 3.), 'pq_func_par4[20]')
+                    ps.add_distribution(UniformDistribution(-2, 2.), 'pq_func_par6[20]')
                                
                     if 'kappa' in self.zevol_dust:
                         raise NotImplemented('Cannot do triply nested PQs.')

@@ -868,8 +868,8 @@ def add_time_axis(ax, cosm, tlim=(100, 900), dt=200, dtm=50, tarr=None,
         t = tarr
         t_minor = None
 
-    _zt = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t))
-    _ztm = np.array(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t_minor))
+    _zt = np.array([cosm.z_of_t(tt * s_per_myr) for tt in t])
+    _ztm = np.array([cosm.z_of_t(tt * s_per_myr) for tt in t_minor])
 
     ft = nu_0_mhz / (1. + _zt)
     ftm = nu_0_mhz / (1. + _ztm)
@@ -890,9 +890,6 @@ def add_time_axis(ax, cosm, tlim=(100, 900), dt=200, dtm=50, tarr=None,
         if (dt is None) and (dtm is None):
             if (tnow in [0,200,400,600,800]) or (tnow > 900):
                 time_labels[i] = ''
-    
-    print(ft, time_labels)
-    print(ftm)
     
     ax_time.set_xticks(ft)
     ax_time.set_xticks(ftm, minor=True)

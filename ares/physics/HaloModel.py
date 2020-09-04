@@ -746,6 +746,7 @@ class HaloModel(HaloMassFunction):
                     self.TabulateHMF(save_MAR=False)
             
             if name not in self.__dict__.keys():
+                print('hello', name)
                 self._load_ps()
     
         return self.__dict__[name]

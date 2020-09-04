@@ -48,7 +48,8 @@ prefixes = ['igm_', 'cgm_']
 ## Common axis labels
 label_flux_nrg = r'$J_{\nu} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'
 label_flux_phot = r'$J_{\nu} \ (\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'    
-label_flux_nw = r'$J_{\nu} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
+label_flux_nw = r'$J_{\nu} \ [\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1}]$'    
+label_logflux_nw = r'$\log_{10} (J_{\nu} / [\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1}])$'    
 label_power_nw = r'$q^2 P(q)/(2\pi) \ (\mathrm{nW}^2 \ \mathrm{m}^{-4} \ \mathrm{sr}^{-2})$'    
 label_power_Cl_sqrt = r'$\left[ l(l+1) C_l^{\nu \nu^{\prime}} / 2\pi \right]^{1/2} \ (\mathrm{nW} \ \mathrm{m}^{-2} \ \mathrm{sr}^{-1})$'    
 label_power_Cl = r'$l(l+1) C_l^{\nu \nu^{\prime}} / 2\pi \ (\mathrm{nW}^{2} \ \mathrm{m}^{-4} \ \mathrm{sr}^{-2})$'    
@@ -112,6 +113,7 @@ common = \
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
  'flux_nW': label_flux_nw, 
+ 'logflux_nW': label_logflux_nw, 
  'power_nirb': label_power_nw,
  'power_nirb_Cl_sqrt': label_power_Cl_sqrt,
  'power_nirb_Cl': label_power_Cl,

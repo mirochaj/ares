@@ -25,8 +25,13 @@ def test():
     pars['pop_sed'] = 'sps-toy' # don't try to read-in bpass
     pars['pop_lum_per_sfr'] = 1e28
     pars['pop_calib_lum'] = None
-    pop = ares.populations.GalaxyPopulation(**pars)
     
+    #updates = ares.util.ParameterBundle('testing:galaxies')
+    ##updates.num = 0
+    #pars.update(updates)
+    
+    pop = ares.populations.GalaxyPopulation(**pars)
+        
     sfrd = pop.SFRD(zarr) * rhodot_cgs
     
     # Check for reasonable values
@@ -37,6 +42,18 @@ def test():
     
     # A bit slow :/
     phi_Ms = pop.StellarMassFunction(zarr[0])
+        
+    mags, rho_surf = pop.SurfaceDensity(6.)
+            
+    dsfe_dMh = pop.get_sfe_slope(6., 1e9)
+    
+    assert abs(dsfe_dMh - pop.pf['pq_func_par2[0]']) < 0.05
+        
+    assert -15 <= pop.get_MUV_lim(6.) <= 0., "Limiting magnitude unreasonable."
+    
+    Mmin = pop.Mmin(10.)
+    
+    assert 1e7 <= Mmin <= 1e9
     
 if __name__ == '__main__':
     test()

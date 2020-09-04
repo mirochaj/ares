@@ -1,4 +1,4 @@
-If you use any of the global radiation background stuff, you should consider 
+If you use any of the global 21-cm signal or UV/X-ray radiation background stuff, you should cite 
 citing: 
 
     Mirocha, J., 2014, MNRAS, 443, 1211
@@ -21,7 +21,7 @@ archivePrefix = "arXiv",
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
-For the 1-D radiative transfer, consider citing: 
+For the 1-D radiative transfer or SED optimization, please cite:
 
     Mirocha, J., Skory, S., Burns, J.O., Wise, J.W., 2012, ApJ, 756, 94
 
@@ -44,6 +44,47 @@ archivePrefix = "arXiv",
       doi = {10.1088/0004-637X/756/1/94},
    adsurl = {http://adsabs.harvard.edu/abs/2012ApJ...756...94M},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+For global 21-cm calculations using new UVLF-based model, please cite
+
+@ARTICLE{2017MNRAS.464.1365M,
+       author = {{Mirocha}, Jordan and {Furlanetto}, Steven R. and {Sun}, Guochao},
+        title = "{The global 21-cm signal in the context of the high- z galaxy luminosity function}",
+      journal = {\mnras},
+     keywords = {galaxies: high-redshift, intergalactic medium, galaxies: luminosity function, mass function, dark ages, reionization, first stars, diffuse radiation, Astrophysics - Astrophysics of Galaxies},
+         year = 2017,
+        month = jan,
+       volume = {464},
+       number = {2},
+        pages = {1365-1379},
+          doi = {10.1093/mnras/stw2412},
+archivePrefix = {arXiv},
+       eprint = {1607.00386},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2017MNRAS.464.1365M},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+and PopIII star formation
+
+@ARTICLE{2018MNRAS.478.5591M,
+       author = {{Mirocha}, Jordan and {Mebane}, Richard H. and {Furlanetto}, Steven R. and
+         {Singal}, Krishma and {Trinh}, Donald},
+        title = "{Unique signatures of Population III stars in the global 21-cm signal}",
+      journal = {\mnras},
+     keywords = {galaxies: high-redshift, intergalactic medium, galaxies: luminosity function, mass function, dark ages, reionization, first stars, diffuse radiation, Astrophysics - Astrophysics of Galaxies, Astrophysics - Cosmology and Nongalactic Astrophysics},
+         year = 2018,
+        month = aug,
+       volume = {478},
+       number = {4},
+        pages = {5591-5606},
+          doi = {10.1093/mnras/sty1388},
+archivePrefix = {arXiv},
+       eprint = {1710.02530},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2018MNRAS.478.5591M},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
 

@@ -28,6 +28,10 @@ def test():
         
     assert 1e-3 <= sfrd <= 1, "SFRD unreasonable"
     
+    csfrd = pop.cSFRD(6., Mh=1e10)
+        
+    assert csfrd < 1., "cSFRD >= SFRD!?"
+    
     # Test UVLF
     mags = np.arange(-25, -10, 0.1)
     phi = pop.LuminosityFunction(6., mags)

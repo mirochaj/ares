@@ -79,12 +79,16 @@ class BlackHoleAggregate(HaloPopulation):
     
     def _BHGRD(self, z, rho_bh):
         """
-        rho_bh in Msun / cMpc^3.
+        rho_bh in Msun / cMpc^3 / yr.
         """
 
-        new = self.FRD(z) * rho_cgs
+        # Convert to Msun / cMpc^3
+        new = self.FRD(z) * rhodot_cgs
+        
+        # Currently in Msun / cMpc^3 / sec
         old = self.pf['pop_fduty'] \
-            * rho_bh[0] * 4.0 * np.pi * G * m_p / sigma_T / c / self.pf['pop_eta']
+            * rho_bh[0] * 4.0 * np.pi * G * m_p \
+                / sigma_T / c / self.pf['pop_eta']
                                         
         # In Msun / cMpc^3 / dz
         return -np.array([new + old]) * self.cosm.dtdz(z)
@@ -98,10 +102,10 @@ class BlackHoleAggregate(HaloPopulation):
             zf = max(zf, self.zdead)
             
             if self.pf['sam_dz'] is not None:
-                dz = self.pf['sam_dz']
+                dz = self.pf['sam_dz'] * np.ones_like(self.halos.tab_z)
                 zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
             else:
-                dz = np.diff(self.halos.tab_z)[0]
+                dz = np.diff(self.halos.tab_z)
                 zfreq = 1
    
             # Initialize solver
@@ -130,13 +134,16 @@ class BlackHoleAggregate(HaloPopulation):
             rho_bh = []
             redshifts = []
             for i in range(Nz):
+                
+                if i == Nz - 1:
+                    break
                                                                 
                 redshifts.append(zflip[i])
                 rho_bh.append(solver.y[0])
                 
                 z = redshifts[-1]
                                             
-                solver.integrate(solver.t-dz)
+                solver.integrate(solver.t-dz[i])
                 
             z = np.array(redshifts)[-1::-1]
             

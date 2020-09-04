@@ -13,13 +13,14 @@ A few papers on how it works:
 - Uniform backgrounds \& global 21-cm signal: [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M)
 - Galaxy luminosity functions: [Mirocha, Furlanetto, & Sun (2017)](http://adsabs.harvard.edu/abs/2016arXiv160700386M)
 - Population III star formation: [Mirocha et al. (2018)](http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M)
+- Rest-ultraviolet colours at high-z: [Mirocha, Mason, & Stark (2020)](https://ui.adsabs.harvard.edu/abs/2020arXiv200507208M/abstract)
 
 Plus some more applications:
 
 - [Mirocha & Furlanetto (2019)](http://adsabs.harvard.edu/abs/2018arXiv180303272M)
 - [Schneider (2018)](http://adsabs.harvard.edu/abs/2018PhRvD..98f3021S)
 - [Tauscher et al. (2017)](http://adsabs.harvard.edu/abs/2018ApJ...853..187T)
-- [Mirocha, Harker, & Burns(2015)](http://adsabs.harvard.edu/abs/2015ApJ...813...11M)
+- [Mirocha, Harker, & Burns (2015)](http://adsabs.harvard.edu/abs/2015ApJ...813...11M)
 
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.

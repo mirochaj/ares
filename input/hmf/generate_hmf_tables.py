@@ -18,7 +18,7 @@ import ares
 
 def_kwargs = \
 {
- "hmf_model": 'ST',
+ "hmf_model": 'PS',
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
@@ -28,14 +28,14 @@ def_kwargs = \
  "hmf_window": 'tophat',
 
  # Redshift sampling
- "hmf_zmin": 0.,
- "hmf_zmax": 60.,
+ "hmf_zmin": 5.,
+ "hmf_zmax": 30.,
  "hmf_dz": 0.05,
  
  # Can do constant timestep instead of constant dz 
- "hmf_dt": 1,
- "hmf_tmin": 30.,
- "hmf_tmax": 2000.,
+ #"hmf_dt": 1,
+ #"hmf_tmin": 30.,
+ #"hmf_tmax": 2000.,
  
  # Cosmology
  "cosmology_id": 'best',
@@ -60,7 +60,7 @@ kwargs.update(ares.util.get_cmd_line_kwargs(sys.argv))
 hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
     hmf_load=False, **kwargs)
 
-hmf.info()
+hmf.info
 
 try:
     hmf.SaveHMF(fmt=kwargs['hmf_fmt'], clobber=False)

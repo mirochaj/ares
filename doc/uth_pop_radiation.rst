@@ -193,7 +193,7 @@ You can also use *ARES* to access two popular stellar population synthesis model
 
 Right now, these sources are implemented as "litdata" modules, i.e., in the same fashion as we store data and models from the literature (see :doc:`example_litdata` for more info). So, to use them, you must set ``pop_sed`` or ``source_sed`` to ``"eldridge2009"`` and ``"leitherer1999"`` for BPASS and starburst99, respectively.
 
-.. note :: The spectral resolution of these SED models is needlessly high for certain applications. To degrade BPASS spectra and get a slight boost in performance, you can run the script ``$ARES/input/bpass_v1/degrade_bpass_seds.py`` with a command-line argument indicating the desired spectral resolution in :math:`\AA`. Just be sure to also set ``pop_sed_degrade`` to this same number in subsequent calculations in order to read-in the new tables.
+.. note :: The spectral resolution of these SED models is needlessly high for certain applications. To degrade BPASS spectra and get a slight boost in performance, you can run the script ``$ARES/input/bpass_v1/degrade_bpass_seds.py`` with a command-line argument indicating the desired spectral resolution in :math:`\unicode{x212B}`. Just be sure to also set ``pop_sed_degrade`` to this same number in subsequent calculations in order to read-in the new tables.
 
 If you'd like to access the SPS data directly, you can do so via, e.g.,
 

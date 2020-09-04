@@ -7,14 +7,12 @@ try:
 except ImportError:
     from distutils.core import setup
 
-ares_link = 'https://bitbucket.org/mirochaj/ares'
-
 setup(name='ares',
       version='0.1',
       description='Accelerated Reionization Era Simulations',
       author='Jordan Mirocha',
       author_email='mirochaj@gmail.com',
-      url=ares_link,
+      url='https://github.com/mirochaj/ares',
       packages=['ares', 'ares.analysis', 'ares.simulations',
        'ares.populations', 'ares.util', 'ares.solvers', 'ares.static',
        'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom'],

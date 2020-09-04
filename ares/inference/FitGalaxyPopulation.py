@@ -14,7 +14,6 @@ import gc, os
 import numpy as np
 from ..util import read_lit
 from ..util.Pickling import write_pickle_file
-from ..util.PrintInfo import print_fit
 from ..util.ParameterFile import par_info
 from ..util.Stats import symmetrize_errors
 from ..populations import GalaxyCohort, GalaxyEnsemble, GalaxyHOD
@@ -406,7 +405,7 @@ class FitGalaxyPopulation(FitBase):
                     # Short hand
                     data = litdata.data[quantity]
                     redshifts = litdata.redshifts
-                                        
+                                                            
                     # This is always just a number or str, i.e.,
                     # no need to breakdown by redshift so just do it now
                     self._units[quantity].append(litdata.units[quantity])
@@ -415,6 +414,7 @@ class FitGalaxyPopulation(FitBase):
                     if not (z_by_range or z_by_hand):
                         srcdata = data
                         srczarr = redshifts
+                        print('not by hand', srczarr)
                     else:
                         srczarr = []
                         srcdata = {}
@@ -444,7 +444,7 @@ class FitGalaxyPopulation(FitBase):
                     
                     if not z_by_hand:
                         self._redshifts[quantity].extend(srczarr)
-                        
+
             # Check to make sure we find requested measurements.
             for quantity in self.include: 
                 zlit = []
@@ -453,7 +453,7 @@ class FitGalaxyPopulation(FitBase):
                     
                 zlit = np.array(zlit).ravel()
                 zreq = self._redshifts[quantity]
-                                
+                                                                        
                 # Problems straight away if we don't have enough redshifts
                 if len(zlit) != len(zreq):
                     s = "Found {} suitable redshifts for {}.".format(len(zlit),

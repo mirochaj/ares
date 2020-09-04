@@ -104,15 +104,6 @@ _Nion = {'blob_names': ['Ndot'],
          'blob_funcs': ['pops[0].PhotonLuminosityDensity'],
          'blob_kwargs': [[dict([('Emin', 13.6), ('Emax', 24.6)])]]}
 
-
-_emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
-          'blob_ivars': [_def_z],
-          'blob_funcs': ['pops[0]._LuminosityDensity_LW',
-                         'pops[0]._LuminosityDensity_LyC',
-                         'pops[0]._LuminosityDensity_sXR',
-                         'pops[0]._LuminosityDensity_hXR'],
-          'blob_kwargs': [None] * 4}
-
 _cxrb = {'blob_names': ['jsxb', 'jhxb'],
          'blob_ivars': None,
          'blob_funcs': ['medium.field.jxrb(\'soft\')', 'medium.field.jxrb(\'hard\')'],
@@ -194,7 +185,7 @@ _blobs = \
  'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
         'runtime': _runtime, 'rates': _rates, 'helium': _He,
         'cooling': _cooling},
- 'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 
+ 'pop': {'sfrd': _sfrd, 'fluxes': None, 
     'cxrb': _cxrb, 'lf': _lf, 'sd': _sd, 'smf': _smf, 'sfrd_above': _sfrd_above,
     'Nion': _Nion, 'fobsc': _fobsc}
 }

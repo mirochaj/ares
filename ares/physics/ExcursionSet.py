@@ -194,7 +194,7 @@ class ExcursionSet(object):
         rho0_m = self.cosm.rho_m_z0 * rho_cgs
 
         M = self.Mass(R)
-        S = np.array(map(lambda RR: self.Variance(z, RR), R))
+        S = np.array([self.Variance(z, RR) for RR in R])
 
         _M, _dlnSdlnM = central_difference(np.log(M[-1::-1]), np.log(S[-1::-1]))
         _M = _M[-1::-1]
@@ -216,10 +216,14 @@ class ExcursionSet(object):
         i.e., dF/dS where S=sigma^2.
         """
         
-        S = np.array(map(lambda RR: self.Variance(z, RR), R))
+        S = np.array([self.Variance(z, RR) for RR in R])
         
         norm = (dcrit - dzero) / np.sqrt(two_pi) / S**1.5
         
         p = norm * np.exp(-(dcrit - dzero)**2 / 2. / S)
         
         return p
+        
+        
+        
+        
