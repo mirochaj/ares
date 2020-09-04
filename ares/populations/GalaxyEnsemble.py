@@ -1311,7 +1311,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Re-compute dust surface density
             if have_dust and (self.pf['pop_dust_scatter'] is not None):
-                Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                Sd = Md / 4. / np.pi \
+                    / self.guide.dust_scale(z=z2d, Mh=Mh)**2
                 Sd += noise
                 Sd *= g_per_msun / cm_per_kpc**2
 
