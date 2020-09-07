@@ -374,15 +374,19 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
             have_weights = True
 
     if not have_weights:
-        print("Deferring to scipy.stats.binned_statistic since weights=None.")
 
-        assert method_std in ['std', 'sum']
-        assert method_avg == 'avg'
-        yavg, _b, binid = binned_statistic(x, y, statistic='mean', bins=xbin_e)
-        ysca, _b, binid = binned_statistic(x, y, statistic=method_std, bins=xbin_e)
-        N, _b, binid = binned_statistic(x, y, statistic='count', bins=xbin_e)
+        if method_std in ['std', 'sum'] and method_avg == 'avg':
 
-        return xbin_c, yavg, ysca, N
+            print("Deferring to scipy.stats.binned_statistic since weights=None.")
+
+            yavg, _b, binid = binned_statistic(x, y, statistic='mean',
+                bins=xbin_e)
+            ysca, _b, binid = binned_statistic(x, y, statistic=method_std,
+                bins=xbin_e)
+            N, _b, binid = binned_statistic(x, y, statistic='count',
+                bins=xbin_e)
+
+            return xbin_c, yavg, ysca, N
 
     ysca = []
     yavg = []

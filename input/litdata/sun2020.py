@@ -33,7 +33,7 @@ _generic_lya = \
  'pop_fesc': 0.0,     # This will get replaced by `add_lya` below.
 
  'pop_sed': 'delta',
- 'pop_Emin': 0.1,
+ 'pop_Emin': 0.42,
  'pop_Emax': E_LyA,
  'pop_EminNorm': 9.9,
  'pop_EmaxNorm': 10.5,

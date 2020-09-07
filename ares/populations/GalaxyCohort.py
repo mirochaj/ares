@@ -3404,15 +3404,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         scale : int, float, np.ndarray
             Angular scale [arcseconds]
         wave_obs : int, float, tuple
-            Observed wavelength of interest [microns]. If tuple, will assume
-            elements define the edges of a spectral channel.
+            Observed wavelength of interest [microns]. If tuple, will
+            assume elements define the edges of a spectral channel.
         scale_units : str
             So far, allowed to be 'arcsec' or 'arcmin'.
         time_res : int
-            Can degrade native time or redshift resolution by this factor
-            to speed-up integral. Do so at your own peril. By default, will
-            sample time/redshift integrand at native resolution (set by
-            `hmf_dz` or `hmf_dt`).
+            Can degrade native time or redshift resolution by this
+            factor to speed-up integral. Do so at your own peril. By
+            default, will sample time/redshift integrand at native
+            resolution (set by `hmf_dz` or `hmf_dt`).
 
         """
 
@@ -3432,8 +3432,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             ps = np.zeros_like(scale)
 
-            pb = ProgressBar(scale.shape[0], use=use_pb and self.pf['progress_bar'],
-                name='p(k)')
+            pb = ProgressBar(scale.shape[0],
+                use=use_pb and self.pf['progress_bar'], name='p(k)')
             pb.start()
 
             for h, _scale_ in enumerate(scale):
@@ -3462,7 +3462,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
 
         ##
-        # Extra factor of nu^2 to eliminate Hz^{-1} units for monochromatic PS
+        # Extra factor of nu^2 to eliminate Hz^{-1} units for
+        # monochromatic PS
         if type(wave_obs) not in [tuple, list]:
             ps *= (c / (wave_obs * 1e-4))**2
 
@@ -3481,7 +3482,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # be in erg/s/cMpc^3, while in the latter, it will carry an extra
         # factor of Hz^-1.
         if type(wave_obs) in [int, float, np.float64]:
-            is_band_avg = False
+            is_band_int = False
 
             # Get rest wavelength in Angstroms
             wave = wave_obs * 1e4 / (1. + z)
@@ -3493,7 +3494,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             enu = self.Emissivity(z, E=E) * ev_per_hz
             # Not clear about * nu at the end
         else:
-            is_band_avg = True
+            is_band_int = True
 
             # Get rest wavelengths
             wave = tuple(np.array(wave_obs) * 1e4 / (1. + z))
@@ -3510,7 +3511,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
 
         ##
-        # Must retrieve redhsift-dependent k given fixed angular scale.
+        # Must retrieve redshift-dependent k given fixed angular scale.
         if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
             rad = scale * (np.pi / 180.)
 
@@ -3562,7 +3563,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             delsq = (k / cm_per_mpc)**2 * (ps3d / cm_per_mpc**3) * Hofz \
                 / 2. / np.pi / c
 
-            if is_band_avg:
+            if is_band_int:
                 integrand = 2. * np.pi * dfdz**2 * delsq / q**2
             else:
                 integrand = 2. * np.pi * dfdz**2 * delsq / q**2
@@ -3570,12 +3571,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Spherical harmonics
         elif scale_units.lower() in ['l', 'ell']:
             # Fernandez+ (2010) Eq. A9 or 37
-            if is_band_avg:
+            if is_band_int:
                 # [ps3d] = cm^3
                 integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**4 / (4. * np.pi)**2
             # Fernandez+ (2010) Eq. A10
-            else:    
+            else:
                 integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**2 / (4. * np.pi)**2
         else:
