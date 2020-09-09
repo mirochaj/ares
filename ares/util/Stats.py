@@ -374,15 +374,19 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
             have_weights = True
 
     if not have_weights:
-        print("Deferring to scipy.stats.binned_statistic since weights=None.")
 
-        assert method_std in ['std', 'sum']
-        assert method_avg == 'avg'
-        yavg, _b, binid = binned_statistic(x, y, statistic='mean', bins=xbin_e)
-        ysca, _b, binid = binned_statistic(x, y, statistic=method_std, bins=xbin_e)
-        N, _b, binid = binned_statistic(x, y, statistic='count', bins=xbin_e)
+        if method_std in ['std', 'sum'] and method_avg == 'avg':
 
-        return xbin_c, yavg, ysca, N
+            print("Deferring to scipy.stats.binned_statistic since weights=None.")
+
+            yavg, _b, binid = binned_statistic(x, y, statistic='mean',
+                bins=xbin_e)
+            ysca, _b, binid = binned_statistic(x, y, statistic=method_std,
+                bins=xbin_e)
+            N, _b, binid = binned_statistic(x, y, statistic='count',
+                bins=xbin_e)
+
+            return xbin_c, yavg, ysca, N
 
     ysca = []
     yavg = []
@@ -412,6 +416,8 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
 
             yavg.append(-np.inf)
             if method_std == 'bounds' or type(method_std) in [int, float, np.float64]:
+                ysca.append((-np.inf, -np.inf))
+            elif type(method_std) in [list, tuple]:
                 ysca.append((-np.inf, -np.inf))
             else:
                 ysca.append(-np.inf)
@@ -491,6 +497,11 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
         elif type(method_std) in [int, float, np.float64]:
             q1 = 0.5 * 100 * (1. - method_std)
             q2 = 100 * method_std + q1
+            lo, hi = np.percentile(f, (q1, q2))
+            ysca.append((lo, hi))
+        elif type(method_std) in [list, tuple]:
+            q1 = 100 * method_std[0]
+            q2 = 100 * method_std[1]
             lo, hi = np.percentile(f, (q1, q2))
             ysca.append((lo, hi))
         else:

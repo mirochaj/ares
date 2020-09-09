@@ -2935,7 +2935,7 @@ class ModelSet(BlobFactory):
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True,
         show_errors=False, label_panels=None, return_axes=False,
         fix=True, skip_panels=[], mp_kwargs={}, inputs_scatter=False,
-        input_marker='+',
+        input_mkw={},
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3212,10 +3212,10 @@ class ModelSet(BlobFactory):
 
                 mult = np.array([0.995, 1.005])
 
-                if inputs_scatter:
-                    c = 'k' if 'color' not in kwargs else kwargs['color']
-                    mp.grid[k].scatter([xin]*2, [yin]*2,
-                        color=c, marker=input_marker, zorder=20)
+                if inputs_scatter and (xin is not None) and (yin is not None):
+                    mp.grid[k].scatter([xin]*2, [yin]*2, **input_mkw)
+                    continue
+                elif inputs_scatter:
                     continue
 
                 # Plot as dotted lines
