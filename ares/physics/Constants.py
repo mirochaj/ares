@@ -70,6 +70,13 @@ erg_per_s_per_nW = 1e7 / 1e9
 # Convert specific intensities from eV^-1 to Hz^-1
 ev_per_hz = h / erg_per_ev
 
+# More eV conversions according to https://en.wikipedia.org/wiki/Electronvolt
+# With c = h = kb = 1
+ev_per_kg = (c/100)**2 / e
+ev_per_g = ev_per_kg / 1000
+ev_per_cminv = c * ev_per_hz
+ev_per_K = 1 / k_B
+
 # Convert mass density from CGS to Msun / Mpc^3
 rho_cgs = cm_per_mpc**3 / g_per_msun
 

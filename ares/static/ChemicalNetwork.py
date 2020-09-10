@@ -14,10 +14,11 @@ Description: ChemicalNetwork object just needs to have methods called
 import copy, sys
 import numpy as np
 from scipy.misc import derivative
-from scipy.special import erf
+from scipy.special import erf, gamma, hyp1f1
 from ..util.Warnings import solver_error
 from ..physics.RateCoefficients import RateCoefficients
-from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h, m_H
+from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h, \
+    m_H, m_p, ev_per_g, ev_per_cminv, ev_per_K, ev_per_hz
         
 rad_const = (8. * sigma_T / 3. / m_e / c)
         
@@ -685,7 +686,7 @@ class ChemicalNetwork(object):
                 'zeta': self.zeta, 'eta': self.eta, 'psi': self.psi,
                 'xi': self.xi, 'omega': self.omega}
 
-    def dm_heating(self, z, Tb, Tchi, Vchib):
+    def dm_heating(self, z, Tb_, Tchi_, Vchib_):
         """
         Dark Matter heating differential equations.
         Equations 16 - 20 of Munoz et al. 2015
@@ -698,47 +699,58 @@ class ChemicalNetwork(object):
         z : float
             redshift.
         Tb : float
-            baryon temperature
+            baryon temperature [K]
         Tchi : float
-            Dark matter temp
+            Dark matter temp [K]
         Vchib : float
-            DM-b relative velocity
+            DM-b relative velocity [cm/s]
         """
-        #### MAKE SURE THESE ALL HAVE THE RIGHT UNITS!!!
-        #### Putting everything in [K]/[sec] because of reasons...
-        mb = m_H * c ** 2 / k_B  # Baryon mass [K]
-        mchi = self.cosm.m_dmeff * 1e9 / k_B  # DM mass [K]
+        # Putting everything in natural units with c=h=kb=1...
+        Tb = Tb_ * ev_per_K
+        Tchi = Tchi_ * ev_per_K
+        Vchib = Vchib_ / c
 
-        sig = self.cosm.sigma_dmeff * c ** 2
+        Y_He = self.cosm.Y
+        Y_H = (1 - Y_He)
 
-        rho_chi = self.cosm.MeanDarkMatterDensity(z) / k_B / c
-        rho_m = self.cosm.MeanMatterDensity(z) / k_B / c
-        rho_b = self.cosm.MeanBaryonDensity(z) / k_B / c
+        mb = self.cosm.g_per_b * ev_per_g  # Baryon mass [eV]
+        mchi = self.cosm.m_dmeff * 1e9  # DM mass [eV]
+        sig = self.cosm.sigma_dmeff / ev_per_cminv**2  # Cross section [eV^-2]
+        npow = self.cosm.npow_dmeff
+
+        # Conversion from cgs density to eV^4
+        rho_to_ev = ev_per_g * ev_per_cminv**3
+        rho_chi = self.cosm.MeanDarkMatterDensity(z) * rho_to_ev
+        rho_m = self.cosm.MeanMatterDensity(z) * rho_to_ev
+        rho_b = self.cosm.MeanBaryonDensity(z) * rho_to_ev
 
         uth = np.sqrt(Tb / mb + Tchi / mchi)
-        r = Vchib / uth
+        r = Vchib/uth
         F = erf(r / np.sqrt(2)) - np.sqrt(2 / np.pi) * np.exp(-r ** 2 / 2) * r
-
+        drag = rho_m * sig * F / (mb + mchi) / Vchib ** 2
         if Vchib == 0:
             drag = 0
-        else:
-            drag = rho_m * sig * F / (mb + mchi) / Vchib ** 2
 
-        # Equation (16) from Munoz et al. 2015
-        dQb_dt1 = 2 * mb * rho_chi * sig * (Tchi - Tb) * np.exp(-r ** 2 / 2)
-        dQb_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
-        dQb_dt2 = rho_chi / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
-        dQb_dt = dQb_dt1 + dQb_dt2
+        dQb_dt = 2 * mb * rho_chi * sig * (Tchi - Tb) * np.exp(-r ** 2 / 2) \
+                 / (mchi + mb) ** 2 / np.sqrt(2 * np.pi) / uth ** 3          \
+                 + rho_chi / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
 
-        dQchi_dt1 = 2 * mchi * rho_b * sig * (Tb - Tchi) * np.exp(-r ** 2 / 2)
-        dQchi_dt1 /= (mchi + mb) ** 2 * np.sqrt(2 * np.pi) * uth ** 3
-        dQchi_dt2 = rho_b / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
-        dQchi_dt = dQchi_dt1 + dQchi_dt2
+        dQchi_dt = 2 * mchi * rho_b * sig * (Tb - Tchi) * np.exp(-r**2/2) \
+                   / (mchi + mb) ** 2 / np.sqrt(2 * np.pi) / uth ** 3     \
+                   + rho_b / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
 
         # Equations 18 - 20 of munoz et al.
-        dTchi_dt = 2./3. * dQchi_dt
-        dTb_dt = 2/3 * dQb_dt
-        dVchib_dt = -drag
+        dTchi_dt_ = 2./3. * dQchi_dt  # [eV^2]
+        dTb_dt_ = 2/3 * dQb_dt  # [eV^2]
+        dVchib_dt_ = -drag  # [eV]
+
+        # Converts back to cgs
+        dTchi_dt = dTchi_dt_ / ev_per_K / ev_per_hz  # [K/s]
+        dTb_dt = dTb_dt_ / ev_per_K / ev_per_hz  # [K/s]
+        dVchib_dt = dVchib_dt_ * c / ev_per_hz  # [(cm/s) / s]
+
+        if np.isnan(np.array([dTb_dt, dTchi_dt, dVchib_dt])).any():
+            print("NAN")
 
         return dTb_dt, dTchi_dt, dVchib_dt
 

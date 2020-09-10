@@ -64,6 +64,10 @@ def main():
     else:
         print(f"Found existing input file.")
         inputs = dict(np.load(inputs_fname))
+
+    Vrms = 29 * 1e5
+
+    inputs['Vchib'] = Vrms
     inputs['Vchib'] = 0
     print("Creating Ares simulation")
     dm_params = {
