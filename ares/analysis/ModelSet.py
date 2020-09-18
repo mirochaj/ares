@@ -129,6 +129,10 @@ class ModelSet(BlobFactory):
                 self._prefix_is_chain = True
                 pre_pkl = data[0:data.rfind('.pkl')]
                 self.prefix = prefix = pre_pkl
+            elif re.search('hdf5', data):
+                self._prefix_is_chain = True
+                pre_pkl = data[0:data.rfind('.hdf5')]
+                self.prefix = prefix = pre_pkl
             else:
                 self._prefix_is_chain = False
                 self.prefix = prefix = data

@@ -2689,6 +2689,40 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         hist = {key:self.histories[key][-1::-1] for key in keys}
         return hist
 
+    def SurfaceDensity(self, z, mags, dz=1., dtheta=1., wave=1600.):
+        """
+
+        Returns
+        -------
+        Observed magnitudes, then, projected surface density of galaxies in
+        `dz` thick shell, in units of cumulative number of galaxies per
+        square degree.
+
+        """
+
+        # These are intrinsic (i.e., not dust-corrected) absolute magnitudes
+        phi = self.LuminosityFunction(z, mags, wave=wave)
+
+        # Convert to apparent magnitudes AB
+        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
+        magcorr = 5. * (np.log10(dL) - 1.)
+        mobs = mags + magcorr
+
+        # Compute the volume of the shell we're looking at
+        vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+
+        # Number of galaxies per mag.
+        Ngal = phi * vol
+
+        # At this point, magnitudes are in ascending order, i.e., bright to
+        # faint.
+        print("WARNING: surface density off. Revisit.")
+
+        # Cumulative surface density of galaxies *fainter than* mobs
+        ngtm = cumtrapz(Ngal, x=mobs, initial=Ngal[0])
+
+        return mobs, ngtm
+
     def load(self):
         """
         Load results from past run.
