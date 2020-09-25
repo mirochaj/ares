@@ -2706,7 +2706,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Convert to apparent magnitudes AB
         dL = self.cosm.LuminosityDistance(z) / cm_per_pc
         magcorr = 5. * (np.log10(dL) - 1.)
-        mobs = mags + magcorr
+        mobs = mags + magcorr - 2.5 * np.log10(1 + z)
 
         # Compute the volume of the shell we're looking at
         vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
@@ -2716,7 +2716,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # At this point, magnitudes are in ascending order, i.e., bright to
         # faint.
-        print("WARNING: surface density off. Revisit.")
 
         # Cumulative surface density of galaxies *fainter than* mobs
         ngtm = cumtrapz(Ngal, x=mobs, initial=Ngal[0])
