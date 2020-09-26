@@ -238,20 +238,32 @@ class NebularEmission(object):
         else:
             return frep
 
-    @property
-    def is_ionizing(self):
-        return self.energies >= E_LL
+    def L_ion(self, spec, species=0):
+        if species == 0:
+            ion = self.energies >= E_LL
+        elif species == 1:
+            ion = self.energies >= 24.6
+        elif species == 2:
+            ion = self.energies >= 4 * E_LL
+        else:
+            raise NotImplemented('help')
 
-    def L_ion(self, spec):
-        ion = self.energies >= E_LL
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
         return np.trapz(spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1],
             x=np.log(self.frequencies[ok==1][-1::-1]))
 
-    def N_ion(self, spec):
-        ion = self.energies >= E_LL
+    def N_ion(self, spec, species=0):
+        if species == 0:
+            ion = self.energies >= E_LL
+        elif species == 1:
+            ion = self.energies >= 24.6
+        elif species == 2:
+            ion = self.energies >= 4 * E_LL
+        else:
+            raise NotImplemented('help')
+
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
@@ -261,8 +273,16 @@ class NebularEmission(object):
               / erg_per_phot
         return np.trapz(integ, x=np.log(self.frequencies[ok==1][-1::-1]))
 
-    def Ebar_ion(self, spec):
-        ion = self.energies >= E_LL
+    def Ebar_ion(self, spec, species=0):
+        if species == 0:
+            ion = self.energies >= E_LL
+        elif species == 1:
+            ion = self.energies >= 24.6
+        elif species == 2:
+            ion = self.energies >= 4 * E_LL
+        else:
+            raise NotImplemented('help')
+
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
@@ -307,16 +327,81 @@ class NebularEmission(object):
 
         return tot
 
+    def LineEmission(self, spec):
+        """
+        Add as many nebular lines as we have models for.
+
+        Parameters
+        ----------
+        Return L_\nu in [erg/s/Hz]
+
+        """
+
+
+        fesc = self.pf['source_fesc']
+        Tgas = self.pf['source_nebular_Tgas']
+        flya = 2. / 3.
+        erg_per_phot = self.energies * erg_per_ev
+
+        # This is in [#/s]
+        Nion = self.N_ion(spec)
+
+        # Amount of UV luminosity absorbed in ISM
+        Nabs = Nion * (1. - fesc)
+
+        #tot = np.zeros_like(self.wavelengths)
+
+        #i_lya = np.argmin(np.abs(self.energies - E_LyA))
+
+        #tot[i_lya] = spec[i_lya] * 10
+
+        tot =  self.LymanSeries(spec)
+        tot += self.BalmerSeries(spec)
+
+        return tot
+
     def LymanSeries(self, spec):
         return self.HydrogenLines(spec, ninto=1)
 
     def BalmerSeries(self, spec):
+        """
+        Follow Inoue (2011) with coefficients from Osterbrock & Ferland (2006).
+        """
+
         return self.HydrogenLines(spec, ninto=2)
 
+    @property
+    def _jnu_wrt_hbeta(self):
+        if not hasattr(self, '_jnu_wrt_hbeta_'):
+            _Tg = self.pf['source_nebular_Tgas']
+
+            if _Tg == 1e4:
+                self._jnu_wrt_hbeta_ = [2.86, 1., 0.468, 0.259, 0.159, 0.105]
+            elif _Tg == 2e4:
+                # This is for n = 100 cm^-3
+                self._jnu_wrt_hbeta_ = [2.75, 1., 0.475, 0.264, 0.163, 0.107]
+            else:
+                raise NotImplemented('help')
+
+            self._jnu_wrt_hbeta_ = np.array(self._jnu_wrt_hbeta_)
+
+        return self._jnu_wrt_hbeta_
+
+    @property
+    def _gamma_hbeta(self):
+        return 1.23e-25 * (self.pf['source_nebular_Tgas'] / 1e4)**-0.9
+
     def HydrogenLines(self, spec, ninto=1):
+        """
+        Return spectrum containing only H lines from transitions into `ninto`.
+        """
+
+        assert ninto in [1,2], "Only Lyman and Balmer series implemented so far."
+
         neb = np.zeros_like(self.wavelengths)
-        nrg = h_p * c / (self.wavelengths * 1e-8) / erg_per_ev
-        freq = nrg * erg_per_ev / h_p
+        nrg = self.energies
+        freq = self.frequencies
+
         fesc = self.pf['source_fesc']
         _Tg = self.pf['source_nebular_Tgas']
 
@@ -324,32 +409,50 @@ class NebularEmission(object):
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        # This will be in [erg/s]
-        Lion = self.N_ion(spec)
-        Labs = Lion * (1. - fesc)
+        # This will be in [#/s]
+        Nion = self.N_ion(spec)
+        Nabs = Nion * (1. - fesc)
+
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
 
         fout = np.zeros_like(self.wavelengths)
-        for n in range(ninto+1, 5):
+        for i, n in enumerate(range(ninto+1, ninto+7)):
 
-            # Need to generalize
-            frec = 2. / 3.
-
+            # Determine resulting photons energy
             En = self.hydr.BohrModel(ninto=ninto, nfrom=n)
 
-            prof = np.exp(-0.5 * (nrg - E_LyA)**2 / 2. / sigm**2) \
-                 / np.sqrt(2. * np.pi) * erg_per_ev * ev_per_hz / sigm
+            # Need to generalize
+            if ninto == 1:
+                coeff = 2. / 3.
+            elif ninto == 2:
+                # Follow Inoue (2011) and compute H-beta, scale other
+                # lines using Osterbrock & Ferland (Table 4.4)
+                Lbeta = Nabs * self._gamma_hbeta \
+                    / self.coeff.RadiativeRecombinationRate(0, _Tg)
 
-            # See if the line is resolved
-            if not np.all(prof == 0):
-                fout += Labs * frec * prof
+                coeff = Lbeta / (En * erg_per_ev * Nabs)
+                coeff *= self._jnu_wrt_hbeta[i]
+
             else:
-                loc = np.argmin(np.abs(nrg - En))
-                # Need to correct for size of bin
-                corr = freq[loc-1] - freq[loc]
-                fout[loc] += Labs * frec / corr
+                raise NotImplemented('help')
+
+            #prof = np.exp(-0.5 * (nrg - E_LyA)**2 / 2. / sigm**2) \
+            #     / np.sqrt(2. * np.pi) * erg_per_ev * ev_per_hz / sigm
+
+            # Find correct element in array. Assume delta function
+            loc = np.argmin(np.abs(nrg - En))
+
+            # Need to get Hz^-1 units; `freq` in descending order
+            dnu = freq[loc] - freq[loc+1]
+
+            # In erg/s
+            Lline = Nabs * coeff * En * erg_per_ev
+
+            # Currently assuming line is unresolved.
+            fout[loc] = Lline / dnu
+
+            # Only know how to do Ly-a for now.
+            if ninto == 1:
+                break
 
         return fout
-
-    def LinesByElement(self, element='helium'):
-        pass

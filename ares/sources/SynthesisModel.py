@@ -19,7 +19,7 @@ from ..util.ReadData import read_lit
 from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H, ev_per_hz
+    s_per_myr, m_H, ev_per_hz, E_LL
 
 class SynthesisMaster(Source):
     def AveragePhotonEnergy(self, Emin, Emax):
@@ -269,7 +269,8 @@ class SynthesisMaster(Source):
 
         return None
 
-    def L_per_sfr(self, wave=1600., avg=1, Z=None):
+    def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
+            energy_units=True):
         """
         Specific emissivity at provided wavelength at `source_tsf`.
 
@@ -537,8 +538,23 @@ class SynthesisModel(SynthesisMaster):
             if self.pf['source_nebular'] > 1:
                 for i, t in enumerate(self.times):
                     spec = self._data[:,i] * self.dwdn
-                    self._neb_cont_[:,i] = self._nebula.Continuum(spec) / self.dwdn
+                    self._neb_cont_[:,i] = \
+                        self._nebula.Continuum(spec) / self.dwdn
+
         return self._neb_cont_
+
+    @property
+    def _neb_line(self):
+        if not hasattr(self, '_neb_line_'):
+            self._neb_line_ = np.zeros_like(self._data)
+            if self.pf['source_nebular_lines'] > 1:
+                assert self.pf['source_nebular'] > 1
+                for i, t in enumerate(self.times):
+                    spec = self._data[:,i] * self.dwdn
+                    self._neb_line_[:,i] = \
+                        self._nebula.LineEmission(spec) / self.dwdn
+
+        return self._neb_line_
 
     @property
     def data(self):
@@ -633,8 +649,18 @@ class SynthesisModel(SynthesisMaster):
                 self._data *= self.pf['source_sfr']
 
         # Add in nebular continuum (just once!)
+        null_ionizing_spec = 0
         if not hasattr(self, '_neb_cont_'):
             self._data += self._neb_cont
             self._data[np.argwhere(np.isnan(self._data))] = 0.0
+            null_ionizing_spec = self.pf['source_nebular'] > 1
+
+        # Same for nebular lines.
+        if not hasattr(self, '_neb_line_'):
+            self._data += self._neb_line
+            self._data[np.argwhere(np.isnan(self._data))] = 0.0
+
+        if null_ionizing_spec:
+            self._data[self.energies > E_LL] *= self.pf['source_fesc']
 
         return self._data

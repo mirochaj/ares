@@ -561,6 +561,7 @@ def PopulationParameters():
     "pop_tracks_fn": None,
     "pop_stellar_aging": False,
     "pop_nebular": False,
+    "pop_nebular_lines": False,
     "pop_nebular_ff": True,
     "pop_nebular_fb": True,
     "pop_nebular_2phot": True,
@@ -978,6 +979,7 @@ def SourceParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_lines": False,
     "source_nebular_ff": True,
     "source_nebular_fb": True,
     "source_nebular_2phot": True,
@@ -1081,6 +1083,7 @@ def SynthesisParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_lines": False,
 
     # If doing nebular emission with ARES
     "source_nebular_ff": True,
