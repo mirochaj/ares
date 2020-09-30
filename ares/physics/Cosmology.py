@@ -19,7 +19,8 @@ from ..util.ParameterFile import ParameterFile
 from .InitialConditions import InitialConditions
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc, cm_per_kpc, k_B, m_p
-    
+from functools import lru_cache
+
 _ares_to_planck = \
 {
  'omega_m_0': 'omegam*',
@@ -72,7 +73,6 @@ class Cosmology(InitialConditions):
             
         self.helium_by_number = self.y = 1. / (1. / self.Y - 1.) / 4.
 
-        
         self.X = 1. - self.Y
         
         self.g_per_baryon = self.g_per_b = m_H / (1. - self.Y) / (1. + self.y)
@@ -526,48 +526,60 @@ class Cosmology(InitialConditions):
     
     def EvolutionFunction(self, z):
         return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0
-        
+
+    @lru_cache(maxsize = 100)
     def HubbleParameter(self, z):
         if self.approx_highz:
             return self.hubble_0 * np.sqrt(self.omega_m_0) * (1. + z)**1.5
         return self.hubble_0 * np.sqrt(self.EvolutionFunction(z))
-    
+
+    @lru_cache(maxsize = 100)
     def HubbleLength(self, z):
         return c / self.HubbleParameter(z)
-    
+
+    @lru_cache(maxsize = 100)
     def HubbleTime(self, z):
         return 1. / self.HubbleParameter(z)
-        
+
+    @lru_cache(maxsize = 100)
     def OmegaMatter(self, z):
         if self.approx_highz:
             return 1.0
         return self.omega_m_0 * (1. + z)**3 / self.EvolutionFunction(z)
-    
+
+    @lru_cache(maxsize = 100)
     def OmegaLambda(self, z):
         if self.approx_highz:
             return 0.0
         
         return self.omega_l_0 / self.EvolutionFunction(z)
-    
+
+    @lru_cache(maxsize = 100)
     def MeanMatterDensity(self, z):
         return self.OmegaMatter(z) * self.CriticalDensity(z)
 
+    @lru_cache(maxsize = 100)
     def MeanDarkMatterDensity(self, z):
         return (self.omega_cdm_0 / self.omega_m_0) * self.MeanMatterDensity(z)
 
+    @lru_cache(maxsize = 100)
     def MeanBaryonDensity(self, z):
         return (self.omega_b_0 / self.omega_m_0) * self.MeanMatterDensity(z)
-    
+
+    @lru_cache(maxsize = 100)
     def MeanHydrogenNumberDensity(self, z):
         return (1. - self.Y) * self.MeanBaryonDensity(z) / m_H
-        
+
+    @lru_cache(maxsize = 100)
     def MeanHeliumNumberDensity(self, z):
-        return self.Y * self.MeanBaryonDensity(z) / m_He    
-    
+        return self.Y * self.MeanBaryonDensity(z) / m_He
+
+    @lru_cache(maxsize = 100)
     def MeanBaryonNumberDensity(self, z):
         return self.MeanBaryonDensity(z) / (m_H * self.MeanHydrogenNumberDensity(z) + 
             4. * m_H * self.y * self.MeanHeliumNumberDensity(z))
-    
+
+    @lru_cache(maxsize = 100)
     def CriticalDensity(self, z):
         return (3.0 * self.HubbleParameter(z)**2) / (8.0 * np.pi * G)
     

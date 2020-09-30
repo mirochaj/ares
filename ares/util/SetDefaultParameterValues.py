@@ -69,7 +69,6 @@ def GridParameters():
 
     # For Dark Matter heating
     "include_dm": False,
-    "initial_Vchib": 0,
 
     # Line photons
     "include_injected_lya": True,
@@ -1286,6 +1285,12 @@ def CosmologyParameters():
     'cosmorec_fmt': '.dat',
 
     # Instantiated class instance if using class cosmology name
+    # For DM interaction inits should be a dict with
+    # 'z' -- array of redshifts
+    # 'Tk' -- array of baryon temps [K]
+    # 'Tchi' -- array of dm temps [K]
+    # 'Vchib' -- initial velocity [cm/sec?]
+
     'cosmology_inits': None,
 
     # Dark matter interaction params

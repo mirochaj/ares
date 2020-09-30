@@ -75,7 +75,7 @@ ev_per_hz = h / erg_per_ev
 ev_per_kg = (c/100)**2 / e
 ev_per_g = ev_per_kg / 1000
 ev_per_cminv = c * ev_per_hz
-ev_per_K = 1 / k_B
+ev_per_K =  k_B / erg_per_ev
 
 # Convert mass density from CGS to Msun / Mpc^3
 rho_cgs = cm_per_mpc**3 / g_per_msun

@@ -288,7 +288,8 @@ class ChemicalNetwork(object):
             dTk_dt, dTchi_dt, dVchib_dt = self.dm_heating(z, Tk, Tchi, Vchib)
 
             H = self.cosm.HubbleParameter(z)
-            dqdt['Tchi'] = -2*H*x['Tchi'] + dTchi_dt
+            dm_cooling = 2*H*x['Tchi']
+            dqdt['Tchi'] = -dm_cooling + dTchi_dt
             dqdt['Tk'] += dTk_dt
             dqdt['Vchib'] = -H*Vchib + dVchib_dt
 
@@ -710,9 +711,6 @@ class ChemicalNetwork(object):
         Tchi = Tchi_ * ev_per_K
         Vchib = Vchib_ / c
 
-        Y_He = self.cosm.Y
-        Y_H = (1 - Y_He)
-
         mb = self.cosm.g_per_b * ev_per_g  # Baryon mass [eV]
         mchi = self.cosm.m_dmeff * 1e9  # DM mass [eV]
         sig = self.cosm.sigma_dmeff / ev_per_cminv**2  # Cross section [eV^-2]
@@ -732,7 +730,7 @@ class ChemicalNetwork(object):
             drag = 0
 
         dQb_dt = 2 * mb * rho_chi * sig * (Tchi - Tb) * np.exp(-r ** 2 / 2) \
-                 / (mchi + mb) ** 2 / np.sqrt(2 * np.pi) / uth ** 3          \
+                 / (mchi + mb) ** 2 / np.sqrt(2 * np.pi) / uth ** 3         \
                  + rho_chi / rho_m * (mchi * mb) / (mchi + mb) * Vchib * drag
 
         dQchi_dt = 2 * mchi * rho_b * sig * (Tb - Tchi) * np.exp(-r**2/2) \
@@ -750,6 +748,8 @@ class ChemicalNetwork(object):
         dVchib_dt = dVchib_dt_ * c / ev_per_hz  # [(cm/s) / s]
 
         if np.isnan(np.array([dTb_dt, dTchi_dt, dVchib_dt])).any():
+            import pdb
+            pdb.set_trace()
             print("NAN")
 
         return dTb_dt, dTchi_dt, dVchib_dt
