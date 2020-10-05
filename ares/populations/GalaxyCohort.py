@@ -3278,8 +3278,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        print('hi', z, Emin, Emax, self.is_emissivity_scalable)
-
         # erg / s / cm**3
         if self.is_emissivity_scalable:
             rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
