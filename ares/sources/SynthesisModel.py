@@ -240,10 +240,15 @@ class SynthesisMaster(Source):
                 assert avg % 2 != 0, "avg must be odd"
                 avg = int(avg)
                 s = (avg - 1) / 2
+
+                j1 = np.argmin(np.abs(wave - s - self.wavelengths))
+                j2 = np.argmin(np.abs(wave + s - self.wavelengths))
+
                 if units == 'Hz':
-                    yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s,None]), axis=0)
+                    yield_UV = np.mean(self.data[j1:j2+1,:] \
+                        * np.abs(self.dwdn[j1:j2+1])[:,None], axis=0)
                 else:
-                    yield_UV = np.mean(self.data[j-s:j+s,:])
+                    yield_UV = np.mean(self.data[j1:j2+1,:])
 
         # Current units:
         # if pop_ssp:

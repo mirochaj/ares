@@ -988,8 +988,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         if self.pf['pop_dust_yield'] is not None:
             fd = self.guide.dust_yield(z=z2d, Mh=Mh)
+            have_dust = np.any(fd > 0)
         else:
             fd = 0.0
+            have_dust = False
 
         if self.pf['pop_dust_growth'] is not None:
             fg = self.guide.dust_growth(z=z2d, Mh=Mh)
@@ -1157,7 +1159,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Dust
         ##
-        if np.any(fd > 0):
+        if have_dust:
 
             delay = self.pf['pop_dust_yield_delay']
 
@@ -1288,17 +1290,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # will have been set to zero post-merger.
 
                 # Add stellar mass of progenitors
-                Ms[iM[i],iz[i]:] += max(Ms[i,:])
+                Ms[iM[i],iz[i]:] += np.max(Ms[i,:])
 
                 #Mg[iM[i],iz[i]:] += max(Mg[i,:])
 
                 # Add dust mass of progenitors
-                if np.any(fd > 0):
-                    Md[iM[i],iz[i]:] += max(Md[i,:])
+                if have_dust:
+                    Md[iM[i],iz[i]:] += np.max(Md[i,:])
                     #MZ[iM[i],iz[i]:] += max(MZ[i,:])
 
             # Re-compute dust surface density
-            if np.any(fd > 0) and (self.pf['pop_dust_scatter'] is not None):
+            if have_dust and (self.pf['pop_dust_scatter'] is not None):
                 Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
                 Sd += noise
                 Sd *= g_per_msun / cm_per_kpc**2
@@ -2336,7 +2338,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
                 method=magmethod, presets=presets)
 
-            MAB, beta, _std, N1 = bin_samples(_MAB, beta_r, Mbins, weights=nh)
+            if np.all(np.diff(np.diff(nh)) == 0):
+                Mh = self.get_field(z, 'Mh')
+                ok = Mh > 0
+            else:
+                ok = np.ones_like(_MAB)
+
+            MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
+                Mbins, weights=nh)
 
         else:
             beta = beta_r

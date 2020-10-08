@@ -779,7 +779,6 @@ def PopulationParameters():
 
     # Should
     "pop_fesc_LW": 1.,
-    "pop_fesc_LyC": 0.1,
 
     # Parameters that sweep fstar under the rug
     "pop_xi_XR": None,     # product of fstar and fX
@@ -975,6 +974,7 @@ def SourceParameters():
     "source_sfh": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
+    "source_imf_Mmax": 300,
     "source_tracks": None,
     "source_tracks_fn": None,
     "source_stellar_aging": False,
@@ -1092,7 +1092,6 @@ def SynthesisParameters():
 
     "source_fesc": 0.,
 
-
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
@@ -1130,6 +1129,8 @@ def SynthesisParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
+    "hmf_package": 'hmf',
+
     "hmf_model": 'ST',
 
     "hmf_instance": None,
@@ -1244,6 +1245,7 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
+    "cosmology_package": None,
     "cosmology_propagation": False,
     "cosmology_inits_location": None,
     "omega_m_0": 0.3089,
