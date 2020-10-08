@@ -535,7 +535,8 @@ class SynthesisModel(SynthesisMaster):
     def _neb_cont(self):
         if not hasattr(self, '_neb_cont_'):
             self._neb_cont_ = np.zeros_like(self._data)
-            if self.pf['source_nebular'] > 1:
+            if self.pf['source_nebular_continuum']:
+                assert self.pf['source_nebular'] > 1
                 for i, t in enumerate(self.times):
                     spec = self._data[:,i] * self.dwdn
                     self._neb_cont_[:,i] = \
@@ -547,7 +548,7 @@ class SynthesisModel(SynthesisMaster):
     def _neb_line(self):
         if not hasattr(self, '_neb_line_'):
             self._neb_line_ = np.zeros_like(self._data)
-            if self.pf['source_nebular_lines'] > 1:
+            if self.pf['source_nebular_lines']:
                 assert self.pf['source_nebular'] > 1
                 for i, t in enumerate(self.times):
                     spec = self._data[:,i] * self.dwdn

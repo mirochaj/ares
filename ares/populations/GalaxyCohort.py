@@ -47,6 +47,7 @@ try:
 except ImportError:
     pass
 
+small_dz = 1e-8
 ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18
@@ -2787,8 +2788,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zfreq = 1
             dz = np.diff(self.halos.tab_z)
 
-        in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= zi)
+        # Potential precision issues if zf is really zf+1e-8 or something
+        # Correct `zarr` if first element is really equal to zf within
+        # machine precision.
+        in_range = np.logical_and(self.halos.tab_z > zf+small_dz,
+            self.halos.tab_z <= zi)
         zarr = self.halos.tab_z[in_range][::zfreq]
+
         zmax = []
         zform = []
 
@@ -2953,8 +2959,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Setup time-stepping
         zf = max(float(self.halos.tab_z.min()), self.zdead)
 
-        in_range = np.logical_and(self.halos.tab_z > zf, self.halos.tab_z <= z0)
-        in_range2 = np.logical_and(self.halos.tab_z >= zf, self.halos.tab_z <= z0)
+        in_range = np.logical_and(self.halos.tab_z > zf+small_dz,
+            self.halos.tab_z <= z0)
+        in_range2 = np.logical_and(self.halos.tab_z >= zf,
+            self.halos.tab_z <= z0)
         if self.pf['sam_dz'] is not None:
             assert self.pf['hmf_dt'] is None
             dz = self.pf['sam_dz'] * np.ones_like(self.halos.tab_z)
