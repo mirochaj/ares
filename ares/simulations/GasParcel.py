@@ -15,6 +15,7 @@ import numpy as np
 from ..static import Grid
 from ..solvers import Chemistry
 from ..physics.Cosmology import Cosmology
+from ..physics.Constants import s_per_myr
 from ..util.ReadData import _sort_history
 from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
@@ -213,6 +214,7 @@ class GasParcel(object):
         self.data = data
                 
         # Evolve in time!
+        t0 = self.cosm.t_of_z(self.pf['initial_redshift'])
         while t < tf:
                         
             # Evolve by dt
@@ -222,8 +224,9 @@ class GasParcel(object):
             t += self.dt 
 
             # Figure out next dt based on max allowed change in evolving fields
+            z = self.cosm.z_of_t(t + t0)
             new_dt = self.timestep.Limit(self.chem.q_grid, 
-                self.chem.dqdt_grid, method=self.pf['restricted_timestep'])
+                self.chem.dqdt_grid, method=self.pf['restricted_timestep'], z=z)
 
             # Limit timestep further based on next DD and max allowed increase
             dt = min(new_dt, 2 * self.dt)

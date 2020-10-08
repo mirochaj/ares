@@ -65,6 +65,11 @@ class RestrictTimestep(object):
                     continue
             elif mth == 'hubble' and self.grid.expansion:
                 min_dt = self.epsilon * self.grid.cosm.HubbleTime(z)
+            elif mth == 'idm':
+                if 'Tchi' in self.grid.evolving_fields:
+                    j = self.grid.evolving_fields.index('Tchi')
+                else:
+                    continue
             else:
                 raise ValueError('Unrecognized dt restriction method: {!s}'.format(mth))
 
