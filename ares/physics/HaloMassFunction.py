@@ -743,18 +743,20 @@ class HaloMassFunction(object):
 
             else:
 
+                a = 1./(1.+z)
                 dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance,
-                    tab_M, 1./(1.+z))
+                    tab_M, a)
 
                 self.tab_dndm[i] = (dndlog10m / tab_M) #* self.cosm.h70**4
 
                 self.tab_ngtm[i] = np.trapz(dndlog10m, x=np.log10(tab_M)) \
                     - cumtrapz(dndlog10m, x=np.log10(tab_M), initial=0.)
 
-                self.tab_ps_lin[i] = pyccl.linear_matter_power(self.cosm._ccl_instance,
-                    tab_k_lin, 1./(1.+z)) #/ self.cosm.h70**3
-                self.tab_growth[i] = pyccl.growth_factor(self.cosm._ccl_instance,
-                    1./(1.+z))
+                self.tab_ps_lin[i] = \
+                    pyccl.linear_matter_power(self.cosm._ccl_instance,
+                    tab_k_lin, a) #/ self.cosm.h70**3
+                self.tab_growth[i] = \
+                    pyccl.growth_factor(self.cosm._ccl_instance, a)
 
             pb.update(i)
 
