@@ -1116,8 +1116,8 @@ class HaloMassFunction(object):
 
         return self._tab_MAR_delayed
 
-    def MAR_func(self, z, M):
-        return self.MAR_func_(z, M)
+    def MAR_func(self, z, M, grid=True):
+        return self.MAR_func_(z, M, grid=grid)
 
     @property
     def MAR_func_(self):
@@ -1130,7 +1130,8 @@ class HaloMassFunction(object):
 
             _MAR_func = RectBivariateSpline(self.tab_z, np.log(self.tab_M), tab)
 
-            self._MAR_func_ = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
+            self._MAR_func_ = lambda z, M, grid=True: np.exp(_MAR_func(z,
+                np.log(M), grid=grid)).squeeze()
 
         return self._MAR_func_
 
