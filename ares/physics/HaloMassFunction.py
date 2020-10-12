@@ -11,6 +11,8 @@ Description:
 
 import glob
 import os, re, sys
+from packaging import version
+
 import numpy as np
 from . import Cosmology
 from types import FunctionType
@@ -54,14 +56,14 @@ try:
     hmf_vers = hmf.__version__
 except ImportError:
     have_hmf = False
-    hmf_vers = "0"
+    hmf_vers = '0'
 
 try:
     import pyccl
 except ImportError:
     pass
 
-if 0 < hmf_vers < 3.1:
+if version.Version('0') < version.Version(hmf_vers) < version.Version('3.1'):
     try:
         from hmf.wdm import MassFunctionWDM
     except ImportError:

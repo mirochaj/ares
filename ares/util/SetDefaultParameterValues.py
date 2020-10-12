@@ -1245,7 +1245,9 @@ def CosmologyParameters():
     # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
+    'kmax': 200,
     "cosmology_package": None,
+    "cosmology_helper": None,
     "cosmology_propagation": False,
     "cosmology_inits_location": None,
     "omega_m_0": 0.3089,

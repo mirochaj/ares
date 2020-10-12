@@ -25,13 +25,50 @@ class CosmologyCCL(CosmologyARES):
     calling CCL under the hood.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # we have .pf already; pull out various arrays we need
+        # hmf_zmin, hmf_zmax, hmf_dz to make z_pk array
+        self.z_bg = np.concatenate((np.linspace(0, 10, 100), np.geomspace(10, 1500, 50)))
+        self.z_pk = np.arange(self.pf['hmf_zmin'], self.pf['hmf_zmax'], self.pf['hmf_dz'])
+
+        kmax = self.pf['kmax']
+        self.k_arr = np.logspace(-5, np.log10(kmax), 1000)
+
     @property
     def _ccl_instance(self):
         if not hasattr(self, '_ccl_instance_'):
-            self._ccl_instance_ = pyccl.Cosmology(Omega_c=self.omega_cdm_0,
+            cosmo = pyccl.Cosmology(Omega_c=self.omega_cdm_0,
                 Omega_b=self.omega_b_0, h=self.h70, n_s=self.primordial_index,
                 sigma8=self.sigma_8,
                 transfer_function='boltzmann_camb')
+
+            # Set background quantities in CCL using class arrays, if cosmology_helper is passed
+            if self.pf['cosmology_helper'] is not None:
+                cl = self.pf['cosmology_helper']
+                z_bg = self.z_bg
+                z_pk = self.z_pk
+                k_arr = self.k_arr
+
+                a = 1/(1 + z_bg[::-1])
+                distance = cl.z_of_r(z_bg)
+                distance = np.flip(distance)
+
+                hubble_z = np.array([cl.Hubble(z) for z in z_bg])
+                H0 = hubble_z[0]
+                E_of_z = hubble_z / H0
+                E_of_z = np.flip(E_of_z)
+
+                n_zk = len(z_pk)
+                n_k = len(k_arr)
+                class_pk_lin = cl.get_pk_array(k_arr, z_pk, n_k, n_zk, False).reshape([n_zk, n_k])[::-1, :]
+
+                cosmo._set_background_from_arrays(a_array=a, chi_array=distance, hoh0_array=E_of_z)
+                cosmo._set_linear_power_from_arrays(1./(1 + z_pk[::-1]), k_arr, class_pk_lin)
+
+            self._ccl_instance_ = cosmo
+
 
             #'hmf_dlna': 2e-6,           # hmf default value is 1e-2
             #'hmf_dlnk': 1e-2,
