@@ -548,7 +548,7 @@ class HaloMassFunction(object):
                 logMmax = self.pf['hmf_logMmax']
                 dlogM = self.pf['hmf_dlogM']
 
-                from hmf.filters import SharpK, TopHat
+                from hmf.density_field.filters import SharpK, TopHat
                 if self.pf['hmf_window'] == 'tophat':
                     # This is the default in hmf
                     window = TopHat
