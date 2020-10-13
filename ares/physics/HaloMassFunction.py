@@ -11,7 +11,7 @@ Description:
 
 import glob
 import os, re, sys
-from packaging import version
+from packaging.version import Version
 
 import numpy as np
 from . import Cosmology
@@ -53,17 +53,17 @@ try:
     import hmf
     from hmf import MassFunction
     have_hmf = True
-    hmf_vers = hmf.__version__
+    hmf_vers = Version(hmf.__version__)
 except ImportError:
     have_hmf = False
-    hmf_vers = '0'
+    hmf_vers = Version('0')
 
 try:
     import pyccl
 except ImportError:
     pass
 
-if version.Version('0') < version.Version(hmf_vers) < version.Version('3.1'):
+if Version('0') < hmf_vers < Version('3.1'):
     try:
         from hmf.wdm import MassFunctionWDM
     except ImportError:
@@ -79,7 +79,7 @@ except ImportError:
     try:
         import pycamb
         have_pycamb = True
-        if int(hmf.__version__.split('.')[0]) >= 3:
+        if hmf_vers >= Version('3'):
             print("For HMF v3 or greater, must use new 'camb' Python package.")
     except ImportError:
         have_pycamb = False
@@ -692,7 +692,7 @@ class HaloMassFunction(object):
 
         # Masses in hmf are really Msun / h
         if self.pf['hmf_package'] == 'hmf':
-            if hmf_vers < 3:
+            if hmf_vers < Version('3'):
                 self.tab_M = self._MF.M / self.cosm.h70
             else:
                 self.tab_M = self._MF.m / self.cosm.h70
