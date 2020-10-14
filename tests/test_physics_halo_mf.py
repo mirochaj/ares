@@ -29,7 +29,7 @@ def tests():
 @pytest.mark.parametrize("cosmology_package", [None, "ccl"])
 @pytest.mark.parametrize("hmf_package", ["hmf", "ccl"])
 @pytest.mark.parametrize("hmf_model", ["Tinker10"])
-@pytest.mark.parametrize("use_class", [True, False])
+@pytest.mark.parametrize("use_class", [False, True])
 def test_hmf(cosmology_package, hmf_package, hmf_model, use_class, hmf_load=False):
     kwargs = dict(
         cosmology_package=cosmology_package, hmf_load=hmf_load, hmf_package=hmf_package, hmf_model=hmf_model
