@@ -25,17 +25,6 @@ class CosmologyCCL(CosmologyARES):
     calling CCL under the hood.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        # we have .pf already; pull out various arrays we need
-        # hmf_zmin, hmf_zmax, hmf_dz to make z_pk array
-        self.z_bg = np.concatenate((np.linspace(0, 10, 100), np.geomspace(10, 1500, 50)))
-        self.z_pk = np.arange(self.pf['hmf_zmin'], self.pf['hmf_zmax'], self.pf['hmf_dz'])
-
-        kmax = self.pf['kmax']
-        self.k_arr = np.logspace(-5, np.log10(kmax), 1000)
-
     @property
     def _ccl_instance(self):
         if not hasattr(self, '_ccl_instance_'):
@@ -47,9 +36,10 @@ class CosmologyCCL(CosmologyARES):
             # Set background quantities in CCL using class arrays, if cosmology_helper is passed
             if self.pf['cosmology_helper'] is not None:
                 cl = self.pf['cosmology_helper']
-                z_bg = self.z_bg
-                z_pk = self.z_pk
-                k_arr = self.k_arr
+
+                z_bg = np.concatenate((np.linspace(0, 10, 100), np.geomspace(10, 1500, 50)))
+                z_pk = np.arange(self.pf['hmf_zmin'], self.pf['hmf_zmax'], self.pf['hmf_dz'])
+                k_arr = np.logspace(-5, np.log10(self.pf['kmax']), 1000)
 
                 a = 1/(1 + z_bg[::-1])
                 distance = cl.z_of_r(z_bg)

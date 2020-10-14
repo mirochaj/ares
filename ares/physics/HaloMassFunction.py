@@ -581,12 +581,14 @@ class HaloMassFunction(object):
                 assert self.pf['cosmology_package'] == 'ccl', \
                     "Must use ccl for `cosmolog_package` for consisteny."
 
+                mdef = pyccl.halos.MassDef(500, 'critical')
+
                 if self.pf['hmf_model'] == 'ST':
-                    self._MF_ = pyccl.halos.MassFuncSheth99(self.cosm._ccl_instance)
+                    self._MF_ = pyccl.halos.MassFuncSheth99(self.cosm._ccl_instance, mass_def=mdef)
                 elif self.pf['hmf_model'] == 'PS':
-                    self._MF_ = pyccl.halos.MassFuncPress74(self.cosm._ccl_instance)
+                    self._MF_ = pyccl.halos.MassFuncPress74(self.cosm._ccl_instance, mass_def=mdef)
                 elif self.pf['hmf_model'] == 'Tinker10':
-                    self._MF_ = pyccl.halos.MassFuncTinker10(self.cosm._ccl_instance)
+                    self._MF_ = pyccl.halos.MassFuncTinker10(self.cosm._ccl_instance, mass_def=mdef)
                 else:
                     raise NotImplemented("Unrecognized hmf_model={}!".format(
                         self.pf['hmf_model']))
@@ -702,6 +704,11 @@ class HaloMassFunction(object):
             dlogM = self.pf['hmf_dlogM']
 
             log10M = np.arange(logMmin, logMmax+dlogM, dlogM)
+            
+            # correct for weird floating point numpy thing:
+            #  e.g., np.arange(1, 18.01, 0.01) ends at 18.01....
+            log10M = log10M[log10M <= logMmax]
+
             tab_M = 10**log10M
             self.tab_M = tab_M #/ self.cosm.h70
 
@@ -746,6 +753,8 @@ class HaloMassFunction(object):
             else:
 
                 a = 1./(1.+z)
+                # import pdb
+                # pdb.set_trace()
                 dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance,
                     tab_M, a)
 
