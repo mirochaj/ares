@@ -79,9 +79,9 @@ class CosmologyCCL(CosmologyARES):
             self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_NM = 1400
             self._ccl_instance.cosmo.spline_params.LOGM_SPLINE_DELTA = 0.01
 
-            self._ccl_instance_.cosmo.spline_params.K_MIN = 1e-9
-            self._ccl_instance_.cosmo.spline_params.K_MAX = 10000
-            self._ccl_instance_.cosmo.spline_params.K_MAX_SPLINE = 10000
+            self._ccl_instance_.cosmo.spline_params.K_MIN = 1e-5
+            self._ccl_instance_.cosmo.spline_params.K_MAX = float(self.pf['kmax'])
+            self._ccl_instance_.cosmo.spline_params.K_MAX_SPLINE = float(self.pf['kmax'])
             self._ccl_instance_.cosmo.spline_params.N_K = 1000
 
             self._ccl_instance.cosmo.spline_params.A_SPLINE_NA = 500

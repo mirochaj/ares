@@ -753,8 +753,6 @@ class HaloMassFunction(object):
             else:
 
                 a = 1./(1.+z)
-                # import pdb
-                # pdb.set_trace()
                 dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance,
                     tab_M, a)
 

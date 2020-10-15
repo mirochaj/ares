@@ -26,13 +26,28 @@ def tests():
     pop = ares.populations.HaloPopulation()  # noqa
 
 
-@pytest.mark.parametrize("cosmology_package", [None, "ccl"])
-@pytest.mark.parametrize("hmf_package", ["hmf", "ccl"])
+@pytest.mark.parametrize("cosmology_package", ["ccl", None])
+@pytest.mark.parametrize("hmf_package", ["ccl", "hmf"])
 @pytest.mark.parametrize("hmf_model", ["Tinker10"])
-@pytest.mark.parametrize("use_class", [False, True])
-def test_hmf(cosmology_package, hmf_package, hmf_model, use_class, hmf_load=False):
+@pytest.mark.parametrize("use_class", [True, False])
+def test_hmf(
+    cosmology_package,
+    hmf_package,
+    hmf_model,
+    use_class,
+    hmf_load=False,
+    hmf_zmin=1,
+    hmf_zmax=60.0,
+    hmf_dz=10.0,
+):
     kwargs = dict(
-        cosmology_package=cosmology_package, hmf_load=hmf_load, hmf_package=hmf_package, hmf_model=hmf_model
+        cosmology_package=cosmology_package,
+        hmf_load=hmf_load,
+        hmf_package=hmf_package,
+        hmf_model=hmf_model,
+        hmf_zmin=hmf_zmin,
+        hmf_zmax=hmf_zmax,
+        hmf_dz=hmf_dz,
     )
 
     if use_class:
@@ -42,7 +57,8 @@ def test_hmf(cosmology_package, hmf_package, hmf_model, use_class, hmf_load=Fals
             return
 
         kmax = 200
-        class_params = {"P_k_max_1/Mpc": kmax, "output": "dTk,mPk,tCl"}
+        z_pk = 60.0
+        class_params = {"P_k_max_1/Mpc": kmax, "output": "dTk,mPk,tCl", "z_pk": z_pk}
         cl = classy.Class()
         cl.set(class_params)
         cl.compute()
@@ -58,11 +74,13 @@ def test_hmf(cosmology_package, hmf_package, hmf_model, use_class, hmf_load=Fals
         except AssertionError:
             if hmf_package == "ccl" and cosmology_package != "ccl":
                 return
-        assert np.isnan(val).sum() == 0
+        print(f"{attr}...")
+        assert np.isnan(val).sum() / np.size(val) == 0
+        print(f"...ok.")
 
     pop.halos.TabulateHMF(save_MAR=False)
 
-    assert np.isnan(pop.halos.tab_dndm).sum() == 0
+    assert np.isnan(pop.halos.tab_dndm).sum() / np.size(val) == 0
 
 
 if __name__ == "__main__":

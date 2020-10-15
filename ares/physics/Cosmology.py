@@ -537,7 +537,7 @@ class CosmologyARES(InitialConditions):
     def EvolutionFunction(self, z):
         return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def HubbleParameter(self, z):
         if self.approx_highz:
             return self.hubble_0 * np.sqrt(self.omega_m_0) * (1. + z)**1.5
