@@ -432,7 +432,7 @@ class MultiPhaseMedium(object):
         pl.draw()
 
     def add_tau_inset(self, ax, inset=None, width=0.25, height=0.15, loc=4,
-            mu=0.055, sig1=0.009, padding=0.02, borderpad=1,
+            mu=0.055, sig1=0.009, padding=0.02, borderpad=1, show_model=True,
             ticklabels=None, **kwargs):
 
         sig2 = 2. * sig1
@@ -454,7 +454,9 @@ class MultiPhaseMedium(object):
         inset.set_title(r'$\tau_e$', fontsize=18, y=1.08)
         inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
 
-        inset.plot([self.tau_e]*2, [0, 1], **kwargs)
+        if show_model:
+            inset.plot([self.tau_e]*2, [0, 1], **kwargs)
+            
         pl.draw()
 
         return inset
