@@ -543,53 +543,53 @@ class CosmologyARES(InitialConditions):
             return self.hubble_0 * np.sqrt(self.omega_m_0) * (1. + z)**1.5
         return self.hubble_0 * np.sqrt(self.EvolutionFunction(z))
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def HubbleLength(self, z):
         return c / self.HubbleParameter(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def HubbleTime(self, z):
         return 1. / self.HubbleParameter(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def OmegaMatter(self, z):
         if self.approx_highz:
             return 1.0
         return self.omega_m_0 * (1. + z)**3 / self.EvolutionFunction(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def OmegaLambda(self, z):
         if self.approx_highz:
             return 0.0
 
         return self.omega_l_0 / self.EvolutionFunction(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def MeanMatterDensity(self, z):
         return self.OmegaMatter(z) * self.CriticalDensity(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def MeanDarkMatterDensity(self, z):
         return (self.omega_cdm_0 / self.omega_m_0) * self.MeanMatterDensity(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def MeanBaryonDensity(self, z):
         return (self.omega_b_0 / self.omega_m_0) * self.MeanMatterDensity(z)
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def MeanHydrogenNumberDensity(self, z):
         return (1. - self.Y) * self.MeanBaryonDensity(z) / m_H
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def MeanHeliumNumberDensity(self, z):
         return self.Y * self.MeanBaryonDensity(z) / m_He
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def MeanBaryonNumberDensity(self, z):
         return self.MeanBaryonDensity(z) / (m_H * self.MeanHydrogenNumberDensity(z) +
             4. * m_H * self.y * self.MeanHeliumNumberDensity(z))
 
-    @lru_cache(maxsize = 100)
+    # @lru_cache(maxsize = 100)
     def CriticalDensity(self, z):
         return (3.0 * self.HubbleParameter(z)**2) / (8.0 * np.pi * G)
 

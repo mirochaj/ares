@@ -262,7 +262,6 @@ class MultiPhaseMedium(object):
                                     
         # Evolve in time
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.step():
-            
             pb.update(t)
                         
             # Save data
@@ -344,7 +343,6 @@ class MultiPhaseMedium(object):
 
         # Evolve in time!
         while z > zf:
-                        
             if z < self.pf['kill_redshift']:
                 break
 

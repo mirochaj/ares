@@ -239,7 +239,6 @@ class Global21cm(AnalyzeGlobal21cm):
 
         tf = self.medium.tf
         self.medium._insert_inits()
-
         pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'],
             name='gs-21cm')
 

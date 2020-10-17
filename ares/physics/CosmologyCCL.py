@@ -12,7 +12,8 @@ Description:
 
 import numpy as np
 from .Cosmology import CosmologyARES
-from .Constants import cm_per_mpc
+from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
+    cm_per_mpc, cm_per_kpc, k_B, m_p
 
 try:
     import pyccl
@@ -92,7 +93,7 @@ class CosmologyCCL(CosmologyARES):
         return self._ccl_instance_
 
     def MeanMatterDensity(self, z):
-        return pyccl.rho_x(self._ccl_instance, 1./(1.+z), 'matter')
+        return pyccl.rho_x(self._ccl_instance, 1./(1.+z), 'matter') * g_per_msun / cm_per_mpc**3
 
     def MeanBaryonDensity(self, z):
         return (self.omega_b_0 / self.omega_m_0) * self.MeanMatterDensity(z)
