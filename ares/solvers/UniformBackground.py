@@ -458,7 +458,7 @@ class UniformBackground(object):
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
 
-                if pop.src.is_delta:
+                if pop.src.is_delta or pop.src.has_nebular_lines:
                     E = np.flip(E1 * R**-np.arange(N), 0)
                 else:
                     E = E0 * R**np.arange(N)

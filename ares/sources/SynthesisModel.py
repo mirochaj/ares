@@ -44,6 +44,7 @@ class SynthesisMaster(Source):
         """
         # reverse energies so they are in ascending order
         nrg = self.energies[-1::-1]
+
         return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
 
     @property

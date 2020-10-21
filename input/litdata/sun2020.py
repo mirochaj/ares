@@ -65,6 +65,7 @@ def add_lya(pop1):
 
     return pars
 
+base_nolya = _base.copy()
 base = add_lya(_base)
 
 _low_st = PB(**_low).pars_by_pop(2, 1)
