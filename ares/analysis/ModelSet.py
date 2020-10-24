@@ -600,7 +600,7 @@ class ModelSet(BlobFactory):
                     #        open_mode='w', safe_mode=False, verbose=False)
                 elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                     f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                    _chain = np.array(f[('chain')])
+                    chain = np.array(f[('chain')])
 
                     if hasattr(self, '_mask'):
                         if self.mask.ndim == 1:
