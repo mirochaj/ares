@@ -25,7 +25,7 @@ aux_data = \
  'inits': ['https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1',
      'inits.tar.gz',
     None],
- 'optical_depth': ['https://www.dropbox.com/s/dqeeetvaea4ap8q/tau.tar.gz?dl=1',
+ 'optical_depth': ['https://www.dropbox.com/s/ol6240qzm4w7t7d/tau.tar.gz?dl=1',
      'tau.tar.gz',
     None],
  'secondary_electrons': ['https://www.dropbox.com/s/jidsccfnhizm7q2/elec_interp.tar.gz?dl=1',
