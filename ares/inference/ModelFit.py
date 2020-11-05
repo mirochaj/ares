@@ -1674,7 +1674,7 @@ class ModelFit(FitBase):
             print("# Checkpoint #{0}: {1!s}".format(ct // save_freq,
                 time.ctime()))
         else:
-            print("# Wrote {0!s}: {1!s}".format(fn_facc, time.ctime()))
+            print("# Wrote {0!s}*.pkl: {1!s}".format(prefix, time.ctime()))
 
         ##################################################################
         write_pickle_file(data[-1], '{!s}.rstate.pkl'.format(prefix),\

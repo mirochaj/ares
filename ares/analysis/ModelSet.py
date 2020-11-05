@@ -4051,7 +4051,7 @@ class ModelSet(BlobFactory):
                 return blob
 
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
-            k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
+            k1 = np.argmin(np.abs(np.array(self.blob_ivars[i][0]) - ivar[0]))
 
             if not np.allclose(self.blob_ivars[i][0][k1], ivar[0]):
                 print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name,
@@ -4061,7 +4061,7 @@ class ModelSet(BlobFactory):
             if ivar[1] is None:
                 return blob[:,k1,:]
             else:
-                k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
+                k2 = np.argmin(np.abs(np.array(self.blob_ivars[i][1]) - ivar[1]))
 
                 if self.blob_ivars[i][1][k2] != ivar[1]:
                     print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name,

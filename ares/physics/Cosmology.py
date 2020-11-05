@@ -182,7 +182,10 @@ class Cosmology(InitialConditions):
         else:
 
             num = self.pf['cosmology_id']
-            assert type(num) in [int, np.int32, np.int64]
+            if type(num) not in [int, np.int32, np.int64]:
+                if self.pf['verbose']:
+                    print("# WARNING: Casting cosmology_id {} to int.".format(num))
+                num = int(num)
 
             ##
             # Load chains as one long concatenated super-array
@@ -258,9 +261,13 @@ class Cosmology(InitialConditions):
         elif type(self.pf['cosmology_id']) == str:
             name += '_' + self.pf['cosmology_id']
         else:
-            assert type(self.pf['cosmology_id']) in [int, np.int32, np.int64]
+            num = self.pf['cosmology_id']
+            if type(num) not in [int, np.int32, np.int64]:
+                if self.pf['verbose']:
+                    print("# WARNING: Casting `cosmology_id` {} to int.".format(num))
+                num = int(num)
 
-            name += '_{}'.format(str(self.pf['cosmology_id']).zfill(5))
+            name += '_{}'.format(str(num).zfill(5))
 
         return name
 
