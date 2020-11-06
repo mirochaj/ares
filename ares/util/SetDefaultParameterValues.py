@@ -1085,6 +1085,7 @@ def SynthesisParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_continuum": False,
     "source_nebular_lines": False,
 
     # If doing nebular emission with ARES
