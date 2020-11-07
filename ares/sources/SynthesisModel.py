@@ -60,6 +60,19 @@ class SynthesisMaster(Source):
         return self._sed_at_tsf
 
     @property
+    def sed_at_tsf_raw(self):
+        if not hasattr(self, '_sed_at_tsf_raw'):
+            poke = self.sed_at_tsf
+            # erg / s / Hz -> erg / s / eV
+            if self.pf['source_rad_yield'] == 'from_sed':
+                self._sed_at_tsf_raw = \
+                    self._data_raw[:,self.i_tsf] * self.dwdn / ev_per_hz
+            else:
+                self._sed_at_tsf_raw = self._data_raw[:,self.i_tsf]
+
+        return self._sed_at_tsf_raw
+
+    @property
     def dE(self):
         if not hasattr(self, '_dE'):
             tmp = np.abs(np.diff(self.energies))
@@ -98,7 +111,9 @@ class SynthesisMaster(Source):
             j2 = np.argmin(np.abs(self.Emax - self.energies))
 
             # Remember: energy axis in descending order
-            self._norm = np.trapz(self.sed_at_tsf[j2:j1][-1::-1],
+            # Note use of sed_at_tsf_raw: need to be careful to normalize
+            # to total power before application of fesc.
+            self._norm = np.trapz(self.sed_at_tsf_raw[j2:j1][-1::-1],
                 x=self.energies[j2:j1][-1::-1])
 
         return self._norm
@@ -539,7 +554,7 @@ class SynthesisModel(SynthesisMaster):
             if self.pf['source_nebular_continuum']:
                 assert self.pf['source_nebular'] > 1
                 for i, t in enumerate(self.times):
-                    spec = self._data[:,i] * self.dwdn
+                    spec = self._data_raw[:,i] * self.dwdn
                     self._neb_cont_[:,i] = \
                         self._nebula.Continuum(spec) / self.dwdn
 
@@ -552,7 +567,7 @@ class SynthesisModel(SynthesisMaster):
             if self.pf['source_nebular_lines']:
                 assert self.pf['source_nebular'] > 1
                 for i, t in enumerate(self.times):
-                    spec = self._data[:,i] * self.dwdn
+                    spec = self._data_raw[:,i] * self.dwdn
                     self._neb_line_[:,i] = \
                         self._nebula.LineEmission(spec) / self.dwdn
 
@@ -650,19 +665,28 @@ class SynthesisModel(SynthesisMaster):
                 #raise NotImplemented('need to revisit this.')
                 self._data *= self.pf['source_sfr']
 
-        # Add in nebular continuum (just once!)
-        null_ionizing_spec = 0
-        if not hasattr(self, '_neb_cont_'):
-            self._data += self._neb_cont
-            self._data[np.argwhere(np.isnan(self._data))] = 0.0
-            null_ionizing_spec = self.pf['source_nebular'] > 1
+            # Keep raw spectrum
+            self._data_raw = self._data.copy()
 
-        # Same for nebular lines.
-        if not hasattr(self, '_neb_line_'):
-            self._data += self._neb_line
-            self._data[np.argwhere(np.isnan(self._data))] = 0.0
+            # Add in nebular continuum (just once!)
+            added_neb_cont = 0
+            added_neb_line = 0
+            null_ionizing_spec = 0
+            if not hasattr(self, '_neb_cont_'):
+                self._data += self._neb_cont
+                self._data[np.argwhere(np.isnan(self._data))] = 0.0
+                added_neb_cont = 1
 
-        if null_ionizing_spec:
-            self._data[self.energies > E_LL] *= self.pf['source_fesc']
+            # Same for nebular lines.
+            if not hasattr(self, '_neb_line_'):
+                self._data += self._neb_line
+                self._data[np.argwhere(np.isnan(self._data))] = 0.0
+                added_neb_line = 1
+
+            if added_neb_cont or added_neb_line:
+                null_ionizing_spec = self.pf['source_nebular'] > 1
+
+            #if null_ionizing_spec:
+            #    self._data[self.energies > E_LL] *= self.pf['source_fesc']
 
         return self._data
