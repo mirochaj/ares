@@ -984,6 +984,7 @@ class UniformBackground(object):
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
+
         else:
 
             # There is only a distinction here for computational

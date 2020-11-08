@@ -686,7 +686,7 @@ class SynthesisModel(SynthesisMaster):
             if added_neb_cont or added_neb_line:
                 null_ionizing_spec = self.pf['source_nebular'] > 1
 
-            #if null_ionizing_spec:
-            #    self._data[self.energies > E_LL] *= self.pf['source_fesc']
+            if null_ionizing_spec:
+                self._data[self.energies > E_LL] *= self.pf['source_fesc']
 
         return self._data
