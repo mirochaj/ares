@@ -577,9 +577,41 @@ class HaloMassFunction(object):
                     **xtras)
 
             elif self.pf['hmf_package'] == 'ccl':
+                # # ##### HACK: PLEASE REMOVE
+                # logMmin = self.pf['hmf_logMmin']
+                # logMmax = self.pf['hmf_logMmax']
+                # dlogM = self.pf['hmf_dlogM']
+
+                # from hmf.density_field.filters import SharpK, TopHat
+                # if self.pf['hmf_window'] == 'tophat':
+                #     # This is the default in hmf
+                #     window = TopHat
+                # elif self.pf['hmf_window'].lower() == 'sharpk':
+                #     window = SharpK
+                # else:
+                #     raise ValueError("Unrecognized window function.")
+
+                # MFclass = MassFunction if self.pf['hmf_wdm_mass'] is None \
+                #     else MassFunctionWDM
+
+                # xtras = {'wdm_mass': self.pf['hmf_wdm_mass']} \
+                #     if self.pf['hmf_wdm_mass'] is not None else {}
+
+                # self._MF_hmf = MFclass(Mmin=logMmin, Mmax=logMmax,
+                #     dlog10m=dlogM, z=self.tab_z[0], filter_model=window,
+                #     hmf_model=self.hmf_func, cosmo_params=self.pars_cosmo,
+                #     growth_params=self.pars_growth, sigma_8=self.cosm.sigma8,
+                #     n=self.cosm.primordial_index,
+                #     transfer_params=self.pars_transfer,
+                #     dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
+                #     lnk_max=self.pf['hmf_lnk_max'],
+                #     hmf_params=self.pf['hmf_params'],
+                #     use_splined_growth=self.pf['hmf_use_splined_growth'],
+                #     **xtras)
+                # #################
 
                 assert self.pf['cosmology_package'] == 'ccl', \
-                    "Must use ccl for `cosmolog_package` for consisteny."
+                    "Must use ccl for `cosmology_package` for consistency."
 
                 mdef = pyccl.halos.MassDef(500, 'critical')
 
@@ -705,12 +737,23 @@ class HaloMassFunction(object):
 
             log10M = np.arange(logMmin, logMmax+dlogM, dlogM)
             
-            # correct for weird floating point numpy thing:
+            # correct for weird floating point np.arange thing:
             #  e.g., np.arange(1, 18.01, 0.01) ends at 18.01....
             log10M = log10M[log10M <= logMmax]
 
             tab_M = 10**log10M
+
             self.tab_M = tab_M #/ self.cosm.h70
+
+            # THIS IS A HACK, PLEASE REMOVE
+            # if hmf_vers < Version('3'):
+            #     tab_M = self._MF_hmf.M / self.cosm.h70
+            # else:
+            #     tab_M = self._MF_hmf.m / self.cosm.h70
+            # self.M_mask = tab_M < 1e18
+            # tab_M = tab_M[self.M_mask]
+            # self.tab_M = tab_M
+            ######################
 
         # Main quantities of interest.
         self.tab_dndm = np.zeros([self.tab_z.size, self.tab_M.size])
@@ -726,6 +769,9 @@ class HaloMassFunction(object):
             logk = np.arange(kmi, kma+dlogk, dlogk)
             tab_k_lin = np.exp(logk)
             self.tab_k_lin = tab_k_lin #* self.cosm.h70
+            # ####### HACK
+            # self.tab_k_lin = self._MF_hmf.k * self.cosm.h70
+            # ##########
 
         self.tab_ps_lin = np.zeros([len(self.tab_z), len(self.tab_k_lin)])
         self.tab_growth = np.zeros_like(self.tab_z)
@@ -753,20 +799,36 @@ class HaloMassFunction(object):
             else:
 
                 a = 1./(1.+z)
-                dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance,
-                    tab_M, a)
+                dndlog10m = self._MF.get_mass_function(self.cosm._ccl_instance, tab_M, a)
 
-                self.tab_dndm[i] = (dndlog10m / tab_M) #* self.cosm.h70**4
+                self.tab_dndm[i] = (dndlog10m / tab_M)  # * self.cosm.h70**4
 
                 self.tab_ngtm[i] = np.trapz(dndlog10m, x=np.log10(tab_M)) \
                     - cumtrapz(dndlog10m, x=np.log10(tab_M), initial=0.)
 
+                self.tab_mgtm[i] = np.trapz(tab_M * dndlog10m, x=np.log10(tab_M)) \
+                    - cumtrapz(tab_M * dndlog10m, x=np.log10(tab_M), initial=0.)
+
                 self.tab_ps_lin[i] = \
                     pyccl.linear_matter_power(self.cosm._ccl_instance,
-                    tab_k_lin, a) #/ self.cosm.h70**3
+                    tab_k_lin, a)  # / self.cosm.h70**3
                 self.tab_growth[i] = \
                     pyccl.growth_factor(self.cosm._ccl_instance, a)
 
+                # # ######## HACK!!!
+                # self._MF_hmf.update(z=z)
+                # self.tab_dndm[i] = self._MF_hmf.dndm.copy()[self.M_mask] * self.cosm.h70**4                
+                # dndlog10m = self.tab_dndm[i] * tab_M
+                # self.tab_mgtm[i] = self._MF_hmf.rho_gtm.copy() * self.cosm.h70**2
+                # self.tab_ngtm[i] = self._MF_hmf.ngtm.copy()[self.M_mask] * self.cosm.h70**3
+                # self.tab_ps_lin[i] = self._MF_hmf.power.copy() / self.cosm.h70**3
+                # self.tab_growth[i] = self._MF_hmf.growth_factor * 1
+                # # #################
+
+
+            # if i % 50 == 0:
+            #     print(f'z = {z}')
+            #     print(self.tab_dndm[0])
             pb.update(i)
 
         pb.finish()

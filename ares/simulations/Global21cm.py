@@ -256,7 +256,6 @@ class Global21cm(AnalyzeGlobal21cm):
         # List for extrema-finding
         self.all_dTb = self._init_dTb()
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-
             # Occasionally the progress bar breaks if we're not careful
             if z < self.pf['final_redshift']:
                 break

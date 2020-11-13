@@ -17,15 +17,21 @@ import numpy as np
 import matplotlib.pyplot as pl
 
 
-@pytest.mark.parametrize("cosmology_package", [None, "ccl"])
+@pytest.mark.parametrize("cosmology_package", ["ccl", None])
 @pytest.mark.parametrize("initial_redshift", [40, 60, 80])
 @pytest.mark.parametrize("radiative_transfer", [False, True])
+@pytest.mark.parametrize("hmf_package", ["ccl", "hmf"])
 # @pytest.mark.parametrize('check_results', [False, True])
-def test(cosmology_package, initial_redshift, radiative_transfer, check_results=True):
+def test(cosmology_package, initial_redshift, radiative_transfer, hmf_package, check_results=True):
+    if hmf_package == "ccl":
+        if cosmology_package != "ccl":
+            return
+
     sim = ares.simulations.Global21cm(
         cosmology_package=cosmology_package,
         initial_redshift=initial_redshift,
         radiative_transfer=radiative_transfer,
+        hmf_package=hmf_package,
     )
 
     sim.info

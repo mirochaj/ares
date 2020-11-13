@@ -137,4 +137,4 @@ def test():
     pl.savefig('hmf_v_ccl_ngtm.png')
 
 if __name__ == '__main__':
-    pass
+    test()
