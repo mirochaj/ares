@@ -47,29 +47,34 @@ class SynthesisMaster(Source):
 
         return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
 
+    def get_sed_at_t(self, t=None, i_tsf=None, raw=False):
+        if i_tsf is None:
+            i_tsf = np.argmin(np.abs(t - self.times))
+
+        if raw:
+            poke = self.sed_at_tsf
+            data = self._data_raw
+        else:
+            data = self.data
+
+        # erg / s / Hz -> erg / s / eV
+        if self.pf['source_rad_yield'] == 'from_sed':
+            sed = data[:,i_tsf] * self.dwdn / ev_per_hz
+        else:
+            sed = data[:,i_tsf]
+
+        return sed
+
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
-            # erg / s / Hz -> erg / s / eV
-            if self.pf['source_rad_yield'] == 'from_sed':
-                self._sed_at_tsf = \
-                    self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
-            else:
-                self._sed_at_tsf = self.data[:,self.i_tsf]
-
+            self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf)
         return self._sed_at_tsf
 
     @property
     def sed_at_tsf_raw(self):
         if not hasattr(self, '_sed_at_tsf_raw'):
-            poke = self.sed_at_tsf
-            # erg / s / Hz -> erg / s / eV
-            if self.pf['source_rad_yield'] == 'from_sed':
-                self._sed_at_tsf_raw = \
-                    self._data_raw[:,self.i_tsf] * self.dwdn / ev_per_hz
-            else:
-                self._sed_at_tsf_raw = self._data_raw[:,self.i_tsf]
-
+            self._sed_at_tsf_raw = self.get_sed_at_t(i_tsf=self.i_tsf, raw=True)
         return self._sed_at_tsf_raw
 
     @property
@@ -378,13 +383,13 @@ class SynthesisMaster(Source):
         else:
             return E_tot[-1] / N_tot[-1] / erg_per_ev
 
-    def rad_yield(self, Emin, Emax):
+    def rad_yield(self, Emin, Emax, raw=True):
         """
         Must be in the internal units of erg / g.
         """
 
         erg_per_variable = \
-           self.IntegratedEmission(Emin, Emax, energy_units=True)
+           self.IntegratedEmission(Emin, Emax, energy_units=True, raw=raw)
 
         if self.pf['source_ssp']:
             # erg / s / Msun -> erg / s / g
@@ -399,18 +404,19 @@ class SynthesisMaster(Source):
             self._Lbol_at_tsf = self.Lbol(self.pf['source_tsf'])
         return self._Lbol_at_tsf
 
-    def Lbol(self, t):
+    def Lbol(self, t, raw=True):
         """
         Return bolometric luminosity at time `t`.
 
         Assume 1 Msun / yr SFR.
         """
 
-        L = self.IntegratedEmission(energy_units=True)
+        L = self.IntegratedEmission(energy_units=True, raw=raw)
 
         return np.interp(t, self.times, L)
 
-    def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False):
+    def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False,
+        raw=True):
         """
         Compute photons emitted integrated in some band for all times.
 
@@ -434,13 +440,19 @@ class SynthesisMaster(Source):
             print("Emin={}, Emax={}".format(Emin, Emax))
             raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
+        if raw:
+            poke = self.sed_at_tsf
+            data = self._data_raw
+        else:
+            data = self.data
+
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
         for i in range(self.times.size):
             if energy_units:
-                integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]
+                integrand = data[i1:i0,i] * self.wavelengths[i1:i0]
             else:
-                integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0] \
+                integrand = data[i1:i0,i] * self.wavelengths[i1:i0] \
                     / (self.energies[i1:i0] * erg_per_ev)
 
             flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
@@ -463,7 +475,7 @@ class SynthesisMaster(Source):
             self._Nlw = self.PhotonsPerBaryon(10.2, 13.6)
         return self._Nlw
 
-    def PhotonsPerBaryon(self, Emin, Emax):
+    def PhotonsPerBaryon(self, Emin, Emax, raw=True):
         """
         Compute the number of photons emitted per unit stellar baryon.
 
@@ -485,7 +497,7 @@ class SynthesisMaster(Source):
         """
 
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
-        photons_per_s_per_msun = self.IntegratedEmission(Emin, Emax)
+        photons_per_s_per_msun = self.IntegratedEmission(Emin, Emax, raw=raw)
 
         # Current units:
         # if pop_ssp:
