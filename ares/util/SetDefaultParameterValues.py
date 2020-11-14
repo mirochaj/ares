@@ -575,6 +575,7 @@ def PopulationParameters():
     "pop_sps_data": None,
 
     "pop_tsf": 100.,
+    "pop_tneb": None,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
 
@@ -990,6 +991,7 @@ def SourceParameters():
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
+    "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
@@ -1100,6 +1102,7 @@ def SynthesisParameters():
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
+    "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',

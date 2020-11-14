@@ -566,7 +566,16 @@ class SynthesisModel(SynthesisMaster):
             if self.pf['source_nebular_continuum']:
                 assert self.pf['source_nebular'] > 1
                 for i, t in enumerate(self.times):
-                    spec = self._data_raw[:,i] * self.dwdn
+                    if self.pf['source_tneb'] is not None:
+                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
+                    else:
+                        j = i
+
+                    spec = self._data_raw[:,j] * self.dwdn
+
+                    # If is_ssp = False, should do cumulative integral
+                    # over time here.
+
                     self._neb_cont_[:,i] = \
                         self._nebula.Continuum(spec) / self.dwdn
 
@@ -579,7 +588,13 @@ class SynthesisModel(SynthesisMaster):
             if self.pf['source_nebular_lines']:
                 assert self.pf['source_nebular'] > 1
                 for i, t in enumerate(self.times):
-                    spec = self._data_raw[:,i] * self.dwdn
+                    if self.pf['source_tneb'] is not None:
+                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
+                    else:
+                        j = i
+
+                    spec = self._data_raw[:,j] * self.dwdn
+
                     self._neb_line_[:,i] = \
                         self._nebula.LineEmission(spec) / self.dwdn
 
@@ -686,13 +701,11 @@ class SynthesisModel(SynthesisMaster):
             null_ionizing_spec = 0
             if not hasattr(self, '_neb_cont_'):
                 self._data += self._neb_cont
-                self._data[np.argwhere(np.isnan(self._data))] = 0.0
                 added_neb_cont = 1
 
             # Same for nebular lines.
             if not hasattr(self, '_neb_line_'):
                 self._data += self._neb_line
-                self._data[np.argwhere(np.isnan(self._data))] = 0.0
                 added_neb_line = 1
 
             if added_neb_cont or added_neb_line:
