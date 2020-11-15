@@ -449,6 +449,7 @@ class NebularEmission(object):
             Lline = Nabs * coeff * En * erg_per_ev
 
             # Currently assuming line is unresolved.
+            # Should really do this based on some physical argument.
             fout[loc] = Lline / dnu
 
             # Only know how to do Ly-a for now.
