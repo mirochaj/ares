@@ -435,7 +435,10 @@ class HaloMassFunction(object):
                 self.TabulateMAR()
 
         elif self.tab_name is None:
-            raise IOError("Did not find HMF table suitable for given parameters.")
+            _path = '{0!s}/input/hmf'.format(ARES)
+            _prefix = self.tab_prefix_hmf(True)
+            _fn_ = '{0!s}/{1!s}'.format(_path, _prefix)
+            raise IOError("Did not find HMF table suitable for given parameters. Was looking for {}".format(_fn_))
 
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
