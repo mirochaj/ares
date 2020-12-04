@@ -633,7 +633,7 @@ class ParameterizedQuantity(object):
         elif kwargs['pq_func'] == 'dplx':
             self.func = DoublePowerLawExtended(**kwargs)
         elif kwargs['pq_func'] == 'dplx_evolN':
-            self.func = DoublePowerLawExtendedEvolvingNorm(**kwargs)    
+            self.func = DoublePowerLawExtendedEvolvingNorm(**kwargs)
         elif kwargs['pq_func'] in ['dpl_normP']:
             self.func = DoublePowerLawPeakNorm(**kwargs)
         elif kwargs['pq_func'] == 'dpl_evolN':
