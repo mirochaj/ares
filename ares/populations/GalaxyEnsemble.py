@@ -178,7 +178,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 ok = np.ones_like(sfr)
 
-            ok = sfr > 0
+            # Probably unnecessary at this point
+            ok = np.logical_and(sfr > 0, ok)
+
+            # Need to eliminate redundant branches in merger tree
+            if 'mask' in self.histories:
+                mask = self.histories['mask'][:,iz]
+                ok = np.logical_and(ok, ~mask)
 
             # Really this is the number of galaxies that formed in a given
             # differential redshift slice.
@@ -198,6 +204,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     ok = np.ones_like(_sfr)
 
                 ok = _sfr > 0
+
+                # Need to eliminate redundant branches in merger tree
+                if 'mask' in self.histories:
+                    mask = self.histories['mask'][:,iz]
+                    ok = np.logical_and(ok, ~mask)
 
                 sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
 
