@@ -178,13 +178,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 ok = np.ones_like(sfr)
 
-            # Probably unnecessary at this point
-            ok = np.logical_and(sfr > 0, ok)
-
             # Need to eliminate redundant branches in merger tree
             if 'mask' in self.histories:
                 mask = self.histories['mask'][:,iz]
-                ok = np.logical_and(ok, ~mask)
+                ok = np.logical_and(ok, np.logical_not(mask))
 
             # Really this is the number of galaxies that formed in a given
             # differential redshift slice.
@@ -203,12 +200,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 else:
                     ok = np.ones_like(_sfr)
 
-                ok = _sfr > 0
-
                 # Need to eliminate redundant branches in merger tree
                 if 'mask' in self.histories:
                     mask = self.histories['mask'][:,iz]
-                    ok = np.logical_and(ok, ~mask)
+                    ok = np.logical_and(ok, np.logical_not(mask))
 
                 sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
 
@@ -423,6 +418,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # So, halo identity is wrapped up in axis=0
         # In Cohort, formation time defines initial mass and trajectory (in full)
         #z2d = np.array([zall] * nh.shape[0])
+
+        # If loaded from merger tree, these quantities should be
+        # numpy masked arrays.
         histories = {'Mh': Mh, 'MAR': mar, 'nh': nh}
 
         # Add in formation redshifts to match shape (useful after thinning)
@@ -1032,10 +1030,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFR = self.guide.SFE(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
-
-            # Means a halo lost some mass. Now should be caught pre-emptively
-            # in MAR build.
-            SFR[SFR < 0] = 0.0
 
         ##
         # Duty cycle effects
@@ -2042,8 +2036,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
         Compute the luminosity function from discrete histories.
 
-        Need to be a little careful about indexing here. For example, if we
-        request the LF at a redshift not present in the grid, we need to...
+        If given redshift not exactly in the grid, we'll compute the LF
+        at the closest redshift *below* that requested.
 
         """
 
@@ -2052,7 +2046,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return cached_result
 
         # These are kept in descending redshift just to make life difficult.
-        # [The last element corresponds to observation redshift.]
+        # [Useful for SAM to proceed in ascending time order]
         raw = self.histories
 
         keys = raw.keys()
@@ -2066,7 +2060,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Go to one grid point lower redshift
             izobs += 1
 
-        izobs = min(izobs, len(raw['z']) - 2)
+        # Currently izobs is such that the requested redshift is
+        # just higher in redshift, i.e., (izobs, izobs+1) brackets
+        # the requested redshift.
+
+        # Make sure we don't overshoot end of array.
+        # Choices about fwd vs. backward differenced MARs will matter here.
+        izobs = min(izobs, len(raw['z']) - 1)
 
         ##
         # Run in batch.
@@ -2078,7 +2078,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Need to be more careful here as nh can change when using
         # simulated halos
-        w = raw['nh'][:,izobs+1]
+        w = raw['nh'][:,izobs] # used to be izobs+1, I belive in error.
 
         _MAB = self.magsys.L_to_MAB(L, z=z)
 
