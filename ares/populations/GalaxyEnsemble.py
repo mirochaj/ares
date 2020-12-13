@@ -1284,12 +1284,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             children = halos['children'][:,-1::-1]
             iz, iM = children.T
             uni = np.all(Mh.mask == False, axis=1)
-            merged = np.logical_and(iz != -1, uni == True)
+            merged = np.logical_and(iz >= 0, uni == True)
 
             pos = halos['pos'][:,-1::-1,:]
 
             for i in range(iz.size):
-                if iz[i] == -1:
+                if iz[i] < 0:
                     continue
 
                 # May not be necessary
@@ -1325,7 +1325,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         elif self.pf['pop_mergers'] == -1:
             children = halos['children'][:,-1::-1]
             iz, iM = children.T
-            main_branch = iz == -1
+            main_branch = iz < 0
 
             nh = nh[main_branch==1]
             Ms = Ms[main_branch==1]
@@ -2048,15 +2048,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # These are kept in descending redshift just to make life difficult.
         # [Useful for SAM to proceed in ascending time order]
         raw = self.histories
-
         keys = raw.keys()
-        Nt = raw['t'].size
-        Nh = raw['Mh'].shape[0]
 
         # Find the z grid point closest to that requested.
         # Must be >= z requested.
         izobs = np.argmin(np.abs(raw['z'] - z))
-        if z > raw['z'][izobs]:
+        if raw['z'][izobs] > z:
             # Go to one grid point lower redshift
             izobs += 1
 
@@ -2066,6 +2063,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Make sure we don't overshoot end of array.
         # Choices about fwd vs. backward differenced MARs will matter here.
+        # Note that this only used for `nh` below, ultimately a similar thing
+        # happens inside self.synth.Luminosity.
         izobs = min(izobs, len(raw['z']) - 1)
 
         ##
