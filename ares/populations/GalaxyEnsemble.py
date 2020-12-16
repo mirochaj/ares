@@ -2371,6 +2371,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 ok = np.ones_like(_MAB)
 
+            # Hack for the time being
+            ok = np.logical_and(ok, np.isfinite(beta_r))    
+
             MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
                 Mbins, weights=nh)
 
