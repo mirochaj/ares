@@ -52,37 +52,34 @@ _tab5 = \
 [150.  , 2.947E+06, 1.747E+50, 1.156E+50, 2.066E+49, 1.917E+50, 0.662E+00, 0.118E+00],
 [100.  , 3.392E+06, 9.398E+49, 6.118E+49, 9.434E+48, 1.036E+50, 0.651E+00, 0.100E+00],
 [80.   , 3.722E+06, 6.673E+49, 4.155E+49, 4.095E+48, 7.466E+49, 0.623E+00, 0.614E-01]]
-                                                                             
+
 tab3 = np.array(_tab3)
 tab4 = np.array(_tab4)
 tab5 = np.array(_tab5)
 
 def _load(**kwargs):
-    
+
     if kwargs['source_model'] == 'zams':
         tab = tab3
         kmax = 6
-        raise ValueError('No \'liftime\' here!')
+        raise ValueError('No \'lifetime\' here!')
     elif kwargs['source_model'] == 'tavg_nms':
         tab = tab4
         kmax = 5
     else:
         tab = tab5
         kmax = 5
-    
+
     masses = tab[:,0]
-    
+
     M = kwargs['source_mass']
     k = np.argmin(np.abs(M - masses))
-    
+
     if abs(masses[k] - M) < 1e-3:
         y = [tab[k,kmax]]
         y.extend(tab[k,kmax-3:kmax])
         y = np.array(y)
     else:
         raise NotImplemented('must interpolate!')
-    
-    return y, 10**tab3[k,2], tab[k,1]
-    
-    
 
+    return y, 10**tab3[k,2], tab[k,1]

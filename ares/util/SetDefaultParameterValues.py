@@ -874,6 +874,7 @@ def PopulationParameters():
     "pop_wavelengths": None,
     "pop_times": None,
 
+    "pop_toysps_method": 0,
     "pop_toysps_beta": -2.,
     "pop_toysps_norm": 2e33,    # at 1600A
     "pop_toysps_gamma": -0.8,
@@ -951,13 +952,14 @@ def SourceParameters():
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     "source_dE": None,
-    "source_dlam": None,
+    "source_dlam": 10.,
 
-    "source_lmin": 912.,
+    "source_lmin": 400.,
     "source_lmax": 1e4,
     "source_wavelengths": None,
     "source_times": None,
 
+    "source_toysps_method": 0,
     "source_toysps_beta": -2.5,
     "source_toysps_norm": 3e33,  # at 1600A
     "source_toysps_gamma": -1.,
@@ -1119,6 +1121,7 @@ def SynthesisParameters():
     "source_times": None,
     "source_wavelengths": None,
 
+    "source_toysps_method": 0,
     "source_toysps_beta": -2.,
     "source_toysps_norm": 2e33,  # at 1600A
     "source_toysps_gamma": -0.8,

@@ -21,7 +21,55 @@ from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz, E_LL
 
-class SynthesisMaster(Source):
+class SynthesisModelBase(Source):
+    @property
+    def _nebula(self):
+        if not hasattr(self, '_nebula_'):
+            self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
+            self._nebula_.wavelengths = self.wavelengths
+        return self._nebula_
+
+    @property
+    def _neb_cont(self):
+        if not hasattr(self, '_neb_cont_'):
+            self._neb_cont_ = np.zeros_like(self._data)
+            if self.pf['source_nebular_continuum']:
+                assert self.pf['source_nebular'] > 1
+                for i, t in enumerate(self.times):
+                    if self.pf['source_tneb'] is not None:
+                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
+                    else:
+                        j = i
+
+                    spec = self._data_raw[:,j] * self.dwdn
+
+                    # If is_ssp = False, should do cumulative integral
+                    # over time here.
+
+                    self._neb_cont_[:,i] = \
+                        self._nebula.Continuum(spec) / self.dwdn
+
+        return self._neb_cont_
+
+    @property
+    def _neb_line(self):
+        if not hasattr(self, '_neb_line_'):
+            self._neb_line_ = np.zeros_like(self._data)
+            if self.pf['source_nebular_lines']:
+                assert self.pf['source_nebular'] > 1
+                for i, t in enumerate(self.times):
+                    if self.pf['source_tneb'] is not None:
+                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
+                    else:
+                        j = i
+
+                    spec = self._data_raw[:,j] * self.dwdn
+
+                    self._neb_line_[:,i] = \
+                        self._nebula.LineEmission(spec) / self.dwdn
+
+        return self._neb_line_
+
     def AveragePhotonEnergy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
@@ -517,7 +565,7 @@ class SynthesisMaster(Source):
             # Return last element: steady state result
             return photons_per_b_t[-1]
 
-class SynthesisModel(SynthesisMaster):
+class SynthesisModel(SynthesisModelBase):
     #def __init__(self, **kwargs):
     #    self.pf = ParameterFile(**kwargs)
 
@@ -551,54 +599,6 @@ class SynthesisModel(SynthesisMaster):
     @property
     def metallicities(self):
         return self._litinst.metallicities
-
-    @property
-    def _nebula(self):
-        if not hasattr(self, '_nebula_'):
-            self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
-            self._nebula_.wavelengths = self.wavelengths
-        return self._nebula_
-
-    @property
-    def _neb_cont(self):
-        if not hasattr(self, '_neb_cont_'):
-            self._neb_cont_ = np.zeros_like(self._data)
-            if self.pf['source_nebular_continuum']:
-                assert self.pf['source_nebular'] > 1
-                for i, t in enumerate(self.times):
-                    if self.pf['source_tneb'] is not None:
-                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
-                    else:
-                        j = i
-
-                    spec = self._data_raw[:,j] * self.dwdn
-
-                    # If is_ssp = False, should do cumulative integral
-                    # over time here.
-
-                    self._neb_cont_[:,i] = \
-                        self._nebula.Continuum(spec) / self.dwdn
-
-        return self._neb_cont_
-
-    @property
-    def _neb_line(self):
-        if not hasattr(self, '_neb_line_'):
-            self._neb_line_ = np.zeros_like(self._data)
-            if self.pf['source_nebular_lines']:
-                assert self.pf['source_nebular'] > 1
-                for i, t in enumerate(self.times):
-                    if self.pf['source_tneb'] is not None:
-                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
-                    else:
-                        j = i
-
-                    spec = self._data_raw[:,j] * self.dwdn
-
-                    self._neb_line_[:,i] = \
-                        self._nebula.LineEmission(spec) / self.dwdn
-
-        return self._neb_line_
 
     @property
     def data(self):
