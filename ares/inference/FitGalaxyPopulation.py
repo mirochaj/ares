@@ -16,7 +16,7 @@ from ..util import read_lit
 from ..util.Pickling import write_pickle_file
 from ..util.ParameterFile import par_info
 from ..util.Stats import symmetrize_errors
-from ..populations import GalaxyCohort, GalaxyEnsemble
+from ..populations import GalaxyCohort, GalaxyEnsemble, GalaxyHOD
 from .ModelFit import LogLikelihood, FitBase, def_kwargs
 
 try:
@@ -121,7 +121,7 @@ class loglikelihood(LogLikelihood):
         # Figure out if `sim` is a population object or not.
         # OK if it's a simulation, will loop over LF-bearing populations.
         if not (isinstance(sim, GalaxyCohort.GalaxyCohort) \
-            or isinstance(sim, GalaxyEnsemble.GalaxyEnsemble)):
+            or isinstance(sim, GalaxyEnsemble.GalaxyEnsemble) or isinstance(sim, GalaxyHOD.GalaxyHOD) ):
             pops = []
             for pop in sim.pops:
                 if not hasattr(pop, 'LuminosityFunction'):
@@ -169,10 +169,14 @@ class loglikelihood(LogLikelihood):
                     if not np.isfinite(p):
                         print('WARNING: LF is inf or nan!', zmod, xdat, p)
                         return -np.inf
+                elif quantity.startswith('smf'):
+                    if quantity in ['smf', 'smf_tot']:
+                        M = np.log10(xdat)
+                        p = pop.StellarMassFunction(zmod, M)
 
-                elif quantity == 'smf':
-                    M = np.log10(xdat)
-                    p = pop.StellarMassFunction(zmod, M)
+                    else:
+                        M = np.log10(xdat)
+                        p = pop.StellarMassFunction(zmod, M, sf_type=quantity)
 
                 elif quantity == 'beta':
 

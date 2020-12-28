@@ -43,8 +43,11 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'mclure2013', 'parsa2016', 'atek2015',  'alavi2016',
     'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018', 'oesch2013',
     'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020')
-datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014')
+datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014', 
+	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
+datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010', 
+	'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
 
 groups_lf = \
 {
@@ -56,11 +59,14 @@ groups_lf = \
  'local': ('weisz2014,'),
  'all': datasets_lf,
 }
+groups_ssfr = {'all': datasets_ssfr}
 
 groups_smf = {'all': datasets_smf}
-groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf,
-    'smf_tot': groups_smf,
-    'mzr': {'all': datasets_mzr}}
+
+groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf, 
+    'smf_tot': groups_smf, 'smf_q': groups_smf,
+    'mzr': {'all': datasets_mzr}, 'ssfr': groups_ssfr}
+
 
 colors_cyc = ['m', 'c', 'r', 'g', 'b', 'y', 'orange', 'gray'] * 3
 markers = ['o', 's', 'p', 'h', 'D', 'd', '^', 'v', '<', '>'] * 3
@@ -79,6 +85,10 @@ for i, dataset in enumerate(datasets_mzr):
     default_colors[dataset] = colors_cyc[i]
     default_markers[dataset] = markers[i]
 
+for i, dataset in enumerate(datasets_ssfr):
+    default_colors[dataset] = colors_cyc[i]
+    default_markers[dataset] = markers[i]
+    
 default_markers['stefanon2017'] = 's'
 
 _ulim_tick = 0.5
@@ -251,15 +261,22 @@ class GalaxyPopulation(object):
             AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf',
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', 
             force_labels=force_labels, **kwargs)
-
-    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False,
-            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
+        
+    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
+            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='smf',
-            force_labels=force_labels, **kwargs)
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
+            force_labels=force_labels, log10Mass=log10Mass, **kwargs)
+
+    def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False, 
+            AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs):
+
+        return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
+            force_labels=force_labels, **kwargs)             
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True,
@@ -1233,7 +1250,7 @@ class GalaxyPopulation(object):
 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
-        take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
+        take_log=False, imf=None, mags='intrinsic', sources_except=[], log10Mass=False, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
 
@@ -1318,11 +1335,13 @@ class GalaxyPopulation(object):
             if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25
                 print("# Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
-            else:
-                shift = 0.
-
-            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10,
-                **mkw)
+            else:    
+                shift = 0.    
+            
+            if log10Mass:
+                ax.errorbar(np.log10(M+shift-dc), phi, yerr=err, uplims=ulim, zorder=10, **mkw)
+            else:                            
+                ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **mkw)
 
         if quantity == 'lf':
             ax.set_xticks(np.arange(-26, 0, 1), minor=True)
@@ -1332,17 +1351,31 @@ class GalaxyPopulation(object):
             if (not gotax) or force_labels:
                 ax.set_xlabel(r'$M_{\mathrm{UV}}$')
                 ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'smf':
+        elif quantity in ['smf', 'smf_sf', 'smf_q']:
+
+            if log10Mass:
+                ax.set_xlim(7, 13)
+                if (not gotax) or force_labels:
+                    ax.set_xlabel(r'log$_{10}(M_{\ast} / M_{\odot})$')   
+
+            else:
+                try:
+                    ax.set_xscale('log')
+                except ValueError:
+                    pass
+                ax.set_xlim(1e7, 1e13)
+                if (not gotax) or force_labels:
+                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+
             try:
-                ax.set_xscale('log')
                 ax.set_yscale('log')
             except ValueError:
                 pass
-            ax.set_xlim(1e7, 1e13)
             ax.set_ylim(1e-7, 1)
             if (not gotax) or force_labels:
                 ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
                 ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+
         elif quantity == 'mzr':
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
@@ -1350,6 +1383,16 @@ class GalaxyPopulation(object):
             if (not gotax) or force_labels:
                 ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
                 ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
+        elif quantity in ['ssfr']:
+        	try:
+        	    ax.set_xscale('log')
+        	    # ax.set_yscale('log')
+        	except ValueError:
+        	    pass
+        	if (not gotax) or force_labels:
+        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+        	    ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
+
 
         pl.draw()
 

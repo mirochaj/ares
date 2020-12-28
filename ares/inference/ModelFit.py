@@ -45,7 +45,7 @@ from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
 #        f.write("{} {} {} {}\n".format(t, mem, rank, checkpt))
 
 try:
-    from distpy import DistributionSet
+    from distpy.distribution import DistributionSet
 except ImportError:
     pass
 

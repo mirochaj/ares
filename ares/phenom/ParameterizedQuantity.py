@@ -32,6 +32,7 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
 func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
+ 'pl_10': '10**(p[0]) * (x / p[1])**p[2]',
  'exp': 'p[0] * exp((x / p[1])**p[2])',
  'exp-m': 'p[0] * exp(-(x / p[1])**p[2])',
  'exp_flip': 'p[0] * exp(-(x / p[1])**p[2])',
@@ -44,6 +45,7 @@ func_options = \
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
  'ramp': 'p0 if x <= p1, p2 if x >= p3, linear in between',
+ 'p_linear': '(p[3] - p[2])/(p[1] - p[0]) * (x - p[1]) + p[3]',
 }
 
 Np_max = 15
@@ -104,6 +106,18 @@ class PowerLaw(BasePQ):
                 ok = np.ones_like(x)
 
         return ok * self.args[0] * (x / self.args[1])**self.args[2]
+
+class PowerLaw10(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+            
+        if not (self.xlim[0] <= x <= self.xlim[1]):
+            return self.xfill
+
+        return 10**(self.args[0]) * (x / self.args[1])**self.args[2]
 
 class PowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
@@ -618,10 +632,21 @@ class LogLinear(BasePQ):
         y = 10**logy
         return y
 
+
+class PointsLinear(BasePQ):            
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+        m = (self.args[3] - self.args[2]) / (self.args[1] - self.args[0])
+        y = m*(np.log10(x) - self.args[1]) + self.args[3]
+
+        return y
+
 class ParameterizedQuantity(object):
     def __init__(self, **kwargs):
         if kwargs['pq_func'] == 'pl':
             self.func = PowerLaw(**kwargs)
+        elif kwargs['pq_func'] == 'pl_10':
+            self.func = PowerLaw10(**kwargs)
         elif kwargs['pq_func'] == 'pl_evolN':
             self.func = PowerLawEvolvingNorm(**kwargs)
         elif kwargs['pq_func'] == 'pl_evolS':
@@ -680,6 +705,10 @@ class ParameterizedQuantity(object):
             self.func = Schechter(**kwargs)
         elif kwargs['pq_func'] in ['schechter_evol']:
             self.func = SchechterEvolving(**kwargs)
+        elif kwargs['pq_func'] in ['linear']:
+            self.func = Linear(**kwargs)
+        elif kwargs['pq_func'] in ['p_linear']:
+            self.func = PointsLinear(**kwargs)
         else:
             raise NotImplemented('help')
 
