@@ -32,6 +32,7 @@ from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
     erg_per_ev, h_p
+from ..sources import DustPopulation
 
 try:
     import h5py
@@ -2014,27 +2015,64 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #        "Going to get weird answers for L(band != None) if dust is ON."
 
         raw = self.histories
-        L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw,
-            extras=self.extras, idnum=idnum, window=window, load=load,
-            use_cache=use_cache, band=band, energy_units=energy_units)
-
+        if wave > self.src.wavelengths.max():
+            L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum, 
+                window=window, load=load, use_cache=use_cache, energy_units=energy_units)
+        else:
+            L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
+                extras=self.extras, idnum=idnum, window=window, load=load,
+                use_cache=use_cache, band=band, energy_units=energy_units)
+           
         if use_cache:
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
 
         return L
-
-    def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1,
-        band=None):
+            
+    def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1, 
+        band=None, total_IR = False):
         """
         Compute the luminosity function from discrete histories.
 
         Need to be a little careful about indexing here. For example, if we
         request the LF at a redshift not present in the grid, we need to...
 
-        """
+        PARAMETERS
 
+        z: number
+            redshift to be looked at
+
+        x: I'm not sure what it does, Jordan can help you (Felix writing this,
+        I just input None and it seems to work)
+
+        mags : boolean
+            if True: returns bin centers in absolute magnitudes
+            if False: returns bin centers in log(L / Lsun)
+
+        wave : number
+            wavelength in Angstroms to be looked at. If wave > 3e5, then
+            the luminosity function comes from the dust in the galaxies.
+
+        window : int
+            Can alternatively retrive the average luminosity at specified
+            wavelength after smoothing intrinsic spectrum with a boxcar window
+            of this width (in pixels).
+
+        band : tuple
+            Can alternatively request the average luminosity in some wavelength
+            interval (again, rest wavelengths in Angstrom).
+
+        total_IR : boolean
+            if False: returns luminosity function at the given wavelength
+            if True: returns the total infrared luminosity function for wavelengths
+            between 8 and 1000 microns.
+            Note: if True, ignores wave and band keywords, and always returns in log(L / Lsun)
+        
+        """
+        if total_IR:
+            wave = 'total'
         cached_result = self._cache_lf(z, x, wave)
-        if cached_result is not None:
+
+        if (cached_result is not None):
             return cached_result
 
         # These are kept in descending redshift just to make life difficult.
@@ -2056,9 +2094,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         ##
         # Run in batch.
-        L = self.Luminosity(z, wave=wave, band=band, window=window)
-        ##
-
+        if not total_IR:
+            L = self.Luminosity(z, wave=wave, band=band, window=window)
+        else:
+            L = self.dust.Luminosity(z, total_IR = True)
+            mags = False
+        ##    
+        
         zarr = raw['z']
         tarr = raw['t']
 
@@ -2066,12 +2108,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # simulated halos
         w = raw['nh'][:,izobs+1]
 
-        _MAB = self.magsys.L_to_MAB(L, z=z)
-
-        if self.pf['dustcorr_method'] is not None:
-            MAB = self.dust.Mobs(z, _MAB)
+        if mags:
+            MAB = self.magsys.L_to_MAB(L, z=z)
+        elif total_IR:
+            MAB = np.log10(L / Lsun)
         else:
-            MAB = _MAB
+            MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
+        
+        # if self.pf['dustcorr_method'] is not None:
+        #     MAB = self.dust.Mobs(z, _MAB)
+        # else:
+        #     MAB = _MAB
 
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
@@ -2079,9 +2126,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Misok = np.logical_and(L > 0, np.isfinite(L))
 
         # Always bin to setup cache, interpolate from then on.
-        _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+        if mags:
+            _x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+        elif not total_IR:
+            _x = np.arange(4, 12, 0.25)
+        else:
+            _x = np.arange(6.5, 14, 0.25)
 
-        hist, bin_edges = np.histogram(MAB[Misok==1],
+        hist, bin_histedges = np.histogram(MAB[Misok==1],
             weights=w[Misok==1], bins=bin_c2e(_x), density=True)
 
         N = np.sum(w[Misok==1])
@@ -2801,3 +2853,87 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         f = open('{}.parameters.pkl'.format(prefix))
         pickle.dump(self.pf)
         f.close()
+        
+    @property
+    def dust(self):
+        """
+        (void) -> DustPopulation
+
+        Creates and / or returns an instance of a DustPopulation object used to calculate
+        dust emissions from all the galaxies at all redshifts for a given frequency band.
+
+        To adjust the frequency band, set the "dust_fmin", "dust_fmax", and "dust_Nfreqs"
+        keywords to the desired frequencies (in Hz) and number of frequencies between
+        dust_fmin and dust_fmax to be probed.
+
+        To adjust the band of redshifts, set the "dust_zmin", "dust_zmax", and "dust_Nz"
+        keywords.
+        """
+        if not hasattr(self, "_dust"):
+            
+            # fetching keywords provided
+            if self.pf.get('pop_dust_fmin') is None:
+                fmin = 1e14
+            else:
+                fmin = self.pf['pop_dust_fmin']
+
+            if self.pf.get('pop_dust_fmax') is None:
+                fmax = 1e17
+            else:
+                fmax = self.pf['pop_dust_fmax']
+                
+            if self.pf.get('pop_dust_Nfreqs') is None:
+                Nfreqs = 500
+            else:
+                Nfreqs = self.pf['pop_dust_Nfreqs']
+                
+            if self.pf.get('pop_dust_zmin') is None:
+                zmin = 4
+            else:
+                zmin = self.pf['pop_dust_zmin']
+                
+            if self.pf.get('pop_dust_zmax') is None:
+                zmax = 10
+            else:
+                zmax = self.pf['pop_dust_zmax']
+                
+            if self.pf.get('pop_dust_Nz') is None:
+                Nz = 7
+            else:
+                Nz = self.pf['pop_dust_Nz']
+
+            # creating instance
+            self._dust = DustPopulation.DustPopulation(self, fmin, fmax, Nfreqs, zmin, zmax, Nz)
+
+        return self._dust
+
+    def dust_sed(self, fmin, fmax, Nfreqs):
+        """
+        (number, number, integer) -> 1darray, 3darray
+
+        This is a wrapper for DustPopulation.dust_sed.
+
+        -----------
+
+        RETURNS
+
+        frequencies, SED : 1darray, 3darray
+
+        first axis: galaxy index
+        second axis: frequency index
+        third axis: redshift index
+
+        -----------
+
+        PARAMETERS
+
+        fmin: number
+            minimum frequency of the band
+
+        fmax: number
+            maximum frequency of the band
+
+        Nfreqs: integer
+            number of frequencies between fmin and fmax to be calculated
+        """
+        return self.dust.dust_sed(fmin, fmax, Nfreqs)
