@@ -26,22 +26,22 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         HaloPopulation.__init__(self, **kwargs)
 
-        
+
     def LuminosityFunction(self, z, x, text=False):
         """
         Reconstructed luminosity function from a simple model of L = c*HaloMadd
-        
+
         Parameters
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
         x : float
             Absolute (AB) magnitudes.
-        
+
         Returns
         -------
         Number density.
-        
+
         """
 
         #catch if only one magnitude is passed
@@ -60,7 +60,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         #LF loglinear models
         k = np.argmin(np.abs(z - self.halos.tab_z))
-        
+
         LF = (np.log(10)*haloMass)/2.5 * hmf[k, :]
         MUV = -2.5*np.log10(c(z=z)*haloMass)
 
@@ -72,7 +72,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             findMags = np.array([elem in mags for elem in MUV])
             NumDensity = LF[findMags]
         else:
-            f = interp1d(MUV, LF, kind='cubic', fill_value=-np.inf, bounds_error=False)    
+            f = interp1d(MUV, LF, kind='cubic', fill_value=-np.inf, bounds_error=False)
             try:
                 NumDensity = f(mags)
             except:
@@ -88,9 +88,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         **Only for Star-forming populations currently
 
         Population must be set with pars:
-            pop_sed = 'eldridge2009' 
+            pop_sed = 'eldridge2009'
             pop_tsf = 12 -  population age [Myr]
-        
+
         Parameters
         ----------
         z : int, float
@@ -98,12 +98,12 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         x : float
             Absolute (AB) magnitudes.
         Lambda : float
-            Wavelength in Ångströms
-        
+            Wavelength in Angstroms.
+
         Returns
         -------
         Number density.
-        
+
         """
 
         if type(x) not in [list, np.ndarray]:
@@ -114,7 +114,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         Hm = self.halos.tab_M
 
         Lum = self.src.L_per_sfr(Lambda) * 10**self.SFR(z, Hm, True, log10=False) #[erg/s/Hz]
-        
+
         k = np.argmin(np.abs(z - self.halos.tab_z))
         dndM = self.halos.tab_dndm[k, :][:-1]
 
@@ -126,7 +126,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             diff.append( (MUV[i+1] - MUV[i])/(Hm[i+1] - Hm[i]) )
 
         dLdM = np.abs(diff)
-      
+
         LF = dndM/dLdM
 
         #check if requested magnitudes are in MUV, else interpolate LF function
@@ -137,7 +137,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             findMags = np.array([elem in mags for elem in MUV])
             NumDensity = LF[findMags]
         else:
-            f = interp1d(MUV[:-1], LF, kind='cubic', fill_value=-np.inf, bounds_error=False)    
+            f = interp1d(MUV[:-1], LF, kind='cubic', fill_value=-np.inf, bounds_error=False)
             try:
                 NumDensity = f(mags)
             except:
@@ -148,7 +148,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
     def _dlogm_dM(self, N, M_1, beta, gamma):
         #derivative of log10( m ) wrt M for SMF
-        
+
         dydx = -1* ((gamma-1)*(self.halos.tab_M/M_1)**(gamma+beta) - beta - 1) / (np.log(10)*self.halos.tab_M*((self.halos.tab_M/M_1)**(gamma+beta) + 1))
 
         return dydx
@@ -156,7 +156,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
     def SMHM(self, z, log_HM, **kwargs):
         """
-        Wrapper for getting stellar mass from a halo mass using the SMHM ratio. 
+        Wrapper for getting stellar mass from a halo mass using the SMHM ratio.
         """
         if log_HM == 0:
             haloMass = self.halos.tab_M
@@ -164,7 +164,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             haloMass = [10**log_HM]
         else:
             haloMass = [10**i for i in log_HM]
-        
+
 
         N, M_1, beta, gamma = self._SMF_PQ()
         SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
@@ -174,7 +174,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
     def HM_fromSM(self, z, log_SM, **kwargs):
         """
-        For getting halo mass from a stellar mass using the SMHM ratio. 
+        For getting halo mass from a stellar mass using the SMHM ratio.
         """
 
         haloMass = self.halos.tab_M
@@ -241,7 +241,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         parsC = get_pq_pars(self.pf['pop_sf_C'], self.pf)
         parsD = get_pq_pars(self.pf['pop_sf_D'], self.pf)
 
-        A = ParameterizedQuantity(**parsA) 
+        A = ParameterizedQuantity(**parsA)
         B = ParameterizedQuantity(**parsB)
         C = ParameterizedQuantity(**parsC)
         D = ParameterizedQuantity(**parsD)
@@ -266,11 +266,11 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return fract
 
-   
+
     def StellarMassFunction(self, z, logbins, sf_type='smf_tot', text=False, **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
-        
+
         Parameters
         ----------
         z : int, float
@@ -278,9 +278,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         logbins : float
             log10 of Stellar mass bins. per stellar mass
         sf_type: string
-            Specifies which galaxy population to use: total ='smf_tot' (default), 
+            Specifies which galaxy population to use: total ='smf_tot' (default),
             star-forming ='smf_sf', quiescent ='smf_q'
-        
+
         Returns
         -------
         Phi : float (array)
@@ -325,7 +325,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                 if text:
                     print("removing some zeros")
                 removeMask = [0 != i for i in StellarMass]
-                
+
                 StellarMass = StellarMass[removeMask]
                 SMF = SMF[removeMask]
 
@@ -335,7 +335,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             if result:
                 #slice list to get the values requested
                 findMass = np.array([elem in bins for elem in StellarMass])
-                phi = SMF[findMass]           
+                phi = SMF[findMass]
             else:
                 #interpolate
                 #values that are out of the range will return as -inf
@@ -350,18 +350,18 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                         print("Error, bins out of interpolation bounds")
                     phi = -np.inf * np.ones(len(bins))
 
-        return phi    
-     
-        
+        return phi
+
+
     def SFRD(self, z):
         """
         Stellar formation rate density.
-        
+
         Parameters
         ----------
         z : int, float (array)
             Redshift.
-        
+
         Returns
         -------
         SFRD : float (array)
@@ -395,19 +395,19 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
             SFRD_val = np.sum( numberD[:-1] * SFR[:-1] * dbin )
             SFRD_err = np.sqrt(np.sum( numberD[:-1] * dbin * error[:-1])**2)
-            
+
             SFRD.append([SFRD_val, SFRD_err])
 
         SFRD = np.transpose(SFRD) # [sfrd, err]
 
         #not returning error right now
         return SFRD[0]
-    
 
-    def SFR(self, z, logmass, haloMass=False, log10=True):   
+
+    def SFR(self, z, logmass, haloMass=False, log10=True):
         """
         Main sequence stellar formation rate from Speagle2014
-        
+
         Parameters
         ----------
         z : int, float
@@ -415,7 +415,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         mass : float (array)
             if haloMass=False (default) is the log10 stellar masses [stellar mass]
             else log10 halo masses [stellar mass]
-        
+
         Returns
         -------
         logSFR : float (array)
@@ -461,7 +461,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
     def SSFR(self, z, logmass, haloMass=False):
         """
         Specific stellar formation rate.
-        
+
         Parameters
         ----------
         z : int, float
@@ -469,7 +469,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         mass : float (array)
             if haloMass=False (default) is the log10 stellar masses [stellar mass]
             else log10 halo masses [stellar mass]
-        
+
         Returns
         -------
         logSSFR : float (array)
@@ -487,4 +487,3 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         logSSFR = self.SFR(z, np.log10(Ms)) - np.log10(Ms)
 
         return logSSFR
-      
