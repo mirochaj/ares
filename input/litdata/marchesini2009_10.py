@@ -1,6 +1,6 @@
 """
 (z=1.3-4)
-Marchesini, D., van Dokkum, P. G., Förster Schreiber, N. M., Franx, M., Labbé, I., &Wuyts, S. 2009, ApJ, 701, 1765
+Marchesini, D., van Dokkum, P. G., Forster Schreiber, N. M., Franx, M., Labbe, I., & Wuyts, S. 2009, ApJ, 701, 1765
 
 (z=3-4)
 Marchesini, D., et al. 2010, ApJ, 725, 1277
@@ -13,7 +13,7 @@ import numpy as np
 info = \
 {
  'reference':'',
- 'data': '', 
+ 'data': '',
  'imf': ('chabrier', (0.1, 100.)), #didn't update this
 }
 
@@ -40,7 +40,7 @@ tmp_data['smf_tot'] = \
  3.5: {'M': [2.6989821E+11, 1.9642646E+11, 1.6233045E+11, 8.7821328E+10, 4.7511638E+10, 2.5703958E+10, 1.3905929E+10],
     'phi': [-5.24578782734556, -4.80578782734556, -4.38078782734556, -3.95978782734556, -3.92778782734556, -4.03178782734556, -3.17778782734556],
     'err': [(0.39, 0.409), (0.24, 0.244), (0.322, 0.329), (0.217, 0.221), (0.424, 0.431), (0.453, 0.47), (0.496, 0.524)]
-   },      
+   },
 }
 
 
@@ -63,26 +63,26 @@ data['smf_tot'] = {}
 data['smf_sf'] = {}
 data['smf_q'] = {}
 for group in ['smf_tot', 'smf_sf', 'smf_q']:
-    
+
     for key in tmp_data[group]:
-        
+
         if key not in tmp_data[group]:
             continue
-    
+
         subdata = tmp_data[group]
-        
+
         mask = []
         for element in subdata[key]['err']:
             if element == ULIM:
                 mask.append(1)
             else:
                 mask.append(0)
-        
+
         mask = np.array(mask)
-        
+
         data[group][key] = {}
-        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask) 
-        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask) 
+        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask)
+        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask)
         data[group][key]['err'] = tmp_data[group][key]['err']
 
 #default is the star-forming galaxies data only

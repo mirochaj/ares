@@ -1,5 +1,5 @@
 """
-Mortlock, A., Conselice, C. J., Bluck, A. F. L., Bauer, A. E., Grützbauch, R., Buitrago, F., & Ownsworth, J. 2011, MNRAS, 413, 2845
+Mortlock, A., Conselice, C. J., Bluck, A. F. L., Bauer, A. E., Grutzbauch, R., Buitrago, F., & Ownsworth, J. 2011, MNRAS, 413, 2845
 
 For smf_tot, values are corrected as seen in Behroozi et al. 2013 (http://arxiv.org/abs/1207.6105), for V (Sample Variance), I (Initial Mass Function), D (Dust model) corrections.
 """
@@ -9,7 +9,7 @@ import numpy as np
 info = \
 {
  'reference':'',
- 'data': '', 
+ 'data': '',
  'imf': ('chabrier', (0.1, 100.)), #didn't update this
 }
 
@@ -50,7 +50,7 @@ tmp_data['smf_tot'] = \
     'phi': [-2.51808766669234, -2.65808766669234, -2.75808766669234, -3.12808766669234, -3.45808766669234, -3.53808766669234, -3.81378782734556,
            -3.94378782734556, -4.11378782734556, -4.71378782734556],
     'err': [(0.3, 0.3), (0.3, 0.3), (0.3, 0.3), (0.3, 0.3), (0.3, 0.3), (0.3, 0.3), (0.47, 0.47), (0.49, 1.0), (0.53, 1.0), (0.81, 1.0)]
-   },      
+   },
 }
 
 
@@ -73,26 +73,26 @@ data['smf_tot'] = {}
 data['smf_sf'] = {}
 data['smf_q'] = {}
 for group in ['smf_tot', 'smf_sf', 'smf_q']:
-    
+
     for key in tmp_data[group]:
-        
+
         if key not in tmp_data[group]:
             continue
-    
+
         subdata = tmp_data[group]
-        
+
         mask = []
         for element in subdata[key]['err']:
             if element == ULIM:
                 mask.append(1)
             else:
                 mask.append(0)
-        
+
         mask = np.array(mask)
-        
+
         data[group][key] = {}
-        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask) 
-        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask) 
+        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask)
+        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask)
         data[group][key]['err'] = tmp_data[group][key]['err']
 
 #default is the star-forming galaxies data only
