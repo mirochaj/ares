@@ -1,6 +1,6 @@
 """
 
-DustPopulation.py
+DustEmission.py
 
 Author: Felix Bilodeau-Chagnon
 Affiliation: McGill University
@@ -19,7 +19,7 @@ from ares.physics.Constants import c, h, k_B, g_per_msun, cm_per_kpc, Lsun
 PAR_ALPHA = -60
 PAR_K = 1e13
 
-class DustPopulation:
+class DustEmission(object):
     def __init__(self, galaxyEnsemble, fmin = 1e14, fmax = 1e17, Nfreqs = 500,\
         zmin = 4, zmax = 10, Nz = 7):
         """
@@ -28,22 +28,22 @@ class DustPopulation:
         Creates a DustPopulation instance for the given GalaxyEnsemble
         instance.
 
-        PARAMETERS: 
-        
+        PARAMETERS:
+
         galaxyEnsemble: GalaxyEnsemble instance
-        
+
             the GalaxyEnsemble instance for which the dust emissions must be calculated
-        
+
         fmin: number
-        
+
             minimum stellar emission frequency sampled in Hertz (default = 1e14 Hz)
 
         fmax: number
-            
+
             maximum stellar emission frequency sampled in Hertz (default = 1e17 Hz)
 
         Nfreqs: integer
-        
+
             number of frequencies between fmin and fmax to be sampled (default = 500)
 
         zmin: number
@@ -113,7 +113,7 @@ class DustPopulation:
     @property
     def zmin(self):
         return self._zmin
-    
+
     @property
     def zmax(self):
         return self._zmax
@@ -121,7 +121,7 @@ class DustPopulation:
     @property
     def Nz(self):
         return self._Nz
-    
+
     @property
     def z(self):
         return self._z
@@ -154,7 +154,7 @@ class DustPopulation:
             for i in range(len(self.z)):
                 self._L_nu[:,:,i] = self.pop.synth.Spectrum(waves, \
                     zobs = self.z[i], sfh = self.histories['SFR'], tarr = self.histories['t'])
-        
+
         return self._L_nu
 
     @property
@@ -175,7 +175,7 @@ class DustPopulation:
                 Mh[:,i] = self.pop.get_field(self.z[i], 'Mh')
 
             self._R_dust = self.pop.halos.VirialRadius(self.z[:], Mh[:,:]) * 0.018
-        
+
         return self._R_dust
 
     @property
@@ -199,7 +199,7 @@ class DustPopulation:
                 self._M_dust = self.M_gas * self.DGR
                 NaNs = np.isnan(self._M_dust)
                 self._M_dust[NaNs] = 0
-            
+
             else:
                 raise ValueError("Parameter 'pop_dust_experimental' must be True, False, or non-existent (None)")
 
@@ -295,7 +295,7 @@ class DustPopulation:
         if not hasattr(self, '_kappa_nu'):
             self._kappa_nu = np.zeros((self.Ngalaxies, self.Nfreqs, self.Nz))
             self._kappa_nu += (0.1 * (self.frequencies / 1e12)**2)[None, :, None]
-        
+
         return self._kappa_nu
 
     @property
@@ -313,7 +313,7 @@ class DustPopulation:
         if not hasattr(self, '_tau_nu'):
             self._tau_nu = 3 * (self.M_dust[:, None, :] * g_per_msun) * self.kappa_nu \
                 / (4 * np.pi * (self.R_dust[:, None, :] * cm_per_kpc)**2)
-        
+
         return self._tau_nu
 
     @property
@@ -330,7 +330,7 @@ class DustPopulation:
         if not hasattr(self, '_T_cmb'):
             self._T_cmb = np.zeros((self.Ngalaxies, self.Nz))
             self._T_cmb += self.pop.cosm.TCMB(self.z[None, :])
-        
+
         return self._T_cmb
 
     def __T_dust(self, z, L_nu, tau_nu, R_dust, T_cmb):
@@ -367,12 +367,12 @@ class DustPopulation:
                 * self.pop.histories['fcov'] * kappa_nu \
                 / (R_dust[:,None,:] * cm_per_kpc)**2
 
-            
+
             cmb_freqs = np.linspace(1, 1e14, 1000)
 
             cmb_kappa_nu = np.zeros((Ngalaxies, 1000, Nz))
             cmb_kappa_nu += (0.1 * (cmb_freqs / 1e12)**2)[None, :, None]
-            
+
             tmp_cmb = 8 * np.pi * h / c**2 * cmb_kappa_nu * (cmb_freqs[None, :, None])**3 \
                 / (np.exp(h * cmb_freqs[None,:,None] / k_B / T_cmb[:,None,:]) - 1)
 
@@ -390,7 +390,7 @@ class DustPopulation:
             T_dust = (tmp_power / tmp_prefactor)**(1/6)
             NaNs = np.isnan(T_dust)
             T_dust[NaNs] = 0.
-        
+
         elif self.pf['pop_dust_experimental']:
             # Log-linear parametrization
             # For now, this is redshift independent,
@@ -398,17 +398,17 @@ class DustPopulation:
             M_star = np.zeros((Ngalaxies, Nz))
             for i in range(Nz):
                 M_star[:,i] = self.pop.get_field(z[i], 'Ms')
-            
+
             # Parameters
 
             PAR_ALPHA = -60
             PAR_K = 1e13
-            
+
             # Calculation
 
             T_dust = PAR_ALPHA * np.log10(M_star /  PAR_K)
             T_dust[M_star == 0] = 0
-        
+
         else:
             raise ValueError("Parameter 'pop_dust_experimental' must be True, False, or non-existent (None)")
 
@@ -483,7 +483,7 @@ class DustPopulation:
 
         z: number
             redshift where the luminosity function will be calculated
-        
+
         wave: number
             wavelength (in Angstroms) where the luminosity will be
             calculated
@@ -544,7 +544,7 @@ class DustPopulation:
             T_dust = T_dust[:,0]
 
             # Now we can finally calculate the luminosities
-            
+
             if not total_IR:
                 nu = c / wave * 1e8
                 kappa_nu = 0.1 * (nu / 1e12)**2

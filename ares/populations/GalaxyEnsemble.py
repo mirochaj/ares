@@ -20,6 +20,7 @@ from ..util.Math import smooth
 from ..util import ProgressBar
 from ..util.Survey import Survey
 from .Halo import HaloPopulation
+from ..physics import DustEmission
 from scipy.optimize import curve_fit
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
@@ -32,7 +33,6 @@ from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
     erg_per_ev, h_p
-from ..sources import DustPopulation
 
 try:
     import h5py
@@ -2016,19 +2016,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         raw = self.histories
         if wave > self.src.wavelengths.max():
-            L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum, 
+            L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum,
                 window=window, load=load, use_cache=use_cache, energy_units=energy_units)
         else:
-            L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw, 
+            L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 use_cache=use_cache, band=band, energy_units=energy_units)
-           
+
         if use_cache:
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
 
         return L
-            
-    def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1, 
+
+    def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1,
         band=None, total_IR = False):
         """
         Compute the luminosity function from discrete histories.
@@ -2066,7 +2066,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if True: returns the total infrared luminosity function for wavelengths
             between 8 and 1000 microns.
             Note: if True, ignores wave and band keywords, and always returns in log(L / Lsun)
-        
+
         """
         if total_IR:
             wave = 'total'
@@ -2099,8 +2099,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             L = self.dust.Luminosity(z, total_IR = True)
             mags = False
-        ##    
-        
+        ##
+
         zarr = raw['z']
         tarr = raw['t']
 
@@ -2114,7 +2114,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             MAB = np.log10(L / Lsun)
         else:
             MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
-        
+
         # if self.pf['dustcorr_method'] is not None:
         #     MAB = self.dust.Mobs(z, _MAB)
         # else:
@@ -2853,13 +2853,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         f = open('{}.parameters.pkl'.format(prefix))
         pickle.dump(self.pf)
         f.close()
-        
+
     @property
     def dust(self):
         """
-        (void) -> DustPopulation
+        (void) -> DustEmission
 
-        Creates and / or returns an instance of a DustPopulation object used to calculate
+        Creates and / or returns an instance of a DustEmission object used to calculate
         dust emissions from all the galaxies at all redshifts for a given frequency band.
 
         To adjust the frequency band, set the "dust_fmin", "dust_fmax", and "dust_Nfreqs"
@@ -2870,7 +2870,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         keywords.
         """
         if not hasattr(self, "_dust"):
-            
+
             # fetching keywords provided
             if self.pf.get('pop_dust_fmin') is None:
                 fmin = 1e14
@@ -2881,29 +2881,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 fmax = 1e17
             else:
                 fmax = self.pf['pop_dust_fmax']
-                
+
             if self.pf.get('pop_dust_Nfreqs') is None:
                 Nfreqs = 500
             else:
                 Nfreqs = self.pf['pop_dust_Nfreqs']
-                
+
             if self.pf.get('pop_dust_zmin') is None:
                 zmin = 4
             else:
                 zmin = self.pf['pop_dust_zmin']
-                
+
             if self.pf.get('pop_dust_zmax') is None:
                 zmax = 10
             else:
                 zmax = self.pf['pop_dust_zmax']
-                
+
             if self.pf.get('pop_dust_Nz') is None:
                 Nz = 7
             else:
                 Nz = self.pf['pop_dust_Nz']
 
             # creating instance
-            self._dust = DustPopulation.DustPopulation(self, fmin, fmax, Nfreqs, zmin, zmax, Nz)
+            self._dust = DustEmission(self, fmin, fmax, Nfreqs,
+                zmin, zmax, Nz)
 
         return self._dust
 
