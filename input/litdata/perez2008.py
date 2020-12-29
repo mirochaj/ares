@@ -1,5 +1,5 @@
 """
-Pérez-González, P. G., et al. 2008, ApJ, 675, 234
+Perez-Gonzalez, P. G., et al. 2008, ApJ, 675, 234
 
 For smf_tot, values are corrected as seen in Behroozi et al. 2013 (http://arxiv.org/abs/1207.6105), for D (Dust model) corrections.
 """
@@ -9,7 +9,7 @@ import numpy as np
 info = \
 {
  'reference':'',
- 'data': '', 
+ 'data': '',
  'imf': ('chabrier', (0.1, 100.)), #didn't update this
 }
 
@@ -69,7 +69,7 @@ tmp_data['smf_tot'] = \
            -3.26253140048154, -3.6194153931062, -4.4076200362268, -4.97550792593963],
     'err': [(0.103, 0.112), (0.106, 0.115), (0.117, 0.128), (0.127, 0.141), (0.136, 0.152), (0.143, 0.161), (0.18, 0.208), (0.256, 0.319),
            (0.281, 0.359), (0.4, 5.408), (0.4, 4.0)]
-   },      
+   },
 }
 
 
@@ -92,26 +92,26 @@ data['smf_tot'] = {}
 data['smf_sf'] = {}
 data['smf_q'] = {}
 for group in ['smf_tot', 'smf_sf', 'smf_q']:
-    
+
     for key in tmp_data[group]:
-        
+
         if key not in tmp_data[group]:
             continue
-    
+
         subdata = tmp_data[group]
-        
+
         mask = []
         for element in subdata[key]['err']:
             if element == ULIM:
                 mask.append(1)
             else:
                 mask.append(0)
-        
+
         mask = np.array(mask)
-        
+
         data[group][key] = {}
-        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask) 
-        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask) 
+        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask)
+        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask)
         data[group][key]['err'] = tmp_data[group][key]['err']
 
 #default is the star-forming galaxies data only
