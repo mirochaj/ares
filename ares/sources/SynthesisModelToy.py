@@ -114,6 +114,7 @@ class SynthesisModelToy(SynthesisModelBase):
             kw = self.pf.copy()
             kw['source_sed'] = self.pf['source_toysps_method']
             self._StarQS_ = StarQS(cosm=self.cosm, **kw)
+            
         return self._StarQS_
 
     def _Spectrum(self, t, wave=1600.):

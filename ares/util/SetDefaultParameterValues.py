@@ -1116,10 +1116,12 @@ def SynthesisParameters():
     "source_Emin": 1.,
     "source_Emax": 54.4,
 
-    "source_lmin": 912.,
+    "source_lmin": 400.,
     "source_lmax": 1e4,
     "source_times": None,
     "source_wavelengths": None,
+
+    "source_mass": 1.,
 
     "source_toysps_method": 0,
     "source_toysps_beta": -2.,

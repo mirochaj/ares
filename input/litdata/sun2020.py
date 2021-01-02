@@ -77,7 +77,7 @@ _high_st.num = 2
 
 low = add_lya(_low_st)
 med = add_lya(_med_st)
-high = add_lya(_high_st)
+high = _high_st#add_lya(_high_st)
 low['sam_dz'] = None
 med['sam_dz'] = None
 high['sam_dz'] = None
