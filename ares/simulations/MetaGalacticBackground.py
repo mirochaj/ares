@@ -215,7 +215,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     print(("# LWB cycle #{0} complete: mean_err={1:.2e}, " +\
                         "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
                         self.count, np.mean(self._sfrd_rerr[self._ok==1]),\
-                        np.max(self._sfrd_rerr[self._ok==1]), z_maxerr))
+                        self._sfrd_rerr[self._ok==1][ibad], z_maxerr))
                 else:
                     print("# LWB cycle #{} complete.".format(self.count))
 
@@ -338,6 +338,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 zf = _zf[0]
 
             f *= np.exp(-m95(zf, _lam))
+
 
         if units.lower() == 'cgs':
             pass
@@ -980,7 +981,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             Jlw[np.argwhere(np.isnan(Jlw))] = 0.0
 
         # Introduce time delay between Jlw and Mmin?
-        # This doesn't really help with stability. In fact, it can make it worse.
+        # This doesn't really help with stability. In fact, it can make it
+        # worse.
         if self.pf['feedback_LW_dt'] > 0:
             dt = self.pf['feedback_LW_dt']
 
@@ -1139,7 +1141,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                 err_rel = np.abs((pre - post)) / post
                 err_abs = np.abs(post - pre)
 
-                err_r_mean = np.mean(err_rel[np.isfinite(err_rel)])
+                ok = np.logical_and(np.isfinite(err_rel), self._ok)
+                err_r_mean = np.mean(err_rel[ok==1])
 
                 if rtol > 0:
                     if err_r_mean > rtol:
