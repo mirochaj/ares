@@ -39,7 +39,8 @@ from ..util.SetDefaultParameterValues import StellarParameters, \
 
 _synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017']
 _single_star_models = ['schaerer2002']
-_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002', 'hybrid']
+_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002', 'hybrid',
+    'sps-toy']
 
 def normalize_sed(pop):
     """
@@ -408,6 +409,9 @@ class Population(object):
                (not self.affects_cgm) and (not self.is_src_lya):
                 return self._is_emissivity_scalable
 
+            # The use of affects_cgm here is to indicate whether we're likely
+            # to have an fesc that must be handled carefully.
+
             # At this stage, we need to set is_emissivity_scalable=False IFF:
             # (1) there are mass- or time-dependent radiative properties
             # (2) if there are wavelength-dependent escape fractions.
@@ -415,6 +419,7 @@ class Population(object):
 
             if (self.affects_cgm) and (not self.affects_igm):
                 if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
+                    print("Not scalable cuz fesc pop={}".format(self.id_num))
                     self._is_emissivity_scalable = False
                     return False
 

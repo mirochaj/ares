@@ -78,7 +78,7 @@ class StarQS(Source):
                 self._bands = [(11.2, 13.6), (13.6, 24.6), (24.6, 54.4),\
                     (54.4, 2e2)]
             else:
-                raise NotImplemented('help')
+                self._bands = None
 
         return self._bands
 

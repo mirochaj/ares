@@ -33,8 +33,9 @@ class SynthesisModelBase(Source):
     def _neb_cont(self):
         if not hasattr(self, '_neb_cont_'):
             self._neb_cont_ = np.zeros_like(self._data)
-            if self.pf['source_nebular_continuum']:
-                assert self.pf['source_nebular'] > 1
+            if self.pf['source_nebular'] > 1 and \
+                self.pf['source_nebular_continuum']:
+
                 for i, t in enumerate(self.times):
                     if self.pf['source_tneb'] is not None:
                         j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
@@ -55,8 +56,8 @@ class SynthesisModelBase(Source):
     def _neb_line(self):
         if not hasattr(self, '_neb_line_'):
             self._neb_line_ = np.zeros_like(self._data)
-            if self.pf['source_nebular_lines']:
-                assert self.pf['source_nebular'] > 1
+            if self.pf['source_nebular'] > 1 and \
+                self.pf['source_nebular_lines']:
                 for i, t in enumerate(self.times):
                     if self.pf['source_tneb'] is not None:
                         j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))

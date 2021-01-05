@@ -52,7 +52,7 @@ ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
-    'L_per_sfr']
+    'L_per_sfr', 'sps-toy']
 
 class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
@@ -782,7 +782,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # by scaling the SFRD.
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E,
                 Emin=Emin, Emax=Emax)
-
         else:
             # Here, the radiation backgrounds cannot just be scaled.
             # Note that this method can always be used, it's just less

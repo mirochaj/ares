@@ -8,11 +8,11 @@ _base = PB(**_base).pars_by_pop(0, 1)
 #base.update(_halo_updates)
 
 _nirb_updates = {}
-_nirb_updates['pop_Emin'] = 0.42 # as low as BPASS goes
+_nirb_updates['pop_Emin'] = 0.41 # as low as BPASS goes
 _nirb_updates['pop_Emax'] = E_LL
 _nirb_updates['pop_zdead'] = 5
 _nirb_updates['final_redshift'] = 0
-_nirb_updates['pop_solve_rte'] = (0.42, E_LL)
+_nirb_updates['pop_solve_rte'] = (0.41, E_LL)
 _nirb_updates['pop_fesc'] = 0.1
 _nirb_updates['tau_redshift_bins'] = 1000 # probably overkill
 _nirb_updates['tau_approx'] = False
@@ -33,7 +33,7 @@ _generic_lya = \
  'pop_fesc': 0.0,     # This will get replaced by `add_lya` below.
 
  'pop_sed': 'delta',
- 'pop_Emin': 0.42,
+ 'pop_Emin': 0.41,
  'pop_Emax': E_LyA,
  'pop_EminNorm': 9.9,
  'pop_EmaxNorm': 10.5,
@@ -69,15 +69,16 @@ base_nolya = _base.copy()
 base = add_lya(_base)
 
 _low_st = PB(**_low).pars_by_pop(2, 1)
-_low_st.num = 2
+_low_st.num = 1
 _med_st = PB(**_med).pars_by_pop(2, 1)
-_med_st.num = 2
+_med_st.num = 1
 _high_st = PB(**_high).pars_by_pop(2, 1)
-_high_st.num = 2
+_high_st.num = 1
 
-low = add_lya(_low_st)
-med = add_lya(_med_st)
-high = _high_st#add_lya(_high_st)
-low['sam_dz'] = None
-med['sam_dz'] = None
-high['sam_dz'] = None
+low = _low_st
+med = _med_st
+high = _high_st
+
+_popIII_updates = {'sam_dz': None, 'feedback_LW_sfrd_popid': 1}
+for model in [low, med, high]:
+    model.update(_popIII_updates)

@@ -257,6 +257,7 @@ def PhysicsParameters():
     'feedback_LW_maxiter': 15,
     'feedback_LW_miniter': 0,
     'feedback_LW_softening': 'sqrt',
+    'feedback_LW_tol_zrange': (0, np.inf),
 
     'feedback_LW_Mmin_smooth': 0,
     'feedback_LW_Mmin_fit': 0,
@@ -593,9 +594,9 @@ def PopulationParameters():
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
 
-    "pop_lmin": 900,
-    "pop_lmax": 1e4,
-    "pop_dlam": 10.,
+    "pop_lmin": None,
+    "pop_lmax": None,
+    "pop_dlam": None,
     "pop_wavelengths": None,
     "pop_times": None,
 
@@ -847,7 +848,6 @@ def PopulationParameters():
     "pop_transition": 0,
 
     "pop_dE": None,
-    "pop_dlam": 1.,
 
     "pop_calib_wave": 1600,
     "pop_calib_lum": None,
@@ -868,9 +868,9 @@ def PopulationParameters():
     # Nebular emission stuff
     "pop_nebular_Tgas": 2e4,
 
-    "pop_lmin": 912.,
-    "pop_lmax": 1e4,
-    "pop_dlam": 10,
+    "pop_lmin": None,
+    "pop_lmax": None,
+    "pop_dlam": None,
     "pop_wavelengths": None,
     "pop_times": None,
 
@@ -952,10 +952,10 @@ def SourceParameters():
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     "source_dE": None,
-    "source_dlam": 10.,
 
-    "source_lmin": 400.,
-    "source_lmax": 1e4,
+    "source_dlam": None,
+    "source_lmin": None,
+    "source_lmax": None,
     "source_wavelengths": None,
     "source_times": None,
 
@@ -1112,12 +1112,12 @@ def SynthesisParameters():
 
     # Only used by toy SPS
     "source_dE": None,
-    "source_dlam": 10.,
     "source_Emin": 1.,
     "source_Emax": 54.4,
 
-    "source_lmin": 400.,
-    "source_lmax": 1e4,
+    "source_dlam": None,
+    "source_lmin": None,
+    "source_lmax": None,
     "source_times": None,
     "source_wavelengths": None,
 

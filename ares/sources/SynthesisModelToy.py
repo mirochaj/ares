@@ -33,13 +33,13 @@ class SynthesisModelToy(SynthesisModelBase):
                     / erg_per_ev
             else:
                 dE = self.pf['source_dE']
-                dl = self.pf['source_dlam']
-                if dE is not None:
-                    self._energies = np.arange(self.Emin, self.Emax+dE, dE)
-                else:
-                    self._energies = h_p * c / self.wavelengths / cm_per_ang
+                Emin = self.pf['source_Emin']
+                Emax = self.pf['source_Emax']
 
-                assert (dE is not None) + (dl is not None) == 1
+                self._energies = np.arange(Emin, Emax+dE, dE)[-1::-1]
+
+            # Should be in descending order
+            assert np.all(np.diff(self._energies) < 0)
 
         return self._energies
 
@@ -53,18 +53,14 @@ class SynthesisModelToy(SynthesisModelBase):
                     self.pf['source_lmax']+self.pf['source_dlam'],
                     self.pf['source_dlam'])
             else:
-                dE = self.pf['source_dE']
-                dl = self.pf['source_dlam']
-                if dE is not None:
-                    self._wavelengths = h_p * c / self.energies / erg_per_ev \
-                        / cm_per_ang
-                else:
-                    w1 = h_p * c / self.Emin / erg_per_ev / cm_per_ang
-                    w2 = h_p * c / self.Emax / erg_per_ev / cm_per_ang
-                    self._wavelengths = np.arange(w2, w1+dl, dl)
+                self._wavelengths = h_p * c / self.energies / erg_per_ev \
+                    / cm_per_ang
 
             if (self._wavelengths.max() < 2e3):
                 raise ValueError('Wavelengths all FUV. This is generally not a good idea!')
+
+            # Should be in ascending order
+            assert np.all(np.diff(self._wavelengths) > 0)
 
         return self._wavelengths
 
@@ -108,13 +104,13 @@ class SynthesisModelToy(SynthesisModelBase):
     def _StarQS(self):
         if not hasattr(self, '_StarQS_'):
 
-            assert self.pf['source_ssp'], "Must set source_ssp=True!"
+            #assert self.pf['source_ssp'], "Must set source_ssp=True!"
 
             from ..sources import StarQS
             kw = self.pf.copy()
             kw['source_sed'] = self.pf['source_toysps_method']
             self._StarQS_ = StarQS(cosm=self.cosm, **kw)
-            
+
         return self._StarQS_
 
     def _Spectrum(self, t, wave=1600.):
@@ -153,7 +149,10 @@ class SynthesisModelToy(SynthesisModelBase):
                 spec *= (t / trise)**1.5
         elif type(self.pf['source_toysps_method']) == str:
 
-            if t < (self._StarQS.lifetime / 1e6):
+            is_on = t < (self._StarQS.lifetime / 1e6) \
+                or (not self.pf['source_ssp'])
+
+            if is_on:
                 # This is normalized to Q in each sub-band.
                 E = h_p * c / (wave * cm_per_ang) / erg_per_ev
                 spec = self._StarQS.Spectrum(E)
@@ -191,8 +190,12 @@ class SynthesisModelToy(SynthesisModelBase):
                 # Now, [spec] = erg/s/eV
 
                 # Do last unit conversion to get erg/s/A/Msun
-                spec *= ev_per_hz / self.dwdn / mass
+                spec *= ev_per_hz / self.dwdn
 
+                if self.pf['source_ssp']:
+                    spec /= mass
+                else:
+                    spec /= (mass / self._StarQS.lifetime)
 
             else:
                 spec = 0.
