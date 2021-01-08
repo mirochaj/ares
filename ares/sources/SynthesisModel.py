@@ -71,6 +71,29 @@ class SynthesisModelBase(Source):
 
         return self._neb_line_
 
+    def _add_nebular_emission(self):
+        # Keep raw spectrum
+        self._data_raw = self._data.copy()
+
+        # Add in nebular continuum (just once!)
+        added_neb_cont = 0
+        added_neb_line = 0
+        null_ionizing_spec = 0
+        if not hasattr(self, '_neb_cont_'):
+            self._data += self._neb_cont
+            added_neb_cont = 1
+
+        # Same for nebular lines.
+        if not hasattr(self, '_neb_line_'):
+            self._data += self._neb_line
+            added_neb_line = 1
+
+        if added_neb_cont or added_neb_line:
+            null_ionizing_spec = self.pf['source_nebular'] > 1
+
+        if null_ionizing_spec:
+            self._data[self.energies > E_LL] *= self.pf['source_fesc']
+
     def AveragePhotonEnergy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
@@ -117,7 +140,7 @@ class SynthesisModelBase(Source):
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
-            self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf)
+            self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf, raw=False)
         return self._sed_at_tsf
 
     @property
@@ -261,21 +284,21 @@ class SynthesisModelBase(Source):
     def LUV_of_t(self):
         return self.L_per_sfr_of_t()
 
-    def _cache_L(self, wave, avg, Z):
+    def _cache_L(self, wave, avg, Z, raw):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (wave, avg, Z) in self._cache_L_:
-            return self._cache_L_[(wave, avg, Z)]
+        if (wave, avg, Z, raw) in self._cache_L_:
+            return self._cache_L_[(wave, avg, Z, raw)]
 
         return None
 
-    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz'):
+    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz', raw=True):
         """
         UV luminosity per unit SFR.
         """
 
-        cached_result = self._cache_L(wave, avg, Z)
+        cached_result = self._cache_L(wave, avg, Z, raw)
 
         if cached_result is not None:
             return cached_result
@@ -286,18 +309,22 @@ class SynthesisModelBase(Source):
             E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev
 
             yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
-                energy_units=True)
+                energy_units=True, raw=raw)
 
         else:
             j = np.argmin(np.abs(wave - self.wavelengths))
 
             if Z is not None:
+                assert not raw, "Fix Z-dep option!"
                 Zvals = np.sort(list(self.metallicities.values()))
                 k = np.argmin(np.abs(Z - Zvals))
                 raw = self.data # just to be sure it has been read in.
                 data = self._data_all_Z[k,j]
             else:
-                data = self.data[j,:]
+                if raw:
+                    data = self._data_raw[j,:]
+                else:
+                    data = self.data[j,:]
 
             if avg == 1:
                 if units == 'Hz':
@@ -326,21 +353,21 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        self._cache_L_[(wave, avg, Z, units)] = yield_UV
+        self._cache_L_[(wave, avg, Z, units, raw)] = yield_UV
 
         return yield_UV
 
-    def _cache_L_per_sfr(self, wave, avg, Z):
+    def _cache_L_per_sfr(self, wave, avg, Z, raw):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
 
-        if (wave, avg, Z) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, avg, Z)]
+        if (wave, avg, Z, raw) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, avg, Z, raw)]
 
         return None
 
     def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
-            energy_units=True):
+            energy_units=True, raw=True):
         """
         Specific emissivity at provided wavelength at `source_tsf`.
 
@@ -363,12 +390,12 @@ class SynthesisModelBase(Source):
 
         """
 
-        cached = self._cache_L_per_sfr(wave, avg, Z)
+        cached = self._cache_L_per_sfr(wave, avg, Z, raw)
 
         if cached is not None:
             return cached
 
-        yield_UV = self.L_per_sfr_of_t(wave)
+        yield_UV = self.L_per_sfr_of_t(wave, raw=raw)
 
         # Interpolate in time to obtain final LUV
         if self.pf['source_tsf'] in self.times:
@@ -381,7 +408,7 @@ class SynthesisModelBase(Source):
             func = interp1d(self.times, yield_UV, kind='linear')
             result = func(self.pf['source_tsf'])
 
-        self._cache_L_per_sfr_[(wave, avg, Z)] = result
+        self._cache_L_per_sfr_[(wave, avg, Z, raw)] = result
 
         return result
 
@@ -693,26 +720,6 @@ class SynthesisModel(SynthesisModelBase):
                 #raise NotImplemented('need to revisit this.')
                 self._data *= self.pf['source_sfr']
 
-            # Keep raw spectrum
-            self._data_raw = self._data.copy()
-
-            # Add in nebular continuum (just once!)
-            added_neb_cont = 0
-            added_neb_line = 0
-            null_ionizing_spec = 0
-            if not hasattr(self, '_neb_cont_'):
-                self._data += self._neb_cont
-                added_neb_cont = 1
-
-            # Same for nebular lines.
-            if not hasattr(self, '_neb_line_'):
-                self._data += self._neb_line
-                added_neb_line = 1
-
-            if added_neb_cont or added_neb_line:
-                null_ionizing_spec = self.pf['source_nebular'] > 1
-
-            if null_ionizing_spec:
-                self._data[self.energies > E_LL] *= self.pf['source_fesc']
+            self._add_nebular_emission()
 
         return self._data

@@ -3473,6 +3473,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # monochromatic PS
         if type(wave_obs) not in [tuple, list]:
             ps *= (c / (wave_obs * 1e-4))**2
+        else:
+            ps /= (c / (np.array(wave_obs)[0] * 1e-4) \
+                -  c / (np.array(wave_obs)[1] * 1e-4))**2
+            ps *= (c / (np.mean(np.array(wave_obs)) * 1e-4))**2
 
         return ps
 

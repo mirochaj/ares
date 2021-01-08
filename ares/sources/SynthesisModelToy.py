@@ -217,26 +217,6 @@ class SynthesisModelToy(SynthesisModelBase):
             for i, t in enumerate(self.times):
                 self._data[:,i] = self._Spectrum(t, wave=self.wavelengths)
 
-            # This is copy-pasted out of SynthesisModel, not great, but deal.
-            self._data_raw = self._data.copy()
-
-            # Add in nebular continuum (just once!)
-            added_neb_cont = 0
-            added_neb_line = 0
-            null_ionizing_spec = 0
-            if not hasattr(self, '_neb_cont_'):
-                self._data += self._neb_cont
-                added_neb_cont = 1
-
-            # Same for nebular lines.
-            if not hasattr(self, '_neb_line_'):
-                self._data += self._neb_line
-                added_neb_line = 1
-
-            if added_neb_cont or added_neb_line:
-                null_ionizing_spec = self.pf['source_nebular'] > 1
-
-            if null_ionizing_spec:
-                self._data[self.energies > E_LL] *= self.pf['source_fesc']
+            self._add_nebular_emission()
 
         return self._data
