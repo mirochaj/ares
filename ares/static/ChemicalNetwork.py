@@ -96,7 +96,7 @@ class ChemicalNetwork(object):
         """       
     
         self.q = q
-    
+
         cell, k_ion, k_ion2, k_heat, ntot, time = args
             
         to_temp = 1. / (1.5 * ntot * k_B)
@@ -710,6 +710,10 @@ class ChemicalNetwork(object):
         Tb = Tb_ * ev_per_K
         Tchi = Tchi_ * ev_per_K
         Vchib = Vchib_ / c
+
+        # Threshold velocity so it doesn't go negative
+        if Vchib < 1e-8:
+            Vchib = 0
 
         mb = self.cosm.g_per_b * ev_per_g  # Baryon mass [eV]
         mchi = self.cosm.m_dmeff * 1e9  # DM mass [eV]

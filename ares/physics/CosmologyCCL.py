@@ -58,6 +58,9 @@ class CosmologyCCL(CosmologyARES):
                 cosmo._set_background_from_arrays(a_array=a, chi_array=distance, hoh0_array=E_of_z)
                 cosmo._set_linear_power_from_arrays(1./(1 + z_pk[::-1]), k_arr, class_pk_lin)
 
+                # # erase classy object for serialization purposes?
+                # self.pf['cosmology_helper'] = 'used'
+
             self._ccl_instance_ = cosmo
 
 
