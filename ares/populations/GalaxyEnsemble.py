@@ -319,8 +319,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
 
+        if type(nh_raw) in [int, float, np.float32, np.float64]:
+            nh_raw = nh_raw * np.ones_like(Mh_raw)
+
         # May have to generate MAR if these are simulated halos
-        if ('MAR' not in raw) and ('MAR_tot' not in raw):
+        if ('MAR' not in raw) and ('MAR_acc' not in raw):
 
             assert thin < 2
             assert sigma_mar == sigma_env == 0
@@ -353,7 +356,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             elif self.pf['pop_mergers']:
                 mar_raw = raw['MAR_acc']
             else:
-                mar_raw = raw['MAR_tot']
+                if 'MAR_tot' in raw:
+                    mar_raw = raw['MAR_tot']
+                else:
+                    mar_raw = raw['MAR_acc']
 
         ##
         # Throw away halos with Mh < Mmin or Mh > Mmax
@@ -2372,7 +2378,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 ok = np.ones_like(_MAB)
 
             # Hack for the time being
-            ok = np.logical_and(ok, np.isfinite(beta_r))    
+            ok = np.logical_and(ok, np.isfinite(beta_r))
 
             MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
                 Mbins, weights=nh)
