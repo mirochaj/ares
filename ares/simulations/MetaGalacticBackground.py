@@ -94,6 +94,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         self._has_fluxes = False
         self._has_coeff = False
 
+        self._run_complete = False
+
         if not hasattr(self, '_suite'):
             self._suite = []
 
@@ -204,6 +206,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             if include_pops == self._lwb_sources:
                 self.reboot(include_pops=self._not_lwb_sources)
                 self.run(include_pops=self._not_lwb_sources)
+
+            self._run_complete = True    
 
         else:
             if self.pf['verbose']:
