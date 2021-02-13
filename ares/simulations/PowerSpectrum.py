@@ -46,17 +46,17 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         """ Set global 21cm instance by hand. """
         self._gs = value
 
-    @property
-    def mean_history(self):
-        if not hasattr(self, '_mean_history'):
-            self.gs.run()
-            self._mean_history = self.gs.history
-
-        return self._mean_history
-
-    @mean_history.setter
-    def mean_history(self, value):
-        self._mean_history = value
+    #@property
+    #def mean_history(self):
+    #    if not hasattr(self, '_mean_history'):
+    #        self.gs.run()
+    #        self._mean_history = self.gs.history
+#
+    #    return self._mean_history
+#
+    #@mean_history.setter
+    #def mean_history(self, value):
+    #    self._mean_history = value
 
     @property
     def mean_intensity(self):
@@ -118,6 +118,16 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                     wave_units
                 ))
 
+            lo, hi = x.min(), x.max()
+
+            # Check for overlap, warn user if they should use `waves`
+            if i > 0:
+                lo_all, hi_all = np.min(all_x), np.max(all_x)
+
+                is_overlap = (lo_all <= lo <= hi_all) or (lo_all <= hi <= hi_all)
+                if waves is None and is_overlap:
+                    print("# WARNING: Overlap in spectral coverage of population #{}. Consider using `waves` keyword argument.".format(i))
+
             #
 
             # Either save EBL as potentially-disjointed array of energies
@@ -169,6 +179,10 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         (len(scales), len(waves))
 
         """
+
+        # Make sure we do mean background first in case LW feedback is on.
+        if not self.mean_intensity._run_complete:
+            self.mean_intensity.run()
 
         # Make sure things are arrays
         if type(scales) != np.ndarray:

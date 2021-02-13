@@ -20,6 +20,11 @@ _nirb_updates['tau_clumpy'] = 'madau1995'
 
 _base.update(_nirb_updates)
 _base.num = 0
+_base['pop_zdead{0}'] = 5.
+_base['pop_nebular{0}'] = 2
+_base['pop_nebular_continuum{0}'] = True
+_base['pop_nebular_lines{0}'] = True
+
 
 _generic_lya = \
 {
@@ -66,7 +71,7 @@ def add_lya(pop1):
     return pars
 
 base_nolya = _base.copy()
-base = add_lya(_base)
+base = _base#add_lya(_base)
 
 _low_st = PB(**_low).pars_by_pop(2, 1)
 _low_st.num = 1
@@ -80,5 +85,17 @@ med = _med_st
 high = _high_st
 
 _popIII_updates = {'sam_dz': None, 'feedback_LW_sfrd_popid': 1}
-for model in [low, med, high]:
-    model.update(_popIII_updates)
+low.update(_popIII_updates)
+for pbund in [med, high]:
+    pbund['pop_sed{1}'] = 'sps-toy'
+    pbund['pop_toysps_method{1}'] = 'schaerer2002'
+    pbund['pop_ssp{1}'] = False
+    pbund['pop_model{1}'] = 'tavg_nms'
+    pbund['pop_zdead{1}'] = 5.
+    #pbund['pop_nebular{1}'] = 2
+    #pbund['pop_nebular_continuum{1}'] = True
+    #pbund['pop_nebular_lines{1}'] = True
+    # Set energy range by hand. This is picky! Be careful that Emax <= 13.6 eV
+    # (long story -- will work to fix in future)
+
+    pbund.update(_popIII_updates)

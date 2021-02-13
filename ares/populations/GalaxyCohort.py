@@ -1874,6 +1874,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if z < self.zdead:
                     continue
 
+                # See if Mmin and Mmax fall in the same bin, in which case
+                # we'll just set SFRD -> 0 to avoid numerical nonsense.
+                j1 = np.argmin(np.abs(self._tab_Mmin[i] - self.halos.tab_M))
+                j2 = np.argmin(np.abs(self._tab_Mmax[i] - self.halos.tab_M))
+                if j1 == j2:
+                    if abs(self._tab_Mmax[i] / self._tab_Mmin[i] - 1) < 1e-2:
+                        continue
+
                 tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
                 cumtot = cumtrapz(integrand[i], x=np.log(self.halos.tab_M),
                     initial=0.0)
