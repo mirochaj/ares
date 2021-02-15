@@ -1,6 +1,6 @@
 """
 
-schaerer2003.py
+schaerer2002.py
 
 Schaerer (2002), A&A 382, 82
 

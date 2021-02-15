@@ -101,17 +101,21 @@ class SynthesisModelToy(SynthesisModelBase):
         return self._dwdn
 
     @property
-    def _StarQS(self):
-        if not hasattr(self, '_StarQS_'):
+    def _Star(self):
+        if not hasattr(self, '_Star_'):
 
             #assert self.pf['source_ssp'], "Must set source_ssp=True!"
 
-            from ..sources import StarQS
+            from ..sources import StarQS, Star
             kw = self.pf.copy()
             kw['source_sed'] = self.pf['source_toysps_method']
-            self._StarQS_ = StarQS(cosm=self.cosm, **kw)
 
-        return self._StarQS_
+            if self.pf['source_toysps_method'] == 'schaerer2002':
+                self._Star_ = StarQS(cosm=self.cosm, **kw)
+            else:
+                self._Star_ = Star(cosm=self.cosm, **kw)
+
+        return self._Star_
 
     def _Spectrum(self, t, wave=1600.):
 
@@ -149,16 +153,16 @@ class SynthesisModelToy(SynthesisModelBase):
                 spec *= (t / trise)**1.5
         elif type(self.pf['source_toysps_method']) == str:
 
-            is_on = t < (self._StarQS.lifetime / 1e6) \
+            is_on = t < (self._Star.lifetime / 1e6) \
                 or (not self.pf['source_ssp'])
 
             if is_on:
                 # This is normalized to Q in each sub-band.
                 E = h_p * c / (wave * cm_per_ang) / erg_per_ev
-                spec = self._StarQS.Spectrum(E)
+                spec = self._Star.Spectrum(E)
                 # Right here, `spec` integrates to unity over relevant bands.
 
-                mass = self._StarQS.pf['source_mass']
+                mass = self._Star.pf['source_mass']
 
                 # Here, we need to re-normalize again to Q, then switch to
                 # units of erg/s/A/Msun (instead of eV^-1)
@@ -172,21 +176,31 @@ class SynthesisModelToy(SynthesisModelBase):
                     E = np.array([E])
                     spec = np.array([spec])
 
-                bands = self._StarQS.bands
+                if self.pf['source_toysps_method'] == 'schaerer2002':
 
-                norms = []
-                for i, nrg in enumerate(E):
-                    if nrg < bands[0][1]:
-                        norms.append(self._StarQS.norm_[0])
-                    elif bands[1][0] <= nrg < bands[1][1]:
-                        norms.append(self._StarQS.norm_[1])
-                    elif bands[2][0] <= nrg < bands[2][1]:
-                        norms.append(self._StarQS.norm_[2])
-                    else:
-                        norms.append(self._StarQS.norm_[2])
+                    # Why isn't this all handled in StarQS?
+                    # Caused by new wavelength gridding?
+                    bands = self._Star.bands
 
-                norms = np.array(norms)
-                spec *= norms
+                    norms = []
+                    for i, nrg in enumerate(E):
+                        if nrg < bands[0][1]:
+                            norms.append(self._Star.norm_[0])
+                        elif bands[1][0] <= nrg < bands[1][1]:
+                            norms.append(self._Star.norm_[1])
+                        elif bands[2][0] <= nrg < bands[2][1]:
+                            norms.append(self._Star.norm_[2])
+                        else:
+                            norms.append(self._Star.norm_[2])
+
+                    norms = np.array(norms)
+                    spec *= norms
+                elif self.pf['source_toysps_method'] == 'bb':
+                    spec *= self._Star.Lbol0
+
+                else:
+                    raise NotImplemented('help')
+
                 # Now, [spec] = erg/s/eV
 
                 # Do last unit conversion to get erg/s/A/Msun
@@ -195,7 +209,7 @@ class SynthesisModelToy(SynthesisModelBase):
                 if self.pf['source_ssp']:
                     spec /= mass
                 else:
-                    spec /= (mass / self._StarQS.lifetime)
+                    spec /= (mass / self._Star.lifetime)
 
             else:
                 spec = 0.

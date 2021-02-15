@@ -1859,11 +1859,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ##
             # Use cumtrapz instead and interpolate onto Mmin, Mmax
             ##
+            ct = 0
             self._tab_sfrd_total_ = np.zeros_like(self.halos.tab_z)
-            for i, z in enumerate(self.halos.tab_z):
+            for _i, z in enumerate(self.halos.tab_z[-1::-1]):
 
-                if z < self.pf['final_redshift']:
-                    continue
+                i = self.halos.tab_z.size - _i - 1
+
+                if z <= self.pf['final_redshift']:
+                    break
 
                 if z > self.pf['initial_redshift']:
                     continue
@@ -1871,16 +1874,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if z > self.zform:
                     continue
 
-                if z < self.zdead:
-                    continue
+                if z <= self.zdead:
+                    break
 
                 # See if Mmin and Mmax fall in the same bin, in which case
                 # we'll just set SFRD -> 0 to avoid numerical nonsense.
-                j1 = np.argmin(np.abs(self._tab_Mmin[i] - self.halos.tab_M))
-                j2 = np.argmin(np.abs(self._tab_Mmax[i] - self.halos.tab_M))
-                if j1 == j2:
-                    if abs(self._tab_Mmax[i] / self._tab_Mmin[i] - 1) < 1e-2:
-                        continue
+                #j1 = np.argmin(np.abs(self._tab_Mmin[i] - self.halos.tab_M))
+                #j2 = np.argmin(np.abs(self._tab_Mmax[i] - self.halos.tab_M))
+                #if j1 == j2:
+                #    if abs(self._tab_Mmax[i] / self._tab_Mmin[i] - 1) < 1e-2:
+                #        continue
 
                 tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
                 cumtot = cumtrapz(integrand[i], x=np.log(self.halos.tab_M),
@@ -1895,6 +1898,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 #    print("WARNING: SFRD(>Mmin) < SFRD(>Mmax) at z={}".format(z))
 
                 self._tab_sfrd_total_[i] = above_Mmin - above_Mmax
+
+                # Once the SFRD is zero, it's zero. Prevents annoying
+                # numerical artifacts / wiggles / spikes at late times,
+                # particularly when Mmin ~ Mmax.
+                continue
+
+                #now = self._tab_sfrd_total_[i]
+                #pre = self._tab_sfrd_total_[i+1]
+                #if now == 0 and pre > 0 and ct == 0:
+                #    z_dead = z
+                #    ct += 1
+                #elif now == 0 and ct > 0:
+                #    if (z_dead - z) >= 2 and abs(z - self.zdead) < 0.2:
+                #        break
 
             self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 

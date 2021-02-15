@@ -779,6 +779,9 @@ def PopulationParameters():
     "pop_fesc": 0.1,
     "pop_fX": 1.0,
     "pop_cX": 2.6e39,
+    "pop_qdot": 5e48,
+    "pop_lifetime": 1e10,
+    "pop_temperature": 1e5,
 
     # Should
     "pop_fesc_LW": 1.,
@@ -1114,6 +1117,11 @@ def SynthesisParameters():
     "source_dE": None,
     "source_Emin": 1.,
     "source_Emax": 54.4,
+    "source_EminNorm": 1.,
+    "source_EmaxNorm": 54.4,
+
+    "source_qdot": 5e48,
+    "source_temperature": 1e5,
 
     "source_dlam": None,
     "source_lmin": None,

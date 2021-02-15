@@ -419,9 +419,10 @@ class Population(object):
 
             if (self.affects_cgm) and (not self.affects_igm):
                 if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
-                    print("Not scalable cuz fesc pop={}".format(self.id_num))
-                    self._is_emissivity_scalable = False
-                    return False
+                    print("# WARNING: revisit scalability wrt fesc.")
+                    #print("Not scalable cuz fesc pop={}".format(self.id_num))
+            #        self._is_emissivity_scalable = False
+            #        return False
 
             for par in self.pf.pqs:
 
@@ -529,6 +530,14 @@ class Population(object):
         # Sometimes we need to know about cosmology...
 
         return self._src_kwargs
+
+
+    @property
+    def is_synthesis_model(self):
+        if not hasattr(self, '_is_synthesis_model'):
+            self._is_synthesis_model = \
+                self.pf['pop_sed'] in _synthesis_models
+        return self._is_synthesis_model
 
     @property
     def src(self):

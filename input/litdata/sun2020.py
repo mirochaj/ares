@@ -1,5 +1,5 @@
 from mirocha2017 import base as _base
-from mirocha2018 import low as _low, med as _med, high as _high
+from mirocha2018 import low as _low, med as _med, high as _high, bb as _bb
 from mirocha2020 import _halo_updates
 from ares.util import ParameterBundle as PB
 from ares.physics.Constants import E_LyA, E_LL
@@ -24,7 +24,6 @@ _base['pop_zdead{0}'] = 5.
 _base['pop_nebular{0}'] = 2
 _base['pop_nebular_continuum{0}'] = True
 _base['pop_nebular_lines{0}'] = True
-
 
 _generic_lya = \
 {
@@ -73,20 +72,22 @@ def add_lya(pop1):
 base_nolya = _base.copy()
 base = _base#add_lya(_base)
 
-_low_st = PB(**_low).pars_by_pop(2, 1)
-_low_st.num = 1
-_med_st = PB(**_med).pars_by_pop(2, 1)
-_med_st.num = 1
-_high_st = PB(**_high).pars_by_pop(2, 1)
-_high_st.num = 1
+low = PB(**_low).pars_by_pop(2, 1)
+low.num = 1
+med = PB(**_med).pars_by_pop(2, 1)
+med.num = 1
+high = PB(**_high).pars_by_pop(2, 1)
+high.num = 1
+bb = PB(**_bb).pars_by_pop(2, 1)
+bb.num = 1
 
-low = _low_st
-med = _med_st
-high = _high_st
+low['pop_nebular{0}'] = 2
+low['pop_nebular_continuum{0}'] = True
+low['pop_nebular_lines{0}'] = True
 
 _popIII_updates = {'sam_dz': None, 'feedback_LW_sfrd_popid': 1}
 low.update(_popIII_updates)
-for pbund in [med, high]:
+for pbund in [med, high, bb]:
     pbund['pop_sed{1}'] = 'sps-toy'
     pbund['pop_toysps_method{1}'] = 'schaerer2002'
     pbund['pop_ssp{1}'] = False
@@ -99,3 +100,21 @@ for pbund in [med, high]:
     # (long story -- will work to fix in future)
 
     pbund.update(_popIII_updates)
+
+bb['pop_toysps_method{1}'] = 'bb'
+bb['pop_nebular{1}'] = 2
+bb['pop_nebular_continuum{1}'] = True
+bb['pop_nebular_lines{1}'] = True
+
+bb['pop_mass{1}'] = 100.      # This is redundant with pop_sfr
+bb['pop_lifetime{1}'] = 1e7   # This is redundant with pop_sfr
+bb['pop_fesc{1}'] = 0.1       
+bb['pop_Emin{1}'] = 0.41
+bb['pop_Emax{1}'] = 2e2
+bb['pop_EminNorm{1}'] = 13.6
+bb['pop_EmaxNorm{1}'] = 24.6
+bb['pop_qdot{1}'] = 1e50      # not getting in there
+bb['pop_dlam{1}'] = 1
+bb['pop_lmin{1}'] = 10
+bb['pop_lmax{1}'] = 1e4
+bb['pop_solve_rte{1}'] = (0.4, E_LL)

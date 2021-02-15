@@ -46,6 +46,12 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         """ Set global 21cm instance by hand. """
         self._gs = value
 
+    @property
+    def history(self):
+        if not hasattr(self, '_history'):
+            self._history = {}
+        return self._history
+
     #@property
     #def mean_history(self):
     #    if not hasattr(self, '_mean_history'):
@@ -63,6 +69,22 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         if not hasattr(self, '_mean_intensity'):
             self._mean_intensity = self.gs.medium.field
         return self._mean_intensity
+
+    def _cache_ebl(self, waves=None, wave_units='mic', flux_units='SI',
+        pops=None):
+        if not hasattr(self, '_cache_ebl_'):
+            self._cache_ebl_ = {}
+
+        # Could be clever and convert units here.
+        if (wave_units, flux_units, pops) in self._cache_ebl_:
+            _waves, _fluxes = self._cache_ebl_[(wave_units, flux_units, pops)]
+            if waves is None:
+                return _waves, _fluxes
+            elif _waves.size == waves.size:
+                if np.all(_waves == waves):
+                    return _waves, _fluxes
+
+        return None
 
     def get_ebl(self, waves=None, wave_units='mic', flux_units='SI', pops=None):
         """
@@ -88,6 +110,10 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         the same length as output observed wavelengths.
 
         """
+
+        cached_result = self._cache_ebl(waves, wave_units, flux_units, pops)
+        if cached_result is not None:
+            return cached_result
 
         if not self.mean_intensity._run_complete:
             self.mean_intensity.run()
@@ -147,7 +173,14 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                 all_x.append(-np.inf)
                 all_y.append(-np.inf)
 
-        return np.array(all_x), np.array(all_y)
+        x = np.array(all_x)
+        y = np.array(all_y)
+
+        if pops is None:
+            hist = self.history # poke
+            self._history['ebl'] = x, y
+
+        return x, y
 
     def get_ps(self, scales, waves, wave_units='mic', scale_units='arcmin',
         flux_units='SI', dimensionless=False, pops=None, **kwargs):
@@ -234,6 +267,10 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         if flux_units.lower() == 'si':
             ps *= cm_per_m**4
 
+        if pops is None:
+            hist = self.history # poke
+            self._history['ps_nirb'] = scales, scales_inv, waves, ps
+
         if dimensionless:
             ps *= scales_inv[:,None]**2 / 2. / np.pi**2
 
@@ -271,6 +308,12 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         return self._tab_z
 
     def run(self):
+        """
+        Run everything we can.
+        """
+        pass
+
+    def run_ebl(self):
         pass
 
     def run_nirb_ps(self):

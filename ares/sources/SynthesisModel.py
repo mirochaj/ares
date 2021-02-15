@@ -110,14 +110,32 @@ class SynthesisModelBase(Source):
         # Units: erg / s
         return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
 
+    def _cache_spec(self, E):
+        if not hasattr(self, '_cache_spec_'):
+            self._cache_spec_ = {}
+
+        if E in self._cache_spec_:
+            return self._cache_spec_[E]
+
+        return None
+
     def Spectrum(self, E):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
+
+        cached_result = self._cache_spec(E)
+        if cached_result is not None:
+            return cached_result
+
         # reverse energies so they are in ascending order
         nrg = self.energies[-1::-1]
 
-        return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
+        spec = np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
+
+        self._cache_spec_[E] = spec
+
+        return spec
 
     def get_sed_at_t(self, t=None, i_tsf=None, raw=False):
         if i_tsf is None:

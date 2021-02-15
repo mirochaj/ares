@@ -1038,6 +1038,10 @@ class UniformBackground(object):
 
                 in_band = np.logical_and(E >= b[0], E <= b[1])
 
+                print(E)
+                print('band check', pop.id_num, band, in_band.sum(), pop.src.Emin, pop.src.Emax)
+                input('<enter>')
+
                 # Shouldn't be any filled elements yet
                 if np.any(epsilon[:,in_band==1] > 0):
                     raise ValueError("Non-zero elements already!")
@@ -1071,6 +1075,8 @@ class UniformBackground(object):
 
                 for ll, redshift in enumerate(z):
 
+                    print('hey', ll, redshift, b)
+
                     if (redshift < self.pf['final_redshift']):
                         continue
                     if (redshift < pop.zdead):
@@ -1088,7 +1094,7 @@ class UniformBackground(object):
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
 
-                    ehat = pop.Emissivity(redshift, Emin=b[0], Emax=b[1])
+                    #ehat = pop.Emissivity(redshift, Emin=b[0], Emax=b[1])
 
                     #if ll == 1:
                     #    print("Set emissivity for pop {} band #{}".format(pop.id_num, band))
