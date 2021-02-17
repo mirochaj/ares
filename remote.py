@@ -48,7 +48,7 @@ aux_data = \
     '790/figure1_plotdata.csv',
     '792/figure2_plotdata.csv',
     None],
- 'nircam': ['https://jwst-docs.stsci.edu/files/73022379/73022381/1/1486438006000',
+ 'nircam': ['https://jwst-docs.stsci.edu/files/97978094/97978135/1/1596073152953',
      'nircam_throughputs_22April2016_v4.tar.gz',
      None],
  'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',

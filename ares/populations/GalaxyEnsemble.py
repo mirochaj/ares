@@ -1288,7 +1288,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         if self.pf['pop_mergers'] > 0:
             children = halos['children'][:,-1::-1]
-            iz, iM = children.T
+            iz, iM, is_main = children.T
             uni = np.all(Mh.mask == False, axis=1)
             merged = np.logical_and(iz >= 0, uni == True)
 
@@ -1330,8 +1330,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Limit to main branch
         elif self.pf['pop_mergers'] == -1:
             children = halos['children'][:,-1::-1]
-            iz, iM = children.T
-            main_branch = iz < 0
+            iz, iM, is_main = children.T
+            main_branch = is_main == 1
 
             nh = nh[main_branch==1]
             Ms = Ms[main_branch==1]
