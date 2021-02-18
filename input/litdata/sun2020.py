@@ -108,12 +108,12 @@ bb['pop_nebular_lines{1}'] = True
 
 bb['pop_mass{1}'] = 100.      # This is redundant with pop_sfr
 bb['pop_lifetime{1}'] = 1e7   # This is redundant with pop_sfr
-bb['pop_fesc{1}'] = 0.1       
+bb['pop_fesc{1}'] = 0.1
 bb['pop_Emin{1}'] = 0.41
 bb['pop_Emax{1}'] = 2e2
 bb['pop_EminNorm{1}'] = 13.6
 bb['pop_EmaxNorm{1}'] = 24.6
-bb['pop_qdot{1}'] = 1e50      # not getting in there
+bb['pop_qdot{1}'] = 1e50      
 bb['pop_dlam{1}'] = 1
 bb['pop_lmin{1}'] = 10
 bb['pop_lmax{1}'] = 1e4

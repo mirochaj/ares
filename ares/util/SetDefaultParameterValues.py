@@ -1120,6 +1120,7 @@ def SynthesisParameters():
     "source_EminNorm": 1.,
     "source_EmaxNorm": 54.4,
 
+    "source_lifetime": 1e10,
     "source_qdot": 5e48,
     "source_temperature": 1e5,
 

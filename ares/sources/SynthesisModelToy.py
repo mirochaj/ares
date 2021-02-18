@@ -197,7 +197,6 @@ class SynthesisModelToy(SynthesisModelBase):
                     spec *= norms
                 elif self.pf['source_toysps_method'] == 'bb':
                     spec *= self._Star.Lbol0
-
                 else:
                     raise NotImplemented('help')
 
@@ -207,6 +206,7 @@ class SynthesisModelToy(SynthesisModelBase):
                 spec *= ev_per_hz / self.dwdn
 
                 if self.pf['source_ssp']:
+                    raise NotImplemented('Set source_ssp=False for now.')
                     spec /= mass
                 else:
                     spec /= (mass / self._Star.lifetime)
