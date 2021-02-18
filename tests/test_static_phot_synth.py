@@ -88,7 +88,7 @@ def test(tol=0.25):
         mag_from_flux = -2.5 * np.log10(f / flux_AB) - magcorr
 
         # Use built-in method to obtain 1600A magnitude.
-        mag_from_lum = pop.magsys.L_to_MAB(L[0], z=z)
+        mag_from_lum = pop.magsys.L_to_MAB(L[0])
 
         # Compute 1600A magnitude using different smoothing windows
         mag_from_spec_20 = pop.Magnitude(z, wave=1600., window=21, load=load)[0]
