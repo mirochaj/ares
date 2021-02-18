@@ -1888,7 +1888,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             # Take monochromatic (or within some window) MUV
             L = self.Luminosity(z, wave=wave, window=window)
-            M = self.magsys.L_to_MAB(L, z=z)
+            M = self.magsys.L_to_MAB(L)
 
             ##
             # Compute magnitude from photometry
@@ -2085,7 +2085,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # simulated halos
         w = raw['nh'][:,izobs] # used to be izobs+1, I belive in error.
 
-        _MAB = self.magsys.L_to_MAB(L, z=z)
+        _MAB = self.magsys.L_to_MAB(L)
 
         if self.pf['dustcorr_method'] is not None:
             MAB = self.dust.Mobs(z, _MAB)

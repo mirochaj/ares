@@ -119,7 +119,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         dndM = self.halos.tab_dndm[k, :][:-1]
 
         MagSys = MagnitudeSystem()
-        MUV = MagSys.L_to_MAB(L=Lum, z=z)
+        MUV = MagSys.L_to_MAB(L=Lum)
 
         diff = []
         for i in range(len(MUV)-1):

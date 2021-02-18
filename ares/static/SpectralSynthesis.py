@@ -723,7 +723,7 @@ class SpectralSynthesis(object):
             zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist,
             extras=extras, window=window)
 
-        MAB = self.magsys.L_to_MAB(L, z=zobs)
+        MAB = self.magsys.L_to_MAB(L)
 
         return MAB
 

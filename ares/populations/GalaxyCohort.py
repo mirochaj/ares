@@ -1151,7 +1151,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Lh, phi_of_L = self.phi_of_L(z, wave=wave)
 
-        _MAB = self.magsys.L_to_MAB(Lh, z=z)
+        _MAB = self.magsys.L_to_MAB(Lh)
 
         if self.pf['dustcorr_method'] is not None:
             MAB = self.dust.Mobs(z, _MAB)
@@ -1168,7 +1168,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     def MUV(self, z, Mh, wave=1600.):
         Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z, wave=wave))
-        MAB = self.magsys.L_to_MAB(Lh, z=z)
+        MAB = self.magsys.L_to_MAB(Lh)
         return MAB
 
     def get_MUV_lim(self, z):
