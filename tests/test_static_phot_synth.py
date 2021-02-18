@@ -106,8 +106,10 @@ def test(tol=0.25):
             filters=filt_hst[zstr],
             method='interp', load=load, wave=1600.)[0]
 
-        # These should be identical
-        assert mag_from_spec == mag_from_flux == mag_from_lum, \
+        # These should be identical to machine precision
+        assert abs(mag_from_spec-mag_from_flux) < 1e-8, \
+            "These should all be identical! z={}".format(z)
+        assert abs(mag_from_spec-mag_from_lum)  < 1e-8, \
             "These should all be identical! z={}".format(z)
 
         results = [mag_from_spec, mag_from_flux, mag_from_lum,
