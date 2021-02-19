@@ -207,7 +207,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 self.reboot(include_pops=self._not_lwb_sources)
                 self.run(include_pops=self._not_lwb_sources)
 
-            self._run_complete = True    
+            self._run_complete = True
 
         else:
             if self.pf['verbose']:
@@ -284,9 +284,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
 
-        if zf is not None:
-            raise NotImplemented('need to fix this now that today_only option in place')
-
         ct = 0
         _zf = [] # for debugging
         # Loop over pops: assumes energy ranges are non-overlapping!
@@ -298,13 +295,15 @@ class MetaGalacticBackground(AnalyzeMGB):
             if not self.solver.solve_rte[popid]:
                 continue
 
-            # Much faster to only read in first redshift element in this case.
+            # Much faster to only read in first redshift element in this
+            # case.
             z, E, flux = self.get_history(popid=popid, flatten=True,
                 today_only=False)
 
             if zf is None:
                 k = 0
-                _zf.append(z[k])
+                #_zf.append(z[k])
+                _zf.append(pop.zdead)
             else:
                 k = np.argmin(np.abs(zf - z))
 
@@ -1264,14 +1263,14 @@ class MetaGalacticBackground(AnalyzeMGB):
             ID number for population of interest.
         flatten : bool
             For sawtooth calculations, the energies are broken apart into
-            different bands which have different sizes. Set this to true if
-            you just want a single array, rather than having the energies
-            and fluxes broken apart by their band.
+            different bands which have different sizes. Set this to true
+            if you just want a single array, rather than having the
+            energies and fluxes broken apart by their band.
 
         Returns
         -------
-        Tuple containing the redshifts, energies, and fluxes for the given
-        population, in that order.
+        Tuple containing the redshifts, energies, and fluxes for the
+        given population, in that order.
 
         if flatten == True:
             The energy array is 1-D.
@@ -1329,8 +1328,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             E_tr = self.solver.energies[popid]
             f_tr = hist[-1::-1][:]
 
-        # We've flipped the flux array too since they are internally kept in
-        # order of descending redshift.
+        # We've flipped the flux array too since they are internally
+        # kept in order of descending redshift.
         return z_tr, E_tr, f_tr
 
     def save(self, prefix, suffix='pkl', clobber=False):

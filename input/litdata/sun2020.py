@@ -2,7 +2,7 @@ from mirocha2017 import base as _base
 from mirocha2018 import low as _low, med as _med, high as _high, bb as _bb
 from mirocha2020 import _halo_updates
 from ares.util import ParameterBundle as PB
-from ares.physics.Constants import E_LyA, E_LL
+from ares.physics.Constants import E_LyA, E_LL, lam_LyA
 
 _base = PB(**_base).pars_by_pop(0, 1)
 #base.update(_halo_updates)
@@ -11,7 +11,7 @@ _nirb_updates = {}
 _nirb_updates['pop_Emin'] = 0.41 # as low as BPASS goes
 _nirb_updates['pop_Emax'] = E_LL
 _nirb_updates['pop_zdead'] = 5
-_nirb_updates['final_redshift'] = 0
+_nirb_updates['final_redshift'] = 5
 _nirb_updates['pop_solve_rte'] = (0.41, E_LL)
 _nirb_updates['pop_fesc'] = 0.1
 _nirb_updates['tau_redshift_bins'] = 1000 # probably overkill
@@ -113,8 +113,8 @@ bb['pop_Emin{1}'] = 0.41
 bb['pop_Emax{1}'] = 2e2
 bb['pop_EminNorm{1}'] = 13.6
 bb['pop_EmaxNorm{1}'] = 24.6
-bb['pop_qdot{1}'] = 1e50      
-bb['pop_dlam{1}'] = 1
-bb['pop_lmin{1}'] = 10
+bb['pop_qdot{1}'] = 1e50
+bb['pop_dlam{1}'] = 1.
+bb['pop_lmin{1}'] = 400.
 bb['pop_lmax{1}'] = 1e4
 bb['pop_solve_rte{1}'] = (0.4, E_LL)

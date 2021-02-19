@@ -86,7 +86,8 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
         return None
 
-    def get_ebl(self, waves=None, wave_units='mic', flux_units='SI', pops=None):
+    def get_ebl(self, waves=None, wave_units='mic', flux_units='SI',
+        pops=None):
         """
         Return the extragalactic background light (EBL) over all wavelengths.
 
@@ -111,7 +112,8 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
         """
 
-        cached_result = self._cache_ebl(waves, wave_units, flux_units, pops)
+        cached_result = self._cache_ebl(waves, wave_units, flux_units,
+            pops)
         if cached_result is not None:
             return cached_result
 
@@ -130,6 +132,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                 if i not in pops:
                     continue
 
+            zf = self.pops[i].zdead
             E, flux = self.mean_intensity.flux_today(zf=None, popids=i,
                 units=flux_units)
 

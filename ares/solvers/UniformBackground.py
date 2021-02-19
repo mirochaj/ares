@@ -1038,10 +1038,6 @@ class UniformBackground(object):
 
                 in_band = np.logical_and(E >= b[0], E <= b[1])
 
-                print(E)
-                print('band check', pop.id_num, band, in_band.sum(), pop.src.Emin, pop.src.Emax)
-                input('<enter>')
-
                 # Shouldn't be any filled elements yet
                 if np.any(epsilon[:,in_band==1] > 0):
                     raise ValueError("Non-zero elements already!")
@@ -1074,8 +1070,6 @@ class UniformBackground(object):
                 # hence the 'fix'.
 
                 for ll, redshift in enumerate(z):
-
-                    print('hey', ll, redshift, b)
 
                     if (redshift < self.pf['final_redshift']):
                         continue
