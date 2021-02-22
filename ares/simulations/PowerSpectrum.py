@@ -38,7 +38,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
     @property
     def gs(self):
         if not hasattr(self, '_gs'):
-            self._gs = Global21cm(**self.pf)
+            self._gs = Global21cm(**self.kwargs)
         return self._gs
 
     @gs.setter
