@@ -2385,7 +2385,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if ok.sum() == 0:
                 print("# WARNING: all Magnitudes flagged.")
                 print("# (z={} outside available HMF range?)".format(z))
-                bad = -99999*np.ones_like(ok.size)
+                bad = -99999 * np.ones(ok.size)
                 if return_scatter:
                     return bad, bad
                 if return_err:
