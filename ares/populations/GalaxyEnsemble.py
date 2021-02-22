@@ -2366,8 +2366,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 assert magmethod == 'mono', \
                     "Known issues with magmethod!='mono' and Calzetti approach."
 
-            _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
-                method=magmethod, presets=presets)
+            _MAB = self.Magnitude(z, wave=Mwave, cam=cam,
+                filters=filters, method=magmethod, presets=presets)
 
             if np.all(np.diff(np.diff(nh)) == 0):
                 Mh = self.get_field(z, 'Mh')
@@ -2381,7 +2381,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             ok = np.logical_and(ok, np.isfinite(beta_r))
 
             MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
-                Mbins, weights=nh)
+                Mbins, weights=nh[ok==1])
 
         else:
             beta = beta_r

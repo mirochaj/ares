@@ -893,6 +893,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._is_uvlf_parametric
 
     def UVLF_M(self, MUV, z=None, wave=1600.):
+        
         if self.is_uvlf_parametric:
             return self.uvlf(MUV=MUV, z=z)
 
@@ -1589,11 +1590,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         for j, _mag_ in enumerate(mags_obs):
 
             # Number of galaxies with MUV <= _mag_
-            int_phiM = quad(lambda xx: uvlf(MUV=xx, z=z_ham), -np.inf, _mag_)[0]
+            int_phiM = quad(lambda xx: uvlf(MUV=xx, z=z_ham), -np.inf,
+                _mag_)[0]
 
             # Number density of halos at masses > M
-            ngtM_spl = interp1d(np.log10(self.halos.tab_M), np.log10(ngtm),
-                kind='linear', bounds_error=False)
+            ngtM_spl = interp1d(np.log10(self.halos.tab_M),
+                np.log10(ngtm), kind='linear', bounds_error=False)
 
             def to_min(logMh):
                 int_nMh = 10**(ngtM_spl(logMh))[0]
@@ -2062,7 +2064,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     if Mh.ndim == 1:
                         fstar[iz,:] = self._abundance_match(z=_z_, Mh=Mh)
                     else:
-                        fstar[:,iz] = self._abundance_match(z=_z_, Mh=Mh[:,iz])
+                        fstar[:,iz] = self._abundance_match(z=_z_,
+                            Mh=Mh[:,iz])
 
                     pb.update(iz)
 
@@ -2070,7 +2073,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 return fstar
             else:
-                return self._abundance_match(z=kwargs['z'], Mh=kwargs['Mh'])
+                return self._abundance_match(z=kwargs['z'],
+                    Mh=kwargs['Mh'])
         else:
             return self.fstar(**kwargs)
 
