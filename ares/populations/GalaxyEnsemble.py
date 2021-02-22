@@ -2380,6 +2380,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Hack for the time being
             ok = np.logical_and(ok, np.isfinite(beta_r))
 
+            # Generally happens if our HMF tables don't extend to
+            # this redshift.
+            if ok.sum() == 0:
+                print("# WARNING: all Magnitudes flagged.")
+                print("# (z={} outside available HMF range?)".format(z))
+                bad = -99999*np.ones_like(ok.size)
+                if return_scatter:
+                    return bad, bad
+                if return_err:
+                    return bad, bad
+                else:
+                    return bad
+
             MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
                 Mbins, weights=nh[ok==1])
 
