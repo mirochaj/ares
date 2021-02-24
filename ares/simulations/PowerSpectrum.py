@@ -21,19 +21,16 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
     def __init__(self, pf=None, **kwargs):
         """ Set up a power spectrum calculation. """
 
+        # See if this is a tanh model calculation
+        #if 'problem_type' not in kwargs:
+        #    kwargs['problem_type'] = 102
+
         self.kwargs = kwargs
 
         if pf is None:
             self.pf = ParameterFile(**self.kwargs)
         else:
             self.pf = pf
-
-        # See if this is a tanh model calculation
-        #is_phenom = self._check_if_phenom(**kwargs)
-
-        #kwargs.update(defaults)
-        #if 'problem_type' not in kwargs:
-        #    kwargs['problem_type'] = 101
 
     @property
     def gs(self):
@@ -232,7 +229,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
         # Prep scales
         if scale_units.lower() in ['l', 'ell']:
-            scale_inv = scales * (scales + 1)
+            scales_inv = np.sqrt(scales * (scales + 1))
         else:
             if scale_units.lower().startswith('deg'):
                 scale_rad = scales * (np.pi / 180.)
@@ -243,7 +240,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
             else:
                 raise NotImplemented('help')
 
-            scales_inv = 2 * np.pi / scale_rad
+            scales_inv = np.pi / scale_rad
 
         if wave_units.lower().startswith('mic'):
             pass
@@ -262,13 +259,13 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                     continue
 
             for j, wave in enumerate(waves):
-                ps[i,:,j] += pop.get_ps_obs(scales, wave_obs=wave,
+                ps[i,:,j] = pop.get_ps_obs(scales, wave_obs=wave,
                     scale_units=scale_units, **kwargs)
 
 
         # Modify PS units before return
         if flux_units.lower() == 'si':
-            ps *= cm_per_m**4
+            ps *= cm_per_m**4 / erg_per_s_per_nW**2
 
         if pops is None:
             hist = self.history # poke
