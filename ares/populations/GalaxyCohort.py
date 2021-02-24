@@ -893,7 +893,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._is_uvlf_parametric
 
     def UVLF_M(self, MUV, z=None, wave=1600.):
-        
+
         if self.is_uvlf_parametric:
             return self.uvlf(MUV=MUV, z=z)
 
@@ -977,7 +977,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return None
 
-    def Luminosity(self, z, wave=1600):
+    def Luminosity(self, z, wave=1600, band=None, window=1,
+        energy_units=True, use_cache=True):
         """
         This is the rest-frame UV band in which the LF is measured.
 
@@ -985,10 +986,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        cached_result = self._cache_L(z, wave)
+        assert band is None, "This is a placeholder!"
 
-        if cached_result is not None:
-            return cached_result
+        if use_cache:
+            cached_result = self._cache_L(z, wave)
+
+            if cached_result is not None:
+                return cached_result
 
         if self.pf['pop_star_formation']:
 
@@ -1005,7 +1009,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             else:
                 if self.pf['pop_lum_per_sfr'] is None:
-                    L_sfr = self.src.L_per_sfr(wave=wave)
+                    L_sfr = self.src.L_per_sfr(wave=wave, avg=window)
                 else:
                     assert self.pf['pop_calib_lum'] is None, \
                         "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
@@ -1013,7 +1017,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 Lh = sfr * L_sfr
 
-                self._cache_L_[(z, wave)] = Lh
+                if use_cache:
+                    self._cache_L_[(z, wave)] = Lh
 
                 return Lh
 
@@ -1579,7 +1584,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ngtm = self.halos.tab_ngtm[iz]
 
         # Use dust-corrected magnitudes here
-        LUV_dc = np.array([self.magsys.MAB_to_L(mag, z=z_ham) for mag in mags])
+        LUV_dc = np.array([self.magsys.MAB_to_L(mag) for mag in mags])
 
         assert self.pf['pop_lum_per_sfr'] is not None
         L_per_sfr = self.pf['pop_lum_per_sfr']
