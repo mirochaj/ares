@@ -43,10 +43,10 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'mclure2013', 'parsa2016', 'atek2015',  'alavi2016',
     'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018', 'oesch2013',
     'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020')
-datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014', 
+datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014',
 	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
-datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010', 
+datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010',
 	'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
 
 groups_lf = \
@@ -63,7 +63,7 @@ groups_ssfr = {'all': datasets_ssfr}
 
 groups_smf = {'all': datasets_smf}
 
-groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf, 
+groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf,
     'smf_tot': groups_smf, 'smf_q': groups_smf,
     'mzr': {'all': datasets_mzr}, 'ssfr': groups_ssfr}
 
@@ -88,7 +88,7 @@ for i, dataset in enumerate(datasets_mzr):
 for i, dataset in enumerate(datasets_ssfr):
     default_colors[dataset] = colors_cyc[i]
     default_markers[dataset] = markers[i]
-    
+
 default_markers['stefanon2017'] = 's'
 
 _ulim_tick = 0.5
@@ -261,22 +261,22 @@ class GalaxyPopulation(object):
             AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', 
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf',
             force_labels=force_labels, **kwargs)
-        
-    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
+
+    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False,
             AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity,
             force_labels=force_labels, log10Mass=log10Mass, **kwargs)
 
-    def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False, 
+    def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False,
             AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs):
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
-            force_labels=force_labels, **kwargs)             
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity,
+            force_labels=force_labels, **kwargs)
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True,
@@ -651,7 +651,7 @@ class GalaxyPopulation(object):
 
                 # Mask
                 ok = np.logical_and(np.isfinite(beta), beta > -99999)
-                if not fill:
+                if not fill and ok.sum() > 0:
                     ax_cmd[kcmd].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
 
                 if show_Mstell:
@@ -1335,12 +1335,12 @@ class GalaxyPopulation(object):
             if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25
                 print("# Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
-            else:    
-                shift = 0.    
-            
+            else:
+                shift = 0.
+
             if log10Mass:
                 ax.errorbar(np.log10(M+shift-dc), phi, yerr=err, uplims=ulim, zorder=10, **mkw)
-            else:                            
+            else:
                 ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **mkw)
 
         if quantity == 'lf':
@@ -1356,7 +1356,7 @@ class GalaxyPopulation(object):
             if log10Mass:
                 ax.set_xlim(7, 13)
                 if (not gotax) or force_labels:
-                    ax.set_xlabel(r'log$_{10}(M_{\ast} / M_{\odot})$')   
+                    ax.set_xlabel(r'log$_{10}(M_{\ast} / M_{\odot})$')
 
             else:
                 try:
@@ -1365,7 +1365,7 @@ class GalaxyPopulation(object):
                     pass
                 ax.set_xlim(1e7, 1e13)
                 if (not gotax) or force_labels:
-                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
 
             try:
                 ax.set_yscale('log')
@@ -1390,7 +1390,7 @@ class GalaxyPopulation(object):
         	except ValueError:
         	    pass
         	if (not gotax) or force_labels:
-        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         	    ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
 
 
@@ -1779,7 +1779,8 @@ class GalaxyPopulation(object):
                 else:
                     _beta = np.zeros_like(Mbins)
 
-                ax_bet.plot(Mbins, _beta, color=colors[j])
+                if np.any(_beta != -99999):
+                    ax_bet.plot(Mbins, _beta, color=colors[j])
 
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
