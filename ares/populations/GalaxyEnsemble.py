@@ -2843,6 +2843,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']
             # Assume you know what you're doing.
+        elif type(self.pf['pop_histories']) is tuple:
+            func, kw = self.pf['pop_histories']
+            hist = func(**kw)
         else:
             hist = None
 
