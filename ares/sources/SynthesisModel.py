@@ -18,8 +18,8 @@ from scipy.optimize import minimize
 from ..util.ReadData import read_lit
 from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
-from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H, ev_per_hz
+from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, \
+    s_per_yr, s_per_myr, m_H, ev_per_hz
 
 class SynthesisMaster(Source):
     def AveragePhotonEnergy(self, Emin, Emax):
