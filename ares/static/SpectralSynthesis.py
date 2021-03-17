@@ -467,7 +467,7 @@ class SpectralSynthesis(object):
 
         # Get transmission curves
         if cam in self.cameras.keys():
-            filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set,
+            filter_data = self.cameras[cam].read_throughputs(filter_set=filter_set,
                 filters=filters)
         else:
             # Can supply spectral windows, e.g., Calzetti+ 1994, in which case

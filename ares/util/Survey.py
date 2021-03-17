@@ -107,7 +107,7 @@ class Survey(object):
         else:
             gotax = True
 
-        data = self._read_throughputs(filter_set, filters)
+        data = self.read_throughputs(filter_set, filters)
 
         colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
         for i, filt in enumerate(data.keys()):
@@ -130,8 +130,20 @@ class Survey(object):
 
         return ax
 
-    def _read_throughputs(self, filter_set='W', filters=None):
+    def read_throughputs(self, filter_set='W', filters=None):
+        """
+        Assembles a dictionary of throughput curves.
 
+        Each element of the dictionary is a tuple containing:
+            (wavelength, throughput, midpoint of filter,
+                width of filter (FWHM), transmission averaged over filter)
+
+        Example
+        -------
+        >>> wave, T, mid, wid, Tavg
+
+
+        """
         if ((self.camera, None, 'all') in self.cache) and (filters is not None):
             cached_phot = self.cache[(self.camera, None, 'all')]
 
