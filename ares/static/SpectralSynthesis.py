@@ -1369,9 +1369,10 @@ class SpectralSynthesis(object):
             if 'children' in hist:
                 if (hist['children'] is not None) and do_mergers:
 
-                    child_iz, child_iM = children.T
 
-                    is_central = child_iM == -1
+                    child_iz, child_iM, is_main = hist['children'].T
+
+                    is_central = is_main
 
                     if np.all(is_central == 1):
                         pass
@@ -1379,11 +1380,13 @@ class SpectralSynthesis(object):
 
                         print("Looping over {} halos...".format(sfh.shape[0]))
 
-                        pb = ProgressBar(sfh.shape[0], use=self.pf['progress_bar'])
+                        pb = ProgressBar(sfh.shape[0],
+                            use=self.pf['progress_bar'],
+                            name='L += L_progenitors')
                         pb.start()
 
                         # Loop over all 'branches'
-                        for i in range(SFR.shape[0]):
+                        for i in range(sfh.shape[0]):
 
                             # This means the i'th halo is alive and well at the
                             # final redshift, i.e., it's a central

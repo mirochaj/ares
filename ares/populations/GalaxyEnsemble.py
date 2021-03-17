@@ -225,7 +225,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return None
 
         if thin in [0, 1]:
-            return arr.copy()
+            return arr
 
         assert thin % 1 == 0
 
@@ -439,8 +439,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             dtype = np.float64
 
-        t = np.array([self.cosm.t_of_z(zall[_i]) for _i in range(zall.size)]) \
-            / s_per_myr
+        t = np.array([self.cosm.t_of_z(zall[_i]) \
+            for _i in range(zall.size)]) / s_per_myr
 
         histories['t'] = t.astype(dtype)
 
@@ -1033,6 +1033,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:
+            iz = np.argmin(np.abs(6. - z))
             SFR = self.guide.SFE(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
@@ -1228,7 +1229,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     Md[:,k+1] = Md[:,k] + (Md_p + Md_g) * dt[k]
 
             # Dust surface density.
-            Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+            Rd = self.guide.dust_scale(z=z2d, Mh=Mh)
+            Sd = np.divide(Md, np.power(Rd, 2.)) \
+                / 4. / np.pi
+            #Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+
+            iz = np.argmin(np.abs(6. - z))
+            #print("Set Sd", Rd[:,iz].mask.sum(), Sd[:,iz].mask.sum())
 
             # Can add scatter to surface density
             if self.pf['pop_dust_scatter'] is not None:
@@ -1351,6 +1358,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 pos = None
         else:
+            children = None
+
             if 'pos' in halos:
                 pos = halos['pos'][:,-1::-1,:]
             else:
@@ -1366,7 +1375,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'MAR': MAR,  # May use this
          't': t,
          'z': z,
-         #'child': child,
+         'children': children,
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
          'SFR': SFR,
