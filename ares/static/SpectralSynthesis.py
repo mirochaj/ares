@@ -919,7 +919,8 @@ class SpectralSynthesis(object):
         else:
             return kwds, None
 
-    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
+    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None,
+        window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
         load=True, use_cache=True, energy_units=True):
         """
@@ -1294,6 +1295,7 @@ class SpectralSynthesis(object):
             if not do_all_time:
                 break
 
+
         ##
         # Redden spectra
         ##
@@ -1388,34 +1390,29 @@ class SpectralSynthesis(object):
                         # Loop over all 'branches'
                         for i in range(sfh.shape[0]):
 
-                            # This means the i'th halo is alive and well at the
-                            # final redshift, i.e., it's a central
+                            # This means the i'th halo is alive and well at
+                            # the final redshift, i.e., it's a central
                             if is_central[i]:
                                 continue
 
                             pb.update(i)
 
-                            # At this point, need to figure out which child halos
-                            # to dump mass and SFH into...
+                            # At this point, need to figure out which child
+                            # halos to dump mass and SFH into...
 
-                            # Be careful with redshift array.
-                            # We're now working in ascending time, reverse redshift,
-                            # so we need to correct the child iz values. We've also
-                            # chopped off elements at z < zobs.
-                            #iz = Nz0 - child_iz[i]
+                            # Lout is just 1-D at this point, i.e., just
+                            # luminosity *now*.
 
-                            # This `iz` should not be negative despite us having
-                            # chopped up the redshift array since getting to this
-                            # point in the loop is predicated on being a parent of
-                            # another halo, i.e., not surviving beyond this redshift.
+                            # Add luminosity to child halo. Zero out
+                            # luminosity of parent to avoid double
+                            # counting. Note that nh will
+                            # also have been zeroed out but it's good to
+                            # zero-out both.
+                            # NOTE: should use dust reddening of
+                            # descendant, hence use of Lhist again
+                            T = np.exp(-tau[child_iM[i],izobs])
 
-                            # Lout is just 1-D at this point, i.e., just luminosity
-                            # *now*.
-
-                            # Add luminosity to child halo. Zero out luminosity of
-                            # parent to avoid double counting. Note that nh will
-                            # also have been zeroed out but we're just being careful.
-                            Lout[child_iM[i]] += 1 * Lout[i]
+                            Lout[child_iM[i]] += Lhist[i] * T
                             Lout[i] = 0.0
 
                         pb.finish()

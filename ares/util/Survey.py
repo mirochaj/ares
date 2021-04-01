@@ -140,7 +140,8 @@ class Survey(object):
 
         Example
         -------
-        >>> wave, T, mid, wid, Tavg
+        
+        >>> wave, T, mid, wid, Tavg = self.read_throughputs()
 
 
         """

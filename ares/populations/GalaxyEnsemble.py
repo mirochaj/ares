@@ -1232,10 +1232,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Rd = self.guide.dust_scale(z=z2d, Mh=Mh)
             Sd = np.divide(Md, np.power(Rd, 2.)) \
                 / 4. / np.pi
-            #Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
 
             iz = np.argmin(np.abs(6. - z))
-            #print("Set Sd", Rd[:,iz].mask.sum(), Sd[:,iz].mask.sum())
 
             # Can add scatter to surface density
             if self.pf['pop_dust_scatter'] is not None:
