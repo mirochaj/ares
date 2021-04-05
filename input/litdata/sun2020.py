@@ -115,6 +115,6 @@ bb['pop_EminNorm{1}'] = 13.6
 bb['pop_EmaxNorm{1}'] = 24.6
 bb['pop_qdot{1}'] = 1e50
 bb['pop_dlam{1}'] = 1.
-bb['pop_lmin{1}'] = 400.
+bb['pop_lmin{1}'] = 100.
 bb['pop_lmax{1}'] = 1e4
 bb['pop_solve_rte{1}'] = (0.4, E_LL)
