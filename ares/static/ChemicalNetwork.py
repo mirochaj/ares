@@ -278,7 +278,7 @@ class ChemicalNetwork(object):
                     - self.cosm.cooling_rate(z, x['Tk']) / self.cosm.dtdz(z)
             else:    
                 dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton \
-                    - hubcool - q[-1] * n_H * dqdt['e'] / ntot
+                    - hubcool - x['Tk'] * n_H * dqdt['e'] / ntot
     
         else:
             dqdt['Tk'] = 0.0
@@ -615,9 +615,9 @@ class ChemicalNetwork(object):
                 ucmb = self.cosm.UCMB(z)
                 tcomp = 3. * m_e * c / (8. * sigma_T * ucmb)
 
-                J[-1,-1] -= q[-1] * xe \
+                J[-1,-1] -= x['Tk'] * xe \
                     / tcomp / (1. + self.y + xe)
-                J[-1,e] -= (Tcmb - q[-1]) * (1. + self.y) \
+                J[-1,e] -= (Tcmb - x['Tk']) * (1. + self.y) \
                     / (1. + self.y + xe)**2 / tcomp
 
 
