@@ -1299,6 +1299,7 @@ class SpectralSynthesis(object):
         ##
         # Redden spectra
         ##
+        tau = np.zeros_like(Mh)
         if 'Sd' in hist:
 
             # Redden away!
@@ -1370,7 +1371,10 @@ class SpectralSynthesis(object):
 
             do_mergers = do_mergers and 'children' in hist
 
-            if (hist['children'] is not None) and do_mergers:
+            if do_mergers:
+                do_mergers = do_mergers and hist['children'] is not None
+
+            if do_mergers:
                 flags = hist['flags']
                 child_iz, child_iM, is_main = hist['children'].T
                 is_central = is_main
