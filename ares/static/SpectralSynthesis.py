@@ -1299,7 +1299,7 @@ class SpectralSynthesis(object):
         ##
         # Redden spectra
         ##
-        tau = np.zeros_like(Mh)
+        tau = np.zeros_like(sfh)
         if 'Sd' in hist:
 
             # Redden away!
@@ -1437,9 +1437,9 @@ class SpectralSynthesis(object):
 
                     pb.finish()
 
-            elif (hist['children'] is not None):
-                # Not treating mergers. Just filter out all non-centrals?
-                pass
+            #elif (hist['children'] is not None):
+            #    # Not treating mergers. Just filter out all non-centrals?
+            #    pass
 
         ##
         # Will be unhashable types so just save to a unique identifier
