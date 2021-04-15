@@ -466,6 +466,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'pos' in raw:
             histories['pos'] = raw['pos']
 
+        if 'flags' in raw:
+            histories['flags'] = raw['flags']
+
         self.tab_z = zall
         #self._cache_halos = histories
 
@@ -1292,7 +1295,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # NOTE: no transferrance of gas, metals, or stars, as of yet.
         ##
         if self.pf['pop_mergers'] > 0:
-            children = halos['children'][:,-1::-1]
+            children = halos['children']
             iz, iM, is_main = children.T
             uni = np.all(Mh.mask == False, axis=1)
             merged = np.logical_and(iz >= 0, uni == True)
@@ -1311,7 +1314,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 #pos[i,0:iz[i],:] = pos[iM[i],iz[i],:]
 
                 # Add SFR so luminosities include that of parent halos
-                SFR[iM[i],:] += SFR[i,:]
+                #SFR[iM[i],:] += SFR[i,:]
                 # Looks like a potential double-counting issue but SFR
                 # will have been set to zero post-merger.
 
@@ -1390,6 +1393,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
         }
+
+        if 'flags' in halos.keys():
+            results['flags'] = halos['flags'][:,-1::-1]
 
         if self.pf['pop_dust_yield'] is not None:
             results['rand'] = halos['rand'][:,-1::-1]
