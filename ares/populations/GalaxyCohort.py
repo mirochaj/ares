@@ -2756,7 +2756,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def histories(self):
         if not hasattr(self, '_histories'):
-            self._histories = self.Trajectories()[1]
+            if self.pf['pop_histories'] is not None:
+                if type(self.pf['pop_histories']) == tuple:
+                    func, kw = self.pf['pop_histories']
+                    self._histories = func(**kw)
+                elif type(self.pf['pop_histories']) == dict:
+                    self._histories = self.pf['pop_histories']
+                else:
+                    raise NotImplemented('help!')
+            else:
+                self._histories = self.Trajectories()[1]
         return self._histories
 
     def Trajectories(self, M0=0):
@@ -2828,7 +2837,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # SAM is run from zform to final_redshift, so only a subset
             # of elements in the 2-D table are filled.
             for key in keys:
-                #print(key, z, M0, _zarr)
+                print(key, z, M0, _zarr)
                 dat = _results[key].copy()
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat.squeeze()
