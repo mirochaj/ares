@@ -137,7 +137,8 @@ class SynthesisModelBase(Source):
 
         return spec
 
-    def get_sed_at_t(self, t=None, i_tsf=None, raw=False):
+    def get_sed_at_t(self, t=None, i_tsf=None, raw=False,
+        lines_only=False):
         if i_tsf is None:
             i_tsf = np.argmin(np.abs(t - self.times))
 
@@ -146,6 +147,9 @@ class SynthesisModelBase(Source):
             data = self._data_raw
         else:
             data = self.data
+
+            if lines_only:
+                data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
         if self.pf['source_rad_yield'] == 'from_sed':
@@ -158,13 +162,15 @@ class SynthesisModelBase(Source):
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
-            self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf, raw=False)
+            self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf,
+                raw=False)
         return self._sed_at_tsf
 
     @property
     def sed_at_tsf_raw(self):
         if not hasattr(self, '_sed_at_tsf_raw'):
-            self._sed_at_tsf_raw = self.get_sed_at_t(i_tsf=self.i_tsf, raw=True)
+            self._sed_at_tsf_raw = self.get_sed_at_t(i_tsf=self.i_tsf,
+                raw=True)
         return self._sed_at_tsf_raw
 
     @property
@@ -273,7 +279,8 @@ class SynthesisModelBase(Source):
         if not hasattr(self, '_E_per_M'):
             self._E_per_M = np.zeros_like(self.data)
             for i in range(self.times.size):
-                self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)
+                self._E_per_M[:,i] = self.data[:,i] \
+                    / (self.energies * erg_per_ev)
 
         return self._E_per_M
 
@@ -302,21 +309,22 @@ class SynthesisModelBase(Source):
     def LUV_of_t(self):
         return self.L_per_sfr_of_t()
 
-    def _cache_L(self, wave, avg, Z, raw):
+    def _cache_L(self, wave, avg, Z, raw, lines_only):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (wave, avg, Z, raw) in self._cache_L_:
-            return self._cache_L_[(wave, avg, Z, raw)]
+        if (wave, avg, Z, raw, lines_only) in self._cache_L_:
+            return self._cache_L_[(wave, avg, Z, raw, lines_only)]
 
         return None
 
-    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz', raw=True):
+    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz',
+        raw=True, lines_only=False):
         """
         UV luminosity per unit SFR.
         """
 
-        cached_result = self._cache_L(wave, avg, Z, raw)
+        cached_result = self._cache_L(wave, avg, Z, raw, lines_only)
 
         if cached_result is not None:
             return cached_result
@@ -327,7 +335,7 @@ class SynthesisModelBase(Source):
             E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev
 
             yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
-                energy_units=True, raw=raw)
+                energy_units=True, raw=raw, lines_only=lines_only)
 
         else:
             j = np.argmin(np.abs(wave - self.wavelengths))
@@ -343,6 +351,8 @@ class SynthesisModelBase(Source):
                     data = self._data_raw[j,:]
                 else:
                     data = self.data[j,:]
+                    if lines_only:
+                        data -= self._data_raw[j,:]
 
             if avg == 1:
                 if units == 'Hz':
@@ -371,7 +381,7 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        self._cache_L_[(wave, avg, Z, units, raw)] = yield_UV
+        self._cache_L_[(wave, avg, Z, units, raw, lines_only)] = yield_UV
 
         return yield_UV
 
@@ -510,7 +520,7 @@ class SynthesisModelBase(Source):
         return np.interp(t, self.times, L)
 
     def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False,
-        raw=True):
+        raw=True, lines_only=False):
         """
         Compute photons emitted integrated in some band for all times.
 
@@ -539,6 +549,9 @@ class SynthesisModelBase(Source):
             data = self._data_raw
         else:
             data = self.data
+
+            if lines_only:
+                data -= self._data_raw
 
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
