@@ -1,0 +1,38 @@
+Stellar models calculated with Cambridge STARS code and colours calculated by BPASS
+
+See Eldridge & Stanway, 2009, MNRAS, 400, 1019 for details
+
+Each file is for a different mass and metallicity of star for
+filename, "newspec.zXXX.YYY" the metallicity is Z=0.XXX and the
+initial mass of the star is YYY M(Sun).
+
+Contact: jje@ast.cam.ac.uk for more details.
+
+Columns in files are:
+
+1) Model Timestep
+2) Model age in years
+3) log(R/R(Sun)
+4) log(T/K)
+5) log(L/L(sun))
+6) M(Star)/M(Sun)
+7) M(Helium Core)/M(Sun)
+8) M(CO core)/M(Sun)
+9) M(ONeMg core)/M(Sun)
+10) M(OMg core)/M(Sun)  - **Currently not used**
+11) Surface hyrdrogen abundance
+12) Surface helium abundance
+13) Surface Carbon abundance
+14) Surface nitrogen abundance
+15) Surface oxygen abundance
+16) Surface neon abundance
+19) M(U)
+20) M(B)
+21) M(V)
+22) M(R)
+23) M(I)
+24) M(J)
+25) M(H)
+26) M(K)
+
+Last updated: 22/7/2010

@@ -1,0 +1,138 @@
+Read me file for the data files
+Sept 1998
+
+Each individual name here refers to a set of 5 files.  One for each metallicity.
+For example 228_cont_*.dat will refer to 228_cont_a, 228_cont_b.dat, and so on
+up to 228_cont_e.dat.  The metallicities are as follows:
+
+Metallicity	Name
+Z = 0.040	*_*.dat
+Z = 0.020	*_b.dat
+Z = 0.008	*_c.dat
+Z = 0.004	*_d.dat
+Z = 0.001	*_e.dat
+
+For figures 13 to 36, a fixed metallicity is used, thus there is a single file
+for each figure.
+
+Figure 	File name
+   1	fig1*.dat
+   2	fig2*.dat
+   3	fig3*.dat
+   4	fig4*.dat
+   5	fig5*.dat
+   6	fig6*.dat
+   7	fig7*.dat
+   8	fig8*.dat
+   9	fig9*.dat
+  10	fig10*.dat
+  11	fig11*.dat
+  12	fig12*.dat
+  13	fig13.dat
+  14	fig14.dat
+  15	fig15.dat
+  16	fig16.dat
+  17	fig17.dat
+  18	fig18.dat
+  19	fig19.dat
+  20	fig20.dat
+  21	fig21.dat
+  22	fig22.dat
+  23	fig23.dat
+  24	fig24.dat
+  25	fig25.dat
+  26	fig26.dat
+  27	fig27.dat
+  28	fig28.dat
+  29	fig29.dat
+  30	fig30.dat
+  31	fig31.dat
+  32	fig32.dat
+  33	fig33.dat
+  34	fig34.dat
+  35	fig35.dat
+  36	fig36.dat
+  37	ostars_inst_*.dat
+  38	ostars_cont_*.dat
+  39	wrstars_inst_*.dat
+  40 	wrstars_cont_*.dat
+  41	wcwn_inst_*.dat
+  42	wcwn_cont_*.dat
+  43	snr_inst_*.dat
+  44	snr_cont_*.dat
+  45	bol_inst_*.dat
+  46	bol_cont_*.dat
+  47	mv_inst_*.dat
+  48	mv_cont_*.dat
+  49	mb_inst_*.dat
+  50	mb_cont_*.dat
+  51	mk_inst_*.dat
+  52	mk_cont_*.dat
+  53	l1500_inst_*.dat
+  54	l1500_cont_*.dat
+  55	ub_inst_*.dat
+  56	ub_cont_*.dat
+  57	bv_inst_*.dat
+  58	bv_cont_*.dat
+  59	vr_inst_*.dat
+  60	vr_cont_*.dat
+  61	vi_inst_*.dat
+  62	vi_cont_*.dat
+  63	vj_inst_*.dat
+  64	vj_cont_*.dat
+  65	vh_inst_*.dat
+  66	vh_cont_*.dat
+  67	vk_inst_*.dat
+  68	vk_cont_*.dat
+  69	vl_inst_*.dat
+  70	vl_cont_*.dat
+  71	b1550_inst_*.dat
+  72	b1550_cont_*.dat
+  73	b2500_inst_*.dat
+  74	b2500_cont_*.dat
+  75	lyman_inst_*.dat
+  76	lyman_cont_*.dat
+  77	912_inst_*.dat
+  78	912_cont_*.dat
+  79	504_inst_*.dat
+  80	504_cont_*.dat
+  81	228_inst_*.dat
+  82	228_cont_*.dat
+  83	wha_inst_*.dat
+  84	wha_cont_*.dat
+  85	whb_inst_*.dat
+  86	whb_cont_*.dat
+  87	wpb_inst_*.dat
+  88	wpb_cont_*.dat
+  89	wbg_inst_*.dat
+  90	wbg_cont_*.dat
+  91	4686_inst_*.dat
+  92	4686_cont_*.dat
+  93	feii_inst_*.dat
+  94	feii_cont_*.dat
+  95	co_inst_*.dat
+  96	co_cont_*.dat
+  97	ca_inst_*.dat
+  98	ca_cont_*.dat
+  99	co16_inst_*.dat
+ 100	co16_cont_*.dat
+ 101	co23_inst_*.dat
+ 102	co23_cont_*.dat
+ 103	si16_inst_*.dat
+ 104	si16_cont_*.dat
+ 105	mdot_inst_*.dat
+ 106	mdot_cont_*.dat
+ 107	mdot_235_inst_*.dat
+ 108	mdot_235_cont_*.dat
+ 109	mass_inst_*.dat
+ 110	mass_cont_*.dat
+ 111	lmech_inst_*.dat
+ 112	lmech_cont_*.dat
+ 113	lmech_235_inst_*.dat
+ 114	lmech_235_cont_*.dat
+ 115	energy_inst_*.dat
+ 116	energy_cont_*.dat
+ 117	912_bol_inst_*.dat
+ 118	912_bol_cont_*.dat
+ 119	mech_bol_inst_*.dat
+ 120	mech_bol_cont_*.dat

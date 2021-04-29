@@ -1,11 +1,12 @@
-from mirocha2017 import base as _base
+from mirocha2017 import base as _base, steep as _steep, floor as _floor
 from mirocha2018 import low as _low, med as _med, high as _high, bb as _bb
 from mirocha2020 import _halo_updates
 from ares.util import ParameterBundle as PB
 from ares.physics.Constants import E_LyA, E_LL, lam_LyA
 
 _base = PB(**_base).pars_by_pop(0, 1)
-#base.update(_halo_updates)
+_steep = PB(**(_base+_steep)).pars_by_pop(0, 1)
+_floor = PB(**(_base+_floor)).pars_by_pop(0, 1)
 
 _nirb_updates = {}
 _nirb_updates['pop_Emin'] = 0.41 # as low as BPASS goes
@@ -24,6 +25,9 @@ _base['pop_zdead{0}'] = 5.
 _base['pop_nebular{0}'] = 2
 _base['pop_nebular_continuum{0}'] = True
 _base['pop_nebular_lines{0}'] = True
+
+_steep.num = 0
+#_floor.num = 0
 
 _generic_lya = \
 {
@@ -70,7 +74,9 @@ def add_lya(pop1):
     return pars
 
 base_nolya = _base.copy()
-base = _base#add_lya(_base)
+base = _base
+steep = _steep
+floor = _floor
 
 low = PB(**_low).pars_by_pop(2, 1)
 low.num = 1
