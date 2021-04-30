@@ -141,7 +141,7 @@ class SynthesisModelBase(Source):
         if i_tsf is None:
             i_tsf = np.argmin(np.abs(t - self.times))
 
-        if raw:
+        if raw and not (nebular_only or self.pf['source_nebular_only']):
             poke = self.sed_at_tsf
             data = self._data_raw
         else:
@@ -346,7 +346,7 @@ class SynthesisModelBase(Source):
                 raw = self.data # just to be sure it has been read in.
                 data = self._data_all_Z[k,j]
             else:
-                if raw:
+                if raw and not (nebular_only or self.pf['source_nebular_only']):
                     data = self._data_raw[j,:]
                 else:
                     data = self.data[j,:]
@@ -384,17 +384,17 @@ class SynthesisModelBase(Source):
 
         return yield_UV
 
-    def _cache_L_per_sfr(self, wave, avg, Z, raw):
+    def _cache_L_per_sfr(self, wave, avg, Z, raw, nebular_only):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
 
-        if (wave, avg, Z, raw) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, avg, Z, raw)]
+        if (wave, avg, Z, raw, nebular_only) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only)]
 
         return None
 
     def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
-            energy_units=True, raw=True):
+            energy_units=True, raw=True, nebular_only=False):
         """
         Specific emissivity at provided wavelength at `source_tsf`.
 
@@ -417,12 +417,12 @@ class SynthesisModelBase(Source):
 
         """
 
-        cached = self._cache_L_per_sfr(wave, avg, Z, raw)
+        cached = self._cache_L_per_sfr(wave, avg, Z, raw, nebular_only)
 
         if cached is not None:
             return cached
 
-        yield_UV = self.L_per_sfr_of_t(wave, raw=raw)
+        yield_UV = self.L_per_sfr_of_t(wave, raw=raw, nebular_only=nebular_only)
 
         # Interpolate in time to obtain final LUV
         if self.pf['source_tsf'] in self.times:
@@ -435,7 +435,7 @@ class SynthesisModelBase(Source):
             func = interp1d(self.times, yield_UV, kind='linear')
             result = func(self.pf['source_tsf'])
 
-        self._cache_L_per_sfr_[(wave, avg, Z, raw)] = result
+        self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only)] = result
 
         return result
 
@@ -543,7 +543,7 @@ class SynthesisModelBase(Source):
             print("Emin={}, Emax={}".format(Emin, Emax))
             raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
-        if raw:
+        if raw and not (nebular_only or self.pf['source_nebular_only']):
             poke = self.sed_at_tsf
             data = self._data_raw
         else:
