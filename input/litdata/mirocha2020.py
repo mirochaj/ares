@@ -98,6 +98,7 @@ _base.update(_sed_updates)
 _base.update(_halo_updates)
 
 _legacy = _base.copy()
+#_legacy.update(_halo_updates)
 _legacy['pop_sfr_model'] = 'sfe-func'
 _legacy['pop_dust_yield'] = None
 _legacy['pop_scatter_mar'] = 0

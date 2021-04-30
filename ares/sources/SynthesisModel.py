@@ -604,7 +604,8 @@ class SynthesisModelBase(Source):
         """
 
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
-        photons_per_s_per_msun = self.IntegratedEmission(Emin, Emax, raw=raw)
+        photons_per_s_per_msun = self.IntegratedEmission(Emin, Emax, raw=raw,
+            energy_units=False)
 
         # Current units:
         # if pop_ssp:

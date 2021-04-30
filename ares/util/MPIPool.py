@@ -13,8 +13,6 @@ try:
         pass
     except AttributeError: # named differently depending on version
         MPI.pickle.__init__(dill.dumps, dill.loads)
-        #MPI.pickle.dumps = dill.dumps
-        #MPI.pickle.loads = dill.loads
 except ImportError:
     MPI = None
     rank = 0

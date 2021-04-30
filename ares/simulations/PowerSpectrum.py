@@ -9,13 +9,8 @@ from ..physics.HaloModel import HaloModel
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
 from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
-from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, h_p, \
-    cm_per_m
-
-defaults = \
-{
- 'load_ics': True,
-}
+from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
+    erg_per_s_per_nW, h_p, cm_per_m
 
 class PowerSpectrum(AnalyzePS): # pragma: no cover
     def __init__(self, pf=None, **kwargs):
@@ -48,18 +43,6 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         if not hasattr(self, '_history'):
             self._history = {}
         return self._history
-
-    #@property
-    #def mean_history(self):
-    #    if not hasattr(self, '_mean_history'):
-    #        self.gs.run()
-    #        self._mean_history = self.gs.history
-#
-    #    return self._mean_history
-#
-    #@mean_history.setter
-    #def mean_history(self, value):
-    #    self._mean_history = value
 
     @property
     def mean_intensity(self):

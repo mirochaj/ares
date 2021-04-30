@@ -435,7 +435,13 @@ class HaloMassFunction(object):
                 self.TabulateMAR()
 
         elif self.tab_name is None:
-            raise IOError("Did not find HMF table suitable for given parameters.")
+            _path = self.pf['hmf_path'] \
+                if self.pf['hmf_path'] is not None \
+                else'{0!s}/input/hmf'.format(ARES)
+
+            _prefix = self.tab_prefix_hmf(True)
+            _fn_ = '{0!s}/{1!s}'.format(_path, _prefix)
+            raise IOError("Did not find HMF table suitable for given parameters. Was looking for {}".format(_fn_))
 
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
@@ -1116,8 +1122,8 @@ class HaloMassFunction(object):
 
         return self._tab_MAR_delayed
 
-    def MAR_func(self, z, M):
-        return self.MAR_func_(z, M)
+    def MAR_func(self, z, M, grid=True):
+        return self.MAR_func_(z, M, grid=grid)
 
     @property
     def MAR_func_(self):
@@ -1130,7 +1136,8 @@ class HaloMassFunction(object):
 
             _MAR_func = RectBivariateSpline(self.tab_z, np.log(self.tab_M), tab)
 
-            self._MAR_func_ = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
+            self._MAR_func_ = lambda z, M, grid=True: np.exp(_MAR_func(z,
+                np.log(M), grid=grid)).squeeze()
 
         return self._MAR_func_
 
