@@ -137,8 +137,7 @@ class SynthesisModelBase(Source):
 
         return spec
 
-    def get_sed_at_t(self, t=None, i_tsf=None, raw=False,
-        lines_only=False):
+    def get_sed_at_t(self, t=None, i_tsf=None, raw=False, nebular_only=False):
         if i_tsf is None:
             i_tsf = np.argmin(np.abs(t - self.times))
 
@@ -148,7 +147,7 @@ class SynthesisModelBase(Source):
         else:
             data = self.data
 
-            if lines_only:
+            if nebular_only or self.pf['source_nebular_only']:
                 data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
@@ -309,22 +308,22 @@ class SynthesisModelBase(Source):
     def LUV_of_t(self):
         return self.L_per_sfr_of_t()
 
-    def _cache_L(self, wave, avg, Z, raw, lines_only):
+    def _cache_L(self, wave, avg, Z, raw, nebular_only):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (wave, avg, Z, raw, lines_only) in self._cache_L_:
-            return self._cache_L_[(wave, avg, Z, raw, lines_only)]
+        if (wave, avg, Z, raw, nebular_only) in self._cache_L_:
+            return self._cache_L_[(wave, avg, Z, raw, nebular_only)]
 
         return None
 
     def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz',
-        raw=True, lines_only=False):
+        raw=True, nebular_only=False):
         """
         UV luminosity per unit SFR.
         """
 
-        cached_result = self._cache_L(wave, avg, Z, raw, lines_only)
+        cached_result = self._cache_L(wave, avg, Z, raw, nebular_only)
 
         if cached_result is not None:
             return cached_result
@@ -335,7 +334,7 @@ class SynthesisModelBase(Source):
             E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev
 
             yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
-                energy_units=True, raw=raw, lines_only=lines_only)
+                energy_units=True, raw=raw, nebular_only=nebular_only)
 
         else:
             j = np.argmin(np.abs(wave - self.wavelengths))
@@ -351,7 +350,7 @@ class SynthesisModelBase(Source):
                     data = self._data_raw[j,:]
                 else:
                     data = self.data[j,:]
-                    if lines_only:
+                    if nebular_only or self.pf['source_nebular_only']:
                         data -= self._data_raw[j,:]
 
             if avg == 1:
@@ -381,7 +380,7 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        self._cache_L_[(wave, avg, Z, units, raw, lines_only)] = yield_UV
+        self._cache_L_[(wave, avg, Z, units, raw, nebular_only)] = yield_UV
 
         return yield_UV
 
@@ -520,7 +519,7 @@ class SynthesisModelBase(Source):
         return np.interp(t, self.times, L)
 
     def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False,
-        raw=True, lines_only=False):
+        raw=True, nebular_only=False):
         """
         Compute photons emitted integrated in some band for all times.
 
@@ -550,7 +549,7 @@ class SynthesisModelBase(Source):
         else:
             data = self.data
 
-            if lines_only:
+            if nebular_only or self.pf['source_nebular_only']:
                 data -= self._data_raw
 
         # Count up the photons in each spectral bin for all times

@@ -562,6 +562,7 @@ def PopulationParameters():
     "pop_tracks_fn": None,
     "pop_stellar_aging": False,
     "pop_nebular": False,
+    "pop_nebular_only": False,
     "pop_nebular_continuum": False,
     "pop_nebular_lines": False,
     "pop_nebular_ff": True,
@@ -658,6 +659,9 @@ def PopulationParameters():
     "pop_sfr": None,
     "pop_frd": None,
     "pop_fshock": 1.0,
+
+    # Halo model stuff
+    "pop_prof_1h": None,
 
     # For GalaxyEnsemble
     "pop_aging": False,
@@ -910,14 +914,14 @@ def PopulationParameters():
     'pop_smhm_m': 11.88,
     'pop_sfr_1': 0.84,
     'pop_sfr_2': 6.51,
-    
+
     #HOD model - set for z = 0, some quiescent galaxies
     'pop_sf_A': -1,
     'pop_sf_B': -10.5,
     'pop_sf_C': 3.0,
     'pop_sf_D': 2.0,
 
-    
+
     # Utility
     "pop_user_par0": None,
     "pop_user_par1": None,
@@ -1004,6 +1008,7 @@ def SourceParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_only": False,
     "source_nebular_continuum": False,
     "source_nebular_lines": False,
     "source_nebular_ff": True,
@@ -1110,6 +1115,7 @@ def SynthesisParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_only": False,
     "source_nebular_continuum": False,
     "source_nebular_lines": False,
 

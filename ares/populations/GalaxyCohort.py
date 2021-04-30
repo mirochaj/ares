@@ -986,8 +986,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        assert band is None, "This is a placeholder!"
-
         if use_cache:
             cached_result = self._cache_L(z, wave, raw)
 
@@ -1009,7 +1007,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             else:
                 if self.pf['pop_lum_per_sfr'] is None:
-                    L_sfr = self.src.L_per_sfr(wave=wave, avg=window, raw=raw)
+                    L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+                        band=band, raw=raw)
                 else:
                     assert self.pf['pop_calib_lum'] is None, \
                         "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
@@ -2867,7 +2866,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # SAM is run from zform to final_redshift, so only a subset
             # of elements in the 2-D table are filled.
             for key in keys:
-                print(key, z, M0, _zarr)
                 dat = _results[key].copy()
                 k = np.argmin(abs(_zarr.min() - zarr))
                 results[key][i,k:k+len(dat)] = dat.squeeze()
@@ -3455,7 +3453,47 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return ps
 
-    def get_ps_1h(self, z, k, wave=1600., raw=True):
+    def get_prof(self, prof=None):
+        """
+        Set up a function for Fourier-transformed profile.
+
+        Parameters
+        ----------
+        prof : None, str
+            If provided, currently must be one of the following:
+                'nfw', 'isl', 'isl_exp', 'exp', or 'delta'
+
+            If not provided here, but the self.pf['pop_prof_1h'] is not None,
+            the latter will be used.
+
+        Returns
+        -------
+        A function of k, Mh, and z.
+
+        """
+        # Defer to user-supplied parameter if given
+        if prof is None:
+            if self.pf['pop_prof_1h'] is not None:
+                prof = self.pf['pop_prof_1h']
+
+        if prof in [None, 'nfw']:
+            prof = lambda kk, mm, zz: self.halos.u_nfw(kk, mm, zz)
+        elif prof == 'delta':
+            prof = self._profile_delta
+        elif prof == 'isl':
+            prof = lambda kk, mm, zz: self.halos.u_isl(kk, mm, zz)
+        elif prof == 'isl_exp':
+            prof = lambda kk, mm, zz: self.halos.u_isl_exp(kk, mm, zz)
+        elif prof == 'exp':
+            prof = lambda kk, mm, zz: self.halos.u_isl(kk, mm, zz)
+        else:
+            raise NotImplementedError('Unrecognized `prof` option: {}'.format(
+                prof
+            ))
+
+        return prof
+
+    def get_ps_1h(self, z, k, wave=1600., raw=True, prof=None):
         """
         Return 1-halo term of 3-d power spectrum.
 
@@ -3477,7 +3515,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if cached_result is not None:
             return cached_result
 
-        prof = lambda kk, mm, zz: self.halos.u_nfw(kk, mm, zz)
+        # Default to NFW
+        prof = self.get_prof(prof)
 
         # If `wave` is a number, this will have units of erg/s/Hz.
         # If `wave` is a tuple, this will just be in erg/s.
@@ -3486,11 +3525,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             lum = self.Luminosity(z, wave, raw)
 
-        ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum, lum2=lum,
-                                  mmin1=None, mmin2=None, ztol=1e-3)
+        ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum,
+            lum2=lum, mmin1=None, mmin2=None, ztol=1e-3)
 
         if type(k) is np.ndarray:
-            self._cache_ps_1h_[(z, wave, raw)] = k, ps
+            self._cache_ps_1h_[(z, wave, raw, prof)] = k, ps
 
         return ps
 
