@@ -40,6 +40,7 @@ class Madau1995(object):
         self._hydr = value
 
     def __call__(self, z, owaves, l_tol=1e-8):
+
         """
         Compute optical depth of photons at observed wavelengths `owaves`
         emitted by object(s) at redshift `z`.
@@ -62,7 +63,7 @@ class Madau1995(object):
         # Text just after Eq. 15.
         A = 0.0036, 1.7e-3, 1.2e-3, 9.3e-4
         l = [h_p * c * 1e8 / (self.hydr.ELyn(n) * erg_per_ev) \
-            for n in range(2, 7)]\
+            for n in range(2, 7)]
 
         for i in range(len(A)):
             ok = np.logical_and(rwaves <= l[i], rwaves > l[i+1])

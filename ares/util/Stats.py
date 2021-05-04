@@ -417,6 +417,8 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
             yavg.append(-np.inf)
             if method_std == 'bounds' or type(method_std) in [int, float, np.float64]:
                 ysca.append((-np.inf, -np.inf))
+            elif type(method_std) in [list, tuple]:
+                ysca.append((-np.inf, -np.inf))
             else:
                 ysca.append(-np.inf)
 
@@ -495,6 +497,11 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
         elif type(method_std) in [int, float, np.float64]:
             q1 = 0.5 * 100 * (1. - method_std)
             q2 = 100 * method_std + q1
+            lo, hi = np.percentile(f, (q1, q2))
+            ysca.append((lo, hi))
+        elif type(method_std) in [list, tuple]:
+            q1 = 100 * method_std[0]
+            q2 = 100 * method_std[1]
             lo, hi = np.percentile(f, (q1, q2))
             ysca.append((lo, hi))
         else:
