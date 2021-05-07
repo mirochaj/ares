@@ -38,7 +38,7 @@ _sed_soft = \
  "pop_EmaxNorm{2}": 8e3,
 
  #"pop_Ex{2}": 500.,
- "pop_rad_yield{2}": 2.6e40, 
+ "pop_rad_yield{2}": 2.6e40,
  "pop_rad_yield_units{2}": 'erg/s/SFR',
 }
 
@@ -75,7 +75,7 @@ popII_markers = \
 {
 'dpl': 's', 'strong': '^', 'weak': 'v',
 'fall': '<', 'rise': '>', 'strong_weak': 'D',
-'strong_fall': '^', 'weak_rise': 'v', 
+'strong_fall': '^', 'weak_rise': 'v',
 'strong_rise': '^', 'weak_fall': 'v', 'soft': 's',
 'soft_fall': '<', 'soft_rise': '>',
 'early': '<', 'strong_early': '<',
@@ -102,7 +102,7 @@ _generic_updates = \
  'feedback_LW': True,
  'sam_dz': None, # != None is causing crashes nowadays...
  'kill_redshift': 5.6,
- 
+
  'feedback_LW_Mmin_rtol': 0,
  'feedback_LW_sfrd_rtol': 5e-2,
  'feedback_LW_sfrd_popid': 2,
@@ -147,12 +147,12 @@ _low = \
  'pop_sed{2}': 'eldridge2009',
  'pop_rad_yield{2}': 'from_sed',
  'pop_Z{2}': 0.02,
- 
+
  # Radiative knobs
  'pop_fesc_LW{2}': 1.,
  'pop_fesc{2}': 0.0,
  'pop_rad_yield{3}': 2.6e39,
- 
+
  # Other stuff needed for X-rays
  'pop_sfr_model{3}': 'link:sfrd:2',
  'pop_sed{3}': 'mcd',
@@ -179,7 +179,7 @@ _low = \
  'pop_time_limit{2}': 2.5,
  'pop_bind_limit{2}': 1e51,
  'pop_abun_limit{2}': None,
- 
+
  # Acknowledging that our mean metallicity is kludgey
  # Note that this renders the stellar mass meaningless (it'll be zero).
  'pop_mass_yield{2}': 1.0,
@@ -247,14 +247,14 @@ Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
 """
 #_xsfe_specific = \
 #{
-# 
+#
 # 'pop_fesc_LW{0}': 'pq[101]',
 # 'pq_func{0}[101]': 'astep',
 # 'pq_func_var{0}[101]': 'Mh',
 # 'pq_func_par0{0}[101]': 1.,
 # 'pq_func_par1{0}[101]': 1.,
 # 'pq_func_par2{0}[101]': (barrier_A, 'z', 1),
-# 
+#
 # 'pop_fesc{0}': 'pq[102]',
 # 'pq_func{0}[102]': 'astep',
 # 'pq_func_var{0}[102]': 'Mh',
@@ -264,7 +264,7 @@ Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
 #
 # 'pop_Tmin{0}': 500.,
 # 'pop_Mmin{1}': 'pop_Mmin{0}',
-# 
+#
 # 'pop_sfr_model{1}': 'link:sfe:0',
 #
 # # X-ray sources
@@ -282,12 +282,12 @@ Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
 
 csfr_blobs = \
 {
- 'blob_names': ['popII_sfrd_tot', 'popIII_sfrd_tot', 
+ 'blob_names': ['popII_sfrd_tot', 'popIII_sfrd_tot',
                 'popII_Mmin', 'popIII_Mmin',
                 'popII_Mmax', 'popIII_Mmax',
                 'popII_nh', 'popIII_nh'],
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 
+ 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD',
     'pops[0].Mmin', 'pops[2].Mmin',
     'pops[0].Mmax', 'pops[2].Mmax', 'pops[0].nactive', 'pops[2].nactive'],
  'blob_kwargs': [None] * 8,
@@ -302,4 +302,3 @@ dpl_blobs = \
  'blob_ivars': [('z', np.arange(5, 60.1, 0.1))],
  'blob_funcs': [['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax']],
 }
-

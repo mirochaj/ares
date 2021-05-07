@@ -11,13 +11,14 @@ Description:
 """
 
 import numpy as np
-from .Source import Source
+from ..util.ReadData import read_lit
+from .SynthesisModel import SynthesisModelBase
 from ..util.ParameterFile import ParameterFile
-from ..physics.Constants import c, h_p, erg_per_ev, cm_per_ang
+from ..physics.Constants import c, h_p, erg_per_ev, cm_per_ang, ev_per_hz, E_LL
 
-class SynthesisModelToy(Source):
+class SynthesisModelToy(SynthesisModelBase):
     def __init__(self, **kwargs):
-        Source.__init__(self, **kwargs)
+        SynthesisModelBase.__init__(self, **kwargs)
         #self.pf = ParameterFile(**kwargs)
 
         #self.Emin = self.pf['source_Emin']
@@ -28,16 +29,17 @@ class SynthesisModelToy(Source):
         if not hasattr(self, '_energies'):
             if (self.pf['source_wavelengths'] is not None) or \
                (self.pf['source_lmin'] is not None):
-                self._energies = h_p * c / self.wavelengths / cm_per_ang
+                self._energies = h_p * c / self.wavelengths / cm_per_ang \
+                    / erg_per_ev
             else:
                 dE = self.pf['source_dE']
-                dl = self.pf['source_dlam']
-                if dE is not None:
-                    self._energies = np.arange(self.Emin, self.Emax+dE, dE)
-                else:
-                    self._energies = h_p * c / self.wavelengths / cm_per_ang
+                Emin = self.pf['source_Emin']
+                Emax = self.pf['source_Emax']
 
-                assert (dE is not None) + (dl is not None) == 1
+                self._energies = np.arange(Emin, Emax+dE, dE)[-1::-1]
+
+            # Should be in descending order
+            assert np.all(np.diff(self._energies) < 0)
 
         return self._energies
 
@@ -51,18 +53,14 @@ class SynthesisModelToy(Source):
                     self.pf['source_lmax']+self.pf['source_dlam'],
                     self.pf['source_dlam'])
             else:
-                dE = self.pf['source_dE']
-                dl = self.pf['source_dlam']
-                if dE is not None:
-                    self._wavelengths = h_p * c / self.energies / erg_per_ev \
-                        / cm_per_ang
-                else:
-                    w1 = h_p * c / self.Emin / erg_per_ev / cm_per_ang
-                    w2 = h_p * c / self.Emax / erg_per_ev / cm_per_ang
-                    self._wavelengths = np.arange(w2, w1+dl, dl)
+                self._wavelengths = h_p * c / self.energies / erg_per_ev \
+                    / cm_per_ang
 
             if (self._wavelengths.max() < 2e3):
                 raise ValueError('Wavelengths all FUV. This is generally not a good idea!')
+
+            # Should be in ascending order
+            assert np.all(np.diff(self._wavelengths) > 0)
 
         return self._wavelengths
 
@@ -102,43 +100,126 @@ class SynthesisModelToy(Source):
             self._dwdn =  self.wavelengths**2 / (c * 1e8)
         return self._dwdn
 
+    @property
+    def _Star(self):
+        if not hasattr(self, '_Star_'):
+
+            #assert self.pf['source_ssp'], "Must set source_ssp=True!"
+
+            from ..sources import StarQS, Star
+            kw = self.pf.copy()
+            kw['source_sed'] = self.pf['source_toysps_method']
+
+            if self.pf['source_toysps_method'] == 'schaerer2002':
+                self._Star_ = StarQS(cosm=self.cosm, **kw)
+            else:
+                self._Star_ = Star(cosm=self.cosm, **kw)
+
+        return self._Star_
+
     def _Spectrum(self, t, wave=1600.):
 
+        if self.pf['source_toysps_method'] == 0:
+            beta = self.pf["source_toysps_beta"]
+            _norm = self.pf["source_toysps_norm"]
+            gamma = self.pf["source_toysps_gamma"]
+            delta = self.pf["source_toysps_delta"]
+            alpha = self.pf["source_toysps_alpha"]
+            trise = self.pf['source_toysps_trise']
+            _t0 = self.pf['source_toysps_t0']
+            lmin = self.pf['source_toysps_lmin']
 
-        beta = self.pf["source_toysps_beta"]
-        _norm = self.pf["source_toysps_norm"]
-        gamma = self.pf["source_toysps_gamma"]
-        delta = self.pf["source_toysps_delta"]
-        alpha = self.pf["source_toysps_alpha"]
-        trise = self.pf['source_toysps_trise']
-        _t0 = self.pf['source_toysps_t0']
-        lmin = self.pf['source_toysps_lmin']
+            ok = wave >= lmin
 
-        ok = wave >= lmin
+            # Normalization of each wavelength is set by UV slope
+            norm = _norm * (wave / 1600.)**beta
 
-        # Normalization of each wavelength is set by UV slope
-        norm = _norm * (wave / 1600.)**beta
+            # Assume that all wavelengths initially decline as a power-law
+            # with the same index
+            _gamma_ = gamma * (wave / 1600.)**delta
+            pl_decay = (t / 1.)**_gamma_
 
-        # Assume that all wavelengths initially decline as a power-law
-        # with the same index
-        _gamma_ = gamma * (wave / 1600.)**delta
-        pl_decay = (t / 1.)**_gamma_
+            # Assume an exponential decay at some critical (wavelength-dependent)
+            # timescale.
+            t0 = _t0 * (wave / 1600.)**alpha
+            exp_decay = np.exp(-t / t0)
 
-        # Assume an exponential decay at some critical (wavelength-dependent)
-        # timescale.
-        t0 = _t0 * (wave / 1600.)**alpha
-        exp_decay = np.exp(-t / t0)
+            # Put it all together.
+            spec = norm * pl_decay * exp_decay
+            spec[ok==0] = 0
 
-        # Put it all together.
-        spec = norm * pl_decay * exp_decay
-        spec[ok==0] = 0
+            # Assume log-linear at t < trise
+            if t < trise:
+                spec *= (t / trise)**1.5
+        elif type(self.pf['source_toysps_method']) == str:
 
-        # Assume log-linear at t < trise
-        if t < trise:
-            spec *= (t / trise)**1.5
+            is_on = t < (self._Star.lifetime / 1e6) \
+                or (not self.pf['source_ssp'])
+
+            if is_on:
+                # This is normalized to Q in each sub-band.
+                E = h_p * c / (wave * cm_per_ang) / erg_per_ev
+                spec = self._Star.Spectrum(E)
+                # Right here, `spec` integrates to unity over relevant bands.
+
+                mass = self._Star.pf['source_mass']
+
+                # Here, we need to re-normalize again to Q, then switch to
+                # units of erg/s/A/Msun (instead of eV^-1)
+
+                # _StarQS.norm_ contains normalization factors that,
+                # when multiplied by a blackbody in the relevant spectral range,
+                # will yield Q * <Eband> * erg_per_ev
+
+                # Make an array like `E` with relevant _StarQS.norm_ values
+                if type(E) not in [list, tuple, np.ndarray]:
+                    E = np.array([E])
+                    spec = np.array([spec])
+
+                if self.pf['source_toysps_method'] == 'schaerer2002':
+
+                    # Why isn't this all handled in StarQS?
+                    # Caused by new wavelength gridding?
+                    bands = self._Star.bands
+
+                    norms = []
+                    for i, nrg in enumerate(E):
+                        if nrg < bands[0][1]:
+                            norms.append(self._Star.norm_[0])
+                        elif bands[1][0] <= nrg < bands[1][1]:
+                            norms.append(self._Star.norm_[1])
+                        elif bands[2][0] <= nrg < bands[2][1]:
+                            norms.append(self._Star.norm_[2])
+                        else:
+                            norms.append(self._Star.norm_[2])
+
+                    norms = np.array(norms)
+                    spec *= norms
+                elif self.pf['source_toysps_method'] == 'bb':
+                    spec *= self._Star.Lbol0
+                else:
+                    raise NotImplemented('help')
+
+                # Now, [spec] = erg/s/eV
+
+                # Do last unit conversion to get erg/s/A/Msun
+                spec *= ev_per_hz / self.dwdn
+
+                if self.pf['source_ssp']:
+                    raise NotImplemented('Set source_ssp=False for now.')
+                    spec /= mass
+                else:
+                    spec /= (mass / self._Star.lifetime)
+
+            else:
+                spec = 0.
+
+        else:
+            raise NotImpemented('Do not recognize source_toysps_method={}'.format(
+                self.pf['source_toysps_method']
+            ))
 
         return spec
-
 
     @property
     def data(self):
@@ -150,64 +231,6 @@ class SynthesisModelToy(Source):
             for i, t in enumerate(self.times):
                 self._data[:,i] = self._Spectrum(t, wave=self.wavelengths)
 
+            self._add_nebular_emission()
+
         return self._data
-
-
-    def _cache_L(self, wave, avg, Z):
-        if not hasattr(self, '_cache_L_'):
-            self._cache_L_ = {}
-
-        if (wave, avg, Z) in self._cache_L_:
-            return self._cache_L_[(wave, avg, Z)]
-
-        return None
-
-    def L_per_sfr(self):
-        raise NotImplemented("Shouldn't be necessary?")
-
-    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None):
-        """
-        UV luminosity per unit SFR.
-        """
-
-        cached_result = self._cache_L(wave, avg, Z)
-
-        if cached_result is not None:
-            return cached_result
-
-        j = np.argmin(np.abs(wave - self.wavelengths))
-
-        if Z is not None:
-            raise NotImplemented('no support for Z yet.')
-            #Zvals = np.sort(self.metallicities.values())
-            #k = np.argmin(np.abs(Z - Zvals))
-            #raw = self.data # just to be sure it has been read in.
-            #data = self._data_all_Z[k,j]
-        else:
-            data = self.data[j,:]
-
-        if avg == 1:
-            yield_UV = data * np.abs(self.dwdn[j])
-        else:
-            if Z is not None:
-                raise NotImplemented('hey!')
-            assert avg % 2 != 0, "avg must be odd"
-            s = (avg - 1) / 2
-            yield_UV = np.mean(self.data[j-s:j+s,:] * np.abs(self.dwdn[j-s:j+s]))
-
-        # Current units:
-        # if pop_ssp:
-        #     erg / sec / Hz / Msun
-        # else:
-        #     erg / sec / Hz / (Msun / yr)
-
-        # to erg / s / A / Msun
-        #if self.pf['source_ssp']:
-        #    yield_UV /= 1e6
-        ## or erg / s / A / (Msun / yr)
-        #else:
-        #    pass
-
-        self._cache_L_[(wave, avg, Z)] = yield_UV
-
-        return yield_UV

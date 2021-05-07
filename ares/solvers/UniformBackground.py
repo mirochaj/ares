@@ -144,18 +144,27 @@ class UniformBackground(object):
                        #    break
                     elif type(pop.pf['pop_solve_rte']) is tuple:
 
+                        # Is this too restrictive? Prone to user error.
+                        lo_close = band[0] >= pop.pf['pop_solve_rte'][0]
+                        hi_close = band[1] <= pop.pf['pop_solve_rte'][1]
+
+                        # As long as within 0.1 eV, call it a match
+                        if not lo_close:
+                            lo_close = np.allclose(band[0],
+                                pop.pf['pop_solve_rte'][0], atol=0.1)
+                        if not hi_close:
+                            hi_close = np.allclose(band[1],
+                                pop.pf['pop_solve_rte'][1], atol=0.1)
+
                         # Want to make sure we don't have to be *exactly*
                         # right.
-
                         if band == pop.pf['pop_solve_rte']:
                             tmp.append(True)
                         # Round (close enough?)
                         elif np.allclose(band, pop.pf['pop_solve_rte'],
                             atol=1e-1, rtol=0.):
                             tmp.append(True)
-                        # Is this too restrictive?
-                        elif (band[0] >= pop.pf['pop_solve_rte'][0]) and \
-                             (band[1] <= pop.pf['pop_solve_rte'][1]):
+                        elif lo_close and hi_close:
                             tmp.append(True)
                         else:
                             tmp.append(False)
@@ -188,7 +197,7 @@ class UniformBackground(object):
 
         """
 
-        Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
+        Emin, Emax = pop.src.Emin, pop.src.Emax
 
         # Pure X-ray
         if (Emin > E_LL) and (Emin > 4 * E_LL):
@@ -197,7 +206,7 @@ class UniformBackground(object):
         bands = []
 
         # Check for optical/IR
-        if (Emin < E_LyA) and (Emax < E_LyA):
+        if (Emin < E_LyA) and (Emax <= E_LyA):
             bands.append((Emin, Emax))
             return bands
 
@@ -205,12 +214,19 @@ class UniformBackground(object):
         if (Emin < E_LyA) and (Emax > E_LyA):
             bands.append((Emin, E_LyA))
 
+            # Keep track as we go
+            _Emin_ = np.max(bands)
+        else:
+            _Emin_ = Emin
+
         # Check for sawtooth
-        #if (Emax > E_LyA) and abs(Emax - E_LL) < 0.1:
-        if (abs(Emin - E_LyA) < 0.1) and (Emax >= E_LL):
-            bands.append((E_LyA, E_LL))
-        elif abs(Emin - E_LL) < 0.1 and (Emax < E_LL):
-            bands.append((max(E_LyA, E_LL), Emax))
+        if _Emin_ >= E_LyA and _Emin_ < E_LL:
+            bands.append((_Emin_, min(E_LL, Emax)))
+
+        #if (abs(Emin - E_LyA) < 0.1) and (Emax >= E_LL):
+        #    bands.append((E_LyA, E_LL))
+        #elif abs(Emin - E_LL) < 0.1 and (Emax < E_LL):
+        #    bands.append((max(E_LyA, E_LL), Emax))
 
         if Emax <= E_LL:
             return bands
@@ -458,7 +474,7 @@ class UniformBackground(object):
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
 
-                if pop.src.is_delta:
+                if pop.src.is_delta or pop.src.has_nebular_lines:
                     E = np.flip(E1 * R**-np.arange(N), 0)
                 else:
                     E = E0 * R**np.arange(N)
@@ -984,6 +1000,7 @@ class UniformBackground(object):
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
+
         else:
 
             # There is only a distinction here for computational
@@ -995,10 +1012,10 @@ class UniformBackground(object):
 
                 if band is not None:
 
-                    if pop.pf['pop_Emin'] > band[1]:
+                    if pop.src.Emin > band[1]:
                         continue
 
-                    if pop.pf['pop_Emax'] < band[0]:
+                    if pop.src.Emax < band[0]:
                         continue
 
                 # Remind me of this distinction?
@@ -1006,6 +1023,7 @@ class UniformBackground(object):
                     b = pop.full_band
                     fix = 1.
 
+                    # Means we already generated the emissivity.
                     if ct > 0:
                         continue
 
@@ -1069,6 +1087,12 @@ class UniformBackground(object):
                     epsilon[ll,in_band==1] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
+
+                    #ehat = pop.Emissivity(redshift, Emin=b[0], Emax=b[1])
+
+                    #if ll == 1:
+                    #    print("Set emissivity for pop {} band #{}".format(pop.id_num, band))
+                    ##    print(f'fix={fix}, raw={ehat} z={redshift}')
 
                 ct += 1
 
