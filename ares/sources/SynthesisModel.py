@@ -114,8 +114,11 @@ class SynthesisModelBase(Source):
         if not hasattr(self, '_cache_spec_'):
             self._cache_spec_ = {}
 
-        if E in self._cache_spec_:
-            return self._cache_spec_[E]
+        if type(E) == np.ndarray:
+            pass
+        else:
+            if E in self._cache_spec_:
+                return self._cache_spec_[E]
 
         return None
 
@@ -133,7 +136,8 @@ class SynthesisModelBase(Source):
 
         spec = np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
 
-        self._cache_spec_[E] = spec
+        if type(E) != np.ndarray:
+            self._cache_spec_[E] = spec
 
         return spec
 
@@ -148,6 +152,7 @@ class SynthesisModelBase(Source):
             data = self.data
 
             if nebular_only or self.pf['source_nebular_only']:
+                poke = self.sed_at_tsf
                 data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
@@ -347,10 +352,12 @@ class SynthesisModelBase(Source):
                 data = self._data_all_Z[k,j]
             else:
                 if raw and not (nebular_only or self.pf['source_nebular_only']):
+                    poke = self.sed_at_tsf
                     data = self._data_raw[j,:]
                 else:
                     data = self.data[j,:]
                     if nebular_only or self.pf['source_nebular_only']:
+                        poke = self.sed_at_tsf
                         data -= self._data_raw[j,:]
 
             if avg == 1:
@@ -550,6 +557,7 @@ class SynthesisModelBase(Source):
             data = self.data
 
             if nebular_only or self.pf['source_nebular_only']:
+                poke = self.sed_at_tsf
                 data -= self._data_raw
 
         # Count up the photons in each spectral bin for all times
