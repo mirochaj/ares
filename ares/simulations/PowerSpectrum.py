@@ -17,8 +17,8 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         """ Set up a power spectrum calculation. """
 
         # See if this is a tanh model calculation
-        #if 'problem_type' not in kwargs:
-        #    kwargs['problem_type'] = 102
+        if 'problem_type' not in kwargs:
+            kwargs['problem_type'] = 102
 
         self.kwargs = kwargs
 
