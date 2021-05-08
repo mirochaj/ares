@@ -3,9 +3,9 @@
 
 # **ARES**
 The Accelerated Reionization Era Simulations (ARES) code was designed to
-rapidly generate models for the global 21-cm signal. It can also be used as a 
+rapidly generate models for the global 21-cm signal. It can also be used as a
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
-global radiation background calculator. 
+global radiation background calculator.
 
 A few papers on how it works:
 
@@ -26,7 +26,7 @@ Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
 If you'd like to live on the bleeding edge, check out the ares-dev branch! Once you clone **ares** you can switch via: ::
-    
+
     git checkout ares-dev
 
 The [documentation](http://ares.readthedocs.org/en/latest/) is still a work in progress.
@@ -56,15 +56,15 @@ export ARES=/users/<yourusername>/ares
 ```
 python remote.py
 ```
-    
+
 This might take a few minutes. If something goes wrong with the download, you can run
 
 ```
 python remote.py fresh
 ```
-    
+
 to get fresh copies of everything.
-    
+
 ## Dependencies
 
 You will need:
@@ -100,15 +100,15 @@ import ares
 sim = ares.simulations.Global21cm()      # Initialize a simulation object
 sim.run()   
 ```                                               
-    
-You can examine the contents of ``sim.history``, a dictionary which contains 
-the redshift evolution of all IGM physical quantities, or use some built-in 
+
+You can examine the contents of ``sim.history``, a dictionary which contains
+the redshift evolution of all IGM physical quantities, or use some built-in
 analysis routines:
 
 ```python
 sim.GlobalSignature()
 ```    
-	
+
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type:
 
 ```python
@@ -120,14 +120,14 @@ See the documentation for more examples.
 
 ## Documentation
 
-To generate the documentation locally, 
+To generate the documentation locally,
 
 ```
 cd $ARES/doc
 make html
 open _build/html/index.html
 ```
- 
+
 This will open the documentation in a browser. For the above to work, you'll
 need [sphinx](http://sphinx-doc.org/contents.html), which can be installed
 via pip:
@@ -156,7 +156,7 @@ Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/hom
 Additional contributions / corrections / suggestions from:
 
 - Geraint Harker
-- Jason Sun 
+- Jason Sun
 - Keith Tauscher
 - Jacob Jost
 - Greg Salvesen
@@ -177,3 +177,4 @@ Additional contributions / corrections / suggestions from:
 - Henri Lamarre
 - Matteo Leo
 - Emma Klemets
+- Felix Bilodeau-Chagnon
