@@ -72,13 +72,10 @@ def backward_compatibility(ptype, **kwargs):
                 pf['pop_fstar{{{}}}'.format(i)] = kwargs['fstar']
 
         if par_supplied('fesc', **kwargs):
-            print('what')
             pf['pop_fesc{2}'] = kwargs['fesc']
         elif par_supplied('pop_fesc{2}'):
-            print('the')
             pf['pop_fesc{2}'] = kwargs['pop_fesc{2}']
         else:
-            print('fuck')
             pf['pop_fesc{2}'] = fesc_default
 
         if par_supplied('Nlw', **kwargs) or par_supplied('xi_LW', **kwargs):

@@ -24,8 +24,8 @@ aux_data = \
     None],
  'inits': ['https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1',
      'inits.tar.gz',
-    None],    
- 'optical_depth': ['https://www.dropbox.com/s/dqeeetvaea4ap8q/tau.tar.gz?dl=1',
+    None],
+ 'optical_depth': ['https://www.dropbox.com/s/ol6240qzm4w7t7d/tau.tar.gz?dl=1',
      'tau.tar.gz',
     None],
  'secondary_electrons': ['https://www.dropbox.com/s/jidsccfnhizm7q2/elec_interp.tar.gz?dl=1',
@@ -41,14 +41,14 @@ aux_data = \
     None],
  #'bpass_v2': ['https://drive.google.com/file/d/'] + \
  #    ['bpassv2-imf{}-300tar.gz'.format(IMF) for IMF in [100, 135]] + \
- #     [None],    
+ #     [None],
  #'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
  #   'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
  'edges': ['http://loco.lab.asu.edu/download',
     '790/figure1_plotdata.csv',
-    '792/figure2_plotdata.csv', 
+    '792/figure2_plotdata.csv',
     None],
- 'nircam': ['https://jwst-docs.stsci.edu/files/73022379/73022381/1/1486438006000',
+ 'nircam': ['https://jwst-docs.stsci.edu/files/97978094/97978135/1/1596073152953',
      'nircam_throughputs_22April2016_v4.tar.gz',
      None],
  'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
@@ -60,7 +60,10 @@ aux_data = \
  'irac': ['https://irsa.ipac.caltech.edu/data/SPITZER/docs/irac/calibrationfiles/spectralresponse/',
     '080924ch1trans_full.txt',
     '080924ch2trans_full.txt',
-    None],  
+    None],
+ 'roman': ['https://roman.gsfc.nasa.gov/science/201907/',
+    'WFIRST_WIMWSM_throughput_data_190531.xlsm',
+    None],
  #'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
  #   'wfc_F435W.dat',
  #   'wfc_F606W.dat',
@@ -80,11 +83,11 @@ if not os.path.exists('input'):
 
 os.chdir('input')
 
-needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3', 
+needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3',
     'planck', 'bpass_v1', 'optical_depth']
 needed_for_tests_fn = ['inits.tar.gz', 'elec_interp.tar.gz', 'hmf.tar.gz',
-    'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz', 
-    'tau.tar.gz']    
+    'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz',
+    'tau.tar.gz']
 
 files = []
 if (len(options) > 0) and ('clean' not in options):
@@ -97,7 +100,7 @@ if (len(options) > 0) and ('clean' not in options):
         for key in options:
             if key == 'fresh':
                 continue
-                
+
             if re.search(':', key):
                 pre, post = key.split(':')
                 to_download.append(pre)
@@ -105,93 +108,93 @@ if (len(options) > 0) and ('clean' not in options):
             else:
                 to_download.append(key)
                 files.append(None)
-                                
-            ct += 1    
-                
+
+            ct += 1
+
         if to_download == [] and 'fresh' in options:
             to_download = aux_data.keys()
             files = [None] * len(to_download)
 else:
     to_download = list(aux_data.keys())
     files = [None] * len(to_download)
-                
+
 for i, direc in enumerate(to_download):
-                
+
     if not os.path.exists(direc):
         os.mkdir(direc)
-    
+
     os.chdir(direc)
-    
+
     web = aux_data[direc][0]
-        
+
     if files[i] is None:
         fns = aux_data[direc][1:-1]
     else:
         fns = [aux_data[direc][1:-1][files[i]]]
-        
+
     for i, fn in enumerate(fns):
-        
+
         if fn.startswith('https'):
             _web = fn
             _fn = fn[fn.rfind('/')+1:fn.rfind('?')]
         else:
             _web = web
             _fn = fn
-        
+
         if ('minimal' in options) or ('test' in options):
             if _fn not in needed_for_tests_fn:
                 print("File {} not needed for minimal build.".format(_fn))
                 continue
-         
+
         if '/' in _fn:
             _fn_ = _fn[_fn.rfind('/')+1:]
         else:
-            _fn_ = _fn    
-            
+            _fn_ = _fn
+
         if os.path.exists(_fn_) and ('test' not in options):
             if ('fresh' in options) or ('clean' in options):
                 os.remove(_fn_)
             else:
                 continue
-            
+
         # 'clean' just deletes files, doesn't download new ones
         if 'clean' in options:
             continue
-    
+
         if 'dropbox' in _web:
             print("Downloading {0!s} to {1!s}...".format(_web, _fn_))
-            
+
             if 'test' in options:
                 continue
-                        
+
             try:
                 urlretrieve('{0!s}'.format(_web), _fn_)
             except:
                 print("WARNING: Error downloading {0!s}".format(_web))
                 continue
-        else:    
+        else:
             print("Downloading {0!s}/{1!s}...".format(_web, _fn_))
-            
+
             if 'test' in options:
                 continue
-            
+
             try:
                 urlretrieve('{0!s}/{1!s}'.format(_web, fn), _fn_)
             except:
                 print("WARNING: Error downloading {0!s}/{1!s}".format(_web, _fn_))
                 continue
-        
+
         # If it's a zip, unzip and move on.
         if re.search('.zip', _fn_) and (not re.search('tar', _fn_)):
             zip_ref = zipfile.ZipFile(_fn_, 'r')
             zip_ref.extractall()
-            zip_ref.close()            
+            zip_ref.close()
             continue
-        
+
         # If it's not a tarball, move on
         if (not re.search('tar', _fn_)) and (not re.search('tgz', _fn_)):
             continue
-            
+
         # Otherwise, unpack it
         try:
             tar = tarfile.open(_fn_)
@@ -199,10 +202,10 @@ for i, direc in enumerate(to_download):
             tar.close()
         except:
             print("WARNING: Error unpacking {0!s}".format(_fn_))
-        
-        if direc != 'planck': 
+
+        if direc != 'planck':
             continue
-            
+
         _files = os.listdir(os.curdir)
         for _file in _files:
             if _file=='COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00':
@@ -215,7 +218,7 @@ for i, direc in enumerate(to_download):
                         tar.close()
                 except:
                     print('Could not unpack the planck chains')
-    
+
     # Run a script [optional]
     if aux_data[direc][-1] is not None:
         try:
@@ -225,6 +228,5 @@ for i, direc in enumerate(to_download):
                 exec(open(aux_data[direc][-1]).read())
         except:
             print("WARNING: Error running {!s}".format(aux_data[direc][-1]))
-            
-    os.chdir('..')
 
+    os.chdir('..')

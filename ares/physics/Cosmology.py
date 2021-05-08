@@ -182,7 +182,11 @@ class Cosmology(InitialConditions):
         else:
 
             num = self.pf['cosmology_id']
-            assert type(num) in [int, np.int32, np.int64]
+
+            if type(num) not in [int, np.int32, np.int64]:
+                if self.pf['verbose']:
+                    print("# WARNING: Casting cosmology_id {} to int.".format(num))
+                num = int(num)
 
             ##
             # Load chains as one long concatenated super-array
@@ -258,9 +262,13 @@ class Cosmology(InitialConditions):
         elif type(self.pf['cosmology_id']) == str:
             name += '_' + self.pf['cosmology_id']
         else:
-            assert type(self.pf['cosmology_id']) in [int, np.int32, np.int64]
+            num = self.pf['cosmology_id']
+            if type(num) not in [int, np.int32, np.int64]:
+                if self.pf['verbose']:
+                    print("# WARNING: Casting `cosmology_id` {} to int.".format(num))
+                num = int(num)
 
-            name += '_{}'.format(str(self.pf['cosmology_id']).zfill(5))
+            name += '_{}'.format(str(num).zfill(5))
 
         return name
 
@@ -645,8 +653,8 @@ class Cosmology(InitialConditions):
 
     def ProjectedVolume(self, z, angle, dz=1.):
         """
-        Compute the co-moving volume of a spherical shell of `area` and
-        thickness `dz`.
+        Compute the co-moving volume of a spherical shell defined by `angle`
+        and thickness `dz`.
 
         Parameters
         ----------
@@ -663,11 +671,7 @@ class Cosmology(InitialConditions):
 
         """
 
-        d_cm = self.ComovingRadialDistance(0., z)
-        angle_rad = (np.pi / 180.) * angle
-
-        dA = angle_rad * d_cm
-
+        dA = self.AngleToComovingLength(z, angle * 60.) * cm_per_mpc
         dldz = quad(self.ComovingLineElement, z-0.5*dz, z+0.5*dz)[0]
 
         return dA**2 * dldz / cm_per_mpc**3
@@ -711,7 +715,7 @@ class Cosmology(InitialConditions):
 
         """
 
-        d = self.LuminosityDistance(z) / (1. + z)**2# cm
+        d = self.LuminosityDistance(z) / (1. + z)**2 # cm
 
         in_rad = (angle / 60.) * np.pi / 180.
 

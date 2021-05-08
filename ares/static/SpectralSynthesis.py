@@ -25,7 +25,7 @@ from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB
 nanoJ = 1e-23 * 1e-9
 
 tiny_lum = 1e-8
-all_cameras = ['wfc', 'wfc3', 'nircam']
+all_cameras = ['wfc', 'wfc3', 'nircam', 'roman', 'irac']
 
 def _powlaw(x, p0, p1):
     return p0 * (x / 1.)**p1
@@ -467,7 +467,7 @@ class SpectralSynthesis(object):
 
         # Get transmission curves
         if cam in self.cameras.keys():
-            filter_data = self.cameras[cam]._read_throughputs(filter_set=filter_set,
+            filter_data = self.cameras[cam].read_throughputs(filter_set=filter_set,
                 filters=filters)
         else:
             # Can supply spectral windows, e.g., Calzetti+ 1994, in which case
@@ -723,7 +723,7 @@ class SpectralSynthesis(object):
             zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist,
             extras=extras, window=window)
 
-        MAB = self.magsys.L_to_MAB(L, z=zobs)
+        MAB = self.magsys.L_to_MAB(L)
 
         return MAB
 
@@ -919,7 +919,8 @@ class SpectralSynthesis(object):
         else:
             return kwds, None
 
-    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
+    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None,
+        window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
         load=True, use_cache=True, energy_units=True):
         """
@@ -1294,9 +1295,11 @@ class SpectralSynthesis(object):
             if not do_all_time:
                 break
 
+
         ##
         # Redden spectra
         ##
+        tau = np.zeros_like(sfh)
         if 'Sd' in hist:
 
             # Redden away!
@@ -1366,56 +1369,77 @@ class SpectralSynthesis(object):
         if hist is not None:
             do_mergers = self.pf['pop_mergers'] and batch_mode
 
-            if 'children' in hist:
-                if (hist['children'] is not None) and do_mergers:
+            do_mergers = do_mergers and 'children' in hist
 
-                    child_iz, child_iM = children.T
+            if do_mergers:
+                do_mergers = do_mergers and hist['children'] is not None
 
-                    is_central = child_iM == -1
+            if do_mergers:
+                flags = hist['flags']
+                child_iz, child_iM, is_main = hist['children'].T
+                is_central = is_main
 
-                    if np.all(is_central == 1):
-                        pass
-                    else:
+                # Convert z indices to ARES order.
+                child_iz = hist['z'].size - child_iz - 1
 
-                        print("Looping over {} halos...".format(sfh.shape[0]))
+                if np.all(is_central == 1):
+                    pass
+                else:
+                    print("Looping over {} halos...".format(sfh.shape[0]))
+                    pb = ProgressBar(sfh.shape[0],
+                        use=self.pf['progress_bar'],
+                        name='L += L_progenitors')
+                    pb.start()
 
-                        pb = ProgressBar(sfh.shape[0], use=self.pf['progress_bar'])
-                        pb.start()
+                    # Loop over all 'branches'
+                    for i in range(sfh.shape[0]):
 
-                        # Loop over all 'branches'
-                        for i in range(SFR.shape[0]):
+                        pb.update(i)
 
-                            # This means the i'th halo is alive and well at the
-                            # final redshift, i.e., it's a central
-                            if is_central[i]:
-                                continue
+                        # Be careful with disrupted halos.
+                        # In the future, could deposit this luminosity
+                        # onto a grid or look for missed descendants and
+                        # perform some kind of branch grafting.
+                        if np.any(flags[i,:] == 1):
+                            j = np.argwhere(flags[i,:] == 1)
+                            if zobs <= zarr[j]:
+                                Lout[i] = 0.0
 
-                            pb.update(i)
+                            continue
 
-                            # At this point, need to figure out which child halos
-                            # to dump mass and SFH into...
+                        # This means the i'th halo is alive and well at
+                        # the final redshift, i.e., it's a central and
+                        # we don't need to do anything here.
+                        if is_central[i]:
+                            continue
 
-                            # Be careful with redshift array.
-                            # We're now working in ascending time, reverse redshift,
-                            # so we need to correct the child iz values. We've also
-                            # chopped off elements at z < zobs.
-                            #iz = Nz0 - child_iz[i]
+                        # Only increment luminosity of descendants
+                        # after merger.
+                        # Remember: ARES indices go from high-z to low-z
+                        zmerge = zarr[child_iz[i]]
+                        if zobs > zmerge:
+                            continue
 
-                            # This `iz` should not be negative despite us having
-                            # chopped up the redshift array since getting to this
-                            # point in the loop is predicated on being a parent of
-                            # another halo, i.e., not surviving beyond this redshift.
+                        # At this point, need to figure out which child
+                        # halos to dump mass and SFH into...
+                        # Lout is just 1-D at this point, i.e., just
+                        # luminosity *now*.
+                        # Add luminosity to child halo. Zero out
+                        # luminosity of parent to avoid double
+                        # counting. Note that nh will
+                        # also have been zeroed out but it's good to
+                        # zero-out both.
+                        # NOTE: should use dust reddening of
+                        # descendant, hence use of Lhist again
+                        T = np.exp(-tau[child_iM[i],izobs])
+                        Lout[child_iM[i]] += Lhist[i] * T
+                        Lout[i] = 0.0
 
-                            # Lout is just 1-D at this point, i.e., just luminosity
-                            # *now*.
+                    pb.finish()
 
-                            # Add luminosity to child halo. Zero out luminosity of
-                            # parent to avoid double counting. Note that nh will
-                            # also have been zeroed out but we're just being careful.
-                            Lout[child_iM[i]] += 1 * Lout[i]
-                            Lout[i] = 0.0
-
-                        pb.finish()
+            #elif (hist['children'] is not None):
+            #    # Not treating mergers. Just filter out all non-centrals?
+            #    pass
 
         ##
         # Will be unhashable types so just save to a unique identifier

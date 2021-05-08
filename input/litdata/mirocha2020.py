@@ -98,6 +98,7 @@ _base.update(_sed_updates)
 _base.update(_halo_updates)
 
 _legacy = _base.copy()
+#_legacy.update(_halo_updates)
 _legacy['pop_sfr_model'] = 'sfe-func'
 _legacy['pop_dust_yield'] = None
 _legacy['pop_scatter_mar'] = 0
@@ -398,19 +399,19 @@ _duty_dtmr_best_ereg = \
 # NEEDS UPDATING
 _duty_dtmr_best_mreg = \
 {
-'pq_func_par0[0]': 0.1675,
-'pq_func_par1[0]': 59962271529.3613,
-'pq_func_par3[0]': -0.3825,
-'pq_func_par0[40]': 0.5841,
-'pq_func_par2[40]': 0.1258,
-'pq_func_par4[40]': -1.8654,
-'pq_func_par0[22]': 0.8626,
-'pq_func_par2[22]': 0.9404,
-'pq_func_par1[22]': 92768180539.0610,
-'pq_func_par0[50]': 0.4333,
-'pq_func_par2[50]': 0.2162,
-'pq_func_par4[50]': -1.3150,
-'pq_func_par0[33]': 0.0154,
+'pq_func_par0[0]': 0.1983,
+'pq_func_par1[0]': 142132670325.0247,
+'pq_func_par3[0]': -0.5504,
+'pq_func_par0[40]': 0.5350,
+'pq_func_par2[40]': 0.2807,
+'pq_func_par4[40]': -1.4474,
+'pq_func_par0[22]': 0.6875,
+'pq_func_par2[22]': 0.9002,
+'pq_func_par1[22]': 167145860494.2921,
+'pq_func_par0[50]': 0.2896,
+'pq_func_par2[50]': 0.2514,
+'pq_func_par4[50]': -1.3393,
+'pq_func_par0[33]': 0.0180,
 }
 
 ereg = univ.copy()
@@ -429,7 +430,7 @@ ereg_eduty_edtmr = ereg_edtmr.copy()
 ereg_eduty_edtmr.update(_fduty)
 ereg_eduty_edtmr.update(_duty_dtmr_best_ereg)
 
-evol = ereg_eduty_edtmr
+evol_e = ereg_eduty_edtmr
 
 mreg_edtmr = ereg_edtmr.copy()
 mreg_edtmr.update(_evol_mreg_dplrd)
@@ -438,6 +439,7 @@ mreg_eduty_edtmr = mreg_edtmr.copy()
 mreg_eduty_edtmr.update(_fduty)
 mreg_eduty_edtmr.update(_duty_dtmr_best_mreg)
 
+evol_m = mreg_eduty_edtmr
 
 univ_plRd = univ.copy()
 _univ_plRd_best = \
