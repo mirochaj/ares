@@ -149,7 +149,7 @@ class SynthesisModelBase(Source):
             poke = self.sed_at_tsf
             data = self._data_raw
         else:
-            data = self.data
+            data = self.data.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
                 poke = self.sed_at_tsf
@@ -355,7 +355,7 @@ class SynthesisModelBase(Source):
                     poke = self.sed_at_tsf
                     data = self._data_raw[j,:]
                 else:
-                    data = self.data[j,:]
+                    data = self.data[j,:].copy()
                     if nebular_only or self.pf['source_nebular_only']:
                         poke = self.sed_at_tsf
                         data -= self._data_raw[j,:]
@@ -554,7 +554,7 @@ class SynthesisModelBase(Source):
             poke = self.sed_at_tsf
             data = self._data_raw
         else:
-            data = self.data
+            data = self.data.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
                 poke = self.sed_at_tsf
