@@ -381,10 +381,11 @@ def PowerSpectrumParameters():
     {
 
      'ps_output_z': np.arange(6, 20, 1),
+     'ps_output_waves': None,
 
      "ps_output_k": None,
      "ps_output_lnkmin": -4.6,
-     "ps_output_lnkmax": 1.,
+     "ps_output_lnkmax": 2.,
      "ps_output_dlnk": 0.2,
 
      "ps_output_R": None,
