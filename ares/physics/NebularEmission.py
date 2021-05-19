@@ -303,6 +303,7 @@ class NebularEmission(object):
 
         fesc = self.pf['source_fesc']
         Tgas = self.pf['source_nebular_Tgas']
+        cBd = self.pf['source_nebular_caseBdeparture']
         flya = 2. / 3.
         erg_per_phot = self.energies * erg_per_ev
 
@@ -323,7 +324,7 @@ class NebularEmission(object):
         if self.pf['source_nebular_fb']:
             tot += frep_fb * Nabs
         if self.pf['source_nebular_2phot']:
-            tot += frep_tp * Nabs
+            tot += frep_tp * Nabs * cBd
 
         return tot
 
@@ -404,6 +405,7 @@ class NebularEmission(object):
 
         fesc = self.pf['source_fesc']
         _Tg = self.pf['source_nebular_Tgas']
+        _cBd = self.pf['source_nebular_caseBdeparture']
 
         ion = nrg >= E_LL
         gt0 = spec > 0
@@ -447,6 +449,7 @@ class NebularEmission(object):
 
             # In erg/s
             Lline = Nabs * coeff * En * erg_per_ev
+            Lline *= _cBd
 
             # Currently assuming line is unresolved.
             # Should really do this based on some physical argument.

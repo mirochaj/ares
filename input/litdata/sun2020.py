@@ -24,6 +24,7 @@ _base['pop_zdead{0}'] = 5.
 _base['pop_nebular{0}'] = 2
 _base['pop_nebular_continuum{0}'] = True
 _base['pop_nebular_lines{0}'] = True
+_base['pop_nebular_caseBdeparture{0}'] = 1.
 
 _generic_lya = \
 {
@@ -105,6 +106,7 @@ bb['pop_toysps_method{1}'] = 'bb'
 bb['pop_nebular{1}'] = 2
 bb['pop_nebular_continuum{1}'] = True
 bb['pop_nebular_lines{1}'] = True
+bb['pop_nebular_caseBdeparture{1}'] = 2.
 
 bb['pop_mass{1}'] = 100.      # This is redundant with pop_sfr
 bb['pop_lifetime{1}'] = 1e7   # This is redundant with pop_sfr
