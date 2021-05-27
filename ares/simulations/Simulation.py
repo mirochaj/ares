@@ -640,8 +640,6 @@ class Simulation(AnalyzePS): # pragma: no cover
             V = 4. * np.pi * Ri**3 / 3.
             data['bsd'] = V * dndlnR / Qi
 
-            #print(z, Qi_bff, Qi, xibar, Qi_bff / Qi)
-
             if self.pf['ps_include_temp']:
                 # R_s=R_s(Ri,z)
                 Qh = self.field.MeanIonizedFraction(z, ion=False)
