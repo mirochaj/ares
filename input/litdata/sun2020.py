@@ -5,14 +5,14 @@ from ares.util import ParameterBundle as PB
 from ares.physics.Constants import E_LyA, E_LL, lam_LyA
 
 _base = PB(**_base).pars_by_pop(0, 1)
-#base.update(_halo_updates)
+#_base.update(_halo_updates)
 
 _nirb_updates = {}
 _nirb_updates['pop_Emin'] = 0.41 # as low as BPASS goes
-_nirb_updates['pop_Emax'] = E_LL
+#_nirb_updates['pop_Emax'] = E_LL
 _nirb_updates['pop_zdead'] = 5
 _nirb_updates['final_redshift'] = 5
-_nirb_updates['pop_solve_rte'] = (0.41, E_LL)
+_nirb_updates['pop_solve_rte'] = (0.41, E_LL) # This kills heating!
 _nirb_updates['pop_fesc'] = 0.1
 _nirb_updates['tau_redshift_bins'] = 1000 # probably overkill
 _nirb_updates['tau_approx'] = False
