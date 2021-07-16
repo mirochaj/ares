@@ -316,7 +316,11 @@ class NebularEmission(object):
         frep_tp = (1. - flya) * self.f_rep(spec, Tgas, 'tp')
 
         # Amount of UV luminosity absorbed in ISM
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         tot = np.zeros_like(self.wavelengths)
         if self.pf['source_nebular_ff']:
@@ -348,7 +352,11 @@ class NebularEmission(object):
         Nion = self.N_ion(spec)
 
         # Amount of UV luminosity absorbed in ISM
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         #tot = np.zeros_like(self.wavelengths)
 
@@ -413,7 +421,11 @@ class NebularEmission(object):
 
         # This will be in [#/s]
         Nion = self.N_ion(spec)
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
 
