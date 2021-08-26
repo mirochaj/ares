@@ -8,13 +8,15 @@ Running Individual Simulations
     :maxdepth: 2
 
     examples/example_gs_standard
+    examples/example_gs_multipop
 
 Advanced Source Populations
 ---------------------------
 .. toctree::
     :maxdepth: 2
-    
+
     examples/example_pop_galaxy
+    examples/example_pop_popIII
 
 .. * Reionization & Global 21-cm Signal
 ..     *
