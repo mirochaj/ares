@@ -18,6 +18,21 @@ Advanced Source Populations
     examples/example_pop_galaxy
     examples/example_pop_popIII
 
+Parameter Studies and Inference
+-------------------------------
+.. toctree::
+    :maxdepth: 2
+
+    examples/example_grid
+
+
+Extensions
+----------
+.. toctree::
+    :maxdepth: 2
+
+    examples/example_litdata
+
 .. * Reionization & Global 21-cm Signal
 ..     *
 ..     * :doc:`example_gs_standard`
