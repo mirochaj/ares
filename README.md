@@ -40,7 +40,7 @@ If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard
 To clone a copy and install:
 
 ```
-git clone https://github.org/mirochaj/ares.git
+git clone https://github.com/mirochaj/ares.git
 cd ares
 python setup.py install
 ```
@@ -178,3 +178,4 @@ Additional contributions / corrections / suggestions from:
 - Matteo Leo
 - Emma Klemets
 - Felix Bilodeau-Chagnon
+- Oscar Hernandez

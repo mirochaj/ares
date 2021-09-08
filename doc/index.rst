@@ -7,7 +7,7 @@
 **ARES**
 ========
 
-.. image:: https://readthedocs.org/projects/ares/badge/?version=latest 
+.. image:: https://readthedocs.org/projects/ares/badge/?version=latest
 	:target: https://ares.readthedocs.io/en/latest/?badge=latest
 .. image:: https://travis-ci.com/mirochaj/ares.svg?branch=master
     :target: https://travis-ci.com/mirochaj/ares
@@ -39,7 +39,7 @@ risk! Correctness of results is not guaranteed. This documentation is as much of
 Quick-Start
 -----------
 To make sure everything is working, a quick test is to generate a
-realization of the global 21-cm signal using all default parameter values: 
+realization of the global 21-cm signal using all default parameter values:
 
 ::
 
@@ -49,7 +49,7 @@ realization of the global 21-cm signal using all default parameter values:
     sim.run()
     sim.GlobalSignature()
 
-See :doc:`example_gs_standard` in :doc:`examples` for a more thorough 
+See :doc:`example_gs_standard` in :doc:`examples` for a more thorough
 introduction to this type of calculation.
 
 Contents
@@ -67,11 +67,10 @@ Contents
     contributing
     history
     acknowledgements
-	
+
 
 .. Indices and tables
 .. ==================
 .. * :ref:`genindex`
 .. * :ref:`modindex`
 .. * :ref:`search`
-
