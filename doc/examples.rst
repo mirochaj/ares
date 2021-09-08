@@ -24,6 +24,7 @@ Parameter Studies and Inference
     :maxdepth: 2
 
     examples/example_grid
+    examples/example_grid_analysis
 
 
 Extensions

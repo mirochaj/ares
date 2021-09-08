@@ -32,3 +32,4 @@ tests/*.txt
 doc/*.py
 doc/*.txt
 doc/*.pkl
+doc/examples/*.pkl
