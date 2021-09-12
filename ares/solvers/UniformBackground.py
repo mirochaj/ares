@@ -12,6 +12,7 @@ Description:
 
 import numpy as np
 from math import ceil
+from ..data import ARES
 import os, re, types, gc
 from ..util import ParameterFile
 from ..static import GlobalVolume
@@ -45,8 +46,6 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-ARES = os.getenv('ARES')
 
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi

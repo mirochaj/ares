@@ -13,6 +13,7 @@ import glob
 import os, re, sys
 import numpy as np
 from . import Cosmology
+from ..data import PATH
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
@@ -29,6 +30,8 @@ from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
     m_H, k_B, s_per_myr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, \
     interp1d, InterpolatedUnivariateSpline
+
+
 try:
     from scipy.special import erfc
 except ImportError:
@@ -78,7 +81,8 @@ except ImportError:
     except ImportError:
         have_pycamb = False
 
-ARES = os.getenv("ARES")
+#ARES = os.getenv("ARES")
+ARES = PATH[0:PATH.find('ares')] + 'ares'
 
 sqrt2 = np.sqrt(2.)
 

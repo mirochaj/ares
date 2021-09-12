@@ -15,6 +15,7 @@ import gc
 import time
 import pickle
 import numpy as np
+from ..data import ARES
 from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
@@ -2780,7 +2781,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fn = self.guide.halos.tab_name
 
             suffix = fn[fn.rfind('.')+1:]
-            path = os.getenv("ARES") + '/input/hmf/'
+            path = ARES + '/input/hmf/'
             pref = prefix.replace('hmf', 'hgh')
             if self.pf['hgh_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'],
@@ -2800,7 +2801,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zall, traj_all = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
-                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(fn_hist.replace(ARES,
+                        '$ARES')))
                 hist = traj_all
 
             elif fn_hist.endswith('.hdf5'):
