@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ..data import ARES
 from types import FunctionType
 import types, os, textwrap, glob, re
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
@@ -34,8 +35,6 @@ width = 110
 pre = post = '#'*4
 twidth = width - len(pre) - len(post) - 2
 #
-
-ARES = os.environ.get('ARES')
 
 e_methods = \
 {
