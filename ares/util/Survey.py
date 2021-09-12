@@ -14,7 +14,7 @@ import re
 import os
 import copy
 import numpy as np
-from ..util import ARES
+from ..data import ARES
 from ..physics.Constants import c
 from ..physics.Cosmology import Cosmology
 
