@@ -39,8 +39,9 @@ jobs:
       run: |
         python setup.py install
         python remote.py minimal
-        echo "backend : Agg" > ~/.config/matplotlib/matplotlibrc
+        echo "backend : Agg" > $HOME/matplotlibrc
         export DISPLAY=:0
+        export MATPLOTLIBRC=$HOME
     - name: Test with pytest
       run: |
         pytest --cov-config=.coveragerc --cov=ares --cov-report=xml -v tests/*.py
