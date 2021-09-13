@@ -1018,6 +1018,7 @@ def SourceParameters():
     "source_nebular_lookup": None,
     "source_nebular_Tgas": 2e4,
     "source_nebular_caseBdeparture": 1.,
+    "source_prof_1h": None,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
