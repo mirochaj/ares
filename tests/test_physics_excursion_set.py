@@ -63,8 +63,6 @@ def test(tol=0.1, redshifts=[5,10,20]):
     ##
     # Fig. 4. Get dndm
     ##
-    fig4 = pl.figure(4); ax4 = fig4.add_subplot(111)
-
     for i, z in enumerate(redshifts):
 
         iz = np.argmin(np.abs(z - pop.halos.tab_z))
