@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: UCLA
 Created on: Sun Mar 25 16:32:57 PDT 2018
 
-Description: 
+Description:
 
 """
 
@@ -17,18 +17,18 @@ import matplotlib.pyplot as pl
 from ares.physics.Constants import rhodot_cgs
 
 def test():
-    
+
     print("Skipping this test. Must use parametric SED.")
     return
-    
-    
+
+
     pars = ares.util.ParameterBundle('mirocha2017:base') \
          + ares.util.ParameterBundle('mirocha2018:high')
-    
+
     pars['pop_sfr{2}'] = 1e-6        # ~1 100 Msun star every 10 Myr
-    pars['pop_time_limit{2}'] = 20.  
+    pars['pop_time_limit{2}'] = 20.
     pars['pop_bind_limit{2}'] = None
-    
+
     # So we don't need SPS models in test suite
     #pars['pop_sed{0}'] = 'pl'
     #pars['pop_rad_yield{0}'] = 4000
@@ -36,57 +36,43 @@ def test():
     #pars['pop_Emin{0}'] = 10.2
     #pars['pop_Emax{0}'] = 13.6
     #pars['pop_calib_L1600{0}'] = None
-    
+
     # just to speed things up a bit
     pars['feedback_LW_maxiter'] = 4
     pars['sam_atol'] = 1e-1
     pars['sam_rtol'] = 1e-1
     pars['feedback_LW_sfrd_rtol'] = 1e-1
-    pars['tau_redshift_bins'] = 200  
+    pars['tau_redshift_bins'] = 200
     del pars['problem_type']
-    
+
     # Strip away the X-ray sources for now.
     pop2 = pars.pars_by_pop(0, True)
     pop2.num = 0
     pop3 = pars.pars_by_pop(2, True)
     pop3.num = 1
-    
+
     bkw = pars.get_base_kwargs()
-    
+
     pars = bkw + pop2 + pop3
-    
+
     # Correct ID number of link
     pars['pop_Mmin{0}'] = 'link:Mmax:1'
     pars['feedback_LW_sfrd_popid'] = 1
-    
+
     sim = ares.simulations.MetaGalacticBackground(**pars)
     sim.run()
-    
+
     popII  = sim.pops[0]
     popIII = sim.pops[1]
-    
+
     # Convert SFRD from g/s/cm^3 to Msun/yr/cMpc^3
-    pl.figure(1)
-    pl.semilogy(popII.halos.tab_z, popII._tab_sfrd_total * rhodot_cgs, color='k')
-    pl.semilogy(popIII.halos.tab_z, popIII._tab_sfrd_total * rhodot_cgs, color='b')
-    pl.xlabel(r'$z$')
-    pl.ylabel(ares.util.labels['sfrd'])
-    
-    pl.figure(2)
+    sfrdII = popII._tab_sfrd_total * rhodot_cgs
+    sfrdIII = popIII._tab_sfrd_total * rhodot_cgs
+
+    # Could check Mmin iterations
     for i, Mmin in enumerate(sim._Mmin_bank):
-        pl.semilogy(sim.z_unique, Mmin, label='iteration #{}'.format(i))
-    
-    pl.xlabel(r'$z$')
-    pl.ylabel(r'$M_{\min} / M_{\odot}$')
-    pl.legend(loc='upper right', fontsize=12)
-    
-    pl.show()
-    
-    for i in range(1, 3):
-        pl.figure(i)
-        pl.savefig('{!s}_{}.png'.format(__file__[0:__file__.rfind('.')], i))     
-        pl.close()    
-        
+        print(i, Mmin)
+
     assert True
 
 if __name__ == '__main__':

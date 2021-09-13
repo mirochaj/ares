@@ -13,7 +13,6 @@ Description:
 import time
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.physics.Constants import s_per_myr
 
 def test(show_bpass=False, oversample_age=30., dt_coarse=10):
@@ -59,21 +58,6 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
         src = ares.sources.SynthesisModel(source_sed='eldridge2009',
             source_ssp=True, source_Z=0.004)
 
-    fig1, ax1 = pl.subplots(1, 1, num=1)
-    fig2, ax2 = pl.subplots(1, 1, num=2)
-    fig3, ax3 = pl.subplots(1, 1, num=3)
-
-    colors = 'k', 'b', 'c', 'm'
-
-    # Plot time evolution first
-    ax1.set_xlabel(r'$t / \mathrm{Myr}$')
-    ax1.set_ylabel(r'$L_{\nu}$')
-    ax1.set_ylim(1e25, 1e34)
-
-    ax2.set_ylim(1e28, 1e35)
-    ax2.set_xlabel(r'$\lambda / \AA$')
-    ax2.set_ylabel(r'$L_{\nu}$')
-
     ##
     # Experiment with toy models.
     # Plot L(t) for three different wavelengths.
@@ -87,17 +71,12 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
         #ax1.loglog(tarr, L(tarr, wave=wave), color=colors[i], ls='--')
 
         y2 = toy.data[np.argmin(np.abs(toy.wavelengths - wave)),:]
-        ax1.loglog(toy.times, y2, color=colors[i], ls=':', lw=3, alpha=0.3,
-            label=r'$\lambda = %i \AA$' % wave)
 
         # Plot BPASS solution
         if not show_bpass:
             continue
 
         y1 = src.data[np.argmin(np.abs(src.wavelengths - wave)),:]
-        ax1.loglog(src.times, y1, color=colors[i], ls='-')
-
-    ax1.legend(loc='upper right')
 
     ##
     # Plot spectra
@@ -105,17 +84,12 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     for i, _t in enumerate([1, 10, 100]):
 
         y2 = toy.data[:,np.argmin(np.abs(toy.times - _t))]
-        ax2.loglog(toy.wavelengths, y2, color=colors[i], ls='--',
-            label=r'$t = %i$ Myr' % _t)
 
         # Plot BPASS solution
         if not show_bpass:
             continue
 
         y1 = src.data[:,np.argmin(np.abs(src.times - _t))]
-        ax2.loglog(src.wavelengths, y1, color=colors[i], ls='-', alpha=0.2)
-
-    ax2.legend(loc='upper right')
 
     ##
     # Make sure the spectra we put in are the spectra we get out.
@@ -164,12 +138,6 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     t2 = time.time()
     print('dt=10, oversampling OFF:', t2 - t1)
 
-    ax3.semilogx(tarr1, L1, color='k')
-    ax3.semilogx(tarr2[L2 > 0], L2[L2 > 0], color='b', lw=3, ls='--')
-    ax3.semilogx(tarr2[L3 > 0], L3[L3 > 0], color='r', lw=2, ls=':')
-    ax3.set_xlabel(r'$t / \mathrm{Myr}$')
-    ax3.set_ylabel(r'$L_{\nu}$')
-
     def staircase(x, dx=10):
 
         N = x.size
@@ -193,30 +161,12 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     ##
     # Test with 'staircase' SFH.
     ##
-    fig4 = pl.figure(4)
-    ax4a = fig4.add_subplot(211)
-    ax4b = fig4.add_subplot(212)
-
     sfh1 = staircase(tarr1, dx=100)
     sfh2 = staircase(tarr2, dx=100//dt_coarse)
-    ax4a.scatter(tarr1, sfh1, edgecolors='k', marker='.', s=1)
-    ax4a.scatter(tarr2, sfh2, facecolors='none', edgecolors='b')
-    ax4a.set_xlim(0, 300)
-    ax4a.set_ylabel(r'SFR')
-    ax4a.set_ylim(0, 5)
 
     L1 = ss.Luminosity(sfh=sfh1, tarr=tarr1)
     L2 = ss.Luminosity(sfh=sfh2, tarr=tarr2)
     L3 = ss2.Luminosity(sfh=sfh2, tarr=tarr2)
-
-    ax4b.plot(tarr1[L1>0], L1[L1>0], color='k')
-    ax4b.plot(tarr2[L2>0], L2[L2>0], color='b', ls='--', lw=3)
-    ax4b.plot(tarr2[L3>0], L3[L3>0], color='r', ls=':', lw=2)
-    ax4b.set_xlim(0, 300)
-    ax4b.set_xlabel(r'$t / \mathrm{Myr}$')
-    ax4b.set_ylabel(r'$L_{\nu}$')
-    ax4b.set_ylim(0, 0.5e29)
-
 
     # Check validity of over-sampling for non-constant SFH
     # Just take mean error over long time as the solutions will differ
@@ -233,12 +183,6 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
 
     assert np.mean(err) < 0.01
 
-
-    for i in range(1, 5):
-        pl.figure(i)
-        pl.savefig('{0!s}_{1}.png'.format(__file__[0:__file__.rfind('.')], i))
-
-    pl.close('all')
 
     ##
     # Test batch mode
