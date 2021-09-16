@@ -197,6 +197,11 @@ for i, direc in enumerate(to_download):
                 print('after (base)', os.listdir(os.curdir + '/base'))
                 print('after (base/plikHM_TTTEEE_lowl_lowE)',
                     os.listdir(os.curdir + '/base/plikHM_TTTEEE_lowl_lowE'))
+                print("#"*40)
+                print(os.listdir('/home/runner/work/'))
+                print(os.listdir('/home/runner/work/ares'))
+                print(os.listdir('/home/runner/work/ares/input'))
+
             continue
 
         # If it's not a tarball, move on
