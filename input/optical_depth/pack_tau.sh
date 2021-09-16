@@ -7,18 +7,18 @@ echo '################################ tau ################################'
 
 if [ $me = 'jordanmirocha' ]
 then
-  echo \# Hey, J.M., right this way.	
+  echo \# Hey, J.M., right this way.
 else
   printf '# Are you sure you want to proceed [yes/no]: '
-  read -r areyousure 
-  
+  read -r areyousure
+
   if [ $areyousure = 'yes' ]
   then
     echo \# OK, hope you know what you are doing.
   else
     exit 1
-  fi	
-fi 
+  fi
+fi
 
 printf '# Number of MPI tasks to use for tau calculation: '
 read -r np
@@ -38,10 +38,10 @@ else
   mpirun -np $np python generate_optical_depth_tables.py tau_redshift_bins=1000 include_He=0
 fi
 
-tar -czvf tau.tar.gz optical_depth_H_400x862_z_5-60_logE_2.3-4.5.hdf5 \
-	optical_depth_He_400x862_z_5-60_logE_2.3-4.5.hdf5 \
-	optical_depth_H_1000x2158_z_5-60_logE_2.3-4.5.hdf5 \
-	optical_depth_He_1000x2158_z_5-60_logE_2.3-4.5.hdf5
+tar -czvf tau.tar.gz optical_depth_planck_TTTEEE_lowl_lowE_best_H_400x862_z_5-60_logE_2.3-4.5.hdf5 \
+	optical_depth_planck_TTTEEE_lowl_lowE_best_He_400x862_z_5-60_logE_2.3-4.5.hdf5 \
+	optical_depth_planck_TTTEEE_lowl_lowE_best_H_1000x2158_z_5-60_logE_2.3-4.5.hdf5 \
+	optical_depth_planck_TTTEEE_lowl_lowE_best_He_1000x2158_z_5-60_logE_2.3-4.5.hdf5
 
 # Copy to dropbox
 echo Created tarball tau.tar.gz.
@@ -51,7 +51,7 @@ FILE=$DROPBOX/ares
 if [ -d "$FILE" ]
 then
   :
-else 
+else
   mkdir $FILE
   echo "Created $FILE."
 fi
@@ -59,7 +59,7 @@ fi
 if [ -d "$FILE/input" ]
 then
   :
-else 
+else
   mkdir $FILE/input
   echo "Created $FILE/input."
 fi
@@ -67,8 +67,8 @@ fi
 if [ -d "$FILE/input/optical_depth" ]
 then
   :
-else 
-  mkdir $FILE/input/optical_depth	
+else
+  mkdir $FILE/input/optical_depth
   echo "Created $FILE/input/optical_depth."
 fi
 

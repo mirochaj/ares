@@ -13,6 +13,7 @@ import glob
 import os, re, sys
 import numpy as np
 from . import Cosmology
+from ..data import ARES
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
@@ -29,6 +30,8 @@ from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
     m_H, k_B, s_per_myr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, \
     interp1d, InterpolatedUnivariateSpline
+
+
 try:
     from scipy.special import erfc
 except ImportError:
@@ -77,8 +80,6 @@ except ImportError:
             print("For HMF v3 or greater, must use new 'camb' Python package.")
     except ImportError:
         have_pycamb = False
-
-ARES = os.getenv("ARES")
 
 sqrt2 = np.sqrt(2.)
 
@@ -435,7 +436,13 @@ class HaloMassFunction(object):
                 self.TabulateMAR()
 
         elif self.tab_name is None:
-            raise IOError("Did not find HMF table suitable for given parameters.")
+            _path = self.pf['hmf_path'] \
+                if self.pf['hmf_path'] is not None \
+                else'{0!s}/input/hmf'.format(ARES)
+
+            _prefix = self.tab_prefix_hmf(True)
+            _fn_ = '{0!s}/{1!s}'.format(_path, _prefix)
+            raise IOError("Did not find HMF table suitable for given parameters. Was looking for {}".format(_fn_))
 
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
@@ -1116,8 +1123,8 @@ class HaloMassFunction(object):
 
         return self._tab_MAR_delayed
 
-    def MAR_func(self, z, M):
-        return self.MAR_func_(z, M)
+    def MAR_func(self, z, M, grid=True):
+        return self.MAR_func_(z, M, grid=grid)
 
     @property
     def MAR_func_(self):
@@ -1130,7 +1137,8 @@ class HaloMassFunction(object):
 
             _MAR_func = RectBivariateSpline(self.tab_z, np.log(self.tab_M), tab)
 
-            self._MAR_func_ = lambda z, M: np.exp(_MAR_func(z, np.log(M))).squeeze()
+            self._MAR_func_ = lambda z, M, grid=True: np.exp(_MAR_func(z,
+                np.log(M), grid=grid)).squeeze()
 
         return self._MAR_func_
 

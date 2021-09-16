@@ -1,37 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-J. Aird1, A. L. Coil, A. Georgakakis, K. Nandra, G. Barro, 
-P. G. P´erez-Gonz´alez, 2015, ???, ???, ???
+J. Aird1, A. L. Coil, A. Georgakakis, K. Nandra, G. Barro,
+P. G. Perez-Gonzalez, 2015, ???, ???, ???
 
 There are two different models with two different sets of Data each:
 
 Model 1: LDDE1
     -Simple model of Ueda 2003 (I Believe*** will check and fix**)
-    
+
 Model 2: LDDE2:
     -Complex model of UEDA 2014 (I  Believe** will check and fix**)
-    
+
 Data set 1:
-    -Soft band (0.5-2 KeV) parameters for both models 
-    
+    -Soft band (0.5-2 KeV) parameters for both models
+
 Data set 2:
-    -Hard band (2-7 KeV) parameters for both models 
-    
-NOTE: 
-    
+    -Hard band (2-7 KeV) parameters for both models
+
+NOTE:
+
     These models produce Lx(z). This does *NOT* integrate and give the Lx density for either model.
-    
+
     --- = spacing between different sections of code
-    
+
     ### = spacing within a section of code to denote a different section within that particular code
-    
+
     $$$ = spacing between different parts of codes
 
 Need to be careful that the naming convention is the same for these parameters
 and those used in the ueda2003 and ueda2014 modules:
 -Use zc, not zcstar
 -logLstar, not loglstar
-  -Also, if the parameter has "log" in the name, do *not* apply the 10** 
+  -Also, if the parameter has "log" in the name, do *not* apply the 10**
    operator
 
 """
@@ -84,7 +84,7 @@ qsolf_LDDE2_softerr = \
  'alpha2_err': 0.02,
  'evolution': 'ldde_2',
  'band': 'soft',
- 
+
 }
 
 qsolf_LDDE1_softpars = \
@@ -154,7 +154,7 @@ qsolf_LDDE2_harderr = \
  'alpha_err': 0.01,
  'alpha2_err': 0.02,
  'evolution': 'ldde_1',
- 'band': 'hard', 
+ 'band': 'hard',
 }
 
 qsolf_LDDE1_hardpars = \
@@ -190,49 +190,49 @@ qsolf_LDDE1_harderr = \
 
 kwargs_by_evolution_soft = \
 {
- 'ldde_1': qsolf_LDDE1_softpars, 
+ 'ldde_1': qsolf_LDDE1_softpars,
  'ldde_2': qsolf_LDDE2_softpars
-} 
+}
 
 kwargs_by_evolution_hard = \
 {
- 'ldde_1': qsolf_LDDE1_hardpars, 
+ 'ldde_1': qsolf_LDDE1_hardpars,
  'ldde_2': qsolf_LDDE2_hardpars
 }
 
 def _parse_kwargs(**kwargs):
-    
+
     kw = kwargs.copy()
-    
+
     if 'band' not in kwargs:
         band = kwargs['band'] = default_band
     else:
         band = kwargs['band']
-    
+
     if 'evolution' not in kwargs:
         evolution = kwargs['evolution'] = default_evolution
     else:
         evolution = kwargs['evolution']
-    
+
     if band == 'soft':
         kwargs_by_evolution = kwargs_by_evolution_soft
     elif band == 'hard':
         kwargs_by_evolution = kwargs_by_evolution_hard
     else:
         raise ValueError('\'{!s}\' band not recognized'.format(band))
-    
+
     kwargs = kwargs_by_evolution[evolution]
     kwargs.update(kw)
-    
+
     return kwargs
- 
+
 #-------------------------------------------------
 
 def randomsamples(samples, K = None, loglstar = None, \
 gamma1 = None, gamma2 = None, p1 = None, p2  = None,\
-p3  = None, beta1 = None, zstar = None, zstarc2  = None, 
+p3  = None, beta1 = None, zstar = None, zstarc2  = None,
 logLa = None, logLa2 = None, alpha = None, alpha2 = None,\
-K_err = None, loglstar_err = None, gamma1_err = None, 
+K_err = None, loglstar_err = None, gamma1_err = None,
 gamma2_err = None, p1_err = None, p2_err = None, p3_err = None, \
 beta1_err = None, zstar_err = None, zstarc2_err = None,\
 logLa_err = None, logLa2_err = None, alpha_err = None, \
@@ -240,7 +240,7 @@ alpha2_err = None, **kwargs):
 
     randomsamples = []
     for i in range(samples):
-        
+
         randomsample = {
         #'K': np.random.normal(K, K_err, samples),
         'K': 10**-5.72,
@@ -260,48 +260,48 @@ alpha2_err = None, **kwargs):
         }
         randomsamples.append(randomsample)
     return randomsamples
-  
-#-------------------------------------------------    
+
+#-------------------------------------------------
 
 #def _LuminosityFunction_LDDE2(L, z,):
 #    if Lx < logLa:
 #        zc1 = zstar*(Lx / logLa)**alpha
 #    elif Lx >= logLa:
 #        zc1 = zstar
-#    
-#    ##########################################   
-#    
+#
+#    ##########################################
+#
 #    if Lx < logLa2:
 #        zc2 = zstarc2*(Lx / logLa2)**alpha2
 #    elif Lx >= logLa2:
-#        zc2 = zstarc2 
-#    
-#    ##########################################  
-#    
+#        zc2 = zstarc2
+#
+#    ##########################################
+#
 #    if z < zc1:
 #        ex = (1+z)**p1
 #    elif zc1 < z < zc2:
 #        ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
 #    elif z > zc2:
 #        ex = (1+zc1)**p1*((1+zc2)/(1+zc1))**p2*((1+z)/(1+zc2))**p3
-#    
+#
 #    return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
-    
+
 def LuminosityFunction(L, z, **kwargs):
     """
     Compute number density of quasars with luminosity L at redshift z.
     """
-    
+
     kwargs = _parse_kwargs(**kwargs)
-        
+
     if kwargs['evolution'] == 'ldde_1':
         eofz = eofz_ldde_ueda2003(z, L, **kwargs)
         kwargs['A'] = kwargs['K']
-        NofL = _DoublePowerLaw(L, **kwargs)        
+        NofL = _DoublePowerLaw(L, **kwargs)
     elif kwargs['evolution'] == 'ldde_2':
         #eofz = eofz_ldde_ueda2014(L, z, **kwargs)
         raise NotImplemented('LDDE2 not implemented')
-        
+
     return eofz * NofL
 
 #def LuminosityFunction(Lx, z, LDDE1 = None, LDDE2 = None, K= None, loglstar = None, gamma1 = None, gamma2 = None, p1 = None, \
@@ -309,42 +309,42 @@ def LuminosityFunction(L, z, **kwargs):
 #alpha = None, alpha2 = None):
 #
 #    """This function is the Luminosity Density Dependent Equation (LDDE). There are two different models to choose from, LDDE1 and LDDE2.
-#    LDDE2 is more complicated but seems to be the model of choice for authors. ***More to come""" 
+#    LDDE2 is more complicated but seems to be the model of choice for authors. ***More to come"""
 #
 #
 #    if LDDE1 == True:
-#        
+#
 #        if Lx < logLa:
 #            zc1 = zstar*(Lx / logLa)**alpha
 #        elif Lx >= logLa:
 #            zc1 = zstar
-#    
-###################################################   
+#
+###################################################
 #
 #        if z <= zc1:
 #            ex = (1+z)**p1
 #        elif z > zc1:
 #            ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
-#           
+#
 #        return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
-#        
-#        
-#    elif LDDE2 == True:    
-#        
+#
+#
+#    elif LDDE2 == True:
+#
 #        if Lx < logLa:
 #            zc1 = zstar*(Lx / logLa)**alpha
 #        elif Lx >= logLa:
 #            zc1 = zstar
-#    
-###################################################   
-#    
+#
+###################################################
+#
 #        if Lx < logLa2:
 #            zc2 = zstarc2*(Lx / logLa2)**alpha2
 #        elif Lx >= logLa2:
-#            zc2 = zstarc2 
-#    
-###################################################  
-#      
+#            zc2 = zstarc2
+#
+###################################################
+#
 #        if z < zc1:
 #            ex = (1+z)**p1
 #        elif zc1 < z < zc2:
@@ -354,9 +354,9 @@ def LuminosityFunction(L, z, **kwargs):
 #
 #
 #        return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
-#        
+#
 #    else:
-#        
+#
 #        raise TypeError('Pick a Luminosity Dependent Density Evolution')
 #
-##-------------------------------------------------  
+##-------------------------------------------------

@@ -6,11 +6,12 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Thu Jul 17 15:05:13 MDT 2014
 
-Description: 
+Description:
 
 """
 
 import numpy as np
+from ..data import ARES
 from types import FunctionType
 import types, os, textwrap, glob, re
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
@@ -29,13 +30,11 @@ except ImportError:
     rank = 0
     size = 1
 
-# FORMATTING   
+# FORMATTING
 width = 110
-pre = post = '#'*4    
+pre = post = '#'*4
 twidth = width - len(pre) - len(post) - 2
 #
-
-ARES = os.environ.get('ARES')
 
 e_methods = \
 {
@@ -44,19 +43,19 @@ e_methods = \
  2: 'Ricotti, Gnedin, & Shull (2002)',
  3: 'Furlanetto & Stoever (2010)'
 }
-             
+
 rate_srcs = \
 {
  'fk94': 'Fukugita & Kawasaki (1994)',
  'chianti': 'Chianti'
 }
-             
+
 S_methods = \
 {
  1: 'Salpha = const. = 1',
  2: 'Chuzhoy, Alvarez, & Shapiro (2005)',
  3: 'Furlanetto & Pritchard (2006)'
-}         
+}
 
 def footer():
     print("#" * width)
@@ -71,12 +70,12 @@ def separator():
     print(line('-' * twidth))
 
 def line(s, just='l'):
-    """ 
+    """
     Take a string, add a prefix and suffix (some number of # symbols).
-    
+
     Optionally justify string, 'c' for 'center', 'l' for 'left', and 'r' for
     'right'. Defaults to left-justified.
-    
+
     """
     if just == 'c':
         return "{0!s} {1!s} {2!s}".format(pre, s.center(twidth), post)
@@ -84,7 +83,7 @@ def line(s, just='l'):
         return "{0!s} {1!s} {2!s}".format(pre, s.ljust(twidth), post)
     else:
         return "{0!s} {1!s} {2!s}".format(pre, s.rjust(twidth), post)
-        
+
 def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
     """
     Take table, row names, column names, and output nicely.
@@ -109,14 +108,14 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
 
     hnames = []
     for i, col in enumerate(cols):
-        tmp = col.center(cwidth[i+1])    
+        tmp = col.center(cwidth[i+1])
         hnames.extend(list(tmp))
 
     start = len(pre) + cwidth[0] + 3
 
     hdr[start:start + len(hnames)] = hnames
 
-    # Convert from list to string        
+    # Convert from list to string
     hdr_s = ''
     for element in hdr:
         hdr_s += element
@@ -142,7 +141,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
                 continue
             elif type(data[i][j]) is bool:
                 numbers += str(int(data[i][j])).center(cwidth[j+1])
-                continue 
+                continue
             numbers += (fmt.format(data[i][j])).center(cwidth[j+1])
         numbers += ' '
 
@@ -154,20 +153,20 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
             d_s += element
 
         print(d_s)
-        
+
 def print_warning(s, header='WARNING'):
     dedented_s = textwrap.dedent(s).strip()
     snew = textwrap.fill(dedented_s, width=twidth)
     snew_by_line = snew.split('\n')
-    
+
     print("\n" + ("#" * width))
     print("{0!s} {1!s} {2!s}".format(pre, header.center(twidth), post))
     print("#" * width)
-    
+
     for l in snew_by_line:
         print(line(l))
-    
-    print("#" * width)        
+
+    print("#" * width)
 
 def print_1d_sim(sim):
 
@@ -180,28 +179,28 @@ def print_1d_sim(sim):
     print("\n" + ("#" * width))
     print("{0!s} {1!s} {2!s}".format(pre, header.center(twidth), post))
     print("#" * width)
-    
-    print(line('-' * twidth))       
-    print(line('Book-Keeping'))     
+
     print(line('-' * twidth))
-    
+    print(line('Book-Keeping'))
+    print(line('-' * twidth))
+
     if sim.pf['dtDataDump'] is not None:
         print(line("dtDataDump  : every {} Myr".format(sim.pf['dtDataDump'])))
     else:
         print(line("dtDataDump  : no regularly-spaced time dumps"))
-    
+
     if sim.pf['dzDataDump'] is not None:
         print(line("dzDataDump  : every dz={0:.2g}".format(\
             sim.pf['dzDataDump'])))
     else:
         print(line("dzDataDump  : no regularly-spaced redshift dumps"))
-       
+
     print(line("initial dt  : {0:.2g} Myr".format(sim.pf['initial_timestep'])))
-    
+
     rdt = ""
     for element in sim.pf['restricted_timestep']:
         rdt += '{!s}, '.format(element)
-    rdt = rdt.strip().rstrip(',')       
+    rdt = rdt.strip().rstrip(',')
     print(line("restrict dt : {!s}".format(rdt)))
     print(line("max change  : {0:.4g}% per time-step".format(\
         sim.pf['epsilon_dt'] * 100)))
@@ -209,7 +208,7 @@ def print_1d_sim(sim):
     print(line('-' * twidth))
     print(line('Grid'))
     print(line('-' * twidth))
-    
+
     print(line("cells       : {}".format(sim.pf['grid_cells']), just='l'))
     print(line("logarithmic : {}".format(sim.pf['logarithmic_grid']), just='l'))
     print(line("r0          : {0:.3g} (code units)".format(\
@@ -218,11 +217,11 @@ def print_1d_sim(sim):
         sim.pf['length_units'] / cm_per_kpc), just='l'))
     print(line("density     : {0:.2e} (H atoms cm**-3)".format(\
         sim.pf['density_units'])))
-    
+
     print(line('-' * twidth))
     print(line('Chemical Network'))
     print(line('-' * twidth))
-    
+
     Z = ''
     A = ''
     for i, element in enumerate(sim.grid.Z):
@@ -232,41 +231,41 @@ def print_1d_sim(sim):
         elif element == 2:
             Z += ', He'
             A += ', {0:.2g}'.format(sim.pf['helium_by_number'])
-            
+
     print(line("elements    : {!s}".format(Z), just='l'))
     print(line("abundances  : {!s}".format(A), just='l'))
     print(line("rates       : {!s}".format(rate_srcs[sim.pf['rate_source']]),
         just='l'))
-    
+
     print(line('-'*twidth))
     print(line('Physics'))
     print(line('-'*twidth))
-    
+
     print(line("radiation   : {}".format(sim.pf['radiative_transfer'])))
     print(line("isothermal  : {}".format(sim.pf['isothermal']), just='l'))
     print(line("expansion   : {}".format(sim.pf['expansion']), just='l'))
     if sim.pf['radiative_transfer']:
         print(line("phot. cons. : {}".format(sim.pf['photon_conserving'])))
-        print(line("planar      : {!s}".format(sim.pf['plane_parallel']), 
-            just='l'))        
+        print(line("planar      : {!s}".format(sim.pf['plane_parallel']),
+            just='l'))
     print(line("electrons   : {!s}".format(\
         e_methods[sim.pf['secondary_ionization']]), just='l'))
-            
-    # Should really loop over sources here        
-    
+
+    # Should really loop over sources here
+
     if sim.pf['radiative_transfer']:
-    
+
         print(line('-' * twidth))
         print(line('Source'))
         print(line('-' * twidth))
-        
+
         print(line("type        : {!s}".format(sim.pf['source_type'])))
         if sim.pf['source_type'] == 'star':
             print(line("T_surf      : {0:.2e} K".format(\
                 sim.pf['source_temperature'])))
             print(line("Qdot        : {0:.2e} photons / sec".format(\
                 sim.pf['source_qdot'])))
-        
+
         print(line('-' * twidth))
         print(line('Spectrum'))
         print(line('-' * twidth))
@@ -274,7 +273,7 @@ def print_1d_sim(sim):
 
         #if sim.pf['spectrum_E'] is not None:
         #    tabulate()
-        
+
     print("#" * width)
     print("")
 
@@ -287,14 +286,14 @@ def print_rate_int(tab):
     pop : ares.populations.*Population instance
 
     """
-    
+
     if rank > 0 or not pop.pf['verbose']:
         return
 
     warnings = []
 
     header  = 'Tabulated Rate Coefficient Integrals'
-    
+
     print("\n" + ("#" * width))
     print("{0!s} {1!s} {2!s}".format(pre, header.center(twidth), post))
     print("#" * width)
@@ -307,7 +306,7 @@ def print_rate_int(tab):
 
     for warning in warnings:
         print_warning(warning)
-        
+
 def print_hmf(hmf):
     header = 'Halo Mass function'
     print("\n" + ("#" * width))
@@ -324,7 +323,7 @@ def print_hmf(hmf):
     print(line('-' * twidth))
     print(line('Table Limits & Resolution'))
     print(line('-' * twidth))
-    
+
     if hmf.pf['hmf_dt'] is None:
         print(line("zmin                  : {0:g}".format(hmf.pf['hmf_zmin'])))
         print(line("zmax                  : {0:g}".format(hmf.pf['hmf_zmax'])))
@@ -333,13 +332,13 @@ def print_hmf(hmf):
         print(line("tmin (Myr)            : {0:g}".format(hmf.pf['hmf_tmin'])))
         print(line("tmax (Myr)            : {0:g}".format(hmf.pf['hmf_tmax'])))
         print(line("dt   (Myr)            : {0:g}".format(hmf.pf['hmf_dt'])))
-        
+
     print(line("Mmin (Msun)           : {0:e}".format(\
         10 ** hmf.pf['hmf_logMmin'])))
     print(line("Mmax (Msun)           : {0:e}".format(\
         10 ** hmf.pf['hmf_logMmax'])))
     print(line("dlogM                 : {0:g}".format(hmf.pf['hmf_dlogM'])))
-    
+
     print("#" * width)
 
 def print_pop(pop):
@@ -354,7 +353,7 @@ def print_pop(pop):
 
     if rank > 0 or not pop.pf['verbose']:
         return
-    
+
     warnings = []
 
     alpha = pop.pf['pop_alpha']
@@ -370,21 +369,21 @@ def print_pop(pop):
 
     # rt1d wants lists for spectrum_* parameters
     if type(alpha) is not list:
-        alpha = list([alpha])    
+        alpha = list([alpha])
     if type(Emin) is not list:
         Emin = list([Emin])
     if type(Emax) is not list:
-        Emax = list([Emax])  
+        Emax = list([Emax])
     if type(EminNorm) is not list:
         EminNorm = list([EminNorm])
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
-    
+
     header = 'ARES Population: Summary'
     print("\n" + ("#" * width))
     print("{0!s} {1!s} {2!s}".format(pre, header.center(twidth), post))
     print("#" * width)
-    
+
     print(line('-' * twidth))
     print(line('Star Formation'))
     print(line('-' * twidth))
@@ -420,25 +419,25 @@ def print_pop(pop):
 
             if 'pq_faux{!s}'.format(sf(i)) not in pop.pf:
                 print(line("{0!s}   : {1!s}".format(pname, s)))
-                continue    
-                
+                continue
+
             if pop.pf['pq_faux{!s}'.format(sf(i))] is not None:
                 if pop.pf['pq_faux_meth{!s}'.format(sf(i))] == 'add':
                     s += ' + {!s}'.format(pop.pf['pq_faux{!s}'.format(sf(i))])
                 else:
                     s += ' * {!s}'.format(pop.pf['pq_faux{!s}'.format(sf(i))])
-                
+
             print(line("{0!s}: {1!s}".format(pname, s)))
-                    
+
     ##
     # SPECTRUM STUFF
     ##
     print(line('-' * twidth))
     print(line('Spectrum'))
     print(line('-' * twidth))
-    
+
     print(line("SED         : {!s}".format(pop.pf['pop_sed'])))
-    
+
     if pop.pf['pop_sed'] == 'pl':
         print(line("alpha       : {0:g}".format(\
             pop.pf['pop_alpha'])))
@@ -452,24 +451,24 @@ def print_pop(pop):
         print(line("binaries?   : {0:g}".format(pop.pf['pop_binaries'])))
         print(line("burst       : {0:g}".format(pop.pf['pop_ssp'])))
         print(line("aging       : {0:g}".format(pop.pf['pop_aging'])))
-        
+
     ##
-    # Dust stuff    
-        
-    # If SED not tabulated, print out radiative output.        
-    if pop.pf['pop_sed'] not in ['eldridge2009', 'leitherer1999']:      
+    # Dust stuff
+
+    # If SED not tabulated, print out radiative output.
+    if pop.pf['pop_sed'] not in ['eldridge2009', 'leitherer1999']:
         print(line('-' * twidth))
         print(line('Radiative Output'))
-        print(line('-' * twidth))  
+        print(line('-' * twidth))
         if hasattr(pop, 'yield_per_sfr'):
             print(line("yield (erg / s / SFR) : {0:g}".format(\
                 pop.yield_per_sfr * g_per_msun / s_per_yr)))
-        
+
         print(line("Emin (eV)             : {0:g}".format(pop.pf['pop_Emin'])))
         print(line("Emax (eV)             : {0:g}".format(pop.pf['pop_Emax'])))
         print(line("EminNorm (eV)         : {0:g}".format(pop.pf['pop_EminNorm'])))
-        print(line("EmaxNorm (eV)         : {0:g}".format(pop.pf['pop_EmaxNorm'])))        
-            
+        print(line("EmaxNorm (eV)         : {0:g}".format(pop.pf['pop_EmaxNorm'])))
+
     ##
     # NOTES!
     print(line('-' * twidth))
@@ -489,18 +488,18 @@ def print_pop(pop):
         s2 += ' [in Angstroms] for speed-up.'
         print(line(s1))
         print(line(s2))
-        
+
     # Other noteworthy things?
-    
+
     if warnings != []:
         print(line('-' * twidth))
         print(line('Warnings'))
         print(line('-' * twidth))
         for warning in warnings:
             print_warning(warning)
-    
+
     print("#" * width)
-        
+
 def _rad_type(sim, fluctuations=False):
     rows = []
     cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Ly-a', 'LW', 'Ly-C', 'X-ray', 'RTE']
@@ -525,7 +524,7 @@ def _rad_type(sim, fluctuations=False):
 
                 if is_src:
                     tmp.append('x')
-                else:                
+                else:
                     tmp.append(' ')
 
             # No analog for RTE solution for fluctuations (yet)
@@ -535,27 +534,27 @@ def _rad_type(sim, fluctuations=False):
             if pop.pf['pop_solve_rte']:
                 tmp.append('x')
             else:
-                tmp.append(' ')    
+                tmp.append(' ')
 
         data.append(tmp)
 
-    return data, rows, cols        
-                
+    return data, rows, cols
+
 def print_sim(sim, mgb=False):
     """
     Print information about simulation to screen.
-    
+
     Parameters
     ----------
     sim : ares.simulations.Global21cm or PowerSpectrum21cm instance.
-    
+
     """
-    
+
     if rank > 0 or not sim.pf['verbose']:
-        return 
+        return
 
     # Poke sim.pops just to get loads in before print-out
-    _pops = sim.pops   
+    _pops = sim.pops
 
     header = 'ARES Simulation: Overview'
     print("\n" + "#"*width)
@@ -566,26 +565,26 @@ def print_sim(sim, mgb=False):
     if sim.is_phenom:
         print("Phenomenological model! Not much to report...")
         print("#"*width)
-        return    
-    
+        return
+
     print(line('-'*twidth))
-    print(line('Uniform Backgrounds'))
+    print(line('Source Populations'))
     print(line('-'*twidth))
-    
-    data, rows, cols = _rad_type(sim)    
+
+    data, rows, cols = _rad_type(sim)
     tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
-    
+
     #print line('-'*twidth)
     #print line('Fluctuating Backgrounds')
     #print line('-'*twidth)
     #
     #data, rows, cols = _rad_type(sim, fluctuations=True)
     #tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
-    
+
     if mgb:
         print("#" * width)
         return
-    
+
     ct = 0
     for i, pop in enumerate(sim.pops):
         if pop.pf['pop_calib_lum'] is not None:
@@ -593,7 +592,7 @@ def print_sim(sim, mgb=False):
                 print(line('-' * twidth))
                 print(line('Notes'))
                 print(line('-' * twidth))
-                
+
             s1 = "+ pop_calib_lum != None, which means".format(i)
             s1 += ' changes to pop_Z will *not* affect UVLF.'
             s2 = '  Set pop_calib_lum=None to restore "normal" behavior'
@@ -601,29 +600,29 @@ def print_sim(sim, mgb=False):
             print(line(s1))
             print(line(s2))
             ct += 1
-            
-        # Other noteworthy things?    
-    
-    
+
+        # Other noteworthy things?
+
+
     print(line('-' * twidth))
     print(line('Physics'))
     print(line('-' * twidth))
-    
-    phys_pars = ['cgm_initial_temperature', 'clumping_factor', 
-        'secondary_ionization', 'approx_Salpha', 'include_He', 
+
+    phys_pars = ['cgm_initial_temperature', 'clumping_factor',
+        'secondary_ionization', 'approx_Salpha', 'include_He',
         'feedback_LW', 'feedback_LW_Mmin', 'feedback_LW_fsh']
 
-    cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0", 
+    cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0",
         "helium_by_number", "sigma_8"]
-    
+
     for par in phys_pars:
         val = sim.pf[par]
-        
-        
+
+
         if ('feedback_LW' in par) and (par != 'feedback_LW'):
             if not sim.pf['feedback_LW']:
-                continue        
-        
+                continue
+
         if val is None:
             print(line('{!s} : None'.format(par.ljust(30))))
         elif type(val) in [list, tuple]:
@@ -632,9 +631,9 @@ def print_sim(sim, mgb=False):
             print(line('{0!s} : {1:g}'.format(par.ljust(30), val)))
         else:
             print(line('{0!s} : {1!s}'.format(par.ljust(30), val)))
-    
+
     print("#" * width)
-    
+
 
 def print_rb(rb):
     """
@@ -656,7 +655,7 @@ def print_rb(rb):
     if rb.pf['approx_xrb']:
         return
 
-    warnings = []        
+    warnings = []
 
     header = 'Radiation Background'
     print("\n" + ("#" * width))
@@ -672,8 +671,8 @@ def print_rb(rb):
         print(line("Emax (eV)         : {0:.1e}".format(rb.igm.E1)))
 
         if hasattr(rb.igm, 'z'):
-            print(line("zmin              : {0:.2g}".format(rb.igm.z.min())))    
-            print(line("zmax              : {0:.2g}".format(rb.igm.z.max())))    
+            print(line("zmin              : {0:.2g}".format(rb.igm.z.min())))
+            print(line("zmax              : {0:.2g}".format(rb.igm.z.max())))
             print(line("redshift bins     : {}".format(rb.igm.L)))
             print(line("frequency bins    : {}".format(rb.igm.N)))
 
@@ -690,9 +689,9 @@ def print_rb(rb):
                 else:
                     fn = rb.igm.tabname[rb.igm.tabname.rfind('/')+1:]
                     path = rb.igm.tabname[:rb.igm.tabname.rfind('/')+1]
-                    
+
                     print(line("file              : {!s}".format(fn)))
-                    
+
                     if ARES in path:
                         path = path.replace(ARES, '')
                         print(line(("path              : " +\
@@ -705,7 +704,7 @@ def print_rb(rb):
             rb.pf['spectrum_Emin'])))
         print(line("Emax (eV)         : {0:.1e}".format(\
             rb.pf['spectrum_Emax'])))
-        
+
         if rb.pf['spectrum_Emin'] < 13.6:
             if not rb.pf['discrete_lwb']:
                 print(line("NOTE              : this is a continuous " +\
@@ -720,23 +719,23 @@ def print_rb(rb):
     print("#" * width)
 
     for warning in warnings:
-        print_warning(warning) 
+        print_warning(warning)
 
 def print_model_set(mset):
     if rank > 0:
         return
-        
+
     header = 'Analysis: Model Set'
     print("\n" + ("#" * width))
     print("{0!s} {1!s} {2!s}".format(pre, header.center(twidth), post))
     print("#" * width)
 
     print(line('-' * twidth))
-    print(line('Basic Information'))     
+    print(line('Basic Information'))
     print(line('-' * twidth))
 
     i = mset.prefix.rfind('/') # forward slash index
-    
+
     # This means we're sitting in the right directory already
     if i == - 1:
         path = './'
@@ -746,21 +745,12 @@ def print_model_set(mset):
         prefix = mset.prefix[i+1:]
 
     print(line("path        : {!s}".format(path)))
-    print(line("prefix      : {!s}".format(prefix)))    
+    print(line("prefix      : {!s}".format(prefix)))
     print(line("N-d         : {}".format(len(mset.parameters))))
 
     print(line('-' * twidth))
     for i, par in enumerate(mset.parameters):
         print(line("param    #{0!s}: {1!s}".format(str(i).zfill(2), par)))
-    
+
     print("#" * width)
     print("")
-    
-
-
-
-
-
-
-
-

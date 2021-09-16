@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: McGill
 Created on: Mon 23 Mar 2020 09:15:53 EDT
 
-Description: 
+Description:
 
 """
 
@@ -38,9 +38,9 @@ class InitialConditions(object):
         """
         Get recombination history from file or directly from CosmoRec.
         """
-        fn = '{}/input/inits/inits_{}.txt'.format(self.path_ARES, 
+        fn = '{}/input/inits/inits_{}.txt'.format(self.path_ARES,
             self.get_prefix())
-        
+
         # Look for table first, then run if we don't find it.
         if os.path.exists(fn):
             z, xe, Tk = np.loadtxt(fn, unpack=True)
@@ -51,11 +51,11 @@ class InitialConditions(object):
         else:
             if self.pf['verbose']:
                 print("# Did not find initial conditions in file {}.".format(fn))
-            
+
             assert os.path.exists('{}/CosmoRec'.format(self.pf['cosmorec_path'])), \
                 "No CosmoRec executable found. Set via cosmorec_path parameter."
-            
-            if self.pf['verbose']:    
+
+            if self.pf['verbose']:
                 print("# Will generate from scratch using {}/CosmoRec.".format(
                     self.pf['cosmorec_path']))
 
@@ -64,19 +64,19 @@ class InitialConditions(object):
     def get_inits_ps(self):
         """
         Get matter power spectrum from file or directly from CAMB or CLASS.
-        
+
         .. note :: Must supply this to HMF, if not None. Perhaps add a parameter
             that tells ARES to use CAMB or CLASS. How about, e.g., setting
             "use_boltzmann='camb'" or something?
         """
-        
+
         pass
-    
+
     def _run_CosmoRec(self, save=True): # pragma: no cover
         """
-        Run CosmoRec. Assumes we've got an executable waiting for us in 
+        Run CosmoRec. Assumes we've got an executable waiting for us in
         directory supplied via ``cosmorec_path`` parameter in ARES.
-        
+
         Will save to $ARES/input/inits. Can check in $ARES/input/inits/outputs
         for CosmoRec parameter files should any debugging be necessary. They
         will have the same naming convention, just different filename prefix
@@ -84,18 +84,18 @@ class InitialConditions(object):
         """
         # Some defaults copied over from CosmoRec.
         CR_pars = [self.pf[par] for par in _pars_CosmoRec]
-        
+
         # Correct output dir. Just add provided path on top of $ARES
         CR_pars[-2] = '{}/{}/'.format(self.path_ARES, CR_pars[-2])
-        
+
         fn_pars = 'cosmorec_{}.dat'.format(self.get_prefix())
-        
+
         # Create parameter file for reference
         to_outputs = CR_pars[-2]
-        
+
         if not os.path.exists(to_outputs):
             os.mkdir(to_outputs)
-        
+
         with open(to_outputs + '/' + fn_pars, 'w') as f:
             for element in CR_pars:
                 print(element, file=f)
@@ -104,30 +104,27 @@ class InitialConditions(object):
         str_to_exec = '{}/CosmoRec {}/{} >> cr.log'.format(
             self.pf['cosmorec_path'], to_outputs, fn_pars)
         os.system(str_to_exec)
-                
+
         for fn in os.listdir(to_outputs):
             if re.search('trans', fn):
                 break
-    
+
         # Convert it to ares format
         data = np.loadtxt('{}/{}'.format(to_outputs, fn))
 
         new_data = \
         {
-         'z': data[:,0][-1::-1], 
-         'xe': data[:,1][-1::-1], 
+         'z': data[:,0][-1::-1],
+         'xe': data[:,1][-1::-1],
          'Tk': data[:,2][-1::-1],
         }
 
-        fn_out = '{}/input/inits/inits_{}.txt'.format(self.path_ARES, 
+        fn_out = '{}/input/inits/inits_{}.txt'.format(self.path_ARES,
             self.get_prefix())
 
         np.savetxt(fn_out, data[-1::-1,0:3], header='z; xe; Te')
-        
+
         if self.pf['verbose']:
             print("# Wrote {}.".format(fn_out))
-        
+
         return new_data
-            
-    
-        
