@@ -51,7 +51,7 @@ aux_data = \
  'nircam': ['https://jwst-docs.stsci.edu/files/97978094/97978135/1/1596073152953',
      'nircam_throughputs_22April2016_v4.tar.gz',
      None],
- 'wfc3': ['http://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
+ 'wfc3': ['https://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/wfc3/performance/throughputs/_documents/',
     'IR.zip',
      None],
  'wfc': ['https://www.dropbox.com/s/zv8qomgka9fkiek/wfc.tar.gz?dl=1',
@@ -184,25 +184,11 @@ for i, direc in enumerate(to_download):
                 print("WARNING: Error downloading {0!s}/{1!s}".format(_web, _fn_))
                 continue
 
-        print('before', os.listdir(os.curdir))
-
         # If it's a zip, unzip and move on.
         if re.search('.zip', _fn_) and (not re.search('tar', _fn_)):
             zip_ref = zipfile.ZipFile(_fn_, 'r')
             zip_ref.extractall()
             zip_ref.close()
-            print('after', os.listdir(os.getcwd()))
-            if 'base' in os.listdir(os.curdir):
-                print('whereami', os.getcwd())
-                print('after (base)', os.listdir(os.curdir + '/base'))
-                print('after (base/plikHM_TTTEEE_lowl_lowE)',
-                    os.listdir(os.curdir + '/base/plikHM_TTTEEE_lowl_lowE'))
-                print("#"*40)
-                print(os.listdir('/home/runner/work/'))
-                print(os.listdir('/home/runner/work/ares'))
-                print(os.listdir('/home/runner/work/ares/ares'))
-                print(os.listdir('/home/runner/work/ares/ares/input'))
-
             continue
 
         # If it's not a tarball, move on

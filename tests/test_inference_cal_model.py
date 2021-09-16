@@ -47,8 +47,6 @@ def test():
     assert anl.chain.shape == (2, 1), "Chain not the right shape."
     assert anl.logL.size == 2, "logL not the right size."
 
-    axes = gpop.PlotSummary(anl, fig=1, use_best=True)
-
     # Add some dust
     cal = ares.inference.CalibrateModel(fit_lf=[6], fit_beta=[6],
         free_params_sfe=['norm', 'peak', 'slope-low', 'slope-high'],

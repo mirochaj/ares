@@ -146,7 +146,6 @@ class Cosmology(InitialConditions):
         if self.pf['cosmology_id'] == 'best':
 
             data = {}
-            print("CHECK", ARES, os.listdir(ARES), path)
             with open('{}/{}.minimum'.format(path, prefix), 'r') as f:
                 for i, line in enumerate(f):
                     if i < 2:
