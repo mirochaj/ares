@@ -184,11 +184,14 @@ for i, direc in enumerate(to_download):
                 print("WARNING: Error downloading {0!s}/{1!s}".format(_web, _fn_))
                 continue
 
+        print('before', os.listdir(os.curdir))
+
         # If it's a zip, unzip and move on.
         if re.search('.zip', _fn_) and (not re.search('tar', _fn_)):
             zip_ref = zipfile.ZipFile(_fn_, 'r')
             zip_ref.extractall()
             zip_ref.close()
+            print('after', os.listdir(os.curdir))
             continue
 
         # If it's not a tarball, move on
