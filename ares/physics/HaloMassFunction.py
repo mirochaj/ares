@@ -13,7 +13,7 @@ import glob
 import os, re, sys
 import numpy as np
 from . import Cosmology
-from ..data import PATH
+from ..data import ARES
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
@@ -80,9 +80,6 @@ except ImportError:
             print("For HMF v3 or greater, must use new 'camb' Python package.")
     except ImportError:
         have_pycamb = False
-
-#ARES = os.getenv("ARES")
-ARES = PATH[0:PATH.find('ares')] + 'ares'
 
 sqrt2 = np.sqrt(2.)
 

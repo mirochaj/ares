@@ -7,12 +7,13 @@ Reference: Eldridge, JJ., and Stanway, E.R., 2009, MNRAS, 400, 1019
 
 import re, os
 import numpy as np
+from ares.data import ARES
 from scipy.interpolate import interp1d
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
-_input = os.getenv('ARES') + '/input/bpass_v1/SEDS'
-_input2 = os.getenv('ARES') + '/input/bpass_v1_stars/'
+_input = ARES + '/input/bpass_v1/SEDS'
+_input2 = ARES + '/input/bpass_v1_stars/'
 
 metallicities = \
 {

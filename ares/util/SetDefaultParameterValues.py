@@ -11,11 +11,11 @@ Description: Defaults for all different kinds of parameters.
 
 import os, imp
 import numpy as np
+from ..data import ARES
 from ares import rcParams
 from ..physics.Constants import m_H, cm_per_kpc, s_per_myr, E_LL
 
 inf = np.inf
-ARES = os.environ.get('ARES')
 
 tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
