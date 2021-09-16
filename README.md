@@ -25,10 +25,6 @@ Plus some more applications:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-If you'd like to live on the bleeding edge, check out the ares-dev branch! Once you clone **ares** you can switch via: ::
-
-    git checkout ares-dev
-
 The [documentation](http://ares.readthedocs.org/en/latest/) is still a work in progress.
 
 ## Citation
@@ -45,12 +41,6 @@ cd ares
 python setup.py install
 ```
 
-You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash):
-
-```
-export ARES=/users/<yourusername>/ares
-```
-
 **ares** will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run:
 
 ```
@@ -63,7 +53,7 @@ This might take a few minutes. If something goes wrong with the download, you ca
 python remote.py fresh
 ```
 
-to get fresh copies of everything.
+to get fresh copies of everything. Let me know if something doesn't work -- sometimes files get moved and the links need updating.
 
 ## Dependencies
 
@@ -136,11 +126,12 @@ via pip:
 pip install sphinx
 ```
 
-This depends on [numpydoc](https://github.com/numpy/numpydoc), which can also
+This depends on [numpydoc](https://github.com/numpy/numpydoc) and [nbsphinx](http://nbsphinx.readthedocs.io/), which can also
 be installed via pip:
 
 ```
 pip install numpydoc
+pip install nbsphinx
 ```
 
 You can also just view the latest build [here](http://ares.readthedocs.org/en/latest/).
