@@ -336,9 +336,12 @@ class Survey(object):
                 filter_set = [filter_set]
 
         data = {}
-        for fn in os.listdir(self.path+'/IR'):
+        for fn in os.listdir(self.path):
 
-            pre = fn.split('_IR_throughput')[0]
+            if '.txt' not in fn:
+                continue
+
+            pre = fn[fn.find('_f')+1:fn.rfind('.')].upper()
 
             # Read-in no matter what
             if get_all or (pre in filters):
@@ -349,8 +352,8 @@ class Survey(object):
 
                 cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn),
-                    unpack=True, skiprows=1, delimiter=',')
+                x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                    unpack=True, skiprows=1)
 
                 # Convert wavelengths from Angstroms to microns
                 data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -374,8 +377,8 @@ class Survey(object):
                     # string identifier.
                     cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                    _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn),
-                        unpack=True, skiprows=1, delimiter=',')
+                    x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                        unpack=True, skiprows=1)
 
                     # Convert wavelengths from Angstroms to microns
                     data[pre] = self._get_filter_prop(x / 1e4, y, cent)

@@ -14,7 +14,6 @@ import os
 import ares
 import glob
 import numpy as np
-import matplotlib.pyplot as pl
 
 def test():
 
@@ -93,20 +92,6 @@ def test():
         # Make sure walkers are moving
         for j in range(len(anl.parameters)):
             assert np.unique(np.diff(anl.chain[:,j])).size > 1
-
-        # Make some plots
-        mp = anl.WalkerTrajectoriesMultiPlot(anl.parameters,
-            color='b', alpha=0.2, fig=1)
-        #mp = anl.WalkerTrajectory2D(anl.parameters[0:2], N=anl.nwalkers,
-        #     color='b', alpha=0.2, fig=2)
-
-        # Make sure we can reconstruct blobs in a variety of ways.
-        ax = anl.ReconstructedFunction('dTb', z_to_freq=True, fig=3,
-            color='gray', alpha=0.3)
-        anl.ReconstructedFunction('dTb', ax=ax, z_to_freq=True, fig=3,
-            color='b', alpha=0.3, fill=False, samples='all')
-        anl.ReconstructedFunction('dTb', ax=ax, z_to_freq=True, fig=3,
-            color='y', alpha=1.0, use_best=True, ls='--', lw=3)
 
         # Isolate walker, check shape etc.
         w0, logL, flags = anl.get_walker(0)
