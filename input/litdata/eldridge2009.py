@@ -71,7 +71,7 @@ def _kwargs_to_fn(**kwargs):
 
     return _input + '/' + fn
 
-def _load(**kwargs):
+def _load(fn=None, **kwargs):
     """
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
@@ -96,7 +96,10 @@ def _load(**kwargs):
 
     # No interpolation necessary
     else:
-        fn = _fn = _kwargs_to_fn(**kwargs)
+        if fn is None:
+            fn = _fn = _kwargs_to_fn(**kwargs)
+        else:
+            _fn = fn
 
         _raw_data = np.loadtxt(fn)
 
