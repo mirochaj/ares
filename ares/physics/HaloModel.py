@@ -4,6 +4,7 @@ import os
 import re
 import pickle
 import numpy as np
+from ..data import ARES
 import scipy.special as sp
 from types import FunctionType
 from scipy.integrate import quad
@@ -33,8 +34,6 @@ except ImportError:
     have_hankel = False
 
 four_pi = 4 * np.pi
-
-ARES = os.getenv("ARES")
 
 class HaloModel(HaloMassFunction):
 

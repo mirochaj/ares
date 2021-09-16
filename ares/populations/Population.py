@@ -37,10 +37,11 @@ _multi_pop_error_msg += 'This population: '
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters, SynthesisParameters
 
-_synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017']
+_synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017',
+    'bpass_v1', 'bpass_v2', 'starburst99']
 _single_star_models = ['schaerer2002']
 _sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002', 'hybrid',
-    'sps-toy']
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
 
 def normalize_sed(pop):
     """

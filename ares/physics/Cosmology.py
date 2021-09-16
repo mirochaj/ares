@@ -11,6 +11,7 @@ Description:
 """
 import os
 import numpy as np
+from ..data import ARES
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
@@ -119,7 +120,7 @@ class Cosmology(InitialConditions):
     @property
     def path_ARES(self):
         if not hasattr(self, '_path_ARES'):
-            self._path_ARES = os.environ.get('ARES')
+            self._path_ARES = ARES
         return self._path_ARES
 
     @property

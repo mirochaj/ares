@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ..data import ARES
 from .Source import Source
 from ..util.Math import interp1d
 from ares.physics import Cosmology
