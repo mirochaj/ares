@@ -94,7 +94,6 @@ class SynthesisModelBase(Source):
 
         if null_ionizing_spec:
             self._data[self.energies > E_LL] *= self.pf['source_fesc']
->>>>>>> main
 
     def AveragePhotonEnergy(self, Emin, Emax):
         """
