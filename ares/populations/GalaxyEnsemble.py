@@ -15,6 +15,7 @@ import gc
 import time
 import pickle
 import numpy as np
+from ..data import ARES
 from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
@@ -225,7 +226,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return None
 
         if thin in [0, 1]:
-            return arr.copy()
+            return arr
 
         assert thin % 1 == 0
 
@@ -439,8 +440,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             dtype = np.float64
 
-        t = np.array([self.cosm.t_of_z(zall[_i]) for _i in range(zall.size)]) \
-            / s_per_myr
+        t = np.array([self.cosm.t_of_z(zall[_i]) \
+            for _i in range(zall.size)]) / s_per_myr
 
         histories['t'] = t.astype(dtype)
 
@@ -465,6 +466,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         if 'pos' in raw:
             histories['pos'] = raw['pos']
+
+        if 'flags' in raw:
+            histories['flags'] = raw['flags']
 
         self.tab_z = zall
         #self._cache_halos = histories
@@ -1033,6 +1037,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:
+            iz = np.argmin(np.abs(6. - z))
             SFR = self.guide.SFE(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
@@ -1228,7 +1233,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     Md[:,k+1] = Md[:,k] + (Md_p + Md_g) * dt[k]
 
             # Dust surface density.
-            Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+            Rd = self.guide.dust_scale(z=z2d, Mh=Mh)
+            Sd = np.divide(Md, np.power(Rd, 2.)) \
+                / 4. / np.pi
+
+            iz = np.argmin(np.abs(6. - z))
 
             # Can add scatter to surface density
             if self.pf['pop_dust_scatter'] is not None:
@@ -1287,7 +1296,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # NOTE: no transferrance of gas, metals, or stars, as of yet.
         ##
         if self.pf['pop_mergers'] > 0:
-            children = halos['children'][:,-1::-1]
+            children = halos['children']
             iz, iM, is_main = children.T
             uni = np.all(Mh.mask == False, axis=1)
             merged = np.logical_and(iz >= 0, uni == True)
@@ -1306,7 +1315,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 #pos[i,0:iz[i],:] = pos[iM[i],iz[i],:]
 
                 # Add SFR so luminosities include that of parent halos
-                SFR[iM[i],:] += SFR[i,:]
+                #SFR[iM[i],:] += SFR[i,:]
                 # Looks like a potential double-counting issue but SFR
                 # will have been set to zero post-merger.
 
@@ -1351,6 +1360,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 pos = None
         else:
+            children = None
+
             if 'pos' in halos:
                 pos = halos['pos'][:,-1::-1,:]
             else:
@@ -1366,7 +1377,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'MAR': MAR,  # May use this
          't': t,
          'z': z,
-         #'child': child,
+         'children': children,
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
          'SFR': SFR,
@@ -1383,6 +1394,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
         }
+
+        if 'flags' in halos.keys():
+            results['flags'] = halos['flags'][:,-1::-1]
 
         if self.pf['pop_dust_yield'] is not None:
             results['rand'] = halos['rand'][:,-1::-1]
@@ -2767,7 +2781,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fn = self.guide.halos.tab_name
 
             suffix = fn[fn.rfind('.')+1:]
-            path = os.getenv("ARES") + '/input/hmf/'
+            path = ARES + '/input/hmf/'
             pref = prefix.replace('hmf', 'hgh')
             if self.pf['hgh_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'],
@@ -2787,7 +2801,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zall, traj_all = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
-                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(fn_hist.replace(ARES,
+                        '$ARES')))
                 hist = traj_all
 
             elif fn_hist.endswith('.hdf5'):

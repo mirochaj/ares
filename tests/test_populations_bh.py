@@ -6,13 +6,12 @@ Author: Jordan Mirocha
 Affiliation: McGill
 Created on: Fri  3 Apr 2020 12:54:41 EDT
 
-Description: 
+Description:
 
 """
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.physics.Constants import rhodot_cgs, rho_cgs
 
 def test():
@@ -38,35 +37,22 @@ def test():
      #'sam_atol': 1e-6,
      #'sam_rtol': 1e-8,
     }
-    
+
     pop = ares.populations.GalaxyPopulation(**bh_pars)
     pop.info
     pop.halos.info
-    
+
     zarr = np.arange(5, 40)
-    
+
     frd = pop.FRD(zarr) * rhodot_cgs
     ard = pop.ARD(zarr) * rhodot_cgs
     bhmd = pop.BHMD(zarr) * rho_cgs
-    
-    pl.figure(1)
-    pl.semilogy(zarr, frd, color='k', label='new BHs')
-    pl.semilogy(zarr, ard, color='b', ls='--', label='accretion')
-    pl.xlabel(r'$z$')
-    pl.ylabel(r'$\dot{\rho}_{\bullet} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$')
-    pl.legend(loc='lower left', fontsize=14)
-    pl.savefig('rho_acc.png')
-    
-    pl.figure(2)
-    pl.semilogy(zarr, bhmd, color='b', ls='--')
-    pl.xlabel(r'$z$')
-    pl.ylabel(r'$\rho_{\bullet} \ [M_{\odot} \ \mathrm{cMpc}^{-3}]$')
+
 
     # Crude checks
     assert 1e-9 <= np.mean(frd) <= 1e-1, "BH FRD unreasonable!"
     assert 1 <= np.interp(10, zarr, bhmd) <= 1e9, "BHMD unreasonable!"
-    
-    
+
+
 if __name__ == '__main__':
     test()
-    

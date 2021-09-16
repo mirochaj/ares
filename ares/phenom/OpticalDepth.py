@@ -13,7 +13,7 @@ Description: Analytic fits to IGM optical depth models.
 import numpy as np
 from ..physics import Hydrogen, Cosmology
 from ..util.ParameterFile import ParameterFile
-from ..physics.Constants import h_p, c, erg_per_ev
+from ..physics.Constants import h_p, c, erg_per_ev, lam_LL, lam_LyA
 
 class Madau1995(object):
     def __init__(self, hydr=None, **kwargs):
@@ -39,7 +39,8 @@ class Madau1995(object):
     def hydr(self, value):
         self._hydr = value
 
-    def __call__(self, z, owaves):
+    def __call__(self, z, owaves, l_tol=1e-8):
+
         """
         Compute optical depth of photons at observed wavelengths `owaves`
         emitted by object(s) at redshift `z`.
@@ -66,6 +67,14 @@ class Madau1995(object):
 
         for i in range(len(A)):
             ok = np.logical_and(rwaves <= l[i], rwaves > l[i+1])
+
+            # Need to be careful about machine precision issues at line centers
+            dl = rwaves - l[i]
+            k = np.argmin(np.abs(dl))
+            if not ok[k]:
+                if np.abs(dl[k]) < l_tol:
+                    ok[k] = True
+
             tau[ok==1] += A[i] * (owaves[ok==1] * 1e4 / l[i])**3.46
 
         #tau[np.logical_and(rwaves < l[-1], rwaves > 912.)] = np.inf
@@ -81,6 +90,6 @@ class Madau1995(object):
                - 0.7 * xc**3 * (xc**-1.32 - xem**-1.32) \
                - 0.023 * (xem**1.68 - xc**1.68)
 
-        tau[rwaves < 912.] += tau_bf[rwaves < 912.]
+        tau[rwaves < lam_LL] += tau_bf[rwaves < lam_LL]
 
         return tau

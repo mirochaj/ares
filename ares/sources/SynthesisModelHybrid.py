@@ -6,17 +6,17 @@ Author: Henri Lamarre
 Affiliation: UCLA
 Created on: Tue Oct 1 16:57:45 PDT 2019
 
-Description: 
+Description:
 
 """
 
 import numpy as np
-from .SynthesisModel import SynthesisMaster, SynthesisModel
+from .SynthesisModel import SynthesisModelBase, SynthesisModel
 import scipy.interpolate as sci
 from .Source import Source
 
 # Not in test suite because we only pull-down BPASS to save time.
-class SynthesisModelHybrid(SynthesisMaster): # pragma: no cover
+class SynthesisModelHybrid(SynthesisModelBase): # pragma: no cover
 
     def __init__(self, **kwargs):
         self.pf = kwargs
@@ -49,7 +49,7 @@ class SynthesisModelHybrid(SynthesisMaster): # pragma: no cover
             smooth_bpass = np.zeros_like(b_data)
             for i in range(len(smooth_bpass)):
                 smooth_bpass[i] = np.convolve(b_data[i], kernel_b, mode='same')
-            
+
             s_interp = 12
             s_data = np.array(self.starburst[0]).T
             smooth_starburst = []
@@ -66,7 +66,7 @@ class SynthesisModelHybrid(SynthesisMaster): # pragma: no cover
         interpolated_s = sci.interp2d(self.starburst[1], self.starburst[2], self.smooth_data[1])
         data = (self.pf['source_coef']*interpolated_b(self.wavelengths, self.times)+\
             (1-self.pf['source_coef'])*interpolated_s(self.wavelengths, self.times)).T
-        
+
         return data
 
     @property

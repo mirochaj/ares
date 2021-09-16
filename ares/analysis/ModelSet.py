@@ -3553,10 +3553,10 @@ class ModelSet(BlobFactory):
             tmp = self.ExtractData(name,
                 take_log=take_log, un_log=un_logy, multiplier=multiplier)
             yblob = tmp[name].squeeze()
-            
+
             if expr is not None:
                 yblob = eval(expr).squeeze()
-            
+
             #else:
             #    tmp = self.ExtractData(names,
             #        take_log=take_log, un_log=un_log, multiplier=multiplier)

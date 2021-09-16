@@ -14,6 +14,7 @@ import re
 import os
 import copy
 import numpy as np
+from ..data import ARES
 from ..physics.Constants import c
 from ..physics.Cosmology import Cosmology
 
@@ -25,7 +26,7 @@ except ImportError:
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
-_path = os.environ.get('ARES') + '/input'
+_path = ARES + '/input'
 
 class Survey(object):
     def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False,
@@ -107,7 +108,7 @@ class Survey(object):
         else:
             gotax = True
 
-        data = self._read_throughputs(filter_set, filters)
+        data = self.read_throughputs(filter_set, filters)
 
         colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
         for i, filt in enumerate(data.keys()):
@@ -130,8 +131,21 @@ class Survey(object):
 
         return ax
 
-    def _read_throughputs(self, filter_set='W', filters=None):
+    def read_throughputs(self, filter_set='W', filters=None):
+        """
+        Assembles a dictionary of throughput curves.
 
+        Each element of the dictionary is a tuple containing:
+            (wavelength, throughput, midpoint of filter,
+                width of filter (FWHM), transmission averaged over filter)
+
+        Example
+        -------
+
+        >>> wave, T, mid, wid, Tavg = self.read_throughputs()
+
+
+        """
         if ((self.camera, None, 'all') in self.cache) and (filters is not None):
             cached_phot = self.cache[(self.camera, None, 'all')]
 
