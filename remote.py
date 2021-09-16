@@ -191,9 +191,9 @@ for i, direc in enumerate(to_download):
             zip_ref = zipfile.ZipFile(_fn_, 'r')
             zip_ref.extractall()
             zip_ref.close()
-            print('after', os.listdir(os.get_cwd()))
+            print('after', os.listdir(os.getcwd()))
             if 'base' in os.listdir(os.curdir):
-                print('whereami', os.get_cwd())
+                print('whereami', os.getcwd())
                 print('after (base)', os.listdir(os.curdir + '/base'))
                 print('after (base/plikHM_TTTEEE_lowl_lowE)',
                     os.listdir(os.curdir + '/base/plikHM_TTTEEE_lowl_lowE'))
