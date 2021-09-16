@@ -200,7 +200,8 @@ for i, direc in enumerate(to_download):
                 print("#"*40)
                 print(os.listdir('/home/runner/work/'))
                 print(os.listdir('/home/runner/work/ares'))
-                print(os.listdir('/home/runner/work/ares/input'))
+                print(os.listdir('/home/runner/work/ares/ares'))
+                print(os.listdir('/home/runner/work/ares/ares/input'))
 
             continue
 
