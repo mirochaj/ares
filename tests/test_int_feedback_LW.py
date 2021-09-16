@@ -13,7 +13,6 @@ Description:
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.physics.Constants import rhodot_cgs
 
 def test():

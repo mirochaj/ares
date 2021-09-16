@@ -53,13 +53,9 @@ def test():
                 last = np.array(results['exc'][k])
             else:
                 pass
+                
             # Just need this to do flya/fexc
             results[channel].append(np.array(f3))
-
-            # Compare to high-energy limit from Shull
-            if channel == 'lya':
-                continue
-
 
     assert True
 

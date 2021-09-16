@@ -12,7 +12,6 @@ Description: This is very similar to Haiman, Abel, & Rees (1997) Fig. 1.
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.physics.Constants import erg_per_ev, c, ev_per_hz, E_LyA
 
 beta = -6.
@@ -84,7 +83,7 @@ def test(tol=1e-2):
     z, E, flux = mgb.get_history(flatten=True)
 
     Jnu_cas = flux[:,k] * E[k] * erg_per_ev
-    
+
 
 if __name__ == '__main__':
     test()
