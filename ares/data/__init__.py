@@ -1,3 +1,6 @@
-_PATH = __path__[0]
-PATH = _PATH[0:_PATH.find('ares')] + 'ares'
-ARES = PATH
+from pathlib import Path
+
+def get_project_root() -> Path:
+    return Path(__file__).parent.parent.parent
+
+ARES = get_project_root()
