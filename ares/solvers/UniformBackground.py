@@ -716,6 +716,8 @@ class UniformBackground(object):
         i, j, k = source, species, band.
         """
         if kwargs['zone'] in ['igm', 'both']:
+
+
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateIGM(z, species=j, popid=i,
                 band=k, **kwargs)

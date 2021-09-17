@@ -314,6 +314,7 @@ class NebularEmission(object):
 
         fesc = self.pf['source_fesc']
         Tgas = self.pf['source_nebular_Tgas']
+        cBd = self.pf['source_nebular_caseBdeparture']
         flya = 2. / 3.
         erg_per_phot = self.energies * erg_per_ev
 
@@ -326,7 +327,11 @@ class NebularEmission(object):
         frep_tp = (1. - flya) * self.f_rep(spec, Tgas, 'tp')
 
         # Amount of UV luminosity absorbed in ISM
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         tot = np.zeros_like(self.wavelengths)
         if self.pf['source_nebular_ff']:
@@ -334,7 +339,7 @@ class NebularEmission(object):
         if self.pf['source_nebular_fb']:
             tot += frep_fb * Nabs
         if self.pf['source_nebular_2phot']:
-            tot += frep_tp * Nabs
+            tot += frep_tp * Nabs * cBd
 
         return tot
 
@@ -358,7 +363,11 @@ class NebularEmission(object):
         Nion = self.N_ion(spec)
 
         # Amount of UV luminosity absorbed in ISM
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         #tot = np.zeros_like(self.wavelengths)
 
@@ -428,6 +437,7 @@ class NebularEmission(object):
 
         fesc = self.pf['source_fesc']
         _Tg = self.pf['source_nebular_Tgas']
+        _cBd = self.pf['source_nebular_caseBdeparture']
 
         ion = nrg >= E_LL
         gt0 = spec > 0
@@ -435,7 +445,11 @@ class NebularEmission(object):
 
         # This will be in [#/s]
         Nion = self.N_ion(spec)
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
 
@@ -471,6 +485,7 @@ class NebularEmission(object):
 
             # In erg/s
             Lline = Nabs * coeff * En * erg_per_ev
+            Lline *= _cBd
 
             # Currently assuming line is unresolved.
             # Should really do this based on some physical argument.

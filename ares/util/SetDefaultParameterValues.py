@@ -875,6 +875,7 @@ def PopulationParameters():
 
     # Nebular emission stuff
     "pop_nebular_Tgas": 2e4,
+    "pop_nebular_caseBdeparture": 1.,
 
     "pop_lmin": None,
     "pop_lmax": None,
@@ -1017,6 +1018,8 @@ def SourceParameters():
     "source_nebular_2phot": True,
     "source_nebular_lookup": None,
     "source_nebular_Tgas": 2e4,
+    "source_nebular_caseBdeparture": 1.,
+    "source_prof_1h": None,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
@@ -1126,6 +1129,7 @@ def SynthesisParameters():
     "source_nebular_2phot": True,
     "source_nebular_lookup": None,
     "source_nebular_Tgas": 2e4,
+    "source_nebular_caseBdeparture": 1.,
 
     "source_fesc": 0.,
 

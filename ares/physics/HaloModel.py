@@ -147,6 +147,14 @@ class HaloModel(HaloMassFunction):
 
         return norm / (1. + kappa**2)**2.
 
+    def u_cgm_rahmati(self, k, m, z):
+        rstar = 0.0025
+        return np.arctan((rstar * k) ** 0.75) / (rstar * k) ** 0.75
+
+    def u_cgm_steidel(self, k, m, z):
+        rstar = 0.2
+        return np.arctan((rstar * k) ** 0.85) / (rstar * k) ** 0.85
+
     def FluxProfile(self, r, m, z, lc=False):
         return m * self.ModulationFactor(z, r=r, lc=lc) / (4. * np.pi * r**2)
 
