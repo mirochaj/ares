@@ -387,7 +387,7 @@ class HaloModel(HaloMassFunction):
         ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
         ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
 
-        return ps1h + ps2h
+        return ps_1h + ps_2h
 
     def CorrelationFunction(self, z, R, k=None, Pofk=None, load=True):
         """
@@ -428,7 +428,7 @@ class HaloModel(HaloMassFunction):
 
         else:
             k = self.tab_k
-            Pofk = self.PowerSpectrum(z, self.tab_k)
+            Pofk = self.get_ps_tot(z, self.tab_k)
 
         return self.InverseFT3D(R, Pofk, k)
 
@@ -745,13 +745,22 @@ class HaloModel(HaloMassFunction):
                     self.TabulateHMF(save_MAR=False)
 
             if name not in self.__dict__.keys():
-                print('hello', name)
                 self._load_ps()
 
         return self.__dict__[name]
 
     def _load_ps(self, suffix='hdf5'):
         """ Load table from HDF5 or binary. """
+
+        if self.pf['hps_assume_linear']:
+            print("Assuming linear matter PS...")
+            self._tab_ps_mm = np.zeros((self.tab_z_ps.size, self.tab_k.size))
+            self._tab_cf_mm = np.zeros((self.tab_z_ps.size, self.tab_R.size))
+            for i, _z_ in enumerate(self.tab_z_ps):
+                iz = np.argmin(np.abs(_z_ - self.tab_z))
+                self._tab_ps_mm[i,:] = self._get_ps_lin(_z_, iz)
+
+            return
 
         fn = '%s/input/hmf/%s.%s' % (ARES, self.tab_prefix_ps(), suffix)
 
@@ -836,6 +845,26 @@ class HaloModel(HaloMassFunction):
 
         return prefix[0:iz] + prefix[iR:]
 
+    @property
+    def tab_ps_mm(self):
+        if not hasattr(self, '_tab_ps_mm'):
+            self._load_ps()
+        return self._tab_ps_mm
+
+    @tab_ps_mm.setter
+    def tab_ps_mm(self, value):
+        self._tab_ps_mm = value
+
+    @property
+    def tab_cf_mm(self):
+        if not hasattr(self, '_tab_cf_mm'):
+            ps = self.tab_ps_mm
+        return self._tab_cf_mm
+
+    @tab_cf_mm.setter
+    def tab_cf_mm(self, value):
+        self._tab_cf_mm = value
+
     def TabulatePS(self, clobber=False, checkpoint=True, **ftkwargs):
         """
         Tabulate the matter power spectrum as a function of redshift and k.
@@ -912,8 +941,8 @@ class HaloModel(HaloMassFunction):
             if len(assignments) % size != 0:
                 print("WARNING: Uneven load: {} redshifts and {} processors!".format(len(assignments), size))
 
-        self.tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
-        self.tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
+        tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
+        tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
         for i, z in enumerate(self.tab_z_ps):
 
             # Done but not by me!
@@ -930,11 +959,11 @@ class HaloModel(HaloMassFunction):
 
             # Must interpolate back to fine grid (uniformly sampled
             # real-space scales) to do FFT and obtain correlation function
-            self.tab_ps_mm[i] = self.PowerSpectrum(z, self.tab_k)
+            tab_ps_mm[i] = self.get_ps_tot(z, self.tab_k)
 
             # Compute correlation function at native resolution to save time
             # later.
-            self.tab_cf_mm[i] = self.InverseFT3D(self.tab_R, self.tab_ps_mm[i],
+            tab_cf_mm[i] = self.InverseFT3D(self.tab_R, tab_ps_mm[i],
                 self.tab_k, **ftkwargs)
 
             pb.update(i)
@@ -943,7 +972,7 @@ class HaloModel(HaloMassFunction):
                 continue
 
             with open(fn, 'ab') as f:
-                pickle.dump((z, self.tab_ps_mm[i], self.tab_cf_mm[i]), f)
+                pickle.dump((z, tab_ps_mm[i], tab_cf_mm[i]), f)
                 #print("Processor {} wrote checkpoint for z={}".format(rank, z))
 
         pb.finish()
@@ -973,19 +1002,23 @@ class HaloModel(HaloMassFunction):
             if z in _z:
 
                 j = _z.index(z)
-                self.tab_ps_mm[i] = _ps[j]
-                self.tab_cf_mm[i] = _cf[j]
+                tab_ps_mm[i] = _ps[j]
+                tab_cf_mm[i] = _cf[j]
 
 
         # Collect results!
         if size > 1:
-            tmp1 = np.zeros_like(self.tab_ps_mm)
-            nothing = MPI.COMM_WORLD.Allreduce(self.tab_ps_mm, tmp1)
+            tmp1 = np.zeros_like(tab_ps_mm)
+            nothing = MPI.COMM_WORLD.Allreduce(tab_ps_mm, tmp1)
             self.tab_ps_mm = tmp1
 
-            tmp2 = np.zeros_like(self.tab_cf_mm)
-            nothing = MPI.COMM_WORLD.Allreduce(self.tab_cf_mm, tmp2)
+            tmp2 = np.zeros_like(tab_cf_mm)
+            nothing = MPI.COMM_WORLD.Allreduce(tab_cf_mm, tmp2)
             self.tab_cf_mm = tmp2
+
+        else:
+            self.tab_ps_mm = tab_ps_mm
+            self.tab_cf_mm = tab_cf_mm
 
         # Done!
 

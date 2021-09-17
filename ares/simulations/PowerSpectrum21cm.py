@@ -8,256 +8,44 @@ from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
+from ..physics.Constants import cm_per_mpc, c, s_per_yr
 from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
-from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
-    erg_per_s_per_nW, h_p, cm_per_m
 
-class PowerSpectrum(AnalyzePS): # pragma: no cover
-    def __init__(self, pf=None, **kwargs):
+#
+#try:
+#    import dill as pickle
+#except ImportError:
+#    import pickle
+
+defaults = \
+{
+ 'load_ics': True,
+}
+
+class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
+    def __init__(self, **kwargs):
         """ Set up a power spectrum calculation. """
 
         # See if this is a tanh model calculation
+        #is_phenom = self._check_if_phenom(**kwargs)
+
+        kwargs.update(defaults)
         if 'problem_type' not in kwargs:
-            kwargs['problem_type'] = 102
+            kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
 
-        if pf is None:
-            self.pf = ParameterFile(**self.kwargs)
-        else:
-            self.pf = pf
-
     @property
-    def gs(self):
-        if not hasattr(self, '_gs'):
-            self._gs = Global21cm(**self.kwargs)
-        return self._gs
+    def mean_history(self):
+        if not hasattr(self, '_mean_history'):
+            self.gs.run()
+            self._mean_history = self.gs.history
 
-    @gs.setter
-    def gs(self, value):
-        """ Set global 21cm instance by hand. """
-        self._gs = value
+        return self._mean_history
 
-    @property
-    def history(self):
-        if not hasattr(self, '_history'):
-            self._history = {}
-        return self._history
-
-    @property
-    def mean_intensity(self):
-        if not hasattr(self, '_mean_intensity'):
-            self._mean_intensity = self.gs.medium.field
-        return self._mean_intensity
-
-    def _cache_ebl(self, waves=None, wave_units='mic', flux_units='SI',
-        pops=None):
-        if not hasattr(self, '_cache_ebl_'):
-            self._cache_ebl_ = {}
-
-        # Could be clever and convert units here.
-        if (wave_units, flux_units, pops) in self._cache_ebl_:
-            _waves, _fluxes = self._cache_ebl_[(wave_units, flux_units, pops)]
-            if waves is None:
-                return _waves, _fluxes
-            elif _waves.size == waves.size:
-                if np.all(_waves == waves):
-                    return _waves, _fluxes
-
-        return None
-
-    def get_ebl(self, waves=None, wave_units='mic', flux_units='SI',
-        pops=None):
-        """
-        Return the extragalactic background light (EBL) over all wavelengths.
-
-        Parameters
-        ----------
-        waves : np.ndarray
-            If provided, will interpolate fluxes from each source population
-            onto common grid.
-        wave_units : str
-            Current options: 'eV', 'microns', 'Ang'
-        flux_units : str
-            Current options: 'cgs', 'SI'
-
-        .. note :: 'SI' units means nW / m^2 / sr, 'cgs' means erg/s/Hz/sr.
-
-        Returns
-        -------
-        Tuple containing (observed wavelength, observed flux). Note that if
-        `waves` is not None, the returned flux array will have shape
-        (num source populations, num waves). If not, it will be 1-D with
-        the same length as output observed wavelengths.
-
-        """
-
-        cached_result = self._cache_ebl(waves, wave_units, flux_units,
-            pops)
-        if cached_result is not None:
-            return cached_result
-
-        if not self.mean_intensity._run_complete:
-            self.mean_intensity.run()
-
-        if waves is not None:
-            all_x = waves
-            all_y = np.zeros((len(self.pops), len(waves)))
-        else:
-            all_x = []
-            all_y = []
-
-        for i in range(len(self.pops)):
-            if pops is not None:
-                if i not in pops:
-                    continue
-
-            zf = self.pops[i].zdead
-            E, flux = self.mean_intensity.flux_today(zf=None, popids=i,
-                units=flux_units)
-
-            if wave_units.lower() == 'ev':
-                x = E
-            elif wave_units.lower().startswith('mic'):
-                x = 1e4 * c / (E * erg_per_ev / h_p)
-            elif wave_units.lower().startswith('ang'):
-                x = 1e8 * c / (E * erg_per_ev / h_p)
-            else:
-                raise NotImplemented('Unrecognized `wave_units`={}'.format(
-                    wave_units
-                ))
-
-            lo, hi = x.min(), x.max()
-
-            # Check for overlap, warn user if they should use `waves`
-            if i > 0:
-                lo_all, hi_all = np.min(all_x), np.max(all_x)
-
-                is_overlap = (lo_all <= lo <= hi_all) or (lo_all <= hi <= hi_all)
-                if waves is None and is_overlap:
-                    print("# WARNING: Overlap in spectral coverage of population #{}. Consider using `waves` keyword argument.".format(i))
-
-            #
-
-            # Either save EBL as potentially-disjointed array of energies
-            # OR interpolate to common wavelength grid if `waves` is not None.
-            if waves is not None:
-                if not np.all(np.diff(x) > 0):
-                    all_y[i,:] = np.exp(np.interp(np.log(waves[-1::-1]),
-                        np.log(x[-1::-1]), np.log(flux[-1::-1])))[-1::-1]
-                else:
-                    all_y[i,:] = np.exp(np.interp(np.log(waves), np.log(x),
-                        np.log(flux)))
-            else:
-                all_x.extend(E)
-                all_y.extend(flux)
-
-                # Put a gap between chunks to avoid weird plotting artifacts
-                all_x.append(-np.inf)
-                all_y.append(-np.inf)
-
-        x = np.array(all_x)
-        y = np.array(all_y)
-
-        if pops is None:
-            hist = self.history # poke
-            self._history['ebl'] = x, y
-
-        return x, y
-
-    def get_ps(self, scales, waves, wave_units='mic', scale_units='arcmin',
-        flux_units='SI', dimensionless=False, pops=None, **kwargs):
-        """
-        Compute power spectrum at some observed wavelength.
-
-        Parameters
-        ----------
-        scales : int, float, np.ndarray
-
-        waves : int, float, np.ndarray
-            Wavelengths at which to compute power spectra in `wave_units`.
-            Note that if 2-D, must have shape (number of bins, 2), in which
-            case the power spectra will be computed in series of bandpasses.
-
-        wave_units : str
-            Current options: 'eV', 'microns', 'Ang'
-        flux_units : str
-            Current options: 'cgs', 'SI'
-        scale_units : str
-            Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
-
-        Returns
-        -------
-        Tuple containing (scales, 2 pi / scales or l*l(+z),
-            waves, power spectra).
-
-        Note that the power spectra are return as 2-D arrays with shape
-        (len(scales), len(waves))
-
-        """
-
-        # Make sure we do mean background first in case LW feedback is on.
-        if not self.mean_intensity._run_complete:
-            self.mean_intensity.run()
-
-        # Make sure things are arrays
-        if type(scales) != np.ndarray:
-            scales = np.array([scales])
-        if type(waves) != np.ndarray:
-            waves = np.array([waves])
-
-        if waves.ndim == 2:
-            assert waves.shape[1] == 2, \
-                "If `waves` is 2-D, must have shape (num waves, 2)."
-
-        # Prep scales
-        if scale_units.lower() in ['l', 'ell']:
-            scales_inv = np.sqrt(scales * (scales + 1))
-        else:
-            if scale_units.lower().startswith('deg'):
-                scale_rad = scales * (np.pi / 180.)
-            elif scale_units.lower() == 'arcmin':
-                scale_rad = (scales / 60.) * (np.pi / 180.)
-            elif scale_units.lower() == 'arcsec':
-                scale_rad = (scales / 3600.) * (np.pi / 180.)
-            else:
-                raise NotImplemented('help')
-
-            scales_inv = np.pi / scale_rad
-
-        if wave_units.lower().startswith('mic'):
-            pass
-        else:
-            raise NotImplemented('help')
-
-        # Do some error-handling if waves is 2-D: means the user provided
-        # bandpasses instead of a set of wavelengths.
-
-        ps = np.zeros((len(self.pops), len(scales), len(waves)))
-
-        for i, pop in enumerate(self.pops):
-
-            if pops is not None:
-                if i not in pops:
-                    continue
-
-            for j, wave in enumerate(waves):
-                ps[i,:,j] = pop.get_ps_obs(scales, wave_obs=wave,
-                    scale_units=scale_units, **kwargs)
-
-
-        # Modify PS units before return
-        if flux_units.lower() == 'si':
-            ps *= cm_per_m**4 / erg_per_s_per_nW**2
-
-        if pops is None:
-            hist = self.history # poke
-            self._history['ps_nirb'] = scales, scales_inv, waves, ps
-
-        if dimensionless:
-            ps *= scales_inv[:,None]**2 / 2. / np.pi**2
-
-        return scales, scales_inv, waves, ps
+    @mean_history.setter
+    def mean_history(self, value):
+        self._mean_history = value
 
     @property
     def pops(self):
@@ -272,6 +60,31 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         return self.grid.hydr
 
     @property
+    def pf(self):
+        if not hasattr(self, '_pf'):
+            self._pf = ParameterFile(**self.kwargs)
+        return self._pf
+
+    @pf.setter
+    def pf(self, value):
+        self._pf = value
+
+    #@property
+    #def pf(self):
+    #    return self.gs.pf
+
+    @property
+    def gs(self):
+        if not hasattr(self, '_gs'):
+            self._gs = Global21cm(**self.kwargs)
+        return self._gs
+
+    @gs.setter
+    def gs(self, value):
+        """ Set global 21cm instance by hand. """
+        self._gs = value
+
+    @property
     def field(self):
         if not hasattr(self, '_field'):
             self._field = Fluctuations(**self.kwargs)
@@ -284,25 +97,13 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         return self._halos
 
     @property
-    def tab_z(self):
-        if not hasattr(self, '_tab_z'):
-            self._tab_z = np.array(np.sort(self.pf['ps_output_z'])[-1::-1],
+    def z(self):
+        if not hasattr(self, '_z'):
+            self._z = np.array(np.sort(self.pf['ps_output_z'])[-1::-1],
                 dtype=np.float64)
-        return self._tab_z
+        return self._z
 
     def run(self):
-        """
-        Run everything we can.
-        """
-        pass
-
-    def run_ebl(self):
-        pass
-
-    def run_nirb_ps(self):
-        pass
-
-    def run_21cm_ps(self):
         """
         Run a simulation, compute power spectrum at each redshift.
 
@@ -426,8 +227,6 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         """
         Generator for the power spectrum.
         """
-
-        raise NotImplemented('need to revisit this.')
 
         # Set a few things before we get moving.
         self.field.tab_Mmin = self.tab_Mmin
@@ -694,7 +493,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k,
-                    data['cf_21'], self.R,
+                    data['cf_21'], self.R, 
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])

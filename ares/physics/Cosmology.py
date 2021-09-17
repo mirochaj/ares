@@ -183,6 +183,7 @@ class Cosmology(InitialConditions):
         else:
 
             num = self.pf['cosmology_id']
+
             if type(num) not in [int, np.int32, np.int64]:
                 if self.pf['verbose']:
                     print("# WARNING: Casting cosmology_id {} to int.".format(num))

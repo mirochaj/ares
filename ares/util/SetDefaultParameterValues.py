@@ -381,10 +381,11 @@ def PowerSpectrumParameters():
     {
 
      'ps_output_z': np.arange(6, 20, 1),
+     'ps_output_waves': None,
 
      "ps_output_k": None,
      "ps_output_lnkmin": -4.6,
-     "ps_output_lnkmax": 1.,
+     "ps_output_lnkmax": 2.,
      "ps_output_dlnk": 0.2,
 
      "ps_output_R": None,
@@ -1238,7 +1239,7 @@ def HaloMassFunctionParameters():
     "hps_zmax": 30,
     "hps_dz": 0.5,
 
-    "hps_linear": False,
+    "hps_assume_linear": False,
 
     'hps_dlnk': 0.001,
     'hps_dlnR': 0.001,

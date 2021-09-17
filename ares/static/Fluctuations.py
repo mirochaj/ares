@@ -393,7 +393,10 @@ class Fluctuations(object): # pragma: no cover
             V_i = 4. * np.pi * R_i**3 / 3.
 
             iM = np.argmin(np.abs(Mmin - M_b))
-            Qi = np.trapz(dndm_b[iM:] * M_b[iM:] * V_i[iM:], x=np.log(M_b[iM:]))
+
+            _Qi = np.trapz(dndm_b[iM:] * M_b[iM:] * V_i[iM:],
+                x=np.log(M_b[iM:]))
+            Qi = 1. - np.exp(-_Qi)
 
             # This means reionization is over.
             if self.bsd_model == 'fzh04':
