@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: UCLA
 Created on: Fri Jun 10 11:00:05 PDT 2016
 
-Description: 
+Description:
 
 """
 
@@ -30,9 +30,9 @@ def _add_pop_tag(par, num):
     """
     Add a population ID tag to each parameter.
     """
-    
+
     prefix, idnum = pop_id_num(par)
-    
+
     if idnum is not None:
         return '{0!s}{{{1}}}'.format(prefix, num)
     else:
@@ -49,7 +49,7 @@ def _add_pq_tag(par, num):
         return '{0!s}[{1}]'.format(prefix, num)
     else:
         return '{0!s}[{1}]'.format(par, num)
-                
+
 _pop_fcoll = \
 {
  'pop_sfr_model': 'fcoll',
@@ -68,7 +68,7 @@ _pop_user_sfrd = \
  'pq_func_par1[0]': 15.,
  'pq_func_par2[0]': -5.,
  'pq_func_par3[0]': -8.,
- 
+
 }
 
 _src_lya = \
@@ -99,9 +99,9 @@ _src_xray = \
 {
  'pop_rad_yield': 2.6e39,
  'pop_rad_yield_units': 'erg/s/sfr',
- 'pop_Emin': 2e2, 
+ 'pop_Emin': 2e2,
  'pop_Emax': 5e4,
- 'pop_EminNorm': 5e2, 
+ 'pop_EminNorm': 5e2,
  'pop_EmaxNorm': 8e3,
  'pop_sed': 'pl',
  'pop_alpha': -1.5,
@@ -127,7 +127,7 @@ _sed_toy = \
  'pop_ion_src_cgm': True,
  'pop_ion_src_igm': False,
  'pop_heat_src_igm': True,
- 
+
 }
 
 _sed_xi = \
@@ -171,7 +171,7 @@ _pop_mlf = \
  'pop_fstar': None,
  'pop_mlf': 'pq',
  'pop_MAR': 'hmf',
- 
+
  'pq_func': 'dpl',
  'pq_func_par0': 0.1,
  'pq_func_par1': 1e12,
@@ -186,17 +186,17 @@ _sed_uv = \
  "pop_ion_src_cgm": True,
  "pop_ion_src_igm": False,
  "pop_heat_src_igm": False,
-  
+
  "pop_fesc": 0.1,
  "pop_fesc_LW": 1.0,
- 
+
  'pop_sed': 'pl',
  'pop_alpha': 1.0,
  "pop_Emin": 10.2,
  "pop_Emax": 24.6,
  "pop_EminNorm": 13.6,
- "pop_EmaxNorm": 24.6,        
- "pop_rad_yield": 4e3, 
+ "pop_EmaxNorm": 24.6,
+ "pop_rad_yield": 4e3,
  "pop_rad_yield_units": 'photons/baryon',
 }
 
@@ -226,24 +226,24 @@ _sed_xr = \
  "pop_ion_src_igm": True,
  "pop_heat_src_cgm": False,
  "pop_heat_src_igm": True,
- 
+
  "pop_sed": 'pl',
  "pop_alpha": -1.5,
  'pop_logN': -np.inf,
- 
+
  "pop_Emin": 2e2,
  "pop_Emax": 3e4,
  "pop_EminNorm": 5e2,
  "pop_EmaxNorm": 8e3,
- 
+
  "pop_Ex": 500.,
- "pop_rad_yield": 2.6e39, 
+ "pop_rad_yield": 2.6e39,
  "pop_rad_yield_units": 'erg/s/SFR',
 }
 
 _crte_xrb = \
 {
- "pop_solve_rte": True, 
+ "pop_solve_rte": True,
  "tau_redshift_bins": 400,
  "tau_approx": 'neutral',
 }
@@ -276,19 +276,19 @@ _evolve_dc = \
 
 _dust_fcov = \
 {
- "pop_dust_fcov": 'pq[25]',   
+ "pop_dust_fcov": 'pq[25]',
  "pq_func[25]": 'log_tanh_abs',
  'pq_func_var[25]': 'Mh',
- 'pq_func_par0[25]': 0.0,     
+ 'pq_func_par0[25]': 0.0,
  'pq_func_par1[25]': 1.0,
  'pq_func_par2[25]': 10.8,
  'pq_func_par3[25]': 0.3,
  'pq_val_floor[25]': 0.0,
- 'pq_val_ceil[25]': 1.0,       
+ 'pq_val_ceil[25]': 1.0,
 }
 
 _dust_kappa = \
-{    
+{
  "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
 
  "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
@@ -301,7 +301,7 @@ _dust_kappa = \
 
 _dust_screen_pl = \
 {
- # Scale 
+ # Scale
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
  "pq_func[22]": 'pl_evolN',
  'pq_func_var2[22]': '1+z',
@@ -311,13 +311,13 @@ _dust_screen_pl = \
  'pq_func_par2[22]': 0.45,
  'pq_func_par3[22]': 5.,
  'pq_func_par4[22]': 0.,         # R(vir) goes like 1 / (1+z)
-} 
+}
 
 _dust_screen_pl.update(_dust_kappa)
 
 _dust_screen_dpl = \
 {
- # Scale 
+ # Scale
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
  "pq_func[22]": 'dpl_evolN',
  'pq_func_var2[22]': '1+z',
@@ -326,8 +326,8 @@ _dust_screen_dpl = \
  'pq_func_par1[22]': 3e11,
  'pq_func_par2[22]': 0.45,
  'pq_func_par3[22]': 0.45,
- 'pq_func_par4[22]': 1e10,       
- 'pq_func_par5[22]': 5.,         
+ 'pq_func_par4[22]': 1e10,
+ 'pq_func_par5[22]': 5.,
  'pq_func_par6[22]': 0.,         # R(vir) goes like 1 / (1+z)
 }
 
@@ -349,11 +349,11 @@ _dust_destroy = \
  "pq_func[27]": 'pl_evolN',
  'pq_func_var[27]': 'Mh',
  'pq_func_var2[27]': '1+z',
- 'pq_func_par0[27]': 0.4,     
+ 'pq_func_par0[27]': 0.4,
  'pq_func_par1[27]': 1e10,
  'pq_func_par2[27]': 0.,     # Mh-independent, by default
  'pq_func_par3[27]': 5.,
- 'pq_func_par4[27]': 0.,  
+ 'pq_func_par4[27]': 0.,
  'pq_val_ceil[27]': 0.4,
 }
 
@@ -363,11 +363,11 @@ _dust_growth = \
  "pq_func[29]": 'pl_evolN',
  'pq_func_var[29]': 'Mh',
  'pq_func_var2[30]': '1+z',
- 'pq_func_par0[29]': 1e9,     
+ 'pq_func_par0[29]': 1e9,
  'pq_func_par1[29]': 1e10,
  'pq_func_par2[29]': 0.,     # Mh-independent, by default
  'pq_func_par3[29]': 5.,
- 'pq_func_par4[29]': 0.,   
+ 'pq_func_par4[29]': 0.,
 }
 
 _dust_composition = \
@@ -419,7 +419,7 @@ _dust_scatter = \
 _cooling = \
 {
  'approx_thermal_history': 'exp',
- 'load_ics': 'parametric', 
+ 'load_ics': 'parametric',
  'inits_Tk_p0': 189.5850442,
  'inits_Tk_p1': 1.26795248,
  'inits_Tk_p2': -5.5,
@@ -475,7 +475,7 @@ _galaxies_testing = \
  'hmf_model': 'ST',
  'hgh_Mmax': None,
  "cosmology_id": 'best',
- "cosmology_name": 'planck_TTTEEE_lowl_lowE', 
+ "cosmology_name": 'planck_TTTEEE_lowl_lowE',
  'pop_sed_degrade': 100,
  'pop_Z': 0.02,
  'pop_sed': 'eldridge2009',
@@ -484,15 +484,15 @@ _galaxies_testing = \
 
 _Bundles = \
 {
- 'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
+ 'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe,
     'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext},
- 'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
+ 'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc,
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
-    'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl, 
+    'evolving': _evolve_dc, 'none': {}, 'screen': _dust_screen_pl,
     'screen-dpl': _dust_screen_dpl,
     'patchy': _dust_patchy, 'destruction': _dust_destroy, 'growth': _dust_growth,
     'composition': _dust_composition, 'scatter': _dust_scatter},
@@ -509,12 +509,12 @@ class ParameterBundle(dict):
         self.bundle = bundle
         self.kwargs = kwargs
         self.verbose = verbose
-        
+
         if bset is None:
             self.bset = _Bundles
         else:
             self.bset = bset
-        
+
         # data should be a string
         if bundle is not None:
             self._initialize(bundle, **kwargs)
@@ -523,36 +523,36 @@ class ParameterBundle(dict):
         else:
             for key in kwargs:
                 self[key] = kwargs[key]
-            
+
     def _initialize(self, bundle, **kwargs):
 
         # Clear out
         tmp = self.keys()
         for key in tmp:
             del self[key]
-        
+
         # Assume format: "modeltype:model", e.g., "pop:fcoll" or "sed:uv"
         pre, post = bundle.split(':')
-        
+
         kw = rcParams.copy()
-        
+
         if pre in self.bset.keys():
             _kw = self.bset[pre][post]
         elif pre == 'prob':
             _kw = ProblemType(float(post))
         else:
-            mod = read_lit(pre) 
+            mod = read_lit(pre)
             _kw = mod.__dict__[post]
-            
+
             # Save where we found it for future reference / sanity checking.
             if hasattr(mod, 'path'):
                 self.path = mod.path
-        
+
         kw.update(_kw)
         pars = kw.keys()
 
         for key in pars:
-            self[key] = kw[key]    
+            self[key] = kw[key]
 
     def __getattr__(self, name):
         if name not in self.keys():
@@ -571,25 +571,25 @@ class ParameterBundle(dict):
         first_update = True
         for key in other:
             if key in tmp and rank == 0:
-                
+
                 if other[key] == tmp[key]:
                     continue
-                
+
                 if first_update:
                     if self.verbose:
                         header('Parameter Bundle')
                     #print('#'*width)
                     first_update = False
-                
+
                 if self.verbose:
                     if type(other[key]) in [int, float, np.float64]:
-                        msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key.ljust(20), 
+                        msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key.ljust(20),
                             other[key])
                     else:
-                        msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
+                        msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20),
                             str(other[key]).ljust(12))
                     if type(tmp[key]) in [int, float, np.float64]:
-                        msg2 = "previously {0} = {1:9.2e}".format(str(key).ljust(20), 
+                        msg2 = "previously {0} = {1:9.2e}".format(str(key).ljust(20),
                             tmp[key])
                     else:
                         msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
@@ -600,41 +600,41 @@ class ParameterBundle(dict):
 
         if (not first_update) and self.verbose:
             print('#'*width)
-            
+
         return ParameterBundle(**tmp)
 
     def __sub__(self, other):
         tmp1 = self.copy()
-    
-        for key in other:    
+
+        for key in other:
             del tmp1[key]
-    
+
         return ParameterBundle(**tmp1)
-        
+
     def copy(self):
         return ParameterBundle(**self)
-    
+
     @property
     def num(self):
         if not hasattr(self, '_num'):
-            self._num = None         
+            self._num = None
         return self._num
-    
+
     @num.setter
     def num(self, value):
         assert value % 1 == 0
         self._num = value
-        
+
         if self.Npops > 1:
             s = 'This bundle has {} populations!'.format(self.Npops)
             s += ' Setting `num` is too dangerous.'
             raise ValueError(s)
-            
+
         # Previously if just looping over self.keys() straight-away,
         # one parameter would get skipped! Not clear what's going on there,
         # but this fixes it.
         keys = tuple(self.keys())
-        
+
         for key in keys:
             if not (key.startswith('pop_') or key.startswith('pq_')):
                 continue
@@ -645,65 +645,65 @@ class ParameterBundle(dict):
         """
         Find ParameterizedQuantity parameters and tag with `num`.
         """
-                
+
         if self[par] == 'pq':
             current_tag = None
         else:
             m = re.search(r"\[([0-9])\]", par)
 
             assert m is not None, "No ID found for par={!s}".format(par)
-            
+
             current_tag = int(m.group(1))
-        
+
         # Figure out what all the parameters are currently
         pars = self.pars_by_pq(current_tag, strip_id=False)
-        
+
         # Delete 'em, rename 'em
         for key in pars:
             del self[key]
-        
+
         self[par] = _add_pq_tag('pq', num)
         for key in pars:
             self[_add_pq_tag(key, num)] = pars[key]
-            
+
     @property
     def pqid(self):
         if not hasattr(self, '_pqid'):
             self._pqid = None
         return self._pqid
-    
+
     @pqid.setter
     def pqid(self, value):
         assert value % 1 == 0
         self._value = value
-    
+
         for key in self.keys():
-            self[_add_pop_tag(key, value)] = self.pop(key)        
-    
+            self[_add_pop_tag(key, value)] = self.pop(key)
+
     @property
     def Npops(self):
         """ Number of distinct populations represented. """
         return len(self.pop_ids)
-    
+
     @property
     def pop_ids(self):
         """ List of ID numbers -- one for each population."""
         pops = []
         for key in self:
-            prefix, idnum = pop_id_num(key)    
+            prefix, idnum = pop_id_num(key)
             if idnum is None:
                 continue
-                
+
             if idnum not in pops:
                 pops.append(idnum)
-    
-        return pops      
-    
+
+        return pops
+
     def link_sfrd_to(self, num):
         self['pop_sfr_model{{{}}}'.format(self.num)] = \
             'link:sfrd:{}'.format(num)
-                
-    @property    
+
+    @property
     def orphans(self):
         """
         Return dictionary of parameters that aren't associated with a population.
@@ -713,15 +713,15 @@ class ParameterBundle(dict):
             prefix, idnum = pop_id_num(par)
             if idnum is None:
                 tmp[par] = self[par]
-                
+
         return tmp
-    
+
     def pars_by_pop(self, num, strip_id=False):
         """
         Return dictionary of parameters associated with population `num`.
-        
+
         This will take any parameters with ID numbers, and any parameters
-        with the `hmf_` prefix, since populations need to know about that 
+        with the `hmf_` prefix, since populations need to know about that
         stuff. Also, dustcorr parameters, optical depth stuff.
         """
         tmp = {}
@@ -731,40 +731,49 @@ class ParameterBundle(dict):
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
                 or prefix.startswith('feedback_') or prefix.startswith('tau_') \
                 or prefix.startswith('master'):
-                                
+
                 if strip_id:
                     tmp[prefix] = self[par]
-                else:    
+                else:
                     tmp[par] = self[par]
-                
+
+        # Need at least one pop_ parameter for this to count.
+        ct = 0
+        for par in tmp:
+            if par.startswith('pop_'):
+                ct += 1
+
+        if ct == 0:
+            return {}
+
         return ParameterBundle(**tmp)
-        
+
     def get_base_kwargs(self):
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
-            
-            if idnum is None: 
+
+            if idnum is None:
                 tmp[par] = self[par]
-                
+
         return ParameterBundle(**tmp)
-        
+
     @property
     def pqs(self):
         if not hasattr(self, '_pqs'):
             self.pqids
-            
+
         return self._pqs
-        
+
     @property
     def pqids(self):
         if not hasattr(self, '_pqids'):
             pqs = []
             pqids = []
-            for par in self:                
+            for par in self:
                 if self[par] == 'pq':
                     pqid = 'None'
-                    popid = None    
+                    popid = None
                 elif type(self[par]) == str:
                     if self[par].startswith('pq['):
                         prefix, popid, pqid = par_info(par)
@@ -773,8 +782,8 @@ class ParameterBundle(dict):
                     else:
                         continue
                 else:
-                    continue    
-                                                    
+                    continue
+
                 if pqid is None:
                     continue
 
@@ -782,43 +791,43 @@ class ParameterBundle(dict):
                     continue
 
                 pqs.append(par)
-                
+
                 if pqid is 'None':
                     pqids.append(None)
                 else:
-                    pqids.append(pqid)            
-            
+                    pqids.append(pqid)
+
             self._pqs = pqs
             self._pqids = pqids
-            
-        return self._pqids    
-        
+
+        return self._pqids
+
     def pars_by_pq(self, num=None, strip_id=False):
-        
+
         if num == None and (self.pqids == [None]):
             untagged = True
         else:
             untagged = False
-        
+
         i = self.pqids.index(num)
         tmp = {self.pqs[i]: self[self.pqs[i]]}
-        for par in self:   
-            
+        for par in self:
+
             if untagged and (par[0:2] == 'pq'):
                 tmp[par] = self[par]
                 continue
-                     
+
             prefix, popid, pqid = par_info(par)
-            
+
             if pqid is None:
                 continue
-            
+
             if pqid == num:
                 if strip_id:
                     tmp[prefix] = self[par]
-                else:    
+                else:
                     tmp[par] = self[par]
-                
+
         return tmp
 
 
@@ -834,7 +843,7 @@ _xr.link_sfrd_to(0)
 _uv = _PB('src:toy-ion', verbose=0)
 _uv.num = 2
 _uv.link_sfrd_to(0)
-         
+
 _gs_4par = _lw + _xr + _uv
 
 _tanh_sim = {'problem_type': 100, 'tanh_model': True,
@@ -848,4 +857,3 @@ _tmp = {'4par': _gs_4par,
     'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 
 _Bundles['gs'] = _tmp
-

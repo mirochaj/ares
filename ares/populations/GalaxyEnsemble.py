@@ -15,6 +15,7 @@ import gc
 import time
 import pickle
 import numpy as np
+from ..data import ARES
 from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
@@ -179,7 +180,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 ok = np.ones_like(sfr)
 
-            ok = sfr > 0
+            # Need to eliminate redundant branches in merger tree
+            if 'mask' in self.histories:
+                mask = self.histories['mask'][:,iz]
+                ok = np.logical_and(ok, np.logical_not(mask))
 
             # Really this is the number of galaxies that formed in a given
             # differential redshift slice.
@@ -198,7 +202,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 else:
                     ok = np.ones_like(_sfr)
 
-                ok = _sfr > 0
+                # Need to eliminate redundant branches in merger tree
+                if 'mask' in self.histories:
+                    mask = self.histories['mask'][:,iz]
+                    ok = np.logical_and(ok, np.logical_not(mask))
 
                 sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
 
@@ -220,7 +227,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return None
 
         if thin in [0, 1]:
-            return arr.copy()
+            return arr
 
         assert thin % 1 == 0
 
@@ -314,8 +321,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh_raw = raw['nh']
         Mh_raw = raw['Mh']
 
+        if type(nh_raw) in [int, float, np.float32, np.float64]:
+            nh_raw = nh_raw * np.ones_like(Mh_raw)
+
         # May have to generate MAR if these are simulated halos
-        if ('MAR' not in raw) and ('MAR_tot' not in raw):
+        if ('MAR' not in raw) and ('MAR_acc' not in raw):
 
             assert thin < 2
             assert sigma_mar == sigma_env == 0
@@ -348,7 +358,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             elif self.pf['pop_mergers']:
                 mar_raw = raw['MAR_acc']
             else:
-                mar_raw = raw['MAR_tot']
+                if 'MAR_tot' in raw:
+                    mar_raw = raw['MAR_tot']
+                else:
+                    mar_raw = raw['MAR_acc']
 
         ##
         # Throw away halos with Mh < Mmin or Mh > Mmax
@@ -413,6 +426,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # So, halo identity is wrapped up in axis=0
         # In Cohort, formation time defines initial mass and trajectory (in full)
         #z2d = np.array([zall] * nh.shape[0])
+
+        # If loaded from merger tree, these quantities should be
+        # numpy masked arrays.
         histories = {'Mh': Mh, 'MAR': mar, 'nh': nh}
 
         # Add in formation redshifts to match shape (useful after thinning)
@@ -425,8 +441,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             dtype = np.float64
 
-        t = np.array([self.cosm.t_of_z(zall[_i]) for _i in range(zall.size)]) \
-            / s_per_myr
+        t = np.array([self.cosm.t_of_z(zall[_i]) \
+            for _i in range(zall.size)]) / s_per_myr
 
         histories['t'] = t.astype(dtype)
 
@@ -451,6 +467,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         if 'pos' in raw:
             histories['pos'] = raw['pos']
+
+        if 'flags' in raw:
+            histories['flags'] = raw['flags']
 
         self.tab_z = zall
         #self._cache_halos = histories
@@ -502,7 +521,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         elif self.pf['pop_sam_method'] == 1:
             return self._gen_active_galaxy_histories()
         else:
-            raise NotImplemented('Unrecognized pop_sam_method={}.'.format(self.pf['pop_sam_method']))
+            raise NotImplemented('Unrecognized      pop_sam_method={}.'.format(self.pf['pop_sam_method']))
 
     @property
     def guide(self):
@@ -634,10 +653,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Modify by fesc
             if band is not None:
-                if band[0] in [13.6, E_LL]:
+                if Emin in [13.6, E_LL]:
                     # Doesn't matter what Emax is
                     fesc = self.guide.fesc(z=z, Mh=Mh)
-                elif band in [(10.2, 13.6), (E_LyA, E_LL)]:
+                elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
                     fesc = self.guide.fesc_LW(z=z, Mh=Mh)
                 else:
                     fesc = 1.
@@ -647,7 +666,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Integrate over halo population.
             tab[i] = np.sum(L * fesc * nh)
 
-            print(i, z, L, tab[i])
+            if np.isnan(tab[i]):
+                tab[i] = 0
 
         return zarr, tab / cm_per_mpc**3
 
@@ -1018,12 +1038,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:
+            iz = np.argmin(np.abs(6. - z))
             SFR = self.guide.SFE(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
-
-            # Means a halos lost some mass.
-            SFR[SFR < 0] = 0.0
 
         ##
         # Duty cycle effects
@@ -1216,7 +1234,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     Md[:,k+1] = Md[:,k] + (Md_p + Md_g) * dt[k]
 
             # Dust surface density.
-            Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+            Rd = self.guide.dust_scale(z=z2d, Mh=Mh)
+            Sd = np.divide(Md, np.power(Rd, 2.)) \
+                / 4. / np.pi
+
+            iz = np.argmin(np.abs(6. - z))
 
             # Can add scatter to surface density
             if self.pf['pop_dust_scatter'] is not None:
@@ -1275,15 +1297,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # NOTE: no transferrance of gas, metals, or stars, as of yet.
         ##
         if self.pf['pop_mergers'] > 0:
-            children = halos['children'][:,-1::-1]
-            iz, iM = children.T
+            children = halos['children']
+            iz, iM, is_main = children.T
             uni = np.all(Mh.mask == False, axis=1)
-            merged = np.logical_and(iz != -1, uni == True)
+            merged = np.logical_and(iz >= 0, uni == True)
 
             pos = halos['pos'][:,-1::-1,:]
 
             for i in range(iz.size):
-                if iz[i] == -1:
+                if iz[i] < 0:
                     continue
 
                 # May not be necessary
@@ -1294,7 +1316,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 #pos[i,0:iz[i],:] = pos[iM[i],iz[i],:]
 
                 # Add SFR so luminosities include that of parent halos
-                SFR[iM[i],:] += SFR[i,:]
+                #SFR[iM[i],:] += SFR[i,:]
                 # Looks like a potential double-counting issue but SFR
                 # will have been set to zero post-merger.
 
@@ -1310,15 +1332,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Re-compute dust surface density
             if have_dust and (self.pf['pop_dust_scatter'] is not None):
-                Sd = Md / 4. / np.pi / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                Sd = Md / 4. / np.pi \
+                    / self.guide.dust_scale(z=z2d, Mh=Mh)**2
                 Sd += noise
                 Sd *= g_per_msun / cm_per_kpc**2
 
         # Limit to main branch
         elif self.pf['pop_mergers'] == -1:
             children = halos['children'][:,-1::-1]
-            iz, iM = children.T
-            main_branch = iz == -1
+            iz, iM, is_main = children.T
+            main_branch = is_main == 1
 
             nh = nh[main_branch==1]
             Ms = Ms[main_branch==1]
@@ -1338,6 +1361,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 pos = None
         else:
+            children = None
+
             if 'pos' in halos:
                 pos = halos['pos'][:,-1::-1,:]
             else:
@@ -1353,7 +1378,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          'MAR': MAR,  # May use this
          't': t,
          'z': z,
-         #'child': child,
+         'children': children,
          'zthin': halos['zthin'][-1::-1],
          #'z2d': z2d,
          'SFR': SFR,
@@ -1370,6 +1395,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
          #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
          'Nsn': zeros_like_Mh,
         }
+
+        if 'flags' in halos.keys():
+            results['flags'] = halos['flags'][:,-1::-1]
 
         if self.pf['pop_dust_yield'] is not None:
             results['rand'] = halos['rand'][:,-1::-1]
@@ -1875,7 +1903,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             # Take monochromatic (or within some window) MUV
             L = self.Luminosity(z, wave=wave, window=window)
-            M = self.magsys.L_to_MAB(L, z=z)
+            M = self.magsys.L_to_MAB(L)
 
             ##
             # Compute magnitude from photometry
@@ -2029,12 +2057,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return L
 
     def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1,
-        band=None, total_IR = False):
+        band=None, total_IR=False):
         """
         Compute the luminosity function from discrete histories.
 
-        Need to be a little careful about indexing here. For example, if we
-        request the LF at a redshift not present in the grid, we need to...
+        If given redshift not exactly in the grid, we'll compute the LF
+        at the closest redshift *below* that requested.
 
         PARAMETERS
 
@@ -2076,29 +2104,35 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return cached_result
 
         # These are kept in descending redshift just to make life difficult.
-        # [The last element corresponds to observation redshift.]
+        # [Useful for SAM to proceed in ascending time order]
         raw = self.histories
-
         keys = raw.keys()
-        Nt = raw['t'].size
-        Nh = raw['Mh'].shape[0]
 
         # Find the z grid point closest to that requested.
         # Must be >= z requested.
         izobs = np.argmin(np.abs(raw['z'] - z))
-        if z > raw['z'][izobs]:
+        if raw['z'][izobs] > z:
             # Go to one grid point lower redshift
             izobs += 1
 
-        izobs = min(izobs, len(raw['z']) - 2)
+        # Currently izobs is such that the requested redshift is
+        # just higher in redshift, i.e., (izobs, izobs+1) brackets
+        # the requested redshift.
+
+        # Make sure we don't overshoot end of array.
+        # Choices about fwd vs. backward differenced MARs will matter here.
+        # Note that this only used for `nh` below, ultimately a similar thing
+        # happens inside self.synth.Luminosity.
+        izobs = min(izobs, len(raw['z']) - 1)
 
         ##
         # Run in batch.
-        if not total_IR:
-            L = self.Luminosity(z, wave=wave, band=band, window=window)
-        else:
-            L = self.dust.Luminosity(z, total_IR = True)
+        if total_IR:
+            L = self.dust.Luminosity(z, total_IR=True)
             mags = False
+        else:
+            L = self.Luminosity(z, wave=wave, band=band, window=window)
+
         ##
 
         zarr = raw['z']
@@ -2106,19 +2140,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Need to be more careful here as nh can change when using
         # simulated halos
-        w = raw['nh'][:,izobs+1]
+        w = raw['nh'][:,izobs] # used to be izobs+1, I belive in error.
 
         if mags:
-            MAB = self.magsys.L_to_MAB(L, z=z)
+            _MAB = self.magsys.L_to_MAB(L, z=z)
         elif total_IR:
-            MAB = np.log10(L / Lsun)
+            _MAB = np.log10(L / Lsun)
         else:
-            MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
+            _MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
 
-        # if self.pf['dustcorr_method'] is not None:
-        #     MAB = self.dust.Mobs(z, _MAB)
-        # else:
-        #     MAB = _MAB
+        if (self.pf['dustcorr_method'] is not None) and mags:
+            MAB = self.dust.Mobs(z, _MAB)
+        else:
+            MAB = _MAB
 
         # If L=0, MAB->inf. Hack these elements off if they exist.
         # This should be a clean cut, i.e., there shouldn't be random
@@ -2399,8 +2433,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 assert magmethod == 'mono', \
                     "Known issues with magmethod!='mono' and Calzetti approach."
 
-            _MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
-                method=magmethod, presets=presets)
+            _MAB = self.Magnitude(z, wave=Mwave, cam=cam,
+                filters=filters, method=magmethod, presets=presets)
 
             if np.all(np.diff(np.diff(nh)) == 0):
                 Mh = self.get_field(z, 'Mh')
@@ -2410,8 +2444,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 ok = np.ones_like(_MAB)
 
+            # Hack for the time being
+            ok = np.logical_and(ok, np.isfinite(beta_r))
+
+            # Generally happens if our HMF tables don't extend to
+            # this redshift.
+            if ok.sum() == 0:
+                print("# WARNING: all Magnitudes flagged.")
+                print("# (z={} outside available HMF range?)".format(z))
+                bad = -99999 * np.ones(ok.size)
+                if return_scatter:
+                    return bad, bad
+                if return_err:
+                    return bad, bad
+                else:
+                    return bad
+
             MAB, beta, _std, N1 = bin_samples(_MAB[ok==1], beta_r[ok==1],
-                Mbins, weights=nh)
+                Mbins, weights=nh[ok==1])
 
         else:
             beta = beta_r
@@ -2738,6 +2788,39 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         hist = {key:self.histories[key][-1::-1] for key in keys}
         return hist
 
+    def SurfaceDensity(self, z, mags, dz=1., dtheta=1., wave=1600.):
+        """
+
+        Returns
+        -------
+        Observed magnitudes, then, projected surface density of galaxies in
+        `dz` thick shell, in units of cumulative number of galaxies per
+        square degree.
+
+        """
+
+        # These are intrinsic (i.e., not dust-corrected) absolute magnitudes
+        phi = self.LuminosityFunction(z, mags, wave=wave)
+
+        # Convert to apparent magnitudes AB
+        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
+        magcorr = 5. * (np.log10(dL) - 1.)
+        mobs = mags + magcorr - 2.5 * np.log10(1 + z)
+
+        # Compute the volume of the shell we're looking at
+        vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+
+        # Number of galaxies per mag.
+        Ngal = phi * vol
+
+        # At this point, magnitudes are in ascending order, i.e., bright to
+        # faint.
+
+        # Cumulative surface density of galaxies *fainter than* mobs
+        ngtm = cumtrapz(Ngal, x=mobs, initial=Ngal[0])
+
+        return mobs, ngtm
+
     def load(self):
         """
         Load results from past run.
@@ -2751,7 +2834,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fn = self.guide.halos.tab_name
 
             suffix = fn[fn.rfind('.')+1:]
-            path = os.getenv("ARES") + '/input/hmf/'
+            path = ARES + '/input/hmf/'
             pref = prefix.replace('hmf', 'hgh')
             if self.pf['hgh_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['hgh_Mmax'],
@@ -2771,7 +2854,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 zall, traj_all = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
-                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(fn_hist.replace(ARES,
+                        '$ARES')))
                 hist = traj_all
 
             elif fn_hist.endswith('.hdf5'):
@@ -2827,6 +2911,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         elif type(self.pf['pop_histories']) is dict:
             hist = self.pf['pop_histories']
             # Assume you know what you're doing.
+        elif type(self.pf['pop_histories']) is tuple:
+            func, kw = self.pf['pop_histories']
+            hist = func(**kw)
         else:
             hist = None
 

@@ -2,7 +2,7 @@
 
 Models for Radiation Emitted by Galaxies
 ========================================
-There are three main ways to model the radiation emitted by galaxies, governed largely by whether or not ``pop_sed_model`` is ``True`` or  ``False``. 
+There are three main ways to model the radiation emitted by galaxies, governed largely by whether or not ``pop_sed_model`` is ``True`` or  ``False``.
 
 ``pop_sed_model=True``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15,7 +15,7 @@ In this case, we're assuming that the source population is well-described by a s
     + ``pop_Emax``
     + ``pop_EminNorm``
     + ``pop_EmaxNorm``
-    
+
 We'll return to these parameters in more detail below.
 
 ``pop_sed_model=False``
@@ -38,7 +38,7 @@ In this case, only three parameters are relevant:
     + ``pop_xi_LW``
     + ``pop_xi_UV``
     + ``pop_xi_XR``
-    
+
 
 Available Models for Source Spectral Energy Distributions
 ---------------------------------------------------------
@@ -65,12 +65,12 @@ Power-Law Sources
 Let's initialize a power-law source, which is about the simplest thing we can do:
 
 ::
-    
+
     # Should switch to 'ares.sources.Generic'
     src = ares.sources.BlackHole(source_sed='pl', source_Emin=2e2, source_Emax=3e4)
-    
+
     E = np.logspace(2, 4)
-    
+
     pl.loglog(E, src.Spectrum(E))
 
 
@@ -81,7 +81,7 @@ By default, this is just (shocking news) a power-law. It will be automatically n
     src2 = src = ares.sources.BlackHole(source_sed='pl', source_Emin=2e2, source_Emax=3e4, source_logN=20.)
 
     pl.loglog(E, src2.Spectrum(E), ls='--')
-    
+
     pl.savefig('ares_sed_pl.png')
 
 Note that the spectrum is normalized such that its *intrinsic* emission integrates to unity in the specified normalization band. If you'd like to force the hardened spectrum to be used to set the normalization, set ``source_hardening='extrinsic'``.
@@ -102,17 +102,21 @@ The simplest analytic model an accretion disk spectrum is the so-called multi-co
 
     pars = \
     {
-     'source_mass': 10.,  
+     'source_mass': 10.,
      'source_rmax': 1e3,
      'source_sed': 'mcd',
      'source_Emin': 10.,
      'source_Emax': 1e4,
+     'source_EminNorm': 10.,
+     'source_EmaxNorm': 1e4,
      'source_logN': 18.,
     }
-    
+
     src = ares.sources.BlackHole(**pars)
-    
+
     pl.figure(2)
+
+    E = np.logspace(1.5, 4)
     pl.loglog(E, src.Spectrum(E), ls='-')
 
 Real BH accretion disks often have a harder power-law tail to their emission, likely due to up-scattering of disk photons by a hot electron corona. The SIMPL model (`Steiner et al. 2009 <http://adsabs.harvard.edu/abs/2009PASP..121.1279S>`_) provides one method of treating this effect, and is included in *ARES*. It depends on the additional parameter ``source_fsc``, which governs what fraction of disk photons are up-scatter to a high energy tail (with spectral index ``source_alpha``). For example,
@@ -126,7 +130,7 @@ Real BH accretion disks often have a harder power-law tail to their emission, li
     src = ares.sources.BlackHole(**pars)
 
     pl.loglog(E, src.Spectrum(E), ls='-')
-    
+
     pl.savefig('ares_sed_mcd_simpl.png')
 
 You should see that there is a high energy tail, but also that the soft part of the spectrum has also been reduced (it is those photons that are up-scattered into the high energy tail).
@@ -140,18 +144,18 @@ Once you've got a spectrum tabulated, you can load it for a calculation via:
     # For example
     np.savetxt('your_2column_sed_model.txt', np.array([E, (E / 1e3)**-1.5]).T)
     x, y = np.loadtxt('your_2column_sed_model.txt', unpack=True)
-    
+
     pars['source_sed'] = (x, y)
     src = ares.sources.BlackHole(**pars)
-    
+
     pl.loglog(E, src.Spectrum(E), ls='--')
-    
+
 .. figure::  https://www.dropbox.com/s/aaw8qtbfpvqruxj/ares_sed_mcd_simpl.png?raw=1
    :align:   center
    :width:   600
 
    Comparison of MCD and SIMPL models.
-    
+
 Thanks to Greg Salvesen for contributing his Python implementation of this spectrum!
 
 AGN Template
@@ -166,23 +170,23 @@ Ideally, one could build a physical model over a broad range of photon energies 
      'source_Emin': 0.1,
      'source_Emax': 1e6,
     }
-    
+
     src = ares.sources.BlackHole(**pars)
-    
+
     # This model spans a very broad range in energy
     E = np.logspace(-1, 5.5)
-    
+
     pl.figure(3)
     pl.loglog(E, src.Spectrum(E))
     pl.savefig('ares_sed_sos04.png')
-    
+
 .. figure::  https://www.dropbox.com/s/pgdj6o75ylk4ua7/ares_sed_sos04.png?raw=1
    :align:   center
    :width:   600
 
    AGN template spectrum from Sazonov et al. (2004).
-        
-        
+
+
 There is still a peak in the hard UV / X-ray, like we saw for the stellar mass BH spectra above, though it peaks at softer energies. There is also an additional peak visible at higher energies (the "Compton hump").
 
 Stellar Population Synthesis Models
@@ -211,7 +215,7 @@ So, for example, to plot the SED at a few times, you could do something like
     for i in range(3):
         t = src.times[i]
         pl.loglog(src.wavelengths, src.data[:,i], label=r'$t = {}$ Myr'.format(t))
-		
+
     pl.legend()
 
 or alternatively, the luminosity at a single wavelength vs. time:
@@ -222,9 +226,9 @@ or alternatively, the luminosity at a single wavelength vs. time:
     for i in range(0, 1000, 200):
         wave = src.wavelengths[i]
         pl.loglog(src.times, src.data[i,:], label=r'$\lambda = {} \AA$'.format(wave))
-    pl.legend()	
+    pl.legend()
 
-	
+
 By default, it is assumed that stars form continuously, so you should see a quick ramp-up of the luminosity in the above examples before reaching a plateau at late times. To instead focus on an instantaneous burst of star formation, we need to instead use a "simple stellar population," which we can do by setting ``source_ssp=True`` when initializing the ``SynthesisModel`` instance above.
 
 If you already have some kind of ``ares.populations`` class instance in hand, you can access the associated SPS model via the ``src`` attribute, e.g.,
@@ -232,31 +236,26 @@ If you already have some kind of ``ares.populations`` class instance in hand, yo
 ::
 
 	src = pop.src
-	
-Just know that to vary the ``SynthesisModel`` parameters through ``ares.populations`` objects, you should change the parameter prefixes from ``source_`` to ``pop_``. For example, 
+
+Just know that to vary the ``SynthesisModel`` parameters through ``ares.populations`` objects, you should change the parameter prefixes from ``source_`` to ``pop_``. For example,
 
 ::
 
 	pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
-	
+
 	pars['pop_sed] = 'eldridge2009'
 	pars['pop_Z] = 0.02
-	
+
 	pop = ares.populations.GalaxyPopulation(**pars)
 	src = pop.src # will be the same as in previous example
 
-	
+
 
 
 Normalizing the Emission of Source Populations
 ----------------------------------------------
-In the previous section, all spectra were normalized such that the integral in the ``(source_EminNorm, source_EmaxNorm)`` band was unity. Importantly, all spectra internal to *ARES* are defined such that the function ``Spectrum`` yields a quantity proportional to the *amount of energy emitted* at the corresponding photon energy, not the number of photons emitted. 
+In the previous section, all spectra were normalized such that the integral in the ``(source_EminNorm, source_EmaxNorm)`` band was unity. Importantly, all spectra internal to *ARES* are defined such that the function ``Spectrum`` yields a quantity proportional to the *amount of energy emitted* at the corresponding photon energy, not the number of photons emitted.
 
 Ultimately, we generally want to use these spectral models to create entire populations of objects, assumed to exist throughout the Universe. This is the distinction between Population objects and Source objects -- the latter know nothing about the global properties of the sources, like their star formation rate density or radiative yield (i.e., photons or energy per unit SFR).
 
 In global 21-cm models we typically invoke a population of X-ray binaries (that live in star-forming galaxies). A simple example of such a population is explored in :doc:`example_crb_xr`.
-
-
-
-
-

@@ -11,11 +11,11 @@ Description: Defaults for all different kinds of parameters.
 
 import os, imp
 import numpy as np
+from ..data import ARES
 from ares import rcParams
 from ..physics.Constants import m_H, cm_per_kpc, s_per_myr, E_LL
 
 inf = np.inf
-ARES = os.environ.get('ARES')
 
 tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
@@ -257,6 +257,7 @@ def PhysicsParameters():
     'feedback_LW_maxiter': 15,
     'feedback_LW_miniter': 0,
     'feedback_LW_softening': 'sqrt',
+    'feedback_LW_tol_zrange': (0, np.inf),
 
     'feedback_LW_Mmin_smooth': 0,
     'feedback_LW_Mmin_fit': 0,
@@ -380,10 +381,11 @@ def PowerSpectrumParameters():
     {
 
      'ps_output_z': np.arange(6, 20, 1),
+     'ps_output_waves': None,
 
      "ps_output_k": None,
      "ps_output_lnkmin": -4.6,
-     "ps_output_lnkmax": 1.,
+     "ps_output_lnkmax": 2.,
      "ps_output_dlnk": 0.2,
 
      "ps_output_R": None,
@@ -511,6 +513,8 @@ def PopulationParameters():
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": inf,
 
+    "pop_ham_z": None,
+
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_interp": 'linear',
@@ -559,6 +563,9 @@ def PopulationParameters():
     "pop_tracks_fn": None,
     "pop_stellar_aging": False,
     "pop_nebular": False,
+    "pop_nebular_only": False,
+    "pop_nebular_continuum": False,
+    "pop_nebular_lines": False,
     "pop_nebular_ff": True,
     "pop_nebular_fb": True,
     "pop_nebular_2phot": True,
@@ -571,6 +578,7 @@ def PopulationParameters():
     "pop_sps_data": None,
 
     "pop_tsf": 100.,
+    "pop_tneb": None,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
 
@@ -588,9 +596,9 @@ def PopulationParameters():
     "pop_EmaxNorm": 8e3,
     "pop_Enorm": None,
 
-    "pop_lmin": 900,
-    "pop_lmax": 1e4,
-    "pop_dlam": 10.,
+    "pop_lmin": None,
+    "pop_lmax": None,
+    "pop_dlam": None,
     "pop_wavelengths": None,
     "pop_times": None,
 
@@ -652,6 +660,9 @@ def PopulationParameters():
     "pop_sfr": None,
     "pop_frd": None,
     "pop_fshock": 1.0,
+
+    # Halo model stuff
+    "pop_prof_1h": None,
 
     # For GalaxyEnsemble
     "pop_aging": False,
@@ -773,6 +784,9 @@ def PopulationParameters():
     "pop_fesc": 0.1,
     "pop_fX": 1.0,
     "pop_cX": 2.6e39,
+    "pop_qdot": 5e48,
+    "pop_lifetime": 1e10,
+    "pop_temperature": 1e5,
 
     # Should
     "pop_fesc_LW": 1.,
@@ -842,7 +856,6 @@ def PopulationParameters():
     "pop_transition": 0,
 
     "pop_dE": None,
-    "pop_dlam": 1.,
 
     "pop_calib_wave": 1600,
     "pop_calib_lum": None,
@@ -863,12 +876,13 @@ def PopulationParameters():
     # Nebular emission stuff
     "pop_nebular_Tgas": 2e4,
 
-    "pop_lmin": 912.,
-    "pop_lmax": 1e4,
-    "pop_dlam": 10,
+    "pop_lmin": None,
+    "pop_lmax": None,
+    "pop_dlam": None,
     "pop_wavelengths": None,
     "pop_times": None,
 
+    "pop_toysps_method": 0,
     "pop_toysps_beta": -2.,
     "pop_toysps_norm": 2e33,    # at 1600A
     "pop_toysps_gamma": -0.8,
@@ -890,6 +904,24 @@ def PopulationParameters():
     "pop_kwargs": {},
 
     "pop_test_param": None,
+
+
+    #HOD model - set for z = 0, no quiescent galaxies
+    # 'pop_sf_fract': 1.0,
+    'pop_lf': 3e-4,
+    'pop_smhm_beta': 1.06,
+    'pop_smhm_n': 0.0282,
+    'pop_smhm_gamma': 0.556,
+    'pop_smhm_m': 11.88,
+    'pop_sfr_1': 0.84,
+    'pop_sfr_2': 6.51,
+
+    #HOD model - set for z = 0, some quiescent galaxies
+    'pop_sf_A': -1,
+    'pop_sf_B': -10.5,
+    'pop_sf_C': 3.0,
+    'pop_sf_D': 2.0,
+
 
     # Utility
     "pop_user_par0": None,
@@ -946,13 +978,14 @@ def SourceParameters():
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     "source_dE": None,
-    "source_dlam": None,
 
-    "source_lmin": 912.,
-    "source_lmax": 1e4,
+    "source_dlam": None,
+    "source_lmin": None,
+    "source_lmax": None,
     "source_wavelengths": None,
     "source_times": None,
 
+    "source_toysps_method": 0,
     "source_toysps_beta": -2.5,
     "source_toysps_norm": 3e33,  # at 1600A
     "source_toysps_gamma": -1.,
@@ -976,6 +1009,9 @@ def SourceParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_only": False,
+    "source_nebular_continuum": False,
+    "source_nebular_lines": False,
     "source_nebular_ff": True,
     "source_nebular_fb": True,
     "source_nebular_2phot": True,
@@ -984,6 +1020,7 @@ def SourceParameters():
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
+    "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
@@ -1079,6 +1116,9 @@ def SynthesisParameters():
     "source_tracks_fn": None,
     "source_stellar_aging": False,
     "source_nebular": False,
+    "source_nebular_only": False,
+    "source_nebular_continuum": False,
+    "source_nebular_lines": False,
 
     # If doing nebular emission with ARES
     "source_nebular_ff": True,
@@ -1092,6 +1132,7 @@ def SynthesisParameters():
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
+    "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
@@ -1099,15 +1140,24 @@ def SynthesisParameters():
 
     # Only used by toy SPS
     "source_dE": None,
-    "source_dlam": 10.,
     "source_Emin": 1.,
     "source_Emax": 54.4,
+    "source_EminNorm": 1.,
+    "source_EmaxNorm": 54.4,
 
-    "source_lmin": 912.,
-    "source_lmax": 1e4,
+    "source_lifetime": 1e10,
+    "source_qdot": 5e48,
+    "source_temperature": 1e5,
+
+    "source_dlam": None,
+    "source_lmin": None,
+    "source_lmax": None,
     "source_times": None,
     "source_wavelengths": None,
 
+    "source_mass": 1.,
+
+    "source_toysps_method": 0,
     "source_toysps_beta": -2.,
     "source_toysps_norm": 2e33,  # at 1600A
     "source_toysps_gamma": -0.8,
@@ -1189,7 +1239,7 @@ def HaloMassFunctionParameters():
     "hps_zmax": 30,
     "hps_dz": 0.5,
 
-    "hps_linear": False,
+    "hps_assume_linear": False,
 
     'hps_dlnk': 0.001,
     'hps_dlnR': 0.001,

@@ -17,9 +17,9 @@ way:
     Initial conditions
     Source parameters
     Physics parameters
-    
+
 More notes:
--A problem type > 10 (or < -10) corresponds to the same problem as 
+-A problem type > 10 (or < -10) corresponds to the same problem as
  problem_type % 10, except helium is included.
 
 """
@@ -29,7 +29,7 @@ from .SetDefaultParameterValues import SetAllDefaults
 from ..physics.Constants import m_H, cm_per_kpc, cm_per_mpc, s_per_myr, E_LL
 
 defs = SetAllDefaults()
-    
+
 def RaySegmentProblem(ptype):
 
     ptype_int = int(ptype)
@@ -40,18 +40,18 @@ def RaySegmentProblem(ptype):
     else:
         ptype_mod1 = round(ptype - ptype_int, 1)
 
-    # Single-zone, cosmological expansion test         
+    # Single-zone, cosmological expansion test
     if ptype_int == -1:
         pf = {
-              "problem_type": -1, 
+              "problem_type": -1,
               "radiative_transfer": 0,
               "isothermal": 0,
               "expansion": 1,
               "compton_scattering": 1,
               "grid_cells": 1,
-              "length_units": 1e-4*cm_per_kpc, # 100 milliparsecs 
+              "length_units": 1e-4*cm_per_kpc, # 100 milliparsecs
               "start_radius": 0.99, # cell = 1 milliparsec across
-              "dtDataDump": 1., 
+              "dtDataDump": 1.,
               "dzDataDump": 0.1,
               "initial_redshift": 1e3,
               "initial_ionization": [1.-0.049, 0.049, 1-2e-8, 1e-8, 1e-8],
@@ -68,14 +68,14 @@ def RaySegmentProblem(ptype):
               "plane_parallel": 1,
               "isothermal": 1,
               "density_units": 1.0,
-              "length_units": 1e-4 * cm_per_kpc, # 100 milliparsecs 
+              "length_units": 1e-4 * cm_per_kpc, # 100 milliparsecs
               "time_units": s_per_myr,
               "start_radius": 0.99999999,   # cell = 1 milliparsec across
-              "grid_cells": 1, 
+              "grid_cells": 1,
 
-              "stop_time": 10, 
+              "stop_time": 10,
               "logdtDataDump": 0.1,
-              "dtDataDump": None, 
+              "dtDataDump": None,
               "initial_timestep": 1e-15,
               "max_timestep": 0.1,
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
@@ -97,7 +97,7 @@ def RaySegmentProblem(ptype):
 
              }
 
-    # RT06-1, RT1: Pure hydrogen, isothermal HII region expansion, 
+    # RT06-1, RT1: Pure hydrogen, isothermal HII region expansion,
     # monochromatic spectrum at 13.6 eV
     if ptype_int == 1:
         pf = {
@@ -115,11 +115,11 @@ def RaySegmentProblem(ptype):
               "source_LE": [1.0],
              }
 
-    # RT06-2: Pure hydrogen, HII region expansion, temperature evolution 
+    # RT06-2: Pure hydrogen, HII region expansion, temperature evolution
     # allowed, *continuous spectrum*
     if ptype_int == 2:
         pf = {
-              "problem_type": 2, 
+              "problem_type": 2,
               "density_units": 1e-3,
               "length_units": 6.6 * cm_per_kpc,
               "stop_time": 100.0,
@@ -127,7 +127,7 @@ def RaySegmentProblem(ptype):
               "restricted_timestep": ['ions', 'temperature'],
               "initial_temperature": 1e2,
               "initial_ionization": [1.-1.2e-3, 1.2e-3, 1.-2e-8, 1e-8, 1e-8],
-              "source_type": 'star', 
+              "source_type": 'star',
               "source_temperature": 1e5,
               "source_sed": 'bb',
               "source_qdot": 5e48,
@@ -139,7 +139,7 @@ def RaySegmentProblem(ptype):
     # continuous blackbody spectrum
     if ptype_int == 3:
         pf = {
-              "problem_type": 3,  
+              "problem_type": 3,
               "plane_parallel": 1,
               "density_units": 2e-4,
               "grid_cells": 128,
@@ -148,15 +148,15 @@ def RaySegmentProblem(ptype):
               "initial_timestep": 1e-8,
               "tables_dlogN": [0.01],
 
-              "stop_time": 15.0, 
+              "stop_time": 15.0,
               "dtDataDump": 1.0,
-              "isothermal": 0,  
+              "isothermal": 0,
               "initial_temperature": 8e3,
               "initial_ionization": [1.-1e-4, 1e-4, 1.-2e-4, 1e-4, 1e-4],
-              "source_type": 'star', 
+              "source_type": 'star',
               "source_qdot": 1e6,
               "source_sed": 'bb',
-              "source_temperature": 1e5,  
+              "source_temperature": 1e5,
 
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
 
@@ -206,25 +206,25 @@ def ReionizationProblem(ptype):
     """
     Problems using MultiPhaseMedium or MetaGalacticBackground.
     """
-    
+
     ptype -= 100
-    
+
     ptype_int = int(ptype)
-    
+
     # If 110-120, include helium
     if abs(ptype_int) > 10:
         ptype_int -= 10 * np.sign(ptype_int)
         ptype_mod1 = round(ptype - 10 - ptype_int, 1)
-    else:    
+    else:
         ptype_mod1 = round(ptype - ptype_int, 1)
-                                
+
     # Single-zone reionization problem
     if ptype_int == 5:
         pf = \
         {
          'problem_type': 100,
          "grid_cells": 1,
-         
+
          'pop_type': 'galaxy',
          'pop_sfrd': 'robertson2015',
          'pop_sed': 'pl',
@@ -245,7 +245,7 @@ def ReionizationProblem(ptype):
          'cgm_collisional_ionization': False,
         }
 
-    # Simple global 21-cm problem            
+    # Simple global 21-cm problem
     if ptype_int == 0:
         # Blank slate
         pf = {}
@@ -254,10 +254,10 @@ def ReionizationProblem(ptype):
     elif ptype_int == 1:
         pf = \
         {
-        
+
         'problem_type': 101,
         "grid_cells": 1,
-        
+
         # Emits LW
         'pop_type{0}': 'galaxy',
         'pop_sfr_model{0}': 'fcoll',
@@ -268,15 +268,15 @@ def ReionizationProblem(ptype):
         "pop_ion_src_igm{0}": False,
         "pop_heat_src_cgm{0}": False,
         "pop_heat_src_igm{0}": False,
-        
+
         "pop_Emin{0}": 10.2,
         "pop_Emax{0}": E_LL,
         "pop_EminNorm{0}": 10.2,
-        "pop_EmaxNorm{0}": E_LL,        
-        "pop_rad_yield{0}": 9690., 
+        "pop_EmaxNorm{0}": E_LL,
+        "pop_rad_yield{0}": 9690.,
         "pop_rad_yield_units{0}": 'photons/baryon',
         "pop_solve_rte{0}": False,
-        
+
         # Emits X-rays
         'pop_type{1}': 'galaxy',
         'pop_sfr_model{1}': 'link:sfrd:0',
@@ -295,10 +295,10 @@ def ReionizationProblem(ptype):
         "pop_EmaxNorm{1}": 8e3,
 
         "pop_Ex{1}": 500.,
-        "pop_rad_yield{1}": 2.6e39, 
+        "pop_rad_yield{1}": 2.6e39,
         "pop_rad_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
-        
+
         # Emits ionizing photons
         'pop_type{2}': 'galaxy',
         'pop_sfr_model{2}': 'link:sfrd:0',
@@ -309,24 +309,24 @@ def ReionizationProblem(ptype):
         "pop_heat_src_igm{2}": False,
 
         "pop_fesc{2}": 0.1,
-        
+
         "pop_Emin{2}": E_LL,
         "pop_Emax{2}": 1e2,
         "pop_EminNorm{2}": E_LL,
-        "pop_EmaxNorm{2}": 1e2,        
-        "pop_rad_yield{2}": 4000., 
+        "pop_EmaxNorm{2}": 1e2,
+        "pop_rad_yield{2}": 4000.,
         "pop_rad_yield_units{2}": 'photons/baryon',
         "pop_solve_rte{2}": False,
 
         }
-        
+
     elif ptype_int == 2:
         pf = \
         {
-        
+
         'problem_type': 102,
         "grid_cells": 1,
-        
+
         # Emits UV photons
         'pop_type{0}': 'galaxy',
         "pop_lya_src{0}": True,
@@ -336,17 +336,17 @@ def ReionizationProblem(ptype):
         "pop_heat_src_igm{0}": False,
 
         "pop_fesc{0}": 0.1,
-        
+
         "pop_Emin{0}": 10.2,
         "pop_Emax{0}": 24.6,
         "pop_EminNorm{0}": E_LL,
-        "pop_EmaxNorm{0}": 24.6, 
-        
+        "pop_EmaxNorm{0}": 24.6,
+
         "pop_sed{0}": 'eldridge2009',
         "pop_Z{0}": 0.02,
         "pop_ssp{0}": False,
         "pop_tsf{0}": 100.,
-        
+
         # Emits X-rays
         'pop_type{1}': 'galaxy',
         'pop_tunnel{1}': 0,         # Takes SFRD from population 1
@@ -365,15 +365,42 @@ def ReionizationProblem(ptype):
         "pop_EmaxNorm{1}": 8e3,
 
         "pop_Ex": 500.,
-        "pop_rad_yield{1}": 2.6e39, 
+        "pop_rad_yield{1}": 2.6e39,
         "pop_rad_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
         }
-        
+    elif ptype_int == 3:
+        pf = \
+        {
+
+        'problem_type': 103,
+        "grid_cells": 1,
+
+        # Emits UV photons
+        'pop_type': 'galaxy',
+        "pop_lya_src": True,
+        "pop_ion_src_cgm": True,
+        "pop_ion_src_igm": False,
+        "pop_heat_src_cgm": False,
+        "pop_heat_src_igm": False,
+
+        "pop_fesc": 0.1,
+
+        "pop_Emin": 10.2,
+        "pop_Emax": 24.6,
+        "pop_EminNorm": E_LL,
+        "pop_EmaxNorm": 24.6,
+
+        "pop_sed": 'eldridge2009',
+        "pop_Z": 0.02,
+        "pop_ssp": False,
+        "pop_tsf": 100.,
+        }
+
     pf['load_ics'] = True
     pf['cosmological_ics'] = True
 
-    return pf  
+    return pf
 
 def GalaxyProblem(ptype):
     pass
@@ -403,4 +430,4 @@ def ProblemType(ptype):
     else:
         return ReionizationProblem(ptype)
 
-    return pf    
+    return pf

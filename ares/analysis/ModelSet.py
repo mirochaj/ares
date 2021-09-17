@@ -129,6 +129,10 @@ class ModelSet(BlobFactory):
                 self._prefix_is_chain = True
                 pre_pkl = data[0:data.rfind('.pkl')]
                 self.prefix = prefix = pre_pkl
+            elif re.search('hdf5', data):
+                self._prefix_is_chain = True
+                pre_pkl = data[0:data.rfind('.hdf5')]
+                self.prefix = prefix = pre_pkl
             else:
                 self._prefix_is_chain = False
                 self.prefix = prefix = data
@@ -596,7 +600,7 @@ class ModelSet(BlobFactory):
                     #        open_mode='w', safe_mode=False, verbose=False)
                 elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                     f = h5py.File('{!s}.hdf5'.format(self.prefix))
-                    _chain = np.array(f[('chain')])
+                    chain = np.array(f[('chain')])
 
                     if hasattr(self, '_mask'):
                         if self.mask.ndim == 1:
@@ -2935,7 +2939,7 @@ class ModelSet(BlobFactory):
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True,
         show_errors=False, label_panels=None, return_axes=False,
         fix=True, skip_panels=[], mp_kwargs={}, inputs_scatter=False,
-        input_marker='+',
+        input_mkw={},
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3212,10 +3216,10 @@ class ModelSet(BlobFactory):
 
                 mult = np.array([0.995, 1.005])
 
-                if inputs_scatter:
-                    c = 'k' if 'color' not in kwargs else kwargs['color']
-                    mp.grid[k].scatter([xin]*2, [yin]*2,
-                        color=c, marker=input_marker, zorder=20)
+                if inputs_scatter and (xin is not None) and (yin is not None):
+                    mp.grid[k].scatter([xin]*2, [yin]*2, **input_mkw)
+                    continue
+                elif inputs_scatter:
                     continue
 
                 # Plot as dotted lines
@@ -3551,7 +3555,7 @@ class ModelSet(BlobFactory):
             yblob = tmp[name].squeeze()
 
             if expr is not None:
-                yblob = eval(expr)
+                yblob = eval(expr).squeeze()
 
             #else:
             #    tmp = self.ExtractData(names,
@@ -4047,7 +4051,7 @@ class ModelSet(BlobFactory):
                 return blob
 
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
-            k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
+            k1 = np.argmin(np.abs(np.array(self.blob_ivars[i][0]) - ivar[0]))
 
             if not np.allclose(self.blob_ivars[i][0][k1], ivar[0]):
                 print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name,
@@ -4057,7 +4061,7 @@ class ModelSet(BlobFactory):
             if ivar[1] is None:
                 return blob[:,k1,:]
             else:
-                k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
+                k2 = np.argmin(np.abs(np.array(self.blob_ivars[i][1]) - ivar[1]))
 
                 if self.blob_ivars[i][1][k2] != ivar[1]:
                     print("WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name,

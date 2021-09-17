@@ -1,4 +1,4 @@
-""" 
+"""
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -12,7 +12,7 @@ Note:  All units are cgs unless stated otherwise.
 
 from math import pi
 
-# lengths       
+# lengths
 km_per_pc = 3.08568e13
 km_per_mpc = km_per_pc*1e6
 km_per_gpc = km_per_mpc*1e3
@@ -29,7 +29,7 @@ cm_per_ang = 1e-8
 m_per_mpc = cm_per_mpc * 1e-2
 
 # masses
-g_per_amu = 1.660538921e-24    
+g_per_amu = 1.660538921e-24
 g_per_msun = 1.98892e33
 mH_amu = 1.00794
 mHe_amu = 4.002602
@@ -79,7 +79,7 @@ rhodot_cgs = s_per_yr * cm_per_mpc**3 / g_per_msun
 # Stefan-Boltzmann constant - [sigma_SB] = erg / cm^2 / deg^4 / s
 sigma_SB = 2.0 * pi**5 * k_B**4 / 15.0 / c**2 / h**3
 
-# Hydrogen 
+# Hydrogen
 A10 = 2.85e-15 				    # HI 21cm spontaneous emission coefficient - [A10] = Hz
 E10 = 5.9e-6 				    # Energy difference between hyperfine states - [E10] = eV
 m_H = m_p + m_e 			    # Mass of a hydrogen atom - [m_H] = g
@@ -95,6 +95,9 @@ E_LyB = E_LL * (1. - 1. / 3**2)
 nu_alpha = E_LyA * erg_per_ev / h
 nu_beta = E_LyB * erg_per_ev / h
 nu_LL = E_LL * erg_per_ev / h
+lam_LL = h_p * c * 1e8 / (E_LL * erg_per_ev)
+lam_LyA = h_p * c * 1e8 / (E_LyA * erg_per_ev)
+lam_LyB = h_p * c * 1e8 / (E_LyB * erg_per_ev)
 dnu = nu_LL - nu_alpha
 J21_num = 1e-21 / E_LyA / erg_per_ev
 
@@ -114,7 +117,7 @@ y = Y / 4. / (1. - Y)           # Primordial helium abundance by number
 lsun = 3.839e33                     # Solar luminosity - erg / s
 cm_per_rsun = 695500.0 * 1e5        # Radius of the sun - [cm_per_rsun] = cm
 t_edd = sigma_T * c / 4. / pi / G / m_p # Eddington timescale (~0.45 Gyr)
-                                    
-xcorr = (3. / 7.)**0.5 * (6. / 7.)**3  # Correction factor for peak temperature location in disk                        
+
+xcorr = (3. / 7.)**0.5 * (6. / 7.)**3  # Correction factor for peak temperature location in disk
 
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz

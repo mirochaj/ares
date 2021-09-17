@@ -7,15 +7,12 @@
 **ARES**
 ========
 
-.. image:: https://readthedocs.org/projects/ares/badge/?version=latest 
+.. image:: https://readthedocs.org/projects/ares/badge/?version=latest
 	:target: https://ares.readthedocs.io/en/latest/?badge=latest
-.. image:: https://travis-ci.com/mirochaj/ares.svg?branch=master
-    :target: https://travis-ci.com/mirochaj/ares
-.. image:: https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master
-	:target: https://coveralls.io/github/mirochaj/ares?branch=master
-
-.. image:: https://img.shields.io/github/last-commit/mirochaj/ares
-	:target: https://img.shields.io/github/last-commit/mirochaj/ares
+.. image:: https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg
+  :target: https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg
+  .. image:: https://codecov.io/gh/mirochaj/ares/branch/master/graph/badge.svg?token=Q3CCKIMQJF
+  :target: https://codecov.io/gh/mirochaj/ares
 
 The Accelerated Reionization Era Simulations (*ARES*) code was designed to rapidly generate models for the global 21-cm signal. It can also be used as a 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or meta-galactic radiation background calculator. As of late 2016, it also contains a home-grown semi-analytic model of galaxy formation.
 
@@ -39,7 +36,7 @@ risk! Correctness of results is not guaranteed. This documentation is as much of
 Quick-Start
 -----------
 To make sure everything is working, a quick test is to generate a
-realization of the global 21-cm signal using all default parameter values: 
+realization of the global 21-cm signal using all default parameter values:
 
 ::
 
@@ -49,7 +46,7 @@ realization of the global 21-cm signal using all default parameter values:
     sim.run()
     sim.GlobalSignature()
 
-See :doc:`example_gs_standard` in :doc:`examples` for a more thorough 
+See :doc:`example_gs_standard` in :doc:`examples` for a more thorough
 introduction to this type of calculation.
 
 Contents
@@ -67,11 +64,10 @@ Contents
     contributing
     history
     acknowledgements
-	
+
 
 .. Indices and tables
 .. ==================
 .. * :ref:`genindex`
 .. * :ref:`modindex`
 .. * :ref:`search`
-

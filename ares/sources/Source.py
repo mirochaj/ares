@@ -90,7 +90,16 @@ class Source(object):
 
     @property
     def is_delta(self):
-        return self.pf['source_sed'] == 'delta'
+        if not hasattr(self, '_is_delta'):
+            self._is_delta = self.pf['source_sed'] == 'delta'
+        return self._is_delta
+
+    @property
+    def has_nebular_lines(self):
+        if not hasattr(self, '_has_nebular_lines'):
+            self._has_nebular_lines = self.pf['source_nebular_lines'] > 0 \
+                and self.pf['source_nebular'] > 0
+        return self._has_nebular_lines
 
     def SourceOn(self, t):
         if t < self.tau:
@@ -154,7 +163,7 @@ class Source(object):
     def discrete(self):
         if not hasattr(self, '_discrete'):
             self._discrete = (self.pf['source_E'] != None) or \
-                (self.pf['source_sed'] in ['eldridge2009', 'eldridge2017', 
+                (self.pf['source_sed'] in ['eldridge2009', 'eldridge2017',
                     'leitherer1999'])
 
         return self._discrete
