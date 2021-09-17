@@ -12,7 +12,7 @@ from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m
 
-class PowerSpectrum(AnalyzePS): # pragma: no cover
+class Simulation(AnalyzePS): # pragma: no cover
     def __init__(self, pf=None, **kwargs):
         """ Set up a power spectrum calculation. """
 
@@ -20,17 +20,17 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 102
 
-        self.kwargs = kwargs
+        self.tab_kwargs = kwargs
 
         if pf is None:
-            self.pf = ParameterFile(**self.kwargs)
+            self.pf = ParameterFile(**self.tab_kwargs)
         else:
             self.pf = pf
 
     @property
     def gs(self):
         if not hasattr(self, '_gs'):
-            self._gs = Global21cm(**self.kwargs)
+            self._gs = Global21cm(**self.tab_kwargs)
         return self._gs
 
     @gs.setter
@@ -165,8 +165,9 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
         return x, y
 
-    def get_ps(self, scales, waves, wave_units='mic', scale_units='arcmin',
-        flux_units='SI', dimensionless=False, pops=None, **kwargs):
+    def get_ps_galaxies(self, scales, waves, wave_units='mic',
+        scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
+        **kwargs):
         """
         Compute power spectrum at some observed wavelength.
 
@@ -274,7 +275,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
     @property
     def field(self):
         if not hasattr(self, '_field'):
-            self._field = Fluctuations(**self.kwargs)
+            self._field = Fluctuations(**self.tab_kwargs)
         return self._field
 
     @property
@@ -302,7 +303,23 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
     def run_nirb_ps(self):
         pass
 
-    def run_21cm_ps(self):
+    def get_ps_21cm(self):
+        if 'ps_21cm' not in self.history:
+            self.run_ps_21cm()
+
+        return self.history['ps_21cm']
+
+    def get_gs_21cm(self):
+        if 'gs_21cm' not in self.history:
+            self.gs.run()
+
+        return self.history['gs_21cm']
+
+    def run_gs_21cm(self):
+        self.gs.run()
+        self.history['gs_21cm'] = self.gs.history
+
+    def run_ps_21cm(self, z=None, k=None):
         """
         Run a simulation, compute power spectrum at each redshift.
 
@@ -312,12 +329,20 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
         """
 
-        N = self.z.size
+        if z is None:
+            z = self.tab_z
+        if k is None:
+            k = self.tab_k
+
+        # First, run global signal.
+        self.run_gs_21cm()
+
+        N = z.size
         pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'],
             name='ps-21cm')
 
         all_ps = []
-        for i, (z, data) in enumerate(self.step()):
+        for i, (z, data) in enumerate(self._step_ps_21cm()):
 
             # Do stuff
             all_ps.append(data.copy())
@@ -340,18 +365,18 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
             is2d_k = key.startswith('ps')
             is2d_R = key.startswith('jp') or key.startswith('ev') \
                   or key.startswith('cf')
-            is2d_B = (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
+            is2d_B = (key in ['n_i', 'm_i', 'r_i', 'delta_B', 'bsd'])
 
             if is2d_k:
-                tmp = np.zeros((len(self.z), len(self.k)))
+                tmp = np.zeros((len(self.tab_z), len(self.tab_k)))
             elif is2d_R:
-                tmp = np.zeros((len(self.z), len(self.R)))
+                tmp = np.zeros((len(self.tab_z), len(self.tab_R)))
             elif is2d_B:
-                tmp = np.zeros((len(self.z), len(all_ps[0]['r_i'])))
+                tmp = np.zeros((len(self.tab_z), len(all_ps[0]['r_i'])))
             else:
-                tmp = np.zeros_like(self.z)
+                tmp = np.zeros_like(self.tab_z)
 
-            for i, z in enumerate(self.z):
+            for i, z in enumerate(self.tab_z):
                 if key not in all_ps[i].keys():
                     continue
 
@@ -359,13 +384,15 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
             hist[key] = tmp.copy()
 
-        self.history = hist
-        self.history['z'] = self.z
-        self.history['k'] = self.k
-        self.history['R'] = self.R
+        poke = self.history
+
+        self.history['ps_21cm'] = hist
+        self.history['ps_21cm']['z'] = self.tab_z
+        self.history['ps_21cm']['k'] = self.tab_k
+        self.history['ps_21cm']['R'] = self.tab_R
 
     @property
-    def k(self):
+    def tab_k(self):
         """
         Wavenumbers to output power spectra.
 
@@ -386,12 +413,12 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
         return self._k
 
     @property
-    def R(self):
+    def tab_R(self):
         """
         Scales on which to compute correlation functions.
 
         .. note :: Can be more crude than native resolution of matter
-            power spectrum, however, unlike `self.k`, the resolution of
+            power spectrum, however, unlike `self.tab_k`, the resolution of
             this quantity matters when converting back to power spectra,
             since that operation requires an integral over R.
 
@@ -418,21 +445,24 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
         return self._tab_Mmin
 
+
     @property
     def tab_zeta(self):
-        pass
+        return self._tab_zeta
 
-    def step(self):
+    @tab_zeta.setter
+    def tab_zeta(self, value):
+        self._tab_zeta = value
+
+    def _step_ps_21cm(self):
         """
         Generator for the power spectrum.
         """
 
-        raise NotImplemented('need to revisit this.')
-
         # Set a few things before we get moving.
         self.field.tab_Mmin = self.tab_Mmin
 
-        for i, z in enumerate(self.z):
+        for i, z in enumerate(self.tab_z):
 
             data = {}
 
@@ -489,7 +519,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
             self.field.zeta = zeta
             self.field.zeta_X = zeta_X
 
-            self.zeta = zeta
+            self.tab_zeta = zeta
 
             ##
             # Figure out scaling from ionized regions to heated regions.
@@ -541,7 +571,7 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
             # Must be constant, for now.
             Th = self.pf["bubble_shell_ktemp_zone_0"]
 
-            self.R_s = R_s
+            self.tab_R_s = R_s
             self.Th = Th
 
 
@@ -549,12 +579,11 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
             # First: some global quantities we'll need
             ##
             Tcmb = self.cosm.TCMB(z)
-            Tk = np.interp(z, self.mean_history['z'][-1::-1],
-                self.mean_history['igm_Tk'][-1::-1])
-            Ts = np.interp(z, self.mean_history['z'][-1::-1],
-                self.mean_history['Ts'][-1::-1])
-            Ja = np.interp(z, self.mean_history['z'][-1::-1],
-                self.mean_history['Ja'][-1::-1])
+            hist = self.gs.history
+
+            Tk = np.interp(z, hist['z'][-1::-1], hist['igm_Tk'][-1::-1])
+            Ts = np.interp(z, hist['z'][-1::-1], hist['igm_Ts'][-1::-1])
+            Ja = np.interp(z, hist['z'][-1::-1], hist['Ja'][-1::-1])
             xHII, ne = [0] * 2
 
             xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
@@ -602,7 +631,14 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
 
             xibar = Qi_gs
 
-            #print(z, Qi_bff, Qi, xibar, Qi_bff / Qi)
+
+            # Save normalized copy of BSD for easy plotting in post
+            dvdr = 4. * np.pi * Ri**2
+            dmdr = self.cosm.mean_density0 * (1. + data['delta_B']) * dvdr
+            dmdlnr = dmdr * Ri
+            dndlnR = Ni * dmdlnr
+            V = 4. * np.pi * Ri**3 / 3.
+            data['bsd'] = V * dndlnR / Qi
 
             if self.pf['ps_include_temp']:
                 # R_s=R_s(Ri,z)
@@ -688,13 +724,13 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
             if self.pf['ps_include_21cm']:
 
                 data['cf_21'] = self.field.CorrelationFunction(z,
-                    R=self.R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                    Tk=Tk, Ja=Ja, k=self.k)
+                    R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.tab_k)
 
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
-                data['ps_21'] = self.field.PowerSpectrumFromCF(self.k,
-                    data['cf_21'], self.R,
+                data['ps_21'] = self.field.PowerSpectrumFromCF(self.tab_k,
+                    data['cf_21'], self.tab_R,
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])
@@ -711,8 +747,8 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                     continue
 
                 _cf = self.field.CorrelationFunction(z,
-                    R=self.R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                    Tk=Tk, Ja=Ja, k=self.k)
+                    R=self.tab_R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.tab_k)
 
                 data['cf_{}'.format(term)] = _cf.copy()
 
@@ -720,15 +756,15 @@ class PowerSpectrum(AnalyzePS): # pragma: no cover
                     continue
 
                 data['ps_{}'.format(term)] = \
-                    self.field.PowerSpectrumFromCF(self.k,
-                    data['cf_{}'.format(term)], self.R,
+                    self.field.PowerSpectrumFromCF(self.tab_k,
+                    data['cf_{}'.format(term)], self.tab_R,
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])
 
             # Always save the matter correlation function.
             data['cf_dd'] = self.field.CorrelationFunction(z,
-                term='dd', R=self.R)
+                term='dd', R=self.tab_R)
 
             yield z, data
 

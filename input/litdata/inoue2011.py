@@ -6,8 +6,8 @@ Supplementary online data that now seems to be missing...?
 
 import os
 import numpy as np
+from ares.data import ARES
 
-ARES = os.environ.get('ARES')
 path = ARES + '/input/inoue2011/'
 
 fn_lines = '{}/LineList.txt'.format(path)

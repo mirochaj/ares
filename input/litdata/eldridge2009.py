@@ -7,12 +7,13 @@ Reference: Eldridge, JJ., and Stanway, E.R., 2009, MNRAS, 400, 1019
 
 import re, os
 import numpy as np
+from ares.data import ARES
 from scipy.interpolate import interp1d
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
-_input = os.getenv('ARES') + '/input/bpass_v1/SEDS'
-_input2 = os.getenv('ARES') + '/input/bpass_v1_stars/'
+_input = ARES + '/input/bpass_v1/SEDS'
+_input2 = ARES + '/input/bpass_v1_stars/'
 
 metallicities = \
 {
@@ -70,7 +71,7 @@ def _kwargs_to_fn(**kwargs):
 
     return _input + '/' + fn
 
-def _load(**kwargs):
+def _load(fn=None, **kwargs):
     """
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
@@ -95,7 +96,10 @@ def _load(**kwargs):
 
     # No interpolation necessary
     else:
-        fn = _fn = _kwargs_to_fn(**kwargs)
+        if fn is None:
+            fn = _fn = _kwargs_to_fn(**kwargs)
+        else:
+            _fn = fn
 
         _raw_data = np.loadtxt(fn)
 

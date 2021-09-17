@@ -3358,7 +3358,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         return 1. * k**0
 
-    def get_ps_shot(self, z, k, wave=1600, raw=True, nebular_only=False):
+    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=True, nebular_only=False):
         """
         Return shot noise term of halo power spectrum.
 
@@ -3368,7 +3368,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Redshift of interest
         k : int, float, np.ndarray
             Wave-numbers of interests [1 / cMpc].
-        wave : int, float
+        wave1 : int, float
+            Rest wavelength of interest [Angstrom]
+        wave2 : int, float
             Rest wavelength of interest [Angstrom]
 
         Returns
@@ -3376,21 +3378,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         P(k)
         """
 
-        lum = self.Luminosity(z, wave, raw, nebular_only=nebular_only)
+        lum1 = self.Luminosity(z, wave1, raw, nebular_only=nebular_only)
+        lum2 = self.Luminosity(z, wave2, raw, nebular_only=nebular_only)
 
         ps = self.halos.get_ps_shot(z, k=k,
-            lum1=lum, lum2=lum,
+            lum1=lum1, lum2=lum2,
             mmin1=None, mmin2=None, ztol=1e-3)
 
         return ps
 
-    def _cache_ps_2h(self, z, k, wave, raw, nebular_only):
+    def _cache_ps_2h(self, z, k, wave1, wave2, raw, nebular_only):
         if not hasattr(self, '_cache_ps_2h_'):
             self._cache_ps_2h_ = {}
 
-        if (z, wave, raw, nebular_only) in self._cache_ps_2h_:
+        if (z, wave1, wave2, raw, nebular_only) in self._cache_ps_2h_:
 
-            _k_, _ps_ = self._cache_ps_2h_[(z, wave, raw, nebular_only)]
+            _k_, _ps_ = self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)]
 
             print("# Note: interpolating cached power spectrum at z={}".format(z))
             ps = np.exp(np.interp(np.log(k), np.log(_k_), np.log(_ps_)))
@@ -3399,20 +3402,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return None
 
-    def _cache_ps_1h(self, z, k, wave, raw, nebular_only, prof):
+    def _cache_ps_1h(self, z, k, wave1, wave2, raw, nebular_only, prof):
         if not hasattr(self, '_cache_ps_1h_'):
             self._cache_ps_1h_ = {}
 
-        if (z, wave, raw, nebular_only, prof) in self._cache_ps_1h_:
+        if (z, wave1, wave2, raw, nebular_only, prof) in self._cache_ps_1h_:
 
-            _k_, _ps_ = self._cache_ps_1h_[(z, wave, raw, nebular_only, prof)]
+            _k_, _ps_ = self._cache_ps_1h_[(z, wave1, wave2, raw, nebular_only, prof)]
 
             print("# Note: interpolating cached power spectrum at z={}".format(z))
             ps = np.exp(np.interp(np.log(k), np.log(_k_), np.log(_ps_)))
 
             return ps
 
-    def get_ps_2h(self, z, k, wave=1600., raw=True, nebular_only=False):
+    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=True, nebular_only=False):
         """
         Return 2-halo term of 3-d power spectrum.
 
@@ -3422,7 +3425,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Redshift of interest
         k : int, float, np.ndarray
             Wave-numbers of interests [1 / cMpc].
-        wave : int, float
+        wave1 : int, float
+            Rest wavelength of interest [Angstrom]
+        wave2 : int, float
             Rest wavelength of interest [Angstrom]
 
         Returns
@@ -3431,7 +3436,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        cached_result = self._cache_ps_2h(z, k, wave, raw, nebular_only)
+        cached_result = self._cache_ps_2h(z, k, wave1, wave2, raw, nebular_only)
         if cached_result is not None:
             return cached_result
 
@@ -3439,17 +3444,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # If `wave` is a number, this will have units of erg/s/Hz.
         # If `wave` is a tuple, this will just be in erg/s.
-        if np.all(np.array(wave) <= 912):
-            lum = 0
+        if np.all(np.array(wave1) <= 912):
+            lum1 = 0
         else:
-            lum = self.Luminosity(z, wave, raw, nebular_only)
+            lum1 = self.Luminosity(z, wave1, raw, nebular_only)
+        if np.all(np.array(wave2) <= 912):
+            lum2 = 0
+        else:
+            lum2 = self.Luminosity(z, wave2, raw, nebular_only)
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
-            lum1=lum, lum2=lum,
+            lum1=lum1, lum2=lum2,
             mmin1=None, mmin2=None, ztol=1e-3)
 
         if type(k) is np.ndarray:
-            self._cache_ps_2h_[(z, wave, raw, nebular_only)] = k, ps
+            self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps
 
         return ps
 
@@ -3486,6 +3495,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             prof = lambda kk, mm, zz: self.halos.u_isl_exp(kk, mm, zz)
         elif prof == 'exp':
             prof = lambda kk, mm, zz: self.halos.u_isl(kk, mm, zz)
+        elif prof == 'cgm_rahmati':
+            prof = lambda kk, mm, zz: self.halos.u_cgm_rahmati(kk, mm, zz)
+        elif prof == 'cgm_steidel':
+            prof = lambda kk, mm, zz: self.halos.u_cgm_steidel(kk, mm, zz)
         else:
             raise NotImplementedError('Unrecognized `prof` option: {}'.format(
                 prof
@@ -3493,7 +3506,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return prof
 
-    def get_ps_1h(self, z, k, wave=1600., raw=True, nebular_only=False,
+    def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=True, nebular_only=False,
         prof=None):
         """
         Return 1-halo term of 3-d power spectrum.
@@ -3504,7 +3517,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Redshift of interest
         k : int, float, np.ndarray
             Wave-numbers of interests [1 / cMpc].
-        wave : int, float
+        wave1 : int, float
+            Rest wavelength of interest [Angstrom]
+        wave2 : int, float
             Rest wavelength of interest [Angstrom]
 
         Returns
@@ -3512,7 +3527,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         P(k)
         """
 
-        cached_result = self._cache_ps_1h(z, k, wave, raw, nebular_only, prof)
+        cached_result = self._cache_ps_1h(z, k, wave1, wave2, raw, nebular_only, prof)
         if cached_result is not None:
             return cached_result
 
@@ -3521,23 +3536,28 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # If `wave` is a number, this will have units of erg/s/Hz.
         # If `wave` is a tuple, this will just be in erg/s.
-        if np.all(np.array(wave) <= 912):
-            lum = 0
+        if np.all(np.array(wave1) <= 912):
+            lum1 = 0
         else:
-            lum = self.Luminosity(z, wave=wave, raw=raw,
+            lum1 = self.Luminosity(z, wave=wave1, raw=raw,
+                nebular_only=nebular_only)
+        if np.all(np.array(wave2) <= 912):
+            lum2 = 0
+        else:
+            lum2 = self.Luminosity(z, wave=wave2, raw=raw,
                 nebular_only=nebular_only)
 
-        ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum,
-            lum2=lum, mmin1=None, mmin2=None, ztol=1e-3)
+        ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum1,
+            lum2=lum2, mmin1=None, mmin2=None, ztol=1e-3)
 
         if type(k) is np.ndarray:
-            self._cache_ps_1h_[(z, wave, raw, nebular_only, prof)] = k, ps
+            self._cache_ps_1h_[(z, wave1, wave2, raw, nebular_only, prof)] = k, ps
 
         return ps
 
-    def get_ps_obs(self, scale, wave_obs, include_shot=True,
+    def get_ps_obs(self, scale, wave_obs1, wave_obs2, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
-        time_res=1, raw=True, nebular_only=False):
+        time_res=1, raw=True, nebular_only=False, prof=None):
         """
         Compute the angular power spectrum of this galaxy population.
 
@@ -3584,11 +3604,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
-                    integrand[i] = self._get_ps_obs(z, _scale_, wave_obs,
+                    integrand[i] = self._get_ps_obs(z, _scale_, wave_obs1, wave_obs2,
                         include_shot=include_shot,
                         include_1h=include_1h, include_2h=include_2h,
                         scale_units=scale_units, raw=raw,
-                        nebular_only=nebular_only)
+                        nebular_only=nebular_only, prof=prof)
 
                 ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
 
@@ -3601,28 +3621,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             integrand = np.zeros_like(zarr)
             for i, z in enumerate(zarr):
-                integrand[i] = self._get_ps_obs(z, scale, wave_obs,
+                integrand[i] = self._get_ps_obs(z, scale, wave_obs1, wave_obs2,
                     include_shot=include_shot, include_2h=include_2h,
                     scale_units=scale_units, raw=raw,
-                    nebular_only=nebular_only)
+                    nebular_only=nebular_only, prof=prof)
 
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
 
         ##
         # Extra factor of nu^2 to eliminate Hz^{-1} units for
         # monochromatic PS
-        if type(wave_obs) not in [tuple, list]:
-            ps *= (c / (wave_obs * 1e-4))**2
+        assert type(wave_obs1) == type(wave_obs2)
+
+        if type(wave_obs1) not in [tuple, list]:
+            ps *= (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
         else:
-            ps /= (c / (np.array(wave_obs)[0] * 1e-4) \
-                -  c / (np.array(wave_obs)[1] * 1e-4))**2
-            ps *= (c / (np.mean(np.array(wave_obs)) * 1e-4))**2
+            ps /= c / (np.array(wave_obs1)[0] * 1e-4) - c / (np.array(wave_obs1)[1] * 1e-4)
+            ps /= c / (np.array(wave_obs2)[0] * 1e-4) - c / (np.array(wave_obs2)[1] * 1e-4)
+            ps *= (c / (np.mean(np.array(wave_obs1)) * 1e-4)) * (c / (np.mean(np.array(wave_obs2)) * 1e-4))
 
         return ps
 
-    def _get_ps_obs(self, z, scale, wave_obs, include_shot=True,
+    def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', raw=True,
-        nebular_only=False):
+        nebular_only=False, prof=None):
         """
         Compute integrand of angular power spectrum integral.
         """
@@ -3633,30 +3655,54 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # is a tuple vs. a number. In the former case, it will simply
         # be in erg/s/cMpc^3, while in the latter, it will carry an extra
         # factor of Hz^-1.
-        if type(wave_obs) in [int, float, np.float64]:
+        if type(wave_obs1) in [int, float, np.float64]:
             is_band_int = False
 
             # Get rest wavelength in Angstroms
-            wave = wave_obs * 1e4 / (1. + z)
+            wave1 = wave_obs1 * 1e4 / (1. + z)
             # Convert to photon energy since that what we work with internally
-            E = h_p * c / (wave * 1e-8) / erg_per_ev
-            nu = c / (wave * 1e-8)
+            E1 = h_p * c / (wave1 * 1e-8) / erg_per_ev
+            nu1 = c / (wave1 * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz
-            enu = self.Emissivity(z, E=E) * ev_per_hz
+            enu1 = self.Emissivity(z, E=E1) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_int = True
 
             # Get rest wavelengths
-            wave = tuple(np.array(wave_obs) * 1e4 / (1. + z))
+            wave1 = tuple(np.array(wave_obs1) * 1e4 / (1. + z))
 
             # Convert to photon energies since that what we work with internally
-            E1 = h_p * c / (wave[0] * 1e-8) / erg_per_ev
-            E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev
+            E11 = h_p * c / (wave1[0] * 1e-8) / erg_per_ev
+            E21 = h_p * c / (wave1[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu = self.Emissivity(z, Emin=E2, Emax=E1)
+            enu1 = self.Emissivity(z, Emin=E21, Emax=E11)
+        if type(wave_obs2) in [int, float, np.float64]:
+            is_band_int = False
+
+            # Get rest wavelength in Angstroms
+            wave2 = wave_obs2 * 1e4 / (1. + z)
+            # Convert to photon energy since that what we work with internally
+            E2 = h_p * c / (wave2 * 1e-8) / erg_per_ev
+            nu2 = c / (wave2 * 1e-8)
+
+            # [enu] = erg/s/cm^3/Hz
+            enu2 = self.Emissivity(z, E=E2) * ev_per_hz
+            # Not clear about * nu at the end
+        else:
+            is_band_int = True
+
+            # Get rest wavelengths
+            wave2 = tuple(np.array(wave_obs2) * 1e4 / (1. + z))
+
+            # Convert to photon energies since that what we work with internally
+            E12 = h_p * c / (wave2[0] * 1e-8) / erg_per_ev
+            E22 = h_p * c / (wave2[1] * 1e-8) / erg_per_ev
+
+            # [enu] = erg/s/cm^3
+            enu2 = self.Emissivity(z, Emin=E22, Emax=E12)
 
         # Need angular diameter distance and H(z) for all that follows
         d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
@@ -3688,21 +3734,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##
         # First: compute 3-D power spectrum
         if include_2h:
-            ps3d = self.get_ps_2h(z, k, wave, raw=False, nebular_only=False)
+            ps3d = self.get_ps_2h(z, k, wave1, wave2, raw=False, nebular_only=False)
         else:
             ps3d = np.zeros_like(k)
 
         if include_shot:
-            ps3d += self.get_ps_shot(z, k, wave, raw=False, nebular_only=False)
+            ps3d += self.get_ps_shot(z, k, wave1, wave2, raw=True, nebular_only=False)
 
         if include_1h:
-            ps3d += self.get_ps_1h(z, k, wave, raw=False, nebular_only=True)
+            ps3d += self.get_ps_1h(z, k, wave1, wave2, raw=False, nebular_only=True, prof=prof)
 
         # The 3-d PS should have units of luminosity^2 * cMpc^-3.
         # Yes, that's cMpc^-3, a factor of volume^2 different than what
         # we're used to (e.g., matter power spectrum).
 
-        # Must convert length units from cMpc (inheriteed from HMF)
+        # Must convert length units from cMpc (inherited from HMF)
         # to cgs.
         # Right now, ps3d \propto n^2 Plin(k)
         # [ps3d] = (erg/s)^2 (cMpc)^-6 right now

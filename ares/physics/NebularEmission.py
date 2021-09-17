@@ -192,6 +192,17 @@ class NebularEmission(object):
 
         return self._prob_2phot_
 
+    @property
+    def _ew_wrt_hbeta(self):
+        if not hasattr(self, '_ew_wrt_hbeta_'):
+            i11 = read_lit('inoue2011')
+
+            waves, ew, ew_std = i11._load(self.pf['source_Z'])
+
+            self._ew_wrt_hbeta_ = waves, ew, ew_std
+
+        return self._ew_wrt_hbeta_
+
     def f_rep(self, spec, Tgas=2e4, channel='ff', net=False):
         """
         Fraction of photons reprocessed into different channels.
@@ -303,6 +314,7 @@ class NebularEmission(object):
 
         fesc = self.pf['source_fesc']
         Tgas = self.pf['source_nebular_Tgas']
+        cBd = self.pf['source_nebular_caseBdeparture']
         flya = 2. / 3.
         erg_per_phot = self.energies * erg_per_ev
 
@@ -315,7 +327,11 @@ class NebularEmission(object):
         frep_tp = (1. - flya) * self.f_rep(spec, Tgas, 'tp')
 
         # Amount of UV luminosity absorbed in ISM
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         tot = np.zeros_like(self.wavelengths)
         if self.pf['source_nebular_ff']:
@@ -323,7 +339,7 @@ class NebularEmission(object):
         if self.pf['source_nebular_fb']:
             tot += frep_fb * Nabs
         if self.pf['source_nebular_2phot']:
-            tot += frep_tp * Nabs
+            tot += frep_tp * Nabs * cBd
 
         return tot
 
@@ -347,16 +363,33 @@ class NebularEmission(object):
         Nion = self.N_ion(spec)
 
         # Amount of UV luminosity absorbed in ISM
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         #tot = np.zeros_like(self.wavelengths)
 
         #i_lya = np.argmin(np.abs(self.energies - E_LyA))
 
         #tot[i_lya] = spec[i_lya] * 10
+        if self.pf['source_nebular'] == 2:
+            tot =  self.LymanSeries(spec)
+            tot += self.BalmerSeries(spec)
+        elif self.pf['source_nebular'] == 3:
+            _tot = self.BalmerSeries(spec)
+            Hb = _tot[np.argmin(np.abs(6569 - self.wavelengths))]
 
-        tot =  self.LymanSeries(spec)
-        tot += self.BalmerSeries(spec)
+            tot = np.zeros_like(self.wavelengths)
+
+            waves, ew, ew_std = self._ew_wrt_hbeta
+            for i, wave in enumerate(waves):
+                j = np.argmin(np.abs(wave - self.wavelengths))
+                tot[j] = ew[i] * Hb
+
+        else:
+            raise NotImplementedError('Unrecognized source_nebular option!')
 
         return tot
 
@@ -404,6 +437,7 @@ class NebularEmission(object):
 
         fesc = self.pf['source_fesc']
         _Tg = self.pf['source_nebular_Tgas']
+        _cBd = self.pf['source_nebular_caseBdeparture']
 
         ion = nrg >= E_LL
         gt0 = spec > 0
@@ -411,7 +445,11 @@ class NebularEmission(object):
 
         # This will be in [#/s]
         Nion = self.N_ion(spec)
-        Nabs = Nion * (1. - fesc)
+        #Nabs = Nion * (1. - fesc)
+        if self.pf['source_prof_1h'] is not None:
+            Nabs = Nion * (1. - fesc)
+        else:
+            Nabs = Nion
 
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
 
@@ -447,6 +485,7 @@ class NebularEmission(object):
 
             # In erg/s
             Lline = Nabs * coeff * En * erg_per_ev
+            Lline *= _cBd
 
             # Currently assuming line is unresolved.
             # Should really do this based on some physical argument.

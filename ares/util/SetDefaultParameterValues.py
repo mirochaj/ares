@@ -11,11 +11,11 @@ Description: Defaults for all different kinds of parameters.
 
 import os, imp
 import numpy as np
+from ..data import ARES
 from ares import rcParams
 from ..physics.Constants import m_H, cm_per_kpc, s_per_myr, E_LL
 
 inf = np.inf
-ARES = os.environ.get('ARES')
 
 tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
@@ -381,10 +381,11 @@ def PowerSpectrumParameters():
     {
 
      'ps_output_z': np.arange(6, 20, 1),
+     'ps_output_waves': None,
 
      "ps_output_k": None,
      "ps_output_lnkmin": -4.6,
-     "ps_output_lnkmax": 1.,
+     "ps_output_lnkmax": 2.,
      "ps_output_dlnk": 0.2,
 
      "ps_output_R": None,
@@ -874,6 +875,7 @@ def PopulationParameters():
 
     # Nebular emission stuff
     "pop_nebular_Tgas": 2e4,
+    "pop_nebular_caseBdeparture": 1.,
 
     "pop_lmin": None,
     "pop_lmax": None,
@@ -1016,6 +1018,8 @@ def SourceParameters():
     "source_nebular_2phot": True,
     "source_nebular_lookup": None,
     "source_nebular_Tgas": 2e4,
+    "source_nebular_caseBdeparture": 1.,
+    "source_prof_1h": None,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
     "source_tsf": 100.,
@@ -1125,6 +1129,7 @@ def SynthesisParameters():
     "source_nebular_2phot": True,
     "source_nebular_lookup": None,
     "source_nebular_Tgas": 2e4,
+    "source_nebular_caseBdeparture": 1.,
 
     "source_fesc": 0.,
 
@@ -1238,7 +1243,7 @@ def HaloMassFunctionParameters():
     "hps_zmax": 30,
     "hps_dz": 0.5,
 
-    "hps_linear": False,
+    "hps_assume_linear": False,
 
     'hps_dlnk': 0.001,
     'hps_dlnR': 0.001,

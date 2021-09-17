@@ -1,7 +1,6 @@
-[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares) [![Coverage Status](https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master)](https://coveralls.io/github/mirochaj/ares?branch=master) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
-
-
 # **ARES**
+[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/master/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
+
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
@@ -113,23 +112,26 @@ See the documentation for more examples.
 To generate the documentation locally,
 
 ```
-cd $ARES/doc
+cd $ARES/docs
 make html
 open _build/html/index.html
 ```
 
 This will open the documentation in a browser. For the above to work, you'll
-need [sphinx](http://sphinx-doc.org/contents.html), which can be installed
+need [sphinx](http://sphinx-doc.org/contents.html), [numpydoc](https://github.com/numpy/numpydoc), and [nbsphinx](https://nbsphinx.readthedocs.io/en/0.8.7/) which can be installed
 via pip:
 
 ```
 pip install sphinx
+<<<<<<< HEAD
 ```
 
 This depends on [numpydoc](https://github.com/numpy/numpydoc) and [nbsphinx](http://nbsphinx.readthedocs.io/), which can also
 be installed via pip:
 
 ```
+=======
+>>>>>>> main
 pip install numpydoc
 pip install nbsphinx
 ```
