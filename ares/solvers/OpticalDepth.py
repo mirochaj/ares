@@ -12,6 +12,7 @@ Description:
 
 import inspect
 import numpy as np
+from ..data import ARES
 import os, re, types, sys
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from scipy.integrate import quad
@@ -628,13 +629,13 @@ class OpticalDepth(object):
         #        "{!s}...").format(fn))
 
         if prefix is None:
-            ares_dir = os.environ.get('ARES')
+            ares_dir = ARES
             if not ares_dir:
                 print("No ARES environment variable.")
                 return None
 
             if self.pf['tau_path'] is None:
-                input_dirs = ['{!s}/input/optical_depth'.format(ares_dir)]
+                input_dirs = ['{!s}/input/optical_depth'.format(ARES)]
             else:
                 input_dirs = [self.pf['tau_path']]
 

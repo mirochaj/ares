@@ -12,7 +12,6 @@ Description: Plot a simple multi-color disk accretion spectrum.
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 
 def test():
     rmax = 1e2
@@ -21,10 +20,10 @@ def test():
     alpha = -1.5
     Emin = 1e2
     Emax = 1e4
-    
+
     simpl = \
     {
-     'source_type': 'bh', 
+     'source_type': 'bh',
      'source_mass': mass,
      'source_rmax': rmax,
      'source_sed': 'simpl',
@@ -36,10 +35,10 @@ def test():
      'source_fsc': fsc,
      'source_logN': 22.,
     }
-    
+
     mcd = \
     {
-     'source_type': 'bh', 
+     'source_type': 'bh',
      'source_sed': 'mcd',
      'source_mass': mass,
      'source_rmax': rmax,
@@ -48,38 +47,26 @@ def test():
      'source_EminNorm': Emin,
      'source_EmaxNorm': Emax,
     }
-    
+
     agn = \
     {
-     'source_type': 'bh', 
+     'source_type': 'bh',
      'source_sed': 'sazonov2004',
      'source_Emin': Emin,
      'source_Emax': Emax,
      'source_EminNorm': Emin,
      'source_EmaxNorm': Emax,
     }
-    
+
     bh_mcd = ares.sources.BlackHole(init_tabs=False, **mcd)
     bh_sim = ares.sources.BlackHole(init_tabs=False, **simpl)
     bh_s04 = ares.sources.BlackHole(init_tabs=False, **agn)
-    
-    fig1, ax1 = pl.subplots(1, 1, num=1)
-    
+
     Earr = np.logspace(2, 4, 100)
-    
-    ax1.loglog(Earr, bh_mcd.Spectrum(Earr), color='k', label='MCD')
-    ax1.loglog(Earr, bh_sim.Spectrum(Earr), color='b', label='SIMPL')    
-    ax1.loglog(Earr, bh_s04.Spectrum(Earr), color='c', label='AGN template')
-                                        
-    ax1.legend(loc='lower left')
-    ax1.set_ylim(1e-6, 1e-3)
-    ax1.set_xlim(1e2, 1e4)
-    pl.draw()
-    
-    pl.figure(1)
-    pl.savefig('{!s}_1.png'.format(__file__[0:__file__.rfind('.')]))
-    pl.close()
+
+    for src in [bh_mcd, bh_sim, bh_s04]:
+        sed = bh_mcd.Spectrum(Earr)
+
 
 if __name__ == '__main__':
     test()
-    

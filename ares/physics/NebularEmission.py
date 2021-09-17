@@ -192,6 +192,17 @@ class NebularEmission(object):
 
         return self._prob_2phot_
 
+    @property
+    def _ew_wrt_hbeta(self):
+        if not hasattr(self, '_ew_wrt_hbeta_'):
+            i11 = read_lit('inoue2011')
+
+            waves, ew, ew_std = i11._load(self.pf['source_Z'])
+
+            self._ew_wrt_hbeta_ = waves, ew, ew_std
+
+        return self._ew_wrt_hbeta_
+
     def f_rep(self, spec, Tgas=2e4, channel='ff', net=False):
         """
         Fraction of photons reprocessed into different channels.
@@ -363,9 +374,22 @@ class NebularEmission(object):
         #i_lya = np.argmin(np.abs(self.energies - E_LyA))
 
         #tot[i_lya] = spec[i_lya] * 10
+        if self.pf['source_nebular'] == 2:
+            tot =  self.LymanSeries(spec)
+            tot += self.BalmerSeries(spec)
+        elif self.pf['source_nebular'] == 3:
+            _tot = self.BalmerSeries(spec)
+            Hb = _tot[np.argmin(np.abs(6569 - self.wavelengths))]
 
-        tot =  self.LymanSeries(spec)
-        tot += self.BalmerSeries(spec)
+            tot = np.zeros_like(self.wavelengths)
+
+            waves, ew, ew_std = self._ew_wrt_hbeta
+            for i, wave in enumerate(waves):
+                j = np.argmin(np.abs(wave - self.wavelengths))
+                tot[j] = ew[i] * Hb
+
+        else:
+            raise NotImplementedError('Unrecognized source_nebular option!')
 
         return tot
 
