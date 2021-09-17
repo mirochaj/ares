@@ -293,7 +293,10 @@ class Fluctuations(object): # pragma: no cover
 
     @property
     def bsd_model(self):
-        return self.pf['bubble_size_dist'].lower()
+        if self.pf['bubble_size_dist'] is None:
+            return None
+        else:
+            return self.pf['bubble_size_dist'].lower()
 
     def MeanIonizedFraction(self, z, ion=True):
         Mmin = self.Mmin(z)
@@ -364,10 +367,11 @@ class Fluctuations(object): # pragma: no cover
         MeanIonizedFraction and BubbleSizeDistribution for more details.
         """
 
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
+        if self.bsd_model is not None:
+            if ion:
+                zeta = self.zeta
+            else:
+                zeta = self.zeta_X
 
         if self.bsd_model is None:
             R_i = self.pf['bubble_size']
@@ -389,7 +393,9 @@ class Fluctuations(object): # pragma: no cover
             V_i = 4. * np.pi * R_i**3 / 3.
 
             iM = np.argmin(np.abs(Mmin - M_b))
-            _Qi = np.trapz(dndm_b[iM:] * M_b[iM:] * V_i[iM:], x=np.log(M_b[iM:]))
+
+            _Qi = np.trapz(dndm_b[iM:] * M_b[iM:] * V_i[iM:],
+                x=np.log(M_b[iM:]))
             Qi = 1. - np.exp(-_Qi)
 
             # This means reionization is over.
