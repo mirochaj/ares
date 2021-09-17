@@ -2143,7 +2143,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         w = raw['nh'][:,izobs] # used to be izobs+1, I belive in error.
 
         if mags:
-            _MAB = self.magsys.L_to_MAB(L, z=z)
+            _MAB = self.magsys.L_to_MAB(L)
         elif total_IR:
             _MAB = np.log10(L / Lsun)
         else:
