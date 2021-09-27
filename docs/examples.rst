@@ -9,6 +9,7 @@ Running Individual Simulations
 
     examples/example_gs_standard
     examples/example_gs_multipop
+    examples/example_gs_phenomenological
 
 Advanced Source Populations
 ---------------------------
@@ -17,6 +18,7 @@ Advanced Source Populations
 
     examples/example_pop_galaxy
     examples/example_pop_popIII
+    examples/example_pop_dusty
 
 Parameter Studies and Inference
 -------------------------------
