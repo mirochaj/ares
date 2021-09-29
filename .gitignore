@@ -6,6 +6,12 @@ ares.egg-info
 *.png
 *.tar.gz
 docs/_build
+docs/*.py
+docs/*.txt
+docs/*.pkl
+docs/examples/*.txt
+docs/examples/*.pkl
+docs/examples/.ipynb_checkpoints
 input/eos
 input/irac/*.txt
 input/roman
@@ -29,6 +35,3 @@ htmlcov
 .DS_Store
 tests/*.pkl
 tests/*.txt
-docs/*.py
-docs/*.txt
-docs/*.pkl
