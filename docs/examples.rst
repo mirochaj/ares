@@ -28,12 +28,12 @@ Parameter Studies and Inference
 
     examples/example_grid
     examples/example_grid_analysis
-    :doc:`example_mc_sampling`
-    :doc:`example_ham`
-    :doc:`example_mcmc_gs`
-    :doc:`example_mcmc_lf`
-    :doc:`example_mcmc_analysis`
-    :doc:`example_inline_analysis`
+    example_mc_sampling
+    example_ham
+    example_mcmc_gs
+    example_mcmc_lf
+    example_mcmc_analysis
+    example_inline_analysis
 
 The Meta-Galactic Radiation Background
 --------------------------------------
@@ -48,9 +48,9 @@ The Meta-Galactic Radiation Background
 .. toctree::
     :maxdepth: 1
 
-    * :doc:`example_rt06_1`
-    * :doc:`example_rt06_2`
-    * :doc:`example_adv_RT_w_He`
+    example_rt06_1
+    example_rt06_2
+    example_adv_RT_w_He
 
 Extensions
 ----------
@@ -58,6 +58,6 @@ Extensions
     :maxdepth: 2
 
     examples/example_litdata
-    * :doc:`example_embed_ares`
-    * :doc:`uth_pq`
-    * :doc:`uth_pop_new`
+    example_embed_ares
+    examples/uth_pq
+    uth_pop_new
