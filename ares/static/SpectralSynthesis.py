@@ -1085,7 +1085,7 @@ class SpectralSynthesis(object):
 
             #raise NotImplemented('help!')
         else:
-            Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window)
+            Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window, raw=False)
 
             assert energy_units
         #print("Synth. Lum = ", wave, window)

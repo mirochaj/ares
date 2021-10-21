@@ -1842,10 +1842,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
     def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None,
         filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
-        load=True, presets=None):
+        load=True, presets=None, absolute=True):
         """
-        Return the absolution magnitude of objects at specified wavelength
-        or as-estimated via given photometry.
+        For backward compatibility as we move to get_* method model.
+
+        See `get_mags` below.
+        """
+        return self.get_mags(z, MUV=MUV, wave=wave, cam=cam, filters=filters,
+            filter_set=filter_set, dlam=dlam, method=method, idnum=idnum,
+            window=window, load=load, presets=presets, absolute=absolute)
+
+    def get_mags(self, z, MUV=None, wave=1600., cam=None, filters=None,
+        filter_set=None, dlam=20., method=None, idnum=None, window=1,
+        load=True, presets=None, absolute=True):
+        """
+        Return the magnitude of objects at specified wavelength or as-estimated
+        via given photometry.
 
         Parameters
         ----------
@@ -1854,6 +1866,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         wave : int, float
             If `cam` and `filters` aren't supplied, return the monochromatic
             AB magnitude at this wavelength [Angstroms].
+        absolute : bool
+            If True, return absolute magnitude. [Default: True]
         cam : str, tuple
             Single camera or tuple of cameras that contain the filters named
             in `filters`, e.g., cam=('wfc', 'wfc3')
@@ -1873,6 +1887,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Can optionally compute magnitude as the intrinsic spectrum
             centered at `wave` but convolved with a `window`-pixel boxcar.
 
+        Returns
+        -------
+        Tuple containing the (photometric filters, magnitudes). If you set
+        method != None, or if you're not doing photometry, the first entry
+        of this tuple will be None. The keyword argument 'absolute' determines
+        if the output magnitudes are apparent or absolute AB magnitudes.
 
         """
         if presets is not None:
@@ -1885,10 +1905,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Don't put any binning stuff in here!
         kw = {'z': z, 'cam': cam, 'filters': filters, 'window': window,
             'filter_set': filter_set, 'dlam':dlam, 'method': method,
-            'wave': wave}
+            'wave': wave, 'absolute': absolute}
 
         dL = self.cosm.LuminosityDistance(z) / cm_per_pc
-        magcorr = 5. * (np.log10(dL) - 1.)
+        magcorr = 5. * (np.log10(dL) - 1.) - 2.5 * np.log10(1. + z)
 
         kw_tup = tuple(kw.items())
 
@@ -1921,17 +1941,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 for j, _cam in enumerate(cam):
 
                     _filters, xphot, dxphot, ycorr = \
-                        self.synth.Photometry(zobs=z, sfh=hist['SFR'], zarr=hist['z'],
-                            hist=hist, dlam=dlam, cam=_cam, filters=filters,
-                            filter_set=filter_set, idnum=idnum, extras=self.extras,
-                            rest_wave=None)
+                        self.synth.Photometry(zobs=z, sfh=hist['SFR'],
+                        zarr=hist['z'], hist=hist, dlam=dlam,
+                        cam=_cam, filters=filters, filter_set=filter_set,
+                        idnum=idnum, extras=self.extras, rest_wave=None)
 
-                    mags.extend(list(np.array(ycorr) - magcorr))
+                    mags.extend(list(np.array(ycorr)))
                     xph.extend(xphot)
                     fil.extend(_filters)
 
                 mags = np.array(mags)
-
             else:
                 mags = M
 
@@ -1941,9 +1960,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         # Interpolate etc.
         ##
+        xout = None
         if (filters is not None) or (filter_set is not None):
             hist = self.histories
-            if method == 'gmean':
+
+            # Default: return all photometry
+            if method is None:
+                xout = fil
+                Mg = mags
+            elif method == 'gmean':
                 if len(mags) == 0:
                     Mg = -99999 * np.ones(hist['SFR'].shape[0])
                 else:
@@ -2000,9 +2025,42 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             Mout = mags
 
-        return Mout
+        if absolute:
+            M_final = Mout - magcorr
+        else:
+            M_final = Mout
+
+        return xout, M_final
 
     def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
+        load=True, use_cache=True, energy_units=True):
+        """
+        For backward compatibility as we move to get_* method model.
+
+        See `get_lum` below.
+        """
+        return self.get_lum(z, wave=wave, band=band, idnum=idnum,
+            window=window, load=load, use_cache=use_cache,
+            energy_units=energy_units)
+
+    def get_flux(self, z, wave=1600., band=None, idnum=None, window=1,
+        load=True, use_cache=True, energy_units=True):
+        """
+        Compute observed flux at z=0.
+
+        .. note :: Units are erg/s/cm^2/Hz.
+
+        """
+        L = self.get_lum(z, wave=wave, band=band, idnum=idnum,
+            window=window, load=load, use_cache=use_cache,
+            energy_units=energy_units)
+
+        dL = self.cosm.LuminosityDistance(z)
+        flux = L * (1. + z) / (4. * np.pi * dL**2)
+
+        return flux
+
+    def get_lum(self, z, wave=1600., band=None, idnum=None, window=1,
         load=True, use_cache=True, energy_units=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
@@ -2055,6 +2113,40 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
 
         return L
+
+    def get_bias(self, z, limit, wave=1600., cam=None, filters=None,
+        filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
+        load=True, presets=None, from_flux=False, absolute=False, factor=1):
+        """
+        Compute the linear bias of sources above some limiting magnitude or
+        flux.
+        """
+
+        _nh = self.get_field(z, 'nh')
+        _Mh = self.get_field(z, 'Mh')
+
+        _Lh = self.get_lum(z, wave=wave)
+
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        bh = np.interp(np.log10(_Mh), np.log10(self.halos.tab_M),
+            self.halos.tab_bias[iz,:])
+
+        if from_flux:
+            raise NotImplemented('help')
+        else:
+            filt, mags = self.get_mags(z, wave=wave, cam=cam,
+                filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                idnum=idnum, window=window, load=load, presets=presets,
+                absolute=absolute)
+
+            ok = np.logical_and(mags <= limit, np.isfinite(mags))
+
+        integ_top = bh * _nh * _Lh * factor
+        integ_bot = _nh * _Lh * factor
+
+        b = np.sum(integ_top[ok==1]) / np.sum(integ_bot[ok==1])
+
+        return b
 
     def LuminosityFunction(self, z, x, mags=True, wave=1600., window=1,
         band=None, total_IR=False):
