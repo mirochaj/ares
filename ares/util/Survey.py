@@ -420,7 +420,7 @@ class Survey(object):
         except ImportError:
             raise ImportError("Need pandas to read Roman ST throughputs.")
 
-        _fn = 'WFIRST_WIMWSM_throughput_data_190531.xlsm'
+        _fn = 'Roman_effarea_20201130.xlsx'
 
         A = np.pi * (0.5 * 2.4)**2
 
@@ -430,11 +430,14 @@ class Survey(object):
             if fn != _fn:
                 continue
 
-            df = pd.read_excel(self.path + '/' + _fn, sheet_name='EffectiveArea',
-                header=18)
+            df = pd.read_excel(self.path + '/' + _fn,
+                sheet_name='Roman_effarea_20201130',
+                header=1)
 
-            cols = df.columns
-            x = df['microns'].to_numpy()
+            _cols = df.columns
+            cols = [col.strip() for col in _cols]
+
+            x = df['Wave'].to_numpy()
 
             for col in cols:
                 if col[0] != 'F':
@@ -444,7 +447,7 @@ class Survey(object):
                 cent = float(col[1] + '.' + col[2:])
 
                 # This is an effective area. Take T = A_eff / (pi * 1.2**2)
-                y = df[col].to_numpy() / A
+                y = df[' '+col].to_numpy() / A
                 y[x > 2] = 0 # spurious spike at ~2.6 microns
 
                 data[pre] = self._get_filter_prop(np.array(x), np.array(y), cent)
