@@ -12,7 +12,6 @@ Description:
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.util.Photometry import what_filters
 from ares.physics.Constants import flux_AB, cm_per_pc, s_per_myr
 
@@ -91,18 +90,21 @@ def test(tol=0.25):
         mag_from_lum = pop.magsys.L_to_MAB(L[0])
 
         # Compute 1600A magnitude using different smoothing windows
-        mag_from_spec_20 = pop.Magnitude(z, wave=1600., window=21, load=load)[0]
-        mag_from_spec_50 = pop.Magnitude(z, wave=1600., window=51, load=load)[0]
-        mag_from_spec_100 = pop.Magnitude(z, wave=1600., window=201, load=load)[0]
+        _f, mag_from_spec_20 = pop.get_mags(z, wave=1600., window=21,
+            load=load)[0]
+        _f, mag_from_spec_50 = pop.get_mags(z, wave=1600., window=51,
+            load=load)[0]
+        _f, mag_from_spec_100 = pop.get_mags(z, wave=1600., window=201,
+            load=load)[0]
 
         # Different ways to estimate magnitude from HST photometry
-        mag_from_phot_mean = pop.Magnitude(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_mean = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
             method='gmean', load=load)[0]
-        mag_from_phot_close = pop.Magnitude(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_close = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
             method='closest', load=load, wave=1600.)[0]
-        mag_from_phot_interp = pop.Magnitude(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_interp = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
             method='interp', load=load, wave=1600.)[0]
 
