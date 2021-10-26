@@ -2141,8 +2141,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
-        integ_top = bh * _nh * _Lh * factor
-        integ_bot = _nh * _Lh * factor
+        integ_top = bh * _nh * _Lh
+        integ_bot = _nh * _Lh
 
         b = np.sum(integ_top[ok==1]) / np.sum(integ_bot[ok==1])
 
@@ -2525,7 +2525,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 assert magmethod == 'mono', \
                     "Known issues with magmethod!='mono' and Calzetti approach."
 
-            _MAB = self.Magnitude(z, wave=Mwave, cam=cam,
+            _filt, _MAB = self.Magnitude(z, wave=Mwave, cam=cam,
                 filters=filters, method=magmethod, presets=presets)
 
             if np.all(np.diff(np.diff(nh)) == 0):
@@ -2611,7 +2611,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         AUV_r = np.log10(np.exp(-tau)) / -0.4
 
         # Just do this to get MAB array of same size as Mh
-        MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters, dlam=dlam)
+        _filt, MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
+            dlam=dlam)
 
         if return_binned:
             if magbins is None:
@@ -2653,7 +2654,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         assert magbins is not None
 
-        _mags = self.Magnitude(z, presets=presets, wave=Mwave, dlam=dlam)
+        _filt, _mags = self.Magnitude(z, presets=presets, wave=Mwave, dlam=dlam)
         _beta = self.Beta(z, presets=presets, dlam=dlam, magmethod=magmethod)
 
         _nh = self.get_field(z, 'nh')
