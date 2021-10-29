@@ -13,6 +13,7 @@ A few papers on how it works:
 - Galaxy luminosity functions: [Mirocha, Furlanetto, & Sun (2017)](http://adsabs.harvard.edu/abs/2016arXiv160700386M)
 - Population III star formation: [Mirocha et al. (2018)](http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M)
 - Rest-ultraviolet colours at high-z: [Mirocha, Mason, & Stark (2020)](https://ui.adsabs.harvard.edu/abs/2020arXiv200507208M/abstract)
+- Near-infrared background and nebular emission: [Sun et al. (2021)](https://ui.adsabs.harvard.edu/abs/2021MNRAS.508.1954S/abstract)
 
 Plus some more applications:
 
