@@ -583,6 +583,7 @@ class SpectralSynthesis(object):
         flux_obs[np.isnan(flux_obs)] = 0.0
 
         # Loop over filters and re-weight spectrum
+        fphot = []
         xphot = []      # Filter centroids
         wphot = []      # Filter width
         yphot_corr = [] # Magnitudes corrected for filter transmissions.
@@ -590,6 +591,10 @@ class SpectralSynthesis(object):
         # Loop over filters, compute fluxes in band (accounting for
         # transmission fraction) and convert to observed magnitudes.
         for filt in all_filters:
+
+            if filters != 'all':
+                if filt not in filters:
+                    continue
 
             x, T, cent, dx, Tavg = filter_data[filt]
 
@@ -623,6 +628,7 @@ class SpectralSynthesis(object):
 
             corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
 
+            fphot.append(filt)
             xphot.append(cent)
             yphot_corr.append(_yphot / corr)
             wphot.append(dx)
@@ -632,7 +638,7 @@ class SpectralSynthesis(object):
         yphot_corr = np.array(yphot_corr)
 
         # Convert to magnitudes and return
-        return all_filters, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
+        return fphot, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
 
     def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
