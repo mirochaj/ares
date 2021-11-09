@@ -375,7 +375,7 @@ class HaloMassFunction(object):
             m = self.tab_M[np.logical_not(np.isnan(self.tab_M))]
             dndm = self.tab_dndm[i][np.logical_not(np.isnan(self.tab_dndm[i]))]
             dndlnm = m * dndm
-            if m[-1] < m[0] * 10 ** 20 / m[3]:
+            if m[-1] < m[0] * 10 ** 18 / m[3]:
                 m_upper = np.arange(np.log(m[-1]), np.log(10 ** 18), np.log(m[1]) - np.log(m[0]))
                 mf_func = InterpolatedUnivariateSpline(np.log(m), np.log(dndlnm), k=1)
                 mf = mf_func(m_upper)
