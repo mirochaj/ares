@@ -15,7 +15,6 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from ..util.Stats import get_nu
 from ..util.Pickling import read_pickle_file
-from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from ..physics.Constants import *
 from scipy.integrate import cumtrapz

@@ -18,7 +18,6 @@ from ..util.Math import smooth
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 from ..physics import Cosmology
-from .MultiPlot import MultiPanel
 import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.colors import Normalize
@@ -1274,7 +1273,7 @@ class ModelSet(BlobFactory):
         self._plot_info = value
 
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first',
-        mp=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1,
+        axes=None, fig=1, best_fit='mode', ncols=1,
         use_top=1, skip=0, stop=None, offset=0, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
@@ -1290,10 +1289,13 @@ class ModelSet(BlobFactory):
         while (Npars / float(ncols)) % 1 != 0:
             Npars += 1
 
-        had_mp = True
-        if mp is None:
-            had_mp = False
-            mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
+        had_axes = True
+        if axes is None:
+            had_axes = False
+            nrows = Npars//ncols
+            if nrows * ncols < Npars:
+                nrows += 1
+            fig, axes = pl.subplots(nrows, ncols, num=fig)
 
         w = self._get_walker_subset(N, walkers)
 
@@ -1320,7 +1322,7 @@ class ModelSet(BlobFactory):
 
 
         for i, par in enumerate(pars):
-            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i],
+            self.WalkerTrajectories(par, walkers=w, ax=axes[i],
                 skip=skip, stop=stop, offset=offset, **kwargs)
 
             if loc is None:
@@ -1329,21 +1331,21 @@ class ModelSet(BlobFactory):
             # Plot current maximum likelihood value
             if par in self.parameters:
                 k = self.parameters.index(par)
-                mp.grid[i].plot([0, offset+self.chain[:,k].size / float(self.nwalkers)],
+                axes[i].plot([0, offset+self.chain[:,k].size / float(self.nwalkers)],
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
 
                 for j, (walk, step) in enumerate(best):
-                    mp.grid[i].scatter(offset+step-1, self.chain[ibest[j],k],
+                    axes[i].scatter(offset+step-1, self.chain[ibest[j],k],
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+',
                         s=150, color='k', lw=1)
             else:
                 pass
 
             if i not in mp.bottom:
-                mp.grid[i].set_xlabel('')
-                mp.grid[i].set_xticklabels([])
+                axes.set_xlabel('')
+                axes.set_xticklabels([])
 
-        return mp
+        return axes
 
     def index_to_walker_step(self, loc):
         sf = self.save_freq

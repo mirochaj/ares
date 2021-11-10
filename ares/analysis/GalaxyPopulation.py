@@ -93,7 +93,7 @@ default_markers['stefanon2017'] = 's'
 
 _ulim_tick = 0.5
 
-class GalaxyPopulation(object):
+class GalaxyPopulation(object): # pragma: no cover
     def __init__(self):
         pass
 
