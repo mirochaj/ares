@@ -333,7 +333,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         freq = nu_0_mhz / (1. + z)
         return self.curvature_of_freq(freq)
 
-    def SaturatedLimit(self, ax):
+    def PlotSaturatedLimit(self, ax): # pragma: no cover
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.saturated_limit(z)
 
@@ -350,7 +350,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
         return ax
 
-    def AdiabaticFloor(self, ax, gap=None, temp_units='mk', **kwargs):
+    def PlotAdiabaticFloor(self, ax, gap=None, temp_units='mk',
+        **kwargs): # pragma: no cover
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.adiabatic_floor(z)
 
@@ -585,7 +586,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         return self.Plot21cmGlobalSignalDerivative(**kwargs)
 
     def Plot21cmGlobalSignalDerivative(self, ax=None, fig=1,
-        show_signal=False, **kwargs): # pragma: no cover 
+        show_signal=False, **kwargs): # pragma: no cover
         """
         Plot signal and its first derivative (nicely).
 
@@ -636,7 +637,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             return ax
 
     def add_Ts_inset(self, ax, inset=None, width=0.3, height=0.15, loc=3,
-            z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5, **kwargs):
+            z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5,
+            **kwargs): # pragma: no cover
 
         if inset is None:
             inset = self.add_inset(ax, inset=inset, width=width, height=height,

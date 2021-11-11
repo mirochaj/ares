@@ -285,7 +285,7 @@ class MultiPhaseMedium(object):
 
         return np.interp(0.5, xz, zz)
 
-    def excluded_regions(self, ax):
+    def excluded_regions(self, ax): # pragma: no cover
         """
         Overplot
         """
@@ -491,9 +491,12 @@ class MultiPhaseMedium(object):
 
         return inset
 
-    def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
+    def TemperatureHistory(self, **kwargs):
+        return self.PlotTemperatureHistory(**kwargs)
+
+    def PlotTemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
         show_Ts=False, show_Tk=True, scatter=False, mask=5,
-        show_legend=False, **kwargs):
+        show_legend=False, **kwargs): # pragma: no cover
         """
         Plot kinetic, CMB, and spin temperatures vs. redshift.
 
@@ -804,7 +807,7 @@ class MultiPhaseMedium(object):
 
         return ztmp, tau
 
-def add_redshift_axis(ax, twin_ax=None, zlim=80):
+def add_redshift_axis(ax, twin_ax=None, zlim=80): # pragma: no cover
     """
     Take plot with frequency on x-axis and add top axis with corresponding
     redshift.
@@ -862,7 +865,7 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     return ax_z
 
 def add_time_axis(ax, cosm, tlim=(100, 900), dt=200, dtm=50, tarr=None,
-    tarr_m=None, rotation=0):
+    tarr_m=None, rotation=0): # pragma: no cover
     """
     Take plot with redshift on x-axis and add top axis with corresponding
     time since Big Bang.
