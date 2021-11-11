@@ -387,7 +387,7 @@ class RaySegment(object):
         pl.draw()
         return ax
 
-    def PlotCellEvolution(self, cell=0, field='h_1', redshift=False): # pragma: no cover
+    def get_cell_evolution(self, cell=0, field='h_1', redshift=False):
         """
         Return time or redshift evolution of a given quantity in given cell.
         """
