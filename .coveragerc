@@ -23,8 +23,9 @@ exclude_lines =
     except NotImplementedError
 
     # Don't worry about MPI
-    from mpi4py import MPI 
-    *MPI.COMM_WORLD*
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
 
 	  # Don't complain if rank > 0 blocks aren't executed
 	  if rank > 0:
