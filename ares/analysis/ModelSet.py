@@ -2505,7 +2505,7 @@ class ModelSet(BlobFactory):
         multiplier=1., like=[0.95, 0.68], cdf=False,
         color_by_like=False, fill=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1,
-        contour_method='raw', excluded=False, stop=None, **kwargs):
+        contour_method='raw', excluded=False, stop=None, **kwargs): # pragma: no cover
         """
         Compute posterior PDF for supplied parameters.
 
@@ -2957,7 +2957,7 @@ class ModelSet(BlobFactory):
     def PlotTriangle(self, fig=1, axes=None, pars=None, redshifts=None,
         complement=False, bins=20, burn=0, fig_kwargs={}, contours=True,
         fill=False, nu=[0.95, 0.68], take_log=False, is_log=False,
-        skip=None, smooth=None, skip_pars=None, **kwargs):
+        skip=None, smooth=None, skip_pars=None, **kwargs): # pragma: no cover
         """
         Stolen from micro21cm...
         """

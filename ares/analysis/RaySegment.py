@@ -303,7 +303,7 @@ class RaySegment(object):
         self.r2_IF = np.array(self.r2_IF)
 
     def PlotIonizationFrontEvolution(self, fig=1, axes=None, anl=True, T0=1e4,
-        color='k', ls='--', label=None, plot_error=True, plot_solution=True):
+        color='k', ls='--', label=None, plot_error=True, plot_solution=True): # pragma: no cover
         """
         Compute analytic and numerical I-front radii vs. time and plot.
         """
@@ -347,7 +347,8 @@ class RaySegment(object):
 
         return axes
 
-    def RadialProfile(self, field, t=[1, 10, 100], ax=None, fig=1, **kwargs):
+    def PlotRadialProfile(self, field, t=[1, 10, 100], ax=None, fig=1,
+        **kwargs): # pragma: no cover
         """
         Plot radial profile of given field.
 
@@ -386,7 +387,7 @@ class RaySegment(object):
         pl.draw()
         return ax
 
-    def CellEvolution(self, cell=0, field='h_1', redshift=False):
+    def PlotCellEvolution(self, cell=0, field='h_1', redshift=False): # pragma: no cover
         """
         Return time or redshift evolution of a given quantity in given cell.
         """
@@ -399,8 +400,9 @@ class RaySegment(object):
 
         return self.history['t'], self.history[field][:,cell]
 
-    def IonizationRate(self, t=1, absorber='h_1', color='k', ls='-',
-        legend=True, plot_recomb=False, total_only=False, src=0, ax=None):
+    def PlotIonizationRate(self, t=1, absorber='h_1', color='k', ls='-',
+        legend=True, plot_recomb=False, total_only=False, src=0,
+        ax=None): # pragma: no cover
         """
         Plot ionization rate.
 
@@ -489,8 +491,8 @@ class RaySegment(object):
 
         return ax
 
-    def HeatingRate(self, t=1, color='r', ls='-', legend=True, src=0,
-        plot_cooling=False, label=None, ax=None):
+    def PlotHeatingRate(self, t=1, color='r', ls='-', legend=True, src=0,
+        plot_cooling=False, label=None, ax=None): # pragma: no cover
         """
         Plot heating rate as a function of radius.
 

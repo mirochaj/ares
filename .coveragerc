@@ -13,9 +13,6 @@ exclude_lines =
     if self\.pf['debug']
 	  if self\.pf['verbose']
 
-    # Don't worry about plotting routines
-    def Plot
-
     # Don't complain if tests don't hit defensive assertion code:
     raise ImportError
     raise NotImplementedError

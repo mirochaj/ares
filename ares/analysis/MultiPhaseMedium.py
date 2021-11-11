@@ -554,10 +554,13 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def IonizationHistory(self, ax=None, zone=None, element='h',
+    def IonizationHistory(**kwargs): # pragma: no cover
+        return self.PlotIonizationHistory(**kwargs)
+
+    def PlotIonizationHistory(self, ax=None, zone=None, element='h',
         fig=1, scatter=False, show_xhe_3=False,
         mask=5, show_xi=True, show_xe=True, show_xibar=False,
-        show_legend=False, **kwargs):
+        show_legend=False, **kwargs): # pragma: no cover
         """
         Plot ionized fraction evolution.
 
@@ -650,8 +653,11 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def IonizationRateHistory(self, fig=1, ax=None, species='h_1', show_legend=False,
-        **kwargs):
+    def IonizationRateHistory(self, **kwargs):
+        return self.PlotIonizationRateHistory(**kwargs)
+
+    def PlotIonizationRateHistory(self, fig=1, ax=None, species='h_1',
+        show_legend=False, **kwargs): # pragma: no cover
         """
         Plot ionization rates as a function of redshift.
         """
@@ -696,10 +702,13 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def OpticalDepthHistory(self, ax=None, fig=1,
+    def OpticalDepthHistory(self, **kwargs):
+        return self.PlotOpticalDepthHistory(**kwargs)
+
+    def PlotOpticalDepthHistory(self, ax=None, fig=1,
         scatter=False, show_xi=True, show_xe=True, show_xibar=True,
         obs_mu=0.066, obs_sigma=0.012, show_obs=False, annotate_obs=False,
-        include_He=True, z_HeII_EoR=3., **kwargs):
+        include_He=True, z_HeII_EoR=3., **kwargs): # pragma: no cover
         """
         Plot (cumulative) optical depth to CMB evolution.
 

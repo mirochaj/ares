@@ -257,21 +257,21 @@ class GalaxyPopulation(object): # pragma: no cover
         return data
 
     def PlotLF(self, z, ax=None, fig=1, sources='all', round_z=False,
-            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs): # pragma: no cover
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity='lf',
             force_labels=force_labels, **kwargs)
 
     def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False,
-            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs): # pragma: no cover
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity,
             force_labels=force_labels, log10Mass=log10Mass, **kwargs)
 
     def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False,
-            AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs): # pragma: no cover
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
             AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity,
@@ -281,7 +281,7 @@ class GalaxyPopulation(object): # pragma: no cover
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True,
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
         dmag=0.5, dMst=0.25, dlam=20, dlam_c94=10, fill=False, extra_pane=False,
-        square=False, cmap=None, **kwargs):
+        square=False, cmap=None, **kwargs): # pragma: no cover
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -1247,9 +1247,11 @@ class GalaxyPopulation(object): # pragma: no cover
 
             return axB, axD, axB2, axD2
 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
-        AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
-        take_log=False, imf=None, mags='intrinsic', sources_except=[], log10Mass=False, **kwargs):
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False,
+        force_labels=False, AUV=None, wavelength=1600., sed_model=None,
+        quantity='lf', use_labels=True,
+        take_log=False, imf=None, mags='intrinsic', sources_except=[],
+        log10Mass=False, **kwargs): # pragma: no cover
         """
         Plot the luminosity function data at a given redshift.
 
@@ -1513,7 +1515,7 @@ class GalaxyPopulation(object): # pragma: no cover
 
 
     def PlotColorColor(self, pop, redshifts=[4,5,6,7], cuts='bouwens2015',
-        fig=None, show_false_neg=True):
+        fig=None, show_false_neg=True): # pragma: no cover
         """
         Make color-color plot including high-z selection criteria.
         """
@@ -1656,15 +1658,6 @@ class GalaxyPopulation(object): # pragma: no cover
 
         return fig, gs
 
-    def PlotScalingRelations(self, include=['SMHM', 'MZR', 'MS'], ncols=None):
-        """
-
-        """
-        pass
-
-    def PlotTrajectories(self):
-        pass
-
     def annotated_legend(self, ax, loc=(0.95, 0.05), sources='all'):
         """
         Annotate sources properly color-coded.
@@ -1685,7 +1678,7 @@ class GalaxyPopulation(object): # pragma: no cover
         return ax
 
     def PlotSummary(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        fresh=False, redshifts=None, include_colors=True, **kwargs):
+        fresh=False, redshifts=None, include_colors=True, **kwargs): # pragma: no cover
         """
         Make a huge plot.
         """

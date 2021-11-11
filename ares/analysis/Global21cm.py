@@ -386,11 +386,17 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
         return ax
 
-    def GlobalSignature(self, ax=None, fig=1, freq_ax=False,
+    def GlobalSignature(self, **kwargs): # pragma: no cover
+        """
+        Wrapper around `Plot21cmGlobalSignal` for backward compatibility.
+        """
+        return self.Plot21cmGlobalSignal(**kwargs)
+
+    def Plot21cmGlobalSignal(self, ax=None, fig=1, freq_ax=False,
         time_ax=False, z_ax=True, mask=None, scatter=False, xaxis='nu',
         ymin=None, ymax=50, zmax=None, rotate_xticks=False, rotate_yticks=False,
-        force_draw=False, zlim=80,
-        temp_unit='mK', yscale='linear', take_abs=False, **kwargs):
+        force_draw=False, zlim=80, temp_unit='mK', yscale='linear',
+        take_abs=False, **kwargs): # pragma: no cover
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -571,8 +577,15 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
         return ax, twinax
 
-    def GlobalSignatureDerivative(self, ax=None, fig=1,
-        show_signal=False, **kwargs):
+    def GlobalSignatureDerivative(self, **kwargs): # pragma: no cover
+        """
+        Wrapper around `Plot21cmGlobalSignalDerivative` for backward
+        compatibility.
+        """
+        return self.Plot21cmGlobalSignalDerivative(**kwargs)
+
+    def Plot21cmGlobalSignalDerivative(self, ax=None, fig=1,
+        show_signal=False, **kwargs): # pragma: no cover 
         """
         Plot signal and its first derivative (nicely).
 
