@@ -347,17 +347,13 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory): # pragma: no cover
                     dims = (1, 2)
                     mp_kwargs['padding'] = (0.3, 0.)
 
-                mp = MultiPanel(dims=dims, **mp_kwargs)
+                fig, axes = pl.subplots(2, 1, num=fig)
             else:
                 fig = pl.figure(fig)
                 ax = fig.add_subplot(111)
+                axes = [ax]
         else:
             gotax = True
-
-            if show_gs:
-                assert isinstance(ax, MultiPanel)
-
-            mp = ax
 
         p = []
         dd = []
@@ -393,8 +389,8 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory): # pragma: no cover
         else:
             ps = p
 
-        if show_gs or isinstance(ax, MultiPanel):
-            ax1 = mp.grid[0]
+        if show_gs:
+            ax1 = axes[0]
         else:
             ax1 = ax
 
@@ -423,16 +419,16 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory): # pragma: no cover
 
         if show_gs:
             self.gs.GlobalSignature(ax=mp.grid[1], xaxis='z', **kwargs)
-            mp.grid[1].set_xlim(6, 20)
+            axes[1].set_xlim(6, 20)
 
             if orientation == 'vertical' and (not gotax):
-                mp.grid[1].set_xticklabels([])
-                mp.grid[1].set_xlabel('')
+                axes[1].set_xticklabels([])
+                axes[1].set_xlabel('')
 
         pl.draw()
 
-        if show_gs or isinstance(ax, MultiPanel):
-            return mp
+        if show_gs:
+            return axes
         else:
             return ax1
 
@@ -472,299 +468,296 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory): # pragma: no cover
         #
         #return dr_ch, chunks
 
-    def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
-        split_by_scale=False, include_fields=['mm','ii','coco','21_s','21'],
-        colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None, dimensionless=True,
-        **kwargs):
-        """
-        Plot various constituent correlation functions (or power spectra).
-        """
-
-        if mp is None:
-            mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)),
-                padding=(0.25, 0.15), fig=fig, **mp_kwargs)
-            gotmp = False
-        else:
-            gotmp = True
-
-        if real_space:
-            prefix = 'cf'
-            x = self.history['R']
-        else:
-            prefix = 'ps'
-            x = self.history['k']
-
-        for h, redshift in enumerate(redshifts):
-
-            iz = np.argmin(np.abs(redshift - self.redshifts))
-
-            if real_space or (not dimensionless):
-                norm = 1.
-            else:
-                norm = self.history['dTb0_1'][iz]**2
-
-            # Auto correlations in top row, cross terms on bottom
-            # z=8 on top, z=12 on bottom
-            ax = mp.grid[mp.axis_number(include_xcorr, h)]
-
-            # Plot auto-correlation functions
-            for i, cf in enumerate(include_fields):
-                s = '%s_%s' % (prefix, cf)
-
-                if s not in self.history:
-                    continue
-
-                if np.all(self.history[s][iz] == 0):
-                    continue
-
-                x_ch, ps_ch = self._split_cf(redshift, s)
-
-                if split_by_scale and ('%s_1' % s in self.history.keys()):
-                    x_ch_1, ps_ch_1 = self._split_cf(redshift, s+'_1')
-                    x_ch_2, ps_ch_2 = self._split_cf(redshift, s+'_2')
-
-                ct = 0
-                for j, chunk in enumerate(ps_ch):
-                    if np.all(chunk < 0):
-                        lw = 1
-                    else:
-                        lw = 3
-
-                    if ct == 0 and (lw == 3 or (j == len(ps_ch) - 1)):
-                        if real_space:
-                            label = r'$\xi_{%s}$' % cf
-                        else:
-                            label = r'$P_{%s}$' % cf
-
-                        ct += 1
-
-                    else:
-                        label = None
-
-                    if real_space:
-                        mult = 1.
-                    else:
-                        mult = norm * x_ch[j]**3 / 2. / np.pi**2
-
-                    if 'color' in kwargs:
-                        c = kwargs['color']
-                    else:
-                        c = colors[i]
-
-                    if 'ls' in kwargs and (not split_by_scale):
-                        _ls = kwargs['ls']
-                    else:
-                        _ls = '-'
-
-                    ax.loglog(x_ch[j], np.abs(chunk) * mult, color=c,
-                        ls=_ls, alpha=0.5, lw=lw, label=label)
-
-
-                # Plot one- and two-halo terms separately as dashed/dotted lines
-                if split_by_scale and ('{}_1'.format(s) in self.history.keys()):
-
-                    ls = ['--', ':']
-                    xlist = [x_ch_1, x_ch_2]
-                    for hh, term in enumerate([ps_ch_1, ps_ch_2]):
-                        for j, chunk in enumerate(term):
-                            if np.all(chunk < 0):
-                                lw = 1
-                            else:
-                                lw = 3
-
-                            if real_space:
-                                mult = 1.
-                            else:
-                                mult = xlist[hh][j]**3 / 2. / np.pi**2
-
-                            ax.loglog(xlist[hh][j], np.abs(chunk) * mult,
-                                color=c, ls=ls[hh], alpha=0.5, lw=lw)
-
-
-            if h == len(redshifts) - 1:
-                if real_space:
-                    ax.legend(loc='lower left', fontsize=14, ncol=1)
-                else:
-                    ax.legend(loc='lower right', fontsize=14, ncol=1)
-
-
-            if real_space:
-                ax.set_ylim(1e-7, 10)
-            else:
-                if dimensionless:
-                    ax.set_ylim(1e-4, 1e5)
-                else:
-                    ax.set_ylim(1e-7, 1e3)
-
-            if not gotmp:
-                ax.annotate(r'$z=%.1f$' % redshift, (0.05, 0.95), xycoords='axes fraction',
-                    ha='left', va='top')
-                ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95),
-                    xycoords='axes fraction',
-                    ha='right', va='top')
-
-                ax.annotate(r'$\bar{Q}_h=%.2f$' % self.history['Qh'][iz], (0.95, 0.88),
-                    xycoords='axes fraction',
-                    ha='right', va='top')
-
-            if not include_xcorr:
-                continue
-
-            ax = mp.grid[mp.axis_number(0, h)]
-
-            # Plot cross-correlations
-            ls = ':', '--', '-.', '-'
-            for i, cf in enumerate(['xd', 'cd', 'xco', 'dco']):
-
-                s = 'cf_%s' % cf
-
-                if s not in self.history:
-                    continue
-
-                # Might be multiple sign changes
-                #data = self.history[s][iz]
-                #splitter = np.diff(np.sign(data))
-                #
-                #if np.all(splitter == 0):
-                #    chunks = [data]
-                #    dr_ch = [dr]
-                #else:
-                #    splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
-                #    chunks = np.split(data, splits)
-                #    dr_ch = np.split(dr, splits)
-
-                if np.all(self.history[s][iz] == 0):
-                    continue
-
-                dr_ch, chunks = self._split_cf(redshift, s)
-
-                for j, chunk in enumerate(chunks):
-                    if np.all(chunk < 0):
-                        lw = 1
-                    else:
-                        lw = 3
-
-                    if j == 0:
-                        if real_space:
-                            label = r'$\xi_{%s}$' % cf
-                        else:
-                            label = r'$P_{%s}$' % cf
-
-                    else:
-                        label = None
-
-                    if 'color' in kwargs:
-                        c = kwargs['color']
-                    else:
-                        c = colors[i]
-
-                    ax.loglog(dr_ch[j], np.abs(chunk), color=c,
-                        ls='-', alpha=0.5, lw=lw, label=label)
-
-            if h == len(redshifts) - 1:
-                ax.legend(loc='lower left', fontsize=14)
-
-            if real_space:
-                ax.set_ylim(1e-7, 100)
-            else:
-                ax.set_ylim(1e-7, 1e3)
-
-        if real_space:
-            mp.grid[mp.upperleft].set_ylabel(r'$\xi_{\mathrm{auto}}$')
-
-            if include_xcorr:
-                mp.grid[mp.lowerleft].set_ylabel(r'$\xi_{\mathrm{cross}}$')
-        else:
-            mp.grid[mp.upperleft].set_ylabel(labels['dpow'])
-
-        for i in range(len(redshifts)):
-            if real_space:
-                mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
-                mp.grid[i].set_xlim(1e-2, 3e3)
-            else:
-                mp.grid[i].set_xlabel(r'$k \ [\mathrm{cMpc}^{-1}]$')
-                mp.grid[i].set_xlim(1e-2, 10)
-
-        #mp.fix_ticks()
-        pl.show()
-
-        return mp
-
-    def CheckJointProbabilities(self, redshifts, weights=False, mp=None,
-        mp_kwargs={}):
-
-        if mp is None:
-            mp = MultiPanel(dims=(1, len(redshifts)),
-                padding=(0.25, 0.15), **mp_kwargs)
-
-        if weights:
-            all_weights = [(1. - self.history['xibar'])**2, self.history['avg_Ch']**2,
-                self.history['avg_Cc']**2,
-                self.history['avg_Ch'] * self.history['avg_Cc']]
-        else:
-            all_weights = np.ones(3)
-
-        for h, redshift in enumerate(redshifts):
-
-            iz = np.argmin(np.abs(redshift - self.redshifts))
-            dr = self.history['dr']
-
-            ax = mp.grid[mp.axis_number(0, h)]
-
-            # Plot auto-correlation functions
-            ls = ':', '--', '-.', '-', '-'
-            colors = ['k'] * 4 + ['b']
-            for i, cf in enumerate(['ii', 'hh', 'cc', 'hc']):
-                s = 'jp_%s' % cf
-
-                if s not in self.history:
-                    continue
-
-                if np.all(self.history[s][iz] == 0):
-                    continue
-
-                dr_ch, chunks = self._split_cf(redshift, s)
-
-                w = all_weights[i]
-
-                for j, chunk in enumerate(chunks):
-                    if np.all(chunk < 0):
-                        lw = 1
-                    else:
-                        lw = 3
-
-                    if j == 0:
-                        label = r'$P_{%s}$' % cf
-                    else:
-                        label = None
-
-                    if weights:
-                        y = np.abs(chunk) * w[iz]
-                    else:
-                        y = np.abs(chunk)
-
-                    print(cf, redshift, y.shape, dr_ch[j].shape)
-                    ax.loglog(dr_ch[j], y, color=colors[i],
-                        ls=ls[i], alpha=0.5, lw=lw, label=label)
-
-            if h == len(redshifts) - 1:
-                ax.legend(loc='lower left', fontsize=14)
-
-            ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
-                ha='left', va='top')
-            ax.annotate(r'$\bar{Q}=%.2f$' % self.history['Qi'][iz], (0.95, 0.95),
-                xycoords='axes fraction',
-                ha='right', va='top')
-
-        mp.grid[0].set_ylabel('Joint Probability')
-        for i in range(len(redshifts)):
-            mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
-            mp.grid[i].set_ylim(1e-8, 10)
-
-        #mp.fix_ticks()
-        pl.show()
-
-        return mp
-
-    def CheckSeparateScales(self):
-        pass
+    #def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
+    #    split_by_scale=False, include_fields=['mm','ii','coco','21_s','21'],
+    #    colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None, dimensionless=True,
+    #    **kwargs):
+    #    """
+    #    Plot various constituent correlation functions (or power spectra).
+    #    """
+#
+    #    if mp is None:
+    #        mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)),
+    #            padding=(0.25, 0.15), fig=fig, **mp_kwargs)
+    #        gotmp = False
+    #    else:
+    #        gotmp = True
+#
+    #    if real_space:
+    #        prefix = 'cf'
+    #        x = self.history['R']
+    #    else:
+    #        prefix = 'ps'
+    #        x = self.history['k']
+#
+    #    for h, redshift in enumerate(redshifts):
+#
+    #        iz = np.argmin(np.abs(redshift - self.redshifts))
+#
+    #        if real_space or (not dimensionless):
+    #            norm = 1.
+    #        else:
+    #            norm = self.history['dTb0_1'][iz]**2
+#
+    #        # Auto correlations in top row, cross terms on bottom
+    #        # z=8 on top, z=12 on bottom
+    #        ax = mp.grid[mp.axis_number(include_xcorr, h)]
+#
+    #        # Plot auto-correlation functions
+    #        for i, cf in enumerate(include_fields):
+    #            s = '%s_%s' % (prefix, cf)
+#
+    #            if s not in self.history:
+    #                continue
+#
+    #            if np.all(self.history[s][iz] == 0):
+    #                continue
+#
+    #            x_ch, ps_ch = self._split_cf(redshift, s)
+#
+    #            if split_by_scale and ('%s_1' % s in self.history.keys()):
+    #                x_ch_1, ps_ch_1 = self._split_cf(redshift, s+'_1')
+    #                x_ch_2, ps_ch_2 = self._split_cf(redshift, s+'_2')
+#
+    #            ct = 0
+    #            for j, chunk in enumerate(ps_ch):
+    #                if np.all(chunk < 0):
+    #                    lw = 1
+    #                else:
+    #                    lw = 3
+#
+    #                if ct == 0 and (lw == 3 or (j == len(ps_ch) - 1)):
+    #                    if real_space:
+    #                        label = r'$\xi_{%s}$' % cf
+    #                    else:
+    #                        label = r'$P_{%s}$' % cf
+#
+    #                    ct += 1
+#
+    #                else:
+    #                    label = None
+#
+    #                if real_space:
+    #                    mult = 1.
+    #                else:
+    #                    mult = norm * x_ch[j]**3 / 2. / np.pi**2
+#
+    #                if 'color' in kwargs:
+    #                    c = kwargs['color']
+    #                else:
+    #                    c = colors[i]
+#
+    #                if 'ls' in kwargs and (not split_by_scale):
+    #                    _ls = kwargs['ls']
+    #                else:
+    #                    _ls = '-'
+#
+    #                ax.loglog(x_ch[j], np.abs(chunk) * mult, color=c,
+    #                    ls=_ls, alpha=0.5, lw=lw, label=label)
+#
+#
+    #            # Plot one- and two-halo terms separately as dashed/dotted lines
+    #            if split_by_scale and ('{}_1'.format(s) in self.history.keys()):
+#
+    #                ls = ['--', ':']
+    #                xlist = [x_ch_1, x_ch_2]
+    #                for hh, term in enumerate([ps_ch_1, ps_ch_2]):
+    #                    for j, chunk in enumerate(term):
+    #                        if np.all(chunk < 0):
+    #                            lw = 1
+    #                        else:
+    #                            lw = 3
+#
+    #                        if real_space:
+    #                            mult = 1.
+    #                        else:
+    #                            mult = xlist[hh][j]**3 / 2. / np.pi**2
+#
+    #                        ax.loglog(xlist[hh][j], np.abs(chunk) * mult,
+    #                            color=c, ls=ls[hh], alpha=0.5, lw=lw)
+#
+#
+    #        if h == len(redshifts) - 1:
+    #            if real_space:
+    #                ax.legend(loc='lower left', fontsize=14, ncol=1)
+    #            else:
+    #                ax.legend(loc='lower right', fontsize=14, ncol=1)
+#
+#
+    #        if real_space:
+    #            ax.set_ylim(1e-7, 10)
+    #        else:
+    #            if dimensionless:
+    #                ax.set_ylim(1e-4, 1e5)
+    #            else:
+    #                ax.set_ylim(1e-7, 1e3)
+#
+    #        if not gotmp:
+    #            ax.annotate(r'$z=%.1f$' % redshift, (0.05, 0.95), xycoords='axes fraction',
+    #                ha='left', va='top')
+    #            ax.annotate(r'$\bar{Q}_i=%.2f$' % self.history['Qi'][iz], (0.95, 0.95),
+    #                xycoords='axes fraction',
+    #                ha='right', va='top')
+#
+    #            ax.annotate(r'$\bar{Q}_h=%.2f$' % self.history['Qh'][iz], (0.95, 0.88),
+    #                xycoords='axes fraction',
+    #                ha='right', va='top')
+#
+    #        if not include_xcorr:
+    #            continue
+#
+    #        ax = mp.grid[mp.axis_number(0, h)]
+#
+    #        # Plot cross-correlations
+    #        ls = ':', '--', '-.', '-'
+    #        for i, cf in enumerate(['xd', 'cd', 'xco', 'dco']):
+#
+    #            s = 'cf_%s' % cf
+#
+    #            if s not in self.history:
+    #                continue
+#
+    #            # Might be multiple sign changes
+    #            #data = self.history[s][iz]
+    #            #splitter = np.diff(np.sign(data))
+    #            #
+    #            #if np.all(splitter == 0):
+    #            #    chunks = [data]
+    #            #    dr_ch = [dr]
+    #            #else:
+    #            #    splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+    #            #    chunks = np.split(data, splits)
+    #            #    dr_ch = np.split(dr, splits)
+#
+    #            if np.all(self.history[s][iz] == 0):
+    #                continue
+#
+    #            dr_ch, chunks = self._split_cf(redshift, s)
+#
+    #            for j, chunk in enumerate(chunks):
+    #                if np.all(chunk < 0):
+    #                    lw = 1
+    #                else:
+    #                    lw = 3
+#
+    #                if j == 0:
+    #                    if real_space:
+    #                        label = r'$\xi_{%s}$' % cf
+    #                    else:
+    #                        label = r'$P_{%s}$' % cf
+#
+    #                else:
+    #                    label = None
+#
+    #                if 'color' in kwargs:
+    #                    c = kwargs['color']
+    #                else:
+    #                    c = colors[i]
+#
+    #                ax.loglog(dr_ch[j], np.abs(chunk), color=c,
+    #                    ls='-', alpha=0.5, lw=lw, label=label)
+#
+    #        if h == len(redshifts) - 1:
+    #            ax.legend(loc='lower left', fontsize=14)
+#
+    #        if real_space:
+    #            ax.set_ylim(1e-7, 100)
+    #        else:
+    #            ax.set_ylim(1e-7, 1e3)
+#
+    #    if real_space:
+    #        mp.grid[mp.upperleft].set_ylabel(r'$\xi_{\mathrm{auto}}$')
+#
+    #        if include_xcorr:
+    #            mp.grid[mp.lowerleft].set_ylabel(r'$\xi_{\mathrm{cross}}$')
+    #    else:
+    #        mp.grid[mp.upperleft].set_ylabel(labels['dpow'])
+#
+    #    for i in range(len(redshifts)):
+    #        if real_space:
+    #            mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+    #            mp.grid[i].set_xlim(1e-2, 3e3)
+    #        else:
+    #            mp.grid[i].set_xlabel(r'$k \ [\mathrm{cMpc}^{-1}]$')
+    #            mp.grid[i].set_xlim(1e-2, 10)
+#
+    #    #mp.fix_ticks()
+    #    pl.show()
+#
+    #    return mp
+
+    #def CheckJointProbabilities(self, redshifts, weights=False, mp=None,
+    #    mp_kwargs={}):
+#
+    #    if mp is None:
+    #        mp = MultiPanel(dims=(1, len(redshifts)),
+    #            padding=(0.25, 0.15), **mp_kwargs)
+#
+    #    if weights:
+    #        all_weights = [(1. - self.history['xibar'])**2, self.history['avg_Ch']**2,
+    #            self.history['avg_Cc']**2,
+    #            self.history['avg_Ch'] * self.history['avg_Cc']]
+    #    else:
+    #        all_weights = np.ones(3)
+#
+    #    for h, redshift in enumerate(redshifts):
+#
+    #        iz = np.argmin(np.abs(redshift - self.redshifts))
+    #        dr = self.history['dr']
+#
+    #        ax = mp.grid[mp.axis_number(0, h)]
+#
+    #        # Plot auto-correlation functions
+    #        ls = ':', '--', '-.', '-', '-'
+    #        colors = ['k'] * 4 + ['b']
+    #        for i, cf in enumerate(['ii', 'hh', 'cc', 'hc']):
+    #            s = 'jp_%s' % cf
+#
+    #            if s not in self.history:
+    #                continue
+#
+    #            if np.all(self.history[s][iz] == 0):
+    #                continue
+#
+    #            dr_ch, chunks = self._split_cf(redshift, s)
+#
+    #            w = all_weights[i]
+#
+    #            for j, chunk in enumerate(chunks):
+    #                if np.all(chunk < 0):
+    #                    lw = 1
+    #                else:
+    #                    lw = 3
+#
+    #                if j == 0:
+    #                    label = r'$P_{%s}$' % cf
+    #                else:
+    #                    label = None
+#
+    #                if weights:
+    #                    y = np.abs(chunk) * w[iz]
+    #                else:
+    #                    y = np.abs(chunk)
+#
+    #                print(cf, redshift, y.shape, dr_ch[j].shape)
+    #                ax.loglog(dr_ch[j], y, color=colors[i],
+    #                    ls=ls[i], alpha=0.5, lw=lw, label=label)
+#
+    #        if h == len(redshifts) - 1:
+    #            ax.legend(loc='lower left', fontsize=14)
+#
+    #        ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
+    #            ha='left', va='top')
+    #        ax.annotate(r'$\bar{Q}=%.2f$' % self.history['Qi'][iz], (0.95, 0.95),
+    #            xycoords='axes fraction',
+    #            ha='right', va='top')
+#
+    #    mp.grid[0].set_ylabel('Joint Probability')
+    #    for i in range(len(redshifts)):
+    #        mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+    #        mp.grid[i].set_ylim(1e-8, 10)
+#
+    #    #mp.fix_ticks()
+    #    pl.show()
+#
+    #    return mp

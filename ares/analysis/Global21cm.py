@@ -578,11 +578,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
         Parameters
         ----------
-        mp : MultiPlot.MultiPanel instance
 
         Returns
         -------
-        MultiPlot.MultiPanel instance
 
         """
 

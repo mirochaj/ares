@@ -26,7 +26,6 @@ import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
 from ..util.Photometry import what_filters
 from matplotlib.colors import ListedColormap
-from .MultiPlot import MultiPanel, add_master_legend
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples
 from ..populations.GalaxyPopulation import GalaxyPopulation as GP
@@ -1398,110 +1397,106 @@ class GalaxyPopulation(object): # pragma: no cover
 
         return ax
 
-    def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1,
-        panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
-        quantity='lf', mp=None, sources_except=[],
-        mp_kwargs={}, show_ylabel=True, **kwargs):
-        """
-        Plot the luminosity function at a bunch of different redshifts.
-
-        Parameters
-        ----------
-        z : list
-            List of redshifts to include.
-        ncols : int
-            How many columns in multiplot? Number of rows will be determined
-            automatically.
-        legends : bool, str
-            'individual' means one legend per axis, 'master' means one
-            (potentially gigantic) legend.
-
-        """
-
-        if ncols == 1:
-            nrows = len(redshifts)
-        else:
-            nrows = len(redshifts) // ncols
-
-        if nrows * ncols != len(redshifts):
-            nrows += 1
-
-        dims = (nrows, ncols)
-
-        # Force redshifts to be in ascending order
-        if not np.all(np.diff(redshifts)) > 0:
-            redshifts = np.sort(redshifts)
-
-        if mp_kwargs == {}:
-            mp_kwargs = {'panel_size': panel_size, 'padding': [0.2]*2}
-
-        annotate_z = 'left' if quantity == 'lf' else 'right'
-
-        # Create multiplot
-        if mp is None:
-            gotmp = False
-            mp = MultiPanel(dims=dims, fig=fig, **mp_kwargs)
-        else:
-            gotmp = True
-            assert mp.dims == dims
-
-        if not hasattr(self, 'redshifts_in_mp'):
-            self.redshifts_in_mp = {}
-
-        if quantity not in self.redshifts_in_mp:
-            self.redshifts_in_mp[quantity] = []
-
-        for i, z in enumerate(redshifts):
-            k = mp.elements.ravel()[i]
-            ax = mp.grid[k]
-
-            # Where in the MultiPlot grid are we?
-            self.redshifts_in_mp[quantity].append(k)
-
-            self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
-                quantity=quantity, sources_except=sources_except, **kwargs)
-
-            if annotate_z == 'left':
-                _xannot = 0.05
-            else:
-                _xannot = 0.95
-
-            if gotmp:
-                continue
-
-            ax.annotate(r'$z \sim {}$'.format(round(z, 1)), (_xannot, 0.95),
-                ha=annotate_z, va='top', xycoords='axes fraction')
-
-        if gotmp:
-            return mp
-
-        for i, z in enumerate(redshifts):
-            k = mp.elements.ravel()[i]
-            ax = mp.grid[k]
-
-            if quantity == 'lf':
-                ax.set_xlim(-24, xmax)
-                ax.set_ylim(1e-7, ymax)
-                ax.set_yscale('log', nonposy='clip')
-                ax.set_ylabel('')
-                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
-            else:
-                ax.set_xscale('log')
-                ax.set_xlim(1e6, 1e12)
-                ax.set_ylim(1e-7, ymax)
-                ax.set_yscale('log', nonposy='clip')
-                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
-
-        if show_ylabel:
-            if quantity == 'lf':
-                mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-            else:
-                mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
-
-
-        pl.show()
-
-        return mp
+    #def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1,
+    #    panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
+    #    quantity='lf', axes=None, sources_except=[],
+    #    fig_kwargs={}, show_ylabel=True, **kwargs):
+    #    """
+    #    Plot the luminosity function at a bunch of different redshifts.
+#
+    #    Parameters
+    #    ----------
+    #    z : list
+    #        List of redshifts to include.
+    #    ncols : int
+    #        How many columns in multiplot? Number of rows will be determined
+    #        automatically.
+    #    legends : bool, str
+    #        'individual' means one legend per axis, 'master' means one
+    #        (potentially gigantic) legend.
+#
+    #    """
+#
+    #    if ncols == 1:
+    #        nrows = len(redshifts)
+    #    else:
+    #        nrows = len(redshifts) // ncols
+#
+    #    if nrows * ncols != len(redshifts):
+    #        nrows += 1
+#
+    #    dims = (nrows, ncols)
+#
+    #    # Force redshifts to be in ascending order
+    #    if not np.all(np.diff(redshifts)) > 0:
+    #        redshifts = np.sort(redshifts)
+#
+    #    annotate_z = 'left' if quantity == 'lf' else 'right'
+#
+    #    # Create multiplot
+    #    if axes is None:
+    #        gotmp = False
+    #        fig, axes = pl.subplots(*dims, num=fig, **fig_kwargs)
+    #    else:
+    #        gotmp = True
+#
+    #    if not hasattr(self, 'redshifts_in_mp'):
+    #        self.redshifts_in_mp = {}
+#
+    #    if quantity not in self.redshifts_in_mp:
+    #        self.redshifts_in_mp[quantity] = []
+#
+    #    for i, z in enumerate(redshifts):
+    #        k = mp.elements.ravel()[i]
+    #        ax = mp.grid[k]
+#
+    #        # Where in the MultiPlot grid are we?
+    #        self.redshifts_in_mp[quantity].append(k)
+#
+    #        self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
+    #            quantity=quantity, sources_except=sources_except, **kwargs)
+#
+    #        if annotate_z == 'left':
+    #            _xannot = 0.05
+    #        else:
+    #            _xannot = 0.95
+#
+    #        if gotmp:
+    #            continue
+#
+    #        ax.annotate(r'$z \sim {}$'.format(round(z, 1)), (_xannot, 0.95),
+    #            ha=annotate_z, va='top', xycoords='axes fraction')
+#
+    #    if gotmp:
+    #        return mp
+#
+    #    for i, z in enumerate(redshifts):
+    #        k = mp.elements.ravel()[i]
+    #        ax = mp.grid[k]
+#
+    #        if quantity == 'lf':
+    #            ax.set_xlim(-24, xmax)
+    #            ax.set_ylim(1e-7, ymax)
+    #            ax.set_yscale('log', nonposy='clip')
+    #            ax.set_ylabel('')
+    #            ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+    #        else:
+    #            ax.set_xscale('log')
+    #            ax.set_xlim(1e6, 1e12)
+    #            ax.set_ylim(1e-7, ymax)
+    #            ax.set_yscale('log', nonposy='clip')
+    #            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+#
+    #    if show_ylabel:
+    #        if quantity == 'lf':
+    #            mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+    #        else:
+    #            mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+#
+#
+    #    pl.show()
+#
+    #    return mp
 
     def _selected(self, color1, color2, lbcut, ccut, degen):
 
@@ -1688,9 +1683,6 @@ class GalaxyPopulation(object): # pragma: no cover
         pl.draw()
 
         return ax
-
-    def add_master_legend(self, mp, **kwargs):
-        return add_master_legend(mp, **kwargs)
 
     def PlotSummary(self, pop, axes=None, fig=1, use_best=True, method='mode',
         fresh=False, redshifts=None, include_colors=True, **kwargs):
