@@ -690,6 +690,7 @@ class SynthesisModel(SynthesisModelBase):
                 self._data = _data
                 self._times = _times
                 self._wavelengths = _waves
+                self._add_nebular_emission()
                 return self._data
 
             Zall_l = list(self.metallicities.values())
