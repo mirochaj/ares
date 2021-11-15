@@ -1935,7 +1935,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     xph.extend(xphot)
                     fil.extend(_filters)
 
-                mags = np.array(mags) #- 2.5 * np.log10(1. + z)
+                mags = np.array(mags)
             else:
                 mags = M + magcorr
 
@@ -1961,7 +1961,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if len(mags) == 0:
                     Mg = -99999 * np.ones(hist['SFR'].shape[0])
                 else:
-                    Mg = -1 * np.nanprod(np.abs(mags), axis=0)**(1. / float(len(mags)))
+                    Mg = np.nanprod(np.abs(mags), axis=0)**(1. / float(len(mags)))
+
+                    if not (np.all(mags < 0) or np.all(mags > 0)):
+                        raise ValueError('If geometrically averaging magnitudes, must all be the same sign!')
+
+                    Mg = -1 * Mg if np.all(mags < 0) else Mg
+
             elif method == 'closest':
                 if len(mags) == 0:
                     Mg = -99999 * np.ones(hist['SFR'].shape[0])

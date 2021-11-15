@@ -383,7 +383,10 @@ class SpectralSynthesis(object):
             else:
                 return popt[1]
 
-    def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
+    def ObserveSpectrum(self, zobs, **kwargs):
+        return self.get_spec_obs(zobs, **kwargs)
+
+    def get_spec_obs(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={},
         idnum=None, window=1, extras={}, nthreads=1, load=True):
         """
