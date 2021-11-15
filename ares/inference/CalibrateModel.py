@@ -552,8 +552,8 @@ class CalibrateModel(object):
 
         # Always save the UVLF
         blob_n = ['galaxy_lf']
-        blob_i = [('z', red_lf), ('x', MUV)]
-        blob_f = ['{}LuminosityFunction'.format(_pref)]
+        blob_i = [('z', red_lf), ('bins', MUV)]
+        blob_f = ['{}get_lf'.format(_pref)]
 
         blob_pars = \
         {
