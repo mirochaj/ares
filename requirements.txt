@@ -7,4 +7,5 @@ pytest==3.6.4
 pytest-cov==2.8.1
 pyyaml==5.4
 emcee==2.2.1
+docutils<0.18
 -e git+https://bitbucket.org/ktausch/distpy/#egg=distpy
