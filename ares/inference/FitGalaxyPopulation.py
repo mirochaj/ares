@@ -163,7 +163,8 @@ class loglikelihood(LogLikelihood):
                     # observed magnitudes.
 
                     # Compute LF
-                    p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
+                    _x, p = pop.get_lf(z=zmod, bins=xdat,
+                        use_mags=True)
 
                     if not np.isfinite(p):
                         print('WARNING: LF is inf or nan!', zmod, xdat, p)
