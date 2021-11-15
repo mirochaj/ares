@@ -934,7 +934,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return phi_of_x
 
-    def LuminosityFunction(self, z, x, mags=True, wave=1600.):
+    def LuminosityFunction(self, z, bins, **kwargs):
+        return self.get_lf(z, bins, **kwargs)
+
+    def get_lf(self, z, bins, use_mags=True, wave=1600., absolute=True):
         """
         Reconstructed luminosity function.
 
@@ -954,13 +957,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if mags:
-            phi_of_x = self.UVLF_M(x, z, wave=wave)
+        if not absolute:
+            raise NotImplemented('help!')
+
+        if use_mags:
+            phi_of_x = self.UVLF_M(bins, z, wave=wave)
         else:
-            phi_of_x = self.UVLF_L(x, z, wave=wave)
+            phi_of_x = self.UVLF_L(bins, z, wave=wave)
 
-        return phi_of_x
-
+        return bins, phi_of_x
 
     def Lh(self, z, wave=1600., raw=True, nebular_only=False):
         """
@@ -1563,7 +1568,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             z_ham = z
 
         # Poke PQ
-        _phi_ = self.LuminosityFunction(6., -20)
+        _x_, _phi_ = self.LuminosityFunction(6., -20)
 
         uvlf = self._pq_registry['uvlf']
 
