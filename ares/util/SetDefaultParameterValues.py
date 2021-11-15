@@ -844,6 +844,7 @@ def PopulationParameters():
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     "pop_dust_scatter": None,
     "pop_dust_scatter_seed": None,
+    "pop_dust_kill_redshift": np.inf,
 
 
     "pop_fpoll": 1.0,         # uniform pollution

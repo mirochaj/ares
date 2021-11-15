@@ -1838,8 +1838,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         filter_set=None, dlam=20., method='closest', idnum=None, window=1,
         load=True, presets=None, absolute=True):
         """
-        Return the magnitude of objects at specified wavelength or as-estimated
-        via given photometry.
+        Return the magnitude of objects at specified wavelength or
+        as-estimated via given photometry.
 
         Parameters
         ----------
@@ -1877,8 +1877,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if the output magnitudes are apparent or absolute AB magnitudes.
 
         """
-
-        print('ahoy there', presets, filters)
 
         if presets is not None:
             filter_set = None
@@ -1937,7 +1935,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     xph.extend(xphot)
                     fil.extend(_filters)
 
-                mags = np.array(mags)
+                mags = np.array(mags) #- 2.5 * np.log10(1. + z)
             else:
                 mags = M + magcorr
 
@@ -2145,17 +2143,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_irlf(self):
         pass
 
-    def get_lf(self, z, bins=None, use_mags=True, wave=1600., window=1,
+    def LuminosityFunction(self, z, bins=None, use_mags=True, wave=1600.,
+        window=1,
         band=None, cam=None, filters=None, filter_set=None, dlam=20.,
         method='closest', load=True, presets=None, absolute=True, total_IR=False):
 
-        return self.LuminosityFunction(z, bins=bins, use_mags=use_mags,
+        return self.get_lf(z, bins=bins, use_mags=use_mags,
             wave=wave, window=window, band=band, cam=cam, filters=filters,
             filter_set=filter_set, dlam=dlam, method=method,
             load=load, presets=presets, absolute=absolute,
             total_IR=total_IR)
 
-    def LuminosityFunction(self, z, bins=None, use_mags=True, wave=1600.,
+    def get_lf(self, z, bins=None, use_mags=True, wave=1600.,
         window=1,
         band=None, cam=None, filters=None, filter_set=None, dlam=20.,
         method='closest',
@@ -2905,9 +2904,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         hist = {key:self.histories[key][-1::-1] for key in keys}
         return hist
 
-    def get_surface_density(self, z, bins, dz=1., dtheta=1., wave=1600.,
+    def SurfaceDensity(self, z, bins, dz=1., dtheta=1., wave=1600.,
         cam=None, filters=None, filter_set=None, dlam=20., method='closest',
         window=1, load=True, presets=None, absolute=True, use_mags=True):
+        """
+        For backward compatibility. See `get_surface_density`.
+        """
+        return self.get_surface_density(z=z, bins=bins, dz=dz, dtheta=dtheta,
+            wave=wave, cam=cam, filters=filters, filter_set=filter_set,
+            dlam=dlam, method=method, use_mags=use_mags,
+            window=window, load=load, presets=presets, absolute=absolute)
+
+    def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
+        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
+        window=1, load=True, presets=None, absolute=False, use_mags=True):
         """
 
         Returns
@@ -2915,36 +2925,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Observed magnitudes, then, projected surface density of galaxies in
         `dz` thick shell, in units of cumulative number of galaxies per
         square degree.
-
-        """
-        return self.SurfaceDensity(z=z, bins=bins, dz=dz, dtheta=dtheta,
-            wave=wave, cam=cam, filters=filters, filter_set=filter_set,
-            dlam=dlam, method=method, use_mags=use_mags,
-            window=window, load=load, presets=presets, absolute=absolute)
-
-    def SurfaceDensity(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
-        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=False, use_mags=True):
-        """
-        For backward compatibility. See `get_surface_density`.
         """
 
         # First, compute the luminosity function.
         x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
-            filters=filters, filter_set=filter_set, dlam=dlam, method='closest',
+            filters=filters, filter_set=filter_set, dlam=dlam, method=method,
             window=window, load=load, presets=presets, absolute=absolute,
             use_mags=use_mags)
 
-        # Convert to apparent magnitudes AB
-        #dL = self.cosm.LuminosityDistance(z) / cm_per_pc
-        #magcorr = 5. * (np.log10(dL) - 1.)
-        #mobs = mags + magcorr - 2.5 * np.log10(1 + z)
-
-        # Compute the volume of the shell we're looking at
+        # Compute the volume of the shell we're looking at [cMpc^3]
         vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
 
-        # Number of galaxies per mag.
+        # Number of galaxies per mag bin in survey area.
+        # Currently neglects evolution of LF along LoS.
         Ngal = phi * vol
+
+        # Faint to bright
+        Ngal_asc = Ngal[-1::-1]
+        x_asc = x[-1::-1]
 
         # At this point, magnitudes are in ascending order, i.e., bright to
         # faint.
@@ -2952,6 +2950,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Cumulative surface density of galaxies *brighter than*
         # some corresponding magnitude
         assert Ngal[0] == 0, "Broaden binning range?"
+        ntot = np.trapz(Ngal, x=x)
         nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
 
         return x, nltm

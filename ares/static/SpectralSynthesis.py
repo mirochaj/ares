@@ -425,10 +425,12 @@ class SpectralSynthesis(object):
         # Flux at Earth in erg/s/cm^2/Hz
         f = spec / (4. * np.pi * dL**2)
 
+        # Correct for redshifting and change in units.
         if flux_units == 'Hz':
-            pass
+            f *= (1. + zobs)
         else:
             f /= dwdn
+            f /= (1. + zobs)
 
         owaves = waves * (1. + zobs) / 1e4
 
@@ -437,7 +439,10 @@ class SpectralSynthesis(object):
 
         return owaves, f * T
 
-    def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all',
+    def Photometry(self, **kwargs):
+        return self.get_photometry(**kwargs)
+
+    def get_photometry(self, spec=None, sfh=None, cam='wfc3', filters='all',
         filter_set=None, dlam=20., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None,
         hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
@@ -470,9 +475,9 @@ class SpectralSynthesis(object):
             filter_data = self.cameras[cam].read_throughputs(filter_set=filter_set,
                 filters=filters)
         else:
-            # Can supply spectral windows, e.g., Calzetti+ 1994, in which case
-            # we assume perfect transmission but otherwise just treat like
-            # photometric filters.
+            # Can supply spectral windows, e.g., Calzetti+ 1994, in which
+            # case we assume perfect transmission but otherwise just treat
+            # like photometric filters.
             assert type(filters) in [list, tuple, np.ndarray]
 
             #print("Generating photometry from {} spectral ranges.".format(len(filters)))
@@ -482,8 +487,8 @@ class SpectralSynthesis(object):
             x2 = wraw.max()
             x = np.arange(x1-1, x2+1, 1.) * 1e-4 * (1. + zobs)
 
-            # Note that in this case, the filter wavelengths are in rest-frame
-            # units, so we convert them to observed wavelengths before
+            # Note that in this case, the filter wavelengths are in rest-
+            # frame units, so we convert them to observed wavelengths before
             # photometrizing everything.
 
             filter_data = {}
@@ -512,8 +517,8 @@ class SpectralSynthesis(object):
             x, y, cent, dx, Tavg = filter_data[filt]
 
             # If we're only doing this for the sake of measuring a slope, we
-            # might restrict the range based on wavelengths of interest, i.e.,
-            # we may not use all the filters.
+            # might restrict the range based on wavelengths of interest,
+            # i.e., we may not use all the filters.
 
             # Right now, will include filters as long as their center is in
             # the requested band. This results in fluctuations in slope
@@ -637,8 +642,11 @@ class SpectralSynthesis(object):
         wphot = np.array(wphot)
         yphot_corr = np.array(yphot_corr)
 
-        # Convert to magnitudes and return
-        return fphot, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
+        # Convert to magnitudes
+        mphot = -2.5 * np.log10(yphot_corr / flux_AB)
+
+        # We're done
+        return fphot, xphot, wphot, mphot
 
     def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
