@@ -1812,7 +1812,7 @@ class GalaxyPopulation(object):
             if not include_colors:
                 continue
 
-            mags1500 = pop.Magnitude(z, wave=1500.)
+            filt, mags1500 = pop.Magnitude(z, wave=1500.)
 
 
             #mags = pop.Magnitude(z, wave=1600.)

@@ -34,3 +34,4 @@ Additional contributions / corrections / suggestions from:
    * Emma Klemets
    * Felix Bilodeau-Chagnon
    * Venno Vipp
+   * Oscar Hernandez

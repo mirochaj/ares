@@ -28,7 +28,7 @@ from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
-    ev_per_hz, h_p
+    ev_per_hz, h_p, cm_per_pc
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -868,3 +868,17 @@ class Population(object):
         if not hasattr(self, '_tab_Mmin_floor_'):
             self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.tab_z)
         return self._tab_Mmin_floor_
+
+    def get_mags_abs(self, z, mags):
+        """
+        Convert apparent magnitudes to absolute magnitudes.
+        """
+        d_pc = self.cosm.LuminosityDistance(z) / cm_per_pc
+        return mags - 5 * np.log10(d_pc / 10.) + 2.5 * np.log10(1. + z)
+
+    def get_mags_app(self, z, mags):
+        """
+        Convert absolute magnitudes to apparent magnitudes.
+        """
+        d_pc = self.cosm.LuminosityDistance(z) / cm_per_pc
+        return mags + 5 * np.log10(d_pc / 10.) - 2.5 * np.log10(1. + z)

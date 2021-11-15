@@ -47,7 +47,8 @@ def test():
     assert np.all(sfrd_III < 1)
     assert 1e-8 <= np.mean(sfrd_III) <= 1e-3
 
-    phi_M = sim.pops[0].LuminosityFunction(zarr[0], mags, mags=True, wave=1600.)
+    x, phi_M = sim.pops[0].get_lf(zarr[0], mags, use_mags=True,
+        wave=1600.)
 
     assert 60 <= sim.nu_C <= 115, "Global signal unreasonable!"
     assert -250 <= sim.dTb_C <= -150, "Global signal unreasonable!"

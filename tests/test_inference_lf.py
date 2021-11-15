@@ -25,8 +25,8 @@ def test():
 
     # blob 1: the LF. Give it a name, and the function needed to calculate it.
     blob_n1 = ['galaxy_lf']
-    blob_i1 = [('z', redshifts), ('x', MUV)]
-    blob_f1 = ['LuminosityFunction']
+    blob_i1 = [('z', redshifts), ('bins', MUV)]
+    blob_f1 = ['get_lf']
 
     blob_pars = \
     {

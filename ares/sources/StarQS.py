@@ -19,7 +19,8 @@ from ..physics import Cosmology
 from scipy.integrate import quad
 from ..util.ReadData import read_lit
 from ..util.ParameterFile import ParameterFile
-from ..physics.Constants import erg_per_ev, s_per_yr, g_per_msun
+from ..physics.Constants import erg_per_ev, ev_per_hz, s_per_yr, g_per_msun, \
+    c, h_p
 
 class StarQS(Source):
     #def __init__(self, **kwargs):
@@ -162,6 +163,12 @@ class StarQS(Source):
 
         return self._norm
 
+    @property
+    def Lbol(self):
+        if not hasattr(self, '_Lbol'):
+            self._Lbol = np.sum(self.norm_)
+        return self._Lbol
+
     def _SpectrumPiecewise(self, E):
 
         if E < self.bands[0][1]:
@@ -218,3 +225,32 @@ class StarQS(Source):
     @property
     def Emax(self):
         return self.bands[-1][1]
+
+    def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
+            energy_units=True, raw=True, nebular_only=False):
+        """
+        Specific emissivity at provided wavelength.
+
+        .. note :: This is analogous to SynthesisModel.L_per_sfr, but since
+            in this class we deal with single stars (so ill-defined SFR),
+            we're doing some gymnastics here to get things in the right units.
+            All that really matters is that we have something, that when
+            multiplied by an SFR, will yield a halo's luminosity in
+            erg/s/Hz/(Msun/yr).
+
+        Parameters
+        ----------
+        wave : int, float
+            Wavelength at which to determine luminosity [Angstroms]
+        avg : int
+            Number of wavelength bins over which to average
+
+        """
+
+        sfr_eff = self.pf['source_mass'] / self.lifetime
+
+        E = h_p * c / (wave * 1e-8) / erg_per_ev
+
+        L = self.Lbol * self.Spectrum(E) * ev_per_hz / sfr_eff
+
+        return L

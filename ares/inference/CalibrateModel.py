@@ -43,7 +43,7 @@ acceptable_sfe_params = ['slope-low', 'slope-high', 'norm', 'peak']
 acceptable_dust_params = ['norm', 'slope', 'peak', 'fcov', 'yield', 'scatter',
     'kappa', 'slope-high', 'growth']
 
-class CalibrateModel(object):
+class CalibrateModel(object): # pragma: no cover
     """
     Convenience class for calibrating galaxy models to UVLFs and/or SMFs.
     """
@@ -552,8 +552,8 @@ class CalibrateModel(object):
 
         # Always save the UVLF
         blob_n = ['galaxy_lf']
-        blob_i = [('z', red_lf), ('x', MUV)]
-        blob_f = ['{}LuminosityFunction'.format(_pref)]
+        blob_i = [('z', red_lf), ('bins', MUV)]
+        blob_f = ['{}get_lf'.format(_pref)]
 
         blob_pars = \
         {

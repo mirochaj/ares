@@ -37,7 +37,7 @@ def test():
     assert np.all(sfrd < 1)
     assert 1e-6 <= np.mean(sfrd) <= 1e-1
 
-    phi_M = pop.LuminosityFunction(zarr[0], mags, mags=True, wave=1600.)
+    x, phi_M = pop.get_lf(zarr[0], mags, use_mags=True, wave=1600.)
 
     # A bit slow :/
     phi_Ms = pop.StellarMassFunction(zarr[0])
