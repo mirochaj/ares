@@ -1955,7 +1955,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mg = mags
             elif len(filters) == 1:
                 xout = filters
-                Mg = mags
+                Mg = mags.squeeze()
             # Or combine in some way below
             elif method == 'gmean':
                 if len(mags) == 0:
@@ -1967,6 +1967,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         raise ValueError('If geometrically averaging magnitudes, must all be the same sign!')
 
                     Mg = -1 * Mg if np.all(mags < 0) else Mg
+
+                Mg = Mg.squeeze()
 
             elif method == 'closest':
                 if len(mags) == 0:
@@ -2107,8 +2109,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return L
 
     def get_bias(self, z, limit, wave=1600., cam=None, filters=None,
-        filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
-        load=True, presets=None, from_flux=False, absolute=False, factor=1):
+        filter_set=None, dlam=20., method='closest', idnum=None, window=1,
+        load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
+        absolute=False, factor=1):
         """
         Compute the linear bias of sources above some limiting magnitude or
         flux.
@@ -2120,11 +2123,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         _Lh = self.get_lum(z, wave=wave)
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
+
         bh = np.interp(np.log10(_Mh), np.log10(self.halos.tab_M),
             self.halos.tab_bias[iz,:])
 
-        if from_flux:
+        if cut_in_flux:
             raise NotImplemented('help')
+        elif cut_in_mass:
+            ok = _Mh >= limit
         else:
             filt, mags = self.get_mags(z, wave=wave, cam=cam,
                 filters=filters, filter_set=filter_set, dlam=dlam, method=method,
@@ -2133,18 +2139,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
-        integ_top = bh * _nh * _Lh
-        integ_bot = _nh * _Lh
+        integ_top = bh[ok==1] * _nh[ok==1]
+        integ_bot = _nh[ok==1]
 
-        b = np.sum(integ_top[ok==1]) / np.sum(integ_bot[ok==1])
+        b = np.trapz(integ_top * _Mh[ok==1], x=np.log(_Mh[ok==1])) \
+          / np.trapz(integ_bot * _Mh[ok==1], x=np.log(_Mh[ok==1]))
 
         return b
 
-    def get_uvlf(self, z, x):
+    def get_uvlf(self, z, bins):
         """
         Compute what people usually mean by the UVLF.
         """
-        pass
+        return self.get_lf(z, bins, use_mags=True, wave=1600., window=51.,
+            absolute=True)
 
     def get_irlf(self):
         pass

@@ -941,8 +941,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Reconstructed luminosity function.
 
-        ..note:: This is number per [abcissa]. No dust correction has
-            been applied.
+        ..note:: This is number density per [abcissa].
 
         Parameters
         ----------
@@ -953,7 +952,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Returns
         -------
-        Number density.
+        Number density in # cMpc^-3 mag^-1.
 
         """
 
@@ -966,6 +965,41 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             phi_of_x = self.UVLF_L(bins, z, wave=wave)
 
         return bins, phi_of_x
+
+    def get_uvlf(self, z, bins):
+        """
+        Wrapper around `get_lf` to return what people usually mean by
+        the UVLF, i.e., rest-UV = 1600 Angstrom, absolute AB magnitudes.
+        """
+        return self.get_lf(z, bins, use_mags=True, wave=1600,
+            absolute=True)
+
+    def get_bias(self, z, limit, wave=1600., cut_in_flux=False,
+        cut_in_mass=False, absolute=False):
+        """
+        Compute linear bias of galaxies brighter than (or more massive than)
+        some cut-off.
+        """
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+        tab_M = self.halos.tab_M
+        tab_b = self.halos.tab_bias[iz,:]
+        tab_n = self.halos.tab_dndm[iz,:]
+
+        if cut_in_flux:
+            raise NotImplemented('help')
+        elif cut_in_mass:
+            ok = tab_M >= limit
+        else:
+            ok = np.logical_and(mags <= limit, np.isfinite(mags))
+
+        integ_top = tab_b[ok==1] * tab_n[ok==1]
+        integ_bot = tab_n[ok==1]
+
+        b = np.trapz(integ_top * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
+          / np.trapz(integ_bot * tab_M[ok==1], x=np.log(tab_M[ok==1]))
+
+        return b
 
     def Lh(self, z, wave=1600., raw=True, nebular_only=False):
         """
