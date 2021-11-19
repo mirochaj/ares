@@ -852,7 +852,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         # These are intrinsic (i.e., not dust-corrected) absolute magnitudes
-        _mags, _phi = self.phi_of_M(z=z, wave=wave)
+        _mags, _phi = self._get_phi_of_M(z=z, wave=wave)
 
         mask = np.logical_or(_mags.mask, _phi.mask)
 
@@ -886,13 +886,32 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             return Mobs, cgal
 
+        # Number of galaxies per mag bin in survey area.
+        # Currently neglects evolution of LF along LoS.
+        Ngal = phi * vol
+
+        # Faint to bright
+        Ngal_asc = Ngal[-1::-1]
+        x_asc = x[-1::-1]
+
+        # At this point, magnitudes are in ascending order, i.e., bright to
+        # faint.
+
+        # Cumulative surface density of galaxies *brighter than*
+        # some corresponding magnitude
+        assert Ngal[0] == 0, "Broaden binning range?"
+        ntot = np.trapz(Ngal, x=x)
+        nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
+
+        return x, nltm
+
     @property
     def is_uvlf_parametric(self):
         if not hasattr(self, '_is_uvlf_parametric'):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
         return self._is_uvlf_parametric
 
-    def UVLF_M(self, MUV, z=None, wave=1600.):
+    def _get_uvlf_mags(self, MUV, z=None, wave=1600., window=1):
 
         if self.is_uvlf_parametric:
             return self.uvlf(MUV=MUV, z=z)
@@ -901,7 +920,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Otherwise, standard SFE parameterized approach.
         ##
 
-        x_phi, phi = self.phi_of_M(z, wave=wave)
+        x_phi, phi = self._get_phi_of_M(z, wave=wave, window=window)
 
         ok = phi.mask == False
 
@@ -917,8 +936,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return phi_of_x
 
-    def UVLF_L(self, LUV, z=None, wave=1600.):
-        x_phi, phi = self.phi_of_L(z, wave=wave)
+    def _get_uvlf_lum(self, LUV, z=None, wave=1600., window=1):
+        x_phi, phi = self._get_phi_of_L(z, wave=wave, window=window)
 
         ok = phi.mask == False
 
@@ -937,7 +956,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def LuminosityFunction(self, z, bins, **kwargs):
         return self.get_lf(z, bins, **kwargs)
 
-    def get_lf(self, z, bins, use_mags=True, wave=1600., absolute=True):
+    def get_lf(self, z, bins, use_mags=True, wave=1600., window=1.,
+        absolute=True):
         """
         Reconstructed luminosity function.
 
@@ -960,9 +980,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise NotImplemented('help!')
 
         if use_mags:
-            phi_of_x = self.UVLF_M(bins, z, wave=wave)
+            phi_of_x = self._get_uvlf_mags(bins, z, wave=wave, window=window)
         else:
-            phi_of_x = self.UVLF_L(bins, z, wave=wave)
+            phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
 
         return bins, phi_of_x
 
@@ -1001,18 +1021,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return b
 
-    def Lh(self, z, wave=1600., raw=True, nebular_only=False):
+    def Lh(self, z, wave=1600., window=1, raw=True, nebular_only=False):
         """
         For backward compatibility. Just calls self.Luminosity.
         """
-        return self.Luminosity(z, wave, raw=raw, nebular_only=nebular_only)
+        return self.Luminosity(z, wave, window=window, raw=raw,
+            nebular_only=nebular_only)
 
-    def _cache_L(self, z, wave, raw, nebular_only):
+    def _cache_L(self, z, wave, window, raw, nebular_only):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (z, wave, raw, nebular_only) in self._cache_L_:
-            return self._cache_L_[(z, wave, raw, nebular_only)]
+        if (z, wave, window, raw, nebular_only) in self._cache_L_:
+            return self._cache_L_[(z, wave, window, raw, nebular_only)]
 
         return None
 
@@ -1026,7 +1047,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         if use_cache:
-            cached_result = self._cache_L(z, wave, raw, nebular_only)
+            cached_result = self._cache_L(z, wave, window, raw, nebular_only)
 
             if cached_result is not None:
                 return cached_result
@@ -1056,7 +1077,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Lh = sfr * L_sfr
 
                 if use_cache:
-                    self._cache_L_[(z, wave, raw, nebular_only)] = Lh
+                    self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
 
                 return Lh
 
@@ -1093,7 +1114,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             raise NotImplemented('help')
 
-    def phi_of_L(self, z, wave=1600.):
+    def _get_phi_of_L(self, z, wave=1600., window=1):
         """
         Compute the luminosity function at redshift z.
 
@@ -1112,7 +1133,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if abs(red - z) < ztol:
                     return self._phi_of_L[red]
 
-        Lh = self.Lh(z, wave=wave)
+        Lh = self.Lh(z, wave=wave, window=window)
 
         fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))
         # Means obscuration refers to fractional dimming of individual
@@ -1183,7 +1204,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_L[z]
 
-    def phi_of_M(self, z, wave=1600.):
+    def _get_phi_of_M(self, z, wave=1600., window=1):
         if not hasattr(self, '_phi_of_M'):
             self._phi_of_M = {}
         else:
@@ -1193,7 +1214,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if np.allclose(red, z):
                     return self._phi_of_M[red]
 
-        Lh, phi_of_L = self.phi_of_L(z, wave=wave)
+        Lh, phi_of_L = self._get_phi_of_L(z, wave=wave, window=window)
 
         _MAB = self.magsys.L_to_MAB(Lh)
 

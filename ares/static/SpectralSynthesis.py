@@ -651,7 +651,10 @@ class SpectralSynthesis(object):
         # We're done
         return fphot, xphot, wphot, mphot
 
-    def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
+    def Spectrum(self, waves, **kwargs):
+        return self.get_spec_rest(waves, **kwargs)
+        
+    def get_spec_rest(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
         extras={}, load=True):
         """
@@ -725,9 +728,6 @@ class SpectralSynthesis(object):
         pb.finish()
 
         if units in ['A', 'Ang']:
-            #freqs = c / (waves / 1e8)
-            #tmp = np.abs(np.diff(waves) / np.diff(freqs))
-            #dwdn = np.concatenate((tmp, [tmp[-1]]))
             dwdn = waves**2 / (c * 1e8)
             spec /= dwdn
 
