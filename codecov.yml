@@ -9,7 +9,7 @@ coverage:
         flags:
           - unit
         paths:
-          - "src"
+          - "ares"
        # advanced settings
         branches:
           - main
