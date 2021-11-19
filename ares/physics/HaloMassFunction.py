@@ -56,10 +56,13 @@ try:
 except ImportError:
     have_hmf = False
     hmf_vers = 0
-
-if 0 < hmf_vers < 3.1:
+hmf_vers = 3.4
+#TODO Think about changing this import function.
+if 0 <= hmf_vers <= 3.4:
     try:
-        from hmf.wdm import MassFunctionWDM
+        #from hmf.wdm import MassFunctionWDM
+        #from hmf import wdm
+        MassFunctionWDM = hmf.wdm.MassFunctionWDM
     except ImportError:
         pass
 
@@ -82,6 +85,7 @@ ARES = os.getenv("ARES")
 
 sqrt2 = np.sqrt(2.)
 
+tiny_dndm = 1e-30
 tiny_fcoll = 1e-18
 tiny_dfcolldz = 1e-18
 
@@ -154,6 +158,7 @@ class HaloMassFunction(object):
             _path = '{0!s}/input/hmf'.format(ARES)
 
         # Look for tables in input directory
+
         if ARES is not None and self.pf['hmf_load'] and (self.tab_name is None):
             prefix = self.tab_prefix_hmf(True)
             fn = '{0!s}/{1!s}'.format(_path, prefix)
@@ -170,6 +175,7 @@ class HaloMassFunction(object):
                 prefix = self.tab_prefix_hmf()
                 candidates =\
                     glob.glob('{0!s}/input/hmf/{1!s}*'.format(ARES, prefix))
+                print(candidates)
 
                 if len(candidates) == 1:
                     self.tab_name = candidates[0]
@@ -213,6 +219,7 @@ class HaloMassFunction(object):
                             continue
 
                         self.tab_name = candidate
+
 
         # Override switch: compute Press-Schechter function analytically
         if self.hmf_func == 'PS' and self.hmf_analytic:
@@ -281,15 +288,46 @@ class HaloMassFunction(object):
         return self.__dict__[name]
 
     def _load_hmf_wdm(self): # pragma: no cover
+        
         m_X = self.pf['hmf_wdm_mass']
 
+        if self.pf['hmf_wdm_interp']:
+            wdm_file_hmfs = []
+            import glob
+            for wdm_file in glob.glob('{!s}/input/hmf/*'.format(os.getenv('ARES'))):
+                if self.pf['hmf_window'] in wdm_file and self.pf['hmf_model'] in wdm_file and \
+                	'_wdm_' in wdm_file:
+                    wdm_file_hmfs.append(wdm_file)
+        
+            wdm_m_X_from_hmf_files = [int(hmf_file[hmf_file.find('_wdm') + 5 : hmf_file.find(\
+                '.')]) for hmf_file in wdm_file_hmfs]
+            wdm_m_X_from_hmf_files.sort()
+            #print(wdm_m_X_from_hmf_files)
+        
+            closest_mass = min(wdm_m_X_from_hmf_files, key=lambda x: abs(x - m_X))
+            closest_mass_index = wdm_m_X_from_hmf_files.index(closest_mass)
+        
+            if closest_mass > m_X:
+                m_X_r = closest_mass
+                m_X_l = wdm_m_X_from_hmf_files[closest_mass_index - 1]
+            elif closest_mass < m_X:
+                m_X_l = closest_mass
+                m_X_r = wdm_m_X_from_hmf_files[closest_mass_index + 1]
+            else:
+                m_X_l = int(m_X)
+                m_X_r = m_X_l + 1
+        else:
+            m_X_l = int(m_X)
+            m_X_r = m_X_l + 1
+
         _fn = self.tab_prefix_hmf(True)
+        print(_fn)
 
         if self.pf['hmf_path'] is not None:
             _path = self.pf['hmf_path'] + '/'
         else:
             _path = "{0!s}/input/hmf/".format(ARES)
-
+        #TODO Fix this last bit of code, it doesn't really work. Need to add +'.hdf5'
         if not os.path.exists(_path+_fn) and (not self.pf['hmf_wdm_interp']):
             raise ValueError("Couldn't find file {} and wdm_interp=False!".format(_fn))
 
@@ -300,8 +338,6 @@ class HaloMassFunction(object):
         prefix = _fn[:_fn.find('_wdm_')]
 
         # Look for bracketing files
-        m_X_l = int(m_X)
-        m_X_r = m_X_l + 1
         fn_l = prefix + '_wdm_{:.2f}.hdf5'.format(m_X_l)
         fn_r = prefix + '_wdm_{:.2f}.hdf5'.format(m_X_r)
 
@@ -317,6 +353,7 @@ class HaloMassFunction(object):
                 tab_z = np.array(f[('tab_z')])
                 tab_M = np.array(f[('tab_M')])
                 tab_dndm = np.array(f[('tab_dndm')])
+                tab_dndm[tab_dndm==0.0] = tiny_dndm
 
                 #self.tab_k_lin = np.array(f[('tab_k_lin')])
                 #self.tab_ps_lin = np.array(f[('tab_ps_lin')])
@@ -324,10 +361,17 @@ class HaloMassFunction(object):
                 #self.tab_dlnsdlnm = np.array(f[('tab_dlnsdlnm')])
 
                 tab_ngtm = np.array(f[('tab_ngtm')])
+                tab_ngtm[tab_ngtm==0.0] = tiny_dndm
                 tab_mgtm = np.array(f[('tab_mgtm')])
+                tab_mgtm[tab_mgtm==0.0] = tiny_dndm
 
                 if 'tab_MAR' in f:
-                    tab_MAR = np.array(f[('tab_MAR')])
+                    if self.pf['tab_MAR_from_CDM']:
+                        print('Using MAR from CDM')
+                        cdm_file = h5py.File(_path + prefix + '.hdf5','r')
+                        tab_MAR = np.array(cdm_file[('tab_MAR')])
+                    else:
+                        tab_MAR = np.array(f[('tab_MAR')])
                 else:
                     print("No maR in file {}.".format(_path+fn))
                 #self.tab_growth = np.array(f[('tab_growth')])
@@ -364,6 +408,8 @@ class HaloMassFunction(object):
                 * (m_X - m_X_l) + log_mgtm[0])
             self._tab_MAR = 10**(np.diff(log_tmar, axis=0).squeeze() \
                 * (m_X - m_X_l) + log_tmar[0])
+        if interp:
+        	print('Finished interpolating WDM mass')
 
     def _load_hmf(self):
         """ Load table from HDF5 or binary. """
@@ -545,8 +591,10 @@ class HaloMassFunction(object):
             logMmin = self.pf['hmf_logMmin']
             logMmax = self.pf['hmf_logMmax']
             dlogM = self.pf['hmf_dlogM']
-
-            from hmf.filters import SharpK, TopHat
+			#TODO FIX THIS OR REMOVE CODE
+            from hmf import filters
+            SharpK, TopHat = filters.SharpK, filters.TopHat
+            #from hmf.filters import SharpK, TopHat
             if self.pf['hmf_window'] == 'tophat':
                 # This is the default in hmf
                 window = TopHat
@@ -661,7 +709,7 @@ class HaloMassFunction(object):
         MF = self._MF
 
         # Masses in hmf are really Msun / h
-        if hmf_vers < 3:
+        if hmf_vers < 3 and self.pf['hmf_wdm_mass'] is None:
             self.tab_M = self._MF.M / self.cosm.h70
         else:
             self.tab_M = self._MF.m / self.cosm.h70
@@ -1353,7 +1401,8 @@ class HaloMassFunction(object):
             s += '_{}'.format(self.pf['hmf_window'].lower())
 
         if self.pf['hmf_wdm_mass'] is not None:
-            assert self.pf['hmf_window'].lower() == 'sharpk'
+        	#TODO: For Testing, the assertion is for correct nonlinear fits.
+            #assert self.pf['hmf_window'].lower() == 'sharpk'
             s += '_wdm_{:.2f}'.format(self.pf['hmf_wdm_mass'])
 
         return s

@@ -18,18 +18,20 @@ import ares
 
 def_kwargs = \
 {
- "hmf_model": 'PS',
+ "hmf_model": 'ST',
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
  
  "hmf_fmt": 'hdf5',
+ "hmf_table": None,
+ "hmf_wdm_mass": None,
 
- "hmf_window": 'tophat',
+ "hmf_window": 'sharpk',
 
  # Redshift sampling
  "hmf_zmin": 5.,
- "hmf_zmax": 30.,
+ "hmf_zmax": 60.,
  "hmf_dz": 0.05,
  
  # Can do constant timestep instead of constant dz 
