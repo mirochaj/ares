@@ -1914,7 +1914,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # May or may not use this.
 
             ##
-            # Compute magnitude from photometry
+            # Compute apparent magnitudes from photometry
             if (filters is not None) or (filter_set is not None):
                 assert cam is not None
 
