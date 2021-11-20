@@ -1909,7 +1909,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             M, mags = cached_result
         else:
             # Take monochromatic (or within some window) MUV
-            L = self.Luminosity(z, wave=wave, window=window)
+            L = self.get_lum(z, wave=wave, window=window, load=load)
+
             M = self.magsys.L_to_MAB(L)
             # May or may not use this.
 
@@ -2127,7 +2128,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         _nh = self.get_field(z, 'nh')
         _Mh = self.get_field(z, 'Mh')
 
-        _Lh = self.get_lum(z, wave=wave)
+        _Lh = self.get_lum(z, wave=wave, window=window)
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
@@ -2259,7 +2260,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             #_MAB = self.magsys.L_to_MAB(L)
             filt, mags = self.get_mags(z, wave=wave, cam=cam,
                 filters=filters, presets=presets, dlam=dlam, window=window,
-                method=method, absolute=absolute)
+                method=method, absolute=absolute, load=load)
 
             #z, MUV=None, wave=1600., cam=None, filters=None,
             #    filter_set=None, dlam=20., method='closest', idnum=None, window=1,
@@ -2270,7 +2271,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             else:
                 assert mags.ndim == 1
         else:
-            L = self.Luminosity(z, wave=wave, band=band, window=window)
+            L = self.get_lum(z, wave=wave, band=band, window=window, load=load)
 
         #elif total_IR:
         #    _MAB = np.log10(L / Lsun)
@@ -2285,7 +2286,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             yok = np.isfinite(mags)
         else:
-            raise NotImplemented('help')
+            #raise NotImplemented('help')
             y = L
             yok = np.logical_and(L > 0, np.isfinite(L))
 
@@ -2306,15 +2307,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             x = np.arange(6.5, 14, 0.25)
 
-        hist, bin_histedges = np.histogram(y[yok==1],
-            weights=w[yok==1], bins=bin_c2e(x), density=True)
+        phi, bin_histedges = np.histogram(y[yok==1],
+            weights=w[yok==1], bins=bin_c2e(x), density=False)
 
-        N = np.sum(w[yok==1])
-        phi = hist * N
+        #self._cache_lf_[(z, wave)] = x, phi
 
-        self._cache_lf_[(z, wave)] = x, phi
-
-        return x, phi#self._cache_lf(z, bins, wave)
+        return x, phi
 
     def _cache_beta(self, kw_tup):
 

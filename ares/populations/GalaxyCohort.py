@@ -982,6 +982,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if use_mags:
             phi_of_x = self._get_uvlf_mags(bins, z, wave=wave, window=window)
         else:
+            raise NotImplemented('needs fixing')
             phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
 
         return bins, phi_of_x
@@ -1025,7 +1026,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         For backward compatibility. Just calls self.Luminosity.
         """
-        return self.Luminosity(z, wave, window=window, raw=raw,
+        return self.get_lum(z, wave=wave, window=window, raw=raw,
             nebular_only=nebular_only)
 
     def _cache_L(self, z, wave, window, raw, nebular_only):
@@ -1037,7 +1038,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return None
 
-    def Luminosity(self, z, wave=1600, band=None, window=1,
+    def Luminosity(self, z, **kwargs):
+        return self.get_lum(z, **kwargs)
+
+    def get_lum(self, z, wave=1600, band=None, window=1,
         energy_units=True, use_cache=True, raw=True, nebular_only=False):
         """
         This is the rest-frame UV band in which the LF is measured.
