@@ -36,11 +36,13 @@ def test():
 
     assert np.allclose(src.data, src2.data)
 
-    src3 = ares.sources.SynthesisModel(source_sed='eldridge2009',
-        source_sed_degrade=100, source_Z=0.015)
-
-    assert src3.Nion > src.Nion
-    assert src3.Nion > src2.Nion
+    # Can't test Z interpolation until we download more than Z=0.02 tables
+    # for test suite.
+    #src3 = ares.sources.SynthesisModel(source_sed='eldridge2009',
+    #    source_sed_degrade=100, source_Z=0.015)
+#
+    #assert src3.Nion > src.Nion
+    #assert src3.Nion > src2.Nion
 
 if __name__ == '__main__':
     test()
