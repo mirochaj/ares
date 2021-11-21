@@ -342,7 +342,7 @@ def undo_mathify(s):
 def mathify_str(s):
     return r'${!s}$'.format(s)
 
-class Labeler(object):
+class Labeler(object): # pragma: no cover
     def __init__(self, pars, is_log=False, extra_labels={}, **kwargs):
         self.pars = self.parameters = pars
         self.base_kwargs = kwargs

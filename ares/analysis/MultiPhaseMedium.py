@@ -15,7 +15,6 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from ..util.Stats import get_nu
 from ..util.Pickling import read_pickle_file
-from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from ..physics.Constants import *
 from scipy.integrate import cumtrapz
@@ -286,7 +285,7 @@ class MultiPhaseMedium(object):
 
         return np.interp(0.5, xz, zz)
 
-    def excluded_regions(self, ax):
+    def excluded_regions(self, ax): # pragma: no cover
         """
         Overplot
         """
@@ -492,9 +491,12 @@ class MultiPhaseMedium(object):
 
         return inset
 
-    def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
+    def TemperatureHistory(self, **kwargs):
+        return self.PlotTemperatureHistory(**kwargs)
+
+    def PlotTemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
         show_Ts=False, show_Tk=True, scatter=False, mask=5,
-        show_legend=False, **kwargs):
+        show_legend=False, **kwargs): # pragma: no cover
         """
         Plot kinetic, CMB, and spin temperatures vs. redshift.
 
@@ -555,10 +557,13 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def IonizationHistory(self, ax=None, zone=None, element='h',
+    def IonizationHistory(**kwargs): # pragma: no cover
+        return self.PlotIonizationHistory(**kwargs)
+
+    def PlotIonizationHistory(self, ax=None, zone=None, element='h',
         fig=1, scatter=False, show_xhe_3=False,
         mask=5, show_xi=True, show_xe=True, show_xibar=False,
-        show_legend=False, **kwargs):
+        show_legend=False, **kwargs): # pragma: no cover
         """
         Plot ionized fraction evolution.
 
@@ -651,8 +656,11 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def IonizationRateHistory(self, fig=1, ax=None, species='h_1', show_legend=False,
-        **kwargs):
+    def IonizationRateHistory(self, **kwargs):
+        return self.PlotIonizationRateHistory(**kwargs)
+
+    def PlotIonizationRateHistory(self, fig=1, ax=None, species='h_1',
+        show_legend=False, **kwargs): # pragma: no cover
         """
         Plot ionization rates as a function of redshift.
         """
@@ -697,10 +705,13 @@ class MultiPhaseMedium(object):
 
         return ax
 
-    def OpticalDepthHistory(self, ax=None, fig=1,
+    def OpticalDepthHistory(self, **kwargs):
+        return self.PlotOpticalDepthHistory(**kwargs)
+
+    def PlotOpticalDepthHistory(self, ax=None, fig=1,
         scatter=False, show_xi=True, show_xe=True, show_xibar=True,
         obs_mu=0.066, obs_sigma=0.012, show_obs=False, annotate_obs=False,
-        include_He=True, z_HeII_EoR=3., **kwargs):
+        include_He=True, z_HeII_EoR=3., **kwargs): # pragma: no cover
         """
         Plot (cumulative) optical depth to CMB evolution.
 
@@ -796,7 +807,7 @@ class MultiPhaseMedium(object):
 
         return ztmp, tau
 
-def add_redshift_axis(ax, twin_ax=None, zlim=80):
+def add_redshift_axis(ax, twin_ax=None, zlim=80): # pragma: no cover
     """
     Take plot with frequency on x-axis and add top axis with corresponding
     redshift.
@@ -854,7 +865,7 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     return ax_z
 
 def add_time_axis(ax, cosm, tlim=(100, 900), dt=200, dtm=50, tarr=None,
-    tarr_m=None, rotation=0):
+    tarr_m=None, rotation=0): # pragma: no cover
     """
     Take plot with redshift on x-axis and add top axis with corresponding
     time since Big Bang.

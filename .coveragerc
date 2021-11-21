@@ -13,21 +13,24 @@ exclude_lines =
     if self\.pf['debug']
 	  if self\.pf['verbose']
 
-    # Don't worry about plotting routines
-    def Plot
-
     # Don't complain if tests don't hit defensive assertion code:
     raise ImportError
     raise NotImplementedError
     except ImportError
     except NotImplementedError
 
-	# Don't complain if rank > 0 blocks aren't executed
-	if rank > 0:
-	if size > 1:
+    # Don't worry about MPI
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+
+	  # Don't complain if rank > 0 blocks aren't executed
+	  if rank > 0:
+	  if size > 1:
 
     # Don't complain if non-runnable code isn't run:
     if 0:
+    if False:
     if __name__ == .__main__.:
 
 ignore_errors = True

@@ -18,7 +18,6 @@ from ..util.Math import smooth
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 from ..physics import Cosmology
-from .MultiPlot import MultiPanel
 import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.colors import Normalize
@@ -1274,7 +1273,7 @@ class ModelSet(BlobFactory):
         self._plot_info = value
 
     def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first',
-        mp=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1,
+        axes=None, fig=1, best_fit='mode', ncols=1,
         use_top=1, skip=0, stop=None, offset=0, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
@@ -1290,10 +1289,13 @@ class ModelSet(BlobFactory):
         while (Npars / float(ncols)) % 1 != 0:
             Npars += 1
 
-        had_mp = True
-        if mp is None:
-            had_mp = False
-            mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
+        had_axes = True
+        if axes is None:
+            had_axes = False
+            nrows = Npars//ncols
+            if nrows * ncols < Npars:
+                nrows += 1
+            fig, axes = pl.subplots(nrows, ncols, num=fig)
 
         w = self._get_walker_subset(N, walkers)
 
@@ -1320,7 +1322,7 @@ class ModelSet(BlobFactory):
 
 
         for i, par in enumerate(pars):
-            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i],
+            self.WalkerTrajectories(par, walkers=w, ax=axes[i],
                 skip=skip, stop=stop, offset=offset, **kwargs)
 
             if loc is None:
@@ -1329,21 +1331,21 @@ class ModelSet(BlobFactory):
             # Plot current maximum likelihood value
             if par in self.parameters:
                 k = self.parameters.index(par)
-                mp.grid[i].plot([0, offset+self.chain[:,k].size / float(self.nwalkers)],
+                axes[i].plot([0, offset+self.chain[:,k].size / float(self.nwalkers)],
                     [self.chain[loc,k]]*2, color='k', ls='--', lw=3)
 
                 for j, (walk, step) in enumerate(best):
-                    mp.grid[i].scatter(offset+step-1, self.chain[ibest[j],k],
+                    axes[i].scatter(offset+step-1, self.chain[ibest[j],k],
                         marker=r'$ {} $'.format(j+1) if j > 0 else '+',
                         s=150, color='k', lw=1)
             else:
                 pass
 
             if i not in mp.bottom:
-                mp.grid[i].set_xlabel('')
-                mp.grid[i].set_xticklabels([])
+                axes.set_xlabel('')
+                axes.set_xticklabels([])
 
-        return mp
+        return axes
 
     def index_to_walker_step(self, loc):
         sf = self.save_freq
@@ -2492,15 +2494,18 @@ class ModelSet(BlobFactory):
 
         return pars, take_log, multiplier, un_log, ivar
 
-    def PosteriorCDF(self, pars, bins=500, **kwargs):
+    def PlotPosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
 
-    def PosteriorPDF(self, pars, to_hist=None, ivar=None,
+    def PosteriorPDF(self, **kwargs):
+        return self.PlotPosteriorPDF(**kwargs)
+
+    def PlotPosteriorPDF(self, pars, to_hist=None, ivar=None,
         ax=None, fig=1,
         multiplier=1., like=[0.95, 0.68], cdf=False,
         color_by_like=False, fill=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1,
-        contour_method='raw', excluded=False, stop=None, **kwargs):
+        contour_method='raw', excluded=False, stop=None, **kwargs): # pragma: no cover
         """
         Compute posterior PDF for supplied parameters.
 
@@ -2714,7 +2719,8 @@ class ModelSet(BlobFactory):
 
         return ax
 
-    def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
+    def PlotContour(self, pars, c, levels=None, leveltol=1e-6, ivar=None,
+        take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, fill=True,
         inline_labels=False, manual=None, cax=None, use_colorbar=True,
         cb_kwargs={}, **kwargs):
@@ -2804,7 +2810,7 @@ class ModelSet(BlobFactory):
 
         return ax, cb
 
-    def ContourScatter(self, x, y, c, z=None, ax=None, fig=1, Nscat=1e4,
+    def PlotContourScatter(self, x, y, c, z=None, ax=None, fig=1, Nscat=1e4,
         take_log=False, cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None,
         color_by_like=False, like=[0.95, 0.68], zbins=None, labels=None,
         **kwargs):
@@ -2933,318 +2939,192 @@ class ModelSet(BlobFactory):
 
         return ax, scat, cb
 
-    def TrianglePlot(self, pars=None, ivar=None, take_log=False, un_log=False,
-        multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5,
-        bins=20,  scatter=False, polygons=False,
-        skip=0, skim=1, stop=None, oned=True, twod=True, fill=True,
-        show_errors=False, label_panels=None, return_axes=False,
-        fix=True, skip_panels=[], mp_kwargs={}, inputs_scatter=False,
-        input_mkw={},
-        **kwargs):
+    def get_samples(self, par, burn=0):
+
+        all_pars = self.parameters
+
+        chain = self.chain
+        burn_per_w = burn // chain.shape[0]
+
+        ##
+        # If par in `params`, it's easy.
+        assert par in all_pars
+
+        i = list(all_pars).index(par)
+
+        return self.chain[burn:,i]
+
+    def PlotTriangle(self, fig=1, axes=None, pars=None, redshifts=None,
+        complement=False, bins=20, burn=0, fig_kwargs={}, contours=True,
+        fill=False, nu=[0.95, 0.68], take_log=False, is_log=False,
+        skip=None, smooth=None, skip_pars=None, **kwargs): # pragma: no cover
         """
-        Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
-
-        Parameters
-        ----------
-        pars : list
-            Parameters to include in triangle plot.
-            1-D PDFs along diagonal will follow provided order of parameters
-            from left to right. This list can contain the names of parameters,
-            so long as the file prefix.pinfo.pkl exists, otherwise it should
-            be the indices where the desired parameters live in the second
-            dimension of the MCMC chain.
-
-            NOTE: These can alternatively be the names of arbitrary meta-data
-            blobs.
-
-            If None, this will plot *all* parameters, so be careful!
-        fig : int
-            ID number for plot window.
-        bins : int, np.ndarray
-            Number of bins in each dimension. Or, array of bins to use
-            for each parameter. If the latter, the bins should be in the
-            *final* units of the quantities of interest. For example, if
-            you apply a multiplier or take_log, the bins should be in the
-            native units times the multiplier or in the log10 of the native
-            units (or both).
-        ivar : int, float, str, list
-            If plotting arbitrary meta-data blobs, must choose a redshift.
-            Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
-            or simply a number. If it's a list, it must have the same
-            length as pars. This is how one can make a triangle plot
-            comparing the same quantities at different redshifts.
-        input : dict
-            Dictionary of parameter:value pairs representing the input
-            values for all model parameters being fit. If supplied, lines
-            will be drawn on each panel denoting these values.
-        skip : int
-            Number of steps at beginning of chain to exclude.
-        stop: int
-            Number of steps to exclude from the end of the chain.
-        skim : int
-            Only take every skim'th step from the chain.
-        oned : bool
-            Include the 1-D marginalized PDFs?
-        fill : bool
-            Use filled contours? If False, will use open contours instead.
-        color_by_like : bool
-            If True, set contour levels by confidence regions enclosing nu-%
-            of the likelihood. Set parameter `like` to modify these levels.
-        like : list
-            List of levels, default is 1,2, and 3 sigma contours (i.e.,
-            like=[0.68, 0.95])
-        skip_panels : list
-            List of panel numbers to skip over.
-        polygons : bool
-            If True, will just plot bounding polygons around samples rather
-            than plotting the posterior PDF.
-        mp_kwargs : dict
-            panel_size : list, tuple (2 elements)
-                Multiplicative factor in (x, y) to be applied to the default
-                window size as defined in your matplotlibrc file.
-
-        ..note:: If you set take_log = True AND supply bins by hand, use the
-            log10 values of the bins you want.
-
-        Returns
-        -------
-        ares.analysis.MultiPlot.MultiPanel instance. Also saves a bunch of
-        information to the `plot_info` attribute.
-
+        Stolen from micro21cm...
         """
 
-        # Grab data that will be histogrammed
-        np_version = np.__version__.split('.')
-        newer_than_one = (int(np_version[0]) > 1)
-        newer_than_one_pt_nine =\
-            ((int(np_version[0]) == 1) and (int(np_version[1])>9))
-        remove_nas = (newer_than_one or newer_than_one_pt_nine)
+        has_ax = axes is not None
 
-        to_hist = self.ExtractData(pars, ivar=ivar, take_log=take_log,
-            un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
-
-        # Make sure all inputs are lists of the same length!
-        pars, take_log, multiplier, un_log, ivar = \
-            self._listify_common_inputs(pars, take_log, multiplier, un_log,
-            ivar)
-
-        # Modify bins to account for log-taking, multipliers, etc.
-        binvec = self._set_bins(pars, to_hist, take_log, bins)
-
-        if type(binvec) is not list:
-            bins = [binvec[par] for par in pars]
+        if not has_ax:
+            fig = pl.figure(constrained_layout=True, num=fig, **fig_kwargs)
+            fig.subplots_adjust(hspace=0.05, wspace=0.05)
         else:
-            bins = binvec
+            axes_by_row = axes
 
-        if polygons:
-            oned = False
+        all_pars = self.parameters
 
-        # Can opt to exclude 1-D panels along diagonal
-        if oned:
-            Nd = len(pars)
+        if pars is None:
+            pars = all_pars
         else:
-            Nd = len(pars) - 1
+            pass
 
-        # Setup MultiPanel instance
-        had_mp = True
-        if mp is None:
-            had_mp = False
+        elements = range(len(pars))
 
-            mp_kw = default_mp_kwargs.copy()
-            mp_kw['dims'] = [Nd] * 2
-            mp_kw.update(mp_kwargs)
-            if 'keep_diagonal' in mp_kwargs:
-                oned = False
+        #try:
+        #    labels = self.get_labels(pars, redshifts)
+        #except IndexError:
+        labels = [''] * len(pars)
 
-            mp = MultiPanel(fig=fig, **mp_kw)
+        Np = len(pars)
 
-        # Apply multipliers etc. to inputs
-        inputs = self._set_inputs(pars, inputs, take_log, un_log, multiplier)
+        if type(bins) not in [list, tuple, np.ndarray]:
+            bins = [bins] * Np
+        if type(complement) not in [list, tuple, np.ndarray]:
+            complement = [complement] * Np
+        if type(is_log) not in [list, tuple, np.ndarray]:
+            is_log = [is_log] * Np
+        if type(take_log) not in [list, tuple, np.ndarray]:
+            take_log = [take_log] * Np
 
-        # Save some plot info for [optional] later tinkering
-        self.plot_info = {}
-        self.plot_info['kwargs'] = kwargs
+        # Remember, for gridspec, rows are numbered frop top-down.
+        if not has_ax:
+            gs = fig.add_gridspec(Np, Np)
+            axes_by_row = [[] for i in range(Np)]
 
-        # Loop over parameters
-        # p1 is the y-value, p2 is the x-value
-        axes = {}
-        for i, p1 in enumerate(pars[-1::-1]):
-            for j, p2 in enumerate(pars):
+        flatchain = self.chain
 
-                # Row number is i
-                # Column number is self.Nd-j-1
+        for i, row in enumerate(range(Np)):
+            for j, col in enumerate(range(Np)):
+                # Skip elements in upper triangle
+                if j > i:
+                    continue
 
-                if mp.diagonal == 'upper':
-                    k = mp.axis_number(mp.N - i, mp.N - j)
+                if skip is not None:
+                    if i in skip:
+                        continue
+                    if j in skip:
+                        continue
+
+                # Create axis
+                if not has_ax:
+                    _ax = fig.add_subplot(gs[i,j])
+                    axes_by_row[i].append(_ax)
                 else:
-                    k = mp.axis_number(i, j)
+                    _ax = axes_by_row[i][j]
 
-                if k is None:
+                if skip_pars is not None:
+                    if pars[i] in skip_pars:
+                        continue
+
+                    if pars[j] in skip_pars:
+                        continue
+
+                if pars[i] not in all_pars:
+                    continue
+                if pars[j] not in all_pars:
                     continue
 
-                if k in skip_panels:
-                    continue
+                #self.PosteriorPDF(pars, to_hist=None, ivar=None,
+                #    ax=None, fig=1,
+                #    multiplier=1., like=[0.95, 0.68], cdf=False,
+                #    color_by_like=False, fill=True, take_log=False, un_log=False,
+                #    bins=20, skip=0, skim=1,
+                #    contour_method='raw', excluded=False, stop=None, **kwargs)
 
-                if mp.grid[k] is None:
-                    continue
+                idata = self.get_samples(pars[i], burn)
+                jdata = self.get_samples(pars[j], burn)
 
-                axes[(p1, p2)] = mp.grid[k]
+                # Retrieve data to be used in plot
+                if not is_log[i]:
+                    p1 = 1. - idata if complement[i] else idata
+                else:
+                    p1 = 10**idata if is_log[i] else idata
 
-                col, row = mp.axis_position(k)
+                if take_log[i]:
+                    p1 = np.log10(p1)
 
-                # Read-in inputs values
-                if inputs is not None:
-                    if type(inputs) is dict:
-                        xin = inputs[p2]
-                        yin = inputs[p1]
+                # 2-D PDFs from here on
+                if not is_log[j]:
+                    p2 = 1. - jdata if complement[j] else jdata
+                else:
+                    p2 = 10**jdata if is_log[j] else jdata
+
+                if take_log[j]:
+                    p2 = np.log10(p2)
+
+                # 1-D PDFs
+                if i == j:
+
+                    kw = kwargs.copy()
+                    if 'colors' in kw:
+                        del kw['colors']
+                    if 'linestyles' in kw:
+                        del kw['linestyles']
+
+                    _ax.hist(p2, density=True, bins=bins[j], histtype='step', **kw)
+
+                    if j > 0:
+                        _ax.set_yticklabels([])
+                        if j == Np - 1:
+                            _ax.set_xlabel(labels[j])
+                        else:
+                            _ax.set_xticklabels([])
                     else:
-                        xin = inputs[j]
-                        yin = inputs[-1::-1][i]
+                        _ax.set_ylabel(r'PDF')
+
+                    ok = np.isfinite(p2)
+                    _ax.set_xlim(p2[ok==1].min(), p2[ok==1].max())
+                    continue
+
+                if contours:
+                    hist, be2, be1 = np.histogram2d(p2, p1, [bins[j], bins[i]])
+
+                    if smooth is not None:
+                        hist = gaussian_filter(hist, smooth)
+
+                    bc1 = bin_e2c(be1)
+                    bc2 = bin_e2c(be2)
+
+                    nu, levels = self.get_levels(hist, nu)
+
+                    # (columns, rows, histogram)
+                    if fill:
+                        _ax.contourf(bc2, bc1, hist.T / hist.max(),
+                            levels, zorder=4, **kwargs)
+                    else:
+                        _ax.contour(bc2, bc1, hist.T / hist.max(),
+                            levels, zorder=4, **kwargs)
                 else:
-                    xin = yin = None
+                    h, x, y, img = _ax.hist2d(p2, p1, bins=[bins[j], bins[i]],
+                        cmap='viridis', norm=LogNorm())
 
-                # 1-D PDFs on the diagonal
-                diag = mp.diag if mp.diag is not None else []
-                if k in diag and oned:
-
-                    # Grab array to be histogrammed
-                    try:
-                        tohist = [to_hist[j]]
-                    except KeyError:
-                        tohist = [to_hist[p2]]
-
-                    # Plot the PDF
-                    ax = self.PosteriorPDF(p1, ax=mp.grid[k],
-                        to_hist=tohist,
-                        take_log=take_log[-1::-1][i], ivar=ivar[-1::-1][i],
-                        un_log=un_log[-1::-1][i],
-                        multiplier=[multiplier[-1::-1][i]],
-                        bins=[bins[-1::-1][i]],
-                        skip=skip, skim=skim, stop=stop, **kwargs)
-
-                    # Stick this stuff in fix_ticks?
-                    if col != 0:
-                        mp.grid[k].set_ylabel('')
-                    if row != 0:
-                        mp.grid[k].set_xlabel('')
-
-                    if show_errors:
-                        mu, err = self.get_1d_error(p1, ivar=ivar[-1::-1][i])
-                        mp.grid[k].plot([mu-err[0]]*2, [0, 1],
-                            color='k', ls='--')
-                        mp.grid[k].plot([mu+err[1]]*2, [0, 1],
-                            color='k', ls='--')
-                        #mp.grid[k].set_title(err_str(p1, mu, err,
-                        #    self.is_log[i], labels), va='bottom', fontsize=18)
-
-                    self.plot_info[k] = {}
-                    self.plot_info[k]['axes'] = [p1]
-                    self.plot_info[k]['data'] = tohist
-                    self.plot_info[k]['ivar'] = ivar[-1::-1][i]
-                    self.plot_info[k]['bins'] = [bins[-1::-1][i]]
-                    self.plot_info[k]['multplier'] = [multiplier[-1::-1][i]]
-                    self.plot_info[k]['take_log'] = take_log[-1::-1][i]
-
-                    if not inputs:
-                        continue
-
-                    self.plot_info[k]['input'] = xin
-
-                    if inputs_scatter:
-                        continue
-
-                    if xin is not None:
-                        mp.grid[k].plot([xin]*2, [0, 1.05],
-                            color='k', ls=':', lw=2, zorder=20)
-
-                    continue
-
-                if ivar is not None:
-                    iv = [ivar[j], ivar[-1::-1][i]]
+                # Get rid of labels/ticks on interior panels.
+                if i < Np - 1:
+                    _ax.set_xticklabels([])
                 else:
-                    iv = None
+                    _ax.set_xlabel(labels[j])
 
-                # If not oned, may end up with some x vs. x plots if we're not careful
-                if p1 == p2 and (iv[0] == iv[1]):
-                    continue
-
-                try:
-                    tohist = [to_hist[j], to_hist[-1::-1][i]]
-                except KeyError:
-                    tohist = [to_hist[p2], to_hist[p1]]
-
-                # 2-D PDFs elsewhere
-                if scatter:
-                    ax = self.Scatter([p2, p1], ax=mp.grid[k],
-                        take_log=[take_log[j], take_log[-1::-1][i]],
-                        multiplier=[multiplier[j], multiplier[-1::-1][i]],
-                        skip=skip, stop=stop, **kwargs)
-                elif polygons:
-                    ax = self.BoundingPolygon([p2, p1], ax=mp.grid[k],
-                        #to_hist=tohist,
-                        take_log=[take_log[j], take_log[-1::-1][i]],
-                        multiplier=[multiplier[j], multiplier[-1::-1][i]],
-                        fill=fill,
-                        skip=skip, stop=stop, **kwargs)
+                if j > 0:
+                    _ax.set_yticklabels([])
                 else:
-                    ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k],
-                        to_hist=tohist, ivar=iv,
-                        take_log=[take_log[j], take_log[-1::-1][i]],
-                        un_log=[un_log[j], un_log[-1::-1][i]],
-                        multiplier=[multiplier[j], multiplier[-1::-1][i]],
-                        bins=[bins[j], bins[-1::-1][i]], fill=fill,
-                        skip=skip, stop=stop, **kwargs)
+                    _ax.set_ylabel(labels[i])
 
-                if row != 0:
-                    mp.grid[k].set_xlabel('')
-                if col != 0:
-                    mp.grid[k].set_ylabel('')
+                ok1 = np.isfinite(p1)
+                ok2 = np.isfinite(p2)
+                _ax.set_ylim(p1[ok1==1].min(), p1[ok1==1].max())
+                _ax.set_xlim(p2[ok2==1].min(), p2[ok2==1].max())
 
-                self.plot_info[k] = {}
-                self.plot_info[k]['axes'] = [p2, p1]
-                self.plot_info[k]['data'] = tohist
-                self.plot_info[k]['ivar'] = iv
-                self.plot_info[k]['bins'] = [bins[j], bins[-1::-1][i]]
-                self.plot_info[k]['multiplier'] = [multiplier[j], multiplier[-1::-1][i]]
-                self.plot_info[k]['take_log'] = [take_log[j], take_log[-1::-1][i]]
-
-                # Input values
-                if not inputs:
-                    continue
-
-                self.plot_info[k]['input'] = (xin, yin)
-
-                mult = np.array([0.995, 1.005])
-
-                if inputs_scatter and (xin is not None) and (yin is not None):
-                    mp.grid[k].scatter([xin]*2, [yin]*2, **input_mkw)
-                    continue
-                elif inputs_scatter:
-                    continue
-
-                # Plot as dotted lines
-                if xin is not None:
-                    mp.grid[k].plot([xin]*2, mult * np.array(mp.grid[k].get_ylim()),
-                        color='k',ls=':', zorder=20)
-                if yin is not None:
-                    mp.grid[k].plot(mult * np.array(mp.grid[k].get_xlim()),
-                        [yin]*2, color='k', ls=':', zorder=20)
-
-        if oned:
-            mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
-
-        if fix:
-            mp.fix_ticks(oned=oned, N=ticks, rotate_x=45, rotate_y=45)
-
-        if not had_mp:
-            mp.rescale_axes(tighten_up=tighten_up)
-
-        if label_panels is not None and (not had_mp):
-            mp = self._label_panels(mp, label_panels)
-
-        if return_axes:
-            return mp, axes
-        return mp
+        # Done
+        return fig, axes_by_row
 
     def _label_panels(self, mp, label_panels):
         letters = list(string.ascii_lowercase)
