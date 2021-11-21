@@ -409,7 +409,7 @@ class SpectralSynthesis(object):
         """
 
         if spec is None:
-            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, zarr=zarr,
+            spec = self.get_spec_rest(waves, sfh=sfh, tarr=tarr, zarr=zarr,
                 zobs=zobs, tobs=None, hist=hist, idnum=idnum,
                 extras=extras, window=window, load=load)
 
@@ -565,7 +565,7 @@ class SpectralSynthesis(object):
 
         # Get spectrum first.
         if (spec is None) and (ospec is None):
-            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
+            spec = self.get_spec_rest(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
                 idnum=idnum, extras=extras, window=window, load=load)
 
@@ -651,7 +651,10 @@ class SpectralSynthesis(object):
         # We're done
         return fphot, xphot, wphot, mphot
 
-    def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
+    def Spectrum(self, waves, **kwargs):
+        return self.get_spec_rest(waves, **kwargs)
+
+    def get_spec_rest(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
         extras={}, load=True):
         """
@@ -702,7 +705,7 @@ class SpectralSynthesis(object):
                 for i in p.xrange(0, waves.size):
                     slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                    spec[slc] = self.Luminosity(wave=waves[i],
+                    spec[slc] = self.get_lum(wave=waves[i],
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                         band=band, hist=hist, idnum=idnum,
                         extras=extras, window=window, load=load)
@@ -715,7 +718,7 @@ class SpectralSynthesis(object):
             for i, wave in enumerate(waves):
                 slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                spec[slc] = self.Luminosity(wave=wave,
+                spec[slc] = self.get_lum(wave=wave,
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                     band=band, hist=hist, idnum=idnum,
                     extras=extras, window=window, load=load)
@@ -725,24 +728,21 @@ class SpectralSynthesis(object):
         pb.finish()
 
         if units in ['A', 'Ang']:
-            #freqs = c / (waves / 1e8)
-            #tmp = np.abs(np.diff(waves) / np.diff(freqs))
-            #dwdn = np.concatenate((tmp, [tmp[-1]]))
             dwdn = waves**2 / (c * 1e8)
             spec /= dwdn
 
         return spec
 
-    def Magnitude(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
-        zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
-
-        L = self.Luminosity(wave=wave, sfh=sfh, tarr=tarr, zarr=zarr,
-            zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist,
-            extras=extras, window=window)
-
-        MAB = self.magsys.L_to_MAB(L)
-
-        return MAB
+    #def Magnitude(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
+    #    zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
+#
+    #    L = self.get_lum(wave=wave, sfh=sfh, tarr=tarr, zarr=zarr,
+    #        zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist,
+    #        extras=extras, window=window)
+#
+    #    MAB = self.magsys.L_to_MAB(L)
+#
+    #    return MAB
 
     def _oversample_sfh(self, ages, sfh, i):
         """
@@ -936,7 +936,10 @@ class SpectralSynthesis(object):
         else:
             return kwds, None
 
-    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None,
+    def Luminosity(self, **kwargs):
+        return self.get_lum(**kwargs)
+
+    def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None,
         window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
         load=True, use_cache=True, energy_units=True):

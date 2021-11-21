@@ -33,7 +33,7 @@ def test():
     assert csfrd < 1., "cSFRD >= SFRD!?"
 
     # Test UVLF
-    mags = np.arange(-25, -10, 0.1)
+    mags = np.arange(-30, 10, 0.1)
     x, phi = pop.get_lf(6., mags, absolute=True)
     ok = np.isfinite(phi)
 

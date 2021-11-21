@@ -1893,9 +1893,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             'filter_set': filter_set, 'dlam':dlam, 'method': method,
             'wave': wave, 'absolute': absolute}
 
-        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
-        magcorr = 5. * (np.log10(dL) - 1.) - 2.5 * np.log10(1. + z)
-
         kw_tup = tuple(kw.items())
 
         if load:
@@ -1903,16 +1900,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             cached_result = None
 
+        # Compute magnitude correction factor
+        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
+        magcorr = 5. * (np.log10(dL) - 1.) - 2.5 * np.log10(1. + z)
+
+        # Either load previous result or compute from scratch
         if cached_result is not None:
             M, mags = cached_result
         else:
             # Take monochromatic (or within some window) MUV
-            L = self.Luminosity(z, wave=wave, window=window)
+            L = self.get_lum(z, wave=wave, window=window, load=load)
+
             M = self.magsys.L_to_MAB(L)
             # May or may not use this.
 
             ##
-            # Compute magnitude from photometry
+            # Compute apparent magnitudes from photometry
             if (filters is not None) or (filter_set is not None):
                 assert cam is not None
 
@@ -1955,7 +1958,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Mg = mags
             elif len(filters) == 1:
                 xout = filters
-                Mg = mags
+                Mg = mags.squeeze()
             # Or combine in some way below
             elif method == 'gmean':
                 if len(mags) == 0:
@@ -1967,6 +1970,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         raise ValueError('If geometrically averaging magnitudes, must all be the same sign!')
 
                     Mg = -1 * Mg if np.all(mags < 0) else Mg
+
+                Mg = Mg.squeeze()
 
             elif method == 'closest':
                 if len(mags) == 0:
@@ -2107,23 +2112,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return L
 
     def get_bias(self, z, limit, wave=1600., cam=None, filters=None,
-        filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
-        load=True, presets=None, from_flux=False, absolute=False, factor=1):
+        filter_set=None, dlam=20., method='closest', idnum=None, window=1,
+        load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
+        absolute=False, factor=1, limit_is_lower=True, limit_lower=None):
         """
         Compute the linear bias of sources above some limiting magnitude or
         flux.
         """
 
+        # In this case, just use GalaxyCohort class's version.
+        if cut_in_mass:
+            return self.guide.get_bias(z, limit, cut_in_mass=True)
+
+        # Otherwise, use machinery here.
         _nh = self.get_field(z, 'nh')
         _Mh = self.get_field(z, 'Mh')
 
-        _Lh = self.get_lum(z, wave=wave)
+        _Lh = self.get_lum(z, wave=wave, window=window)
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
+
         bh = np.interp(np.log10(_Mh), np.log10(self.halos.tab_M),
             self.halos.tab_bias[iz,:])
 
-        if from_flux:
+        if cut_in_flux:
             raise NotImplemented('help')
         else:
             filt, mags = self.get_mags(z, wave=wave, cam=cam,
@@ -2131,20 +2143,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 idnum=idnum, window=window, load=load, presets=presets,
                 absolute=absolute)
 
-            ok = np.logical_and(mags <= limit, np.isfinite(mags))
+            if limit_is_lower:
+                ok = np.logical_and(mags <= limit, np.isfinite(mags))
+            else:
+                assert limit_lower is not None, \
+                    "Provide `limit_lower` if isolating faint population."
 
-        integ_top = bh * _nh * _Lh
-        integ_bot = _nh * _Lh
+                ok = np.logical_and(mags >= limit, mags <= limit_lower)
+                ok = np.logical_and(ok, np.isfinite(mags))
 
-        b = np.sum(integ_top[ok==1]) / np.sum(integ_bot[ok==1])
+        integ_top = bh[ok==1] * _nh[ok==1]
+        integ_bot = _nh[ok==1]
+
+        # Don't do trapz -- not a continuous curve like in GalaxyCohort.
+        b = np.sum(integ_top * _Mh[ok==1]) / np.sum(integ_bot * _Mh[ok==1])
 
         return b
 
-    def get_uvlf(self, z, x):
+    def get_uvlf(self, z, bins):
         """
         Compute what people usually mean by the UVLF.
         """
-        pass
+        return self.get_lf(z, bins, use_mags=True, wave=1600., window=51.,
+            absolute=True)
 
     def get_irlf(self):
         pass
@@ -2161,10 +2182,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             total_IR=total_IR)
 
     def get_lf(self, z, bins=None, use_mags=True, wave=1600.,
-        window=1,
-        band=None, cam=None, filters=None, filter_set=None, dlam=20.,
-        method='closest',
-        load=True, presets=None, absolute=True, total_IR=False):
+        window=1, band=None, cam=None, filters=None, filter_set=None,
+        dlam=20., method='closest', load=True, presets=None, absolute=True,
+        total_IR=False):
         """
         Compute the luminosity function from discrete histories.
 
@@ -2176,8 +2196,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         z: int, float
             Redshift of interest.
-        mags : boolean
-            if True: returns bin centers in absolute magnitudes
+        use_mags : boolean
+            if True: returns bin centers in AB magnitudes, whether
+            absolute or apparent depends on value of `absolute` parameter.
             if False: returns bin centers in log(L / Lsun)
 
         wave :  int, float
@@ -2202,6 +2223,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
         if total_IR:
             wave = 'total'
+
         cached_result = self._cache_lf(z, bins, wave)
 
         if (cached_result is not None) and load:
@@ -2243,16 +2265,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         if use_mags:
             #_MAB = self.magsys.L_to_MAB(L)
-            filt, mags = self.get_mags(z, wave=wave, cam=cam, filters=filters,
-                presets=presets, dlam=dlam, window=window, method=method,
-                absolute=absolute)
+            filt, mags = self.get_mags(z, wave=wave, cam=cam,
+                filters=filters, presets=presets, dlam=dlam, window=window,
+                method=method, absolute=absolute, load=load)
+
+            #z, MUV=None, wave=1600., cam=None, filters=None,
+            #    filter_set=None, dlam=20., method='closest', idnum=None, window=1,
+            #    load=True, presets=None, absolute=True
 
             if mags.shape[0] == 1:
                 mags = mags[0,:]
             else:
                 assert mags.ndim == 1
         else:
-            L = self.Luminosity(z, wave=wave, band=band, window=window)
+            L = self.get_lum(z, wave=wave, band=band, window=window, load=load)
 
         #elif total_IR:
         #    _MAB = np.log10(L / Lsun)
@@ -2267,7 +2293,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             yok = np.isfinite(mags)
         else:
-            raise NotImplemented('help')
+            #raise NotImplemented('help')
             y = L
             yok = np.logical_and(L > 0, np.isfinite(L))
 
@@ -2279,14 +2305,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if bins is not None:
             x = bins
         elif use_mags:
+            ymin = x.min()
+            ymax = x.max()
             if absolute:
-                x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+                x = np.arange(ymin*0.5, ymax*2, self.pf['pop_mag_bin'])
             else:
-                x = np.arange(15, 35., self.pf['pop_mag_bin'])
+                x = np.arange(ymin*0.5, ymax*2, self.pf['pop_mag_bin'])
         elif not total_IR:
             x = np.arange(4, 12, 0.25)
         else:
             x = np.arange(6.5, 14, 0.25)
+
+        # Make sure binning range covers the range of luminosities/magnitudes
+        if use_mags:
+            assert y[yok==1].min() > x.min()
+            assert y[yok==1].max() < x.max()
+        else:
+            assert y[yok==1].min() < x.min()
+            assert y[yok==1].max() > x.max()
 
         hist, bin_histedges = np.histogram(y[yok==1],
             weights=w[yok==1], bins=bin_c2e(x), density=True)
@@ -2294,9 +2330,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         N = np.sum(w[yok==1])
         phi = hist * N
 
-        self._cache_lf_[(z, wave)] = x, phi
+        #self._cache_lf_[(z, wave)] = x, phi
 
-        return x, phi#self._cache_lf(z, bins, wave)
+        return x, phi
 
     def _cache_beta(self, kw_tup):
 
@@ -2461,13 +2497,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Done!
         return cam, filters
 
-    def Beta(self, z, waves=None, rest_wave=None, cam=None,
+    def Beta(self, z, **kwargs):
+        return self.get_beta(z, **kwargs)
+
+    def get_beta(self, z, **kwargs):
+        return self.get_uv_slope(z, **kwargs)
+
+    def get_uv_slope(self, z, waves=None, rest_wave=None, cam=None,
         filters=None, filter_set=None, dlam=20., method='linear', magmethod='gmean',
         return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
         return_scatter=False, load=True, massbins=None, return_err=False,
         presets=None):
         """
-        UV slope for all objects in model.
+        Compute UV slope for all objects in model.
 
         Parameters
         ----------
@@ -2610,7 +2652,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             return beta
 
-    def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None, magbins=None,
+    def AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None,
+        magbins=None,
         massbins=None, return_binned=False, filters=None, dlam=20.):
         """
         Compute UV extinction.
