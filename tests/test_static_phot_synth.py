@@ -12,7 +12,6 @@ Description:
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.util.Photometry import what_filters
 from ares.physics.Constants import flux_AB, cm_per_pc, s_per_myr
 
@@ -77,34 +76,37 @@ def test(tol=0.25):
 
         # Compute observed magnitudes of all spectral channels
         dL = pop.cosm.LuminosityDistance(z)
-        magcorr = 5. * (np.log10(dL / cm_per_pc) - 1.)
+        magcorr = 5. * (np.log10(dL / cm_per_pc) - 1.) - 2.5 * np.log10(1. + z)
         omags = -2.5 * np.log10(oflux / flux_AB) - magcorr
 
         mag_from_spec = omags[0,np.argmin(np.abs(1600. - waves))]
 
         # Compute observed magnitude at 1600A by hand from luminosity
         L = pop.Luminosity(z, wave=1600., load=load)
-        f = L[0] / (4. * np.pi * dL**2)
+        f = L[0] * (1. + z) / (4. * np.pi * dL**2)
         mag_from_flux = -2.5 * np.log10(f / flux_AB) - magcorr
 
         # Use built-in method to obtain 1600A magnitude.
         mag_from_lum = pop.magsys.L_to_MAB(L[0])
 
         # Compute 1600A magnitude using different smoothing windows
-        mag_from_spec_20 = pop.Magnitude(z, wave=1600., window=21, load=load)[0]
-        mag_from_spec_50 = pop.Magnitude(z, wave=1600., window=51, load=load)[0]
-        mag_from_spec_100 = pop.Magnitude(z, wave=1600., window=201, load=load)[0]
+        _f, mag_from_spec_20 = pop.get_mags(z, wave=1600., window=21,
+            load=load)
+        _f, mag_from_spec_50 = pop.get_mags(z, wave=1600., window=51,
+            load=load)
+        _f, mag_from_spec_100 = pop.get_mags(z, wave=1600., window=201,
+            load=load)
 
         # Different ways to estimate magnitude from HST photometry
-        mag_from_phot_mean = pop.Magnitude(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_mean = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
-            method='gmean', load=load)[0]
-        mag_from_phot_close = pop.Magnitude(z, cam=('wfc', 'wfc3'),
+            method='gmean', load=load)
+        _f, mag_from_phot_close = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
-            method='closest', load=load, wave=1600.)[0]
-        mag_from_phot_interp = pop.Magnitude(z, cam=('wfc', 'wfc3'),
+            method='closest', load=load, wave=1600.)
+        _f, mag_from_phot_interp = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
-            method='interp', load=load, wave=1600.)[0]
+            method='interp', load=load, wave=1600.)
 
         # These should be identical to machine precision
         assert abs(mag_from_spec-mag_from_flux) < 1e-8, \

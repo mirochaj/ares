@@ -51,7 +51,7 @@ func_options = \
 Np_max = 15
 
 optional_kwargs = 'pq_val_ceil', 'pq_val_floor', 'pq_var_ceil', 'pq_var_floor'
-numeric_types = [int, float, np.int, np.int64, np.float64]
+numeric_types = [int, float, np.int64, np.float64]
 
 class BasePQ(object):
     def __init__(self, **kwargs):

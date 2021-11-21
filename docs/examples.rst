@@ -1,59 +1,63 @@
 Examples
 ========
 
-Running Individual Simulations
-------------------------------
-    
-* Reionization & Global 21-cm Signal
-    * :doc:`example_gs_standard`
-    * :doc:`example_gs_multipop`
-    * :doc:`example_gs_phenomenological`
-    
-* Uniform Radiation Backgrounds
-    * :doc:`example_crb_uv`
-    * :doc:`example_crb_xr`
- 
-* 1-D Radiative Transfer    
-    * :doc:`example_rt06_1`
-    * :doc:`example_rt06_2` 
- 
+Running Individual Simulations for Reionization and Re-Heating
+--------------------------------------------------------------
+
+.. toctree::
+    :maxdepth: 1
+
+    examples/example_gs_standard
+    examples/example_gs_multipop
+    examples/example_gs_phenomenological
+
+Advanced Source Populations
+---------------------------
+.. toctree::
+    :maxdepth: 1
+
+    examples/example_pop_galaxy
+    examples/example_pop_popIII
+    examples/example_pop_dusty
+    * :doc:`example_edges`
+
 Parameter Studies and Inference
 -------------------------------
+.. toctree::
+    :maxdepth: 1
 
-* Running Large Suites of Models
-    * :doc:`example_grid`
-    * :doc:`example_mc_sampling`    
-    
-* Fitting and Forecasting    
-    * :doc:`example_mcmc_gs`
-    * :doc:`example_mcmc_lf`
+    examples/example_grid
+    examples/example_grid_analysis
+    example_mc_sampling
+    example_ham
+    example_mcmc_gs
+    example_mcmc_lf
+    example_mcmc_analysis
+    example_inline_analysis
 
-.. * Simple Fitting
-..     * :doc:`example_ham`
-..     * :doc:`example_sedop`
+The Meta-Galactic Radiation Background
+--------------------------------------
+.. toctree::
+    :maxdepth: 1
 
-* Analyzing Sets of Models
-    * :doc:`example_inline_analysis`
-    * :doc:`example_grid_analysis`
-    * :doc:`example_mcmc_analysis`
+    examples/example_crb_uv
+    examples/example_crb_xr
+
+1-D Radiative Transfer
+----------------------
+.. toctree::
+    :maxdepth: 1
+
+    example_rt06_1
+    example_rt06_2
+    example_adv_RT_w_He
 
 Extensions
 ----------
+.. toctree::
+    :maxdepth: 2
 
-* Advanced physics
-    * :doc:`example_adv_RT_w_He`
-    
-* Advanced source populations
-    * :doc:`example_pop_galaxy`
-    * :doc:`example_pop_dusty`
-    * :doc:`example_popIII`
-    * :doc:`example_edges`
-    
-* Comparing to observational data
-    * :doc:`example_litdata`
-
-* Customization
-    * :doc:`example_embed_ares`
-    * :doc:`uth_pq`
-    * :doc:`uth_pop_new`
-
+    examples/example_litdata
+    example_embed_ares
+    examples/uth_pq
+    uth_pop_new

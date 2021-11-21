@@ -2,3 +2,4 @@ sphinx
 numpydoc
 nbsphinx
 m2r2
+docutils<0.18

@@ -33,13 +33,13 @@ def test():
     assert csfrd < 1., "cSFRD >= SFRD!?"
 
     # Test UVLF
-    mags = np.arange(-25, -10, 0.1)
-    phi = pop.LuminosityFunction(6., mags)
+    mags = np.arange(-30, 10, 0.1)
+    x, phi = pop.get_lf(6., mags, absolute=True)
     ok = np.isfinite(phi)
 
     assert 1e-4 <= np.interp(-18, mags, phi) <= 1e-1, "UVLF unreasonable!"
 
-    phi_c = pop.LuminosityFunction(6., mags)
+    x, phi_c = pop.get_lf(6., mags, absolute=True)
 
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "UVLF cache not working!"
 
@@ -63,7 +63,7 @@ def test():
 
     assert np.all(AUV > 0), "AUV < 0!"
     assert 0 < np.mean(AUV) <= 3, "AUV unreasonable!"
-    
+
     # Test UV slope
     b_hst = pop.Beta(6., presets='hst', dlam=100.)
     assert -3 <= np.mean(b_hst) <= -1, "UV slopes unreasonable!"

@@ -383,7 +383,10 @@ class SpectralSynthesis(object):
             else:
                 return popt[1]
 
-    def ObserveSpectrum(self, zobs, spec=None, sfh=None, waves=None,
+    def ObserveSpectrum(self, zobs, **kwargs):
+        return self.get_spec_obs(zobs, **kwargs)
+
+    def get_spec_obs(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={},
         idnum=None, window=1, extras={}, nthreads=1, load=True):
         """
@@ -406,7 +409,7 @@ class SpectralSynthesis(object):
         """
 
         if spec is None:
-            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, zarr=zarr,
+            spec = self.get_spec_rest(waves, sfh=sfh, tarr=tarr, zarr=zarr,
                 zobs=zobs, tobs=None, hist=hist, idnum=idnum,
                 extras=extras, window=window, load=load)
 
@@ -425,10 +428,12 @@ class SpectralSynthesis(object):
         # Flux at Earth in erg/s/cm^2/Hz
         f = spec / (4. * np.pi * dL**2)
 
+        # Correct for redshifting and change in units.
         if flux_units == 'Hz':
-            pass
+            f *= (1. + zobs)
         else:
             f /= dwdn
+            f /= (1. + zobs)
 
         owaves = waves * (1. + zobs) / 1e4
 
@@ -437,7 +442,10 @@ class SpectralSynthesis(object):
 
         return owaves, f * T
 
-    def Photometry(self, spec=None, sfh=None, cam='wfc3', filters='all',
+    def Photometry(self, **kwargs):
+        return self.get_photometry(**kwargs)
+
+    def get_photometry(self, spec=None, sfh=None, cam='wfc3', filters='all',
         filter_set=None, dlam=20., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None,
         hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
@@ -470,9 +478,9 @@ class SpectralSynthesis(object):
             filter_data = self.cameras[cam].read_throughputs(filter_set=filter_set,
                 filters=filters)
         else:
-            # Can supply spectral windows, e.g., Calzetti+ 1994, in which case
-            # we assume perfect transmission but otherwise just treat like
-            # photometric filters.
+            # Can supply spectral windows, e.g., Calzetti+ 1994, in which
+            # case we assume perfect transmission but otherwise just treat
+            # like photometric filters.
             assert type(filters) in [list, tuple, np.ndarray]
 
             #print("Generating photometry from {} spectral ranges.".format(len(filters)))
@@ -482,8 +490,8 @@ class SpectralSynthesis(object):
             x2 = wraw.max()
             x = np.arange(x1-1, x2+1, 1.) * 1e-4 * (1. + zobs)
 
-            # Note that in this case, the filter wavelengths are in rest-frame
-            # units, so we convert them to observed wavelengths before
+            # Note that in this case, the filter wavelengths are in rest-
+            # frame units, so we convert them to observed wavelengths before
             # photometrizing everything.
 
             filter_data = {}
@@ -512,8 +520,8 @@ class SpectralSynthesis(object):
             x, y, cent, dx, Tavg = filter_data[filt]
 
             # If we're only doing this for the sake of measuring a slope, we
-            # might restrict the range based on wavelengths of interest, i.e.,
-            # we may not use all the filters.
+            # might restrict the range based on wavelengths of interest,
+            # i.e., we may not use all the filters.
 
             # Right now, will include filters as long as their center is in
             # the requested band. This results in fluctuations in slope
@@ -557,7 +565,7 @@ class SpectralSynthesis(object):
 
         # Get spectrum first.
         if (spec is None) and (ospec is None):
-            spec = self.Spectrum(waves, sfh=sfh, tarr=tarr, tobs=tobs,
+            spec = self.get_spec_rest(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
                 idnum=idnum, extras=extras, window=window, load=load)
 
@@ -583,6 +591,7 @@ class SpectralSynthesis(object):
         flux_obs[np.isnan(flux_obs)] = 0.0
 
         # Loop over filters and re-weight spectrum
+        fphot = []
         xphot = []      # Filter centroids
         wphot = []      # Filter width
         yphot_corr = [] # Magnitudes corrected for filter transmissions.
@@ -590,6 +599,10 @@ class SpectralSynthesis(object):
         # Loop over filters, compute fluxes in band (accounting for
         # transmission fraction) and convert to observed magnitudes.
         for filt in all_filters:
+
+            if filters != 'all':
+                if filt not in filters:
+                    continue
 
             x, T, cent, dx, Tavg = filter_data[filt]
 
@@ -623,6 +636,7 @@ class SpectralSynthesis(object):
 
             corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
 
+            fphot.append(filt)
             xphot.append(cent)
             yphot_corr.append(_yphot / corr)
             wphot.append(dx)
@@ -631,10 +645,16 @@ class SpectralSynthesis(object):
         wphot = np.array(wphot)
         yphot_corr = np.array(yphot_corr)
 
-        # Convert to magnitudes and return
-        return all_filters, xphot, wphot, -2.5 * np.log10(yphot_corr / flux_AB)
+        # Convert to magnitudes
+        mphot = -2.5 * np.log10(yphot_corr / flux_AB)
 
-    def Spectrum(self, waves, sfh=None, tarr=None, zarr=None, window=1,
+        # We're done
+        return fphot, xphot, wphot, mphot
+
+    def Spectrum(self, waves, **kwargs):
+        return self.get_spec_rest(waves, **kwargs)
+
+    def get_spec_rest(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
         extras={}, load=True):
         """
@@ -685,7 +705,7 @@ class SpectralSynthesis(object):
                 for i in p.xrange(0, waves.size):
                     slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                    spec[slc] = self.Luminosity(wave=waves[i],
+                    spec[slc] = self.get_lum(wave=waves[i],
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                         band=band, hist=hist, idnum=idnum,
                         extras=extras, window=window, load=load)
@@ -698,7 +718,7 @@ class SpectralSynthesis(object):
             for i, wave in enumerate(waves):
                 slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                spec[slc] = self.Luminosity(wave=wave,
+                spec[slc] = self.get_lum(wave=wave,
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                     band=band, hist=hist, idnum=idnum,
                     extras=extras, window=window, load=load)
@@ -708,24 +728,21 @@ class SpectralSynthesis(object):
         pb.finish()
 
         if units in ['A', 'Ang']:
-            #freqs = c / (waves / 1e8)
-            #tmp = np.abs(np.diff(waves) / np.diff(freqs))
-            #dwdn = np.concatenate((tmp, [tmp[-1]]))
             dwdn = waves**2 / (c * 1e8)
             spec /= dwdn
 
         return spec
 
-    def Magnitude(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
-        zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
-
-        L = self.Luminosity(wave=wave, sfh=sfh, tarr=tarr, zarr=zarr,
-            zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist,
-            extras=extras, window=window)
-
-        MAB = self.magsys.L_to_MAB(L)
-
-        return MAB
+    #def Magnitude(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
+    #    zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={}):
+#
+    #    L = self.get_lum(wave=wave, sfh=sfh, tarr=tarr, zarr=zarr,
+    #        zobs=zobs, tobs=tobs, band=band, idnum=idnum, hist=hist,
+    #        extras=extras, window=window)
+#
+    #    MAB = self.magsys.L_to_MAB(L)
+#
+    #    return MAB
 
     def _oversample_sfh(self, ages, sfh, i):
         """
@@ -919,7 +936,10 @@ class SpectralSynthesis(object):
         else:
             return kwds, None
 
-    def Luminosity(self, wave=1600., sfh=None, tarr=None, zarr=None,
+    def Luminosity(self, **kwargs):
+        return self.get_lum(**kwargs)
+
+    def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None,
         window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
         load=True, use_cache=True, energy_units=True):
@@ -1085,7 +1105,7 @@ class SpectralSynthesis(object):
 
             #raise NotImplemented('help!')
         else:
-            Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window)
+            Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window, raw=False)
 
             assert energy_units
         #print("Synth. Lum = ", wave, window)
