@@ -2114,7 +2114,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_bias(self, z, limit, wave=1600., cam=None, filters=None,
         filter_set=None, dlam=20., method='closest', idnum=None, window=1,
         load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
-        absolute=False, factor=1):
+        absolute=False, factor=1, limit_is_lower=True, limit_lower=None):
         """
         Compute the linear bias of sources above some limiting magnitude or
         flux.
@@ -2143,7 +2143,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 idnum=idnum, window=window, load=load, presets=presets,
                 absolute=absolute)
 
-            ok = np.logical_and(mags <= limit, np.isfinite(mags))
+            if limit_is_lower:
+                ok = np.logical_and(mags <= limit, np.isfinite(mags))
+            else:
+                assert limit_lower is not None, \
+                    "Provide `limit_lower` if isolating faint population."
+
+                ok = np.logical_and(mags >= limit, mags <= limit_lower)
+                ok = np.logical_and(ok, np.isfinite(mags))
 
         integ_top = bh[ok==1] * _nh[ok==1]
         integ_bot = _nh[ok==1]
