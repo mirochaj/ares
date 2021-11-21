@@ -2298,17 +2298,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if bins is not None:
             x = bins
         elif use_mags:
+            ymin = x.min()
+            ymax = x.max()
             if absolute:
-                x = np.arange(-28, 5., self.pf['pop_mag_bin'])
+                x = np.arange(ymin*0.5, ymax*2, self.pf['pop_mag_bin'])
             else:
-                x = np.arange(15, 35., self.pf['pop_mag_bin'])
+                x = np.arange(ymin*0.5, ymax*2, self.pf['pop_mag_bin'])
         elif not total_IR:
             x = np.arange(4, 12, 0.25)
         else:
             x = np.arange(6.5, 14, 0.25)
 
-        phi, bin_histedges = np.histogram(y[yok==1],
-            weights=w[yok==1], bins=bin_c2e(x), density=False)
+        # Make sure binning range covers the range of luminosities/magnitudes
+        if use_mags:
+            assert y[yok==1].min() > x.min()
+            assert y[yok==1].max() < x.max()
+        else:
+            assert y[yok==1].min() < x.min()
+            assert y[yok==1].max() > x.max()
+
+        hist, bin_histedges = np.histogram(y[yok==1],
+            weights=w[yok==1], bins=bin_c2e(x), density=True)
+
+        N = np.sum(w[yok==1])
+        phi = hist * N
 
         #self._cache_lf_[(z, wave)] = x, phi
 
