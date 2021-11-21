@@ -53,6 +53,9 @@ def test():
     assert 60 <= sim.nu_C <= 115, "Global signal unreasonable!"
     assert -250 <= sim.dTb_C <= -150, "Global signal unreasonable!"
 
+    # Make sure L_per_sfr works
+    assert sim.pops[2].src.L_per_sfr() > sim.pops[0].src.L_per_sfr()
+
 
 if __name__ == '__main__':
     test()
