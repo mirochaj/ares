@@ -143,3 +143,4 @@ Additional contributions / corrections / suggestions from:
 - Matteo Leo
 - Emma Klemets
 - Felix Bilodeau-Chagnon
+- Joshua Hibbard

@@ -289,25 +289,25 @@ class HaloMassFunction(object):
         return self.__dict__[name]
 
     def _load_hmf_wdm(self): # pragma: no cover
-        
+
         m_X = self.pf['hmf_wdm_mass']
 
         if self.pf['hmf_wdm_interp']:
             wdm_file_hmfs = []
             import glob
-            for wdm_file in glob.glob('{!s}/input/hmf/*'.format(os.getenv('ARES'))):
+            for wdm_file in glob.glob('{!s}/input/hmf/*'.format(ARES)):
                 if self.pf['hmf_window'] in wdm_file and self.pf['hmf_model'] in wdm_file and \
                 	'_wdm_' in wdm_file:
                     wdm_file_hmfs.append(wdm_file)
-        
+
             wdm_m_X_from_hmf_files = [int(hmf_file[hmf_file.find('_wdm') + 5 : hmf_file.find(\
                 '.')]) for hmf_file in wdm_file_hmfs]
             wdm_m_X_from_hmf_files.sort()
             #print(wdm_m_X_from_hmf_files)
-        
+
             closest_mass = min(wdm_m_X_from_hmf_files, key=lambda x: abs(x - m_X))
             closest_mass_index = wdm_m_X_from_hmf_files.index(closest_mass)
-        
+
             if closest_mass > m_X:
                 m_X_r = closest_mass
                 m_X_l = wdm_m_X_from_hmf_files[closest_mass_index - 1]
@@ -321,14 +321,13 @@ class HaloMassFunction(object):
             m_X_l = int(m_X)
             m_X_r = m_X_l + 1
 
-        _fn = self.tab_prefix_hmf(True)
-        print(_fn)
+        _fn = self.tab_prefix_hmf(True) + '.hdf5'
 
         if self.pf['hmf_path'] is not None:
             _path = self.pf['hmf_path'] + '/'
         else:
             _path = "{0!s}/input/hmf/".format(ARES)
-        #TODO Fix this last bit of code, it doesn't really work. Need to add +'.hdf5'
+
         if not os.path.exists(_path+_fn) and (not self.pf['hmf_wdm_interp']):
             raise ValueError("Couldn't find file {} and wdm_interp=False!".format(_fn))
 
@@ -349,6 +348,11 @@ class HaloMassFunction(object):
         interp = True
         mass = [m_X_l, m_X_r]
         for i, fn in enumerate([fn_l, fn_r]):
+
+            # OK as long as we're not relying on interpolation
+            if not os.path.exists(_path + fn):
+                continue
+
             with h5py.File(_path + fn, 'r') as f:
 
                 tab_z = np.array(f[('tab_z')])
@@ -367,14 +371,16 @@ class HaloMassFunction(object):
                 tab_mgtm[tab_mgtm==0.0] = tiny_dndm
 
                 if 'tab_MAR' in f:
-                    if self.pf['tab_MAR_from_CDM']:
-                        print('Using MAR from CDM')
-                        cdm_file = h5py.File(_path + prefix + '.hdf5','r')
+                    if self.pf['hmf_MAR_from_CDM']:
+                        fn_cdm = _path + prefix + '.hdf5'
+                        cdm_file = h5py.File(fn_cdm, 'r')
                         tab_MAR = np.array(cdm_file[('tab_MAR')])
+                        cdm_file.close()
+                        print("# Loaded MAR from {}".format(fn_cdm))
                     else:
                         tab_MAR = np.array(f[('tab_MAR')])
                 else:
-                    print("No maR in file {}.".format(_path+fn))
+                    print("# No MAR in file {}.".format(_path+fn))
                 #self.tab_growth = np.array(f[('tab_growth')])
 
                 if m_X == mass[i]:
@@ -395,6 +401,9 @@ class HaloMassFunction(object):
             self.tab_mgtm = tab_mgtm
             self._tab_MAR = tab_MAR
         else:
+
+            assert len(dndm) == 2
+
             # Interpolate
             log_dndm = np.log10(dndm)
             log_ngtm = np.log10(ngtm)
@@ -409,8 +418,9 @@ class HaloMassFunction(object):
                 * (m_X - m_X_l) + log_mgtm[0])
             self._tab_MAR = 10**(np.diff(log_tmar, axis=0).squeeze() \
                 * (m_X - m_X_l) + log_tmar[0])
+
         if interp:
-        	print('Finished interpolating WDM mass')
+        	print('# Finished interpolation in WDM mass dimension of HMF.')
 
     def _get_ngtm_mgtm_from_dndm(self):
 
