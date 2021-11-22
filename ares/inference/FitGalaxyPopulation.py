@@ -36,10 +36,6 @@ except ImportError:
 
 twopi = 2. * np.pi
 
-_b14 = read_lit('bouwens2014')
-hst_shallow = _b14.filt_shallow
-hst_deep = _b14.filt_deep
-
 class loglikelihood(LogLikelihood):
 
     @property
@@ -143,6 +139,9 @@ class loglikelihood(LogLikelihood):
         phi = np.zeros_like(self.ydata)
         for i, quantity in enumerate(self.metadata):
 
+            if quantity == 'beta':
+                _b14 = read_lit('bouwens2014')
+
             if self.mask[i]:
                 #print('masked:', rank, self.redshifts[i], self.xdata[i])
                 continue
@@ -164,7 +163,7 @@ class loglikelihood(LogLikelihood):
                     # observed magnitudes.
 
                     # Compute LF
-                    p = pop.LuminosityFunction(z=zmod, x=xdat, mags=True)
+                    _x, p = pop.get_lf(z=zmod, bins=xdat, use_mags=True)
 
                     if not np.isfinite(p):
                         print('WARNING: LF is inf or nan!', zmod, xdat, p)
@@ -183,9 +182,9 @@ class loglikelihood(LogLikelihood):
                     zstr = int(round(zmod))
 
                     if zstr >= 7:
-                        filt_hst = hst_deep
+                        filt_hst = _b14.filt_deep
                     else:
-                        filt_hst = hst_shallow
+                        filt_hst = _b14.filt_shallow
 
                     M = xdat
                     p = pop.Beta(zmod, MUV=M, presets='hst', dlam=20.,

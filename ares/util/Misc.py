@@ -13,6 +13,7 @@ Description:
 import os
 import subprocess
 import numpy as np
+from ..data import ARES
 
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -55,7 +56,7 @@ def get_cmd_line_kwargs(argv):
 
     return cmd_line_kwargs
 
-def get_hash(repo_path=None, repo_env='ARES'):
+def get_hash(repo_path=ARES, repo_env=None):
     """
     Return the unique git hash associated with the HEAD of some repository.
 

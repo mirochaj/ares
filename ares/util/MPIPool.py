@@ -4,7 +4,7 @@ try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     size = MPI.COMM_WORLD.size
-    
+
     try:
         import dill
         MPI._p_pickle.dumps = dill.dumps
@@ -12,36 +12,35 @@ try:
     except ImportError:
         pass
     except AttributeError: # named differently depending on version
-        MPI.pickle.dumps = dill.dumps
-        MPI.pickle.loads = dill.loads
+        MPI.pickle.__init__(dill.dumps, dill.loads)
 except ImportError:
     MPI = None
     rank = 0
     size = 1
-    
+
 class MPIPool(object): # pragma: no cover
 
     def __init__(self, comm=None, master=0):
         """
         Initialize an MPIPool object.
-        
+
         Parameters
         ----------
         comm : mpi4py.MPI.COMM_WORLD instance.
             If None, one will be created.
         master : int
             ID # of root processor.
-        
+
         """
         self.comm = MPI.COMM_WORLD if comm is None else comm
-        
+
         assert self.comm.size > 1
         assert 0 <= master < self.comm.size
-        
+
         self.master = master
         self.workers = set(range(self.comm.size))
         self.workers.discard(self.master)
-                
+
     def is_master(self):
         return self.master == self.comm.rank
 
@@ -61,18 +60,18 @@ class MPIPool(object): # pragma: no cover
 
             if workerset and tasklist:
                 worker = workerset.pop()
-                taskid, task = tasklist.pop()    
+                taskid, task = tasklist.pop()
                 comm.send(task, dest=worker, tag=taskid)
 
             if tasklist:
                 flag = comm.Iprobe(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
-                if not flag: 
+                if not flag:
                     continue
             else:
                 comm.Probe(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
 
             status = MPI.Status()
-            result = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, 
+            result = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG,
                 status=status)
             worker = status.source
             workerset.add(worker)
@@ -83,7 +82,7 @@ class MPIPool(object): # pragma: no cover
         return resultlist
 
     def start(self):
-        if not self.is_worker(): 
+        if not self.is_worker():
             return
 
         comm = self.comm
@@ -92,7 +91,7 @@ class MPIPool(object): # pragma: no cover
 
         while True:
             task = comm.recv(source=master, tag=MPI.ANY_TAG, status=status)
-            if task is None: 
+            if task is None:
                 break
 
             function, arg = task
@@ -103,7 +102,7 @@ class MPIPool(object): # pragma: no cover
             gc.collect()
 
     def stop(self):
-        if not self.is_master(): 
+        if not self.is_master():
             return
         for worker in self.workers:
             self.comm.send(None, worker, 0)
@@ -127,6 +126,3 @@ class MPIPool(object): # pragma: no cover
 #            assert y ==  sq(x)
 #
 #    pool.stop()
-
-
-

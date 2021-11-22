@@ -13,6 +13,7 @@ import glob
 import os, re, sys
 import numpy as np
 from . import Cosmology
+from ..data import ARES
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
@@ -29,6 +30,8 @@ from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
     m_H, k_B, s_per_myr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, \
     interp1d, InterpolatedUnivariateSpline
+
+
 try:
     from scipy.special import erfc
 except ImportError:
@@ -80,8 +83,6 @@ except ImportError:
             print("For HMF v3 or greater, must use new 'camb' Python package.")
     except ImportError:
         have_pycamb = False
-
-ARES = os.getenv("ARES")
 
 sqrt2 = np.sqrt(2.)
 
@@ -411,6 +412,34 @@ class HaloMassFunction(object):
         if interp:
         	print('Finished interpolating WDM mass')
 
+    def _get_ngtm_mgtm_from_dndm(self):
+
+        # Generates ngtm and mgtm with Murray's formulas
+        ngtm = []
+        mgtm = []
+        for i in range(len(self.tab_z)):
+            m = self.tab_M[np.logical_not(np.isnan(self.tab_M))]
+            dndm = self.tab_dndm[i][np.logical_not(np.isnan(self.tab_dndm[i]))]
+            dndlnm = m * dndm
+            if m[-1] < m[0] * 10 ** 18 / m[3]:
+                m_upper = np.arange(np.log(m[-1]), np.log(10 ** 18), np.log(m[1]) - np.log(m[0]))
+                mf_func = InterpolatedUnivariateSpline(np.log(m), np.log(dndlnm), k=1)
+                mf = mf_func(m_upper)
+
+                int_upper_n = simps(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
+                int_upper_m = simps(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
+            else:
+                int_upper_n = 0
+                int_upper_m = 0
+
+            ngtm_ = np.concatenate((cumtrapz(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+            mgtm_ = np.concatenate((cumtrapz(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+
+            ngtm.append(ngtm_ + int_upper_n)
+            mgtm.append(mgtm_ + int_upper_m)
+
+        return np.array(ngtm), np.array(mgtm)
+
     def _load_hmf(self):
         """ Load table from HDF5 or binary. """
 
@@ -421,9 +450,15 @@ class HaloMassFunction(object):
             return self._load_hmf_wdm()
 
         if self.pf['hmf_cache'] is not None:
-            self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
-                self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
-                    self.pf['hmf_cache']
+            if len(self.pf['hmf_cache']) == 3:
+                self.tab_z, self.tab_M, self.tab_dndm = self.pf['hmf_cache']
+                self.tab_ngtm, self.tab_mgtm = self._get_ngtm_mgtm_from_dndm()
+                # tab_MAR will be re-generated automatically if summoned,
+                # as will tab_Mmin_floor.
+            else:
+                self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
+                    self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
+                        self.pf['hmf_cache']
             return
 
         if self.pf['hmf_pca'] is not None:
@@ -436,31 +471,8 @@ class HaloMassFunction(object):
                 tab_dndm_pca += self.pf['hmf_pca_coef{}'.format(i)] * np.array(f[('e_vec')])[i]
 
             self.tab_dndm = 10**np.array(tab_dndm_pca)
-            ngtm, mgtm = [], []
 
-            # Generates ngtm and mgtm with Murray's formulas
-            for i in range(len(self.tab_z)):
-                m = self.tab_M[np.logical_not(np.isnan(self.tab_M))]
-                dndm = self.tab_dndm[i][np.logical_not(np.isnan(self.tab_dndm[i]))]
-                dndlnm = m * dndm
-                if m[-1] < m[0] * 10 ** 20 / m[3]:
-                    m_upper = np.arange(np.log(m[-1]), np.log(10 ** 18), np.log(m[1]) - np.log(m[0]))
-                    mf_func = InterpolatedUnivariateSpline(np.log(m), np.log(dndlnm), k=1)
-                    mf = mf_func(m_upper)
-
-                    int_upper_n = simps(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
-                    int_upper_m = simps(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
-                else:
-                    int_upper_n = 0
-                    int_upper_m = 0
-
-                ngtm_ = np.concatenate((cumtrapz(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
-                mgtm_ = np.concatenate((cumtrapz(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
-
-                ngtm.append(ngtm_ + int_upper_n)
-                mgtm.append(mgtm_ + int_upper_m)
-
-            self.tab_ngtm, self.tab_mgtm = np.array(ngtm), np.array(mgtm)
+            self.tab_ngtm, self.tab_mgtm = self._get_ngtm_mgtm_from_dndm()
 
             f.close()
 
