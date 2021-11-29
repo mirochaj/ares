@@ -51,7 +51,7 @@ func_options = \
 Np_max = 15
 
 optional_kwargs = 'pq_val_ceil', 'pq_val_floor', 'pq_var_ceil', 'pq_var_floor'
-numeric_types = [int, float, np.int, np.int64, np.float64]
+numeric_types = [int, float, np.int64, np.float64]
 
 class BasePQ(object):
     def __init__(self, **kwargs):
@@ -105,7 +105,8 @@ class PowerLaw(BasePQ):
                 x[~ok] = self.xfill
                 ok = np.ones_like(x)
 
-        return ok * self.args[0] * (x / self.args[1])**self.args[2]
+        return ok * self.args[0] * np.power(x / self.args[1],
+            self.args[2])
 
 class PowerLaw10(BasePQ):
     def __call__(self, **kwargs):
@@ -113,7 +114,7 @@ class PowerLaw10(BasePQ):
             x = 1. + kwargs['z']
         else:
             x = kwargs[self.x]
-            
+
         if not (self.xlim[0] <= x <= self.xlim[1]):
             return self.xfill
 
@@ -420,9 +421,11 @@ class DoublePowerLawEvolvingNorm(BasePQ):
                  +   (self.args[4] / self.args[1])**-self.args[3]))
 
         # This is to conserve memory.
-        y  = (x / self.args[1])**-self.args[2]
-        y += (x / self.args[1])**-self.args[3]
-        np.divide(1., y, out=y)
+        y  = np.power(x / self.args[1], -self.args[2])
+        y += np.power(x / self.args[1], -self.args[3])
+
+        y = np.power(y, -1.)
+        #np.divide(1., y, out=y)
 
         if self.t == '1+z':
             y *= normcorr * self.args[0] \
@@ -475,9 +478,9 @@ class DoublePowerLawEvolvingNormPeak(BasePQ):
 
         # This is to conserve memory.
         xx = x / p1
-        y  = xx**-self.args[2]
-        y += xx**-self.args[3]
-        np.divide(1., y, out=y)
+        y  = np.power(xx, -self.args[2])
+        y += np.power(xx, -self.args[3])
+        y = np.power(y, -1.)#np.divide(1., y, out=y)
 
         if self.t == '1+z':
             y *= normcorr * self.args[0] \
@@ -633,7 +636,7 @@ class LogLinear(BasePQ):
         return y
 
 
-class PointsLinear(BasePQ):            
+class PointsLinear(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
         m = (self.args[3] - self.args[2]) / (self.args[1] - self.args[0])

@@ -14,6 +14,7 @@ import re
 import os
 import copy
 import numpy as np
+from ..data import ARES
 from ..physics.Constants import c
 from ..physics.Cosmology import Cosmology
 
@@ -25,7 +26,7 @@ except ImportError:
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
-_path = os.environ.get('ARES') + '/input'
+_path = ARES + '/input'
 
 class Survey(object):
     def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False,
@@ -107,7 +108,7 @@ class Survey(object):
         else:
             gotax = True
 
-        data = self._read_throughputs(filter_set, filters)
+        data = self.read_throughputs(filter_set, filters)
 
         colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
         for i, filt in enumerate(data.keys()):
@@ -130,8 +131,21 @@ class Survey(object):
 
         return ax
 
-    def _read_throughputs(self, filter_set='W', filters=None):
+    def read_throughputs(self, filter_set='W', filters=None):
+        """
+        Assembles a dictionary of throughput curves.
 
+        Each element of the dictionary is a tuple containing:
+            (wavelength, throughput, midpoint of filter,
+                width of filter (FWHM), transmission averaged over filter)
+
+        Example
+        -------
+
+        >>> wave, T, mid, wid, Tavg = self.read_throughputs()
+
+
+        """
         if ((self.camera, None, 'all') in self.cache) and (filters is not None):
             cached_phot = self.cache[(self.camera, None, 'all')]
 
@@ -322,9 +336,12 @@ class Survey(object):
                 filter_set = [filter_set]
 
         data = {}
-        for fn in os.listdir(self.path+'/IR'):
+        for fn in os.listdir(self.path):
 
-            pre = fn.split('_IR_throughput')[0]
+            if '.txt' not in fn:
+                continue
+
+            pre = fn[fn.find('_f')+1:fn.rfind('.')].upper()
 
             # Read-in no matter what
             if get_all or (pre in filters):
@@ -335,8 +352,8 @@ class Survey(object):
 
                 cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn),
-                    unpack=True, skiprows=1, delimiter=',')
+                x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                    unpack=True, skiprows=1)
 
                 # Convert wavelengths from Angstroms to microns
                 data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -360,8 +377,8 @@ class Survey(object):
                     # string identifier.
                     cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                    _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn),
-                        unpack=True, skiprows=1, delimiter=',')
+                    x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                        unpack=True, skiprows=1)
 
                     # Convert wavelengths from Angstroms to microns
                     data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -403,7 +420,7 @@ class Survey(object):
         except ImportError:
             raise ImportError("Need pandas to read Roman ST throughputs.")
 
-        _fn = 'WFIRST_WIMWSM_throughput_data_190531.xlsm'
+        _fn = 'Roman_effarea_20201130.xlsx'
 
         A = np.pi * (0.5 * 2.4)**2
 
@@ -413,11 +430,14 @@ class Survey(object):
             if fn != _fn:
                 continue
 
-            df = pd.read_excel(self.path + '/' + _fn, sheet_name='EffectiveArea',
-                header=18)
+            df = pd.read_excel(self.path + '/' + _fn,
+                sheet_name='Roman_effarea_20201130',
+                header=1)
 
-            cols = df.columns
-            x = df['microns'].to_numpy()
+            _cols = df.columns
+            cols = [col.strip() for col in _cols]
+
+            x = df['Wave'].to_numpy()
 
             for col in cols:
                 if col[0] != 'F':
@@ -427,7 +447,7 @@ class Survey(object):
                 cent = float(col[1] + '.' + col[2:])
 
                 # This is an effective area. Take T = A_eff / (pi * 1.2**2)
-                y = df[col].to_numpy() / A
+                y = df[' '+col].to_numpy() / A
                 y[x > 2] = 0 # spurious spike at ~2.6 microns
 
                 data[pre] = self._get_filter_prop(np.array(x), np.array(y), cent)

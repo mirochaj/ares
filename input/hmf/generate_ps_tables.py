@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Wed May  8 11:33:48 2013
 
-Description: Create lookup tables for collapsed fraction. Can be run in 
+Description: Create lookup tables for collapsed fraction. Can be run in
 parallel, e.g.,
 
     mpirun -np 4 python generate_hmf_tables.py
@@ -31,11 +31,11 @@ pars = \
  "hmf_zmin": 5,
  "hmf_zmax": 30,
  "hmf_dz": 0.05,
- 
+
  "hps_zmin": 6,
  "hps_zmax": 30,
  "hps_dz": 0.5,
- 
+
  'hps_dlnk': 0.001,
  'hps_dlnR': 0.001,
  'hps_lnk_min': -10.,
@@ -53,10 +53,7 @@ kwargs = \
 
 ##
 
-hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False, 
+hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False,
     **pars)
 
 hmf.SavePS(format=fmt, clobber=False, checkpoint=True, **kwargs)
-
-
-

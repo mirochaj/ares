@@ -28,7 +28,7 @@ from ..phenom.DustCorrection import DustCorrection
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
-    ev_per_hz, h_p
+    ev_per_hz, h_p, cm_per_pc
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -37,9 +37,11 @@ _multi_pop_error_msg += 'This population: '
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters, SynthesisParameters
 
-_synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017']
+_synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017',
+    'bpass_v1', 'bpass_v2', 'starburst99']
 _single_star_models = ['schaerer2002']
-_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002', 'hybrid']
+_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002', 'hybrid',
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
 
 def normalize_sed(pop):
     """
@@ -408,6 +410,9 @@ class Population(object):
                (not self.affects_cgm) and (not self.is_src_lya):
                 return self._is_emissivity_scalable
 
+            # The use of affects_cgm here is to indicate whether we're likely
+            # to have an fesc that must be handled carefully.
+
             # At this stage, we need to set is_emissivity_scalable=False IFF:
             # (1) there are mass- or time-dependent radiative properties
             # (2) if there are wavelength-dependent escape fractions.
@@ -415,8 +420,10 @@ class Population(object):
 
             if (self.affects_cgm) and (not self.affects_igm):
                 if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
-                    self._is_emissivity_scalable = False
-                    return False
+                    print("# WARNING: revisit scalability wrt fesc.")
+                    #print("Not scalable cuz fesc pop={}".format(self.id_num))
+            #        self._is_emissivity_scalable = False
+            #        return False
 
             for par in self.pf.pqs:
 
@@ -525,6 +532,14 @@ class Population(object):
 
         return self._src_kwargs
 
+
+    @property
+    def is_synthesis_model(self):
+        if not hasattr(self, '_is_synthesis_model'):
+            self._is_synthesis_model = \
+                self.pf['pop_sed'] in _synthesis_models
+        return self._is_synthesis_model
+
     @property
     def src(self):
         if not hasattr(self, '_src'):
@@ -587,7 +602,8 @@ class Population(object):
 
     @property
     def is_user_sfrd(self):
-        return (self.pf['pop_sfr_model'].lower() in ['sfrd-func', 'sfrd-tab', 'sfrd-class'])
+        return (self.pf['pop_sfr_model'].lower() in \
+            ['sfrd-func', 'sfrd-tab', 'sfrd-class'])
 
     @property
     def is_link_sfrd(self):
@@ -794,8 +810,8 @@ class Population(object):
             if self.pf['pop_Mmin'] is not None:
                 if ismethod(self.pf['pop_Mmin']) or \
                    type(self.pf['pop_Mmin']) == FunctionType:
-                    self._tab_Mmin_ = \
-                        np.array(map(self.pf['pop_Mmin'], self.halos.tab_z))
+                    self._tab_Mmin_ = np.array([self.pf['pop_Mmin'](_z) \
+                        for _z in self.halos.tab_z])
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
                     self._tab_Mmin_ = self.pf['pop_Mmin']
                     assert self._tab_Mmin.size == self.halos.tab_z.size
@@ -805,7 +821,8 @@ class Population(object):
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
-                self._tab_Mmin_ = np.array(map(Mvir, self.halos.tab_z))
+                self._tab_Mmin_ = np.array([Mvir(_z) \
+                    for _z in self.halos.tab_z])
 
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
 
@@ -852,3 +869,17 @@ class Population(object):
         if not hasattr(self, '_tab_Mmin_floor_'):
             self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.tab_z)
         return self._tab_Mmin_floor_
+
+    def get_mags_abs(self, z, mags):
+        """
+        Convert apparent magnitudes to absolute magnitudes.
+        """
+        d_pc = self.cosm.LuminosityDistance(z) / cm_per_pc
+        return mags - 5 * np.log10(d_pc / 10.) + 2.5 * np.log10(1. + z)
+
+    def get_mags_app(self, z, mags):
+        """
+        Convert absolute magnitudes to apparent magnitudes.
+        """
+        d_pc = self.cosm.LuminosityDistance(z) / cm_per_pc
+        return mags + 5 * np.log10(d_pc / 10.) - 2.5 * np.log10(1. + z)

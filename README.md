@@ -1,11 +1,10 @@
-[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.com/mirochaj/ares.svg?branch=master)](https://travis-ci.com/mirochaj/ares) [![Coverage Status](https://coveralls.io/repos/github/mirochaj/ares/badge.svg?branch=master)](https://coveralls.io/github/mirochaj/ares?branch=master) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
-
-
 # **ARES**
+[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/master/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
+
 The Accelerated Reionization Era Simulations (ARES) code was designed to
-rapidly generate models for the global 21-cm signal. It can also be used as a 
-1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
-global radiation background calculator. 
+rapidly generate models for the global 21-cm signal. It can also be used as a
+1-D radiative transfer code, stand-alone non-equilibrium chemistry solver,
+global radiation background calculator, or semi-analytic galaxy formation model.
 
 A few papers on how it works:
 
@@ -25,46 +24,17 @@ Plus some more applications:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-If you'd like to live on the bleeding edge, check out the ares-dev branch! Once you clone **ares** you can switch via: ::
-    
-    git checkout ares-dev
-
-The [documentation](http://ares.readthedocs.org/en/latest/) is still a work in progress.
-
 ## Citation
 
-If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. Either way, please provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
+If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. Note that for some applications, ARES relies heavily on lookup tables and publicly-available software packages that should be referenced as well. These include:
 
-## Getting started
+- [CAMB](https://camb.readthedocs.io/en/latest/)
+- [hmf](https://hmf.readthedocs.io/en/latest/)
+- Collisional coupling coefficients from [Zygelman (2005)](https://ui.adsabs.harvard.edu/abs/2005ApJ...622.1356Z/abstract).
+- Lyman:math:`\alpha` transition probabilities from [Pritchard \& Furlanetto](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367.1057P/abstract).
 
-To clone a copy and install:
+Please also provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
 
-```
-git clone https://github.org/mirochaj/ares.git
-cd ares
-python setup.py install
-```
-
-You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash):
-
-```
-export ARES=/users/<yourusername>/ares
-```
-
-**ares** will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run:
-
-```
-python remote.py
-```
-    
-This might take a few minutes. If something goes wrong with the download, you can run
-
-```
-python remote.py fresh
-```
-    
-to get fresh copies of everything.
-    
 ## Dependencies
 
 You will need:
@@ -90,6 +60,30 @@ and optionally,
 
 Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
 
+## Getting started
+
+To clone a copy and install:
+
+```
+git clone https://github.org/mirochaj/ares.git
+cd ares
+python setup.py install
+```
+
+**ares** will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run:
+
+```
+python remote.py
+```
+
+This might take a few minutes. If something goes wrong with the download, you can run
+
+```
+python remote.py fresh
+```
+
+to get fresh copies of everything.
+
 ## Quick Example
 
 To generate a model for the global 21-cm signal, simply type:
@@ -100,50 +94,21 @@ import ares
 sim = ares.simulations.Global21cm()      # Initialize a simulation object
 sim.run()   
 ```                                               
-    
-You can examine the contents of ``sim.history``, a dictionary which contains 
-the redshift evolution of all IGM physical quantities, or use some built-in 
+
+You can examine the contents of ``sim.history``, a dictionary which contains
+the redshift evolution of all IGM physical quantities, or use some built-in
 analysis routines:
 
 ```python
 sim.GlobalSignature()
 ```    
-	
+
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type:
 
 ```python
 import matplotlib.pyplot as pl
 pl.show()
 ```
-
-See the documentation for more examples.
-
-## Documentation
-
-To generate the documentation locally, 
-
-```
-cd $ARES/doc
-make html
-open _build/html/index.html
-```
- 
-This will open the documentation in a browser. For the above to work, you'll
-need [sphinx](http://sphinx-doc.org/contents.html), which can be installed
-via pip:
-
-```
-pip install sphinx
-```
-
-This depends on [numpydoc](https://github.com/numpy/numpydoc), which can also
-be installed via pip:
-
-```
-pip install numpydoc
-```
-
-You can also just view the latest build [here](http://ares.readthedocs.org/en/latest/).
 
 ## Help
 
@@ -156,7 +121,7 @@ Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/hom
 Additional contributions / corrections / suggestions from:
 
 - Geraint Harker
-- Jason Sun 
+- Jason Sun
 - Keith Tauscher
 - Jacob Jost
 - Greg Salvesen
@@ -177,3 +142,5 @@ Additional contributions / corrections / suggestions from:
 - Henri Lamarre
 - Matteo Leo
 - Emma Klemets
+- Felix Bilodeau-Chagnon
+- Joshua Hibbard

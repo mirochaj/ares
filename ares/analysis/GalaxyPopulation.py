@@ -26,7 +26,6 @@ import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
 from ..util.Photometry import what_filters
 from matplotlib.colors import ListedColormap
-from .MultiPlot import MultiPanel, add_master_legend
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples
 from ..populations.GalaxyPopulation import GalaxyPopulation as GP
@@ -43,10 +42,10 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'mclure2013', 'parsa2016', 'atek2015',  'alavi2016',
     'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018', 'oesch2013',
     'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020')
-datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014', 
+datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014',
 	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
-datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010', 
+datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010',
 	'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
 
 groups_lf = \
@@ -63,7 +62,7 @@ groups_ssfr = {'all': datasets_ssfr}
 
 groups_smf = {'all': datasets_smf}
 
-groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf, 
+groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf,
     'smf_tot': groups_smf, 'smf_q': groups_smf,
     'mzr': {'all': datasets_mzr}, 'ssfr': groups_ssfr}
 
@@ -88,12 +87,12 @@ for i, dataset in enumerate(datasets_mzr):
 for i, dataset in enumerate(datasets_ssfr):
     default_colors[dataset] = colors_cyc[i]
     default_markers[dataset] = markers[i]
-    
+
 default_markers['stefanon2017'] = 's'
 
 _ulim_tick = 0.5
 
-class GalaxyPopulation(object):
+class GalaxyPopulation(object): # pragma: no cover
     def __init__(self):
         pass
 
@@ -258,31 +257,31 @@ class GalaxyPopulation(object):
         return data
 
     def PlotLF(self, z, ax=None, fig=1, sources='all', round_z=False,
-            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs):
+            AUV=None, wavelength=1600., sed_model=None, force_labels=False, **kwargs): # pragma: no cover
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', 
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf',
             force_labels=force_labels, **kwargs)
-        
-    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
-            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs):
+
+    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False,
+            AUV=None, wavelength=1600., sed_model=None, quantity='smf', force_labels=False, log10Mass=False, **kwargs): # pragma: no cover
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity,
             force_labels=force_labels, log10Mass=log10Mass, **kwargs)
 
-    def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False, 
-            AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs):
+    def PlotSSFR(self, z, ax=None, fig=1, sources='all', round_z=False,
+            AUV=None, wavelength=1600., sed_model=None, quantity='ssfr', force_labels=False, **kwargs): # pragma: no cover
 
         return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
-            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity, 
-            force_labels=force_labels, **kwargs)             
+            AUV=AUV, wavelength=1600, sed_model=None, quantity=quantity,
+            force_labels=force_labels, **kwargs)
 
     def PlotColors(self, pop, axes=None, fig=1, z_uvlf=[4,6,8,10],
         z_beta=[4,5,6,7], z_only=None, sources='all', repeat_z=False, beta_phot=True,
         show_Mstell=True, show_MUV=True, label=None, zcal=None, Mlim=-15,
         dmag=0.5, dMst=0.25, dlam=20, dlam_c94=10, fill=False, extra_pane=False,
-        square=False, cmap=None, **kwargs):
+        square=False, cmap=None, **kwargs): # pragma: no cover
         """
         Make a nice plot showing UVLF and UV CMD constraints and models.
         """
@@ -651,7 +650,7 @@ class GalaxyPopulation(object):
 
                 # Mask
                 ok = np.logical_and(np.isfinite(beta), beta > -99999)
-                if not fill:
+                if not fill and ok.sum() > 0:
                     ax_cmd[kcmd].plot(mags_cr[ok==1], beta[ok==1], color=colors(zint), **kwargs)
 
                 if show_Mstell:
@@ -1248,9 +1247,11 @@ class GalaxyPopulation(object):
 
             return axB, axD, axB2, axD2
 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, force_labels=False,
-        AUV=None, wavelength=1600., sed_model=None, quantity='lf', use_labels=True,
-        take_log=False, imf=None, mags='intrinsic', sources_except=[], log10Mass=False, **kwargs):
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False,
+        force_labels=False, AUV=None, wavelength=1600., sed_model=None,
+        quantity='lf', use_labels=True,
+        take_log=False, imf=None, mags='intrinsic', sources_except=[],
+        log10Mass=False, **kwargs): # pragma: no cover
         """
         Plot the luminosity function data at a given redshift.
 
@@ -1335,12 +1336,12 @@ class GalaxyPopulation(object):
             if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25
                 print("# Shifting stellar masses by 0.25 dex (Chabrier -> Salpeter) for source={}".format(source))
-            else:    
-                shift = 0.    
-            
+            else:
+                shift = 0.
+
             if log10Mass:
                 ax.errorbar(np.log10(M+shift-dc), phi, yerr=err, uplims=ulim, zorder=10, **mkw)
-            else:                            
+            else:
                 ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **mkw)
 
         if quantity == 'lf':
@@ -1356,7 +1357,7 @@ class GalaxyPopulation(object):
             if log10Mass:
                 ax.set_xlim(7, 13)
                 if (not gotax) or force_labels:
-                    ax.set_xlabel(r'log$_{10}(M_{\ast} / M_{\odot})$')   
+                    ax.set_xlabel(r'log$_{10}(M_{\ast} / M_{\odot})$')
 
             else:
                 try:
@@ -1365,7 +1366,7 @@ class GalaxyPopulation(object):
                     pass
                 ax.set_xlim(1e7, 1e13)
                 if (not gotax) or force_labels:
-                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+                    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
 
             try:
                 ax.set_yscale('log')
@@ -1390,7 +1391,7 @@ class GalaxyPopulation(object):
         	except ValueError:
         	    pass
         	if (not gotax) or force_labels:
-        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
         	    ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
 
 
@@ -1398,110 +1399,106 @@ class GalaxyPopulation(object):
 
         return ax
 
-    def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1,
-        panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
-        quantity='lf', mp=None, sources_except=[],
-        mp_kwargs={}, show_ylabel=True, **kwargs):
-        """
-        Plot the luminosity function at a bunch of different redshifts.
-
-        Parameters
-        ----------
-        z : list
-            List of redshifts to include.
-        ncols : int
-            How many columns in multiplot? Number of rows will be determined
-            automatically.
-        legends : bool, str
-            'individual' means one legend per axis, 'master' means one
-            (potentially gigantic) legend.
-
-        """
-
-        if ncols == 1:
-            nrows = len(redshifts)
-        else:
-            nrows = len(redshifts) // ncols
-
-        if nrows * ncols != len(redshifts):
-            nrows += 1
-
-        dims = (nrows, ncols)
-
-        # Force redshifts to be in ascending order
-        if not np.all(np.diff(redshifts)) > 0:
-            redshifts = np.sort(redshifts)
-
-        if mp_kwargs == {}:
-            mp_kwargs = {'panel_size': panel_size, 'padding': [0.2]*2}
-
-        annotate_z = 'left' if quantity == 'lf' else 'right'
-
-        # Create multiplot
-        if mp is None:
-            gotmp = False
-            mp = MultiPanel(dims=dims, fig=fig, **mp_kwargs)
-        else:
-            gotmp = True
-            assert mp.dims == dims
-
-        if not hasattr(self, 'redshifts_in_mp'):
-            self.redshifts_in_mp = {}
-
-        if quantity not in self.redshifts_in_mp:
-            self.redshifts_in_mp[quantity] = []
-
-        for i, z in enumerate(redshifts):
-            k = mp.elements.ravel()[i]
-            ax = mp.grid[k]
-
-            # Where in the MultiPlot grid are we?
-            self.redshifts_in_mp[quantity].append(k)
-
-            self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
-                quantity=quantity, sources_except=sources_except, **kwargs)
-
-            if annotate_z == 'left':
-                _xannot = 0.05
-            else:
-                _xannot = 0.95
-
-            if gotmp:
-                continue
-
-            ax.annotate(r'$z \sim {}$'.format(round(z, 1)), (_xannot, 0.95),
-                ha=annotate_z, va='top', xycoords='axes fraction')
-
-        if gotmp:
-            return mp
-
-        for i, z in enumerate(redshifts):
-            k = mp.elements.ravel()[i]
-            ax = mp.grid[k]
-
-            if quantity == 'lf':
-                ax.set_xlim(-24, xmax)
-                ax.set_ylim(1e-7, ymax)
-                ax.set_yscale('log', nonposy='clip')
-                ax.set_ylabel('')
-                ax.set_xlabel(r'$M_{\mathrm{UV}}$')
-            else:
-                ax.set_xscale('log')
-                ax.set_xlim(1e6, 1e12)
-                ax.set_ylim(1e-7, ymax)
-                ax.set_yscale('log', nonposy='clip')
-                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
-
-        if show_ylabel:
-            if quantity == 'lf':
-                mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-            else:
-                mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
-
-
-        pl.show()
-
-        return mp
+    #def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1,
+    #    panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
+    #    quantity='lf', axes=None, sources_except=[],
+    #    fig_kwargs={}, show_ylabel=True, **kwargs):
+    #    """
+    #    Plot the luminosity function at a bunch of different redshifts.
+#
+    #    Parameters
+    #    ----------
+    #    z : list
+    #        List of redshifts to include.
+    #    ncols : int
+    #        How many columns in multiplot? Number of rows will be determined
+    #        automatically.
+    #    legends : bool, str
+    #        'individual' means one legend per axis, 'master' means one
+    #        (potentially gigantic) legend.
+#
+    #    """
+#
+    #    if ncols == 1:
+    #        nrows = len(redshifts)
+    #    else:
+    #        nrows = len(redshifts) // ncols
+#
+    #    if nrows * ncols != len(redshifts):
+    #        nrows += 1
+#
+    #    dims = (nrows, ncols)
+#
+    #    # Force redshifts to be in ascending order
+    #    if not np.all(np.diff(redshifts)) > 0:
+    #        redshifts = np.sort(redshifts)
+#
+    #    annotate_z = 'left' if quantity == 'lf' else 'right'
+#
+    #    # Create multiplot
+    #    if axes is None:
+    #        gotmp = False
+    #        fig, axes = pl.subplots(*dims, num=fig, **fig_kwargs)
+    #    else:
+    #        gotmp = True
+#
+    #    if not hasattr(self, 'redshifts_in_mp'):
+    #        self.redshifts_in_mp = {}
+#
+    #    if quantity not in self.redshifts_in_mp:
+    #        self.redshifts_in_mp[quantity] = []
+#
+    #    for i, z in enumerate(redshifts):
+    #        k = mp.elements.ravel()[i]
+    #        ax = mp.grid[k]
+#
+    #        # Where in the MultiPlot grid are we?
+    #        self.redshifts_in_mp[quantity].append(k)
+#
+    #        self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
+    #            quantity=quantity, sources_except=sources_except, **kwargs)
+#
+    #        if annotate_z == 'left':
+    #            _xannot = 0.05
+    #        else:
+    #            _xannot = 0.95
+#
+    #        if gotmp:
+    #            continue
+#
+    #        ax.annotate(r'$z \sim {}$'.format(round(z, 1)), (_xannot, 0.95),
+    #            ha=annotate_z, va='top', xycoords='axes fraction')
+#
+    #    if gotmp:
+    #        return mp
+#
+    #    for i, z in enumerate(redshifts):
+    #        k = mp.elements.ravel()[i]
+    #        ax = mp.grid[k]
+#
+    #        if quantity == 'lf':
+    #            ax.set_xlim(-24, xmax)
+    #            ax.set_ylim(1e-7, ymax)
+    #            ax.set_yscale('log', nonposy='clip')
+    #            ax.set_ylabel('')
+    #            ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+    #        else:
+    #            ax.set_xscale('log')
+    #            ax.set_xlim(1e6, 1e12)
+    #            ax.set_ylim(1e-7, ymax)
+    #            ax.set_yscale('log', nonposy='clip')
+    #            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+#
+    #    if show_ylabel:
+    #        if quantity == 'lf':
+    #            mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+    #        else:
+    #            mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+#
+#
+    #    pl.show()
+#
+    #    return mp
 
     def _selected(self, color1, color2, lbcut, ccut, degen):
 
@@ -1518,7 +1515,7 @@ class GalaxyPopulation(object):
 
 
     def PlotColorColor(self, pop, redshifts=[4,5,6,7], cuts='bouwens2015',
-        fig=None, show_false_neg=True):
+        fig=None, show_false_neg=True): # pragma: no cover
         """
         Make color-color plot including high-z selection criteria.
         """
@@ -1661,15 +1658,6 @@ class GalaxyPopulation(object):
 
         return fig, gs
 
-    def PlotScalingRelations(self, include=['SMHM', 'MZR', 'MS'], ncols=None):
-        """
-
-        """
-        pass
-
-    def PlotTrajectories(self):
-        pass
-
     def annotated_legend(self, ax, loc=(0.95, 0.05), sources='all'):
         """
         Annotate sources properly color-coded.
@@ -1689,11 +1677,8 @@ class GalaxyPopulation(object):
 
         return ax
 
-    def add_master_legend(self, mp, **kwargs):
-        return add_master_legend(mp, **kwargs)
-
     def PlotSummary(self, pop, axes=None, fig=1, use_best=True, method='mode',
-        fresh=False, redshifts=None, include_colors=True, **kwargs):
+        fresh=False, redshifts=None, include_colors=True, **kwargs): # pragma: no cover
         """
         Make a huge plot.
         """
@@ -1779,7 +1764,8 @@ class GalaxyPopulation(object):
                 else:
                     _beta = np.zeros_like(Mbins)
 
-                ax_bet.plot(Mbins, _beta, color=colors[j])
+                if np.any(_beta != -99999):
+                    ax_bet.plot(Mbins, _beta, color=colors[j])
 
             Mh = pop.get_field(z, 'Mh')
             Ms = pop.get_field(z, 'Ms')
@@ -1811,7 +1797,7 @@ class GalaxyPopulation(object):
             if not include_colors:
                 continue
 
-            mags1500 = pop.Magnitude(z, wave=1500.)
+            filt, mags1500 = pop.Magnitude(z, wave=1500.)
 
 
             #mags = pop.Magnitude(z, wave=1600.)
