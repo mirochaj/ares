@@ -60,14 +60,13 @@ except ImportError:
     have_hmf = False
     hmf_vers = 0
 hmf_vers = 3.4
-#TODO Think about changing this import function.
-if 0 <= hmf_vers <= 3.4:
-    try:
-        #from hmf.wdm import MassFunctionWDM
-        #from hmf import wdm
-        MassFunctionWDM = hmf.wdm.MassFunctionWDM
-    except ImportError:
-        pass
+
+if have_hmf:
+	if 0 <= hmf_vers <= 3.4:
+		try:
+		    MassFunctionWDM = hmf.wdm.MassFunctionWDM
+		except ImportError:
+		    pass
 
 # Old versions of HMF
 try:
