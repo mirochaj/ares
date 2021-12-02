@@ -55,19 +55,17 @@ try:
     from hmf import MassFunction
     have_hmf = True
     hmf_vstr = hmf.__version__
-    hmf_vers = float(hmf_vstr[0:hmf_vstr.rfind('.')])
+    hmf_vers = float(hmf_vstr[0:hmf_vstr.index('.')+2])
 except ImportError:
     have_hmf = False
     hmf_vers = 0
-hmf_vers = 3.4
-#TODO Think about changing this import function.
-if 0 <= hmf_vers <= 3.4:
-    try:
-        #from hmf.wdm import MassFunctionWDM
-        #from hmf import wdm
-        MassFunctionWDM = hmf.wdm.MassFunctionWDM
-    except ImportError:
-        pass
+
+if have_hmf:
+	if 0 <= hmf_vers <= 3.4:
+		try:
+		    MassFunctionWDM = hmf.wdm.MassFunctionWDM
+		except ImportError:
+		    pass
 
 # Old versions of HMF
 try:
@@ -638,7 +636,8 @@ class HaloMassFunction(object):
                 n=self.cosm.primordial_index, transfer_params=self.pars_transfer,
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
                 lnk_max=self.pf['hmf_lnk_max'], hmf_params=self.pf['hmf_params'],
-                use_splined_growth=self.pf['hmf_use_splined_growth'], **xtras)
+                use_splined_growth=self.pf['hmf_use_splined_growth'],\
+                filter_params=self.pf['filter_params'], **xtras)
 
         return self._MF_
 

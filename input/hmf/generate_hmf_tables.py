@@ -42,7 +42,11 @@ def_kwargs = \
  # Cosmology
  "cosmology_id": 'best',
  "cosmology_name": 'planck_TTTEEE_lowl_lowE',
-
+ 
+ #HMF params and filter params are for doing Aurel Schneider's 2015 paper WDM.
+ #"hmf_params" : {'a' : 1.0},	 
+ #"filter_params" : {'c' : 2.5}
+ 
  #"cosmology_id": 'paul',
  #"cosmology_name": 'user',
  #"sigma_8": 0.8159,

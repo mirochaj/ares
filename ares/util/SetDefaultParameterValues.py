@@ -1287,6 +1287,8 @@ def HaloMassFunctionParameters():
 
     # If a new tab_MAR should be computed when using the PCA
     "hmf_gen_MAR":False,
+    
+    "filter_params" : None,
 
     "hmf_MAR_from_CDM": True,
 
