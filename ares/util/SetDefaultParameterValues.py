@@ -1,7 +1,7 @@
 """
 SetDefaultParameterValues.py
 
-Author: Jordan Mirocha
+Author: Jordan Mirocha / Joshua Hibbard
 Affiliation: University of Colorado at Boulder
 Created on 2010-10-19.
 
@@ -1258,6 +1258,9 @@ def HaloMassFunctionParameters():
     "hmf_wdm_mass": None,
     "hmf_wdm_interp": True,
 
+    #For various DM models
+    'hmf_dm_model': 'CDM',
+
     "hmf_cosmology_location": None,
     # PCA eigenvectors
     "hmf_pca": None,
@@ -1284,6 +1287,10 @@ def HaloMassFunctionParameters():
 
     # If a new tab_MAR should be computed when using the PCA
     "hmf_gen_MAR":False,
+    
+    "filter_params" : None,
+
+    "hmf_MAR_from_CDM": True,
 
     }
 
