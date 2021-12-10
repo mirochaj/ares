@@ -1482,7 +1482,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 e_limit = None
 
             if (t_limit is not None) or (m_limit is not None) or \
-               (e_limit is not None) or (T_limit is not None) or (a_limit is not None):
+               (e_limit is not None) or (T_limit is not None) or \
+               (a_limit is not None):
 
                 M0x = self.pf['pop_initial_Mh']
                 if (M0x == 0) or (M0x == 1):
