@@ -259,6 +259,7 @@ def PhysicsParameters():
     'feedback_LW_softening': 'sqrt',
     'feedback_LW_tol_zrange': (0, np.inf),
 
+    'feedback_LW_Mmin_monotonic': False,
     'feedback_LW_Mmin_smooth': 0,
     'feedback_LW_Mmin_fit': 0,
     'feedback_LW_Mmin_afreq': 0,
@@ -1287,7 +1288,7 @@ def HaloMassFunctionParameters():
 
     # If a new tab_MAR should be computed when using the PCA
     "hmf_gen_MAR":False,
-    
+
     "filter_params" : None,
 
     "hmf_MAR_from_CDM": True,
