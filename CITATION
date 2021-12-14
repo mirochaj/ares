@@ -1,9 +1,6 @@
-If you use any of the global 21-cm signal or UV/X-ray radiation background stuff, you should cite 
-citing: 
+If you use any of the global 21-cm signal or UV/X-ray radiation background stuff, you should cite:
 
     Mirocha, J., 2014, MNRAS, 443, 1211
-
-For BibTex users:
 
 @ARTICLE{2014MNRAS.443.1211M,
    author = {{Mirocha}, J.},
@@ -21,11 +18,9 @@ archivePrefix = "arXiv",
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
-For the 1-D radiative transfer or SED optimization, please cite:
+For the 1-D radiative transfer please cite:
 
     Mirocha, J., Skory, S., Burns, J.O., Wise, J.W., 2012, ApJ, 756, 94
-
-For BibTex users:
 
 @ARTICLE{2012ApJ...756...94M,
    author = {{Mirocha}, J. and {Skory}, S. and {Burns}, J.~O. and {Wise}, J.~H.
@@ -46,7 +41,7 @@ archivePrefix = "arXiv",
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
-For global 21-cm calculations using new UVLF-based model, please cite
+For global 21-cm calculations using the UVLF-based model, please cite
 
 @ARTICLE{2017MNRAS.464.1365M,
        author = {{Mirocha}, Jordan and {Furlanetto}, Steven R. and {Sun}, Guochao},
@@ -87,4 +82,22 @@ archivePrefix = {arXiv},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
+If you use any of the more sophisticated galaxy modeling stuff, e.g., dust reddening, spectral synthesis, please consider citing
 
+@ARTICLE{2020MNRAS.498.2645M,
+       author = {{Mirocha}, Jordan and {Mason}, Charlotte and {Stark}, Daniel P.},
+        title = "{Effects of self-consistent rest-ultraviolet colours in semi-empirical galaxy formation models}",
+      journal = {\mnras},
+     keywords = {dust, extinction, galaxies: evolution, galaxies: high-redshift, galaxies: ISM, Astrophysics - Astrophysics of Galaxies},
+         year = 2020,
+        month = oct,
+       volume = {498},
+       number = {2},
+        pages = {2645-2661},
+          doi = {10.1093/mnras/staa2586},
+archivePrefix = {arXiv},
+       eprint = {2005.07208},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2020MNRAS.498.2645M},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
