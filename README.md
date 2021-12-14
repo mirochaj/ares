@@ -1,5 +1,5 @@
 # **ARES**
-[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/master/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
+[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/main/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
 
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a
@@ -26,12 +26,12 @@ risk! Correctness of results is not guaranteed.
 
 ## Citation
 
-If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. Note that for some applications, ARES relies heavily on lookup tables and publicly-available software packages that should be referenced as well. These include:
+If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer. Note that for some applications, ARES relies heavily on lookup tables and publicly-available software packages that should be referenced as well. These include:
 
 - [CAMB](https://camb.readthedocs.io/en/latest/)
 - [hmf](https://hmf.readthedocs.io/en/latest/)
 - Collisional coupling coefficients from [Zygelman (2005)](https://ui.adsabs.harvard.edu/abs/2005ApJ...622.1356Z/abstract).
-- Lyman:math:`\alpha` transition probabilities from [Pritchard \& Furlanetto](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367.1057P/abstract).
+- Lyman-alpha transition probabilities from [Pritchard \& Furlanetto](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367.1057P/abstract).
 
 Please also provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
 
