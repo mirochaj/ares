@@ -94,7 +94,7 @@ class Survey(object):
         return self._dwdn
 
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
-        filters=None, annotate=True):
+        filters=None, annotate=True, skip=None, rotation=90):
         """
         Plot transmission curves for NIRCAM filters.
         """
@@ -110,8 +110,12 @@ class Survey(object):
 
         data = self.read_throughputs(filter_set, filters)
 
-        colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
+        colors = ['k', 'b', 'g', 'c', 'm', 'y', 'r', 'orange'] * 10
         for i, filt in enumerate(data.keys()):
+
+            if skip is not None:
+                if filt in skip:
+                    continue
 
             ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
 
@@ -122,7 +126,7 @@ class Survey(object):
                     _filt = filt
 
                 ax.annotate(_filt, (data[filt][2], 0.8), ha='center', va='top',
-                    color=colors[i], rotation=90)
+                    color=colors[i], rotation=rotation)
 
         ax.set_xlabel(r'Observed Wavelength $[\mu \mathrm{m}]$')
         ax.set_ylabel('Transmission')
@@ -501,3 +505,63 @@ class Survey(object):
             y[~ok] = 0.0
 
         return x, y, mi, dx, Tavg
+
+    def get_dropout_filter(self, z, drop_wave=1216., skip=None):
+        """
+        Determine where the Lyman break happens and return the corresponding
+        filter.
+        """
+
+        data = self.read_throughputs()
+
+        all_filts = list(data.keys())
+
+        wave_obs = drop_wave * 1e-4 * (1. + z)
+
+        if skip is not None:
+            if type(skip) not in [list, tuple]:
+                skip = [skip]
+
+            for element in skip:
+                all_filts.remove(element)
+
+        gotit = False
+        for j, filt in enumerate(all_filts):
+
+            x0 = data[filt][2]
+            p, m = data[filt][3]
+
+            in_filter = (x0 - m <= wave_obs <= x0 + p)
+
+            # Check for exclusivity
+            if j >= 1:
+                x0b = data[all_filts[j-1]][2]
+                pb, mb = data[all_filts[j-1]][3]
+
+                in_blue_neighbor = (x0b - mb <= wave_obs <= x0b + pb)
+            else:
+                in_blue_neighbor = False
+
+            if j < len(all_filts) - 1:
+                x0r = data[all_filts[j+1]][2]
+                pr, mr = data[all_filts[j+1]][3]
+
+                in_red_neighbor = (x0r - mr <= wave_obs <= x0r + pr)
+            else:
+                in_red_neighbor = False
+
+            # Final say
+            if in_filter and (not in_blue_neighbor) and (not in_red_neighbor):
+                gotit = True
+                break
+
+        if gotit:
+            drop = filt
+            if filt != all_filts[-1]:
+                drop_redder = all_filts[j+1]
+            else:
+                drop_redder = None
+        else:
+            drop = drop_redder = None
+
+        return drop, drop_redder
