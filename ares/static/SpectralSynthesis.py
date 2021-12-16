@@ -129,7 +129,7 @@ class SpectralSynthesis(object):
         if self.pf['tau_clumpy'] is None:
             return 0.0
 
-        assert self.pf['tau_clumpy'].lower() == 'madau1995', \
+        assert self.pf['tau_clumpy'] in ['madau1995', 1, True], \
             "tau_clumpy='madau1995' is currently the sole option!"
 
         return self.madau1995(z, owaves)

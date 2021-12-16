@@ -139,11 +139,16 @@ class OpticalDepth(object):
         if self.pf['tau_clumpy'] is None:
             return 0.0
 
-        assert self.pf['tau_clumpy'].lower() == 'madau1995', \
+        assert self.pf['tau_clumpy'] in ['madau1995', 1, True], \
             "tau_clumpy='madau1995' is currently the sole option!"
 
         owaves = rwaves * 1e-4 * (1. + z)
         tau = np.zeros_like(owaves)
+
+        # Scorched earth option: null all flux at < 912 Angstrom
+        if self.pf['tau_clumpy'] == 1:
+            tau[rwaves <= lam_LyA] = np.inf
+            return tau
 
         ## Ly series line blanketing
         # Text just after Eq. 15.
