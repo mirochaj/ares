@@ -94,7 +94,8 @@ class Survey(object):
         return self._dwdn
 
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
-        filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90):
+        filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
+        **kwargs):
         """
         Plot transmission curves for NIRCAM filters.
         """
@@ -121,7 +122,15 @@ class Survey(object):
                 if filt not in filters:
                     continue
 
-            ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
+            if kwargs != {}:
+                if 'color' in kwargs:
+                    c = kwargs['color']
+                    del kwargs['color']
+            else:
+                c = colors[i]
+
+            ax.plot(data[filt][0], data[filt][1], label=filt, color=c,
+                **kwargs)
 
             if annotate:
                 if filt.endswith('IR'):
@@ -129,8 +138,8 @@ class Survey(object):
                 else:
                     _filt = filt
 
-                ax.annotate(_filt, (data[filt][2], 0.8), ha='center', va='top',
-                    color=colors[i], rotation=rotation, **annotate_kw)
+                ax.annotate(_filt, (data[filt][2], 1), ha='center', va='top',
+                    color=c, rotation=rotation, **annotate_kw)
 
         ax.set_xlabel(r'Observed Wavelength $[\mu \mathrm{m}]$')
         ax.set_ylabel('Transmission')

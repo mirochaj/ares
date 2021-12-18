@@ -2040,22 +2040,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             window=window, load=load, use_cache=use_cache,
             energy_units=energy_units)
 
-    def get_flux(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True):
+    def get_spec_obs(self, z, waves):
         """
-        Compute observed flux at z=0.
+        Generate z=0 observed spectrum for all sources.
 
-        .. note :: Units are erg/s/cm^2/Hz.
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        waves : np.ndarray
+            Array of rest-wavelengths to probe (in Angstrom).
+
+        Returns
+        -------
+        A tuple containing (observed wavelengths [microns], flux [erg/s/Hz]).
+
+        Note that the flux array is 2-D, with the first axis corresponding to
+        halo mass bins.
 
         """
-        L = self.get_lum(z, wave=wave, band=band, idnum=idnum,
-            window=window, load=load, use_cache=use_cache,
-            energy_units=energy_units)
+        owaves, flux = self.synth.get_spec_obs(z, hist=self.histories,
+            waves=waves, sfh=self.histories['SFR'])
 
-        dL = self.cosm.LuminosityDistance(z)
-        flux = L * (1. + z) / (4. * np.pi * dL**2)
-
-        return flux
+        return owaves, flux
 
     def get_lum(self, z, wave=1600., band=None, idnum=None, window=1,
         load=True, use_cache=True, energy_units=True):
