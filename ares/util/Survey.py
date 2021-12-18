@@ -567,7 +567,7 @@ class Survey(object):
                 in_red_neighbor = False
 
             # Final say
-            if in_filter:# and (not in_blue_neighbor) and (not in_red_neighbor):
+            if in_filter and (not in_blue_neighbor) and (not in_red_neighbor):
                 gotit = True
                 break
 

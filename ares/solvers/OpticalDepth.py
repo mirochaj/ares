@@ -19,7 +19,7 @@ from scipy.integrate import quad
 from ..physics import Cosmology, Hydrogen
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..util.Misc import num_freq_bins
-from ..physics.Constants import c, h_p, erg_per_ev
+from ..physics.Constants import c, h_p, erg_per_ev, lam_LyA, lam_LL
 from ..util.Math import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
@@ -136,10 +136,12 @@ class OpticalDepth(object):
 
         """
 
+        print('HELLO', self.pf['tau_clumpy'])
+
         if self.pf['tau_clumpy'] is None:
             return 0.0
 
-        assert self.pf['tau_clumpy'] in ['madau1995', 1, True], \
+        assert self.pf['tau_clumpy'] in ['madau1995', 1, True, 2], \
             "tau_clumpy='madau1995' is currently the sole option!"
 
         owaves = rwaves * 1e-4 * (1. + z)
@@ -147,6 +149,12 @@ class OpticalDepth(object):
 
         # Scorched earth option: null all flux at < 912 Angstrom
         if self.pf['tau_clumpy'] == 1:
+            print('hello')
+            tau[rwaves <= lam_LL] = np.inf
+            return tau
+
+        elif self.pf['tau_clumpy'] == 2:
+            print('hello 2')
             tau[rwaves <= lam_LyA] = np.inf
             return tau
 

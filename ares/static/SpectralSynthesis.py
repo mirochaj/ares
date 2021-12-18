@@ -20,7 +20,8 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from ..physics.Cosmology import Cosmology
 from scipy.interpolate import RectBivariateSpline
-from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB
+from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB, \
+    lam_LL, lam_LyA
 
 nanoJ = 1e-23 * 1e-9
 
@@ -129,10 +130,22 @@ class SpectralSynthesis(object):
         if self.pf['tau_clumpy'] is None:
             return 0.0
 
-        assert self.pf['tau_clumpy'] in ['madau1995', 1, True], \
-            "tau_clumpy='madau1995' is currently the sole option!"
+        assert self.pf['tau_clumpy'] in ['madau1995', 1, True, 2], \
+            "tau_clumpy in [1,2,'madau1995'] are currently the sole options!"
 
-        return self.madau1995(z, owaves)
+        tau = np.zeros_like(owaves)
+        rwaves = owaves * 1e4 / (1. + z)
+
+        # Scorched earth option: null all flux at < 912 Angstrom
+        if self.pf['tau_clumpy'] == 1:
+            tau[rwaves <= lam_LL] = np.inf
+        # Or all wavelengths < 1216 A (rest)
+        elif self.pf['tau_clumpy'] == 2:
+            tau[rwaves <= lam_LyA] = np.inf
+        else:
+            tau = self.madau1995(z, owaves)
+
+        return tau
 
     def L_of_Z_t(self, wave):
 
