@@ -508,7 +508,15 @@ class SpectralSynthesis(object):
                 Tavg = 1.
                 filter_data[_window] = x, y, mi, dx, Tavg
 
-        all_filters = filter_data.keys()
+        _all_filters = list(filter_data.keys())
+
+        # Sort filters in ascending wavelength
+        _waves = []
+        for _filter_ in _all_filters:
+            _waves.append(filter_data[_filter_][2])
+
+        sorter = np.argsort(_waves)
+        all_filters = [_all_filters[ind] for ind in sorter]
 
         # Figure out spectral range we need to model for these filters.
         # Find bluest and reddest filters, set wavelength range with some

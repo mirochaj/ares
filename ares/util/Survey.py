@@ -94,7 +94,7 @@ class Survey(object):
         return self._dwdn
 
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
-        filters=None, annotate=True, skip=None, rotation=90):
+        filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90):
         """
         Plot transmission curves for NIRCAM filters.
         """
@@ -117,6 +117,10 @@ class Survey(object):
                 if filt in skip:
                     continue
 
+            if filters is not None:
+                if filt not in filters:
+                    continue
+
             ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
 
             if annotate:
@@ -126,7 +130,7 @@ class Survey(object):
                     _filt = filt
 
                 ax.annotate(_filt, (data[filt][2], 0.8), ha='center', va='top',
-                    color=colors[i], rotation=rotation)
+                    color=colors[i], rotation=rotation, **annotate_kw)
 
         ax.set_xlabel(r'Observed Wavelength $[\mu \mathrm{m}]$')
         ax.set_ylabel('Transmission')
@@ -506,7 +510,7 @@ class Survey(object):
 
         return x, y, mi, dx, Tavg
 
-    def get_dropout_filter(self, z, drop_wave=1216., skip=None):
+    def get_dropout_filter(self, z, filters=None, drop_wave=1216., skip=None):
         """
         Determine where the Lyman break happens and return the corresponding
         filter.
@@ -514,9 +518,12 @@ class Survey(object):
 
         data = self.read_throughputs()
 
-        all_filts = list(data.keys())
-
         wave_obs = drop_wave * 1e-4 * (1. + z)
+
+        if filters is not None:
+            all_filts = filters
+        else:
+            all_filts = list(data.keys())
 
         if skip is not None:
             if type(skip) not in [list, tuple]:
@@ -551,7 +558,7 @@ class Survey(object):
                 in_red_neighbor = False
 
             # Final say
-            if in_filter and (not in_blue_neighbor) and (not in_red_neighbor):
+            if in_filter:# and (not in_blue_neighbor) and (not in_red_neighbor):
                 gotit = True
                 break
 
