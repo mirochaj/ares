@@ -1905,6 +1905,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         magcorr = 5. * (np.log10(dL) - 1.) - 2.5 * np.log10(1. + z)
 
         # Either load previous result or compute from scratch
+        fil = filters
         if cached_result is not None:
             M, mags = cached_result
         else:
@@ -2155,16 +2156,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 assert len(depths) == len(filt)
                 assert method is None
 
-                _ok = np.zeros_like(mags.shape[1])
+                _ok = np.zeros(mags.shape[1])
                 for i, limit in enumerate(depths):
-                    _ok_ = mags[i] <= limit
-
+                    _ok_ = np.logical_and(mags[i] <= limit, np.isfinite(mags[i]))
                     _ok += _ok_
 
                 if logic == 'and':
                     ok = _ok == len(depths)
-                else:
+                elif logic == 'or':
                     ok = _ok > 0
+                else:
+                    assert isinstance(logic, int)
+                    ok = _ok > logic
+
 
             elif limit_is_lower:
                 ok = np.logical_and(mags <= limit, np.isfinite(mags))
