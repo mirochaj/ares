@@ -76,5 +76,23 @@ def test():
     # Get single halo history
     hist = pop.get_history(20)
 
+    # Get z=0 spectra
+    spec = pop.get_spec_obs(6., waves=np.array([1600]))
+
+    # Test galaxy bias calculation
+    b = pop.get_bias(6., limit=-19.4, absolute=True, wave=1600.)
+    assert 4 <= b <= 6, "bias unreasonable! b={}".format(b)
+
+    b = pop.get_bias(6., limit=28, absolute=False, wave=1600.)
+    assert 2 <= b <= 10, "bias unreasonable! b={}".format(b)
+
+    b = pop.get_bias(6., limit=1e10, cut_in_mass=True, wave=1600.)
+    assert 3 <= b <= 5, "bias unreasonable! b={}".format(b)
+
+    # Surface density
+    amag_bins = np.arange(20, 45, 0.1)
+    x, Sigma = pop.get_surface_density(6, bins=amag_bins)
+    assert 1e3 <= Sigma[np.argmin(np.abs(amag_bins - 27))] <= 1e4
+
 if __name__ == '__main__':
     test()

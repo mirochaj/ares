@@ -1296,7 +1296,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Need to add luminosity from progenitor history even after merger.
         # NOTE: no transferrance of gas, metals, or stars, as of yet.
         ##
-        if self.pf['pop_mergers'] > 0:
+        if self.pf['pop_mergers'] > 0: # pragma: no cover
             children = halos['children']
             iz, iM, is_main = children.T
             uni = np.all(Mh.mask == False, axis=1)
@@ -1338,7 +1338,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 Sd *= g_per_msun / cm_per_kpc**2
 
         # Limit to main branch
-        elif self.pf['pop_mergers'] == -1:
+        elif self.pf['pop_mergers'] == -1: # pragma: no cover
             children = halos['children'][:,-1::-1]
             iz, iM, is_main = children.T
             main_branch = is_main == 1
@@ -2995,6 +2995,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cam=None, filters=None, filter_set=None, dlam=20., method='closest',
         window=1, load=True, presets=None, absolute=False, use_mags=True):
         """
+        Compute surface density of galaxies [number / deg^2 / dz]
 
         Returns
         -------
