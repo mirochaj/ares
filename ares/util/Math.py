@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Wed Sep 24 15:52:13 MDT 2014
 
-Description: 
+Description:
 
 """
 
@@ -18,10 +18,10 @@ _numpy_kwargs = {'left': None, 'right': None}
 
 def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
     force_scipy=False, **kwargs):
-    
+
     if 'axis' in kwargs:
         force_scipy = True
-    
+
     if (kind == 'linear') and (not force_scipy):
         kw = _numpy_kwargs.copy()
         for kwarg in ['left', 'right']:
@@ -29,82 +29,109 @@ def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
                 kw[kwarg] = kwargs[kwarg]
             else:
                 kw[kwarg] = fill_value
-                
+
         return lambda xx: np.interp(xx, x, y, **kw)
-    elif (kind == 'cubic') or force_scipy: 
+    elif (kind == 'cubic') or force_scipy:
         for kwarg in ['left', 'right']:
             if kwarg in kwargs:
                 del kwargs[kwarg]
-        return interp1d_scipy(x, y, kind='cubic', bounds_error=bounds_error, 
+        return interp1d_scipy(x, y, kind='cubic', bounds_error=bounds_error,
             fill_value=fill_value, **kwargs)
     else:
         raise NotImplemented("Don\'t understand interpolation method={}".format(method))
 
-def forward_difference(x, y):    
+class interp1d_wrapper(object):
+    """
+    Wrap interpolant and use boundaries as floor and ceiling.
+    """
+    def __init__(self, x, y, kind):
+        self._x = x
+        self._y = y
+        self._interp = interp1d(x, y, kind=kind, bounds_error=False)
+
+        self.limits = self._x.min(), self._x.max()
+
+    def __call__(self, xin):
+
+        if type(xin) in [int, float, np.float64]:
+            if xin < self.limits[0]:
+                x = self.limits[0]
+            elif xin > self.limits[1]:
+                x = self.limits[1]
+            else:
+                x = xin
+        else:
+            x = xin.copy()
+            x[x < self.limits[0]] = self.limits[0]
+            x[x > self.limits[1]] = self.limits[1]
+
+        return self._interp(x)        
+
+def forward_difference(x, y):
     """
     Compute the derivative of y with respect to x via forward difference.
-    
+
     Parameters
     ----------
     x : np.ndarray
         Array of x values
     y : np.ndarray
         Array of y values
-        
+
     Returns
     -------
     Tuple containing x values and corresponding y derivatives.
-    
-    """  
-    
+
+    """
+
     return x[0:-1], (np.roll(y, -1) - y)[0:-1] / np.diff(x)
-    
+
 def central_difference(x, y):
     """
     Compute the derivative of y with respect to x via central difference.
-    
+
     Parameters
     ----------
     x : np.ndarray
         Array of x values
     y : np.ndarray
         Array of y values
-        
+
     Returns
     -------
     Tuple containing x values and corresponding y derivatives.
-    
-    """    
-        
+
+    """
+
     dydx = ((np.roll(y, -1) - np.roll(y, 1)) \
         / (np.roll(x, -1) - np.roll(x, 1)))[1:-1]
-    
+
     return x[1:-1], dydx
-        
+
 def five_pt_stencil(x, y):
     """
     Compute the first derivative of y wrt x using five point method.
-    """    
-    
+    """
+
     h = abs(np.diff(x)[0])
-    
+
     num = -np.roll(y, -2) + 8. * np.roll(y, -1) \
           - 8. * np.roll(y, 1) + np.roll(y, 2)
-         
+
     return x[2:-2], num[2:-2] / 12. / h
-    
+
 def smooth(y, width, kernel='boxcar'):
     """
     Smooth 1-D function `y` using boxcar of width `kernel` (in pixels).
-    
+
     Kernel options: 'boxcar' and 'gaussian'
     """
-    
+
     assert width % 2 == 1
-    
+
     s = width - 1
     kern = np.zeros_like(y)
-        
+
     if kernel == 'boxcar':
         kern[kern.size//2 - s//2: kern.size//2 + s//2+1] = \
             np.ones(width) / float(width)
@@ -114,40 +141,13 @@ def smooth(y, width, kernel='boxcar'):
         kern = np.exp(-0.5 * (xx - x0)**2 / width**2) / width / np.sqrt(2 * np.pi)
     else:
         raise NotImplemented('help')
-    
+
     # Chop off regions within boxcar size of edges
     result = np.convolve(y, kern, mode='same')
     result[0:width] = y[0:width]
     result[-width:] = y[-width:]
-    
+
     return result
-    
-def take_derivative(z, field, wrt='z'):
-    """ Evaluate derivative of `field' with respect to `wrt' at z. """
-
-    # Take all derivatives wrt z, convert afterwards
-    x = z
-    y = field
-    xp, fp = central_difference(x, y)
-
-    if wrt == 'nu':
-        fp *= -1.0 * (1. + xp)**2 / nu_0_mhz
-    elif wrt == 'logt':
-        spline = interp1d(x, y, kind='linear')
-        fp *= -2.0 * (1. + xp) / spline(xp) / 3.
-    elif wrt == 'z':
-        pass
-    else:
-        print('Unrecognized option for wrt.')
-
-    # x-values must be monotonically increasing - fix dep. on 'wrt'
-    if not np.all(np.diff(xp) > 0):
-        xp, fp = list(xp), list(fp)
-        xp.reverse()
-        fp.reverse()
-        xp, fp = np.array(xp), np.array(fp)        
-
-    return z, np.interp(z, xp, fp)    
 
 class LinearNDInterpolator(object):
     def __init__(self, axes, data, fill_values=None):
@@ -166,20 +166,20 @@ class LinearNDInterpolator(object):
 
         Example
         -------
-        Interpolate in 1D: 
+        Interpolate in 1D:
         >>> x = np.arange(10)
         >>> y = x**2
         >>> interp = LinearNDInterpolator(x, y)
         >>> interp(5.4)
 
-        Interpolate in 2D: 
+        Interpolate in 2D:
         >>> x = y = np.arange(10)
         >>> xx, yy = np.meshgrid(x, y)
         >>> z = xx**2 + yy**2
         >>> interp = LinearNDInterpolator([x, y], z)
         >>> interp([5.4, 5.9])
 
-        Interpolate in 3D: 
+        Interpolate in 3D:
         >>> x = y = z = np.arange(10)
         >>> xx, yy, zz = np.meshgrid(x, y, z)
         >>> w = xx**2 + yy**2 + zz**2
@@ -201,7 +201,7 @@ class LinearNDInterpolator(object):
         if self.Nd == 1:
             self._init_1d()
         elif self.Nd >= 2:
-            self._init_Nd()    
+            self._init_Nd()
         else:
             raise NotImplemented('Haven\'t implemented interpolation for N>3')
 
@@ -248,7 +248,7 @@ class LinearNDInterpolator(object):
 
         tmp = np.zeros(self.Nd)
         for i in range(self.Nd):
-            if not np.allclose(self.daxes[i] - self.daxes[i][0], 
+            if not np.allclose(self.daxes[i] - self.daxes[i][0],
                 np.zeros_like(self.daxes[i])):
                 raise ValueError('Values must be evenly spaced!')
             tmp[i] = self.daxes[i][0]
@@ -278,7 +278,7 @@ class LinearNDInterpolator(object):
         final = (f11 * (x2 - points[0]) * (y2 - points[1]) + \
             f21 * (points[0] - x1) * (y2 - points[1]) + \
             f12 * (x2 - points[0]) * (points[1] - y1) + \
-            f22 * (points[0] - x1) * (points[1] - y1)) / (x2 - x1) / (y2 - y1)    
+            f22 * (points[0] - x1) * (points[1] - y1)) / (x2 - x1) / (y2 - y1)
 
         return final
 
@@ -287,30 +287,30 @@ class LinearNDInterpolator(object):
         i_s, j_s, k_s = list(map(int, (points - self.axes_min) / self.daxes))
 
         # Bracketing coordinates
-        if i_s < 0: 
+        if i_s < 0:
             i_s = i_b = 0
-        elif i_s >= (self.dims[0] - 1): 
+        elif i_s >= (self.dims[0] - 1):
             i_s = i_b = -1
-        else: 
+        else:
             i_b = i_s + 1
-        if j_s < 0: 
+        if j_s < 0:
             j_s = j_b = 0
-        elif j_s >= (self.dims[1] - 1): 
+        elif j_s >= (self.dims[1] - 1):
             j_s = j_b = -1
-        else: 
+        else:
             j_b = j_s + 1
-        if k_s < 0: 
+        if k_s < 0:
             k_s = k_b = 0
-        elif k_s >= (self.dims[2] - 1): 
+        elif k_s >= (self.dims[2] - 1):
             k_s = k_b = -1
-        else: 
-            k_b = k_s + 1        
+        else:
+            k_b = k_s + 1
 
         # Bracketing values
         x_s, y_s, z_s = self.axes[0,i_s], self.axes[1,j_s], self.axes[2,k_s]
         x_b, y_b, z_b = self.axes[0,i_b], self.axes[1,j_b], self.axes[2,k_b]
 
-        # Distance between supplied value and smallest value in table        
+        # Distance between supplied value and smallest value in table
         x_d = (points[0] - x_s) / self.daxes[0]
         y_d = (points[1] - y_s) / self.daxes[1]
         z_d = (points[2] - z_s) / self.daxes[2]
@@ -318,7 +318,7 @@ class LinearNDInterpolator(object):
         return [i_s, j_s, k_s], [i_b, j_b, k_b], [x_d, y_d, z_d]
 
     def _interp_3d(self, points):
-        """ Interpolate in 3D. """ 
+        """ Interpolate in 3D. """
 
         ijk_s, ijk_b, xyz_d = self._get_indices_3d(points)
 
@@ -338,32 +338,3 @@ class LinearNDInterpolator(object):
         final = w1 * (1. - x_d) + w2 * x_d
 
         return final
-        
-        
-class interp1d_wrapper(object):
-    """
-    Wrap interpolant and use boundaries as floor and ceiling.
-    """
-    def __init__(self, x, y, kind):
-        self._x = x
-        self._y = y
-        self._interp = interp1d(x, y, kind=kind, bounds_error=False)
-
-        self.limits = self._x.min(), self._x.max()
-
-    def __call__(self, xin):
-
-        if type(xin) in [int, float, np.float64]:
-            if xin < self.limits[0]:
-                x = self.limits[0]
-            elif xin > self.limits[1]:
-                x = self.limits[1]
-            else:
-                x = xin
-        else:
-            x = xin.copy()
-            x[x < self.limits[0]] = self.limits[0]
-            x[x > self.limits[1]] = self.limits[1]
-
-        return self._interp(x)
-
