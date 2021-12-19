@@ -65,7 +65,7 @@ class interp1d_wrapper(object):
             x[x < self.limits[0]] = self.limits[0]
             x[x > self.limits[1]] = self.limits[1]
 
-        return self._interp(x)        
+        return self._interp(x)
 
 def forward_difference(x, y):
     """
@@ -188,12 +188,12 @@ class LinearNDInterpolator(object):
 
         """
 
-        self.axes = axes
+        self.axes = np.array(axes)
         self.data = data
 
         self.dims = self.data.shape
 
-        if len(self.axes) == 1:
+        if len(self.axes.squeeze().shape) == 1:
             self.Nd = 1
         else:
             self.Nd = len(self.axes)
@@ -235,12 +235,8 @@ class LinearNDInterpolator(object):
         if np.all(np.diff(self.axes) > 0):
             return
 
-        tmpa = list(self.axes)
-        tmpd = list(self.data)
-        tmpa.reverse()
-        tmpd.reverse()
-        self.axes = np.array(tmpa)
-        self.data = np.array(tmpd)
+        self.axes = self.axes[0,-1::-1]
+        self.data = self.data[-1::-1]
 
     def _init_Nd(self):
         self.daxes = np.array([np.diff(axis) for axis in self.axes])
@@ -263,7 +259,8 @@ class LinearNDInterpolator(object):
     def _interp_2d(self, points):
         """ Interpolate in 2D. """
 
-        i_n, i_m = list(map(int, (points - self.axes_min) / self.daxes))
+        i_n = np.digitize(points[0], self.axes[0])
+        i_m = np.digitize(points[1], self.axes[1])
 
         x1 = self.axes[0][i_n]
         x2 = self.axes[0][i_n+1]
@@ -284,7 +281,9 @@ class LinearNDInterpolator(object):
 
     def _get_indices_3d(self, points):
         # Smaller indices
-        i_s, j_s, k_s = list(map(int, (points - self.axes_min) / self.daxes))
+        i_s = np.digitize(points[0], self.axes[0])
+        j_s = np.digitize(points[1], self.axes[1])
+        k_s = np.digitize(points[2], self.axes[2])
 
         # Bracketing coordinates
         if i_s < 0:

@@ -23,11 +23,13 @@ def test():
 
     func1 = interp1d(x, y, kind='cubic')
     func2 = interp1d_wrapper(x, y, kind='cubic')
+    func3 = LinearNDInterpolator(x, y)
 
     x2 = np.linspace(0, 4 * np.pi, 50)
 
     f1 = func1(x2)
     f2 = func2(x2)
+    f3 = func3(x2)
 
     assert np.array_equal(f1, f2)
 
@@ -48,12 +50,17 @@ def test():
     # Next, test LinearNDInterpolator
     _x = _y = np.linspace(0, 5, 100)
     xx, yy = np.meshgrid(_x, _y)
+    f = np.sin(xx) + np.cos(yy)
 
-    z = np.sin(xx) + np.cos(yy)
+    func2d = LinearNDInterpolator([_x, _y], f)
+    f0 = func2d(np.array([0.5, 1.3]))
 
-    func3 = LinearNDInterpolator([_x, _y], z)
+    _x = _y = _z = np.linspace(0, 5, 100)
+    xx, yy, zz = np.meshgrid(_x, _y, _z)
+    g = np.sin(xx) + np.cos(yy) + + np.tan(zz)
 
-    z0 = func3(np.array([0.5, 1.3]))
+    func3d = LinearNDInterpolator([_x, _y, _z], g)
+    g0 = func3d(np.array([0.5, 1.3, 1.5]))
 
 if __name__ == '__main__':
     test()
