@@ -33,7 +33,7 @@ from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
     g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
-    erg_per_ev, h_p
+    erg_per_ev, h_p, lam_LyA
 
 try:
     import h5py
@@ -55,6 +55,9 @@ def _quadfunc3(x, x0, p0, p1, p2):
 pars_affect_mars = ["pop_MAR", "pop_MAR_interp", "pop_MAR_corr"]
 pars_affect_sfhs = ["pop_scatter_sfr", "pop_scatter_sfe", "pop_scatter_mar"]
 pars_affect_sfhs.extend(["pop_update_dt", "pop_thin_hist"])
+
+known_lines = 'Ly-a',
+known_line_waves = lam_LyA,
 
 class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
@@ -2041,6 +2044,74 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             window=window, load=load, use_cache=use_cache,
             energy_units=energy_units)
 
+    def get_waves_for_line(self, waves, dlam=1, window=3):
+        """
+        If `waves` is a string, e.g., 'Ly-a', convert to array of wavelengths.
+
+        .. note :: This is used as a convenience routine to let the user
+            retrieve the flux from a given spectral line rather than having to
+            specify wavelengths by hand.
+
+        Parameters
+        ----------
+        waves : str or np.ndarray
+            If str, figure out what line user wants and create an array
+            of wavelengths in [Angstrom]. Otherwise, just return.
+        dlam : int
+            Resolution to sample spectrum around line. [Angstrom]
+        window : int
+            Number of pixels to include around line. Must be odd!
+
+
+        Returns
+        -------
+        Array of wavelengths to use in, e.g., `get_spec_obs` or `get_flux`.
+
+        """
+        # Special mode: retrieve line luminosity.
+        if isinstance(waves, str):
+            assert waves in known_lines, \
+                "Unrecognized line={}. Options={}".format(waves, known_lines)
+
+            i = known_lines.index(waves)
+            l0 = known_line_waves[i]
+            if window == 1:
+                waves = np.array([l0])
+            else:
+                assert window % 2 == 1, "`window` must be odd!"
+                w = (window - 1) // 2
+                waves = np.arange(l0 - w * dlam, l0 + (w + 1) * dlam, dlam)
+
+            return waves
+        else:
+            return waves
+
+    def get_line_flux(self, z, line, integrate=False):
+        """
+        Call `get_spec_obs` to get observed spectrum but then we integrate
+        to obtain something in [erg/s] not [erg/s/Hz].
+        """
+
+        waves = self.get_waves_for_line(line)
+
+        raise NotImplementedError('Need to do this in rest-frame!')
+
+        #owaves, flux = self.get_spec_obs(z, waves)
+#
+        #if integrate:
+        #    # `owaves` are bin centers
+        #    owaves_e = bin_c2e(owaves)
+        #    freq_e = c / (wave_e * 1e-8)
+        #    dnu = -1 * np.diff(freq_e)
+#
+        #    imid = (owaves.size - 1) // 2
+        #    owaves = owaves[imid]
+        #    flux = flux[imid] * dnu[imid]
+        #else:
+        #    pass
+
+        return owaves, flux
+
     def get_spec_obs(self, z, waves):
         """
         Generate z=0 observed spectrum for all sources.
@@ -2060,8 +2131,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         halo mass bins.
 
         """
+
         owaves, flux = self.synth.get_spec_obs(z, hist=self.histories,
-            waves=waves, sfh=self.histories['SFR'])
+            waves=waves, sfh=self.histories['SFR'], extras=self.extras)
 
         return owaves, flux
 
@@ -2110,7 +2182,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum,
                 window=window, load=load, use_cache=use_cache, energy_units=energy_units)
         else:
-            L = self.synth.Luminosity(wave=wave, zobs=z, hist=raw,
+            L = self.synth.get_lum(wave=wave, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 use_cache=use_cache, band=band, energy_units=energy_units)
 
