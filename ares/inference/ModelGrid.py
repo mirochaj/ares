@@ -14,8 +14,8 @@ from __future__ import print_function
 
 import os
 import gc
+import re
 import copy
-import review
 import time
 import signal
 import subprocess
