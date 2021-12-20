@@ -17,7 +17,7 @@ def test():
 
     sys_argv = ['scriptname', 'int_var=3', 'str_var=hello',
         'mix_var=ax323', 'bool_var=True', 'None_var=None',
-        'float_var=12.3', 'special_var=23_45']
+        'float_var=12.3', 'special_var=23_45', 'list_var=[1,2,3]']
 
     kwargs = get_cmd_line_kwargs(sys_argv)
 
@@ -27,6 +27,7 @@ def test():
     assert kwargs['bool_var'] is True
     assert kwargs['None_var'] is None
     assert kwargs['float_var'] == 12.3
+    assert np.all(kwargs['list_var'] == np.array([1,2,3]))
 
     x = np.arange(0, 6 * np.pi, 500)
     y = np.sin(x)
@@ -36,6 +37,10 @@ def test():
         assert np.all(np.sign(xc) == np.sign(xc[0]))
         assert np.all(np.sign(yc) == np.sign(yc[0]))
 
+    # Test if all same sign
+    xch, ych = split_by_sign(xc, yc)
+    assert np.all(np.sign(xch) == np.sign(xch[0]))
+    assert np.all(np.sign(ych) == np.sign(ych[0]))
 
 
 if __name__ == '__main__':
