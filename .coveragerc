@@ -23,6 +23,8 @@ exclude_lines =
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     size = MPI.COMM_WORLD.size
+    rank = MPI.COMM_WORLD.Get_rank()
+    size = MPI.COMM_WORLD.Get_size()
 
 	  # Don't complain if rank > 0 blocks aren't executed
 	  if rank > 0:
@@ -32,6 +34,15 @@ exclude_lines =
     if 0:
     if False:
     if __name__ == .__main__.:
+
+omit =
+    ares/util/Aesthetics.py
+    ares/util/BlobBundles.py
+    ares/util/MPIPool.py
+    ares/util/PrintInfo.py
+    ares/util/Warnings.py
+    ares/analysis/*.py
+    ares/inference/*.py
 
 ignore_errors = True
 
