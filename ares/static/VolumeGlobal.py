@@ -15,7 +15,6 @@ from ..util.Warnings import *
 from ..util import ProgressBar
 from ..physics.Constants import *
 import types, os, re, sys
-from ..util.Misc import num_freq_bins
 from ..physics import SecondaryElectrons
 from scipy.integrate import dblquad, romb, simps, quad, trapz
 

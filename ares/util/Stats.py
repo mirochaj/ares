@@ -68,17 +68,6 @@ def Gauss1D(x, pars):
     """
     return pars[0] + pars[1] * np.exp(-(x - pars[2])**2 / 2. / pars[3])
 
-def GaussND(x, mu, cov):
-    """
-    Return value of multi-variate Gaussian at point x (same shape as mu).
-    """
-    N = len(x)
-    norm = 1. / np.sqrt((2. * np.pi)**N * np.linalg.det(cov))
-    icov = np.linalg.inv(cov)
-    score = np.dot(np.dot((x - mu).T, icov), (x - mu))
-
-    return norm * np.exp(-0.5 * score)
-
 def get_nu(sigma, nu_in, nu_out):
 
     if nu_in == nu_out:
