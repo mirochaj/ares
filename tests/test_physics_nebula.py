@@ -13,7 +13,7 @@ Description:
 import sys
 import ares
 import numpy as np
-from ares.physics.Constants import h_p, c, erg_per_ev
+from ares.physics.Constants import h_p, c, erg_per_ev, lam_LyA
 
 def test():
 
@@ -23,11 +23,14 @@ def test():
     pars_con['pop_nebular'] = 0
     pop_con = ares.populations.GalaxyPopulation(**pars_con)
 
+    # Source with nebular continuum and H-lines and built-in
+    # treatment for continuum coefficients
     pars_ares = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
     pars_ares.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_ares['pop_nebular'] = 2
     pop_ares = ares.populations.GalaxyPopulation(**pars_ares)
 
+    # Nebular emission w/ coefficients from Ferland (1980)
     pars_ares2 = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
     pars_ares2.update(ares.util.ParameterBundle('testing:galaxies'))
     pars_ares2['pop_nebular'] = 2
@@ -60,7 +63,21 @@ def test():
         err = np.abs(y_ares - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
         err2 = np.abs(y_ares2 - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
 
+    # Make sure emission at Ly-a is brighter for population with nebular
+    # lines included.
+    ilya = np.argmin(np.abs(pop_ares.src.wavelengths - lam_LyA))
+    assert np.all(pop_ares.src.data[ilya,:] > pop_con.src.data[ilya,:])
 
+    # Make sure emission at H-a is brighter for population with nebular
+    # lines included.
+    EHa = pop_ares.src._nebula.hydr.BohrModel(ninto=2, nfrom=3)
+    iHa = np.argmin(np.abs(pop_ares.src.energies - EHa))
+    assert np.all(pop_ares.src.data[iHa,:] > pop_con.src.data[iHa,:])
+
+    # Make sure emission in rest-UV continuum is brighter for population with
+    # nebular continuum+lines included.
+    i1400 = np.argmin(np.abs(pop_ares.src.wavelengths - 1400))
+    assert np.all(pop_ares.src.data[i1400,:] > pop_con.src.data[i1400,:])
 
 
 if __name__ == '__main__':
