@@ -12,7 +12,7 @@ Description: LF and SMF model (based on Moster2010), as well as main sequence SF
 from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import get_pq_pars
-from ..util.MagnitudeSystem import MagnitudeSystem
+from ..obs.MagnitudeSystem import MagnitudeSystem
 from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import s_per_gyr
 from ..physics.Cosmology import Cosmology

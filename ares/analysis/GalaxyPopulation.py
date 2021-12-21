@@ -16,15 +16,15 @@ from ..util import labels
 from matplotlib import cm
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
-from ..util.Survey import Survey
-from ..phenom import DustCorrection
+from ..obs.Survey import Survey
+from ..obs import DustCorrection
 from matplotlib.patches import Patch
 from ..util.ReadData import read_lit
 from ..util.Aesthetics import labels
 from scipy.optimize import curve_fit
 import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
-from ..util.Photometry import what_filters
+from ..obs.Photometry import what_filters
 from matplotlib.colors import ListedColormap
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples

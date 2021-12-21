@@ -18,13 +18,13 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
-from ..util.Warnings import no_lya_warning
-from scipy.interpolate import interp1d as interp1d_scipy
-from ..util import MagnitudeSystem
+from ..obs import MagnitudeSystem
 from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
-from ..phenom.DustCorrection import DustCorrection
+from ..util.Warnings import no_lya_warning
+from ..obs.DustCorrection import DustCorrection
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \

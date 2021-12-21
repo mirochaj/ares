@@ -26,12 +26,6 @@ from ..physics.Constants import s_per_yr, s_per_myr, ev_per_hz, g_per_msun, \
 
 class ClusterPopulation(Population): # pragma: no cover
 
-    @property
-    def dust(self):
-        if not hasattr(self, '_dust'):
-            self._dust = DustCorrection(**self.pf)
-        return self._dust
-
     #def LuminosityDensity(self):
     #    pass
 

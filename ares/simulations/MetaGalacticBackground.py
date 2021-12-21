@@ -18,7 +18,7 @@ from ..static import Grid
 from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
-from ..phenom import Madau1995
+from ..obs import Madau1995
 from ..util.Misc import split_by_sign
 from ..util.Math import interp1d, smooth
 from ..solvers import UniformBackground

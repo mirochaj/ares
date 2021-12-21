@@ -19,14 +19,14 @@ from ..data import ARES
 from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
-from ..util.Survey import Survey
+from ..obs.Survey import Survey
 from .Halo import HaloPopulation
 from ..physics import DustEmission
 from scipy.optimize import curve_fit
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
-from ..util.Photometry import what_filters
+from ..obs.Photometry import what_filters
 from ..analysis.BlobFactory import BlobFactory
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..static.SpectralSynthesis import SpectralSynthesis
@@ -71,12 +71,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return self.__dict__[name]
 
         raise NotImplemented('help!')
-
-    #@property
-    #def dust(self):
-    #    if not hasattr(self, '_dust'):
-    #        self._dust = DustCorrection(**self.pf)
-    #    return self._dust
 
     @property
     def tab_z(self):

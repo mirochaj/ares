@@ -12,7 +12,7 @@ Description:
 
 import ares
 import numpy as np
-from ares.util.Photometry import what_filters
+from ares.obs.Photometry import what_filters
 from ares.physics.Constants import flux_AB, cm_per_pc, s_per_myr
 
 def test(tol=0.25):

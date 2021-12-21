@@ -12,9 +12,9 @@ Description:
 
 import time
 import numpy as np
-from ..util import Survey
+from ..obs import Survey
 from ..util import ProgressBar
-from ..phenom import Madau1995
+from ..obs import Madau1995
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
