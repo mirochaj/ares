@@ -36,19 +36,6 @@ class Survey(object):
         self.force_perfect = force_perfect
         self.cache = cache
 
-        if cam == 'nircam':
-            self.path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path, mod)
-        elif cam == 'wfc3':
-            self.path = '{}/wfc3'.format(_path)
-        elif cam == 'wfc':
-            self.path = '{}/wfc'.format(_path)
-        elif cam.lower() in ['spitzer', 'irac']:
-            self.path = '{}/irac'.format(_path)
-        elif cam.lower() in ['roman', 'ngrst', 'wfirst']:
-            self.path = '{}/roman'.format(_path)
-        else:
-            raise NotImplemented('Unrecognized camera \'{}\''.format(cam))
-
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -95,9 +82,9 @@ class Survey(object):
 
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
         filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
-        **kwargs):
+        **kwargs): # pragma: no cover
         """
-        Plot transmission curves for NIRCAM filters.
+        Plot transmission curves for filters.
         """
 
         import matplotlib.pyplot as pl
@@ -177,6 +164,12 @@ class Survey(object):
 
         if self.camera == 'nircam':
             return self._read_nircam(filter_set, filters)
+        elif self.camera in ['hst', 'hubble']:
+            wfc = self._read_wfc(filter_set, filters)
+            wfc3 = self._read_wfc3(filter_set, filters)
+            hst = wfc.copy()
+            hst.update(wfc3)
+            return hst
         elif self.camera == 'wfc3':
             return self._read_wfc3(filter_set, filters)
         elif self.camera == 'wfc':
@@ -204,8 +197,11 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
+        path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path,
+            mod)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             pre = fn.split('_')[0]
 
@@ -222,7 +218,7 @@ class Survey(object):
                 cent = float('{}.{}'.format(num[0], num[1:]))
 
                 # Wavelength [micron], transmission
-                x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+                x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
                     skiprows=1)
 
                 data[pre] = self._get_filter_prop(x, y, cent)
@@ -250,7 +246,7 @@ class Survey(object):
                     cent = float('{}.{}'.format(pre[1], pre[2:k]))
 
                     # Wavelength [micron], transmission
-                    x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+                    x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
                         skiprows=1)
 
                     data[pre] = self._get_filter_prop(x, y, cent)
@@ -258,15 +254,6 @@ class Survey(object):
                     self._filter_cache[pre] = copy.deepcopy(data[pre])
 
         return data
-
-    def _parse_filter(self, cam):
-        # Determine the center wavelength of the filter based on its
-        # string identifier.
-        k = pre.rfind(_filters)
-        cent = float('{}.{}'.format(pre[1], pre[2:k]))
-
-        _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn),
-            unpack=True, skiprows=1, delimiter=',')
 
     def _read_wfc(self, filter_set='W', filters=None):
         if not hasattr(self, '_filter_cache'):
@@ -284,8 +271,10 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
+        path = '{}/wfc'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             # Mac OS creates a bunch of ._wfc_* files. Argh.
             if not fn.startswith('wfc_'):
@@ -304,7 +293,7 @@ class Survey(object):
 
                 cent = float('0.{}'.format(pre[1:4]))
 
-                x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                x, y = np.loadtxt('{}/{}'.format(path, fn),
                     unpack=True, skiprows=1)
 
                 # Convert wavelengths from nanometers to microns
@@ -327,7 +316,7 @@ class Survey(object):
                     k = pre.rfind(_filters)
                     cent = float('0.{}'.format(pre[1:k]))
 
-                    x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                    x, y = np.loadtxt('{}/{}'.format(path, fn),
                         unpack=True, skiprows=1)
 
                     # Convert wavelengths from nanometers to microns
@@ -352,8 +341,10 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
+        path = path = '{}/wfc3'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             if '.txt' not in fn:
                 continue
@@ -369,7 +360,7 @@ class Survey(object):
 
                 cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                x, y = np.loadtxt('{}/{}'.format(path, fn),
                     unpack=True, skiprows=1)
 
                 # Convert wavelengths from Angstroms to microns
@@ -394,7 +385,7 @@ class Survey(object):
                     # string identifier.
                     cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                    x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                    x, y = np.loadtxt('{}/{}'.format(path, fn),
                         unpack=True, skiprows=1)
 
                     # Convert wavelengths from Angstroms to microns
@@ -408,9 +399,11 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
+        path = '{}/irac'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
-            x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+        for fn in os.listdir(path):
+            x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
                 skiprows=1)
 
             if 'ch1' in fn:
@@ -441,13 +434,15 @@ class Survey(object):
 
         A = np.pi * (0.5 * 2.4)**2
 
+        path = '{}/irac'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             if fn != _fn:
                 continue
 
-            df = pd.read_excel(self.path + '/' + _fn,
+            df = pd.read_excel(path + '/' + _fn,
                 sheet_name='Roman_effarea_20201130',
                 header=1)
 
@@ -525,7 +520,7 @@ class Survey(object):
         filter.
         """
 
-        data = self.read_throughputs()
+        data = self.read_throughputs(filters='all')
 
         wave_obs = drop_wave * 1e-4 * (1. + z)
 
@@ -540,6 +535,12 @@ class Survey(object):
 
             for element in skip:
                 all_filts.remove(element)
+
+        # Make sure filters are in order of ascending wavelength
+        x0 = [data[filt][2] for filt in all_filts]
+        sorter = np.argsort(x0)
+        _all_filts = [all_filts[i] for i in sorter]
+        all_filts = _all_filts
 
         gotit = False
         for j, filt in enumerate(all_filts):
@@ -567,7 +568,7 @@ class Survey(object):
                 in_red_neighbor = False
 
             # Final say
-            if in_filter and (not in_blue_neighbor) and (not in_red_neighbor):
+            if in_filter: #and (not in_blue_neighbor) and (not in_red_neighbor):
                 gotit = True
                 break
 
