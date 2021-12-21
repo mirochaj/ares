@@ -26,8 +26,8 @@ from scipy.optimize import curve_fit
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
-from ..obs.Photometry import what_filters
 from ..analysis.BlobFactory import BlobFactory
+from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples
 from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
@@ -2567,11 +2567,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
 
                 if presets.lower() in ['jwst-m', 'jwst', 'nircam-m', 'nircam']:
-                    filters = list(what_filters(z, nircam_M, wave_lo, wave_hi))
+                    filters = list(get_filters_from_waves(z, nircam_M, wave_lo,
+                        wave_hi))
 
                     ct = 1
                     while len(filters) < 2:
-                        filters = what_filters(z, nircam_M, wave_lo,
+                        filters = get_filters_from_waves(z, nircam_M, wave_lo,
                             wave_hi + 10 * ct)
 
                         ct += 1
@@ -2584,11 +2585,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     filters = []
 
                 if presets.lower() in ['jwst-w', 'jwst', 'nircam-w', 'nircam']:
-                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                    nircam_W_fil = get_filters_from_waves(z, nircam_W, wave_lo,
+                        wave_hi)
 
                     ct = 1
                     while len(nircam_W_fil) < 2:
-                        nircam_W_fil = what_filters(z, nircam_W, wave_lo,
+                        nircam_W_fil = get_filters_from_waves(z, nircam_W, wave_lo,
                             wave_hi + 10 * ct)
 
                         ct += 1
@@ -2620,8 +2622,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     filters = []
 
                 wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
-                filters.extend(list(what_filters(z, nircam_M, wave_lo, wave_hi)))
-                filters.extend(list(what_filters(z, nircam_M, wave_lo, wave_hi)))
+                filters.extend(list(get_filters_from_waves(z, nircam_M, wave_lo,
+                    wave_hi)))
+                filters.extend(list(get_filters_from_waves(z, nircam_M, wave_lo,
+                    wave_hi)))
                 filters = tuple(filters)
             else:
                  raise NotImplemented('help')
@@ -2631,7 +2635,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         elif presets.lower() in ['roman', 'rst', 'wfirst']:
             cam = 'roman',
             wave_lo, wave_hi = np.min(self._c94), np.max(self._c94)
-            filters = tuple((what_filters(z, self._roman, wave_lo, wave_hi)))
+            filters = tuple((get_filters_from_waves(z, self._roman, wave_lo,
+                wave_hi)))
         else:
             raise NotImplemented('No presets={} option yet!'.format(presets))
 
