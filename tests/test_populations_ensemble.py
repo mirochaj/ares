@@ -94,5 +94,13 @@ def test():
     x, Sigma = pop.get_surface_density(6, bins=amag_bins)
     assert 1e3 <= Sigma[np.argmin(np.abs(amag_bins - 27))] <= 1e4
 
+    # Test nebular line emission stuff
+    pars['pop_nebular'] = 2
+    pop_neb = ares.populations.GalaxyPopulation(**pars)
+
+    owaves, f_lya = pop_neb.get_line_flux(6, 'Ly-a')
+
+    assert 1e-20 <= np.mean(f_lya) <= 1e-16, "Ly-a fluxes unreasonable!"
+
 if __name__ == '__main__':
     test()
