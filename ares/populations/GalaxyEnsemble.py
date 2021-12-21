@@ -2044,7 +2044,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             window=window, load=load, use_cache=use_cache,
             energy_units=energy_units)
 
-    def get_waves_for_line(self, waves, dlam=1, window=3):
+    def get_waves_for_line(self, waves, dlam=1., window=3):
         """
         If `waves` is a string, e.g., 'Ly-a', convert to array of wavelengths.
 
@@ -2086,31 +2086,83 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             return waves
 
-    def get_line_flux(self, z, line, integrate=False):
+    def get_line_lum(self, z, line):
         """
-        Call `get_spec_obs` to get observed spectrum but then we integrate
-        to obtain something in [erg/s] not [erg/s/Hz].
-        """
+        Get line luminosity in [erg/s/Hz].
 
+        Parameters
+        ----------
+        z : int, float
+            Redshift of galaxies.
+        line : str
+            String representation of line of interest. Currently, only option
+            is "Ly-a".
+
+        Returns
+        -------
+        Tuple containing (rest wavelengths [Angstrom], flux [erg/s/Hz]).
+
+        """
         waves = self.get_waves_for_line(line)
+        L = np.array([self.get_lum(z, wave) for wave in waves])
+        return waves, L
 
-        raise NotImplementedError('Need to do this in rest-frame!')
+    def get_line_flux(self, z, line, integrate=True, redden=True):
+        """
+        Compute line flux at z=0.
 
-        #owaves, flux = self.get_spec_obs(z, waves)
-#
-        #if integrate:
-        #    # `owaves` are bin centers
-        #    owaves_e = bin_c2e(owaves)
-        #    freq_e = c / (wave_e * 1e-8)
-        #    dnu = -1 * np.diff(freq_e)
-#
-        #    imid = (owaves.size - 1) // 2
-        #    owaves = owaves[imid]
-        #    flux = flux[imid] * dnu[imid]
-        #else:
-        #    pass
+        .. note :: This computes the intrinsic line luminosity and integrates
+            [optionally] there in order to avoid redshifting effects, i.e.,
+            because we inject lines as delta functions, if we do the integral
+            in the observer frame, we'll get too much dilution, since the
+            wavelength range between bin edges is bigger.
 
-        return owaves, flux
+        Parameters
+        ----------
+        z : int, float
+            Redshift of galaxies.
+        line : str
+            String representation of line of interest. Currently, only option
+            is "Ly-a".
+        integrate : bool
+            If True, integrate flux to obtain result in erg/s. If False,
+            returned value will be flux in [erg/s/Hz].
+
+        Returns
+        -------
+        Tuple containing (observed wavelengths [micron],
+            flux [units set by value of `integrate`; see above]).
+
+        """
+
+        waves, L = self.get_line_lum(z, line)
+
+        imid = (waves.size - 1) // 2
+        owaves = waves * 1e-4 * (1. + z)
+        line_wave = owaves[imid]
+
+        dL = self.cosm.LuminosityDistance(z)
+
+        flux = L / (4. * np.pi * dL**2)
+        # dnu_rest/dnu_obs
+        flux *= (1. + z)
+
+        # Apply dust reddening
+        if redden:
+            tau = np.array([self.get_dust_opacity(z, wave) for wave in waves])
+            flux *= np.exp(-tau)
+
+        if integrate:
+            # `waves` are bin centers
+            waves_e = bin_c2e(waves)
+            freq_e = c / (waves_e * 1e-8)
+            dnu = -1 * np.diff(freq_e)
+
+            flux = flux[imid] * dnu[imid]
+        else:
+            flux = flux[imid]
+
+        return line_wave, flux
 
     def get_spec_obs(self, z, waves):
         """
@@ -2596,6 +2648,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Done!
         return cam, filters
 
+    def get_dust_opacity(self, z, wave):
+
+        Mh = self.get_field(z, 'Mh')
+
+        if self.pf['pop_dust_yield'] is None:
+            return np.zeros_like(Mh)
+        if self.pf['pop_dust_yield'] == 0:
+            return np.zeros_like(Mh)
+
+        kappa = self.guide.dust_kappa(wave=wave, Mh=Mh, z=z)
+        Sd = self.get_field(z, 'Sd')
+        return kappa * Sd
+
     def Beta(self, z, **kwargs):
         return self.get_beta(z, **kwargs)
 
@@ -2774,10 +2839,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if self.pf['pop_dust_yield'] is None:
             return None
 
-        Mh = self.get_field(z, 'Mh')
-        kappa = self.guide.dust_kappa(wave=Mwave, Mh=Mh, z=z)
-        Sd = self.get_field(z, 'Sd')
-        tau = kappa * Sd
+        tau = self.get_dust_opacity(z, Mwave)
 
         AUV_r = np.log10(np.exp(-tau)) / -0.4
 
