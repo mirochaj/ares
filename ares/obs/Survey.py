@@ -35,51 +35,7 @@ class Survey(object):
         self.chip = chip
         self.force_perfect = force_perfect
         self.cache = cache
-
-    @property
-    def cosm(self):
-        if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology()
-        return self._cosm
-
-    @property
-    def src(self):
-        if not hasattr(self, '_src'):
-            from ares.sources import SynthesisModel
-            self._src = SynthesisModel(source_sed='eldridge2009')
-            print("Defaulting to BPASS v1 source model.")
-        return self._src
-
-    @src.setter
-    def src(self, value):
-        self._src = value
-
-    @property
-    def wavelengths(self):
-        """
-        Wavelength array [Angstrom] in REST frame of sources.
-        """
-        if not hasattr(self, '_wavelengths'):
-            self._wavelengths = self.src.wavelengths
-        return self._wavelengths
-
-    @wavelengths.setter
-    def wavelengths(self, value):
-        self._wavelengths = value
-
-    @property
-    def frequencies(self):
-        if not hasattr(self, '_frequencies'):
-            self._frequencies = c / (self.wavelengths / 1e8)
-        return self._frequencies
-
-    @property
-    def dwdn(self):
-        if not hasattr(self, '_dwdn'):
-            tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
-            self._dwdn = np.concatenate((tmp, [tmp[-1]]))
-        return self._dwdn
-
+        
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
         filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
         **kwargs): # pragma: no cover
