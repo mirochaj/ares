@@ -19,7 +19,7 @@ from scipy.integrate import quad
 from ..physics import Cosmology, Hydrogen
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..util.Misc import num_freq_bins
-from ..physics.Constants import c, h_p, erg_per_ev
+from ..physics.Constants import c, h_p, erg_per_ev, lam_LyA, lam_LL
 from ..util.Math import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile

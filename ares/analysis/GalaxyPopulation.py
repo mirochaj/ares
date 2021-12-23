@@ -16,16 +16,16 @@ from ..util import labels
 from matplotlib import cm
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
-from ..util.Survey import Survey
-from ..phenom import DustCorrection
+from ..obs.Survey import Survey
+from ..obs import DustCorrection
 from matplotlib.patches import Patch
 from ..util.ReadData import read_lit
 from ..util.Aesthetics import labels
 from scipy.optimize import curve_fit
 import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
-from ..util.Photometry import what_filters
 from matplotlib.colors import ListedColormap
+from ..obs.Photometry import get_filters_from_waves
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples
 from ..populations.GalaxyPopulation import GalaxyPopulation as GP
@@ -1030,15 +1030,16 @@ class GalaxyPopulation(object): # pragma: no cover
             if (show_beta_jwst_W or show_beta_jwst_M) and z >= 4:
 
                 if show_beta_jwst_W:
-                    nircam_W_fil = what_filters(z, nircam_W, wave_lo, wave_hi)
+                    nircam_W_fil = get_filters_from_waves(z, nircam_W, wave_lo,
+                        wave_hi)
                     # Extend the wavelength range until we get two filters
 
                     if augment_filters:
 
                         ct = 1
                         while len(nircam_W_fil) < 2:
-                            nircam_W_fil = what_filters(z, nircam_W, wave_lo,
-                                wave_hi + 10 * ct)
+                            nircam_W_fil = get_filters_from_waves(z, nircam_W,
+                                wave_lo, wave_hi + 10 * ct)
 
                             ct += 1
 
@@ -1065,14 +1066,15 @@ class GalaxyPopulation(object): # pragma: no cover
 
                 # Compute beta w/ JWST 'M' only
                 if show_beta_jwst_M:
-                    nircam_M_fil = what_filters(z, nircam_M, wave_lo, wave_hi)
+                    nircam_M_fil = get_filters_from_waves(z, nircam_M, wave_lo,
+                        wave_hi)
 
                     if augment_filters:
 
                         ct = 1
                         while len(nircam_M_fil) < 2:
-                            nircam_M_fil = what_filters(z, nircam_M, wave_lo,
-                                wave_hi + 10 * ct)
+                            nircam_M_fil = get_filters_from_waves(z, nircam_M,
+                                wave_lo, wave_hi + 10 * ct)
 
                             ct += 1
 

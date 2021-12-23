@@ -249,7 +249,7 @@ class NebularEmission(object):
         else:
             return frep
 
-    def L_ion(self, spec, species=0):
+    def get_ion_lum(self, spec, species=0):
         if species == 0:
             ion = self.energies >= E_LL
         elif species == 1:
@@ -265,7 +265,7 @@ class NebularEmission(object):
         return np.trapz(spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1],
             x=np.log(self.frequencies[ok==1][-1::-1]))
 
-    def N_ion(self, spec, species=0):
+    def get_ion_num(self, spec, species=0):
         if species == 0:
             ion = self.energies >= E_LL
         elif species == 1:
@@ -279,27 +279,15 @@ class NebularEmission(object):
         ok = np.logical_and(ion, gt0)
 
         erg_per_phot = self.energies[ok==1][-1::-1] * erg_per_ev
+        freq = self.frequencies[ok==1][-1::-1]
 
-        integ = spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1] \
-              / erg_per_phot
-        return np.trapz(integ, x=np.log(self.frequencies[ok==1][-1::-1]))
+        integ = spec[ok==1][-1::-1] * freq / erg_per_phot
 
-    def Ebar_ion(self, spec, species=0):
-        if species == 0:
-            ion = self.energies >= E_LL
-        elif species == 1:
-            ion = self.energies >= 24.6
-        elif species == 2:
-            ion = self.energies >= 4 * E_LL
-        else:
-            raise NotImplemented('help')
+        return np.trapz(integ, x=np.log(freq))
 
-        gt0 = spec > 0
-        ok = np.logical_and(ion, gt0)
-
-        temp = np.trapz(spec[ok==1][-1::-1] / (self.energies[ok==1][-1::-1] * erg_per_ev) * self.frequencies[ok==1][-1::-1],
-            x=np.log(self.frequencies[ok==1][-1::-1]))
-        return self.L_ion(spec) / temp
+    def get_ion_Eavg(self, spec, species=0):
+        return self.get_ion_lum(spec, species) \
+            / self.get_ion_num(spec, species) / erg_per_ev
 
     def Continuum(self, spec):
         """
@@ -319,7 +307,7 @@ class NebularEmission(object):
         erg_per_phot = self.energies * erg_per_ev
 
         # This is in [#/s]
-        Nion = self.N_ion(spec)
+        Nion = self.get_ion_num(spec)
 
         # Reprocessing fraction in [erg/Hz]
         frep_ff = self.f_rep(spec, Tgas, 'ff')
@@ -360,7 +348,7 @@ class NebularEmission(object):
         erg_per_phot = self.energies * erg_per_ev
 
         # This is in [#/s]
-        Nion = self.N_ion(spec)
+        Nion = self.get_ion_num(spec)
 
         # Amount of UV luminosity absorbed in ISM
         #Nabs = Nion * (1. - fesc)
@@ -444,7 +432,7 @@ class NebularEmission(object):
         ok = np.logical_and(ion, gt0)
 
         # This will be in [#/s]
-        Nion = self.N_ion(spec)
+        Nion = self.get_ion_num(spec)
         #Nabs = Nion * (1. - fesc)
         if self.pf['source_prof_1h'] is not None:
             Nabs = Nion * (1. - fesc)
