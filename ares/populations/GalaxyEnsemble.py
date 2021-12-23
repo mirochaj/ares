@@ -532,77 +532,77 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._guide
 
-    def cmf(self, M):
-        # Allow ParameterizedQuantity here
-        pass
-
-    @property
-    def tab_cmf(self):
-        if not hasattr(self, '_tab_cmf'):
-            pass
-
-    @property
-    def _norm(self):
-        if not hasattr(self, '_norm_'):
-            mf = lambda logM: self.ClusterMF(10**logM)
-            self._norm_ = quad(lambda logM: mf(logM) * 10**logM, -3, 10.,
-                limit=500)[0]
-        return self._norm_
-
-    def ClusterMF(self, M, beta=-2, Mmin=50.):
-        return (M / Mmin)**beta * np.exp(-Mmin / M)
-
-    @property
-    def tab_Mcl(self):
-        if not hasattr(self, '_tab_Mcl'):
-            self._tab_Mcl = np.logspace(-1., 8, 10000)
-        return self._tab_Mcl
-
-    @tab_Mcl.setter
-    def tab_Mcl(self, value):
-        self._tab_Mcl = value
-
-    @property
-    def tab_cdf(self):
-        if not hasattr(self, '_tab_cdf'):
-            mf = lambda logM: self.ClusterMF(10**logM)
-            f_cdf = lambda M: quad(lambda logM: mf(logM) * 10**logM, -3, np.log10(M),
-                limit=500)[0] / self._norm
-            self._tab_cdf = np.array(map(f_cdf, self.tab_Mcl))
-
-        return self._tab_cdf
-
-    @tab_cdf.setter
-    def tab_cdf(self, value):
-        assert len(value) == len(self.tab_Mcl)
-        self._tab_cdf = value
-
-    def ClusterCDF(self):
-        if not hasattr(self, '_cdf_cl'):
-            self._cdf_cl = lambda MM: np.interp(MM, self.tab_Mcl, self.tab_cdf)
-
-        return self._cdf_cl
-
-    @property
-    def Mcl(self):
-        if not hasattr(self, '_Mcl'):
-            mf = lambda logM: self.ClusterMF(10**logM)
-            self._Mcl = quad(lambda logM: mf(logM) * (10**logM)**2, -3, 10.,
-                limit=500)[0] / self._norm
-
-        return self._Mcl
-
-    @property
-    def tab_imf_me(self):
-        if not hasattr(self, '_tab_imf_me'):
-            self._tab_imf_me = 10**bin_c2e(self.src.pf['source_imf_bins'])
-        return self._tab_imf_me
-
-    @property
-    def tab_imf_mc(self):
-        if not hasattr(self, '_tab_imf_mc'):
-            self._tab_imf_mc = 10**self.src.pf['source_imf_bins']
-        return self._tab_imf_mc
+    #def cmf(self, M):
+    #    # Allow ParameterizedQuantity here
+    #    pass
+#
+    #@property
+    #def tab_cmf(self):
+    #    if not hasattr(self, '_tab_cmf'):
+    #        pass
+#
+    #@property
+    #def _norm(self):
+    #    if not hasattr(self, '_norm_'):
+    #        mf = lambda logM: self.ClusterMF(10**logM)
+    #        self._norm_ = quad(lambda logM: mf(logM) * 10**logM, -3, 10.,
+    #            limit=500)[0]
+    #    return self._norm_
+#
+    #def ClusterMF(self, M, beta=-2, Mmin=50.):
+    #    return (M / Mmin)**beta * np.exp(-Mmin / M)
+#
+    #@property
+    #def tab_Mcl(self):
+    #    if not hasattr(self, '_tab_Mcl'):
+    #        self._tab_Mcl = np.logspace(-1., 8, 10000)
+    #    return self._tab_Mcl
+#
+    #@tab_Mcl.setter
+    #def tab_Mcl(self, value):
+    #    self._tab_Mcl = value
+#
+    #@property
+    #def tab_cdf(self):
+    #    if not hasattr(self, '_tab_cdf'):
+    #        mf = lambda logM: self.ClusterMF(10**logM)
+    #        f_cdf = lambda M: quad(lambda logM: mf(logM) * 10**logM, -3, np.log10(M),
+    #            limit=500)[0] / self._norm
+    #        self._tab_cdf = np.array(map(f_cdf, self.tab_Mcl))
+#
+    #    return self._tab_cdf
+#
+    #@tab_cdf.setter
+    #def tab_cdf(self, value):
+    #    assert len(value) == len(self.tab_Mcl)
+    #    self._tab_cdf = value
+#
+    #def ClusterCDF(self):
+    #    if not hasattr(self, '_cdf_cl'):
+    #        self._cdf_cl = lambda MM: np.interp(MM, self.tab_Mcl, self.tab_cdf)
+#
+    #    return self._cdf_cl
+#
+    #@property
+    #def Mcl(self):
+    #    if not hasattr(self, '_Mcl'):
+    #        mf = lambda logM: self.ClusterMF(10**logM)
+    #        self._Mcl = quad(lambda logM: mf(logM) * (10**logM)**2, -3, 10.,
+    #            limit=500)[0] / self._norm
+#
+    #    return self._Mcl
+#
+    #@property
+    #def tab_imf_me(self):
+    #    if not hasattr(self, '_tab_imf_me'):
+    #        self._tab_imf_me = 10**bin_c2e(self.src.pf['source_imf_bins'])
+    #    return self._tab_imf_me
+#
+    #@property
+    #def tab_imf_mc(self):
+    #    if not hasattr(self, '_tab_imf_mc'):
+    #        self._tab_imf_mc = 10**self.src.pf['source_imf_bins']
+    #    return self._tab_imf_mc
 
     def _cache_ehat(self, key):
         if not hasattr(self, '_cache_ehat_'):
@@ -1609,6 +1609,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return self.histories[field][:,iz]
 
     def StellarMassFunction(self, z, bins=None, units='dex'):
+        return self.get_smf(z, bins=bins, units=units)
+
+    def get_smf(self, z, bins=None, units='dex'):
         """
         Could do a cumulative sum to get all stellar masses in one pass.
 
@@ -2759,7 +2762,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 assert magmethod == 'mono', \
                     "Known issues with magmethod!='mono' and Calzetti approach."
 
-            _filt, _MAB = self.Magnitude(z, wave=Mwave, cam=cam,
+            _filt, _MAB = self.get_mags(z, wave=Mwave, cam=cam,
                 filters=filters, method=magmethod, presets=presets)
 
             if np.all(np.diff(np.diff(nh)) == 0):
@@ -2819,7 +2822,18 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         magbins=None,
         massbins=None, return_binned=False, filters=None, dlam=20.):
         """
-        Compute UV extinction.
+        For backward compatibility -- see `get_AUV` below.
+        """
+
+        return self.get_AUV(z, Mwave=Mwave, cam=cam, MUV=MUV, Mstell=Mstell,
+        magbins=magbins, massbins=massbins, return_binned=return_binned,
+        filters=filters, dlam=dlam)
+
+    def get_AUV(self, z, Mwave=1600., cam=None, MUV=None, Mstell=None,
+        magbins=None, massbins=None, return_binned=False, filters=None,
+        dlam=20.):
+        """
+        Compute rest-UV extinction.
 
         Parameters
         ----------
@@ -2857,8 +2871,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             AUV = _y
             std = _z
         else:
-            #MAB = np.flip(MAB)
-            #beta = np.flip(beta)
             std = None
             AUV = AUV_r
 
@@ -2867,6 +2879,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # May specify a single magnitude at which to return AUV
         if MUV is not None:
             return np.interp(MUV, MAB, AUV, left=0., right=0.)
+
         if Mstell is not None:
             Ms_r = self.get_field(z, 'Ms')
             nh_r = self.get_field(z, 'nh')
@@ -2878,31 +2891,29 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Otherwise, return raw (or binned) results
         return AUV
 
-    def dBeta_dMUV(self, z, presets=None, magbins=None, model='quad3',
-        return_funcs=False, maglim=None, dlam=20., magmethod='gmean', Mwave=1600.):
+    def get_dBeta_dMUV(self, z, magbins, presets=None, model='exp',
+        return_funcs=False, maglim=None, dlam=20., magmethod='gmean',
+        Mwave=1600.):
         """
         Compute gradient in UV slope with respect to UV magnitude.
+
+        Parameters
+        ----------
+
         """
 
-        assert magbins is not None
+        _beta, _std = self.get_beta(z, presets=presets, dlam=dlam,
+            magmethod=magmethod, return_scatter=True, Mbins=magbins,
+            return_binned=True)
 
-        _filt, _mags = self.Magnitude(z, presets=presets, wave=Mwave, dlam=dlam)
-        _beta = self.Beta(z, presets=presets, dlam=dlam, magmethod=magmethod)
-
-        _nh = self.get_field(z, 'nh')
-
-        # Compute binned version of Beta(Mstell).
-        _x1, _y1, _err, _N = bin_samples(_mags, _beta, magbins, weights=_nh)
-
-        ok = np.isfinite(_y1)
-
+        ok = np.isfinite(_beta)
         if maglim is not None:
-            _ok = np.logical_and(_x1 >= maglim[0], _x1 <= maglim[1])
+            _ok = np.logical_and(magbins >= maglim[0], magbins <= maglim[1])
             ok = np.logical_and(ok, _ok)
 
-        _x1 = _x1[ok==1]
-        _y1 = _y1[ok==1]
-        _err = _err[ok==1]
+        _x = magbins[ok==1]
+        _y = _beta[ok==1]
+        _err = _std[ok==1]
 
         if not np.any(ok):
             print("# All elements masked for dBeta/dMUV at z={}".format(z))
@@ -2912,47 +2923,38 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Arbitrary pivot magnitude
         x0 = -16.
 
-        # Compute slopes with Mstell
-        if model == 'quad2':
-            def func(x, p0, p1):
-                return _quadfunc2(x, x0, p0, p1)
-
-            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2.],
-                sigma=_err, maxfev=10000)
-            recon = popt[0] * (_x1 - x0)**2 + popt[1]
-            eder = 2 * popt[0] * (_x1 - x0)
-        elif model == 'quad3':
+        # Compute slopes wrt MUV
+        if model == 'exp':
             def func(x, p0, p1, p2):
-                return _quadfunc3(x, x0, p0, p1, p2)
+                return np.exp((x / p0)**p2) + p1
 
-            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2., 0.],
-                sigma=_err, maxfev=10000)
+            popt, pcov = curve_fit(func, _x, _y, p0=np.array([-10, -2.5, 1]),
+                maxfev=100000)
 
-            recon = popt[0] * (_x1 - x0)**2 + popt[1] * (_x1 - x0) + popt[2]
-            eder = 2 * popt[0] * (_x1 - x0) + popt[1]
+            recon = np.exp((_x / popt[0])**popt[2]) + popt[1]
+            eder = popt[2] * (_x / popt[0])**(popt[2] - 1) \
+                * np.exp((_x / popt[0])**popt[2]) / popt[0]
         elif model == 'linear':
             def func(x, p0, p1):
                 return _linfunc(x, x0, p0, p1)
 
-            popt, pcov = curve_fit(func, _x1, _y1, p0=[0.1, -2.],
-                sigma=_err, maxfev=10000)
-            recon = popt[0] * (_x1 - x0) + popt[1]
-            eder = popt[0] * np.ones_like(_x1)
+            popt, pcov = curve_fit(func, _x, _y, p0=[-0.5, -2.],
+                maxfev=10000)
+            recon = _linfunc(_x, x0, popt[0], popt[1])
+            eder = popt[0] * np.ones_like(_x)
         else:
-            raise NotImplemented('Unrecognized model={}.'.format(model))
+            raise NotImplementedError('Unrecognized model={}.'.format(model))
 
         # Create interpolants for Beta and its derivative
-        _interp_ = lambda xx: np.interp(xx, _x1, recon)
-        _interpp_ = lambda xx: np.interp(xx, _x1, eder)
+        _interp_ = lambda xx: np.interp(xx, _x, recon)
+        _interpp_ = lambda xx: np.interp(xx, _x, eder)
 
-        dBeta = []
-        for _x in _x1:
-            dBeta.append(_interp_(_x))
+        dBeta = np.array([_interpp_(_x_) for _x_ in magbins])
 
         if return_funcs:
-            return np.array(dBeta), _interp_, _interpp_
+            return dBeta, _interp_, _interpp_
         else:
-            return np.array(dBeta)
+            return dBeta
 
     def dBeta_dMstell(self, z, dlam=20., Mstell=None, massbins=None,
         model='quad3', return_funcs=False, masslim=None):
@@ -3046,68 +3048,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             return np.array(dBMstell)
 
-    def dColor_dz(self, logM, dlam=1., zmin=4, zmax=10, dz=1):
-
-        out = []
-        zarr = np.arange(zmin, zmax+dz, dz)
-        for z in zarr:
-            _logM, _slope = self.dColor_dMstell(z, dlam=dlam)
-            out.append(np.interp(logM, _logM, _slope))
-
-
-    def Gradient(self, field, wrt, as_func_of, eval_at_x, eval_at_y, ybins,
-        guess=[0., 1.5]):
-        """
-        Calculate derivatives. Generally fit with linear or PL function first.
-        """
-
-        if field in self.histories.keys():
-            y = self.get_field(z, field)
-        else:
-            assert wrt == 'z', "only option right now"
-            if field == 'AUV':
-                if as_func_of == 'Ms':
-                    y = []
-                    for z in eval_at_x:
-                        _y = self.AUV(z=z, Mstell=eval_at_y, massbins=ybins)
-                        y.append(_y)
-                    y = np.array(y)
-                else:
-                    raise NotImplemented('help')
-            else:
-                raise NotImplemented('help')
-
-        ##
-        # Get on with the fitting
-        ##
-        x = eval_at_x
-
-        func = lambda x, p0, p1: p0 * (x - 4.) + p1
-
-        if type(eval_at_y) in [int, float, np.float64]:
-            popt, pcov = curve_fit(func, x, y, p0=guess, maxfev=100)
-            return x, popt[0]
-
-        slopes = []
-        for k, element in enumerate(eval_at_y):
-            popt, pcov = curve_fit(func, x, y[:,k], p0=guess, maxfev=100)
-            slopes.append(popt[0])
-
-        return x, np.array(slopes)
-
-    def MainSequence(self, z):
-        """
-        How best to plot this?
-        """
-        pass
-
-    def SFRF(self, z):
-        pass
-
-    def PDF(self, z, **kwargs):
-        # Look at distribution in some quantity at fixed z, potentially other stuff.
-        pass
-
     def prep_hist_for_cache(self):
         keys = ['nh', 'MAR', 'Mh', 't', 'z']
         hist = {key:self.histories[key][-1::-1] for key in keys}
@@ -3195,12 +3135,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if fn_hist.endswith('.pkl'):
                 f = open(fn_hist, 'rb')
                 prefix = fn_hist.split('.pkl')[0]
-                zall, traj_all = pickle.load(f)
+                hist = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
                     print("# Loaded {}.".format(fn_hist.replace(ARES,
                         '$ARES')))
-                hist = traj_all
 
             elif fn_hist.endswith('.hdf5'):
                 f = h5py.File(fn_hist, 'r')
@@ -3228,8 +3167,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     else:
                         hist[key] = np.array(f[(key)])
 
-                zall = hist['z']
-
                 f.close()
                 if self.pf['verbose']:
                     print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
@@ -3238,17 +3175,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 # Assume pickle?
                 f = open(fn_hist+'.pkl', 'rb')
                 prefix = fn_hist
-                zall, traj_all = pickle.load(f)
+                hist = pickle.load(f)
                 f.close()
                 if self.pf['verbose']:
                     name = fn_hist + '.pkl'
                     print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
 
-                hist = traj_all
-
                 if self.pf['verbose']:
                     print("# Read `pop_histories` as dictionary")
 
+            zall = hist['z']
             hist['zform'] = zall
             hist['zobs'] = np.array([zall] * hist['nh'].shape[0])
 
@@ -3273,17 +3209,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if os.path.exists(fn) and (not clobber):
             raise IOError('File \'{}\' exists! Set clobber=True to overwrite.'.format(fn))
 
-        zall, traj_all = self._gen_halo_histories()
+        hist = self._gen_halo_histories()
 
-        f = open(fn, 'wb')
-        pickle.dump((zall, traj_all), f)
-        f.close()
-        print("Wrote {}".format(fn))
+        with open(fn, 'wb') as f:
+            pickle.dump(hist, f)
+
+        if self.pf['verbose']:
+            print("Wrote {}.".format(fn))
 
         # Also save parameters.
-        f = open('{}.parameters.pkl'.format(prefix))
-        pickle.dump(self.pf)
-        f.close()
+        with open('{}.parameters.pkl'.format(prefix), 'wb') as f:
+            pickle.dump(self.pf, f)
+
+        if self.pf['verbose']:
+            print("Wrote {}.parameters.pkl.".format(prefix))
 
     @property
     def dust(self):
