@@ -21,6 +21,12 @@ def test():
     iz = np.argmin(np.abs(6 - pop.halos.tab_z))
     iM = np.argmin(np.abs(1e8 - pop.halos.tab_M))
 
+    try:
+        t = pop.halos.tab_t
+    except AttributeError as err:
+        # Should cause an error! Use even z-sampling by default.
+        pass
+
     dndm = pop.halos.tab_dndm[iz,:]
     fcoll8 = pop.halos.tab_fcoll[iz,iM]
 
@@ -28,6 +34,12 @@ def test():
     b8 = pop.halos.get_bias(8.)
     assert b8[iM] > b6[iM], "Bias should increase with redshift!"
     assert b6[iM+1] > b6[iM], "Bias should increase with mass!"
+
+    # Check halo properties
+    Mvir = pop.halos.get_Mvir(10, 1e4)
+    Tvir = pop.halos.get_Tvir(10, Mvir)
+    assert abs(Tvir - 1e4) / 1e4 < 1e-8, \
+        "Problem with virial temperature calculation."
 
     # Test caching (motivated by PR #24)
     cache = pop.halos.tab_z, pop.halos.tab_M, pop.halos.tab_dndm
@@ -37,6 +49,15 @@ def test():
 
     assert abs(fcoll8 - fcoll8_2) < 1e-8, \
         "Error in fcoll auto-generation: {:.12f} {:.12f}".format(fcoll8, fcoll8_2)
+
+    # Test caching (even more stuff)
+    cache = pop.halos.prep_for_cache()
+
+    pop2b = ares.populations.HaloPopulation(hmf_cache=cache)
+    fcoll8_2b = pop2.halos.tab_fcoll[iz,iM]
+
+    assert abs(fcoll8 - fcoll8_2b) < 1e-8, \
+        "Error in fcoll auto-generation: {:.12f} {:.12f}".format(fcoll8, fcoll8_2b)
 
     # Test against HMF we generate now with hmf package.
     # Use narrow redshift range to speed-up, but keep redshift sampling high
@@ -58,7 +79,7 @@ def test():
         "Percent-level differences in tabulated and generated fcoll: {:.12f} {:.12f}".format(fcoll8, fcoll8_3)
 
     pop3.halos.save(clobber=True, save_MAR=True)
-    #pop3.halos.save(clobber=True, save_MAR=True, fmt='pkl')
+    pop3.halos.save(clobber=True, save_MAR=True, fmt='pkl')
 
     assert np.allclose(dndm, dndm3, rtol=1e-2), \
         "Percent-level differences in tabulated and generated HMF!"
