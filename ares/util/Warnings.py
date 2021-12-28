@@ -253,7 +253,7 @@ def no_hmf(hmf):
         have_hmf = False
 
     try:
-        import pycamb
+        import camb
         have_pycamb = True
     except ImportError:
         have_pycamb = False
