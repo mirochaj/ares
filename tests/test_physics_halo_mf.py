@@ -12,7 +12,7 @@ Description:
 
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
+from scipy.interpolate import RectBivariateSpline
 
 def test():
     pop = ares.populations.HaloPopulation()
@@ -61,6 +61,17 @@ def test():
     #pop3.halos.save(clobber=True, save_MAR=True, fmt='pkl')
 
     assert np.allclose(dndm, dndm3, rtol=1e-2), \
+        "Percent-level differences in tabulated and generated HMF!"
+
+    # Check hmf_func
+    _hmf = RectBivariateSpline(pop3.halos.tab_z, np.log10(pop3.halos.tab_M),
+        pop3.halos.tab_dndm, kx=3, ky=3)
+    hmf = lambda z, Mh: _hmf.__call__(z, np.log10(Mh))
+    pop4 = ares.populations.HaloPopulation(hmf_load=False, hmf_func=hmf,
+        hmf_zmin=6, hmf_zmax=7)
+
+    dndm4 = pop4.halos.tab_dndm[iz3,:]
+    assert np.allclose(dndm3, dndm4, rtol=1e-2), \
         "Percent-level differences in tabulated and generated HMF!"
 
 

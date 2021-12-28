@@ -472,7 +472,7 @@ class HaloMassFunction(object):
                         self.pf['hmf_cache']
             return
 
-        if self.pf['hmf_pca'] is not None:
+        if self.pf['hmf_pca'] is not None: # pragma: no cover
             f = h5py.File(self.pf['hmf_pca'], 'r')
             self.tab_z = np.array(f[('tab_z')])
             self.tab_M = np.array(f[('tab_M')])
@@ -666,7 +666,7 @@ class HaloMassFunction(object):
             self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
 
             for i, z in enumerate(self.tab_z):
-                self._tab_bias[i] = self.Bias(z)
+                self._tab_bias[i] = self.get_bias(z)
 
         return self._tab_bias
 
