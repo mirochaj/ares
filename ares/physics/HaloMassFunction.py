@@ -9,8 +9,11 @@ Description:
 
 """
 
+import os
+import re
+import sys
 import glob
-import os, re, sys
+import pickle
 import numpy as np
 from . import Cosmology
 from ..data import ARES
@@ -1059,6 +1062,12 @@ class HaloMassFunction(object):
         self._fcoll_spline_2d = value
 
     def Bias(self, z):
+        return self.get_bias(z)
+
+    def get_bias(self, z):
+        """
+        Compute the halo bias for all halos (over self.tab_M) at redshift `z`.
+        """
 
         g = np.interp(z, self.tab_z, self.tab_growth)
 
@@ -1429,6 +1438,11 @@ class HaloMassFunction(object):
         return s
 
     def SaveHMF(self, fn=None, clobber=False, destination=None, fmt='hdf5',
+        save_MAR=True):
+        self.save(fn=fn, clobber=clobber, destination=destination, fm=fmt,
+            save_MAR=save_MAR)
+
+    def save(self, fn=None, clobber=False, destination=None, fmt='hdf5',
         save_MAR=True):
         """
         Save mass function table to HDF5 or binary (via pickle).
