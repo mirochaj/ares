@@ -118,7 +118,7 @@ def test():
     for i, pars in enumerate([pars_pl, pars_dpl, pars_pwpl, pars_ramp]):
         pop = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', **pars)
 
-        fnow = pop.SFE(z=6., Mh=Mh).copy()
+        fnow = pop.get_sfe(z=6., Mh=Mh).copy()
 
         if (i > 0) and (labels[i] != 'ramp'):
             assert np.allclose(fnow[Mh <= 1e8], fprev[Mh <= 1e8], rtol=5e-2)
@@ -136,9 +136,9 @@ def test():
     all_sfe = []
     for j, pop in enumerate([pop1, pop2, pop3]):
         for i, z in enumerate([6, 10]):
-            sfe = pop.SFE(z=z, Mh=Mh)
+            sfe = pop.get_sfe(z=z, Mh=Mh)
             all_sfe.append(sfe)
-                            
+
     assert ~np.all(all_sfe[0] == all_sfe[1]), "No SFE evolution detected!"
     assert ~np.all(all_sfe[2] == all_sfe[3]), "No SFE evolution detected!"
     assert ~np.all(all_sfe[4] == all_sfe[5]), "No SFE evolution detected!"

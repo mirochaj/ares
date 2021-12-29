@@ -12,7 +12,7 @@ Description:
 
 import ares
 import numpy as np
-from ares.physics.Constants import rhodot_cgs
+from ares.physics.Constants import rho_cgs, rhodot_cgs
 
 def test():
 
@@ -21,28 +21,52 @@ def test():
     zarr = np.arange(6, 30, 0.1)
 
     pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0,1)
-    pars['pop_sed'] = 'sps-toy' # don't try to read-in bpass
-    pars['pop_lum_per_sfr'] = 1e28
-    pars['pop_calib_lum'] = None
-
-    #updates = ares.util.ParameterBundle('testing:galaxies')
-    ##updates.num = 0
-    #pars.update(updates)
+    pars.update(ares.util.ParameterBundle('testing:galaxies'))
 
     pop = ares.populations.GalaxyPopulation(**pars)
 
-    sfrd = pop.SFRD(zarr) * rhodot_cgs
+    assert pop.is_synthesis_model
+    assert np.all(pop.tab_focc == 1)
+
+    sfrd = pop.get_sfrd(zarr) * rhodot_cgs
+    smd = pop.get_smd(zarr) * rho_cgs
 
     # Check for reasonable values
     assert np.all(sfrd < 1)
     assert 1e-6 <= np.mean(sfrd) <= 1e-1
 
+    Mhalo = pop.halos.tab_M
+    Mst = pop.get_mass(10, 1e10, kind='stellar')
+    Mg = pop.get_mass(10, 1e10, kind='gas')
+    MZ = pop.get_mass(10, 1e10, kind='metals')
+
+    assert 1e6 < Mst < 1e10
+    assert Mst < Mg
+    assert MZ < Mst
+
+    L = pop.get_lum(6)
+    mag = pop.get_mags(6, absolute=True)
+
+    assert L.size == Mhalo.size
+    assert mag.size == Mhalo.size
+
+    Mh_17 = np.interp(-17, mag[-1::-1], Mhalo[-1::-1])
+
+    sfrd_6_all = pop.get_sfrd(6.)
+    sfrd_6_17 = pop.get_sfrd_in_mag_range(6, hi=-17, absolute=True)
+
+    assert sfrd_6_17 < sfrd_6_all
+
+    # Halo abundances
+    assert pop.get_nh_active(6) > pop.get_nh_active(10)
+
+    # Luminosity function and stellar mass functions
     x, phi_M = pop.get_lf(zarr[0], mags, use_mags=True, wave=1600.)
 
     # A bit slow :/
-    phi_Ms = pop.StellarMassFunction(zarr[0])
+    phi_Ms = pop.get_smf(zarr[0])
 
-    mags, rho_surf = pop.SurfaceDensity(6.)
+    mags, rho_surf = pop.get_surface_density(6.)
 
     dsfe_dMh = pop.get_sfe_slope(6., 1e9)
 
