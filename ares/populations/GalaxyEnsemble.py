@@ -1807,9 +1807,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return hist
 
-    def get_histories(self, z):
-        for i in range(self.histories['Mh'].shape[0]):
-            yield self.get_history(i)
+    #def get_histories(self, z):
+    #    for i in range(self.histories['Mh'].shape[0]):
+    #        yield self.get_history(i)
 
     @property
     def synth(self):

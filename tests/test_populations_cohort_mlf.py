@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import numpy as np
 
 def test():
 
@@ -96,6 +97,30 @@ def test():
 
     assert pop_sfe.get_sfe(z=z1, Mh=1e11) * correction == pop_sfe.get_sfe(z=z2, Mh=1e11), \
         "Redshift evolution not working properly for SFE."
+
+    # Check some MAR corrections
+    MAR = pop_sfe.halos.tab_MAR
+
+    pop_eta_1 = ares.populations.GalaxyPopulation(pop_MAR_corr='integral',
+        **pars_sfe)
+    pop_eta_2 = ares.populations.GalaxyPopulation(pop_MAR_corr='slope',
+        **pars_sfe)
+
+    z = pop_sfe.halos.tab_z
+    Mh = pop_sfe.halos.tab_M
+
+    assert np.allclose(pop_sfe.dfcolldt(z), pop_eta_1.dfcolldt(z))
+    assert np.allclose(pop_sfe.dfcolldt(z), pop_eta_2.dfcolldt(z))
+
+    ok = np.logical_and(Mh >= 1e10, Mh <= 1e12)
+    MAR = pop_sfe.get_MAR(6, Mh=Mh)
+    MAR1 = pop_eta_1.get_MAR(6, Mh=Mh)
+    MAR2 = pop_eta_2.get_MAR(6, Mh=Mh)
+
+    # These are effectively different models, so only looking for
+    # OOM agreement.
+    assert np.allclose(MAR[ok==1], MAR1[ok==1], rtol=1)
+    assert np.allclose(MAR[ok==1], MAR2[ok==1], rtol=1)
 
 
 if __name__ == '__main__':

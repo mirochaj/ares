@@ -38,6 +38,8 @@ def test():
     sim = ares.simulations.Global21cm(**pars)
     sim.run()
 
+    assert sim.pops[2].is_sfr_constant
+
     sfrd_II = sim.pops[0].SFRD(zarr) * rhodot_cgs
     sfrd_III = sim.pops[2].SFRD(zarr) * rhodot_cgs
     # Check for reasonable values

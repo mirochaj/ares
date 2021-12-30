@@ -164,11 +164,18 @@ def test():
     pop_ham = ares.populations.GalaxyPopulation(**pars2)
 
     fstar1 = pop.get_sfe(z=6, Mh=Mh)
+    fstar1b = pop.get_fstar(z=6, Mh=Mh)
+    assert np.all(fstar1 == fstar1b)
+
     fstar2 = pop_ham.run_abundance_match(6, Mh)
+    fstar2b = pop_ham.get_sfe(z=6, Mh=Mh)
 
     ok = np.logical_and(Mh >= 1e9, Mh <= 1e13)
 
     assert np.allclose(fstar1[ok==1], fstar2[ok==1], rtol=1e-1)
+
+    # Check tabulated fstar (slow)
+    #fstar2c = pop_ham.tab_fstar[np.argmin(np.abs(6 - pop_ham.halos.tab_z))]
 
 
 if __name__ == '__main__':

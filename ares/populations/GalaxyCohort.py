@@ -33,7 +33,7 @@ from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
-    cm_per_pc
+    cm_per_pc, m_H
 
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -138,7 +138,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         pars[par] = tmp[par]
             else:
                 pars = tmp
-            Mmin = lambda z: self.Mmin
+            Mmin = lambda z: self.get_Mmin(z)
             #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
             result = ParameterizedQuantity(**pars)
 
@@ -167,20 +167,34 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def get_field(self, z, field):
         """
         Return results from SAM (all masses) at input redshift.
+
+        .. note :: This is really similar to `get_mass`, the only
+            difference is this routine uses the raw field names rather than,
+            e.g., kind='stellar' for 'Mst', etc. It also doesn't do any
+            interpolation onto a supplied Mh grid -- all returned values are
+            their "raw" values straight out of the SAM.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        field : str
+            For example, 'Mh', 'Mst', 'MZ', etc.
+
+        Returns
+        -------
+        Array of field values for all halos at redshift `z`.
+
         """
-        data = self.histories
-        zarr = data['z']
+        zall, data = self.Trajectories()
+        iz = np.argmin(np.abs(z - zall))
 
-        iz = np.argmin(np.abs(z - zarr))
-
-        Mh = data['Mh'][:,iz]
-
-        return 10**np.interp(np.log10(self.halos.tab_M), np.log10(Mh),
-            np.log10(data[field][:,iz]))
+        return data[field][:,iz]
 
     def Zgas(self, z, Mh):
         if not hasattr(self, '_sam_data'):
-            self._sam_z, self._sam_data = self.scaling_relations
+            self._sam_data = self.histories
+            self._sam_z = self.histories['z']
 
         flip = self._sam_data['Mh'][0] > self._sam_data['Mh'][-1]
         slc = slice(-1,0,-1) if flip else None
@@ -199,7 +213,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return np.interp(Mh, _Mh, _Z)
 
-    def N_per_Msun(self, Emin, Emax):
+    def get_photons_per_Msun(self, Emin, Emax):
         """
         Compute photon luminosity in band of interest per unit SFR for
         all halos.
@@ -232,12 +246,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._N_per_Msun[(Emin, Emax)]
 
     @property
-    def _spline_nh(self):
-        if not hasattr(self, '_spline_nh_'):
-            self._spline_nh_ = \
+    def _func_nh(self):
+        if not hasattr(self, '_func_nh_'):
+            self._func_nh_ = \
                 RectBivariateSpline(self.halos.tab_z, np.log(self.halos.tab_M),
                     self.halos.tab_dndm)
-        return self._spline_nh_
+        return self._func_nh_
 
     @property
     def _tab_MAR(self):
@@ -259,7 +273,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_nh_at_Mmin(self):
         if not hasattr(self, '_tab_nh_at_Mmin_'):
             self._tab_nh_at_Mmin_ = \
-                np.array([self._spline_nh(self.halos.tab_z[i],
+                np.array([self._func_nh(self.halos.tab_z[i],
                     np.log(self._tab_Mmin[i])) \
                     for i in range(self.halos.tab_z.size)]).squeeze()
 
@@ -269,14 +283,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_fstar_at_Mmin(self):
         if not hasattr(self, '_tab_fstar_at_Mmin_'):
             self._tab_fstar_at_Mmin_ = \
-                self.SFE(z=self.halos.tab_z, Mh=self._tab_Mmin)
+                self.get_fstar(z=self.halos.tab_z, Mh=self._tab_Mmin)
         return self._tab_fstar_at_Mmin_
 
     @property
     def _tab_sfr_at_Mmin(self):
         if not hasattr(self, '_tab_sfr_at_Mmin_'):
             self._tab_sfr_at_Mmin_ = \
-                np.array([self.SFR(z=self.halos.tab_z[i], Mh=self._tab_Mmin[i]) \
+                np.array([self.get_fstar(z=self.halos.tab_z[i],
+                    Mh=self._tab_Mmin[i]) \
                     for i in range(self.halos.tab_z.size)])
         return self._tab_sfr_at_Mmin_
 
@@ -321,6 +336,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._tab_sfrd_at_threshold_
 
     def rho_L(self, Emin=None, Emax=None):
+        return self.get_luminosity_density(Emin=Emin, Emax=Emax)
+
+    def _get_luminosity_density(self, Emin=None, Emax=None):
         """
         Compute the luminosity density in some bandpass for all redshifts.
 
@@ -359,7 +377,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # For all halos. Reduce to a function of redshift only by passing
         # in the array of halo masses stored in 'halos' attribute.
         if Emax <= 24.6:
-            N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
+            N_per_Msun = self.get_photons_per_Msun(Emin=Emin, Emax=Emax)
 
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
@@ -396,7 +414,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 pass
 
             if need_sam:
-                sam_z, sam_data = self.scaling_relations
+                sam_data = self.histories
+                sam_z = self.histories['z']
             else:
                 pass
 
@@ -475,6 +494,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._rho_L[(_Emin, _Emax)]
 
     def rho_N(self, z, Emin, Emax):
+        return self._get_photon_density(z, Emin, Emax)
+
+    def _get_photon_density(self, z, Emin, Emax):
         """
         Compute the photon luminosity density in some bandpass at some redshift.
 
@@ -493,7 +515,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         tab = np.ones_like(self.halos.tab_z)
 
         # For all halos
-        N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
+        N_per_Msun = self.get_photons_per_Msun(Emin=Emin, Emax=Emax)
 
         if abs(Emin - E_LL) < 0.1:
             fesc = self.fesc(z=z, Mh=self.halos.tab_M)
@@ -642,6 +664,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_eta_ = np.reshape(np.tile(_tab_eta_, self.halos.tab_M.size),
                     (self.halos.tab_z.size, self.halos.tab_M.size))
 
+                ok = np.isfinite(self._tab_eta)
+                self._tab_eta[~ok] = 0
+
             elif self.pf['pop_MAR_corr'] == 'slope':
 
                 # In this case, we have the same shape as _tab_MAR
@@ -752,7 +777,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self.cosm.fbar_over_fcdm * self.get_MAR(z, Mh) * self.eta(z) \
             * self.SFE(z=z, Mh=Mh)
 
-    def Emissivity(self, z, E=None, Emin=None, Emax=None):
+    def get_emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
@@ -783,7 +808,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Note that this method can always be used, it's just less
             # efficient because you're basically calculating the SFRD again
             # and again.
-            rhoL = self.rho_L(Emin, Emax)(z)
+            rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
         if E is not None:
             return rhoL * self.src.Spectrum(E) * on
@@ -794,6 +819,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Return the mass in some galaxy 'phase' for a given halo at redshift `z`.
 
+        .. note :: By default, if Mh is not supplied we'll take it to be the
+            halo masses at which the HMF is tabulated, self.halos.tab_M. In
+            general, our halos are NOT at these masses, since they are evolved
+            in time according to their MAR, SFE, etc. As a result, Mh=None
+            necessarily results in interpolation of different galaxy masses
+            onto the Mh values in self.halos.tab_M.
+
         Parameters
         ----------
         z : int, float
@@ -802,6 +834,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Halo mass [Msun]
         kind : str
             Phase of interest, e.g., 'stellar', 'metal', 'gas'.
+
+        Returns
+        -------
+        Mass in Msun of desired galaxy phase.
+
         """
         zall, data = self.Trajectories()
         iz = np.argmin(np.abs(z - zall))
@@ -814,24 +851,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         if kind in ['stellar', 'stars']:
             return np.interp(Mh, data['Mh'][:,iz], data['Ms'][:,iz])
+        elif kind in ['stellar_cumulative', 'stars_cumulative']:
+            return np.interp(Mh, data['Mh'][:,iz], data['Ms'][:,iz])
         elif kind in ['metal', 'metals']:
             return np.interp(Mh, data['Mh'][:,iz], data['MZ'][:,iz])
         elif kind in ['gas']:
             return np.interp(Mh, data['Mh'][:,iz], data['Mg'][:,iz])
         else:
             raise NotImplementedError('Unrecognized mass kind={}.'.format(kind))
-
-    #def StellarMass(self, z, Mh):
-    #    zform, data = self.scaling_relations_sorted(z=z)
-    #    return np.interp(Mh, data['Mh'], data['Ms'])
-#
-    #def MetalMass(self, z, Mh):
-    #    zform, data = self.scaling_relations_sorted(z=z)
-    #    return np.interp(Mh, data['Mh'], data['MZ'])
-#
-    #def GasMass(self, z, Mh):
-    #    zform, data = self.scaling_relations_sorted(z=z)
-    #    return np.interp(Mh, data['Mh'], data['Mg'])
 
     def StellarMassFunction(self, z, bins=None, units='dex'):
         return self.get_smf(z, bins=bins, units=units)
@@ -1353,6 +1380,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._Matom = np.array(list(map(Mvir, self.halos.tab_z)))
         return self._Matom
 
+    def get_Mmin(self, z):
+        """
+        Return minimum halo mass for given redshift `z`.
+
+        .. note :: First makes interpolant over tabulated Mmin(z) grid, then
+            calls that function on subsequent calls.
+
+        """
+        if not hasattr(self, '_func_Mmin'):
+            self._func_Mmin = lambda z: \
+                np.interp(z, self.halos.tab_z, self._tab_Mmin)
+
+        return self._func_Mmin(z)
+
     @property
     def Mmin(self):
         if not hasattr(self, '_Mmin'):
@@ -1439,8 +1480,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @_tab_Mmin.setter
     def _tab_Mmin(self, value):
         if ismethod(value):
-            self.Mmin = value
-            self._tab_Mmin_ = np.array(list(map(value, self.halos.tab_z)),
+            self._func_Mmin = value
+            self._tab_Mmin_ = np.array([value(z) for z in self.halos.tab_z],
                 dtype=float)
         elif type(value) in [int, float, np.float64]:
             self._tab_Mmin_ = value * np.ones_like(self.halos.tab_z)
@@ -1689,7 +1730,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     fstar = _fstar
 
                 # Enforce minimum mass
-                fstar[Mh < self.Mmin(z)] = 0.0
+                fstar[Mh < self.get_Mmin(z)] = 0.0
 
                 return fstar
         else:
@@ -1777,7 +1818,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._ham_results = Mh, fstar
 
         # Enforce minimum mass
-        fstar[Mh < self.Mmin(z)] = 0.0
+        fstar[Mh < self.get_Mmin(z)] = 0.0
 
         return fstar
 
@@ -2163,56 +2204,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._tab_focc_
 
-    @property
-    def LLyC_tab(self):
-        """
-        Number of LyC photons emitted per unit SFR in halos of mass M.
-        """
-        if not hasattr(self, '_LLyC_tab'):
-            M = self.halos.tab_M
-            fesc = self.fesc(None, M)
-
-            dnu = (24.6 - E_LL) / ev_per_hz
-
-            Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
-
-            self._LLyC_tab = np.zeros([self.halos.tab_z.size, self.halos.tab_M.size])
-
-            for i, z in enumerate(self.halos.tab_z):
-                self._LLyC_tab[i] = self.L1600_tab[i] * Nion_per_L1600 \
-                    * fesc
-
-                mask = self.halos.tab_M >= self._tab_Mmin[i]
-                self._LLyC_tab[i] *= mask
-
-        return self._LLyC_tab
-
-    @property
-    def LLW_tab(self):
-        if not hasattr(self, '_LLW_tab'):
-            M = self.halos.tab_M
-
-            dnu = (E_LL - E_LyA) / ev_per_hz
-            #nrg_per_phot = 25. * erg_per_ev
-
-            Nlw_per_L1600 = self.Nlw(z=None, M=M) / (1. / dnu)
-            fesc_LW = self.fesc_LW(z=None, M=M)
-
-            self._LLW_tab = np.zeros([self.halos.tab_z.size, self.halos.tab_M.size])
-
-            for i, z in enumerate(self.halos.tab_z):
-                self._LLW_tab[i] = self.L1600_tab[i] * Nlw_per_L1600
-
-                mask = self.halos.tab_M >= self._tab_Mmin[i]
-                self._LLW_tab[i] *= mask
-
-        return self._LLW_tab
-
     def SFE(self, **kwargs):
         return self.get_sfe(**kwargs)
 
     def get_fstar(self, **kwargs):
-        return self.get_sfe(self, **kwargs)
+        return self.get_sfe(**kwargs)
 
     def get_sfe(self, **kwargs):
         """
@@ -2389,7 +2385,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise NotImplementedError('No SAM with nz={}'.format(\
                 self.pf['pop_sam_nz']))
 
-    def _SAM_jac(self, z, y):
+    def _SAM_jac(self, z, y): # pragma: no cover
         if self.pf['pop_sam_nz'] == 1:
             return self._SAM_1z_jac(z, y)
         elif self.pf['pop_sam_nz'] == 2:
@@ -2483,7 +2479,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Mmax = np.inf
 
         # Eq. 3: stellar mass
-        Mmin = self.Mmin(z)
+        Mmin = self.get_Mmin(z)
         if (Mh < Mmin) or (Mh > Mmax):
             y3p = SFR = 0.
         else:
@@ -2603,7 +2599,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Mmax = np.inf
 
         # Eq. 3: stellar mass
-        Mmin = self.Mmin(z)
+        Mmin = self.get_Mmin(z)
         if (Mh < Mmin) or (Mh > Mmax):
             y3p = SFR = 0.
         else:
@@ -2688,7 +2684,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         y4p = y1p * (1. - self.pf['pop_fstall'])
 
         # Eq. 5: Star formation
-        Mmin = self.Mmin(z)
+        Mmin = self.get_Mmin(z)
         if Mh < Mmin:
             y5p = 0.
         else:
@@ -2705,6 +2701,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     @property
     def is_sfe_constant(self):
+        """ Is the SFE constant in redshift (at fixed halo mass)?"""
         if not hasattr(self, '_is_sfe_constant'):
 
             if self.is_sfr_constant:
@@ -2722,35 +2719,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     @property
     def is_sfr_constant(self):
+        """ Is the SFR constant in redshift (at fixed halo mass)?"""
         if not hasattr(self, '_is_sfr_constant'):
             if self.pf['pop_sfr'] is not None:
                 self._is_sfr_constant = 1
             else:
                 self._is_sfr_constant = 0
         return self._is_sfr_constant
-
-    def ScalingRelations(self, z):
-        """
-        Return scaling relations at input redshift `z`.
-        """
-
-        # For a constant SFE, we're done.
-        if self.is_sfe_constant:
-            zarr, data = self.scaling_relations
-        else:
-            raise NotImplemented('')
-
-        return data
-
-    @property
-    def scaling_relations(self):
-        if not hasattr(self, '_scaling_relations'):
-            if self.is_sfe_constant:
-                self._scaling_relations = self._ScalingRelationsStaticSFE()
-            else:
-                self._scaling_relations = self.Trajectories()
-
-        return self._scaling_relations
 
     def duration(self, zend=6.):
         """
@@ -2915,9 +2890,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._histories = self.Trajectories()[1]
         return self._histories
 
-    def get_histories(self):
-        zall, data = self.Trajectories()
-        return data
+    #def get_histories(self):
+    #    zall, data = self.Trajectories()
+    #    return data
 
     def Trajectories(self, M0=0):
         """
@@ -2987,7 +2962,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    continue
 
             # If M0 is 0, assume it's the minimum mass at this redshift.
-            _zarr, _results = self.RunSAM(z0=z, M0=M0)
+            _zarr, _results = self.run_sam(z0=z, M0=M0)
 
             # Need to splice into the right elements of 2-D array.
             # SAM is run from zform to final_redshift, so only a subset
@@ -3020,7 +2995,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             for i, _M0 in enumerate(M0_aug):
                 # If M0 is 0, assume it's the minimum mass at this redshift.
-                _zarr, _results = self.RunSAM(z0=_z0, M0=_M0)
+                _zarr, _results = self.run_sam(z0=_z0, M0=_M0)
 
                 # Need to splice into the right elements of 2-D array.
                 # SAM is run from zform to final_redshift, so only a subset
@@ -3044,15 +3019,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return np.array(zform), results
 
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
-        self.RunSAM(z0, M0)
+        self.run_sam(z0, M0)
 
     #def Trajectory(self, z0=None, M0=0):
     #    """
     #    Just a wrapper around `RunSAM`.
     #    """
-    #    return self.RunSAM(z0, M0)
+    #    return self.run_sam(z0, M0)
 
     def RunSAM(self, z0=None, M0=0):
+        return self.run_sam(z0=z0, M0=M0)
+
+    def run_sam(self, z0=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
 
@@ -3421,7 +3399,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return z, results
 
-    def LuminosityDensity(self, z, Emin=None, Emax=None):
+    def get_luminosity_density(self, z, Emin=None, Emax=None):
         """
         Return the integrated luminosity density in the (Emin, Emax) band.
 
@@ -3436,9 +3414,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        return self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
+        return self.get_emissivity(z, E=None, Emin=Emin, Emax=Emax)
 
-    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
+    def get_photon_density(self, z, Emin=None, Emax=None):
         """
         Return the photon luminosity density in the (Emin, Emax) band.
 
@@ -3455,29 +3433,40 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # erg / s / cm**3
         if self.is_emissivity_scalable:
-            rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
+            rhoL = self.get_emissivity(z, E=None, Emin=Emin, Emax=Emax)
             erg_per_phot = self._get_energy_per_photon(Emin, Emax) * erg_per_ev
 
             return rhoL / erg_per_phot
         else:
-            return self.rho_N(z, Emin, Emax)
+            return self._get_photon_density(z, Emin, Emax)
 
-    def IonizingEfficiency(self, z):
+    def get_zeta(self, z):
         """
         Compute the ionizing efficiency.
 
-        This only ever gets used to calculate the bubble size distribution
-        using the excursion set approach. There, it really only gets used
-        to translate halo masses to bubble masses.
+        .. note :: This only ever gets used to calculate the bubble size
+            distribution using the excursion set approach. There, it really only
+            gets used to translate halo masses to bubble masses.
+
+        Parameters
+        ----------
+        z: int, float
+            Redshift of interest.
+
+        Returns
+        -------
+        Tuple containing (halo masses, zeta for each halo).
 
         """
 
-        z, data = self.scaling_relations_sorted(z=z)
-        Mh = data['Mh']
-        fstar = data['cMs'] / data['Mh']
+        Mh = self.halos.tab_M
+        Mst_c = self.get_mass(z, kind='stellar_cumulative') # tab_M by default
+        fstar = Mst_c / Mh
 
         const = self.cosm.b_per_g * m_H / self.cosm.fbaryon
-        return Mh, const * fstar * self.src.Nion * self.fesc(Mh=Mh, z=z)
+        zeta = const * fstar * self.src.Nion * self.fesc(Mh=Mh, z=z)
+
+        return Mh, zeta
 
     def _profile_delta(self, k, M, z):
         """
@@ -3792,7 +3781,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             nu1 = c / (wave1 * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz
-            enu1 = self.Emissivity(z, E=E1) * ev_per_hz
+            enu1 = self.get_emissivity(z, E=E1) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_int = True
@@ -3805,7 +3794,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             E21 = h_p * c / (wave1[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu1 = self.Emissivity(z, Emin=E21, Emax=E11)
+            enu1 = self.get_emissivity(z, Emin=E21, Emax=E11)
         if type(wave_obs2) in [int, float, np.float64]:
             is_band_int = False
 
@@ -3816,7 +3805,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             nu2 = c / (wave2 * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz
-            enu2 = self.Emissivity(z, E=E2) * ev_per_hz
+            enu2 = self.get_emissivity(z, E=E2) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_int = True
@@ -3829,7 +3818,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             E22 = h_p * c / (wave2[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu2 = self.Emissivity(z, Emin=E22, Emax=E12)
+            enu2 = self.get_emissivity(z, Emin=E22, Emax=E12)
 
         # Need angular diameter distance and H(z) for all that follows
         d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
