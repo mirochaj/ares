@@ -17,7 +17,7 @@ from ares.physics.Constants import rho_cgs, rhodot_cgs
 def test():
 
     Mh = np.logspace(7, 15, 200)
-    mags = np.arange(-25, -5, 0.1)
+    mag_bins = np.arange(-25, -5, 0.1)
     zarr = np.arange(6, 30, 0.1)
 
     # Initialize a simple DPL SFE model
@@ -30,6 +30,8 @@ def test():
     assert pop.is_synthesis_model
     assert not pop.is_sfr_constant
     assert pop.is_sfe_constant # in redshift!
+    assert pop.is_metallicity_constant
+
     assert np.all(np.diff(pop.tab_Matom) < 0), "Mmin(z) should increase w/ z!"
     assert pop.get_Mmax(10) > pop.get_Mmin(10)
 
@@ -76,7 +78,7 @@ def test():
     assert pop.get_nh_active(6) > pop.get_nh_active(10)
 
     # Luminosity function and stellar mass functions
-    x, phi_M = pop.get_lf(zarr[0], mags, use_mags=True, wave=1600.)
+    x, phi_M = pop.get_lf(zarr[0], mag_bins, use_mags=True, wave=1600.)
 
     # A bit slow :/
     phi_Ms = pop.get_smf(zarr[0])
@@ -92,6 +94,29 @@ def test():
     Mmin = pop.get_Mmin(10.)
 
     assert 1e7 <= Mmin <= 1e9
+
+    ##
+    # Test metallicity stuff
+    pars_Z = pars.copy()
+    pars_Z['pop_enrichment'] = 1
+    pars_Z['pop_metal_yield'] = 0.05
+    pars_Z['pop_fpoll'] = 0.03
+    pars_Z['pop_calib_lum'] = None
+    pars_Z['pop_enrichment'] = True
+    pop_Z = ares.populations.GalaxyPopulation(**pars_Z)
+
+    Z = pop_Z.get_metallicity(6)
+
+    assert 1e-3 <= np.mean(Z) <= 0.04
+
+    x2, phi_M2 = pop_Z.get_lf(zarr[0], mag_bins, use_mags=True, wave=1600.)
+
+    # Should be different, but not crazy different
+    assert not np.all(phi_M == phi_M2)
+    ok = np.logical_and(x2 >= -24, x2 <= -15)
+    err = abs(phi_M[ok==1] - phi_M2[ok==1]) / phi_M[ok==1]
+    assert err.mean() < 0.5
+
 
 
 if __name__ == '__main__':

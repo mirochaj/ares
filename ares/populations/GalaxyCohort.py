@@ -93,38 +93,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # A few special cases
         if self.sed_tab and (name in _sed_tab_attributes):
+            att = self.src.__getattribute__(name)
 
-            if self.pf['pop_Z'] == 'sam':
-                tmp = []
-                Zarr = np.sort(list(self.src.metallicities.values()))
-                for Z in Zarr:
-                    kw = self.src_kwargs.copy()
-                    kw['pop_Z'] = Z
-                    src = self._Source(cosm=self.cosm, **kw)
-
-                    att = src.__getattribute__(name)
-
-                    # Must specify band
-                    if name == 'rad_yield':
-                        val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
-                    else:
-                        val = att
-
-                    tmp.append(val)
-                # Interpolant
-                interp = interp1d_wrapper(np.log10(Zarr), tmp,
-                    self.pf['interp_Z'])
-
-                result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
+            if name == 'rad_yield':
+                val = att(self.src.Emin, self.src.Emax)
             else:
-                att = self.src.__getattribute__(name)
+                val = att
 
-                if name == 'rad_yield':
-                    val = att(self.src.Emin, self.src.Emax)
-                else:
-                    val = att
-
-                result = lambda **kwargs: val
+            result = lambda **kwargs: val
 
         elif is_php:
             tmp = get_pq_pars(self.pf[full_name], self.pf)
@@ -164,6 +140,90 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return result
 
+    def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=True,
+        nebular_only=False):
+        """
+        Get the luminosity (per SFR) for all possible metallicities.
+
+        Returns
+        -------
+        A function that takes in log10(metallicity) and returns
+        log10(luminosity in erg/s/Hz/(Msun/yr)).
+        """
+
+        if not hasattr(self, '_cache_lum_all_Z'):
+            self._cache_lum_all_Z = {}
+
+        # Grab result from cache if it exists.
+        if (wave, window, band, raw, nebular_only) in self._cache_lum_all_Z:
+            L_of_Z_func = \
+                self._cache_lum_all_Z[(wave, window, band, raw, nebular_only)]
+
+            return L_of_Z_func
+
+        tmp = []
+        Zarr = np.sort(list(self.src.metallicities.values()))
+        for Z in Zarr:
+            kw = self.src_kwargs.copy()
+            kw['source_Z'] = Z
+
+            src = self._Source(cosm=self.cosm, **kw)
+            L_per_sfr = src.L_per_sfr(wave=wave, avg=window,
+                band=band, raw=raw, nebular_only=nebular_only)
+
+            ## Must specify band
+            #if name == 'rad_yield':
+            #    val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
+            #else:
+            #    val = att
+            tmp.append(L_per_sfr)
+
+        # Interpolant
+        L_of_Z_func = interp1d_wrapper(np.log10(Zarr), np.log10(tmp),
+            self.pf['interp_Z'])
+
+        self._cache_lum_all_Z[(wave, window, band, raw, nebular_only)] = \
+            L_of_Z_func
+
+        return L_of_Z_func
+
+    def get_metallicity(self, z, Mh=None):
+        """
+        Get the gas phase metallicity of all halos in the model.
+
+        ..note :: This is a derived quantity, which is why it's not accessible
+            via `get_field`.
+
+        Returns
+        -------
+        Metallicity of all halos in the model, Z.
+
+        """
+
+        if not self.pf['pop_enrichment']:
+            return np.zeros_like(self.halos.tab_M)
+
+        assert self.pf['pop_enrichment'] == 1, \
+            "Only pop_enrichment=1 available for GalaxyCohort right now."
+
+        fmr = self.pf['pop_mass_yield']
+        fZy = fmr * self.pf['pop_metal_yield']
+
+        Ms = self.get_field(z, 'Ms')
+        MZ = Ms * fZy
+        Mg = self.get_field(z, 'Mg')
+
+        Z = MZ / Mg / self.pf['pop_fpoll']
+
+        Z[Mg==0] = 1e-3
+        Z = np.maximum(Z, 1e-3)
+
+        if Mh is None:
+            return Z
+        else:
+            _Mh = self.get_field(z, 'Mh')
+            return 10**np.interp(np.log10(Mh), np.log10(_Mh), np.log10(Z))
+
     def get_field(self, z, field):
         """
         Return results from SAM (all masses) at input redshift.
@@ -190,28 +250,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         iz = np.argmin(np.abs(z - zall))
 
         return data[field][:,iz]
-
-    def Zgas(self, z, Mh):
-        if not hasattr(self, '_sam_data'):
-            self._sam_data = self.histories
-            self._sam_z = self.histories['z']
-
-        flip = self._sam_data['Mh'][0] > self._sam_data['Mh'][-1]
-        slc = slice(-1,0,-1) if flip else None
-
-        if self.is_sfe_constant:
-            _Mh = self._sam_data['Mh'][slc]
-            _Z = self._sam_data['Z'][slc]
-        else:
-            # guaranteed to be a grid point?
-            k = np.argmin(np.abs(self.halos.tab_z - z))
-
-            _smhm = self._sam_data['Ms'][slc,k]  / self._sam_data['Mh'][slc,k]
-            _mask = np.isfinite(smhm)
-            _Mh = self._sam_data['Mh'][slc,k][_mask]
-            _Z = self._sam_data['Z'][slc,k][_mask]
-
-        return np.interp(Mh, _Mh, _Z)
 
     def get_photons_per_Msun(self, Emin, Emax):
         """
@@ -1121,9 +1159,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Return the luminosity of all halos at given redshift `z`.
 
+        .. note :: This does not apply any sort of reddening or escape fraction,
+            i.e., it is the intrinsic luminosity of halos.
+
         Returns
         -------
-        Array of luminosities corresponding to halos in model
+        Array of luminosities corresponding to halos in model.
+
         """
 
         if use_cache:
@@ -1138,28 +1180,32 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # updated from SAM.
             sfr = self.get_sfr(z)
 
-            if self.pf['pop_dust_yield'] not in [None,0]:
-                # I don't think this method should ever get called.
-                # Basically we only have this implemented for GalaxyEnsemble.
-                # Right, because the reddening is probabilistic (due to fcov)
-                # we don't have a way to deal with it in Cohort currently.
-                raise NotImplemented('help')
+            assert self.pf['pop_dust_yield'] in [None,0], \
+                "pop_dust_yield must be zero for GalaxyCohort objects!"
 
+            if not self.is_metallicity_constant:
+                Z = self.get_metallicity(z, Mh=self.halos.tab_M)
+
+                f_L_sfr = self._get_lum_all_Z(wave=wave, band=band,
+                    window=window, raw=raw, nebular_only=nebular_only)
+
+                L_sfr = 10**f_L_sfr(np.log10(Z))
+
+            elif self.pf['pop_lum_per_sfr'] is None:
+                L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+                    band=band, raw=raw, nebular_only=nebular_only)
             else:
-                if self.pf['pop_lum_per_sfr'] is None:
-                    L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
-                        band=band, raw=raw, nebular_only=nebular_only)
-                else:
-                    assert self.pf['pop_calib_lum'] is None, \
-                        "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
-                    L_sfr = self.pf['pop_lum_per_sfr']
+                assert self.pf['pop_calib_lum'] is None, \
+                    "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
+                L_sfr = self.pf['pop_lum_per_sfr']
 
-                Lh = sfr * L_sfr
+            # Just the product of SFR and L_per_sfr
+            Lh = sfr * L_sfr
 
-                if use_cache:
-                    self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
+            if use_cache:
+                self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
 
-                return Lh
+            return Lh
 
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
@@ -2486,9 +2532,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
-        y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
-            * (1. - self.pf['pop_mass_escape']) \
-            + NPIR * Zfrac
+        if self.pf['pop_enrichment']:
+            y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
+                * (1. - self.pf['pop_mass_escape']) \
+                + NPIR * Zfrac
+        else:
+            y4p = 0.0
 
         if (Mh < Mmin) or (Mh > Mmax):
             y5p = 0.
@@ -2698,6 +2747,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         results = [y1p, y2p, y3p, y4p]
 
         return np.array(results)
+
+    @property
+    def is_metallicity_constant(self):
+        if not hasattr(self, '_is_metallicity_constant'):
+            self._is_metallicity_constant = not self.pf['pop_enrichment']
+        return self._is_metallicity_constant
 
     @property
     def is_sfe_constant(self):
