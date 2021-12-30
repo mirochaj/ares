@@ -319,7 +319,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     * self._tab_nh_at_Mmin \
                     * self.focc(z=self.halos.tab_z, Mh=self._tab_Mmin)
 
-            #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * self.dMmin_dt(self.halos.tab_z)
+            #Mmin_dot = lambda z: -1. * derivative(self.Mmin, z) * s_per_yr / self.cosm.dtdz(z)
+            #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * Mmin_dot(self.halos.tab_z)
 
             self._tab_sfrd_at_threshold_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
@@ -761,11 +762,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     M = 10**log10M
                     #if type(sfr) is np.ndarray:
                     #    sfr[M < self.Mmin(z)] = 0.0
-                    #    sfr[M > self.Mmax(z)] = 0.0
+                    #    sfr[M > self.get_Mmax(z)] = 0.0
                     #else:
                     #    if M < self.Mmin(z):
                     #        return 0.0
-                    #    if M > self.Mmax(z):
+                    #    if M > self.get_Mmax(z):
                     #        return 0.0
 
                     return sfr
@@ -1334,17 +1335,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_M[z]
 
-    def MUV(self, z, Mh, wave=1600.):
-        Lh = np.interp(Mh, self.halos.tab_M, self.Lh(z, wave=wave))
-        MAB = self.magsys.L_to_MAB(Lh)
-        return MAB
-
-    def get_MUV_lim(self, z):
+    def get_mag_lim(self, z, absolute=True, wave=1600, band=None, window=1,
+        use_cache=True, raw=True, nebular_only=False, apply_dustcorr=False):
         """
         Compute the magnitude corresponding to the minimum mass threshold.
         """
 
-        return self.MUV(z, self.Mmin(z))
+        mags = self.get_mags(z, absolute=absolute, wave=wave, band=band,
+            window=window, use_cache=use_cache, raw=raw,
+            nebular_only=nebular_only, apply_dustcorr=apply_dustcorr)
+
+        Mmin = self.get_Mmin(z)
+
+        return np.interp(Mmin, self.halos.tab_M, mags)
 
     @property
     def _tab_Mmax_active(self):
@@ -1365,20 +1368,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmax_active)
         return self._Mmax_active_
 
-    def dMmin_dt(self, z):
-        """ Solar masses per year. """
-        return -1. * derivative(self.Mmin, z) * s_per_yr / self.cosm.dtdz(z)
-    def Mmax(self, z):
+    def get_Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.
         # Long story.
         return np.interp(z, self.halos.tab_z, self._tab_Mmax)
 
     @property
-    def M_atom(self):
-        if not hasattr(self, '_Matom'):
+    def tab_Matom(self):
+        if not hasattr(self, '_tab_Matom'):
             Mvir = lambda z: self.halos.VirialMass(z, 1e4, mu=self.pf['mu'])
-            self._Matom = np.array(list(map(Mvir, self.halos.tab_z)))
-        return self._Matom
+            self._tab_Matom = np.array([Mvir(z) for z in self.halos.tab_z])
+        return self._tab_Matom
 
     def get_Mmin(self, z):
         """
@@ -2474,7 +2474,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # ejection of gas.
 
         if self._done_setting_Mmax:
-            Mmax = self.Mmax(z)
+            Mmax = self.get_Mmax(z)
         else:
             Mmax = np.inf
 
@@ -2594,7 +2594,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # ejection of gas.
 
         if self._done_setting_Mmax:
-            Mmax = self.Mmax(z)
+            Mmax = self.get_Mmax(z)
         else:
             Mmax = np.inf
 

@@ -30,6 +30,8 @@ def test():
     assert pop.is_synthesis_model
     assert not pop.is_sfr_constant
     assert pop.is_sfe_constant # in redshift!
+    assert np.all(np.diff(pop.tab_Matom) < 0), "Mmin(z) should increase w/ z!"
+    assert pop.get_Mmax(10) > pop.get_Mmin(10)
 
     assert np.all(pop.tab_focc == 1)
 
@@ -85,7 +87,7 @@ def test():
 
     assert abs(dsfe_dMh - pop.pf['pq_func_par2[0]']) < 0.05
 
-    assert -15 <= pop.get_MUV_lim(6.) <= 0., "Limiting magnitude unreasonable."
+    assert -15 <= pop.get_mag_lim(6.) <= 0., "Limiting magnitude unreasonable."
 
     Mmin = pop.get_Mmin(10.)
 
