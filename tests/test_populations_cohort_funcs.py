@@ -78,5 +78,6 @@ def test():
 
     assert 1e7 <= Mmin <= 1e9
 
+
 if __name__ == '__main__':
     test()

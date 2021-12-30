@@ -803,7 +803,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         kind : str
             Phase of interest, e.g., 'stellar', 'metal', 'gas'.
         """
-        #zform, data = self.scaling_relations_sorted(z=z)
         zall, data = self.Trajectories()
         iz = np.argmin(np.abs(z - zall))
 
@@ -998,6 +997,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     def LuminosityFunction(self, z, bins, **kwargs):
         return self.get_lf(z, bins, **kwargs)
+
+    def get_uvlf(self, z, bins, use_mags=True, wave=1600., window=1.,
+        absolute=True):
+        return self.get_lf(z, bins, use_mags=use_mags, wave=wave,
+            window=window, absolute=absolute)
 
     def get_lf(self, z, bins, use_mags=True, wave=1600., window=1.,
         absolute=True):
@@ -1665,15 +1669,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._ngtm_from_ham_[z]
 
-    def _abundance_match(self, z, Mh):
+    def run_abundance_match(self, z, Mh, uvlf=None, wave=1600.):
         """
         These are the star-formation efficiencies derived from abundance
         matching.
         """
-
-        assert self.pf['pop_sfr_model'] == 'uvlf'
-
-        #assert np.all(np.sign(np.diff(Mh)) == 1.)
 
         if self.pf['pop_ham_z'] is not None:
             z_ham = self.pf['pop_ham_z']
@@ -1695,13 +1695,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             z_ham = z
 
-        # Poke PQ
-        _x_, _phi_ = self.get_lf(6., -20)
-
-        uvlf = self._pq_registry['uvlf']
-
         mags_obs = np.arange(self.pf['pop_mag_min'],
             self.pf['pop_mag_max']+self.pf['pop_mag_bin'], self.pf['pop_mag_bin'])
+
+        # Poke PQ
+        if uvlf is None:
+            assert self.pf['pop_sfr_model'] in ['uvlf', 'ham']
+            def uvlf(z, mag):
+                _x_, _phi_ = self.get_lf(z, mags_obs)
+                return np.interp(mag, _x_, _phi_)
+
+        else:
+            assert type(uvlf) is FunctionType, "Must supply `uvlf` as function!"
 
         mags = []
         for mag in mags_obs:
@@ -1718,8 +1723,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Use dust-corrected magnitudes here
         LUV_dc = np.array([self.magsys.MAB_to_L(mag) for mag in mags])
 
-        assert self.pf['pop_lum_per_sfr'] is not None
-        L_per_sfr = self.pf['pop_lum_per_sfr']
+        #assert self.pf['pop_lum_per_sfr'] is not None
+        if self.pf['pop_lum_per_sfr'] is not None:
+            L_per_sfr = self.pf['pop_lum_per_sfr']
+        else:
+            L_per_sfr = self.src.L_per_sfr(wave)
 
         # Loop over luminosities and perform abundance match
         mh_of_mag = []
@@ -1727,7 +1735,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         for j, _mag_ in enumerate(mags_obs):
 
             # Number of galaxies with MUV <= _mag_
-            int_phiM = quad(lambda xx: uvlf(MUV=xx, z=z_ham), -np.inf,
+            int_phiM = quad(lambda xx: uvlf(z=z_ham, mag=xx), -np.inf,
                 _mag_)[0]
 
             # Number density of halos at masses > M
@@ -2114,7 +2122,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Returns
         -------
-        SFRD in internal units of g/cm^3/s (comoving).    
+        SFRD in internal units of g/cm^3/s (comoving).
 
         """
 
@@ -2208,10 +2216,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     def get_sfe(self, **kwargs):
         """
-        Just a wrapper around self.fstar.
+        Compute star formation efficiency (SFE).
+
+        .. note :: Takes keyword arguments only (see below).
+
+        .. note :: Just a wrapper around self.fstar.
+
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        Mh : int, float, np.ndarray
+            Halo mass(es) in Msun.
+
+
         """
 
-        if self.pf['pop_sfr_model'] == 'uvlf':
+        if self.pf['pop_sfr_model'] in ['uvlf', 'ham']:
             if type(kwargs['z']) == np.ndarray:
 
                 if hasattr(self, '_sfe_ham'):
@@ -2231,9 +2253,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 pb.start()
                 for iz, _z_ in enumerate(z):
                     if Mh.ndim == 1:
-                        fstar[iz,:] = self._abundance_match(z=_z_, Mh=Mh)
+                        fstar[iz,:] = self.run_abundance_match(z=_z_, Mh=Mh)
                     else:
-                        fstar[:,iz] = self._abundance_match(z=_z_,
+                        fstar[:,iz] = self.run_abundance_match(z=_z_,
                             Mh=Mh[:,iz])
 
                     pb.update(iz)
@@ -2242,7 +2264,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 return fstar
             else:
-                return self._abundance_match(z=kwargs['z'],
+                return self.run_abundance_match(z=kwargs['z'],
                     Mh=kwargs['Mh'])
         else:
             return self.fstar(**kwargs)
@@ -2823,45 +2845,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
 
         return zarr, zfin, np.array(Mfin), data
-
-    def scaling_relations_sorted(self, z=None):
-        """
-
-        """
-        if not hasattr(self, '_scaling_relations_sorted'):
-            self._scaling_relations_sorted = {}
-
-        if z in self._scaling_relations_sorted:
-            return self._scaling_relations_sorted[z]
-
-        zform, data = self.scaling_relations
-
-        # Can't remember what this is all about.
-        if self.is_sfe_constant:
-            new_data = {}
-            sorter = np.argsort(data['Mh'])
-            for key in data.keys():
-                if key == 'zmax':
-                    continue
-                new_data[key] = data[key][sorter]
-        else:
-
-            assert z is not None
-
-            zf = max(float(self.halos.tab_z.min()), self.pf['final_redshift'])
-
-            if self.pf['sam_dz'] is not None:
-                zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.tab_z)[0], 0))
-            else:
-                zfreq = 1
-
-            zarr = self.halos.tab_z[self.halos.tab_z >= zf][::zfreq]
-
-            new_data = self._sort_sam(z, zarr, data)
-
-        self._scaling_relations_sorted[z] = zform, new_data
-
-        return self._scaling_relations_sorted[z]
 
     def _sort_sam(self, z, zarr, data, sort_by='obs'):
         """

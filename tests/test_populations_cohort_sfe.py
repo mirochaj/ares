@@ -107,7 +107,6 @@ pars_dpl_Nofz = \
 'pq_func_par6[0]': 1.,
 }
 
-
 def test():
 
     Mh = np.logspace(7, 15, 200)
@@ -146,6 +145,31 @@ def test():
         rtol=1e-2, atol=0), "Mismatch at low Mh!"
     assert np.allclose(all_sfe[0][Mh <= 1e10], all_sfe[4][Mh <= 1e10],
         rtol=1e-2, atol=0), "Mismatch at low Mh!"
+
+
+    # Test abundance matching
+    pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0,1)
+    pars.update(ares.util.ParameterBundle('testing:galaxies'))
+    pop = ares.populations.GalaxyPopulation(**pars)
+
+    bins = np.arange(-25, 0, 0.1)
+    def uvlf(MUV, z):
+        mags, phi = pop.get_uvlf(z, bins)
+        return np.interp(MUV, mags, phi)
+
+    pars2 = pars.copy()
+    pars2['pop_sfr_model'] = 'uvlf'
+    pars2['pop_uvlf'] = uvlf
+
+    pop_ham = ares.populations.GalaxyPopulation(**pars2)
+
+    fstar1 = pop.get_sfe(z=6, Mh=Mh)
+    fstar2 = pop_ham.run_abundance_match(6, Mh)
+
+    ok = np.logical_and(Mh >= 1e9, Mh <= 1e13)
+
+    assert np.allclose(fstar1[ok==1], fstar2[ok==1], rtol=1e-1)
+
 
 if __name__ == '__main__':
     test()
