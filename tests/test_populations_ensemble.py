@@ -42,8 +42,10 @@ def test():
     mags = np.arange(-30, 10, 0.1)
     mags_cr = np.arange(-30, 10, 1.)
     x, phi = pop.get_lf(6., mags, absolute=True)
-    ok = np.isfinite(phi)
+    x2, phi2 = pop.LuminosityFunction(6., mags, absolute=True) # backward compat
+    assert np.allclose(phi, phi2)
 
+    ok = np.isfinite(phi)
     assert 1e-4 <= np.interp(-18, mags, phi) <= 1e-1, "UVLF unreasonable!"
 
     x, phi_c = pop.get_lf(6., mags, absolute=True)
@@ -101,6 +103,10 @@ def test():
     dBdMUV, func1, func2 = pop.get_dBeta_dMUV(6., mags_cr, presets='hst', dlam=100.,
         return_funcs=True, model='exp')
     assert np.all(dBdMUV < 0)
+
+    # Simple LAE model
+    x, xLAE, std = pop.get_lae_fraction(6, bins=mags_cr)
+    assert np.mean(np.diff(xLAE) / np.diff(x))
 
     # Get single halo history
     hist = pop.get_history(20)

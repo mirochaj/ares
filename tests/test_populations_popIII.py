@@ -28,7 +28,7 @@ def test():
 
     # Just testing: speed this up.
     pars['feedback_LW'] = True
-    pars['feedback_LW_maxiter'] = 2
+    pars['feedback_LW_maxiter'] = 3
     pars['tau_redshift_bins'] = 400
     pars['hmf_dt'] = 1
     pars['hmf_tmax'] = 1000

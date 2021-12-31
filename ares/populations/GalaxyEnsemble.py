@@ -2678,7 +2678,57 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Done!
         return cam, filters
 
+    def get_lae_fraction(self, z, bins, absolute=True, model=1, Tcrit=0.7,
+        wave=1600., cam=None, filters=None, filter_set=None, dlam=20.,
+        method='closest', window=1, load=True, presets=None):
+        """
+        Compute Lyman-alpha emitter (LAE) fraction vs. UV magnitude relation.
+
+        .. note :: For now, this is based entirely on the empirical model
+            described in Mirocha, Mason, & Stark (2020). Could be
+            generalized in the future.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        model : int, str
+            Currently, only acceptable value is 1 (for MMS 2020 approach).
+        bins : tuple
+            Magnitude bins in which to compute LAE fraction. Whether
+            absolute or apparent AB mags depends on `absolute` parameter.
+        absolute: bool
+            If True, assume `maglim` magnitudes are absolute, otherwise,
+            apparent. Also controls type of magnitudes returned.
+
+        Returns
+        -------
+        Tuple containing (bins, LAE fractions, scatter in LAE fraction within bin).
+
+        """
+
+        assert model == 1, "Haven't implemented any other LAE models!"
+
+        nh = self.get_field(z, 'nh')
+
+        filt, mags = self.get_mags(z, absolute=absolute, wave=wave, cam=cam,
+            filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+            window=window, load=load, presets=presets)
+
+        tau = self.get_dust_opacity(z, wave=wave)
+
+        is_LAE = np.exp(-tau) > Tcrit
+
+        ok = np.isfinite(mags)
+        _x, _y, _err, _N = bin_samples(mags[ok==1], is_LAE[ok==1],
+            bins, weights=nh[ok==1])
+
+        return _x, _y, _err
+
     def get_dust_opacity(self, z, wave):
+        """
+        Compute dust opacity for every halo using Mirocha, Mason, & Stark (2020).
+        """
 
         Mh = self.get_field(z, 'Mh')
 
