@@ -106,7 +106,11 @@ def test():
 
     # Simple LAE model
     x, xLAE, std = pop.get_lae_fraction(6, bins=mags_cr)
-    assert np.mean(np.diff(xLAE) / np.diff(x))
+    ok = np.logical_and(np.isfinite(xLAE), xLAE > 0)
+    # Just make sure x_LAE increases as MUV decreases. Note that we don't
+    # have many galaxies in this model so just check that on avg the derivative
+    # is positive in dxLAE/dMUV.
+    assert np.mean(np.diff(xLAE[ok==1]) / np.diff(x[ok==1])) > 0
 
     # Get single halo history
     hist = pop.get_history(20)
