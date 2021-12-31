@@ -1395,25 +1395,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return np.interp(Mmin, self.halos.tab_M, mags)
 
-    @property
-    def _tab_Mmax_active(self):
-        """ most massive star-forming halo. """
-        if not hasattr(self, '_tab_Mmax_active_'):
-            self._tab_Mmax_active_ = np.zeros_like(self.halos.tab_z)
-            for i, z in enumerate(self.halos.tab_z):
-                lim = self.pf['pop_fstar_negligible']
-                fstar_max = self.tab_fstar[i].max()
-                immsfh = np.argmin(np.abs(self.tab_fstar[i] - fstar_max * lim))
-                self._tab_Mmax_active_[i] = self.halos.tab_M[immsfh]
-        return self._tab_Mmax_active_
-
-    @property
-    def Mmax_active(self):
-        if not hasattr(self, '_Mmax_active_'):
-            self._Mmax_active_ = \
-                lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmax_active)
-        return self._Mmax_active_
-
     def get_Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.
         # Long story.
@@ -2782,7 +2763,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._is_sfr_constant = 0
         return self._is_sfr_constant
 
-    def duration(self, zend=6.):
+    def get_duration(self, zend=6.):
         """
         Calculate the duration of this population, i.e., time it takes to get
         from formation redshift to Mmax.

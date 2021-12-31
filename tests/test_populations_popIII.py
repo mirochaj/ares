@@ -12,7 +12,7 @@ Description:
 
 import ares
 import numpy as np
-from ares.physics.Constants import rhodot_cgs
+from ares.physics.Constants import rhodot_cgs, s_per_myr
 
 def test():
 
@@ -57,6 +57,12 @@ def test():
 
     # Make sure L_per_sfr works
     assert sim.pops[2].src.L_per_sfr() > sim.pops[0].src.L_per_sfr()
+
+    # Duration of PopIII
+    zform, zfin, Mfin, duration = sim.pops[2].get_duration(6)
+
+    hubble_time = sim.pops[2].cosm.HubbleTime(z=6)
+    assert np.all(duration <= hubble_time / s_per_myr)
 
 
 if __name__ == '__main__':
