@@ -35,6 +35,9 @@ def test():
 
     assert csfrd < 1., "cSFRD >= SFRD!?"
 
+    logMh, logf_stell, std = pop.get_smhm(6.)
+    assert np.all(logf_stell < 1)
+
     # Test UVLF
     mags = np.arange(-30, 10, 0.1)
     mags_cr = np.arange(-30, 10, 1.)

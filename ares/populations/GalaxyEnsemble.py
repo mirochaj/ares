@@ -1657,7 +1657,36 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._cache_smf(z, bin_c)
 
-    def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
+    def get_xmhm(self, z, field='Ms', Mh=None, return_mean_only=False,
+        Mbin=0.1):
+        """
+        Generic routine for retrieving the X-mass-halo-mass relation, where
+        X is some phase of galaxies in our model, e.g., gas mass, metal mass,
+        etc.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        field: str
+            String describing field X in XMHM relation, e.g., stellar mass
+            is 'Ms', gas mass is 'Mg'. See contents of `histories` attribute
+            for more ideas of what's available.
+        Mh : np.ndarray
+            Optional: if provided, array of halo mass bins to use in
+            determining the relation. Must be evenly spaced in log10.
+        return_mean_only : bool
+            By default (False), will return bins, the X-mass/halo-mass fractions,
+            and scatter in each bin. If True, will just return XM/HM fractions.
+        Mbin : float
+            If Mh=None (default), will construct array of halo mass bins using
+            this log10 spacing.
+
+        Returns
+        -------
+        See `return_mean_only` above.
+
+        """
         iz = np.argmin(np.abs(z - self.histories['z']))
 
         _Ms = self.histories[field][:,iz]
@@ -1683,13 +1712,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return x, y, z
 
 
-    def SMHM(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
+    def get_smhm(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
 
-        .. note :: Because in general this is a scatter plot, this routine
-            returns the mean and variance in stellar mass as a function of
-            halo mass, the latter of which is defined via `Mh`.
+        .. note :: Just a wrapper around `get_xmhm`; see above.
 
         Parameters
         ----------
@@ -1697,12 +1724,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Redshift of interest
         Mh : int, np.ndarray
             Halo mass bins (their centers) to use for histogram.
-            Must be evenly spaced in log10
+            Must be evenly spaced in log10. Optional -- will use `Mbin` to
+            create if Mh not supplied (default).
 
         """
 
-        return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
-            Mbin=Mbin)
+        return self.get_xmhm(z, field='Ms', Mh=Mh,
+            return_mean_only=return_mean_only, Mbin=Mbin)
 
     @property
     def _stars(self):

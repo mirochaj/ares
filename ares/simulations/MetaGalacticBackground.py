@@ -930,7 +930,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             ##
             if self.pf['feedback_LW_guesses_perfect'] and has_guess:
                 self._Mmin_now = self._Mmin_pre
-                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total]
+                self._sfrd_bank = [self.pops[pid].tab_sfrd_total]
                 return True
 
         else:
@@ -939,9 +939,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.pf['feedback_LW_sfrd_popid'] is not None:
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:
-                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total.copy()]
+                self._sfrd_bank = [self.pops[pid].tab_sfrd_total.copy()]
             else:
-                self._sfrd_bank.append(self.pops[pid]._tab_sfrd_total.copy())
+                self._sfrd_bank.append(self.pops[pid].tab_sfrd_total.copy())
                 pre = self._sfrd_bank[-2] * rhodot_cgs
                 now = self._sfrd_bank[-1] * rhodot_cgs
                 gt0 = np.logical_and(now > _tiny_sfrd, pre > _tiny_sfrd)

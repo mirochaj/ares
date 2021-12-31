@@ -27,7 +27,7 @@ def test():
     pars.update(updates)
 
     # Just testing: speed this up.
-    pars['feedback_LW'] = False
+    pars['feedback_LW'] = True
     pars['feedback_LW_maxiter'] = 2
     pars['tau_redshift_bins'] = 400
     pars['hmf_dt'] = 1
