@@ -177,6 +177,11 @@ def test():
     # Check tabulated fstar (slow)
     #fstar2c = pop_ham.tab_fstar[np.argmin(np.abs(6 - pop_ham.halos.tab_z))]
 
+    # Check 21cmFAST parameterization
+    pars_cmfast = ares.util.ParameterBundle('park2019:base').pars_by_pop(0, 1)
+    pop_cmfast = ares.populations.GalaxyPopulation(**pars_cmfast)
+
+    x, phi = pop_cmfast.get_uvlf(6, bins)
 
 if __name__ == '__main__':
     test()
