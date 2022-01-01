@@ -400,7 +400,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if (Emin is None) and (Emax is None):
             Emin = self.pf['pop_EminNorm']
             Emax = self.pf['pop_EmaxNorm']
-        # Make sure we don't emit and bands...where we shouldn't be emitting
+        # Make sure we don't emit in bands...where we shouldn't be emitting
         elif (Emin is not None) and (Emax is not None):
             if (Emin > self.pf['pop_Emax']):
                 self._rho_L[(Emin, Emax)] = lambda z: 0.0
@@ -415,7 +415,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # For all halos. Reduce to a function of redshift only by passing
         # in the array of halo masses stored in 'halos' attribute.
-        if Emax <= 24.6:
+        if Emax <= self.pf['pop_Emin_xray']:
             N_per_Msun = self.get_photons_per_Msun(Emin=Emin, Emax=Emax)
 
             # Also need energy per photon in this case
@@ -486,7 +486,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 kw = {'z': z, 'Mh': self.halos.tab_M}
 
-            integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
+            integrand = self.tab_sfr[i] * self.halos.tab_dndlnm[i] \
                 * self.tab_focc[i] * yield_per_sfr(**kw) * ok[i]
 
             _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
@@ -565,7 +565,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         ok = ~self._tab_sfr_mask
         for i, z in enumerate(self.halos.tab_z):
-            integrand = self._tab_sfr[i] * self.halos.tab_dndlnm[i] \
+            integrand = self.tab_sfr[i] * self.halos.tab_dndlnm[i] \
                 * self.tab_focc[i] * N_per_Msun * fesc * ok[i]
 
             tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
@@ -840,7 +840,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # The advantage here is that the SFRD only has to be calculated
             # once, and the radiation field strength can just be determined
             # by scaling the SFRD.
-            rhoL = super(GalaxyCohort, self).Emissivity(z, E=E,
+            rhoL = super(GalaxyCohort, self).get_emissivity(z, E=E,
                 Emin=Emin, Emax=Emax)
         else:
             # Here, the radiation backgrounds cannot just be scaled.

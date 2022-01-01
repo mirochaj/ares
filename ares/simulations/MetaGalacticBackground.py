@@ -839,37 +839,6 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         return zarr, Ja, Jlw
 
-    #@property
-    #def _LW_felt_by(self):
-    #    if not hasattr(self, '_LW_felt_by_'):
-    #        self._LW_felt_by_ = []
-    #        for popid, pop in enumerate(self.pops):
-#
-    #            Mmin = pop.pf['pop_Mmin']
-#
-    #            if isinstance(Mmin, basestring):
-    #                self._LW_felt_by_.append(popid)
-    #                continue
-#
-    #            Tmin = pop.pf['pop_Tmin']
-    #            if isinstance(Tmin, basestring):
-    #                pass
-#
-    #            if Mmin is None:
-    #                T = Tmin
-    #            else:
-    #                T = pop.halos.VirialTemperature(pop.halos.tab_z, Mmin,
-    #                    self.pf['mu'])
-#
-    #            if type(T) in [float, int, np.float64]:
-    #                if T < 1e4:
-    #                    self._LW_felt_by_.append(popid)
-    #            else:
-    #                if np.any(T < 1e4):
-    #                    self._LW_felt_by_.append(popid)
-#
-    #    return self._LW_felt_by_
-
     def _is_Mmin_converged(self, include_pops):
 
         # Need better long-term fix: Lya sources aren't necessarily LW
