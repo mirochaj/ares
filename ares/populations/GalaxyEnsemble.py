@@ -76,6 +76,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
             h = self._gen_halo_histories()
+            self._tab_z = h['z']
         return self._tab_z
 
     @tab_z.setter
@@ -88,16 +89,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # Array of times corresponding to all z' > z [years]
             self._tab_t = self.cosm.t_of_z(self.tab_z) / s_per_yr
         return self._tab_t
-
-    @property
-    def tab_dz(self):
-        if not hasattr(self, '_tab_dz'):
-            dz = np.diff(self.tab_z)
-            if np.allclose(np.diff(dz), 0):
-                dz = dz[0]
-            self._tab_dz = dz
-
-        return self._tab_dz
 
     @property
     def _b14(self):
@@ -132,7 +123,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def run(self):
         return
 
-    def cSFRD(self, z, Mh):
+    def get_sfrd_in_mass_range(self, z, Mlo, Mhi=None):
         """
         Compute cumulative SFRD as a function of lower-mass bound.
 
@@ -141,26 +132,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Cumulative *FRACTION* of SFRD in halos above Mh.
         """
 
-        if type(Mh) not in [list, np.ndarray]:
-            Mh = np.array([Mh])
-
         iz = np.argmin(np.abs(z - self.histories['z']))
         _Mh = self.histories['Mh'][:,iz]
         _sfr = self.histories['SFR'][:,iz]
         _w = self.histories['nh'][:,iz]
 
-        # Really this is the number of galaxies that formed in a given
-        # differential redshift slice.
-        SFRD = np.zeros_like(Mh)
-        for i, _mass in enumerate(Mh):
-            ok = _Mh >= _mass
-            SFRD[i] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
+        if Mhi is None:
+            Mhi = _Mh.max()
 
-        SFRD_tot = self.SFRD(z)
+        ok = np.logical_and(_Mh >= Mlo, _Mh <= Mhi)
+        SFRD = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
 
-        return SFRD / SFRD_tot
+        return SFRD
 
     def SFRD(self, z, Mmin=None):
+        return self.get_sfrd(z, Mmin=Mmin)
+
+    def get_sfrd(self, z, Mmin=None):
         """
         Will convert to internal cgs units.
         """
@@ -241,11 +229,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             return new
 
-    def noise_normal(self, arr, sigma):
+    def get_noise_normal(self, arr, sigma):
         noise = np.random.normal(scale=sigma, size=arr.size)
         return np.reshape(noise, arr.shape)
 
-    def noise_lognormal(self, arr, sigma):
+    def get_noise_lognormal(self, arr, sigma):
         lognoise = np.random.normal(scale=sigma, size=arr.size)
         #noise = 10**(np.log10(arr) + np.reshape(lognoise, arr.shape)) - arr
         noise = np.power(10, np.log10(arr) + np.reshape(lognoise, arr.shape)) \
@@ -409,11 +397,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Two potential kinds of scatter in MAR
         mar = self.tile(mar_raw, thin)
         if sigma_env > 0:
-            mar *= (1. + self.noise_normal(mar, sigma_env))
+            mar *= (1. + self.get_noise_normal(mar, sigma_env))
 
         if sigma_mar > 0:
             np.random.seed(self.pf['pop_scatter_mar_seed'])
-            noise = self.noise_lognormal(mar, sigma_mar)
+            noise = self.get_noise_lognormal(mar, sigma_mar)
             mar += noise
             # Normalize by mean of log-normal to preserve mean MAR?
             mar /= np.exp(0.5 * sigma_mar**2)
@@ -668,18 +656,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return zarr, tab / cm_per_mpc**3
 
-    def Emissivity(self, z, E=None, Emin=None, Emax=None):
+    def get_emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
-        and rest-frame photon energy [eV].
+        and (potentially) rest-frame photon energy [eV].
+
+        .. note :: If Emin and Emax are supplied, this is a luminosity density,
+            and will have units of erg/s/(co-moving cm)^3. If `E` is supplied,
+            will also carry units of eV^-1.
 
         Parameters
         ----------
         z : int, float
+            Redshift.
 
         Returns
         -------
-        Emissivity in units of erg / s / c-cm**3 [/ eV]
+        Emissivity in units of erg / s / c-cm**3 [/ eV].
 
         """
 
@@ -707,9 +700,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return 10**func(z)
         #return self._cache_ehat_[(E, Emin, Emax)](z)
 
-    def PhotonLuminosityDensity(self, z, E=None, Emin=None, Emax=None):
+    def get_photon_density(self, z, E=None, Emin=None, Emax=None):
         # erg / s / cm**3
-        rhoL = self.Emissivity(z, E=E, Emin=Emin, Emax=Emax)
+        rhoL = self.get_emissivity(z, E=E, Emin=Emin, Emax=Emax)
         erg_per_phot = self._get_energy_per_photon(Emin, Emax) * erg_per_ev
 
         return rhoL / np.mean(erg_per_phot)
@@ -1243,7 +1236,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 noise = np.zeros_like(Sd)
                 np.random.seed(self.pf['pop_dust_scatter_seed'])
                 for _i, _z in enumerate(z):
-                    noise[:,_i] = self.noise_lognormal(Sd[:,_i], sigma[:,_i])
+                    noise[:,_i] = self.get_noise_lognormal(Sd[:,_i], sigma[:,_i])
 
                 Sd += noise
 
@@ -1578,32 +1571,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return results
 
-
-    def Slice(self, z, slc):
-        """
-        slice format = {'field': (lo, hi)}
-        """
-
-        iz = np.argmin(np.abs(z - self.tab_z))
-        hist = self.histories
-
-        c = np.ones(hist['Mh'].shape[0], dtype=int)
-        for key in slc:
-            lo, hi = slc[key]
-
-            ok = np.logical_and(hist[key][:,iz] >= lo, hist[key][:,iz] <= hi)
-            c *= ok
-
-        # Build output
-        to_return = {}
-        for key in self.histories:
-            if self.histories[key].ndim == 1:
-                to_return[key] = self.histories[key][c==1]
-            else:
-                to_return[key] = self.histories[key][c==1,iz]
-
-        return to_return
-
     def get_field(self, z, field):
         iz = np.argmin(np.abs(z - self.histories['z']))
         return self.histories[field][:,iz]
@@ -1657,7 +1624,36 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._cache_smf(z, bin_c)
 
-    def XMHM(self, z, field='Ms', Mh=None, return_mean_only=False, Mbin=0.1):
+    def get_xmhm(self, z, field='Ms', Mh=None, return_mean_only=False,
+        Mbin=0.1):
+        """
+        Generic routine for retrieving the X-mass-halo-mass relation, where
+        X is some phase of galaxies in our model, e.g., gas mass, metal mass,
+        etc.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        field: str
+            String describing field X in XMHM relation, e.g., stellar mass
+            is 'Ms', gas mass is 'Mg'. See contents of `histories` attribute
+            for more ideas of what's available.
+        Mh : np.ndarray
+            Optional: if provided, array of halo mass bins to use in
+            determining the relation. Must be evenly spaced in log10.
+        return_mean_only : bool
+            By default (False), will return bins, the X-mass/halo-mass fractions,
+            and scatter in each bin. If True, will just return XM/HM fractions.
+        Mbin : float
+            If Mh=None (default), will construct array of halo mass bins using
+            this log10 spacing.
+
+        Returns
+        -------
+        See `return_mean_only` above.
+
+        """
         iz = np.argmin(np.abs(z - self.histories['z']))
 
         _Ms = self.histories[field][:,iz]
@@ -1683,13 +1679,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return x, y, z
 
 
-    def SMHM(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
+    def get_smhm(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
 
-        .. note :: Because in general this is a scatter plot, this routine
-            returns the mean and variance in stellar mass as a function of
-            halo mass, the latter of which is defined via `Mh`.
+        .. note :: Just a wrapper around `get_xmhm`; see above.
 
         Parameters
         ----------
@@ -1697,12 +1691,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Redshift of interest
         Mh : int, np.ndarray
             Halo mass bins (their centers) to use for histogram.
-            Must be evenly spaced in log10
+            Must be evenly spaced in log10. Optional -- will use `Mbin` to
+            create if Mh not supplied (default).
 
         """
 
-        return self.XMHM(z, field='Ms', Mh=Mh, return_mean_only=return_mean_only,
-            Mbin=Mbin)
+        return self.get_xmhm(z, field='Ms', Mh=Mh,
+            return_mean_only=return_mean_only, Mbin=Mbin)
 
     @property
     def _stars(self):
@@ -1807,9 +1802,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return hist
 
-    def get_histories(self, z):
-        for i in range(self.histories['Mh'].shape[0]):
-            yield self.get_history(i)
+    #def get_histories(self, z):
+    #    for i in range(self.histories['Mh'].shape[0]):
+    #        yield self.get_history(i)
 
     @property
     def synth(self):
@@ -2650,7 +2645,57 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Done!
         return cam, filters
 
+    def get_lae_fraction(self, z, bins, absolute=True, model=1, Tcrit=0.7,
+        wave=1600., cam=None, filters=None, filter_set=None, dlam=20.,
+        method='closest', window=1, load=True, presets=None):
+        """
+        Compute Lyman-alpha emitter (LAE) fraction vs. UV magnitude relation.
+
+        .. note :: For now, this is based entirely on the empirical model
+            described in Mirocha, Mason, & Stark (2020). Could be
+            generalized in the future.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        model : int, str
+            Currently, only acceptable value is 1 (for MMS 2020 approach).
+        bins : tuple
+            Magnitude bins in which to compute LAE fraction. Whether
+            absolute or apparent AB mags depends on `absolute` parameter.
+        absolute: bool
+            If True, assume `maglim` magnitudes are absolute, otherwise,
+            apparent. Also controls type of magnitudes returned.
+
+        Returns
+        -------
+        Tuple containing (bins, LAE fractions, scatter in LAE fraction within bin).
+
+        """
+
+        assert model == 1, "Haven't implemented any other LAE models!"
+
+        nh = self.get_field(z, 'nh')
+
+        filt, mags = self.get_mags(z, absolute=absolute, wave=wave, cam=cam,
+            filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+            window=window, load=load, presets=presets)
+
+        tau = self.get_dust_opacity(z, wave=wave)
+
+        is_LAE = np.exp(-tau) > Tcrit
+
+        ok = np.isfinite(mags)
+        _x, _y, _err, _N = bin_samples(mags[ok==1], is_LAE[ok==1],
+            bins, weights=nh[ok==1])
+
+        return _x, _y, _err
+
     def get_dust_opacity(self, z, wave):
+        """
+        Compute dust opacity for every halo using Mirocha, Mason, & Stark (2020).
+        """
 
         Mh = self.get_field(z, 'Mh')
 

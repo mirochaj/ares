@@ -25,7 +25,6 @@ input/inits/outputs/
 input/bpass_v1/SEDS
 input/bpass_v1/*tar.gz
 input/bpass_v2
-input/
 input/inits/*.txt
 input/nircam
 tests/.coverage

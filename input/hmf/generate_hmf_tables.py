@@ -18,7 +18,7 @@ import ares
 
 def_kwargs = \
 {
- "hmf_model": 'ST',
+ "hmf_model": 'PS',
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
  "hmf_dlogM": 0.01,
@@ -27,26 +27,26 @@ def_kwargs = \
  "hmf_table": None,
  "hmf_wdm_mass": None,
 
- "hmf_window": 'sharpk',
+ #"hmf_window": 'sharpk',
 
  # Redshift sampling
- #"hmf_zmin": 5.,
- #"hmf_zmax": 60.,
- #"hmf_dz": 0.05,
+ "hmf_zmin": 0.,
+ "hmf_zmax": 60.,
+ "hmf_dz": 0.05,
 
  # Can do constant timestep instead of constant dz
- "hmf_dt": 1,
- "hmf_tmin": 30.,
- "hmf_tmax": 1000.,
+ #"hmf_dt": 1,
+ #"hmf_tmin": 30.,
+ #"hmf_tmax": 1000.,
 
  # Cosmology
  "cosmology_id": 'best',
  "cosmology_name": 'planck_TTTEEE_lowl_lowE',
- 
+
  #HMF params and filter params are for doing Aurel Schneider's 2015 paper WDM.
- #"hmf_params" : {'a' : 1.0},	 
+ #"hmf_params" : {'a' : 1.0},
  #"filter_params" : {'c' : 2.5}
- 
+
  #"cosmology_id": 'paul',
  #"cosmology_name": 'user',
  #"sigma_8": 0.8159,

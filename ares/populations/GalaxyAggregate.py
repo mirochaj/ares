@@ -170,6 +170,9 @@ class GalaxyAggregate(HaloPopulation):
         return self.SFRD(z) / self.pf['pop_mass'] / g_per_msun
 
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
+        return self.get_emissivity(z, E=E, Emin=Emin, Emax=Emax)
+
+    def get_emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
@@ -222,6 +225,8 @@ class GalaxyAggregate(HaloPopulation):
 
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
+
+        # Apply reprocessing
         if (Emax is None) or (Emin is None):
             if self.pf['pop_reproc']:
                 rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
@@ -246,6 +251,9 @@ class GalaxyAggregate(HaloPopulation):
         return self.Emissivity(z, E=E, Emin=Emin, Emax=Emax) / (E * erg_per_ev)
 
     def LuminosityDensity(self, z, Emin=None, Emax=None):
+        return self.get_luminosity_density(z, Emin=Emin, Emax=Emax)
+
+    def get_luminosity_density(self, z, Emin=None, Emax=None):
         """
         Return the luminosity density in the (Emin, Emax) band.
 

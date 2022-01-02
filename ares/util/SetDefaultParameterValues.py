@@ -1392,7 +1392,7 @@ def ControlParameters():
     "interp_tab": 'cubic',
     "interp_cc": 'linear',
     "interp_rc": 'linear',
-    "interp_Z": 'linear',
+    "interp_Z": 'cubic',
     "interp_hist": 'linear',
     "interp_all": 'linear',  # backup
     #"interp_sfrd": 'cubic',
