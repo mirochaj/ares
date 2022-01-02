@@ -12,7 +12,7 @@ Description:
 
 import ares
 import numpy as np
-from ares.physics.Constants import rhodot_cgs
+from ares.physics.Constants import rhodot_cgs, E_LL, cm_per_mpc, ev_per_hz
 
 def test():
     pars = ares.util.ParameterBundle('mirocha2020:univ')
@@ -26,14 +26,17 @@ def test():
     # Test I/O. Should add more here eventually.
     pop.save('test_ensemble', clobber=True)
 
+    z = pop.tab_z
+    t = pop.tab_t
+
     # Test SFRD
-    sfrd = pop.SFRD(6.) * rhodot_cgs
+    sfrd = pop.get_sfrd(6.) * rhodot_cgs
 
     assert 1e-3 <= sfrd <= 1, "SFRD unreasonable"
 
-    csfrd = pop.cSFRD(6., Mh=1e10)
+    sfrd10 = pop.get_sfrd_in_mass_range(6., Mlo=1e10)
 
-    assert csfrd < 1., "cSFRD >= SFRD!?"
+    assert sfrd10 < sfrd, "sfrd(Mh>1e10) >= sfrd(all Mh)!?"
 
     logMh, logf_stell, std = pop.get_smhm(6.)
     assert np.all(logf_stell < 1)
@@ -143,6 +146,21 @@ def test():
 
     # Test routines to retrieve MUV-Beta, AUV, etc.
     AUV = pop.get_AUV(6.)
+
+    # Emissivity stuff: just OOM check at the moment.
+    zarr = np.arange(6, 30)
+    e_ion = np.array([pop.get_emissivity(z, Emin=E_LL, Emax=1e2) \
+        for z in zarr]) * cm_per_mpc**3
+    e_ion2 = np.array([pop.get_emissivity(z, Emin=E_LL, Emax=1e2) \
+        for z in zarr]) * cm_per_mpc**3     # check caching
+
+    assert 1e37 <= np.mean(e_ion) <= 1e41
+    assert np.allclose(e_ion, e_ion2)
+
+    n_ion = np.array([pop.get_photon_density(z, Emin=E_LL, Emax=1e2) \
+        for z in zarr]) * cm_per_mpc**3
+
+    assert 1e47 <= np.mean(n_ion) <= 1e51
 
 if __name__ == '__main__':
     test()
