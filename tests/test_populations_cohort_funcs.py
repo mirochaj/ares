@@ -109,13 +109,15 @@ def test():
 
     assert 1e-3 <= np.mean(Z) <= 0.04
 
-    x2, phi_M2 = pop_Z.get_lf(zarr[0], mag_bins, use_mags=True, wave=1600.)
-
-    # Should be different, but not crazy different
-    assert not np.all(phi_M == phi_M2)
-    ok = np.logical_and(x2 >= -24, x2 <= -15)
-    err = abs(phi_M[ok==1] - phi_M2[ok==1]) / phi_M[ok==1]
-    assert err.mean() < 0.5
+    # Can't do this unless we download multiple BPASS tables when running
+    # test suite.
+    #x2, phi_M2 = pop_Z.get_lf(zarr[0], mag_bins, use_mags=True, wave=1600.)
+#
+    ## Should be different, but not crazy different
+    #assert not np.all(phi_M == phi_M2)
+    #ok = np.logical_and(x2 >= -24, x2 <= -15)
+    #err = abs(phi_M[ok==1] - phi_M2[ok==1]) / phi_M[ok==1]
+    #assert err.mean() < 0.5
 
 
 
