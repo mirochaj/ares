@@ -419,7 +419,16 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
         # and some measure of the scatter.
         N.append(sum(ok==1))
 
-        yavg.append(np.average(f, weights=weights[ok==1]))
+        if method_avg == 'avg':
+            yavg.append(np.average(f, weights=weights[ok==1]))
+        elif method_avg == 'median':
+            # Weighted median -> use cdf of weights, convert to y-value after.
+            # First: rank-order in y value.
+            ix = np.argsort(f)
+            cdf = np.cumsum(weights[ok==1][ix]) / np.sum(weights[ok==1][ix])
+            yavg.append(f[ix][np.argmin(np.abs(cdf - 0.5))])
+        else:
+            raise NotImplemented("Haven't implemented method_avg={} in this case!".format(method_avg))
 
         if method_std == 'std':
             ysca.append(np.std(f))

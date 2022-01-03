@@ -34,7 +34,15 @@ _updates = \
  'pop_calib_lum{0}': None,
  'pop_lum_per_sfr{0}': 1. / 1.15e-28,    # Park et al. (2019); Eq. 12
 
- # Should add Mturn stuff
+ # Mturn stuff
+ 'pop_Mmin{0}': 1e5, # Let focc do the work.
+ 'pop_focc{0}': 'pq[40]',
+ "pq_func[40]{0}": 'exp-',
+ 'pq_func_var[40]{0}': 'Mh',
+ 'pq_func_par0[40]{0}': 1.,
+ 'pq_func_par1[40]{0}': 5e8,
+ 'pq_func_par2[40]{0}': -1.,
+
 }
 
 base.update(_updates)

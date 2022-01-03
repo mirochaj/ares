@@ -41,6 +41,8 @@ def test():
     logMh, logf_stell, std = pop.get_smhm(6.)
     assert np.all(logf_stell < 1)
 
+    logMs, logSFR, err = pop.get_main_sequence(6.)
+
     # Test UVLF
     mags = np.arange(-30, 10, 0.1)
     mags_cr = np.arange(-30, 10, 1.)
@@ -55,14 +57,17 @@ def test():
 
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "UVLF cache not working!"
 
+    # SFR function
+    x, phi = pop.get_sfr_df(6.)
+
     # Test stellar mass function
     log10Ms = np.arange(6, 13, 0.5)
-    phi = pop.get_smf(6., log10Ms)
+    x, phi = pop.get_smf(6., log10Ms)
     ok = np.isfinite(phi)
 
     assert 1e-4 <= np.interp(9, log10Ms, phi) <= 1e-1, "GSMF unreasonable!"
 
-    phi_c = pop.get_smf(6., log10Ms)
+    x, phi_c = pop.get_smf(6., log10Ms)
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "GSMF cache not working!"
 
     # Just check dust masss etc.

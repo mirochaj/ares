@@ -28,7 +28,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from ..obs.Photometry import get_filters_from_waves
-from ..util.Stats import bin_e2c, bin_c2e, bin_samples
+from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
 from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
@@ -1578,7 +1578,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def StellarMassFunction(self, z, bins=None, units='dex'):
         return self.get_smf(z, bins=bins, units=units)
 
-    def get_smf(self, z, bins=None, units='dex'):
+    def get_smf(self, z, bins=None, units='dex', Mbin=0.5):
         """
         Could do a cumulative sum to get all stellar masses in one pass.
 
@@ -1589,7 +1589,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         z : int, float
             Redshift of interest.
         bins : array, float
-            log10 stellar masses at which to evaluate SMF
+            log10 stellar masses at which to evaluate SMF. Bin *centers*.
+        Mbin : float
+            Alternatively, just provide log10 bin width.
+
+        Returns
+        -------
+        Tuple containing (stellar mass bins in log10(Msun), number densities).
 
         """
 
@@ -1602,7 +1608,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh = self.histories['nh'][:,iz]
 
         if (bins is None) or (type(bins) is not np.ndarray):
-            binw = 0.5
+            binw = Mbin
             bin_c = np.arange(6., 13.+binw, binw)
         else:
             dx = np.diff(bins)
@@ -1624,12 +1630,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._cache_smf(z, bin_c)
 
-    def get_xmhm(self, z, field='Ms', Mh=None, return_mean_only=False,
-        Mbin=0.1):
+    def get_xhm(self, z, field='Ms', Mh=None, return_mean_only=False,
+        Mbin=0.1, method_avg='median'):
         """
-        Generic routine for retrieving the X-mass-halo-mass relation, where
+        Generic routine for retrieving the X -- halo-mass relation, where
         X is some phase of galaxies in our model, e.g., gas mass, metal mass,
-        etc.
+        SFR, etc.
 
         Parameters
         ----------
@@ -1643,24 +1649,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Optional: if provided, array of halo mass bins to use in
             determining the relation. Must be evenly spaced in log10.
         return_mean_only : bool
-            By default (False), will return bins, the X-mass/halo-mass fractions,
-            and scatter in each bin. If True, will just return XM/HM fractions.
+            By default (False), will return bins, the X--halo-mass fractions,
+            and scatter in each bin. If True, will just return X/HM fractions.
         Mbin : float
             If Mh=None (default), will construct array of halo mass bins using
             this log10 spacing.
 
         Returns
         -------
-        See `return_mean_only` above.
+        X / Mh fraction; also see `return_mean_only` above.
 
         """
         iz = np.argmin(np.abs(z - self.histories['z']))
 
-        _Ms = self.histories[field][:,iz]
+        _X = self.histories[field][:,iz]
         _Mh = self.histories['Mh'][:,iz]
-        logMh = np.log10(_Mh)
 
-        fstar_raw = _Ms / _Mh
+        Xfrac = _X / _Mh
 
         if (Mh is None) or (type(Mh) is not np.ndarray):
             bin_c = np.arange(6., 14.+Mbin, Mbin)
@@ -1671,13 +1676,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             bin_c = np.log10(Mh)
 
         nh = self.get_field(z, 'nh')
-        x, y, z, N = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)
+        x, y, z, N = quantify_scatter(np.log10(_Mh), np.log10(Xfrac), bin_c,
+            weights=nh, method_avg=method_avg)
 
         if return_mean_only:
             return y
 
         return x, y, z
-
 
     def get_smhm(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
         """
@@ -1696,8 +1701,75 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         """
 
-        return self.get_xmhm(z, field='Ms', Mh=Mh,
+        return self.get_xhm(z, field='Ms', Mh=Mh,
             return_mean_only=return_mean_only, Mbin=Mbin)
+
+    def get_sfr_df(self, z, bins=None, return_mean_only=False, sfrbin=0.1):
+        """
+        Compute SFR distribution function at given redshift `z`.
+
+        .. note :: This is like a UVLF just without converting SFRs to
+            luminosities and without doing any dust corrections.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        bins : int, np.ndarray
+            SFR bins (their centers) to use for histogram.
+            Must be evenly spaced in log10. Optional -- will use `sfrbin` to
+            create if Mh not supplied (default).
+
+        """
+
+        sfr = self.get_field(z, 'SFR')
+        nh = self.get_field(z, 'nh')
+
+        ok = sfr > 0
+
+        if bins is None:
+            bins = np.arange(-6, 6+sfrbin, sfrbin)
+        else:
+            sfrbin = np.diff(bins)
+            assert np.allclose(np.diff(sfrbin), 0)
+            sfrbin = sfrbin[0]
+
+        hist, bin_histedges = np.histogram(np.log10(sfr[ok==1]),
+            weights=nh[ok==1], bins=bin_c2e(bins), density=True)
+
+        N = np.sum(nh[ok==1]) * sfrbin
+        phi = hist * N / sfrbin
+
+        return bins, phi
+
+    def get_main_sequence(self, z, bins=None, Mbin=0.1, method_avg='median'):
+        """
+        Compute the star-forming main sequence, i.e., stellar mass v. SFR.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        bins : np.ndarray or None
+            If provided, must be array of log10(stellar mass) bin *centers*.
+
+        """
+
+        Ms = self.get_field(z, 'Ms')
+        sfr = self.get_field(z, 'SFR')
+
+        if bins is None:
+            bins = np.arange(6., 14.+Mbin, Mbin)
+        else:
+            dx = np.diff(bins)
+            assert np.allclose(np.diff(dx), 0)
+            Mbin = dx[0]
+
+        nh = self.get_field(z, 'nh')
+        x, y, z, N = quantify_scatter(np.log10(Ms), np.log10(sfr), bins,
+            weights=nh, method_avg=method_avg)
+
+        return x, y, z
 
     @property
     def _stars(self):
@@ -1758,19 +1830,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             _x, _phi = self._cache_smf_[z]
 
             if Ms is None:
-                return _phi
+                return _x, _phi
             elif type(Ms) != np.ndarray:
                 k = np.argmin(np.abs(Ms - _x))
                 if abs(Ms - _x[k]) < 1e-3:
-                    return _phi[k]
+                    return _x[k], _phi[k]
                 else:
-                    return 10**np.interp(Ms, _x, np.log10(_phi),
+                    return Ms, 10**np.interp(Ms, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
             elif _x.size == Ms.size:
                 if np.allclose(_x, Ms):
-                    return _phi
+                    return _x, _phi
 
-            return 10**np.interp(Ms, _x, np.log10(_phi),
+            return Ms, 10**np.interp(Ms, _x, np.log10(_phi),
                 left=-np.inf, right=-np.inf)
 
         return None
