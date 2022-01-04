@@ -60,6 +60,11 @@ def test():
     # SFR function
     x, phi = pop.get_sfr_df(6.)
 
+    # MUV-Mstell
+    MUV, log10Mst, err = pop.get_uvsm(6.)
+    ok = np.isfinite(log10Mst)
+    assert np.mean(np.diff(log10Mst[ok==1]) / np.diff(MUV[ok==1])) < 0
+
     # Test stellar mass function
     log10Ms = np.arange(6, 13, 0.5)
     x, phi = pop.get_smf(6., log10Ms)

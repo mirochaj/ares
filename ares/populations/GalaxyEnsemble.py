@@ -1630,7 +1630,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._cache_smf(z, bin_c)
 
-    def get_xhm(self, z, field='Ms', Mh=None, return_mean_only=False,
+    def get_xhm(self, z, field='Ms', bins=None, return_mean_only=False,
         Mbin=0.1, method_avg='median'):
         """
         Generic routine for retrieving the X -- halo-mass relation, where
@@ -1645,8 +1645,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             String describing field X in XMHM relation, e.g., stellar mass
             is 'Ms', gas mass is 'Mg'. See contents of `histories` attribute
             for more ideas of what's available.
-        Mh : np.ndarray
-            Optional: if provided, array of halo mass bins to use in
+        bins : np.ndarray
+            Optional: if provided, array of log10(halo mass) bins to use in
             determining the relation. Must be evenly spaced in log10.
         return_mean_only : bool
             By default (False), will return bins, the X--halo-mass fractions,
@@ -1667,13 +1667,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         Xfrac = _X / _Mh
 
-        if (Mh is None) or (type(Mh) is not np.ndarray):
+        if (bins is None) or (type(bins) is not np.ndarray):
             bin_c = np.arange(6., 14.+Mbin, Mbin)
         else:
-            dx = np.diff(np.log10(Mh))
+            dx = np.diff(bins)
             assert np.allclose(np.diff(dx), 0)
             Mbin = dx[0]
-            bin_c = np.log10(Mh)
+            bin_c = bins
 
         nh = self.get_field(z, 'nh')
         x, y, z, N = quantify_scatter(np.log10(_Mh), np.log10(Xfrac), bin_c,
@@ -1684,7 +1684,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return x, y, z
 
-    def get_smhm(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
+    def get_smhm(self, z, bins=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
 
@@ -1694,14 +1694,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ----------
         z : int, float
             Redshift of interest
-        Mh : int, np.ndarray
-            Halo mass bins (their centers) to use for histogram.
+        bins : int, np.ndarray
+            Halo mass bins (their centers) in to use for histogram.
             Must be evenly spaced in log10. Optional -- will use `Mbin` to
             create if Mh not supplied (default).
 
         """
 
-        return self.get_xhm(z, field='Ms', Mh=Mh,
+        return self.get_xhm(z, field='Ms', bins=bins,
             return_mean_only=return_mean_only, Mbin=Mbin)
 
     def get_sfr_df(self, z, bins=None, return_mean_only=False, sfrbin=0.1):
@@ -1737,8 +1737,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         hist, bin_histedges = np.histogram(np.log10(sfr[ok==1]),
             weights=nh[ok==1], bins=bin_c2e(bins), density=True)
 
-        N = np.sum(nh[ok==1]) * sfrbin
-        phi = hist * N / sfrbin
+        N = np.sum(nh[ok==1])
+        phi = hist * N
 
         return bins, phi
 
@@ -1768,6 +1768,46 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         nh = self.get_field(z, 'nh')
         x, y, z, N = quantify_scatter(np.log10(Ms), np.log10(sfr), bins,
             weights=nh, method_avg=method_avg)
+
+        return x, y, z
+
+    def get_uvsm(self, z, bins=None, magbin=None, method_avg='median'):
+        """
+        Get relationship between UV magnitude and stellar mass.
+
+        z : int, float
+            Redshift of interest
+        bins : int, np.ndarray
+            MUV bins (their centers) to use for histogram. Assumes absolute
+            AB magnitude corresponding to rest-frame 1600 Angstrom. If None,
+            will use parameters `pop_mag_min`, `pop_mag_max`, and potentially
+            `pop_mag_bin` (see below).
+        magbin : int, float
+            Can instead provide bin size. If None, will revert to value of
+            parameter `pop_mag_bin` in self.pf.
+
+
+
+        """
+
+        filt, MUV = self.get_mags(z, wave=1600.)
+        Mst = self.get_field(z, 'Ms')
+
+        if bins is None:
+            magbin = magbin if magbin is not None else self.pf['pop_mag_bin']
+            bins = np.arange(self.pf['pop_mag_min'],
+                self.pf['pop_mag_max']+magbin, magbin)
+
+        else:
+            dx = np.diff(bins)
+            assert np.allclose(np.diff(dx), 0)
+            magbin = dx[0]
+
+        nh = self.get_field(z, 'nh')
+        ok = Mst > 0
+
+        x, y, z, N = quantify_scatter(MUV[ok==1], np.log10(Mst[ok==1]), bins,
+            weights=nh[ok==1], method_avg=method_avg)
 
         return x, y, z
 
@@ -1997,7 +2037,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 fil = []
                 for j, _cam in enumerate(cam):
                     _filters, xphot, dxphot, ycorr = \
-                        self.synth.Photometry(zobs=z, sfh=hist['SFR'],
+                        self.synth.get_photometry(zobs=z, sfh=hist['SFR'],
                         zarr=hist['z'], hist=hist, dlam=dlam,
                         cam=_cam, filters=filters, filter_set=filter_set,
                         idnum=idnum, extras=self.extras, rest_wave=None)
@@ -2311,7 +2351,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         filter_set=None, dlam=20., method='closest', idnum=None, window=1,
         load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
         absolute=False, factor=1, limit_is_lower=True, limit_lower=None,
-        depths=None, logic='or'):
+        depths=None, color_cuts=None, logic='or'):
         """
         Compute the linear bias of sources above some limiting magnitude or
         flux.
@@ -2356,7 +2396,37 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 else:
                     assert isinstance(logic, int)
                     ok = _ok > logic
+            else:
+                if mags.ndim == 2:
+                    ok = np.ones(mags.shape[1])
+                else:
+                    ok = np.ones_like(mags)
 
+            if color_cuts is not None:
+                assert depths is not None
+
+                if type(color_cuts) != list:
+                    color_cuts = [color_cuts]
+
+                # Augment `ok`
+                for cut in color_cuts:
+                    filt1, _filt2 = cut.split('-')
+                    if '>' in _filt2:
+                        is_lo = True
+                        filt2, thresh = _filt2.split('>')
+                    else:
+                        is_lo = False
+                        filt2, thresh = _filt2.split('<')
+
+                    color = mags[filt.index(filt1)] - mags[filt.index(filt2)]
+
+                    print('color cut {} - {}'.format(filt1, filt2))
+                    print(filt1, filt2, thresh, sum(color < float(thresh)), color.size)
+
+                    if is_lo:
+                        ok[color < float(thresh)] = 0
+                    else:
+                        ok[color > float(thresh)] = 0
 
             elif limit_is_lower:
                 ok = np.logical_and(mags <= limit, np.isfinite(mags))
