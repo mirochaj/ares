@@ -2445,6 +2445,90 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return b
 
+    def get_bias_from_scaling_relations(self, z, smhm, uvsm, limit,
+        smhm_max=1e-2):
+        """
+        Compute the galaxy bias from stellar-mass-halo-mass (SMHM) relation
+        and the UV magnitude -- stellar mass relation (UVSM).
+
+        .. note :: Limiting magnitude must be provided as absolute AB mag.
+
+        .. note :: Will first construct fitting functions if scaling laws
+            provided as discrete points.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        smhm : tuple, FunctionType
+            Contains arrays of (stellar mass, stellar mass / halo mass).
+        uvsm : tuple, FunctionType
+            Contains arrays of (MUV, stellar mass / Msun).
+        limit : int, float
+            Limiting magnitude of survey (absolute, AB).
+
+        Returns
+        -------
+        Average bias of galaxies.
+
+        """
+
+        # Convert points in (Mh, Ms/Mh) to function.
+        if type(smhm) == tuple:
+            _Mh, _smhm = smhm
+
+            # Fit to Mh -- Mstell. Anchor to Mh=1e10
+            def func(x, p0, p1):
+                return _linfunc(x, 10, p0, p1)
+
+            popt1, pcov1 = curve_fit(func, np.log10(_Mh), np.log10(_Mh * _smhm),
+                p0=[1., 8.], maxfev=10000)
+            Ms_of_Mh = lambda Mh: 10**_linfunc(np.log10(Mh), 10, popt1[0],
+                popt1[1])
+        else:
+            assert type(smhm) == FunctionType
+            Ms_of_Mh = lambda Mh: Mh * smhm(Mh)
+
+        if type(uvsm) == tuple:
+            _MUV, _Mst = uvsm
+
+            # Fit to MUV -- Mstell. Anchor to Mstell=1e8
+            def func(x, p0, p1):
+                return _linfunc(x, 8, p0, p1)
+
+            popt2, pcov2 = curve_fit(func, np.log10(_Mst), _MUV,
+                p0=[1., -22], maxfev=10000)
+            MUV_of_Ms = lambda Ms: _linfunc(np.log10(Ms), 8, popt2[0], popt2[1])
+        else:
+            MUV_of_Ms = uvsm
+
+        # Need to map MUV onto Mh so that we can determine the galaxies
+        # brighter than `limit`.
+
+        # Map functions of Mh onto tabulated halo arrays
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+        nh = self.halos.tab_dndm[iz,:]
+        bh = self.halos.tab_bias[iz,:]
+        tab_M = self.halos.tab_M
+
+        tab_Ms = Ms_of_Mh(tab_M)
+
+        # Impose maximum
+        tab_Ms = np.minimum(tab_Ms, tab_M * smhm_max)
+
+        tab_MUV = MUV_of_Ms(tab_Ms)
+        ok = tab_MUV <= limit
+
+        integ_top = bh[ok==1] * nh[ok==1]
+        integ_bot = nh[ok==1]
+
+        # Integrate in log-space
+        b = np.trapz(integ_top * tab_M[ok==1]**2, x=np.log(tab_M[ok==1])) \
+          / np.trapz(integ_bot * tab_M[ok==1]**2, x=np.log(tab_M[ok==1]))
+
+        return b
+
     def get_uvlf(self, z, bins):
         """
         Compute what people usually mean by the UVLF.
