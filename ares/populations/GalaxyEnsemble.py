@@ -2347,7 +2347,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return L
 
-    def get_bias(self, z, limit, wave=1600., cam=None, filters=None,
+    def get_bias(self, z, limit=None, wave=1600., cam=None, filters=None,
         filter_set=None, dlam=20., method='closest', idnum=None, window=1,
         load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
         absolute=False, factor=1, limit_is_lower=True, limit_lower=None,
@@ -2355,7 +2355,43 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
         Compute the linear bias of sources above some limiting magnitude or
         flux.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        limit : int, float
+            Limiting magnitude of survey.
+        limit_is_lower : bool
+            If True (default), assumes we're interested in objects brighter
+            than `limit`.
+        limit_lower : int, float
+            If `limit_is_lower` is False, then we need to provide another
+            limiting magnitude to bracket the range of interest, i.e.,
+            `limit_lower` > `limit`.
+        depths : tuple
+            Can supply a set of limiting magnitudes instead of a single
+            limiting magnitude if photometry in multiple bands is retrieved
+            (via `filters`). Use `logic` keyword argument to control how many
+            bands an object must be detected in to be included in sample.
+        logic : str, int
+            If 'or', a detection in any filter is sufficient for inclusion. If
+            'and', a detection in ALL `filters` is required. If an integer,
+            only objects with a detection in N>=`logic` bands will be included
+            in the sample.
+        cut_in_flux : bool
+            Not yet implemented.
+        color_cuts : tuple
+            Not yet implemented (really).
+
+        Returns
+        -------
+        Galaxy bias at redshift `z`.
+
         """
+
+        assert (limit is not None) or (depths is not None), \
+            "Must supply `limit` or `depths`!"
 
         # In this case, just use GalaxyCohort class's version.
         if cut_in_mass:
@@ -2396,11 +2432,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 else:
                     assert isinstance(logic, int)
                     ok = _ok > logic
+
+            elif limit_is_lower:
+                ok = np.logical_and(mags <= limit, np.isfinite(mags))
             else:
-                if mags.ndim == 2:
-                    ok = np.ones(mags.shape[1])
-                else:
-                    ok = np.ones_like(mags)
+                assert limit_lower is not None, \
+                    "Provide `limit_lower` if isolating faint population."
+
+                ok = np.logical_and(mags >= limit, mags <= limit_lower)
+                ok = np.logical_and(ok, np.isfinite(mags))
+            #else:
+            #    if mags.ndim == 2:
+            #        ok = np.ones(mags.shape[1])
+            #    else:
+            #        ok = np.ones_like(mags)
 
             if color_cuts is not None:
                 assert depths is not None
@@ -2428,15 +2473,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     else:
                         ok[color > float(thresh)] = 0
 
-            elif limit_is_lower:
-                ok = np.logical_and(mags <= limit, np.isfinite(mags))
-            else:
-                assert limit_lower is not None, \
-                    "Provide `limit_lower` if isolating faint population."
-
-                ok = np.logical_and(mags >= limit, mags <= limit_lower)
-                ok = np.logical_and(ok, np.isfinite(mags))
-
+        ##
+        # Apply cut and integrate
         integ_top = bh[ok==1] * _nh[ok==1]
         integ_bot = _nh[ok==1]
 
@@ -2446,7 +2484,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return b
 
     def get_bias_from_scaling_relations(self, z, smhm, uvsm, limit,
-        smhm_max=1e-2):
+        return_funcs=False, use_dpl_smhm=False, Mpeak=None, extrap=True):
         """
         Compute the galaxy bias from stellar-mass-halo-mass (SMHM) relation
         and the UV magnitude -- stellar mass relation (UVSM).
@@ -2477,20 +2515,63 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if type(smhm) == tuple:
             _Mh, _smhm = smhm
 
+            ok = _smhm > 0
+            _Mh = _Mh[ok==1]
+            _smhm = _smhm[ok==1]
+
+            smhm_max = max(_smhm)
+
             # Fit to Mh -- Mstell. Anchor to Mh=1e10
             def func(x, p0, p1):
                 return _linfunc(x, 10, p0, p1)
 
             popt1, pcov1 = curve_fit(func, np.log10(_Mh), np.log10(_Mh * _smhm),
                 p0=[1., 8.], maxfev=10000)
-            Ms_of_Mh = lambda Mh: 10**_linfunc(np.log10(Mh), 10, popt1[0],
-                popt1[1])
+
+            if use_dpl_smhm:
+                assert Mpeak is not None, \
+                    "Must supply `Mpeak` if `use_dpl_smhm`=True!"
+                    
+                from ..phenom.ParameterizedQuantity import DoublePowerLaw
+
+                _Ms_of_Mh = DoublePowerLaw(pq_func_var='Mh',
+                    pq_func_par0=10**popt1[1], pq_func_par1=Mpeak,
+                    pq_func_par2=popt1[0], pq_func_par3=-1, pq_func_par4=1e10)
+
+                Ms_of_Mh = lambda Mh: _Ms_of_Mh(Mh=Mh) #* Mh
+
+            else:
+                _Ms_of_Mh = lambda Mh: 10**_linfunc(np.log10(Mh), 10, popt1[0],
+                    popt1[1])
+
+                def Ms_of_Mh(Mh):
+
+                    if extrap:
+                        return _Ms_of_Mh(Mh)
+
+                    if Mpeak is not None:
+                        if type(Mh) == np.ndarray:
+                            ok = Mh < Mpeak
+                        elif Mh > Mpeak:
+                            ok = 0
+                        else:
+                            ok = 1
+                    else:
+                        ok = 1
+
+                    return np.minimum(_Ms_of_Mh(Mh), smhm_max * Mh) * ok
+
         else:
             assert type(smhm) == FunctionType
             Ms_of_Mh = lambda Mh: Mh * smhm(Mh)
 
+
         if type(uvsm) == tuple:
             _MUV, _Mst = uvsm
+
+            ok = _Mst > 0
+            _MUV = _MUV[ok==1]
+            _Mst = _Mst[ok==1]
 
             # Fit to MUV -- Mstell. Anchor to Mstell=1e8
             def func(x, p0, p1):
@@ -2512,11 +2593,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         bh = self.halos.tab_bias[iz,:]
         tab_M = self.halos.tab_M
 
-        tab_Ms = Ms_of_Mh(tab_M)
-
-        # Impose maximum
-        tab_Ms = np.minimum(tab_Ms, tab_M * smhm_max)
-
+        tab_Ms = Ms_of_Mh(Mh=tab_M)
         tab_MUV = MUV_of_Ms(tab_Ms)
         ok = tab_MUV <= limit
 
@@ -2527,7 +2604,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         b = np.trapz(integ_top * tab_M[ok==1]**2, x=np.log(tab_M[ok==1])) \
           / np.trapz(integ_bot * tab_M[ok==1]**2, x=np.log(tab_M[ok==1]))
 
-        return b
+
+        if return_funcs:
+            return b, Ms_of_Mh, MUV_of_Ms
+        else:
+            return b
 
     def get_uvlf(self, z, bins):
         """

@@ -135,6 +135,17 @@ def test():
     b = pop.get_bias(6., limit=-19.4, absolute=True, wave=1600.)
     assert 4 <= b <= 6, "bias unreasonable! b={}".format(b)
 
+    b2 = pop.get_bias_from_scaling_relations(6.,
+        smhm=(10**logMh, 10**logf_stell),  uvsm=(MUV, 10**log10Mst),
+        limit=-19.4)
+    b3 = pop.get_bias_from_scaling_relations(6.,
+        smhm=(10**logMh, 10**logf_stell),  uvsm=(MUV, 10**log10Mst),
+        limit=-19.4, use_dpl_smhm=True, Mpeak=1e12)
+
+    # This is a bit hacky so the agreement shouldn't be greater
+    assert abs(b2 - b) < 1
+    assert abs(b3 - b) < 1
+
     b = pop.get_bias(6., limit=28, absolute=False, wave=1600.)
     assert 2 <= b <= 10, "bias unreasonable! b={}".format(b)
 
