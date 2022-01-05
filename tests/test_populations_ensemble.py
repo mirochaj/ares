@@ -142,7 +142,7 @@ def test():
         smhm=(10**logMh, 10**logf_stell),  uvsm=(MUV, 10**log10Mst),
         limit=-19.4, use_dpl_smhm=True, Mpeak=1e12)
 
-    # This is a bit hacky so the agreement shouldn't be greater
+    # This is a bit hacky so the agreement shouldn't be great.
     assert abs(b2 - b) < 1
     assert abs(b3 - b) < 1
 
