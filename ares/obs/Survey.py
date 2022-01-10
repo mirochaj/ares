@@ -35,7 +35,7 @@ class Survey(object):
         self.chip = chip
         self.force_perfect = force_perfect
         self.cache = cache
-        
+
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
         filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
         **kwargs): # pragma: no cover
@@ -390,7 +390,7 @@ class Survey(object):
 
         A = np.pi * (0.5 * 2.4)**2
 
-        path = '{}/irac'.format(_path)
+        path = '{}/roman'.format(_path)
 
         data = {}
         for fn in os.listdir(path):

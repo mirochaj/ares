@@ -28,7 +28,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from ..obs.Photometry import get_filters_from_waves
-from ..util.Stats import bin_e2c, bin_c2e, bin_samples
+from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
 from ..static.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
 from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
@@ -1578,7 +1578,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def StellarMassFunction(self, z, bins=None, units='dex'):
         return self.get_smf(z, bins=bins, units=units)
 
-    def get_smf(self, z, bins=None, units='dex'):
+    def get_smf(self, z, bins=None, units='dex', Mbin=0.1):
         """
         Could do a cumulative sum to get all stellar masses in one pass.
 
@@ -1589,7 +1589,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         z : int, float
             Redshift of interest.
         bins : array, float
-            log10 stellar masses at which to evaluate SMF
+            log10 stellar masses at which to evaluate SMF. Bin *centers*.
+        Mbin : float
+            Alternatively, just provide log10 bin width.
+
+        Returns
+        -------
+        Tuple containing (stellar mass bins in log10(Msun), number densities).
 
         """
 
@@ -1600,10 +1606,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         iz = np.argmin(np.abs(z - self.histories['z']))
         Ms = self.histories['Ms'][:,iz]
         nh = self.histories['nh'][:,iz]
+        ok = Ms > 0
 
         if (bins is None) or (type(bins) is not np.ndarray):
-            binw = 0.5
-            bin_c = np.arange(6., 13.+binw, binw)
+            binw = Mbin
+            bin_c = np.arange(0., 13.+binw, binw)
         else:
             dx = np.diff(bins)
             assert np.allclose(np.diff(dx), 0)
@@ -1611,6 +1618,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             bin_c = bins
 
         bin_e = bin_c2e(bin_c)
+
+        # Make sure binning range covers the range of SFRs
+        assert np.log10(Ms[ok==1]).min() > bin_e.min(), \
+            "Bins do not span full range in stellar mass!"
+        assert np.log10(Ms[ok==1]).max() < bin_e.max(), \
+            "Bins do not span full range in stellar mass!"
 
         phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
 
@@ -1624,12 +1637,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._cache_smf(z, bin_c)
 
-    def get_xmhm(self, z, field='Ms', Mh=None, return_mean_only=False,
-        Mbin=0.1):
+    def get_xhm(self, z, field='Ms', bins=None, return_mean_only=False,
+        Mbin=0.1, method_avg='median'):
         """
-        Generic routine for retrieving the X-mass-halo-mass relation, where
+        Generic routine for retrieving the X -- halo-mass relation, where
         X is some phase of galaxies in our model, e.g., gas mass, metal mass,
-        etc.
+        SFR, etc.
 
         Parameters
         ----------
@@ -1639,47 +1652,46 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             String describing field X in XMHM relation, e.g., stellar mass
             is 'Ms', gas mass is 'Mg'. See contents of `histories` attribute
             for more ideas of what's available.
-        Mh : np.ndarray
-            Optional: if provided, array of halo mass bins to use in
+        bins : np.ndarray
+            Optional: if provided, array of log10(halo mass) bins to use in
             determining the relation. Must be evenly spaced in log10.
         return_mean_only : bool
-            By default (False), will return bins, the X-mass/halo-mass fractions,
-            and scatter in each bin. If True, will just return XM/HM fractions.
+            By default (False), will return bins, the X--halo-mass fractions,
+            and scatter in each bin. If True, will just return X/HM fractions.
         Mbin : float
             If Mh=None (default), will construct array of halo mass bins using
             this log10 spacing.
 
         Returns
         -------
-        See `return_mean_only` above.
+        X / Mh fraction; also see `return_mean_only` above.
 
         """
         iz = np.argmin(np.abs(z - self.histories['z']))
 
-        _Ms = self.histories[field][:,iz]
+        _X = self.histories[field][:,iz]
         _Mh = self.histories['Mh'][:,iz]
-        logMh = np.log10(_Mh)
 
-        fstar_raw = _Ms / _Mh
+        Xfrac = _X / _Mh
 
-        if (Mh is None) or (type(Mh) is not np.ndarray):
+        if (bins is None) or (type(bins) is not np.ndarray):
             bin_c = np.arange(6., 14.+Mbin, Mbin)
         else:
-            dx = np.diff(np.log10(Mh))
+            dx = np.diff(bins)
             assert np.allclose(np.diff(dx), 0)
             Mbin = dx[0]
-            bin_c = np.log10(Mh)
+            bin_c = bins
 
         nh = self.get_field(z, 'nh')
-        x, y, z, N = bin_samples(logMh, np.log10(fstar_raw), bin_c, weights=nh)
+        x, y, z, N = quantify_scatter(np.log10(_Mh), np.log10(Xfrac), bin_c,
+            weights=nh, method_avg=method_avg)
 
         if return_mean_only:
             return y
 
         return x, y, z
 
-
-    def get_smhm(self, z, Mh=None, return_mean_only=False, Mbin=0.1):
+    def get_smhm(self, z, bins=None, return_mean_only=False, Mbin=0.1):
         """
         Compute stellar mass -- halo mass relation at given redshift `z`.
 
@@ -1689,15 +1701,128 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ----------
         z : int, float
             Redshift of interest
-        Mh : int, np.ndarray
-            Halo mass bins (their centers) to use for histogram.
+        bins : int, np.ndarray
+            Halo mass bins (their centers) in to use for histogram.
             Must be evenly spaced in log10. Optional -- will use `Mbin` to
             create if Mh not supplied (default).
 
         """
 
-        return self.get_xmhm(z, field='Ms', Mh=Mh,
+        return self.get_xhm(z, field='Ms', bins=bins,
             return_mean_only=return_mean_only, Mbin=Mbin)
+
+    def get_sfr_df(self, z, bins=None, return_mean_only=False, sfrbin=0.1):
+        """
+        Compute SFR distribution function at given redshift `z`.
+
+        .. note :: This is like a UVLF just without converting SFRs to
+            luminosities and without doing any dust corrections.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        bins : int, np.ndarray
+            SFR bins (their centers) to use for histogram.
+            Must be evenly spaced in log10. Optional -- will use `sfrbin` to
+            create if Mh not supplied (default).
+
+        """
+
+        sfr = self.get_field(z, 'SFR')
+        nh = self.get_field(z, 'nh')
+
+        ok = sfr > 0
+
+        if bins is None:
+            bins = np.arange(-8, 6+sfrbin, sfrbin)
+        else:
+            sfrbin = np.diff(bins)
+            assert np.allclose(np.diff(sfrbin), 0)
+            sfrbin = sfrbin[0]
+
+        # Make sure binning range covers the range of SFRs
+        assert np.log10(sfr[ok==1]).min() > bins.min(), \
+            "Bins do not span full range in SFR!"
+        assert np.log10(sfr[ok==1]).max() < bins.max(), \
+            "Bins do not span full range in SFR!"
+
+        hist, bin_histedges = np.histogram(np.log10(sfr[ok==1]),
+            weights=nh[ok==1], bins=bin_c2e(bins), density=True)
+
+        N = np.sum(nh[ok==1])
+        phi = hist * N
+
+        return bins, phi
+
+    def get_main_sequence(self, z, bins=None, Mbin=0.1, method_avg='median'):
+        """
+        Compute the star-forming main sequence, i.e., stellar mass v. SFR.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        bins : np.ndarray or None
+            If provided, must be array of log10(stellar mass) bin *centers*.
+
+        """
+
+        Ms = self.get_field(z, 'Ms')
+        sfr = self.get_field(z, 'SFR')
+
+        if bins is None:
+            bins = np.arange(6., 14.+Mbin, Mbin)
+        else:
+            dx = np.diff(bins)
+            assert np.allclose(np.diff(dx), 0)
+            Mbin = dx[0]
+
+        nh = self.get_field(z, 'nh')
+        x, y, z, N = quantify_scatter(np.log10(Ms), np.log10(sfr), bins,
+            weights=nh, method_avg=method_avg)
+
+        return x, y, z
+
+    def get_uvsm(self, z, bins=None, magbin=None, method_avg='median'):
+        """
+        Get relationship between UV magnitude and stellar mass.
+
+        z : int, float
+            Redshift of interest
+        bins : int, np.ndarray
+            MUV bins (their centers) to use for histogram. Assumes absolute
+            AB magnitude corresponding to rest-frame 1600 Angstrom. If None,
+            will use parameters `pop_mag_min`, `pop_mag_max`, and potentially
+            `pop_mag_bin` (see below).
+        magbin : int, float
+            Can instead provide bin size. If None, will revert to value of
+            parameter `pop_mag_bin` in self.pf.
+
+
+
+        """
+
+        filt, MUV = self.get_mags(z, wave=1600.)
+        Mst = self.get_field(z, 'Ms')
+
+        if bins is None:
+            magbin = magbin if magbin is not None else self.pf['pop_mag_bin']
+            bins = np.arange(self.pf['pop_mag_min'],
+                self.pf['pop_mag_max']+magbin, magbin)
+
+        else:
+            dx = np.diff(bins)
+            assert np.allclose(np.diff(dx), 0)
+            magbin = dx[0]
+
+        nh = self.get_field(z, 'nh')
+        ok = Mst > 0
+
+        x, y, z, N = quantify_scatter(MUV[ok==1], np.log10(Mst[ok==1]), bins,
+            weights=nh[ok==1], method_avg=method_avg)
+
+        return x, y, z
 
     @property
     def _stars(self):
@@ -1758,19 +1883,19 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             _x, _phi = self._cache_smf_[z]
 
             if Ms is None:
-                return _phi
+                return _x, _phi
             elif type(Ms) != np.ndarray:
                 k = np.argmin(np.abs(Ms - _x))
                 if abs(Ms - _x[k]) < 1e-3:
-                    return _phi[k]
+                    return _x[k], _phi[k]
                 else:
-                    return 10**np.interp(Ms, _x, np.log10(_phi),
+                    return Ms, 10**np.interp(Ms, _x, np.log10(_phi),
                         left=-np.inf, right=-np.inf)
             elif _x.size == Ms.size:
                 if np.allclose(_x, Ms):
-                    return _phi
+                    return _x, _phi
 
-            return 10**np.interp(Ms, _x, np.log10(_phi),
+            return Ms, 10**np.interp(Ms, _x, np.log10(_phi),
                 left=-np.inf, right=-np.inf)
 
         return None
@@ -1925,7 +2050,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 fil = []
                 for j, _cam in enumerate(cam):
                     _filters, xphot, dxphot, ycorr = \
-                        self.synth.Photometry(zobs=z, sfh=hist['SFR'],
+                        self.synth.get_photometry(zobs=z, sfh=hist['SFR'],
                         zarr=hist['z'], hist=hist, dlam=dlam,
                         cam=_cam, filters=filters, filter_set=filter_set,
                         idnum=idnum, extras=self.extras, rest_wave=None)
@@ -2235,15 +2360,51 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return L
 
-    def get_bias(self, z, limit, wave=1600., cam=None, filters=None,
+    def get_bias(self, z, limit=None, wave=1600., cam=None, filters=None,
         filter_set=None, dlam=20., method='closest', idnum=None, window=1,
         load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
         absolute=False, factor=1, limit_is_lower=True, limit_lower=None,
-        depths=None, logic='or'):
+        depths=None, color_cuts=None, logic='or'):
         """
         Compute the linear bias of sources above some limiting magnitude or
         flux.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        limit : int, float
+            Limiting magnitude of survey.
+        limit_is_lower : bool
+            If True (default), assumes we're interested in objects brighter
+            than `limit`.
+        limit_lower : int, float
+            If `limit_is_lower` is False, then we need to provide another
+            limiting magnitude to bracket the range of interest, i.e.,
+            `limit_lower` > `limit`.
+        depths : tuple
+            Can supply a set of limiting magnitudes instead of a single
+            limiting magnitude if photometry in multiple bands is retrieved
+            (via `filters`). Use `logic` keyword argument to control how many
+            bands an object must be detected in to be included in sample.
+        logic : str, int
+            If 'or', a detection in any filter is sufficient for inclusion. If
+            'and', a detection in ALL `filters` is required. If an integer,
+            only objects with a detection in N>=`logic` bands will be included
+            in the sample.
+        cut_in_flux : bool
+            Not yet implemented.
+        color_cuts : tuple
+            Not yet implemented (really).
+
+        Returns
+        -------
+        Galaxy bias at redshift `z`.
+
         """
+
+        assert (limit is not None) or (depths is not None), \
+            "Must supply `limit` or `depths`!"
 
         # In this case, just use GalaxyCohort class's version.
         if cut_in_mass:
@@ -2285,7 +2446,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     assert isinstance(logic, int)
                     ok = _ok > logic
 
-
             elif limit_is_lower:
                 ok = np.logical_and(mags <= limit, np.isfinite(mags))
             else:
@@ -2294,7 +2454,40 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 ok = np.logical_and(mags >= limit, mags <= limit_lower)
                 ok = np.logical_and(ok, np.isfinite(mags))
+            #else:
+            #    if mags.ndim == 2:
+            #        ok = np.ones(mags.shape[1])
+            #    else:
+            #        ok = np.ones_like(mags)
 
+            if color_cuts is not None:
+                assert depths is not None
+
+                if type(color_cuts) != list:
+                    color_cuts = [color_cuts]
+
+                # Augment `ok`
+                for cut in color_cuts:
+                    filt1, _filt2 = cut.split('-')
+                    if '>' in _filt2:
+                        is_lo = True
+                        filt2, thresh = _filt2.split('>')
+                    else:
+                        is_lo = False
+                        filt2, thresh = _filt2.split('<')
+
+                    color = mags[filt.index(filt1)] - mags[filt.index(filt2)]
+
+                    print('color cut {} - {}'.format(filt1, filt2))
+                    print(filt1, filt2, thresh, sum(color < float(thresh)), color.size)
+
+                    if is_lo:
+                        ok[color < float(thresh)] = 0
+                    else:
+                        ok[color > float(thresh)] = 0
+
+        ##
+        # Apply cut and integrate
         integ_top = bh[ok==1] * _nh[ok==1]
         integ_bot = _nh[ok==1]
 
@@ -2302,6 +2495,133 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         b = np.sum(integ_top * _Mh[ok==1]) / np.sum(integ_bot * _Mh[ok==1])
 
         return b
+
+    def get_bias_from_scaling_relations(self, z, smhm, uvsm, limit,
+        return_funcs=False, use_dpl_smhm=False, Mpeak=None, extrap=True):
+        """
+        Compute the galaxy bias from stellar-mass-halo-mass (SMHM) relation
+        and the UV magnitude -- stellar mass relation (UVSM).
+
+        .. note :: Limiting magnitude must be provided as absolute AB mag.
+
+        .. note :: Will first construct fitting functions if scaling laws
+            provided as discrete points.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        smhm : tuple, FunctionType
+            Contains arrays of (stellar mass, stellar mass / halo mass).
+        uvsm : tuple, FunctionType
+            Contains arrays of (MUV, stellar mass / Msun).
+        limit : int, float
+            Limiting magnitude of survey (absolute, AB).
+
+        Returns
+        -------
+        Average bias of galaxies.
+
+        """
+
+        # Convert points in (Mh, Ms/Mh) to function.
+        if type(smhm) == tuple:
+            _Mh, _smhm = smhm
+
+            ok = _smhm > 0
+            _Mh = _Mh[ok==1]
+            _smhm = _smhm[ok==1]
+
+            smhm_max = max(_smhm)
+
+            # Fit to Mh -- Mstell. Anchor to Mh=1e10
+            def func(x, p0, p1):
+                return _linfunc(x, 10, p0, p1)
+
+            popt1, pcov1 = curve_fit(func, np.log10(_Mh), np.log10(_Mh * _smhm),
+                p0=[1., 8.], maxfev=10000)
+
+            if use_dpl_smhm:
+                assert Mpeak is not None, \
+                    "Must supply `Mpeak` if `use_dpl_smhm`=True!"
+
+                from ..phenom.ParameterizedQuantity import DoublePowerLaw
+
+                _Ms_of_Mh = DoublePowerLaw(pq_func_var='Mh',
+                    pq_func_par0=10**popt1[1], pq_func_par1=Mpeak,
+                    pq_func_par2=popt1[0], pq_func_par3=-1, pq_func_par4=1e10)
+
+                Ms_of_Mh = lambda Mh: _Ms_of_Mh(Mh=Mh) #* Mh
+
+            else:
+                _Ms_of_Mh = lambda Mh: 10**_linfunc(np.log10(Mh), 10, popt1[0],
+                    popt1[1])
+
+                def Ms_of_Mh(Mh):
+
+                    if extrap:
+                        return _Ms_of_Mh(Mh)
+
+                    if Mpeak is not None:
+                        if type(Mh) == np.ndarray:
+                            ok = Mh < Mpeak
+                        elif Mh > Mpeak:
+                            ok = 0
+                        else:
+                            ok = 1
+                    else:
+                        ok = 1
+
+                    return np.minimum(_Ms_of_Mh(Mh), smhm_max * Mh) * ok
+
+        else:
+            assert type(smhm) == FunctionType
+            Ms_of_Mh = lambda Mh: Mh * smhm(Mh)
+
+
+        if type(uvsm) == tuple:
+            _MUV, _Mst = uvsm
+
+            ok = _Mst > 0
+            _MUV = _MUV[ok==1]
+            _Mst = _Mst[ok==1]
+
+            # Fit to MUV -- Mstell. Anchor to Mstell=1e8
+            def func(x, p0, p1):
+                return _linfunc(x, 8, p0, p1)
+
+            popt2, pcov2 = curve_fit(func, np.log10(_Mst), _MUV,
+                p0=[1., -22], maxfev=10000)
+            MUV_of_Ms = lambda Ms: _linfunc(np.log10(Ms), 8, popt2[0], popt2[1])
+        else:
+            MUV_of_Ms = uvsm
+
+        # Need to map MUV onto Mh so that we can determine the galaxies
+        # brighter than `limit`.
+
+        # Map functions of Mh onto tabulated halo arrays
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+        nh = self.halos.tab_dndm[iz,:]
+        bh = self.halos.tab_bias[iz,:]
+        tab_M = self.halos.tab_M
+
+        tab_Ms = Ms_of_Mh(Mh=tab_M)
+        tab_MUV = MUV_of_Ms(tab_Ms)
+        ok = tab_MUV <= limit
+
+        integ_top = bh[ok==1] * nh[ok==1]
+        integ_bot = nh[ok==1]
+
+        # Integrate in log-space
+        b = np.trapz(integ_top * tab_M[ok==1]**2, x=np.log(tab_M[ok==1])) \
+          / np.trapz(integ_bot * tab_M[ok==1]**2, x=np.log(tab_M[ok==1]))
+
+
+        if return_funcs:
+            return b, Ms_of_Mh, MUV_of_Ms
+        else:
+            return b
 
     def get_uvlf(self, z, bins):
         """

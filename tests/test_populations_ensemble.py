@@ -41,6 +41,8 @@ def test():
     logMh, logf_stell, std = pop.get_smhm(6.)
     assert np.all(logf_stell < 1)
 
+    logMs, logSFR, err = pop.get_main_sequence(6.)
+
     # Test UVLF
     mags = np.arange(-30, 10, 0.1)
     mags_cr = np.arange(-30, 10, 1.)
@@ -55,14 +57,21 @@ def test():
 
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "UVLF cache not working!"
 
+    # SFR function
+    x, phi = pop.get_sfr_df(6.)
+
+    # MUV-Mstell
+    MUV, log10Mst, err = pop.get_uvsm(6.)
+    ok = np.isfinite(log10Mst)
+    assert np.mean(np.diff(log10Mst[ok==1]) / np.diff(MUV[ok==1])) < 0
+
     # Test stellar mass function
-    log10Ms = np.arange(6, 13, 0.5)
-    phi = pop.get_smf(6., log10Ms)
+    x, phi = pop.get_smf(6., Mbin=0.5)
     ok = np.isfinite(phi)
 
-    assert 1e-4 <= np.interp(9, log10Ms, phi) <= 1e-1, "GSMF unreasonable!"
+    assert 1e-4 <= np.interp(9, x, phi) <= 1e-1, "GSMF unreasonable!"
 
-    phi_c = pop.get_smf(6., log10Ms)
+    x, phi_c = pop.get_smf(6., x)
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "GSMF cache not working!"
 
     # Just check dust masss etc.
@@ -124,6 +133,17 @@ def test():
     # Test galaxy bias calculation
     b = pop.get_bias(6., limit=-19.4, absolute=True, wave=1600.)
     assert 4 <= b <= 6, "bias unreasonable! b={}".format(b)
+
+    b2 = pop.get_bias_from_scaling_relations(6.,
+        smhm=(10**logMh, 10**logf_stell),  uvsm=(MUV, 10**log10Mst),
+        limit=-19.4)
+    b3 = pop.get_bias_from_scaling_relations(6.,
+        smhm=(10**logMh, 10**logf_stell),  uvsm=(MUV, 10**log10Mst),
+        limit=-19.4, use_dpl_smhm=True, Mpeak=1e12)
+
+    # This is a bit hacky so the agreement shouldn't be great.
+    assert abs(b2 - b) < 1
+    assert abs(b3 - b) < 1
 
     b = pop.get_bias(6., limit=28, absolute=False, wave=1600.)
     assert 2 <= b <= 10, "bias unreasonable! b={}".format(b)
