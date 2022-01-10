@@ -66,13 +66,12 @@ def test():
     assert np.mean(np.diff(log10Mst[ok==1]) / np.diff(MUV[ok==1])) < 0
 
     # Test stellar mass function
-    log10Ms = np.arange(6, 13, 0.5)
-    x, phi = pop.get_smf(6., log10Ms)
+    x, phi = pop.get_smf(6., Mbin=0.5)
     ok = np.isfinite(phi)
 
-    assert 1e-4 <= np.interp(9, log10Ms, phi) <= 1e-1, "GSMF unreasonable!"
+    assert 1e-4 <= np.interp(9, x, phi) <= 1e-1, "GSMF unreasonable!"
 
-    x, phi_c = pop.get_smf(6., log10Ms)
+    x, phi_c = pop.get_smf(6., x)
     assert np.array_equal(phi[ok==1], phi_c[ok==1]), "GSMF cache not working!"
 
     # Just check dust masss etc.
