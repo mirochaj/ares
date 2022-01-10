@@ -1578,7 +1578,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def StellarMassFunction(self, z, bins=None, units='dex'):
         return self.get_smf(z, bins=bins, units=units)
 
-    def get_smf(self, z, bins=None, units='dex', Mbin=0.5):
+    def get_smf(self, z, bins=None, units='dex', Mbin=0.1):
         """
         Could do a cumulative sum to get all stellar masses in one pass.
 
@@ -1606,10 +1606,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         iz = np.argmin(np.abs(z - self.histories['z']))
         Ms = self.histories['Ms'][:,iz]
         nh = self.histories['nh'][:,iz]
+        ok = Ms > 0
 
         if (bins is None) or (type(bins) is not np.ndarray):
             binw = Mbin
-            bin_c = np.arange(6., 13.+binw, binw)
+            bin_c = np.arange(0., 13.+binw, binw)
         else:
             dx = np.diff(bins)
             assert np.allclose(np.diff(dx), 0)
@@ -1617,6 +1618,12 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             bin_c = bins
 
         bin_e = bin_c2e(bin_c)
+
+        # Make sure binning range covers the range of SFRs
+        assert np.log10(Ms[ok==1]).min() > bin_e.min(), \
+            "Bins do not span full range in stellar mass!"
+        assert np.log10(Ms[ok==1]).max() < bin_e.max(), \
+            "Bins do not span full range in stellar mass!"
 
         phi, _bins = np.histogram(Ms, bins=10**bin_e, weights=nh)
 
@@ -1728,11 +1735,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ok = sfr > 0
 
         if bins is None:
-            bins = np.arange(-6, 6+sfrbin, sfrbin)
+            bins = np.arange(-8, 6+sfrbin, sfrbin)
         else:
             sfrbin = np.diff(bins)
             assert np.allclose(np.diff(sfrbin), 0)
             sfrbin = sfrbin[0]
+
+        # Make sure binning range covers the range of SFRs
+        assert np.log10(sfr[ok==1]).min() > bins.min(), \
+            "Bins do not span full range in SFR!"
+        assert np.log10(sfr[ok==1]).max() < bins.max(), \
+            "Bins do not span full range in SFR!"
 
         hist, bin_histedges = np.histogram(np.log10(sfr[ok==1]),
             weights=nh[ok==1], bins=bin_c2e(bins), density=True)
@@ -2531,7 +2544,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             if use_dpl_smhm:
                 assert Mpeak is not None, \
                     "Must supply `Mpeak` if `use_dpl_smhm`=True!"
-                    
+
                 from ..phenom.ParameterizedQuantity import DoublePowerLaw
 
                 _Ms_of_Mh = DoublePowerLaw(pq_func_var='Mh',
