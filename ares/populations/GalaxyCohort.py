@@ -1737,6 +1737,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._ngtm_from_ham_[z]
 
+    def get_AUV(self, z, MUV):
+        """
+        Return extinction in rest-UV at redshift `z` for absolute magnitude(s)
+        `MUV`.
+
+        .. note :: Just a wrapper around `self.dust.AUV`, which is using
+            empirical dust corrections.
+            
+        """
+        return self.dust.AUV(z, MUV)
+
     def run_abundance_match(self, z, Mh, uvlf=None, wave=1600.):
         """
         These are the star-formation efficiencies derived from abundance
@@ -1778,7 +1789,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         mags = []
         for mag in mags_obs:
-            mags.append(mag-self.dust.AUV(z_ham, mag))
+            mags.append(mag-self.get_AUV(z_ham, mag))
 
         # Mass function
         if self.pf['pop_histories'] is not None:

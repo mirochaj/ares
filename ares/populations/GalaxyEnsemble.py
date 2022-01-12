@@ -953,6 +953,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return inow + ifut
 
+    def get_fstar(self, z, Mh):
+        return self.guide.get_fstar(z=z, Mh=Mh)
+
     def _gen_prescribed_galaxy_histories(self, zstop=0):
         """
         Take halo histories and paint on galaxy histories in deterministic way.
@@ -1029,7 +1032,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFR = halos['SFR'][:,-1::-1]
         else:
             iz = np.argmin(np.abs(6. - z))
-            SFR = self.guide.SFE(z=z2d, Mh=Mh)
+            SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
 
@@ -3240,6 +3243,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             AUV = AUV_r
 
             assert MUV is None
+            MAB = None
 
         # May specify a single magnitude at which to return AUV
         if MUV is not None:
@@ -3254,7 +3258,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
 
         # Otherwise, return raw (or binned) results
-        return AUV
+        return MAB, AUV
 
     def get_dBeta_dMUV(self, z, magbins, presets=None, model='exp',
         return_funcs=False, maglim=None, dlam=20., magmethod='gmean',
