@@ -10,13 +10,12 @@ Description:
 
 """
 
-import sys, os
+import os
+import sys
+import textwrap
 import numpy as np
-import sys, textwrap, os
+from ..data import ARES
 from .PrintInfo import twidth, line, tabulate
-
-ARES = os.getenv('ARES')
-have_ARES_env = ARES is not None
 
 separator = '|'*twidth
 separator2 = '-'*twidth
@@ -231,21 +230,6 @@ def no_hmf(hmf):
     print(line('ERROR: Cannot generate halo mass function'))
     print(line(separator))
 
-    if not have_ARES_env:
-        s = \
-        """
-        It looks like you have not yet set the ARES environment variable,
-        which is needed to locate various input files. Make sure to source
-        your .bashrc or .cshrc (or equivalent) when finished!
-        """
-    else:
-        s = \
-        """
-        It looks like you have set the ARES environment variable. Is it
-        correct? Have you sourced your .bashrc or .cshrc (or equivalent) to
-        ensure that it is defined?
-        """
-
     try:
         from hmf import MassFunction
         have_hmf = True
@@ -262,8 +246,8 @@ def no_hmf(hmf):
         s = \
         """
         If you've made no attempt to use non-default cosmological or HMF
-        parameters, it could just be that you forgot to run the remote.py script,
-        which will download a default HMF lookup table.
+        parameters, it could just be that you forgot to run the remote.py
+        script, which will download a default HMF lookup table.
 
         If you'd like to generate halo mass function lookup tables of your
         own, e.g., using fits other than the Sheth-Tormen form, or with
@@ -277,7 +261,6 @@ def no_hmf(hmf):
 
     for l in snew_by_line:
         print(line(l))
-
 
     if not (have_pycamb and have_hmf):
         print(line(''))
