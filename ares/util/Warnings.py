@@ -230,10 +230,6 @@ def no_hmf(hmf):
     print(line('ERROR: Cannot generate halo mass function'))
     print(line(separator))
 
-    from hmf import MassFunction
-
-    import camb
-
     try:
         from hmf import MassFunction
         have_hmf = True
