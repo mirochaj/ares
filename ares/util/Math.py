@@ -11,8 +11,16 @@ Description:
 """
 
 import numpy as np
+from scipy.integratei import quad
 from ..physics.Constants import nu_0_mhz
 from scipy.interpolate import interp1d as interp1d_scipy
+
+try:
+    from mcfit import P2xi, xi2P
+    have_mcfit = True
+except ImportError:
+    have_mcfit = False
+
 
 _numpy_kwargs = {'left': None, 'right': None}
 
@@ -337,3 +345,85 @@ class LinearNDInterpolator(object):
         final = w1 * (1. - x_d) + w2 * x_d
 
         return final
+
+
+def get_cf_from_ps_tab(k, ps, **kwargs):
+    assert have_mcfit, "Must install mcfit! See `use_mcfit` parameter."
+
+    cf_func = P2xi(k, **kwargs)
+    R, cf = cf_func(ps, extrap=True)
+
+    if R[1] < R[0]:
+        return R[-1::-1], cf[-1::-1]
+    else:
+        return R, cf
+
+def get_ps_from_cf_tab(R, cf, **kwargs):
+    assert have_mcfit, "Must install mcfit! See `use_mcfit` parameter."
+
+    ps_func = xi2P(R, **kwargs)
+    k, ps = ps_func(cf, extrap=True)
+
+    if k[1] < k[0]:
+        return k[-1::-1], ps[-1::-1]
+    else:
+        return k, ps
+
+def get_cf_from_ps_func(R, f_ps, kmin=1e-4, kmax=5000., rtol=1e-5, atol=1e-5):
+    cf = np.zeros_like(R)
+    for i, RR in enumerate(R):
+
+        # Split the integral into an easy part and a hard part
+        kcrit = 1. / RR
+
+        # Re-normalize integrand to help integration
+        norm = 1. / f_ps(kmax)
+
+        # Leave sin(k*R) out -- that's the 'weight' for scipy.
+        integrand = lambda kk: norm * 4 * np.pi * kk**2 * f_ps(kk) / kk / RR
+        integrand_full = lambda kk: integrand(kk) * np.sin(kk * RR)
+
+        # Do the easy part of the integral
+        cf[i] = quad(integrand_full, kmin, kcrit,
+            epsrel=rtol, epsabs=atol, limit=10000, full_output=1)[0] / norm
+
+        # Do the hard part of the integral using Clenshaw-Curtis integration
+        cf[i] += quad(integrand, kcrit, kmax,
+            epsrel=rtol, epsabs=atol, limit=10000, full_output=1,
+            weight='sin', wvar=RR)[0] / norm
+
+    # Our FT convention
+    cf /= (2 * np.pi)**3
+
+    return cf
+
+def get_ps_from_cf_func(k, f_cf, Rmin=1e-2, Rmax=1e3, rtol=1e-5, atol=1e-5):
+
+    ps = np.zeros_like(k)
+    for i, kk in enumerate(k):
+
+        # Split the integral into an easy part and a hard part
+        Rcrit = 1. / kk
+
+        # Re-normalize integrand to help integration
+        norm = 1. / f_cf(Rmax)
+
+        # Leave sin(k*R) out -- that's the 'weight' for scipy.
+        integrand = lambda RR: norm * 4 * np.pi * RR**2 * f_cf(RR) / kk / RR
+        integrand_full = lambda RR: integrand(RR) * np.sin(kk * RR)
+
+        # Do the easy part of the integral
+        ps[i] = quad(integrand_full, Rmin, Rcrit,
+            epsrel=rtol, epsabs=atol, limit=10000, full_output=1)[0] / norm
+
+        # Do the hard part of the integral using Clenshaw-Curtis integration
+        ps[i] += quad(integrand, Rcrit, Rmax,
+            epsrel=rtol, epsabs=atol, limit=10000, full_output=1,
+            weight='sin', wvar=kk)[0] / norm
+
+    return ps
+
+
+# Backward compatibility
+get_cf_from_ps = get_cf_from_ps_func
+get_ps_from_cf = get_ps_from_cf_func
