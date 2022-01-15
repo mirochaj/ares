@@ -44,6 +44,7 @@ def test(rtol=1e-3):
     assert np.allclose(R, R2, rtol=1e-3), \
         "Disagreement between mcfit and Clenshaw-Curtis integrator for CF."
 
+    # Test different profiles and FT of those profiles?
 
 if __name__ == '__main__':
     test()

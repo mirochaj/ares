@@ -29,36 +29,53 @@ except ImportError:
     size = 1
 
 four_pi = 4 * np.pi
+available_profiles = 'nfw', 'isl', 'exp', 'isl_exp'
 
 class HaloModel(HaloMassFunction):
 
-    def mvir_to_rvir(self, m):
-        return (3. * m / (4. * np.pi * self.pf['halo_delta'] \
+    @property
+    def available_profiles(self):
+        return available_profiles
+
+    def get_Rvir_from_Mh(self, Mh):
+        return (3. * Mh / (4. * np.pi * self.pf['halo_delta'] \
             * self.cosm.mean_density0)) ** (1. / 3.)
 
-    def cm_relation(self, m, z, get_rs):
+    def get_concentration(self, z, Mh, return_Rs=True):
         """
-        The concentration-mass relation
+        Get halo concentration from named concentration-mass-relation (CMR).
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        Mh : int, float, numpy.ndarray
+            Halo mass [Msun].
+        return_Rs : bool
+            If True, return a tuple containing (concentration, Rvir / c),
+            otherwise just returns concentration.
+
         """
         if self.pf['halo_cmr'] == 'duffy':
-            return self._cm_duffy(m, z, get_rs)
+            return self._cm_duffy(z, Mh, return_Rs)
         elif self.pf['halo_cmr'] == 'zehavi':
-            return self._cm_zehavi(m, z, get_rs)
+            return self._cm_zehavi(z, Mh, return_Rs)
         else:
             raise NotImplemented('help!')
 
-    def _cm_duffy(self, m, z, get_rs=True):
-        c = 6.71 * (m / (2e12)) ** -0.091 * (1 + z) ** -0.44
-        rvir = self.mvir_to_rvir(m)
+    def _cm_duffy(self, z, Mh, get_rs=True):
+
+        c = 6.71 * (Mh / (2e12)) ** -0.091 * (1 + z) ** -0.44
+        rvir = self.get_Rvir_from_Mh(Mh)
 
         if get_rs:
             return c, rvir / c
         else:
             return c
 
-    def _cm_zehavi(self, m, z, get_rs=True):
+    def _cm_zehavi(self, z, Mh, get_rs=True):
         c = ((m / 1.5e13) ** -0.13) * 9.0 / (1 + z)
-        rvir = self.mvir_to_rvir(m)
+        rvir = self.get_Rvir_from_Mh(Mh)
 
         if get_rs:
             return c, rvir / c
@@ -68,9 +85,9 @@ class HaloModel(HaloMassFunction):
     def _dc_nfw(self, c):
         return c** 3. / (4. * np.pi) / (np.log(1 + c) - c / (1 + c))
 
-    def rho_nfw(self, r, m, z):
+    def rho_nfw(self, z, Mh, r):
 
-        c, r_s = self.cm_relation(m, z, get_rs=True)
+        c, r_s = self.get_concentration(z, Mh, return_Rs=True)
 
         x = r / r_s
         rn = x / c
@@ -86,7 +103,37 @@ class HaloModel(HaloMassFunction):
             else:
                 return 0.0
 
-    def u_nfw(self, k, m, z):
+    def get_profile(self, z, Mh, r, prof='nfw'):
+        """
+        Get radial profile.
+        """
+
+        if prof == 'nfw':
+            return self.rho_nfw(z, Mh, r)
+        else:
+            raise NotImplementedError('help')
+
+    def get_profile_FT(self, z, Mh, k, prof='nfw'):
+        """
+        Normalized Fourier transform, wrapper around individual routines.
+
+        Parameters
+        ----------
+
+        """
+
+        if prof == 'nfw':
+            return self.u_nfw(z, Mh, k)
+        elif prof == 'isl':
+            return self.u_isl(z, Mh, k)
+        elif prof == 'exp':
+            return self.u_exp(z, Mh, k)
+        elif prof == 'isl_exp':
+            return self.u_isl_exp(z, Mh, k)
+        else:
+            raise NotImplementedError('help')
+
+    def u_nfw(self, z, Mh, k):
         """
         Normalized Fourier Transform of an NFW profile.
 
@@ -94,11 +141,15 @@ class HaloModel(HaloMassFunction):
 
         Parameters
         ----------
+        z : int, float
+            Redshift
+        Mh : int, float, numpy.ndarray
+            Halo mass [Msun].
         k : int, float
             Wavenumber
-        m :
+
         """
-        c, r_s = self.cm_relation(m, z, get_rs=True)
+        c, r_s = self.get_concentration(z, Mh, return_Rs=True)
 
         K = k * r_s
 
@@ -113,10 +164,18 @@ class HaloModel(HaloMassFunction):
         return norm * (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc))
 
-    def u_isl(self, k, m, z, rmax):
+    def u_isl(self, z, Mh, k, rmax=1e2):
         """
         Normalized Fourier transform of an r^-2 profile.
 
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        Mh : int, float, numpy.ndarray
+            Halo mass [Msun].
+        k : int, float
+            Wavenumber
         rmax : int, float
             Effective horizon. Distance a photon can travel between
             Ly-beta and Ly-alpha.
@@ -127,13 +186,13 @@ class HaloModel(HaloMassFunction):
 
         return asi / rmax / k
 
-    def u_isl_exp(self, k, m, z, rmax, rstar):
+    def u_isl_exp(self, z, Mh, k, rmax=1e2, rstar=10):
         return np.arctan(rstar * k) / rstar / k
 
-    def u_exp(self, k, m, z, rmax):
+    def u_exp(self, z, Mh, k, rmax=1e2):
         rs = 1.
 
-        L0 = (m / 1e11)**1.
+        L0 = (Mh / 1e11)**1.
         c = rmax / rs
 
         kappa = k * rs
@@ -142,11 +201,11 @@ class HaloModel(HaloMassFunction):
 
         return norm / (1. + kappa**2)**2.
 
-    def u_cgm_rahmati(self, k, m, z):
+    def u_cgm_rahmati(self, z, Mh, k):
         rstar = 0.0025
         return np.arctan((rstar * k) ** 0.75) / (rstar * k) ** 0.75
 
-    def u_cgm_steidel(self, k, m, z):
+    def u_cgm_steidel(self, z, Mh, k):
         rstar = 0.2
         return np.arctan((rstar * k) ** 0.85) / (rstar * k) ** 0.85
 
@@ -167,7 +226,8 @@ class HaloModel(HaloMassFunction):
         return temp
 
     def ScalingFactor(self, z):
-        return (self.cosm.h70 / 0.7)**-1 * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
+        return (self.cosm.h70 / 0.7)**-1 \
+            * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
 
     def ModulationFactor(self, z0, z=None, r=None, lc=False):
         """
