@@ -47,8 +47,8 @@ def test():
         fitter.parameters = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 'tanh_Tz0', 'tanh_Tdz']
         fitter.is_log = [True] + [False] * 4
 
-        from distpy import DistributionSet
-        from distpy import UniformDistribution
+        from distpy.distribution import DistributionSet
+        from distpy.distribution import UniformDistribution
 
         ps = DistributionSet()
         ps.add_distribution(UniformDistribution(-3, 3), 'tanh_J0')

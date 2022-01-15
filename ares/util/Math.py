@@ -11,12 +11,17 @@ Description:
 """
 
 import numpy as np
-from scipy.integratei import quad
+from scipy.integrate import quad
 from ..physics.Constants import nu_0_mhz
 from scipy.interpolate import interp1d as interp1d_scipy
 
 try:
     from mcfit import P2xi, xi2P
+
+    import warnings
+    warnings.filterwarnings("ignore",
+        message="The default value of lowring has been changed to False, ")
+
     have_mcfit = True
 except ImportError:
     have_mcfit = False

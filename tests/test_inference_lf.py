@@ -85,8 +85,8 @@ def test():
 
     is_log = [False, False, False]
 
-    from distpy import DistributionSet
-    from distpy import UniformDistribution
+    from distpy.distribution import DistributionSet
+    from distpy.distribution import UniformDistribution
 
     ps = DistributionSet()
     ps.add_distribution(UniformDistribution(-5, -1),  'pq_func_par0')

@@ -1479,6 +1479,8 @@ def ControlParameters():
     "progress_bar": True,
     "verbose": True,
     "debug": False,
+
+    'use_mcfit': True,
     }
 
     pf.update(rcParams)

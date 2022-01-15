@@ -12,6 +12,8 @@ from scipy.interpolate import interp1d, Akima1DInterpolator
 from ..util.ProgressBar import ProgressBar
 from .Constants import rho_cgs, c, cm_per_mpc
 from .HaloMassFunction import HaloMassFunction
+from ..util.Math import get_cf_from_ps, get_ps_from_cf, get_cf_from_ps_tab, \
+    get_cf_from_ps_func
 
 try:
     import h5py
@@ -25,13 +27,6 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-try:
-    import hankel
-    have_hankel = True
-    from hankel import HankelTransform, SymmetricFourierTransform
-except ImportError:
-    have_hankel = False
 
 four_pi = 4 * np.pi
 
@@ -366,6 +361,9 @@ class HaloModel(HaloMassFunction):
 
         ps_lin = self._get_ps_lin(k, iz)
 
+        if self.pf['hps_assume_linear']:
+            return ps_lin
+
         integ1, integ2 = self._get_ps_integrals(k, iz, prof1, prof2,
             lum1, lum2, mmin1, mmin2, term=2)
 
@@ -376,7 +374,7 @@ class HaloModel(HaloMassFunction):
     def get_ps_shot(self, z, k=None, lum1=None, lum2=None, mmin1=None, mmin2=None,
         ztol=1e-3):
         """
-        Compute the two halo term quickly
+        Compute the shot noise term quickly.
         """
 
         iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
@@ -387,17 +385,28 @@ class HaloModel(HaloMassFunction):
 
         return shot
 
+    def get_ps_mm(self, z,  k=None, prof1=None, prof2=None, lum1=None, lum2=None,
+        mmin1=None, mmin2=None, ztol=1e-3):
+        """ Just wrapper around `get_ps_tot`. """
+        return self.get_ps_tot(z, k=k, prof1=prof1, prof2=prof2, lum1=lum1,
+            lum2=lum2, mmin1=mmin1, mmin2=mmin2, ztol=ztol)
+
     def get_ps_tot(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
         mmin1=None, mmin2=None, ztol=1e-3):
         """
         Return total power spectrum as sum of 1h and 2h terms.
         """
-        ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
+
+        if not self.pf['hps_assume_linear']:
+            ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
+        else:
+            ps_1h = 0.0
+
         ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
 
         return ps_1h + ps_2h
 
-    def CorrelationFunction(self, z, R, k=None, Pofk=None, load=True):
+    def get_cf_mm(self, z, R=None, load=True, ztol=1e-2):
         """
         Compute the correlation function of the matter power spectrum.
 
@@ -406,283 +415,56 @@ class HaloModel(HaloMassFunction):
         z : int, float
             Redshift of interest.
         R : int, float, np.ndarray
-            Scale(s) of interest
+            Scale(s) of interest. If not supplied, will default to self.tab_R.
+
+        Returns
+        -------
+        Tuple containing (R, CF). If `R` is not supplied by user, will default
+        to 1 / self.tab_k.
 
         """
 
         ##
-        # Load from table
+        # Load from table if one exists.
         ##
         if self.pf['hmf_load_ps'] and load:
             iz = np.argmin(np.abs(z - self.tab_z_ps))
-            assert abs(z - self.tab_z_ps[iz]) < 1e-2, \
+            assert abs(z - self.tab_z_ps[iz]) < ztol, \
                 'Supplied redshift (%g) not in table!' % z
-            if len(R) == len(self.tab_R):
-                assert np.allclose(R, self.tab_R)
-                return self.tab_cf_mm[iz]
 
-            return np.interp(R, self.tab_R, self.tab_cf_mm[iz])
-
-        ##
-        # Compute from scratch
-        ##
-
-        # Has P(k) already been computed?
-        if Pofk is not None:
-            if k is None:
-                k = self.tab_k
-                assert len(Pofk) == len(self.tab_k), \
-                    "Mismatch in shape between Pofk and k!"
-
-        else:
-            k = self.tab_k
-            Pofk = self.get_ps_tot(z, self.tab_k)
-
-        return self.InverseFT3D(R, Pofk, k)
-
-    def InverseFT3D(self, R, ps, k=None, kmin=None, kmax=None,
-        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False,
-        method='clenshaw-curtis', use_pb=False, suppression=np.inf):
-        """
-        Take a power spectrum and perform the inverse (3-D) FT to recover
-        a correlation function.
-        """
-        assert type(R) == np.ndarray
-
-        if (type(ps) == FunctionType) or isinstance(ps, interp1d) \
-           or isinstance(ps, Akima1DInterpolator):
-            k = ps.x
-        elif type(ps) == np.ndarray:
-            # Setup interpolant
-
-            assert k is not None, "Must supply k vector as well!"
-
-            #if interpolant == 'akima':
-            #    ps = Akima1DInterpolator(k, ps)
-            #elif interpolant == 'cubic':
-
-            ps = interp1d(np.log(k), ps, kind='cubic', assume_sorted=True,
-                bounds_error=False, fill_value=0.0)
-
-            #_ps = interp1d(np.log(k), np.log(ps), kind='cubic', assume_sorted=True,
-            #    bounds_error=False, fill_value=-np.inf)
-            #
-            #ps = lambda k: np.exp(_ps.__call__(np.log(k)))
-
-        else:
-            raise ValueError('Do not understand type of `ps`.')
-
-        if kmin is None:
-            kmin = k.min()
-        if kmax is None:
-            kmax = k.max()
-
-        norm = 1. / ps(np.log(kmax))
+            if R is not None:
+                if len(R) == len(self.tab_R):
+                    if np.allclose(R, self.tab_R):
+                        return self.tab_cf_mm[iz]
+                    else:
+                        return np.interp(R, self.tab_R, self.tab_cf_mm[iz])
 
         ##
-        # Use Steven Murray's `hankel` package to do the transform
+        # Otherwise, compute PS then inverse transform to obtain CF.
         ##
-        if method == 'ogata':
-            assert have_hankel, "hankel package required for this!"
+        if self.pf['use_mcfit']:
+            k = self.tab_k_lin if self.pf['hps_assume_linear'] else self.tab_k
+            Pofk = self.get_ps_tot(z, k)
+            _R_, _cf_ = get_cf_from_ps_tab(k, Pofk)
 
-            integrand = lambda kk: four_pi * kk**2 * norm * ps(np.log(kk)) \
-                * np.exp(-kk * R / suppression)
-            ht = HankelTransform(nu=0, N=k.size, h=0.001)
-
-            #integrand = lambda kk: ps(np.log(kk)) * norm
-            #ht = SymmetricFourierTransform(3, N=k.size, h=0.001)
-
-            #print(ht.integrate(integrand))
-            cf = ht.transform(integrand, k=R, ret_err=False, inverse=True) / norm
-
-            return cf / (2. * np.pi)**3
-        else:
-            pass
-            # Otherwise, do it by-hand.
-
-
-        ##
-        # Optional progress bar
-        ##
-        pb = ProgressBar(R.size, use=self.pf['progress_bar'] * use_pb,
-            name='ps(k)->cf(R)')
-
-        # Loop over R and perform integral
-        cf = np.zeros_like(R)
-        for i, RR in enumerate(R):
-
-            if not pb.has_pb:
-                pb.start()
-
-            pb.update(i)
-
-            # Leave sin(k*R) out -- that's the 'weight' for scipy.
-            integrand = lambda kk: norm * four_pi * kk**2 * ps(np.log(kk)) \
-                * np.exp(-kk * RR / suppression) / kk / RR
-
-            if method == 'clenshaw-curtis':
-
-                if split_by_scale:
-                    kcri = np.exp(ps.x[np.argmin(np.abs(np.exp(ps.x) - 1. / RR))])
-
-                    # Integral over small k is easy
-                    lowk = np.exp(ps.x) <= kcri
-                    klow = np.exp(ps.x[lowk == 1])
-                    plow = ps.y[lowk == 1]
-                    sinc = np.sin(RR * klow) / klow / RR
-                    integ = norm * four_pi * klow**2 * plow * sinc \
-                        * np.exp(-klow * RR / suppression)
-                    cf[i] = np.trapz(integ * klow, x=np.log(klow)) / norm
-
-                    kstart = kcri
-
-                    #print(RR, 1. / RR, kcri, lowk.sum(), ps.x.size - lowk.sum())
-                    #
-                    #if lowk.sum() < 1000 and lowk.sum() % 100 == 0:
-                    #    import matplotlib.pyplot as pl
-                    #
-                    #    pl.figure(2)
-                    #
-                    #    sinc = np.sin(RR * k) / k / RR
-                    #    pl.loglog(k, integrand(k) * sinc, color='k')
-                    #    pl.loglog([kcri]*2, [1e-4, 1e4], color='y')
-                    #    raw_input('<enter>')
-
-                else:
-                    kstart = kmin
-
-                # Add in the wiggly part
-                cf[i] += quad(integrand, kstart, kmax,
-                    epsrel=epsrel, epsabs=epsabs, limit=limit,
-                    weight='sin', wvar=RR)[0] / norm
-
+            if R is not None:
+                cf = np.interp(R, _R_, _cf_)
             else:
-                raise NotImplemented('help')
-
-        pb.finish()
-
-        # Our FT convention
-        cf /= (2 * np.pi)**3
-
-        return cf
-
-    def FT3D(self, k, cf, R=None, Rmin=None, Rmax=None,
-        epsabs=1e-12, epsrel=1e-12, limit=500, split_by_scale=False,
-        method='clenshaw-curtis', use_pb=False, suppression=np.inf):
-        """
-        This is nearly identical to the inverse transform function above,
-        I just got tired of having to remember to swap meanings of the
-        k and R variables. Sometimes clarity is better than minimizing
-        redundancy.
-        """
-        assert type(k) == np.ndarray
-
-        if (type(cf) == FunctionType) or isinstance(cf, interp1d) \
-           or isinstance(cf, Akima1DInterpolator):
-            R = cf.x
-        elif type(cf) == np.ndarray:
-            # Setup interpolant
-
-            assert R is not None, "Must supply R vector as well!"
-
-            #if interpolant == 'akima':
-            #    ps = Akima1DInterpolator(k, ps)
-            #elif interpolant == 'cubic':
-            cf = interp1d(np.log(R), cf, kind='cubic', assume_sorted=True,
-                bounds_error=False, fill_value=0.0)
+                R = _R_
+                cf = _cf_
 
         else:
-            raise ValueError('Do not understand type of `ps`.')
+            if R is None:
+                R = self.tab_R
 
-        if Rmin is None:
-            Rmin = R.min()
-        if Rmax is None:
-            Rmax = R.max()
+            cf = get_cf_from_ps_func(R, lambda kk: self.get_ps_tot(z, kk))
 
-        norm = 1. / cf(np.log(Rmin))
-
-        if method == 'ogata':
-            assert have_hankel, "hankel package required for this!"
-
-            integrand = lambda RR: four_pi * R**2 * norm * cf(np.log(RR))
-            ht = HankelTransform(nu=0, N=k.size, h=0.1)
-
-            #integrand = lambda kk: ps(np.log(kk)) * norm
-            #ht = SymmetricFourierTransform(3, N=k.size, h=0.001)
-
-            #print(ht.integrate(integrand))
-            ps = ht.transform(integrand, k=k, ret_err=False, inverse=False) / norm
-
-            return ps
-
-        ##
-        # Optional progress bar
-        ##
-        pb = ProgressBar(R.size, use=self.pf['progress_bar'] * use_pb,
-            name='cf(R)->ps(k)')
-
-        # Loop over k and perform integral
-        ps = np.zeros_like(k)
-        for i, kk in enumerate(k):
-
-            if not pb.has_pb:
-                pb.start()
-
-            pb.update(i)
-
-            if method == 'clenshaw-curtis':
-
-                # Leave sin(k*R) out -- that's the 'weight' for scipy.
-                # Note the minus sign.
-                integrand = lambda RR: norm * four_pi * RR**2 * cf(np.log(RR)) \
-                    * np.exp(-kk * RR / suppression) / kk / RR
-
-                if split_by_scale:
-                    Rcri = np.exp(cf.x[np.argmin(np.abs(np.exp(cf.x) - 1. / kk))])
-
-                    # Integral over small k is easy
-                    lowR = np.exp(cf.x) <= Rcri
-                    Rlow = np.exp(cf.x[lowR == 1])
-                    clow = cf.y[lowR == 1]
-                    sinc = np.sin(kk * Rlow) / Rlow / kk
-                    integ = norm * four_pi * Rlow**2 * clow * sinc \
-                        * np.exp(-kk * Rlow / suppression)
-                    ps[i] = np.trapz(integ * Rlow, x=np.log(Rlow)) / norm
-
-                    Rstart = Rcri
-
-                    #if lowR.sum() < 1000 and lowR.sum() % 100 == 0:
-                    #    import matplotlib.pyplot as pl
-                    #
-                    #    pl.figure(2)
-                    #
-                    #    sinc = np.sin(kk * R) / kk / R
-                    #    pl.loglog(R, integrand(R) * sinc, color='k')
-                    #    pl.loglog([Rcri]*2, [1e-4, 1e4], color='y')
-                    #    raw_input('<enter>')
-
-                else:
-                    Rstart = Rmin
-
-
-                # Use 'chebmo' to save Chebyshev moments and pass to next integral?
-                ps[i] += quad(integrand, Rstart, Rmax,
-                    epsrel=epsrel, epsabs=epsabs, limit=limit,
-                    weight='sin', wvar=kk)[0] / norm
-
-
-            else:
-                raise NotImplemented('help')
-
-        pb.finish()
-
-        #
-        return np.abs(ps)
+        return R, cf
 
     @property
     def tab_k(self):
         """
-        k-vector constructed from mps parameters.
+        k-vector constructed from hps parameters.
         """
         if not hasattr(self, '_tab_k'):
             dlogk = self.pf['hps_dlnk']
@@ -912,6 +694,8 @@ class HaloModel(HaloMassFunction):
                     _ps.append(tmp[1])
                     _cf.append(tmp[2])
 
+                f.close()
+
                 if _z != []:
                     print("Processor {} loaded checkpoints for z={}".format(rank, _z))
 
@@ -963,16 +747,19 @@ class HaloModel(HaloMassFunction):
             ##
             # Calculate from scratch
             ##
-            print("Processor {} generating z={} PS and CF...".format(rank, z))
+            print("Processor {} generating z={} PS...".format(rank, z))
 
             # Must interpolate back to fine grid (uniformly sampled
             # real-space scales) to do FFT and obtain correlation function
-            tab_ps_mm[i] = self.get_ps_tot(z, self.tab_k)
+            tab_ps_mm[i] = self.get_ps_mm(z, self.tab_k)
+
+            pb.update(i)
+
+            print("Processor {} generating z={} CF...".format(rank, z))
 
             # Compute correlation function at native resolution to save time
             # later.
-            tab_cf_mm[i] = self.InverseFT3D(self.tab_R, tab_ps_mm[i],
-                self.tab_k, **ftkwargs)
+            tab_cf_mm[i] = self.get_cf_mm(z)
 
             pb.update(i)
 

@@ -28,8 +28,8 @@ pars = \
  "hmf_dlogM": 0.01,
  "hmf_logMmin": 4,
  "hmf_logMmax": 18,
- "hmf_zmin": 5,
- "hmf_zmax": 30,
+ "hmf_zmin": 0,
+ "hmf_zmax": 60,
  "hmf_dz": 0.05,
 
  "hps_zmin": 6,
