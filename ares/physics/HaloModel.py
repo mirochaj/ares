@@ -10,8 +10,8 @@ from types import FunctionType
 from scipy.integrate import quad
 from scipy.interpolate import interp1d, Akima1DInterpolator
 from ..util.ProgressBar import ProgressBar
-from .Constants import rho_cgs, c, cm_per_mpc
 from .HaloMassFunction import HaloMassFunction
+from .Constants import rho_cgs, c, cm_per_mpc
 from ..util.Math import get_cf_from_ps, get_ps_from_cf, get_cf_from_ps_tab, \
     get_cf_from_ps_func
 
@@ -31,17 +31,9 @@ except ImportError:
 four_pi = 4 * np.pi
 available_profiles = 'nfw', 'isl', 'exp', 'isl_exp'
 
-class HaloModel(HaloMassFunction):
+class HaloStructure(object):
 
-    @property
-    def available_profiles(self):
-        return available_profiles
-
-    def get_Rvir_from_Mh(self, Mh):
-        return (3. * Mh / (4. * np.pi * self.pf['halo_delta'] \
-            * self.cosm.mean_density0)) ** (1. / 3.)
-
-    def get_concentration(self, z, Mh, return_Rs=True):
+    def get_concentration(self, z, Mh):
         """
         Get halo concentration from named concentration-mass-relation (CMR).
 
@@ -57,37 +49,38 @@ class HaloModel(HaloMassFunction):
 
         """
         if self.pf['halo_cmr'] == 'duffy':
-            return self._cm_duffy(z, Mh, return_Rs)
+            return self._get_cmr_duffy(z, Mh)
         elif self.pf['halo_cmr'] == 'zehavi':
-            return self._cm_zehavi(z, Mh, return_Rs)
+            return self._get_cmr_zehavi(z, Mh)
         else:
             raise NotImplemented('help!')
 
-    def _cm_duffy(self, z, Mh, get_rs=True):
-
+    def _get_cmr_duffy(self, z, Mh):
         c = 6.71 * (Mh / (2e12)) ** -0.091 * (1 + z) ** -0.44
-        rvir = self.get_Rvir_from_Mh(Mh)
+        return c
 
-        if get_rs:
-            return c, rvir / c
-        else:
-            return c
-
-    def _cm_zehavi(self, z, Mh, get_rs=True):
+    def _get_cmr_zehavi(self, z, Mh):
         c = ((m / 1.5e13) ** -0.13) * 9.0 / (1 + z)
-        rvir = self.get_Rvir_from_Mh(Mh)
+        return c
 
-        if get_rs:
-            return c, rvir / c
-        else:
-            return c
+class HaloModel(HaloMassFunction,HaloStructure):
+
+    @property
+    def available_profiles(self):
+        return available_profiles
+
+    def get_Rvir_from_Mh(self, Mh):
+        return (3. * Mh / (4. * np.pi * self.pf['halo_delta'] \
+            * self.cosm.mean_density0)) ** (1. / 3.)
 
     def _dc_nfw(self, c):
         return c** 3. / (4. * np.pi) / (np.log(1 + c) - c / (1 + c))
 
     def rho_nfw(self, z, Mh, r):
 
-        c, r_s = self.get_concentration(z, Mh, return_Rs=True)
+        c = self.get_concentration(z, Mh)
+        rvir = self.get_Rvir_from_Mh(Mh)
+        r_s = c / rvir
 
         x = r / r_s
         rn = x / c
@@ -149,7 +142,9 @@ class HaloModel(HaloMassFunction):
             Wavenumber
 
         """
-        c, r_s = self.get_concentration(z, Mh, return_Rs=True)
+        c = self.get_concentration(z, Mh)
+        rvir = self.get_Rvir_from_Mh(Mh)
+        r_s = c / rvir
 
         K = k * r_s
 
