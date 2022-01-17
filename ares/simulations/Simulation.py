@@ -12,25 +12,25 @@ from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m
 
-class Simulation(AnalyzePS): # pragma: no cover
+class Simulation(object): # pragma: no cover
     def __init__(self, pf=None, **kwargs):
-        """ Set up a power spectrum calculation. """
+        """ Wrapper class designed to facilitate easy runs of any simulation. """
 
         # See if this is a tanh model calculation
-        if 'problem_type' not in kwargs:
-            kwargs['problem_type'] = 102
+        #if 'problem_type' not in kwargs:
+        #    kwargs['problem_type'] = 102
 
-        self.tab_kwargs = kwargs
+        self.kwargs = kwargs
 
         if pf is None:
-            self.pf = ParameterFile(**self.tab_kwargs)
+            self.pf = ParameterFile(**kwargs)
         else:
             self.pf = pf
 
     @property
     def gs(self):
         if not hasattr(self, '_gs'):
-            self._gs = Global21cm(**self.tab_kwargs)
+            self._gs = Global21cm(**self.kwargs)
         return self._gs
 
     @gs.setter
@@ -49,6 +49,10 @@ class Simulation(AnalyzePS): # pragma: no cover
         if not hasattr(self, '_mean_intensity'):
             self._mean_intensity = self.gs.medium.field
         return self._mean_intensity
+
+    @property
+    def background_intensity(self):
+        return self.mean_intensity
 
     def _cache_ebl(self, waves=None, wave_units='mic', flux_units='SI',
         pops=None):
@@ -97,8 +101,8 @@ class Simulation(AnalyzePS): # pragma: no cover
         if cached_result is not None:
             return cached_result
 
-        if not self.mean_intensity._run_complete:
-            self.mean_intensity.run()
+        if not self.background_intensity._run_complete:
+            self.background_intensity.run()
 
         if waves is not None:
             all_x = waves
@@ -298,7 +302,11 @@ class Simulation(AnalyzePS): # pragma: no cover
         pass
 
     def run_ebl(self):
-        pass
+        hist = self.mean_intensity.run()
+        if not self.mean_intensity._run_complete:
+            self.mean_intensity.run()
+
+
 
     def run_nirb_ps(self):
         pass
@@ -309,11 +317,13 @@ class Simulation(AnalyzePS): # pragma: no cover
 
         return self.history['ps_21cm']
 
-    def get_gs_21cm(self):
-        if 'gs_21cm' not in self.history:
+    def get_21cm_gs(self):
+        if '21cm_gs' not in self.history:
             self.gs.run()
 
-        return self.history['gs_21cm']
+            self.history['21cm_gs'] = self.gs.history
+
+        return self.history['21cm_gs']
 
     def run_gs_21cm(self):
         self.gs.run()

@@ -9,7 +9,7 @@ Description: Defaults for all different kinds of parameters.
 
 """
 
-import os, imp
+import os
 import numpy as np
 from ..data import ARES
 from ares import rcParams

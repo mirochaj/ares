@@ -21,17 +21,8 @@ try:
 except IndexError:
     degrade_to = 10
 
-try:
-    single_fn = sys.argv[2]
-except IndexError:
-    single_fn = None    
-
 for fn in os.listdir('SEDS'):
-        
-    if single_fn is not None:
-        if fn != single_fn.replace('SEDS/', ''):
-            continue
-
+    
     if fn.split('.')[-1].startswith('deg'):
         continue
         
@@ -50,15 +41,11 @@ for fn in os.listdir('SEDS'):
     wave = data[:,0]
     
     ok = wave % degrade_to == 0
-    new_dims = data.shape[0] // degrade_to
-            
-    if new_dims == ok.sum() - 1:
-        new_dims += 1
     
     new_wave = wave[ok==1]
-    new_data = np.zeros((new_dims, data.shape[1]))
+    new_data = np.zeros((data.shape[0] / degrade_to, data.shape[1]))
     new_data[:,0] = new_wave
-        
+    
     for i in range(data.shape[1]):
         if i == 0:
             continue
@@ -66,6 +53,7 @@ for fn in os.listdir('SEDS'):
         ys = smooth(data[:,i], degrade_to+1)[ok==1]
         
         new_data[:,i] = ys
+        
         
     np.savetxt(out_fn, new_data)
     print("Wrote {}".format(out_fn)) 
