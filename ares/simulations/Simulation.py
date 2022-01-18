@@ -75,15 +75,19 @@ class Simulation(object): # pragma: no cover
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str
             Current options: 'cgs', 'SI'
+        pops : list
+            If supplied, should be a list of populations to be included, i.e.,
+            their (integer) ID numbers (see `self.pops` attribute for list
+            of objects).
 
         .. note :: 'SI' units means nW / m^2 / sr, 'cgs' means erg/s/Hz/sr.
 
         Returns
         -------
-        Tuple containing (observed wavelength, observed flux). Note that if
-        `waves` is not None, the returned flux array will have shape
-        (num source populations, num waves). If not, it will be 1-D with
-        the same length as output observed wavelengths.
+        Dictionary containing EBL for each source population, with the ID
+        number used as a dictionary key. Each element is a tuple containing
+        the (observed energies (or wavelengths) in `wave_units`,
+        observed fluxes in `flux_units`).
 
         """
 
