@@ -515,7 +515,7 @@ def print_pop(pop):
 
 def _rad_type(sim, fluctuations=False):
     rows = []
-    cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Ly-a', 'LW', 'Ly-C', 'X-ray', 'RTE']
+    cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Lya', 'LW', 'LyC', 'Xray', 'RTE']
     data = []
     for i, pop in enumerate(sim.pops):
         rows.append('pop #%i' % i)
@@ -538,7 +538,7 @@ def _rad_type(sim, fluctuations=False):
                 if is_src:
                     tmp.append('x')
                 else:
-                    tmp.append(' ')
+                    tmp.append('-')
 
             # No analog for RTE solution for fluctuations (yet)
             if fl:
@@ -580,18 +580,20 @@ def print_sim(sim, mgb=False):
         print("#"*width)
         return
 
-    print(line('-'*twidth))
+    cw =print(line('-'*twidth))
     print(line('Source Populations'))
     print(line('-'*twidth))
 
     data, rows, cols = _rad_type(sim)
 
-    tabulate(data, rows, cols, cwidth=[settings['col']]*10, fmt='{!s}')
+    cw = settings['col']
+    cwidth = [cw+1, cw+4] + [cw] * 8
+    tabulate(data, rows, cols, cwidth=cwidth, fmt='{!s}')
 
     #print line('-'*twidth)
     #print line('Fluctuating Backgrounds')
     #print line('-'*twidth)
-    #
+    #cw =
     #data, rows, cols = _rad_type(sim, fluctuations=True)
     #tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
 
