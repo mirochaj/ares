@@ -3530,8 +3530,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         P(k)
         """
 
-        lum1 = self.Luminosity(z, wave1, raw, nebular_only=nebular_only)
-        lum2 = self.Luminosity(z, wave2, raw, nebular_only=nebular_only)
+        lum1 = self.get_lum(z, wave=wave1, raw=raw, nebular_only=nebular_only)
+        lum2 = self.get_lum(z, wave=wave2, raw=raw, nebular_only=nebular_only)
 
         ps = self.halos.get_ps_shot(z, k=k,
             lum1=lum1, lum2=lum2,
@@ -3599,11 +3599,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if np.all(np.array(wave1) <= 912):
             lum1 = 0
         else:
-            lum1 = self.Luminosity(z, wave1, raw, nebular_only)
+            lum1 = self.get_lum(z, wave=wave1, raw=raw,
+                nebular_only=nebular_only)
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
-            lum2 = self.Luminosity(z, wave2, raw, nebular_only)
+            lum2 = self.get_lum(z, wave=wave2, raw=raw,
+                nebular_only=nebular_only)
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
@@ -3707,7 +3709,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return ps
 
-    def get_ps_obs(self, scale, wave_obs1, wave_obs2, include_shot=True,
+    def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
         time_res=1, raw=True, nebular_only=False, prof=None):
         """
@@ -3741,6 +3743,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr = zarr[::time_res]
 
         dtdz = self.cosm.dtdz(zarr)
+
+        if wave_obs2 is None:
+            wave_obs2 = wave_obs1
 
         ##
         # Loop over scales of interest if given an array.
@@ -3785,12 +3790,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # monochromatic PS
         assert type(wave_obs1) == type(wave_obs2)
 
+        print(type(wave_obs1), type(ps))
+
         if type(wave_obs1) not in [tuple, list]:
-            ps *= (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+            ps = ps * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
         else:
-            ps /= c / (np.array(wave_obs1)[0] * 1e-4) - c / (np.array(wave_obs1)[1] * 1e-4)
-            ps /= c / (np.array(wave_obs2)[0] * 1e-4) - c / (np.array(wave_obs2)[1] * 1e-4)
-            ps *= (c / (np.mean(np.array(wave_obs1)) * 1e-4)) * (c / (np.mean(np.array(wave_obs2)) * 1e-4))
+            ps /= c / (np.array(wave_obs1)[0] * 1e-4) \
+                - c / (np.array(wave_obs1)[1] * 1e-4)
+            ps /= c / (np.array(wave_obs2)[0] * 1e-4) \
+                - c / (np.array(wave_obs2)[1] * 1e-4)
+            ps = ps * (c / (np.mean(np.array(wave_obs1)) * 1e-4)) \
+                * (c / (np.mean(np.array(wave_obs2)) * 1e-4))
 
         return ps
 
@@ -3800,6 +3810,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Compute integrand of angular power spectrum integral.
         """
+
+        if wave_obs2 is None:
+            wave_obs2 = wave_obs1
 
         ##
         # Convert to Angstroms in rest frame. Determine emissivity.
@@ -3831,6 +3844,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # [enu] = erg/s/cm^3
             enu1 = self.get_emissivity(z, Emin=E21, Emax=E11)
+
         if type(wave_obs2) in [int, float, np.float64]:
             is_band_int = False
 

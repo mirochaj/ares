@@ -211,9 +211,11 @@ class Simulation(object): # pragma: no cover
         if type(waves) != np.ndarray:
             waves = np.array([waves])
 
+        waves_is_2d = False
         if waves.ndim == 2:
             assert waves.shape[1] == 2, \
                 "If `waves` is 2-D, must have shape (num waves, 2)."
+            waves_is_2d = True
 
         # Prep scales
         if scale_units.lower() in ['l', 'ell']:
@@ -247,7 +249,13 @@ class Simulation(object): # pragma: no cover
                     continue
 
             for j, wave in enumerate(waves):
-                ps[i,:,j] = pop.get_ps_obs(scales, wave_obs=wave,
+
+                if waves_is_2d:
+                    w1, w2 = wave
+                else:
+                    w1 = w2 = wave
+
+                ps[i,:,j] = pop.get_ps_obs(scales, wave_obs1=w1, wave_obs2=w2,
                     scale_units=scale_units, **kwargs)
 
 
