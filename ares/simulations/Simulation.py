@@ -54,32 +54,23 @@ class Simulation(object): # pragma: no cover
     def background_intensity(self):
         return self.mean_intensity
 
-    def _cache_ebl(self, waves=None, wave_units='mic', flux_units='SI',
-        pops=None):
+    def _cache_ebl(self, wave_units='mic', flux_units='SI', pops=None):
         if not hasattr(self, '_cache_ebl_'):
             self._cache_ebl_ = {}
 
         # Could be clever and convert units here.
-        if (wave_units, flux_units, pops) in self._cache_ebl_:
-            _waves, _fluxes = self._cache_ebl_[(wave_units, flux_units, pops)]
-            if waves is None:
-                return _waves, _fluxes
-            elif _waves.size == waves.size:
-                if np.all(_waves == waves):
-                    return _waves, _fluxes
+        if (wave_units, flux_units) in self._cache_ebl_:
+            _data = self._cache_ebl_[(wave_units, flux_units)]
+            return _data
 
         return None
 
-    def get_ebl(self, waves=None, wave_units='mic', flux_units='SI',
-        pops=None):
+    def get_ebl(self, wave_units='mic', flux_units='SI', pops=None):
         """
         Return the extragalactic background light (EBL) over all wavelengths.
 
         Parameters
         ----------
-        waves : np.ndarray
-            If provided, will interpolate fluxes from each source population
-            onto common grid.
         wave_units : str
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str
@@ -96,22 +87,19 @@ class Simulation(object): # pragma: no cover
 
         """
 
-        cached_result = self._cache_ebl(waves, wave_units, flux_units,
-            pops)
+        cached_result = self._cache_ebl(wave_units, flux_units)
         if cached_result is not None:
-            return cached_result
+            data = cached_result
+        else:
+            data = {}
 
         if not self.background_intensity._run_complete:
             self.background_intensity.run()
 
-        if waves is not None:
-            all_x = waves
-            all_y = np.zeros((len(self.pops), len(waves)))
-        else:
-            all_x = []
-            all_y = []
-
         for i in range(len(self.pops)):
+            if i in data:
+                continue
+
             if pops is not None:
                 if i not in pops:
                     continue
@@ -131,43 +119,12 @@ class Simulation(object): # pragma: no cover
                     wave_units
                 ))
 
-            lo, hi = x.min(), x.max()
+            data[i] = E, flux
 
-            # Check for overlap, warn user if they should use `waves`
-            if i > 0:
-                lo_all, hi_all = np.min(all_x), np.max(all_x)
+        # Cache
+        self._cache_ebl_[(wave_units, flux_units)] = data
 
-                is_overlap = (lo_all <= lo <= hi_all) or (lo_all <= hi <= hi_all)
-                if waves is None and is_overlap:
-                    print("# WARNING: Overlap in spectral coverage of population #{}. Consider using `waves` keyword argument.".format(i))
-
-            #
-
-            # Either save EBL as potentially-disjointed array of energies
-            # OR interpolate to common wavelength grid if `waves` is not None.
-            if waves is not None:
-                if not np.all(np.diff(x) > 0):
-                    all_y[i,:] = np.exp(np.interp(np.log(waves[-1::-1]),
-                        np.log(x[-1::-1]), np.log(flux[-1::-1])))[-1::-1]
-                else:
-                    all_y[i,:] = np.exp(np.interp(np.log(waves), np.log(x),
-                        np.log(flux)))
-            else:
-                all_x.extend(E)
-                all_y.extend(flux)
-
-                # Put a gap between chunks to avoid weird plotting artifacts
-                all_x.append(-np.inf)
-                all_y.append(-np.inf)
-
-        x = np.array(all_x)
-        y = np.array(all_y)
-
-        if pops is None:
-            hist = self.history # poke
-            self._history['ebl'] = x, y
-
-        return x, y
+        return data
 
     def get_ps_galaxies(self, scales, waves, wave_units='mic',
         scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
