@@ -120,7 +120,6 @@ uvlf = \
  13: {'alpha': -2.13, 'log_phi_star': -11.71, 'M_star': -19.11},
 }
 
-
 def schechter_jaacks(M, log_phi_star=-9, M_star=-20, alpha=-2):
     """
     .. note :: There's a typo in Eq. 5 of Y. Feng et al. (2016). They had

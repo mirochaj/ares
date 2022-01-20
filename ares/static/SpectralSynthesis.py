@@ -138,10 +138,10 @@ class SpectralSynthesis(object):
 
         # Scorched earth option: null all flux at < 912 Angstrom
         if self.pf['tau_clumpy'] == 1:
-            tau[rwaves <= lam_LL] = np.inf
+            tau[rwaves < lam_LL] = np.inf
         # Or all wavelengths < 1216 A (rest)
         elif self.pf['tau_clumpy'] == 2:
-            tau[rwaves <= lam_LyA] = np.inf
+            tau[rwaves < lam_LyA] = np.inf
         else:
             tau = self.madau1995(z, owaves)
 
