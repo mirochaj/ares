@@ -164,6 +164,9 @@ def test():
     rdiff = np.abs(Sigma1 - Sigma2) / Sigma2
     assert rdiff[Sigma2 > 0].mean() < 0.1
 
+    # Try volume density
+    x, n = pop.get_volume_density(6, bins=amag_bins)
+
     # Test nebular line emission stuff
     pars['pop_nebular'] = 2
     pop_neb = ares.populations.GalaxyPopulation(**pars)

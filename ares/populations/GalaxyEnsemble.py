@@ -3525,7 +3525,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
             method=method, window=window, load=load, presets=presets,
             absolute=absolute, use_mags=use_mags, use_central_z=True,
-            zstep=zstep, return_evol=return_evo, use_volume=False)
+            zstep=zstep, return_evol=return_evol, use_volume=False)
 
     def load(self):
         """
