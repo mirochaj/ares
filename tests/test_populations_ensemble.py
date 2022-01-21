@@ -80,12 +80,12 @@ def test():
     assert 1e4 <= np.mean(Md) <= 1e10, "Dust masses unreasonable!"
 
     # Test extinction
-    AUV = pop.get_AUV(6., magbins=mags_cr, return_binned=False)
+    x, AUV = pop.get_AUV(6., magbins=mags_cr, return_binned=False)
 
     assert np.all(AUV >= 0), "AUV < 0! AUV={}".format(AUV)
     assert 0 < np.mean(AUV) <= 3, "AUV unreasonable!"
 
-    AUV2 = pop.get_AUV(6., magbins=mags_cr, return_binned=True)
+    x2, AUV2 = pop.get_AUV(6., magbins=mags_cr, return_binned=True)
     assert AUV2.size == mags_cr.size
     AUV20 = AUV2[np.argmin(np.abs(mags_cr + 20))]
     AUV16 = AUV2[np.argmin(np.abs(mags_cr + 16))]
