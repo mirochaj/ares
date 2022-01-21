@@ -2782,10 +2782,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             x = np.arange(6.5, 14, 0.25)
 
+        if yok.sum() == 0:
+            return x, np.zeros_like(x)
+
         # Make sure binning range covers the range of luminosities/magnitudes
         if use_mags:
-            assert y[yok==1].min() > x.min()
-            assert y[yok==1].max() < x.max()
+            mi, ma = y[yok==1].min(), y[yok==1].max()
+            assert mi > x.min(), "{} NOT > {}".format(mi, x.min())
+            assert ma < x.max(), "{} NOT < {}".format(ma, x.max())
         else:
             assert y[yok==1].min() < x.min()
             assert y[yok==1].max() > x.max()
@@ -3435,7 +3439,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
         cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=False, use_mags=True):
+        window=1, load=True, presets=None, absolute=False, use_mags=True,
+        use_central_z=True, zstep=0.1, return_evol=False, use_volume=True):
         """
         Compute surface density of galaxies [number / deg^2 / dz]
 
@@ -3446,18 +3451,47 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         square degree.
         """
 
-        # First, compute the luminosity function.
-        x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
-            filters=filters, filter_set=filter_set, dlam=dlam, method=method,
-            window=window, load=load, presets=presets, absolute=absolute,
-            use_mags=use_mags)
+        # Simplest thing: take central redshift, assume same UVLF throughout
+        # dz interval along LOS.
+        if use_central_z:
+            # First, compute the luminosity function.
+            x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
+                filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                window=window, load=load, presets=presets, absolute=absolute,
+                use_mags=use_mags)
 
-        # Compute the volume of the shell we're looking at [cMpc^3]
-        vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+            # Compute the volume of the shell we're looking at [cMpc^3]
+            if use_volume:
+                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+            else:
+                vol = 1
 
-        # Number of galaxies per mag bin in survey area.
-        # Currently neglects evolution of LF along LoS.
-        Ngal = phi * vol
+            # Get total number of galaxies in volume
+            Ngal = phi * vol
+        else:
+            # Sub-sample redshift interval
+            zbin_e = np.arange(z - 0.5 * dz, z + 0.5 * dz, zstep)
+
+            phi = np.zeros((zbin_e.size, bins.size))
+            vol = np.zeros_like(zbin_e)
+            for i, ze in enumerate(zbin_e):
+                zmid = ze + 0.5 * zstep
+
+                # Compute LF at midpoint of this bin.
+                x, phi[i] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
+                    filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                    window=window, load=load, presets=presets, absolute=absolute,
+                    use_mags=use_mags)
+
+                # Compute the volume of the shell we're looking at [cMpc^3]
+                if use_volume:
+                    vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
+                        dz=zstep)
+                else:
+                    vol[i] = 1
+
+            # Integrate over the redshift interval
+            Ngal = np.sum(phi * vol[:,None], axis=0)
 
         # Faint to bright
         Ngal_asc = Ngal[-1::-1]
@@ -3472,7 +3506,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ntot = np.trapz(Ngal, x=x)
         nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
 
-        return x, nltm
+        if return_evol and (not use_central_z):
+            return x, nltm, zbin_e, phi, vol
+        else:
+            return x, nltm
+
+    def get_volume_density(self, z, bins=None, wave=1600.,
+        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
+        window=1, load=True, presets=None, absolute=False, use_mags=True,
+        use_central_z=True, zstep=0.1, return_evol=False):
+        """
+        Return volume density of galaxies in given `dz` chunk.
+
+        .. note :: Just a wrapper around `get_surface_density`, with
+            hack parameter `use_volume` set to False and `use_central_z` to
+            True.
+
+
+        """
+
+        return self.get_surface_density(z, bins=bins, wave=wave,
+            cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
+            method=method, window=window, load=load, presets=presets,
+            absolute=absolute, use_mags=use_mags, use_central_z=True,
+            zstep=zstep, return_evol=return_evol, use_volume=False)
 
     def load(self):
         """

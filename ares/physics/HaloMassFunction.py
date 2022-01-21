@@ -9,8 +9,11 @@ Description:
 
 """
 
+import os
+import re
+import sys
 import glob
-import os, re, sys
+import pickle
 import numpy as np
 from . import Cosmology
 from ..data import ARES
@@ -469,7 +472,7 @@ class HaloMassFunction(object):
                         self.pf['hmf_cache']
             return
 
-        if self.pf['hmf_pca'] is not None:
+        if self.pf['hmf_pca'] is not None: # pragma: no cover
             f = h5py.File(self.pf['hmf_pca'], 'r')
             self.tab_z = np.array(f[('tab_z')])
             self.tab_M = np.array(f[('tab_M')])
@@ -663,7 +666,7 @@ class HaloMassFunction(object):
             self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
 
             for i, z in enumerate(self.tab_z):
-                self._tab_bias[i] = self.Bias(z)
+                self._tab_bias[i] = self.get_bias(z)
 
         return self._tab_bias
 
@@ -773,7 +776,7 @@ class HaloMassFunction(object):
         self.tab_dlnsdlnm = self._MF._dlnsdlnm
 
         # Collect results!
-        if size > 1:
+        if size > 1: # pragma: no cover
             tmp2 = np.zeros_like(self.tab_dndm)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_dndm, tmp2)
             self.tab_dndm = tmp2
@@ -834,7 +837,7 @@ class HaloMassFunction(object):
         self.tab_traj = MM
 
 
-        if size > 1:
+        if size > 1: # pragma: no cover
             tmp = np.zeros_like(self.tab_traj)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_traj, tmp)
             self.tab_traj = tmp.copy()
@@ -897,7 +900,7 @@ class HaloMassFunction(object):
 
         self._tab_MAR = arr
 
-        if size > 1:
+        if size > 1: # pragma: no cover
             tmp = np.zeros_like(self.tab_MAR)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_MAR, tmp)
             self._tab_MAR = tmp
@@ -1059,6 +1062,12 @@ class HaloMassFunction(object):
         self._fcoll_spline_2d = value
 
     def Bias(self, z):
+        return self.get_bias(z)
+
+    def get_bias(self, z):
+        """
+        Compute the halo bias for all halos (over self.tab_M) at redshift `z`.
+        """
 
         g = np.interp(z, self.tab_z, self.tab_growth)
 
@@ -1091,42 +1100,6 @@ class HaloMassFunction(object):
             raise NotImplemented('No bias for non-PS non-ST MF yet!')
 
         return bias
-
-    @property
-    def LinearPS(self):
-        """
-        Interpolant for the linear matter power spectrum.
-
-        Parameters
-        ----------
-        z : int, float
-            Redshift of interest.
-        lnk : int, float
-            Nature log of the wavenumber of interest.
-
-        """
-        if not hasattr(self, '_LinearPS'):
-            self._LinearPS = RectBivariateSpline(self.tab_z,
-                np.log(self.tab_k_lin), self.tab_ps_lin, kx=3, ky=3)
-        return self._LinearPS
-
-    @property
-    def LinearPS(self):
-        """
-        Interpolant for the linear matter power spectrum.
-
-        Parameters
-        ----------
-        z : int, float
-            Redshift of interest.
-        lnk : int, float
-            Nature log of the wavenumber of interest.
-
-        """
-        if not hasattr(self, '_LinearPS'):
-            self._LinearPS = RectBivariateSpline(self.tab_z,
-                np.log(self.tab_k_lin), self.tab_ps_lin, kx=3, ky=3)
-        return self._LinearPS
 
     def fcoll_2d(self, z, logMmin):
         """
@@ -1211,6 +1184,9 @@ class HaloMassFunction(object):
         return self._MAR_func_
 
     def VirialTemperature(self, z, M, mu=0.6):
+        return self.get_Tvir(z, M, mu=mu)
+
+    def get_Tvir(self, z, M, mu=0.6):
         """
         Compute virial temperature corresponding to halo of given mass and
         collapse redshift.
@@ -1229,6 +1205,9 @@ class HaloMassFunction(object):
             ((1. + z) / 10.)
 
     def VirialMass(self, z, T, mu=0.6):
+        return self.get_Mvir(z, T, mu=mu)
+
+    def get_Mvir(self, z, T, mu=0.6):
         """
         Compute virial mass corresponding to halo of given virial temperature
         and collapse redshift.
@@ -1242,6 +1221,9 @@ class HaloMassFunction(object):
             * ((1. + z) / 10.)**-1.5
 
     def VirialRadius(self, z, M, mu=0.6):
+        return self.get_Rvir(z, M, mu=mu)
+
+    def get_Rvir(self, z, M, mu=0.6):
         """
         Compute virial radius corresponding to halo of given virial mass
         and collapse redshift.
@@ -1255,9 +1237,15 @@ class HaloMassFunction(object):
             * ((1. + z) / 10.)**-1.
 
     def CircularVelocity(self, z, M, mu=0.6):
+        return self.get_vcirc(z, M, mu=mu)
+
+    def get_vcirc(self, z, M, mu=0.6):
         return np.sqrt(G * M * g_per_msun / self.VirialRadius(z, M, mu) / cm_per_kpc)
 
     def EscapeVelocity(self, z, M, mu=0.6):
+        return self.get_vesc(z, M, mu=mu)
+
+    def get_vesc(self, z, M, mu=0.6):
         return np.sqrt(2. * G * M * g_per_msun / self.VirialRadius(z, M, mu) / cm_per_kpc)
 
     def MassFromVc(self, z, Vc):
@@ -1291,6 +1279,9 @@ class HaloMassFunction(object):
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
 
     def DynamicalTime(self, z, M=1e12, mu=0.6):
+        return self.get_tdyn(z, M=M, mu=mu)
+
+    def get_tdyn(self, z, M=1e12, mu=0.6):
         """
         Doesn't actually depend on mass, just need to plug something in
         so we don't crash.
@@ -1430,6 +1421,11 @@ class HaloMassFunction(object):
 
     def SaveHMF(self, fn=None, clobber=False, destination=None, fmt='hdf5',
         save_MAR=True):
+        self.save(fn=fn, clobber=clobber, destination=destination, fm=fmt,
+            save_MAR=save_MAR)
+
+    def save(self, fn=None, clobber=False, destination=None, fmt='hdf5',
+        save_MAR=True):
         """
         Save mass function table to HDF5 or binary (via pickle).
 
@@ -1517,26 +1513,25 @@ class HaloMassFunction(object):
 
         # Otherwise, pickle it!
         else:
-            f = open(fn, 'wb')
-            pickle.dump(self.tab_z, f)
-            pickle.dump(self.tab_M, f)
-            pickle.dump(self.tab_dndm, f)
-            pickle.dump(self.tab_ngtm, f)
-            pickle.dump(self.tab_mgtm, f)
+            with open(fn, 'wb') as f:
+                pickle.dump(self.tab_z, f)
+                pickle.dump(self.tab_M, f)
+                pickle.dump(self.tab_dndm, f)
+                pickle.dump(self.tab_ngtm, f)
+                pickle.dump(self.tab_mgtm, f)
 
-            if save_MAR:
-                pickle.dump(self.tab_MAR, f)
+                if save_MAR:
+                    pickle.dump(self.tab_MAR, f)
 
-            pickle.dump(self.tab_Mmin_floor, f)
-            pickle.dump(self.tab_ps_lin, f)
-            pickle.dump(self.tab_sigma, f)
-            pickle.dump(self.tab_dlnsdlnm, f)
-            pickle.dump(self.tab_k_lin)
-            pickle.dump(self.tab_growth, f)
-            pickle.dump({'pars_growth': self.pars_growth,
-                'pars_transfer': self.pars_transfer}, f)
-            pickle.dump(dict(('hmf-version', hmf_v)))
-            f.close()
+                pickle.dump(self.tab_Mmin_floor, f)
+                pickle.dump(self.tab_ps_lin, f)
+                pickle.dump(self.tab_sigma, f)
+                pickle.dump(self.tab_dlnsdlnm, f)
+                pickle.dump(self.tab_k_lin, f)
+                pickle.dump(self.tab_growth, f)
+
+                # Should save cosmology
+                pickle.dump({'hmf-version': hmf_v}, f)
 
         print('# Wrote {!s}.'.format(fn))
 

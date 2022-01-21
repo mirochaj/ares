@@ -156,6 +156,17 @@ def test():
     x, Sigma = pop.get_surface_density(6, bins=amag_bins)
     assert 1e3 <= Sigma[np.argmin(np.abs(amag_bins - 27))] <= 1e4
 
+    # Test surface density integral sub-sampling. Should be a small effect.
+    x1, Sigma1 = pop.get_surface_density(6, dz=0.1, bins=amag_bins)
+    x2, Sigma2 = pop.get_surface_density(6, dz=0.1, bins=amag_bins,
+        use_central_z=False, zstep=0.05)
+
+    rdiff = np.abs(Sigma1 - Sigma2) / Sigma2
+    assert rdiff[Sigma2 > 0].mean() < 0.1
+
+    # Try volume density
+    x, n = pop.get_volume_density(6, bins=amag_bins)
+
     # Test nebular line emission stuff
     pars['pop_nebular'] = 2
     pop_neb = ares.populations.GalaxyPopulation(**pars)
