@@ -3436,7 +3436,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
         cam=None, filters=None, filter_set=None, dlam=20., method='closest',
         window=1, load=True, presets=None, absolute=False, use_mags=True,
-        use_central_z=True, zstep=0.1, return_evol=False):
+        use_central_z=True, zstep=0.1, return_evol=False, use_volume=True):
         """
         Compute surface density of galaxies [number / deg^2 / dz]
 
@@ -3457,7 +3457,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 use_mags=use_mags)
 
             # Compute the volume of the shell we're looking at [cMpc^3]
-            vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+            if use_volume:
+                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+            else:
+                vol = 1
 
             # Get total number of galaxies in volume
             Ngal = phi * vol
@@ -3477,7 +3480,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     use_mags=use_mags)
 
                 # Compute the volume of the shell we're looking at [cMpc^3]
-                vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta, dz=zstep)
+                if use_volume:
+                    vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
+                        dz=zstep)
+                else:
+                    vol[i] = 1
 
             # Integrate over the redshift interval
             Ngal = np.sum(phi * vol[:,None], axis=0)
@@ -3499,6 +3506,26 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return x, nltm, zbin_e, phi, vol
         else:
             return x, nltm
+
+    def get_volume_density(self, z, bins=None, wave=1600.,
+        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
+        window=1, load=True, presets=None, absolute=False, use_mags=True,
+        use_central_z=True, zstep=0.1, return_evol=False):
+        """
+        Return volume density of galaxies in given `dz` chunk.
+
+        .. note :: Just a wrapper around `get_surface_density`, with
+            hack parameter `use_volume` set to False and `use_central_z` to
+            True.
+
+
+        """
+
+        return self.get_surface_density(z, bins=bins, wave=wave,
+            cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
+            method=method, window=window, load=load, presets=presets,
+            absolute=absolute, use_mags=use_mags, use_central_z=True,
+            zstep=zstep, return_evol=return_evo, use_volume=False)
 
     def load(self):
         """
