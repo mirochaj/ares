@@ -3790,15 +3790,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # monochromatic PS
         assert type(wave_obs1) == type(wave_obs2)
 
-        print(type(wave_obs1), type(ps))
-
         if type(wave_obs1) not in [tuple, list]:
             ps = ps * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
         else:
-            ps /= c / (np.array(wave_obs1)[0] * 1e-4) \
-                - c / (np.array(wave_obs1)[1] * 1e-4)
-            ps /= c / (np.array(wave_obs2)[0] * 1e-4) \
-                - c / (np.array(wave_obs2)[1] * 1e-4)
+            ps = ps / (c / (np.array(wave_obs1)[0] * 1e-4) \
+                - c / (np.array(wave_obs1)[1] * 1e-4))
+            ps = ps / (c / (np.array(wave_obs2)[0] * 1e-4) \
+                - c / (np.array(wave_obs2)[1] * 1e-4))
             ps = ps * (c / (np.mean(np.array(wave_obs1)) * 1e-4)) \
                 * (c / (np.mean(np.array(wave_obs2)) * 1e-4))
 

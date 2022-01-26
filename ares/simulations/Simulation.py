@@ -65,7 +65,8 @@ class Simulation(object): # pragma: no cover
 
         return None
 
-    def get_ebl(self, wave_units='mic', flux_units='SI', pops=None):
+    def get_ebl(self, wave_units='mic', flux_units='SI', pops=None,
+        zlow=None):
         """
         Return the extragalactic background light (EBL) over all wavelengths.
 
@@ -79,6 +80,9 @@ class Simulation(object): # pragma: no cover
             If supplied, should be a list of populations to be included, i.e.,
             their (integer) ID numbers (see `self.pops` attribute for list
             of objects).
+        zlow : int, float
+            If provided, will truncate integral over redshift so that the EBL
+            includes only emission from sources at z >= zlow.
 
         .. note :: 'SI' units means nW / m^2 / sr, 'cgs' means erg/s/Hz/sr.
 
@@ -108,8 +112,12 @@ class Simulation(object): # pragma: no cover
                 if i not in pops:
                     continue
 
-            zf = self.pops[i].zdead
-            E, flux = self.mean_intensity.flux_today(zf=None, popids=i,
+            if zlow is not None:
+                zf = zlow
+            else:
+                zf = self.pops[i].zdead
+
+            E, flux = self.mean_intensity.flux_today(zf=zf, popids=i,
                 units=flux_units)
 
             if wave_units.lower() == 'ev':
@@ -130,7 +138,7 @@ class Simulation(object): # pragma: no cover
 
         return data
 
-    def get_ps_galaxies(self, scales, waves, wave_units='mic',
+    def get_galaxy_ps(self, scales, waves, wave_units='mic',
         scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
         **kwargs):
         """
@@ -151,6 +159,22 @@ class Simulation(object): # pragma: no cover
             Current options: 'cgs', 'SI'
         scale_units : str
             Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
+
+        Optional keyword arguments
+        --------------------------
+        The `get_ps_obs` methods within ares.populations objects take a
+        number of optional arguments that control the output. These include:
+
+        time_res : int, float
+            Time resolution [in Myr] to use when integrating to obtain the
+            total flux due to sources over all redshifts.
+        include_1h : bool
+            If False, exclude 1-halo term from calculation [Default: True]
+        include_2h : bool
+            If False, exclude 2-halo term from calculation [Default: True]
+        include_shot : bool
+            If False, exclude shot noise term from calculation [Default: True]
+
 
         Returns
         -------
@@ -275,11 +299,6 @@ class Simulation(object): # pragma: no cover
         if not self.mean_intensity._run_complete:
             self.mean_intensity.run()
 
-
-
-    def run_nirb_ps(self):
-        pass
-
     def get_ps_21cm(self):
         if 'ps_21cm' not in self.history:
             self.run_ps_21cm()
@@ -297,6 +316,14 @@ class Simulation(object): # pragma: no cover
     def run_gs_21cm(self):
         self.gs.run()
         self.history['gs_21cm'] = self.gs.history
+
+    def get_21cm_ps(self, z=None, k=None):
+        if '21cm_ps' not in self.history:
+            hist = self.run_ps_21cm(z, k)
+
+            self.history['21cm_ps'] = hist
+
+        return self.history['21cm_ps']
 
     def run_ps_21cm(self, z=None, k=None):
         """
@@ -552,7 +579,6 @@ class Simulation(object): # pragma: no cover
 
             self.tab_R_s = R_s
             self.Th = Th
-
 
             ##
             # First: some global quantities we'll need

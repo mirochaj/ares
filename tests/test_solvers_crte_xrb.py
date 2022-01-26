@@ -104,7 +104,7 @@ def test(tol=1e-2):
             # fluxes in the form (Npops, Nbands, Nfreq)
             heat[j] = mgb.solver.volume.HeatingRate(redshift, fluxes=[flux[j]])
             ioniz[j] = mgb.solver.volume.IonizationRateIGM(redshift, fluxes=[flux[j]])
-            
+
 
 if __name__ == '__main__':
     test()
