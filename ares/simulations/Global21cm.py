@@ -50,8 +50,8 @@ class Global21cm(AnalyzeGlobal21cm):
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
-        if 'problem_type' not in kwargs:
-            kwargs['problem_type'] = 101
+        #if 'problem_type' not in kwargs:
+        #    kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
 

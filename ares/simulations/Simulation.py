@@ -7,6 +7,7 @@ from ..static import Fluctuations
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
 from ..util import ParameterFile, ProgressBar
+from .MetaGalacticBackground import MetaGalacticBackground
 #from ..analysis.BlobFactory import BlobFactory
 from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
@@ -47,20 +48,21 @@ class Simulation(object): # pragma: no cover
     @property
     def mean_intensity(self):
         if not hasattr(self, '_mean_intensity'):
-            self._mean_intensity = self.gs.medium.field
+            self._mean_intensity = MetaGalacticBackground(**self.pf)
+            #self._mean_intensity = self.gs.medium.field
         return self._mean_intensity
 
     @property
     def background_intensity(self):
         return self.mean_intensity
 
-    def _cache_ebl(self, wave_units='mic', flux_units='SI', pops=None):
+    def _cache_ebl(self, wave_units='mic', flux_units='SI', zlow=None):
         if not hasattr(self, '_cache_ebl_'):
             self._cache_ebl_ = {}
 
         # Could be clever and convert units here.
-        if (wave_units, flux_units) in self._cache_ebl_:
-            _data = self._cache_ebl_[(wave_units, flux_units)]
+        if (wave_units, flux_units, zlow) in self._cache_ebl_:
+            _data = self._cache_ebl_[(wave_units, flux_units, zlow)]
             return _data
 
         return None
@@ -95,7 +97,7 @@ class Simulation(object): # pragma: no cover
 
         """
 
-        cached_result = self._cache_ebl(wave_units, flux_units)
+        cached_result = self._cache_ebl(wave_units, flux_units, zlow)
         if cached_result is not None:
             data = cached_result
         else:
@@ -131,10 +133,10 @@ class Simulation(object): # pragma: no cover
                     wave_units
                 ))
 
-            data[i] = E, flux
+            data[i] = x, flux
 
         # Cache
-        self._cache_ebl_[(wave_units, flux_units)] = data
+        self._cache_ebl_[(wave_units, flux_units, zlow)] = data
 
         return data
 

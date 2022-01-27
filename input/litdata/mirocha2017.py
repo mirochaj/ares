@@ -11,12 +11,25 @@ from ares.physics.Constants import E_LyA, E_LL
 dpl = \
 {
 
+ # For reionization problem
+ 'load_ics': True,
+ 'cosmological_ics': True,
+
  # Halos, MAR, etc.
- 'pop_Tmin{0}': 1e4,
- 'pop_Tmin{1}': 'pop_Tmin{0}',
  'pop_sfr_model{0}': 'sfe-func',
- 'pop_sfr_model{1}': 'link:sfrd:0',
  'pop_MAR{0}': 'hmf',
+ 'pop_Tmin{0}': 1e4,
+
+ "pop_Emin{0}": 10.2,
+ "pop_Emax{0}": 24.6,
+ "pop_EminNorm{0}": E_LL,
+ "pop_EmaxNorm{0}": 24.6,
+
+ "pop_lya_src{0}": True,
+ "pop_ion_src_cgm{0}": True,
+ "pop_ion_src_igm{0}": False,
+ "pop_heat_src_cgm{0}": False,
+ "pop_heat_src_igm{0}": False,
 
  # Stellar pop + fesc
  'pop_sed{0}': 'eldridge2009',
@@ -50,6 +63,15 @@ dpl = \
  #
  ##
 
+ 'pop_sfr_model{1}': 'link:sfrd:0',
+ 'pop_Tmin{1}': 'pop_Tmin{0}',
+ "pop_lya_src{1}": False,
+ "pop_ion_src_cgm{1}": False,
+ "pop_ion_src_igm{1}": True,
+ "pop_heat_src_cgm{1}": False,
+ "pop_heat_src_igm{1}": True,
+
+
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
  'pop_Z{1}': 'pop_Z{0}',
@@ -71,7 +93,7 @@ dpl = \
  'approx_He': True,
  'secondary_ionization': 3,
  'approx_Salpha': 3,
- 'problem_type': 102,
+ #'problem_type': 102,
  'photon_counting': True,
  'cgm_initial_temperature': 2e4,
  'cgm_recombination': 'B',
