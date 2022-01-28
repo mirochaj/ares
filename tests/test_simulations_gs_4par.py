@@ -14,7 +14,8 @@ import ares
 import numpy as np
 
 def test():
-    sim = ares.simulations.Global21cm()
+    pars = ares.util.ParameterBundle('global_signal:basic')
+    sim = ares.simulations.Global21cm(**pars)
 
     sim.info
     pf = sim.pf

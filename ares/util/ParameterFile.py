@@ -327,8 +327,8 @@ class ParameterFile(dict):
         if not hasattr(self, '_Npops'):
 
             tmp = {}
-            if 'problem_type' in self._kwargs:
-                tmp.update(ProblemType(self._kwargs['problem_type']))
+            #if 'problem_type' in self._kwargs:
+            #    tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self._kwargs)
 
             self._Npops = count_populations(**tmp)
@@ -339,8 +339,8 @@ class ParameterFile(dict):
     def Npqs(self):
         if not hasattr(self, '_Npqs'):
             tmp = {}
-            if 'problem_type' in self._kwargs:
-                tmp.update(ProblemType(self._kwargs['problem_type']))
+            #if 'problem_type' in self._kwargs:
+            #    tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self)
 
             self._Npqs, self._pqs = count_properties(**tmp)
@@ -370,22 +370,29 @@ class ParameterFile(dict):
         """
 
         # Start w/ problem specific parameters (always)
-        if 'problem_type' not in kw:
-            kw['problem_type'] = defaults['problem_type']
+        #if 'problem_type' not in kw:
+        #    kw['problem_type'] = defaults['problem_type']
 
         # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
 
         # Read in kwargs for this problem type
-        kwargs = ProblemType(kw['problem_type'])
+        #kwargs = ProblemType(kw['problem_type'])
 
         # Add in user-supplied kwargs
-        tmp = kwargs.copy()
-        tmp.update(kw)
+        #tmp = kwargs.copy()
+        kwargs = {}
+        kwargs.update(kw)
 
         # Change names of parameters to ensure backward compatibility
-        tmp.update(backward_compatibility(kw['problem_type'], **tmp))
-        kwargs.update(tmp)
+        is_old_model = False
+        for par in old_pars:
+            if par in kwargs:
+                is_old_model = True
+                break
+
+        if is_old_model:
+            kwargs.update(backward_compatibility(**kwargs))
 
         ##
         # Up until this point, just problem_type-specific kwargs and any
@@ -424,15 +431,15 @@ class ParameterFile(dict):
             # Can't add kwargs yet (all full of curly braces)
 
             # Only add non-pop-specific parameters from ProblemType defaults
-            prb = ProblemType(kwargs['problem_type'])
-            for par in defaults_pop_indep:
+            #prb = ProblemType(kwargs['problem_type'])
+            #for par in defaults_pop_indep:
 
-                # Just means this parameter is not default to the
-                # problem type.
-                if par not in prb:
-                    continue
+            #    # Just means this parameter is not default to the
+            #    # problem type.
+            #    if par not in prb:
+            #        continue
 
-                pf_base[par] = prb[par]
+            #    pf_base[par] = prb[par]
 
             # and kwargs
             for par in kwargs:
@@ -578,7 +585,7 @@ class ParameterFile(dict):
         if not hasattr(self, '_not_default'):
             self._not_default = {}
 
-            ptype = ProblemType(self['problem_type'])
+            ptype = {}#ProblemType(self['problem_type'])
 
             for key in self:
                 if key in defaults_pop_indep:

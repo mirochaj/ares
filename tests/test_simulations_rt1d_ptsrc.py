@@ -16,6 +16,7 @@ import numpy as np
 def test():
 
     # Uniform density, isothermal, point source Q=5e48
+    pars = ares.util.ParameterBundle('rt1d:ptsrc')
     sim = ares.simulations.RaySegment(problem_type=1,
         stop_time=100, grid_cells=32)
     sim.run()

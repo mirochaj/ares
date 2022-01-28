@@ -321,6 +321,7 @@ def ReionizationProblem(ptype):
         }
 
     elif ptype_int == 2:
+        raise DeprecationError('Shouldnt need this anymore')
         pf = \
         {
 

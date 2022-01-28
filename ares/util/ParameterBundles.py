@@ -854,7 +854,8 @@ _param_sim = {'problem_type': 100, 'parametric_model': True,
     'output_frequencies': np.arange(30., 201.)}
 
 _gs_min = {'problem_type': 100, 'load_ics': True, 'cosmological_ics': True}
-_tmp = {'4par': _gs_4par,
+_tmp = {'4par': _gs_4par, 'basic': _gs_4par,
     'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 
 _Bundles['gs'] = _tmp
+_Bundles['global_signal'] = _tmp

@@ -24,6 +24,9 @@ pop_pars = PopulationParameters()
 fesc_default = pop_pars['pop_fesc']
 fstar_default = pop_pars['pop_fstar']
 
+deprecated_pars = 'Tmin', 'Mmin', 'Nlw', 'Nion', 'fesc', 'fX', 'xi_XR', 'cX', \
+    'xi_LW', 'xi_UV'
+
 def par_supplied(var, **kwargs):
     if var in kwargs:
         if kwargs[var] is None:
@@ -31,7 +34,7 @@ def par_supplied(var, **kwargs):
         return True
     return False
 
-def backward_compatibility(ptype, **kwargs):
+def backward_compatibility(**kwargs):
     """
     Handle some conventions used in the pre "pop_*" parameter days.
 
@@ -52,64 +55,67 @@ def backward_compatibility(ptype, **kwargs):
 
     pf = {}
 
-    if ptype == 101:
-        pf = {}
+    if par_supplied('Tmin', **kwargs):
+        for i in range(3):
+            pf['pop_Tmin{{{}}}'.format(i)] = kwargs['Tmin']
 
-        if par_supplied('Tmin', **kwargs):
-            for i in range(3):
-                pf['pop_Tmin{{{}}}'.format(i)] = kwargs['Tmin']
+    if par_supplied('Mmin', **kwargs):
+        assert not par_supplied('Tmin'), "Must only supply Tmin OR Mmin!"
+        for i in range(3):
+            pf['pop_Mmin{{{}}}'.format(i)] = kwargs['Mmin']
+            pf['pop_Tmin{{{}}}'.format(i)] = None
 
-        if par_supplied('Mmin', **kwargs):
-            assert not par_supplied('Tmin'), "Must only supply Tmin OR Mmin!"
-            for i in range(3):
-                pf['pop_Mmin{{{}}}'.format(i)] = kwargs['Mmin']
-                pf['pop_Tmin{{{}}}'.format(i)] = None
+    # Fetch star formation efficiency. If xi_* kwargs are passed, must
+    # 'undo' this as it will be applied later.
+    if par_supplied('fstar', **kwargs):
+        for i in range(3):
+            pf['pop_fstar{{{}}}'.format(i)] = kwargs['fstar']
 
-        # Fetch star formation efficiency. If xi_* kwargs are passed, must
-        # 'undo' this as it will be applied later.
-        if par_supplied('fstar', **kwargs):
-            for i in range(3):
-                pf['pop_fstar{{{}}}'.format(i)] = kwargs['fstar']
+    if par_supplied('fesc', **kwargs):
+        pf['pop_fesc{2}'] = kwargs['fesc']
+    elif par_supplied('pop_fesc{2}'):
+        pf['pop_fesc{2}'] = kwargs['pop_fesc{2}']
+    else:
+        pf['pop_fesc{2}'] = fesc_default
 
-        if par_supplied('fesc', **kwargs):
-            pf['pop_fesc{2}'] = kwargs['fesc']
-        elif par_supplied('pop_fesc{2}'):
-            pf['pop_fesc{2}'] = kwargs['pop_fesc{2}']
-        else:
-            pf['pop_fesc{2}'] = fesc_default
+    if par_supplied('Nlw', **kwargs) or par_supplied('xi_LW', **kwargs):
+        y = kwargs['Nlw'] if par_supplied('Nlw', **kwargs) else kwargs['xi_LW']
 
-        if par_supplied('Nlw', **kwargs) or par_supplied('xi_LW', **kwargs):
-            y = kwargs['Nlw'] if par_supplied('Nlw', **kwargs) else kwargs['xi_LW']
+        if par_supplied('xi_LW', **kwargs):
+            y /= pf['pop_fstar{0}']
 
-            if par_supplied('xi_LW', **kwargs):
-                y /= pf['pop_fstar{0}']
-
+        if kwargs['pop_sed_model{0}']:
             pf['pop_rad_yield{0}'] = y
             pf['pop_rad_yield_units{0}'] = 'photons/baryon'
+        else:
+            pf['pop_Nlw{0}'] = y
 
-        if par_supplied('Nion', **kwargs) or par_supplied('xi_UV', **kwargs):
-            y = kwargs['Nion'] if par_supplied('Nion', **kwargs) else kwargs['xi_UV']
+    if par_supplied('Nion', **kwargs) or par_supplied('xi_UV', **kwargs):
+        y = kwargs['Nion'] if par_supplied('Nion', **kwargs) else kwargs['xi_UV']
 
-            if par_supplied('xi_UV', **kwargs):
-                y /= pf['pop_fstar{2}'] * pf['pop_fesc{2}']
+        if par_supplied('xi_UV', **kwargs):
+            y /= pf['pop_fstar{2}'] * pf['pop_fesc{2}']
 
+        if kwargs['pop_sed_model{2}']:
             pf['pop_rad_yield{2}'] = y
             pf['pop_rad_yield_units{2}'] = 'photons/baryon'
+        else:
+            pf['pop_Nion{2}'] = y
 
-        # Lx-SFR
-        if par_supplied('cX', **kwargs):
-            yield_X = kwargs['cX']
-            if par_supplied('fX', **kwargs):
-                yield_X *= kwargs['fX']
+    # Lx-SFR
+    if par_supplied('cX', **kwargs):
+        yield_X = kwargs['cX']
+        if par_supplied('fX', **kwargs):
+            yield_X *= kwargs['fX']
 
-            pf['pop_rad_yield{1}'] = yield_X
+        pf['pop_rad_yield{1}'] = yield_X
 
-        elif par_supplied('fX', **kwargs):
-            pf['pop_rad_yield{1}'] = kwargs['fX'] * kwargs['pop_rad_yield{1}']
+    elif par_supplied('fX', **kwargs):
+        pf['pop_rad_yield{1}'] = kwargs['fX'] * kwargs['pop_rad_yield{1}']
 
-        elif par_supplied('xi_XR', **kwargs):
-            pf['pop_rad_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_rad_yield{1}'] \
-               / pf['pop_fstar{1}']
+    elif par_supplied('xi_XR', **kwargs):
+        pf['pop_rad_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_rad_yield{1}'] \
+           / pf['pop_fstar{1}']
 
     fixes = {}
     for element in kwargs:

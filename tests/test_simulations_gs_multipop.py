@@ -14,6 +14,7 @@ import ares
 
 def test():
 
+    base = ares.util.ParameterBundle('global_signal:basic')
     fcoll = ares.util.ParameterBundle('pop:fcoll')
     popIII = ares.util.ParameterBundle('sed:uv')
 
@@ -27,12 +28,26 @@ def test():
     # Tag with ID number
     pop.num = 3
 
-    sim1 = ares.simulations.Global21cm()
-    sim2 = ares.simulations.Global21cm(**pop)
+    sim1 = ares.simulations.Global21cm(**base)
+
+    new = base + pop
+    sim2 = ares.simulations.Global21cm(**new)
 
     sim1.run()
     sim2.run()
-    
+
+    T1 = sim1.history['dTb']
+    T2 = sim2.history['dTb']
+
+    if T1.size != T2.size:
+        pass
+    else:
+        neq = np.not_equal(T1, T2)
+
+        assert np.any(neq), \
+            "Addition of fourth population should change signal!"
+
+
 
 if __name__ == '__main__':
     test()

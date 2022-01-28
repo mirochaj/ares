@@ -19,13 +19,14 @@ def test():
 
     oldp = ['fstar', 'fX', 'Tmin', 'Nion', 'Nlw']
     newp = ['pop_fstar{0}', 'pop_rad_yield{1}', 'pop_Tmin{0}',
-        'pop_rad_yield{2}', 'pop_rad_yield{0}']
+        'pop_Nion{2}', 'pop_Nlw{0}']
     oldv = [(0.05, 0.2), (0.1, 1.), (1e3, 1e4), (1e3, 1e4), (1e3, 1e4)]
     newv = [(0.05, 0.2), (2.6e38, 2.6e39), (1e3, 1e4), (1e3, 1e4), (1e3, 1e4)]
 
     pars = {'old': oldp, 'new': newp}
     vals = {'old': oldv, 'new': newv}
 
+    base = ares.util.ParameterBundle('global_signal:basic')
     kw = ares.util.ParameterBundle('speed:careless')
 
     for h, approach in enumerate(['new', 'old']):
@@ -35,7 +36,8 @@ def test():
 
             data = []
             for val in vals[approach][i]:
-                p = {par:val}
+                p = base.copy()
+                p[par] = val
                 p.update(kw)
                 sim = ares.simulations.Global21cm(**p)
                 sim.run()
