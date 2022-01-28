@@ -15,18 +15,21 @@ import numpy as np
 
 def test():
 
+    updates = {'stop_time': 100, 'grid_cells': 32}
+
     # Uniform density, isothermal, point source Q=5e48
-    pars = ares.util.ParameterBundle('rt1d:ptsrc')
-    sim = ares.simulations.RaySegment(problem_type=1,
-        stop_time=100, grid_cells=32)
+    pars = ares.util.ParameterBundle('rt1d:isothermal')
+    pars.update(updates)
+    sim = ares.simulations.RaySegment(**pars)
     sim.run()
 
     # Make sure I-front is made over time
     assert np.mean(sim.history['h_2'][-1]) > sim.history['h_2'][0,0]
 
     # Same thing but now isothermal=False
-    sim = ares.simulations.RaySegment(problem_type=2,
-        stop_time=100, grid_cells=32)
+    pars = ares.util.ParameterBundle('rt1d:heating')
+    pars.update(updates)
+    sim = ares.simulations.RaySegment(**pars)
     sim.run()
 
     # Make sure heating happens!
@@ -38,8 +41,8 @@ def test():
     # Eventually, test read capability. Currently broken.
 
     # Same thing but now w/ secondary ionization/heating
-    sim = ares.simulations.RaySegment(problem_type=2,
-        stop_time=100, grid_cells=32, secondary_ionization=1)
+    pars['secondary_ionization'] = 1
+    sim = ares.simulations.RaySegment(**pars)
     sim.run()
 
     # Make sure heating happens!

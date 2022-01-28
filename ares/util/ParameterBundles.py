@@ -501,6 +501,7 @@ _Bundles = \
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
     'careless': _careless},
  'testing': {'galaxies': _galaxies_testing},
+ 'rt1d': {'isothermal': ProblemType(1), 'heating': ProblemType(2)}
 }
 
 class ParameterBundle(dict):
