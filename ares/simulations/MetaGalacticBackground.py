@@ -229,35 +229,18 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         self._count += 1
 
-    @property
-    def today(self):
-        """
-        Return background intensity at z=zf evolved to z=0 assuming optically
-        thin IGM.
-
-        This is just the second term of Eq. 25 in Mirocha (2014).
-        """
-
-        return self.flux_today()
-
-    def today_of_E(self, E):
-        """
-        Grab radiation background at a single energy at z=0.
-        """
-        nrg, fluxes = self.today
-
-        return np.interp(E, nrg, fluxes)
-
-    def temp_of_E(self, E):
+    def get_temp(self, zf=None, popids=None, newx=None):
         """
         Convert the z=0 background intensity to a temperature in K.
         """
-        flux = self.today_of_E(E)
+        E, flux = self.get_spectrum(xunits='eV', units='cgs',
+            zf=zf, popids=popids, newx=newx)
 
         freq = E * erg_per_ev / h_p
         return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
 
-    def flux_today(self, zf=None, popids=None, units='cgs', xunits='eV'):
+    def get_spectrum(self, zf=None, popids=None, units='cgs', xunits='eV',
+        newx=None):
         """
         Propage radiation background from `zf` to z=0 assuming optically
         thin universe.
@@ -352,54 +335,58 @@ class MetaGalacticBackground(AnalyzeMGB):
             raise ValueError('Unrecognized units=`{}`.'.format(units))
 
         if xunits.lower() == 'ev':
-            pass
+            x = _E
         elif xunits.lower() in ['angstrom', 'ang', 'a']:
-            _E = _lam
+            x = _lam
         else:
             raise NotImplemented("'don't recognize xunits={}".format(xunits))
 
-        return _E, f
+        if newx is not None:
+            return newx, np.interp(newx, x, f)
+        else:
+            return x, f
 
-    @property
-    def jsxb(self):
-        if not hasattr(self, '_jsxb'):
-            self._jsxb = self.jxrb(band='soft')
-        return self._jsxb
-
-    @property
-    def jhxb(self):
-        if not hasattr(self, '_jhxb'):
-            self._jhxb = self.jxrb(band='hard')
-        return self._jhxb
-
-    def jxrb(self, band='soft'):
+    def get_spectrum_integrated(self, band, popids=None, zf=None, xunits='eV',
+        units='cgs'):
         """
-        Compute soft X-ray background flux at z=0.
+        Compute integral of background intensity today in some band.
+
+        Parameters
+        ----------
+        band : tuple
+
         """
 
-        jx = 0.0
-        Ef, ff = self.today()
+        # Generalize later
+        assert xunits.lower() == 'ev'
+        assert units.lower() == 'cgs'
+
+        fint = 0.0
+        xf, ff = self.get_spectrum(zf=zf, popids=popids, xunits=xunits,
+            units=units)
         for popid, pop in enumerate(self.pops):
-            if Ef[popid] is None:
+            if xf[popid] is None:
                 continue
 
-            flux_today = ff[popid] * Ef[popid] \
+            if popids is not None:
+                if popid not in popids:
+                    continue
+
+            lo, hi = band
+
+            flux_today = ff[popid] * xf[popid] \
                 * erg_per_ev / sqdeg_per_std / ev_per_hz
 
-            if band == 'soft':
-                Eok = np.logical_and(Ef[popid] >= 5e2, Ef[popid] <= 2e3)
-            elif band == 'hard':
-                Eok = np.logical_and(Ef[popid] >= 2e3, Ef[popid] <= 1e4)
-            else:
-                raise ValueError('Unrecognized band! Only know \'hard\' and \'soft\'')
+            xok = np.logical_and(xf[popid] >= lo, xf[popid] <= hi)
 
-            Earr = Ef[popid][Eok]
-            # Find integrated 0.5-2 keV flux
-            dlogE = np.diff(np.log10(Earr))
+            xarr = xf[popid][xok]
 
-            jx += np.trapz(flux_today[Eok] * Earr, dx=dlogE) * np.log(10.)
+            # Find integrated flux
+            dlogx = np.diff(np.log10(xarr))
 
-        return jx
+            fint += np.trapz(flux_today[xok] * xarr, dx=dlogx) * np.log(10.)
+
+        return fint
 
     @property
     def _not_lwb_sources(self):
@@ -931,22 +918,22 @@ class MetaGalacticBackground(AnalyzeMGB):
 
                 if not np.any(self._ok):
 
-                    import matplotlib.pyplot as pl
+                    #import matplotlib.pyplot as pl
 
-                    pl.figure(1)
-                    pl.semilogy(self.pops[pid].halos.tab_z, pre, ls='-')
-                    pl.semilogy(self.pops[pid].halos.tab_z, now, ls='--')
+                    #pl.figure(1)
+                    #pl.semilogy(self.pops[pid].halos.tab_z, pre, ls='-')
+                    #pl.semilogy(self.pops[pid].halos.tab_z, now, ls='--')
 
-                    #print(self._Mmin_bank[-1])
-                    pl.figure(2)
-                    pl.semilogy(self.pops[0].halos.tab_z, self.pops[0]._tab_Mmin, ls='-', color='k', alpha=0.5)
-                    pl.semilogy(self.pops[0].halos.tab_z, self.pops[0]._tab_Mmax, ls='-', color='b', alpha=0.5)
-                    pl.semilogy(self.pops[1].halos.tab_z, self.pops[1]._tab_Mmin, ls='--', color='k', alpha=0.5)
-                    pl.semilogy(self.pops[1].halos.tab_z, self.pops[1]._tab_Mmax, ls='--', color='b', alpha=0.5)
+                    ##print(self._Mmin_bank[-1])
+                    #pl.figure(2)
+                    #pl.semilogy(self.pops[0].halos.tab_z, self.pops[0]._tab_Mmin, ls='-', color='k', alpha=0.5)
+                    #pl.semilogy(self.pops[0].halos.tab_z, self.pops[0]._tab_Mmax, ls='-', color='b', alpha=0.5)
+                    #pl.semilogy(self.pops[1].halos.tab_z, self.pops[1]._tab_Mmin, ls='--', color='k', alpha=0.5)
+                    #pl.semilogy(self.pops[1].halos.tab_z, self.pops[1]._tab_Mmax, ls='--', color='b', alpha=0.5)
                     #pl.semilogy(self.z_unique, self._Mmin_bank[-1], ls='--')
 
-                    neg = now < 0
-                    print(pid, now.size, neg.sum(), now)
+                    #neg = now < 0
+                    #print(pid, now.size, neg.sum(), now)
                     raise ValueError("SFRD < 0!")
 
         self._Mmin_pre = np.maximum(self._Mmin_pre,

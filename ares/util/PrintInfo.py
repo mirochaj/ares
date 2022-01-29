@@ -32,7 +32,7 @@ except ImportError:
     size = 1
 
 
-settings = {'width': 110, 'border': 4, 'pad': 2, 'col': 8}
+settings = {'width': 76, 'border': 2, 'pad': 1, 'col': 6}
 
 HOME = os.environ.get('HOME')
 if os.path.exists('{!s}/.ares/printout'.format(HOME)):

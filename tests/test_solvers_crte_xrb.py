@@ -64,12 +64,8 @@ def test(tol=1e-2):
 
         z, E, flux = mgb.get_history()
 
-        Ef, ff = mgb.today
-        flux_today = ff * Ef * erg_per_ev / sqdeg_per_std**2
-        Eok = np.logical_and(Ef >= 5e2, Ef <= 2e3)
-
-        # Find integrated 0.5-2 keV flux
-        sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[Eok])
+        # Soft X-ray background
+        sxb = mgb.get_spectrum_integrated((5e2, 2e3))
 
         # Check analytic solution for unabsorbed case
         if i == 0:

@@ -119,7 +119,7 @@ class Simulation(object): # pragma: no cover
             else:
                 zf = self.pops[i].zdead
 
-            E, flux = self.mean_intensity.flux_today(zf=zf, popids=i,
+            E, flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
                 units=flux_units)
 
             if wave_units.lower() == 'ev':
