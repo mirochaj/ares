@@ -394,7 +394,6 @@ def PowerSpectrumParameters():
      "ps_output_lnRmax": 8.,
      "ps_output_dlnR": 0.01,
 
-     'ps_linear_pert': False,
      'ps_use_wick': False,
 
      'ps_igm_model': 1, # 1=3-zone IGM, 2=other
@@ -1245,7 +1244,7 @@ def HaloMassFunctionParameters():
     "hps_zmax": 30,
     "hps_dz": 0.5,
 
-    "hps_assume_linear": False,
+    "hps_assume_linear": True,
 
     'hps_dlnk': 0.001,
     'hps_dlnR': 0.001,

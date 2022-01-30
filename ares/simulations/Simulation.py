@@ -3,23 +3,19 @@ import copy
 import pickle
 import numpy as np
 from types import FunctionType
+from ..util import ProgressBar
+from ..util import ParameterFile
 from ..static import Fluctuations
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
-from ..util import ParameterFile, ProgressBar
+from .PowerSpectrum21cm import PowerSpectrum21cm
 from .MetaGalacticBackground import MetaGalacticBackground
-#from ..analysis.BlobFactory import BlobFactory
-from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m
 
 class Simulation(object): # pragma: no cover
     def __init__(self, pf=None, **kwargs):
         """ Wrapper class designed to facilitate easy runs of any simulation. """
-
-        # See if this is a tanh model calculation
-        #if 'problem_type' not in kwargs:
-        #    kwargs['problem_type'] = 102
 
         self.kwargs = kwargs
 
@@ -40,6 +36,18 @@ class Simulation(object): # pragma: no cover
         self._gs = value
 
     @property
+    def ps(self):
+        if not hasattr(self, '_ps'):
+            self._ps = PowerSpectrum21cm(**self.kwargs)
+            self._ps.gs = self.gs
+        return self._ps
+
+    #@ps.setter
+    #def ps(self, value):
+    #    """ Set power spectrum 21cm instance by hand. """
+    #    self._ps = value
+
+    @property
     def history(self):
         if not hasattr(self, '_history'):
             self._history = {}
@@ -48,8 +56,8 @@ class Simulation(object): # pragma: no cover
     @property
     def mean_intensity(self):
         if not hasattr(self, '_mean_intensity'):
-            self._mean_intensity = MetaGalacticBackground(**self.pf)
-            #self._mean_intensity = self.gs.medium.field
+            #self._mean_intensity = MetaGalacticBackground(**self.pf)
+            self._mean_intensity = self.gs.medium.field
         return self._mean_intensity
 
     @property
@@ -283,13 +291,6 @@ class Simulation(object): # pragma: no cover
             self._halos = self.pops[0].halos
         return self._halos
 
-    @property
-    def tab_z(self):
-        if not hasattr(self, '_tab_z'):
-            self._tab_z = np.array(np.sort(self.pf['ps_output_z'])[-1::-1],
-                dtype=np.float64)
-        return self._tab_z
-
     def run(self):
         """
         Run everything we can.
@@ -301,29 +302,18 @@ class Simulation(object): # pragma: no cover
         if not self.mean_intensity._run_complete:
             self.mean_intensity.run()
 
-    def get_ps_21cm(self):
-        if 'ps_21cm' not in self.history:
-            self.run_ps_21cm()
-
-        return self.history['ps_21cm']
-
     def get_21cm_gs(self):
         if '21cm_gs' not in self.history:
             self.gs.run()
-
             self.history['21cm_gs'] = self.gs.history
 
         return self.history['21cm_gs']
 
-    def run_gs_21cm(self):
-        self.gs.run()
-        self.history['gs_21cm'] = self.gs.history
-
     def get_21cm_ps(self, z=None, k=None):
         if '21cm_ps' not in self.history:
-            hist = self.run_ps_21cm(z, k)
-
-            self.history['21cm_ps'] = hist
+            # Allow user to specify (z, k) if they want
+            self.ps.run()#(z, k)
+            self.history['21cm_ps'] = self.ps.history
 
         return self.history['21cm_ps']
 
@@ -399,50 +389,7 @@ class Simulation(object): # pragma: no cover
         self.history['ps_21cm']['k'] = self.tab_k
         self.history['ps_21cm']['R'] = self.tab_R
 
-    @property
-    def tab_k(self):
-        """
-        Wavenumbers to output power spectra.
 
-        .. note :: Can be far more crude than native resolution of
-            matter power spectrum.
-
-        """
-
-        if not hasattr(self, '_k'):
-            if self.pf['ps_output_k'] is not None:
-                self._k = self.pf['ps_output_k']
-            else:
-                lnk1 = self.pf['ps_output_lnkmin']
-                lnk2 = self.pf['ps_output_lnkmax']
-                dlnk = self.pf['ps_output_dlnk']
-                self._k = np.exp(np.arange(lnk1, lnk2+dlnk, dlnk))
-
-        return self._k
-
-    @property
-    def tab_R(self):
-        """
-        Scales on which to compute correlation functions.
-
-        .. note :: Can be more crude than native resolution of matter
-            power spectrum, however, unlike `self.tab_k`, the resolution of
-            this quantity matters when converting back to power spectra,
-            since that operation requires an integral over R.
-
-        """
-        if not hasattr(self, '_R'):
-            if self.pf['ps_output_R'] is not None:
-                self._R = self.pf['ps_output_R']
-            else:
-                lnR1 = self.pf['ps_output_lnRmin']
-                lnR2 = self.pf['ps_output_lnRmax']
-                dlnR = self.pf['ps_output_dlnR']
-                #lnR = np.log(self.halos.tab_R)
-
-                self._R = np.exp(np.arange(lnR1, lnR2+dlnR, dlnR))
-
-        return self._R
 
     @property
     def tab_Mmin(self):

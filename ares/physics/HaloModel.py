@@ -12,8 +12,7 @@ from scipy.interpolate import interp1d, Akima1DInterpolator
 from ..util.ProgressBar import ProgressBar
 from .HaloMassFunction import HaloMassFunction
 from .Constants import rho_cgs, c, cm_per_mpc
-from ..util.Math import get_cf_from_ps, get_ps_from_cf, get_cf_from_ps_tab, \
-    get_cf_from_ps_func
+from ..util.Math import get_cf_from_ps_tab, get_cf_from_ps_func
 
 try:
     import h5py

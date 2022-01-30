@@ -29,9 +29,9 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
         # See if this is a tanh model calculation
         #is_phenom = self._check_if_phenom(**kwargs)
 
-        kwargs.update(defaults)
-        if 'problem_type' not in kwargs:
-            kwargs['problem_type'] = 101
+        #kwargs.update(defaults)
+        #if 'problem_type' not in kwargs:
+        #    kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
 
@@ -69,10 +69,6 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
     def pf(self, value):
         self._pf = value
 
-    #@property
-    #def pf(self):
-    #    return self.gs.pf
-
     @property
     def gs(self):
         if not hasattr(self, '_gs'):
@@ -97,11 +93,11 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
         return self._halos
 
     @property
-    def z(self):
-        if not hasattr(self, '_z'):
-            self._z = np.array(np.sort(self.pf['ps_output_z'])[-1::-1],
+    def tab_z(self):
+        if not hasattr(self, '_tab_z'):
+            self._tab_z = np.array(np.sort(self.pf['ps_output_z'])[-1::-1],
                 dtype=np.float64)
-        return self._z
+        return self._tab_z
 
     def run(self):
         """
@@ -113,7 +109,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
         """
 
-        N = self.z.size
+        N = self.tab_z.size
         pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'],
             name='ps-21cm')
 
@@ -144,15 +140,15 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             is2d_B = (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
 
             if is2d_k:
-                tmp = np.zeros((len(self.z), len(self.k)))
+                tmp = np.zeros((len(self.tab_z), len(self.tab_k)))
             elif is2d_R:
-                tmp = np.zeros((len(self.z), len(self.R)))
+                tmp = np.zeros((len(self.tab_z), len(self.tab_R)))
             elif is2d_B:
-                tmp = np.zeros((len(self.z), len(all_ps[0]['r_i'])))
+                tmp = np.zeros((len(self.tab_z), len(all_ps[0]['r_i'])))
             else:
-                tmp = np.zeros_like(self.z)
+                tmp = np.zeros_like(self.tab_z)
 
-            for i, z in enumerate(self.z):
+            for i, z in enumerate(self.tab_z):
                 if key not in all_ps[i].keys():
                     continue
 
@@ -161,12 +157,12 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             hist[key] = tmp.copy()
 
         self.history = hist
-        self.history['z'] = self.z
-        self.history['k'] = self.k
-        self.history['R'] = self.R
+        self.history['z'] = self.tab_z
+        self.history['k'] = self.tab_k
+        self.history['R'] = self.tab_R
 
     @property
-    def k(self):
+    def tab_k(self):
         """
         Wavenumbers to output power spectra.
 
@@ -187,12 +183,12 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
         return self._k
 
     @property
-    def R(self):
+    def tab_R(self):
         """
         Scales on which to compute correlation functions.
 
         .. note :: Can be more crude than native resolution of matter
-            power spectrum, however, unlike `self.k`, the resolution of
+            power spectrum, however, unlike `self.tab_k`, the resolution of
             this quantity matters when converting back to power spectra,
             since that operation requires an integral over R.
 
@@ -231,7 +227,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
         # Set a few things before we get moving.
         self.field.tab_Mmin = self.tab_Mmin
 
-        for i, z in enumerate(self.z):
+        for i, z in enumerate(self.tab_z):
 
             data = {}
 
@@ -249,31 +245,33 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             zeta_X = np.zeros_like(self.halos.tab_M)
             #Tpro = None
             for j, pop in enumerate(self.pops):
-                pop_zeta = pop.get_zeta(z=z)
+                pop_zeta = pop.get_zeta_ion(z=z)
 
-                if pop.is_src_ion:
+                zeta += pop_zeta
 
-                    if type(pop_zeta) is tuple:
-                        _Mh, _zeta = pop_zeta
-                        zeta += np.interp(self.halos.tab_M, _Mh, _zeta)
-                        Nion += pop.src.Nion
-                    else:
-                        zeta += pop_zeta
-                        Nion += pop.pf['pop_Nion']
-                        Nlya += pop.pf['pop_Nlw']
+                #if pop.is_src_ion:
+                #
+                #    if type(pop_zeta) is tuple:
+                #        _Mh, _zeta = pop_zeta
+                #        zeta += np.interp(self.halos.tab_M, _Mh, _zeta)
+                #        Nion += pop.src.Nion
+                #    else:
+                #        zeta += pop_zeta
+                #        Nion += pop.pf['pop_Nion']
+                #        Nlya += pop.pf['pop_Nlw']
 
-                    zeta = np.maximum(zeta, 1.) # why?
+                #    zeta = np.maximum(zeta, 1.) # why?
 
-                if pop.is_src_heat:
-                    pop_zeta_X = pop.HeatingEfficiency(z=z)
-                    zeta_X += pop_zeta_X
+                #if pop.is_src_heat:
+                #    pop_zeta_X = pop.HeatingEfficiency(z=z)
+                #    zeta_X += pop_zeta_X
 
-                if pop.is_src_lya:
-                    Nlya += pop.pf['pop_Nlw']
+                #if pop.is_src_lya:
+                #    Nlya += pop.pf['pop_Nlw']
                     #Nlya += pop.src.Nlw
 
             # Only used if...ps_lya_method==0?
-            zeta_lya += zeta * (Nlya / Nion)
+            #zeta_lya += zeta * (Nlya / Nion)
 
             ##
             # Make scalar if it's a simple model
@@ -486,14 +484,14 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             ##
             if self.pf['ps_include_21cm']:
 
-                data['cf_21'] = self.field.CorrelationFunction(z,
-                    R=self.R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                    Tk=Tk, Ja=Ja, k=self.k)
+                data['cf_21'] = self.field.get_cf(z,
+                    R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.tab_k)
 
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
-                data['ps_21'] = self.field.PowerSpectrumFromCF(self.k,
-                    data['cf_21'], self.R,
+                data['ps_21'] = self.field.get_ps_from_cf(self.tab_k,
+                    data['cf_21'], self.tab_R,
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])
@@ -509,9 +507,9 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                 if (jp_1 is None and cf_1 is None) and (term not in ['psi', 'phi', 'oo']):
                     continue
 
-                _cf = self.field.CorrelationFunction(z,
-                    R=self.R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                    Tk=Tk, Ja=Ja, k=self.k)
+                _cf = self.field.get_cf(z,
+                    R=self.tab_R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.tab_k)
 
                 data['cf_{}'.format(term)] = _cf.copy()
 
@@ -519,15 +517,14 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                     continue
 
                 data['ps_{}'.format(term)] = \
-                    self.field.PowerSpectrumFromCF(self.k,
-                    data['cf_{}'.format(term)], self.R,
+                    self.field.get_ps_from_cf(self.tab_k,
+                    data['cf_{}'.format(term)], self.tab_R,
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])
 
             # Always save the matter correlation function.
-            data['cf_dd'] = self.field.CorrelationFunction(z,
-                term='dd', R=self.R)
+            data['cf_dd'] = self.field.get_cf(z, term='dd', R=self.tab_R)
 
             yield z, data
 

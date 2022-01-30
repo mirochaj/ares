@@ -25,6 +25,7 @@ from ..populations.Composite import CompositePopulation
 from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \
     s_per_myr, erg_per_ev, k_B, m_p, dnu, g_per_msun
+from ..util.Math import get_ps_from_cf_tab, get_cf_from_ps_tab
 
 root2 = np.sqrt(2.)
 four_pi = 4. * np.pi
@@ -2617,7 +2618,7 @@ class Fluctuations(object): # pragma: no cover
 
         return P
 
-    def CorrelationFunction(self, z, R=None, term='ii',
+    def get_cf(self, z, R=None, term='ii',
         R_s=None, R3=0.0, Th=500., Tc=1., Ts=None, k=None, Tk=None, Ja=None):
         """
         Compute the correlation function of some general term.
@@ -3028,7 +3029,9 @@ class Fluctuations(object): # pragma: no cover
         #return (1. - Tcmb / Th) / (1. - Tcmb / Ts) - 1.
         #return (delta_T / (1. + delta_T)) * (Tcmb / (Tk - Tcmb))
 
-    def CorrelationFunctionFromPS(self, R, ps, k=None, split_by_scale=False,
+
+
+    def get_cf_from_ps(self, R, ps, k=None, split_by_scale=False,
         kmin=None, epsrel=1-8, epsabs=1e-8, method='clenshaw-curtis',
         use_pb=False, suppression=np.inf):
 
@@ -3039,13 +3042,13 @@ class Fluctuations(object): # pragma: no cover
             epsrel=epsrel, epsabs=epsabs, use_pb=use_pb,
             split_by_scale=split_by_scale, method=method, suppression=suppression)
 
-    def PowerSpectrumFromCF(self, k, cf, R=None, split_by_scale=False,
+    def get_ps_from_cf(self, k, cf, R=None, split_by_scale=False,
         Rmin=None, epsrel=1-8, epsabs=1e-8, method='clenshaw-curtis',
         use_pb=False, suppression=np.inf):
 
         if np.all(cf == 0):
             return np.zeros_like(k)
 
-        return self.halos.FT3D(k, cf, R, Rmin=Rmin,
-            epsrel=epsrel, epsabs=epsabs, use_pb=use_pb,
-            split_by_scale=split_by_scale, method=method, suppression=suppression)
+        _k, _ps = get_ps_from_cf_tab(R, cf)
+
+        return np.interp(np.log(k), np.log(_k), np.log(_ps))
