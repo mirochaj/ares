@@ -2634,7 +2634,7 @@ class Fluctuations(object): # pragma: no cover
         else:
             use_R_tab = False
 
-        if Qi == 1:
+        if (Qi == 1) and ('i' in term):
             return np.zeros_like(R)
 
         Tcmb = self.cosm.TCMB(z)
@@ -2728,6 +2728,7 @@ class Fluctuations(object): # pragma: no cover
                 return cf
 
             iz = np.argmin(np.abs(z - self.halos.tab_z_ps))
+
             if use_R_tab:
                 cf = self.halos.tab_cf_mm[iz]
             else:

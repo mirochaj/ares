@@ -312,7 +312,7 @@ class Simulation(object): # pragma: no cover
     def get_21cm_ps(self, z=None, k=None):
         if '21cm_ps' not in self.history:
             # Allow user to specify (z, k) if they want
-            self.ps.run()#(z, k)
+            self.ps.run(z=z, k=k)#(z, k)
             self.history['21cm_ps'] = self.ps.history
 
         return self.history['21cm_ps']

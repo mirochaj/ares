@@ -99,7 +99,14 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                 dtype=np.float64)
         return self._tab_z
 
-    def run(self):
+    @tab_z.setter
+    def tab_z(self, value):
+        if type(value) == np.ndarray:
+            self._tab_z = value
+        else:
+            self._tab_z = np.array(value)
+
+    def run(self, z=None, k=None):
         """
         Run a simulation, compute power spectrum at each redshift.
 
@@ -109,7 +116,13 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
         """
 
+        if z is not None:
+            self.tab_z = z
+        if k is not None:
+            self.tab_k = k
+
         N = self.tab_z.size
+
         pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'],
             name='ps-21cm')
 
@@ -171,16 +184,23 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
         """
 
-        if not hasattr(self, '_k'):
+        if not hasattr(self, '_tab_k'):
             if self.pf['ps_output_k'] is not None:
-                self._k = self.pf['ps_output_k']
+                self._tab_k = self.pf['ps_output_k']
             else:
                 lnk1 = self.pf['ps_output_lnkmin']
                 lnk2 = self.pf['ps_output_lnkmax']
                 dlnk = self.pf['ps_output_dlnk']
-                self._k = np.exp(np.arange(lnk1, lnk2+dlnk, dlnk))
+                self._tab_k = np.exp(np.arange(lnk1, lnk2+dlnk, dlnk))
 
-        return self._k
+        return self._tab_k
+
+    @tab_k.setter
+    def tab_k(self, value):
+        if type(value) == np.ndarray:
+            self._tab_k = value
+        else:
+            self._tab_k = np.array(value)
 
     @property
     def tab_R(self):

@@ -597,12 +597,14 @@ class HaloModel(HaloMassFunction,HaloStructure):
         """ Load table from HDF5 or binary. """
 
         if self.pf['hps_assume_linear']:
-            print("Assuming linear matter PS...")
             self._tab_ps_mm = np.zeros((self.tab_z_ps.size, self.tab_k.size))
             self._tab_cf_mm = np.zeros((self.tab_z_ps.size, self.tab_R.size))
             for i, _z_ in enumerate(self.tab_z_ps):
                 iz = np.argmin(np.abs(_z_ - self.tab_z))
-                self._tab_ps_mm[i,:] = self._get_ps_lin(_z_, iz)
+                self._tab_ps_mm[i,:] = self._get_ps_lin(self.tab_k, iz)
+                R, cf = get_cf_from_ps_tab(self.tab_k, self._tab_ps_mm[i,:])
+                self._tab_cf_mm[i,:] = np.interp(np.log(R), np.log(self.tab_R),
+                    cf)
 
             return
 
