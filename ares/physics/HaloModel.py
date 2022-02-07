@@ -526,6 +526,10 @@ class HaloModel(HaloMassFunction,HaloStructure):
             logk = np.arange(kmi, kma+dlogk, dlogk)
             self._tab_k = np.exp(logk)
 
+            if self.pf['hps_assume_linear']:
+                assert self._tab_k.min() >= self.tab_k_lin.min()
+                assert self._tab_k.max() <= self.tab_k_lin.max()
+
         return self._tab_k
 
     @tab_k.setter
@@ -815,7 +819,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
             # Compute correlation function at native resolution to save time
             # later.
-            tab_cf_mm[i] = self.get_cf_mm(z)
+            _R_, tab_cf_mm[i] = self.get_cf_mm(z)
 
             pb.update(i)
 

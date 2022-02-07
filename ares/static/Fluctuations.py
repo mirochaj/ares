@@ -53,6 +53,16 @@ class Fluctuations(object): # pragma: no cover
         self._done = {}
 
     @property
+    def pops(self):
+        if not hasattr(self, '_pops'):
+            raise AttributeError("`pops` should be set by hand!")
+        return self._pops
+
+    @pops.setter
+    def pops(self, value):
+        self._pops = value
+
+    @property
     def zeta(self):
         if not hasattr(self, '_zeta'):
             raise AttributeError('Must set zeta by hand!')
@@ -2727,13 +2737,12 @@ class Fluctuations(object): # pragma: no cover
                 self._cache_cf_[z][term] = R, cf
                 return cf
 
-            iz = np.argmin(np.abs(z - self.halos.tab_z_ps))
-
             if use_R_tab:
-                cf = self.halos.tab_cf_mm[iz]
+                _R_, _cf_ = self.halos.get_cf_mm(z)
+                cf = _cf_
             else:
-                cf = np.interp(np.log(R), np.log(self.halos.tab_R),
-                    self.halos.tab_cf_mm[iz])
+                _R_, _cf_ = self.halos.get_cf_mm(z, R)
+                cf = np.interp(np.log(R), np.log(_R_), _cf_)
 
         ##
         # Ionization correlation function

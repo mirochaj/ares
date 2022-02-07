@@ -1248,10 +1248,10 @@ def HaloMassFunctionParameters():
 
     'hps_dlnk': 0.001,
     'hps_dlnR': 0.001,
-    'hps_lnk_min': -10.,
-    'hps_lnk_max': 10.,
-    'hps_lnR_min': -10.,
-    'hps_lnR_max': 10.,
+    'hps_lnk_min': -9.,
+    'hps_lnk_max': 9.,
+    'hps_lnR_min': -9.,
+    'hps_lnR_max': 9.,
 
     # Note that this is not passed to hmf yet.
     "hmf_window": 'tophat',

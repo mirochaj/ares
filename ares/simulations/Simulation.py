@@ -283,6 +283,7 @@ class Simulation(object): # pragma: no cover
     def field(self):
         if not hasattr(self, '_field'):
             self._field = Fluctuations(**self.tab_kwargs)
+            self._field.pops = self.pops
         return self._field
 
     @property
