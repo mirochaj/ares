@@ -2164,6 +2164,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             window=window, load=load, use_cache=use_cache,
             energy_units=energy_units)
 
+    def _dlam_check(self, dlam):
+        if self.pf['pop_sed_degrade'] is None:
+            pass
+        else:
+            s = "`dlam` provided is finer than native SED resolution! "
+            s += 'See `pop_sed_degrade` parameter, and set to value <= desired `dlam`.'
+            assert (dlam >= self.pf['pop_sed_degrade']), s
+
     def get_waves_for_line(self, waves, dlam=1., window=3):
         """
         If `waves` is a string, e.g., 'Ly-a', convert to array of wavelengths.
@@ -2192,6 +2200,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if isinstance(waves, str):
             assert waves in known_lines, \
                 "Unrecognized line={}. Options={}".format(waves, known_lines)
+
+            self._dlam_check(dlam)
 
             i = known_lines.index(waves)
             l0 = known_line_waves[i]
@@ -2266,11 +2276,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         flux = L / (4. * np.pi * dL**2)
         # dnu_rest/dnu_obs
         flux *= (1. + z)
-
-        # Apply dust reddening
-        if redden:
-            tau = np.array([self.get_dust_opacity(z, wave) for wave in waves])
-            flux *= np.exp(-tau)
 
         if integrate:
             # `waves` are bin centers
@@ -2359,6 +2364,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 use_cache=use_cache, band=band, energy_units=energy_units)
 
         if use_cache:
+
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
 
         return L
