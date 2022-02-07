@@ -98,20 +98,77 @@ class Hydrogen(object):
     @property
     def kappa_H(self):
         if not hasattr(self, '_kappa_H_pre'):
-            self._kappa_H_pre = interp1d(T_HH, kappa_HH,
+            _kappa_H_pre = interp1d(T_HH, kappa_HH,
                 kind=self.interp_method, bounds_error=False,
                 fill_value=(kappa_HH[0], kappa_HH[-1]),
-                left=kappa_HH[0], right=kappa_HH[-1], **_interp1d_kwargs)
+                left=kappa_HH[0], right=kappa_HH[-1],
+                **_interp1d_kwargs).__call__
+
+            tab_T = self.tabulated_coeff['T_H']
+            Tlo = tab_T.min()
+            def with_extrap_option(Tk):
+                """
+                Extrapolate kappa outside tabulated range.
+                """
+
+                too_cold = Tk < Tlo
+
+                if np.any(too_cold) and self.pf['extrapolate_coupling']:
+                    dkap = np.log10(_kappa_H_pre(tab_T[0])) \
+                         - np.log10(_kappa_H_pre(tab_T[1]))
+                    dT = np.log10(tab_T[1]) - np.log10(tab_T[0])
+                    s = dkap / dT
+                    T0 = np.log10(tab_T[0])
+                    k0 = np.log10(_kappa_H_pre(tab_T[0]))
+                    log10kappa_H = k0 + s * (T0 - np.log10(Tk))
+
+                    out = np.zeros_like(Tk)
+                    out[too_cold==1] = 10**log10kappa_H[too_cold==1]
+                    out[too_cold==0] = _kappa_H_pre(Tk[too_cold==0])
+
+                    return out
+                else:
+                    return _kappa_H_pre(Tk)
+
+            self._kappa_H_pre = with_extrap_option
 
         return self._kappa_H_pre
 
     @property
     def kappa_e(self):
         if not hasattr(self, '_kappa_e_pre'):
-            self._kappa_e_pre = interp1d(T_He, kappa_He,
+            _kappa_e_pre = interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False,
                 fill_value=(kappa_He[0], kappa_He[-1]),
                 left=kappa_He[0], right=kappa_He[-1], **_interp1d_kwargs)
+
+            tab_T = self.tabulated_coeff['T_e']
+            Tlo = tab_T.min()
+            def with_extrap_option(Tk):
+                """
+                Extrapolate kappa outside tabulated range.
+                """
+
+                too_cold = Tk < Tlo
+
+                if np.any(too_cold) and self.pf['extrapolate_coupling']:
+                    dkap = np.log10(_kappa_e_pre(tab_T[0])) \
+                         - np.log10(_kappa_e_pre(tab_T[1]))
+                    dT = np.log10(tab_T[1]) - np.log10(tab_T[0])
+                    s = dkap / dT
+                    T0 = np.log10(tab_T[0])
+                    k0 = np.log10(_kappa_e_pre(tab_T[0]))
+                    log10kappa_e = k0 + s * (T0 - np.log10(Tk))
+
+                    out = np.zeros_like(Tk)
+                    out[too_cold==1] = 10**log10kappa_e[too_cold==1]
+                    out[too_cold==0] = _kappa_e_pre(Tk[too_cold==0])
+
+                    return out
+                else:
+                    return _kappa_e_pre(Tk)
+
+            self._kappa_e_pre = with_extrap_option
 
         return self._kappa_e_pre
 
@@ -326,8 +383,12 @@ class Hydrogen(object):
         Zygelman, B. 2005, ApJ, 622, 1356
 
         """
-        sum_term = self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
-            + ne * self.kappa_e(Tk)
+
+
+        kappa_H = self.kappa_H(Tk)
+        kappa_e = self.kappa_e(Tk)
+
+        sum_term = self.cosm.nH(z) * (1. - xHII) * kappa_H + ne * kappa_e
 
         Tref = self.cosm.TCMB(z) + Tr
 

@@ -212,6 +212,9 @@ def PhysicsParameters():
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
 
+    "approx_tau_21cm": True,
+    "extrapolate_coupling": False,
+
     "approx_thermal_history": False,
     "inits_Tk_p0": None,
     "inits_Tk_p1": None,
