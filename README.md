@@ -10,7 +10,7 @@ A few papers on how it works:
 
 - 1-D radiative transfer: [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M)
 - Uniform backgrounds \& global 21-cm signal: [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M)
-- Galaxy luminosity functions: [Mirocha, Furlanetto, & Sun (2017)](http://adsabs.harvard.edu/abs/2016arXiv160700386M)
+- Galaxy luminosity functions: [Mirocha, Furlanetto, & Sun (2017)](https://ui.adsabs.harvard.edu/abs/2017MNRAS.464.1365M/abstract)
 - Population III star formation: [Mirocha et al. (2018)](http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M)
 - Rest-ultraviolet colours at high-z: [Mirocha, Mason, & Stark (2020)](https://ui.adsabs.harvard.edu/abs/2020arXiv200507208M/abstract)
 - Near-infrared background and nebular emission: [Sun et al. (2021)](https://ui.adsabs.harvard.edu/abs/2021MNRAS.508.1954S/abstract)

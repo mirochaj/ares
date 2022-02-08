@@ -26,10 +26,6 @@ If you have `git` installed, you can clone *ARES* and its entire revision histor
     cd ares
     python setup.py install
 
-You'll need to set an environment variable which points to the *ARES* install directory, e.g. (in bash) ::
-
-    export ARES=/users/<yourusername>/ares
-
 *ARES* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run ::
 
     python remote.py

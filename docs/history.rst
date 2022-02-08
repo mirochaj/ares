@@ -4,14 +4,20 @@ Development History
 
 Here's an attempt to keep track of major changes to the code over time, which will be tagged in the bitbucket repository with version numbers. I haven't followed conventions for version numbering so far. Instead, I've simply tagged commits with a version number when a paper is submitted using that version of the code (e.g., v0.1 and v0.2), or when a series of noteworthy improvements or bug fixes have been made (v0.3).
 
+v0.6
+----
+- First tag since migrating to github.
+- Test suite through github actions, at ~70% coverage.
+- New features, including dust (`Mirocha, Mason, & Stark (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200507208M/abstract>`_), and near-infrared background `Sun et al. (2021) <https://ui.adsabs.harvard.edu/abs/2021MNRAS.508.1954S/abstract>`_.
+
 v0.5
 ----
-- This is the version of the code used in `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_. 
+- This is the version of the code used in `Mirocha & Furlanetto (2019) <http://adsabs.harvard.edu/abs/2018arXiv180303272M>`_.
 - Note that several ``litdata'' modules have been updated so that the year is reflective of the year the paper was *published*, not *submitted*!
 
 v0.4
 ----
-- This is the version of the code used in `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_. The main addition is global Lyman-Werner feedback, which raises the minimum mass of star-forming halos self-consistently using an iterative technique. 
+- This is the version of the code used in `Mirocha et al. (2018) <http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M>`_. The main addition is global Lyman-Werner feedback, which raises the minimum mass of star-forming halos self-consistently using an iterative technique.
 
 v0.3
 ----
@@ -21,7 +27,7 @@ v0.3
 
 v0.2
 ----
-This is the version of the code used in `Mirocha, Furlanetto, \& Sun (submitted) <http://arxiv.org/abs/1607.00386>`_. 
+This is the version of the code used in `Mirocha, Furlanetto, \& Sun (2017) <https://ui.adsabs.harvard.edu/abs/2017MNRAS.464.1365M/abstract>`_.
 
 Main (new) features:
 
@@ -33,17 +39,9 @@ Main (new) features:
 
 v0.1
 ----
-This is the version of the code used in `Mirocha et al. (2015) <http://arxiv.org/abs/1509.07868>`_. 
+This is the version of the code used in `Mirocha et al. (2015) <http://arxiv.org/abs/1509.07868>`_.
 
 Main features:
 
 - Simple physical models for the global 21-cm signal available.
 - Can use * `emcee <http://dan.iel.fm/emcee/current/>`_ to fit these models to data.
-
-
-
-
-
-
-
-
