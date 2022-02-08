@@ -66,6 +66,10 @@ and optionally,
 - [shapely](https://pypi.python.org/pypi/Shapely)
 - [descartes](https://pypi.python.org/pypi/descartes)
 
+If you'd like to build the documentation locally, you'll need:
+
+- [numpydoc](https://numpydoc.readthedocs.io/en/latest/)
+- [nbsphinx](https://nbsphinx.readthedocs.io/en/0.8.8/)
 
 Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
 
