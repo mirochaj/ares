@@ -15,12 +15,12 @@ import time
 import scipy
 import numpy as np
 from ..static import Grid
-from ..util.Math import smooth
 from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
-from ..phenom import Madau1995
-from ..util.Math import interp1d
+from ..obs import Madau1995
+from ..util.Misc import split_by_sign
+from ..util.Math import interp1d, smooth
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
@@ -839,37 +839,6 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         return zarr, Ja, Jlw
 
-    @property
-    def _LW_felt_by(self):
-        if not hasattr(self, '_LW_felt_by_'):
-            self._LW_felt_by_ = []
-            for popid, pop in enumerate(self.pops):
-
-                Mmin = pop.pf['pop_Mmin']
-
-                if isinstance(Mmin, basestring):
-                    self._LW_felt_by_.append(popid)
-                    continue
-
-                Tmin = pop.pf['pop_Tmin']
-                if isinstance(Tmin, basestring):
-                    pass
-
-                if Mmin is None:
-                    T = Tmin
-                else:
-                    T = pop.halos.VirialTemperature(pop.halos.tab_z, Mmin,
-                        self.pf['mu'])
-
-                if type(T) in [float, int, np.float64]:
-                    if T < 1e4:
-                        self._LW_felt_by_.append(popid)
-                else:
-                    if np.any(T < 1e4):
-                        self._LW_felt_by_.append(popid)
-
-        return self._LW_felt_by_
-
     def _is_Mmin_converged(self, include_pops):
 
         # Need better long-term fix: Lya sources aren't necessarily LW
@@ -895,11 +864,11 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Instance of a population that "feels" the feedback.
         # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
-        pop_fb = self.pops[self._lwb_sources[0]]
+        pid = self.pf['feedback_LW_sfrd_popid']
+        pop_fb = self.pops[self._lwb_sources.index(pid)]
 
         # Don't re-load Mmin guesses after first iteration
         if self.pf['feedback_LW_guesses'] is not None and self.count > 1:
-            pid = self.pf['feedback_LW_sfrd_popid']
             self.pops[pid]._loaded_guesses = True
             print('turning off ModelSet load', self.count, pid, self.pops[pid]._loaded_guesses)
 
@@ -909,15 +878,18 @@ class MetaGalacticBackground(AnalyzeMGB):
             has_guess = False
             if self.pf['feedback_LW_guesses'] is not None:
                 has_guess = True
-                pid = self.pf['feedback_LW_sfrd_popid']
+
                 #_z_guess, _Mmin_guess = guess
                 self._Mmin_pre = self.pops[pid].Mmin(zarr)
+                self._Mmax_pre = self.pops[pid]._tab_Mmax
 
             else:
                 self._Mmin_pre = np.min([self.pops[idnum].Mmin(zarr) \
                     for idnum in self._lwb_sources], axis=0)
+                self._Mmax_pre = self.pops[pid]._tab_Mmax
 
             self._Mmin_bank = [self._Mmin_pre.copy()]
+            self._Mmax_bank = [self._Mmax_pre.copy()]
             self._Jlw_bank = [Jlw]
 
             self.pf['feedback_LW_guesses'] = None
@@ -927,7 +899,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             ##
             if self.pf['feedback_LW_guesses_perfect'] and has_guess:
                 self._Mmin_now = self._Mmin_pre
-                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total]
+                self._sfrd_bank = [self.pops[pid].tab_sfrd_total]
                 return True
 
         else:
@@ -936,9 +908,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.pf['feedback_LW_sfrd_popid'] is not None:
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:
-                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total.copy()]
+                self._sfrd_bank = [self.pops[pid].tab_sfrd_total.copy()]
             else:
-                self._sfrd_bank.append(self.pops[pid]._tab_sfrd_total.copy())
+                self._sfrd_bank.append(self.pops[pid].tab_sfrd_total.copy())
                 pre = self._sfrd_bank[-2] * rhodot_cgs
                 now = self._sfrd_bank[-1] * rhodot_cgs
                 gt0 = np.logical_and(now > _tiny_sfrd, pre > _tiny_sfrd)
@@ -986,7 +958,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Introduce time delay between Jlw and Mmin?
         # This doesn't really help with stability. In fact, it can make it
         # worse.
-        if self.pf['feedback_LW_dt'] > 0:
+        if self.pf['feedback_LW_dt'] > 0: # pragma: no cover
             dt = self.pf['feedback_LW_dt']
 
             Jlw_dt = []
@@ -1019,7 +991,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             Jlw_dt[zarr > self.pf['feedback_LW_zstart']] = 0
 
         # Experimental
-        if self.pf['feedback_LW_ramp'] > 0:
+        if self.pf['feedback_LW_ramp'] > 0: # pragma: no cover
             ramp = self.pf['feedback_LW_ramp']
 
             nh = 0.0
@@ -1062,7 +1034,7 @@ class MetaGalacticBackground(AnalyzeMGB):
            (self.count - mdel) % mfreq == 0:
             _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
         elif (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):
-            if self.pf['feedback_LW_softening'] == 'sqrt':
+            if self.pf['feedback_LW_softening'] in ['sqrt', 'gmean']:
                 _Mmin_next = np.sqrt(Mnext * self._Mmin_pre)
             elif self.pf['feedback_LW_softening'] == 'mean':
                 _Mmin_next = np.mean([Mnext, self._Mmin_pre], axis=0)
@@ -1074,9 +1046,62 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             _Mmin_next = Mnext
 
+        ##
+        # Dealing with Mmin fluctuations
+        if self.pf['feedback_LW_Mmin_monotonic'] and \
+           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0): # pragma: no cover
+
+            # Detect wiggles: expected behaviour is dMmin/dz < 0.
+            # Zero pad at the end to recover correct length.
+            dMmindz = np.concatenate((np.diff(_Mmin_next), [0]))
+
+            # Break into positive and negative chunks.
+            _x, _y = split_by_sign(zarr, dMmindz)
+
+            # Go in order of ascending time (descending z)
+            x = _x[-1::-1]
+            y = _y[-1::-1]
+
+            j = 0 # start index of a given chunk within full array of Mmin
+            zrev = zarr[-1::-1]
+            Mmin_new = _Mmin_next[-1::-1]
+            for i, _chunk_ in enumerate(y):
+                l = len(_chunk_)
+
+                if (i == 0) or (_chunk_[0] <= 0):
+                    j += l
+                    continue
+
+                # If we're here, it means Mmin is falling with redshift.
+
+                k = j + l
+
+                # Just replace with Mmin value before it last declined.
+                # Guaranteed to be OK since we iterate from high-z to low.
+                if self.pf['feedback_LW_Mmin_monotonic'] == 1:
+                    Mmin_new[j:k] = Mmin_new[j-1]
+                else:
+                    raise NotImplemented('help')
+                    # Interpolate to next point where Mmin > Mmin_problem
+                    dx = zrev[j-1] - zrev[j-2]
+                    dy = Mmin_new[j-1] - Mmin_new[j-2]
+                    m = 2 * dy / dx
+
+                    print('hey', dx, dy, m)
+                    Mmin_guess = m * (zrev[k-1] - zrev[j-1]) + Mmin_new[j-1]
+                    #while Mmin_guess > Mmin_new[k]:
+                    #    m *= 0.9
+                    #    Mmin_guess = m * (zrev[k] - zrev[j-1]) + Mmin_new[j-1]
+
+                    Mmin_new[j:k] = Mmin_guess#m * (zrev[j:k] - zrev[j-1]) + Mmin_new[j-1]
+
+                j += l
+
+            _Mmin_next = Mmin_new[-1::-1]
+
         # Detect ripples first and only do this if we see some?
-        if (self.pf['feedback_LW_Mmin_smooth'] > 0) and \
-           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0):
+        elif (self.pf['feedback_LW_Mmin_smooth'] > 0) and \
+           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0): # pragma: no cover
 
             s = self.pf['feedback_LW_Mmin_smooth']
             bc = int(s / 0.1)
@@ -1089,8 +1114,8 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
 
-        if (self.pf['feedback_LW_Mmin_fit'] > 0) and \
-           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0):
+        elif (self.pf['feedback_LW_Mmin_fit'] > 0) and \
+           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0): # pragma: no cover
             order = self.pf['feedback_LW_Mmin_fit']
             _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), order), zarr)
 
@@ -1110,6 +1135,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Set new solution
         self._Mmin_now = Mmin.copy()
         # Save for our records (read: debugging)
+
+        # Save Mmax too
+        self._Mmax_now = self.pops[pid]._tab_Mmax.copy()
 
         ##
         # Compare Mmin of last two iterations.
@@ -1191,6 +1219,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         if not converged:
             self._Mmin_bank.append(self._Mmin_now.copy())
+            self._Mmax_bank.append(self._Mmax_now.copy())
             self._Jlw_bank.append(Jlw)
 
         return converged

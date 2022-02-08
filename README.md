@@ -1,5 +1,5 @@
 # **ARES**
-[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/master/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
+[![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/main/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
 
 The Accelerated Reionization Era Simulations (ARES) code was designed to
 rapidly generate models for the global 21-cm signal. It can also be used as a
@@ -27,6 +27,7 @@ risk! Correctness of results is not guaranteed.
 
 ## Citation
 
+<<<<<<< HEAD
 If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M) if it's an application of the global 21-cm modeling machinery and [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M) if you use the 1-D radiative transfer and/or SED optimization. For galaxy semi-analytic modeling, please have a look at [Mirocha, Furlanetto, & Sun (2017)](http://adsabs.harvard.edu/abs/2016arXiv160700386M), [Mirocha, Mason, & Stark (2020)](https://ui.adsabs.harvard.edu/abs/2020arXiv200507208M/abstract), and [Mirocha (2020)](https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.4534M/abstract), and for PopIII star modeling, see [Mirocha et al. (2018)](http://adsabs.harvard.edu/abs/2018MNRAS.478.5591M).
 
 Please also provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
@@ -158,3 +159,4 @@ Additional contributions / corrections / suggestions from:
 - Felix Bilodeau-Chagnon
 - Venno Vipp
 - Oscar Hernandez
+- Joshua Hibbard

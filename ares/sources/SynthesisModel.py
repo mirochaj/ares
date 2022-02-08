@@ -324,7 +324,7 @@ class SynthesisModelBase(Source):
         return None
 
     def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz',
-        raw=True, nebular_only=False):
+        raw=False, nebular_only=False):
         """
         UV luminosity per unit SFR.
         """
@@ -402,7 +402,7 @@ class SynthesisModelBase(Source):
         return None
 
     def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
-            energy_units=True, raw=True, nebular_only=False):
+            energy_units=True, raw=False, nebular_only=False):
         """
         Specific emissivity at provided wavelength at `source_tsf`.
 
@@ -690,6 +690,7 @@ class SynthesisModel(SynthesisModelBase):
                 self._data = _data
                 self._times = _times
                 self._wavelengths = _waves
+                self._add_nebular_emission()
                 return self._data
 
             Zall_l = list(self.metallicities.values())

@@ -68,17 +68,6 @@ def Gauss1D(x, pars):
     """
     return pars[0] + pars[1] * np.exp(-(x - pars[2])**2 / 2. / pars[3])
 
-def GaussND(x, mu, cov):
-    """
-    Return value of multi-variate Gaussian at point x (same shape as mu).
-    """
-    N = len(x)
-    norm = 1. / np.sqrt((2. * np.pi)**N * np.linalg.det(cov))
-    icov = np.linalg.inv(cov)
-    score = np.dot(np.dot((x - mu).T, icov), (x - mu))
-
-    return norm * np.exp(-0.5 * score)
-
 def get_nu(sigma, nu_in, nu_out):
 
     if nu_in == nu_out:
@@ -430,7 +419,16 @@ def quantify_scatter(x, y, xbin_c, weights=None, inclusive=False,
         # and some measure of the scatter.
         N.append(sum(ok==1))
 
-        yavg.append(np.average(f, weights=weights[ok==1]))
+        if method_avg == 'avg':
+            yavg.append(np.average(f, weights=weights[ok==1]))
+        elif method_avg == 'median':
+            # Weighted median -> use cdf of weights, convert to y-value after.
+            # First: rank-order in y value.
+            ix = np.argsort(f)
+            cdf = np.cumsum(weights[ok==1][ix]) / np.sum(weights[ok==1][ix])
+            yavg.append(f[ix][np.argmin(np.abs(cdf - 0.5))])
+        else:
+            raise NotImplemented("Haven't implemented method_avg={} in this case!".format(method_avg))
 
         if method_std == 'std':
             ysca.append(np.std(f))

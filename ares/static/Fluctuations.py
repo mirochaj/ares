@@ -21,7 +21,6 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from ..physics.Hydrogen import Hydrogen
 from ..physics.HaloModel import HaloModel
-from ..util.Math import LinearNDInterpolator
 from ..populations.Composite import CompositePopulation
 from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \

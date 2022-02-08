@@ -36,67 +36,11 @@ class Survey(object):
         self.force_perfect = force_perfect
         self.cache = cache
 
-        if cam == 'nircam':
-            self.path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path, mod)
-        elif cam == 'wfc3':
-            self.path = '{}/wfc3'.format(_path)
-        elif cam == 'wfc':
-            self.path = '{}/wfc'.format(_path)
-        elif cam.lower() in ['spitzer', 'irac']:
-            self.path = '{}/irac'.format(_path)
-        elif cam.lower() in ['roman', 'ngrst', 'wfirst']:
-            self.path = '{}/roman'.format(_path)
-        else:
-            raise NotImplemented('Unrecognized camera \'{}\''.format(cam))
-
-    @property
-    def cosm(self):
-        if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology()
-        return self._cosm
-
-    @property
-    def src(self):
-        if not hasattr(self, '_src'):
-            from ares.sources import SynthesisModel
-            self._src = SynthesisModel(source_sed='eldridge2009')
-            print("Defaulting to BPASS v1 source model.")
-        return self._src
-
-    @src.setter
-    def src(self, value):
-        self._src = value
-
-    @property
-    def wavelengths(self):
-        """
-        Wavelength array [Angstrom] in REST frame of sources.
-        """
-        if not hasattr(self, '_wavelengths'):
-            self._wavelengths = self.src.wavelengths
-        return self._wavelengths
-
-    @wavelengths.setter
-    def wavelengths(self, value):
-        self._wavelengths = value
-
-    @property
-    def frequencies(self):
-        if not hasattr(self, '_frequencies'):
-            self._frequencies = c / (self.wavelengths / 1e8)
-        return self._frequencies
-
-    @property
-    def dwdn(self):
-        if not hasattr(self, '_dwdn'):
-            tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
-            self._dwdn = np.concatenate((tmp, [tmp[-1]]))
-        return self._dwdn
-
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
-        filters=None, annotate=True):
+        filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
+        **kwargs): # pragma: no cover
         """
-        Plot transmission curves for NIRCAM filters.
+        Plot transmission curves for filters.
         """
 
         import matplotlib.pyplot as pl
@@ -110,10 +54,26 @@ class Survey(object):
 
         data = self.read_throughputs(filter_set, filters)
 
-        colors = ['k', 'b', 'c', 'm', 'y', 'r', 'orange', 'g'] * 10
+        colors = ['k', 'b', 'g', 'c', 'm', 'y', 'r', 'orange'] * 10
         for i, filt in enumerate(data.keys()):
 
-            ax.plot(data[filt][0], data[filt][1], label=filt, color=colors[i])
+            if skip is not None:
+                if filt in skip:
+                    continue
+
+            if filters is not None:
+                if filt not in filters:
+                    continue
+
+            if kwargs != {}:
+                if 'color' in kwargs:
+                    c = kwargs['color']
+                    del kwargs['color']
+            else:
+                c = colors[i]
+
+            ax.plot(data[filt][0], data[filt][1], label=filt, color=c,
+                **kwargs)
 
             if annotate:
                 if filt.endswith('IR'):
@@ -121,8 +81,8 @@ class Survey(object):
                 else:
                     _filt = filt
 
-                ax.annotate(_filt, (data[filt][2], 0.8), ha='center', va='top',
-                    color=colors[i], rotation=90)
+                ax.annotate(_filt, (data[filt][2], 1), ha='center', va='top',
+                    color=c, rotation=rotation, **annotate_kw)
 
         ax.set_xlabel(r'Observed Wavelength $[\mu \mathrm{m}]$')
         ax.set_ylabel('Transmission')
@@ -160,6 +120,12 @@ class Survey(object):
 
         if self.camera == 'nircam':
             return self._read_nircam(filter_set, filters)
+        elif self.camera in ['hst', 'hubble']:
+            wfc = self._read_wfc(filter_set, filters)
+            wfc3 = self._read_wfc3(filter_set, filters)
+            hst = wfc.copy()
+            hst.update(wfc3)
+            return hst
         elif self.camera == 'wfc3':
             return self._read_wfc3(filter_set, filters)
         elif self.camera == 'wfc':
@@ -187,8 +153,11 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
+        path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path,
+            mod)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             pre = fn.split('_')[0]
 
@@ -205,7 +174,7 @@ class Survey(object):
                 cent = float('{}.{}'.format(num[0], num[1:]))
 
                 # Wavelength [micron], transmission
-                x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+                x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
                     skiprows=1)
 
                 data[pre] = self._get_filter_prop(x, y, cent)
@@ -233,7 +202,7 @@ class Survey(object):
                     cent = float('{}.{}'.format(pre[1], pre[2:k]))
 
                     # Wavelength [micron], transmission
-                    x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+                    x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
                         skiprows=1)
 
                     data[pre] = self._get_filter_prop(x, y, cent)
@@ -241,15 +210,6 @@ class Survey(object):
                     self._filter_cache[pre] = copy.deepcopy(data[pre])
 
         return data
-
-    def _parse_filter(self, cam):
-        # Determine the center wavelength of the filter based on its
-        # string identifier.
-        k = pre.rfind(_filters)
-        cent = float('{}.{}'.format(pre[1], pre[2:k]))
-
-        _i, x, y = np.loadtxt('{}/IR/{}'.format(self.path, fn),
-            unpack=True, skiprows=1, delimiter=',')
 
     def _read_wfc(self, filter_set='W', filters=None):
         if not hasattr(self, '_filter_cache'):
@@ -267,8 +227,10 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
+        path = '{}/wfc'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             # Mac OS creates a bunch of ._wfc_* files. Argh.
             if not fn.startswith('wfc_'):
@@ -287,7 +249,7 @@ class Survey(object):
 
                 cent = float('0.{}'.format(pre[1:4]))
 
-                x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                x, y = np.loadtxt('{}/{}'.format(path, fn),
                     unpack=True, skiprows=1)
 
                 # Convert wavelengths from nanometers to microns
@@ -310,7 +272,7 @@ class Survey(object):
                     k = pre.rfind(_filters)
                     cent = float('0.{}'.format(pre[1:k]))
 
-                    x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                    x, y = np.loadtxt('{}/{}'.format(path, fn),
                         unpack=True, skiprows=1)
 
                     # Convert wavelengths from nanometers to microns
@@ -335,8 +297,10 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
+        path = path = '{}/wfc3'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             if '.txt' not in fn:
                 continue
@@ -352,7 +316,7 @@ class Survey(object):
 
                 cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                x, y = np.loadtxt('{}/{}'.format(path, fn),
                     unpack=True, skiprows=1)
 
                 # Convert wavelengths from Angstroms to microns
@@ -377,7 +341,7 @@ class Survey(object):
                     # string identifier.
                     cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                    x, y = np.loadtxt('{}/{}'.format(self.path, fn),
+                    x, y = np.loadtxt('{}/{}'.format(path, fn),
                         unpack=True, skiprows=1)
 
                     # Convert wavelengths from Angstroms to microns
@@ -391,9 +355,11 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
+        path = '{}/irac'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
-            x, y = np.loadtxt('{}/{}'.format(self.path, fn), unpack=True,
+        for fn in os.listdir(path):
+            x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
                 skiprows=1)
 
             if 'ch1' in fn:
@@ -420,21 +386,26 @@ class Survey(object):
         except ImportError:
             raise ImportError("Need pandas to read Roman ST throughputs.")
 
-        _fn = 'WFIRST_WIMWSM_throughput_data_190531.xlsm'
+        _fn = 'Roman_effarea_20201130.xlsx'
 
         A = np.pi * (0.5 * 2.4)**2
 
+        path = '{}/roman'.format(_path)
+
         data = {}
-        for fn in os.listdir(self.path):
+        for fn in os.listdir(path):
 
             if fn != _fn:
                 continue
 
-            df = pd.read_excel(self.path + '/' + _fn, sheet_name='EffectiveArea',
-                header=18)
+            df = pd.read_excel(path + '/' + _fn,
+                sheet_name='Roman_effarea_20201130',
+                header=1)
 
-            cols = df.columns
-            x = df['microns'].to_numpy()
+            _cols = df.columns
+            cols = [col.strip() for col in _cols]
+
+            x = df['Wave'].to_numpy()
 
             for col in cols:
                 if col[0] != 'F':
@@ -444,7 +415,7 @@ class Survey(object):
                 cent = float(col[1] + '.' + col[2:])
 
                 # This is an effective area. Take T = A_eff / (pi * 1.2**2)
-                y = df[col].to_numpy() / A
+                y = df[' '+col].to_numpy() / A
                 y[x > 2] = 0 # spurious spike at ~2.6 microns
 
                 data[pre] = self._get_filter_prop(np.array(x), np.array(y), cent)
@@ -498,3 +469,72 @@ class Survey(object):
             y[~ok] = 0.0
 
         return x, y, mi, dx, Tavg
+
+    def get_dropout_filter(self, z, filters=None, drop_wave=1216., skip=None):
+        """
+        Determine where the Lyman break happens and return the corresponding
+        filter.
+        """
+
+        data = self.read_throughputs(filters='all')
+
+        wave_obs = drop_wave * 1e-4 * (1. + z)
+
+        if filters is not None:
+            all_filts = filters
+        else:
+            all_filts = list(data.keys())
+
+        if skip is not None:
+            if type(skip) not in [list, tuple]:
+                skip = [skip]
+
+            for element in skip:
+                all_filts.remove(element)
+
+        # Make sure filters are in order of ascending wavelength
+        x0 = [data[filt][2] for filt in all_filts]
+        sorter = np.argsort(x0)
+        _all_filts = [all_filts[i] for i in sorter]
+        all_filts = _all_filts
+
+        gotit = False
+        for j, filt in enumerate(all_filts):
+
+            x0 = data[filt][2]
+            p, m = data[filt][3]
+
+            in_filter = (x0 - m <= wave_obs <= x0 + p)
+
+            # Check for exclusivity
+            if j >= 1:
+                x0b = data[all_filts[j-1]][2]
+                pb, mb = data[all_filts[j-1]][3]
+
+                in_blue_neighbor = (x0b - mb <= wave_obs <= x0b + pb)
+            else:
+                in_blue_neighbor = False
+
+            if j < len(all_filts) - 1:
+                x0r = data[all_filts[j+1]][2]
+                pr, mr = data[all_filts[j+1]][3]
+
+                in_red_neighbor = (x0r - mr <= wave_obs <= x0r + pr)
+            else:
+                in_red_neighbor = False
+
+            # Final say
+            if in_filter: #and (not in_blue_neighbor) and (not in_red_neighbor):
+                gotit = True
+                break
+
+        if gotit:
+            drop = filt
+            if filt != all_filts[-1]:
+                drop_redder = all_filts[j+1]
+            else:
+                drop_redder = None
+        else:
+            drop = drop_redder = None
+
+        return drop, drop_redder

@@ -12,7 +12,7 @@ Description: LF and SMF model (based on Moster2010), as well as main sequence SF
 from .Halo import HaloPopulation
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import get_pq_pars
-from ..util.MagnitudeSystem import MagnitudeSystem
+from ..obs.MagnitudeSystem import MagnitudeSystem
 from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import s_per_gyr
 from ..physics.Cosmology import Cosmology
@@ -26,8 +26,10 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         HaloPopulation.__init__(self, **kwargs)
 
+    def LuminosityFunction(self, z, bins, **kwargs):
+        return self.get_lf(z, bins, **kwargs)
 
-    def LuminosityFunction(self, z, x, text=False):
+    def get_lf(self, z, bins, text=False, use_mags=True, absolute=True):
         """
         Reconstructed luminosity function from a simple model of L = c*HaloMadd
 
@@ -35,7 +37,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         ----------
         z : int, float
             Redshift. Currently does not interpolate between values in halos.tab_z if necessary.
-        x : float
+        bins : float
             Absolute (AB) magnitudes.
 
         Returns
@@ -44,11 +46,14 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         """
 
+        assert use_mags
+        assert absolute
+
         #catch if only one magnitude is passed
-        if type(x) not in [list, np.ndarray]:
-            mags = [x]
+        if type(bins) not in [list, np.ndarray]:
+            mags = [bins]
         else:
-            mags = x
+            mags = bins
 
         #get halo mass function and array of halo masses
         hmf = self.halos.tab_dndm
@@ -79,7 +84,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
                 # print("Error, magnitude(s) out of interpolation bounds")
                 NumDensity = -np.inf * np.ones(len(mags))
 
-        return NumDensity
+        return bins, NumDensity
 
 
     def Gen_LuminosityFunction(self, z, x, Lambda):

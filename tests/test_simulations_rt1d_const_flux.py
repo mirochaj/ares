@@ -45,7 +45,7 @@ def test(rtol=1e-2):
     sim = ares.simulations.RaySegment(**pars)
     sim.run()
 
-    t, xHII = sim.CellEvolution(field='h_2')
+    t, xHII = sim.get_cell_evolution(field='h_2')
 
     # Analytic solution: exponential time evolution
     sigma0 = sigma(pars['source_E'][0])

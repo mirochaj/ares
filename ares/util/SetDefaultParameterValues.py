@@ -1,7 +1,7 @@
 """
 SetDefaultParameterValues.py
 
-Author: Jordan Mirocha
+Author: Jordan Mirocha / Joshua Hibbard
 Affiliation: University of Colorado at Boulder
 Created on 2010-10-19.
 
@@ -260,6 +260,7 @@ def PhysicsParameters():
     'feedback_LW_softening': 'sqrt',
     'feedback_LW_tol_zrange': (0, np.inf),
 
+    'feedback_LW_Mmin_monotonic': False,
     'feedback_LW_Mmin_smooth': 0,
     'feedback_LW_Mmin_fit': 0,
     'feedback_LW_Mmin_afreq': 0,
@@ -565,8 +566,8 @@ def PopulationParameters():
     "pop_stellar_aging": False,
     "pop_nebular": False,
     "pop_nebular_only": False,
-    "pop_nebular_continuum": False,
-    "pop_nebular_lines": False,
+    "pop_nebular_continuum": True,
+    "pop_nebular_lines": True,
     "pop_nebular_ff": True,
     "pop_nebular_fb": True,
     "pop_nebular_2phot": True,
@@ -845,6 +846,7 @@ def PopulationParameters():
     "pop_dust_kappa": None,   # opacity in [cm^2 / g]
     "pop_dust_scatter": None,
     "pop_dust_scatter_seed": None,
+    "pop_dust_kill_redshift": np.inf,
 
 
     "pop_fpoll": 1.0,         # uniform pollution
@@ -1012,8 +1014,8 @@ def SourceParameters():
     "source_stellar_aging": False,
     "source_nebular": False,
     "source_nebular_only": False,
-    "source_nebular_continuum": False,
-    "source_nebular_lines": False,
+    "source_nebular_continuum": True,
+    "source_nebular_lines": True,
     "source_nebular_ff": True,
     "source_nebular_fb": True,
     "source_nebular_2phot": True,
@@ -1258,6 +1260,9 @@ def HaloMassFunctionParameters():
     "hmf_wdm_mass": None,
     "hmf_wdm_interp": True,
 
+    #For various DM models
+    'hmf_dm_model': 'CDM',
+
     "hmf_cosmology_location": None,
     # PCA eigenvectors
     "hmf_pca": None,
@@ -1284,6 +1289,10 @@ def HaloMassFunctionParameters():
 
     # If a new tab_MAR should be computed when using the PCA
     "hmf_gen_MAR":False,
+
+    "filter_params" : None,
+
+    "hmf_MAR_from_CDM": True,
 
     }
 
@@ -1384,7 +1393,7 @@ def ControlParameters():
     "interp_tab": 'cubic',
     "interp_cc": 'linear',
     "interp_rc": 'linear',
-    "interp_Z": 'linear',
+    "interp_Z": 'cubic',
     "interp_hist": 'linear',
     "interp_all": 'linear',  # backup
     #"interp_sfrd": 'cubic',

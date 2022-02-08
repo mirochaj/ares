@@ -17,7 +17,7 @@ dpl = \
  'pop_sfr_model{0}': 'sfe-func',
  'pop_sfr_model{1}': 'link:sfrd:0',
  'pop_MAR{0}': 'hmf',
- 
+
  # Stellar pop + fesc
  'pop_sed{0}': 'eldridge2009',
  'pop_binaries{0}': False,
@@ -28,24 +28,24 @@ dpl = \
                                  # should make this automatic
 
  'pop_fesc{0}': 0.2,
- 
+
  # Solve LWB!
  'pop_solve_rte{0}': (E_LyA, E_LL),
- 
+
  # SFE
  'pop_fstar{0}': 'pq[0]',
  'pq_func[0]{0}': 'dpl_normP',
  'pq_func_var[0]{0}': 'Mh',
- 
+
  ##
  # IMPORTANT
  ##
  'pq_func_par0[0]{0}': 0.05,           # Table 1 in paper (last 4 rows)
  'pq_func_par1[0]{0}': 2.8e11,
- 'pq_func_par2[0]{0}': 0.49,       
- 'pq_func_par3[0]{0}': -0.61,      
+ 'pq_func_par2[0]{0}': 0.49,
+ 'pq_func_par3[0]{0}': -0.61,
  'pop_calib_wave{0}': 1600,
- 'pop_calib_lum{0}': 1.0185e28,      # Enforces Equation 13 in paper 
+ 'pop_calib_lum{0}': 1.0185e28,      # Enforces Equation 13 in paper
  ##
  #
  ##
@@ -165,6 +165,3 @@ _flex2 = \
 }
 
 dflex = _flex2
-
-
-

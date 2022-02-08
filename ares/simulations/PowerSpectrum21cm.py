@@ -249,7 +249,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             zeta_X = np.zeros_like(self.halos.tab_M)
             #Tpro = None
             for j, pop in enumerate(self.pops):
-                pop_zeta = pop.IonizingEfficiency(z=z)
+                pop_zeta = pop.get_zeta(z=z)
 
                 if pop.is_src_ion:
 
@@ -493,7 +493,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
                 data['ps_21'] = self.field.PowerSpectrumFromCF(self.k,
-                    data['cf_21'], self.R, 
+                    data['cf_21'], self.R,
                     split_by_scale=self.pf['ps_split_transform'],
                     epsrel=self.pf['ps_fht_rtol'],
                     epsabs=self.pf['ps_fht_atol'])

@@ -336,7 +336,7 @@ class ChemicalNetwork(object):
 
         return self.dqdt
 
-    def Jacobian(self, t, q, args):
+    def Jacobian(self, t, q, args): # pragma: no cover
         """
         Compute the Jacobian for the system of equations.
         """
