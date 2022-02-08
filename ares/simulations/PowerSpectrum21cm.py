@@ -244,6 +244,10 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
         Generator for the power spectrum.
         """
 
+        transform_kwargs = dict(split_by_scale=self.pf['ps_split_transform'],
+                epsrel=self.pf['ps_fht_rtol'],
+                epsabs=self.pf['ps_fht_atol'])
+
         # Set a few things before we get moving.
         self.field.tab_Mmin = self.tab_Mmin
 
@@ -266,32 +270,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             #Tpro = None
             for j, pop in enumerate(self.pops):
                 pop_zeta = pop.get_zeta_ion(z=z)
-
                 zeta += pop_zeta
-
-                #if pop.is_src_ion:
-                #
-                #    if type(pop_zeta) is tuple:
-                #        _Mh, _zeta = pop_zeta
-                #        zeta += np.interp(self.halos.tab_M, _Mh, _zeta)
-                #        Nion += pop.src.Nion
-                #    else:
-                #        zeta += pop_zeta
-                #        Nion += pop.pf['pop_Nion']
-                #        Nlya += pop.pf['pop_Nlw']
-
-                #    zeta = np.maximum(zeta, 1.) # why?
-
-                #if pop.is_src_heat:
-                #    pop_zeta_X = pop.HeatingEfficiency(z=z)
-                #    zeta_X += pop_zeta_X
-
-                #if pop.is_src_lya:
-                #    Nlya += pop.pf['pop_Nlw']
-                    #Nlya += pop.src.Nlw
-
-            # Only used if...ps_lya_method==0?
-            #zeta_lya += zeta * (Nlya / Nion)
 
             ##
             # Make scalar if it's a simple model
@@ -386,12 +365,9 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             data['xa'] = xa
             data['Ja'] = Ja
 
-
-
             # Assumes strong coupling. Mapping between temperature
             # fluctuations and contrast fluctuations.
             #Ts = Tk
-
 
             # Add beta factors to dictionary
             for f1 in ['x', 'd', 'a']:
@@ -502,49 +478,28 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             ##
             # 21-cm fluctuations
             ##
-            if self.pf['ps_include_21cm']:
+            data['cf_21'] = self.field.get_cf(z,
+                R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
+                Tk=Tk, Ja=Ja, k=self.tab_k)
 
-                data['cf_21'] = self.field.get_cf(z,
-                    R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                    Tk=Tk, Ja=Ja, k=self.tab_k)
-
-                # Always compute the 21-cm power spectrum. Individual power
-                # spectra can be saved by setting ps_save_components=True.
-                data['ps_21'] = self.field.get_ps_from_cf(self.tab_k,
-                    data['cf_21'], self.tab_R,
-                    split_by_scale=self.pf['ps_split_transform'],
-                    epsrel=self.pf['ps_fht_rtol'],
-                    epsabs=self.pf['ps_fht_atol'])
-
-            # Should just do the above, and then loop over whatever is in
-            # the cache and save also. If ps_save_components is True, then
-            # FT everything we haven't already.
-            for term in ['dd', 'ii', 'id', 'psi', 'phi']:
-                # Should change suffix to _ev
-                jp_1 = self.field._cache_jp(z, term)
-                cf_1 = self.field._cache_cf(z, term)
-
-                if (jp_1 is None and cf_1 is None) and (term not in ['psi', 'phi', 'oo']):
-                    continue
-
-                _cf = self.field.get_cf(z,
-                    R=self.tab_R, term=term, R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                    Tk=Tk, Ja=Ja, k=self.tab_k)
-
-                data['cf_{}'.format(term)] = _cf.copy()
-
-                if not self.pf['ps_output_components']:
-                    continue
-
-                data['ps_{}'.format(term)] = \
-                    self.field.get_ps_from_cf(self.tab_k,
-                    data['cf_{}'.format(term)], self.tab_R,
-                    split_by_scale=self.pf['ps_split_transform'],
-                    epsrel=self.pf['ps_fht_rtol'],
-                    epsabs=self.pf['ps_fht_atol'])
+            # Always compute the 21-cm power spectrum. Individual power
+            # spectra can be saved by setting ps_save_components=True.
+            data['ps_21'] = self.field.get_ps_from_cf(self.tab_k,
+                data['cf_21'], self.tab_R, **transform_kwargs)
 
             # Always save the matter correlation function.
             data['cf_dd'] = self.field.get_cf(z, term='dd', R=self.tab_R)
+
+            # Grab the ionization CF
+            data['cf_bb'] = self.field.get_cf(z, term='ii', R=self.tab_R)
+
+            if self.pf['ps_output_components']:
+                data['ps_bb'] = self.field.get_ps_from_cf(self.tab_k,
+                    data['cf_bb'], self.tab_R, **transform_kwargs)
+
+
+
+
 
             yield z, data
 

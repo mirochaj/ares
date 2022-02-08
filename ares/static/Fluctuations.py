@@ -29,6 +29,7 @@ from ..util.Math import get_ps_from_cf_tab, get_cf_from_ps_tab
 
 root2 = np.sqrt(2.)
 four_pi = 4. * np.pi
+tiny_cf = 1e-12
 
 class Fluctuations(object): # pragma: no cover
     def __init__(self, grid=None, **kwargs):
@@ -2645,6 +2646,7 @@ class Fluctuations(object): # pragma: no cover
             use_R_tab = False
 
         if (Qi == 1) and ('i' in term):
+            self._cache_cf_[z][term] = R, np.zeros_like(R)
             return np.zeros_like(R)
 
         Tcmb = self.cosm.TCMB(z)
@@ -2952,6 +2954,8 @@ class Fluctuations(object): # pragma: no cover
 
         #if term not in ['21', 'mm']:
         #    cf /= (2. * np.pi)**3
+
+        cf[cf < tiny_cf] = tiny_cf * np.ones(np.sum(cf < tiny_cf))
 
         self._cache_cf_[z][term] = R, cf.copy()
 
