@@ -385,9 +385,9 @@ def PowerSpectrumParameters():
      'ps_output_waves': None,
 
      "ps_output_k": None,
-     "ps_output_lnkmin": -4.6,
-     "ps_output_lnkmax": 2.,
-     "ps_output_dlnk": 0.2,
+     "ps_output_lnkmin": -4.6, # 0.01
+     "ps_output_lnkmax": 2.3,  # 10
+     "ps_output_dlnk": 0.1,
 
      "ps_output_R": None,
      "ps_output_lnRmin": -8.,

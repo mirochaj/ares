@@ -485,7 +485,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             # Always compute the 21-cm power spectrum. Individual power
             # spectra can be saved by setting ps_save_components=True.
             data['ps_21'] = self.field.get_ps_from_cf(self.tab_k,
-                data['cf_21'], self.tab_R, **transform_kwargs)
+                data['cf_21'], R=self.tab_R, **transform_kwargs)
 
             # Always save the matter correlation function.
             data['cf_dd'] = self.field.get_cf(z, term='dd', R=self.tab_R)
@@ -494,8 +494,10 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             data['cf_bb'] = self.field.get_cf(z, term='ii', R=self.tab_R)
 
             if self.pf['ps_output_components']:
+                data['ps_dd'] = self.field.get_ps_from_cf(self.tab_k,
+                    data['cf_dd'], R=self.tab_R, **transform_kwargs)
                 data['ps_bb'] = self.field.get_ps_from_cf(self.tab_k,
-                    data['cf_bb'], self.tab_R, **transform_kwargs)
+                    data['cf_bb'], R=self.tab_R, **transform_kwargs)
 
 
 

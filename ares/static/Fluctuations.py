@@ -3065,4 +3065,4 @@ class Fluctuations(object): # pragma: no cover
 
         _k, _ps = get_ps_from_cf_tab(R, cf)
 
-        return np.interp(np.log(k), np.log(_k), np.log(_ps))
+        return np.interp(np.log(k), np.log(_k), _ps)

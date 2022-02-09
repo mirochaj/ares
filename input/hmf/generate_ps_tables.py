@@ -34,14 +34,14 @@ pars = \
 
  "hps_zmin": 6,
  "hps_zmax": 30,
- "hps_dz": 0.5,
+ "hps_dz": 0.1,
 
  'hps_dlnk': 0.001,
  'hps_dlnR': 0.001,
- 'hps_lnk_min': -10.,
- 'hps_lnk_max': 10.,
- 'hps_lnR_min': -10.,
- 'hps_lnR_max': 10.,
+ 'hps_lnk_min': -9.,
+ 'hps_lnk_max': 9.,
+ 'hps_lnR_min': -9.,
+ 'hps_lnR_max': 9.,
 }
 
 kwargs = \
