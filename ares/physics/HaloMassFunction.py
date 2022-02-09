@@ -538,7 +538,7 @@ class HaloMassFunction(object):
 
         if self.pf['verbose'] and rank == 0:
             name = self.tab_name
-            print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
+            print("# Loaded {}.".format(name.replace(ARES, '$ARES')))
 
         if self.pf['hmf_func'] is not None:
             if self.pf['verbose']:

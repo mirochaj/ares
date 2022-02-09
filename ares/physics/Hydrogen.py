@@ -585,7 +585,7 @@ class Hydrogen(object):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            self._inits = self.cosm.get_inits_rec()
+            self._inits = self.cosm._ics.get_inits_rec()
         return self._inits
 
     def saturated_limit(self, z):

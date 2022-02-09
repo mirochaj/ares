@@ -10,6 +10,7 @@ Description:
 
 """
 
+import os
 import numpy as np
 from ..data import ARES
 from types import FunctionType
@@ -30,10 +31,22 @@ except ImportError:
     rank = 0
     size = 1
 
+
+settings = {'width': 76, 'border': 2, 'pad': 1, 'col': 6}
+
+HOME = os.environ.get('HOME')
+if os.path.exists('{!s}/.ares/printout'.format(HOME)):
+    col1, col2 = np.loadtxt('{!s}/.ares/printout'.format(HOME), unpack=True,
+        dtype=str)
+
+    for i, row in enumerate(col1):
+        settings[col1[i].strip()] = int(col2[i].strip())
+
 # FORMATTING
-width = 110
-pre = post = '#'*4
+width = settings['width']
+pre = post = '#' * settings['border']
 twidth = width - len(pre) - len(post) - 2
+pad = settings['pad']
 #
 
 e_methods = \
@@ -111,7 +124,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
         tmp = col.center(cwidth[i+1])
         hnames.extend(list(tmp))
 
-    start = len(pre) + cwidth[0] + 3
+    start = len(pre) + cwidth[0] + settings['pad']
 
     hdr[start:start + len(hnames)] = hnames
 
@@ -145,7 +158,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
             numbers += (fmt.format(data[i][j])).center(cwidth[j+1])
         numbers += ' '
 
-        c = len(pre) + 1 + cwidth[0] + 2
+        c = len(pre) + 1 + cwidth[0] + settings['pad']
         d[c:c+len(numbers)] = list(numbers)
 
         d_s = ''
@@ -502,13 +515,13 @@ def print_pop(pop):
 
 def _rad_type(sim, fluctuations=False):
     rows = []
-    cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Ly-a', 'LW', 'Ly-C', 'X-ray', 'RTE']
+    cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Lya', 'LW', 'LyC', 'Xray', 'RTE']
     data = []
     for i, pop in enumerate(sim.pops):
         rows.append('pop #%i' % i)
         if re.search('link', pop.pf['pop_sfr_model']):
             junk, quantity, num = pop.pf['pop_sfr_model'].split(':')
-            mod = 'link:%s:%i' % (quantity, int(num))
+            mod = '%s->%i' % (quantity, int(num))
         else:
             mod = pop.pf['pop_sfr_model']
 
@@ -525,7 +538,7 @@ def _rad_type(sim, fluctuations=False):
                 if is_src:
                     tmp.append('x')
                 else:
-                    tmp.append(' ')
+                    tmp.append('-')
 
             # No analog for RTE solution for fluctuations (yet)
             if fl:
@@ -567,17 +580,20 @@ def print_sim(sim, mgb=False):
         print("#"*width)
         return
 
-    print(line('-'*twidth))
+    cw =print(line('-'*twidth))
     print(line('Source Populations'))
     print(line('-'*twidth))
 
     data, rows, cols = _rad_type(sim)
-    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
+
+    cw = settings['col']
+    cwidth = [cw+1, cw+4] + [cw] * 8
+    tabulate(data, rows, cols, cwidth=cwidth, fmt='{!s}')
 
     #print line('-'*twidth)
     #print line('Fluctuating Backgrounds')
     #print line('-'*twidth)
-    #
+    #cw =
     #data, rows, cols = _rad_type(sim, fluctuations=True)
     #tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
 
@@ -593,12 +609,12 @@ def print_sim(sim, mgb=False):
                 print(line('Notes'))
                 print(line('-' * twidth))
 
-            s1 = "+ pop_calib_lum != None, which means".format(i)
-            s1 += ' changes to pop_Z will *not* affect UVLF.'
-            s2 = '  Set pop_calib_lum=None to restore "normal" behavior'
-            s2 += ' (see S3.4 in Mirocha et al. 2017).'
-            print(line(s1))
-            print(line(s2))
+            s1a = "+ pop_calib_lum != None, which means changes to pop_Z".format(i)
+            s1b = '  will *not* affect UVLF. Set pop_calib_lum=None to restore'
+            s1c = '  "normal" behavior (see S3.4 in Mirocha et al. 2017).'
+            print(line(s1a))
+            print(line(s1b))
+            print(line(s1c))
             ct += 1
 
         # Other noteworthy things?

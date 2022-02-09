@@ -1,3 +1,0 @@
-Eventually, it'd be nice to have figures throughout the documentation. My really hacky way of doing this is to run generate_figures.py, and upload the files by hand (in batch) to a public Dropbox folder, which allows the files to have permanent share-able links. 
-
-This depends on the script rst_to_py.py that I wrote to translate .rst files to, you guessed it, Python scripts. That way we can run each .rst file as a script, and harvest any figures it generates.
