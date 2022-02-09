@@ -583,18 +583,19 @@ class ParameterBundle(dict):
 
                 if self.verbose:
                     if type(other[key]) in [int, float, np.float64]:
-                        msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key.ljust(20),
+                        msg1 = "UPDATE: Setting {0} -> {1:9.2e}".format(key,
                             other[key])
                     else:
-                        msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20),
+                        msg1 = "UPDATE: Setting {0} -> {1}".format(key,
                             str(other[key]).ljust(12))
                     if type(tmp[key]) in [int, float, np.float64]:
-                        msg2 = "previously {0} = {1:9.2e}".format(str(key).ljust(20),
+                        msg2 = "        previously {0} = {1:9.2e}".format(str(key),
                             tmp[key])
                     else:
-                        msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                        msg2 = "        previously {0} = {1}".format(str(key), tmp[key])
 
-                    print(line('{0} [{1}]'.format(msg1, msg2)))
+                    print(line('{0}'.format(msg1)))
+                    print(line('[{0}]'.format(msg2)))
 
             tmp[key] = other[key]
 

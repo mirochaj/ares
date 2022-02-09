@@ -2030,7 +2030,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Either load previous result or compute from scratch
         fil = filters
         if cached_result is not None:
-            M, mags = cached_result
+            M, mags, xph = cached_result
         else:
             # Take monochromatic (or within some window) MUV
             L = self.get_lum(z, wave=wave, window=window, load=load)
@@ -2064,10 +2064,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 mags = np.array(mags)
             else:
+                xph = None
                 mags = M + magcorr
 
             if hasattr(self, '_cache_mags_'):
-                self._cache_mags_[kw_tup] = M, mags
+                self._cache_mags_[kw_tup] = M, mags, xph
 
         ##
         # Interpolate etc.

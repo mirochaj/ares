@@ -4,6 +4,10 @@ Development History
 
 Here's an attempt to keep track of major changes to the code over time, which will be tagged in the bitbucket repository with version numbers. I haven't followed conventions for version numbering so far. Instead, I've simply tagged commits with a version number when a paper is submitted using that version of the code (e.g., v0.1 and v0.2), or when a series of noteworthy improvements or bug fixes have been made (v0.3).
 
+v0.7
+----
+- Overhaul of documentation to use nbsphinx.
+
 v0.6
 ----
 - First tag since migrating to github.
