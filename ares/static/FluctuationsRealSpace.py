@@ -1,6 +1,6 @@
 """
 
-FluctuatingBackground.py
+FluctuationsRealSpace.py
 
 Author: Jordan M_brocha
 Affiliation: UCLA
@@ -31,7 +31,7 @@ root2 = np.sqrt(2.)
 four_pi = 4. * np.pi
 tiny_cf = 1e-12
 
-class Fluctuations(object): # pragma: no cover
+class FluctuationsRealSpace(object): # pragma: no cover
     def __init__(self, grid=None, **kwargs):
         """
         Initialize a FluctuatingBackground object.

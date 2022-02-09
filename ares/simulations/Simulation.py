@@ -5,7 +5,6 @@ import numpy as np
 from types import FunctionType
 from ..util import ProgressBar
 from ..util import ParameterFile
-from ..static import Fluctuations
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
 from .PowerSpectrum21cm import PowerSpectrum21cm
@@ -279,12 +278,12 @@ class Simulation(object): # pragma: no cover
     def hydr(self):
         return self.grid.hydr
 
-    @property
-    def field(self):
-        if not hasattr(self, '_field'):
-            self._field = Fluctuations(**self.tab_kwargs)
-            self._field.pops = self.pops
-        return self._field
+    #@property
+    #def field(self):
+    #    if not hasattr(self, '_field'):
+    #        self._field = Fluctuations(**self.tab_kwargs)
+    #        self._field.pops = self.pops
+    #    return self._field
 
     @property
     def halos(self):

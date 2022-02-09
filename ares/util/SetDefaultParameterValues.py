@@ -394,6 +394,14 @@ def PowerSpectrumParameters():
      "ps_output_lnRmax": 8.,
      "ps_output_dlnR": 0.01,
 
+     # New parameters as of 02.09.2022
+     "ps_space_ion": 'real',
+     "ps_space_temp": 'fourier',
+     "ps_space_lya": 'fourier',
+     "ps_method": 1,
+
+
+
      'ps_use_wick': False,
 
      'ps_igm_model': 1, # 1=3-zone IGM, 2=other

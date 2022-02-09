@@ -3,9 +3,9 @@ import copy
 import pickle
 import numpy as np
 from types import FunctionType
-from ..static import Fluctuations
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
+from ..static import FluctuationsRealSpace
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import cm_per_mpc, c, s_per_yr
@@ -81,10 +81,10 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
         self._gs = value
 
     @property
-    def field(self):
-        if not hasattr(self, '_field'):
-            self._field = Fluctuations(**self.kwargs)
-        return self._field
+    def field_config(self):
+        if not hasattr(self, '_field_config'):
+            self._field_config = FluctuationsRealSpace(**self.kwargs)
+        return self._field_config
 
     @property
     def halos(self):
@@ -150,14 +150,14 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             is2d_k = key.startswith('ps')
             is2d_R = key.startswith('jp') or key.startswith('ev') \
                   or key.startswith('cf')
-            is2d_B = (key in ['n_i', 'm_i', 'r_i', 'delta_B'])
+            is2d_B = (key in ['dndm_b', 'M_b', 'R_b', 'delta_b'])
 
             if is2d_k:
                 tmp = np.zeros((len(self.tab_z), len(self.tab_k)))
             elif is2d_R:
                 tmp = np.zeros((len(self.tab_z), len(self.tab_R)))
             elif is2d_B:
-                tmp = np.zeros((len(self.tab_z), len(all_ps[0]['r_i'])))
+                tmp = np.zeros((len(self.tab_z), len(all_ps[0]['R_b'])))
             else:
                 tmp = np.zeros_like(self.tab_z)
 
@@ -249,7 +249,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                 epsabs=self.pf['ps_fht_atol'])
 
         # Set a few things before we get moving.
-        self.field.tab_Mmin = self.tab_Mmin
+        self.field_config.tab_Mmin = self.tab_Mmin
 
         for i, z in enumerate(self.tab_z):
 
@@ -282,8 +282,8 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             if np.all(np.diff(zeta_lya) == 0):
                 zeta_lya = zeta_lya[0]
 
-            self.field.zeta = zeta
-            self.field.zeta_X = zeta_X
+            self.field_config.zeta = zeta
+            self.field_config.zeta_X = zeta_X
 
             self.zeta = zeta
 
@@ -294,7 +294,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             asize = self.pf['bubble_shell_asize_zone_0']
             if self.pf['ps_include_temp'] and asize is not None:
 
-                self.field.is_Rs_const = False
+                self.field_config.is_Rs_const = False
 
                 if type(asize) is FunctionType:
                     R_s = lambda R, z: R + asize(z)
@@ -313,13 +313,13 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                     # Assume independent variable is redshift for now.
                     if type(fvol) is FunctionType:
                         frad = lambda z: (1. + fvol(z))**(1./3.) - 1.
-                        self.field.is_Rs_const = False
+                        self.field_config.is_Rs_const = False
                     else:
                         frad = lambda z: (1. + fvol)**(1./3.) - 1.
 
                 elif frad is not None:
                     if type(frad) is FunctionType:
-                        self.field.is_Rs_const = False
+                        self.field_config.is_Rs_const = False
                     else:
                         frad = lambda z: frad
                 else:
@@ -358,7 +358,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             xt = xa + xc
 
             # Won't be terribly meaningful if temp fluctuations are off.
-            C = self.field.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
+            C = self.field_config.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
             data['c'] = C
             data['Ts'] = Ts
             data['Tk'] = Tk
@@ -380,18 +380,18 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             # Ionization fluctuations
             if self.pf['ps_include_ion']:
 
-                Ri, Mi, Ni = self.field.BubbleSizeDistribution(z, ion=True)
+                Ri, Mi, Ni = self.field_config.BubbleSizeDistribution(z, ion=True)
 
-                data['n_i'] = Ni
-                data['m_i'] = Mi
-                data['r_i'] = Ri
-                data['delta_B'] = self.field._B(z, ion=True)
+                data['dndm_b'] = Ni
+                data['M_b'] = Mi
+                data['R_b'] = Ri
+                data['delta_b'] = self.field_config._B(z, ion=True)
             else:
                 Ri = Mi = Ni = None
 
-            Qi = self.field.MeanIonizedFraction(z)
+            Qi = self.field_config.MeanIonizedFraction(z)
 
-            Qi_bff = self.field.BubbleFillingFactor(z)
+            Qi_bff = self.field_config.BubbleFillingFactor(z)
 
             xibar = Qi_gs
 
@@ -399,7 +399,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
             if self.pf['ps_include_temp']:
                 # R_s=R_s(Ri,z)
-                Qh = self.field.MeanIonizedFraction(z, ion=False)
+                Qh = self.field_config.MeanIonizedFraction(z, ion=False)
                 data['Qh'] = Qh
             else:
                 data['Qh'] = Qh = 0.0
@@ -446,7 +446,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             #            self.mean_history['cgm_h_2'][-1::-1])
             #
             #    else:
-            #        Qi = self.field.BubbleFillingFactor(z, zeta)
+            #        Qi = self.field_config.BubbleFillingFactor(z, zeta)
             #        xibar = 1. - np.exp(-Qi)
             #else:
             #    Qi = 0.
@@ -458,7 +458,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             #else:
             #    rescale_Q = False
 
-            #Qi = np.mean([QHII_gs, self.field.BubbleFillingFactor(z, zeta)])
+            #Qi = np.mean([QHII_gs, self.field_config.BubbleFillingFactor(z, zeta)])
 
             #xibar = np.interp(z, self.mean_history['z'][-1::-1],
             #    self.mean_history['cgm_h_2'][-1::-1])
@@ -478,28 +478,49 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             ##
             # 21-cm fluctuations
             ##
-            data['cf_21'] = self.field.get_cf(z,
-                R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                Tk=Tk, Ja=Ja, k=self.tab_k)
 
-            # Always compute the 21-cm power spectrum. Individual power
-            # spectra can be saved by setting ps_save_components=True.
-            data['ps_21'] = self.field.get_ps_from_cf(self.tab_k,
-                data['cf_21'], R=self.tab_R, **transform_kwargs)
+            # Pure real-space model
+            if self.pf['ps_method'] == 1:
+                data['cf_21'] = self.field_config.get_cf(z,
+                    R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
+                    Tk=Tk, Ja=Ja, k=self.tab_k)
+
+                # Always compute the 21-cm power spectrum. Individual power
+                # spectra can be saved by setting ps_save_components=True.
+                data['ps_21'] = self.field_config.get_ps_from_cf(self.tab_k,
+                    data['cf_21'], R=self.tab_R, **transform_kwargs)
+
+            # Pure Fourier-space model (i.e., Aurel's halo model)
+            elif self.pf['ps_method'] == 2:
+                raise NotImplemented('In progress')
+
+            # Use real-space for ionization field and halo model for Ts.
+            # Cross-terms? TBD.
+            elif self.pf['ps_method'] == 3:
+                raise NotImplemented('In progress')
+
+            else:
+                raise NotImplemented("Do not recognize `ps_method`={}".format(
+                    self.pf['ps_method']
+                ))
+
+            ##
+            # Saving / re-packaging from here on.
 
             # Always save the matter correlation function.
-            data['cf_dd'] = self.field.get_cf(z, term='dd', R=self.tab_R)
+            data['cf_dd'] = self.field_config.get_cf(z, term='dd', R=self.tab_R)
 
             # Grab the ionization CF
-            data['cf_bb'] = self.field.get_cf(z, term='ii', R=self.tab_R)
+            data['cf_bb'] = self.field_config.get_cf(z, term='ii', R=self.tab_R)
 
+            # Compute P(k) for individual terms?
             if self.pf['ps_output_components']:
-                data['ps_dd'] = self.field.get_ps_from_cf(self.tab_k,
+                data['ps_dd'] = self.field_config.get_ps_from_cf(self.tab_k,
                     data['cf_dd'], R=self.tab_R, **transform_kwargs)
-                data['ps_bb'] = self.field.get_ps_from_cf(self.tab_k,
+                data['ps_bb'] = self.field_config.get_ps_from_cf(self.tab_k,
                     data['cf_bb'], R=self.tab_R, **transform_kwargs)
 
-
+                # Will need to do things differently for halo model.
 
 
 
