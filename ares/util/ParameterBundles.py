@@ -589,10 +589,10 @@ class ParameterBundle(dict):
                         msg1 = "UPDATE: Setting {0} -> {1}".format(key,
                             str(other[key]).ljust(12))
                     if type(tmp[key]) in [int, float, np.float64]:
-                        msg2 = "        previously {0} = {1:9.2e}".format(str(key),
+                        msg2 = "       previously {0} = {1:9.2e}".format(str(key),
                             tmp[key])
                     else:
-                        msg2 = "        previously {0} = {1}".format(str(key), tmp[key])
+                        msg2 = "       previously {0} = {1}".format(str(key), tmp[key])
 
                     print(line('{0}'.format(msg1)))
                     print(line('[{0}]'.format(msg2)))

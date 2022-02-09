@@ -15,6 +15,7 @@ from __future__ import print_function
 import os
 import re
 import numpy as np
+from ..data import ARES
 
 try:
     import camb
@@ -34,19 +35,29 @@ class InitialConditions(object):
     """
     This should be inherited by Cosmology.
     """
+    def __init__(self, pf):
+        self.pf = pf
+
+    @property
+    def prefix(self):
+        return self._prefix
+
+    @prefix.setter
+    def prefix(self, value):
+        self._prefix = value
+
     def get_inits_rec(self):
         """
         Get recombination history from file or directly from CosmoRec.
         """
-        fn = '{}/input/inits/inits_{}.txt'.format(self.path_ARES,
-            self.get_prefix())
+        fn = '{}/input/inits/inits_{}.txt'.format(ARES, self.prefix)
 
         # Look for table first, then run if we don't find it.
         if os.path.exists(fn):
             z, xe, Tk = np.loadtxt(fn, unpack=True)
             if self.pf['verbose']:
                 name = fn
-                print("# Loaded {}.".format(fn.replace(self.path_ARES, '$ARES')))
+                print("# Loaded {}.".format(fn.replace(ARES, '$ARES')))
             return {'z': z, 'xe': xe, 'Tk': Tk}
         else:
             if self.pf['verbose']:
@@ -86,9 +97,9 @@ class InitialConditions(object):
         CR_pars = [self.pf[par] for par in _pars_CosmoRec]
 
         # Correct output dir. Just add provided path on top of $ARES
-        CR_pars[-2] = '{}/{}/'.format(self.path_ARES, CR_pars[-2])
+        CR_pars[-2] = '{}/{}/'.format(ARES, CR_pars[-2])
 
-        fn_pars = 'cosmorec_{}.dat'.format(self.get_prefix())
+        fn_pars = 'cosmorec_{}.dat'.format(self.prefix)
 
         # Create parameter file for reference
         to_outputs = CR_pars[-2]
@@ -119,8 +130,8 @@ class InitialConditions(object):
          'Tk': data[:,2][-1::-1],
         }
 
-        fn_out = '{}/input/inits/inits_{}.txt'.format(self.path_ARES,
-            self.get_prefix())
+        fn_out = '{}/input/inits/inits_{}.txt'.format(ARES,
+            self.prefix)
 
         np.savetxt(fn_out, data[-1::-1,0:3], header='z; xe; Te')
 

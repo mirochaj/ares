@@ -3602,7 +3602,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 f.close()
                 if self.pf['verbose']:
-                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(fn_hist.replace(ARES, '$ARES')))
 
             else:
                 # Assume pickle?
@@ -3612,7 +3612,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 f.close()
                 if self.pf['verbose']:
                     name = fn_hist + '.pkl'
-                    print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(name.replace(ARES, '$ARES')))
 
                 if self.pf['verbose']:
                     print("# Read `pop_histories` as dictionary")
