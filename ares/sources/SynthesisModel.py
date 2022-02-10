@@ -707,7 +707,7 @@ class SynthesisModel(SynthesisModelBase):
                         self._litinst._load(**self.pf)
 
                     if self.pf['verbose']:
-                        print("# Loaded {}".format(_fn.replace(self.cosm.path_ARES,
+                        print("# Loaded {}".format(_fn.replace(ARES,
                             '$ARES')))
             else:
                 if self.pf['source_sed_by_Z'] is not None:
@@ -720,7 +720,7 @@ class SynthesisModel(SynthesisModelBase):
 
                     if self.pf['verbose']:
                         for _fn_ in _fn:
-                            print("# Loaded {}".format(_fn_.replace(self.cosm.path_ARES, '$ARES')))
+                            print("# Loaded {}".format(_fn_.replace(ARES, '$ARES')))
 
                 # Shape is (Z, wavelength, time)?
                 to_interp = np.array(_tmp)

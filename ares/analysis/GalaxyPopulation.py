@@ -562,8 +562,8 @@ class GalaxyPopulation(object): # pragma: no cover
         ##
         # Plot models
         ##
-        Ms = np.arange(6, 13.+dMst, dMst)
-        mags = np.arange(-25, -12-dmag, dmag)
+        Ms = np.arange(2, 13.+dMst, dMst)
+        mags = np.arange(-30, 10-dmag, dmag)
         mags_cr = np.arange(-25, -10, dmag)
         hst_shallow = b14.filt_shallow
         hst_deep = b14.filt_deep
@@ -603,7 +603,7 @@ class GalaxyPopulation(object): # pragma: no cover
                         _ax = ax_uvlf
 
                     if show_MUV:
-                        phi = pop.LuminosityFunction(z, mags)
+                        _mags, phi = pop.get_lf(z, mags)
                         uvlf_by_pop[h][z] = phi
 
                         if not fill:
@@ -617,7 +617,7 @@ class GalaxyPopulation(object): # pragma: no cover
                         else:
                             _ax2 = ax_smf
 
-                        phi = pop.StellarMassFunction(z, bins=Ms)
+                        _bins, phi = pop.StellarMassFunction(z, bins=Ms)
                         smf_by_pop[h][z] = phi
 
                         if not fill:
@@ -1754,7 +1754,7 @@ class GalaxyPopulation(object): # pragma: no cover
         for j, z in enumerate(redshifts):
 
             # UVLF
-            phi = pop.LuminosityFunction(z, _mags)
+            _mags_, phi = pop.LuminosityFunction(z, _mags)
             ax_phi.semilogy(_mags, phi, color=colors[j], drawstyle='steps-mid')
 
             # Binned version

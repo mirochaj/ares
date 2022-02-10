@@ -420,7 +420,8 @@ class Population(object):
 
             if (self.affects_cgm) and (not self.affects_igm):
                 if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
-                    print("# WARNING: revisit scalability wrt fesc.")
+                    if self.pf['verbose']:
+                        print("# WARNING: revisit scalability wrt fesc.")
                     #print("Not scalable cuz fesc pop={}".format(self.id_num))
             #        self._is_emissivity_scalable = False
             #        return False

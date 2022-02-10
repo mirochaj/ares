@@ -953,6 +953,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return inow + ifut
 
+    def get_fstar(self, z, Mh):
+        return self.guide.get_fstar(z=z, Mh=Mh)
+
     def _gen_prescribed_galaxy_histories(self, zstop=0):
         """
         Take halo histories and paint on galaxy histories in deterministic way.
@@ -1029,7 +1032,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             SFR = halos['SFR'][:,-1::-1]
         else:
             iz = np.argmin(np.abs(6. - z))
-            SFR = self.guide.SFE(z=z2d, Mh=Mh)
+            SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
             np.multiply(SFR, MAR, out=SFR)
             SFR *= fb
 
@@ -2027,7 +2030,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Either load previous result or compute from scratch
         fil = filters
         if cached_result is not None:
-            M, mags = cached_result
+            M, mags, xph = cached_result
         else:
             # Take monochromatic (or within some window) MUV
             L = self.get_lum(z, wave=wave, window=window, load=load)
@@ -2061,10 +2064,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 mags = np.array(mags)
             else:
+                xph = None
                 mags = M + magcorr
 
             if hasattr(self, '_cache_mags_'):
-                self._cache_mags_[kw_tup] = M, mags
+                self._cache_mags_[kw_tup] = M, mags, xph
 
         ##
         # Interpolate etc.
@@ -2161,6 +2165,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             window=window, load=load, use_cache=use_cache,
             energy_units=energy_units)
 
+    def _dlam_check(self, dlam):
+        if self.pf['pop_sed_degrade'] is None:
+            pass
+        else:
+            s = "`dlam` provided is finer than native SED resolution! "
+            s += 'See `pop_sed_degrade` parameter, and set to value <= desired `dlam`.'
+            assert (dlam >= self.pf['pop_sed_degrade']), s
+
     def get_waves_for_line(self, waves, dlam=1., window=3):
         """
         If `waves` is a string, e.g., 'Ly-a', convert to array of wavelengths.
@@ -2189,6 +2201,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if isinstance(waves, str):
             assert waves in known_lines, \
                 "Unrecognized line={}. Options={}".format(waves, known_lines)
+
+            self._dlam_check(dlam)
 
             i = known_lines.index(waves)
             l0 = known_line_waves[i]
@@ -2263,11 +2277,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         flux = L / (4. * np.pi * dL**2)
         # dnu_rest/dnu_obs
         flux *= (1. + z)
-
-        # Apply dust reddening
-        if redden:
-            tau = np.array([self.get_dust_opacity(z, wave) for wave in waves])
-            flux *= np.exp(-tau)
 
         if integrate:
             # `waves` are bin centers
@@ -2356,6 +2365,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 use_cache=use_cache, band=band, energy_units=energy_units)
 
         if use_cache:
+
             self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
 
         return L
@@ -2779,10 +2789,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             x = np.arange(6.5, 14, 0.25)
 
+        if yok.sum() == 0:
+            return x, np.zeros_like(x)
+
         # Make sure binning range covers the range of luminosities/magnitudes
         if use_mags:
-            assert y[yok==1].min() > x.min()
-            assert y[yok==1].max() < x.max()
+            mi, ma = y[yok==1].min(), y[yok==1].max()
+            assert mi > x.min(), "{} NOT > {}".format(mi, x.min())
+            assert ma < x.max(), "{} NOT < {}".format(ma, x.max())
         else:
             assert y[yok==1].min() < x.min()
             assert y[yok==1].max() > x.max()
@@ -3240,6 +3254,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             AUV = AUV_r
 
             assert MUV is None
+            MAB = None
 
         # May specify a single magnitude at which to return AUV
         if MUV is not None:
@@ -3254,7 +3269,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             return np.interp(np.log10(Mstell), x1, y1, left=0., right=0.)
 
         # Otherwise, return raw (or binned) results
-        return AUV
+        return MAB, AUV
 
     def get_dBeta_dMUV(self, z, magbins, presets=None, model='exp',
         return_funcs=False, maglim=None, dlam=20., magmethod='gmean',
@@ -3431,7 +3446,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
         cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=False, use_mags=True):
+        window=1, load=True, presets=None, absolute=False, use_mags=True,
+        use_central_z=True, zstep=0.1, return_evol=False, use_volume=True):
         """
         Compute surface density of galaxies [number / deg^2 / dz]
 
@@ -3442,18 +3458,47 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         square degree.
         """
 
-        # First, compute the luminosity function.
-        x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
-            filters=filters, filter_set=filter_set, dlam=dlam, method=method,
-            window=window, load=load, presets=presets, absolute=absolute,
-            use_mags=use_mags)
+        # Simplest thing: take central redshift, assume same UVLF throughout
+        # dz interval along LOS.
+        if use_central_z:
+            # First, compute the luminosity function.
+            x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
+                filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                window=window, load=load, presets=presets, absolute=absolute,
+                use_mags=use_mags)
 
-        # Compute the volume of the shell we're looking at [cMpc^3]
-        vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+            # Compute the volume of the shell we're looking at [cMpc^3]
+            if use_volume:
+                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+            else:
+                vol = 1
 
-        # Number of galaxies per mag bin in survey area.
-        # Currently neglects evolution of LF along LoS.
-        Ngal = phi * vol
+            # Get total number of galaxies in volume
+            Ngal = phi * vol
+        else:
+            # Sub-sample redshift interval
+            zbin_e = np.arange(z - 0.5 * dz, z + 0.5 * dz, zstep)
+
+            phi = np.zeros((zbin_e.size, bins.size))
+            vol = np.zeros_like(zbin_e)
+            for i, ze in enumerate(zbin_e):
+                zmid = ze + 0.5 * zstep
+
+                # Compute LF at midpoint of this bin.
+                x, phi[i] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
+                    filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                    window=window, load=load, presets=presets, absolute=absolute,
+                    use_mags=use_mags)
+
+                # Compute the volume of the shell we're looking at [cMpc^3]
+                if use_volume:
+                    vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
+                        dz=zstep)
+                else:
+                    vol[i] = 1
+
+            # Integrate over the redshift interval
+            Ngal = np.sum(phi * vol[:,None], axis=0)
 
         # Faint to bright
         Ngal_asc = Ngal[-1::-1]
@@ -3468,7 +3513,30 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ntot = np.trapz(Ngal, x=x)
         nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
 
-        return x, nltm
+        if return_evol and (not use_central_z):
+            return x, nltm, zbin_e, phi, vol
+        else:
+            return x, nltm
+
+    def get_volume_density(self, z, bins=None, wave=1600.,
+        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
+        window=1, load=True, presets=None, absolute=False, use_mags=True,
+        use_central_z=True, zstep=0.1, return_evol=False):
+        """
+        Return volume density of galaxies in given `dz` chunk.
+
+        .. note :: Just a wrapper around `get_surface_density`, with
+            hack parameter `use_volume` set to False and `use_central_z` to
+            True.
+
+
+        """
+
+        return self.get_surface_density(z, bins=bins, wave=wave,
+            cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
+            method=method, window=window, load=load, presets=presets,
+            absolute=absolute, use_mags=use_mags, use_central_z=True,
+            zstep=zstep, return_evol=return_evol, use_volume=False)
 
     def load(self):
         """
@@ -3534,7 +3602,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 f.close()
                 if self.pf['verbose']:
-                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(fn_hist.replace(ARES, '$ARES')))
 
             else:
                 # Assume pickle?
@@ -3544,7 +3612,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 f.close()
                 if self.pf['verbose']:
                     name = fn_hist + '.pkl'
-                    print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(name.replace(ARES, '$ARES')))
 
                 if self.pf['verbose']:
                     print("# Read `pop_histories` as dictionary")

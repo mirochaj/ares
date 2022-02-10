@@ -209,8 +209,9 @@ def PhysicsParameters():
     "approx_He": False,
     "approx_sigma": False,
     "approx_Salpha": 1, # 1 = Salpha = 1
-                        # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
+                        # 2 = Chuzhoy, Alvarez, & Shapiro (2006),
                         # 3 = Furlanetto & Pritchard (2006)
+                        # 4 = Hirata (2006)
 
     "approx_thermal_history": False,
     "inits_Tk_p0": None,
