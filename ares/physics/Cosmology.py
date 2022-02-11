@@ -294,6 +294,9 @@ class Cosmology(InitialConditions):
         return self.t_of_z(z_i) - self.t_of_z(z_f)
 
     def TCMB(self, z):
+        return self.get_Tcmb(z)
+        
+    def get_Tcmb(self, z):
         return self.cmb_temp_0 * (1. + z)
 
     def UCMB(self, z):
@@ -340,6 +343,9 @@ class Cosmology(InitialConditions):
         return self._Tgas_CosmoRec_(z)
 
     def Tgas(self, z):
+        return self.get_Tgas(z)
+
+    def get_Tgas(self, z):
         """
         Gas kinetic temperature at z in the absence of heat sources.
         """

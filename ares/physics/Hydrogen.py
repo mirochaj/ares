@@ -16,8 +16,8 @@ from types import FunctionType
 from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
-from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
-    k_B
+from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h_P, c, E_LyA, E_LL, \
+    k_B, nu_0_mhz, E10
 
 try:
     from scipy.special import gamma
@@ -70,7 +70,9 @@ tabulated_coeff = \
     {'kappa_H': kappa_HH, 'kappa_e': kappa_He,
      'T_H': T_HH, 'T_e': T_He}
 
-l_LyA = h * c / E_LyA / erg_per_ev
+l_LyA = h_P * c / E_LyA / erg_per_ev
+tau_21cm0 = 3. * h_P * c**3 * A10 \
+    / (32 * np.pi * k_B * (nu_0_mhz * 1e6)**2)
 
 class Hydrogen(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -606,6 +608,47 @@ class Hydrogen(object):
 
         return np.maximum(Ts, self.Ts_floor(z=z))
 
+    def get_21cm_tau(self, z, Ts, xavg=0.0, delta=0.0):
+        """
+        Compute the 21-cm optical depth.
+        """
+
+        return tau_21cm0 * (1 - xavg) * self.cosm.nH(z) * (1. + delta) \
+            / Ts / (1. + z) / (self.cosm.HubbleParameter(z) / (1. + z))
+
+        return tau
+
+    def get_21cm_dTb(self, z, Ts, xavg=0.0, Tr=0.0):
+        """
+        Global 21-cm signature relative to cosmic microwave background in mK.
+
+        Parameters
+        ----------
+        z : float, np.ndarray
+            Redshift
+        Ts : float, np.ndarray
+            Spin temperature of intergalactic hydrogen [K].
+        xavg : float, np.ndarray
+            Volume-averaged ionized fraction, i.e., a weighted average
+            between the volume of fully ionized gas and the semi-neutral
+            bulk IGM beyond.
+
+        Returns
+        -------
+        Differential brightness temperature in milli-Kelvin.
+        """
+
+        assert Tr==0
+
+        tau = self.get_21cm_tau(z, Ts, xavg=xavg)
+        if self.pf['approx_tau_21cm']:
+            dTb = (Ts - self.cosm.get_Tcmb(z)) * tau / (1. + z)
+        else:
+            dTb = (Ts - self.cosm.get_Tcmb(z)) * (1. - np.exp(-tau)) / (1. + z)
+
+        # convert to mK
+        return 1e3 * dTb
+
     def dTb(self, z, xavg, Ts, Tr=0.0):
         """
         Short-hand for calling `DifferentialBrightnessTemperature`.
@@ -649,14 +692,14 @@ class Hydrogen(object):
             self._inits = self.cosm.get_inits_rec()
         return self._inits
 
-    def saturated_limit(self, z):
-        return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+    def get_21cm_saturated_limit(self, z):
+        return self.get_21cm_dTb(z, np.inf)
 
-    def adiabatic_floor(self, z):
+    def get_21cm_adiabatic_floor(self, z):
         Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)
-        return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
+        return self.get_21cm_dTb(z, Ts)
 
-    def dTb_no_astrophysics(self, z):
+    def get_21cm_dTb_no_astrophysics(self, z):
         Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
-        return self.dTb(z, 0.0, Ts)
+        return self.get_21cm_dTb(z, Ts)
