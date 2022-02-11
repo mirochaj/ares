@@ -31,7 +31,7 @@ def test():
     z = np.linspace(10, 1e3, 500)
 
     # Get CosmoRec recombination history
-    CR = hydr.cosm.get_inits_rec()
+    CR = hydr.cosm._ics.get_inits_rec()
 
     # Assume neutral medium for simplicity
     Ts_CR = hydr.SpinTemperature(CR['z'], CR['Tk'], 0.0, 0.0, 0.0)

@@ -10,13 +10,15 @@ Notes
 
 import re, os
 import numpy as np
+from ares.data import ARES
 from ares.physics import Cosmology
 from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H
 
-_input = os.getenv('ARES') + '/input/starburst99/data'
+_input = ARES + '/input/starburst99/data'
+
 
 metallicities = \
 {
@@ -54,7 +56,7 @@ def _reader(fn, skip=3, dtype=float):
     skip : int
         Number of lines to skip at beginning of file. I don't think this should
         ever change.
-        
+
     """
 
     f = open('{0!s}/{1!s}'.format(_input, fn), 'r')
@@ -70,27 +72,27 @@ def _reader(fn, skip=3, dtype=float):
 
 def _fignum_to_figname():
     num, names = _reader('README', skip=18, dtype=str).T
-    
+
     num = list(map(int, num))
-    
+
     prefixes = []
     for name in names:
         if '*' in name:
             prefix = name.partition('*')[0]
         else:
             prefix = name.partition('.')[0]
-            
+
         prefixes.append(prefix)
-    
+
     return num, prefixes
-    
+
 fig_num, fig_prefix = _fignum_to_figname()
-    
-def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False, 
+
+def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
     source_ssp=True, **kwargs):
     """
     Only built for figures 1-12 right now.
-    
+
     Parameters
     ----------
     imf : float
@@ -98,22 +100,22 @@ def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
         3.3
         30
     """
-    
+
     options = np.arange(1, 13)
     mask = np.ones_like(options)
-    
+
     # Can't be odd
     if source_ssp:
         mask[options % 2 == 0] = 0
     else:
         mask[options % 2 == 1] = 0
-    
+
     # Can't be > 6
     if int(source_nebular) == 1:
         mask[options > 6] = 0
     else:
         mask[options <= 6] = 0
-    
+
     if source_imf == 2.35:
         for i in options:
             if i not in [1,2,7,8]:
@@ -121,37 +123,37 @@ def _figure_name(source_Z=0.04, source_imf=2.35, source_nebular=False,
     elif source_imf == 3.3:
         for i in options:
             if i not in [3,4,9,10]:
-                mask[i-1] *= 0  
+                mask[i-1] *= 0
     elif source_imf == 30:
         for i in options:
             if i not in [5,6,11,12]:
                 mask[i-1] *= 0
-                      
+
     Zvals = list(metallicities.values())
-    
+
     if source_Z not in Zvals:
         raise ValueError('Unrecognized metallicity.')
-        
+
     Z_suffix = list(metallicities.keys())[Zvals.index(source_Z)]
-    
+
     if mask.sum() > 1:
         raise ValueError('Ambiguous SED.')
-    
+
     j = options[mask == 1]
     k = fig_num.index(j)
-    
+
     fn = '{0!s}{1!s}.dat'.format(fig_prefix[k], Z_suffix)
-    
+
     return fn
-    
+
 def _load(**kwargs):
     """
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
     Zvals = np.sort(list(metallicities.values()))
-            
+
     if kwargs['source_Z'] not in Zvals:
-        
+
         _fn = []
         data = []
         for Z in Zvals:
@@ -161,21 +163,19 @@ def _load(**kwargs):
             _data = _reader(fn)
             data.append(_data[:,1:])
             _fn.append(fn)
-        
+
         # Has dimensions (metallicity, wavelengths, times)
         data_3d = np.array(data)
-        
+
         # Same for all metallicities
         wavelengths = _data[:,0]
-                 
+
         data = 10**data_3d
-                    
-    else:        
+
+    else:
         fn = _fn = _figure_name(**kwargs)
         _raw_data = _reader(fn)
         wavelengths = _raw_data[:,0]
         data = 10**_raw_data[:,1:]
-        
+
     return wavelengths, data, _fn
-        
-        

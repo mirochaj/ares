@@ -2030,7 +2030,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Either load previous result or compute from scratch
         fil = filters
         if cached_result is not None:
-            M, mags = cached_result
+            M, mags, xph = cached_result
         else:
             # Take monochromatic (or within some window) MUV
             L = self.get_lum(z, wave=wave, window=window, load=load)
@@ -2064,10 +2064,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 mags = np.array(mags)
             else:
+                xph = None
                 mags = M + magcorr
 
             if hasattr(self, '_cache_mags_'):
-                self._cache_mags_[kw_tup] = M, mags
+                self._cache_mags_[kw_tup] = M, mags, xph
 
         ##
         # Interpolate etc.
@@ -3601,7 +3602,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 f.close()
                 if self.pf['verbose']:
-                    print("# Loaded {}.".format(fn_hist.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(fn_hist.replace(ARES, '$ARES')))
 
             else:
                 # Assume pickle?
@@ -3611,7 +3612,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 f.close()
                 if self.pf['verbose']:
                     name = fn_hist + '.pkl'
-                    print("# Loaded {}.".format(name.replace(self.cosm.path_ARES, '$ARES')))
+                    print("# Loaded {}.".format(name.replace(ARES, '$ARES')))
 
                 if self.pf['verbose']:
                     print("# Read `pop_histories` as dictionary")

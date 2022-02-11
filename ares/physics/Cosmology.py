@@ -31,7 +31,7 @@ _ares_to_planck = \
  'primordial_index': 'ns',
 }
 
-class Cosmology(InitialConditions):
+class Cosmology(object):
     def __init__(self, pf=None, **kwargs):
         if pf is not None:
             self.pf = pf
@@ -111,6 +111,13 @@ class Cosmology(InitialConditions):
         # 'sigma_8':self.sigma8,
         # 'n': self.primordial_index}
 
+    @property
+    def _ics(self):
+        if not hasattr(self, '_ics_'):
+            self._ics_ = InitialConditions(pf=self.pf)
+            self._ics_.prefix = self.get_prefix()
+        return self._ics_
+
     def nH(self, z):
         return self.nH0 * (1. + z)**3
 
@@ -118,16 +125,10 @@ class Cosmology(InitialConditions):
         return self.nHe0 * (1. + z)**3
 
     @property
-    def path_ARES(self):
-        if not hasattr(self, '_path_ARES'):
-            self._path_ARES = ARES
-        return self._path_ARES
-
-    @property
     def path_Planck(self):
         if not hasattr(self, '_path_Planck'):
             name = self.pf['cosmology_name'].replace('planck_', '')
-            self._path_Planck = self.path_ARES \
+            self._path_Planck = ARES \
                  + '/input/planck/base/plikHM_{}'.format(name)
         return self._path_Planck
 
@@ -250,7 +251,7 @@ class Cosmology(InitialConditions):
                 s = "# Set cosmological parameters to values in {}th element of".format(num)
                 s += " concatenated array made from the following files:"
                 print(s)
-                path_str = path.replace(self.path_ARES, '$ARES')
+                path_str = path.replace(ARES, '$ARES')
                 print("# {}_{}_?.txt".format(path_str, prefix))
 
         return
@@ -276,7 +277,7 @@ class Cosmology(InitialConditions):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            self._inits = self.get_inits_rec()
+            self._inits = self._ics.get_inits_rec()
         return self._inits
 
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):

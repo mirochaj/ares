@@ -287,9 +287,10 @@ csfr_blobs = \
                 'popII_Mmax', 'popIII_Mmax',
                 'popII_nh', 'popIII_nh'],
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD',
-    'pops[0].Mmin', 'pops[2].Mmin',
-    'pops[0].Mmax', 'pops[2].Mmax', 'pops[0].nactive', 'pops[2].nactive'],
+ 'blob_funcs': ['pops[0].get_sfrd', 'pops[2].get_sfrd',
+    'pops[0].get_Mmin', 'pops[2].get_Mmin',
+    'pops[0].get_Mmax', 'pops[2].get_Mmax',
+    'pops[0].get_nh_active', 'pops[2].get_nh_active'],
  'blob_kwargs': [None] * 8,
 }
 
@@ -300,5 +301,5 @@ dpl_blobs = \
 {
  'blob_names': [['popII_sfrd_tot', 'popII_Mmin', 'popII_Mmax']],
  'blob_ivars': [('z', np.arange(5, 60.1, 0.1))],
- 'blob_funcs': [['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax']],
+ 'blob_funcs': [['pops[0].get_sfrd', 'pops[0].get_Mmin', 'pops[0].get_Mmax']],
 }
