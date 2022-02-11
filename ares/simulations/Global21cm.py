@@ -142,7 +142,7 @@ class Global21cm(AnalyzeGlobal21cm):
             xavg = QHII + (1. - QHII) * data_igm['h_2']
 
             # Derive brightness temperature
-            Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
+            Tb = self.medium.parcel_igm.grid.hydr.get_21cm_dTb(z[i], Ts, xavg)
             self.all_data_igm[i]['dTb'] = Tb
             self.all_data_igm[i]['Ts'] = np.array([Ts])
             dTb.append(Tb)
@@ -376,7 +376,8 @@ class Global21cm(AnalyzeGlobal21cm):
                  + (1. - self.history['cgm_h_2']) * self.history['igm_h_2']
 
             # Derive brightness temperature
-            dTb = self.medium.parcel_igm.grid.hydr.dTb(zall, xavg, Ts, Tr)
+            dTb = self.medium.parcel_igm.grid.hydr.get_21cm_dTb(zall, Ts,
+                xavg=xavg, Tr=Tr)
 
             self.history['dTb_no_radio'] = self.history['dTb'].copy()
             self.history['dTb'] = dTb
@@ -426,8 +427,8 @@ class Global21cm(AnalyzeGlobal21cm):
                 xavg = data_igm['h_2']
 
             # Derive brightness temperature
-            dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
-            dTb_b = self.medium.parcel_igm.grid.hydr.dTb(z, 0.0, Ts)
+            dTb = self.medium.parcel_igm.grid.hydr.get_21cm_dTb(z, Ts, xavg)
+            dTb_b = self.medium.parcel_igm.grid.hydr.get_21cm_dTb(z, Ts)
 
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb, #'dTb_bulk': dTb_b,

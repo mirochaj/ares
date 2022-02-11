@@ -39,6 +39,9 @@ if float(_scipy_ver[1]) >= 14:
 else:
     _interp1d_kwargs = {}
 
+
+huge_Ts = 1e10
+
 # Rate coefficients for spin de-excitation - from Zygelman originally
 
 # H-H collisions.
@@ -549,9 +552,12 @@ class Hydrogen(object):
         """
         Short-hand for calling `SpinTemperature`.
         """
-        return self.SpinTemperature(z, Tk, Ja, xHII, ne, Tr)
+        return self.get_Ts(z, Tk, Ja, xHII, ne, Tr)
 
     def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr=0.0):
+        return self.get_Ts(z, Tk, Ja, xHII, ne, Tr)
+
+    def get_Ts(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Returns spin temperature of intergalactic hydrogen.
 
@@ -638,53 +644,28 @@ class Hydrogen(object):
         Differential brightness temperature in milli-Kelvin.
         """
 
-        assert Tr==0
+        # Writing it this way has the disadvantage that if we supply Ts=np.inf,
+        # we'll get NaN. So, just replace with absurdly high Ts.
+        if np.any(Ts > huge_Ts):
+            if type(Ts) == np.ndarray:
+                Ts[Ts > huge_Ts] = huge_Ts
+            else:
+                Ts = huge_Ts
+
+        Tref = self.cosm.get_Tcmb(z) + Tr
 
         tau = self.get_21cm_tau(z, Ts, xavg=xavg)
         if self.pf['approx_tau_21cm']:
-            dTb = (Ts - self.cosm.get_Tcmb(z)) * tau / (1. + z)
+            dTb = (Ts - Tref) * tau / (1. + z)
         else:
-            dTb = (Ts - self.cosm.get_Tcmb(z)) * (1. - np.exp(-tau)) / (1. + z)
+            dTb = (Ts - Tref) * (1. - np.exp(-tau)) / (1. + z)
 
         # convert to mK
         return 1e3 * dTb
 
-    def dTb(self, z, xavg, Ts, Tr=0.0):
-        """
-        Short-hand for calling `DifferentialBrightnessTemperature`.
-        """
-        return self.DifferentialBrightnessTemperature(z, xavg, Ts, Tr)
-
     def T0(self, z):
         return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
-
-    def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
-        """
-        Global 21-cm signature relative to cosmic microwave background in mK.
-
-        Parameters
-        ----------
-        z : float, np.ndarray
-            Redshift
-        xavg : float, np.ndarray
-            Volume-averaged ionized fraction, i.e., a weighted average
-            between the volume of fully ionized gas and the semi-neutral
-            bulk IGM beyond.
-        Ts : float, np.ndarray
-            Spin temperature of intergalactic hydrogen.
-
-        Returns
-        -------
-        Differential brightness temperature in milli-Kelvin.
-
-        """
-
-        Tref = self.cosm.TCMB(z) + Tr
-        return 27. * (1. - xavg) * \
-            (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - Tref / Ts)
 
     @property
     def inits(self):
