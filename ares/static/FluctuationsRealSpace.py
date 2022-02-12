@@ -245,10 +245,10 @@ class FluctuationsRealSpace(object): # pragma: no cover
         if not self.pf['ps_include_temp']:
             return 0.0
 
-        Qi = self.MeanIonizedFraction(z)
+        Qi = self.MeanIonizedFraction(z, zeta)
 
         if self.pf['ps_temp_model'] == 1:
-            R_i, M_b, dndm_b = self.BubbleSizeDistribution(z)
+            R_i, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
 
 
             if Qi == 1:
@@ -309,29 +309,27 @@ class FluctuationsRealSpace(object): # pragma: no cover
         else:
             return self.pf['bubble_size_dist'].lower()
 
-    def MeanIonizedFraction(self, z, ion=True):
+    def MeanIonizedFraction(self, z, zeta):
         Mmin = self.Mmin(z)
         logM = np.log10(Mmin)
 
-        if ion:
-            if not self.pf['ps_include_ion']:
-                return 0.0
+        #if ion:
+        if not self.pf['ps_include_ion']:
+            return 0.0
 
-            zeta = self.zeta
+        return np.minimum(1.0, zeta * self.halos.fcoll_2d(z, logM))
+        #else:
+        #    if not self.pf['ps_include_temp']:
+        #        return 0.0
+        #    zeta = self.zeta_X
 
-            return np.minimum(1.0, zeta * self.halos.fcoll_2d(z, logM))
-        else:
-            if not self.pf['ps_include_temp']:
-                return 0.0
-            zeta = self.zeta_X
+        #    # Assume that each heated region contains the same volume
+        #    # of fully-ionized material.
+        #    Qi = self.MeanIonizedFraction(z, ion=True)
 
-            # Assume that each heated region contains the same volume
-            # of fully-ionized material.
-            Qi = self.MeanIonizedFraction(z, ion=True)
+        #    Qh = zeta * self.halos.fcoll_2d(z, logM) - Qi
 
-            Qh = zeta * self.halos.fcoll_2d(z, logM) - Qi
-
-            return np.minimum(1.0 - Qi, Qh)
+        #    return np.minimum(1.0 - Qi, Qh)
 
     def delta_shell(self, z):
         """
@@ -350,8 +348,10 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return rdens * (1. + delta_i_bar) - 1.
 
-    def BulkDensity(self, z, R_s):
-        Qi = self.MeanIonizedFraction(z)
+    def BulkDensity(self, z, R_s, zeta):
+        return 0.0
+
+        Qi = self.MeanIonizedFraction(z, zeta)
         #Qh = self.BubbleShellFillingFactor(z, R_s)
         Qh = self.MeanIonizedFraction(z, ion=False)
 
@@ -368,7 +368,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         return -(delta_i_bar * Qi + delta_h_bar * Qh + delta_hal_bar * Qhal) \
             / (1. - Qi - Qh - Qhal)
 
-    def BubbleFillingFactor(self, z, ion=True, rescale=True):
+    def BubbleFillingFactor(self, z, zeta, rescale=True):
         """
         Fraction of volume filled by bubbles.
 
@@ -377,12 +377,6 @@ class FluctuationsRealSpace(object): # pragma: no cover
         the bubble size distribution to guarantee Q = zeta * fcoll. See
         MeanIonizedFraction and BubbleSizeDistribution for more details.
         """
-
-        if self.bsd_model is not None:
-            if ion:
-                zeta = self.zeta
-            else:
-                zeta = self.zeta_X
 
         if self.bsd_model is None:
             R_i = self.pf['bubble_size']
@@ -399,7 +393,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
             Mmin = self.Mmin(z) * zeta
 
             # M_b should just be self.m? No.
-            R_i, M_b, dndm_b = self.BubbleSizeDistribution(z, ion=ion,
+            R_i, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta,
                 rescale=rescale)
             V_i = 4. * np.pi * R_i**3 / 3.
 
@@ -526,41 +520,36 @@ class FluctuationsRealSpace(object): # pragma: no cover
         #
         #return fzh04
 
-    def mean_bubble_bias(self, z, ion=True):
+    def mean_bubble_bias(self, z, zeta):
         """
         """
 
-        R, M_b, dndm_b = self.BubbleSizeDistribution(z, ion=ion)
+        R, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
 
         #if ('h' in term) or ('c' in term) and self.pf['powspec_temp_method'] == 'shell':
         #    R_s, Rc = self.BubbleShellRadius(z, R_i)
         #    R = R_s
         #else:
 
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
-
         V = 4. * np.pi * R**3 / 3.
 
         Mmin = self.Mmin(z) * zeta
         iM = np.argmin(np.abs(Mmin - self.m))
-        bHII = self.bubble_bias(z, ion)
+        bHII = self.bubble_bias(z, zeta)
 
         #tmp = dndm[iM:]
         #print(z, len(tmp[np.isnan(tmp)]), len(bHII[np.isnan(bHII)]))
 
         #imax = int(min(np.argwhere(np.isnan(R_i))))
 
-        if ion and self.pf['ps_include_ion']:
-            Qi = self.MeanIonizedFraction(z)
-        elif ion and not self.pf['ps_include_ion']:
-            raise NotImplemented('help')
-        elif (not ion) and self.pf['ps_include_temp']:
-            Qi = self.MeanIonizedFraction(z, ion=False)
-        elif ion and self.pf['ps_include_temp']:
-            Qi = self.MeanIonizedFraction(z, ion=False)
+        if self.pf['ps_include_ion']:
+            Qi = self.MeanIonizedFraction(z, zeta)
+        #elif ion and not self.pf['ps_include_ion']:
+        #    raise NotImplemented('help')
+        #elif (not ion) and self.pf['ps_include_temp']:
+        #    Qi = self.MeanIonizedFraction(z, ion=False)
+        #elif ion and self.pf['ps_include_temp']:
+        #    Qi = self.MeanIonizedFraction(z, ion=False)
         else:
             raise NotImplemented('help')
 
@@ -583,27 +572,22 @@ class FluctuationsRealSpace(object): # pragma: no cover
     #
     #    return simps(B[iM:] * dndm_b[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
 
-    def delta_bubble_vol_weighted(self, z, ion=True):
+    def delta_bubble_vol_weighted(self, z, zeta):
         if not self.pf['ps_include_ion']:
             return 0.0
 
         if not self.pf['ps_include_xcorr_ion_rho']:
             return 0.0
 
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
-
         if self._B0(z, zeta) <= 0:
             return 0.
 
-        R_i, M_b, dndm_b = self.BubbleSizeDistribution(z, ion=ion)
+        R_i, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
         V_i = 4. * np.pi * R_i**3 / 3.
 
         Mmin = self.Mmin(z) * zeta
         iM = np.argmin(np.abs(Mmin - self.m))
-        B = self._B(z, ion=ion)
+        B = self._B(z, zeta)
 
         return np.trapz(B[iM:] * dndm_b[iM:] * V_i[iM:] * M_b[iM:],
             x=np.log(M_b[iM:]))
@@ -650,15 +634,15 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return self._spline_cf_mm_[z]
 
-    def excess_probability(self, z, R, ion=True):
+    def excess_probability(self, z, R, zeta):
         """
         This is the excess probability that a point is ionized given that
         we already know another point (at distance r) is ionized.
         """
 
         # Function of bubble mass (bubble size)
-        bHII = self.bubble_bias(z, ion)
-        bbar = self.mean_bubble_bias(z, ion)
+        bHII = self.bubble_bias(z, zeta)
+        bbar = self.mean_bubble_bias(z, zeta)
 
         if R < self.halos.tab_R.min():
             print("R too small")
@@ -684,12 +668,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
     def _delta_c(self, z):
         return self.cosm.delta_c0 / self._growth_factor(z)
 
-    def _B0(self, z, ion=True):
-
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
+    def _B0(self, z, zeta):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.sigma
@@ -699,11 +678,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return self._delta_c(z) - root2 * self._K(zeta) * sigma_min
 
-    def _B1(self, z, ion=True):
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
+    def _B1(self, z, zeta):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.sigma #* self.halos.growth_factor[iz]
@@ -712,15 +687,10 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return self._K(zeta) / np.sqrt(2. * sigma_min**2)
 
-    def _B(self, z, ion=True, zeta_min=None):
-        return self.LinearBarrier(z, ion, zeta_min=zeta_min)
+    def _B(self, z, zeta, zeta_min=None):
+        return self.LinearBarrier(z, zeta, zeta_min=zeta_min)
 
-    def LinearBarrier(self, z, ion=True, zeta_min=None):
-
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
+    def LinearBarrier(self, z, zeta, zeta_min=None):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.sigma #/ self.halos.growth_factor[iz]
@@ -728,17 +698,12 @@ class FluctuationsRealSpace(object): # pragma: no cover
         if zeta_min is None:
             zeta_min = zeta
 
-        return self._B0(z, ion) + self._B1(z, ion) * s**2
+        return self._B0(z, zeta) + self._B1(z, zeta) * s**2
 
-    def Barrier(self, z, ion=True, zeta_min=None):
+    def Barrier(self, z, zeta, zeta_min=None):
         """
         Full barrier.
         """
-
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
 
         if zeta_min is None:
             zeta_min = zeta
@@ -811,7 +776,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return self._dlns_dlnm
 
-    def BubbleSizeDistribution(self, z, ion=True, rescale=True):
+    def BubbleSizeDistribution(self, z, zeta, rescale=True):
         """
         Compute the ionized bubble size distribution.
 
@@ -831,17 +796,12 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         """
 
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
-
-        if ion and not self.pf['ps_include_ion']:
+        if not self.pf['ps_include_ion']:
             R_i = M_b = dndm = np.zeros_like(self.m)
             return R_i, M_b, dndm
-        if (not ion) and not self.pf['ps_include_temp']:
-            R_i = M_b = dndm = np.zeros_like(self.m)
-            return R_i, M_b, dndm
+        #if (not ion) and not self.pf['ps_include_temp']:
+        #    R_i = M_b = dndm = np.zeros_like(self.m)
+        #    return R_i, M_b, dndm
 
         reionization_over = False
 
@@ -850,7 +810,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         rho0_b = rho0_m * self.cosm.fbaryon
 
         # Mean (over-)density of bubble material
-        delta_B = self._B(z, ion)
+        delta_B = self._B(z, zeta)
 
         if self.bsd_model is None:
             if self.pf['bubble_density'] is not None:
@@ -881,13 +841,13 @@ class FluctuationsRealSpace(object): # pragma: no cover
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and M_b are from using dlns instead of
             # dS (where S=s^2)
-            dndm = rho0_m * self.pcross(z, ion) * 2 * np.abs(self.dlns_dlnm) \
+            dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.dlns_dlnm) \
                 * self.sigma**2 / M_b**2
 
             # Reionization is over!
             # Only use barrier condition if we haven't asked to rescale
             # or supplied Q ourselves.
-            if self._B0(z, ion) <= 0:
+            if self._B0(z, zeta) <= 0:
                 reionization_over = True
                 dndm = np.zeros_like(dndm)
 
@@ -906,20 +866,15 @@ class FluctuationsRealSpace(object): # pragma: no cover
             Mmin = self.Mmin(z) * zeta
             iM = np.argmin(np.abs(M_b - Mmin))
             Qi = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
-            xibar = self.MeanIonizedFraction(z, ion=ion)
+            xibar = self.MeanIonizedFraction(z, zeta)
             dndm *= -np.log(1. - xibar) / Qi
 
         return R_i, M_b, dndm
 
-    def pcross(self, z, ion=True):
+    def pcross(self, z, zeta):
         """
         Up-crossing probability.
         """
-
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
 
         S = self.sigma**2
         Mmin = self.Mmin(z) #* zeta # doesn't matter for zeta=const
@@ -931,9 +886,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         zeros = np.zeros_like(self.sigma)
 
-        B0 = self._B0(z, ion)
-        B1 = self._B1(z, ion)
-        Bl = self.LinearBarrier(z, ion=ion, zeta_min=zeta_min)
+        B0 = self._B0(z, zeta)
+        B1 = self._B1(z, zeta)
+        Bl = self.LinearBarrier(z, zeta, zeta_min=zeta_min)
         p = (B0 / np.sqrt(2. * np.pi * S**3)) * np.exp(-0.5 * Bl**2 / S)
 
         #p = (B0 / np.sqrt(2. * np.pi * S**3)) \
@@ -1090,7 +1045,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         #return self.get_prob(z, M_h, dndm_h, Mmin, Vvir, exp=False, ep=0.0,
         #    Mmax=Mmax)
 
-    def ExpectationValue1pt(self, z, term='i', R_s=None, R3=None,
+    def ExpectationValue1pt(self, z, zeta=None, term='i', R_s=None, R3=None,
         Th=500.0, Ts=None, Tk=None, Ja=None):
         """
         Compute the probability that a point is something.
@@ -1111,8 +1066,8 @@ class FluctuationsRealSpace(object): # pragma: no cover
         if cached_result is not None:
             return cached_result
 
-        Qi = self.MeanIonizedFraction(z)
-        Qh = self.MeanIonizedFraction(z, ion=False)
+        Qi = self.MeanIonizedFraction(z, zeta)
+        Qh = self.MeanIonizedFraction(z, zeta)
 
         if self.pf['ps_igm_model'] == 2:
             Qhal = self.Qhal(z, Mmax=self.Mmin(z))
@@ -1126,7 +1081,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         del_i = self.delta_bubble_vol_weighted(z)
         del_h = self.delta_shell(z)
 
-        del_b = self.BulkDensity(z, R_s)
+        del_b = 0# self.BulkDensity(z, R_s)
         ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
 
         if Ts is not None:
@@ -1300,7 +1255,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
             self._getting_basics_ = False
         return self._getting_basics_
 
-    def get_basics(self, z, R, R_s, Th, Ts, Tk, Ja):
+    def get_basics(self, z, zeta, R, R_s, Th, Ts, Tk, Ja):
 
         self._getting_basics_ = True
 
@@ -1351,7 +1306,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return basics
 
-    def ExpectationValue2pt(self, z, R, term='ii', R_s=None, R3=None,
+    def ExpectationValue2pt(self, z, R, zeta=None, term='ii', R_s=None, R3=None,
         Th=500.0, Ts=None, Tk=None, Ja=None, k=None):
         """
         Essentially a wrapper around JointProbability that scales
@@ -1391,16 +1346,16 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         # Remember, we scaled the BSD so that these two things are equal
         # by construction.
-        xibar = Q = Qi = self.MeanIonizedFraction(z)
+        xibar = Q = Qi = self.MeanIonizedFraction(z, zeta)
 
         # Call this early so that heating_ongoing is set before anything
         # else can happen.
         #Qh = self.BubbleShellFillingFactor(z, R_s=R_s)
-        Qh = self.MeanIonizedFraction(z, ion=False)
+        Qh = self.MeanIonizedFraction(z, zeta)
 
-        delta_i_bar = self.delta_bubble_vol_weighted(z)
+        #delta_i_bar = self.delta_bubble_vol_weighted(z)
         delta_h_bar = self.delta_shell(z)
-        delta_b_bar = self.BulkDensity(z, R_s)
+        #delta_b_bar = self.BulkDensity(z, R_s, zeta)
 
         Tcmb = self.cosm.TCMB(z)
         ch = self.TempToContrast(z, Th=Th, Tk=Tk, Ts=Ts, Ja=Ja)
@@ -1429,7 +1384,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
             xi_dd = self.spline_cf_mm(z)(np.log(R))
 
         # Some stuff we need
-        R_i, M_b, dndm_b = self.BubbleSizeDistribution(z)
+        R_i, M_b, dndm_b = self.BubbleSizeDistribution(z, zeta)
         V_i = 4. * np.pi * R_i**3 / 3.
 
         if self.pf['ps_include_temp']:
@@ -2629,15 +2584,15 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return P
 
-    def get_cf(self, z, R=None, term='ii',
+    def get_cf(self, z, zeta=None, R=None, term='ii',
         R_s=None, R3=0.0, Th=500., Tc=1., Ts=None, k=None, Tk=None, Ja=None):
         """
         Compute the correlation function of some general term.
 
         """
 
-        Qi = self.MeanIonizedFraction(z)
-        Qh = self.MeanIonizedFraction(z, ion=False)
+        Qi = self.MeanIonizedFraction(z, zeta)
+        Qh = self.MeanIonizedFraction(z, zeta)
 
         if R is None:
             use_R_tab = True
@@ -2682,9 +2637,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
             #
             #else:
             ev_2pt, ev_2pt_1, ev_2pt_2 = \
-                self.ExpectationValue2pt(z, R=R, term='psi',
+                self.ExpectationValue2pt(z, R=R, zeta=zeta, term='psi',
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
-            avg_psi = self.ExpectationValue1pt(z, term='psi',
+            avg_psi = self.ExpectationValue1pt(z, zeta=zeta, term='psi',
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
 
             cf_psi = ev_2pt - avg_psi**2
@@ -2756,10 +2711,10 @@ class FluctuationsRealSpace(object): # pragma: no cover
                 return cf
 
             ev_ii, ev_ii_1, ev_ii_2 = \
-                self.ExpectationValue2pt(z, R=R, term='ii',
+                self.ExpectationValue2pt(z, R=R, zeta=zeta, term='ii',
                     R_s=R_s, R3=R3, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
 
-            ev_i = self.ExpectationValue1pt(z, term='i',
+            ev_i = self.ExpectationValue1pt(z, zeta=zeta, term='i',
                 R_s=R_s, Th=Th, Ts=Ts, Tk=Tk, Ja=Ja)
             cf = ev_ii - ev_i**2
 

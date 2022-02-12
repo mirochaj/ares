@@ -314,3 +314,9 @@ class GalaxyAggregate(HaloPopulation):
                * (2. / 3. / k_B / self.pf['ps_saturated'] / self.cosm.TCMB(z))
 
         return zeta_x
+
+    def get_prof_alpha(self, z, R):
+        return np.zeros((self.halos.tab_M.size, R.size))
+
+    def get_prof_xray(self, z, R):
+        return np.zeros((self.halos.tab_M.size, R.size))

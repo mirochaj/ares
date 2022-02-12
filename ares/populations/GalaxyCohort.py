@@ -1744,7 +1744,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         .. note :: Just a wrapper around `self.dust.AUV`, which is using
             empirical dust corrections.
-            
+
         """
         return self.dust.AUV(z, MUV)
 
