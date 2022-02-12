@@ -16,8 +16,8 @@ from types import FunctionType
 from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
-from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
-    k_B
+from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h_P, c, E_LyA, E_LL, \
+    k_B, nu_0_mhz, E10
 
 try:
     from scipy.special import gamma
@@ -38,6 +38,9 @@ if float(_scipy_ver[1]) >= 14:
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}
+
+
+huge_Ts = 1e10
 
 # Rate coefficients for spin de-excitation - from Zygelman originally
 
@@ -70,7 +73,9 @@ tabulated_coeff = \
     {'kappa_H': kappa_HH, 'kappa_e': kappa_He,
      'T_H': T_HH, 'T_e': T_He}
 
-l_LyA = h * c / E_LyA / erg_per_ev
+l_LyA = h_P * c / E_LyA / erg_per_ev
+tau_21cm0 = 3. * h_P * c**3 * A10 \
+    / (32 * np.pi * k_B * (nu_0_mhz * 1e6)**2)
 
 class Hydrogen(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -98,20 +103,77 @@ class Hydrogen(object):
     @property
     def kappa_H(self):
         if not hasattr(self, '_kappa_H_pre'):
-            self._kappa_H_pre = interp1d(T_HH, kappa_HH,
+            _kappa_H_pre = interp1d(T_HH, kappa_HH,
                 kind=self.interp_method, bounds_error=False,
                 fill_value=(kappa_HH[0], kappa_HH[-1]),
-                left=kappa_HH[0], right=kappa_HH[-1], **_interp1d_kwargs)
+                left=kappa_HH[0], right=kappa_HH[-1],
+                **_interp1d_kwargs).__call__
+
+            tab_T = self.tabulated_coeff['T_H']
+            Tlo = tab_T.min()
+            def with_extrap_option(Tk):
+                """
+                Extrapolate kappa outside tabulated range.
+                """
+
+                too_cold = Tk < Tlo
+
+                if np.any(too_cold) and self.pf['extrapolate_coupling']:
+                    dkap = np.log10(_kappa_H_pre(tab_T[0])) \
+                         - np.log10(_kappa_H_pre(tab_T[1]))
+                    dT = np.log10(tab_T[1]) - np.log10(tab_T[0])
+                    s = dkap / dT
+                    T0 = np.log10(tab_T[0])
+                    k0 = np.log10(_kappa_H_pre(tab_T[0]))
+                    log10kappa_H = k0 + s * (T0 - np.log10(Tk))
+
+                    out = np.zeros_like(Tk)
+                    out[too_cold==1] = 10**log10kappa_H[too_cold==1]
+                    out[too_cold==0] = _kappa_H_pre(Tk[too_cold==0])
+
+                    return out
+                else:
+                    return _kappa_H_pre(Tk)
+
+            self._kappa_H_pre = with_extrap_option
 
         return self._kappa_H_pre
 
     @property
     def kappa_e(self):
         if not hasattr(self, '_kappa_e_pre'):
-            self._kappa_e_pre = interp1d(T_He, kappa_He,
+            _kappa_e_pre = interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False,
                 fill_value=(kappa_He[0], kappa_He[-1]),
                 left=kappa_He[0], right=kappa_He[-1], **_interp1d_kwargs)
+
+            tab_T = self.tabulated_coeff['T_e']
+            Tlo = tab_T.min()
+            def with_extrap_option(Tk):
+                """
+                Extrapolate kappa outside tabulated range.
+                """
+
+                too_cold = Tk < Tlo
+
+                if np.any(too_cold) and self.pf['extrapolate_coupling']:
+                    dkap = np.log10(_kappa_e_pre(tab_T[0])) \
+                         - np.log10(_kappa_e_pre(tab_T[1]))
+                    dT = np.log10(tab_T[1]) - np.log10(tab_T[0])
+                    s = dkap / dT
+                    T0 = np.log10(tab_T[0])
+                    k0 = np.log10(_kappa_e_pre(tab_T[0]))
+                    log10kappa_e = k0 + s * (T0 - np.log10(Tk))
+
+                    out = np.zeros_like(Tk)
+                    out[too_cold==1] = 10**log10kappa_e[too_cold==1]
+                    out[too_cold==0] = _kappa_e_pre(Tk[too_cold==0])
+
+                    return out
+                else:
+                    return _kappa_e_pre(Tk)
+
+            self._kappa_e_pre = with_extrap_option
 
         return self._kappa_e_pre
 
@@ -326,8 +388,12 @@ class Hydrogen(object):
         Zygelman, B. 2005, ApJ, 622, 1356
 
         """
-        sum_term = self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
-            + ne * self.kappa_e(Tk)
+
+
+        kappa_H = self.kappa_H(Tk)
+        kappa_e = self.kappa_e(Tk)
+
+        sum_term = self.cosm.nH(z) * (1. - xHII) * kappa_H + ne * kappa_e
 
         Tref = self.cosm.TCMB(z) + Tr
 
@@ -486,9 +552,12 @@ class Hydrogen(object):
         """
         Short-hand for calling `SpinTemperature`.
         """
-        return self.SpinTemperature(z, Tk, Ja, xHII, ne, Tr)
+        return self.get_Ts(z, Tk, Ja, xHII, ne, Tr)
 
     def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr=0.0):
+        return self.get_Ts(z, Tk, Ja, xHII, ne, Tr)
+
+    def get_Ts(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Returns spin temperature of intergalactic hydrogen.
 
@@ -545,17 +614,17 @@ class Hydrogen(object):
 
         return np.maximum(Ts, self.Ts_floor(z=z))
 
-    def dTb(self, z, xavg, Ts, Tr=0.0):
+    def get_21cm_tau(self, z, Ts, xavg=0.0, delta=0.0):
         """
-        Short-hand for calling `DifferentialBrightnessTemperature`.
+        Compute the 21-cm optical depth.
         """
-        return self.DifferentialBrightnessTemperature(z, xavg, Ts, Tr)
 
-    def T0(self, z):
-        return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
+        return tau_21cm0 * (1 - xavg) * self.cosm.nH(z) * (1. + delta) \
+            / Ts / (1. + z) / (self.cosm.HubbleParameter(z) / (1. + z))
 
-    def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
+        return tau
+
+    def get_21cm_dTb(self, z, Ts, xavg=0.0, Tr=0.0):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.
 
@@ -563,24 +632,40 @@ class Hydrogen(object):
         ----------
         z : float, np.ndarray
             Redshift
+        Ts : float, np.ndarray
+            Spin temperature of intergalactic hydrogen [K].
         xavg : float, np.ndarray
             Volume-averaged ionized fraction, i.e., a weighted average
             between the volume of fully ionized gas and the semi-neutral
             bulk IGM beyond.
-        Ts : float, np.ndarray
-            Spin temperature of intergalactic hydrogen.
 
         Returns
         -------
         Differential brightness temperature in milli-Kelvin.
-
         """
 
-        Tref = self.cosm.TCMB(z) + Tr
-        return 27. * (1. - xavg) * \
-            (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - Tref / Ts)
+        # Writing it this way has the disadvantage that if we supply Ts=np.inf,
+        # we'll get NaN. So, just replace with absurdly high Ts.
+        if np.any(Ts > huge_Ts):
+            if type(Ts) == np.ndarray:
+                Ts[Ts > huge_Ts] = huge_Ts
+            else:
+                Ts = huge_Ts
+
+        Tref = self.cosm.get_Tcmb(z) + Tr
+
+        tau = self.get_21cm_tau(z, Ts, xavg=xavg)
+        if self.pf['approx_tau_21cm']:
+            dTb = (Ts - Tref) * tau / (1. + z)
+        else:
+            dTb = (Ts - Tref) * (1. - np.exp(-tau)) / (1. + z)
+
+        # convert to mK
+        return 1e3 * dTb
+
+    def T0(self, z):
+        return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
+            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
 
     @property
     def inits(self):
@@ -588,14 +673,14 @@ class Hydrogen(object):
             self._inits = self.cosm._ics.get_inits_rec()
         return self._inits
 
-    def saturated_limit(self, z):
-        return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+    def get_21cm_saturated_limit(self, z):
+        return self.get_21cm_dTb(z, np.inf)
 
-    def adiabatic_floor(self, z):
+    def get_21cm_adiabatic_floor(self, z):
         Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)
-        return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
+        return self.get_21cm_dTb(z, Ts)
 
-    def dTb_no_astrophysics(self, z):
+    def get_21cm_dTb_no_astrophysics(self, z):
         Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
-        return self.dTb(z, 0.0, Ts)
+        return self.get_21cm_dTb(z, Ts)

@@ -37,5 +37,15 @@ def test():
 
     assert ok, "Error in computation of coupling coefficients."
 
+    # Also check extrapolation
+    # If off, should just use last value in table
+    Tlo = hydr.tabulated_coeff['T_H'].min()
+    assert hydr.kappa_H(Tlo) == hydr.kappa_H(Tlo / 2.)
+    assert hydr.kappa_e(Tlo) == hydr.kappa_e(Tlo / 2.)
+
+    hydr_e = Hydrogen(extrapolate_coupling=True)
+    assert hydr_e.kappa_H(Tlo) > hydr_e.kappa_H(Tlo / 2.)
+    assert hydr_e.kappa_H(Tlo) > hydr_e.kappa_H(Tlo / 2.)
+
 if __name__ == '__main__':
     test()

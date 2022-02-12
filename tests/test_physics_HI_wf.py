@@ -24,7 +24,7 @@ def test():
         res.append(Sa)
 
         # Check Ts while we're here
-        Ts = hydr.SpinTemperature(20., hydr.cosm.Tgas(20.), 1, 0., 0.)
+        Ts = hydr.get_Ts(20., hydr.cosm.Tgas(20.), 1, 0., 0.)
 
     # Compare at T > 1 K
     ok = Tarr > 1.
@@ -41,10 +41,10 @@ def test():
     assert hydr.Tbg is None
 
     # Check various limits
-    dTb_sat = hydr.saturated_limit(10.)
-    dTb_low = hydr.adiabatic_floor(10.)
-    dTb_phy = hydr.dTb_no_astrophysics(10.)
-    
+    dTb_sat = hydr.get_21cm_saturated_limit(10.)
+    dTb_low = hydr.get_21cm_adiabatic_floor(10.)
+    dTb_phy = hydr.get_21cm_dTb_no_astrophysics(10.)
+
     assert 0 <= dTb_sat <= 50
     assert -350 <= dTb_low <= -200
     assert abs(dTb_phy) < 1
