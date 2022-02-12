@@ -99,7 +99,7 @@ def forward_difference(x, y):
 
     return x[0:-1], (np.roll(y, -1) - y)[0:-1] / np.diff(x)
 
-def central_difference(x, y):
+def central_difference(x, y, keep_size=False):
     """
     Compute the derivative of y with respect to x via central difference.
 
@@ -117,9 +117,19 @@ def central_difference(x, y):
     """
 
     dydx = ((np.roll(y, -1) - np.roll(y, 1)) \
-        / (np.roll(x, -1) - np.roll(x, 1)))[1:-1]
+        / (np.roll(x, -1) - np.roll(x, 1)))
 
-    return x[1:-1], dydx
+    if keep_size:
+        xout = x
+        yout = dydx.copy()
+        #
+        yout[0] = (y[1] - y[0]) / (x[1] - x[0])
+        yout[-1] = (y[-1] - y[-2]) / (x[-1] - x[-2])
+    else:
+        xout = x[1:-1]
+        yout = dydx[1:-1]
+
+    return xout, yout
 
 def five_pt_stencil(x, y):
     """

@@ -389,7 +389,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             # Ionization fluctuations
             if self.pf['ps_include_ion']:
 
-                Ri, Mi, Ni = self.field_config.BubbleSizeDistribution(z, zeta)
+                Ri, Mi, Ni = self.field_config.get_bsd(z, zeta)
 
                 data['dndm_b'] = Ni
                 data['M_b'] = Mi
@@ -481,21 +481,23 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             #xbar = 1. - xibar
             data['Q'] = Q
             #data['xibar'] = xibar
-            #data['dTb0'] = Tbar
+            data['dTb0'] = Tbar
             #data['dTb_bulk'] = dTb_ps / (1. - xavg_gs)
 
             ##
-            # 21-cm fluctuations
+            # 21-cm fluctuationsTbar
             ##
 
             # Pure real-space model
             if self.pf['ps_method'] in [1, 'fzh04']:
 
                 # Always save the matter correlation function.
-                data['cf_dd'] = self.field_config.get_cf(z, term='dd', R=self.tab_R)
+                #data['cf_dd'] = self.field_config.get_cf(z, term='dd', R=self.tab_R)
+                _R_, data['cf_dd'] = self.halos.get_cf_mm(z, R=self.tab_R)
 
                 # Grab the ionization CF
-                data['cf_bb'] = self.field_config.get_cf(z, term='ii', R=self.tab_R)
+                data['cf_bb'] = self.field_config.get_cf_bb(z, zeta,
+                    R=self.tab_R, Q=Q)
 
                 data['cf_21'] = data['cf_dd'] + data['cf_bb'] - Q**2
 
@@ -506,6 +508,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
+
                 data['ps_21'] = self.field_config.get_ps_from_cf(self.tab_k,
                     data['cf_21'], R=self.tab_R, **transform_kwargs)
 

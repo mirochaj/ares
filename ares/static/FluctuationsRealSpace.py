@@ -17,6 +17,7 @@ from ..util import ParameterFile
 from ..util.Stats import bin_c2e
 from scipy.special import erfinv
 from scipy.optimize import fsolve
+from ..physics import ExcursionSet
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from ..physics.Hydrogen import Hydrogen
@@ -97,21 +98,22 @@ class FluctuationsRealSpace(object): # pragma: no cover
     def xset(self):
         if not hasattr(self, '_xset'):
 
-
             xset_pars = \
             {
              'xset_window': 'tophat-real',
-             'xset_barrier': 'constant',
+             'xset_barrier': 'linear',
              'xset_pdf': 'gaussian',
             }
 
-            xset = ares.physics.ExcursionSet(**xset_pars)
-            xset.tab_M = pop.halos.tab_M
-            xset.tab_sigma = pop.halos.tab_sigma
-            xset.tab_ps = pop.halos.tab_ps_lin
-            xset.tab_z = pop.halos.tab_z
-            xset.tab_k = pop.halos.tab_k_lin
-            xset.tab_growth = pop.halos.tab_growth
+
+
+            xset = ExcursionSet(**xset_pars)
+            xset.tab_M = self.tab_M
+            xset.tab_sigma = self.tab_sigma
+            xset.tab_ps = self.halos.tab_ps_lin
+            xset.tab_z = self.halos.tab_z
+            xset.tab_k = self.halos.tab_k_lin
+            xset.tab_growth = self.halos.tab_growth
 
             self._xset = xset
 
@@ -475,16 +477,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return self._tab_bubble_bias
 
-    def _fzh04_eq22(self, z, ion=True):
-
-        if ion:
-            zeta = self.zeta
-        else:
-            zeta = self.zeta_X
-
-
+    def _fzh04_eq22(self, z, zeta):
         iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.sigma
+        s = self.tab_sigma
         S = s**2
 
         #return 1. + ((self.LinearBarrier(z, zeta, zeta) / S - (1. / self._B0(z, zeta))) \
@@ -492,12 +487,12 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return 1. + (self._B0(z, zeta)**2 / S / self._B(z, zeta, zeta))
 
-    def bubble_bias(self, z, ion=True):
+    def bubble_bias(self, z, zeta):
         """
         Eq. 9.24 in Loeb & Furlanetto (2013) or Eq. 22 in FZH04.
         """
 
-        return self._fzh04_eq22(z, ion)
+        return self._fzh04_eq22(z, zeta)
 
         #iz = np.argmin(np.abs(z - self.halos.tab_z_ps))
         #
@@ -510,7 +505,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         #return m * z + y[-1]
 
         #iz = np.argmin(np.abs(z - self.halos.tab_z))
-        #s = self.sigma
+        #s = self.tab_sigma
         #S = s**2
         #
         ##return 1. + ((self.LinearBarrier(z, zeta, zeta) / S - (1. / self._B0(z, zeta))) \
@@ -634,7 +629,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return self._spline_cf_mm_[z]
 
-    def excess_probability(self, z, R, zeta):
+    def get_excess_probability_bb(self, z, R, zeta):
         """
         This is the excess probability that a point is ionized given that
         we already know another point (at distance r) is ionized.
@@ -671,7 +666,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
     def _B0(self, z, zeta):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.sigma
+        s = self.tab_sigma
 
         # Variance on scale of smallest collapsed object
         sigma_min = self.sigma_min(z)
@@ -681,7 +676,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
     def _B1(self, z, zeta):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.sigma #* self.halos.growth_factor[iz]
+        s = self.tab_sigma #* self.halos.growth_factor[iz]
 
         sigma_min = self.sigma_min(z)
 
@@ -693,7 +688,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
     def LinearBarrier(self, z, zeta, zeta_min=None):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.sigma #/ self.halos.growth_factor[iz]
+        s = self.tab_sigma #/ self.halos.growth_factor[iz]
 
         if zeta_min is None:
             zeta_min = zeta
@@ -718,7 +713,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         delta = self._delta_c(z)
 
         return delta - np.sqrt(2.) * self._K(zeta) \
-            * np.sqrt(sigma_min**2 - self.sigma**2)
+            * np.sqrt(sigma_min**2 - self.tab_sigma**2)
 
         #return self.cosm.delta_c0 - np.sqrt(2.) * self._K(zeta) \
         #    * np.sqrt(sigma_min**2 - s**2)
@@ -736,47 +731,49 @@ class FluctuationsRealSpace(object): # pragma: no cover
     #        raise NotImplemented('help please')
 
     @property
-    def m(self):
+    def tab_M(self):
         """
         Mass array used for bubbles.
         """
-        if not hasattr(self, '_m'):
-            self._m = 10**np.arange(5, 18.1, 0.1)
-        return self._m
+        if not hasattr(self, '_tab_M'):
+            self._tab_M = self.halos.tab_M
+        return self._tab_M
 
     @property
-    def sigma(self):
-        if not hasattr(self, '_sigma'):
-            self._sigma = np.interp(self.m, self.halos.tab_M, self.halos.tab_sigma)
+    def tab_sigma(self):
+        if not hasattr(self, '_tab_sigma'):
+            self._tab_sigma = np.interp(self.tab_M, self.halos.tab_M,
+                self.halos.tab_sigma)
 
             # Crude but chill it's temporary
-            bigm = self.m > self.halos.tab_M.max()
+            bigm = self.tab_M > self.halos.tab_M.max()
             if np.any(bigm):
                 print("WARNING: Extrapolating sigma to higher masses.")
 
                 slope = np.diff(np.log10(self.halos.tab_sigma[-2:])) \
                       / np.diff(np.log10(self.halos.tab_M[-2:]))
-                self._sigma[bigm == 1] = self.halos.tab_sigma[-1] \
-                    * (self.m[bigm == 1] / self.halos.tab_M.max())**slope
+                self._tab_sigma[bigm == 1] = self.halos.tab_sigma[-1] \
+                    * (self.tab_M[bigm == 1] / self.halos.tab_M.max())**slope
 
-        return self._sigma
+        return self._tab_sigma
 
     @property
-    def dlns_dlnm(self):
-        if not hasattr(self, '_dlns_dlnm'):
-            self._dlns_dlnm = np.interp(self.m, self.halos.tab_M, self.halos.tab_dlnsdlnm)
+    def tab_dlns_dlnm(self):
+        if not hasattr(self, '_tab_dlns_dlnm'):
+            self._tab_dlns_dlnm = np.interp(self.tab_M, self.halos.tab_M,
+                self.halos.tab_dlnsdlnm)
 
-            bigm = self.m > self.halos.tab_M.max()
+            bigm = self.tab_M > self.halos.tab_M.max()
             if np.any(bigm):
                 print("WARNING: Extrapolating dlns_dlnm to higher masses.")
                 slope = np.diff(np.log10(np.abs(self.halos.tab_dlnsdlnm[-2:]))) \
                       / np.diff(np.log10(self.halos.tab_M[-2:]))
-                self._dlns_dlnm[bigm == 1] = self.halos.tab_dlnsdlnm[-1] \
-                    * (self.m[bigm == 1] / self.halos.tab_M.max())**slope
+                self._tab_dlns_dlnm[bigm == 1] = self.halos.tab_dlnsdlnm[-1] \
+                    * (self.tab_M[bigm == 1] / self.halos.tab_M.max())**slope
 
-        return self._dlns_dlnm
+        return self._tab_dlns_dlnm
 
-    def BubbleSizeDistribution(self, z, zeta, rescale=True):
+    def get_bsd(self, z, zeta, Q=None):
         """
         Compute the ionized bubble size distribution.
 
@@ -797,11 +794,8 @@ class FluctuationsRealSpace(object): # pragma: no cover
         """
 
         if not self.pf['ps_include_ion']:
-            R_i = M_b = dndm = np.zeros_like(self.m)
+            R_i = M_b = dndm = np.zeros_like(self.tab_M)
             return R_i, M_b, dndm
-        #if (not ion) and not self.pf['ps_include_temp']:
-        #    R_i = M_b = dndm = np.zeros_like(self.m)
-        #    return R_i, M_b, dndm
 
         reionization_over = False
 
@@ -811,6 +805,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         # Mean (over-)density of bubble material
         delta_B = self._B(z, zeta)
+        B0 = self._B0(z, zeta)
 
         if self.bsd_model is None:
             if self.pf['bubble_density'] is not None:
@@ -828,28 +823,31 @@ class FluctuationsRealSpace(object): # pragma: no cover
             dndm = self.halos.tab_dndm[iz].copy()
 
         elif self.bsd_model == 'fzh04':
+
             # Just use array of halo mass as array of ionized region masses.
             # Arbitrary at this point, just need an array of masses.
             # Plus, this way, the sigma's from the HMF are OK.
-            M_b = self.m
+            M_b = self.tab_M
 
             # Radius of ionized regions as function of delta (mass)
             R_i = (3. * M_b / rho0_m / (1. + delta_B) / 4. / np.pi)**(1./3.)
+
+            R_i, M_b, dndm = self.xset.SizeDistribution(z, R_i, delta_B, B0)
 
             V_i = four_pi * R_i**3 / 3.
 
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and M_b are from using dlns instead of
             # dS (where S=s^2)
-            dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.dlns_dlnm) \
-                * self.sigma**2 / M_b**2
+            #dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.tab_dlns_dlnm) \
+            #    * self.tab_sigma**2 / M_b**2
 
             # Reionization is over!
             # Only use barrier condition if we haven't asked to rescale
             # or supplied Q ourselves.
-            if self._B0(z, zeta) <= 0:
-                reionization_over = True
-                dndm = np.zeros_like(dndm)
+            #if self._B0(z, zeta) <= 0:
+            #    reionization_over = True
+            #    dndm = np.zeros_like(dndm)
 
             #elif Q is not None:
             #    if Q == 1:
@@ -862,12 +860,11 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         # This is a trick to guarantee that the integral over the bubble
         # size distribution yields the mean ionized fraction.
-        if (not reionization_over) and rescale:
+        if (not reionization_over) and (Q is not None):
             Mmin = self.Mmin(z) * zeta
             iM = np.argmin(np.abs(M_b - Mmin))
-            Qi = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
-            xibar = self.MeanIonizedFraction(z, zeta)
-            dndm *= -np.log(1. - xibar) / Qi
+            Qb = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
+            dndm *= -np.log(1. - Q) / Qb
 
         return R_i, M_b, dndm
 
@@ -876,15 +873,15 @@ class FluctuationsRealSpace(object): # pragma: no cover
         Up-crossing probability.
         """
 
-        S = self.sigma**2
+        S = self.tab_sigma**2
         Mmin = self.Mmin(z) #* zeta # doesn't matter for zeta=const
         if type(zeta) == np.ndarray:
             raise NotImplemented('this is wrong.')
-            zeta_min = np.interp(Mmin, self.m, zeta)
+            zeta_min = np.interp(Mmin, self.tab_M, zeta)
         else:
             zeta_min = zeta
 
-        zeros = np.zeros_like(self.sigma)
+        zeros = np.zeros_like(self.tab_sigma)
 
         B0 = self._B0(z, zeta)
         B1 = self._B1(z, zeta)
@@ -2583,6 +2580,80 @@ class FluctuationsRealSpace(object): # pragma: no cover
             P = integr
 
         return P
+
+    def get_overlap_vol(self, d, R):
+        """
+        Return overlap volume of two spheres of radius R separated by distance d.
+
+        Parameters
+        ----------
+        d : int, float
+            Separation in cMpc.
+        R : int, float, np.ndarray
+            Bubble size(s) in cMpc.
+
+
+        """
+
+        V_o = (4. * np.pi / 3.) * R**3 - np.pi * d * (R**2 - d**2 / 12.)
+
+        if type(R) == np.ndarray:
+            V_o[d >= 2 * R] = 0
+        else:
+            if d >= 2 * R:
+                return 0.0
+
+        return V_o
+
+    def get_cf_bb(self, z, zeta, R=None, Q=None):
+        """
+        Compute the bubble correlation function.
+        """
+
+        if R is None:
+            use_R_tab = True
+            R = self.halos.tab_R
+        else:
+            use_R_tab = False
+
+        if Q is None:
+            Q = self.MeanIonizedFraction(z, zeta)
+
+        R_b, M_b, dndm_b = self.get_bsd(z, zeta, Q=Q)
+        Mmin_b = self.Mmin(z) * zeta
+        V_b = 4. * np.pi * R_b**3 / 3.
+
+        P1 = np.zeros(R.size)
+        P2 = np.zeros(R.size)
+        PT = np.zeros(R.size)
+        for i, sep in enumerate(R):
+
+            V_o = self.get_overlap_vol(sep, R_b)
+
+            # For two-halo terms, need bias of sources.
+            if self.pf['ps_include_bias']:
+                ep = self.get_excess_probability_bb(z, sep, zeta)
+            else:
+                ep = np.zeros_like(self.tab_M)
+
+            Vne1 = Vne2 = V_b - V_o
+
+            _P1 = self.get_prob(z, M_b, dndm_b, Mmin_b, V_o, True)
+            _P2_1 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vne1, True)
+            _P2_2 = self.get_prob(z, M_b, dndm_b, Mmin_b, Vne2, True, ep)
+
+            _P2 = (1. - _P1) * _P2_1 * _P2_2
+
+            #if self.pf['ps_volfix'] and Q > 0.5:
+            #    P1[i] = _P1
+            #    P2[i] = (1. - P1[i]) * _P2_1**2
+            #else:
+            P1[i] = _P1
+            P2[i] = _P2
+
+        cf_bb = P1 + P2 - Q**2
+
+        return cf_bb#, P1, P2, Q**2
 
     def get_cf(self, z, zeta=None, R=None, term='ii',
         R_s=None, R3=0.0, Th=500., Tc=1., Ts=None, k=None, Tk=None, Ja=None):
