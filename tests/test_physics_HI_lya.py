@@ -10,6 +10,7 @@ Description:
 
 """
 
+import sys
 import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics import Hydrogen
@@ -17,7 +18,7 @@ from ares.simulations import Global21cm
 
 Tarr = np.logspace(-1, 2)
 
-hydr = Hydrogen()
+hydr = Hydrogen(approx_Salpha=0)
 
 z = 22.
 Tk = 10.#hydr.cosm.get_Tgas(z)
@@ -39,3 +40,23 @@ for ax in axes:
     ax.axvline(0, color='k', ls=':')
     ax.set_xlim(-105, 105)
     ax.set_ylim(-0.05, 1.05)
+
+
+Ic = hydr.get_lya_int(z, Tk, Ja=1, continuum=1)
+Ii = hydr.get_lya_int(z, Tk, Ja=1, continuum=0)
+
+print(Ic, Ii)
+
+print(hydr.get_lya_heating(z, Tk, Jc=1e-21, Ji=0.0))
+
+sys.exit(0)
+
+sim1 = Global21cm(fX=0.1, lya_heating=0)
+sim2 = Global21cm(fX=0.1, lya_heating=1)
+
+ax2 = None
+colors = 'k', 'b'
+ls = '-', '--'
+for i, sim in enumerate([sim1]):
+    sim.run()
+    sim.TemperatureHistory(ax=ax2, fig=2, color=colors[i], ls=ls[i])

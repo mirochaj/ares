@@ -27,7 +27,7 @@ try:
     c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
     c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
-    from scipy.special import airy, hyp2f1
+    from scipy.special import airy, hyp2f1, erfc
 
 except ImportError:
     pass
@@ -490,7 +490,15 @@ class Hydrogen(object):
         """
 
         if self.approx_S == 0:
-            raise NotImplementedError('Must use analytical formulae.')
+            delta_nu = self.get_lya_width(Tk, units='Hz')
+            tau = self.get_tau_GP(z, xHII=xHII)
+            a = A_LyA / 4. / np.pi / delta_nu
+            eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+            integ = lambda y: y**2 * np.exp(2 * eta * y \
+                + (2 * np.pi * y**3) / (3 * a * tau))
+
+            S = (2 * np.pi / a / tau) * quad(integ, -np.inf, 0)[0]
         elif self.approx_S == 1:
             S = 1.0
         elif self.approx_S == 2:
@@ -514,8 +522,10 @@ class Hydrogen(object):
 
         elif self.approx_S == 4:
             xa, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
+        elif self.approx_S == 5:
+            raise NotImplementedError('Placeholder for Mittal & Kulkarni (2019)')
         else:
-            raise NotImplementedError('approx_Sa must be in [1,2,3,4].')
+            raise NotImplementedError('approx_Sa must be in [0,1,2,3,4,5].')
 
         return np.maximum(S, 0.0)
 
@@ -706,6 +716,21 @@ class Hydrogen(object):
         - Equations 12 and 13 in Furlanetto & Pritchard (2006)
         - Equations 10 and 11 in Mittal & Kulkarni (2019).
 
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Tk : int, float
+            Kinetic temperature of the gas [K].
+        x : int, float
+            Dimensionless variable for photon frequency, defined as
+            (nu - nu_0) / Delta nu, where nu_0 is central frequency of Ly-a
+            line and Delta nu is the Doppler width.
+        continuum : bool
+            Whether we're referring to continuum or injected photons.
+        xHII : int, float
+            Ionized fraction of the gas.
+
         Returns
         -------
         Intensity J(x) / J(x->inf or x=0) for continuum or injected photons,
@@ -732,5 +757,82 @@ class Hydrogen(object):
 
         return J
 
-    def get_lya_int(self, z, Tk, x, continuum=True, xHII=0.0):
-        pass
+    def get_lya_int(self, z, Tk, continuum=True, xHII=0.0):
+        """
+        Compute the area under the curve for Ly-a line profiles. Needed to
+        compute heating rate.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Tk : int, float
+            Kinetic temperature of the gas [K].
+        continuum : bool
+            Whether we're referring to continuum or injected photons.
+        xHII : int, float
+            Ionized fraction of the gas.
+
+        """
+
+        # Some ingredients we need.
+        delta_nu = self.get_lya_width(Tk, units='Hz')
+        tau = self.get_tau_GP(z, xHII=xHII)
+        a = A_LyA / 4. / np.pi / delta_nu
+        eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+        xi = eta * (4 * a * tau / np.pi)**(1. / 3.)
+
+        if continuum:
+            Ai, Aip, Bi, Bip = airy(-xi)
+
+            I = eta * (2 * np.pi**4 * a**2 * tau**2)**(1. / 3.) \
+                * (Ai**2 + Bi**2)
+
+        else:
+            assert self.approx_S not in [1, 4]
+
+            integ = lambda y: np.exp(-2 * eta * y \
+                - (np.pi * y**3) / (6 * a * tau)) \
+                * erfc(np.sqrt(np.pi * y**3 / 2. / a / tau)) / np.sqrt(y)
+
+            S = self.Sa(z=z, Tk=Tk, xHII=xHII)
+            I = eta * np.sqrt(a * tau * 0.5) * quad(integ, 0, np.inf)[0] \
+                - S * (1. - S) / 2. / eta
+
+        return I
+
+    def get_lya_heating(self, z, Tk, Jc, Ji, xHII=0.0):
+        """
+        Compute the Ly-a heating rate by summing over continuum and injected
+        line profiles.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Tk : int, float
+            Kinetic temperature of the gas [K].
+        Jc : int, float
+            Lyman-alpha background intensity, continuum photons, i.e.,
+            flux at x->inf.
+        Ji : int, float
+            Lyman-alpha background intensity, injected photons, i.e.,
+            from cascades (x=0).
+        xHII : int, float
+            Ionized fraction of the gas.
+
+        Returns
+        -------
+        Heating rate in erg/s/cm^3.
+
+        """
+
+        delta_nu = self.get_lya_width(Tk, units='Hz')
+        Ic = self.get_lya_int(z, Tk, continuum=1, xHII=xHII)
+        Ii = self.get_lya_int(z, Tk, continuum=0, xHII=xHII)
+
+        prefactor = 8 * np.pi * h_P * delta_nu \
+            / 3. / k_B / l_LyA / self.cosm.nH(z)
+
+        return prefactor * (Ic * Jc + Ii * Ji)
