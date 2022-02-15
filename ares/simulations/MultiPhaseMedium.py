@@ -155,6 +155,7 @@ class MultiPhaseMedium(object):
             {'k_ion': np.zeros((grid.dims, grid.N_absorbers)),
              'k_heat': np.zeros((grid.dims, grid.N_absorbers)),
              'k_ion2': np.zeros((grid.dims, grid.N_absorbers, grid.N_absorbers)),
+             'k_heat_lya': np.zeros(grid.dims),
              'Jc': np.zeros(grid.dims),
              'Ji': np.zeros(grid.dims),
              'Ja': np.zeros(grid.dims),
@@ -368,6 +369,8 @@ class MultiPhaseMedium(object):
                     also = {}
                     for sp in self.field.grid.absorbers:
                         also['igm_{!s}'.format(sp)] = data_igm[sp]
+
+                    also['igm_Tk'] = data_igm['Tk']
 
                     RC_igm = self.field.update_rate_coefficients(z,
                         zone='igm', return_rc=True, **also)

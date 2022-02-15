@@ -123,7 +123,7 @@ class ChemicalNetwork(object):
 
         self.q = q
 
-        cell, k_ion, k_ion2, k_heat, Jc, Ji, ntot, time = args
+        cell, k_ion, k_ion2, k_heat, k_heat_lya, ntot, time = args
 
         to_temp = 1. / (1.5 * ntot * k_B)
 
@@ -311,9 +311,7 @@ class ChemicalNetwork(object):
         ##
         # Add in Lyman-alpha heating.
         if self.lya_heating:
-            lya_heat = self.grid.hydr.get_lya_heating(z, q[-1], Jc, Ji,
-                xHII=xe)
-            dqdt['Tk'] += lya_heat
+            dqdt['Tk'] += k_heat_lya * self.cosm.HubbleParameter(z) / 1.5
 
         ##
         # Add in exotic heating

@@ -118,12 +118,12 @@ class Chemistry(object):
 
             if self.rtON:
                 args = (cell, kwargs_cell['k_ion'], kwargs_cell['k_ion2'],
-                    kwargs_cell['k_heat'], kwargs_cell['Jc'],
-                    kwargs_cell['Ji'], data['n'][cell], t)
+                    kwargs_cell['k_heat'], kwargs_cell['k_heat_lya'],
+                    data['n'][cell], t)
             else:
                 args = (cell, self.grid.zeros_absorbers,
                     self.grid.zeros_absorbers2, self.grid.zeros_absorbers,
-                    0.0, 0.0, data['n'][cell], t)
+                    0.0, data['n'][cell], t)
 
             self.solver.set_initial_value(q, 0.0).set_f_params(args).set_jac_params(args)
 

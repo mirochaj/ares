@@ -138,8 +138,7 @@ class GasParcel(object):
             {'k_ion': self.grid.zeros_grid_x_absorbers,
              'k_ion2': self.grid.zeros_grid_x_absorbers2,
              'k_heat': self.grid.zeros_grid_x_absorbers,
-             'Jc': np.zeros(1),
-             'Ji': np.zeros(1),
+             'k_heat_lya': np.zeros(self.grid.dims),
             },
         )
 

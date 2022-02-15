@@ -654,6 +654,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                         self.grid.N_absorbers, self.grid.N_absorbers))
                 self._rc_tabs[i]['k_heat'] = np.zeros((Nz,
                         self.grid.N_absorbers))
+                self._rc_tabs[i]['k_heat_lya'] = np.zeros(Nz)
                 self._rc_tabs[i]['Jc'] = np.zeros(Nz)
                 self._rc_tabs[i]['Ji'] = np.zeros(Nz)
                 self._rc_tabs[i]['Jlw'] = np.zeros(Nz)
@@ -748,6 +749,7 @@ class MetaGalacticBackground(AnalyzeMGB):
              'k_ion': np.zeros((1,self.grid.N_absorbers)),
              'k_ion2': np.zeros((1,self.grid.N_absorbers, self.grid.N_absorbers)),
              'k_heat': np.zeros((1,self.grid.N_absorbers)),
+             'k_heat_lya': np.zeros(1),
              'Jc': np.zeros(1),
              'Ji': np.zeros(1),
             }
@@ -766,6 +768,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     for j in range(self.grid.N_absorbers)]]),
                  'k_heat': np.array([[fset['k_heat'][j](z) \
                     for j in range(self.grid.N_absorbers)]]),
+                 'k_heat_lya': np.zeros(1),
                  'Jc': fset['Jc'](z),
                  'Ji': fset['Ji'](z),
                  'Jlw': fset['Jlw'](z),
@@ -786,6 +789,13 @@ class MetaGalacticBackground(AnalyzeMGB):
                         tmp[j,k] = fset['k_ion2'][j][k](z)
 
                 this_pop['k_ion2'] = np.array([tmp])
+
+                if pop.zone == 'igm' and self.pf['lya_heating']:
+                    this_pop['k_heat_lya'] = self.grid.hydr.get_lya_heating(z,
+                        kwargs['igm_Tk'],
+                        this_pop['Jc'] * 1e4, # cm^-2 -> m^-2
+                        this_pop['Ji'] * 1e4, # cm^-2 -> m^-2
+                        1.-kwargs['igm_h_1']) / (1. + z)**3
 
                 for key in to_return:
                     to_return[key] += this_pop[key]
@@ -1261,8 +1271,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                 # Redshift is first dimension!
                 l = np.argmin(np.abs(E - E_LyA))
                 Jc = flux[:,l+1]
-                Ji = flux[:,l]
-                Ja = Ji + Jc
+                Ja = flux[:,l]
+                Ji = Ja - Jc
             else:
                 Ja = np.zeros_like(z)
                 Ji = np.zeros_like(z)
