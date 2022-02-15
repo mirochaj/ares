@@ -13,11 +13,12 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
+from scipy.integrate import quad
 from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h_P, c, E_LyA, E_LL, \
-    k_B, nu_0_mhz, E10
+    k_B, nu_0_mhz, E10, ev_per_hz, A_LyA, nu_alpha, lam_LyA, m_H
 
 try:
     from scipy.special import gamma
@@ -424,7 +425,7 @@ class Hydrogen(object):
             # This will correctly cause a crash if Tk is an array
             Tk = float(Tk)
 
-            xi = (1e-7 * self.tauGP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
+            xi = (1e-7 * self.get_tau_GP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
             a = lambda Ts: 1. - 0.0631789 / Tk + 0.115995 / Tk**2 \
                 - 0.401403 / Ts / Tk + 0.336463 / Ts / Tk**2
             b = 1. + 2.98394 * xi + 1.53583 * xi**2 + 3.85289 * xi**3
@@ -456,16 +457,24 @@ class Hydrogen(object):
         else:
             raise NotImplemented('approx_Salpha>4 not currently supported!')
 
-    def tauGP(self, z, xHII=0.):
+    def get_tau_GP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
         return 1.5 * self.cosm.nH(z) * (1. - xHII) * l_LyA**3 * 50e6 \
             / self.cosm.HubbleParameter(z)
 
-    def lya_width(self, Tk):
+    def get_lya_width(self, Tk, units='ev'):
         """
         Returns Doppler line-width of the Ly-a line in eV.
         """
-        return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
+
+        w = np.sqrt(2. * k_B * Tk / m_H / c**2)
+
+        if units.lower() == 'ev':
+            return w * E_LyA
+        elif units.lower() == 'hz':
+            return w * nu_alpha
+        else:
+            raise NotImplemented('No option units={}!'.format(units))
 
     def xalpha_tilde(self, z):
         """
@@ -488,7 +497,7 @@ class Hydrogen(object):
             S = np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
                 / (1. + 0.4 / Tk)
         elif int(self.approx_S) == 3:
-            gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
+            gamma = 1. / self.get_tau_GP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
             alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.) # Eq. 20
 
             # Gamma function approximation: Eq. 19
@@ -684,3 +693,44 @@ class Hydrogen(object):
     def get_21cm_dTb_no_astrophysics(self, z):
         Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
         return self.get_21cm_dTb(z, Ts)
+
+    def get_voigt_profile(self, x, a=1):
+        return (a / np.pi**1.5) * quad(lambda t: np.exp(-t**2) \
+            / (a**2 + (x - t)**2))[0]
+
+    def get_lya_profile(self, z, Tk, x, continuum=True, xHII=0.0):
+        """
+        Compute the spectral shape of the Ly-a line.
+
+        These equations appear in several works:
+        - Equations 12 and 13 in Furlanetto & Pritchard (2006)
+        - Equations 10 and 11 in Mittal & Kulkarni (2019).
+
+        Returns
+        -------
+        Intensity J(x) / J(x->inf or x=0) for continuum or injected photons,
+        depending on the value of `continuum` parameter.
+
+        """
+
+        # Some ingredients we need.
+        delta_nu = self.get_lya_width(Tk, units='Hz')
+        tau = self.get_tau_GP(z, xHII=xHII)
+        a = A_LyA / 4. / np.pi / delta_nu
+        eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+        exp_term = np.exp(-2 * eta * x - (2 * np.pi * x**3) / (3 * a * tau))
+
+        if continuum or (x < 0):
+            integ = lambda y: y**2 * np.exp(2 * eta * y \
+                + (2 * np.pi * y**3) / (3 * a * tau))
+
+            J = (2 * np.pi / a / tau) * exp_term \
+                * quad(integ, -np.inf, x)[0]
+        else:
+            J = exp_term
+
+        return J
+
+    def get_lya_int(self, z, Tk, x, continuum=True, xHII=0.0):
+        pass

@@ -213,6 +213,7 @@ def PhysicsParameters():
                         # 3 = Furlanetto & Pritchard (2006)
                         # 4 = Hirata (2006)
 
+    "lya_heating": False,
     "approx_tau_21cm": True,
     "extrapolate_coupling": False,
 
