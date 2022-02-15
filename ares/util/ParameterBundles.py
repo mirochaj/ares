@@ -250,6 +250,10 @@ _crte_xrb = \
 
 _crte_lwb = _crte_xrb.copy()
 _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
+_crte_lwb['pop_sed_model'] = True
+_crte_lwb["pop_Emin"] = 10.2
+_crte_lwb["pop_Emax"] = 13.6
+_crte_lwb['pop_alpha'] = 0.0
 _crte_lwb['tau_approx'] = True
 
 # Some different spectral models
