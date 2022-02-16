@@ -33,8 +33,8 @@ def test():
     Ji_norm = Ji * Jc[x==0]
     Ji_norm[x < 0] = Jc[x < 0]
 
-    Ic = hydr.get_lya_int(z, Tk, continuum=1)
-    Ii = hydr.get_lya_int(z, Tk, continuum=0)
+    Ic = hydr.get_lya_EW(z, Tk, continuum=1)
+    Ii = hydr.get_lya_EW(z, Tk, continuum=0)
 
     # Compare to Mittal & Kulkarni (2019) who actually quote numbers :)
     # Be lenient since we have different cosmologies.
