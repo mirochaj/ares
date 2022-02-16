@@ -777,7 +777,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 # Convert to rate coefficient
                 for j, absorber in enumerate(self.grid.absorbers):
                     x = kwargs['{0!s}_{1!s}'.format(pop.zone, absorber)]
-                    this_pop['k_ion'][0][j] /= x
+
+                    if self.pf['photon_counting']:
+                        this_pop['k_ion'][0][j] /= x
 
                     # No helium for cgm, at least not this carefully
                     if pop.zone == 'cgm':

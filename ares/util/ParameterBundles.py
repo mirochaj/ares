@@ -109,7 +109,7 @@ _src_xray = \
  'pop_lya_src': False,
  'pop_heat_src_igm': True,
  'pop_ion_src_cgm': False,
- 'pop_ion_src_igm': False,
+ 'pop_ion_src_igm': True,
  'pop_sed_model': True,
  'pop_fXh': 0.2,
 }

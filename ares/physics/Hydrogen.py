@@ -838,6 +838,5 @@ class Hydrogen(object):
         prefactor = 8 * np.pi * h_P * delta_nu \
             / 3. / k_B / l_LyA / self.cosm.nH(z)
 
-        # Convert to a co-moving heating rate before returning
         # Note: this will get hit with a factor of H(z) in ChemicalNetwork
-        return prefactor * (Ic * Jc + Ii * Ji) / (1. + z)**3
+        return prefactor * (Ic * Jc + Ii * Ji)
