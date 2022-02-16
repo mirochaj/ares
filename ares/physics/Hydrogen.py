@@ -757,10 +757,11 @@ class Hydrogen(object):
 
         return J
 
-    def get_lya_int(self, z, Tk, continuum=True, xHII=0.0):
+    def get_lya_EW(self, z, Tk, continuum=True, xHII=0.0):
         """
         Compute the area under the curve for Ly-a line profiles. Needed to
-        compute heating rate.
+        compute heating rate. This is essentially an equivalent width, hence
+        the name.
 
         Parameters
         ----------
@@ -807,6 +808,8 @@ class Hydrogen(object):
         Compute the Ly-a heating rate by summing over continuum and injected
         line profiles.
 
+        .. note :: This is Eq. 47 in Mittal & Kulkarni (2019).
+
         Parameters
         ----------
         z : int, float
@@ -829,10 +832,12 @@ class Hydrogen(object):
         """
 
         delta_nu = self.get_lya_width(Tk, units='Hz')
-        Ic = self.get_lya_int(z, Tk, continuum=1, xHII=xHII)
-        Ii = self.get_lya_int(z, Tk, continuum=0, xHII=xHII)
+        Ic = self.get_lya_EW(z, Tk, continuum=1, xHII=xHII)
+        Ii = self.get_lya_EW(z, Tk, continuum=0, xHII=xHII)
 
         prefactor = 8 * np.pi * h_P * delta_nu \
             / 3. / k_B / l_LyA / self.cosm.nH(z)
 
-        return prefactor * (Ic * Jc + Ii * Ji)
+        # Convert to a co-moving heating rate before returning
+        # Note: this will get hit with a factor of H(z) in ChemicalNetwork
+        return prefactor * (Ic * Jc + Ii * Ji) / (1. + z)**3

@@ -10,9 +10,7 @@ Description:
 
 """
 
-import sys
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.physics import Hydrogen
 from ares.simulations import Global21cm
 
@@ -23,45 +21,27 @@ def test():
     hydr = Hydrogen(approx_Salpha=0)
 
     z = 22.
-    Tk = 10.#hydr.cosm.get_Tgas(z)
+    Tk = 10.
+    xHII = 2.19e-4
     x = np.arange(-100, 100)
 
-    fig, axes = pl.subplots(1, 2, figsize=(8, 4))
-
-    Jc = np.array([hydr.get_lya_profile(z, Tk, xx, continuum=1) for xx in x])
-    Ji = np.array([hydr.get_lya_profile(z, Tk, xx, continuum=0) for xx in x])
+    Jc = np.array([hydr.get_lya_profile(z, Tk, xx, continuum=1, xHII=xHII) \
+        for xx in x])
+    Ji = np.array([hydr.get_lya_profile(z, Tk, xx, continuum=0, xHII=xHII) \
+        for xx in x])
 
     Ji_norm = Ji * Jc[x==0]
     Ji_norm[x < 0] = Jc[x < 0]
 
-    axes[0].plot(x, Jc, color='k')
-    axes[1].plot(x, Ji_norm, color='k')
-
-    for ax in axes:
-        ax.axhline(1, color='k', ls=':')
-        ax.axvline(0, color='k', ls=':')
-        ax.set_xlim(-105, 105)
-        ax.set_ylim(-0.05, 1.05)
-
-
     Ic = hydr.get_lya_int(z, Tk, continuum=1)
     Ii = hydr.get_lya_int(z, Tk, continuum=0)
 
-    print(Ic, Ii)
+    # Compare to Mittal & Kulkarni (2019) who actually quote numbers :)
+    # Be lenient since we have different cosmologies.
+    assert abs(Ic - 20.11) < 1
+    assert abs(Ii - -5.75) < 1
 
-    print(hydr.get_lya_heating(z, Tk, Jc=1e-21, Ji=0.0))
-
-    sys.exit(0)
-
-    sim1 = Global21cm(fX=0.1, lya_heating=0)
-    sim2 = Global21cm(fX=0.1, lya_heating=1)
-
-    ax2 = None
-    colors = 'k', 'b'
-    ls = '-', '--'
-    for i, sim in enumerate([sim1]):
-        sim.run()
-        sim.TemperatureHistory(ax=ax2, fig=2, color=colors[i], ls=ls[i])
+    heat = hydr.get_lya_heating(z, Tk, Jc=1e-12, Ji=1e-13)
 
 if __name__ == '__main__':
     test()

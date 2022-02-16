@@ -792,10 +792,8 @@ class MetaGalacticBackground(AnalyzeMGB):
 
                 if pop.zone == 'igm' and self.pf['lya_heating']:
                     this_pop['k_heat_lya'] = self.grid.hydr.get_lya_heating(z,
-                        kwargs['igm_Tk'],
-                        this_pop['Jc'] * 1e4, # cm^-2 -> m^-2
-                        this_pop['Ji'] * 1e4, # cm^-2 -> m^-2
-                        1.-kwargs['igm_h_1']) / (1. + z)**3
+                        kwargs['igm_Tk'], this_pop['Jc'], this_pop['Ji'],
+                        1.-kwargs['igm_h_1'])
 
                 for key in to_return:
                     to_return[key] += this_pop[key]
