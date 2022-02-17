@@ -325,7 +325,7 @@ class Global21cm(AnalyzeGlobal21cm):
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Jc'] = self.history['igm_Jc']
         self.history['Ji'] = self.history['igm_Ji']
-        self.history['Ja'] = None#self.history['igm_Jc'] + self.history['igm_Ji']
+        self.history['Ja'] = self.history['igm_Jc'] + self.history['igm_Ji']
         self.history['Jlw'] = self.history['igm_Jlw']
 
         # Save rate coefficients [optional]

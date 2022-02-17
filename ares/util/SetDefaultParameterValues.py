@@ -214,6 +214,7 @@ def PhysicsParameters():
                         # 4 = Hirata (2006)
 
     "lya_heating": False,
+    "spin_exchange": False,
     "approx_tau_21cm": True,
     "extrapolate_coupling": False,
 
