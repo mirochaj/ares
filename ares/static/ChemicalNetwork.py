@@ -311,7 +311,7 @@ class ChemicalNetwork(object):
         ##
         # Add in Lyman-alpha heating.
         if self.lya_heating:
-            dqdt['Tk'] += k_heat_lya * self.cosm.HubbleParameter(z) / 1.5
+            dqdt['Tk'] += k_heat_lya * self.cosm.HubbleParameter(z) * to_temp
 
         ##
         # Add in exotic heating

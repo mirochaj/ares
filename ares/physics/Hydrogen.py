@@ -607,12 +607,17 @@ class Hydrogen(object):
 
         if self.approx_S < 4:
             x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
-            Tc = Tk
+
+            if self.pf['spin_exchange']:
+                raise NotImplemented("This isn't self-consistent -- should in principle affect ")
+                Tse = (nu_0_mhz * 1e6 / nu_alpha)**2 * m_H * c**2 / 9. / k_B
+            else:
+                Tse = 0.0
 
             Tref = self.cosm.TCMB(z) + Tr
 
-            Ts = (1.0 + x_c + x_a) / \
-                (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+            Ts = (1.0 + x_c + x_a * Tk / (Tk + Tse)) / \
+                (Tref**-1. + x_c * Tk**-1. + x_a * (Tk + Tse)**-1.)
         else:
             if type(z) == np.ndarray:
                 x_a = []; S = []; Ts = []
@@ -640,8 +645,6 @@ class Hydrogen(object):
 
         return tau_21cm0 * (1 - xavg) * self.cosm.nH(z) * (1. + delta) \
             / Ts / (1. + z) / (self.cosm.HubbleParameter(z) / (1. + z))
-
-        return tau
 
     def get_21cm_dTb(self, z, Ts, xavg=0.0, Tr=0.0):
         """
@@ -808,7 +811,9 @@ class Hydrogen(object):
         Compute the Ly-a heating rate by summing over continuum and injected
         line profiles.
 
-        .. note :: This is Eq. 47 in Mittal & Kulkarni (2019).
+        .. note :: This is Eq. 47 in Mittal & Kulkarni (2019). However, the
+            factor of density and the Boltzmann constant have been ommitted
+            as these are applied in the chemistry solver.
 
         Parameters
         ----------
@@ -836,7 +841,7 @@ class Hydrogen(object):
         Ii = self.get_lya_EW(z, Tk, continuum=0, xHII=xHII)
 
         prefactor = 8 * np.pi * h_P * delta_nu \
-            / 3. / k_B / l_LyA / self.cosm.nH(z)
+            / 3. / l_LyA
 
         # Note: this will get hit with a factor of H(z) in ChemicalNetwork
         return prefactor * (Ic * Jc + Ii * Ji)
