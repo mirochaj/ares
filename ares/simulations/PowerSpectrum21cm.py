@@ -6,7 +6,7 @@ from types import FunctionType
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
 from ..static import FluctuationsRealSpace
-from ..static import FluctuationsFourierSpace
+#from ..static import FluctuationsFourierSpace
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import cm_per_mpc, c, s_per_yr
@@ -476,6 +476,8 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             if Q == 1:
                 Tbar = 0.0
             else:
+                # Setting xavg=xe is a way of retrieving only the bulk IGM
+                # temperature.
                 Tbar = self.hydr.get_21cm_dTb(z, Ts, xavg=xe)
 
             #xbar = 1. - xibar
@@ -499,7 +501,9 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                 data['cf_bb'] = self.field_config.get_cf_bb(z, zeta,
                     R=self.tab_R, Q=Q)
 
-                data['cf_21'] = data['cf_dd'] + data['cf_bb'] - Q**2
+                # Simplest thing right now.
+                cf_21 = data['cf_dd'] + data['cf_bb']
+                data['cf_21'] = cf_21
 
                 #data['cf_21'] = self.field_config.get_cf(z, zeta=zeta,
                 #    R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,

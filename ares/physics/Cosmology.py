@@ -296,7 +296,7 @@ class Cosmology(object):
 
     def TCMB(self, z):
         return self.get_Tcmb(z)
-        
+
     def get_Tcmb(self, z):
         return self.cmb_temp_0 * (1. + z)
 

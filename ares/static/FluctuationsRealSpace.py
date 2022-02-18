@@ -710,11 +710,28 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         delta = self._delta_c(z)
 
-        return delta - np.sqrt(2.) * self._K(zeta) \
+        delta_x = delta - np.sqrt(2.) * self._K(zeta) \
             * np.sqrt(sigma_min**2 - self.tab_sigma**2)
 
-        #return self.cosm.delta_c0 - np.sqrt(2.) * self._K(zeta) \
-        #    * np.sqrt(sigma_min**2 - s**2)
+        return delta_x
+
+    def get_barrier_mass(self, z, zeta):
+        """
+        Find the point where the ionization condition is met in mass.
+        """
+
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        iM = np.argmin(np.abs(self.Mmin(z) - self.halos.tab_M))
+        dndm = self.halos.tab_dndm[iz]
+
+        if type(zeta) != np.ndarray:
+            zeta = np.ones_like(self.halos.tab_M) * zeta
+
+        zeta_fcoll = np.trapz(zeta[iM:] * self.halos.tab_M[iM:]**2 * dndm[iM:],
+            x=np.log(self.halos.tab_M[iM:]))
+
+        k = np.argmin(np.abs(zeta_fcoll - 1.))
+        return self.halos.tab_M[iM:][k]
 
     def sigma_min(self, z):
         Mmin = self.Mmin(z)
@@ -773,6 +790,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
             Redshift of interest.
         zeta : int, float, np.ndarray
             Ionizing efficiency.
+        Q : float
+            If supplied, will re-normalize BSD to guarantee that the integral
+            over the BSD is == Q.
 
         Returns
         -------
@@ -814,34 +834,22 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         elif self.bsd_model == 'fzh04':
 
-            # Just use array of halo mass as array of ionized region masses.
+            # Just use array of halo mass as array of region masses.
             # Arbitrary at this point, just need an array of masses.
-            # Plus, this way, the sigma's from the HMF are OK.
+            # Plus, this way, the sigma's from the HMF are OK to use.
             M_b = self.tab_M
 
             # Radius of ionized regions as function of delta (mass)
-            R_i = (3. * M_b / rho0_m / 4. / np.pi)**(1./3.)
-            # Divide by (1. + delta_B) in () term?
+            R_i = (3. * M_b / rho0_m / four_pi)**(1./3.)
 
-            #R_i, M_b, dndm = self.xset.SizeDistribution(z, R_i, delta_B, B0)
+            #R_i, M_b, dndm = self.xset.SizeDistribution(0, R_i, delta_B, B0)
 
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and M_b are from using dlns instead of
             # dS (where S=s^2)
-            dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.tab_dlns_dlnm) \
+            dndm = rho0_m * self.pcross(z, zeta) \
+                * 2 * np.abs(self.tab_dlns_dlnm) \
                 * self.tab_sigma**2 / M_b**2
-
-            # Reionization is over!
-            # Only use barrier condition if we haven't asked to rescale
-            # or supplied Q ourselves.
-            #if self._B0(z, zeta) <= 0:
-            #    reionization_over = True
-            #    dndm = np.zeros_like(dndm)
-
-            #elif Q is not None:
-            #    if Q == 1:
-            #        reionization_over = True
-            #        dndm = np.zeros_like(dndm)
 
         else:
             raise NotImplementedError('Unrecognized option: %s' % self.pf['bubble_size_dist'])
@@ -854,7 +862,11 @@ class FluctuationsRealSpace(object): # pragma: no cover
             V_i = four_pi * R_i**3 / 3.
             iM = np.argmin(np.abs(M_b - Mmin))
             Qtot = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
+
+            print('hey', np.all(dndm >= 0), dndm.min(),
+                Q, Qtot, -np.log(1. - Q) / Qtot)
             dndm *= -np.log(1. - Q) / Qtot
+
 
             # 1 - exp[-\int dm V dn/dm * NORM] = Q
             # -np.log(1 - Q) = \int dm V dn/dm * NORM

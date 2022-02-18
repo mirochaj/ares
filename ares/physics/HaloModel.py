@@ -481,8 +481,9 @@ class HaloModel(HaloMassFunction,HaloStructure):
         ##
         # Load from table if one exists.
         ##
-        if self.pf['hmf_load_ps'] and load:
+        if self.pf['hmf_load_ps'] and load and (not self.pf['hps_assume_linear']):
             iz = np.argmin(np.abs(z - self.tab_z_ps))
+
             assert abs(z - self.tab_z_ps[iz]) < ztol, \
                 'Supplied redshift (%g) not in table!' % z
 
