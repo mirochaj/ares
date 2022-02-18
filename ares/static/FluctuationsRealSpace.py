@@ -665,20 +665,18 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
     def _B0(self, z, zeta):
 
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
         s = self.tab_sigma
 
         # Variance on scale of smallest collapsed object
-        sigma_min = self.sigma_min(z)
+        sigma_min = self.sigma_min(0)
 
         return self._delta_c(z) - root2 * self._K(zeta) * sigma_min
 
     def _B1(self, z, zeta):
 
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.tab_sigma #* self.halos.growth_factor[iz]
+        s = self.tab_sigma
 
-        sigma_min = self.sigma_min(z)
+        sigma_min = self.sigma_min(0)
 
         return self._K(zeta) / np.sqrt(2. * sigma_min**2)
 
@@ -706,7 +704,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         #iz = np.argmin(np.abs(z - self.halos.tab_z))
         #D = self.halos.growth_factor[iz]
 
-        sigma_min = self.sigma_min(z)
+        sigma_min = self.sigma_min(0)
         #Mmin = self.Mmin(z)
         #sigma_min = np.interp(Mmin, self.halos.M, self.halos.sigma_0)
 
@@ -721,14 +719,6 @@ class FluctuationsRealSpace(object): # pragma: no cover
     def sigma_min(self, z):
         Mmin = self.Mmin(z)
         return np.interp(Mmin, self.halos.tab_M, self.halos.tab_sigma)
-
-    #def BubblePodSizeDistribution(self, z, zeta):
-    #    if self.pf['powspec_lya_method'] == 1:
-    #        # Need to modify zeta and critical threshold
-    #        Rc, Mc, dndm = self.BubbleSizeDistribution(z, zeta)
-    #        return Rc, Mc, dndm
-    #    else:
-    #        raise NotImplemented('help please')
 
     @property
     def tab_M(self):
@@ -804,8 +794,8 @@ class FluctuationsRealSpace(object): # pragma: no cover
         rho0_b = rho0_m * self.cosm.fbaryon
 
         # Mean (over-)density of bubble material
-        delta_B = self._B(z, zeta)
         B0 = self._B0(z, zeta)
+        delta_B = self.Barrier(z, zeta)
 
         if self.bsd_model is None:
             if self.pf['bubble_density'] is not None:
@@ -830,17 +820,16 @@ class FluctuationsRealSpace(object): # pragma: no cover
             M_b = self.tab_M
 
             # Radius of ionized regions as function of delta (mass)
-            R_i = (3. * M_b / rho0_m / (1. + delta_B) / 4. / np.pi)**(1./3.)
+            R_i = (3. * M_b / rho0_m / 4. / np.pi)**(1./3.)
+            # Divide by (1. + delta_B) in () term?
 
-            R_i, M_b, dndm = self.xset.SizeDistribution(z, R_i, delta_B, B0)
-
-            V_i = four_pi * R_i**3 / 3.
+            #R_i, M_b, dndm = self.xset.SizeDistribution(z, R_i, delta_B, B0)
 
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and M_b are from using dlns instead of
             # dS (where S=s^2)
-            #dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.tab_dlns_dlnm) \
-            #    * self.tab_sigma**2 / M_b**2
+            dndm = rho0_m * self.pcross(z, zeta) * 2 * np.abs(self.tab_dlns_dlnm) \
+                * self.tab_sigma**2 / M_b**2
 
             # Reionization is over!
             # Only use barrier condition if we haven't asked to rescale
@@ -862,9 +851,13 @@ class FluctuationsRealSpace(object): # pragma: no cover
         # size distribution yields the mean ionized fraction.
         if (not reionization_over) and (Q is not None):
             Mmin = self.Mmin(z) * zeta
+            V_i = four_pi * R_i**3 / 3.
             iM = np.argmin(np.abs(M_b - Mmin))
-            Qb = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
-            dndm *= -np.log(1. - Q) / Qb
+            Qtot = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
+            dndm *= -np.log(1. - Q) / Qtot
+
+            # 1 - exp[-\int dm V dn/dm * NORM] = Q
+            # -np.log(1 - Q) = \int dm V dn/dm * NORM
 
         return R_i, M_b, dndm
 
