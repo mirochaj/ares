@@ -131,17 +131,30 @@ def central_difference(x, y, keep_size=False):
 
     return xout, yout
 
-def five_pt_stencil(x, y):
+def five_pt_stencil(x, y, keep_size=False):
     """
     Compute the first derivative of y wrt x using five point method.
     """
 
     h = abs(np.diff(x)[0])
 
-    num = -np.roll(y, -2) + 8. * np.roll(y, -1) \
+    dydx = -np.roll(y, -2) + 8. * np.roll(y, -1) \
           - 8. * np.roll(y, 1) + np.roll(y, 2)
+    dydx /= (12 * h)
 
-    return x[2:-2], num[2:-2] / 12. / h
+    if keep_size:
+        xout = x
+        yout = dydx.copy()
+        #
+        yout[0] = (y[1] - y[0]) / (x[1] - x[0])
+        yout[1] = (y[2] - y[1]) / (x[2] - x[1])
+        yout[-1] = (y[-1] - y[-2]) / (x[-1] - x[-2])
+        yout[-2] = (y[-2] - y[-3]) / (x[-2] - x[-3])
+    else:
+        xout = x[2:-2]
+        yout = dydx[2:-2]
+
+    return xout, yout
 
 def smooth(y, width, kernel='boxcar'):
     """

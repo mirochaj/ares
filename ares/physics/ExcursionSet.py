@@ -131,7 +131,7 @@ class ExcursionSet(object):
     def WindowFourier(self, k, R):
         if self.pf['xset_window'] == 'sharp-fourier':
             W = np.zeros_like(k)
-            ok = 1. - k * R >= 0.
+            ok = k * R < 1.
             W[ok == 1] = 1.
         elif self.pf['xset_window'] == 'tophat-real':
             W = 3. * (np.sin(k * R) - k * R * np.cos(k * R)) / (k * R)**3
@@ -166,6 +166,11 @@ class ExcursionSet(object):
 
         # Dimensionless power spectrum
         D = self.tab_k**3 * self.tab_ps[iz,:] / two_pi_sq
+
+        #interp = interp1d(np.log(self.tab_k), D * np.abs(W)**2, kind='cubic',
+        #    bounds_error=False, fill_value=0.0)
+#
+        #return quad(interp, np.log(self.tab_k.min()), np.log(self.tab_k.max()))[0]
 
         return np.trapz(D * np.abs(W)**2, x=np.log(self.tab_k))
 

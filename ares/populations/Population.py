@@ -820,8 +820,8 @@ class Population(object):
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones(self.halos.tab_z.size)
             else:
-                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
-                    z, mu=self.pf['mu'])
+                Mvir = lambda z: self.halos.VirialMass(z, self.pf['pop_Tmin'],
+                    mu=self.pf['mu'])
                 self._tab_Mmin_ = np.array([Mvir(_z) \
                     for _z in self.halos.tab_z])
 

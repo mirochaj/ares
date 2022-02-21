@@ -360,6 +360,9 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             Q = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['cgm_h_2'][-1::-1])
 
+            zeta_fcoll = min(zeta * self.halos.fcoll_2d(z,
+                np.log10(self.field_config.Mmin(z))), 1)
+
             xHII, ne = [0] * 2
 
             xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
@@ -385,18 +388,6 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
             #Qi_gs = np.interp(z, self.gs.history['z'][-1::-1],
             #    self.gs.history['cgm_h_2'][-1::-1])
-
-            # Ionization fluctuations
-            if self.pf['ps_include_ion']:
-
-                Ri, Mi, Ni = self.field_config.get_bsd(z, zeta)
-
-                data['dndm_b'] = Ni
-                data['M_b'] = Mi
-                data['R_b'] = Ri
-                data['delta_b'] = self.field_config._B(z, zeta)
-            else:
-                Ri = Mi = Ni = None
 
             #Qi = self.field_config.MeanIonizedFraction(z, zeta)
 
@@ -482,6 +473,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
             #xbar = 1. - xibar
             data['Q'] = Q
+
             #data['xibar'] = xibar
             data['dTb0'] = Tbar
             #data['dTb_bulk'] = dTb_ps / (1. - xavg_gs)
@@ -492,6 +484,13 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
             # Pure real-space model
             if self.pf['ps_method'] in [1, 'fzh04']:
+                Ri, Mi, Ni = self.field_config.get_bsd(z, zeta, Q=Q)
+
+                data['dndm_b'] = Ni
+                data['M_b'] = Mi
+                data['R_b'] = Ri
+                data['delta_b'] = self.field_config.get_barrier_delta(z, zeta)
+                #data['delta_blin'] = self.field_config.LinearBarrier(z, zeta)
 
                 # Always save the matter correlation function.
                 #data['cf_dd'] = self.field_config.get_cf(z, term='dd', R=self.tab_R)
@@ -502,19 +501,17 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                     R=self.tab_R, Q=Q)
 
                 # Simplest thing right now.
-                cf_21 = data['cf_dd'] + data['cf_bb']
-                data['cf_21'] = cf_21
-
-                #data['cf_21'] = self.field_config.get_cf(z, zeta=zeta,
-                #    R=self.tab_R, term='21', R_s=R_s(Ri,z), Ts=Ts, Th=Th,
-                #    Tk=Tk, Ja=Ja, k=self.tab_k)
-
+                cf_psi = data['cf_dd'] + data['cf_bb']
+                data['cf_21'] = cf_psi * Tbar**2 * (1.-Q)**2
+                data['cf_psi'] = cf_psi
 
                 # Always compute the 21-cm power spectrum. Individual power
                 # spectra can be saved by setting ps_save_components=True.
 
-                data['ps_21'] = self.field_config.get_ps_from_cf(self.tab_k,
-                    data['cf_21'], R=self.tab_R, **transform_kwargs)
+                data['ps_psi'] = self.field_config.get_ps_from_cf(self.tab_k,
+                    data['cf_psi'], R=self.tab_R, **transform_kwargs)
+
+                data['ps_21'] = Tbar**2 * data['ps_psi']
 
             # Pure Fourier-space model (i.e., Aurel's halo model)
             elif self.pf['ps_method'] in [2, 'sgm21']:

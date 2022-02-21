@@ -22,6 +22,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from ..physics.Hydrogen import Hydrogen
 from ..physics.HaloModel import HaloModel
+from ..util.Math import central_difference
 from ..populations.Composite import CompositePopulation
 from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \
@@ -105,14 +106,20 @@ class FluctuationsRealSpace(object): # pragma: no cover
              'xset_pdf': 'gaussian',
             }
 
-
+            import micro21cm
+            model = micro21cm.BubbleModel()
 
             xset = ExcursionSet(**xset_pars)
             xset.tab_M = self.tab_M
-            xset.tab_sigma = self.tab_sigma
-            xset.tab_ps = self.halos.tab_ps_lin
+            #xset.tab_k = np.logspace(-5, 5, 10000)
+            #xset.tab_ps = model.get_ps_matter(0, xset.tab_k)
+            self.tab_k = self.halos.tab_k_lin
+            self.tab_ps = self.halos.tab_ps_lin
+
+            #xset.tab_sigma = self.tab_sigma
+
             xset.tab_z = self.halos.tab_z
-            xset.tab_k = self.halos.tab_k_lin
+
             xset.tab_growth = self.halos.tab_growth
 
             self._xset = xset
@@ -660,58 +667,43 @@ class FluctuationsRealSpace(object): # pragma: no cover
         return np.interp(z, self.halos.tab_z, self.halos.tab_growth,
             left=np.inf, right=np.inf)
 
-    def _delta_c(self, z):
+    def get_delta_c(self, z):
         return self.cosm.delta_c0 / self._growth_factor(z)
 
     def _B0(self, z, zeta):
 
-        s = self.tab_sigma
-
         # Variance on scale of smallest collapsed object
-        sigma_min = self.sigma_min(0)
+        sigma_min = self.get_sigma_min(0, zeta)
 
-        return self._delta_c(z) - root2 * self._K(zeta) * sigma_min
+        return self.get_delta_c(z) - root2 * self._K(zeta) * sigma_min
 
     def _B1(self, z, zeta):
 
-        s = self.tab_sigma
-
-        sigma_min = self.sigma_min(0)
+        sigma_min = self.get_sigma_min(0, zeta)
 
         return self._K(zeta) / np.sqrt(2. * sigma_min**2)
 
-    def _B(self, z, zeta, zeta_min=None):
-        return self.LinearBarrier(z, zeta, zeta_min=zeta_min)
+    def _B(self, z, zeta):
+        return self.get_barrier_delta_lin(z, zeta)
 
-    def LinearBarrier(self, z, zeta, zeta_min=None):
+    def get_barrier_delta_lin(self, z, zeta):
 
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
-        s = self.tab_sigma #/ self.halos.growth_factor[iz]
+        s = self.tab_sigma**2
 
-        if zeta_min is None:
-            zeta_min = zeta
+        return self._B0(z, zeta) + self._B1(z, zeta) * s
 
-        return self._B0(z, zeta) + self._B1(z, zeta) * s**2
-
-    def Barrier(self, z, zeta, zeta_min=None):
+    def get_barrier_delta(self, z, zeta):
         """
         Full barrier.
         """
 
-        if zeta_min is None:
-            zeta_min = zeta
+        sigma_min = self.get_sigma_min(0, zeta)
 
-        #iz = np.argmin(np.abs(z - self.halos.tab_z))
-        #D = self.halos.growth_factor[iz]
+        s_min = sigma_min**2
+        S = self.tab_sigma**2
 
-        sigma_min = self.sigma_min(0)
-        #Mmin = self.Mmin(z)
-        #sigma_min = np.interp(Mmin, self.halos.M, self.halos.sigma_0)
-
-        delta = self._delta_c(z)
-
-        delta_x = delta - np.sqrt(2.) * self._K(zeta) \
-            * np.sqrt(sigma_min**2 - self.tab_sigma**2)
+        delta_x = self.get_delta_c(z) \
+            - np.sqrt(2.) * self._K(zeta) * np.sqrt(s_min - S)
 
         return delta_x
 
@@ -733,9 +725,15 @@ class FluctuationsRealSpace(object): # pragma: no cover
         k = np.argmin(np.abs(zeta_fcoll - 1.))
         return self.halos.tab_M[iM:][k]
 
-    def sigma_min(self, z):
-        Mmin = self.Mmin(z)
-        return np.interp(Mmin, self.halos.tab_M, self.halos.tab_sigma)
+    def get_sigma_min(self, z, zeta):
+        if type(zeta) == np.ndarray:
+            zeta_min = np.min(zeta)
+        else:
+            zeta_min = zeta
+
+        Mmin = self.Mmin(z) #* zeta_min
+        return 10**np.interp(np.log10(Mmin), np.log10(self.tab_M),
+            np.log10(self.tab_sigma))
 
     @property
     def tab_M(self):
@@ -743,25 +741,42 @@ class FluctuationsRealSpace(object): # pragma: no cover
         Mass array used for bubbles.
         """
         if not hasattr(self, '_tab_M'):
+            #self._tab_M = 10**np.arange(4, 18.01, 0.01)
             self._tab_M = self.halos.tab_M
         return self._tab_M
 
     @property
+    def tab_R(self):
+        if not hasattr(self, '_tab_R'):
+            self._tab_R = (3. * self.tab_M / self.cosm.mean_density0 \
+                / four_pi)**(1./3.)
+        return self._tab_R
+
+    #@property
+    #def tab_sigma(self):
+    #    if not hasattr(self, '_tab_sigma'):
+    #        self._tab_sigma = np.interp(self.tab_M, self.halos.tab_M,
+    #            self.halos.tab_sigma)
+#
+    #        # Crude but chill it's temporary
+    #        bigm = self.tab_M > self.halos.tab_M.max()
+    #        if np.any(bigm):
+    #            print("WARNING: Extrapolating sigma to higher masses.")
+#
+    #            slope = np.diff(np.log10(self.halos.tab_sigma[-2:])) \
+    #                  / np.diff(np.log10(self.halos.tab_M[-2:]))
+    #            self._tab_sigma[bigm == 1] = self.halos.tab_sigma[-1] \
+    #                * (self.tab_M[bigm == 1] / self.halos.tab_M.max())**slope
+#
+    #    return self._tab_sigma
+
+    @property
     def tab_sigma(self):
         if not hasattr(self, '_tab_sigma'):
+            R = self.tab_R
+            #self._tab_sigma = np.sqrt([self.xset.Variance(0, RR) for RR in R])
             self._tab_sigma = np.interp(self.tab_M, self.halos.tab_M,
-                self.halos.tab_sigma)
-
-            # Crude but chill it's temporary
-            bigm = self.tab_M > self.halos.tab_M.max()
-            if np.any(bigm):
-                print("WARNING: Extrapolating sigma to higher masses.")
-
-                slope = np.diff(np.log10(self.halos.tab_sigma[-2:])) \
-                      / np.diff(np.log10(self.halos.tab_M[-2:]))
-                self._tab_sigma[bigm == 1] = self.halos.tab_sigma[-1] \
-                    * (self.tab_M[bigm == 1] / self.halos.tab_M.max())**slope
-
+                        self.halos.tab_sigma)
         return self._tab_sigma
 
     @property
@@ -770,19 +785,36 @@ class FluctuationsRealSpace(object): # pragma: no cover
             self._tab_dlns_dlnm = np.interp(self.tab_M, self.halos.tab_M,
                 self.halos.tab_dlnsdlnm)
 
-            bigm = self.tab_M > self.halos.tab_M.max()
-            if np.any(bigm):
-                print("WARNING: Extrapolating dlns_dlnm to higher masses.")
-                slope = np.diff(np.log10(np.abs(self.halos.tab_dlnsdlnm[-2:]))) \
-                      / np.diff(np.log10(self.halos.tab_M[-2:]))
-                self._tab_dlns_dlnm[bigm == 1] = self.halos.tab_dlnsdlnm[-1] \
-                    * (self.tab_M[bigm == 1] / self.halos.tab_M.max())**slope
+
+            #s = self.tab_sigma**2
+            #m = self.tab_M
+            #x, dydx = central_difference(np.log(m), np.log(s), keep_size=True)
+#
+            #self._tab_dlns_dlnm = dydx
+
+            #bigm = self.tab_M > self.halos.tab_M.max()
+            #if np.any(bigm):
+            #    print("WARNING: Extrapolating dlns_dlnm to higher masses.")
+            #    slope = np.diff(np.log10(np.abs(self.halos.tab_dlnsdlnm[-2:]))) \
+            #          / np.diff(np.log10(self.halos.tab_M[-2:]))
+            #    self._tab_dlns_dlnm[bigm == 1] = self.halos.tab_dlnsdlnm[-1] \
+            #        * (self.tab_M[bigm == 1] / self.halos.tab_M.max())**slope
 
         return self._tab_dlns_dlnm
+
+    @property
+    def tab_dsdm(self):
+        if not hasattr(self, '_tab_ds_dm'):
+            self._tab_ds_dm = 2 * self.tab_dlns_dlnm * self.tab_sigma**2 \
+                * self.tab_M
+        return self._tab_ds_dm
 
     def get_bsd(self, z, zeta, Q=None):
         """
         Compute the ionized bubble size distribution.
+
+        .. note :: This is dn/dm NOT dn/dR.
+        .. note :: Should rename get_bmf, and make separate routine get_bsd.
 
         Parameters
         ----------
@@ -815,7 +847,6 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         # Mean (over-)density of bubble material
         B0 = self._B0(z, zeta)
-        delta_B = self.Barrier(z, zeta)
 
         if self.bsd_model is None:
             if self.pf['bubble_density'] is not None:
@@ -840,16 +871,23 @@ class FluctuationsRealSpace(object): # pragma: no cover
             M_b = self.tab_M
 
             # Radius of ionized regions as function of delta (mass)
-            R_i = (3. * M_b / rho0_m / four_pi)**(1./3.)
+            R_i = self.tab_R
 
             #R_i, M_b, dndm = self.xset.SizeDistribution(0, R_i, delta_B, B0)
 
             # This is Eq. 9.38 from Steve's book.
             # The factors of 2, S, and M_b are from using dlns instead of
             # dS (where S=s^2)
-            dndm = rho0_m * self.pcross(z, zeta) \
-                * 2 * np.abs(self.tab_dlns_dlnm) \
-                * self.tab_sigma**2 / M_b**2
+            #dndm = rho0_m * self.pcross(z, zeta) \
+            #    * 2 * np.abs(self.tab_dlns_dlnm) \
+            #    * self.tab_sigma**2 / self.tab_M**2
+
+            dndm = rho0_m * self.pcross(z, zeta) * np.abs(self.tab_dsdm) \
+                / self.tab_M
+
+            #dndm = np.sqrt(2. / np.pi) * (rho0_m / M_b**2) \
+            #    * np.abs(self.tab_dlns_dlnm) * (B0 / self.tab_sigma) \
+            #    * np.exp(-self._B(z, zeta)**2 / 2. / self.tab_sigma**2)
 
         else:
             raise NotImplementedError('Unrecognized option: %s' % self.pf['bubble_size_dist'])
@@ -863,11 +901,11 @@ class FluctuationsRealSpace(object): # pragma: no cover
             iM = np.argmin(np.abs(M_b - Mmin))
             Qtot = np.trapz(dndm[iM:] * V_i[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
 
-            print('hey', np.all(dndm >= 0), dndm.min(),
-                Q, Qtot, -np.log(1. - Q) / Qtot)
-            dndm *= -np.log(1. - Q) / Qtot
+            corr = -np.log(1. - Q) / Qtot
+            dndm *= corr
 
-
+            # Define Q from user (zeta * fcoll or equivalent)
+            # Qtot is the integral of the raw BSD.
             # 1 - exp[-\int dm V dn/dm * NORM] = Q
             # -np.log(1 - Q) = \int dm V dn/dm * NORM
 
@@ -879,18 +917,12 @@ class FluctuationsRealSpace(object): # pragma: no cover
         """
 
         S = self.tab_sigma**2
-        Mmin = self.Mmin(z) #* zeta # doesn't matter for zeta=const
-        if type(zeta) == np.ndarray:
-            raise NotImplemented('this is wrong.')
-            zeta_min = np.interp(Mmin, self.tab_M, zeta)
-        else:
-            zeta_min = zeta
 
         zeros = np.zeros_like(self.tab_sigma)
 
         B0 = self._B0(z, zeta)
         B1 = self._B1(z, zeta)
-        Bl = self.LinearBarrier(z, zeta, zeta_min=zeta_min)
+        Bl = self.get_barrier_delta_lin(z, zeta)
         p = (B0 / np.sqrt(2. * np.pi * S**3)) * np.exp(-0.5 * Bl**2 / S)
 
         #p = (B0 / np.sqrt(2. * np.pi * S**3)) \
@@ -2610,14 +2642,14 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         return V_o
 
-    def get_cf_bb(self, z, zeta, R=None, Q=None):
+    def get_cf_bb(self, z, zeta, R=None, Q=None, return_separate=False):
         """
         Compute the bubble correlation function.
         """
 
         if R is None:
             use_R_tab = True
-            R = self.halos.tab_R
+            R = self.tab_R
         else:
             use_R_tab = False
 
@@ -2649,16 +2681,17 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
             _P2 = (1. - _P1) * _P2_1 * _P2_2
 
-            #if self.pf['ps_volfix'] and Q > 0.5:
-            #    P1[i] = _P1
-            #    P2[i] = (1. - P1[i]) * _P2_1**2
             #else:
             P1[i] = _P1
             P2[i] = _P2
 
+        # Already multiplied P2 by (1 - P1), don't worry!
         cf_bb = P1 + P2 - Q**2
 
-        return cf_bb#, P1, P2, Q**2
+        if return_separate:
+            return R, P1, P2, Q**2
+        else:
+            return cf_bb
 
     def get_cf(self, z, zeta=None, R=None, term='ii',
         R_s=None, R3=0.0, Th=500., Tc=1., Ts=None, k=None, Tk=None, Ja=None):
