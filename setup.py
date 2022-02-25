@@ -13,7 +13,7 @@ setup(name='ares',
       author='Jordan Mirocha',
       author_email='mirochaj@gmail.com',
       url='https://github.com/mirochaj/ares',
-      packages=['ares', 'ares.analysis', 'ares.simulations', 'ares.obs',
+      packages=['ares', 'ares.analysis', 'ares.data', 'ares.simulations', 'ares.obs',
        'ares.populations', 'ares.util', 'ares.solvers', 'ares.static',
        'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom'],
      )
