@@ -159,7 +159,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
             is2d_k = key.startswith('ps')
             is2d_R = key.startswith('jp') or key.startswith('ev') \
                   or key.startswith('cf')
-            is2d_B = (key in ['dndm_b', 'M_b', 'R_b', 'delta_b'])
+            is2d_B = (key in ['dndm_b', 'dndR_b', 'M_b', 'R_b', 'delta_b'])
 
             if is2d_k:
                 tmp = np.zeros((len(self.tab_z), len(self.tab_k)))
@@ -244,8 +244,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
         return self._tab_Mmin
 
-    @property
-    def tab_zeta(self):
+    def get_zeta(self):
         pass
 
     def step(self):
@@ -484,9 +483,11 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
 
             # Pure real-space model
             if self.pf['ps_method'] in [1, 'fzh04']:
-                Ri, Mi, Ni = self.field_config.get_bsd(z, zeta, Q=Q)
+                Ri, Mi, dndm = self.field_config.get_bmf(z, zeta, Q=Q)
+                Ri, Mi, dndR = self.field_config.get_bsd(z, zeta, Q=Q)
 
-                data['dndm_b'] = Ni
+                data['dndm_b'] = dndm
+                data['dndR_b'] = dndR
                 data['M_b'] = Mi
                 data['R_b'] = Ri
                 data['delta_b'] = self.field_config.get_barrier_delta(z, zeta)
@@ -500,18 +501,32 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
                 data['cf_bb'] = self.field_config.get_cf_bb(z, zeta,
                     R=self.tab_R, Q=Q)
 
+                # Cross correlation between ionization and density
+                if self.pf['ps_include_xcorr_ion_rho']:
+                    data['cf_bd'] = self.field_config.get_cf_bd(z, zeta,
+                        R=self.tab_R, Q=Q)
+                else:
+                    data['cf_bd'] = np.zeros_like(self.tab_R)
+
                 # Simplest thing right now.
-                cf_psi = data['cf_dd'] + data['cf_bb']
-                data['cf_21'] = cf_psi * Tbar**2 * (1.-Q)**2
-                data['cf_psi'] = cf_psi
+                if Q == 1:
+                    # Should verify that this happens without hacking it.
+                    cf_psi = data['cf_21'] = data['cf_psi'] = \
+                        np.zeros_like(self.tab_R)
+                    data['ps_psi'] = data['ps_21'] = \
+                        np.zeros_like(self.tab_k)
+                else:
+                    cf_psi = data['cf_dd'] + data['cf_bb'] + data['cf_bd']
 
-                # Always compute the 21-cm power spectrum. Individual power
-                # spectra can be saved by setting ps_save_components=True.
+                    data['cf_21'] = cf_psi * Tbar**2 #* (1. - Q)**2
+                    data['cf_psi'] = cf_psi
 
-                data['ps_psi'] = self.field_config.get_ps_from_cf(self.tab_k,
-                    data['cf_psi'], R=self.tab_R, **transform_kwargs)
+                    # Always compute the 21-cm power spectrum. Individual power
+                    # spectra can be saved by setting ps_save_components=True.
+                    data['ps_psi'] = self.field_config.get_ps_from_cf(self.tab_k,
+                        data['cf_psi'], R=self.tab_R, **transform_kwargs)
 
-                data['ps_21'] = Tbar**2 * data['ps_psi']
+                    data['ps_21'] = Tbar**2 * data['ps_psi']
 
             # Pure Fourier-space model (i.e., Aurel's halo model)
             elif self.pf['ps_method'] in [2, 'sgm21']:
