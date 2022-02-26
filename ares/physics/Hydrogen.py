@@ -766,6 +766,13 @@ class Hydrogen(object):
         compute heating rate. This is essentially an equivalent width, hence
         the name.
 
+        .. note :: All solutions here employ the wing approximation.
+        .. note :: The continuum solution is analytic in this approximation,
+            but the injected photon solution is not. If done numerically,
+            it slows things down quite a bit, so we also include the power
+            series solution for approx_Salpha=3 (Furlanetto & Pritchard 2006).
+            Should add the Chuzhoy & Shapiro 2006 approach too.
+
         Parameters
         ----------
         z : int, float
@@ -793,16 +800,30 @@ class Hydrogen(object):
             I = eta * (2 * np.pi**4 * a**2 * tau**2)**(1. / 3.) \
                 * (Ai**2 + Bi**2)
 
+            # Expansion in FP06 used for illustrative purposes, but numerically
+            # offers no significant advantage, so I'm leaving this as-is for
+            # now.
+
         else:
             assert self.approx_S not in [1, 4]
 
-            integ = lambda y: np.exp(-2 * eta * y \
-                - (np.pi * y**3) / (6 * a * tau)) \
-                * erfc(np.sqrt(np.pi * y**3 / 2. / a / tau)) / np.sqrt(y)
+            if self.approx_S == 0:
+                integ = lambda y: np.exp(-2 * eta * y \
+                    - (np.pi * y**3) / (6 * a * tau)) \
+                    * erfc(np.sqrt(np.pi * y**3 / 2. / a / tau)) / np.sqrt(y)
 
-            S = self.Sa(z=z, Tk=Tk, xHII=xHII)
-            I = eta * np.sqrt(a * tau * 0.5) * quad(integ, 0, np.inf)[0] \
-                - S * (1. - S) / 2. / eta
+                S = self.Sa(z=z, Tk=Tk, xHII=xHII)
+                I = eta * np.sqrt(a * tau * 0.5) * quad(integ, 0, np.inf)[0] \
+                    - S * (1. - S) / 2. / eta
+            elif self.approx_S == 3:
+                # See Eq. 34 in FP06
+                gamma = 1. / tau
+                beta = eta * (4 * a / np.pi / gamma)**(1. / 3.)
+
+                A = np.array([-0.6979, 2.5424, -2.5645])
+                I = (a / gamma)**(1. / 3.) * np.sum(A * beta**np.arange(3))
+            else:
+                raise NotImplemented('No approximate')
 
         return I
 
@@ -836,12 +857,14 @@ class Hydrogen(object):
 
         """
 
+        if self.approx_S == 1:
+            return 0.0
+
         delta_nu = self.get_lya_width(Tk, units='Hz')
         Ic = self.get_lya_EW(z, Tk, continuum=1, xHII=xHII)
         Ii = self.get_lya_EW(z, Tk, continuum=0, xHII=xHII)
 
-        prefactor = 8 * np.pi * h_P * delta_nu \
-            / 3. / l_LyA
+        prefactor = 8 * np.pi * h_P * delta_nu / 3. / l_LyA
 
         # Note: this will get hit with a factor of H(z) in ChemicalNetwork
         return prefactor * (Ic * Jc + Ii * Ji)

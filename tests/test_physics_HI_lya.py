@@ -43,5 +43,16 @@ def test():
 
     heat = hydr.get_lya_heating(z, Tk, Jc=1e-12, Ji=1e-13)
 
+    # Compare to FP06 approximation, eventually Chuzhoy & Shapiro
+    hydr_fp06 = Hydrogen(approx_Salpha=3)
+
+    heat_fp06 = hydr_fp06.get_lya_heating(z, Tk, Jc=1e-12, Ji=1e-13)
+
+    assert abs(heat_fp06 - heat) / heat < 0.1
+
+    Ii_fp06 = hydr_fp06.get_lya_EW(z, Tk, continuum=0)
+
+    assert abs(Ii - Ii_fp06) / Ii < 0.1
+
 if __name__ == '__main__':
     test()
