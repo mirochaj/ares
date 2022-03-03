@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Tue Sep  9 16:25:41 MDT 2014
 
-Description: 
+Description:
 
 """
 
@@ -22,7 +22,7 @@ from ..util.SetDefaultParameterValues import TanhParameters
 # Default parameters
 tanh_kwargs = TanhParameters()
 
-tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 
+tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz',
     'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz',
     'tanh_bias_temp', 'tanh_bias_freq', 'tanh_scale_temp', 'tanh_scale_freq']
 
@@ -40,24 +40,24 @@ def shift_z(z, nu_bias, nu_scale):
     nu = ((nu_scale * nu) + nu_bias)
 
     return freq_to_z(nu)
-    
+
 class Tanh21cm(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
 
         # Cosmology class
         self.cosm = Cosmology(**self.pf)
-        
+
         # Create instance of Hydrogen class
         self.hydr = Hydrogen(cosm=self.cosm, **kwargs)
 
     def dTgas_dz(self, z):
         return derivative(self.cosm.Tgas, x0=z)
-                
+
     def electron_density(self, z):
-        return np.interp(z, self.cosm.thermal_history['z'], 
+        return np.interp(z, self.cosm.thermal_history['z'],
             self.cosm.thermal_history['xe']) * self.cosm.nH(z)
-        
+
     def temperature(self, z, Tref, zref, dz):
         return Tref * tanh_generic(z, zref=zref, dz=dz) \
             + self.cosm.Tgas(z)
@@ -69,77 +69,77 @@ class Tanh21cm(object):
         """
         Compute heating rate coefficient.
         """
-        
+
         Tk = self.temperature(z, Tref, zref, dz)
 
         dtdz = self.cosm.dtdz(z)
-    
+
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dTkdt = dTkdz / dtdz
-        
+
         #dTgas_dt = self.dTgas_dz(z) / dtdz
-        
+
         return 1.5 * k_B * dTkdt
 
     def ionization_rate(self, z, xref, zref, dz, C=1.):
         """
         Compute ionization rate coefficient.
         """
-        
+
         xi = self.ionized_fraction(z, xref, zref, dz)
-        
+
         dtdz = self.cosm.dtdz(z)
-        
+
         dxdz = 0.5 * xref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dxdt = dxdz / dtdz
-        
+
         n = self.cosm.nH(z)
-        
+
         # Assumes ne = nH (bubbles assumed fully ionized)
         return (dxdt + alpha_A * C * n * xi) / (1. - xi)
-        
+
     def __call__(self, z, **kwargs):
         """
         Check "tanh_pars" for list of acceptable parameters.
-        
+
         Returns
         -------
         glorb.analysis.-21cm instance, which contains the entire signal
-        and the turning points conveniently in the "turning_points" 
+        and the turning points conveniently in the "turning_points"
         attribute.
-        
+
         """
-        
+
         kw = tanh_kwargs.copy()
-        
+
         for element in kwargs:
             kw.update({element: kwargs[element]})
-            
+
         theta = [kw[par] for par in tanh_pars]
-        
+
         return self.tanh_model_for_emcee(z, theta)
-        
+
     def tanh_model_for_emcee(self, z, theta):
         """
         Compute 21-cm signal given tanh model parameters.
-        
+
         Input parameters assumed to be in the following order:
-        
-        Jref, zref_J, dz_J, 
-        Tref, zref_T, dz_T, 
+
+        Jref, zref_J, dz_J,
+        Tref, zref_T, dz_T,
         xref, xref_J, dz_x
-        
+
         where Jref, Tref, and xref are the step heights, zref_? are the step
         locations, and dz_? are the step-widths.
-        
+
         Note that Jref is in units of J21.
-        
+
         Returns
         -------
         ares.analysis.Global21cm instance, which contains the entire signal
-        and the turning points conveniently in the "turning_points" 
+        and the turning points conveniently in the "turning_points"
         attribute.
-        
+
         """
 
         # Unpack parameters
@@ -160,7 +160,7 @@ class Tanh21cm(object):
         Ts = self.hydr.SpinTemperature(z, Tk, Ja, 0.0, ne)
 
         # Brightness temperature
-        dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
+        dTb = self.hydr.get_21cm_dTb(z, Ts, xavg=xi)
 
         if (bias_T != 0) or (scale_T != 1):
             dTb = ((scale_T * dTb) + bias_T)

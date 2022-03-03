@@ -38,6 +38,7 @@ class ChemicalNetwork(object):
 
         self.isothermal = self.grid.isothermal
         self.secondary_ionization = self.grid.secondary_ionization
+        self.lya_heating = self.grid.lya_heating
 
         # For convenience
         self.zeros_q = np.zeros(len(self.grid.evolving_fields))
@@ -122,7 +123,7 @@ class ChemicalNetwork(object):
 
         self.q = q
 
-        cell, k_ion, k_ion2, k_heat, ntot, time = args
+        cell, k_ion, k_ion2, k_heat, k_heat_lya, ntot, time = args
 
         to_temp = 1. / (1.5 * ntot * k_B)
 
@@ -306,6 +307,11 @@ class ChemicalNetwork(object):
 
         else:
             dqdt['Tk'] = 0.0
+
+        ##
+        # Add in Lyman-alpha heating.
+        if self.lya_heating:
+            dqdt['Tk'] += k_heat_lya * self.cosm.HubbleParameter(z) * to_temp
 
         ##
         # Add in exotic heating

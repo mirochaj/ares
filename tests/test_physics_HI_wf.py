@@ -17,14 +17,19 @@ def test():
     Tarr = np.logspace(-1, 2)
 
     res = []
-    for i, method in enumerate([2,3,3.5,4]):
+    for i, method in enumerate([2,3,3.5,4,5]):
         hydr = ares.physics.Hydrogen(approx_Salpha=method)
 
         Sa = np.array([hydr.Sa(20., Tarr[k]) for k in range(Tarr.size)])
         res.append(Sa)
 
+        if method == 5:
+            # Mittal & Kulkarni (2021) quote a value in the text for
+            # (z, x_e, Tk) = (22, 0, 10)
+            assert abs(hydr.Sa(z=22., Tk=10.) - 0.7) < 1e-2
+
         # Check Ts while we're here
-        Ts = hydr.SpinTemperature(20., hydr.cosm.Tgas(20.), 1, 0., 0.)
+        Ts = hydr.get_Ts(20., hydr.cosm.Tgas(20.), 1, 0., 0.)
 
     # Compare at T > 1 K
     ok = Tarr > 1.
@@ -41,10 +46,10 @@ def test():
     assert hydr.Tbg is None
 
     # Check various limits
-    dTb_sat = hydr.saturated_limit(10.)
-    dTb_low = hydr.adiabatic_floor(10.)
-    dTb_phy = hydr.dTb_no_astrophysics(10.)
-    
+    dTb_sat = hydr.get_21cm_saturated_limit(10.)
+    dTb_low = hydr.get_21cm_adiabatic_floor(10.)
+    dTb_phy = hydr.get_21cm_dTb_no_astrophysics(10.)
+
     assert 0 <= dTb_sat <= 50
     assert -350 <= dTb_low <= -200
     assert abs(dTb_phy) < 1

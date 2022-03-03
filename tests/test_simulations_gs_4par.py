@@ -60,9 +60,5 @@ def test():
     curv1 = sim.dTb2dz2
     curv2 = sim.dTb2dnu2
 
-    # Test output
-    sim.save('test_gs_4par', 'pkl', clobber=True)
-    sim.save('test_gs_4par', 'txt', clobber=True)
-
 if __name__ == '__main__':
     test()

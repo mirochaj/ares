@@ -33,11 +33,13 @@ def test():
     assert np.all(sfrd < 1)
     assert 1e-6 <= np.mean(sfrd) <= 1e-1
 
-    x, phi_M = sim.pops[0].get_lf(zarr[0], mags, use_mags=True, 
+    x, phi_M = sim.pops[0].get_lf(zarr[0], mags, use_mags=True,
         wave=1600.)
 
-    assert 90 <= sim.nu_C <= 115, "Global signal unreasonable!"
-    assert -250 <= sim.dTb_C <= -150, "Global signal unreasonable!"
+    assert 90 <= sim.nu_C <= 115, \
+        "Global signal unreasonable! nu_min={:.1f} MHz".format(sim.nu_C)
+    assert -250 <= sim.dTb_C <= -150, \
+        "Global signal unreasonable! dTb_min={:.1f} mK".format(sim.dTb_C)
 
 if __name__ == '__main__':
     test()

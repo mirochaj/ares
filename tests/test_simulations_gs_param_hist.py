@@ -24,8 +24,8 @@ def test():
     # Spin temperature (arguments: z, Tk, Ja, xHII, ne)
     Ts = lambda z: hydr.SpinTemperature(z, Tk(z), 0.0, 0.0, 0.0)
 
-    # Brightness temperature (arguments: z, xHII, Ts)
-    dTb = lambda z: hydr.DifferentialBrightnessTemperature(z, 0.0, Ts(z))
+    # Brightness temperature (arguments: z, Ts, xavg optional)
+    dTb = lambda z: hydr.get_21cm_dTb(z, Ts(z))
 
     # Define redshift interval of interest
     z = np.linspace(10, 1e3, 500)
@@ -35,7 +35,7 @@ def test():
 
     # Assume neutral medium for simplicity
     Ts_CR = hydr.SpinTemperature(CR['z'], CR['Tk'], 0.0, 0.0, 0.0)
-    dTb_CR = hydr.DifferentialBrightnessTemperature(CR['z'], 0.0, Ts_CR)
+    dTb_CR = hydr.get_21cm_dTb(CR['z'], Ts_CR)
 
 if __name__ == '__main__':
     test()

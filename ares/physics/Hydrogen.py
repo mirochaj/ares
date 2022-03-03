@@ -13,11 +13,12 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
+from scipy.integrate import quad
 from scipy.optimize import fsolve, minimize
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, interp1d
-from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
-    k_B
+from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h_P, c, E_LyA, E_LL, \
+    k_B, nu_0_mhz, E10, ev_per_hz, A_LyA, nu_alpha, lam_LyA, m_H
 
 try:
     from scipy.special import gamma
@@ -26,10 +27,16 @@ try:
     c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
     c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
-    from scipy.special import airy, hyp2f1
+    from scipy.special import airy, hyp2f1, erfc
 
 except ImportError:
     pass
+
+try:
+    import mpmath
+    have_mpmath = True
+except ImportError:
+    have_mpmath = False
 
 _scipy_ver = scipy.__version__.split('.')
 
@@ -38,6 +45,9 @@ if float(_scipy_ver[1]) >= 14:
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}
+
+
+huge_Ts = 1e10
 
 # Rate coefficients for spin de-excitation - from Zygelman originally
 
@@ -70,7 +80,9 @@ tabulated_coeff = \
     {'kappa_H': kappa_HH, 'kappa_e': kappa_He,
      'T_H': T_HH, 'T_e': T_He}
 
-l_LyA = h * c / E_LyA / erg_per_ev
+l_LyA = h_P * c / E_LyA / erg_per_ev
+tau_21cm0 = 3. * h_P * c**3 * A10 \
+    / (32 * np.pi * k_B * (nu_0_mhz * 1e6)**2)
 
 class Hydrogen(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -88,6 +100,7 @@ class Hydrogen(object):
 
         self.interp_method = self.pf['interp_cc']
         self.approx_S = self.pf['approx_Salpha']
+        self.approx_Ii = self.pf['approx_lya_Ii']
 
         self.nmax = self.pf['lya_nmax']
 
@@ -98,20 +111,77 @@ class Hydrogen(object):
     @property
     def kappa_H(self):
         if not hasattr(self, '_kappa_H_pre'):
-            self._kappa_H_pre = interp1d(T_HH, kappa_HH,
+            _kappa_H_pre = interp1d(T_HH, kappa_HH,
                 kind=self.interp_method, bounds_error=False,
                 fill_value=(kappa_HH[0], kappa_HH[-1]),
-                left=kappa_HH[0], right=kappa_HH[-1], **_interp1d_kwargs)
+                left=kappa_HH[0], right=kappa_HH[-1],
+                **_interp1d_kwargs).__call__
+
+            tab_T = self.tabulated_coeff['T_H']
+            Tlo = tab_T.min()
+            def with_extrap_option(Tk):
+                """
+                Extrapolate kappa outside tabulated range.
+                """
+
+                too_cold = Tk < Tlo
+
+                if np.any(too_cold) and self.pf['extrapolate_coupling']:
+                    dkap = np.log10(_kappa_H_pre(tab_T[0])) \
+                         - np.log10(_kappa_H_pre(tab_T[1]))
+                    dT = np.log10(tab_T[1]) - np.log10(tab_T[0])
+                    s = dkap / dT
+                    T0 = np.log10(tab_T[0])
+                    k0 = np.log10(_kappa_H_pre(tab_T[0]))
+                    log10kappa_H = k0 + s * (T0 - np.log10(Tk))
+
+                    out = np.zeros_like(Tk)
+                    out[too_cold==1] = 10**log10kappa_H[too_cold==1]
+                    out[too_cold==0] = _kappa_H_pre(Tk[too_cold==0])
+
+                    return out
+                else:
+                    return _kappa_H_pre(Tk)
+
+            self._kappa_H_pre = with_extrap_option
 
         return self._kappa_H_pre
 
     @property
     def kappa_e(self):
         if not hasattr(self, '_kappa_e_pre'):
-            self._kappa_e_pre = interp1d(T_He, kappa_He,
+            _kappa_e_pre = interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False,
                 fill_value=(kappa_He[0], kappa_He[-1]),
                 left=kappa_He[0], right=kappa_He[-1], **_interp1d_kwargs)
+
+            tab_T = self.tabulated_coeff['T_e']
+            Tlo = tab_T.min()
+            def with_extrap_option(Tk):
+                """
+                Extrapolate kappa outside tabulated range.
+                """
+
+                too_cold = Tk < Tlo
+
+                if np.any(too_cold) and self.pf['extrapolate_coupling']:
+                    dkap = np.log10(_kappa_e_pre(tab_T[0])) \
+                         - np.log10(_kappa_e_pre(tab_T[1]))
+                    dT = np.log10(tab_T[1]) - np.log10(tab_T[0])
+                    s = dkap / dT
+                    T0 = np.log10(tab_T[0])
+                    k0 = np.log10(_kappa_e_pre(tab_T[0]))
+                    log10kappa_e = k0 + s * (T0 - np.log10(Tk))
+
+                    out = np.zeros_like(Tk)
+                    out[too_cold==1] = 10**log10kappa_e[too_cold==1]
+                    out[too_cold==0] = _kappa_e_pre(Tk[too_cold==0])
+
+                    return out
+                else:
+                    return _kappa_e_pre(Tk)
+
+            self._kappa_e_pre = with_extrap_option
 
         return self._kappa_e_pre
 
@@ -326,8 +396,12 @@ class Hydrogen(object):
         Zygelman, B. 2005, ApJ, 622, 1356
 
         """
-        sum_term = self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
-            + ne * self.kappa_e(Tk)
+
+
+        kappa_H = self.kappa_H(Tk)
+        kappa_e = self.kappa_e(Tk)
+
+        sum_term = self.cosm.nH(z) * (1. - xHII) * kappa_H + ne * kappa_e
 
         Tref = self.cosm.TCMB(z) + Tr
 
@@ -344,7 +418,7 @@ class Hydrogen(object):
 
         """
 
-        if self.approx_S < 4:
+        if self.approx_S != 4:
             return self.xalpha_tilde(z) \
                 * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja
 
@@ -358,7 +432,7 @@ class Hydrogen(object):
             # This will correctly cause a crash if Tk is an array
             Tk = float(Tk)
 
-            xi = (1e-7 * self.tauGP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
+            xi = (1e-7 * self.get_tau_GP(z, xHII=xHII))**(1./3.) * Tk**(-2./3.)
             a = lambda Ts: 1. - 0.0631789 / Tk + 0.115995 / Tk**2 \
                 - 0.401403 / Ts / Tk + 0.336463 / Ts / Tk**2
             b = 1. + 2.98394 * xi + 1.53583 * xi**2 + 3.85289 * xi**3
@@ -388,18 +462,26 @@ class Hydrogen(object):
 
             return xa(Ts), Sa(Ts), Ts
         else:
-            raise NotImplemented('approx_Salpha>4 not currently supported!')
+            raise NotImplemented('approx_Salpha={} not currently supported!'.format(self.approx_S))
 
-    def tauGP(self, z, xHII=0.):
+    def get_tau_GP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
         return 1.5 * self.cosm.nH(z) * (1. - xHII) * l_LyA**3 * 50e6 \
             / self.cosm.HubbleParameter(z)
 
-    def lya_width(self, Tk):
+    def get_lya_width(self, Tk, units='ev'):
         """
         Returns Doppler line-width of the Ly-a line in eV.
         """
-        return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
+
+        w = np.sqrt(2. * k_B * Tk / m_H / c**2)
+
+        if units.lower() == 'ev':
+            return w * E_LyA
+        elif units.lower() == 'hz':
+            return w * nu_alpha
+        else:
+            raise NotImplemented('No option units={}!'.format(units))
 
     def xalpha_tilde(self, z):
         """
@@ -415,14 +497,22 @@ class Hydrogen(object):
         """
 
         if self.approx_S == 0:
-            raise NotImplementedError('Must use analytical formulae.')
+            delta_nu = self.get_lya_width(Tk, units='Hz')
+            tau = self.get_tau_GP(z, xHII=xHII)
+            a = A_LyA / 4. / np.pi / delta_nu
+            eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+            integ = lambda y: y**2 * np.exp(2 * eta * y \
+                + (2 * np.pi * y**3) / (3 * a * tau))
+
+            S = (2 * np.pi / a / tau) * quad(integ, -np.inf, 0)[0]
         elif self.approx_S == 1:
             S = 1.0
         elif self.approx_S == 2:
             S = np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
                 / (1. + 0.4 / Tk)
         elif int(self.approx_S) == 3:
-            gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
+            gamma = 1. / self.get_tau_GP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
             alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.) # Eq. 20
 
             # Gamma function approximation: Eq. 19
@@ -439,8 +529,22 @@ class Hydrogen(object):
 
         elif self.approx_S == 4:
             xa, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
+        elif self.approx_S == 5:
+            assert have_mpmath, "Need mpmath installed to run approx_Salpha=5!"
+            delta_nu = self.get_lya_width(Tk, units='Hz')
+            tau = self.get_tau_GP(z, xHII=xHII)
+            a = A_LyA / 4. / np.pi / delta_nu
+            eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+            xi_1 = 9 * np.pi / 4. / a / tau / eta**3
+
+            if type(xi_1) == np.ndarray:
+                S = np.array([1. - float(mpmath.hyper([1./3,2./3,1],[],-x)) \
+                    for x in xi_1])
+            else:
+                S = 1. - float(mpmath.hyper([1./3,2./3,1],[],-xi_1))
         else:
-            raise NotImplementedError('approx_Sa must be in [1,2,3,4].')
+            raise NotImplementedError('approx_Sa must be in [0,1,2,3,4,5].')
 
         return np.maximum(S, 0.0)
 
@@ -486,9 +590,12 @@ class Hydrogen(object):
         """
         Short-hand for calling `SpinTemperature`.
         """
-        return self.SpinTemperature(z, Tk, Ja, xHII, ne, Tr)
+        return self.get_Ts(z, Tk, Ja, xHII, ne, Tr)
 
     def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr=0.0):
+        return self.get_Ts(z, Tk, Ja, xHII, ne, Tr)
+
+    def get_Ts(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Returns spin temperature of intergalactic hydrogen.
 
@@ -517,14 +624,19 @@ class Hydrogen(object):
 
         Tref = self.cosm.TCMB(z) + Tr
 
-        if self.approx_S < 4:
+        if self.approx_S != 4:
             x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
-            Tc = Tk
+
+            if self.pf['spin_exchange']:
+                raise NotImplemented("This isn't self-consistent -- should in principle affect ")
+                Tse = (nu_0_mhz * 1e6 / nu_alpha)**2 * m_H * c**2 / 9. / k_B
+            else:
+                Tse = 0.0
 
             Tref = self.cosm.TCMB(z) + Tr
 
-            Ts = (1.0 + x_c + x_a) / \
-                (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+            Ts = (1.0 + x_c + x_a * Tk / (Tk + Tse)) / \
+                (Tref**-1. + x_c * Tk**-1. + x_a * (Tk + Tse)**-1.)
         else:
             if type(z) == np.ndarray:
                 x_a = []; S = []; Ts = []
@@ -545,17 +657,15 @@ class Hydrogen(object):
 
         return np.maximum(Ts, self.Ts_floor(z=z))
 
-    def dTb(self, z, xavg, Ts, Tr=0.0):
+    def get_21cm_tau(self, z, Ts, xavg=0.0, delta=0.0):
         """
-        Short-hand for calling `DifferentialBrightnessTemperature`.
+        Compute the 21-cm optical depth.
         """
-        return self.DifferentialBrightnessTemperature(z, xavg, Ts, Tr)
 
-    def T0(self, z):
-        return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
+        return tau_21cm0 * (1 - xavg) * self.cosm.nH(z) * (1. + delta) \
+            / Ts / (1. + z) / (self.cosm.HubbleParameter(z) / (1. + z))
 
-    def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
+    def get_21cm_dTb(self, z, Ts, xavg=0.0, Tr=0.0):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.
 
@@ -563,24 +673,40 @@ class Hydrogen(object):
         ----------
         z : float, np.ndarray
             Redshift
+        Ts : float, np.ndarray
+            Spin temperature of intergalactic hydrogen [K].
         xavg : float, np.ndarray
             Volume-averaged ionized fraction, i.e., a weighted average
             between the volume of fully ionized gas and the semi-neutral
             bulk IGM beyond.
-        Ts : float, np.ndarray
-            Spin temperature of intergalactic hydrogen.
 
         Returns
         -------
         Differential brightness temperature in milli-Kelvin.
-
         """
 
-        Tref = self.cosm.TCMB(z) + Tr
-        return 27. * (1. - xavg) * \
-            (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - Tref / Ts)
+        # Writing it this way has the disadvantage that if we supply Ts=np.inf,
+        # we'll get NaN. So, just replace with absurdly high Ts.
+        if np.any(Ts > huge_Ts):
+            if type(Ts) == np.ndarray:
+                Ts[Ts > huge_Ts] = huge_Ts
+            else:
+                Ts = huge_Ts
+
+        Tref = self.cosm.get_Tcmb(z) + Tr
+
+        tau = self.get_21cm_tau(z, Ts, xavg=xavg)
+        if self.pf['approx_tau_21cm']:
+            dTb = (Ts - Tref) * tau / (1. + z)
+        else:
+            dTb = (Ts - Tref) * (1. - np.exp(-tau)) / (1. + z)
+
+        # convert to mK
+        return 1e3 * dTb
+
+    def T0(self, z):
+        return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
+            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
 
     @property
     def inits(self):
@@ -588,14 +714,176 @@ class Hydrogen(object):
             self._inits = self.cosm._ics.get_inits_rec()
         return self._inits
 
-    def saturated_limit(self, z):
-        return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+    def get_21cm_saturated_limit(self, z):
+        return self.get_21cm_dTb(z, np.inf)
 
-    def adiabatic_floor(self, z):
+    def get_21cm_adiabatic_floor(self, z):
         Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)
-        return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
+        return self.get_21cm_dTb(z, Ts)
 
-    def dTb_no_astrophysics(self, z):
+    def get_21cm_dTb_no_astrophysics(self, z):
         Ts = self.SpinTemperature(z, self.cosm.Tgas(z), 0., 0., 0.)
-        return self.dTb(z, 0.0, Ts)
+        return self.get_21cm_dTb(z, Ts)
+
+    def get_voigt_profile(self, x, a=1):
+        return (a / np.pi**1.5) * quad(lambda t: np.exp(-t**2) \
+            / (a**2 + (x - t)**2))[0]
+
+    def get_lya_profile(self, z, Tk, x, continuum=True, xHII=0.0):
+        """
+        Compute the spectral shape of the Ly-a line.
+
+        These equations appear in several works:
+        - Equations 12 and 13 in Furlanetto & Pritchard (2006)
+        - Equations 10 and 11 in Mittal & Kulkarni (2021).
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Tk : int, float
+            Kinetic temperature of the gas [K].
+        x : int, float
+            Dimensionless variable for photon frequency, defined as
+            (nu - nu_0) / Delta nu, where nu_0 is central frequency of Ly-a
+            line and Delta nu is the Doppler width.
+        continuum : bool
+            Whether we're referring to continuum or injected photons.
+        xHII : int, float
+            Ionized fraction of the gas.
+
+        Returns
+        -------
+        Intensity J(x) / J(x->inf or x=0) for continuum or injected photons,
+        depending on the value of `continuum` parameter.
+
+        """
+
+        # Some ingredients we need.
+        delta_nu = self.get_lya_width(Tk, units='Hz')
+        tau = self.get_tau_GP(z, xHII=xHII)
+        a = A_LyA / 4. / np.pi / delta_nu
+        eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+        exp_term = np.exp(-2 * eta * x - (2 * np.pi * x**3) / (3 * a * tau))
+
+        if continuum or (x < 0):
+            integ = lambda y: y**2 * np.exp(2 * eta * y \
+                + (2 * np.pi * y**3) / (3 * a * tau))
+
+            J = (2 * np.pi / a / tau) * exp_term \
+                * quad(integ, -np.inf, x)[0]
+        else:
+            J = exp_term
+
+        return J
+
+    def get_lya_EW(self, z, Tk, continuum=True, xHII=0.0):
+        """
+        Compute the area under the curve for Ly-a line profiles. Needed to
+        compute heating rate. This is essentially an equivalent width, hence
+        the name.
+
+        .. note :: All solutions here employ the wing approximation.
+        .. note :: The continuum solution is analytic in this approximation,
+            but the injected photon solution is not. If done numerically,
+            it slows things down quite a bit, so we also include the power
+            series solution for approx_Salpha=3 (Furlanetto & Pritchard 2006).
+            Should add the Chuzhoy & Shapiro 2006 approach too.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Tk : int, float
+            Kinetic temperature of the gas [K].
+        continuum : bool
+            Whether we're referring to continuum or injected photons.
+        xHII : int, float
+            Ionized fraction of the gas.
+
+        """
+
+        # Some ingredients we need.
+        delta_nu = self.get_lya_width(Tk, units='Hz')
+        tau = self.get_tau_GP(z, xHII=xHII)
+        a = A_LyA / 4. / np.pi / delta_nu
+        eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+        xi = eta * (4 * a * tau / np.pi)**(1. / 3.)
+
+        if continuum:
+            Ai, Aip, Bi, Bip = airy(-xi)
+
+            I = eta * (2 * np.pi**4 * a**2 * tau**2)**(1. / 3.) \
+                * (Ai**2 + Bi**2)
+
+            # Expansion in FP06 used for illustrative purposes, but numerically
+            # offers no significant advantage, so I'm leaving this as-is for
+            # now.
+
+        else:
+            assert self.approx_S != 1
+
+            if (self.approx_S in [0, 5]) and (not self.approx_Ii):
+                integ = lambda y: np.exp(-2 * eta * y \
+                    - (np.pi * y**3) / (6 * a * tau)) \
+                    * erfc(np.sqrt(np.pi * y**3 / 2. / a / tau)) / np.sqrt(y)
+
+                S = self.Sa(z=z, Tk=Tk, xHII=xHII)
+                I = eta * np.sqrt(a * tau * 0.5) * quad(integ, 0, np.inf)[0] \
+                    - S * (1. - S) / 2. / eta
+            elif (self.approx_S == 3) or self.approx_Ii:
+                # See Eq. 34 in FP06
+                gamma = 1. / tau
+                beta = eta * (4 * a / np.pi / gamma)**(1. / 3.)
+
+                A = np.array([-0.6979, 2.5424, -2.5645])
+                I = (a / gamma)**(1. / 3.) * np.sum(A * beta**np.arange(3))
+            else:
+                raise NotImplemented('No approximate solution for I_i for approx_Salpha={}'.format(self.approx_S))
+
+        return I
+
+    def get_lya_heating(self, z, Tk, Jc, Ji, xHII=0.0):
+        """
+        Compute the Ly-a heating rate by summing over continuum and injected
+        line profiles.
+
+        .. note :: This is Eq. 47 in Mittal & Kulkarni (2021). However, the
+            factor of density and the Boltzmann constant have been ommitted
+            as these are applied in the chemistry solver.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        Tk : int, float
+            Kinetic temperature of the gas [K].
+        Jc : int, float
+            Lyman-alpha background intensity, continuum photons, i.e.,
+            flux at x->inf.
+        Ji : int, float
+            Lyman-alpha background intensity, injected photons, i.e.,
+            from cascades (x=0).
+        xHII : int, float
+            Ionized fraction of the gas.
+
+        Returns
+        -------
+        Heating rate in erg/s/cm^3.
+
+        """
+
+        if self.approx_S == 1:
+            return 0.0
+
+        delta_nu = self.get_lya_width(Tk, units='Hz')
+        Ic = self.get_lya_EW(z, Tk, continuum=1, xHII=xHII)
+        Ii = self.get_lya_EW(z, Tk, continuum=0, xHII=xHII)
+
+        prefactor = 8 * np.pi * h_P * delta_nu / 3. / l_LyA
+
+        # Note: this will get hit with a factor of H(z) in ChemicalNetwork
+        return prefactor * (Ic * Jc + Ii * Ji)

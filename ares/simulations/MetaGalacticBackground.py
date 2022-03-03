@@ -196,7 +196,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         ##
         if is_converged:
             self._has_fluxes = True
-            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja,
+            self._f_Jc = lambda z: np.interp(z, self._zarr, self._Jc,
+                left=0.0, right=0.0)
+            self._f_Ji = lambda z: np.interp(z, self._zarr, self._Ji,
                 left=0.0, right=0.0)
             self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw,
                 left=0.0, right=0.0)
@@ -652,7 +654,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                         self.grid.N_absorbers, self.grid.N_absorbers))
                 self._rc_tabs[i]['k_heat'] = np.zeros((Nz,
                         self.grid.N_absorbers))
-                self._rc_tabs[i]['Ja'] = np.zeros(Nz)
+                self._rc_tabs[i]['k_heat_lya'] = np.zeros(Nz)
+                self._rc_tabs[i]['Jc'] = np.zeros(Nz)
+                self._rc_tabs[i]['Ji'] = np.zeros(Nz)
                 self._rc_tabs[i]['Jlw'] = np.zeros(Nz)
 
                 # Need to cycle through redshift here
@@ -676,7 +680,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                         fluxes[i] = self.history[i][Nz-_iz-1]
                         kw['fluxes'] = fluxes
 
-                    self._rc_tabs[i]['Ja'][_iz] = self._f_Ja(redshift)
+                    self._rc_tabs[i]['Jc'][_iz] = self._f_Jc(redshift)
+                    self._rc_tabs[i]['Ji'][_iz] = self._f_Ji(redshift)
                     self._rc_tabs[i]['Jlw'][_iz] = self._f_Jlw(redshift)
 
                     # This routine expects fluxes to be a dictionary, with
@@ -707,8 +712,11 @@ class MetaGalacticBackground(AnalyzeMGB):
                 self._interp[i]['k_heat'] = \
                     [None for _i in range(self.grid.N_absorbers)]
 
-                self._interp[i]['Ja'] = interp1d(zarr,
-                    self._rc_tabs[i]['Ja'], kind=self.pf['interp_all'],
+                self._interp[i]['Jc'] = interp1d(zarr,
+                    self._rc_tabs[i]['Jc'], kind=self.pf['interp_all'],
+                    bounds_error=False, fill_value=0.0)
+                self._interp[i]['Ji'] = interp1d(zarr,
+                    self._rc_tabs[i]['Ji'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)
                 self._interp[i]['Jlw'] = interp1d(zarr,
                     self._rc_tabs[i]['Jlw'], kind=self.pf['interp_all'],
@@ -741,6 +749,9 @@ class MetaGalacticBackground(AnalyzeMGB):
              'k_ion': np.zeros((1,self.grid.N_absorbers)),
              'k_ion2': np.zeros((1,self.grid.N_absorbers, self.grid.N_absorbers)),
              'k_heat': np.zeros((1,self.grid.N_absorbers)),
+             'k_heat_lya': np.zeros(1),
+             'Jc': np.zeros(1),
+             'Ji': np.zeros(1),
             }
 
             for i, pop in enumerate(self.pops):
@@ -757,14 +768,18 @@ class MetaGalacticBackground(AnalyzeMGB):
                     for j in range(self.grid.N_absorbers)]]),
                  'k_heat': np.array([[fset['k_heat'][j](z) \
                     for j in range(self.grid.N_absorbers)]]),
-                 'Ja': fset['Ja'](z),
+                 'k_heat_lya': np.zeros(1),
+                 'Jc': fset['Jc'](z),
+                 'Ji': fset['Ji'](z),
                  'Jlw': fset['Jlw'](z),
                 }
 
                 # Convert to rate coefficient
                 for j, absorber in enumerate(self.grid.absorbers):
                     x = kwargs['{0!s}_{1!s}'.format(pop.zone, absorber)]
-                    this_pop['k_ion'][0][j] /= x
+
+                    if self.pf['photon_counting']:
+                        this_pop['k_ion'][0][j] /= x
 
                     # No helium for cgm, at least not this carefully
                     if pop.zone == 'cgm':
@@ -776,6 +791,11 @@ class MetaGalacticBackground(AnalyzeMGB):
                         tmp[j,k] = fset['k_ion2'][j][k](z)
 
                 this_pop['k_ion2'] = np.array([tmp])
+
+                if pop.zone == 'igm' and self.pf['lya_heating']:
+                    this_pop['k_heat_lya'] = self.grid.hydr.get_lya_heating(z,
+                        kwargs['igm_Tk'], this_pop['Jc'], this_pop['Ji'],
+                        1.-kwargs['igm_h_1'])
 
                 for key in to_return:
                     to_return[key] += this_pop[key]
@@ -813,31 +833,36 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Compute JLW to get estimate for Mmin^(k+1)
         _allz = []
-        _f_Ja = []
+        _f_Jc = []
+        _f_Ji = []
         _f_Jlw = []
         for i, popid in enumerate(include_pops):
 
             if not (self.pops[popid].is_src_lw or self.pops[popid].is_src_lya):
                 _allz.append(self.solver.redshifts[popid])
                 _f_Jlw.append(lambda z: 0.0)
-                _f_Ja.append(lambda z: 0.0)
+                _f_Jc.append(lambda z: 0.0)
+                _f_Ji.append(lambda z: 0.0)
                 continue
 
-            _z, _Ja, _Jlw = self.get_uvb(popid)
+            _z, _Jc, _Ji, _Jlw = self.get_uvb(popid)
 
             _allz.append(_z)
             _f_Jlw.append(interp1d(_z, _Jlw, kind='linear'))
-            _f_Ja.append(interp1d(_z, _Ja, kind='linear'))
+            _f_Jc.append(interp1d(_z, _Jc, kind='linear'))
+            _f_Ji.append(interp1d(_z, _Ji, kind='linear'))
 
         zarr = self.z_unique
 
         Jlw = np.zeros_like(zarr)
-        Ja = np.zeros_like(zarr)
+        Jc = np.zeros_like(zarr)
+        Ji = np.zeros_like(zarr)
         for i, popid in enumerate(include_pops):
             Jlw += _f_Jlw[i](zarr)
-            Ja += _f_Ja[i](zarr)
+            Jc += _f_Jc[i](zarr)
+            Ji += _f_Ji[i](zarr)
 
-        return zarr, Ja, Jlw
+        return zarr, Jc, Ji, Jlw
 
     def _is_Mmin_converged(self, include_pops):
 
@@ -850,13 +875,15 @@ class MetaGalacticBackground(AnalyzeMGB):
             include_pops = range(self.solver.Npops)
 
         # Otherwise, grab all the fluxes
-        zarr, Ja, Jlw = self.get_uvb_tot(include_pops)
+        zarr, Jc, Ji, Jlw = self.get_uvb_tot(include_pops)
         self._zarr = zarr
 
-        Ja = np.maximum(Ja, 0.)
+        Jc = np.maximum(Jc, 0.)
+        Ji = np.maximum(Ji, 0.)
         Jlw = np.maximum(Jlw, 0.)
 
-        self._Ja = Ja
+        self._Jc = Jc
+        self._Ji = Ji
         self._Jlw = Jlw
 
         if not self.pf['feedback_LW']:
@@ -1238,12 +1265,18 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             if self.pops[popid].is_src_ion_igm and self.pf['secondary_lya']:
                 Ja = np.zeros_like(z) # placeholder
+                Ji = np.zeros_like(z)
+                Jc = np.zeros_like(z)
             elif self.pops[popid].is_src_lya:
                 # Redshift is first dimension!
                 l = np.argmin(np.abs(E - E_LyA))
+                Jc = flux[:,l+1]
                 Ja = flux[:,l]
+                Ji = Ja - Jc
             else:
                 Ja = np.zeros_like(z)
+                Ji = np.zeros_like(z)
+                Jc = np.zeros_like(z)
 
             # Find photons in LW band
             is_LW = np.logical_and(E >= 11.18, E <= E_LL)
@@ -1256,6 +1289,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             # Need a redshift array!
             z = self.z_unique
             Ja = np.zeros_like(z)
+            Ji = np.zeros_like(z)
+            Jc = np.zeros_like(z)
             Jlw = np.zeros_like(z)
 
         ##
@@ -1263,7 +1298,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         ##
         for i, redshift in enumerate(z):
             if not np.any(self.solver.solve_rte[popid]):
-                Ja[i] = self.solver.LymanAlphaFlux(redshift, popid=popid)
+                Jc[i] = self.solver.LymanAlphaFlux(redshift, popid=popid)
 
                 if self.pf['feedback_LW']:
                     Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
@@ -1272,7 +1307,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             elif self.pops[popid].is_src_ion_igm and self.pf['secondary_lya']:
                 for k, sp in enumerate(self.grid.absorbers):
-                    Ja[i] += self.solver.volume.SecondaryLymanAlphaFlux(redshift,
+                    Ji[i] += self.solver.volume.SecondaryLymanAlphaFlux(redshift,
                         species=k, popid=popid, fluxes={popid:flux[i]})
 
             # Convert to energy units, and per eV to prep for integral
@@ -1280,7 +1315,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             Jlw[i] = np.trapz(LW_flux, x=E[is_LW]) / dnu
 
-        return z, Ja, Jlw
+        return z, Jc, Ji, Jlw
 
     def get_history(self, popid=0, flatten=False, today_only=False):
         """
