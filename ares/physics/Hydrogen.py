@@ -32,6 +32,12 @@ try:
 except ImportError:
     pass
 
+try:
+    import mpmath
+    have_mpmath = True
+except ImportError:
+    have_mpmath = False
+
 _scipy_ver = scipy.__version__.split('.')
 
 # This keyword didn't exist until version 0.14
@@ -94,6 +100,7 @@ class Hydrogen(object):
 
         self.interp_method = self.pf['interp_cc']
         self.approx_S = self.pf['approx_Salpha']
+        self.approx_Ii = self.pf['approx_lya_Ii']
 
         self.nmax = self.pf['lya_nmax']
 
@@ -411,7 +418,7 @@ class Hydrogen(object):
 
         """
 
-        if self.approx_S < 4:
+        if self.approx_S != 4:
             return self.xalpha_tilde(z) \
                 * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja
 
@@ -455,7 +462,7 @@ class Hydrogen(object):
 
             return xa(Ts), Sa(Ts), Ts
         else:
-            raise NotImplemented('approx_Salpha>4 not currently supported!')
+            raise NotImplemented('approx_Salpha={} not currently supported!'.format(self.approx_S))
 
     def get_tau_GP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
@@ -523,7 +530,19 @@ class Hydrogen(object):
         elif self.approx_S == 4:
             xa, S, Ts = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         elif self.approx_S == 5:
-            raise NotImplementedError('Placeholder for Mittal & Kulkarni (2019)')
+            assert have_mpmath, "Need mpmath installed to run approx_Salpha=5!"
+            delta_nu = self.get_lya_width(Tk, units='Hz')
+            tau = self.get_tau_GP(z, xHII=xHII)
+            a = A_LyA / 4. / np.pi / delta_nu
+            eta = h_P * nu_alpha**2 / (m_H * c**2 * delta_nu)
+
+            xi_1 = 9 * np.pi / 4. / a / tau / eta**3
+
+            if type(xi_1) == np.ndarray:
+                S = np.array([1. - float(mpmath.hyper([1./3,2./3,1],[],-x)) \
+                    for x in xi_1])
+            else:
+                S = 1. - float(mpmath.hyper([1./3,2./3,1],[],-xi_1))
         else:
             raise NotImplementedError('approx_Sa must be in [0,1,2,3,4,5].')
 
@@ -605,7 +624,7 @@ class Hydrogen(object):
 
         Tref = self.cosm.TCMB(z) + Tr
 
-        if self.approx_S < 4:
+        if self.approx_S != 4:
             x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII, Tr, ne)
 
             if self.pf['spin_exchange']:
@@ -805,9 +824,9 @@ class Hydrogen(object):
             # now.
 
         else:
-            assert self.approx_S not in [1, 4]
+            assert self.approx_S != 1
 
-            if self.approx_S == 0:
+            if (self.approx_S in [0, 5]) and (not self.approx_Ii):
                 integ = lambda y: np.exp(-2 * eta * y \
                     - (np.pi * y**3) / (6 * a * tau)) \
                     * erfc(np.sqrt(np.pi * y**3 / 2. / a / tau)) / np.sqrt(y)
@@ -815,7 +834,7 @@ class Hydrogen(object):
                 S = self.Sa(z=z, Tk=Tk, xHII=xHII)
                 I = eta * np.sqrt(a * tau * 0.5) * quad(integ, 0, np.inf)[0] \
                     - S * (1. - S) / 2. / eta
-            elif self.approx_S == 3:
+            elif (self.approx_S == 3) or self.approx_Ii:
                 # See Eq. 34 in FP06
                 gamma = 1. / tau
                 beta = eta * (4 * a / np.pi / gamma)**(1. / 3.)
@@ -823,7 +842,7 @@ class Hydrogen(object):
                 A = np.array([-0.6979, 2.5424, -2.5645])
                 I = (a / gamma)**(1. / 3.) * np.sum(A * beta**np.arange(3))
             else:
-                raise NotImplemented('No approximate')
+                raise NotImplemented('No approximate solution for I_i for approx_Salpha={}'.format(self.approx_S))
 
         return I
 

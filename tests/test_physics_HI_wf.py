@@ -17,11 +17,16 @@ def test():
     Tarr = np.logspace(-1, 2)
 
     res = []
-    for i, method in enumerate([2,3,3.5,4]):
+    for i, method in enumerate([2,3,3.5,4,5]):
         hydr = ares.physics.Hydrogen(approx_Salpha=method)
 
         Sa = np.array([hydr.Sa(20., Tarr[k]) for k in range(Tarr.size)])
         res.append(Sa)
+
+        if method == 5:
+            # Mittal & Kulkarni (2018) quote a value in the text for
+            # (z, x_e, Tk) = (22, 0, 10)
+            assert abs(hydr.Sa(z=22., Tk=10.) - 0.7) < 1e-2
 
         # Check Ts while we're here
         Ts = hydr.get_Ts(20., hydr.cosm.Tgas(20.), 1, 0., 0.)

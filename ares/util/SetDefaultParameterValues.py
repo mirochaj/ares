@@ -212,8 +212,10 @@ def PhysicsParameters():
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2006),
                         # 3 = Furlanetto & Pritchard (2006)
                         # 4 = Hirata (2006)
+                        # 5 = Mittal & Kulkarni (2018)
 
     "lya_heating": False,
+    "approx_lya_Ii": False,
     "spin_exchange": False,
     "approx_tau_21cm": True,
     "extrapolate_coupling": False,
