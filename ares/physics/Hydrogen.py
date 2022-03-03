@@ -736,7 +736,7 @@ class Hydrogen(object):
 
         These equations appear in several works:
         - Equations 12 and 13 in Furlanetto & Pritchard (2006)
-        - Equations 10 and 11 in Mittal & Kulkarni (2019).
+        - Equations 10 and 11 in Mittal & Kulkarni (2021).
 
         Parameters
         ----------
@@ -851,7 +851,7 @@ class Hydrogen(object):
         Compute the Ly-a heating rate by summing over continuum and injected
         line profiles.
 
-        .. note :: This is Eq. 47 in Mittal & Kulkarni (2019). However, the
+        .. note :: This is Eq. 47 in Mittal & Kulkarni (2021). However, the
             factor of density and the Boltzmann constant have been ommitted
             as these are applied in the chemistry solver.
 
