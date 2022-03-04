@@ -35,6 +35,7 @@ class Survey(object):
         self.chip = chip
         self.force_perfect = force_perfect
         self.cache = cache
+        self.mod = mod
 
     def PlotFilters(self, ax=None, fig=1, filter_set='W',
         filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
@@ -154,7 +155,7 @@ class Survey(object):
                 filter_set = [filter_set]
 
         path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path,
-            mod)
+            self.mod)
 
         data = {}
         for fn in os.listdir(path):
