@@ -2347,7 +2347,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
 
         """
-        cached_result = self._cache_L((z, wave, band, idnum, window))
+        cached_result = self._cache_L((z, wave, band, idnum, window,
+            energy_units))
         if load and (cached_result is not None):
             return cached_result
 
@@ -2360,13 +2361,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum,
                 window=window, load=load, use_cache=use_cache, energy_units=energy_units)
         else:
+            print('hey', energy_units)
             L = self.synth.get_lum(wave=wave, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 use_cache=use_cache, band=band, energy_units=energy_units)
 
         if use_cache:
 
-            self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
+            self._cache_L_[(z, wave, band, idnum, window, energy_units)] = \
+                L.copy()
 
         return L
 

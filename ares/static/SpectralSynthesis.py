@@ -864,7 +864,7 @@ class SpectralSynthesis(object):
         # things that change and that's an easy logical check to do.
         # Checking that SFHs, histories, etc., is more expensive.
         ok_keys = ('wave', 'zobs', 'tobs', 'idnum', 'sfh', 'tarr', 'zarr',
-            'window', 'band', 'hist', 'extras', 'load')
+            'window', 'band', 'hist', 'extras', 'load', 'energy_units')
 
         ct = -1
 
@@ -1023,7 +1023,7 @@ class SpectralSynthesis(object):
 
         kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr,
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist,
-            'extras':extras, 'window': window}
+            'extras':extras, 'window': window, 'energy_units': energy_units}
 
         if load:
             _kwds, cached_result = self._cache_lum(kw)
