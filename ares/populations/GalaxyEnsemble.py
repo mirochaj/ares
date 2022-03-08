@@ -2155,15 +2155,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return xout, M_final
 
     def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True):
+        load=True, energy_units=True):
         """
         For backward compatibility as we move to get_* method model.
 
         See `get_lum` below.
         """
         return self.get_lum(z, wave=wave, band=band, idnum=idnum,
-            window=window, load=load, use_cache=use_cache,
-            energy_units=energy_units)
+            window=window, load=load, energy_units=energy_units)
 
     def _dlam_check(self, dlam):
         if self.pf['pop_sed_degrade'] is None:
@@ -2316,7 +2315,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return owaves, flux
 
     def get_lum(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True):
+        load=True, energy_units=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
 
@@ -2347,7 +2346,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
 
         """
-        cached_result = self._cache_L((z, wave, band, idnum, window))
+        cached_result = self._cache_L((z, wave, band, idnum, window,
+            energy_units))
         if load and (cached_result is not None):
             return cached_result
 
@@ -2358,15 +2358,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         raw = self.histories
         if wave > self.src.wavelengths.max():
             L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum,
-                window=window, load=load, use_cache=use_cache, energy_units=energy_units)
+                window=window, load=load, energy_units=energy_units)
         else:
             L = self.synth.get_lum(wave=wave, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
-                use_cache=use_cache, band=band, energy_units=energy_units)
+                band=band, energy_units=energy_units)
 
-        if use_cache:
-
-            self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
+        self._cache_L_[(z, wave, band, idnum, window, energy_units)] = L.copy()
 
         return L
 

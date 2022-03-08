@@ -864,7 +864,7 @@ class SpectralSynthesis(object):
         # things that change and that's an easy logical check to do.
         # Checking that SFHs, histories, etc., is more expensive.
         ok_keys = ('wave', 'zobs', 'tobs', 'idnum', 'sfh', 'tarr', 'zarr',
-            'window', 'band', 'hist', 'extras', 'load')
+            'window', 'band', 'hist', 'extras', 'load', 'energy_units')
 
         ct = -1
 
@@ -963,7 +963,7 @@ class SpectralSynthesis(object):
     def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None,
         window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
-        load=True, use_cache=True, energy_units=True):
+        load=True, energy_units=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -1023,7 +1023,7 @@ class SpectralSynthesis(object):
 
         kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr,
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist,
-            'extras':extras, 'window': window}
+            'extras':extras, 'window': window, 'energy_units': energy_units}
 
         if load:
             _kwds, cached_result = self._cache_lum(kw)
@@ -1485,9 +1485,8 @@ class SpectralSynthesis(object):
         ##
         # Will be unhashable types so just save to a unique identifier
         ##
-        if use_cache:
-            self._cache_lum_[self._cache_lum_ctr] = kw, Lout
-            self._cache_lum_ctr_ += 1
+        self._cache_lum_[self._cache_lum_ctr] = kw, Lout
+        self._cache_lum_ctr_ += 1
 
         # Get outta here.
         return Lout
