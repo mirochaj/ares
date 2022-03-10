@@ -3445,7 +3445,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
         cam=None, filters=None, filter_set=None, dlam=20., method='closest',
         window=1, load=True, presets=None, absolute=False, use_mags=True,
-        use_central_z=True, zstep=0.1, return_evol=False, use_volume=True):
+        use_central_z=True, zstep=0.1, return_evol=False, use_volume=False):
         """
         Compute surface density of galaxies [number / deg^2 / dz]
 
@@ -3467,9 +3467,9 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             # Compute the volume of the shell we're looking at [cMpc^3]
             if use_volume:
-                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
-            else:
                 vol = 1
+            else:
+                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
 
             # Get total number of galaxies in volume
             Ngal = phi * vol
@@ -3490,10 +3490,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 # Compute the volume of the shell we're looking at [cMpc^3]
                 if use_volume:
+                    vol[i] = 1
+                else:
                     vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
                         dz=zstep)
-                else:
-                    vol[i] = 1
 
             # Integrate over the redshift interval
             Ngal = np.sum(phi * vol[:,None], axis=0)
@@ -3524,7 +3524,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Return volume density of galaxies in given `dz` chunk.
 
         .. note :: Just a wrapper around `get_surface_density`, with
-            hack parameter `use_volume` set to False and `use_central_z` to
+            hack parameter `use_volume` set to True and `use_central_z` to
             True.
 
 
@@ -3534,7 +3534,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
             method=method, window=window, load=load, presets=presets,
             absolute=absolute, use_mags=use_mags, use_central_z=True,
-            zstep=zstep, return_evol=return_evol, use_volume=False)
+            zstep=zstep, return_evol=return_evol, use_volume=True)
 
     def load(self):
         """
