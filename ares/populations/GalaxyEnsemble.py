@@ -2698,6 +2698,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_lf(z, bins, wave)
 
         if (cached_result is not None) and load:
+            print("WARNING: should we be doing this?")
             return cached_result
 
         # These are kept in descending redshift just to make life difficult.
@@ -3432,20 +3433,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return hist
 
     def SurfaceDensity(self, z, bins, dz=1., dtheta=1., wave=1600.,
-        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=True, use_mags=True):
+        cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
+        method='closest', window=1, load=True, presets=None, absolute=True,
+        use_mags=True):
         """
         For backward compatibility. See `get_surface_density`.
         """
         return self.get_surface_density(z=z, bins=bins, dz=dz, dtheta=dtheta,
             wave=wave, cam=cam, filters=filters, filter_set=filter_set,
-            dlam=dlam, method=method, use_mags=use_mags,
+            dlam=dlam, method=method, use_mags=use_mags, depths=depths,
             window=window, load=load, presets=presets, absolute=absolute)
 
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
-        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=False, use_mags=True,
-        use_central_z=True, zstep=0.1, return_evol=False, use_volume=False):
+        cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
+        method='closest', window=1, load=True, presets=None, absolute=False,
+        use_mags=True, use_central_z=True, zstep=0.1, return_evol=False,
+        use_volume=False, save_by_band=False):
         """
         Compute surface density of galaxies [number / deg^2 / dz]
 
@@ -3456,60 +3459,79 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         square degree.
         """
 
-        # Simplest thing: take central redshift, assume same UVLF throughout
-        # dz interval along LOS.
-        if use_central_z:
-            # First, compute the luminosity function.
-            x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
-                filters=filters, filter_set=filter_set, dlam=dlam, method=method,
-                window=window, load=load, presets=presets, absolute=absolute,
-                use_mags=use_mags)
+        if type(filters) not in [list, tuple]:
+            filters = [filters]
 
-            # Compute the volume of the shell we're looking at [cMpc^3]
-            if use_volume:
-                vol = 1
-            else:
-                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
+        if depths is not None:
+            assert len(depths) == len(filters)
 
-            # Get total number of galaxies in volume
-            Ngal = phi * vol
-        else:
-            # Sub-sample redshift interval
-            zbin_e = np.arange(z - 0.5 * dz, z + 0.5 * dz, zstep)
+        Ngal = np.zeros((len(filters), bins.size))
+        nltm = np.zeros((len(filters), bins.size))
+        for i, filt in enumerate(filters):
 
-            phi = np.zeros((zbin_e.size, bins.size))
-            vol = np.zeros_like(zbin_e)
-            for i, ze in enumerate(zbin_e):
-                zmid = ze + 0.5 * zstep
+            # Simplest thing: take central redshift, assume same UVLF throughout
+            # dz interval along LOS.
+            if use_central_z:
 
-                # Compute LF at midpoint of this bin.
-                x, phi[i] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
+                # First, compute the luminosity function.
+                x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
                     filters=filters, filter_set=filter_set, dlam=dlam, method=method,
                     window=window, load=load, presets=presets, absolute=absolute,
                     use_mags=use_mags)
 
                 # Compute the volume of the shell we're looking at [cMpc^3]
                 if use_volume:
-                    vol[i] = 1
+                    vol = 1
                 else:
-                    vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
-                        dz=zstep)
+                    vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
 
-            # Integrate over the redshift interval
-            Ngal = np.sum(phi * vol[:,None], axis=0)
+                # Get total number of galaxies in volume in each bin.
+                Ngal[i,:] = phi * vol
+            else:
+                assert depths is None, "Not implemented!"
 
-        # Faint to bright
-        Ngal_asc = Ngal[-1::-1]
-        x_asc = x[-1::-1]
+                # Sub-sample redshift interval
+                zbin_e = np.arange(z - 0.5 * dz, z + 0.5 * dz, zstep)
 
-        # At this point, magnitudes are in ascending order, i.e., bright to
-        # faint.
+                phi = np.zeros((zbin_e.size, bins.size))
+                vol = np.zeros_like(zbin_e)
+                for j, ze in enumerate(zbin_e):
+                    zmid = ze + 0.5 * zstep
 
-        # Cumulative surface density of galaxies *brighter than*
-        # some corresponding magnitude
-        assert Ngal[0] == 0, "Broaden binning range?"
-        ntot = np.trapz(Ngal, x=x)
-        nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
+                    # Compute LF at midpoint of this bin.
+                    x, phi[j] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
+                        filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                        window=window, load=load, presets=presets, absolute=absolute,
+                        use_mags=use_mags)
+
+                    # Compute the volume of the shell we're looking at [cMpc^3]
+                    if use_volume:
+                        vol[j] = 1
+                    else:
+                        vol[j] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
+                            dz=zstep)
+
+                # Integrate over the redshift interval
+                Ngal[i,:] = np.sum(phi * vol[:,None], axis=0)
+
+            # Faint to bright
+            Ngal_asc = Ngal[i,-1::-1]
+            x_asc = x[-1::-1]
+
+            # At this point, magnitudes are in ascending order, i.e., bright to
+            # faint.
+
+            # Cumulative surface density of galaxies *brighter than*
+            # some corresponding magnitude
+            assert Ngal[i,0] == 0, "Broaden binning range?"
+            #ntot = np.trapz(Ngal[i,:], x=x)
+            nltm[i,:] = cumtrapz(Ngal[i,:], x=x, initial=Ngal[i,0])
+
+        # Can just return *maximum* number of galaxies detected,
+        # regardless of band. Equivalent to requiring only single-band
+        # detection.
+        if not save_by_band:
+            nltm = np.max(nltm, axis=0)
 
         if return_evol and (not use_central_z):
             return x, nltm, zbin_e, phi, vol
