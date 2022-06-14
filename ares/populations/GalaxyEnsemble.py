@@ -3460,7 +3460,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
 
         if type(filters) not in [list, tuple]:
-            filters = [filters]
+            filters = filters,
 
         if depths is not None:
             assert len(depths) == len(filters)
@@ -3475,7 +3475,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                 # First, compute the luminosity function.
                 x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
-                    filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                    filters=filt, filter_set=filter_set, dlam=dlam, method=method,
                     window=window, load=load, presets=presets, absolute=absolute,
                     use_mags=use_mags)
 
@@ -3500,7 +3500,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
                     # Compute LF at midpoint of this bin.
                     x, phi[j] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
-                        filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                        filters=filt, filter_set=filter_set, dlam=dlam, method=method,
                         window=window, load=load, presets=presets, absolute=absolute,
                         use_mags=use_mags)
 
