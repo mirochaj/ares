@@ -82,9 +82,9 @@ high.num = 1
 bb = PB(**_bb).pars_by_pop(2, 1)
 bb.num = 1
 
-low['pop_nebular{0}'] = 2
-low['pop_nebular_continuum{0}'] = True
-low['pop_nebular_lines{0}'] = True
+low['pop_nebular{1}'] = 2
+low['pop_nebular_continuum{1}'] = True
+low['pop_nebular_lines{1}'] = True
 
 _popIII_updates = {'sam_dz': None, 'feedback_LW_sfrd_popid': 1}
 low.update(_popIII_updates)
@@ -94,9 +94,9 @@ for pbund in [med, high, bb]:
     pbund['pop_ssp{1}'] = False
     pbund['pop_model{1}'] = 'tavg_nms'
     pbund['pop_zdead{1}'] = 5.
-    #pbund['pop_nebular{1}'] = 2
-    #pbund['pop_nebular_continuum{1}'] = True
-    #pbund['pop_nebular_lines{1}'] = True
+    pbund['pop_nebular{1}'] = 2
+    pbund['pop_nebular_continuum{1}'] = True
+    pbund['pop_nebular_lines{1}'] = True
     # Set energy range by hand. This is picky! Be careful that Emax <= 13.6 eV
     # (long story -- will work to fix in future)
 

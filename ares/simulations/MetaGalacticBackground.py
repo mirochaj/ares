@@ -26,7 +26,7 @@ from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
     sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c, h_p, k_B, \
-    cm_per_m, erg_per_s_per_nW
+    cm_per_m, erg_per_s_per_nW, lam_LyA, lam_LL
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -314,17 +314,32 @@ class MetaGalacticBackground(AnalyzeMGB):
         _lam = h_p * c * 1e4 / erg_per_ev / _E
 
         # Attenuate by HI absorbers in IGM at z < zf?
-        if self.pf['tau_clumpy'] is not None:
-            assert self.pf['tau_clumpy'].lower() == 'madau1995'
-
-            m95 = Madau1995(hydr=self.grid.hydr, **self.pf)
+        # Note: duplicated from ares.static.SpectralSynthesis. Do better.
+        if (self.pf['tau_clumpy'] is not None):
+            assert self.pf['tau_clumpy'] in ['madau1995', 1, 2]
 
             if zf is None:
                 assert np.allclose(np.array(_zf) - _zf[0], 0)
                 zf = _zf[0]
 
-            f *= np.exp(-m95(zf, _lam))
+            tau = np.zeros_like(_lam)
+            rwaves = _lam * 1e4 / (1. + zf)
 
+            # X-ray cutoff in Ang
+            lam_X = h_p * c * 1e8 / erg_per_ev / 2e2
+
+            if self.pf['tau_clumpy'] == 1:
+                tau[rwaves < lam_LL] = np.inf
+                tau[rwaves < lam_X] = 0.0
+            # Or all wavelengths < 1216 A (rest)
+            elif self.pf['tau_clumpy'] == 2:
+                tau[rwaves < lam_LyA] = np.inf
+                tau[rwaves < lam_X] = 0.0
+            else:
+                m95 = Madau1995(hydr=self.grid.hydr, **self.pf)
+                tau = self.madau1995(zf, _lam)
+
+            f *= np.exp(-tau)
 
         if units.lower() == 'cgs':
             pass
