@@ -32,7 +32,7 @@ except ImportError:
     size = 1
 
 
-settings = {'width': 76, 'border': 2, 'pad': 1, 'col': 6}
+settings = {'width': 76, 'border': 2, 'pad': 1, 'col': 5}
 
 HOME = os.environ.get('HOME')
 if os.path.exists('{!s}/.ares/printout'.format(HOME)):
@@ -109,7 +109,8 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
         cwidth = [cwidth] * (len(cols) + 1)
 
     else:
-        assert len(cwidth) == len(cols) + 1
+        assert len(cwidth) == len(cols) + 1, \
+            "col width={}, len(cols)+1={}".format(len(cwidth), len(cols)+1)
 
     #assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
     #    "Table wider than maximum allowed width!"
@@ -126,7 +127,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
 
     start = len(pre) + cwidth[0] + settings['pad']
 
-    hdr[start:start + len(hnames)] = hnames
+    hdr[start+1:start+1 + len(hnames)] = hnames
 
     # Convert from list to string
     hdr_s = ''
@@ -515,10 +516,10 @@ def print_pop(pop):
 
 def _rad_type(sim, fluctuations=False):
     rows = []
-    cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Lya', 'LW', 'LyC', 'Xray', 'RTE']
+    cols = ['sfrd', 'sed', 'rad', 'fir', 'neb', 'lya', 'lwb', 'lyc', 'xray', 'rte']
     data = []
     for i, pop in enumerate(sim.pops):
-        rows.append('pop #%i' % i)
+        rows.append('pop %i' % i)
         if re.search('link', pop.pf['pop_sfr_model']):
             junk, quantity, num = pop.pf['pop_sfr_model'].split(':')
             mod = '%s->%i' % (quantity, int(num))
@@ -532,7 +533,7 @@ def _rad_type(sim, fluctuations=False):
             if fl != fluctuations:
                 continue
 
-            for band in ['radio', 'oir', 'lya', 'lw', 'ion', 'heat']:
+            for band in ['radio', 'fir', 'neb', 'lya', 'lw', 'ion', 'heat']:
                 is_src = pop.__getattribute__('is_src_%s%s' % (band, suffix[j]))
 
                 if is_src:
@@ -580,14 +581,14 @@ def print_sim(sim, mgb=False):
         print("#"*width)
         return
 
-    cw =print(line('-'*twidth))
+    cw = print(line('-'*twidth))
     print(line('Source Populations'))
     print(line('-'*twidth))
 
     data, rows, cols = _rad_type(sim)
 
     cw = settings['col']
-    cwidth = [cw+1, cw+4] + [cw] * 8
+    cwidth = [cw, cw+4] + [cw] * 9
     tabulate(data, rows, cols, cwidth=cwidth, fmt='{!s}')
 
     #print line('-'*twidth)

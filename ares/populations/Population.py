@@ -115,8 +115,13 @@ class Population(object):
         self._eV_per_phot = {}
         self._conversion_factors = {}
 
-        assert self.pf['pop_star_formation'] + self.pf['pop_bh_formation'] <= 1, \
+        stars = self.pf['pop_star_formation']
+        bhs = self.pf['pop_bh_formation']
+        assert stars + bhs <= 1, \
             "Populations can only form stars OR black holes."
+
+        if self.is_src_neb and (not self.is_src_ion):
+            raise ValueError('Including nebular line emission for non-ionizing source!')
 
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
@@ -182,12 +187,6 @@ class Population(object):
         return self._zone
 
     @property
-    def is_src_anything(self):
-        if not hasattr(self, '_is_src_anything'):
-            self._is_src_anything = self.is_src_oir or self.is_src_uv \
-                or self.is_src_xray
-
-    @property
     def affects_cgm(self):
         if not hasattr(self, '_affects_cgm'):
             self._affects_cgm = self.is_src_ion_cgm
@@ -204,25 +203,6 @@ class Population(object):
         return self.pf['pop_aging']
 
     @property
-    def is_src_oir(self):
-        if not hasattr(self, '_is_src_oir'):
-            if self.pf['pop_sed_model']:
-                self._is_src_oir = \
-                    ((self.pf['pop_Emax'] >= 1e-2) and \
-                    (self.pf['pop_Emin'] <= 4.13)) \
-                    and self.pf['pop_oir_src']
-
-                # Emission (roughly) between 100 microns and 3000 Angstroms
-            else:
-                self._is_src_oir = self.pf['pop_oir_src']
-
-        return self._is_src_oir
-
-    @property
-    def is_src_oir_fl(self):
-        return False
-
-    @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
             if self.pf['pop_sed_model']:
@@ -234,6 +214,15 @@ class Population(object):
                 self._is_src_radio = self.pf['pop_radio_src']
 
         return self._is_src_radio
+
+    @property
+    def is_src_neb(self):
+        return self.pf['pop_nebular'] and \
+            (self.pf['pop_nebular_lines'] or self.pf['pop_nebular_continuum'])
+
+    @property
+    def is_src_fir(self):
+        return False
 
     @property
     def is_src_radio_fl(self):
