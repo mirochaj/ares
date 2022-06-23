@@ -16,6 +16,7 @@ from .Source import Source
 from ..util.Math import interp1d
 from ares.physics import Cosmology
 from scipy.optimize import minimize
+from scipy.integrate import cumtrapz
 from ..util.ReadData import read_lit
 from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
@@ -590,7 +591,7 @@ class SynthesisModelBase(Source):
             self._Nlw = self.PhotonsPerBaryon(10.2, 13.6)
         return self._Nlw
 
-    def PhotonsPerBaryon(self, Emin, Emax, raw=True):
+    def PhotonsPerBaryon(self, Emin, Emax, raw=True, return_all_t=False):
         """
         Compute the number of photons emitted per unit stellar baryon.
 
@@ -624,7 +625,11 @@ class SynthesisModelBase(Source):
         # Integrate (cumulatively) over time
         if self.pf['source_ssp']:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
-            return np.trapz(photons_per_b_t, x=self.times*s_per_myr)
+            if return_all_t:
+                return cumtrapz(photons_per_b_t, x=self.times*s_per_myr,
+                    initial=0.0)
+            else:
+                return np.trapz(photons_per_b_t, x=self.times*s_per_myr)
         # Take steady-state result
         else:
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \

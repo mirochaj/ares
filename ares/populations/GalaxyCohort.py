@@ -1155,7 +1155,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self.get_lum(z, **kwargs)
 
     def get_lum(self, z, wave=1600, band=None, window=1,
-        energy_units=True, use_cache=True, raw=True, nebular_only=False):
+        energy_units=True, load=True, raw=True, nebular_only=False):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -1168,7 +1168,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if use_cache:
+        if load:
             cached_result = self._cache_L(z, wave, window, raw, nebular_only)
 
             if cached_result is not None:
@@ -1201,9 +1201,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Just the product of SFR and L_per_sfr
             Lh = sfr * L_sfr
-
-            if use_cache:
-                self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
+            self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
 
             return Lh
 
@@ -1241,7 +1239,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise NotImplemented('help')
 
     def get_mags(self, z, absolute=True, wave=1600, band=None, window=1,
-        use_cache=True, raw=True, nebular_only=False, apply_dustcorr=False):
+        load=True, raw=True, nebular_only=False, apply_dustcorr=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
 
@@ -1251,7 +1249,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         L = self.get_lum(z, wave=wave, band=band, window=window,
-            energy_units=True, use_cache=use_cache, raw=raw,
+            energy_units=True, load=load, raw=raw,
             nebular_only=nebular_only)
 
         mags = self.magsys.L_to_MAB(L)
@@ -1382,13 +1380,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._phi_of_M[z]
 
     def get_mag_lim(self, z, absolute=True, wave=1600, band=None, window=1,
-        use_cache=True, raw=True, nebular_only=False, apply_dustcorr=False):
+        load=True, raw=True, nebular_only=False, apply_dustcorr=False):
         """
         Compute the magnitude corresponding to the minimum mass threshold.
         """
 
         mags = self.get_mags(z, absolute=absolute, wave=wave, band=band,
-            window=window, use_cache=use_cache, raw=raw,
+            window=window, load=load, raw=raw,
             nebular_only=nebular_only, apply_dustcorr=apply_dustcorr)
 
         Mmin = self.get_Mmin(z)
@@ -1744,7 +1742,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         .. note :: Just a wrapper around `self.dust.AUV`, which is using
             empirical dust corrections.
-            
+
         """
         return self.dust.AUV(z, MUV)
 
@@ -2152,7 +2150,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._tab_sfrd_total_
 
     def get_sfrd_in_mag_range(self, z, lo=None, hi=-17, absolute=True, wave=1600,
-        band=None, window=1, use_cache=True, raw=True, nebular_only=False,
+        band=None, window=1, load=True, raw=True, nebular_only=False,
         apply_dustcorr=False):
         """
         Return SFRD integrated above some limiting magnitude.
@@ -2175,7 +2173,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
 
         mags = self.get_mags(z, absolute=absolute, wave=wave, band=band,
-            window=window, use_cache=use_cache, raw=raw,
+            window=window, load=load, raw=raw,
             nebular_only=nebular_only)
 
         Mh = self.get_mass(z, kind='halo')

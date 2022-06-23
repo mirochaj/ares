@@ -6,7 +6,11 @@ rapidly generate models for the global 21-cm signal. It can also be used as a
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver,
 global radiation background calculator, or semi-analytic galaxy formation model.
 
-A few papers on how it works:
+The documentation is [here](https://ares.readthedocs.io/en/latest/index.html).
+
+## Technical Details
+
+The main papers that describe how ARES works include:
 
 - 1-D radiative transfer: [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M)
 - Uniform backgrounds \& global 21-cm signal: [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M)
