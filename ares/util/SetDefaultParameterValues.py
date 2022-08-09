@@ -677,7 +677,7 @@ def PopulationParameters():
     "pop_aging": False,
     "pop_enrichment": False,
     "pop_quench": None,
-    "pop_quench_by": 'mass',
+    "pop_quench_method": 'zreion',
     "pop_flag_sSFR": None,
     "pop_flag_tau": None,
 
