@@ -513,6 +513,10 @@ def PopulationParameters():
 
     "pop_type": 'galaxy',
 
+    "pop_target_volume": None,
+    "pop_target_redshift": None,
+    "pop_target_seed": None,
+
     "pop_tunnel": None,
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,

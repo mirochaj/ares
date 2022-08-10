@@ -272,6 +272,72 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def _cache_halos(self, value):
         self._cache_halos_ = value
 
+    def _get_target_halos(self, raw):
+        Nz = raw['z'].size
+        tvol = self.pf['pop_target_volume']
+        tred = self.pf['pop_target_redshift']
+        tseed = self.pf['pop_target_seed']
+
+        ##
+        # Modify raw histories if volume provided.
+        assert tred is not None
+
+        # Here, each element corresponds to a distinct halo.
+        # Will add Poisson noise only.
+
+        # Loop over bins, draw halos, then add noise etc.
+        iztred = np.argmin(np.abs(tred - raw['z']))
+
+        # Mean number of halos in each mass bin at target redshift
+        Nlam = raw['nh'][:,iztred] * tvol
+
+        np.random.seed(seed=tseed)
+
+        # Actual number in target volume
+        Nact = np.random.poisson(lam=Nlam, size=Nlam.size)
+
+        Mmin = self.guide.Mmin(raw['z'])
+
+        # Loop over mass bins, create halo histories.
+        # Need to create dictionary containing 'Mh', 'MAR', 'nh', etc.,
+        # where each is 2-D array in (halo number, time)
+        ct = 0
+        for i, Nbin in enumerate(Nact):
+
+            # Skip Mh < Mmin for efficiency.
+            if np.all(raw['Mh'][i,iztred:] < Mmin[iztred:]):
+                continue
+
+            if Nbin == 0:
+                continue
+
+            _Mh = raw['Mh'][i,:]
+            _MAR = raw['MAR'][i,:]
+
+            _MhT = np.tile(_Mh, (Nbin, 1))
+            _MART = np.tile(_MAR, (Nbin, 1))
+
+            if ct == 0:
+                print("# Generating {} individual halos from {} mass bins...".format(
+                    Nact[i:].sum(), Nact.size))
+
+                Mh = _MhT
+                MAR = _MART
+            else:
+                Mh = np.vstack((Mh, _MhT))
+                MAR = np.vstack((MAR, _MART))
+
+            ct += 1
+
+        nh = np.ones(Mh.shape)
+
+        out = raw.copy()
+        out['Mh'] = Mh
+        out['nh'] = nh
+        out['MAR'] = MAR
+
+        return out
+
     def _gen_halo_histories(self):
         """
         From a set of smooth halo assembly histories, build a bigger set
@@ -281,9 +347,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if hasattr(self, '_cache_halos_'):
             return self._cache_halos
 
+        thin = self.pf['pop_thin_hist']
+
         raw = self.load()
 
-        thin = self.pf['pop_thin_hist']
+        if self.pf['pop_target_volume'] is not None:
+            assert thin in [None, 0, 1, False]
+            raw = self._get_target_halos(raw)
 
         if thin > 1:
             assert self.pf['pop_histories'] is None, \
@@ -2869,11 +2939,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #if self.pf['pop_fobsc']:
         #fobsc = (1. - self.guide.fobsc(z=z, Mh=self.halos.tab_M))
 
-        hist, bin_histedges = np.histogram(y[yok==1],
-            weights=w[yok==1], bins=bin_c2e(x), density=True)
+        if np.all(w[yok==1] == 1):
+            hist, bin_histedges = np.histogram(y[yok==1],
+                bins=bin_c2e(x), density=False)
+            dbin = bin_histedges[1] - bin_histedges[0]
+            phi = hist / self.pf['pop_target_volume'] / dbin
+        else:
+            hist, bin_histedges = np.histogram(y[yok==1],
+                weights=w[yok==1], bins=bin_c2e(x), density=True)
 
-        N = np.sum(w[yok==1])
-        phi = hist * N
+            N = np.sum(w[yok==1])
+            phi = hist * N
 
         #self._cache_lf_[(z, wave)] = x, phi
 
