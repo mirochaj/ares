@@ -515,6 +515,7 @@ def PopulationParameters():
 
     "pop_target_volume": None,
     "pop_target_redshift": None,
+    "pop_target_density": 0.,
     "pop_target_seed": None,
 
     "pop_tunnel": None,
@@ -654,8 +655,6 @@ def PopulationParameters():
     'pop_fstar_cloud': 1.,  # cloud-scale star formation efficiency
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
-
-    "pop_sfr": None,
 
     "pop_facc": 0.0,
     "pop_fsmooth": 1.0,

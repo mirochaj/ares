@@ -1101,10 +1101,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:
-            iz = np.argmin(np.abs(6. - z))
-            SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
-            np.multiply(SFR, MAR, out=SFR)
-            SFR *= fb
+            if self.pf['pop_sfr'] is not None:
+                SFR = np.ones_like(MAR) * self.pf['pop_sfr']
+                sigma_mar = self.pf['pop_scatter_mar']
+                np.random.seed(self.pf['pop_scatter_mar_seed'])
+                noise = self.get_noise_lognormal(SFR, sigma_mar)
+                SFR += noise
+            else:
+                SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
+                np.multiply(SFR, MAR, out=SFR)
+                SFR *= fb
 
         ##
         # Duty cycle effects

@@ -34,7 +34,8 @@ fits['lf']['err'] = \
  'alpha': [],
 }
 
-# Table 5
+# Table 5: reminder, errors stored in (+/-) order, will be flipped in internal
+# analysis routines to satisfy matplotlib's errorbar.
 tmp_data = {}
 tmp_data['lf'] = \
 {
