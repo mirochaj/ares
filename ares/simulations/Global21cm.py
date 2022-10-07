@@ -228,10 +228,12 @@ class Global21cm(AnalyzeGlobal21cm):
         # Need to generate radiation backgrounds first.
         if self.pf['radiative_transfer']:
             self.medium.field.run()
-            self._f_Ja  = self.medium.field._f_Ja
+            self._f_Jc  = self.medium.field._f_Jc
+            self._f_Ji  = self.medium.field._f_Ji
             self._f_Jlw = self.medium.field._f_Jlw
         else:
-            self._f_Ja  = lambda z: 0.0
+            self._f_Jc  = lambda z: 0.0
+            self._f_Ji  = lambda z: 0.0
             self._f_Jlw = lambda z: 0.0
 
         # Start timer
@@ -251,8 +253,10 @@ class Global21cm(AnalyzeGlobal21cm):
 
         # Add zeros for Ja
         for element in self.all_data_igm:
-            element['Ja'] = 0.0
-            element['Jlw'] = 0.0
+            element['Ja']  = np.zeros(self.grid.dims)
+            element['Jc']  = np.zeros(self.grid.dims)
+            element['Ji']  = np.zeros(self.grid.dims)
+            element['Jlw'] = np.zeros(self.grid.dims)
 
         # List for extrema-finding
         self.all_dTb = self._init_dTb()
@@ -319,7 +323,9 @@ class Global21cm(AnalyzeGlobal21cm):
         #self.history['dTb_bulk'] = self.history['igm_dTb_bulk']
 
         self.history['Ts'] = self.history['igm_Ts']
-        self.history['Ja'] = self.history['igm_Ja']
+        self.history['Jc'] = self.history['igm_Jc']
+        self.history['Ji'] = self.history['igm_Ji']
+        self.history['Ja'] = self.history['igm_Jc'] + self.history['igm_Ji']
         self.history['Jlw'] = self.history['igm_Jlw']
 
         # Save rate coefficients [optional]
@@ -409,8 +415,10 @@ class Global21cm(AnalyzeGlobal21cm):
 
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():
 
-            Ja = np.atleast_1d(self._f_Ja(z))
+            Jc = np.atleast_1d(self._f_Jc(z))
+            Ji = np.atleast_1d(self._f_Ji(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
+            Ja = Jc + Ji
 
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
@@ -432,7 +440,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb, #'dTb_bulk': dTb_b,
-                'Ja': Ja, 'Jlw': Jlw})
+                'Jc': Jc, 'Ji': Ji, 'Ja': Ja, 'Jlw': Jlw})
 
             # Yield!
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm

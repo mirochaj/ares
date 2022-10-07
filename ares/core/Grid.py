@@ -340,6 +340,12 @@ class Grid(object):
         return self._exotic_heating
 
     @property
+    def lya_heating(self):
+        if not hasattr(self, '_lya_heating'):
+            self.set_physics()
+        return self._lya_heating
+
+    @property
     def clumping_factor(self):
         if not hasattr(self, '_clumping_factor'):
             self.set_physics()
@@ -376,7 +382,7 @@ class Grid(object):
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
         clumping_factor=1.0, collisional_ionization=True, exotic_heating=False,
-        **kwargs):
+        lya_heating=0, **kwargs):
         self._isothermal = isothermal
         self._compton_scattering = compton_scattering
         self._secondary_ionization = secondary_ionization
@@ -384,6 +390,7 @@ class Grid(object):
         self._recombination = recombination
         self._collisional_ionization = collisional_ionization
         self._exotic_heating = exotic_heating
+        self._lya_heating = lya_heating
 
         if type(clumping_factor) is not types.FunctionType:
             self._clumping_factor = lambda z: clumping_factor

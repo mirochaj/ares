@@ -137,7 +137,9 @@ class GasParcel(object):
         self.rate_coefficients.update(
             {'k_ion': self.grid.zeros_grid_x_absorbers,
              'k_ion2': self.grid.zeros_grid_x_absorbers2,
-             'k_heat': self.grid.zeros_grid_x_absorbers},
+             'k_heat': self.grid.zeros_grid_x_absorbers,
+             'k_heat_lya': np.zeros(self.grid.dims),
+            },
         )
 
     def run(self):

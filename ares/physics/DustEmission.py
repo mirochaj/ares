@@ -472,7 +472,7 @@ class DustEmission(object):
         return freqs, SED
 
     def Luminosity(self, z, wave = 3e5, band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True, total_IR = False):
+        load=True, energy_units=True, total_IR = False):
         """
         (num, num) -> 1darray
 
@@ -510,7 +510,7 @@ class DustEmission(object):
         # print("CALLING DUST LUMINOSITY FUNCTION")
 
         # is cached, we take it from the cache
-        if use_cache and (z in self.z) and hasattr(self, '_L_nu'):
+        if load and (z in self.z) and hasattr(self, '_L_nu'):
             index = np.where(self.z == z)[0][0]
             # Here we have the luminosities in ergs / s / Hz
             if not total_IR:

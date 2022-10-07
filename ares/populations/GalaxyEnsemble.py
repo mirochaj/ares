@@ -272,6 +272,72 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def _cache_halos(self, value):
         self._cache_halos_ = value
 
+    def _get_target_halos(self, raw):
+        Nz = raw['z'].size
+        tvol = self.pf['pop_target_volume']
+        tred = self.pf['pop_target_redshift']
+        tseed = self.pf['pop_target_seed']
+
+        ##
+        # Modify raw histories if volume provided.
+        assert tred is not None
+
+        # Here, each element corresponds to a distinct halo.
+        # Will add Poisson noise only.
+
+        # Loop over bins, draw halos, then add noise etc.
+        iztred = np.argmin(np.abs(tred - raw['z']))
+
+        # Mean number of halos in each mass bin at target redshift
+        Nlam = raw['nh'][:,iztred] * tvol
+
+        np.random.seed(seed=tseed)
+
+        # Actual number in target volume
+        Nact = np.random.poisson(lam=Nlam, size=Nlam.size)
+
+        Mmin = self.guide.Mmin(raw['z'])
+
+        # Loop over mass bins, create halo histories.
+        # Need to create dictionary containing 'Mh', 'MAR', 'nh', etc.,
+        # where each is 2-D array in (halo number, time)
+        ct = 0
+        for i, Nbin in enumerate(Nact):
+
+            # Skip Mh < Mmin for efficiency.
+            if np.all(raw['Mh'][i,iztred:] < Mmin[iztred:]):
+                continue
+
+            if Nbin == 0:
+                continue
+
+            _Mh = raw['Mh'][i,:]
+            _MAR = raw['MAR'][i,:]
+
+            _MhT = np.tile(_Mh, (Nbin, 1))
+            _MART = np.tile(_MAR, (Nbin, 1))
+
+            if ct == 0:
+                print("# Generating {} individual halos from {} mass bins...".format(
+                    Nact[i:].sum(), Nact.size))
+
+                Mh = _MhT
+                MAR = _MART
+            else:
+                Mh = np.vstack((Mh, _MhT))
+                MAR = np.vstack((MAR, _MART))
+
+            ct += 1
+
+        nh = np.ones(Mh.shape)
+
+        out = raw.copy()
+        out['Mh'] = Mh
+        out['nh'] = nh
+        out['MAR'] = MAR
+
+        return out
+
     def _gen_halo_histories(self):
         """
         From a set of smooth halo assembly histories, build a bigger set
@@ -281,9 +347,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if hasattr(self, '_cache_halos_'):
             return self._cache_halos
 
+        thin = self.pf['pop_thin_hist']
+
         raw = self.load()
 
-        thin = self.pf['pop_thin_hist']
+        if self.pf['pop_target_volume'] is not None:
+            assert thin in [None, 0, 1, False]
+            raw = self._get_target_halos(raw)
 
         if thin > 1:
             assert self.pf['pop_histories'] is None, \
@@ -1031,10 +1101,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:
-            iz = np.argmin(np.abs(6. - z))
-            SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
-            np.multiply(SFR, MAR, out=SFR)
-            SFR *= fb
+            if self.pf['pop_sfr'] is not None:
+                SFR = np.ones_like(MAR) * self.pf['pop_sfr']
+                sigma_mar = self.pf['pop_scatter_mar']
+                np.random.seed(self.pf['pop_scatter_mar_seed'])
+                noise = self.get_noise_lognormal(SFR, sigma_mar)
+                SFR += noise
+            else:
+                SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
+                np.multiply(SFR, MAR, out=SFR)
+                SFR *= fb
 
         ##
         # Duty cycle effects
@@ -1105,12 +1181,21 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Mmin = self.halos.VirialMass(z2d, self.pf['pop_Tmin'])
             above_Mmin = Mh >= Mmin
 
+        # Cut out Mh < Mmin galaxies
+        if self.pf['pop_Mmax'] is not None:
+            above_Mmax = Mh >= self.pf['pop_Mmax']
+        else:
+            above_Mmax = np.zeros_like(Mh)
+
         # Bye bye guys
         SFR[above_Mmin==False] = 0
+        SFR[above_Mmax==True] = 0
 
         ##
         # Introduce some by-hand quenching.
-        if self.pf['pop_quench'] is not None:
+        qmethod = self.pf['pop_quench_method']
+        #print('HELLO', qmethod, self.pf['pop_quench'])
+        if (self.pf['pop_quench'] is not None) and (qmethod == 'zreion'):
             zreion = self.pf['pop_quench']
             if type(zreion) in [np.ndarray, np.ma.core.MaskedArray]:
                 assert zreion.size == Mh.size, \
@@ -1166,6 +1251,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if sum(SFR[ok==1] == 0) < sum(is_quenched[ok==1]):
                     raise ValueError(err)
 
+        elif (self.pf['pop_quench'] is not None) and \
+           (qmethod in ['Mh', 'mass', 'sfr']):
+
+            is_quenched = np.zeros_like(Mh)
+
+            if qmethod in ['mass', 'Mh']:
+                is_quenched[Mh > self.pf['pop_quench']] = 1
+            elif qmethod == 'sfr':
+                is_quenched[SFR > self.pf['pop_quench']] = 1
+            else:
+                raise NotImplemented('help')
+
+            # Bye bye guys
+            SFR[is_quenched==True] = 0
+
+            print('quenched', is_quenched.sum() / float(is_quenched.size))
+
 
         # Stellar mass should have zeros padded at the 0th time index
         Ms = np.hstack((zeros_like_Mh,
@@ -1181,19 +1283,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         if have_dust:
 
-            delay = self.pf['pop_dust_yield_delay']
+            if self.pf['pop_dust_yield_delay'] not in [0, None]:
+                have_delay = True
+            else:
+                have_delay = False
+
+            delay = self.guide.dust_yield_delay(z=z2d, Mh=Mh)
 
             if np.all(fg == 0):
-                if type(fd) in [int, float, np.float64] and delay == 0:
+                if type(fd) in [int, float, np.float64] and (not have_delay):
                     Md = fd * fZy * Ms
                 else:
 
-                    if delay > 0:
+                    if have_delay:
 
                         assert np.allclose(np.diff(dt_myr), 0.0,
                             rtol=1e-5, atol=1e-5)
 
-                        shift = int(delay // dt_myr[0])
+                        shift = np.array(delay // dt_myr[0], dtype=int)
 
                         # Need to fix so Mh-dep fd can still work.
                         assert type(fd) in [int, float, np.float64]
@@ -1360,6 +1467,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pos = halos['pos'][:,-1::-1,:]
             else:
                 pos = None
+
+        # Can null dust reddening by hand if we want.
+        if np.isfinite(self.pf['pop_dust_kill_redshift']):
+            Sd[np.argwhere(z2d > self.pf['pop_dust_kill_redshift'])] = 0.0
+            Md[np.argwhere(z2d > self.pf['pop_dust_kill_redshift'])] = 0.0
 
         del z2d
 
@@ -1577,6 +1689,36 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_field(self, z, field):
         iz = np.argmin(np.abs(z - self.histories['z']))
         return self.histories[field][:,iz]
+
+    def get_ages(self, z, mass_frac=0.5):
+        """
+        Get age of galaxies (in Myr), assumed to be time since they assembled
+        `mass_frac` times their mass at redshift `z`.
+        """
+
+        iz = np.argmin(np.abs(z - self.histories['z']))
+
+        Ms = self.get_field(z, 'Ms')
+        ages = np.zeros_like(Ms)
+
+        tasc = self.histories['t'][-1::-1]
+        zasc = self.histories['z'][-1::-1]
+        for i, _z_ in enumerate(zasc):
+            if _z_ <= z:
+                continue
+
+            Ms_z_ = self.get_field(_z_, 'Ms')
+            is_double = Ms_z_ < mass_frac * Ms
+            is_new = ages == 0
+
+            ok = is_double * is_new
+            dt = self.histories['t'][iz] - tasc[i]
+            ages[ok==1] = dt
+
+            if np.all(ages > 0):
+                break
+
+        return ages
 
     def StellarMassFunction(self, z, bins=None, units='dex'):
         return self.get_smf(z, bins=bins, units=units)
@@ -2155,15 +2297,14 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return xout, M_final
 
     def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True):
+        load=True, energy_units=True):
         """
         For backward compatibility as we move to get_* method model.
 
         See `get_lum` below.
         """
         return self.get_lum(z, wave=wave, band=band, idnum=idnum,
-            window=window, load=load, use_cache=use_cache,
-            energy_units=energy_units)
+            window=window, load=load, energy_units=energy_units)
 
     def _dlam_check(self, dlam):
         if self.pf['pop_sed_degrade'] is None:
@@ -2316,7 +2457,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return owaves, flux
 
     def get_lum(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, use_cache=True, energy_units=True):
+        load=True, energy_units=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
 
@@ -2347,7 +2488,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
 
         """
-        cached_result = self._cache_L((z, wave, band, idnum, window))
+        cached_result = self._cache_L((z, wave, band, idnum, window,
+            energy_units))
         if load and (cached_result is not None):
             return cached_result
 
@@ -2356,17 +2498,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #        "Going to get weird answers for L(band != None) if dust is ON."
 
         raw = self.histories
-        if wave > self.src.wavelengths.max():
+        if (wave is not None) and (wave > self.src.wavelengths.max()):
             L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum,
-                window=window, load=load, use_cache=use_cache, energy_units=energy_units)
+                window=window, load=load, energy_units=energy_units)
         else:
             L = self.synth.get_lum(wave=wave, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
-                use_cache=use_cache, band=band, energy_units=energy_units)
+                band=band, energy_units=energy_units)
 
-        if use_cache:
-
-            self._cache_L_[(z, wave, band, idnum, window)] = L.copy()
+        self._cache_L_[(z, wave, band, idnum, window, energy_units)] = L.copy()
 
         return L
 
@@ -2700,6 +2840,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         cached_result = self._cache_lf(z, bins, wave)
 
         if (cached_result is not None) and load:
+            print("WARNING: should we be doing this?")
             return cached_result
 
         # These are kept in descending redshift just to make life difficult.
@@ -2801,11 +2942,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             assert y[yok==1].min() < x.min()
             assert y[yok==1].max() > x.max()
 
-        hist, bin_histedges = np.histogram(y[yok==1],
-            weights=w[yok==1], bins=bin_c2e(x), density=True)
+        #if self.pf['pop_fobsc']:
+        #fobsc = (1. - self.guide.fobsc(z=z, Mh=self.halos.tab_M))
 
-        N = np.sum(w[yok==1])
-        phi = hist * N
+        if np.all(w[yok==1] == 1):
+            hist, bin_histedges = np.histogram(y[yok==1],
+                bins=bin_c2e(x), density=False)
+            dbin = bin_histedges[1] - bin_histedges[0]
+            phi = hist / self.pf['pop_target_volume'] / dbin
+        else:
+            hist, bin_histedges = np.histogram(y[yok==1],
+                weights=w[yok==1], bins=bin_c2e(x), density=True)
+
+            N = np.sum(w[yok==1])
+            phi = hist * N
 
         #self._cache_lf_[(z, wave)] = x, phi
 
@@ -3434,20 +3584,22 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return hist
 
     def SurfaceDensity(self, z, bins, dz=1., dtheta=1., wave=1600.,
-        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=True, use_mags=True):
+        cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
+        method='closest', window=1, load=True, presets=None, absolute=True,
+        use_mags=True):
         """
         For backward compatibility. See `get_surface_density`.
         """
         return self.get_surface_density(z=z, bins=bins, dz=dz, dtheta=dtheta,
             wave=wave, cam=cam, filters=filters, filter_set=filter_set,
-            dlam=dlam, method=method, use_mags=use_mags,
+            dlam=dlam, method=method, use_mags=use_mags, depths=depths,
             window=window, load=load, presets=presets, absolute=absolute)
 
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
-        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
-        window=1, load=True, presets=None, absolute=False, use_mags=True,
-        use_central_z=True, zstep=0.1, return_evol=False, use_volume=True):
+        cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
+        method='closest', window=1, load=True, presets=None, absolute=False,
+        use_mags=True, use_central_z=True, zstep=0.1, return_evol=False,
+        use_volume=False, save_by_band=False):
         """
         Compute surface density of galaxies [number / deg^2 / dz]
 
@@ -3458,60 +3610,79 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         square degree.
         """
 
-        # Simplest thing: take central redshift, assume same UVLF throughout
-        # dz interval along LOS.
-        if use_central_z:
-            # First, compute the luminosity function.
-            x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
-                filters=filters, filter_set=filter_set, dlam=dlam, method=method,
-                window=window, load=load, presets=presets, absolute=absolute,
-                use_mags=use_mags)
+        if type(filters) not in [list, tuple]:
+            filters = filters,
 
-            # Compute the volume of the shell we're looking at [cMpc^3]
-            if use_volume:
-                vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
-            else:
-                vol = 1
+        if depths is not None:
+            assert len(depths) == len(filters)
 
-            # Get total number of galaxies in volume
-            Ngal = phi * vol
-        else:
-            # Sub-sample redshift interval
-            zbin_e = np.arange(z - 0.5 * dz, z + 0.5 * dz, zstep)
+        Ngal = np.zeros((len(filters), bins.size))
+        nltm = np.zeros((len(filters), bins.size))
+        for i, filt in enumerate(filters):
 
-            phi = np.zeros((zbin_e.size, bins.size))
-            vol = np.zeros_like(zbin_e)
-            for i, ze in enumerate(zbin_e):
-                zmid = ze + 0.5 * zstep
+            # Simplest thing: take central redshift, assume same UVLF throughout
+            # dz interval along LOS.
+            if use_central_z:
 
-                # Compute LF at midpoint of this bin.
-                x, phi[i] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
-                    filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                # First, compute the luminosity function.
+                x, phi = self.get_lf(z, bins=bins, wave=wave, cam=cam,
+                    filters=filt, filter_set=filter_set, dlam=dlam, method=method,
                     window=window, load=load, presets=presets, absolute=absolute,
                     use_mags=use_mags)
 
                 # Compute the volume of the shell we're looking at [cMpc^3]
                 if use_volume:
-                    vol[i] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
-                        dz=zstep)
+                    vol = 1
                 else:
-                    vol[i] = 1
+                    vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
 
-            # Integrate over the redshift interval
-            Ngal = np.sum(phi * vol[:,None], axis=0)
+                # Get total number of galaxies in volume in each bin.
+                Ngal[i,:] = phi * vol
+            else:
+                assert depths is None, "Not implemented!"
 
-        # Faint to bright
-        Ngal_asc = Ngal[-1::-1]
-        x_asc = x[-1::-1]
+                # Sub-sample redshift interval
+                zbin_e = np.arange(z - 0.5 * dz, z + 0.5 * dz, zstep)
 
-        # At this point, magnitudes are in ascending order, i.e., bright to
-        # faint.
+                phi = np.zeros((zbin_e.size, bins.size))
+                vol = np.zeros_like(zbin_e)
+                for j, ze in enumerate(zbin_e):
+                    zmid = ze + 0.5 * zstep
 
-        # Cumulative surface density of galaxies *brighter than*
-        # some corresponding magnitude
-        assert Ngal[0] == 0, "Broaden binning range?"
-        ntot = np.trapz(Ngal, x=x)
-        nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
+                    # Compute LF at midpoint of this bin.
+                    x, phi[j] = self.get_lf(zmid, bins=bins, wave=wave, cam=cam,
+                        filters=filt, filter_set=filter_set, dlam=dlam, method=method,
+                        window=window, load=load, presets=presets, absolute=absolute,
+                        use_mags=use_mags)
+
+                    # Compute the volume of the shell we're looking at [cMpc^3]
+                    if use_volume:
+                        vol[j] = 1
+                    else:
+                        vol[j] = self.cosm.ProjectedVolume(zmid, angle=dtheta,
+                            dz=zstep)
+
+                # Integrate over the redshift interval
+                Ngal[i,:] = np.sum(phi * vol[:,None], axis=0)
+
+            # Faint to bright
+            Ngal_asc = Ngal[i,-1::-1]
+            x_asc = x[-1::-1]
+
+            # At this point, magnitudes are in ascending order, i.e., bright to
+            # faint.
+
+            # Cumulative surface density of galaxies *brighter than*
+            # some corresponding magnitude
+            assert Ngal[i,0] == 0, "Broaden binning range?"
+            #ntot = np.trapz(Ngal[i,:], x=x)
+            nltm[i,:] = cumtrapz(Ngal[i,:], x=x, initial=Ngal[i,0])
+
+        # Can just return *maximum* number of galaxies detected,
+        # regardless of band. Equivalent to requiring only single-band
+        # detection.
+        if not save_by_band:
+            nltm = np.max(nltm, axis=0)
 
         if return_evol and (not use_central_z):
             return x, nltm, zbin_e, phi, vol
@@ -3526,7 +3697,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         Return volume density of galaxies in given `dz` chunk.
 
         .. note :: Just a wrapper around `get_surface_density`, with
-            hack parameter `use_volume` set to False and `use_central_z` to
+            hack parameter `use_volume` set to True and `use_central_z` to
             True.
 
 
@@ -3536,7 +3707,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
             method=method, window=window, load=load, presets=presets,
             absolute=absolute, use_mags=use_mags, use_central_z=True,
-            zstep=zstep, return_evol=return_evol, use_volume=False)
+            zstep=zstep, return_evol=return_evol, use_volume=True)
 
     def load(self):
         """

@@ -548,7 +548,7 @@ def _rad_type(sim, fluctuations=False):
             if pop.pf['pop_solve_rte']:
                 tmp.append('x')
             else:
-                tmp.append(' ')
+                tmp.append('-')
 
         data.append(tmp)
 

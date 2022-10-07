@@ -6,7 +6,11 @@ rapidly generate models for the global 21-cm signal. It can also be used as a
 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver,
 global radiation background calculator, or semi-analytic galaxy formation model.
 
-A few papers on how it works:
+The documentation is [here](https://ares.readthedocs.io/en/latest/index.html).
+
+## Technical Details
+
+The main papers that describe how ARES works include:
 
 - 1-D radiative transfer: [Mirocha et al. (2012)](http://adsabs.harvard.edu/abs/2012ApJ...756...94M)
 - Uniform backgrounds \& global 21-cm signal: [Mirocha (2014)](http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M)
@@ -37,7 +41,7 @@ Note that for some applications, ARES relies heavily on lookup tables and public
 - The Halo Mass Function ([hmf](https://hmf.readthedocs.io/en/latest/)) package (see [Murray et al.(2013)](https://arxiv.org/abs/1306.6721)).
 - Lookup tables and fitting formulae for the fraction of photo-electron energy deposited in heat, ionization, excitation from [Shull \& van Steenberg (1985)](https://ui.adsabs.harvard.edu/abs/1985ApJ...298..268S/abstract), [Ricotti, Gnedin, \& Shull (2002)](https://ui.adsabs.harvard.edu/abs/2002ApJ...575...33R/abstract), and [Furlanetto \& Stoever (2010)](https://ui.adsabs.harvard.edu/abs/2010MNRAS.404.1869F/abstract) (see `secondary_ionization` parameter, values of 2, 3, and 4, respectively).
 - Collisional coupling coefficients for the 21-cm line from [Zygelman (2005)](https://ui.adsabs.harvard.edu/abs/2005ApJ...622.1356Z/abstract).
-- Wouthuysen-Field coupling coefficients for the 21-cm line from [Chuzhoy, Alvarez, & Shapiro (2006)](https://ui.adsabs.harvard.edu/abs/2006ApJ...651....1C/abstract), [Furlanetto \& Pritchard (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.372.1093F/abstract), and [Hirata (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367..259H/abstract) (see `approx_Salpha` parameter, values of 2, 3, and 4 respectively).
+- Wouthuysen-Field coupling coefficients for the 21-cm line from [Chuzhoy, Alvarez, & Shapiro (2006)](https://ui.adsabs.harvard.edu/abs/2006ApJ...651....1C/abstract), [Furlanetto \& Pritchard (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.372.1093F/abstract), [Hirata (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367..259H/abstract), and [Mittal & Kulkarni (2021)](https://ui.adsabs.harvard.edu/abs/2021MNRAS.503.4264M/abstract) (see `approx_Salpha` parameter, values of 2, 3, 4, and 5, respectively).
 - Lyman-alpha transition probabilities from [Pritchard \& Furlanetto (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367.1057P/abstract).
 - Stellar population synthesis model options include starburst99 ([Leitherer et al. (1999)](https://ui.adsabs.harvard.edu/abs/1999ApJS..123....3L/abstract)) and BPASS versions 1 ([Eldridge \& Stanway (2009)](https://ui.adsabs.harvard.edu/abs/2009MNRAS.400.1019E/abstract)) and 2 ([Eldridge et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017PASA...34...58E/abstract),[Stanway \& Eldridge (2018)](https://ui.adsabs.harvard.edu/abs/2018MNRAS.479...75S/abstract)) (via `pop_sed` parameter, values `'starburst99'`, `'bpass_v1'`, and `'bpass_v2'`, respectively).
 
@@ -70,6 +74,13 @@ If you'd like to build the documentation locally, you'll need:
 
 - [numpydoc](https://numpydoc.readthedocs.io/en/latest/)
 - [nbsphinx](https://nbsphinx.readthedocs.io/en/0.8.8/)
+
+and if you'd like to run the test suite locally, you'll want:
+
+- [pytest](https://docs.pytest.org/en/7.1.x/)
+- [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/)
+
+which are pip-installable.
 
 Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
 
@@ -159,3 +170,4 @@ Additional contributions / corrections / suggestions from:
 - Venno Vipp
 - Oscar Hernandez
 - Joshua Hibbard
+- Trey Driskell

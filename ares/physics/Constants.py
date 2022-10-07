@@ -81,6 +81,7 @@ sigma_SB = 2.0 * pi**5 * k_B**4 / 15.0 / c**2 / h**3
 
 # Hydrogen
 A10 = 2.85e-15 				    # HI 21cm spontaneous emission coefficient - [A10] = Hz
+A_LyA = 6.25e8
 E10 = 5.9e-6 				    # Energy difference between hyperfine states - [E10] = eV
 m_H = m_p + m_e 			    # Mass of a hydrogen atom - [m_H] = g
 nu_0 = 1420.4057e6 			    # Rest frequency of HI 21cm line - [nu_0] = Hz

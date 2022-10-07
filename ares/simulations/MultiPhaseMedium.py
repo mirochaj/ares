@@ -155,6 +155,10 @@ class MultiPhaseMedium(object):
             {'k_ion': np.zeros((grid.dims, grid.N_absorbers)),
              'k_heat': np.zeros((grid.dims, grid.N_absorbers)),
              'k_ion2': np.zeros((grid.dims, grid.N_absorbers, grid.N_absorbers)),
+             'k_heat_lya': np.zeros(grid.dims),
+             'Jc': np.zeros(grid.dims),
+             'Ji': np.zeros(grid.dims),
+             'Ja': np.zeros(grid.dims),
             }
 
         return _rates_no_RT
