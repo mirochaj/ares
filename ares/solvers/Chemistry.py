@@ -118,14 +118,7 @@ class Chemistry(object):
 
             if self.rtON:
                 args = (cell, kwargs_cell['k_ion'], kwargs_cell['k_ion2'],
-<<<<<<< HEAD
-                    kwargs_cell['k_heat'], data['n'][cell], t)
-            else:
-                args = (cell, self.grid.zeros_absorbers,
-                    self.grid.zeros_absorbers2, self.grid.zeros_absorbers,
-=======
                     kwargs_cell['k_heat'], kwargs_cell['k_heat_lya'],
->>>>>>> main
                     data['n'][cell], t)
             else:
                 args = (cell, self.grid.zeros_absorbers,
