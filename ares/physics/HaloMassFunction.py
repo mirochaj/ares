@@ -1421,7 +1421,7 @@ class HaloMassFunction(object):
 
     def SaveHMF(self, fn=None, clobber=False, destination=None, fmt='hdf5',
         save_MAR=True):
-        self.save(fn=fn, clobber=clobber, destination=destination, fm=fmt,
+        self.save(fn=fn, clobber=clobber, destination=destination, fmt=fmt,
             save_MAR=save_MAR)
 
     def save(self, fn=None, clobber=False, destination=None, fmt='hdf5',

@@ -272,6 +272,72 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def _cache_halos(self, value):
         self._cache_halos_ = value
 
+    def _get_target_halos(self, raw):
+        Nz = raw['z'].size
+        tvol = self.pf['pop_target_volume']
+        tred = self.pf['pop_target_redshift']
+        tseed = self.pf['pop_target_seed']
+
+        ##
+        # Modify raw histories if volume provided.
+        assert tred is not None
+
+        # Here, each element corresponds to a distinct halo.
+        # Will add Poisson noise only.
+
+        # Loop over bins, draw halos, then add noise etc.
+        iztred = np.argmin(np.abs(tred - raw['z']))
+
+        # Mean number of halos in each mass bin at target redshift
+        Nlam = raw['nh'][:,iztred] * tvol
+
+        np.random.seed(seed=tseed)
+
+        # Actual number in target volume
+        Nact = np.random.poisson(lam=Nlam, size=Nlam.size)
+
+        Mmin = self.guide.Mmin(raw['z'])
+
+        # Loop over mass bins, create halo histories.
+        # Need to create dictionary containing 'Mh', 'MAR', 'nh', etc.,
+        # where each is 2-D array in (halo number, time)
+        ct = 0
+        for i, Nbin in enumerate(Nact):
+
+            # Skip Mh < Mmin for efficiency.
+            if np.all(raw['Mh'][i,iztred:] < Mmin[iztred:]):
+                continue
+
+            if Nbin == 0:
+                continue
+
+            _Mh = raw['Mh'][i,:]
+            _MAR = raw['MAR'][i,:]
+
+            _MhT = np.tile(_Mh, (Nbin, 1))
+            _MART = np.tile(_MAR, (Nbin, 1))
+
+            if ct == 0:
+                print("# Generating {} individual halos from {} mass bins...".format(
+                    Nact[i:].sum(), Nact.size))
+
+                Mh = _MhT
+                MAR = _MART
+            else:
+                Mh = np.vstack((Mh, _MhT))
+                MAR = np.vstack((MAR, _MART))
+
+            ct += 1
+
+        nh = np.ones(Mh.shape)
+
+        out = raw.copy()
+        out['Mh'] = Mh
+        out['nh'] = nh
+        out['MAR'] = MAR
+
+        return out
+
     def _gen_halo_histories(self):
         """
         From a set of smooth halo assembly histories, build a bigger set
@@ -281,9 +347,13 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if hasattr(self, '_cache_halos_'):
             return self._cache_halos
 
+        thin = self.pf['pop_thin_hist']
+
         raw = self.load()
 
-        thin = self.pf['pop_thin_hist']
+        if self.pf['pop_target_volume'] is not None:
+            assert thin in [None, 0, 1, False]
+            raw = self._get_target_halos(raw)
 
         if thin > 1:
             assert self.pf['pop_histories'] is None, \
@@ -1031,10 +1101,16 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if 'SFR' in halos:
             SFR = halos['SFR'][:,-1::-1]
         else:
-            iz = np.argmin(np.abs(6. - z))
-            SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
-            np.multiply(SFR, MAR, out=SFR)
-            SFR *= fb
+            if self.pf['pop_sfr'] is not None:
+                SFR = np.ones_like(MAR) * self.pf['pop_sfr']
+                sigma_mar = self.pf['pop_scatter_mar']
+                np.random.seed(self.pf['pop_scatter_mar_seed'])
+                noise = self.get_noise_lognormal(SFR, sigma_mar)
+                SFR += noise
+            else:
+                SFR = self.guide.get_fstar(z=z2d, Mh=Mh)
+                np.multiply(SFR, MAR, out=SFR)
+                SFR *= fb
 
         ##
         # Duty cycle effects
@@ -1105,12 +1181,21 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             Mmin = self.halos.VirialMass(z2d, self.pf['pop_Tmin'])
             above_Mmin = Mh >= Mmin
 
+        # Cut out Mh < Mmin galaxies
+        if self.pf['pop_Mmax'] is not None:
+            above_Mmax = Mh >= self.pf['pop_Mmax']
+        else:
+            above_Mmax = np.zeros_like(Mh)
+
         # Bye bye guys
         SFR[above_Mmin==False] = 0
+        SFR[above_Mmax==True] = 0
 
         ##
         # Introduce some by-hand quenching.
-        if self.pf['pop_quench'] is not None:
+        qmethod = self.pf['pop_quench_method']
+        #print('HELLO', qmethod, self.pf['pop_quench'])
+        if (self.pf['pop_quench'] is not None) and (qmethod == 'zreion'):
             zreion = self.pf['pop_quench']
             if type(zreion) in [np.ndarray, np.ma.core.MaskedArray]:
                 assert zreion.size == Mh.size, \
@@ -1166,6 +1251,23 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 if sum(SFR[ok==1] == 0) < sum(is_quenched[ok==1]):
                     raise ValueError(err)
 
+        elif (self.pf['pop_quench'] is not None) and \
+           (qmethod in ['Mh', 'mass', 'sfr']):
+
+            is_quenched = np.zeros_like(Mh)
+
+            if qmethod in ['mass', 'Mh']:
+                is_quenched[Mh > self.pf['pop_quench']] = 1
+            elif qmethod == 'sfr':
+                is_quenched[SFR > self.pf['pop_quench']] = 1
+            else:
+                raise NotImplemented('help')
+
+            # Bye bye guys
+            SFR[is_quenched==True] = 0
+
+            print('quenched', is_quenched.sum() / float(is_quenched.size))
+
 
         # Stellar mass should have zeros padded at the 0th time index
         Ms = np.hstack((zeros_like_Mh,
@@ -1181,19 +1283,24 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         ##
         if have_dust:
 
-            delay = self.pf['pop_dust_yield_delay']
+            if self.pf['pop_dust_yield_delay'] not in [0, None]:
+                have_delay = True
+            else:
+                have_delay = False
+
+            delay = self.guide.dust_yield_delay(z=z2d, Mh=Mh)
 
             if np.all(fg == 0):
-                if type(fd) in [int, float, np.float64] and delay == 0:
+                if type(fd) in [int, float, np.float64] and (not have_delay):
                     Md = fd * fZy * Ms
                 else:
 
-                    if delay > 0:
+                    if have_delay:
 
                         assert np.allclose(np.diff(dt_myr), 0.0,
                             rtol=1e-5, atol=1e-5)
 
-                        shift = int(delay // dt_myr[0])
+                        shift = np.array(delay // dt_myr[0], dtype=int)
 
                         # Need to fix so Mh-dep fd can still work.
                         assert type(fd) in [int, float, np.float64]
@@ -1360,6 +1467,11 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                 pos = halos['pos'][:,-1::-1,:]
             else:
                 pos = None
+
+        # Can null dust reddening by hand if we want.
+        if np.isfinite(self.pf['pop_dust_kill_redshift']):
+            Sd[np.argwhere(z2d > self.pf['pop_dust_kill_redshift'])] = 0.0
+            Md[np.argwhere(z2d > self.pf['pop_dust_kill_redshift'])] = 0.0
 
         del z2d
 
@@ -1577,6 +1689,36 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def get_field(self, z, field):
         iz = np.argmin(np.abs(z - self.histories['z']))
         return self.histories[field][:,iz]
+
+    def get_ages(self, z, mass_frac=0.5):
+        """
+        Get age of galaxies (in Myr), assumed to be time since they assembled
+        `mass_frac` times their mass at redshift `z`.
+        """
+
+        iz = np.argmin(np.abs(z - self.histories['z']))
+
+        Ms = self.get_field(z, 'Ms')
+        ages = np.zeros_like(Ms)
+
+        tasc = self.histories['t'][-1::-1]
+        zasc = self.histories['z'][-1::-1]
+        for i, _z_ in enumerate(zasc):
+            if _z_ <= z:
+                continue
+
+            Ms_z_ = self.get_field(_z_, 'Ms')
+            is_double = Ms_z_ < mass_frac * Ms
+            is_new = ages == 0
+
+            ok = is_double * is_new
+            dt = self.histories['t'][iz] - tasc[i]
+            ages[ok==1] = dt
+
+            if np.all(ages > 0):
+                break
+
+        return ages
 
     def StellarMassFunction(self, z, bins=None, units='dex'):
         return self.get_smf(z, bins=bins, units=units)
@@ -2800,11 +2942,20 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             assert y[yok==1].min() < x.min()
             assert y[yok==1].max() > x.max()
 
-        hist, bin_histedges = np.histogram(y[yok==1],
-            weights=w[yok==1], bins=bin_c2e(x), density=True)
+        #if self.pf['pop_fobsc']:
+        #fobsc = (1. - self.guide.fobsc(z=z, Mh=self.halos.tab_M))
 
-        N = np.sum(w[yok==1])
-        phi = hist * N
+        if np.all(w[yok==1] == 1):
+            hist, bin_histedges = np.histogram(y[yok==1],
+                bins=bin_c2e(x), density=False)
+            dbin = bin_histedges[1] - bin_histedges[0]
+            phi = hist / self.pf['pop_target_volume'] / dbin
+        else:
+            hist, bin_histedges = np.histogram(y[yok==1],
+                weights=w[yok==1], bins=bin_c2e(x), density=True)
+
+            N = np.sum(w[yok==1])
+            phi = hist * N
 
         #self._cache_lf_[(z, wave)] = x, phi
 

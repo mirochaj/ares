@@ -513,6 +513,11 @@ def PopulationParameters():
 
     "pop_type": 'galaxy',
 
+    "pop_target_volume": None,
+    "pop_target_redshift": None,
+    "pop_target_density": 0.,
+    "pop_target_seed": None,
+
     "pop_tunnel": None,
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
@@ -651,8 +656,6 @@ def PopulationParameters():
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
-    "pop_sfr": None,
-
     "pop_facc": 0.0,
     "pop_fsmooth": 1.0,
 
@@ -677,7 +680,7 @@ def PopulationParameters():
     "pop_aging": False,
     "pop_enrichment": False,
     "pop_quench": None,
-    "pop_quench_by": 'mass',
+    "pop_quench_method": 'zreion',
     "pop_flag_sSFR": None,
     "pop_flag_tau": None,
 
