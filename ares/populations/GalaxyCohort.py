@@ -269,7 +269,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._N_per_Msun[(Emin, Emax)]
 
         # Otherwise, calculate what it should be
-        if (Emin, Emax) == (E_LL, 24.6):
+        if (Emin, Emax) in [(E_LL, 24.6), (13.6, 24.6)]:
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.tab_M) \
                 * self.cosm.b_per_msun
@@ -393,8 +393,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._rho_L = {}
 
         # If we've already figured it out, just return
-        if (Emin, Emax) in self._rho_L:
-            return self._rho_L[(Emin, Emax)]
+        _Emin = round(Emin, 1)
+        _Emax = round(Emax, 1)
+        if (_Emin, _Emax) in self._rho_L:
+            return self._rho_L[(_Emin, _Emax)]
 
         # If nothing is supplied, compute the "full" luminosity density
         if (Emin is None) and (Emax is None):
@@ -464,9 +466,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ok = ~self._tab_sfr_mask
         tab = np.zeros(self.halos.tab_z.size)
         for i, z in enumerate(self.halos.tab_z):
-
             if z > self.zform:
                 continue
+
+            #print(z, yield_per_sfr(z=z, Mh=1e10), fesc(z=z, Mh=1e10), N_per_Msun)
 
             # Must grab stuff vs. Mh and interpolate to self.halos.tab_M
             # They are guaranteed to have the same redshifts.
@@ -530,6 +533,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         self._rho_L[(_Emin, _Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
 
+        #print('cache', _Emin, _Emax, self._rho_L[(_Emin, _Emax)](10.))
         return self._rho_L[(_Emin, _Emax)]
 
     def rho_N(self, z, Emin, Emax):

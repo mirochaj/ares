@@ -728,7 +728,7 @@ class Hydrogen(object):
 
     def get_voigt_profile(self, x, a=1):
         return (a / np.pi**1.5) * quad(lambda t: np.exp(-t**2) \
-            / (a**2 + (x - t)**2))[0]
+            / (a**2 + (x - t)**2), -np.inf, np.inf)[0]
 
     def get_lya_profile(self, z, Tk, x, continuum=True, xHII=0.0):
         """

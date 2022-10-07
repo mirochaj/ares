@@ -75,6 +75,13 @@ If you'd like to build the documentation locally, you'll need:
 - [numpydoc](https://numpydoc.readthedocs.io/en/latest/)
 - [nbsphinx](https://nbsphinx.readthedocs.io/en/0.8.8/)
 
+and if you'd like to run the test suite locally, you'll want:
+
+- [pytest](https://docs.pytest.org/en/7.1.x/)
+- [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/)
+
+which are pip-installable.
+
 Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
 
 ## Getting started
