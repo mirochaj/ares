@@ -29,7 +29,7 @@ if sys.version_info[0] >= 3:
 else:
     from collections import Iterable
 
-class fake_chianti:
+class _ion_utils:
     def __init__(self):
         pass
 
@@ -59,19 +59,7 @@ class fake_chianti:
             elif i == 3:
                 return 'he_3'
 
-    def convertName(self, species):
-        element, i = species.split('_')
-
-        Z = self.element2z(element)
-
-        tmp = {}
-        tmp['Element'] = element
-        tmp['Ion'] = self.zion2name(Z, int(i))
-        tmp['Z'] = self.element2z(element)
-
-        return tmp
-
-util = fake_chianti()
+util = _ion_utils()
 
 tiny_number = 1e-8  # A relatively small species fraction
 
@@ -297,59 +285,18 @@ class Grid(object):
 
         return self._x_to_n_converter
 
-    @property
-    def expansion(self):
-        if not hasattr(self, '_expansion'):
-            self.set_physics()
-        return self._expansion
+    def __getattr__(self, name):
+        """
+        For various attributes set by 'set_physics', e.g., `expansion`,
+        `isothermal`, etc., i.e., fundamental properties of the grid.
+        """
+        if (name[0] == '_'):
+            raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
 
-    @property
-    def isothermal(self):
-        if not hasattr(self, '_isothermal'):
+        if not hasattr(self, f'_{name}'):
             self.set_physics()
-        return self._isothermal
 
-    @property
-    def secondary_ionization(self):
-        if not hasattr(self, '_secondary_ionization'):
-            self.set_physics()
-        return self._secondary_ionization
-
-    @property
-    def compton_scattering(self):
-        if not hasattr(self, '_compton_scattering'):
-            self.set_physics()
-        return self._compton_scattering
-
-    @property
-    def recombination(self):
-        if not hasattr(self, '_recombination'):
-            self.set_physics()
-        return self._recombination
-
-    @property
-    def collisional_ionization(self):
-        if not hasattr(self, '_collisional_ionization'):
-            self.set_physics()
-        return self._collisional_ionization
-
-    @property
-    def exotic_heating(self):
-        if not hasattr(self, '_exotic_heating'):
-            self.set_physics()
-        return self._exotic_heating
-
-    @property
-    def lya_heating(self):
-        if not hasattr(self, '_lya_heating'):
-            self.set_physics()
-        return self._lya_heating
-
-    @property
-    def clumping_factor(self):
-        if not hasattr(self, '_clumping_factor'):
-            self.set_physics()
-        return self._clumping_factor
+        return self.__getattribute__(f'_{name}')
 
     @property
     def hydr(self):
@@ -473,10 +420,10 @@ class Grid(object):
             self.evolving_fields.append('Tk')
 
         # Create blank data fields
-        if not hasattr(self, 'data'):
-            self.data = {}
+        if not hasattr(self, '_data'):
+            self._data = {}
             for field in self.evolving_fields:
-                self.data[field] = np.zeros(self.dims)
+                self._data[field] = np.zeros(self.dims)
 
         self.abundances_by_number = self.abundances
         self.element_abundances = [1.0]
