@@ -403,9 +403,6 @@ def ReionizationProblem(ptype):
 
     return pf
 
-def GalaxyProblem(ptype):
-    pass
-
 def ProblemType(ptype):
     """
     Storage bin for predefined problem types.

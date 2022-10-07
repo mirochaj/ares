@@ -851,14 +851,15 @@ _uv.num = 2
 _uv.link_sfrd_to(0)
 
 _gs_4par = _lw + _xr + _uv
+_gs_4par['grid_cells'] = 1
 
-_tanh_sim = {'problem_type': 100, 'tanh_model': True,
+_tanh_sim = {'tanh_model': True, 'grid_cells': 1,
     'output_frequencies': np.arange(30., 201.)}
 
-_param_sim = {'problem_type': 100, 'parametric_model': True,
+_param_sim = {'parametric_model': True, 'grid_cells': 1,
     'output_frequencies': np.arange(30., 201.)}
 
-_gs_min = {'problem_type': 100, 'load_ics': True, 'cosmological_ics': True}
+_gs_min = {'grid_cells': 1, 'load_ics': True, 'cosmological_ics': True}
 _tmp = {'4par': _gs_4par, 'basic': _gs_4par,
     'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 

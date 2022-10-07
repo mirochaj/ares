@@ -12,7 +12,7 @@ from .MetaGalacticBackground import MetaGalacticBackground
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m
 
-class Simulation(object): # pragma: no cover
+class Simulation(object):
     def __init__(self, pf=None, **kwargs):
         """ Wrapper class designed to facilitate easy runs of any simulation. """
 
@@ -24,22 +24,22 @@ class Simulation(object): # pragma: no cover
             self.pf = pf
 
     @property
-    def gs(self):
-        if not hasattr(self, '_gs'):
-            self._gs = Global21cm(**self.kwargs)
-        return self._gs
+    def sim_gs(self):
+        if not hasattr(self, '_sim_gs'):
+            self._sim_gs = Global21cm(**self.kwargs)
+        return self._sim_gs
 
-    @gs.setter
-    def gs(self, value):
+    @sim_gs.setter
+    def sim_gs(self, value):
         """ Set global 21cm instance by hand. """
-        self._gs = value
+        self._sim_gs = value
 
     @property
-    def ps(self):
-        if not hasattr(self, '_ps'):
-            self._ps = PowerSpectrum21cm(**self.kwargs)
-            self._ps.gs = self.gs
-        return self._ps
+    def sim_ps(self):
+        if not hasattr(self, '_sim_ps'):
+            self._sim_ps = PowerSpectrum21cm(**self.kwargs)
+            self._sim_ps.gs = self.sim_gs
+        return self._sim_ps
 
     #@ps.setter
     #def ps(self, value):
@@ -268,11 +268,11 @@ class Simulation(object): # pragma: no cover
 
     @property
     def pops(self):
-        return self.gs.medium.field.pops
+        return self.sim_gs.medium.field.pops
 
     @property
     def grid(self):
-        return self.gs.medium.field.grid
+        return self.sim_gs.medium.field.grid
 
     @property
     def hydr(self):
@@ -304,18 +304,18 @@ class Simulation(object): # pragma: no cover
 
     def get_21cm_gs(self):
         if '21cm_gs' not in self.history:
-            self.gs.run()
-            self.history['21cm_gs'] = self.gs.history
+            self.sim_gs.run()
+            self.history['21cm_gs'] = self.sim_gs.history
 
-        return self.history['21cm_gs']
+        return self.sim_gs
 
     def get_21cm_ps(self, z=None, k=None):
         if '21cm_ps' not in self.history:
             # Allow user to specify (z, k) if they want
-            self.ps.run(z=z, k=k)#(z, k)
-            self.history['21cm_ps'] = self.ps.history
+            self.sim_ps.run(z=z, k=k)#(z, k)
+            self.history['21cm_ps'] = self.sim_ps.history
 
-        return self.history['21cm_ps']
+        return self.sim_ps
 
     def save(self, prefix, suffix='pkl', clobber=False, fields=None):
         """
@@ -338,7 +338,7 @@ class Simulation(object): # pragma: no cover
 
         """
 
-        self.gs.save(prefix, clobber=clobber, fields=fields)
+        self.sim_gs.save(prefix, clobber=clobber, fields=fields)
 
         fn = '%s.fluctuations.%s' % (prefix, suffix)
 

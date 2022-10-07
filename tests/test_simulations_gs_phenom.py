@@ -15,11 +15,11 @@ import numpy as np
 
 def test():
 
-    sim = ares.simulations.Global21cm(tanh_model=True)
-    sim.run()
+    sim = ares.simulations.Simulation(tanh_model=True)
+    sim.get_21cm_gs()
 
-    sim2 = ares.simulations.Global21cm(gaussian_model=True)
-    sim2.run()
+    sim2 = ares.simulations.Simulation(gaussian_model=True)
+    sim2.get_21cm_gs()
 
     p = \
      {
@@ -29,8 +29,8 @@ def test():
       'pop_xi': lambda z: 1. - np.exp(-(10. / z)**4),
      }
 
-    sim3 = ares.simulations.Global21cm(**p)
-    sim3.run()
-    
+    sim3 = ares.simulations.Simulation(**p)
+    sim3.get_21cm_gs()
+
 if __name__ == "__main__":
     test()

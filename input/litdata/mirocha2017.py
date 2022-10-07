@@ -14,6 +14,7 @@ dpl = \
  # For reionization problem
  'load_ics': True,
  'cosmological_ics': True,
+ 'grid_cells': 1,
 
  # Halos, MAR, etc.
  'pop_sfr_model{0}': 'sfe-func',

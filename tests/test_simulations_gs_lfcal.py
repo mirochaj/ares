@@ -24,8 +24,8 @@ def test():
     pars['pop_sed_degrade{0}'] = 100
     pars['pop_Z{0}'] = 0.02
 
-    sim = ares.simulations.Global21cm(**pars)
-    sim.run()
+    sim = ares.simulations.Simulation(**pars)
+    sim_gs = sim.get_21cm_gs()
 
     sfrd = sim.pops[0].SFRD(zarr) * rhodot_cgs
 
@@ -36,10 +36,10 @@ def test():
     x, phi_M = sim.pops[0].get_lf(zarr[0], mags, use_mags=True,
         wave=1600.)
 
-    assert 90 <= sim.nu_C <= 115, \
-        "Global signal unreasonable! nu_min={:.1f} MHz".format(sim.nu_C)
-    assert -250 <= sim.dTb_C <= -150, \
-        "Global signal unreasonable! dTb_min={:.1f} mK".format(sim.dTb_C)
+    assert 90 <= sim_gs.nu_C <= 115, \
+        "Global signal unreasonable! nu_min={:.1f} MHz".format(sim_gs.nu_C)
+    assert -250 <= sim_gs.dTb_C <= -150, \
+        "Global signal unreasonable! dTb_min={:.1f} mK".format(sim_gs.dTb_C)
 
 if __name__ == '__main__':
     test()

@@ -39,11 +39,10 @@ def test():
                 p = base.copy()
                 p[par] = val
                 p.update(kw)
-                sim = ares.simulations.Global21cm(**p)
-                sim.run()
-                #ax, zax = sim.GlobalSignature(ax=ax)
+                sim = ares.simulations.Simulation(**p)
+                sim_gs = sim.get_21cm_gs()
 
-                data.append((sim.history['z'], sim.history['dTb']))
+                data.append((sim_gs.history['z'], sim_gs.history['dTb']))
 
             for j in range(len(data) - 1):
 
