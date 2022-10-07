@@ -5,7 +5,7 @@ import numpy as np
 from types import FunctionType
 from .Global21cm import Global21cm
 from ..physics.HaloModel import HaloModel
-from ..static import FluctuationsRealSpace
+from ..core import FluctuationsRealSpace
 #from ..static import FluctuationsFourierSpace
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory

@@ -17,8 +17,8 @@ from ..util import ParameterFile
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile
-from ..static.IntegralTables import IntegralTable
-from ..static.InterpolationTables import LookupTable
+from ..core.IntegralTables import IntegralTable
+from ..core.InterpolationTables import LookupTable
 from ..physics.Constants import erg_per_ev, E_LL, s_per_myr
 from ..util.SetDefaultParameterValues import SourceParameters, \
     CosmologyParameters

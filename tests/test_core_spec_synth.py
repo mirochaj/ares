@@ -114,10 +114,10 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     sfh1 = np.ones_like(tarr1)
     sfh2 = np.ones_like(tarr2)
 
-    ss = ares.static.SpectralSynthesis()
+    ss = ares.core.SpectralSynthesis()
     ss.src = toy
 
-    ss2 = ares.static.SpectralSynthesis()
+    ss2 = ares.core.SpectralSynthesis()
     ss2.src = toy
     ss2.oversampling_enabled = False
     ss2.oversampling_below = oversample_age

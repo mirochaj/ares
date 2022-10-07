@@ -14,7 +14,7 @@ import os
 import time
 import scipy
 import numpy as np
-from ..static import Grid
+from ..core import Grid
 from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile

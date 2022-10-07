@@ -14,7 +14,7 @@ setup(name='ares',
       author_email='mirochaj@gmail.com',
       url='https://github.com/mirochaj/ares',
       packages=['ares', 'ares.analysis', 'ares.simulations', 'ares.obs',
-       'ares.populations', 'ares.util', 'ares.solvers', 'ares.static',
+       'ares.populations', 'ares.util', 'ares.solvers', 'ares.core',
        'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom'],
      )
 

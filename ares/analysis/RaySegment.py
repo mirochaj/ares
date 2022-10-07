@@ -14,7 +14,7 @@ import numpy as np
 from ..util import labels
 from math import floor, ceil
 import matplotlib.pyplot as pl
-from ..static.Grid import Grid
+from ..core.Grid import Grid
 from ..physics.Constants import *
 from ..util.SetDefaultParameterValues import *
 from .MultiPhaseMedium import HistoryContainer

@@ -14,8 +14,8 @@ import numpy as np
 from math import ceil
 from ..data import ARES
 import os, re, types, gc
+from ..core import GlobalVolume
 from ..util import ParameterFile
-from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
 from ..util.Math import interp1d
 from .OpticalDepth import OpticalDepth

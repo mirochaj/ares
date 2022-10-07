@@ -22,7 +22,7 @@ def test():
     for i, src in enumerate(['fk94']):
 
         # Initialize grid object
-        grid = ares.static.Grid(grid_cells=dims)
+        grid = ares.core.Grid(grid_cells=dims)
 
         # Set initial conditions
         grid.set_physics(isothermal=True)

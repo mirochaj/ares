@@ -14,7 +14,7 @@ import copy
 import numpy as np
 from ..sources import Composite
 from ..util import ParameterFile
-from ..static import LocalVolume
+from ..core import LocalVolume
 from ..physics.Constants import erg_per_ev, E_LyA, ev_per_hz
 
 class RadialField:
