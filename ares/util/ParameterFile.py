@@ -11,7 +11,6 @@ Description:
 """
 
 import re
-from .ProblemTypes import ProblemType
 from .BackwardCompatibility import backward_compatibility
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
@@ -327,8 +326,6 @@ class ParameterFile(dict):
         if not hasattr(self, '_Npops'):
 
             tmp = {}
-            #if 'problem_type' in self._kwargs:
-            #    tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self._kwargs)
 
             self._Npops = count_populations(**tmp)
@@ -339,8 +336,6 @@ class ParameterFile(dict):
     def Npqs(self):
         if not hasattr(self, '_Npqs'):
             tmp = {}
-            #if 'problem_type' in self._kwargs:
-            #    tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self)
 
             self._Npqs, self._pqs = count_properties(**tmp)
@@ -375,9 +370,6 @@ class ParameterFile(dict):
 
         # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
-
-        # Read in kwargs for this problem type
-        #kwargs = ProblemType(kw['problem_type'])
 
         # Add in user-supplied kwargs
         #tmp = kwargs.copy()
@@ -423,25 +415,6 @@ class ParameterFile(dict):
         # Otherwise, we need to go through and make separate dictionaries
         # for each population
         else:
-
-            # First: make base parameter file that contains only parameters
-            # that are NOT population specific.
-            # Second:
-
-            # Can't add kwargs yet (all full of curly braces)
-
-            # Only add non-pop-specific parameters from ProblemType defaults
-            #prb = ProblemType(kwargs['problem_type'])
-            #for par in defaults_pop_indep:
-
-            #    # Just means this parameter is not default to the
-            #    # problem type.
-            #    if par not in prb:
-            #        continue
-
-            #    pf_base[par] = prb[par]
-
-            # and kwargs
             for par in kwargs:
                 if par in defaults_pop_indep:
                     pf_base[par] = kwargs[par]
@@ -585,7 +558,7 @@ class ParameterFile(dict):
         if not hasattr(self, '_not_default'):
             self._not_default = {}
 
-            ptype = {}#ProblemType(self['problem_type'])
+            ptype = {}
 
             for key in self:
                 if key in defaults_pop_indep:

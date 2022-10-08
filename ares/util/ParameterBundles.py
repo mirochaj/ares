@@ -14,8 +14,8 @@ import re
 import numpy as np
 from ares import rcParams
 from .ReadData import read_lit
-from .ProblemTypes import ProblemType
 from .ParameterFile import pop_id_num, par_info
+from ..physics.Constants import cm_per_kpc, E_LL
 from .PrintInfo import header, footer, separator, line, width, twidth
 
 try:
@@ -486,6 +486,84 @@ _galaxies_testing = \
  'pop_thin_hist': 0,
 }
 
+_rt06_1 = \
+{
+ "density_units": 1e-3,
+ "length_units": 6.6 * cm_per_kpc,
+ "stop_time": 500.0,
+ "isothermal": 1,
+ "secondary_ionization": 0,
+ "initial_temperature": 1e4,
+ "initial_ionization": [1.-1.2e-3, 1.2e-3, 1-2e-8, 1e-8, 1e-8],
+ "source_type": 'toy',
+ "source_qdot": 5e48,
+ "source_E": [E_LL],
+ "source_LE": [1.0],
+}
+
+_rt06_2 = \
+{
+ "density_units": 1e-3,
+ "length_units": 6.6 * cm_per_kpc,
+ "stop_time": 100.0,
+ "isothermal": 0,
+ "restricted_timestep": ['ions', 'temperature'],
+ "initial_temperature": 1e2,
+ "initial_ionization": [1.-1.2e-3, 1.2e-3, 1.-2e-8, 1e-8, 1e-8],
+ "source_type": 'star',
+ "source_temperature": 1e5,
+ "source_sed": 'bb',
+ "source_qdot": 5e48,
+ "source_EminNorm": 1e-1,
+ "source_EmaxNorm": 5e2
+}
+
+_rt06_3 = \
+{
+ "plane_parallel": 1,
+ "density_units": 2e-4,
+ "grid_cells": 128,
+ "length_units": 6.6 * cm_per_kpc,
+
+ "initial_timestep": 1e-8,
+ "tables_dlogN": [0.01],
+
+ "stop_time": 15.0,
+ "dtDataDump": 1.0,
+ "isothermal": 0,
+ "initial_temperature": 8e3,
+ "initial_ionization": [1.-1e-4, 1e-4, 1.-2e-4, 1e-4, 1e-4],
+ "source_type": 'star',
+ "source_qdot": 1e6,
+ "source_sed": 'bb',
+ "source_temperature": 1e5,
+
+ "restricted_timestep": ['ions', 'electrons', 'temperature'],
+
+ "source_Emin": E_LL,
+ "source_Emax": 100.,
+ "source_EminNorm": 1e-1,
+ "source_EmaxNorm": 5e2,
+
+ "slab": 1,
+ "slab_position": 5.0 / 6.6,
+ "slab_overdensity": 200.,
+ "slab_radius": 0.8 / 6.6,
+ "slab_temperature": 40.,
+ "slab_profile": 0,
+ "slab_ionization": [1.-1e-4, 1e-4],
+}
+
+_rt1d_he = \
+{
+ 'include_He': True,
+ 'tables_dlogN': [0.1]*3,
+ 'tables_xmin': [1e-8]*3,
+ 'tables_logNmin': [None]*3,
+ 'tables_logNmax': [None]*3,
+ 'initial_ionization': [1.-1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8]
+}
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe,
@@ -505,7 +583,8 @@ _Bundles = \
  'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
     'careless': _careless},
  'testing': {'galaxies': _galaxies_testing},
- 'rt1d': {'isothermal': ProblemType(1), 'heating': ProblemType(2)}
+ 'rt1d': {'isothermal': _rt06_1, 'heating': _rt06_2, 'slab': _rt06_3,
+    'helium': _rt1d_he}
 }
 
 class ParameterBundle(dict):
@@ -543,8 +622,6 @@ class ParameterBundle(dict):
 
         if pre in self.bset.keys():
             _kw = self.bset[pre][post]
-        elif pre == 'prob':
-            _kw = ProblemType(float(post))
         else:
             mod = read_lit(pre)
             _kw = mod.__dict__[post]
