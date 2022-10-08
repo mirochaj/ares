@@ -98,10 +98,6 @@ def normalize_sed(pop):
 class Population(object):
     def __init__(self, grid=None, cosm=None, **kwargs):
 
-        # why is this necessary?
-        if 'problem_type' in kwargs:
-            del kwargs['problem_type']
-
         self.pf = ParameterFile(**kwargs)
 
         assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)

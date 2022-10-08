@@ -27,6 +27,9 @@ class RaySegment(AnalyzeRay):
         Initialize a RaySegment object.
         """
 
+        assert kwargs is not None, \
+            "Must provide parameters to initialize a Simulation!"
+
         self.parcel = GasParcel(**kwargs)
 
         self.pf = self.parcel.pf

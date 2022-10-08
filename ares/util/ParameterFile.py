@@ -364,10 +364,6 @@ class ParameterFile(dict):
 
         """
 
-        # Start w/ problem specific parameters (always)
-        #if 'problem_type' not in kw:
-        #    kw['problem_type'] = defaults['problem_type']
-
         # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
 
@@ -387,8 +383,7 @@ class ParameterFile(dict):
             kwargs.update(backward_compatibility(**kwargs))
 
         ##
-        # Up until this point, just problem_type-specific kwargs and any
-        # modifications passed in by the user.
+        # Up until this point, just kwargs passed in by the user.
         ##
 
         pf_base = {}  # Temporary master parameter file

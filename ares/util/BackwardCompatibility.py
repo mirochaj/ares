@@ -39,7 +39,7 @@ def backward_compatibility(**kwargs):
     Handle some conventions used in the pre "pop_*" parameter days.
 
     .. note :: Only applies to simple global 21-cm models right now, i.e.,
-        problem_type=101, ParameterizedQuantity parameters, and the
+        fcoll models, ParameterizedQuantity parameters, and the
         pop_yield vs. pop_rad_yield change.
 
     Parameters

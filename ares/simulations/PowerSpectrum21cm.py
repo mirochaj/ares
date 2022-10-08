@@ -24,15 +24,12 @@ defaults = \
 }
 
 class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
         """ Set up a power spectrum calculation. """
 
-        # See if this is a tanh model calculation
-        #is_phenom = self._check_if_phenom(**kwargs)
-
-        #kwargs.update(defaults)
-        #if 'problem_type' not in kwargs:
-        #    kwargs['problem_type'] = 101
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
 
         self.kwargs = kwargs
 

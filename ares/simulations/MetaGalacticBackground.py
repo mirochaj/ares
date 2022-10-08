@@ -83,6 +83,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         Initialize a MetaGalacticBackground object.
         """
 
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
+
         self.kwargs = kwargs
 
         if pf is None:

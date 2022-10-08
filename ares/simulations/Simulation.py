@@ -16,6 +16,10 @@ class Simulation(object):
     def __init__(self, pf=None, **kwargs):
         """ Wrapper class designed to facilitate easy runs of any simulation. """
 
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
+
         self.kwargs = kwargs
 
         if pf is None:

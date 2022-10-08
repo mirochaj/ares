@@ -42,7 +42,7 @@ for grp in pgroups:
     defaults.append('{!s}Parameters()'.format(grp))
 
 def SetAllDefaults():
-    pf = {'problem_type': 1}
+    pf = {}
 
     for pset in defaults:
         pf.update(eval('{!s}'.format(pset)))

@@ -36,6 +36,10 @@ class MultiPhaseMedium(object):
 
         """
 
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
+
         if pf is not None:
             self.pf = pf
 
