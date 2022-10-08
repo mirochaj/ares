@@ -211,6 +211,7 @@ class MultiPhaseMedium(object):
                 self.kw_igm = kw.copy()
 
                 parcel_igm = GasParcel(cosm=self.cosm, **self.kw_igm)
+                parcel_igm.grid.set_recombination_rate(False)
 
                 self.gen_igm = parcel_igm.step()
 

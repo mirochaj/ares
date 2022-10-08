@@ -335,7 +335,8 @@ class Grid(object):
         self._secondary_ionization = secondary_ionization
         self._expansion = expansion
         self._recombination = recombination
-        self._collisional_ionization = collisional_ionization
+        self._collisional_ionization = \
+            collisional_ionization and (not self.is_cgm_patch)
         self._exotic_heating = exotic_heating
         self._lya_heating = lya_heating
 

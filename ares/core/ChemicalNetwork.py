@@ -53,7 +53,6 @@ class ChemicalNetwork(object):
         self.isothermal = self.grid.isothermal
         self.is_cgm_patch = self.grid.is_cgm_patch
         self.is_igm_patch = not self.grid.is_cgm_patch
-        self.collisional_ionization = self.grid.collisional_ionization
 
         self.Nev = len(self.grid.evolving_fields)
 
@@ -669,7 +668,7 @@ class ChemicalNetwork(object):
 
         for i, absorber in enumerate(self.absorbers):
 
-            if self.collisional_ionization:
+            if self.grid.collisional_ionization:
                 self.Beta[...,i] = self.coeff.CollisionalIonizationRate(i, T)
 
             self.alpha[...,i] = self.coeff.RadiativeRecombinationRate(i, T)
@@ -679,7 +678,7 @@ class ChemicalNetwork(object):
 
             self.dalpha[...,i] = self.coeff.dRadiativeRecombinationRate(i, T)
 
-            if self.collisional_ionization:
+            if self.grid.collisional_ionization:
                 self.zeta[...,i] = self.coeff.CollisionalIonizationCoolingRate(i, T)
                 self.dzeta[...,i] = self.coeff.dCollisionalIonizationCoolingRate(i, T)
                 self.dBeta[...,i] = self.coeff.dCollisionalIonizationRate(i, T)
