@@ -855,6 +855,9 @@ class SpectralSynthesis(object):
         if not hasattr(self, '_cache_lum_'):
             self._cache_lum_ = {}
 
+        return kwds, None
+        #raise NotImplementedError("Something not working here...")
+
         notok = -1
 
         t1 = time.time()
@@ -963,7 +966,7 @@ class SpectralSynthesis(object):
     def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None,
         window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
-        load=True, energy_units=True):
+        load=False, energy_units=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.

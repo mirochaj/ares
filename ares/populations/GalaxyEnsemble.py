@@ -1979,6 +1979,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
+
+        print('hey', key in self._cache_L_, key, self._cache_L_.keys())
         if key in self._cache_L_:
             return self._cache_L_[key]
 
@@ -2500,10 +2502,10 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         raw = self.histories
         if (wave is not None) and (wave > self.src.wavelengths.max()):
             L = self.dust.Luminosity(z=z, wave=wave, band=band, idnum=idnum,
-                window=window, load=load, energy_units=energy_units)
+                window=window, load=0, energy_units=energy_units)
         else:
             L = self.synth.get_lum(wave=wave, zobs=z, hist=raw,
-                extras=self.extras, idnum=idnum, window=window, load=load,
+                extras=self.extras, idnum=idnum, window=window, load=0,
                 band=band, energy_units=energy_units)
 
         self._cache_L_[(z, wave, band, idnum, window, energy_units)] = L.copy()
