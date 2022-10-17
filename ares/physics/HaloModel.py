@@ -415,8 +415,10 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         ps_lin = self._get_ps_lin(k, iz)
 
+        # Cannot return unmodified P_lin unless no L's or Mmin's passed!
         if self.pf['hps_assume_linear']:
-            return ps_lin
+            if (lum1 is None) and (lum2 is None) and (mmin1 is None) and (mmin2 is None):
+                return ps_lin
 
         integ1, integ2 = self._get_ps_integrals(k, iz, prof1, prof2,
             lum1, lum2, mmin1, mmin2, term=2)
@@ -458,7 +460,10 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
 
-        return ps_1h + ps_2h
+        ps_shot = self.get_ps_shot(z, k=k, lum1=lum1, lum2=lum2, mmin1=mmin1,
+            mmin2=mmin2, ztol=ztol)
+
+        return ps_1h + ps_2h + ps_shot
 
     def get_cf_mm(self, z, R=None, load=True, ztol=1e-2):
         """

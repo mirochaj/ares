@@ -3614,6 +3614,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             lum1 = self.get_lum(z, wave=wave1, raw=raw,
                 nebular_only=nebular_only)
+
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
@@ -3624,8 +3625,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             lum1=lum1, lum2=lum2,
             mmin1=None, mmin2=None, ztol=1e-3)
 
-        if type(k) is np.ndarray:
-            self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps
+        #if type(k) is np.ndarray:
+        #    self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps
 
         return ps
 
@@ -3706,12 +3707,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if np.all(np.array(wave1) <= 912):
             lum1 = 0
         else:
-            lum1 = self.Luminosity(z, wave=wave1, raw=raw,
+            lum1 = self.get_lum(z, wave=wave1, raw=raw,
                 nebular_only=nebular_only)
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
-            lum2 = self.Luminosity(z, wave=wave2, raw=raw,
+            lum2 = self.get_lum(z, wave=wave2, raw=raw,
                 nebular_only=nebular_only)
 
         ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum1,
@@ -3911,15 +3912,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##
         # First: compute 3-D power spectrum
         if include_2h:
-            ps3d = self.get_ps_2h(z, k, wave1, wave2, raw=False, nebular_only=False)
+            ps3d = self.get_ps_2h(z, k, wave1, wave2, raw=False,
+                nebular_only=False)
         else:
             ps3d = np.zeros_like(k)
 
         if include_shot:
-            ps3d += self.get_ps_shot(z, k, wave1, wave2, raw=True, nebular_only=False)
+            ps_shot = self.get_ps_shot(z, k, wave1, wave2, raw=True,
+                nebular_only=False)
+            ps3d += ps_shot
 
         if include_1h:
-            ps3d += self.get_ps_1h(z, k, wave1, wave2, raw=False, nebular_only=True, prof=prof)
+            ps_1h = self.get_ps_1h(z, k, wave1, wave2, raw=False,
+                nebular_only=True, prof=prof)
+            ps3d += ps_1h
 
         # The 3-d PS should have units of luminosity^2 * cMpc^-3.
         # Yes, that's cMpc^-3, a factor of volume^2 different than what

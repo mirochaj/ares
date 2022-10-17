@@ -60,7 +60,7 @@ class Simulation(object):
     def mean_intensity(self):
         if not hasattr(self, '_mean_intensity'):
             #self._mean_intensity = MetaGalacticBackground(**self.pf)
-            self._mean_intensity = self.gs.medium.field
+            self._mean_intensity = self.sim_gs.medium.field
         return self._mean_intensity
 
     @property
@@ -191,7 +191,7 @@ class Simulation(object):
 
         Returns
         -------
-        Tuple containing (scales, 2 pi / scales or l*l(+z),
+        Tuple containing (scales, 2 pi / scales or l*l(+1),
             waves, power spectra).
 
         Note that the power spectra are return as 2-D arrays with shape
@@ -218,6 +218,7 @@ class Simulation(object):
         # Prep scales
         if scale_units.lower() in ['l', 'ell']:
             scales_inv = np.sqrt(scales * (scales + 1))
+            # Squared below hence the sqrt here.
         else:
             if scale_units.lower().startswith('deg'):
                 scale_rad = scales * (np.pi / 180.)
@@ -226,7 +227,7 @@ class Simulation(object):
             elif scale_units.lower() == 'arcsec':
                 scale_rad = (scales / 3600.) * (np.pi / 180.)
             else:
-                raise NotImplemented('help')
+                raise NotImplemented(f"Don't recognize `scale_units`={scale_units}")
 
             scales_inv = np.pi / scale_rad
 
@@ -253,9 +254,9 @@ class Simulation(object):
                 else:
                     w1 = w2 = wave
 
+                # Will default to 1h + 2h + shot
                 ps[i,:,j] = pop.get_ps_obs(scales, wave_obs1=w1, wave_obs2=w2,
                     scale_units=scale_units, **kwargs)
-
 
         # Modify PS units before return
         if flux_units.lower() == 'si':
@@ -266,7 +267,7 @@ class Simulation(object):
             self._history['ps_nirb'] = scales, scales_inv, waves, ps
 
         if dimensionless:
-            ps *= scales_inv[:,None]**2 / 2. / np.pi**2
+            ps *= scales_inv[None,:,None]**2 / 2. / np.pi
 
         return scales, scales_inv, waves, ps
 
