@@ -343,7 +343,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 tau[rwaves < lam_X] = 0.0
             else:
                 m95 = Madau1995(hydr=self.grid.hydr, **self.pf)
-                tau = self.madau1995(zf, _lam)
+                tau = m95(zf, _lam)
 
             f *= np.exp(-tau)
 

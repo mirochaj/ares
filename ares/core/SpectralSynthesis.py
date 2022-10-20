@@ -957,11 +957,7 @@ class SpectralSynthesis(object):
         else:
             return kwds, None
 
-    def Luminosity(self, **kwargs):
-        return self.get_lum(**kwargs)
-
-    def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None,
-        window=1,
+    def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
         load=True, energy_units=True):
         """

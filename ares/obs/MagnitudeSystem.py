@@ -53,8 +53,6 @@ class MagnitudeSystem(object):
         return -2.5 * np.log10(L / 4. / np.pi / d10**2 / flux_AB)
 
     def L_to_mab(self, L, z=None, dL=None):
-        raise NotImplemented('do we ever use this?')
-
         # apparent magnitude
         assert (z is not None) or (dL is not None)
 

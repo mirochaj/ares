@@ -7,12 +7,11 @@ import numpy as np
 info = \
 {
  'reference':'Tomczak et al., 2014, ApJ, 783, 85',
- 'data': 'Table 1', 
+ 'data': 'Table 1',
  'imf': ('chabrier', (0.1, 100.)),
 }
 
-redshifts = [0.35, 0.875, 1.125, 1.75, 2.25, 2.75]
-wavelength = 1600.
+redshifts = [0.875, 1.125, 1.75, 2.25, 2.75]
 
 ULIM = -1e10
 
@@ -51,7 +50,7 @@ tmp_data['smf_tot'] = \
      'err': [(0.06, 0.07), (0.07, 0.08), (0.08, 0.09),
              (0.09, 0.10), (0.10, 0.13), (0.13, 0.17),
              (0.18, 0.25), (0.17, 0.28), (0.31, 2.00)],
-    },            
+    },
 }
 
 
@@ -92,7 +91,7 @@ tmp_data['smf_sf'] = \
      'err': [(0.06, 0.07), (0.07, 0.08), (0.08, 0.09),
              (0.09, 0.11), (0.11, 0.14), (0.16, 0.20),
              (0.20, 0.28), (0.18, 0.29), (0.32, 2.00)],
-    },            
+    },
 }
 
 
@@ -127,9 +126,9 @@ tmp_data['smf_q'] = \
     },
  2.75: {'M': list(10**np.arange(9.75, 11.75, 0.25)),
      'phi': [-4.16, -4.08, -3.89, -3.74, -4.12, -4.51, -4.61, -5.14],
-     'err': [(0.17, 0.20), (0.16, 0.18), (0.13, 0.15), (0.12, 0.15), 
+     'err': [(0.17, 0.20), (0.16, 0.18), (0.13, 0.15), (0.12, 0.15),
              (0.18, 0.22), (0.27, 0.38), (0.19, 0.32), (0.34, 2.00)],
-    },            
+    },
 }
 
 units = {'smf_tot': 'log10', 'smf_sf': 'log10', 'smf': 'log10', 'smf_q': 'log10'}
@@ -139,26 +138,26 @@ data['smf_tot'] = {}
 data['smf_sf'] = {}
 data['smf_q'] = {}
 for group in ['smf_tot', 'smf_sf', 'smf_q']:
-    
+
     for key in tmp_data[group]:
-        
+
         if key not in tmp_data[group]:
             continue
-    
+
         subdata = tmp_data[group]
-        
+
         mask = []
         for element in subdata[key]['err']:
             if element == ULIM:
                 mask.append(1)
             else:
                 mask.append(0)
-        
+
         mask = np.array(mask)
-        
+
         data[group][key] = {}
-        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask) 
-        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask) 
+        data[group][key]['M'] = np.ma.array(subdata[key]['M'], mask=mask)
+        data[group][key]['phi'] = np.ma.array(subdata[key]['phi'], mask=mask)
         data[group][key]['err'] = tmp_data[group][key]['err']
 
 #default is the star-forming galaxies data only

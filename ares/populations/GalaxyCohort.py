@@ -3523,7 +3523,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         return 1. * k**0
 
-    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=True, nebular_only=False):
+    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=True,
+        nebular_only=False):
         """
         Return shot noise term of halo power spectrum.
 

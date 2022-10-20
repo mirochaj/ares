@@ -10,13 +10,11 @@ Description: LF and SMF model (based on Moster2010), as well as main sequence SF
 """
 
 from .Halo import HaloPopulation
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity
-from ..util.ParameterFile import get_pq_pars
-from ..obs.MagnitudeSystem import MagnitudeSystem
-from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import s_per_gyr
-from ..physics.Cosmology import Cosmology
-
+from ..util.ParameterFile import get_pq_pars
+from ..analysis.BlobFactory import BlobFactory
+from ..obs.MagnitudeSystem import MagnitudeSystem
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -25,9 +23,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         self.kwargs = kwargs
 
         HaloPopulation.__init__(self, **kwargs)
-
-    def LuminosityFunction(self, z, bins, **kwargs):
-        return self.get_lf(z, bins, **kwargs)
 
     def get_lf(self, z, bins, text=False, use_mags=True, absolute=True):
         """
@@ -159,7 +154,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return dydx
 
 
-    def SMHM(self, z, log_HM, **kwargs):
+    def get_smhm(self, z, log_HM, **kwargs):
         """
         Wrapper for getting stellar mass from a halo mass using the SMHM ratio.
         """
@@ -272,7 +267,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return fract
 
 
-    def StellarMassFunction(self, z, logbins, sf_type='smf_tot', text=False, **kwargs):
+    def get_smf(self, z, logbins, sf_type='smf_tot', text=False, **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
 
@@ -358,7 +353,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return phi
 
 
-    def SFRD(self, z):
+    def get_sfrd(self, z):
         """
         Stellar formation rate density.
 
@@ -409,7 +404,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return SFRD[0]
 
 
-    def SFR(self, z, logmass, haloMass=False, log10=True):
+    def get_sfr(self, z, logmass, haloMass=False, log10=True):
         """
         Main sequence stellar formation rate from Speagle2014
 
@@ -441,12 +436,10 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         else:
             Ms = mass
 
-        cos = Cosmology()
-
         # t: age of universe in Gyr
-        t = cos.t_of_z(z=z) / s_per_gyr
+        t = self.cosm.t_of_z(z=z) / s_per_gyr
 
-        if t < cos.t_of_z(z=6) / s_per_gyr: # if t > z=6
+        if t < self.cosm.t_of_z(z=6) / s_per_gyr: # if t > z=6
             print("Warning, age out of well fitting zone of this model.")
 
         error = np.ones(len(Ms)) * 0.2 #[dex] the stated "true" scatter
@@ -462,8 +455,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return logSFR
 
-
-    def SSFR(self, z, logmass, haloMass=False):
+    def get_ssfr(self, z, logmass, haloMass=False):
         """
         Specific stellar formation rate.
 
@@ -489,6 +481,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         else:
             Ms = [10**i for i in logmass]
 
-        logSSFR = self.SFR(z, np.log10(Ms)) - np.log10(Ms)
+        logSSFR = self.get_sfr(z, np.log10(Ms)) - np.log10(Ms)
 
         return logSSFR
