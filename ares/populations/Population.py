@@ -603,7 +603,11 @@ class Population(object):
 
     @property
     def is_user_sfe(self):
-        return type(self.pf['pop_sfr_model']) == 'sfe-func'
+        return self.pf['pop_sfr_model'] == 'sfe-func'
+
+    @property
+    def is_user_smhm(self):
+        return self.pf['pop_sfr_model'] == 'smhm-func'
 
     @property
     def sed_tab(self):

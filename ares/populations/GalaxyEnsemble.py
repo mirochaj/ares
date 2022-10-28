@@ -145,9 +145,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return SFRD
 
-    def SFRD(self, z, Mmin=None):
-        return self.get_sfrd(z, Mmin=Mmin)
-
     def get_sfrd(self, z, Mmin=None):
         """
         Will convert to internal cgs units.
@@ -200,7 +197,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     def _sfrd_func(self, z):
         # This is a cheat so that the SFRD spline isn't constructed
         # until CALLED. Used only for tunneling (see `pop_tunnel` parameter).
-        return self.SFRD(z)
+        return self.get_sfrd(z)
 
     def tile(self, arr, thin, renorm=False):
         """

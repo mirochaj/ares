@@ -9,22 +9,46 @@ Description: LF and SMF model (based on Moster2010), as well as main sequence SF
 
 """
 
+import numpy as np
 from .Halo import HaloPopulation
 from ..physics.Constants import s_per_gyr
 from ..util.ParameterFile import get_pq_pars
+from .GalaxyCohort import GalaxyCohort
 from ..analysis.BlobFactory import BlobFactory
 from ..obs.MagnitudeSystem import MagnitudeSystem
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
-import numpy as np
 from scipy.interpolate import interp1d
 
-class GalaxyHOD(HaloPopulation, BlobFactory):
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
+class GalaxyHOD(GalaxyCohort,BlobFactory):
+    #def __init__(self, **kwargs):
+    #    self.kwargs = kwargs
 
-        HaloPopulation.__init__(self, **kwargs)
+    #    HaloPopulation.__init__(self, **kwargs)
 
-    def get_lf(self, z, bins, text=False, use_mags=True, absolute=True):
+    def get_lum(self, z, wave=1600., band=None, window=1, raw=False,
+        nebular_only=False):
+        """
+        Get luminosity of all halos at redshift `z`.
+        """
+
+        Mh = self.halos.tab_M
+        Ms = self.get_smhm(z, Mh) * Mh
+        sSFR = self.get_ssfr(z, Mh)
+        SFR = Ms * sSFR
+
+        L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+            band=band, raw=raw, nebular_only=nebular_only)
+
+        return SFR * L_sfr
+
+    def get_lf(self, z, bins, use_mags=True, wave=1600., window=1., band=None,
+        absolute=True):
+        """
+        Compute the luminosity function.
+        """
+        pass
+
+    def get_lf_phenom(self, z, bins, text=False, use_mags=True, absolute=True):
         """
         Reconstructed luminosity function from a simple model of L = c*HaloMadd
 
@@ -154,25 +178,29 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return dydx
 
 
-    def get_smhm(self, z, log_HM, **kwargs):
+    def get_smhm(self, z, Mh, **kwargs):
         """
         Wrapper for getting stellar mass from a halo mass using the SMHM ratio.
         """
-        if log_HM == 0:
-            haloMass = self.halos.tab_M
-        elif type(log_HM) not in [list, np.ndarray]:
-            haloMass = [10**log_HM]
-        else:
-            haloMass = [10**i for i in log_HM]
+
+        #if log_HM == 0:
+        #    haloMass = self.halos.tab_M
+        #elif type(log_HM) not in [list, np.ndarray]:
+        #    haloMass = [10**log_HM]
+        #else:
+        #    haloMass = [10**i for i in log_HM]
 
 
         N, M_1, beta, gamma = self._SMF_PQ()
-        SM = self._SM_fromHM(z, haloMass, N, M_1, beta, gamma)
+        mM_ratio = 2 * N(z=z) \
+            / ( (Mh / M_1(z=z))**(-beta(z=z)) + (Mh / M_1(z=z))**(gamma(z=z)))  #equ 2
 
-        return SM
+        #SM = self._SM_fromHM(z, Mh, N, M_1, beta, gamma)
+
+        return mM_ratio#SM / Mh
 
 
-    def HM_fromSM(self, z, log_SM, **kwargs):
+    def get_Mh_from_Ms(self, z, log_SM, **kwargs):
         """
         For getting halo mass from a stellar mass using the SMHM ratio.
         """
@@ -267,7 +295,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return fract
 
 
-    def get_smf(self, z, logbins, sf_type='smf_tot', text=False, **kwargs):
+    def get_smf(self, z, logbins, sf_type='smf_tot', **kwargs):
         """
         Stellar Mass Function from a double power law, following Moster2010
 
@@ -309,12 +337,12 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             #something is wrong with the parameters and _SM_fromHM or _SF_fraction_PQ returned +/- infs,
             #or if there are less non-zero SM than SM values requested from bins
 
-            if text:
+            if self.pf['verbose']:
                 print("SM is inf or too many zeros!")
             phi = -np.inf * np.ones(len(bins))
 
         if np.array([i < 1e-1 for i in StellarMass]).all():
-            if text:
+            if self.pf['verbose']:
                 print("SM range is way too small!")
             phi = -np.inf * np.ones(len(bins))
 
@@ -322,7 +350,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
             if len(StellarMass) != len(set(StellarMass)):
                 #removes duplicate 0s from list
-                if text:
+                if self.pf['verbose']:
                     print("removing some zeros")
                 removeMask = [0 != i for i in StellarMass]
 
@@ -352,7 +380,6 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
 
         return phi
 
-
     def get_sfrd(self, z):
         """
         Stellar formation rate density.
@@ -366,11 +393,13 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         -------
         SFRD : float (array)
             [M_o/yr/Mpc^3]
+
         """
 
         #population comes from halo and SMF
         hmf = self.halos.tab_dndm
         haloMass = self.halos.tab_M
+        #iz = np.argmin(np.abs(z - self.halos.tab_z))
 
         N, M_1, beta, gamma = self._SMF_PQ()
 
@@ -381,22 +410,26 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         SFRD = []
 
         for zi in z:
-            SM_bins = self._SM_fromHM(zi, haloMass, N, M_1, beta, gamma)
+            Ms = self.halos.tab_M * self.get_smhm(zi, self.halos.tab_M)
+
+            #SM_bins = self._SM_fromHM(zi, haloMass, N, M_1, beta, gamma)
 
             #get number density
-            numberD = self.StellarMassFunction(zi, np.log10(SM_bins), False)
+            numberD = self.get_smf(zi, np.log10(Ms), False)
 
-            SFR = 10**self.SFR(zi, np.log10(SM_bins))/SM_bins
+            SFR = self.get_sfr(zi, Ms, stellar_mass=True) #/ SM_bins
             error = 0.2 * SFR * np.log(10)
 
             dbin = []
-            for i in range(0, len(SM_bins) - 1):
-                dbin.append(SM_bins[i+1]-SM_bins[i])
+            for i in range(0, len(Ms) - 1):
+                dbin.append(Ms[i+1]-Ms[i])
 
             SFRD_val = np.sum( numberD[:-1] * SFR[:-1] * dbin )
             SFRD_err = np.sqrt(np.sum( numberD[:-1] * dbin * error[:-1])**2)
 
             SFRD.append([SFRD_val, SFRD_err])
+
+            sfrd = np.trapz(hmf)
 
         SFRD = np.transpose(SFRD) # [sfrd, err]
 
@@ -404,7 +437,7 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         return SFRD[0]
 
 
-    def get_sfr(self, z, logmass, haloMass=False, log10=True):
+    def get_sfr(self, z, M, stellar_mass=False, log10=True):
         """
         Main sequence stellar formation rate from Speagle2014
 
@@ -422,19 +455,21 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             log10 of MS SFR [yr^-1]
         """
 
+        Ms = M * self.get_smhm(z, M) if not stellar_mass else M
 
-        if log10:
-            mass = [10**i for i in logmass]
-        else:
-            mass = logmass
 
-        if haloMass:
-            #convert from halo mass to stellar mass
-            N, M_1, beta, gamma = self._SMF_PQ()
+        #if log10:
+        #    mass = [10**i for i in logmass]
+        #else:
+        #    mass = logmass
 
-            Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
-        else:
-            Ms = mass
+        #if haloMass:
+        #    #convert from halo mass to stellar mass
+        #    N, M_1, beta, gamma = self._SMF_PQ()
+
+        #    Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
+        #else:
+        #    Ms = mass
 
         # t: age of universe in Gyr
         t = self.cosm.t_of_z(z=z) / s_per_gyr
@@ -453,9 +488,9 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
         logSFR = func1(t=t)*np.log10(Ms) - func2(t=t) #Equ 28
         # logSFR = (0.84-0.026*t)*np.log10(Ms) - (6.51-0.11*t) #Equ 28
 
-        return logSFR
+        return 10**logSFR
 
-    def get_ssfr(self, z, logmass, haloMass=False):
+    def get_ssfr(self, z, M, stellar_mass=False):
         """
         Specific stellar formation rate.
 
@@ -473,14 +508,52 @@ class GalaxyHOD(HaloPopulation, BlobFactory):
             log10 of SSFR [yr^-1]
         """
 
-        if haloMass:
-            #convert from halo mass to stellar mass
-            N, M_1, beta, gamma = self._SMF_PQ()
-            mass = [10**i for i in logmass]
-            Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
+        #if haloMass:
+        #    #convert from halo mass to stellar mass
+        #    N, M_1, beta, gamma = self._SMF_PQ()
+        #    mass = [10**i for i in logmass]
+        #    Ms = self._SM_fromHM(z, mass, N, M_1, beta, gamma)
+        #else:
+        #    Ms = [10**i for i in logmass]
+
+
+        Ms = M * self.get_smhm(z, M) if not stellar_mass else M
+        return self.get_sfr(z, M, stellar_mass=stellar_mass) / Ms
+
+    def get_emissivity(self, z, E=None, Emin=None, Emax=None):
+        """
+        Compute the emissivity of this population as a function of redshift
+        and rest-frame photon energy [eV].
+
+        Parameters
+        ----------
+        z : int, float
+
+        Returns
+        -------
+        Emissivity in units of erg / s / c-cm**3 [/ eV]
+
+        """
+
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
+
+        # Use GalaxyAggregate's Emissivity function
+        if self.is_emissivity_scalable:
+            # The advantage here is that the SFRD only has to be calculated
+            # once, and the radiation field strength can just be determined
+            # by scaling the SFRD.
+            rhoL = super(GalaxyHOD, self).get_emissivity(z, E=E,
+                Emin=Emin, Emax=Emax)
         else:
-            Ms = [10**i for i in logmass]
+            # Here, the radiation backgrounds cannot just be scaled.
+            # Note that this method can always be used, it's just less
+            # efficient because you're basically calculating the SFRD again
+            # and again.
+            rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
-        logSSFR = self.get_sfr(z, np.log10(Ms)) - np.log10(Ms)
-
-        return logSSFR
+        if E is not None:
+            return rhoL * self.src.Spectrum(E) * on
+        else:
+            return rhoL * on

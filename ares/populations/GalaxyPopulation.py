@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: UCLA
 Created on: Sat Jul 16 10:41:50 PDT 2016
 
-Description: 
+Description:
 
 """
 
@@ -33,17 +33,17 @@ def GalaxyPopulation(**kwargs):
     """
     Return the appropriate Galaxy* instance depending on if any quantities
     are being parameterized by hand.
-    
+
     kwargs should NOT be ParameterFile instance. Still trying to remind
     myself why that is.
-    
+
     """
 
     ##
-    # First. Identify all ParameterizedQuantity parameters and 
+    # First. Identify all ParameterizedQuantity parameters and
     # if the user has directly supplied ionization/heating rates.
     ##
-    
+
     Npq = 0
     Nparam = 0
     pqs = []
@@ -56,27 +56,27 @@ def GalaxyPopulation(**kwargs):
         elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
             Nparam += 1
 
-    # If parametric, return right away   
+    # If parametric, return right away
     if Nparam > 0:
         assert Npq == 0
         return ParametricPopulation(**kwargs)
-    
+
     # Allow pop_sfr_model to trump presence of PQs
     if 'pop_sfr_model' in kwargs:
         model = kwargs['pop_sfr_model']
     else:
-        
+
         if Npq == 0:
-            model = default_model  
+            model = default_model
         elif (Npq == 1) and pqs[0] == 'pop_sfrd':
             model = 'sfrd-func'
         else:
             if set(pqs).intersection(parametric_options):
                 model = 'rates'
-            else:   
+            else:
                 model = 'sfe-func'
-                
-    if model in ['sfe-func', 'sfr-func', 'mlf-func', 'sfe-tab', 'sfr-tab', 
+
+    if model in ['sfe-func', 'sfr-func', 'mlf-func', 'sfe-tab', 'sfr-tab',
         'uvlf', '21cmfast', 'smhm-func']:
         return GalaxyCohort(**kwargs)
     elif model in ['fcoll', 'sfrd-func', 'sfrd-tab', 'sfrd-class']:
@@ -90,10 +90,8 @@ def GalaxyPopulation(**kwargs):
     elif model in ['bhmd']:
         return BlackHoleAggregate(**kwargs)
     elif model in ['toy']:
-        return Toy(**kwargs)    
+        return Toy(**kwargs)
     elif model in ['hod']:
         return GalaxyHOD(**kwargs)
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
-
-

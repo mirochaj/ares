@@ -910,6 +910,35 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Return stellar mass function.
         """
+
+        ##
+        # Can access directly for SMHM-based parameterization.
+        if self.is_user_smhm:
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            dndlogm = self.halos.tab_dndlnm[iz,:] * np.log(10.)
+
+            logMh = np.log10(self.halos.tab_M)
+            logMh_e = bin_c2e(logMh)
+
+            fstar = self.tab_fstar[iz,:]
+            Ms_c = fstar * self.halos.tab_M
+
+            fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
+            Ms_e = fstar_e * 10**logMh_e
+            logMs_e = np.log10(Ms_e)
+
+
+            dlogmdlogMs = np.diff(logMh_e) / np.diff(logMs_e)
+
+            phi = dndlogm * dlogmdlogMs
+
+            if bins is not None:
+                return bins, np.interp(bins, np.log10(Ms_c), phi)
+            else:
+                return np.log10(Ms_c), phi
+
+        ##
+        # Otherwise, we integrate trajectories.
         zall, traj_all = self.Trajectories()
         iz = np.argmin(np.abs(z - zall))
         Ms = traj_all['Ms'][:,iz]
@@ -1862,6 +1891,49 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return fstar
 
+    def get_ssfr(self, z, Ms):
+        """
+        Compute specific star formation rate.
+        """
+
+        if self.is_user_smhm:
+            if not hasattr(self, '_func_ssfr'):
+                pars = get_pq_pars(self.pf['pop_ssfr'], self.pf)
+
+                _ssfr_inst = ParameterizedQuantity(**pars)
+
+                self._func_ssfr = lambda **kwargs: _ssfr_inst.__call__(**kwargs)
+
+            return self._func_ssfr(z=z, Ms=Ms)
+        else:
+            raise NotImplemented('help')
+
+    @property
+    def tab_ssfr(self):
+        """
+        Table of specific star formation rate as a function of redshift and
+        *stellar* mass.
+        """
+
+        if not hasattr(self, '_tab_ssfr_'):
+            assert self.pf['pop_sfr_model'] == 'smhm-func'
+
+            Ms = self.tab_fstar * self.halos.tab_M
+
+            #pars = get_pq_pars(self.pf['pop_ssfr'], self.pf)
+            #_ssfr_inst = ParameterizedQuantity(**pars)
+            #_ssfr = lambda **kwargs: _ssfr_inst.__call__(**kwargs)
+
+            ssfr = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+            for i, z in enumerate(self.halos.tab_z):
+                fstar = self.get_fstar(z=z, Mh=self.halos.tab_M)
+                Ms = fstar * self.halos.tab_M
+                ssfr[i,:] = self.get_ssfr(z=z, Ms=Ms)
+
+            self._tab_ssfr_ = ssfr
+
+        return self._tab_ssfr_
+
     @property
     def tab_sfr(self):
         """
@@ -1909,6 +1981,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 H = self.cosm.HubbleParameter(self.halos.tab_z) * s_per_yr
                 self._tab_sfr_ = np.array([Mb * fst[i] * H[i] / tstar \
                     for i in range(H.size)])
+            elif self.pf['pop_sfr_model'] == 'smhm-func':
+                Ms = self.tab_fstar * self.halos.tab_M
+                self._tab_sfr_ = self.tab_ssfr * Ms
             else:
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \

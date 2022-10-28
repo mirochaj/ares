@@ -93,7 +93,7 @@ class GalaxyAggregate(HaloPopulation):
                 self._sfrd_ = ParameterizedQuantity(**pars)
             else:
                 tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
-                self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
+                self._sfrd_ = lambda z: tmp.get_sfrd(z, **self.pf['pop_kwargs'])
 
         return self._sfrd_
 
@@ -104,9 +104,9 @@ class GalaxyAggregate(HaloPopulation):
     def _sfrd_func(self, z):
         # This is a cheat so that the SFRD spline isn't constructed
         # until CALLED. Used only for tunneling (see `pop_tunnel` parameter).
-        return self.SFRD(z)
+        return self.get_sfrd(z)
 
-    def SFRD(self, z):
+    def get_sfrd(self, z):
         """
         Compute the comoving star formation rate density (SFRD).
 
@@ -167,7 +167,7 @@ class GalaxyAggregate(HaloPopulation):
         In the odd units of stars / cm^3 / s.
         """
 
-        return self.SFRD(z) / self.pf['pop_mass'] / g_per_msun
+        return self.get_sfrd(z) / self.pf['pop_mass'] / g_per_msun
 
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         return self.get_emissivity(z, E=E, Emin=Emin, Emax=Emax)
@@ -205,7 +205,7 @@ class GalaxyAggregate(HaloPopulation):
                 return 0.0
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
-        rhoL = self.SFRD(z) * self.yield_per_sfr * on
+        rhoL = self.get_sfrd(z) * self.yield_per_sfr * on
 
         ##
         # Models based on photons / baryon

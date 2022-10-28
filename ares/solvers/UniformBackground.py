@@ -997,7 +997,7 @@ class UniformBackground(object):
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-            Lbol = pop.Emissivity(z)
+            Lbol = pop.get_emissivity(z)
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
@@ -1086,7 +1086,7 @@ class UniformBackground(object):
                     # Use Emissivity here rather than rho_L because only
                     # GalaxyCohort objects will have a rho_L attribute.
                     epsilon[ll,in_band==1] = fix \
-                        * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
+                        * pop.get_emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
 
                     #ehat = pop.Emissivity(redshift, Emin=b[0], Emax=b[1])
