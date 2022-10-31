@@ -201,7 +201,7 @@ class ChemicalNetwork(object):
         heat = 0.0
         cool = 0.0
         if not self.isothermal:
-
+            self.Beta, self.alpha, self.zeta, self.eta, self.psi, self.xi, self.omega = self.SourceIndependentCoefficients(q[-1], z).values()
             for i, sp in enumerate(self.neutrals):
                 elem = self.grid.parents_by_ion[sp]
 
