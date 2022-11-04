@@ -365,7 +365,7 @@ class NebularEmission(object):
         if self.pf['source_nebular'] == 2:
             tot =  self.LymanSeries(spec)
             tot += self.BalmerSeries(spec)
-        elif self.pf['source_nebular'] == 3:
+        elif self.pf['source_nebular'] in [3, 'inoue2011']:
             _tot = self.BalmerSeries(spec)
             Hb = _tot[np.argmin(np.abs(6569 - self.wavelengths))]
 
