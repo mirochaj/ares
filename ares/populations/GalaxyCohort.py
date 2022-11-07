@@ -3750,8 +3750,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return prof
 
-    def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=True, nebular_only=False,
-        prof=None):
+    def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=True,
+        nebular_only=False, prof=None):
         """
         Return 1-halo term of 3-d power spectrum.
 

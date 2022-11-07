@@ -2114,7 +2114,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             If True, return absolute magnitude. [Default: True]
         cam : str, tuple
             Single camera or tuple of cameras that contain the filters named
-            in `filters`, e.g., cam=('wfc', 'wfc3')
+            in `filters`, e.g., cam=('wfc', 'wfc3', 'nircam').
         filters : tuple
             List (well, tuple) of filters to be used in estimating the
             magnitude of objects.

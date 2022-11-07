@@ -165,6 +165,49 @@ _pop_sfe_ext = \
  'pq_faux_par3': 1e10,
 }
 
+_pop_hod = \
+{
+ 'pop_sfr_model': 'smhm-func',
+ 'final_redshift': 0,
+ 'pop_zdead': 0,
+ 'hmf_dt': None,
+ 'hmf_tmax': None,
+ 'hmf_zmin': 0,
+ 'cosmology_id': 'best',
+ 'cosmology_name': 'planck_TTTEEE_lowl_lowE',
+ 'pq_func_par0[0]': 3e-4,
+ 'pq_func_par1[0]': 1.5e12,
+ 'pq_func_par2[0]': 1.0,
+ 'pq_func_par3[0]': -0.4,
+ 'pq_func_par6[0]': 0.0,   # norm
+ 'pq_func_par7[0]': 0.0,   # Mp
+ 'pq_func_par8[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par9[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
+
+
+# sSFR(z, Mstell)
+ 'pop_ssfr': 'pq[1]',
+ 'pq_func[1]': 'pl_evolN',
+ 'pq_func_var[1]': 'Ms',
+ 'pq_func_var2[1]': '1+z',
+ 'pq_func_par0[1]': 2e-10,
+ 'pq_func_par1[1]': 1e10,
+ 'pq_func_par2[1]': -0.0,
+ 'pq_func_par3[1]': 1.,
+ 'pq_func_par4[1]': 1.5,
+
+ 'pq_func[1]': 'dpl_evolN',
+ 'pq_func_var[1]': 'Ms',
+ 'pq_func_var2[1]': '1+z',
+ 'pq_func_par0[1]': 3e-10,
+ 'pq_func_par1[1]': 5e9,
+ 'pq_func_par2[1]': 0.0,
+ 'pq_func_par3[1]': -0.7,
+ 'pq_func_par4[1]': 1e9,
+ 'pq_func_par5[1]': 1.,
+ 'pq_func_par6[1]': 2.,
+}
+
 _pop_mlf = \
 {
  'pop_sfr_model': 'mlf',
@@ -567,7 +610,7 @@ _rt1d_he = \
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe,
-    'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext},
+    'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext, 'hod': _pop_hod},
  'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc,
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
