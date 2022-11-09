@@ -20,7 +20,7 @@ from ..data import ARES
 try:
     import camb
     have_camb = True
-except ImportError:
+except (ImportError, OSError):
     have_camb = False
 
 _pars_CosmoRec = ['cosmorec_nz', 'cosmorec_z0', 'cosmorec_zf',
