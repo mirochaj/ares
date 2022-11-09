@@ -74,7 +74,7 @@ if have_hmf:
 try:
     import camb
     have_pycamb = True
-except ImportError:
+except (ImportError, OSError):
     have_pycamb = False
 
     try:
