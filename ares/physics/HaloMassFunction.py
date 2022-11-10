@@ -59,7 +59,7 @@ try:
     have_hmf = True
     hmf_vstr = hmf.__version__
     hmf_vers = float(hmf_vstr[0:hmf_vstr.index('.')+2])
-except ImportError:
+except (ImportError, OSError):
     have_hmf = False
     hmf_vers = 0
 
