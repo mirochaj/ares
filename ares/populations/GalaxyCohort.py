@@ -973,12 +973,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self.get_surface_density(z, mag=mag, dz=dz, dtheta=dtheta,
             wave=wave)
 
-    def get_surface_density(self, z, mag=None, dz=1., dtheta=1., wave=1600.):
+    def get_surface_density(self, z, maglim=None, dz=1., dtheta=1., wave=1600.,
+        window=1):
         """
         Get the surface density of galaxies in a given redshift chunk.
 
         Parameters
         ----------
+        z : int, float
+            Redshift of galaxy population.
+        maglim : int, float
+            Apparent AB magnitude defining cut.
         dz : int, float
             Thickness of redshift chunk.
         dtheta : int, float
@@ -988,94 +993,67 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         -------
         Observed magnitudes, then, projected surface density of galaxies in
         `dz` thick shell, in units of cumulative number of galaxies per
-        square degree.
+        square degree. Will return as function of apparent AB magnitude, or
+        if `maglim` is supplied, just the number density brighter than that
+        cut.
 
         """
 
         # These are intrinsic (i.e., not dust-corrected) absolute magnitudes
-        _mags, _phi = self._get_phi_of_M(z=z, wave=wave)
-
-        mask = np.logical_or(_mags.mask, _phi.mask)
-
-        mags = _mags[mask == 0]
-        phi = _phi[mask == 0]
-
-        # Observed magnitudes will be dimmer, + AB shift from absolute to apparent mags
-        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
-        magcorr = 5. * (np.log10(dL) - 1.)
-        Mobs = self.dust.Mobs(z, mags) - magcorr
+        bins = np.arange(0, 40, 0.1)
+        mags, phi = self.get_lf(z, bins, wave=wave, window=window,
+            use_mags=True, absolute=False)
 
         # Compute the volume of the shell we're looking at
         vol = self.cosm.ProjectedVolume(z, angle=dtheta, dz=dz)
 
         Ngal = phi * vol
 
-        # At this point, magnitudes are in descending order, i.e., faint
-        # to bright.
-
-        # Because we want the cumulative number *brighter* than m_AB,
-        # reverse the arrays and integrate from bright end down.
-
-        Mobs = Mobs[-1::-1]
-        Ngal = Ngal[-1::-1]
-
         # Cumulative surface density of galaxies *brighter than* Mobs
-        cgal = cumtrapz(Ngal, x=Mobs, initial=Ngal[0])
+        cgal = cumtrapz(Ngal, x=mags, initial=Ngal[0])
 
-        if mag is not None:
-            return np.interp(mag, Mobs, cgal)
+        if maglim is not None:
+            return np.interp(maglim, mags, cgal)
         else:
-            return Mobs, cgal
-
-        # Number of galaxies per mag bin in survey area.
-        # Currently neglects evolution of LF along LoS.
-        Ngal = phi * vol
-
-        # Faint to bright
-        Ngal_asc = Ngal[-1::-1]
-        x_asc = x[-1::-1]
-
-        # At this point, magnitudes are in ascending order, i.e., bright to
-        # faint.
-
-        # Cumulative surface density of galaxies *brighter than*
-        # some corresponding magnitude
-        assert Ngal[0] == 0, "Broaden binning range?"
-        ntot = np.trapz(Ngal, x=x)
-        nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
-
-        return x, nltm
-
+            return mags, cgal
+            
     @property
     def is_uvlf_parametric(self):
         if not hasattr(self, '_is_uvlf_parametric'):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
         return self._is_uvlf_parametric
 
-    def _get_uvlf_mags(self, MUV, z=None, wave=1600., window=1):
+    def _get_uvlf_mags(self, z, bins, wave=1600., window=1, absolute=True):
 
         if self.is_uvlf_parametric:
-            return self.uvlf(MUV=MUV, z=z)
+            assert absolute
+            return self.uvlf(MUV=bins, z=z)
 
         ##
         # Otherwise, standard SFE parameterized approach.
         ##
 
+        # These are absolute AB magnitudes in `x_phi`
         x_phi, phi = self._get_phi_of_M(z, wave=wave, window=window)
 
         ok = phi.mask == False
 
         if ok.sum() == 0:
-            return -np.inf
+            return bins, -np.inf * np.ones_like(bins)
 
         # Setup interpolant. x_phi is in descending, remember!
         interp = interp1d(x_phi[ok][-1::-1], np.log10(phi[ok][-1::-1]),
             kind=self.pf['pop_interp_lf'],
             bounds_error=False, fill_value=np.log10(tiny_phi))
 
-        phi_of_x = 10**interp(MUV)
+        if not absolute:
+            bins_abs = self.get_mags_abs(z, bins)
+        else:
+            bins_abs = bins
 
-        return phi_of_x
+        phi_of_x = 10**interp(bins_abs)
+
+        return bins, phi_of_x
 
     def _get_uvlf_lum(self, LUV, z=None, wave=1600., window=1):
         x_phi, phi = self._get_phi_of_L(z, wave=wave, window=window)
@@ -1122,11 +1100,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if not absolute:
-            raise NotImplemented('help!')
-
         if use_mags:
-            phi_of_x = self._get_uvlf_mags(bins, z, wave=wave, window=window)
+            _x_, phi_of_x = self._get_uvlf_mags(z, bins, wave=wave, window=window,
+                absolute=absolute)
         else:
             raise NotImplemented('needs fixing')
             phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
@@ -1308,11 +1284,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_phi_of_L'):
             self._phi_of_L = {}
         else:
-            if z in self._phi_of_L:
-                return self._phi_of_L[z]
-            for red in self._phi_of_L:
-                if abs(red - z) < ztol:
-                    return self._phi_of_L[red]
+            if (z, wave, window) in self._phi_of_L:
+                return self._phi_of_L[(z, wave, window)]
 
         Lh = self.get_lum(z, wave=wave, window=window)
 
@@ -1381,19 +1354,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         lum = np.ma.array(Lh[:-1], mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask, fill_value=tiny_phi)
 
-        self._phi_of_L[z] = lum, phi
+        self._phi_of_L[(z, wave, window)] = lum, phi
 
-        return self._phi_of_L[z]
+        return self._phi_of_L[(z, wave, window)]
 
     def _get_phi_of_M(self, z, wave=1600., window=1):
         if not hasattr(self, '_phi_of_M'):
             self._phi_of_M = {}
         else:
-            if z in self._phi_of_M:
-                return self._phi_of_M[z]
-            for red in self._phi_of_M:
-                if np.allclose(red, z):
-                    return self._phi_of_M[red]
+            if (z, wave, window) in self._phi_of_M:
+                return self._phi_of_M[(z, wave, window)]
 
         Lh, phi_of_L = self._get_phi_of_L(z, wave=wave, window=window)
 
@@ -1406,11 +1376,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
 
-        phi_of_M[phi_of_M==0] = 1e-15
+        phi_of_M[phi_of_M==0] = tiny_phi
 
-        self._phi_of_M[z] = MAB[0:-1], phi_of_M
+        self._phi_of_M[(z, wave, window)] = MAB[0:-1], phi_of_M
 
-        return self._phi_of_M[z]
+        return self._phi_of_M[(z, wave, window)]
 
     def get_mag_lim(self, z, absolute=True, wave=1600, band=None, window=1,
         load=True, raw=True, nebular_only=False, apply_dustcorr=False):
