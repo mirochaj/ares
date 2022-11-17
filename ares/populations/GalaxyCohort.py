@@ -772,53 +772,51 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if type(self.pf['pop_sfr']) == 'str':
                 return self.sfr(z=z, Mh=Mh)
 
-        # If Mh is None, it triggers use of _tab_sfr, which spans all
+        # If Mh is None, it triggers use of tab_sfr, which spans all
         # halo masses in self.halos.tab_M
         if Mh is None:
             k = np.argmin(np.abs(z - self.halos.tab_z))
             if abs(z - self.halos.tab_z[k]) < ztol:
                 return self.tab_sfr[k] * ~self._tab_sfr_mask[k]
-
             else:
                 Mh = self.halos.tab_M
-        else:
 
-            # Create interpolant to be self-consistent
-            # with _tab_sfr. Note that this is slower than it needs to be
-            # in cases where we just want to know the SFR at a few redshifts
-            # and/or halo masses. But, we're rarely doing such things.
-            if not hasattr(self, '_spline_sfr'):
-                log10sfr = np.log10(self.tab_sfr)
-                # Filter zeros since we're going log10
-                log10sfr[np.isinf(log10sfr)] = -90.
-                log10sfr[np.isnan(log10sfr)] = -90.
+        # Create interpolant to be self-consistent
+        # with _tab_sfr. Note that this is slower than it needs to be
+        # in cases where we just want to know the SFR at a few redshifts
+        # and/or halo masses. But, we're rarely doing such things.
+        if not hasattr(self, '_spline_sfr'):
+            log10sfr = np.log10(self.tab_sfr * ~self._tab_sfr_mask)
+            # Filter zeros since we're going log10
+            log10sfr[np.isinf(log10sfr)] = -90.
+            log10sfr[np.isnan(log10sfr)] = -90.
 
-                _spline_sfr = RectBivariateSpline(self.halos.tab_z,
-                    np.log10(self.halos.tab_M), log10sfr)
+            _spline_sfr = RectBivariateSpline(self.halos.tab_z,
+                np.log10(self.halos.tab_M), 10**log10sfr)
 
-                #func = lambda z, log10M: 10**_spline_sfr(z, log10M).squeeze()
+            #func = lambda z, log10M: 10**_spline_sfr(z, log10M).squeeze()
 
-                def func(z, log10M):
-                    sfr = 10**_spline_sfr(z, log10M).squeeze()
+            def func(zz, log10M):
+                sfr = _spline_sfr(zz, log10M).squeeze()
 
-                    M = 10**log10M
-                    #if type(sfr) is np.ndarray:
-                    #    sfr[M < self.Mmin(z)] = 0.0
-                    #    sfr[M > self.get_Mmax(z)] = 0.0
-                    #else:
-                    #    if M < self.Mmin(z):
-                    #        return 0.0
-                    #    if M > self.get_Mmax(z):
-                    #        return 0.0
+                M = 10**log10M
+                if type(sfr) is np.ndarray:
+                    sfr[M < self.Mmin(zz)] = 0.0
+                    sfr[M > self.get_Mmax(zz)] = 0.0
+                else:
+                    if M < self.Mmin(z):
+                        return 0.0
+                    if M > self.get_Mmax(z):
+                        return 0.0
 
-                    return sfr
+                return sfr
 
-                self._spline_sfr = func
+            self._spline_sfr = func
 
-            return self._spline_sfr(z, np.log10(Mh))
+        return self._spline_sfr(z, np.log10(Mh))
 
-        return self.cosm.fbar_over_fcdm * self.get_MAR(z, Mh) * self.eta(z) \
-            * self.SFE(z=z, Mh=Mh)
+        #return self.cosm.fbar_over_fcdm * self.get_MAR(z, Mh) * self.eta(z) \
+        #    * self.SFE(z=z, Mh=Mh)
 
     def get_emissivity(self, z, E=None, Emin=None, Emax=None):
         """
@@ -1016,7 +1014,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return np.interp(maglim, mags, cgal)
         else:
             return mags, cgal
-            
+
     @property
     def is_uvlf_parametric(self):
         if not hasattr(self, '_is_uvlf_parametric'):
@@ -1160,11 +1158,79 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return None
 
+    def get_lum_per_sfr(self, z, Mh=None, wave=1600., window=1., raw=True,
+        nebular_only=False, band=None):
+        """
+        Return luminosity per unit SFR.
+        """
+
+        if not self.is_metallicity_constant:
+            Z = self.get_metallicity(z, Mh=self.halos.tab_M)
+
+            f_L_sfr = self._get_lum_all_Z(wave=wave, band=band,
+                window=window, raw=raw, nebular_only=nebular_only)
+
+            L_sfr = 10**f_L_sfr(np.log10(Z))
+
+        elif self.pf['pop_lum_per_sfr'] is None:
+            L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+                band=band, raw=raw, nebular_only=nebular_only)
+        else:
+            assert self.pf['pop_calib_lum'] is None, \
+                "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
+            L_sfr = self.pf['pop_lum_per_sfr']
+
+        return L_sfr
+
+    def get_sed(self, z, M, waves, stellar_mass=False, per_Hz=False,
+        band=None, window=1, energy_units=True, load=True, raw=True,
+        nebular_only=False):
+        """
+        Just a wrapper around `get_lum` with option of interpolating to new
+        mass.
+        """
+
+        if self.pf['pop_sfr_model'] == 'smhm-func':
+
+            # In this case, assume `M` supplied is stellar mass.
+            # Convert to a halo mass via SMHM.
+            if stellar_mass:
+                # Mstell = Mhalo * SMHM
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+                Mh = np.interp(M, mste, self.halos.tab_M)
+            else:
+                Mh = M * 1.
+
+            lum = np.zeros((M.size, waves.size))
+            for i, wave in enumerate(waves):
+                l = self.get_lum(z, wave=wave, band=band, window=window,
+                    energy_units=energy_units, load=False, raw=raw,
+                    nebular_only=nebular_only)
+                lum[:,i] = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
+                    np.log10(l))
+
+            if per_Hz:
+                pass
+            else:
+                dwdn = waves**2 / (c * 1e8)
+                lum = lum / dwdn[None,:]
+
+            if np.any(lum > 1e45):
+                print('hey wtf', lum, z, M, waves, self.get_sfr(z, 1e11))
+                input('<enter>')
+
+            return lum
+
+        else:
+            raise NotImplemented('help')
+
+
     def Luminosity(self, z, **kwargs):
         return self.get_lum(z, **kwargs)
 
     def get_lum(self, z, wave=1600, band=None, window=1,
-        energy_units=True, load=True, raw=True, nebular_only=False):
+        energy_units=True, load=False, raw=True, nebular_only=False):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -1177,9 +1243,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if load:
+        if False:
             cached_result = self._cache_L(z, wave, window, raw, nebular_only)
-
+            print(f"Loading result from cache at z={z}")
             if cached_result is not None:
                 return cached_result
 
@@ -1210,7 +1276,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Just the product of SFR and L_per_sfr
             Lh = sfr * L_sfr
-            self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
+
+            if not hasattr(self, '_cache_L'):
+                self._cache_L = {}
+
+            #self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
 
             return Lh
 
@@ -1236,7 +1306,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             Lh = Lbol * I_E * ev_per_hz
 
-            self._cache_L_[(z, wave)] = Lh
+            #self._cache_L_[(z, wave)] = Lh
 
             return Lh
 
@@ -1710,7 +1780,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             M = np.reshape(np.tile(self.halos.tab_M, self.halos.tab_z.size),
                     (self.halos.tab_z.size, self.halos.tab_M.size))
 
-            mask = np.zeros_like(self.tab_sfr, dtype=bool)
+            mask = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size),
+                dtype=bool)
             mask[M < Mmin] = True
             mask[M > Mmax] = True
             mask[self.halos.tab_z > self.zform] = True
@@ -1984,6 +2055,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 print("Note: pop_sfr_model={}".format(self.pf['pop_sfr_model']))
 
             self._tab_sfr_[isnan] = 0.
+            self._tab_sfr_ *= ~self._tab_sfr_mask
 
         return self._tab_sfr_
 
@@ -2288,6 +2360,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_focc_ = focc
 
         return self._tab_focc_
+
+    def get_smhm(self, **kwargs):
+        if self.pf['pop_sfr_model'] == 'smhm-func':
+            return self.get_fstar(**kwargs)
+        else:
+            raise NotImplemented('help')
 
     def SFE(self, **kwargs):
         return self.get_sfe(**kwargs)
@@ -3780,7 +3858,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Parameters
         ----------
         scale : int, float, np.ndarray
-            Angular scale [arcseconds]
+            Angular scale [scale_units]
         wave_obs : int, float, tuple
             Observed wavelength of interest [microns]. If tuple, will
             assume elements define the edges of a spectral channel.

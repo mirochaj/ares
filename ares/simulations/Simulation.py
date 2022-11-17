@@ -229,7 +229,7 @@ class Simulation(object):
             else:
                 raise NotImplemented(f"Don't recognize `scale_units`={scale_units}")
 
-            scales_inv = np.pi / scale_rad
+            scales_inv = 2 * np.pi / scale_rad
 
         if wave_units.lower().startswith('mic'):
             pass

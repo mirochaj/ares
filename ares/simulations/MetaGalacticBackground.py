@@ -322,7 +322,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Attenuate by HI absorbers in IGM at z < zf?
         # Note: duplicated from ares.static.SpectralSynthesis. Do better.
         if (self.pf['tau_clumpy'] is not None):
-            assert self.pf['tau_clumpy'] in ['madau1995', 1, 2]
+            assert self.pf['tau_clumpy'] in [0, 'madau1995', 1, 2]
 
             if zf is None:
                 assert np.allclose(np.array(_zf) - _zf[0], 0)
@@ -334,7 +334,9 @@ class MetaGalacticBackground(AnalyzeMGB):
             # X-ray cutoff in Ang
             lam_X = h_p * c * 1e8 / erg_per_ev / 2e2
 
-            if self.pf['tau_clumpy'] == 1:
+            if self.pf['tau_clumpy'] == 0:
+                pass
+            elif self.pf['tau_clumpy'] == 1:
                 tau[rwaves < lam_LL] = np.inf
                 tau[rwaves < lam_X] = 0.0
             # Or all wavelengths < 1216 A (rest)
