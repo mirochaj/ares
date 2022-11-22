@@ -2245,6 +2245,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                     rphot = np.array(xph) * 1e4 / (1. + z)
                     k = np.argmin(np.abs(rphot - wave))
                     Mg = mags[k,:]
+                    xout = filters[k]
             elif method == 'interp':
                 if len(mags) == 0:
                     Mg = -99999 * np.ones(hist['SFR'].shape[0])
