@@ -64,6 +64,9 @@ aux_data = \
  'roman': ['https://roman.gsfc.nasa.gov/science/RRI/',
     'Roman_effarea_20201130.xlsx',
     None],
+ 'rubin': ['https://s3df.slac.stanford.edu/data/rubin/sim-data/rubin_sim_data',
+    'throughputs_aug_2021.tgz',
+    None],
  #'wfc': ['http://www.stsci.edu/hst/acs/analysis/throughputs/tables',
  #   'wfc_F435W.dat',
  #   'wfc_F606W.dat',
@@ -83,6 +86,7 @@ if not os.path.exists('input'):
 
 os.chdir('input')
 
+extra = ['nircam', 'irac', 'roman', 'edges', 'bpass_v1_stars']
 needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3',
     'planck', 'bpass_v1', 'optical_depth']
 needed_for_tests_fn = ['inits.tar.gz', 'elec_interp.tar.gz', 'hmf.tar.gz',
@@ -115,7 +119,12 @@ if (len(options) > 0) and ('clean' not in options):
             to_download = aux_data.keys()
             files = [None] * len(to_download)
 else:
-    to_download = list(aux_data.keys())
+    to_download = []
+    for key in aux_data.keys():
+        if key in extras:
+            continue
+        to_download.append(key)
+
     files = [None] * len(to_download)
 
 for i, direc in enumerate(to_download):

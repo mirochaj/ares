@@ -1216,10 +1216,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 dwdn = waves**2 / (c * 1e8)
                 lum = lum / dwdn[None,:]
 
-            if np.any(lum > 1e45):
-                print('hey wtf', lum, z, M, waves, self.get_sfr(z, 1e11))
-                input('<enter>')
-
             return lum
 
         else:
