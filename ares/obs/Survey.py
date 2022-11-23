@@ -135,6 +135,12 @@ class Survey(object):
             return self._read_irac(filter_set, filters)
         elif self.camera == 'roman':
             return self._read_roman(filters)
+        elif self.camera == 'wise':
+            return self._read_wise(filters)
+        elif self.camera == 'spherex':
+            return self._read_spherex(filters)
+        elif self.camera == 'rubin':
+            return self._read_rubin(filters)
         else:
             raise NotImplemented('help')
 
@@ -424,6 +430,52 @@ class Survey(object):
                 self._filter_cache[pre] = copy.deepcopy(data[pre])
 
             break
+
+        return data
+
+    def _read_wise(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = '{}/wise'.format(_path)
+
+        data = {}
+        cent = 3.368, 4.618
+        for i, filt in enumerate(['W1', 'W2']):
+            x, y, z = np.loadtxt('{}/{}'.format(path, f'RSR-{filt}.txt'),
+                unpack=True)
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_spherex(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = '{}/spherex/Public-products-master'.format(_path)
+        fn = 'Surface_Brightness_v28_base_cbe.txt'
+        x, allsky, deep = np.loadtxt('{}/{}'.format(path, fn), unpack=True)
+
+        self._filter_cache['all'] = x, allsky, deep
+
+        return x, allsky, deep
+
+    def _read_rubin(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = '{}/rubin/throughputs/baseline'.format(_path)
+
+        data = {}
+        for i, filt in enumerate(list('ugrizy')):
+            x, y = np.loadtxt('{}/{}'.format(path, f'total_{filt}.dat'),
+                unpack=True)
+            cent = np.mean(x[y > 0])
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent)
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
 
         return data
 
