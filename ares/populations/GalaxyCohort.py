@@ -1435,7 +1435,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         _MAB = self.magsys.L_to_MAB(Lh)
 
-        if self.pf['dustcorr_method'] is not None:
+        if (self.pf['dustcorr_method'] is not None):
             MAB = self.dust.Mobs(z, _MAB)
         else:
             MAB = _MAB

@@ -203,6 +203,13 @@ class NebularEmission(object):
 
         return self._ew_wrt_hbeta_
 
+    @property
+    def _lam_Hb(self):
+        if not hasattr(self, '_lam_Hb_'):
+            Eb = self.hydr.BohrModel(ninto=2, nfrom=3)
+            self._lam_Hb_ = 1e8 * h_p * c / (Eb * erg_per_ev)
+        return self._lam_Hb_
+
     def f_rep(self, spec, Tgas=2e4, channel='ff', net=False):
         """
         Fraction of photons reprocessed into different channels.
@@ -367,7 +374,7 @@ class NebularEmission(object):
             tot += self.BalmerSeries(spec)
         elif self.pf['source_nebular'] in [3, 'inoue2011']:
             _tot = self.BalmerSeries(spec)
-            Hb = _tot[np.argmin(np.abs(6569 - self.wavelengths))]
+            Hb = _tot[np.argmin(np.abs(self._lam_Hb - self.wavelengths))]
 
             tot = np.zeros_like(self.wavelengths)
 

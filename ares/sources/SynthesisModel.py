@@ -766,6 +766,12 @@ class SynthesisModel(SynthesisModelBase):
                 #raise NotImplemented('need to revisit this.')
                 self._data *= self.pf['source_sfr']
 
+            # Zero-out first and last entry in spectral dimension to avoid
+            # erroneous 'extrapolation' outside the provided range.
+            self._data[0,:] = 0
+            self._data[-1,:] = 0
+
+            # Add nebular emission (duh)
             self._add_nebular_emission()
 
         return self._data
