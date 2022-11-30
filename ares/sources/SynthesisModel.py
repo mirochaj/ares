@@ -545,6 +545,9 @@ class SynthesisModelBase(Source):
         if Emax is None:
             Emax = np.max(self.energies)
 
+        if (Emin < np.min(self.energies)) and (Emax < np.min(self.energies)):
+            return np.zeros_like(self.times)
+
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
 

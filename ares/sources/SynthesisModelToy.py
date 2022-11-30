@@ -151,6 +151,19 @@ class SynthesisModelToy(SynthesisModelBase):
             # Assume log-linear at t < trise
             if t < trise:
                 spec *= (t / trise)**1.5
+
+        # Power-law, time-independent spectrum.
+        elif self.pf['source_toysps_method'] == 1:
+            beta = self.pf["source_toysps_beta"]
+            _norm = self.pf["source_toysps_norm"]
+            lmin = self.pf['source_toysps_lmin']
+
+            # Normalization of each wavelength is set by UV slope
+            norm = _norm * (wave / 1600.)**beta
+            ok = wave >= lmin
+            spec = norm
+            spec[ok==0] = 0
+
         elif type(self.pf['source_toysps_method']) == str:
 
             is_on = t < (self._Star.lifetime / 1e6) \

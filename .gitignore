@@ -28,6 +28,9 @@ input/bpass_v1_stars/*
 input/bpass_v2
 input/inits/*.txt
 input/nircam
+input/rubin
+input/spherex
+input/wise
 tests/.coverage
 .coverage
 coverage.xml

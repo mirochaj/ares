@@ -30,7 +30,7 @@ from .Population import normalize_sed
 from ..util.Stats import bin_c2e, bin_e2c
 from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
     LinearNDInterpolator
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity, numeric_types
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H
@@ -1190,7 +1190,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         mass.
         """
 
-        if self.pf['pop_sfr_model'] == 'smhm-func':
+        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
 
             # In this case, assume `M` supplied is stellar mass.
             # Convert to a halo mass via SMHM.
@@ -1435,7 +1435,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         _MAB = self.magsys.L_to_MAB(Lh)
 
-        if (self.pf['dustcorr_method'] is not None) and wave > 1600:
+        if (self.pf['dustcorr_method'] is not None) and wave <= 1600:
             MAB = self.dust.Mobs(z, _MAB)
         else:
             MAB = _MAB
@@ -3881,6 +3881,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if wave_obs2 is None:
             wave_obs2 = wave_obs1
 
+        name = '{:.2f} micron'.format(np.mean(wave_obs1)) if np.all(wave_obs1 == wave_obs2) \
+            else '({:.2f} x {:.2f}) microns'.format(np.mean(wave_obs1),
+            np.mean(wave_obs2))
+
         ##
         # Loop over scales of interest if given an array.
         if type(scale) is np.ndarray:
@@ -3888,14 +3892,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ps = np.zeros_like(scale)
 
             pb = ProgressBar(scale.shape[0],
-                use=use_pb and self.pf['progress_bar'], name='p(k)')
+                use=use_pb and self.pf['progress_bar'],
+                name=f'p(k,{name})')
             pb.start()
 
             for h, _scale_ in enumerate(scale):
 
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
-                    integrand[i] = self._get_ps_obs(z, _scale_, wave_obs1, wave_obs2,
+                    integrand[i] = self._get_ps_obs(z, _scale_,
+                        wave_obs1, wave_obs2,
                         include_shot=include_shot,
                         include_1h=include_1h, include_2h=include_2h,
                         scale_units=scale_units, raw=raw,
@@ -3924,15 +3930,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # monochromatic PS
         assert type(wave_obs1) == type(wave_obs2)
 
-        if type(wave_obs1) not in [tuple, list]:
+        if type(wave_obs1) in numeric_types:
             ps = ps * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
         else:
-            ps = ps / (c / (np.array(wave_obs1)[0] * 1e-4) \
-                - c / (np.array(wave_obs1)[1] * 1e-4))
-            ps = ps / (c / (np.array(wave_obs2)[0] * 1e-4) \
-                - c / (np.array(wave_obs2)[1] * 1e-4))
-            ps = ps * (c / (np.mean(np.array(wave_obs1)) * 1e-4)) \
-                * (c / (np.mean(np.array(wave_obs2)) * 1e-4))
+            nu1 = c / (np.array(wave_obs1) * 1e-4)
+            nu2 = c / (np.array(wave_obs2) * 1e-4)
+            dnu1 = -np.diff(nu1)
+            dnu2 = -np.diff(nu2)
+
+            ps = ps * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
 
         return ps
 
@@ -4016,6 +4022,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 rad /= 3600.
             elif scale_units == 'arcmin':
                 rad /= 60.
+            elif scale_units.startswith('deg'):
+                pass
             else:
                 raise NotImplemented('Unrecognized scale_units={}'.format(
                     scale_units

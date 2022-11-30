@@ -151,7 +151,7 @@ class Simulation(object):
 
         return data
 
-    def get_galaxy_ps(self, scales, waves, wave_units='mic',
+    def get_galaxy_ps(self, scales, waves, waves2=None, wave_units='mic',
         scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
         **kwargs):
         """
@@ -239,6 +239,9 @@ class Simulation(object):
         # Do some error-handling if waves is 2-D: means the user provided
         # bandpasses instead of a set of wavelengths.
 
+        if waves2 is None:
+            waves2 = waves
+
         ps = np.zeros((len(self.pops), len(scales), len(waves)))
 
         for i, pop in enumerate(self.pops):
@@ -248,14 +251,9 @@ class Simulation(object):
                     continue
 
             for j, wave in enumerate(waves):
-
-                if waves_is_2d:
-                    w1, w2 = wave
-                else:
-                    w1 = w2 = wave
-
                 # Will default to 1h + 2h + shot
-                ps[i,:,j] = pop.get_ps_obs(scales, wave_obs1=w1, wave_obs2=w2,
+                ps[i,:,j] = pop.get_ps_obs(scales,
+                    wave_obs1=wave, wave_obs2=waves2[j],
                     scale_units=scale_units, **kwargs)
 
         # Modify PS units before return
