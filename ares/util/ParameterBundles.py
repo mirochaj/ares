@@ -918,7 +918,7 @@ class ParameterBundle(dict):
 
                 pqs.append(par)
 
-                if pqid is 'None':
+                if pqid == 'None':
                     pqids.append(None)
                 else:
                     pqids.append(pqid)
