@@ -401,7 +401,7 @@ class SpectralSynthesis(object):
 
     def get_spec_obs(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={},
-        idnum=None, window=1, extras={}, nthreads=1, load=True):
+        idnum=None, window=1, extras={}, nthreads=1, load=True, use_pbar=True):
         """
         Take an input spectrum and "observe" it at redshift z.
 
@@ -424,7 +424,7 @@ class SpectralSynthesis(object):
         if spec is None:
             spec = self.get_spec_rest(waves, sfh=sfh, tarr=tarr, zarr=zarr,
                 zobs=zobs, tobs=None, hist=hist, idnum=idnum,
-                extras=extras, window=window, load=load)
+                extras=extras, window=window, load=load, use_pbar=use_pbar)
 
         dL = self.cosm.LuminosityDistance(zobs)
 
@@ -462,7 +462,7 @@ class SpectralSynthesis(object):
         filter_set=None, dlam=20., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None,
         hist={}, idnum=None, flux_units=None, picky=False, lbuffer=200.,
-        ospec=None, owaves=None, load=True):
+        ospec=None, owaves=None, load=True, use_pbar=True):
         """
         Just a wrapper around `Spectrum`.
 
@@ -588,7 +588,8 @@ class SpectralSynthesis(object):
         if (spec is None) and (ospec is None):
             spec = self.get_spec_rest(waves, sfh=sfh, tarr=tarr, tobs=tobs,
                 zarr=zarr, zobs=zobs, band=band, hist=hist,
-                idnum=idnum, extras=extras, window=window, load=load)
+                idnum=idnum, extras=extras, window=window, load=load,
+                use_pbar=use_pbar)
 
             # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
             wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec,
@@ -677,7 +678,7 @@ class SpectralSynthesis(object):
 
     def get_spec_rest(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
-        extras={}, load=True):
+        extras={}, load=True, use_pbar=True):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -699,7 +700,8 @@ class SpectralSynthesis(object):
 
         # Do kappa up front?
 
-        pb = ProgressBar(waves.size, name='l(nu)', use=self.pf['progress_bar'])
+        pb = ProgressBar(waves.size, name='l(nu)',
+            use=self.pf['progress_bar'] and use_pbar)
         pb.start()
 
         ##
@@ -729,20 +731,24 @@ class SpectralSynthesis(object):
                     spec[slc] = self.get_lum(wave=waves[i],
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                         band=band, hist=hist, idnum=idnum,
-                        extras=extras, window=window, load=load)
+                        extras=extras, window=window, load=load,
+                        use_pbar=use_pbar)
 
                     pb.update(i)
 
         else:
-
             spec = np.zeros(shape)
             for i, wave in enumerate(waves):
+
                 slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                spec[slc] = self.get_lum(wave=wave,
+                tmp = self.get_lum(wave=wave,
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                     band=band, hist=hist, idnum=idnum,
-                    extras=extras, window=window, load=load)
+                    extras=extras, window=window, load=load,
+                    use_pbar=not use_pbar)
+
+                spec[slc] = tmp
 
                 pb.update(i)
 
@@ -959,7 +965,7 @@ class SpectralSynthesis(object):
 
     def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
-        load=True, energy_units=True):
+        load=True, energy_units=True, use_pbar=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -1021,7 +1027,7 @@ class SpectralSynthesis(object):
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist,
             'extras':extras, 'window': window, 'energy_units': energy_units}
 
-        if load:
+        if False:
             _kwds, cached_result = self._cache_lum(kw)
         else:
             self._cache_lum_ = {}
@@ -1032,7 +1038,7 @@ class SpectralSynthesis(object):
 
         if sfh.ndim == 2 and idnum is not None:
             sfh = sfh[idnum,:]
-            if 'Z' in hist:
+            if self.pf['pop_enrichment'] and 'Z' in hist:
                 Z = hist['Z'][idnum,:]
 
             # Don't necessarily need Mh here.
@@ -1041,7 +1047,7 @@ class SpectralSynthesis(object):
         else:
             if 'Mh' in hist:
                 Mh = hist['Mh']
-            if 'Z' in hist:
+            if self.pf['pop_enrichment'] and 'Z' in hist:
                 Z = hist['Z']
 
         # If SFH is 2-D it means we're doing this for multiple galaxies at once.
@@ -1422,9 +1428,8 @@ class SpectralSynthesis(object):
                 if np.all(is_central == 1):
                     pass
                 else:
-                    print("Looping over {} halos...".format(sfh.shape[0]))
                     pb = ProgressBar(sfh.shape[0],
-                        use=self.pf['progress_bar'],
+                        use=self.pf['progress_bar'] and use_pbar,
                         name='L += L_progenitors')
                     pb.start()
 

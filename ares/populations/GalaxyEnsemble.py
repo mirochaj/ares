@@ -2084,21 +2084,28 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return self._synth
 
-    def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None,
-        filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
-        load=True, presets=None, absolute=True):
-        """
-        For backward compatibility as we move to get_* method model.
+    #def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None,
+    #    filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
+    #    load=True, presets=None, absolute=True):
+    #    """
+    #    For backward compatibility as we move to get_* method model.
 
-        See `get_mags` below.
+    #    See `get_mags` below.
+    #    """
+    #    return self.get_mags(z, MUV=MUV, wave=wave, cam=cam, filters=filters,
+    #        filter_set=filter_set, dlam=dlam, method=method, idnum=idnum,
+    #        window=window, load=load, presets=presets, absolute=absolute)
+
+    def get_filter_info(self, cam, filt):
         """
-        return self.get_mags(z, MUV=MUV, wave=wave, cam=cam, filters=filters,
-            filter_set=filter_set, dlam=dlam, method=method, idnum=idnum,
-            window=window, load=load, presets=presets, absolute=absolute)
+        Returns the central wavelength and width of user-supplied filter,
+        both in microns.
+        """
+        return self.synth.cameras[cam].get_filter_info(filt)
 
     def get_mags(self, z, MUV=None, wave=1600., cam=None, filters=None,
-        filter_set=None, dlam=20., method='closest', idnum=None, window=1,
-        load=True, presets=None, absolute=True):
+        filter_set=None, dlam=20., method=None, idnum=None, window=1,
+        load=True, presets=None, absolute=True, use_pbar=True):
         """
         Return the magnitude of objects at specified wavelength or
         as-estimated via given photometry.
@@ -2157,7 +2164,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         kw_tup = tuple(kw.items())
 
-        if load:
+        if False:
             cached_result = self._cache_mags(kw_tup)
         else:
             cached_result = None
@@ -2195,7 +2202,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
                         self.synth.get_photometry(zobs=z, sfh=hist['SFR'],
                         zarr=hist['z'], hist=hist, dlam=dlam,
                         cam=_cam, filters=filters, filter_set=filter_set,
-                        idnum=idnum, extras=self.extras, rest_wave=None)
+                        idnum=idnum, extras=self.extras, rest_wave=None,
+                        use_pbar=use_pbar)
 
                     mags.extend(list(np.array(ycorr)))
                     xph.extend(xphot)
@@ -2294,15 +2302,15 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return xout, M_final
 
-    def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, energy_units=True):
-        """
-        For backward compatibility as we move to get_* method model.
+    #def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
+    #    load=True, energy_units=True):
+    #    """
+    #    For backward compatibility as we move to get_* method model.
 
-        See `get_lum` below.
-        """
-        return self.get_lum(z, wave=wave, band=band, idnum=idnum,
-            window=window, load=load, energy_units=energy_units)
+    #    See `get_lum` below.
+    #    """
+    #    return self.get_lum(z, wave=wave, band=band, idnum=idnum,
+    #        window=window, load=load, energy_units=energy_units)
 
     def _dlam_check(self, dlam):
         if self.pf['pop_sed_degrade'] is None:
@@ -2429,7 +2437,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return line_wave, flux
 
-    def get_spec_obs(self, z, waves):
+    def get_spec_obs(self, z, waves, idnum=None):
         """
         Generate z=0 observed spectrum for all sources.
 
@@ -2450,7 +2458,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
 
         owaves, flux = self.synth.get_spec_obs(z, hist=self.histories,
-            waves=waves, sfh=self.histories['SFR'], extras=self.extras)
+            waves=waves, sfh=self.histories['SFR'], extras=self.extras,
+            idnum=idnum)
 
         return owaves, flux
 
@@ -2509,7 +2518,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         return L
 
     def get_bias(self, z, limit=None, wave=1600., cam=None, filters=None,
-        filter_set=None, dlam=20., method='closest', idnum=None, window=1,
+        filter_set=None, dlam=20., method=None, idnum=None, window=1,
         load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
         absolute=False, factor=1, limit_is_lower=True, limit_lower=None,
         depths=None, color_cuts=None, logic='or'):
@@ -3578,17 +3587,17 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         hist = {key:self.histories[key][-1::-1] for key in keys}
         return hist
 
-    def SurfaceDensity(self, z, bins, dz=1., dtheta=1., wave=1600.,
-        cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
-        method='closest', window=1, load=True, presets=None, absolute=True,
-        use_mags=True):
-        """
-        For backward compatibility. See `get_surface_density`.
-        """
-        return self.get_surface_density(z=z, bins=bins, dz=dz, dtheta=dtheta,
-            wave=wave, cam=cam, filters=filters, filter_set=filter_set,
-            dlam=dlam, method=method, use_mags=use_mags, depths=depths,
-            window=window, load=load, presets=presets, absolute=absolute)
+    #def SurfaceDensity(self, z, bins, dz=1., dtheta=1., wave=1600.,
+    #    cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
+    #    method='closest', window=1, load=True, presets=None, absolute=True,
+    #    use_mags=True):
+    #    """
+    #    For backward compatibility. See `get_surface_density`.
+    #    """
+    #    return self.get_surface_density(z=z, bins=bins, dz=dz, dtheta=dtheta,
+    #        wave=wave, cam=cam, filters=filters, filter_set=filter_set,
+    #        dlam=dlam, method=method, use_mags=use_mags, depths=depths,
+    #        window=window, load=load, presets=presets, absolute=absolute)
 
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., wave=1600.,
         cam=None, filters=None, filter_set=None, depths=None, dlam=20.,

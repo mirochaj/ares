@@ -523,6 +523,9 @@ class Survey(object):
 
         return x, y, mi, dx, Tavg
 
+    def get_filter_info(self, filt):
+        return self._filter_cache[filt][2], sum(self._filter_cache[filt][3])
+
     def get_dropout_filter(self, z, filters=None, drop_wave=1216., skip=None):
         """
         Determine where the Lyman break happens and return the corresponding
