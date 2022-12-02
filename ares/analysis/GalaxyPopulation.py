@@ -134,7 +134,7 @@ class GalaxyPopulation(object): # pragma: no cover
             src = read_lit(source)
 
             if redshift not in src.redshifts and (not round_z):
-                print("No z={0:g} data in {1!s}.".format(redshift, source))
+                #print("No z={0:g} data in {1!s}.".format(redshift, source))
                 continue
 
             if redshift not in src.redshifts:

@@ -2873,7 +2873,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         # Need to be more careful here as nh can change when using
         # simulated halos
-        w = raw['nh'][:,izobs] # used to be izobs+1, I belive in error.
+        weights = raw['nh'][:,izobs] # used to be izobs+1, I belive in error.
 
         if use_mags:
             #_MAB = self.magsys.L_to_MAB(L)
@@ -2897,6 +2897,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         #else:
         #    _MAB = np.log10(L * c / (wave * 1e-8) / Lsun)
 
+        # We use `y` to represent the quantity we'll be histogramming later,
+        # either luminosity or magnitudes.
         if use_mags:
             if (self.pf['dustcorr_method'] is not None) and absolute:
                 y = self.dust.Mobs(z, mags)
@@ -2905,7 +2907,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
             yok = np.isfinite(mags)
         else:
-            #raise NotImplemented('help')
             y = L
             yok = np.logical_and(L > 0, np.isfinite(L))
 
@@ -2931,29 +2932,25 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if yok.sum() == 0:
             return x, np.zeros_like(x)
 
-        # Make sure binning range covers the range of luminosities/magnitudes
-        if use_mags:
-            mi, ma = y[yok==1].min(), y[yok==1].max()
-            assert mi > x.min(), "{} NOT > {}".format(mi, x.min())
-            assert ma < x.max(), "{} NOT < {}".format(ma, x.max())
-        else:
-            assert y[yok==1].min() < x.min()
-            assert y[yok==1].max() > x.max()
-
         #if self.pf['pop_fobsc']:
         #fobsc = (1. - self.guide.fobsc(z=z, Mh=self.halos.tab_M))
 
-        if np.all(w[yok==1] == 1):
+        if np.all(weights[yok==1] == 1):
             hist, bin_histedges = np.histogram(y[yok==1],
                 bins=bin_c2e(x), density=False)
             dbin = bin_histedges[1] - bin_histedges[0]
             phi = hist / self.pf['pop_target_volume'] / dbin
         else:
             hist, bin_histedges = np.histogram(y[yok==1],
-                weights=w[yok==1], bins=bin_c2e(x), density=True)
+                weights=weights[yok==1], bins=bin_c2e(x), density=False)
+            dbin = bin_histedges[1] - bin_histedges[0]
 
-            N = np.sum(w[yok==1])
-            phi = hist * N
+            N = np.sum(weights[yok==1])
+            phi = hist / dbin
+
+            relerr = abs(np.sum(phi * dbin) - N) / N
+            assert relerr < 1e-2, \
+                "Error in number of galaxies! rel_err={:.5f}".format(relerr)
 
         #self._cache_lf_[(z, wave)] = x, phi
 
