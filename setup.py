@@ -15,7 +15,8 @@ setup(name='ares',
       url='https://github.com/mirochaj/ares',
       packages=['ares', 'ares.analysis', 'ares.simulations', 'ares.obs',
        'ares.populations', 'ares.util', 'ares.solvers', 'ares.core',
-       'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom'],
+       'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom',
+       'ares.realizations'],
      )
 
 # Try to set up $HOME/.ares

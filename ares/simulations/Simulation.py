@@ -281,6 +281,10 @@ class Simulation(object):
     def hydr(self):
         return self.grid.hydr
 
+    @property
+    def cosm(self):
+        return self.grid.cosm
+
     #@property
     #def field(self):
     #    if not hasattr(self, '_field'):

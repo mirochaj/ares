@@ -15,6 +15,8 @@ import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
 from ..util.ParameterFile import get_pq_pars
+from ..util.Misc import numeric_types
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -51,7 +53,6 @@ func_options = \
 Np_max = 15
 
 optional_kwargs = 'pq_val_ceil', 'pq_val_floor', 'pq_var_ceil', 'pq_var_floor'
-numeric_types = [int, float, np.int64, np.float64]
 
 class BasePQ(object):
     def __init__(self, **kwargs):

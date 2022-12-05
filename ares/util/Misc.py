@@ -22,6 +22,8 @@ except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
 
+numeric_types = [int, float, np.int64, np.float64]
+
 def get_cmd_line_kwargs(argv):
 
     cmd_line_kwargs = {}
