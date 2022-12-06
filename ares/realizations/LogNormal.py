@@ -49,12 +49,15 @@ class LogNormal(LightCone):
         self.dims = dims
         self.zlim = zlim
         self.seed = seed
+        self.seed_halos = seed_halos
         self.verbose = verbose
         self.kwargs = kwargs
 
+        fov = self.get_fov_from_L(0.5, Lbox)
+
         if verbose:
             print("# Maximum FoV given box size:")
-            for z in [0.2, 1, 3, 6, 10]:
+            for z in [0.2, 1, 2, 3, 4, 5, 6, 10]:
                 fov = self.get_fov_from_L(z, Lbox)
                 print(f"# At z={z:.1f}: {fov:.2f} degrees")
 
@@ -275,8 +278,8 @@ class LogNormal(LightCone):
         # Should be within a few percent of <N>
         err = abs(1 - N / (nbar * self.Lbox**3))
         if err > 0.1:
-            print(f"WARNING: Error wrt <N> = {err*100}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
-            print(" Might be small box issue, but could be OK for massive halos.")
+            print(f"# WARNING: Error wrt <N> = {err*100}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
+            print("# Might be small box issue, but could be OK for massive halos.")
 
         # Grab dn/dm and construct CDF to randomly sampled HMF.
         #self._mf.update(z=z)
@@ -429,6 +432,7 @@ class LogNormal(LightCone):
         dz = np.diff(ze)
 
         seeds = self.seed * np.arange(1, len(zmid)+1)
+        seeds_h = self.seeds_halos * np.arange(1, len(zmid)+1)
 
         # Figure out if we're getting the catalog of a single chunk
         chunk_id = None
@@ -477,7 +481,8 @@ class LogNormal(LightCone):
             #    _ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
             #else:
             halos = self.get_halo_population(z=zmid[i], seed_box=seeds[i],
-                seed=None, mmin=mmin, mmax=mmax, randomise_in_cell=randomise_in_cell)
+                seed=seeds_h[i], mmin=mmin, mmax=mmax,
+                randomise_in_cell=randomise_in_cell)
 
             if halos[0] is None:
                 ra = dec = red = mass = None

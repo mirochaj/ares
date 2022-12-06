@@ -45,8 +45,22 @@ class LightCone(object):
 
         return ra_e, ra_c, dec_e, dec_c
 
+    @property
+    def tab_z(self):
+        if not hasattr(self, '_tab_z'):
+            self._tab_z = np.arange(0, 30, 0.1)
+        return self._tab_z
+
+    @property
+    def tab_dL(self):
+        if not hasattr(self, '_tab_dL'):
+            self._tab_dL = np.array([self.sim.cosm.LuminosityDistance(z) \
+                for z in self.tab_z])
+        return self._tab_dL
+
     def get_map(self, fov, channel, zlim=None, logmlim=None, pix=1, idnum=0,
-        include_galaxy_sizes=False, save_intermediate=True, dlam=20., **kwargs):
+        include_galaxy_sizes=False, save_intermediate=True, dlam=20.,
+        use_pbar=True, **kwargs):
         """
         Get a map in the user-supplied spectral channel.
 
@@ -101,6 +115,13 @@ class LightCone(object):
             img = np.zeros([1] + Npix, dtype=np.float64)
 
         ##
+        # Might take awhile.
+        pb = ProgressBar(len(zall),
+            name="img(z; Mh>={:.1f}, Mh<{:.1f})".format(logmlim[0], logmlim[1]),
+            use=use_pbar)
+        pb.start()
+
+        ##
         # Loop over redshift chunks and assemble image.
         for _iz_, (zlo, zhi) in enumerate(zall):
 
@@ -146,8 +167,7 @@ class LightCone(object):
             #    f"Catalog spans DEC range ({dde}) smaller than requested FoV!"
 
             # Get luminosity distance to each object.
-            d_L = np.array([self.sim.cosm.LuminosityDistance(z) \
-                for z in red]) * cm_per_mpc
+            d_L = np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc
             corr = 1. / 4. / np.pi / d_L**2
 
             # Get flux from each object. Units = erg/s/cm^2/Ang.
@@ -236,16 +256,8 @@ class LightCone(object):
                 continue
 
             ##
-            # Might take awhile.
-            pb = ProgressBar(ra.size,
-                name="img(z>={:.2f}, z<{:.2f}, Mh>={:.1f}, Mh<{:.1f})".format(
-                    _zlo, _zhi, logmlim[0], logmlim[1]))
-            pb.start()
-
-            ##
             # Actually sum fluxes from all objects in image plane.
             for h in range(ra.size):
-                pb.update(h)
 
                 if not ok[h]:
                     continue
@@ -285,12 +297,14 @@ class LightCone(object):
                 else:
                     img[iz,i,j] += _flux_
 
+            pb.update()
+
             ##
             # Clear out some memory sheesh
             del seds, flux, _flux_, ra, dec, red, Mh
             gc.collect()
 
-            pb.finish()
+        pb.finish()
 
         ##
         # Hmmm
@@ -305,7 +319,8 @@ class LightCone(object):
 
         return ra_e, dec_e, img * cm_per_m**2 / erg_per_s_per_nW
 
-    def get_prefix(self, fov, channel, pix=1, zlim=None, logmlim=None):
+    def get_fn(self, fov, channel, pix=1, zlim=None, logmlim=None,
+        prefix=None, suffix=None):
 
         if zlim is None:
             zlim = self.zlim
@@ -313,24 +328,33 @@ class LightCone(object):
         if logmlim is None:
             logmlim = -np.inf, 16
 
-        pref = 'ebl_fov_{:.2f}_pix_{:.1f}'.format(fov, pix)
+        pref = 'fov_{:.2f}_pix_{:.1f}'.format(fov, pix)
         pref += '_L{:.0f}_N{:.0f}'.format(self.Lbox, self.dims)
         pref += '_z_{:.2f}_{:.2f}'.format(*zlim)
         pref += '_M_{:.1f}_{:.1f}'.format(*logmlim)
         pref += '_ch_{:.2f}_{:.2f}'.format(*channel)
 
-        return pref
+        if prefix is None:
+            prefix = ''
+        else:
+            prefix = f'{prefix}_'
+
+        if suffix is None:
+            suffix = ''
+        else:
+            suffix = f'_{suffix}'
+
+        return prefix + pref + suffix + '.hdf5'
 
     def generate_maps(self, fov, channels, zlim=None, logmlim=None, pix=1,
-        include_galaxy_sizes=False, suffix=None, dlam=20, clobber=False,
-        save_dir=None,
-        **kwargs):
+        include_galaxy_sizes=False, dlam=20, clobber=False,
+        save_dir=None, prefix=None, suffix=None, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
         Naming convention is:
 
-        "ebl_<a bunch of other stuff>" where other stuff is:
+        "<prefix>_<a bunch of other stuff>" where other stuff is:
 
             + _ch_<channel lower edge in microns>_<upper edge>
             + _pix_<pixel scale in arcseconds>
@@ -339,9 +363,10 @@ class LightCone(object):
             + _N<number of grid zones on a side for each co-eval cube>
             + _z_<zlo>_<zhi>
             + _M_<log10(halo mass / Msun) lower limit>_<upper limit>
+            + <suffix>
 
-        The user is encouraged to add a descriptive `suffix` that will be
-        appended to the end of this string.
+        The user is encouraged to add descriptive `prefix` and `suffix` that
+        will be prepended/appended to this string.
 
         Returns
         -------
@@ -373,22 +398,17 @@ class LightCone(object):
                 if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                     continue
 
-                pref = self.get_prefix(fov, channel, pix=pix, zlim=(zlo, zhi),
-                    logmlim=logmlim)
+                fn = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
+                    logmlim=logmlim, prefix=prefix, suffix=suffix)
 
-                if suffix is not None:
-                    pref += f'_{suffix}'
-
-                fn = save_dir + '/' + pref + '.hdf5'
-
-
+                fn = save_dir + '/' + fn
 
                 # Try to read from disk.
                 if os.path.exists(fn) and (not clobber):
                     print(f"Loaded {fn}")
                     continue
 
-                print(f"Will save EBL mock to {fn}.")
+                print(f"# Will save EBL mock to {fn}.")
 
                 # Will just be for a single chunk so save_intermediate is
                 # irrelevant.
@@ -412,13 +432,16 @@ class LightCone(object):
                     f.create_dataset('dec_pix_c', data=bin_e2c(dec_e))
                     f.create_dataset('channel', data=channel)
 
-                print(f"Wrote {fn}.")
+                print(f"# Wrote {fn}.")
 
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
-        suffix='test'):
+        prefix=None, suffix=None, save_dir=None):
         """
         Assemble an array of maps.
         """
+
+        if save_dir is None:
+            save_dir = '.'
 
         npix = int(fov / (pix / 3600.))
         zchunks = self.get_redshift_chunks(self.zlim)
@@ -435,14 +458,11 @@ class LightCone(object):
 
                 for k, mbin_lo in enumerate(mbins):
 
-                    pref = self.get_prefix(fov, channel, pix=pix,
-                        zlim=(zlo, zhi),
+                    fn = self.get_fn(fov, channel, pix=pix,
+                        zlim=(zlo, zhi), prefix=prefix, suffix=suffix,
                         logmlim=(mbin_lo, mbin_lo+dlogm))
 
-                    if suffix is not None:
-                        pref += f'_{suffix}'
-
-                    fn = pref + '.hdf5'
+                    fn = save_dir + '/' + fn
 
                     # Try to read from disk.
                     if not os.path.exists(fn):
@@ -453,6 +473,6 @@ class LightCone(object):
                     with h5py.File(fn, 'r') as f:
                         layers[i,j,k,:,:] = np.array(f[('ebl')])
 
-                    print(f"Loaded {fn}.")
+                    print(f"# Loaded {fn}.")
 
         return channels, zchunks, mchunks, ra_c, dec_c, layers
