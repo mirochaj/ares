@@ -27,7 +27,8 @@ except ImportError:
 
 class LogNormal(LightCone):
     def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), seed=None,
-        seed_halos=None, verbose=True, **kwargs):
+        seed_halos=None, verbose=True, bias_model=0, bias_params=None,
+        randomise_in_cell=True, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -50,6 +51,9 @@ class LogNormal(LightCone):
         self.zlim = zlim
         self.seed = seed
         self.seed_halos = seed_halos
+        self.bias_model = bias_model
+        self.bias_params = bias_params
+        self.randomise_in_cell = randomise_in_cell
         self.verbose = verbose
         self.kwargs = kwargs
 
@@ -60,7 +64,6 @@ class LogNormal(LightCone):
             for z in [0.2, 1, 2, 3, 4, 5, 6, 10]:
                 fov = self.get_fov_from_L(z, Lbox)
                 print(f"# At z={z:.1f}: {fov:.2f} degrees")
-
 
     @property
     def sim(self):
@@ -73,6 +76,22 @@ class LogNormal(LightCone):
         if not hasattr(self, '_pops'):
             self._pops = self.sim.pops
         return self._pops
+
+    @property
+    def dx(self):
+        if not hasattr(self, '_dx'):
+            self._dx = self.Lbox / float(self.dims)
+        return self._dx
+
+    @property
+    def tab_xe(self):
+        if not hasattr(self, '_xe'):
+            self._xe = np.arange(0, self.Lbox+self.dx, self.dx)
+        return self._xe
+
+    @property
+    def tab_xc(self):
+        return bin_e2c(self.tab_xe)
 
     def get_fov_from_L(self, z, Lbox):
         """
@@ -149,6 +168,9 @@ class LogNormal(LightCone):
         """
         Return expected number density of halos at given z for given minimum
         mass.
+
+        .. note :: This is the actual number density in cMpc^-3, not
+            (cMpc / h)^-3!
 
         Parameters
         ----------
@@ -243,46 +265,64 @@ class LogNormal(LightCone):
 
         return pb
 
-    def get_halo_population(self, z, seed=None, seed_box=None, mmin=1e11,
-        mmax=np.inf, randomise_in_cell=True):
+    def get_halo_positions(self, z, N, delta_x, m=None, seed=None):
         """
-        Get a realization of a halo population.
+        Generate a set of halo positions.
 
-        Returns
-        -------
-        Tuple containing (x, y, z, mass).
+        Parameters
+        ----------
+        z : int, float
+            Redshift -- only used for bias_model > 0.
+        N : int, float
+            If bias_model == 0, this is the expected number of halos in the
+            volume.
+            If bias_model == 1, this is the actual number, i.e., assumes we
+            have already done a Poisson draw given <N>.
+
 
         """
 
-        pb = self.get_box(z=z, seed=seed_box)
+        # This is the same thing that powerbox is doing in
+        # `create_discrete_sample`, just trying to have a unified call
+        # sequence for other options here.
+        if self.bias_model == 0:
 
-        # Get mean halo abundance in #/cMpc^3
-        # Need to put h^3 back because `create_discrete_sample` is going
-        # to use grid resolution in cMpc/h, since that's what Lbox is in,
-        # to determine the number of tracers.
-        h = self.sim.cosm.h70**3
-        nbar = self.get_nbar(z, mmin=mmin, mmax=mmax) / h**3
+            n = N / (self.Lbox / self.sim.cosm.h70)**3
 
-        # Setting `store_pos` to True means the `pb` object (which is cached)
-        # will hang-on to these positions, hence the lack of explicit caching
-        # for this method.
-        pos = pb.create_discrete_sample(nbar, randomise_in_cell=randomise_in_cell,
-            store_pos=True, min_at_zero=False)
+            # Expected number of halos in each cell
+            n_exp = n * (1. + delta_x) * (self.dx / self.sim.cosm.h70)**3
 
-        _x, _y, _z = (pos.T / h) + 0.5 * self.Lbox / h
-        N = _x.size
+            # Actual number after Poisson draw
+            np.random.seed(seed)
+            n_act = np.random.poisson(n_exp)
 
-        if N == 0:
-            return None, None, None, None
+            # Get all source positions
+            args = [self.tab_xc] * 3
+            X = np.meshgrid(*args, indexing='ij')
 
-        # Should be within a few percent of <N>
-        err = abs(1 - N / (nbar * self.Lbox**3))
-        if err > 0.1:
-            print(f"# WARNING: Error wrt <N> = {err*100}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
-            print("# Might be small box issue, but could be OK for massive halos.")
+            pos = np.array([x.ravel() for x in X]).T
+            pos = pos.repeat(n_act.ravel(), axis=0)
 
+            if self.randomise_in_cell:
+                shape = N, self.dims
+                # Shift relative to bin centers
+                pos += np.random.uniform(size=(np.sum(n_act), 3),
+                    low=-0.5*self.dx, high=0.5*self.dx)
+
+        elif self.bias_model == 1:
+
+
+
+            raise NotImplemented('help')
+
+
+        ##
+        # Done
+        return pos
+
+
+    def get_halo_masses(self, z, N, mmin=1e11, mmax=np.inf, seed=None):
         # Grab dn/dm and construct CDF to randomly sampled HMF.
-        #self._mf.update(z=z)
 
         # Don't bother with m << mmin halos
         iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
@@ -303,7 +343,76 @@ class LogNormal(LightCone):
         # Assign halo masses according to HMF.
         np.random.seed(seed)
         r = np.random.rand(N)
-        mass = np.exp(np.interp(np.log(r), np.log(cdf), np.log(m)))
+        return np.exp(np.interp(np.log(r), np.log(cdf), np.log(m)))
+
+    def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
+        mmin=1e11, mmax=np.inf, randomise_in_cell=True):
+        """
+        Get a realization of a halo population.
+
+        Returns
+        -------
+        Tuple containing (x, y, z, mass).
+
+        """
+
+        pb = self.get_box(z=z, seed=seed_box)
+
+        # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
+        nbar = self.get_nbar(z, mmin=mmin, mmax=mmax)
+
+        # Compute expected number of halos in volume
+        h = self.sim.cosm.h70
+        Nexp = nbar * (self.Lbox / h)**3
+
+        # If halos are unbiased, perform Poisson draw for number of galaxies
+        # in each voxel independently. Then, generate the appropriate number
+        # of halo masses.
+        if self.bias_model == 0:
+            pos = self.get_halo_positions(z, Nexp, pb.delta_x(), seed=seed_pos)
+            Nact = pos.shape[0]
+
+            # Draw halo masses from HMF
+            mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
+                seed=seed)
+
+        # In this case, we need to know the masses of halos before we generate
+        # their positions. So, take a Poisson draw to obtain the *total*
+        # number of halos in the box, *then* generate their masses, *then*
+        # generate their positions (which are effectivley mass-dependent).
+        elif self.bias_model == 1:
+            # Actual number is a Poisson draw
+            Nact = np.random.poisson(Nexp)
+
+            # Draw halo masses from HMF
+            mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
+                seed=seed)
+
+            pos = self.get_halo_positions(z, Nact, pb.delta_x(), redshift=z,
+                m=mass, seed=seed_pos)
+        else:
+            raise NotImplemented('help')
+
+        # `pos` is in [0, Lbox / h] domain in each dimension
+        _x, _y, _z = (pos.T / h) #- 0.5 * (self.Lbox / h)
+        N = _x.size
+
+        if N == 0:
+            return None, None, None, None
+
+        # Should be within a few percent of <N> unless <N>
+
+        Nerr = abs(Nexp - Nact)
+        err = Nerr / Nexp
+
+        # Recall that variance of Poissonian is the same as the mean, so just
+        # do a quick check that the number smaller than 2x sqrt(mean). Note
+        # that occassionally we might get a bigger difference here, hence the
+        # warning instead of raising an exception.
+        if (Nerr > 2 * np.sqrt(Nexp)) and (err > 0.2):
+            print(f"# WARNING: Error in halo density is {err*100:.0f}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
+            print(f"# (expected {Nexp:.2f} halos, got {Nact:.0f})")
+            print("# Might be small box issue, but could be OK for massive halos.")
 
         if np.any(mass < mmin):
             raise ValueError("help")
@@ -432,7 +541,7 @@ class LogNormal(LightCone):
         dz = np.diff(ze)
 
         seeds = self.seed * np.arange(1, len(zmid)+1)
-        seeds_h = self.seeds_halos * np.arange(1, len(zmid)+1)
+        seeds_h = self.seed_halos * np.arange(1, len(zmid)+1)
 
         # Figure out if we're getting the catalog of a single chunk
         chunk_id = None

@@ -53,9 +53,12 @@ class LightCone(object):
 
     @property
     def tab_dL(self):
+        """
+        Luminosity distance (for each self.tab_z) in cMpc.
+        """
         if not hasattr(self, '_tab_dL'):
             self._tab_dL = np.array([self.sim.cosm.LuminosityDistance(z) \
-                for z in self.tab_z])
+                for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
 
     def get_map(self, fov, channel, zlim=None, logmlim=None, pix=1, idnum=0,
@@ -297,7 +300,7 @@ class LightCone(object):
                 else:
                     img[iz,i,j] += _flux_
 
-            pb.update()
+            pb.update(_iz_)
 
             ##
             # Clear out some memory sheesh
@@ -415,10 +418,10 @@ class LightCone(object):
                 ra_e, dec_e, img = self.get_map(fov, channel, zlim=(zlo, zhi),
                     logmlim=logmlim,
                     pix=pix, save_intermediate=False, include_galaxy_sizes=False,
-                    dlam=dlam, **kwargs)
+                    dlam=dlam, use_pbar=False, **kwargs)
 
                 nu = c * 1e4 / np.mean(channel)
-                dnu = c * 1e4 / (channel[1] - channel[0])
+                dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
 
                 # `img` is a band-integrated power, convert to band-averaged
                 # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
@@ -426,11 +429,14 @@ class LightCone(object):
 
                 with h5py.File(fn, 'w') as f:
                     f.create_dataset('ebl', data=Inu)
-                    f.create_dataset('ra_pix_e', data=ra_e)
-                    f.create_dataset('ra_pix_c', data=bin_e2c(ra_e))
-                    f.create_dataset('dec_pix_e', data=dec_e)
-                    f.create_dataset('dec_pix_c', data=bin_e2c(dec_e))
-                    f.create_dataset('channel', data=channel)
+                    f.create_dataset('ra_bin_e', data=ra_e)
+                    f.create_dataset('ra_bin_c', data=bin_e2c(ra_e))
+                    f.create_dataset('dec_bin_e', data=dec_e)
+                    f.create_dataset('dec_bin_c', data=bin_e2c(dec_e))
+                    f.create_dataset('wave_bin_e', data=channel)
+                    f.create_dataset('z_bin_e', data=[zlo,zhi])
+                    f.create_dataset('m_bin_e', data=logmlim)
+                    f.create_dataset('nu_bin_c', data=nu)
 
                 print(f"# Wrote {fn}.")
 
@@ -452,6 +458,7 @@ class LightCone(object):
 
         ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
 
+        Nloaded = 0
         for i, channel in enumerate(channels):
 
             for j, (zlo, zhi) in enumerate(zchunks):
@@ -474,5 +481,9 @@ class LightCone(object):
                         layers[i,j,k,:,:] = np.array(f[('ebl')])
 
                     print(f"# Loaded {fn}.")
+                    Nloaded += 1
+
+        if Nloaded == 0:
+            raise IOError("Did not find any files! Are prefix, suffix, and save_dir set appropriately?")
 
         return channels, zchunks, mchunks, ra_c, dec_c, layers
