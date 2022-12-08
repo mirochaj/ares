@@ -28,7 +28,7 @@ except ImportError:
 class LogNormal(LightCone):
     def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), seed=None,
         seed_halos=None, verbose=True, bias_model=0, bias_params=None,
-        randomise_in_cell=True, **kwargs):
+        bias_replacement=1, bias_within_bin=False, randomise_in_cell=True, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -53,6 +53,8 @@ class LogNormal(LightCone):
         self.seed_halos = seed_halos
         self.bias_model = bias_model
         self.bias_params = bias_params
+        self.bias_replacement = bias_replacement
+        self.bias_within_bin = bias_within_bin
         self.randomise_in_cell = randomise_in_cell
         self.verbose = verbose
         self.kwargs = kwargs
@@ -140,10 +142,6 @@ class LogNormal(LightCone):
         mem_z = [] # Memory for each redshift separately
         mem_c = [] # Cumulative
         for i, z in enumerate(zmid):
-            #self._mf.update(z=z)
-            #m = self._mf.m / self._mf.cosmo.h # These are Msun / h remember
-            #dndm = self._mf.dndm * self._mf.cosmo.h**4
-
             iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
             ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
                                 self.sim.pops[0].halos.tab_M < mmax)
@@ -188,9 +186,6 @@ class LogNormal(LightCone):
         in the volume defined by the field of view and dz interval.
 
         """
-        #self._mf.update(z=z)
-        #m = self._mf.m / self._mf.cosmo.h # These are Msun / h remember
-        #dndm = self._mf.dndm * self._mf.cosmo.h**4
 
         iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
         ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
@@ -229,7 +224,6 @@ class LogNormal(LightCone):
 
         if z in self._cache_ps:
             return self._cache_ps[z](k)
-
 
         iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
 
@@ -282,6 +276,14 @@ class LogNormal(LightCone):
 
         """
 
+        # Get all voxel positions
+        args = [self.tab_xc] * 3
+        X = np.meshgrid(*args, indexing='ij')
+
+        # Make it look like a catalog, (N vox, 3).
+        # Will modify this in subsequent steps.
+        pvox = np.array([x.ravel() for x in X]).T
+
         # This is the same thing that powerbox is doing in
         # `create_discrete_sample`, just trying to have a unified call
         # sequence for other options here.
@@ -296,30 +298,78 @@ class LogNormal(LightCone):
             np.random.seed(seed)
             n_act = np.random.poisson(n_exp)
 
-            # Get all source positions
-            args = [self.tab_xc] * 3
-            X = np.meshgrid(*args, indexing='ij')
+            # Repeat position of each voxel N times, one for each halo that
+            # lives there.
+            pos = pvox.repeat(n_act.ravel(), axis=0)
 
-            pos = np.array([x.ravel() for x in X]).T
-            pos = pos.repeat(n_act.ravel(), axis=0)
-
-            if self.randomise_in_cell:
-                shape = N, self.dims
-                # Shift relative to bin centers
-                pos += np.random.uniform(size=(np.sum(n_act), 3),
-                    low=-0.5*self.dx, high=0.5*self.dx)
-
+        # In this case, we're increasing the probability that halos are drawn
+        # from overdensities in a potentially halo mass dependent way.
         elif self.bias_model == 1:
 
+            n_act = m.size
+
+            ivox = np.arange(pvox.shape[0])
+            rho_flat = delta_x.ravel()
+
+            # Right now, alpha(m) = p0 * (m / 1e12)**p1
+            p0, p1 = self.bias_params
+
+            if self.bias_within_bin:
+                pbar = ProgressBar(m.size, name=f"pos(m)", use=True)
+                pbar.start()
+
+                alpha = p0 * (m / 1e12)**p1
+
+                pos = np.zeros((m.size, 3))
+                for h, _m_ in enumerate(m):
+                    P_of_rho = (1+rho_flat)**alpha[h]
+                    P_of_rho /= np.sum(P_of_rho)
+
+                    # replace=True means a given voxel can house multiple halos.
+                    # Might want to make this mass-dependent...
+                    # This is slow mostly because our probability distribution is
+                    # re-generated for each mass. Could achieve speed-up by
+                    # doing this procedure in a few mass bins? In practice, we're
+                    # generating mocks in narrow mass ranges (0.1-0.5 dex), so
+                    # the mass range is already likely to be small.
+                    i = np.random.choice(ivox, p=P_of_rho,
+                        replace=self.bias_replacement)
+
+                    pos[h] = pvox[i]
+
+                    if h % 100 == 0:
+                        pbar.update(h)
+
+                pbar.finish()
+            else:
+
+                # Compute "biasing probability" for entire mass bin.
+                lo, hi = m.min(), m.max()
+                mbin = 10**np.mean(np.log10([lo, hi]))
+                alpha = p0 * (mbin / 1e12)**p1
+
+                P_of_rho = (1. + rho_flat)**alpha
+                P_of_rho /= np.sum(P_of_rho)
+
+                # Take a random draw with probability set by density.
+                i = np.random.choice(ivox, p=P_of_rho,
+                    replace=self.bias_replacement, size=m.size)
+
+                pos = pvox[i,:]
 
 
-            raise NotImplemented('help')
-
+        ##
+        # This doesn't depend on biasing method, just add a little jitter
+        # to positions of halos so they aren't all at voxel centers.
+        if self.randomise_in_cell:
+            shape = N, self.dims
+            # Shift relative to bin centers
+            pos += np.random.uniform(size=(np.sum(n_act), 3),
+                low=-0.5*self.dx, high=0.5*self.dx)
 
         ##
         # Done
         return pos
-
 
     def get_halo_masses(self, z, N, mmin=1e11, mmax=np.inf, seed=None):
         # Grab dn/dm and construct CDF to randomly sampled HMF.
@@ -343,7 +393,15 @@ class LogNormal(LightCone):
         # Assign halo masses according to HMF.
         np.random.seed(seed)
         r = np.random.rand(N)
-        return np.exp(np.interp(np.log(r), np.log(cdf), np.log(m)))
+
+        #mass = np.exp(np.interp(np.log(r), np.log(cdf), np.log(m)))
+        mass = np.exp(np.interp(r, cdf, np.log(m)))
+
+        #if np.any(np.isnan(mass)):
+        #    print('hey wtf', r[np.argwhere(np.isnan(mass))], r.min(), r.max(),
+        #        np.interp(r[np.argwhere(np.isnan(mass))], cdf, m))
+
+        return mass
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
         mmin=1e11, mmax=np.inf, randomise_in_cell=True):
@@ -388,8 +446,8 @@ class LogNormal(LightCone):
             mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
                 seed=seed)
 
-            pos = self.get_halo_positions(z, Nact, pb.delta_x(), redshift=z,
-                m=mass, seed=seed_pos)
+            pos = self.get_halo_positions(z, Nact, pb.delta_x(), m=mass,
+                seed=seed_pos)
         else:
             raise NotImplemented('help')
 
