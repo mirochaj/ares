@@ -649,6 +649,31 @@ class HaloMassFunction(object):
         self._MF_ = value
 
     @property
+    def tab_dndlnm_sub(self):
+        """
+        Sub-halo mass function. Assumed to be Universal.
+
+        Result is a 2-D array with dimensions (self.tab_M.size, self.tab_M.size),
+        we take the first dimension to refer to centrals and the second to
+        refer to the satellites.
+
+        """
+
+        if not hasattr(self, '_tab_dndlnm_sub'):
+
+            if self.pf['hmf_model_sub'] == 'Tinker08':
+                # Tabulate
+                args = [self.tab_M, self.tab_M]
+                Mc, Ms = np.meshgrid(*args, indexing='ij')
+                dndlnm = 0.3 * (Ms / Mc)**-0.7 * np.exp(-9.9 * (Ms / Mc)**2.5)
+                dndlnm[Ms >= Mc] = 0
+                self._tab_dndlnm_sub = dndlnm
+            else:
+                raise NotImplemented('Only know about Tinker & Wetzel sub-HMF.')
+
+        return self._tab_dndlnm_sub
+
+    @property
     def tab_dndlnm(self):
         if not hasattr(self, '_tab_dndlnm'):
             self._tab_dndlnm = self.tab_M * self.tab_dndm

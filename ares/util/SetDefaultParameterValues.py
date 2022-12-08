@@ -562,6 +562,8 @@ def PopulationParameters():
 
     "pop_focc": 1.0,
 
+    "pop_centrals": 1,
+
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
 
     # Set the emission interval and SED
@@ -1201,6 +1203,7 @@ def HaloMassFunctionParameters():
     pf = \
     {
     "hmf_model": 'ST',
+    "hmf_model_sub": "Tinker08",
 
     "hmf_instance": None,
     "hmf_load": True,

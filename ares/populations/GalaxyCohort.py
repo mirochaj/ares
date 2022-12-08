@@ -1271,7 +1271,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 L_sfr = self.pf['pop_lum_per_sfr']
 
             # Just the product of SFR and L_per_sfr
-            Lh = sfr * L_sfr
+            if self.is_central_pop:
+                Lh = sfr * L_sfr
+            else:
+                # In this case, need to integrate over subhalo MF.
+                Ls = sfr * L_sfr
+                Lh = np.zeros_like(self.halos.tab_M)
+                for i, Mc in enumerate(self.halos.tab_M):
+                    dndlnm = self.halos.tab_dndlnm_sub[i,:]
+                    Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}

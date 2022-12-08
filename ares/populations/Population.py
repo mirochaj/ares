@@ -195,6 +195,14 @@ class Population(object):
         return self._affects_igm
 
     @property
+    def is_central_pop(self):
+        return self.pf['pop_centrals']
+
+    @property
+    def is_satellite_pop(self):
+        return not self.is_central_pop
+
+    @property
     def is_aging(self):
         return self.pf['pop_aging']
 
