@@ -837,6 +837,41 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not np.any(on):
             return z * on
 
+        # NEW: if not star-forming, do not relate emissivity to SFRD.
+        # Compute via integration over the results of `get_lum`.
+        if self.is_quiescent:
+            # This is clunky -- should have all routines allow user to
+            # specify in eV / wavelength / frequency?
+            if E is not None:
+                wave = h_p * c * 1e8 / (E * erg_per_ev)
+                Lh = self.get_lum(z, wave=wave)
+            else:
+                if Emin is None:
+                    Emin = self.src.Emin
+                if Emax is None:
+                    Emax = self.src.Emax
+
+                w1 = h_p * c * 1e8 / (Emax * erg_per_ev)
+                w2 = h_p * c * 1e8 / (Emin * erg_per_ev)
+
+            if type(z) in numeric_types:
+                Lh = self.get_lum(z, band=[w1, w2])
+                iz = np.argmin(np.abs(z - self.halos.tab_z))
+                dndlnm = self.halos.tab_dndlnm[iz,:]
+                return np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
+            else:
+                enu = np.zeros_like(z)
+                for i, _z_ in enumerate(z):
+                    Lh = self.get_lum(_z_, band=[w1, w2])
+                    iz = np.argmin(np.abs(_z_ - self.halos.tab_M))
+                    dndlnm = self.halos.tab_dndlnm[iz,:]
+                    enu[i] = np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
+
+                return enu
+
+
+        #################
+
         # Use GalaxyAggregate's Emissivity function
         if self.is_emissivity_scalable:
             # The advantage here is that the SFRD only has to be calculated
@@ -1190,7 +1225,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         mass.
         """
 
-        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
+        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func', 'quiescent']:
 
             # In this case, assume `M` supplied is stellar mass.
             # Convert to a halo mass via SMHM.
@@ -1245,14 +1280,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if cached_result is not None:
                 return cached_result
 
+
+
+        ##
+        # Have options for stars or BHs
         if self.pf['pop_star_formation']:
-
-            # This uses __getattr__ in case we're allowing Z to be
-            # updated from SAM.
-            sfr = self.get_sfr(z)
-
-            assert self.pf['pop_dust_yield'] in [None,0], \
-                "pop_dust_yield must be zero for GalaxyCohort objects!"
 
             if not self.is_metallicity_constant:
                 Z = self.get_metallicity(z, Mh=self.halos.tab_M)
@@ -1270,16 +1302,43 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
                 L_sfr = self.pf['pop_lum_per_sfr']
 
-            # Just the product of SFR and L_per_sfr
-            if self.is_central_pop:
-                Lh = sfr * L_sfr
+            if self.pf['pop_sfr_model'] == 'quiescent':
+
+                assert self.pf['pop_ssp']
+                assert self.pf['pop_ihl'] is not None
+
+                # Mstell = Mhalo * SMHM
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+
+                ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+
+                # Not for SSPs, L per SFR is really L per Mstell.
+                Lh = mste * L_sfr * ihl
+
+                ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                    self.halos.tab_M < self.get_Mmax(z))
+                Lh[~ok] = 0
+
             else:
-                # In this case, need to integrate over subhalo MF.
-                Ls = sfr * L_sfr
-                Lh = np.zeros_like(self.halos.tab_M)
-                for i, Mc in enumerate(self.halos.tab_M):
-                    dndlnm = self.halos.tab_dndlnm_sub[i,:]
-                    Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
+
+                # This uses __getattr__ in case we're allowing Z to be
+                # updated from SAM.
+                sfr = self.get_sfr(z)
+
+                assert self.pf['pop_dust_yield'] in [None,0], \
+                    "pop_dust_yield must be zero for GalaxyCohort objects!"
+
+                # Just the product of SFR and L_per_sfr
+                if self.is_central_pop:
+                    Lh = sfr * L_sfr
+                else:
+                    # In this case, need to integrate over subhalo MF.
+                    Ls = sfr * L_sfr
+                    Lh = np.zeros_like(self.halos.tab_M)
+                    for i, Mc in enumerate(self.halos.tab_M):
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:]
+                        Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
@@ -2029,6 +2088,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_sfr_model'] == 'smhm-func':
                 Ms = self.tab_fstar * self.halos.tab_M
                 self._tab_sfr_ = self.tab_ssfr * Ms
+            elif self.pf['pop_sfr_model'] == 'quiescent':
+                self._tab_sfr_ = self._tab_sfr_ = \
+                    np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
             else:
                 self._tab_sfr_ = self._tab_eta \
                     * self.cosm.fbar_over_fcdm \
@@ -2366,7 +2428,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._tab_focc_
 
     def get_smhm(self, **kwargs):
-        if self.pf['pop_sfr_model'] == 'smhm-func':
+        if self.pf['pop_sfr_model'] in ['smhm-func', 'quiescent']:
             return self.get_fstar(**kwargs)
         else:
             raise NotImplemented('help')
@@ -3671,6 +3733,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         P(k)
         """
 
+        if not self.pf['pop_include_shot']:
+            return np.zeros_like(k)
+
         lum1 = self.get_lum(z, wave=wave1, raw=raw, nebular_only=nebular_only)
         lum2 = self.get_lum(z, wave=wave2, raw=raw, nebular_only=nebular_only)
 
@@ -3728,6 +3793,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         P(k)
 
         """
+
+        if not self.pf['pop_include_2h']:
+            return np.zeros_like(k)
 
         cached_result = self._cache_ps_2h(z, k, wave1, wave2, raw, nebular_only)
         if cached_result is not None:
@@ -3822,6 +3890,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         -------
         P(k)
         """
+
+        if not self.pf['pop_include_1h']:
+            return np.zeros_like(k)
 
         cached_result = self._cache_ps_1h(z, k, wave1, wave2, raw, nebular_only, prof)
         if cached_result is not None:
@@ -4059,9 +4130,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ps3d += ps_shot
 
         if include_1h:
-            ps_1h = self.get_ps_1h(z, k, wave1, wave2, raw=False,
-                nebular_only=True, prof=prof)
+            ps_1h = self.get_ps_1h(z, k, wave1, wave2,
+                raw=~self.pf['pop_1h_nebular_only'],
+                nebular_only=self.pf['pop_1h_nebular_only'],
+                prof=prof)
             ps3d += ps_1h
+
+        # Compute "cross-terms" in 1-halo contribution from central--satellite
+        # pairs.
+        if include_1h and self.is_satellite_pop:
+            assert self.pf['pop_centrals_id'] is not None, \
+                "Must provide ID number of central population!"
+
+
 
         # The 3-d PS should have units of luminosity^2 * cMpc^-3.
         # Yes, that's cMpc^-3, a factor of volume^2 different than what

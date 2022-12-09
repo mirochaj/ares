@@ -563,6 +563,8 @@ def PopulationParameters():
     "pop_focc": 1.0,
 
     "pop_centrals": 1,
+    "pop_centrals_id": None,
+    "pop_satellites_id": None,
 
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
 
@@ -684,6 +686,11 @@ def PopulationParameters():
 
     # Halo model stuff
     "pop_prof_1h": None,
+    "pop_ihl": None,
+    "pop_include_1h": False,
+    "pop_include_2h": True,
+    "pop_include_shot": True,
+    "pop_1h_nebular_only": False,
 
     # For GalaxyEnsemble
     "pop_aging": False,

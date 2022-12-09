@@ -203,6 +203,14 @@ class Population(object):
         return not self.is_central_pop
 
     @property
+    def is_star_forming(self):
+        return not self.is_quiescent
+
+    @property
+    def is_quiescent(self):
+        return self.pf['pop_sfr_model'] == 'quiescent'
+
+    @property
     def is_aging(self):
         return self.pf['pop_aging']
 
