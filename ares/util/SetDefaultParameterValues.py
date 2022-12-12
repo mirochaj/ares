@@ -692,6 +692,8 @@ def PopulationParameters():
     "pop_include_shot": True,
     "pop_1h_nebular_only": False,
 
+    "pop_age": None,
+
     # For GalaxyEnsemble
     "pop_aging": False,
     "pop_enrichment": False,

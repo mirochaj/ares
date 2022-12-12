@@ -33,7 +33,7 @@ from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity, numeric_types
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
-    cm_per_pc, m_H
+    cm_per_pc, m_H, s_per_myr
 
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -141,7 +141,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return result
 
     def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=True,
-        nebular_only=False):
+        nebular_only=False, age=None):
         """
         Get the luminosity (per SFR) for all possible metallicities.
 
@@ -155,9 +155,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._cache_lum_all_Z = {}
 
         # Grab result from cache if it exists.
-        if (wave, window, band, raw, nebular_only) in self._cache_lum_all_Z:
+        if (wave, window, band, raw, nebular_only, age) in self._cache_lum_all_Z:
             L_of_Z_func = \
-                self._cache_lum_all_Z[(wave, window, band, raw, nebular_only)]
+                self._cache_lum_all_Z[(wave, window, band, raw, nebular_only, age)]
 
             return L_of_Z_func
 
@@ -169,7 +169,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             src = self._Source(cosm=self.cosm, **kw)
             L_per_sfr = src.L_per_sfr(wave=wave, avg=window,
-                band=band, raw=raw, nebular_only=nebular_only)
+                band=band, raw=raw, nebular_only=nebular_only, age=age)
 
             ## Must specify band
             #if name == 'rad_yield':
@@ -182,7 +182,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         L_of_Z_func = interp1d_wrapper(np.log10(Zarr), np.log10(tmp),
             self.pf['interp_Z'])
 
-        self._cache_lum_all_Z[(wave, window, band, raw, nebular_only)] = \
+        self._cache_lum_all_Z[(wave, window, band, raw, nebular_only, age)] = \
             L_of_Z_func
 
         return L_of_Z_func
@@ -855,14 +855,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 w2 = h_p * c * 1e8 / (Emin * erg_per_ev)
 
             if type(z) in numeric_types:
-                Lh = self.get_lum(z, band=[w1, w2])
+                Lh = self.get_lum(z, band=(w1, w2))
                 iz = np.argmin(np.abs(z - self.halos.tab_z))
                 dndlnm = self.halos.tab_dndlnm[iz,:]
                 return np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
             else:
                 enu = np.zeros_like(z)
                 for i, _z_ in enumerate(z):
-                    Lh = self.get_lum(_z_, band=[w1, w2])
+                    Lh = self.get_lum(_z_, band=(w1, w2))
                     iz = np.argmin(np.abs(_z_ - self.halos.tab_M))
                     dndlnm = self.halos.tab_dndlnm[iz,:]
                     enu[i] = np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
@@ -1184,17 +1184,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self.get_lum(z, wave=wave, window=window, raw=raw,
             nebular_only=nebular_only)
 
-    def _cache_L(self, z, wave, window, raw, nebular_only):
+    def _cache_L(self, z, wave, band, window, energy_units, raw, nebular_only, age):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (z, wave, window, raw, nebular_only) in self._cache_L_:
-            return self._cache_L_[(z, wave, window, raw, nebular_only)]
+        if (z, wave, band, window, energy_units, raw, nebular_only, age) in self._cache_L_:
+            return self._cache_L_[(z, wave, band, window, energy_units,
+                raw, nebular_only, age)]
 
         return None
 
     def get_lum_per_sfr(self, z, Mh=None, wave=1600., window=1., raw=True,
-        nebular_only=False, band=None):
+        nebular_only=False, band=None, age=None):
         """
         Return luminosity per unit SFR.
         """
@@ -1203,13 +1204,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Z = self.get_metallicity(z, Mh=self.halos.tab_M)
 
             f_L_sfr = self._get_lum_all_Z(wave=wave, band=band,
-                window=window, raw=raw, nebular_only=nebular_only)
+                window=window, raw=raw, nebular_only=nebular_only, age=age)
 
             L_sfr = 10**f_L_sfr(np.log10(Z))
 
         elif self.pf['pop_lum_per_sfr'] is None:
             L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
-                band=band, raw=raw, nebular_only=nebular_only)
+                band=band, raw=raw, nebular_only=nebular_only, age=age)
         else:
             assert self.pf['pop_calib_lum'] is None, \
                 "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
@@ -1261,7 +1262,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self.get_lum(z, **kwargs)
 
     def get_lum(self, z, wave=1600, band=None, window=1,
-        energy_units=True, load=False, raw=True, nebular_only=False):
+        energy_units=True, load=True, raw=True, nebular_only=False, age=None):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -1274,29 +1275,50 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if False:
-            cached_result = self._cache_L(z, wave, window, raw, nebular_only)
-            print(f"Loading result from cache at z={z}")
-            if cached_result is not None:
-                return cached_result
+        #if False:
+        kwtup = (z, wave, band, window, energy_units, raw, nebular_only, age)
+        cached_result = self._cache_L(*kwtup)
 
-
+        if cached_result is not None:
+            #print(f"Loading result from cache at z={z}")
+            return cached_result
 
         ##
         # Have options for stars or BHs
         if self.pf['pop_star_formation']:
 
+            if self.pf['pop_age'] is not None:
+
+                age = self.age(z=z, Mh=self.halos.tab_M)
+
+                if type(age) in numeric_types:
+                    age = age * np.ones_like(self.halos.tab_M)
+
+                # Assert that age < Hubble time at this redshift
+                t_H = self.cosm.HubbleTime(z) / s_per_myr
+                age[age > t_H] = t_H
+                if np.any(age > t_H):
+                    print(f"WARNING: some ages exceed Hubble time at z={z}.")
+
             if not self.is_metallicity_constant:
+                if age is not None:
+                    raise NotImplemented("This is probably broken.")
+
                 Z = self.get_metallicity(z, Mh=self.halos.tab_M)
 
                 f_L_sfr = self._get_lum_all_Z(wave=wave, band=band,
-                    window=window, raw=raw, nebular_only=nebular_only)
+                    window=window, raw=raw, nebular_only=nebular_only, age=age)
 
                 L_sfr = 10**f_L_sfr(np.log10(Z))
 
             elif self.pf['pop_lum_per_sfr'] is None:
-                L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
-                    band=band, raw=raw, nebular_only=nebular_only)
+                if age is not None:
+                    L_sfr = np.array([self.src.L_per_sfr(wave=wave,
+                        avg=window, band=band, raw=raw,
+                        nebular_only=nebular_only, age=_age_) for _age_ in age])
+                else:
+                    L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+                        band=band, raw=raw, nebular_only=nebular_only)
             else:
                 assert self.pf['pop_calib_lum'] is None, \
                     "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
@@ -1343,7 +1365,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
 
-            #self._cache_L_[(z, wave, window, raw, nebular_only)] = Lh
+            self._cache_L_[kwtup] = Lh
 
             return Lh
 

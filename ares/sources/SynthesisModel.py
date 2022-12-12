@@ -393,17 +393,17 @@ class SynthesisModelBase(Source):
 
         return yield_UV
 
-    def _cache_L_per_sfr(self, wave, avg, Z, raw, nebular_only):
+    def _cache_L_per_sfr(self, wave, avg, Z, raw, nebular_only, age):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
 
-        if (wave, avg, Z, raw, nebular_only) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only)]
+        if (wave, avg, Z, raw, nebular_only, age) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only, age)]
 
         return None
 
     def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
-            energy_units=True, raw=False, nebular_only=False):
+            energy_units=True, raw=False, nebular_only=False, age=None):
         """
         Specific emissivity at provided wavelength at `source_tsf`.
 
@@ -426,25 +426,30 @@ class SynthesisModelBase(Source):
 
         """
 
-        cached = self._cache_L_per_sfr(wave, avg, Z, raw, nebular_only)
+        cached = self._cache_L_per_sfr(wave, avg, Z, raw, nebular_only, age)
 
         if cached is not None:
             return cached
 
         yield_UV = self.L_per_sfr_of_t(wave, raw=raw, nebular_only=nebular_only)
 
-        # Interpolate in time to obtain final LUV
-        if self.pf['source_tsf'] in self.times:
-            result = yield_UV[np.argmin(np.abs(self.times - self.pf['source_tsf']))]
+        if age is not None:
+            t = age
         else:
-            k = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
-            if self.times[k] > self.pf['source_tsf']:
+            t = self.pf['source_tsf']
+
+        # Interpolate in time to obtain final LUV
+        if t in self.times:
+            result = yield_UV[np.argmin(np.abs(self.times - t))]
+        else:
+            k = np.argmin(np.abs(t - self.times))
+            if self.times[k] > t:
                 k -= 1
 
             func = interp1d(self.times, yield_UV, kind='linear')
-            result = func(self.pf['source_tsf'])
+            result = func(t)
 
-        self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only)] = result
+        self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only, age)] = result
 
         return result
 
