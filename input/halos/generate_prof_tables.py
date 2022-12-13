@@ -1,15 +1,12 @@
 """
 
-generate_hmf_tables.py
+generate_prof_tables.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Wed May  8 11:33:48 2013
 
-Description: Create lookup tables for collapsed fraction. Can be run in
-parallel, e.g.,
-
-    mpirun -np 4 python generate_hmf_tables.py
+Description: Create lookup tables for Fourier-transformed profiles.
 
 """
 
@@ -42,10 +39,10 @@ pars = \
  "halo_tmax": 13.7e3, # Myr
 
 
- 'halo_dlnk': 0.1,
+ 'halo_dlnk': 0.05,
  'halo_dlnR': 0.001,
  'halo_lnk_min': -9.,
- 'halo_lnk_max': 9.,
+ 'halo_lnk_max': 11.,
  'halo_lnR_min': -9.,
  'halo_lnR_max': 9.,
 }

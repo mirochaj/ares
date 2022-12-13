@@ -1211,7 +1211,7 @@ def SynthesisParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
-    "halo_mf": 'ST',
+    "halo_mf": 'Tinker10',
     "halo_mf_sub": "Tinker08",
 
     "halo_mf_instance": None,

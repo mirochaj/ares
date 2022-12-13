@@ -28,9 +28,8 @@ except ImportError:
     size = 1
 
 four_pi = 4 * np.pi
-available_profiles = 'nfw', 'isl', 'exp', 'isl_exp'
 
-class HaloStructure(object):
+class HaloModel(HaloMassFunction):
 
     def get_concentration(self, z, Mh):
         """
@@ -62,12 +61,6 @@ class HaloStructure(object):
         c = ((m / 1.5e13) ** -0.13) * 9.0 / (1 + z)
         return c
 
-class HaloModel(HaloMassFunction,HaloStructure):
-
-    @property
-    def available_profiles(self):
-        return available_profiles
-
     def get_Rvir_from_Mh(self, Mh):
         return (3. * Mh / (4. * np.pi * self.pf['halo_delta'] \
             * self.cosm.mean_density0)) ** (1. / 3.)
@@ -75,7 +68,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
     def _dc_nfw(self, c):
         return c** 3. / (4. * np.pi) / (np.log(1 + c) - c / (1 + c))
 
-    def rho_nfw(self, z, Mh, r):
+    def get_rho_nfw(self, z, Mh, r):
 
         c = self.get_concentration(z, Mh)
         rvir = self.get_Rvir_from_Mh(Mh)
@@ -95,23 +88,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
             else:
                 return 0.0
 
-    @property
-    def tab_u_nfw(self):
-        if not hasattr(self, '_tab_u_nfw'):
-            fn = f"{ARES}/input/halos/{self.tab_prefix_prof()}.hdf5"
-
-            if os.path.exists(fn):
-                with h5py.File(fn, 'r') as f:
-                    self._tab_u_nfw = np.array(f[('tab_u_nfw')])
-
-                print(f"# Loaded {fn}.")
-            else:
-                self._tab_u_nfw = None
-                print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
-
-        return self._tab_u_nfw
-
-    def u_nfw(self, z, Mh, k):
+    def get_u_nfw(self, z, Mh, k):
         """
         Normalized Fourier Transform of an NFW profile.
 
@@ -144,7 +121,23 @@ class HaloModel(HaloMassFunction,HaloStructure):
         return norm * (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc))
 
-    def u_isl(self, z, Mh, k, rmax=1e2):
+    @property
+    def tab_u_nfw(self):
+        if not hasattr(self, '_tab_u_nfw'):
+            fn = f"{ARES}/input/halos/{self.tab_prefix_prof()}.hdf5"
+
+            if os.path.exists(fn):
+                with h5py.File(fn, 'r') as f:
+                    self._tab_u_nfw = np.array(f[('tab_u_nfw')])
+
+                print(f"# Loaded {fn}.")
+            else:
+                self._tab_u_nfw = None
+                print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
+
+        return self._tab_u_nfw
+
+    def get_u_isl(self, z, Mh, k, rmax=1e2):
         """
         Normalized Fourier transform of an r^-2 profile.
 
@@ -166,10 +159,10 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         return asi / rmax / k
 
-    def u_isl_exp(self, z, Mh, k, rmax=1e2, rstar=10):
+    def get_u_isl_exp(self, z, Mh, k, rmax=1e2, rstar=10):
         return np.arctan(rstar * k) / rstar / k
 
-    def u_exp(self, z, Mh, k, rmax=1e2):
+    def get_u_exp(self, z, Mh, k, rmax=1e2):
         rs = 1.
 
         L0 = (Mh / 1e11)**1.
@@ -181,11 +174,11 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         return norm / (1. + kappa**2)**2.
 
-    def u_cgm_rahmati(self, z, Mh, k):
+    def get_u_cgm_rahmati(self, z, Mh, k):
         rstar = 0.0025
         return np.arctan((rstar * k) ** 0.75) / (rstar * k) ** 0.75
 
-    def u_cgm_steidel(self, z, Mh, k):
+    def get_u_cgm_steidel(self, z, Mh, k):
         rstar = 0.2
         return np.arctan((rstar * k) ** 0.85) / (rstar * k) ** 0.85
 
@@ -281,7 +274,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         bias = self.tab_bias[iz]
         rho_bar = self.cosm.rho_m_z0 * rho_cgs
-        dndlnm = self.tab_dndlnm[iz] # M * dndm
+        dndlnm = self.tab_dndlnm[iz]
 
         if (mmin1 is None) and (lum1 is None):
             fcoll1 = 1.
@@ -361,7 +354,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
                 ztol))
 
         if prof1 is None:
-            prof1 = self.u_nfw
+            prof1 = self.get_u_nfw
         if prof2 is None:
             prof2 = prof1
 
@@ -546,24 +539,24 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         return self._tab_R
 
-    @property
-    def tab_z_ps(self):
-        """
-        Redshift array -- different than HMF redshifts!
-        """
-        if not hasattr(self, '_tab_z_ps'):
-            zmin = self.pf['halo_zmin']
-            zmax = self.pf['halo_zmax']
-            dz = self.pf['halo_dz']
+    #@property
+    #def tab_z_ps(self):
+    #    """
+    #    Redshift array -- different than HMF redshifts!
+    #    """
+    #    if not hasattr(self, '_tab_z_ps'):
+    #        zmin = self.pf['halo_zmin']
+    #        zmax = self.pf['halo_zmax']
+    #        dz = self.pf['halo_dz']
 
-            Nz = int(round(((zmax - zmin) / dz) + 1, 1))
-            self._tab_z_ps = np.linspace(zmin, zmax, Nz)
+    #        Nz = int(round(((zmax - zmin) / dz) + 1, 1))
+    #        self._tab_z_ps = np.linspace(zmin, zmax, Nz)
 
-        return self._tab_z_ps
+    #    return self._tab_z_ps
 
-    @tab_z_ps.setter
-    def tab_z_ps(self, value):
-        self._tab_z_ps = value
+    #@tab_z_ps.setter
+    #def tab_z_ps(self, value):
+    #    self._tab_z_ps = value
 
     @tab_R.setter
     def tab_R(self, value):
@@ -632,19 +625,13 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
     def tab_prefix_prof(self):
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
-        #z1, z2 = self.pf['hps_zmin'], self.pf['hps_zmax']
         z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
 
         dlogk = self.pf['halo_dlnk']
         kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
-        #lnk = np.log(self.tab_k)
-        #kmi, kma = np.log([lnk.min(), lnk.max()])
-        #dlogk = lnk[1] - lnk[0]
 
         logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
             / self.pf['halo_dlogM']
-        #zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
-        #    / self.pf['halo_dz']) + 1
         zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
             / self.pf['halo_dz']) + 1
 
@@ -901,7 +888,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         # Done!
 
-    def SavePS(self, fn=None, clobber=True, destination=None, format='hdf5',
+    def generate_ps(self, fn=None, clobber=True, destination=None, format='hdf5',
         checkpoint=True, **ftkwargs):
         """
         Save matter power spectrum table to HDF5 or binary (via pickle).
@@ -1013,7 +1000,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
             if i % size != rank:
                 continue
 
-            self._tab_u_nfw[i,:,:] = self.u_nfw(z, MM, kk)
+            self._tab_u_nfw[i,:,:] = self.get_u_nfw(z, MM, kk)
             pb.update(i)
 
         pb.finish()

@@ -1,6 +1,6 @@
 """
 
-generate_hmf_tables.py
+generate_ps_tables.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -9,7 +9,7 @@ Created on: Wed May  8 11:33:48 2013
 Description: Create lookup tables for collapsed fraction. Can be run in
 parallel, e.g.,
 
-    mpirun -np 4 python generate_hmf_tables.py
+    mpirun -np 4 python generate_ps_tables.py
 
 """
 
@@ -23,25 +23,21 @@ fmt = 'hdf5'
 
 pars = \
 {
- "hmf_model": fit,
+ "halo_mf": fit,
  # Should add halo concentration model here.
- "hmf_dlogM": 0.01,
- "hmf_logMmin": 4,
- "hmf_logMmax": 18,
- "hmf_zmin": 0,
- "hmf_zmax": 60,
- "hmf_dz": 0.05,
+ "halo_dlogM": 0.01,
+ "halo_logMmin": 4,
+ "halo_logMmax": 18,
+ "halo_zmin": 0,
+ "halo_zmax": 60,
+ "halo_dz": 0.05,
 
- "hps_zmin": 6,
- "hps_zmax": 30,
- "hps_dz": 0.1,
-
- 'hps_dlnk': 0.001,
- 'hps_dlnR': 0.001,
- 'hps_lnk_min': -9.,
- 'hps_lnk_max': 9.,
- 'hps_lnR_min': -9.,
- 'hps_lnR_max': 9.,
+ 'halo_dlnk': 0.001,
+ 'halo_dlnR': 0.001,
+ 'halo_lnk_min': -9.,
+ 'halo_lnk_max': 9.,
+ 'halo_lnR_min': -9.,
+ 'halo_lnR_max': 9.,
 }
 
 kwargs = \
@@ -53,7 +49,7 @@ kwargs = \
 
 ##
 
-hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False,
+halos = ares.physics.HaloModel(halo_mf_load=True, halos_ps_load=False,
     **pars)
 
-hmf.SavePS(format=fmt, clobber=False, checkpoint=True, **kwargs)
+halos.generate_ps(format=fmt, clobber=False, checkpoint=True, **kwargs)

@@ -4156,7 +4156,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         if include_1h:
             ps_1h = self.get_ps_1h(z, k, wave1, wave2,
-                raw=~self.pf['pop_1h_nebular_only'],
+                raw=not self.pf['pop_1h_nebular_only'],
                 nebular_only=self.pf['pop_1h_nebular_only'],
                 prof=prof)
             ps3d += ps_1h
@@ -4166,8 +4166,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if include_1h and self.is_satellite_pop:
             assert self.pf['pop_centrals_id'] is not None, \
                 "Must provide ID number of central population!"
-
-
 
         # The 3-d PS should have units of luminosity^2 * cMpc^-3.
         # Yes, that's cMpc^-3, a factor of volume^2 different than what

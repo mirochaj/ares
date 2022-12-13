@@ -1,12 +1,12 @@
 """
 
-run_trajectories.py
+generate_halo_histories.py
 
 Author: Jordan Mirocha
 Affiliation: McGill
 Created on: Sat  9 Mar 2019 15:48:15 EST
 
-Description: This script may be obsolete.
+Description: Synthesize mean halo growth histories.
 
 """
 
@@ -15,7 +15,6 @@ import sys
 import ares
 import h5py
 import numpy as np
-import matplotlib.pyplot as pl
 
 try:
     fn_hmf = sys.argv[1]
