@@ -3875,19 +3875,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Try to load lookup table.
             prof = self.halos.tab_u_nfw
             if prof is None:
-                prof = lambda kk, mm, zz: self.halos.u_nfw(zz, mm, kk)
+                prof = lambda kk, mm, zz: self.halos.get_u_nfw(zz, mm, kk)
         elif prof == 'delta':
             prof = self._profile_delta
         elif prof == 'isl':
-            prof = lambda kk, mm, zz: self.halos.u_isl(zz, mm, kk)
+            prof = lambda kk, mm, zz: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'isl_exp':
-            prof = lambda kk, mm, zz: self.halos.u_isl_exp(zz, mm, kk)
+            prof = lambda kk, mm, zz: self.halos.get_u_isl_exp(zz, mm, kk)
         elif prof == 'exp':
-            prof = lambda kk, mm, zz: self.halos.u_isl(zz, mm, kk)
+            prof = lambda kk, mm, zz: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'cgm_rahmati':
-            prof = lambda kk, mm, zz: self.halos.u_cgm_rahmati(zz, mm, kk)
+            prof = lambda kk, mm, zz: self.halos.get_u_cgm_rahmati(zz, mm, kk)
         elif prof == 'cgm_steidel':
-            prof = lambda kk, mm, zz: self.halos.u_cgm_steidel(zz, mm, kk)
+            prof = lambda kk, mm, zz: self.halos.get_u_cgm_steidel(zz, mm, kk)
         else:
             raise NotImplementedError('Unrecognized `prof` option: {}'.format(
                 prof

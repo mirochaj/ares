@@ -54,6 +54,11 @@ class HaloModel(HaloMassFunction):
             raise NotImplemented('help!')
 
     def _get_cmr_duffy(self, z, Mh):
+        """
+        Concentration-mass relation from Duffy et al. (2008).
+
+        .. note :: This is from Table 1, row 4, which is for z=0-2.
+        """
         c = 6.71 * (Mh / (2e12)) ** -0.091 * (1 + z) ** -0.44
         return c
 
@@ -261,13 +266,13 @@ class HaloModel(HaloMassFunction):
         """
 
         if type(prof1) in [FunctionType, MethodType]:
-            p1 = np.abs([prof1(k, M, self.tab_z[iz]) for M in self.tab_M])
+            p1 = np.abs([prof1(self.tab_z[iz], M, k) for M in self.tab_M])
         else:
             p1 = np.array([np.interp(k, self.tab_k, prof1[iz,iM,:]) \
                 for iM in np.arange(self.tab_M.size)])
 
         if type(prof2) in [FunctionType, MethodType]:
-            p2 = np.abs([prof2(k, M, self.tab_z[iz]) for M in self.tab_M])
+            p2 = np.abs([prof2(self.tab_z[iz], M, k) for M in self.tab_M])
         else:
             p2 = np.array([np.interp(k, self.tab_k, prof2[iz,iM,:]) \
                 for iM in np.arange(self.tab_M.size)])
@@ -988,8 +993,8 @@ class HaloModel(HaloMassFunction):
         shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
         self._tab_u_nfw = np.zeros(shape)
 
-        if self._tab_u_nfw.nbytes / 1e9 > 4:
-            print(f"WARNING:")
+        if self._tab_u_nfw.nbytes / 1e9 > 8:
+            print(f"WARNING: Size of profile table projected to be >8 GB!")
 
         pb = ProgressBar(len(self.tab_z), 'u(z|k,M)', use=rank==0)
         pb.start()
