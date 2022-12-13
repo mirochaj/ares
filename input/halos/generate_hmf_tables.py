@@ -18,33 +18,33 @@ import ares
 
 def_kwargs = \
 {
- "hmf_model": 'Tinker10',
- "hmf_logMmin": 4,
- "hmf_logMmax": 18,
- "hmf_dlogM": 0.01,
+ "halo_mf": 'Tinker10',
+ "halo_logMmin": 4,
+ "halo_logMmax": 18,
+ "halo_dlogM": 0.01,
 
- "hmf_fmt": 'hdf5',
- "hmf_table": None,
- "hmf_wdm_mass": None,
+ "halo_fmt": 'hdf5',
+ "halo_table": None,
+ "halo_wdm_mass": None,
 
- #"hmf_window": 'sharpk',
+ #"halo_window": 'sharpk',
 
  # Redshift sampling
- #"hmf_zmin": 0.,
- #"hmf_zmax": 60.,
- #"hmf_dz": 0.05,
+ #"halo_zmin": 0.,
+ #"halo_zmax": 60.,
+ #"halo_dz": 0.05,
 
  # Can do constant timestep instead of constant dz
- "hmf_dt": 10,
- "hmf_tmin": 30.,
- "hmf_tmax": 13.7e3, # Myr
+ "halo_dt": 10,
+ "halo_tmin": 30.,
+ "halo_tmax": 13.7e3, # Myr
 
  # Cosmology
  "cosmology_id": 'best',
  "cosmology_name": 'planck_TTTEEE_lowl_lowE',
 
  #HMF params and filter params are for doing Aurel Schneider's 2015 paper WDM.
- #"hmf_params" : {'a' : 1.0},
+ #"halo_params" : {'a' : 1.0},
  #"filter_params" : {'c' : 2.5}
 
  #"cosmology_id": 'paul',
@@ -63,12 +63,12 @@ def_kwargs = \
 kwargs = def_kwargs.copy()
 kwargs.update(ares.util.get_cmd_line_kwargs(sys.argv))
 
-hmf = ares.physics.HaloMassFunction(hmf_analytic=False,
-    hmf_load=False, **kwargs)
+halos = ares.physics.HaloMassFunction(halo_mf_analytic=False,
+    halo_mf_load=False, **kwargs)
 
-hmf.info
+halos.info
 
 try:
-    hmf.SaveHMF(fmt=kwargs['hmf_fmt'], clobber=False)
+    halos.save_hmf(fmt='hdf5', clobber=False)
 except IOError as err:
     print(err)

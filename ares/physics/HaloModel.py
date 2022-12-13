@@ -98,7 +98,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
     @property
     def tab_u_nfw(self):
         if not hasattr(self, '_tab_u_nfw'):
-            fn = f"{ARES}/input/hmf/{self.tab_prefix_prof()}.hdf5"
+            fn = f"{ARES}/input/halos/{self.tab_prefix_prof()}.hdf5"
 
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
@@ -411,7 +411,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
         ps_lin = self._get_ps_lin(k, iz)
 
         # Cannot return unmodified P_lin unless no L's or Mmin's passed!
-        if self.pf['hps_assume_linear']:
+        if self.pf['halo_ps_linear']:
             if (lum1 is None) and (lum2 is None) and (mmin1 is None) and (mmin2 is None):
                 return ps_lin
 
@@ -448,7 +448,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
         Return total power spectrum as sum of 1h and 2h terms.
         """
 
-        if not self.pf['hps_assume_linear']:
+        if not self.pf['halo_ps_linear']:
             ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
         else:
             ps_1h = 0.0
@@ -481,7 +481,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
         ##
         # Load from table if one exists.
         ##
-        if self.pf['hmf_load_ps'] and load and (not self.pf['hps_assume_linear']):
+        if self.pf['halo_ps_load'] and load and (not self.pf['halo_ps_linear']):
             iz = np.argmin(np.abs(z - self.tab_z_ps))
 
             assert abs(z - self.tab_z_ps[iz]) < ztol, \
@@ -498,7 +498,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
         # Otherwise, compute PS then inverse transform to obtain CF.
         ##
         if self.pf['use_mcfit']:
-            k = self.tab_k_lin if self.pf['hps_assume_linear'] else self.tab_k
+            k = self.tab_k_lin if self.pf['halo_ps_linear'] else self.tab_k
             Pofk = self.get_ps_tot(z, k)
             _R_, _cf_ = get_cf_from_ps_tab(k, Pofk)
 
@@ -522,11 +522,8 @@ class HaloModel(HaloMassFunction,HaloStructure):
         k-vector constructed from hps parameters.
         """
         if not hasattr(self, '_tab_k'):
-            #if self.pf['hps_assume_linear']:
-            #    self._tab_k = self.tab_k_lin
-            #else:
-            dlogk = self.pf['hps_dlnk']
-            kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
+            dlogk = self.pf['halo_dlnk']
+            kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
             logk = np.arange(kmi, kma+dlogk, dlogk)
             self._tab_k = np.exp(logk)
 
@@ -542,8 +539,8 @@ class HaloModel(HaloMassFunction,HaloStructure):
         R-vector constructed from mps parameters.
         """
         if not hasattr(self, '_tab_R'):
-            dlogR = self.pf['hps_dlnR']
-            Rmi, Rma = self.pf['hps_lnR_min'], self.pf['hps_lnR_max']
+            dlogR = self.pf['halo_dlnR']
+            Rmi, Rma = self.pf['halo_lnR_min'], self.pf['halo_lnR_max']
             logR = np.arange(Rmi, Rma+dlogR, dlogR)
             self._tab_R = np.exp(logR)
 
@@ -555,9 +552,9 @@ class HaloModel(HaloMassFunction,HaloStructure):
         Redshift array -- different than HMF redshifts!
         """
         if not hasattr(self, '_tab_z_ps'):
-            zmin = self.pf['hps_zmin']
-            zmax = self.pf['hps_zmax']
-            dz = self.pf['hps_dz']
+            zmin = self.pf['halo_zmin']
+            zmax = self.pf['halo_zmax']
+            dz = self.pf['halo_dz']
 
             Nz = int(round(((zmax - zmin) / dz) + 1, 1))
             self._tab_z_ps = np.linspace(zmin, zmax, Nz)
@@ -583,14 +580,14 @@ class HaloModel(HaloMassFunction,HaloStructure):
             raise AttributeError('This will get caught. Don\'t worry! {}'.format(name))
 
         if name not in self.__dict__.keys():
-            if self.pf['hmf_load']:
+            if self.pf['halo_mf_load']:
                 self._load_hmf()
             else:
                 # Can generate on the fly!
                 if name == 'tab_MAR':
-                    self.TabulateMAR()
+                    self.generate_mar()
                 else:
-                    self.TabulateHMF(save_MAR=False)
+                    self.generate_hmf(save_MAR=False)
 
             if name not in self.__dict__.keys():
                 self._load_ps()
@@ -600,7 +597,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
     def _load_ps(self, suffix='hdf5'):
         """ Load table from HDF5 or binary. """
 
-        if self.pf['hps_assume_linear']:
+        if self.pf['halo_ps_linear']:
             self._tab_ps_mm = np.zeros((self.tab_z_ps.size, self.tab_k.size))
             self._tab_cf_mm = np.zeros((self.tab_z_ps.size, self.tab_R.size))
             for i, _z_ in enumerate(self.tab_z_ps):
@@ -612,7 +609,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
             return
 
-        fn = '%s/input/hmf/%s.%s' % (ARES, self.tab_prefix_ps(), suffix)
+        fn = '%s/input/halos/%s.%s' % (ARES, self.tab_prefix_ps(), suffix)
 
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')
@@ -631,25 +628,25 @@ class HaloModel(HaloMassFunction,HaloStructure):
             self.tab_cf_mm = pickle.load(f)
             f.close()
         else:
-            raise IOError('Unrecognized format for hps_table.')
+            raise IOError('Unrecognized format for halo_table.')
 
     def tab_prefix_prof(self):
-        M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
+        M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
         #z1, z2 = self.pf['hps_zmin'], self.pf['hps_zmax']
-        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+        z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
 
-        dlogk = self.pf['hps_dlnk']
-        kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
+        dlogk = self.pf['halo_dlnk']
+        kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
         #lnk = np.log(self.tab_k)
         #kmi, kma = np.log([lnk.min(), lnk.max()])
         #dlogk = lnk[1] - lnk[0]
 
-        logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
-            / self.pf['hmf_dlogM']
-        #zsize = ((self.pf['hps_zmax'] - self.pf['hps_zmin']) \
-        #    / self.pf['hps_dz']) + 1
-        zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-            / self.pf['hmf_dz']) + 1
+        logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
+            / self.pf['halo_dlogM']
+        #zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
+        #    / self.pf['halo_dz']) + 1
+        zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
+            / self.pf['halo_dz']) + 1
 
         assert logMsize % 1 == 0
         logMsize = int(logMsize)
@@ -675,25 +672,25 @@ class HaloModel(HaloMassFunction,HaloStructure):
 
         """
 
-        M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-        z1, z2 = self.pf['hps_zmin'], self.pf['hps_zmax']
+        M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
+        z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
 
-        dlogk = self.pf['hps_dlnk']
-        kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
+        dlogk = self.pf['halo_dlnk']
+        kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
         #logk = np.arange(kmi, kma+dlogk, dlogk)
         #karr = np.exp(logk)
 
-        dlogR = self.pf['hps_dlnR']
-        Rmi, Rma = self.pf['hps_lnR_min'], self.pf['hps_lnR_max']
+        dlogR = self.pf['halo_dlnR']
+        Rmi, Rma = self.pf['halo_lnR_min'], self.pf['halo_lnR_max']
         #logR = np.arange(np.log(Rmi), np.log(Rma)+dlogR, dlogR)
         #Rarr = np.exp(logR)
 
 
         if with_size:
-            logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
-                / self.pf['hmf_dlogM']
-            zsize = ((self.pf['hps_zmax'] - self.pf['hps_zmin']) \
-                / self.pf['hps_dz']) + 1
+            logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
+                / self.pf['halo_dlogM']
+            zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
+                / self.pf['halo_dz']) + 1
 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)
@@ -701,8 +698,8 @@ class HaloModel(HaloMassFunction,HaloStructure):
             zsize = int(round(zsize, 1))
 
             # Should probably save NFW information etc. too
-            return 'hps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnR_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
-                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
+            return 'halo_ps_%s_logM_%s_%i-%i_z_%s_%i-%i_lnR_%.1f-%.1f_dlnR_%.3f_lnk_%.1f-%.1f_dlnk_%.3f' \
+                % (self.pf['halo_mf'], logMsize, M1, M2, zsize, z1, z2,
                    Rmi, Rma, dlogR, kmi, kma, dlogk)
         else:
             raise NotImplementedError('help')

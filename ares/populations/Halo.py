@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Thu May 28 16:22:44 MDT 2015
 
-Description: 
+Description:
 
 """
 
@@ -25,7 +25,7 @@ from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
 class HaloPopulation(Population):
     def __init__(self, **kwargs):
-        
+
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
         Population.__init__(self, **kwargs)
@@ -51,7 +51,7 @@ class HaloPopulation(Population):
     def fcoll(self):
         if not hasattr(self, '_fcoll'):
             self._init_fcoll(return_fcoll=True)
-    
+
         return self._fcoll
 
     @property
@@ -62,7 +62,7 @@ class HaloPopulation(Population):
         return self._dfcolldz
 
     def dfcolldt(self, z):
-        return self.dfcolldz(z) / self.cosm.dtdz(z)    
+        return self.dfcolldz(z) / self.cosm.dtdz(z)
 
     def _set_fcoll(self, Tmin, mu, return_fcoll=False):
         self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
@@ -72,25 +72,25 @@ class HaloPopulation(Population):
     def gf_spline(self):
         if not hasattr(self, '_gf_spline'):
             gf = self.halos.growth_factor
-            self._gf_spline = interp1d(self.halos.z, gf, 
+            self._gf_spline = interp1d(self.halos.z, gf,
                 kind='linear', bounds_error=False)
-        
+
         return self._gf_spline
-            
+
     def growth_factor(self, z):
         return self.gf_spline(z)
-                
+
     @property
     def halos(self):
         if not hasattr(self, '_halos'):
-            if self.pf['hmf_instance'] is not None:
-                self._halos = self.pf['hmf_instance']
+            if self.pf['halo_mf_instance'] is not None:
+                self._halos = self.pf['halo_mf_instance']
             else:
                 self._halos = HaloModel(**self.pf)
                 #self._halos = HaloMassFunction(**self.pf)
-                
+
         return self._halos
-        
+
     def _init_fcoll(self, return_fcoll=False):
         # Halo stuff
         if self.pf['pop_sfrd'] is not None:
@@ -102,15 +102,15 @@ class HaloPopulation(Population):
         else:
             self._fcoll, self._dfcolldz = \
                 self.pf['pop_fcoll'], self.pf['pop_dfcolldz']
-    
+
     @property
     def MGR(self):
         """
         Mass growth rate of halos of mass M at redshift z.
-    
-        ..note:: This is the *DM* mass accretion rate. To obtain the baryonic 
+
+        ..note:: This is the *DM* mass accretion rate. To obtain the baryonic
             accretion rate, multiply by Cosmology.fbaryon.
-    
+
         """
         if not hasattr(self, '_MAR'):
             if self.pf['pop_MAR'] is None:
@@ -124,31 +124,27 @@ class HaloPopulation(Population):
                 # Would be nice if this were a pointer...
                 self._MAR = self.halos.MAR_func
             else:
-                self._MAR = read_lit(self.pf['pop_MAR'], 
+                self._MAR = read_lit(self.pf['pop_MAR'],
                     verbose=self.pf['verbose']).MAR
-    
+
         return self._MAR
-    
+
     def MGR_integrated(self, z, source=None):
         """
         The integrated DM accretion rate.
-    
+
         Parameters
         ----------
         z : int, float
             Redshift
         source : str
             Can be a litdata module, e.g., 'mcbride2009'.
-    
+
         Returns
         -------
         Integrated DM mass accretion rate in units of Msun/yr/cMpc**3.
-    
-        """    
-    
+
+        """
+
         return self.cosm.rho_m_z0 * self.dfcolldt(z) * cm_per_mpc**3 \
                 * s_per_yr / g_per_msun
-    
-
-        
-        

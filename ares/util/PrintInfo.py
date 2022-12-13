@@ -330,28 +330,28 @@ def print_hmf(hmf):
     print(line('-' * twidth))
     print(line('Underlying Model'))
     print(line('-' * twidth))
-    print(line("fittin function       : {0!s}".format(hmf.pf['hmf_model'])))
-    if hmf.pf['hmf_wdm_mass'] is not None:
-        print(line("wdm_mass              : {0:g}".format(hmf.pf['hmf_wdm_mass'])))
+    print(line("fitting function       : {0!s}".format(hmf.pf['halo_mf'])))
+    if hmf.pf['halo_wdm_mass'] is not None:
+        print(line("wdm_mass              : {0:g}".format(hmf.pf['halo_wdm_mass'])))
 
     print(line('-' * twidth))
     print(line('Table Limits & Resolution'))
     print(line('-' * twidth))
 
-    if hmf.pf['hmf_dt'] is None:
-        print(line("zmin                  : {0:g}".format(hmf.pf['hmf_zmin'])))
-        print(line("zmax                  : {0:g}".format(hmf.pf['hmf_zmax'])))
-        print(line("dz                    : {0:g}".format(hmf.pf['hmf_dz'])))
+    if hmf.pf['halo_dt'] is None:
+        print(line("zmin                  : {0:g}".format(hmf.pf['halo_zmin'])))
+        print(line("zmax                  : {0:g}".format(hmf.pf['halo_zmax'])))
+        print(line("dz                    : {0:g}".format(hmf.pf['halo_dz'])))
     else:
-        print(line("tmin (Myr)            : {0:g}".format(hmf.pf['hmf_tmin'])))
-        print(line("tmax (Myr)            : {0:g}".format(hmf.pf['hmf_tmax'])))
-        print(line("dt   (Myr)            : {0:g}".format(hmf.pf['hmf_dt'])))
+        print(line("tmin (Myr)            : {0:g}".format(hmf.pf['halo_tmin'])))
+        print(line("tmax (Myr)            : {0:g}".format(hmf.pf['halo_tmax'])))
+        print(line("dt   (Myr)            : {0:g}".format(hmf.pf['halo_dt'])))
 
     print(line("Mmin (Msun)           : {0:e}".format(\
-        10 ** hmf.pf['hmf_logMmin'])))
+        10 ** hmf.pf['halo_logMmin'])))
     print(line("Mmax (Msun)           : {0:e}".format(\
-        10 ** hmf.pf['hmf_logMmax'])))
-    print(line("dlogM                 : {0:g}".format(hmf.pf['hmf_dlogM'])))
+        10 ** hmf.pf['halo_logMmax'])))
+    print(line("dlogM                 : {0:g}".format(hmf.pf['halo_dlogM'])))
 
     print("#" * width)
 

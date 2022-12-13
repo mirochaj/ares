@@ -3201,10 +3201,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zmax = []
         zform = []
 
-        if self.pf['hgh_Mmax'] is not None:
-            dMmin = self.pf['hgh_dlogM']
+        if self.pf['halo_hist_Mmax'] is not None:
+            dMmin = self.pf['halo_hist_dlogM']
 
-            M0_aug = 10**np.arange(0+dMmin, np.log10(self.pf['hgh_Mmax'])+dMmin,
+            M0_aug = 10**np.arange(0+dMmin, np.log10(self.pf['halo_hist_Mmax'])+dMmin,
                 dMmin)
 
             results = {key:np.zeros(((zarr.size+M0_aug.size, zarr.size))) \
@@ -3243,7 +3243,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # course we'll miss out on the early histories of small halos if
         # Tmin is large. So, fill in histories by incrementing above Mmin
         # at highest available redshsift.
-        if self.pf['hgh_Mmax'] is not None:
+        if self.pf['halo_hist_Mmax'] is not None:
 
             _z0 = zarr.max()
             i0 = zarr.size
@@ -3352,7 +3352,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         elif (M0 > 1):
             M0 = np.interp(z0, self.halos.tab_z, M0 * self._tab_Mmin)
 
-            dM = self.pf['hgh_dlogM']
+            dM = self.pf['halo_hist_dlogM']
 
             # Set number density of these guys.
             _marr_ = np.arange(np.log10(M0) - 3 * dM, np.log10(M0) + 3 * dM,
