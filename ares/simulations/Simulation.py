@@ -151,11 +151,11 @@ class Simulation(object):
 
         return data
 
-    def get_galaxy_ps(self, scales, waves, waves2=None, wave_units='mic',
+    def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
         scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
         **kwargs):
         """
-        Compute power spectrum at some observed wavelength.
+        Compute power spectrum of EBL at some observed wavelength(s).
 
         Parameters
         ----------

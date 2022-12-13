@@ -3863,7 +3863,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Returns
         -------
-        A function of k, Mh, and z.
+        A function of z, Mh, and k.
 
         """
         # Defer to user-supplied parameter if given
@@ -3875,19 +3875,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Try to load lookup table.
             prof = self.halos.tab_u_nfw
             if prof is None:
-                prof = lambda kk, mm, zz: self.halos.get_u_nfw(zz, mm, kk)
+                prof = self.halos.get_u_nfw
         elif prof == 'delta':
             prof = self._profile_delta
         elif prof == 'isl':
-            prof = lambda kk, mm, zz: self.halos.get_u_isl(zz, mm, kk)
+            prof = lambda zz, mm, kk: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'isl_exp':
-            prof = lambda kk, mm, zz: self.halos.get_u_isl_exp(zz, mm, kk)
+            prof = lambda zz, mm, kk: self.halos.get_u_isl_exp(zz, mm, kk)
         elif prof == 'exp':
-            prof = lambda kk, mm, zz: self.halos.get_u_isl(zz, mm, kk)
+            prof = lambda zz, mm, kk: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'cgm_rahmati':
-            prof = lambda kk, mm, zz: self.halos.get_u_cgm_rahmati(zz, mm, kk)
+            prof = lambda zz, mm, kk: self.halos.get_u_cgm_rahmati(zz, mm, kk)
         elif prof == 'cgm_steidel':
-            prof = lambda kk, mm, zz: self.halos.get_u_cgm_steidel(zz, mm, kk)
+            prof = lambda zz, mm, kk: self.halos.get_u_cgm_steidel(zz, mm, kk)
         else:
             raise NotImplementedError('Unrecognized `prof` option: {}'.format(
                 prof
@@ -3920,8 +3920,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return np.zeros_like(k)
 
         cached_result = self._cache_ps_1h(z, k, wave1, wave2, raw, nebular_only, prof)
-        if cached_result is not None:
-            return cached_result
+        #if cached_result is not None:
+        #    print("Loading from cache")
+        #    return cached_result
 
         # Default to NFW
         prof = self.get_prof(prof)
@@ -4144,18 +4145,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##
         # First: compute 3-D power spectrum
         if include_2h:
-            ps3d = self.get_ps_2h(z, k, wave1, wave2, raw=False,
+            ps3d = self.get_ps_2h(z, k, wave1=wave1, wave2=wave2, raw=False,
                 nebular_only=False)
         else:
             ps3d = np.zeros_like(k)
 
         if include_shot:
-            ps_shot = self.get_ps_shot(z, k, wave1, wave2, raw=True,
+            ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2, raw=True,
                 nebular_only=False)
             ps3d += ps_shot
 
         if include_1h:
-            ps_1h = self.get_ps_1h(z, k, wave1, wave2,
+            ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
                 raw=not self.pf['pop_1h_nebular_only'],
                 nebular_only=self.pf['pop_1h_nebular_only'],
                 prof=prof)

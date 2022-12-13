@@ -75,21 +75,22 @@ class HaloModel(HaloMassFunction):
 
     def get_rho_nfw(self, z, Mh, r):
 
-        c = self.get_concentration(z, Mh)
+        con = self.get_concentration(z, Mh)
         rvir = self.get_Rvir_from_Mh(Mh)
-        r_s = c / rvir
+        r_s = rvir / con
 
         x = r / r_s
-        rn = x / c
+        rn = x / con
 
         if np.iterable(x):
             result = np.zeros_like(x)
-            result[rn <= 1] = (self._dc_nfw(c) / (c * r_s)**3 / (x * (1 + x)**2))[rn <= 1]
+            result[rn <= 1] = (self._dc_nfw(con) \
+                / (con * r_s)**3 / (x * (1 + x)**2))[rn <= 1]
 
             return result
         else:
             if rn <= 1.0:
-                return self._dc_nfw(c) / (c * r_s) ** 3 / (x * (1 + x) ** 2)
+                return self._dc_nfw(c) / (con * r_s) ** 3 / (x * (1 + x) ** 2)
             else:
                 return 0.0
 
@@ -109,21 +110,21 @@ class HaloModel(HaloMassFunction):
             Wavenumber
 
         """
-        c = self.get_concentration(z, Mh)
+        con = self.get_concentration(z, Mh)
         rvir = self.get_Rvir_from_Mh(Mh)
-        r_s = c / rvir
+        r_s = rvir / con
 
         K = k * r_s
 
-        asi, ac = sp.sici((1 + c) * K)
+        asi, ac = sp.sici((1 + con) * K)
         bs, bc = sp.sici(K)
 
         # The extra factor of np.log(1 + c) - c / (1 + c)) comes in because
         # there's really a normalization factor of 4 pi rho_s r_s^3 / m,
         # and m = 4 pi rho_s r_s^3 * the log term
-        norm = 1. / (np.log(1 + c) - c / (1 + c))
+        norm = 1. / (np.log(1 + con) - con / (1 + con))
 
-        return norm * (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
+        return norm * (np.sin(K) * (asi - bs) - np.sin(con * K) / ((1 + con) * K) \
             + np.cos(K) * (ac - bc))
 
     @property
@@ -188,6 +189,7 @@ class HaloModel(HaloMassFunction):
         return np.arctan((rstar * k) ** 0.85) / (rstar * k) ** 0.85
 
     def FluxProfile(self, r, m, z, lc=False):
+        raise NotImplemented('need to fix this')
         return m * self.ModulationFactor(z, r=r, lc=lc) / (4. * np.pi * r**2)
 
     #@RadialProfile.setter
@@ -195,6 +197,7 @@ class HaloModel(HaloMassFunction):
     #    pass
 
     def FluxProfileFT(self, k, m, z, lc=False):
+        raise NotImplemented('need to fix this')
         _numerator = lambda r: 4. * np.pi * r**2 * np.sin(k * r) / (k * r) \
             * self.FluxProfile(r, m, z, lc=lc)
         _denominator = lambda r: 4. * np.pi * r**2 *\
@@ -268,13 +271,13 @@ class HaloModel(HaloMassFunction):
         if type(prof1) in [FunctionType, MethodType]:
             p1 = np.abs([prof1(self.tab_z[iz], M, k) for M in self.tab_M])
         else:
-            p1 = np.array([np.interp(k, self.tab_k, prof1[iz,iM,:]) \
+            p1 = np.abs([np.interp(k, self.tab_k, prof1[iz,iM,:]) \
                 for iM in np.arange(self.tab_M.size)])
 
         if type(prof2) in [FunctionType, MethodType]:
             p2 = np.abs([prof2(self.tab_z[iz], M, k) for M in self.tab_M])
         else:
-            p2 = np.array([np.interp(k, self.tab_k, prof2[iz,iM,:]) \
+            p2 = np.abs([np.interp(k, self.tab_k, prof2[iz,iM,:]) \
                 for iM in np.arange(self.tab_M.size)])
 
         bias = self.tab_bias[iz]
