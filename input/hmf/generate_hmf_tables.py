@@ -30,14 +30,14 @@ def_kwargs = \
  #"hmf_window": 'sharpk',
 
  # Redshift sampling
- "hmf_zmin": 0.,
- "hmf_zmax": 60.,
- "hmf_dz": 0.05,
+ #"hmf_zmin": 0.,
+ #"hmf_zmax": 60.,
+ #"hmf_dz": 0.05,
 
  # Can do constant timestep instead of constant dz
- #"hmf_dt": 1,
- #"hmf_tmin": 30.,
- #"hmf_tmax": 1000.,
+ "hmf_dt": 10,
+ "hmf_tmin": 30.,
+ "hmf_tmax": 13.7e3, # Myr
 
  # Cosmology
  "cosmology_id": 'best',

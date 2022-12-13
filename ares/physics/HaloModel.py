@@ -2,13 +2,13 @@
 
 import os
 import re
+import time
 import pickle
 import numpy as np
 from ..data import ARES
 import scipy.special as sp
-from types import FunctionType
 from scipy.integrate import quad
-from scipy.interpolate import interp1d, Akima1DInterpolator
+from types import FunctionType, MethodType
 from ..util.ProgressBar import ProgressBar
 from .HaloMassFunction import HaloMassFunction
 from .Constants import rho_cgs, c, cm_per_mpc
@@ -95,35 +95,21 @@ class HaloModel(HaloMassFunction,HaloStructure):
             else:
                 return 0.0
 
-    def get_profile(self, z, Mh, r, prof='nfw'):
-        """
-        Get radial profile.
-        """
+    @property
+    def tab_u_nfw(self):
+        if not hasattr(self, '_tab_u_nfw'):
+            fn = f"{ARES}/input/hmf/{self.tab_prefix_prof()}.hdf5"
 
-        if prof == 'nfw':
-            return self.rho_nfw(z, Mh, r)
-        else:
-            raise NotImplementedError('help')
+            if os.path.exists(fn):
+                with h5py.File(fn, 'r') as f:
+                    self._tab_u_nfw = np.array(f[('tab_u_nfw')])
 
-    def get_profile_FT(self, z, Mh, k, prof='nfw'):
-        """
-        Normalized Fourier transform, wrapper around individual routines.
+                print(f"# Loaded {fn}.")
+            else:
+                self._tab_u_nfw = None
+                print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
 
-        Parameters
-        ----------
-
-        """
-
-        if prof == 'nfw':
-            return self.u_nfw(z, Mh, k)
-        elif prof == 'isl':
-            return self.u_isl(z, Mh, k)
-        elif prof == 'exp':
-            return self.u_exp(z, Mh, k)
-        elif prof == 'isl_exp':
-            return self.u_isl_exp(z, Mh, k)
-        else:
-            raise NotImplementedError('help')
+        return self._tab_u_nfw
 
     def u_nfw(self, z, Mh, k):
         """
@@ -281,8 +267,17 @@ class HaloModel(HaloMassFunction,HaloStructure):
         needed for halo model.
         """
 
-        p1 = np.abs([prof1(k, M, self.tab_z[iz]) for M in self.tab_M])
-        p2 = np.abs([prof2(k, M, self.tab_z[iz]) for M in self.tab_M])
+        if type(prof1) in [FunctionType, MethodType]:
+            p1 = np.abs([prof1(k, M, self.tab_z[iz]) for M in self.tab_M])
+        else:
+            p1 = np.array([np.interp(k, self.tab_k, prof1[iz,iM,:]) \
+                for iM in np.arange(self.tab_M.size)])
+
+        if type(prof2) in [FunctionType, MethodType]:
+            p2 = np.abs([prof2(k, M, self.tab_z[iz]) for M in self.tab_M])
+        else:
+            p2 = np.array([np.interp(k, self.tab_k, prof2[iz,iM,:]) \
+                for iM in np.arange(self.tab_M.size)])
 
         bias = self.tab_bias[iz]
         rho_bar = self.cosm.rho_m_z0 * rho_cgs
@@ -527,14 +522,13 @@ class HaloModel(HaloMassFunction,HaloStructure):
         k-vector constructed from hps parameters.
         """
         if not hasattr(self, '_tab_k'):
+            #if self.pf['hps_assume_linear']:
+            #    self._tab_k = self.tab_k_lin
+            #else:
             dlogk = self.pf['hps_dlnk']
             kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
             logk = np.arange(kmi, kma+dlogk, dlogk)
             self._tab_k = np.exp(logk)
-
-            if self.pf['hps_assume_linear']:
-                assert self._tab_k.min() >= self.tab_k_lin.min()
-                assert self._tab_k.max() <= self.tab_k_lin.max()
 
         return self._tab_k
 
@@ -639,6 +633,34 @@ class HaloModel(HaloMassFunction,HaloStructure):
         else:
             raise IOError('Unrecognized format for hps_table.')
 
+    def tab_prefix_prof(self):
+        M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
+        #z1, z2 = self.pf['hps_zmin'], self.pf['hps_zmax']
+        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+
+        dlogk = self.pf['hps_dlnk']
+        kmi, kma = self.pf['hps_lnk_min'], self.pf['hps_lnk_max']
+        #lnk = np.log(self.tab_k)
+        #kmi, kma = np.log([lnk.min(), lnk.max()])
+        #dlogk = lnk[1] - lnk[0]
+
+        logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
+            / self.pf['hmf_dlogM']
+        #zsize = ((self.pf['hps_zmax'] - self.pf['hps_zmin']) \
+        #    / self.pf['hps_dz']) + 1
+        zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
+            / self.pf['hmf_dz']) + 1
+
+        assert logMsize % 1 == 0
+        logMsize = int(logMsize)
+        assert zsize % 1 == 0
+        zsize = int(round(zsize, 1))
+
+        # Should probably save NFW information etc. too
+        return 'halo_prof_%s_%s_logM_%s_%i-%i_z_%s_%i-%i_lnk_%.1f-%.1f_dlnk_%.3f' \
+            % (self.pf['halo_profile'], self.pf['halo_cmr'],
+                logMsize, M1, M2, zsize, z1, z2, kmi, kma, dlogk)
+
     def tab_prefix_ps(self, with_size=True):
         """
         What should we name this table?
@@ -654,7 +676,6 @@ class HaloModel(HaloMassFunction,HaloStructure):
         """
 
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-
         z1, z2 = self.pf['hps_zmin'], self.pf['hps_zmax']
 
         dlogk = self.pf['hps_dlnk']
@@ -726,7 +747,7 @@ class HaloModel(HaloMassFunction,HaloStructure):
         Tabulate the matter power spectrum as a function of redshift and k.
         """
 
-        pb = ProgressBar(len(self.tab_z_ps), 'ps_dd')
+        pb = ProgressBar(len(self.tab_z_ps), 'ps_dd(z)')
         pb.start()
 
         # Lists to store any checkpoints that are found
@@ -962,4 +983,61 @@ class HaloModel(HaloMassFunction,HaloStructure):
             f.close()
 
         print('Wrote %s.' % fn)
+        return
+
+    def generate_halo_prof(self, format='hdf5', clobber=False, checkpoint=True,
+        destination=None, **kwargs):
+        """
+        Generate a lookup table for Fourier-tranformed halo profiles.
+        """
+
+        assert format == 'hdf5'
+
+        if destination is None:
+            destination = '.'
+
+        fn = f'{destination}/{self.tab_prefix_prof()}.{format}'
+
+        if rank == 0:
+            print(f"# Will save to {fn}.")
+
+        shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
+        self._tab_u_nfw = np.zeros(shape)
+
+        if self._tab_u_nfw.nbytes / 1e9 > 4:
+            print(f"WARNING:")
+
+        pb = ProgressBar(len(self.tab_z), 'u(z|k,M)', use=rank==0)
+        pb.start()
+
+        MM, kk = np.meshgrid(self.tab_M, self.tab_k, indexing='ij')
+
+        for i, z in enumerate(self.tab_z):
+            if i % size != rank:
+                continue
+
+            self._tab_u_nfw[i,:,:] = self.u_nfw(z, MM, kk)
+            pb.update(i)
+
+        pb.finish()
+
+        if size > 1:
+
+            tmp = np.zeros(shape)
+            nothing = MPI.COMM_WORLD.Allreduce(self._tab_u_nfw, tmp)
+            self._tab_u_nfw = tmp1
+
+            # So only root processor writes to disk
+            if rank > 0:
+                return
+
+        with h5py.File(fn, 'w') as f:
+            f.create_dataset('tab_u_nfw', data=self._tab_u_nfw)
+            f.create_dataset('tab_k', data=self.tab_k)
+            f.create_dataset('tab_M', data=self.tab_M)
+            f.create_dataset('tab_z', data=self.tab_z)
+
+        if rank == 0:
+            print(f"# Wrote {fn}.")
+
         return
