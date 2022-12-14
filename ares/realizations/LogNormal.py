@@ -25,7 +25,7 @@ try:
 except ImportError:
     pass
 
-class LogNormal(LightCone):
+class LogNormal(LightCone): # pragma: no cover
     def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), seed=None,
         seed_halos=None, verbose=True, bias_model=0, bias_params=None,
         bias_replacement=1, bias_within_bin=False, randomise_in_cell=True, **kwargs):

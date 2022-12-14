@@ -25,7 +25,7 @@ try:
 except ImportError:
     pass
 
-class LightCone(object):
+class LightCone(object): # pragma: no cover
     """
     This should be inherited by the other classes in this submodule.
     """
