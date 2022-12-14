@@ -1060,7 +1060,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         if self.is_uvlf_parametric:
             assert absolute
-            return self.uvlf(MUV=bins, z=z)
+            return bins, self.uvlf(MUV=bins, z=z)
 
         ##
         # Otherwise, standard SFE parameterized approach.
@@ -1549,7 +1549,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Mmin = self.get_Mmin(z)
 
-        return np.interp(Mmin, self.halos.tab_M, mags)
+        ok = np.isfinite(mags)
+        return np.interp(Mmin, self.halos.tab_M[ok==1], mags[ok==1])
 
     def get_Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.

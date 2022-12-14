@@ -97,7 +97,7 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     ##
 
     beta = pop1.Beta(6., rest_wave=(1600., 2300.), dlam=10)
-    mags = pop1.Magnitude(6.)
+    mags = pop1.get_mags(6.)
 
     ok = beta != -99999
 
@@ -123,18 +123,18 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     ss2.oversampling_below = oversample_age
 
     t1 = time.time()
-    L1 = ss.Luminosity(sfh=sfh1, tarr=tarr1, load=False)
+    L1 = ss.get_lum(sfh=sfh1, tarr=tarr1, load=False)
     t2 = time.time()
 
     print('dt=1', t2 - t1)
 
     t1 = time.time()
-    L2 = ss.Luminosity(sfh=sfh2, tarr=tarr2, load=False)
+    L2 = ss.get_lum(sfh=sfh2, tarr=tarr2, load=False)
     t2 = time.time()
     print('dt={}, oversampling ON:'.format(dt_coarse), t2 - t1)
 
     t1 = time.time()
-    L3 = ss2.Luminosity(sfh=sfh2, tarr=tarr2, load=False)
+    L3 = ss2.get_lum(sfh=sfh2, tarr=tarr2, load=False)
     t2 = time.time()
     print('dt=10, oversampling OFF:', t2 - t1)
 
@@ -164,9 +164,9 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     sfh1 = staircase(tarr1, dx=100)
     sfh2 = staircase(tarr2, dx=100//dt_coarse)
 
-    L1 = ss.Luminosity(sfh=sfh1, tarr=tarr1)
-    L2 = ss.Luminosity(sfh=sfh2, tarr=tarr2)
-    L3 = ss2.Luminosity(sfh=sfh2, tarr=tarr2)
+    L1 = ss.get_lum(sfh=sfh1, tarr=tarr1)
+    L2 = ss.get_lum(sfh=sfh2, tarr=tarr2)
+    L3 = ss2.get_lum(sfh=sfh2, tarr=tarr2)
 
     # Check validity of over-sampling for non-constant SFH
     # Just take mean error over long time as the solutions will differ
@@ -183,15 +183,14 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
 
     assert np.mean(err) < 0.01
 
-
     ##
     # Test batch mode
     ##
 
     sfh2 = np.array([sfh2] * 10)
 
-    L2b = ss.Luminosity(sfh=sfh2, tarr=tarr2)
-    L3b = ss2.Luminosity(sfh=sfh2, tarr=tarr2)
+    L2b = ss.get_lum(sfh=sfh2, tarr=tarr2)
+    L3b = ss2.get_lum(sfh=sfh2, tarr=tarr2)
 
     assert np.all(L2b[0] == L2)
     assert np.all(L3b[0] == L3)
