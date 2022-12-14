@@ -754,9 +754,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._tab_eta_
 
-    def SFR(self, z, Mh=None):
-        return self.get_sfr(z, Mh=Mh)
-
     def get_sfr(self, z, Mh=None):
         """
         Get star formation rate at redshift z in a halo of mass Mh.
@@ -3455,7 +3452,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
-            sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
+            sfr_t.append(self.get_sfr(z=redshifts[-1], Mh=Mh_t[-1]))
             nh_t.append(n0)
 
             if self.pf['pop_sfr_model'] in ['sfe-func']:
