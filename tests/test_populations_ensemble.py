@@ -47,8 +47,6 @@ def test():
     mags = np.arange(-30, 10, 0.1)
     mags_cr = np.arange(-30, 10, 1.)
     x, phi = pop.get_lf(6., mags, absolute=True)
-    x2, phi2 = pop.LuminosityFunction(6., mags, absolute=True) # backward compat
-    assert np.allclose(phi, phi2)
 
     ok = np.isfinite(phi)
     assert 1e-4 <= np.interp(-18, mags, phi) <= 1e-1, "UVLF unreasonable!"
@@ -118,7 +116,8 @@ def test():
 
     # Simple LAE model
     x, xLAE, std = pop.get_lae_fraction(6, bins=mags_cr)
-    ok = np.logical_and(np.isfinite(xLAE), xLAE > 0)
+    ok = np.isfinite(xLAE)
+
     # Just make sure x_LAE increases as MUV decreases. Note that we don't
     # have many galaxies in this model so just check that on avg the derivative
     # is positive in dxLAE/dMUV.
@@ -154,15 +153,18 @@ def test():
     # Surface density
     amag_bins = np.arange(20, 45, 0.1)
     x, Sigma = pop.get_surface_density(6, bins=amag_bins)
-    assert 1e3 <= Sigma[np.argmin(np.abs(amag_bins - 27))] <= 1e4
+    sigma27 = Sigma[np.argmin(np.abs(amag_bins - 27))]
+    assert 1e3 <= sigma27 <= 1e5, \
+        f"Surface density ({sigma27} at m_AB=27) unreasonable!"
 
     # Test surface density integral sub-sampling. Should be a small effect.
     x1, Sigma1 = pop.get_surface_density(6, dz=0.1, bins=amag_bins)
     x2, Sigma2 = pop.get_surface_density(6, dz=0.1, bins=amag_bins,
-        use_central_z=False, zstep=0.05)
+        use_central_z=False, zstep=0.025)
 
     rdiff = np.abs(Sigma1 - Sigma2) / Sigma2
-    assert rdiff[Sigma2 > 0].mean() < 0.1
+    assert rdiff[Sigma2 > 0].mean() < 0.15, \
+        f"Evolution effect is too large! {rdiff[Sigma2 > 0].mean()}"
 
     # Try volume density
     x, n = pop.get_volume_density(6, bins=amag_bins)

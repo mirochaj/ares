@@ -1211,7 +1211,7 @@ def SynthesisParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
-    "halo_mf": 'Tinker10',
+    "halo_mf": 'ST',
     "halo_mf_sub": "Tinker08",
 
     "halo_mf_instance": None,
@@ -1242,7 +1242,7 @@ def HaloMassFunctionParameters():
 
     # Augment suite of halo growth histories
     "halo_hist_dlogM": 0.1,
-    'halo_hist_Mmax': None, # 10x the 
+    'halo_hist_Mmax': 10, # 10x the
 
     # to CAMB
     'halo_dlna': 2e-6,           # hmf default value is 1e-2

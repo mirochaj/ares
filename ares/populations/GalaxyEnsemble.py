@@ -75,7 +75,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     @property
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
-            h = self._gen_halo_histories()
+            h = self.generate_halo_histories()
             self._tab_z = h['z']
         return self._tab_z
 
@@ -262,7 +262,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
     @property
     def _cache_halos(self):
         if not hasattr(self, '_cache_halos_'):
-            self._cache_halos_ = self._gen_halo_histories()
+            self._cache_halos_ = self.generate_halo_histories()
         return self._cache_halos_
 
     @_cache_halos.setter
@@ -335,7 +335,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return out
 
-    def _gen_halo_histories(self):
+    def generate_halo_histories(self):
         """
         From a set of smooth halo assembly histories, build a bigger set
         of histories by thinning, and (optionally) adding scatter to the MAR.
@@ -696,7 +696,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         for i, z in enumerate(zarr):
 
             # This will be [erg/s]
-            L = self.synth.Luminosity(sfh=hist['SFR'], zobs=z, band=band,
+            L = self.synth.get_lum(sfh=hist['SFR'], zobs=z, band=band,
                 zarr=hist['z'], extras=self.extras)
 
             # OK, we've got a whole population here.
@@ -1029,7 +1029,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
 
         # First, grab halos
-        halos = self._gen_halo_histories()
+        halos = self.generate_halo_histories()
 
         ##
         # Simpler models. No need to loop over all objects individually.
@@ -1521,7 +1521,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         """
         # First, grab halos
-        halos = self._gen_halo_histories()
+        halos = self.generate_halo_histories()
 
         # Eventually generalize
         assert self.pf['pop_update_dt'].startswith('native')
@@ -2869,7 +2869,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # Make sure we don't overshoot end of array.
         # Choices about fwd vs. backward differenced MARs will matter here.
         # Note that this only used for `nh` below, ultimately a similar thing
-        # happens inside self.synth.Luminosity.
+        # happens inside self.synth.get_lum
         izobs = min(izobs, len(raw['z']) - 1)
 
         ##
@@ -3390,7 +3390,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         AUV_r = np.log10(np.exp(-tau)) / -0.4
 
         # Just do this to get MAB array of same size as Mh
-        _filt, MAB = self.Magnitude(z, wave=Mwave, cam=cam, filters=filters,
+        _filt, MAB = self.get_mags(z, wave=Mwave, cam=cam, filters=filters,
             dlam=dlam)
 
         if return_binned:
@@ -3817,7 +3817,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if os.path.exists(fn) and (not clobber):
             raise IOError('File \'{}\' exists! Set clobber=True to overwrite.'.format(fn))
 
-        hist = self._gen_halo_histories()
+        hist = self.generate_halo_histories()
 
         with open(fn, 'wb') as f:
             pickle.dump(hist, f)

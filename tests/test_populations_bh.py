@@ -32,7 +32,7 @@ def test():
      'pop_solve_rte': True,
      'pop_sed': 'pl',
      'pop_alpha': -1.5,
-     'hmf_dt': 1.,
+     'halo_dt': 1.,
      #'sam_dz': 0.05,
      #'sam_atol': 1e-6,
      #'sam_rtol': 1e-8,
@@ -50,8 +50,10 @@ def test():
 
 
     # Crude checks
-    assert 1e-9 <= np.mean(frd) <= 1e-1, "BH FRD unreasonable!"
-    assert 1 <= np.interp(10, zarr, bhmd) <= 1e9, "BHMD unreasonable!"
+    assert 1e-9 <= np.mean(frd) <= 1e-1, \
+        f"BH FRD={np.mean(frd)} unreasonable!"
+    assert 1 <= np.interp(10, zarr, bhmd) <= 1e9, \
+        f"BHMD={np.interp(10, zarr, bhmd)} unreasonable!"
 
 
 if __name__ == '__main__':
