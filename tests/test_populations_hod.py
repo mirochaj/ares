@@ -13,46 +13,42 @@ import numpy as np
 
 def test():
     #set up basic pop
-    pars = ares.util.ParameterBundle('emma:model2')
+    pars = ares.util.ParameterBundle('mirocha2020:legacy_irxb') \
+         + ares.util.ParameterBundle('sun2020:_nirb_updates') \
+         + ares.util.ParameterBundle('pop:hod') \
+         + ares.util.ParameterBundle('testing:galaxies')
+
     pop = ares.populations.GalaxyPopulation(**pars)
 
-    z = 5
-    mags = np.linspace(-24, -12)
+    z = 6
+    mags = np.linspace(-22, -12)
 
-    #test LF for high Z
-    x, LF = pop.get_lf(z, mags)
-    assert all(1e-8 <= i <= 10 for i in LF), "LF unreasonable"
+    # Make sure LF is reasonable
+    x, phi = pop.get_lf(z, mags)
+    assert np.all(np.logical_and(1e-8 <= phi, phi <= 10)), \
+        f"LF unreasonable: {phi}"
 
-    log_HM = 0
-    SM = pop.SMHM(2, log_HM)
+    z = 2
+    assert pop.get_smhm(z=z, Mh=1e10) < pop.get_smhm(z=z, Mh=1e12)
 
     #test SMF
-    z = 1.75
-    logbins = np.linspace(7, 12, 60)
+    logbins = np.arange(7, 11, 0.2)
 
-    SMF_tot = pop.StellarMassFunction(z, logbins)
+    bins, smf_tot = pop.get_smf(z, logbins)
 
-    assert all(1e-19 <= i <= 1 for i in SMF_tot), "SMF unreasonable"
+    assert np.all(np.logical_and(1e-8 <= smf_tot, smf_tot <= 10)), \
+        "SMF unreasonable"
 
-    SMF_sf = pop.StellarMassFunction(z, logbins, sf_type='smf_sf')
-    SMF_q = pop.StellarMassFunction(z, logbins, sf_type='smf_q')
 
-    assert all(np.less(SMF_sf, SMF_tot)), "Sf-fraction of SMF bigger than total"
-    assert all(np.less(SMF_q, SMF_tot)), "Q-fraction of SMF bigger than total"
-
-    SM = np.linspace(8, 11.1)
     #test SFR
-    SFR = pop.SFR(z, SM)
-    assert all(-2 <= i <= 3 for i in SFR), "SFR unreasonable"
+    assert pop.get_sfr(z=z, Mh=1e10) < pop.get_sfr(z=z, Mh=1e12)
 
     #test SSFR
-    SSFR = pop.SSFR(z, SM)
-    assert all(-10 <= i <= -7 for i in SSFR), "SSFR unreasonable"
+    assert pop.get_ssfr(z, Ms=1e10) < pop.get_ssfr(z+1, Ms=1e10)
 
     #test SFRD
-    Zs = np.linspace(0, 6, 50)
-    SFRD = pop.SFRD(Zs)
-    assert all(1e-6 <= i <= 1 for i in SFRD), "SFRD unreasonable"
+    SFRD = pop.get_sfrd(8) * ares.physics.Constants.rhodot_cgs
+    assert 1e-4 <= SFRD <= 1, f"SFRD={SFRD} unreasonable"
 
 if __name__ == '__main__':
     test()

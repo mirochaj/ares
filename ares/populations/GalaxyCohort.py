@@ -942,6 +942,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def get_smf(self, z, bins=None, units='dex'):
         """
         Return stellar mass function.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        bins : list, np.ndarray
+            Array of log10(stellar mass / Msun) centers.
+
+        Returns
+        -------
+        Tuple containing (bin centers, stellar mass function).
         """
 
         ##
