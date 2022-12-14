@@ -18,7 +18,7 @@ import ares
 
 def_kwargs = \
 {
- "halo_mf": 'Tinker10',
+ "halo_mf": 'PS',
  "halo_logMmin": 4,
  "halo_logMmax": 18,
  "halo_dlogM": 0.01,

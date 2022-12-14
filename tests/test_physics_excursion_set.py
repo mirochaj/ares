@@ -17,8 +17,8 @@ def test(tol=0.1, redshifts=[5,10,20]):
 
     ##
     # Initiailize stuff
-    pop = ares.populations.GalaxyPopulation(hmf_model='PS', hmf_zmin=5,
-        hmf_zmax=30)
+    pop = ares.populations.GalaxyPopulation(halo_mf='PS', halo_zmin=5,
+        halo_zmax=30)
 
     xset_pars = \
     {

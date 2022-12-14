@@ -15,8 +15,8 @@ import numpy as np
 
 def test(rtol=1e-3):
 
-    hm = ares.physics.HaloModel(hps_assume_linear=True, use_mcfit=True)
-    hm_CC = ares.physics.HaloModel(hps_assume_linear=True, use_mcfit=False)
+    hm = ares.physics.HaloModel(halo_ps_linear=True, use_mcfit=True)
+    hm_CC = ares.physics.HaloModel(halo_ps_linear=True, use_mcfit=False)
 
     # Just check large k range, k < 1 / Mpc
     k = np.logspace(-2, 0, 10)

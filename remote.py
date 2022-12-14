@@ -19,8 +19,8 @@ _bpass_tests = 'https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl
 
 aux_data = \
 {
- 'hmf': ['https://www.dropbox.com/s/y5bsvsojcfyvis8/hmf.tar.gz?dl=1',
-     'hmf.tar.gz',
+ 'halos': ['https://www.dropbox.com/s/8df7rsskr616lx5/halos.tar.gz?dl=1',
+     'halos.tar.gz',
     None],
  'inits': ['https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1',
      'inits.tar.gz',
@@ -93,9 +93,9 @@ if not os.path.exists('input'):
 os.chdir('input')
 
 extra = ['nircam', 'irac', 'roman', 'edges', 'bpass_v1_stars']
-needed_for_tests = ['inits', 'secondary_electrons', 'hmf', 'wfc', 'wfc3',
+needed_for_tests = ['inits', 'secondary_electrons', 'halos', 'wfc', 'wfc3',
     'planck', 'bpass_v1', 'optical_depth']
-needed_for_tests_fn = ['inits.tar.gz', 'elec_interp.tar.gz', 'hmf.tar.gz',
+needed_for_tests_fn = ['inits.tar.gz', 'elec_interp.tar.gz', 'halos.tar.gz',
     'IR.zip', 'wfc.tar.gz', aux_data['planck'][1], 'sed_degraded.tar.gz',
     'tau.tar.gz']
 
@@ -177,7 +177,7 @@ for i, direc in enumerate(to_download):
             continue
 
         if 'dropbox' in _web:
-            print("Downloading {0!s} to {1!s}...".format(_web, _fn_))
+            print("# Downloading {0!s} to {1!s}...".format(_web, _fn_))
 
             if 'test' in options:
                 continue
@@ -188,7 +188,7 @@ for i, direc in enumerate(to_download):
                 print("WARNING: Error downloading {0!s}".format(_web))
                 continue
         else:
-            print("Downloading {0!s}/{1!s}...".format(_web, _fn_))
+            print("# Downloading {0!s}/{1!s}...".format(_web, _fn_))
 
             if 'test' in options:
                 continue
@@ -196,7 +196,7 @@ for i, direc in enumerate(to_download):
             try:
                 urlretrieve('{0!s}/{1!s}'.format(_web, fn), _fn_)
             except:
-                print("WARNING: Error downloading {0!s}/{1!s}".format(_web, _fn_))
+                print("# WARNING: Error downloading {0!s}/{1!s}".format(_web, _fn_))
                 continue
 
         # If it's a zip, unzip and move on.
@@ -216,7 +216,7 @@ for i, direc in enumerate(to_download):
             tar.extractall()
             tar.close()
         except:
-            print("WARNING: Error unpacking {0!s}".format(_fn_))
+            print("# WARNING: Error unpacking {0!s}".format(_fn_))
 
         if direc != 'planck':
             continue
@@ -232,7 +232,7 @@ for i, direc in enumerate(to_download):
                         tar.extractall()
                         tar.close()
                 except:
-                    print('Could not unpack the planck chains')
+                    print('# Could not unpack the planck chains')
 
     # Run a script [optional]
     if aux_data[direc][-1] is not None:
@@ -242,6 +242,6 @@ for i, direc in enumerate(to_download):
             else:
                 exec(open(aux_data[direc][-1]).read())
         except:
-            print("WARNING: Error running {!s}".format(aux_data[direc][-1]))
+            print("# WARNING: Error running {!s}".format(aux_data[direc][-1]))
 
     os.chdir('..')

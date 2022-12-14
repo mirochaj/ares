@@ -68,14 +68,14 @@ _sed_updates = \
 _halo_updates = \
 {
  # Use constant timestep
- 'hmf_dt': 1.,
- 'hmf_tmax': 2e3,
- 'hmf_model': 'Tinker10',
+ 'halo_dt': 1.,
+ 'halo_tmax': 2e3,
+ 'halo_mf': 'Tinker10',
 
  # Need to build enough halo histories at early times to get massive
  # halos at late times.
- 'hgh_dlogM': 0.1,
- 'hgh_Mmax': 10,
+ 'halo_hist_dlogM': 0.1,
+ 'halo_hist_Mmax': 10,
 
  # Add scatter to SFRs
  'pop_scatter_mar': 0.3,
