@@ -613,7 +613,7 @@ class HaloMassFunction(object):
 
         if not hasattr(self, '_tab_dndlnm_sub'):
 
-            if self.pf['hmf_model_sub'] == 'Tinker08':
+            if self.pf['halo_mf_sub'] == 'Tinker08':
                 # Tabulate
                 args = [self.tab_M, self.tab_M]
                 Mc, Ms = np.meshgrid(*args, indexing='ij')
