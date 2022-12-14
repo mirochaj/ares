@@ -30,14 +30,14 @@ def_kwargs = \
  #"halo_window": 'sharpk',
 
  # Redshift sampling
- #"halo_zmin": 0.,
- #"halo_zmax": 60.,
- #"halo_dz": 0.05,
+ "halo_zmin": 0.,
+ "halo_zmax": 60.,
+ "halo_dz": 0.05,
 
  # Can do constant timestep instead of constant dz
- "halo_dt": 10,
- "halo_tmin": 30.,
- "halo_tmax": 13.7e3, # Myr
+ #"halo_dt": 10,
+ #"halo_tmin": 30.,
+ #"halo_tmax": 13.7e3, # Myr
 
  # Cosmology
  "cosmology_id": 'best',

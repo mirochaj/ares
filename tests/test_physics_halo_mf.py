@@ -62,8 +62,8 @@ def test():
     # Test against HMF we generate now with hmf package.
     # Use narrow redshift range to speed-up, but keep redshift sampling high
     # to test MAR machinery.
-    pop3 = ares.populations.HaloPopulation(hmf_load=False,
-        hmf_zmin=6, hmf_zmax=7)
+    pop3 = ares.populations.HaloPopulation(halo_mf_load=False,
+        halo_zmin=6, halo_zmax=7)
 
     iz3 = np.argmin(np.abs(6 - pop3.halos.tab_z))
     iM3 = np.argmin(np.abs(1e8 - pop3.halos.tab_M))
@@ -78,8 +78,8 @@ def test():
     assert abs(fcoll8 - fcoll8_3) < 1e-2, \
         "Percent-level differences in tabulated and generated fcoll: {:.12f} {:.12f}".format(fcoll8, fcoll8_3)
 
-    pop3.halos.save(clobber=True, save_MAR=True)
-    pop3.halos.save(clobber=True, save_MAR=True, fmt='pkl')
+    pop3.halos.save_hmf(clobber=True, save_MAR=True)
+    pop3.halos.save_hmf(clobber=True, save_MAR=True, fmt='pkl')
 
     assert np.allclose(dndm, dndm3, rtol=1e-2), \
         "Percent-level differences in tabulated and generated HMF!"
@@ -88,8 +88,8 @@ def test():
     _hmf = RectBivariateSpline(pop3.halos.tab_z, np.log10(pop3.halos.tab_M),
         pop3.halos.tab_dndm, kx=3, ky=3)
     hmf = lambda z, Mh: _hmf.__call__(z, np.log10(Mh))
-    pop4 = ares.populations.HaloPopulation(hmf_load=False, hmf_func=hmf,
-        hmf_zmin=6, hmf_zmax=7)
+    pop4 = ares.populations.HaloPopulation(halo_mf_load=False, halo_mf_func=hmf,
+        halo_zmin=6, halo_zmax=7)
 
     dndm4 = pop4.halos.tab_dndm[iz3,:]
     assert np.allclose(dndm3, dndm4, rtol=1e-2), \
