@@ -27,7 +27,7 @@ except:
     basestring = str
 
 after_instance = ['pop_rad_yield']
-allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd']
+allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd', 'pop_focc']
 
 class CompositePopulation(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -130,7 +130,10 @@ class CompositePopulation(object):
                 self.pops[i]._frd = self.pops[entry]._frd_func
             elif to_quantity[i] in ['sfe', 'fstar']:
                 self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                self.pops[i]._fstar = self.pops[entry].SFE
+                self.pops[i]._fstar = self.pops[entry].get_sfe
+            elif to_quantity[i] in ['focc']:
+                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                self.pops[i].tab_focc = self.pops[entry].tab_focc
             elif to_quantity[i] in ['Mmax_active']:
                 self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                 self.pops[i]._tab_Mmin = self.pops[entry]._tab_Mmax_active
@@ -184,7 +187,7 @@ class CompositePopulation(object):
             ##
             # Nested attributes
             ##
-    
+
             # Recursively find the attribute we want
             func = get_attribute(to_attribute[i], self.pops[entry])
 

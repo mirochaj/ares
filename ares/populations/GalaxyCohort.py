@@ -963,7 +963,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             dlogmdlogMs = np.diff(logMh_e) / np.diff(logMs_e)
 
-            phi = dndlogm * dlogmdlogMs
+            phi = dndlogm * dlogmdlogMs * self.tab_focc[iz,:]
 
             if bins is not None:
                 return bins, np.interp(bins, np.log10(Ms_c), phi)
@@ -1460,7 +1460,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1],
                 axis=0, kind=self.pf['pop_interp_lf'])
 
-            dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.tab_M[0:-1])
+            if self.pf['pop_focc_inv']:
+                dndm = dndm_func(z) * (1 - self.focc(z=z, Mh=self.halos.tab_M[0:-1]))
+            else:
+                dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.tab_M[0:-1])
 
         # In this case, obscuration means fraction of objects you don't see
         # in the UV.
@@ -2024,6 +2027,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         if self.is_user_smhm:
             if not hasattr(self, '_func_ssfr'):
+                if self.pf['pop_ssfr'] is None:
+                    return 0
+
+                # Otherwise, get parameterized sSFR setup.
                 pars = get_pq_pars(self.pf['pop_ssfr'], self.pf)
 
                 _ssfr_inst = ParameterizedQuantity(**pars)
@@ -2447,7 +2454,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 self._tab_focc_ = focc
 
+            if self.pf['pop_focc_inv']:
+                self._tab_focc_ = 1. - self._tab_focc_
+
         return self._tab_focc_
+
+    @tab_focc.setter
+    def tab_focc(self, value):
+        if self.pf['pop_focc_inv']:
+            self._tab_focc_ = 1 - value
+        else:
+            self._tab_focc_ = value
 
     def get_smhm(self, **kwargs):
         if self.pf['pop_sfr_model'] in ['smhm-func', 'quiescent']:

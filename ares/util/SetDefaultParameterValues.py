@@ -561,6 +561,7 @@ def PopulationParameters():
                           # it's coherent.
 
     "pop_focc": 1.0,
+    "pop_focc_inv": False,
 
     "pop_centrals": 1,
     "pop_centrals_id": None,
@@ -1242,7 +1243,7 @@ def HaloMassFunctionParameters():
 
     # Augment suite of halo growth histories
     "halo_hist_dlogM": 0.1,
-    'halo_hist_Mmax': None, # 10x the 
+    'halo_hist_Mmax': None, # 10x the
 
     # to CAMB
     'halo_dlna': 2e-6,           # hmf default value is 1e-2
