@@ -47,20 +47,20 @@ centrals_sf = \
  'pq_func[0]': 'dpl_evolNP',
  'pq_func_var[0]': 'Mh',
  'pq_func_var2[0]': '1+z',
- 'pq_func_par0[0]': 3e-4,
+ 'pq_func_par0[0]': 4e-4,
  'pq_func_par1[0]': 1.5e12,
  'pq_func_par2[0]': 1.0,
- 'pq_func_par3[0]': -0.4,
+ 'pq_func_par3[0]': -0.6,
  'pq_func_par4[0]': 1e10,
- 'pq_func_par5[0]': 1.,
- 'pq_func_par6[0]': 0.0,   # norm
- 'pq_func_par7[0]': 0.0,   # Mp
- 'pq_func_par8[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
- 'pq_func_par9[0]': 0.0,   # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par5[0]': 1.,     # pivot in 1+z
+ 'pq_func_par6[0]': 0.,     # norm
+ 'pq_func_par7[0]': 0.0,    # Mp
+ 'pq_func_par8[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par9[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_val_ceil[0]': 1,
 
 # sSFR(z, Mstell)
- #'pop_ssfr': 'pq[1]',
+ 'pop_ssfr': 'pq[1]',
  #'pq_func[1]': 'pl_evolN',
  #'pq_func_var[1]': 'Ms',
  #'pq_func_var2[1]': '1+z',
@@ -83,15 +83,26 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'pl_evolN',
+ #'pq_func[2]': 'pl_evolN',
+ #'pq_func_var[2]': 'Mh',
+ #'pq_func_var2[2]': '1+z',
+ #'pq_val_ceil[2]': 1,
+ #'pq_func_par0[2]': 0.5,
+ #'pq_func_par1[2]': 1e11,
+ #'pq_func_par2[2]': -0.5,
+ #'pq_func_par3[2]': 0.5,
+ #'pq_func_par4[2]': 1,
+
+ 'pq_func[2]': 'logtanh_abs_evolM',
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
- 'pq_func_par0[2]': 0.25,
- 'pq_func_par1[2]': 1e11,
- 'pq_func_par2[2]': -0.5,
- 'pq_func_par3[2]': 0.5,
- 'pq_func_par4[2]': 1,
+ 'pq_func_par0[2]': 0.95,
+ 'pq_func_par1[2]': 0.0,
+ 'pq_func_par2[2]': 11.8,
+ 'pq_func_par3[2]': 0.6,
+ 'pq_func_par4[2]': 0.1,
+ 'pq_func_par5[2]': 1,
 
 }
 

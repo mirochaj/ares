@@ -300,6 +300,51 @@ class LogTanhAbs(BasePQ):
         step = (self.args[0] - self.args[1]) * 0.5
         y = self.args[1] \
           + step * (np.tanh((self.args[2] - logx) / self.args[3]) + 1.)
+
+        return y
+
+class LogTanhAbsEvolvingMidpoint(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+
+        logx = np.log10(x)
+
+        step = (self.args[0] - self.args[1]) * 0.5
+
+        if self.t == '1+z':
+            mid = self.args[2] \
+                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+        else:
+            raise NotImplemented('help')
+
+        y = self.args[1] \
+          + step * (np.tanh((mid - logx) / self.args[3]) + 1.)
+
+        return y
+
+class LogTanhAbsEvolvingWidth(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+
+        logx = np.log10(x)
+
+        step = (self.args[0] - self.args[1]) * 0.5
+
+        if self.t == '1+z':
+            w = self.args[3] \
+                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+        else:
+            raise NotImplemented('help')
+
+        y = self.args[1] \
+          + step * (np.tanh((self.args[2] - logx) / w) + 1.)
+
         return y
 
 class LogTanhRel(BasePQ):
@@ -695,6 +740,10 @@ class ParameterizedQuantity(object):
             self.func = TanhRel(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs':
             self.func = LogTanhAbs(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs_evolM':
+            self.func = LogTanhAbsEvolvingMidpoint(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs_evolW':
+            self.func = LogTanhAbsEvolvingWidth(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_rel':
             self.func = LogTanhRel(**kwargs)
         elif kwargs['pq_func'] == 'step_abs':
