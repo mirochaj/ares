@@ -18,6 +18,14 @@ _base = \
 
  'final_redshift': 0,
 
+ 'pop_Emin': 0.25, # about 5 microns
+ 'pop_solve_rte': (0.25, E_LL),
+ 'tau_clumpy': 0.,
+ 'tau_redshift_bins': 4000,
+
+ 'halo_dlnk': 0.05,
+ 'halo_lnk_min': -9.,
+ 'halo_lnk_max': 11.,
 }
 
 
@@ -113,3 +121,30 @@ centrals_q['pop_ssfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 3e3
 centrals_q['pop_Z'] = 0.02
+
+ihl_q = centrals_q.copy()
+ihl_q['pop_ihl'] = 1
+ihl_q['pq_func[0]'] = 'pl_evolN'
+ihl_q['pq_func_var[0]'] = 'Mh'
+ihl_q['pq_func_var2[0]'] = '1+z'
+ihl_q['pq_func_par0[0]'] = 0.001
+ihl_q['pq_func_par1[0]'] = 1e12
+ihl_q['pq_func_par2[0]'] = 0.
+ihl_q['pq_func_par3[0]'] = 1.
+ihl_q['pq_func_par4[0]'] = 1.
+
+ihl_q['pop_Z'] = 0.02
+ihl_q['pop_include_1h'] = True
+ihl_q['pop_include_2h'] = True
+ihl_q['pop_include_shot'] = False
+ihl_q['pop_Mmin'] = 1e10
+ihl_q['pop_Mmax'] = 1e14
+ihl_q['pop_Tmin'] = None
+
+satellites_sf = centrals_sf.copy()
+satellites_sf['pop_centrals'] = 0
+satellites_sf['pop_centrals_id'] = 0
+satellites_sf['pop_prof_1h'] = 'nfw'
+satellites_sf['pop_include_1h'] = True
+satellites_sf['pop_include_2h'] = True
+satellites_sf['pop_include_shot'] = False

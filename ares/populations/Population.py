@@ -208,7 +208,8 @@ class Population(object):
 
     @property
     def is_quiescent(self):
-        return self.pf['pop_sfr_model'] == 'quiescent'
+        return (self.pf['pop_sfr_model'] == 'smhm-func') and \
+            (self.pf['pop_ssfr'] is None)
 
     @property
     def is_aging(self):

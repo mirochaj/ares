@@ -1226,7 +1226,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         mass.
         """
 
-        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func', 'quiescent']:
+        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
 
             # In this case, assume `M` supplied is stellar mass.
             # Convert to a halo mass via SMHM.
@@ -1324,19 +1324,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
                 L_sfr = self.pf['pop_lum_per_sfr']
 
-            if self.pf['pop_sfr_model'] == 'quiescent':
+            if self.is_quiescent:
 
                 assert self.pf['pop_ssp']
-                assert self.pf['pop_ihl'] is not None
 
                 # Mstell = Mhalo * SMHM
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
                 mste = self.halos.tab_M * smhm
 
-                ihl = self.ihl(z=z, Mh=self.halos.tab_M)
-
                 # Not for SSPs, L per SFR is really L per Mstell.
-                Lh = mste * L_sfr * ihl
+                Lh = mste * L_sfr
+
+                if self.pf['pop_ihl'] is not None:
+                    ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                    Lh *= ihl
 
                 ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                     self.halos.tab_M < self.get_Mmax(z))
@@ -2117,7 +2118,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_sfr_model'] == 'smhm-func':
                 Ms = self.tab_fstar * self.halos.tab_M
                 self._tab_sfr_ = self.tab_ssfr * Ms
-            elif self.pf['pop_sfr_model'] == 'quiescent':
+            elif self.is_quiescent:
                 self._tab_sfr_ = self._tab_sfr_ = \
                     np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
             else:
@@ -2467,7 +2468,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_focc_ = value
 
     def get_smhm(self, **kwargs):
-        if self.pf['pop_sfr_model'] in ['smhm-func', 'quiescent']:
+        if self.pf['pop_sfr_model'] in ['smhm-func']:
             return self.get_fstar(**kwargs)
         else:
             raise NotImplemented('help')

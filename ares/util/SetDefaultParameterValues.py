@@ -603,7 +603,7 @@ def PopulationParameters():
     # Cache tricks: must be pickleable for MCMC to work.
     "pop_sps_data": None,
 
-    "pop_tsf": 100.,
+    "pop_age": 100.,
     "pop_tneb": None,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
@@ -692,8 +692,6 @@ def PopulationParameters():
     "pop_include_2h": True,
     "pop_include_shot": True,
     "pop_1h_nebular_only": False,
-
-    "pop_age": None,
 
     # For GalaxyEnsemble
     "pop_aging": False,
@@ -1054,7 +1052,7 @@ def SourceParameters():
     "source_prof_1h": None,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
-    "source_tsf": 100.,
+    "source_age": 100.,
     "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
@@ -1167,7 +1165,7 @@ def SynthesisParameters():
 
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
-    "source_tsf": 100.,
+    "source_age": 100.,
     "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,

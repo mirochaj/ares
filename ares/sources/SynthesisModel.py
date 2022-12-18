@@ -228,7 +228,7 @@ class SynthesisModelBase(Source):
     @property
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
-            self._i_tsf = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
+            self._i_tsf = np.argmin(np.abs(self.pf['source_age'] - self.times))
         return self._i_tsf
 
     @property
@@ -405,10 +405,10 @@ class SynthesisModelBase(Source):
     def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
             energy_units=True, raw=False, nebular_only=False, age=None):
         """
-        Specific emissivity at provided wavelength at `source_tsf`.
+        Specific emissivity at provided wavelength at `source_age`.
 
         .. note :: This is just taking self.L_per_sfr_of_t and interpolating
-            to some time, source_tsf. This is generally used when assuming
+            to some time, source_age. This is generally used when assuming
             constant star formation -- in the UV, L_per_sfr_of_t will
             asymptote to a ~constant value after ~100s of Myr.
 
@@ -436,7 +436,7 @@ class SynthesisModelBase(Source):
         if age is not None:
             t = age
         else:
-            t = self.pf['source_tsf']
+            t = self.pf['source_age']
 
         # Interpolate in time to obtain final LUV
         if t in self.times:
@@ -518,7 +518,7 @@ class SynthesisModelBase(Source):
     @property
     def Lbol_at_tsf(self):
         if not hasattr(self, '_Lbol_at_tsf'):
-            self._Lbol_at_tsf = self.Lbol(self.pf['source_tsf'])
+            self._Lbol_at_tsf = self.Lbol(self.pf['source_age'])
         return self._Lbol_at_tsf
 
     def Lbol(self, t, raw=True):
@@ -584,7 +584,6 @@ class SynthesisModelBase(Source):
         # Current units:
         # if pop_ssp: photons / sec / Msun
         # else: photons / sec / (Msun / yr)
-
         return flux
 
     @property

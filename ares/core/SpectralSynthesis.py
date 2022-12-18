@@ -1145,7 +1145,7 @@ class SpectralSynthesis(object):
         L_small_t = lambda age: _m * age + Loft[0]
 
         if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
-            L_asympt = np.exp(_func(np.log(self.src.pf['source_tsf'])))
+            L_asympt = np.exp(_func(np.log(self.src.pf['source_age'])))
 
         #L_small_t = lambda age: Loft[0]
 
