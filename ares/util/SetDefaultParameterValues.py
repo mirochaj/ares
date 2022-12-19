@@ -23,7 +23,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population',
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
     'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum',
-    'Absorber']
+    'Halo', 'Absorber']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -561,11 +561,6 @@ def PopulationParameters():
                           # it's coherent.
 
     "pop_focc": 1.0,
-    "pop_focc_inv": False,
-
-    "pop_centrals": 1,
-    "pop_centrals_id": None,
-    "pop_satellites_id": None,
 
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
 
@@ -603,7 +598,7 @@ def PopulationParameters():
     # Cache tricks: must be pickleable for MCMC to work.
     "pop_sps_data": None,
 
-    "pop_age": 100.,
+    "pop_tsf": 100.,
     "pop_tneb": None,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
@@ -687,11 +682,6 @@ def PopulationParameters():
 
     # Halo model stuff
     "pop_prof_1h": None,
-    "pop_ihl": None,
-    "pop_include_1h": False,
-    "pop_include_2h": True,
-    "pop_include_shot": True,
-    "pop_1h_nebular_only": False,
 
     # For GalaxyEnsemble
     "pop_aging": False,
@@ -729,6 +719,9 @@ def PopulationParameters():
     "pop_dlogM": 0.1,
 
     "pop_histories": None,
+    "pop_halos": None,
+    "pop_volume": None,
+
     "pop_guide_pop": None,
     "pop_thin_hist": False,
     "pop_scatter_mar": 0.0,
@@ -1052,7 +1045,7 @@ def SourceParameters():
     "source_prof_1h": None,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
-    "source_age": 100.,
+    "source_tsf": 100.,
     "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
@@ -1165,7 +1158,7 @@ def SynthesisParameters():
 
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
-    "source_age": 100.,
+    "source_tsf": 100.,
     "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
@@ -1210,123 +1203,116 @@ def SynthesisParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
-    "halo_mf": 'Tinker10',
-    "halo_mf_sub": "Tinker08",
+    "hmf_model": 'ST',
 
-    "halo_mf_instance": None,
-    "halo_mf_load": True,
-    "halo_mf_table": None,
-    "halo_mf_cache": None,
-    "halo_mf_path": None,
-    "halo_mf_analytic": False,
-    "halo_mf_params": None,
-
-    "halo_growth_load": False,
-    "halo_use_splined_growth": True,
-
-    "halo_ps_load": True,
+    "hmf_instance": None,
+    "hmf_load": True,
+    "hmf_cache": None,
+    "hmf_load_ps": True,
+    "hmf_load_growth": False,
+    "hmf_use_splined_growth": True,
+    "hmf_table": None,
+    "hmf_analytic": False,
+    "hmf_params": None,
 
     # Table resolution
-    "halo_logMmin": 4,
-    "halo_logMmax": 18,
-    "halo_dlogM": 0.01,
-    "halo_zmin": 0,
-    "halo_zmax": 60,
-    "halo_dz": 0.05,
+    "hmf_logMmin": 4,
+    "hmf_logMmax": 18,
+    "hmf_dlogM": 0.01,
+    "hmf_zmin": 0,
+    "hmf_zmax": 60,
+    "hmf_dz": 0.05,
 
     # Optional: time instead of redshift
-    "halo_tmin": 30.,
-    "halo_tmax": 1000.,
-    "halo_dt": None,     # if not None, will switch this one.
+    "hmf_tmin": 30.,
+    "hmf_tmax": 1000.,
+    "hmf_dt": None,     # if not None, will switch this one.
 
     # Augment suite of halo growth histories
-    "halo_hist_dlogM": 0.1,
-    'halo_hist_Mmax': None, # 10x the
+    "hgh_dlogM": 0.1,
+    'hgh_Mmax': None,
 
     # to CAMB
-    'halo_dlna': 2e-6,           # hmf default value is 1e-2
-    'halo_dlnk': 1e-2,
-    'halo_lnk_min': -20.,
-    'halo_lnk_max': 10.,
-    'halo_transfer_k_per_logint': 11,
-    'halo_transfer_kmax': 100., # hmf default value is 5
+    'hmf_dlna': 2e-6,           # hmf default value is 1e-2
+    'hmf_dlnk': 1e-2,
+    'hmf_lnk_min': -20.,
+    'hmf_lnk_max': 10.,
+    'hmf_transfer_k_per_logint': 11,
+    'hmf_transfer_kmax': 100., # hmf default value is 5
 
-    "halo_dfcolldz_smooth": False,
-    "halo_dfcolldz_trunc": False,
+    "hmf_dfcolldz_smooth": False,
+    "hmf_dfcolldz_trunc": False,
+
+    "hmf_path": None,
 
     # For, e.g., fcoll, etc
-    "halo_interp": 'cubic',
+    "hmf_interp": 'cubic',
 
-    "halo_mf_func": None,
-    "halo_mf_extra_par0": None,
-    "halo_mf_extra_par1": None,
-    "halo_mf_extra_par2": None,
-    "halo_mf_extra_par3": None,
-    "halo_mf_extra_par4": None,
+    "hmf_func": None,
+    "hmf_extra_par0": None,
+    "hmf_extra_par1": None,
+    "hmf_extra_par2": None,
+    "hmf_extra_par3": None,
+    "hmf_extra_par4": None,
 
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
 
-    "halo_database": None,
+    "hmf_database": None,
 
     # Directory where cosmology hmf tables are located
     # For halo model.
-    #"hps_zmin": 6,
-    #"hps_zmax": 30,
-    #"hps_dz": 0.5,
+    "hps_zmin": 6,
+    "hps_zmax": 30,
+    "hps_dz": 0.5,
 
-    "halo_ps_linear": True,
+    "hps_assume_linear": True,
 
-    'halo_ps_dlnk': 0.001,
-    'halo_ps_dlnR': 0.001,
-    'halo_ps_lnk_min': -9.,
-    'halo_ps_lnk_max': 9.,
-    'halo_ps_lnR_min': -9.,
-    'halo_ps_lnR_max': 9.,
+    'hps_dlnk': 0.001,
+    'hps_dlnR': 0.001,
+    'hps_lnk_min': -9.,
+    'hps_lnk_max': 9.,
+    'hps_lnR_min': -9.,
+    'hps_lnR_max': 9.,
 
     # Note that this is not passed to hmf yet.
-    "halo_mf_window": 'tophat',
-    "halo_wdm_mass": None,
-    "halo_wdm_interp": True,
-
-    # Radial profiles
-    "halo_profile": 'nfw',
-    "halo_cmr": 'duffy',
-    "halo_delta": 200.,
+    "hmf_window": 'tophat',
+    "hmf_wdm_mass": None,
+    "hmf_wdm_interp": True,
 
     #For various DM models
-    'halo_dm_model': 'CDM',
+    'hmf_dm_model': 'CDM',
 
-    "halo_cosmology_location": None,
+    "hmf_cosmology_location": None,
     # PCA eigenvectors
-    "halo_mf_pca": None,
-    "halo_mf_pca_coef0":None,
-    "halo_mf_pca_coef1":None,
-    "halo_mf_pca_coef2":None,
-    "halo_mf_pca_coef3":None,
-    "halo_mf_pca_coef4":None,
-    "halo_mf_pca_coef5":None,
-    "halo_mf_pca_coef6":None,
-    "halo_mf_pca_coef7":None,
-    "halo_mf_pca_coef8":None,
-    "halo_mf_pca_coef9":None,
-    "halo_mf_pca_coef10": None,
-    "halo_mf_pca_coef11": None,
-    "halo_mf_pca_coef12": None,
-    "halo_mf_pca_coef13": None,
-    "halo_mf_pca_coef14": None,
-    "halo_mf_pca_coef15": None,
-    "halo_mf_pca_coef16": None,
-    "halo_mf_pca_coef17": None,
-    "halo_mf_pca_coef18": None,
-    "halo_mf_pca_coef19": None,
+    "hmf_pca": None,
+    "hmf_pca_coef0":None,
+    "hmf_pca_coef1":None,
+    "hmf_pca_coef2":None,
+    "hmf_pca_coef3":None,
+    "hmf_pca_coef4":None,
+    "hmf_pca_coef5":None,
+    "hmf_pca_coef6":None,
+    "hmf_pca_coef7":None,
+    "hmf_pca_coef8":None,
+    "hmf_pca_coef9":None,
+    "hmf_pca_coef10": None,
+    "hmf_pca_coef11": None,
+    "hmf_pca_coef12": None,
+    "hmf_pca_coef13": None,
+    "hmf_pca_coef14": None,
+    "hmf_pca_coef15": None,
+    "hmf_pca_coef16": None,
+    "hmf_pca_coef17": None,
+    "hmf_pca_coef18": None,
+    "hmf_pca_coef19": None,
 
     # If a new tab_MAR should be computed when using the PCA
-    "halo_mf_pca_regen_MAR":False,
+    "hmf_gen_MAR":False,
 
     "filter_params" : None,
 
-    "halo_MAR_from_CDM": True,
+    "hmf_MAR_from_CDM": True,
 
     }
 
@@ -1377,6 +1363,19 @@ def CosmologyParameters():
     'cosmorec_path': None,
     'cosmorec_output': 'input/inits/outputs/',
     'cosmorec_fmt': '.dat',
+    }
+
+    pf.update(rcParams)
+
+    return pf
+
+def HaloParameters():
+    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
+    pf = \
+    {
+     "halo_profile": 'nfw',
+     "halo_cmr": 'duffy',
+     "halo_delta": 200.,
     }
 
     pf.update(rcParams)

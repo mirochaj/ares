@@ -772,9 +772,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if type(self.pf['pop_sfr']) == 'str':
                 return self.sfr(z=z, Mh=Mh)
 
+        flipM = False
+
         # If Mh is None, it triggers use of tab_sfr, which spans all
         # halo masses in self.halos.tab_M
-        if Mh is None:
+        if self.pf['pop_halos'] is not None:
+            Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
+
+            if not np.all(np.diff(Mh) > 0):
+                Mh = Mh[-1::-1]
+                flipM = True
+
+        elif Mh is None:
             k = np.argmin(np.abs(z - self.halos.tab_z))
             if abs(z - self.halos.tab_z[k]) < ztol:
                 return self.tab_sfr[k] * ~self._tab_sfr_mask[k]
@@ -813,7 +822,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             self._spline_sfr = func
 
-        return self._spline_sfr(z, np.log10(Mh))
+
+        sfr = self._spline_sfr(z, np.log10(Mh))
+
+        if flipM:
+            return sfr[-1::-1]
+        else:
+            return sfr
 
         #return self.cosm.fbar_over_fcdm * self.get_MAR(z, Mh) * self.eta(z) \
         #    * self.SFE(z=z, Mh=Mh)
@@ -922,7 +937,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if kind in ['halo']:
             return data['Mh'][:,iz]
 
-        if Mh is None:
+        if self.pf['pop_halos'] is not None:
+            Mh, x, y, z = self.pf['pop_halos'](z=z).T
+        elif Mh is None:
             Mh = self.halos.tab_M
 
         if kind in ['stellar', 'stars']:
@@ -1133,6 +1150,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
+        if self.pf['pop_halos'] is not None:
+
+            assert self.pf['pop_volume'] is not None
+
+            if use_mags:
+                x = self.get_mags(z=z, wave=wave, window=window,
+                    absolute=absolute)
+            else:
+                x = self.get_lum(z=z, wave=wave, window=window)
+
+            phi, b_e = np.histogram(x, bins=bins, weights=1/self.pf['pop_volume'])
+            return bins, phi
+
         if use_mags:
             _x_, phi_of_x = self._get_uvlf_mags(z, bins, wave=wave, window=window,
                 absolute=absolute)
@@ -1283,11 +1313,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #print(f"Loading result from cache at z={z}")
             return cached_result
 
+        if self.pf['pop_halos'] is not None:
+            Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
+
+            if not np.all(np.diff(Mh) > 0):
+                Mh = Mh[-1::-1]
+                flipM = True
+        else:
+            Mh = self.halos.tab_M
+
         ##
         # Have options for stars or BHs
         if self.pf['pop_star_formation']:
 
-            if self.pf['pop_age'] is not None:
+            if self.pf['pop_ssp'] and self.pf['pop_age'] is not None:
 
                 age = self.age(z=z, Mh=self.halos.tab_M)
 
@@ -1445,7 +1484,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Lh = self.get_lum(z, wave=wave, window=window)
 
-        fobsc = (1. - self.fobsc(z=z, Mh=self.halos.tab_M))
+        if self.pf['pop_halos'] is None:
+            Mh = self.halos.tab_M
+        else:
+            Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
+
+        fobsc = (1. - self.fobsc(z=z, Mh=Mh))
         # Means obscuration refers to fractional dimming of individual
         # objects
         if self.pf['pop_fobsc_by'] == 'lum':
@@ -1453,6 +1497,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         logL_Lh = np.log(Lh)
 
+
+
+        ##
+        # Continue with standard approach.
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
         if abs(z - self.halos.tab_z[iz]) < ztol:
@@ -1533,9 +1581,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             MAB = _MAB
 
-        phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
-
-        phi_of_M[phi_of_M==0] = tiny_phi
+        if self.pf['pop_halos'] is None:
+            phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
+            phi_of_M[phi_of_M==0] = tiny_phi
+        else:
+            raise NotImplemented('help')
 
         self._phi_of_M[(z, wave, window)] = MAB[0:-1], phi_of_M
 
