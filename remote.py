@@ -43,7 +43,9 @@ aux_data = \
  #    ['bpassv2-imf{}-300tar.gz'.format(IMF) for IMF in [100, 135]] + \
  #     [None],
  #'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
- #   'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
+#    'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None],
+ 'umachine-data': ['http://halos.as.arizona.edu/UniverseMachine/DR1',
+    'umachine-dr1-obs-only.tar.gz', None],
  'edges': ['http://loco.lab.asu.edu/download',
     '790/figure1_plotdata.csv',
     '792/figure2_plotdata.csv',

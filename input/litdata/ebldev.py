@@ -78,13 +78,14 @@ centrals_sf = \
  #'pq_func_par3[1]': 1.,
  #'pq_func_par4[1]': 1.5,
 
+ # Add mass evolution too?
  'pq_func[1]': 'dpl_evolN',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
- 'pq_func_par0[1]': 3e-10,
+ 'pq_func_par0[1]': 4e-10,
  'pq_func_par1[1]': 5e9,
  'pq_func_par2[1]': 0.0,
- 'pq_func_par3[1]': -0.7,
+ 'pq_func_par3[1]': -0.9,
  'pq_func_par4[1]': 1e9,
  'pq_func_par5[1]': 1.,
  'pq_func_par6[1]': 2.,
@@ -131,7 +132,7 @@ ihl_q['pq_func_par0[0]'] = 0.001
 ihl_q['pq_func_par1[0]'] = 1e12
 ihl_q['pq_func_par2[0]'] = 0.
 ihl_q['pq_func_par3[0]'] = 1.
-ihl_q['pq_func_par4[0]'] = 1.
+ihl_q['pq_func_par4[0]'] = 0.  # no evolution yet.
 
 ihl_q['pop_Z'] = 0.02
 ihl_q['pop_include_1h'] = True
