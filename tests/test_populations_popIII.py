@@ -30,8 +30,8 @@ def test():
     pars['feedback_LW'] = True
     pars['feedback_LW_maxiter'] = 3
     pars['tau_redshift_bins'] = 400
-    pars['hmf_dt'] = 1
-    pars['hmf_tmax'] = 1000
+    pars['halo_dt'] = 1
+    pars['halo_tmax'] = 1000
 
     # Use sam_dz?
 
@@ -40,8 +40,8 @@ def test():
 
     assert sim.pops[2].is_sfr_constant
 
-    sfrd_II = sim.pops[0].SFRD(zarr) * rhodot_cgs
-    sfrd_III = sim.pops[2].SFRD(zarr) * rhodot_cgs
+    sfrd_II = sim.pops[0].get_sfrd(zarr) * rhodot_cgs
+    sfrd_III = sim.pops[2].get_sfrd(zarr) * rhodot_cgs
     # Check for reasonable values
     assert np.all(sfrd_II < 1)
     assert 1e-6 <= np.mean(sfrd_II) <= 1e-1

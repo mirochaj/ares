@@ -415,7 +415,7 @@ def print_pop(pop):
         else:
             print(line(("SF          : in halos w/ M >= 10**{0:g} " +\
                 "Msun").format(round(np.log10(pop.pf['pop_Mmin']), 2))))
-        print(line("HMF         : {!s}".format(pop.pf['hmf_model'])))
+        print(line("HMF         : {!s}".format(pop.pf['halo_mf'])))
         print(line("MAR scatter : {!s} dex".format(pop.pf['pop_scatter_mar'])))
 
     # Parameterized halo properties

@@ -516,11 +516,11 @@ _planck2015 = \
 
 _galaxies_testing = \
 {
- 'hmf_dt': 1,
- 'hmf_tmin': 30.,
- 'hmf_tmax': 1000.,
- 'hmf_model': 'ST',
- 'hgh_Mmax': None,
+ 'halo_dt': 1,
+ 'halo_tmin': 30.,
+ 'halo_tmax': 1000.,
+ 'halo_mf': 'ST',
+ 'halo_hist_Mmax': 10,
  "cosmology_id": 'best',
  "cosmology_name": 'planck_TTTEEE_lowl_lowE',
  'pop_sed_degrade': 100,

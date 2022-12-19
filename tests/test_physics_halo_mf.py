@@ -44,7 +44,7 @@ def test():
     # Test caching (motivated by PR #24)
     cache = pop.halos.tab_z, pop.halos.tab_M, pop.halos.tab_dndm
 
-    pop2 = ares.populations.HaloPopulation(hmf_cache=cache)
+    pop2 = ares.populations.HaloPopulation(halo_mf_cache=cache)
     fcoll8_2 = pop2.halos.tab_fcoll[iz,iM]
 
     assert abs(fcoll8 - fcoll8_2) < 1e-8, \
@@ -53,7 +53,7 @@ def test():
     # Test caching (even more stuff)
     cache = pop.halos.prep_for_cache()
 
-    pop2b = ares.populations.HaloPopulation(hmf_cache=cache)
+    pop2b = ares.populations.HaloPopulation(halo_mf_cache=cache)
     fcoll8_2b = pop2.halos.tab_fcoll[iz,iM]
 
     assert abs(fcoll8 - fcoll8_2b) < 1e-8, \

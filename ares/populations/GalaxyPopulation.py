@@ -17,7 +17,6 @@ from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
 from .ClusterPopulation import ClusterPopulation
 from .BlackHoleAggregate import BlackHoleAggregate
-from .GalaxyHOD import GalaxyHOD
 from ..util.SetDefaultParameterValues import PopulationParameters
 from .Parameterized import ParametricPopulation, parametric_options
 try:

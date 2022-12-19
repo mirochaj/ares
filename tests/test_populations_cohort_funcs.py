@@ -89,7 +89,8 @@ def test():
 
     assert abs(dsfe_dMh - pop.pf['pq_func_par2[0]']) < 0.05
 
-    assert -15 <= pop.get_mag_lim(6.) <= 0., "Limiting magnitude unreasonable."
+    assert -15 <= pop.get_mag_lim(6.) <= 0., \
+        f"Limiting magnitude MUV={pop.get_mag_lim(6.)} unreasonable."
 
     Mmin = pop.get_Mmin(10.)
 

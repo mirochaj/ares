@@ -437,29 +437,20 @@ class HaloModel(HaloMassFunction):
 
         return shot
 
-    def get_ps_mm(self, z,  k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, ztol=1e-3):
-        """ Just wrapper around `get_ps_tot`. """
-        return self.get_ps_tot(z, k=k, prof1=prof1, prof2=prof2, lum1=lum1,
-            lum2=lum2, mmin1=mmin1, mmin2=mmin2, ztol=ztol)
-
-    def get_ps_tot(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
+    def get_ps_mm(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
         mmin1=None, mmin2=None, ztol=1e-3):
         """
         Return total power spectrum as sum of 1h and 2h terms.
         """
 
-        if not self.pf['halo_ps_linear']:
-            ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
+        if self.pf['halo_ps_linear']:
+            ps_1h = 0
         else:
-            ps_1h = 0.0
+            ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
 
         ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
 
-        ps_shot = self.get_ps_shot(z, k=k, lum1=lum1, lum2=lum2, mmin1=mmin1,
-            mmin2=mmin2, ztol=ztol)
-
-        return ps_1h + ps_2h + ps_shot
+        return ps_1h + ps_2h
 
     def get_cf_mm(self, z, R=None, load=True, ztol=1e-2):
         """
@@ -500,7 +491,7 @@ class HaloModel(HaloMassFunction):
         ##
         if self.pf['use_mcfit']:
             k = self.tab_k_lin if self.pf['halo_ps_linear'] else self.tab_k
-            Pofk = self.get_ps_tot(z, k)
+            Pofk = self.get_ps_mm(z, k)
             _R_, _cf_ = get_cf_from_ps_tab(k, Pofk)
 
             if R is not None:
@@ -513,7 +504,7 @@ class HaloModel(HaloMassFunction):
             if R is None:
                 R = self.tab_R
 
-            cf = get_cf_from_ps_func(R, lambda kk: self.get_ps_tot(z, kk))
+            cf = get_cf_from_ps_func(R, lambda kk: self.get_ps_mm(z, kk))
 
         return R, cf
 

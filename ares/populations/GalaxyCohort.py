@@ -754,9 +754,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._tab_eta_
 
-    def SFR(self, z, Mh=None):
-        return self.get_sfr(z, Mh=Mh)
-
     def get_sfr(self, z, Mh=None):
         """
         Get star formation rate at redshift z in a halo of mass Mh.
@@ -959,6 +956,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def get_smf(self, z, bins=None, units='dex'):
         """
         Return stellar mass function.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        bins : list, np.ndarray
+            Array of log10(stellar mass / Msun) centers.
+
+        Returns
+        -------
+        Tuple containing (bin centers, stellar mass function).
         """
 
         ##
@@ -1077,7 +1085,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         if self.is_uvlf_parametric:
             assert absolute
-            return self.uvlf(MUV=bins, z=z)
+            return bins, self.uvlf(MUV=bins, z=z)
 
         ##
         # Otherwise, standard SFE parameterized approach.
@@ -1603,7 +1611,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Mmin = self.get_Mmin(z)
 
-        return np.interp(Mmin, self.halos.tab_M, mags)
+        ok = np.isfinite(mags)
+        return np.interp(Mmin, self.halos.tab_M[ok==1], mags[ok==1])
 
     def get_Mmax(self, z):
         # Doesn't have a setter because of how we do things in Composite.
@@ -3511,7 +3520,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
-            sfr_t.append(self.SFR(z=redshifts[-1], Mh=Mh_t[-1]))
+            sfr_t.append(self.get_sfr(z=redshifts[-1], Mh=Mh_t[-1]))
             nh_t.append(n0)
 
             if self.pf['pop_sfr_model'] in ['sfe-func']:

@@ -560,7 +560,10 @@ def PopulationParameters():
     "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
                           # it's coherent.
 
+    "pop_centrals": True,
+
     "pop_focc": 1.0,
+    "pop_focc_inv": False,
 
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
 
@@ -598,7 +601,7 @@ def PopulationParameters():
     # Cache tricks: must be pickleable for MCMC to work.
     "pop_sps_data": None,
 
-    "pop_tsf": 100.,
+    "pop_age": 100.,
     "pop_tneb": None,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
@@ -1045,7 +1048,7 @@ def SourceParameters():
     "source_prof_1h": None,
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
-    "source_tsf": 100.,
+    "source_age": 100.,
     "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
@@ -1158,7 +1161,7 @@ def SynthesisParameters():
 
     "source_ssp": False,             # a.k.a., continuous SF
     "source_psm_instance": None,
-    "source_tsf": 100.,
+    "source_age": 100.,
     "source_tneb": None,
     "source_binaries": False,        # for BPASS
     "source_sed_by_Z": None,
@@ -1203,116 +1206,112 @@ def SynthesisParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
-    "hmf_model": 'ST',
+    "halo_mf": 'ST',
+    "halo_mf_sub": "Tinker08",
 
-    "hmf_instance": None,
-    "hmf_load": True,
-    "hmf_cache": None,
-    "hmf_load_ps": True,
-    "hmf_load_growth": False,
-    "hmf_use_splined_growth": True,
-    "hmf_table": None,
-    "hmf_analytic": False,
-    "hmf_params": None,
+    "halo_mf_instance": None,
+    "halo_mf_load": True,
+    "halo_mf_cache": None,
+    "halo_ps_load": True,
+    "halo_load_growth": False,
+    "halo_use_splined_growth": True,
+    "halo_mf_table": None,
+    "halo_mf_analytic": False,
+    "halo_mf_params": None,
 
     # Table resolution
-    "hmf_logMmin": 4,
-    "hmf_logMmax": 18,
-    "hmf_dlogM": 0.01,
-    "hmf_zmin": 0,
-    "hmf_zmax": 60,
-    "hmf_dz": 0.05,
+    "halo_logMmin": 4,
+    "halo_logMmax": 18,
+    "halo_dlogM": 0.01,
+    "halo_zmin": 0,
+    "halo_zmax": 60,
+    "halo_dz": 0.05,
 
     # Optional: time instead of redshift
-    "hmf_tmin": 30.,
-    "hmf_tmax": 1000.,
-    "hmf_dt": None,     # if not None, will switch this one.
+    "halo_tmin": 30.,
+    "halo_tmax": 1000.,
+    "halo_dt": None,     # if not None, will switch this one.
 
     # Augment suite of halo growth histories
-    "hgh_dlogM": 0.1,
-    'hgh_Mmax': None,
+    "halo_hist_dlogM": 0.1,
+    'halo_hist_Mmax': 10, # 10x the
 
     # to CAMB
-    'hmf_dlna': 2e-6,           # hmf default value is 1e-2
-    'hmf_dlnk': 1e-2,
-    'hmf_lnk_min': -20.,
-    'hmf_lnk_max': 10.,
-    'hmf_transfer_k_per_logint': 11,
-    'hmf_transfer_kmax': 100., # hmf default value is 5
+    'halo_dlna': 2e-6,           # hmf default value is 1e-2
+    'halo_dlnk': 1e-2,
+    'halo_lnk_min': -20.,
+    'halo_lnk_max': 10.,
+    'halo_transfer_k_per_logint': 11,
+    'halo_transfer_kmax': 100., # hmf default value is 5
 
-    "hmf_dfcolldz_smooth": False,
-    "hmf_dfcolldz_trunc": False,
+    "halo_dfcolldz_smooth": False,
+    "halo_dfcolldz_trunc": False,
 
-    "hmf_path": None,
+    "halo_mf_path": None,
 
     # For, e.g., fcoll, etc
-    "hmf_interp": 'cubic',
+    "halo_interp": 'cubic',
 
-    "hmf_func": None,
-    "hmf_extra_par0": None,
-    "hmf_extra_par1": None,
-    "hmf_extra_par2": None,
-    "hmf_extra_par3": None,
-    "hmf_extra_par4": None,
+    "halo_mf_func": None,
+    "halo_extra_par0": None,
+    "halo_extra_par1": None,
+    "halo_extra_par2": None,
+    "halo_extra_par3": None,
+    "halo_extra_par4": None,
 
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
 
-    "hmf_database": None,
+    "halo_database": None,
 
-    # Directory where cosmology hmf tables are located
-    # For halo model.
-    "hps_zmin": 6,
-    "hps_zmax": 30,
-    "hps_dz": 0.5,
 
-    "hps_assume_linear": True,
+    "halo_ps_linear": True,
 
-    'hps_dlnk': 0.001,
-    'hps_dlnR': 0.001,
-    'hps_lnk_min': -9.,
-    'hps_lnk_max': 9.,
-    'hps_lnR_min': -9.,
-    'hps_lnR_max': 9.,
+    'halo_dlnk': 0.001,
+    'halo_dlnR': 0.001,
+    'halo_lnk_min': -9.,
+    'halo_lnk_max': 9.,
+    'halo_lnR_min': -9.,
+    'halo_lnR_max': 9.,
 
     # Note that this is not passed to hmf yet.
-    "hmf_window": 'tophat',
-    "hmf_wdm_mass": None,
-    "hmf_wdm_interp": True,
+    "halo_mf_window": 'tophat',
+    "halo_wdm_mass": None,
+    "halo_wdm_interp": True,
 
     #For various DM models
-    'hmf_dm_model': 'CDM',
+    'halo_dm_model': 'CDM',
 
-    "hmf_cosmology_location": None,
+    "halo_cosmology_location": None,
     # PCA eigenvectors
-    "hmf_pca": None,
-    "hmf_pca_coef0":None,
-    "hmf_pca_coef1":None,
-    "hmf_pca_coef2":None,
-    "hmf_pca_coef3":None,
-    "hmf_pca_coef4":None,
-    "hmf_pca_coef5":None,
-    "hmf_pca_coef6":None,
-    "hmf_pca_coef7":None,
-    "hmf_pca_coef8":None,
-    "hmf_pca_coef9":None,
-    "hmf_pca_coef10": None,
-    "hmf_pca_coef11": None,
-    "hmf_pca_coef12": None,
-    "hmf_pca_coef13": None,
-    "hmf_pca_coef14": None,
-    "hmf_pca_coef15": None,
-    "hmf_pca_coef16": None,
-    "hmf_pca_coef17": None,
-    "hmf_pca_coef18": None,
-    "hmf_pca_coef19": None,
+    "halo_mf_pca": None,
+    "halo_mf_pca_coef0":None,
+    "halo_mf_pca_coef1":None,
+    "halo_mf_pca_coef2":None,
+    "halo_mf_pca_coef3":None,
+    "halo_mf_pca_coef4":None,
+    "halo_mf_pca_coef5":None,
+    "halo_mf_pca_coef6":None,
+    "halo_mf_pca_coef7":None,
+    "halo_mf_pca_coef8":None,
+    "halo_mf_pca_coef9":None,
+    "halo_mf_pca_coef10": None,
+    "halo_mf_pca_coef11": None,
+    "halo_mf_pca_coef12": None,
+    "halo_mf_pca_coef13": None,
+    "halo_mf_pca_coef14": None,
+    "halo_mf_pca_coef15": None,
+    "halo_mf_pca_coef16": None,
+    "halo_mf_pca_coef17": None,
+    "halo_mf_pca_coef18": None,
+    "halo_mf_pca_coef19": None,
 
     # If a new tab_MAR should be computed when using the PCA
-    "hmf_gen_MAR":False,
+    "halo_mf_gen_MAR":False,
 
     "filter_params" : None,
 
-    "hmf_MAR_from_CDM": True,
+    "halo_MAR_from_CDM": True,
 
     }
 

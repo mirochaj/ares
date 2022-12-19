@@ -82,7 +82,7 @@ def test(tol=0.25):
         mag_from_spec = omags[0,np.argmin(np.abs(1600. - waves))]
 
         # Compute observed magnitude at 1600A by hand from luminosity
-        L = pop.Luminosity(z, wave=1600., load=load)
+        L = pop.get_lum(z, wave=1600., load=load)
         f = L[0] * (1. + z) / (4. * np.pi * dL**2)
         mag_from_flux = -2.5 * np.log10(f / flux_AB) - magcorr
 
