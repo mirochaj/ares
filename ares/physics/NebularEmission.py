@@ -11,6 +11,8 @@ Description:
 """
 
 import numpy as np
+from ares.util.Stats import bin_c2e
+from functools import cached_property
 from ares.util import ParameterFile, read_lit
 from ares.physics.Hydrogen import Hydrogen
 from ares.physics.RateCoefficients import RateCoefficients
@@ -35,46 +37,55 @@ class NebularEmission(object):
         return self._coeff
 
     @property
-    def wavelengths(self):
+    def tab_waves_c(self):
         if not hasattr(self, '_wavelengths'):
             raise AttributeError('Must set `wavelengths` by hand.')
         return self._wavelengths
 
-    @wavelengths.setter
-    def wavelengths(self, value):
+    @tab_waves_c.setter
+    def tab_waves_c(self, value):
         self._wavelengths = value
 
     @property
-    def energies(self):
+    def tab_energies_c(self):
         if not hasattr(self, '_energies'):
-            self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
+            self._energies = h_p * c / (self.tab_waves_c / 1e8) / erg_per_ev
         return self._energies
+
+    @cached_property
+    def tab_energies_e(self):
+        self._energies_e = bin_c2e(self.tab_energies_c)
+        return self._energies_e
 
     @property
     def Emin(self):
-        return np.min(self.energies)
+        return np.min(self.tab_energies_c)
 
     @property
     def Emax(self):
-        return np.max(self.energies)
+        return np.max(self.tab_energies_c)
 
     @property
-    def frequencies(self):
+    def tab_freq_c(self):
         if not hasattr(self, '_frequencies'):
-            self._frequencies = c / (self.wavelengths / 1e8)
+            self._frequencies = c / (self.tab_waves_c / 1e8)
         return self._frequencies
+
+    @property
+    def tab_freq_e(self):
+        if not hasattr(self, '_frequencies'):
+            self._frequencies_e = c / (self.tab_waves_e / 1e8)
+        return self._frequencies_e
 
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
-            self._dwdn = self.wavelengths**2 / (c * 1e8)
+            self._dwdn = self.tab_waves_c**2 / (c * 1e8)
         return self._dwdn
 
-    @property
-    def dE(self):
-        if not hasattr(self, '_dE'):
-            tmp = np.abs(np.diff(self.energies))
-            self._dE = np.concatenate((tmp, [tmp[-1]]))
+    @cached_property
+    def tab_dE(self):
+        self._dE = np.abs(np.diff(self.tab_energies_e))
         return self._dE
 
     @property
@@ -100,10 +111,10 @@ class NebularEmission(object):
     def _gamma_fb(self):
         if not hasattr(self, '_gamma_fb_'):
             # Assuming fully-ionized hydrogen-only nebular for now.
-            _sum = np.zeros_like(self.frequencies)
+            _sum = np.zeros_like(self.tab_freq_c)
             for n in np.arange(2, 15., 1.):
                 _xn = Ryd / k_B / self.pf['source_nebular_Tgas'] / n**2
-                ok = (Ryd / h_p / n**2) < self.frequencies
+                ok = (Ryd / h_p / n**2) < self.tab_freq_c
                 _sum[ok==1] += _xn * (np.exp(_xn) / n) * self._gaunt_avg_fb
 
             self._gamma_fb_ = self._f_k * _sum
@@ -125,8 +136,8 @@ class NebularEmission(object):
             else:
                 raise NotImplemented('No interpolation scheme yet.')
 
-            nrg_Ryd = self.energies / (Ryd / erg_per_ev)
-            self._gamma_ferland_ = np.zeros_like(self.energies)
+            nrg_Ryd = self.tab_energies_c / (Ryd / erg_per_ev)
+            self._gamma_ferland_ = np.zeros_like(self.tab_energies_c)
             for i in range(len(e_ryd)-1):
 
                 if i % 2 != 0:
@@ -166,7 +177,7 @@ class NebularEmission(object):
         """
 
         if not hasattr(self, '_p_of_c_'):
-            hnu = self.energies * erg_per_ev
+            hnu = self.tab_energies_c * erg_per_ev
             kT = k_B * self.pf['source_nebular_Tgas']
             self._p_of_c_ = 4. * np.pi * np.exp(-hnu / kT) \
                 / np.sqrt(self.pf['source_nebular_Tgas'])
@@ -179,9 +190,9 @@ class NebularEmission(object):
         # of Brown & Matthews (1970; their Table 4)
         if not hasattr(self, '_prob_2phot_'):
 
-            x = self.energies / E_LyA
+            x = self.tab_energies_c / E_LyA
 
-            P = np.zeros_like(self.energies)
+            P = np.zeros_like(self.tab_energies_c)
             # Fernandez & Komatsu 2006
             P[x<1.] = 1.307 \
                     - 2.627 * (x[x<1.] - 0.5)**2 \
@@ -217,15 +228,15 @@ class NebularEmission(object):
             .. note :: This carries units of Hz^{-1}.
         """
 
-        erg_per_phot = self.energies * erg_per_ev
+        erg_per_phot = self.tab_energies_c * erg_per_ev
 
         Tgas = self.pf['source_nebular_Tgas']
         #A_H = 1. / (1. + self.cosm.y)
-        #u = 143.9 / self.wavelengths / (Tgas / 1e6)
+        #u = 143.9 / self.tab_waves_c / (Tgas / 1e6)
         #ne = 1.
         alpha = self.coeff.RadiativeRecombinationRate(0, Tgas)
 
-        #gamma_pre = 2.051e-22 * (Tgas / 1e6)**-0.5 * self.wavelengths**-2. \
+        #gamma_pre = 2.051e-22 * (Tgas / 1e6)**-0.5 * self.tab_waves_c**-2. \
         #    * np.exp(-u) * self.dwdn
 
         ##
@@ -247,7 +258,7 @@ class NebularEmission(object):
         elif channel == 'fb':
             frep = self._p_of_c * self._gamma_fb / alpha
         elif channel == 'tp':
-            frep = 2. * self.energies * erg_per_ev * self._prob_2phot / nu_alpha
+            frep = 2. * self.tab_energies_c * erg_per_ev * self._prob_2phot / nu_alpha
         else:
             raise NotImplemented("Do not recognize channel `{}`".format(channel))
 
@@ -258,35 +269,35 @@ class NebularEmission(object):
 
     def get_ion_lum(self, spec, species=0):
         if species == 0:
-            ion = self.energies >= E_LL
+            ion = self.tab_energies_c >= E_LL
         elif species == 1:
-            ion = self.energies >= 24.6
+            ion = self.tab_energies_c >= 24.6
         elif species == 2:
-            ion = self.energies >= 4 * E_LL
+            ion = self.tab_energies_c >= 4 * E_LL
         else:
             raise NotImplemented('help')
 
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        return np.trapz(spec[ok==1][-1::-1] * self.frequencies[ok==1][-1::-1],
-            x=np.log(self.frequencies[ok==1][-1::-1]))
+        return np.trapz(spec[ok==1][-1::-1] * self.tab_freq_c[ok==1][-1::-1],
+            x=np.log(self.tab_freq_c[ok==1][-1::-1]))
 
     def get_ion_num(self, spec, species=0):
         if species == 0:
-            ion = self.energies >= E_LL
+            ion = self.tab_energies_c >= E_LL
         elif species == 1:
-            ion = self.energies >= 24.6
+            ion = self.tab_energies_c >= 24.6
         elif species == 2:
-            ion = self.energies >= 4 * E_LL
+            ion = self.tab_energies_c >= 4 * E_LL
         else:
             raise NotImplemented('help')
 
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        erg_per_phot = self.energies[ok==1][-1::-1] * erg_per_ev
-        freq = self.frequencies[ok==1][-1::-1]
+        erg_per_phot = self.tab_energies_c[ok==1][-1::-1] * erg_per_ev
+        freq = self.tab_freq_c[ok==1][-1::-1]
 
         integ = spec[ok==1][-1::-1] * freq / erg_per_phot
 
@@ -311,7 +322,7 @@ class NebularEmission(object):
         Tgas = self.pf['source_nebular_Tgas']
         cBd = self.pf['source_nebular_caseBdeparture']
         flya = 2. / 3.
-        erg_per_phot = self.energies * erg_per_ev
+        erg_per_phot = self.tab_energies_c * erg_per_ev
 
         # This is in [#/s]
         Nion = self.get_ion_num(spec)
@@ -328,7 +339,7 @@ class NebularEmission(object):
         else:
             Nabs = Nion
 
-        tot = np.zeros_like(self.wavelengths)
+        tot = np.zeros_like(self.tab_waves_c)
         if self.pf['source_nebular_ff']:
             tot += frep_ff * Nabs
         if self.pf['source_nebular_fb']:
@@ -352,7 +363,7 @@ class NebularEmission(object):
         fesc = self.pf['source_fesc']
         Tgas = self.pf['source_nebular_Tgas']
         flya = 2. / 3.
-        erg_per_phot = self.energies * erg_per_ev
+        erg_per_phot = self.tab_energies_c * erg_per_ev
 
         # This is in [#/s]
         Nion = self.get_ion_num(spec)
@@ -364,9 +375,9 @@ class NebularEmission(object):
         else:
             Nabs = Nion
 
-        #tot = np.zeros_like(self.wavelengths)
+        #tot = np.zeros_like(self.tab_waves_c)
 
-        #i_lya = np.argmin(np.abs(self.energies - E_LyA))
+        #i_lya = np.argmin(np.abs(self.tab_energies_c - E_LyA))
 
         #tot[i_lya] = spec[i_lya] * 10
         if self.pf['source_nebular'] == 2:
@@ -374,13 +385,13 @@ class NebularEmission(object):
             tot += self.BalmerSeries(spec)
         elif self.pf['source_nebular'] in [3, 'inoue2011']:
             _tot = self.BalmerSeries(spec)
-            Hb = _tot[np.argmin(np.abs(self._lam_Hb - self.wavelengths))]
+            Hb = _tot[np.argmin(np.abs(self._lam_Hb - self.tab_waves_c))]
 
-            tot = np.zeros_like(self.wavelengths)
+            tot = np.zeros_like(self.tab_waves_c)
 
             waves, ew, ew_std = self._ew_wrt_hbeta
             for i, wave in enumerate(waves):
-                j = np.argmin(np.abs(wave - self.wavelengths))
+                j = np.argmin(np.abs(wave - self.tab_waves_c))
                 tot[j] = ew[i] * Hb
 
         else:
@@ -426,9 +437,9 @@ class NebularEmission(object):
 
         assert ninto in [1,2], "Only Lyman and Balmer series implemented so far."
 
-        neb = np.zeros_like(self.wavelengths)
-        nrg = self.energies
-        freq = self.frequencies
+        neb = np.zeros_like(self.tab_waves_c)
+        nrg = self.tab_energies_c
+        freq = self.tab_freq_c
 
         fesc = self.pf['source_fesc']
         _Tg = self.pf['source_nebular_Tgas']
@@ -448,7 +459,7 @@ class NebularEmission(object):
 
         sigm = nu_alpha * np.sqrt(k_B * _Tg / m_p / c**2) * h_p
 
-        fout = np.zeros_like(self.wavelengths)
+        fout = np.zeros_like(self.tab_waves_c)
         for i, n in enumerate(range(ninto+1, ninto+7)):
 
             # Determine resulting photons energy

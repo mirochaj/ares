@@ -21,7 +21,7 @@ def test():
     Ebar = src.get_avg_photon_energy(13.6, 1e2)
     assert 13.6 <= Ebar <= 1e2
 
-    nu = src.frequencies
+    nu = src.tab_freq_c
     ehat = src.emissivity_per_sfr
 
     beta = src.get_beta()

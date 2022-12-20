@@ -11,7 +11,9 @@ Description:
 """
 
 import numpy as np
+from ..util.Stats import bin_c2e
 from ..util.ReadData import read_lit
+from functools import cached_property
 from .SynthesisModel import SynthesisModelBase
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import c, h_p, erg_per_ev, cm_per_ang, ev_per_hz, E_LL
@@ -64,6 +66,11 @@ class SynthesisModelToy(SynthesisModelBase):
 
         return self._wavelengths
 
+    @cached_property
+    def tab_waves_e(self):
+        self._waves_e = bin_c2e(self.tab_waves_c)
+        return self._waves_e
+
     @property
     def frequencies(self):
         if not hasattr(self, '_frequencies'):
@@ -80,24 +87,19 @@ class SynthesisModelToy(SynthesisModelBase):
                 self._times = 10**np.arange(0, 4.1, 0.1)
         return self._times
 
-    @property
-    def dE(self):
-        if not hasattr(self, '_dE'):
-            tmp = np.abs(np.diff(self.tab_energies_c))
-            self._dE = np.concatenate((tmp, [tmp[-1]]))
+    @cached_property
+    def tab_dE(self):
+        self._dE = np.diff(self.tab_energies_e)
         return self._dE
 
-    @property
-    def dndE(self):
-        if not hasattr(self, '_dndE'):
-            tmp = np.abs(np.diff(self.frequencies) / np.diff(self.tab_energies_c))
-            self._dndE = np.concatenate((tmp, [tmp[-1]]))
+    @cached_property
+    def tab_dndE(self):
+        self._dndE = np.abs(np.diff(self.tab_freq_e) / np.diff(self.tab_energies_e))
         return self._dndE
 
-    @property
-    def dwdn(self):
-        if not hasattr(self, '_dwdn'):
-            self._dwdn =  self.tab_waves_c**2 / (c * 1e8)
+    @cached_property
+    def tab_dwdn(self):
+        self._dwdn = self.tab_waves_c**2 / (c * 1e8)
         return self._dwdn
 
     @property

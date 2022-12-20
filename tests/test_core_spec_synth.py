@@ -23,8 +23,8 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
 
     # Just checking
     E = toy.tab_energies_c
-    dE = toy.dE
-    dndE = toy.dndE
+    dE = toy.tab_dE
+    dndE = toy.tab_dndE
     f = toy.frequencies
 
     pars = ares.util.ParameterBundle('mirocha2020:univ')

@@ -15,6 +15,7 @@ import numpy as np
 from .Source import Source
 import matplotlib.pyplot as pl
 from ..util.ReadData import read_lit
+from functools import cached_property
 from scipy.integrate import quad, cumtrapz
 from ..util.Stats import bin_c2e, bin_e2c
 from ..util.ParameterFile import ParameterFile
@@ -91,17 +92,27 @@ class SynthesisModelSBS(Source): # pragma: no cover
             self._wavelengths = np.arange(30., 30010., 10.)
         return self._wavelengths
 
+    @cached_property
+    def tab_waves_e(self):
+        self._waves_e = bin_c2e(self.tab_waves_c)
+        return self._waves_e
+
     @property
-    def energies(self):
+    def tab_energies_c(self):
         if not hasattr(self, '_energies'):
-            self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
+            self._energies = h_p * c / (self.tab_waves_c / 1e8) / erg_per_ev
         return self._energies
 
     @property
-    def frequencies(self):
+    def tab_freq_c(self):
         if not hasattr(self, '_frequencies'):
-            self._frequencies = self.energies / h_p
+            self._frequencies = self.tab_energies_c / h_p
         return self._frequencies
+
+    @cached_property
+    def tab_energies_e(self):
+        self._energies_e = h_p * c / (self.tab_waves_e / 1e8) / erg_per_ev
+        return self._energies_e
 
     @property
     def times(self):

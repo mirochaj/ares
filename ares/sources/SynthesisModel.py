@@ -30,7 +30,7 @@ class SynthesisModelBase(Source):
     def _nebula(self):
         if not hasattr(self, '_nebula_'):
             self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
-            self._nebula_.wavelengths = self.tab_waves_c
+            self._nebula_.tab_waves_c = self.tab_waves_c
         return self._nebula_
 
     @property
@@ -46,13 +46,13 @@ class SynthesisModelBase(Source):
                     else:
                         j = i
 
-                    spec = self._data_raw[:,j] * self.dwdn
+                    spec = self._data_raw[:,j] * self.tab_dwdn
 
                     # If is_ssp = False, should do cumulative integral
                     # over time here.
 
                     self._neb_cont_[:,i] = \
-                        self._nebula.Continuum(spec) / self.dwdn
+                        self._nebula.Continuum(spec) / self.tab_dwdn
 
         return self._neb_cont_
 
@@ -68,10 +68,10 @@ class SynthesisModelBase(Source):
                     else:
                         j = i
 
-                    spec = self._data_raw[:,j] * self.dwdn
+                    spec = self._data_raw[:,j] * self.tab_dwdn
 
                     self._neb_line_[:,i] = \
-                        self._nebula.LineEmission(spec) / self.dwdn
+                        self._nebula.LineEmission(spec) / self.tab_dwdn
 
         return self._neb_line_
 
@@ -138,7 +138,7 @@ class SynthesisModelBase(Source):
         # reverse energies so they are in ascending order
         nrg = self.tab_energies_c[-1::-1]
 
-        spec = np.interp(E, nrg, self.tab_sed_at_age[-1::-1]) / self.norm
+        spec = np.interp(E, nrg, self.tab_sed_at_age[-1::-1]) / self._norm
 
         if type(E) != np.ndarray:
             self._cache_spec_[E] = spec
@@ -161,7 +161,7 @@ class SynthesisModelBase(Source):
 
         # erg / s / Hz -> erg / s / eV
         if self.pf['source_rad_yield'] == 'from_sed':
-            sed = data[:,i_tsf] * self.dwdn / ev_per_hz
+            sed = data[:,i_tsf] * self.tab_dwdn / ev_per_hz
         else:
             sed = data[:,i_tsf]
 
@@ -178,30 +178,27 @@ class SynthesisModelBase(Source):
         return self._sed_at_tsf_raw
 
     @cached_property
-    def dE(self):
-        tmp = np.abs(np.diff(self.tab_energies_c))
-        self._dE = np.concatenate((tmp, [tmp[-1]]))
+    def tab_dE(self):
+        self._dE = np.diff(self.tab_energies_e)
         return self._dE
 
     @cached_property
-    def dndE(self):
-        #if not hasattr(self, '_dndE'):
-        tmp = np.abs(np.diff(self.frequencies) / np.diff(self.tab_energies_c))
-        self._dndE = np.concatenate((tmp, [tmp[-1]]))
+    def tab_dndE(self):
+        self._dndE = np.abs(np.diff(self.tab_freq_e) / np.diff(self.tab_energies_e))
         return self._dndE
 
     @cached_property
-    def dwdn(self):
+    def tab_dwdn(self):
         self._dwdn = self.tab_waves_c**2 / (c * 1e8)
         return self._dwdn
 
     @property
-    def norm(self):
+    def _norm(self):
         """
         Normalization constant that forces self.Spectrum to have unity
         integral in the (Emin, Emax) band.
         """
-        if not hasattr(self, '_norm'):
+        if not hasattr(self, '_norm_'):
             # Note that we're not using (EminNorm, EmaxNorm) band because
             # for SynthesisModels we don't specify luminosities by hand. By
             # using (EminNorm, EmaxNorm), we run the risk of specifying a
@@ -212,10 +209,10 @@ class SynthesisModelBase(Source):
             # Remember: energy axis in descending order
             # Note use of sed_at_tsf_raw: need to be careful to normalize
             # to total power before application of fesc.
-            self._norm = np.trapz(self.tab_sed_at_age_raw[j2:j1][-1::-1],
+            self._norm_ = np.trapz(self.tab_sed_at_age_raw[j2:j1][-1::-1],
                 x=self.tab_energies_c[j2:j1][-1::-1])
 
-        return self._norm
+        return self._norm_
 
     @property
     def i_tsf(self):
@@ -238,7 +235,7 @@ class SynthesisModelBase(Source):
             if self.pf['source_ssp']:
                 raise NotImplemented('No support for SSPs yet (due to t-dep)!')
 
-            _LE = self.tab_sed_at_age * self.dE / self.Lbol_at_tsf
+            _LE = self.tab_sed_at_age * self.tab_dE / self.Lbol_at_tsf
 
             s = np.argsort(self.tab_energies_c)
             self._LE = _LE[s]
@@ -251,6 +248,11 @@ class SynthesisModelBase(Source):
         self._energies = h_p * c / (self.tab_waves_c / 1e8) / erg_per_ev
         return self._energies
 
+    @cached_property
+    def tab_energies_e(self):
+        self._energies_e = h_p * c / (self.tab_waves_e / 1e8) / erg_per_ev
+        return self._energies_e
+
     @property
     def Emin(self):
         return np.min(self.tab_energies_c)
@@ -260,10 +262,15 @@ class SynthesisModelBase(Source):
         return np.max(self.tab_energies_c)
 
     @cached_property
-    def frequencies(self):
+    def tab_freq_c(self):
         #if not hasattr(self, '_frequencies'):
         self._frequencies = c / (self.tab_waves_c / 1e8)
         return self._frequencies
+
+    @cached_property
+    def tab_freq_e(self):
+        self._freq_e = c / (self.tab_waves_e / 1e8)
+        return self._energies_e
 
     @property
     def emissivity_per_sfr(self):
@@ -349,7 +356,7 @@ class SynthesisModelBase(Source):
 
             if avg == 1:
                 if units == 'Hz':
-                    yield_UV = data * np.abs(self.dwdn[j])
+                    yield_UV = data * np.abs(self.tab_dwdn[j])
                 else:
                     yield_UV = data
             else:
@@ -364,7 +371,7 @@ class SynthesisModelBase(Source):
 
                 if units == 'Hz':
                     yield_UV = np.mean(self.tab_sed[j1:j2+1,:] \
-                        * np.abs(self.dwdn[j1:j2+1])[:,None], axis=0)
+                        * np.abs(self.tab_dwdn[j1:j2+1])[:,None], axis=0)
                 else:
                     yield_UV = np.mean(self.tab_sed[j1:j2+1,:])
 
@@ -447,7 +454,7 @@ class SynthesisModelBase(Source):
             i0 = np.argmin(np.abs(x - l0))
             i1 = np.argmin(np.abs(x - l1))
         elif unit == 'Hz':
-            x = self.frequencies
+            x = self.tab_freq_c
             i1 = np.argmin(np.abs(x - l0))
             i0 = np.argmin(np.abs(x - l1))
 
