@@ -100,7 +100,7 @@ class SynthesisModelBase(Source):
 
     def get_avg_photon_energy(self, band, band_units='eV'):
         """
-        Return average photon energy in supplied band.
+        Return average photon energy in supplied band at `source_age`.
 
         Parameters
         ----------
@@ -123,7 +123,7 @@ class SynthesisModelBase(Source):
             Emin = h_p * c / (band[1] * 1e-8) / erg_per_ev
             Emax = h_p * c / (band[0] * 1e-8) / erg_per_ev
         else:
-            raise NotImplemented('Unrecognized `band_units` option.')
+            raise NotImplementedError('Unrecognized `band_units` option.')
 
         j1 = np.argmin(np.abs(Emin - self.tab_energies_c))
         j2 = np.argmin(np.abs(Emax - self.tab_energies_c))
@@ -199,15 +199,15 @@ class SynthesisModelBase(Source):
         self._sed_at_tsf_raw = self.get_sed_at_t(i_tsf=self.i_tsf, raw=True)
         return self._sed_at_tsf_raw
 
-    @cached_property
-    def tab_dE(self):
-        self._dE = np.diff(self.tab_energies_e)
-        return self._dE
+    #@cached_property
+    #def tab_dE(self):
+    #    self._dE = np.diff(self.tab_energies_e)
+    #    return self._dE
 
-    @cached_property
-    def tab_dndE(self):
-        self._dndE = np.abs(np.diff(self.tab_freq_e) / np.diff(self.tab_energies_e))
-        return self._dndE
+    #@cached_property
+    #def tab_dndE(self):
+    #    self._dndE = np.abs(np.diff(self.tab_freq_e) / np.diff(self.tab_energies_e))
+    #    return self._dndE
 
     @cached_property
     def tab_dwdn(self):
@@ -242,11 +242,11 @@ class SynthesisModelBase(Source):
             self._i_tsf = np.argmin(np.abs(self.pf['source_age'] - self.tab_t))
         return self._i_tsf
 
-    @property
-    def E(self):
-        if not hasattr(self, '_E'):
-            self._E = np.sort(self.tab_energies_c)
-        return self._E
+    #@property
+    #def E(self):
+    #    if not hasattr(self, '_E'):
+    #        self._E = np.sort(self.tab_energies_c)
+    #    return self._E
 
     @property
     def LE(self):
@@ -257,7 +257,10 @@ class SynthesisModelBase(Source):
             if self.pf['source_ssp']:
                 raise NotImplemented('No support for SSPs yet (due to t-dep)!')
 
-            _LE = self.tab_sed_at_age * self.tab_dE / self.Lbol_at_tsf
+            Lbol_at_tsf = self.get_lum_per_sfr(band=(None,None),
+                band_units='eV')
+
+            _LE = self.tab_sed_at_age * self.tab_dE / Lbol_at_tsf
 
             s = np.argsort(self.tab_energies_c)
             self._LE = _LE[s]
@@ -476,7 +479,8 @@ class SynthesisModelBase(Source):
         return None
 
     def get_lum_per_sfr(self, wave=1600., window=1, Z=None, band=None,
-            energy_units=True, raw=False, nebular_only=False, age=None):
+        band_units='eV', energy_units=True, raw=False, nebular_only=False,
+        age=None):
         """
         Specific emissivity at provided wavelength at `source_age`.
 
@@ -501,11 +505,11 @@ class SynthesisModelBase(Source):
 
         cached = self._cache_L_per_sfr(wave, window, band, Z, raw, nebular_only, age)
 
-        if cached is not None:
-            return cached
+        #if cached is not None:
+        #    return cached
 
-        yield_UV = self.get_lum_per_sfr_of_t(wave, band=band, raw=raw,
-            nebular_only=nebular_only, energy_units=energy_units)
+        yield_UV = self.get_lum_per_sfr_of_t(wave, band=band, band_units=band_units,
+            raw=raw, nebular_only=nebular_only, energy_units=energy_units)
 
         if age is not None:
             t = age
@@ -527,38 +531,39 @@ class SynthesisModelBase(Source):
 
         return result
 
-    def erg_per_phot(self, Emin, Emax):
-        return self.eV_per_phot(Emin, Emax) * erg_per_ev
+    #def erg_per_phot(self, Emin, Emax):
+    #    return self.eV_per_phot(Emin, Emax) * erg_per_ev
 
-    def eV_per_phot(self, Emin, Emax):
-        """
-        Compute the average energy per photon (in eV) in some band.
-        """
+    #def eV_per_phot(self, Emin, Emax):
+    #    """
+    #    Compute the average energy per photon (in eV) in some band.
+    #    """
 
-        i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
-        i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
+    #    i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
+    #    i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
 
-        # [self.tab_sed] = erg / s / A / [depends]
+    #    # [self.tab_sed] = erg / s / A / [depends]
 
-        # Must convert units
-        E_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
-            x=np.log(self.tab_waves_c[i1:i0]), axis=1)
-        N_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
-            / self.tab_energies_c[i1:i0] / erg_per_ev,
-            x=np.log(self.tab_waves_c[i1:i0]), axis=1)
+    #    # Must convert units
+    #    E_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
+    #        x=np.log(self.tab_waves_c[i1:i0]), axis=1)
+    #    N_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
+    #        / self.tab_energies_c[i1:i0] / erg_per_ev,
+    #        x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
-        if self.pf['source_ssp']:
-            return E_tot / N_tot / erg_per_ev
-        else:
-            return E_tot[-1] / N_tot[-1] / erg_per_ev
+    #    if self.pf['source_ssp']:
+    #        return E_tot / N_tot / erg_per_ev
+    #    else:
+    #        return E_tot[-1] / N_tot[-1] / erg_per_ev
 
     def rad_yield(self, Emin, Emax, raw=True):
         """
-        Must be in the internal units of erg / g.
+        This is essentially converting the units of get_lum_per_sfr into
+        our internal cgs units system.
         """
 
         erg_per_variable = \
-           self.get_lum_per_sfr_of_t(band=(Emin, Emax), energy_units=True,
+            self.get_lum_per_sfr_of_t(band=(Emin, Emax), energy_units=True,
             raw=raw, band_units='eV')
 
         if self.pf['source_ssp']:
@@ -568,11 +573,11 @@ class SynthesisModelBase(Source):
             # erg / g
             return erg_per_variable[-1] * s_per_yr / g_per_msun
 
-    @property
-    def Lbol_at_tsf(self):
-        if not hasattr(self, '_Lbol_at_tsf'):
-            self._Lbol_at_tsf = self.Lbol(self.pf['source_age'])
-        return self._Lbol_at_tsf
+    #@property
+    #def Lbol_at_tsf(self):
+    #    if not hasattr(self, '_Lbol_at_tsf'):
+    #        self._Lbol_at_tsf = self.Lbol(self.pf['source_age'])
+    #    return self._Lbol_at_tsf
 
     #def Lbol(self, t, raw=True):
     #    """

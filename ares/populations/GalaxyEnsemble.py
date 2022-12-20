@@ -2463,8 +2463,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         return owaves, flux
 
-    def get_lum(self, z, wave=1600., band=None, idnum=None, window=1,
-        load=True, energy_units=True):
+    def get_lum(self, z, wave=1600., band=None, band_units='Angstrom',
+        idnum=None, window=1, load=True, energy_units=True):
         """
         Return the luminosity for one or all sources at wavelength `wave`.
 
@@ -2497,8 +2497,8 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         """
         cached_result = self._cache_L((z, wave, band, idnum, window,
             energy_units))
-        if load and (cached_result is not None):
-            return cached_result
+        #if load and (cached_result is not None):
+        #    return cached_result
 
         #if band is not None:
         #    assert self.pf['pop_dust_yield'] in [0, None], \
@@ -2511,7 +2511,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         else:
             L = self.synth.get_lum(wave=wave, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
-                band=band, energy_units=energy_units)
+                band=band, band_units=band_units, energy_units=energy_units)
 
         self._cache_L_[(z, wave, band, idnum, window, energy_units)] = L.copy()
 

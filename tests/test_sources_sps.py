@@ -19,7 +19,16 @@ def test():
         source_sed_degrade=100, source_Z=0.02)
 
     Ebar = src.get_avg_photon_energy((13.6, 1e2), band_units='eV')
-    assert 13.6 <= Ebar <= 1e2
+    assert 13.6 <= Ebar <= 1e2, "<E>={:.2f}".format(Ebar)
+
+    Ebar = src.get_avg_photon_energy((0.4, 912), band_units='Angstrom')
+    assert 13.6 <= Ebar <= 1e2, "<E>={:.2f}".format(Ebar)
+
+    try:
+        Ebar = src.get_avg_photon_energy((20, 30), band_units='whoknows')
+    except (NotImplementedError):
+        # Supposed to happen
+        pass
 
     nu = src.tab_freq_c
 

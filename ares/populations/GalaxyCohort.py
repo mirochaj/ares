@@ -758,6 +758,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         Get star formation rate at redshift z in a halo of mass Mh.
 
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        Mh : optional float, np.ndarray
+            Halo masses [Msun]. If not suplied, we'll look to see if user
+            supplied halo catalog of the form (M, x, y, z) in `pop_halos`.
+            Otherwise, will default to `self.halos.tab_M`.
+
         P.S. When you plot this, don't freak out if the slope changes at Mmin.
         It's because all masses below this (and above Mmax) are just set to
         zero, so it looks like a slope change for line plots since it's
@@ -765,14 +774,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
+        # User may have supplied a function for SFR(z, Mh) directly.
         if self.pf['pop_sfr'] is not None:
             if type(self.pf['pop_sfr']) == 'str':
                 return self.sfr(z=z, Mh=Mh)
 
+        # Will use only if interpolating onto user-supplied set of halo masses.
         flipM = False
 
         # If Mh is None, it triggers use of tab_sfr, which spans all
         # halo masses in self.halos.tab_M
+
+        # User may have supplied halo catalog, in which case we'll interpolate
+        # onto self.halos.tab_M momentarily.
         if self.pf['pop_halos'] is not None:
             Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
 
@@ -806,7 +820,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 sfr = _spline_sfr(zz, log10M).squeeze()
 
                 M = 10**log10M
-                if type(sfr) is np.ndarray:
+
+                # Check for ndim == 0 is for fringe case where
+                # there's a single halo.
+                if type(sfr) == np.ndarray:
+
+                    if sfr.ndim == 0:
+                        sfr = np.array([float(sfr)])
+
                     sfr[M < self.Mmin(zz)] = 0.0
                     sfr[M > self.get_Mmax(zz)] = 0.0
                 else:
@@ -820,6 +841,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._spline_sfr = func
 
 
+        # Actually evaluate SFR
         sfr = self._spline_sfr(z, np.log10(Mh))
 
         if flipM:
@@ -1299,7 +1321,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def Luminosity(self, z, **kwargs):
         return self.get_lum(z, **kwargs)
 
-    def get_lum(self, z, wave=1600, band=None, window=1,
+    def get_lum(self, z, wave=1600, band=None, window=1, band_units='Angstrom',
         energy_units=True, load=True, raw=True, nebular_only=False, age=None):
         """
         Return the luminosity of all halos at given redshift `z`.
@@ -1317,9 +1339,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         kwtup = (z, wave, band, window, energy_units, raw, nebular_only, age)
         cached_result = self._cache_L(*kwtup)
 
-        if cached_result is not None:
-            #print(f"Loading result from cache at z={z}")
-            return cached_result
+        #if cached_result is not None:
+        #    #print(f"Loading result from cache at z={z}")
+        #    return cached_result
 
         if self.pf['pop_halos'] is not None:
             Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
@@ -1354,18 +1376,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Z = self.get_metallicity(z, Mh=self.halos.tab_M)
 
                 f_L_sfr = self._get_lum_all_Z(wave=wave, band=band,
-                    window=window, raw=raw, nebular_only=nebular_only, age=age)
+                    band_units=band_units, window=window, raw=raw,
+                    nebular_only=nebular_only, age=age)
 
                 L_sfr = 10**f_L_sfr(np.log10(Z))
 
             elif self.pf['pop_lum_per_sfr'] is None:
                 if age is not None:
                     L_sfr = np.array([self.src.get_lum_per_sfr(wave=wave,
-                        window=window, band=band, raw=raw,
-                        nebular_only=nebular_only, age=_age_) for _age_ in age])
+                        window=window, band=band, band_units=band_units, raw=raw,
+                        nebular_only=nebular_only, age=_age_,
+                        energy_units=energy_units) for _age_ in age])
                 else:
                     L_sfr = self.src.get_lum_per_sfr(wave=wave, window=window,
-                        band=band, raw=raw, nebular_only=nebular_only)
+                        band=band, band_units=band_units, energy_units=energy_units,
+                        raw=raw, nebular_only=nebular_only)
             else:
                 assert self.pf['pop_calib_lum'] is None, \
                     "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
@@ -1450,7 +1475,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             raise NotImplemented('help')
 
-    def get_mags(self, z, absolute=True, wave=1600, band=None, window=1,
+    def get_mags(self, z, absolute=True, wave=1600, band=None,
+        band_units='Angstrom', window=1,
         load=True, raw=True, nebular_only=False, apply_dustcorr=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
@@ -1460,8 +1486,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        L = self.get_lum(z, wave=wave, band=band, window=window,
-            energy_units=True, load=load, raw=raw,
+        L = self.get_lum(z, wave=wave, band=band, band_units=band_units,
+            window=window, energy_units=True, load=load, raw=raw,
             nebular_only=nebular_only)
 
         mags = self.magsys.L_to_MAB(L)
@@ -1504,8 +1530,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Lh *= fobsc
 
         logL_Lh = np.log(Lh)
-
-
 
         ##
         # Continue with standard approach.

@@ -964,8 +964,8 @@ class SpectralSynthesis(object):
             return kwds, None
 
     def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
-        zobs=None, tobs=None, band=None, idnum=None, hist={}, extras={},
-        load=True, energy_units=True, use_pbar=True):
+        zobs=None, tobs=None, band=None, band_units='Angstrom', idnum=None,
+        hist={}, extras={}, load=True, energy_units=True, use_pbar=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -1114,22 +1114,11 @@ class SpectralSynthesis(object):
         ##
         # Done parsing time/redshift
 
-        # Is this luminosity in some bandpass or monochromatic?
-        if band is not None:
-            Loft = self.src.get_lum_per_sfr_of_t(band=band, band_units='Angstrom',
-                energy_units=energy_units)
-
-            # Need to get Hz^-1 units back
-            #db = b[0] - b[1]
-            #Loft = Loft / (db * erg_per_ev / h_p)
-
-            #raise NotImplemented('help!')
-        else:
-            Loft = self.src.get_lum_per_sfr_of_t(wave=wave, window=window, raw=False)
-
-            assert energy_units
-        #print("Synth. Lum = ", wave, window)
-        #
+        # Get luminosity per unit SFR vs. time at whatever wavelength or in
+        # whatever band the user wants.
+        Loft = self.src.get_lum_per_sfr_of_t(wave=wave, window=window,
+            band=band, band_units=band_units, energy_units=energy_units,
+            raw=False)
 
         # Setup interpolant for luminosity as a function of SSP age.
         Loft[Loft == 0] = tiny_lum
@@ -1144,30 +1133,12 @@ class SpectralSynthesis(object):
         if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
             L_asympt = np.exp(_func(np.log(self.src.pf['source_age'])))
 
-        #L_small_t = lambda age: Loft[0]
-
-        # Extrapolate as PL at t < 1 Myr based on first two
-        # grid points
-        #m = np.log(Loft[1] / Loft[0]) \
-        #  / np.log(self.src.tab_t[1] / self.src.tab_t[0])
-        #func = lambda age: np.exp(m * np.log(age) + np.log(Loft[0]))
-
-        #if zobs is None:
-        Lhist = np.zeros(sfh.shape)
-        #if hasattr(self, '_sfh_zeros'):
-        #    Lhist = self._sfh_zeros.copy()
-        #else:
-        #    Lhist = np.zeros_like(sfh)
-        #    self._sfh_zeros = Lhist.copy()
-        #else:
-        #    pass
-            # Lhist will just get made once. Don't need to initialize
-
         ##
         # Loop over the history of object(s) and compute the luminosity of
         # simple stellar populations of the corresponding ages (relative to
         # zobs).
         ##
+        Lhist = np.zeros(sfh.shape)
 
         # Start from initial redshift and move forward in time, i.e., from
         # high redshift to low.

@@ -11,7 +11,6 @@ Description:
 """
 
 import re
-from .BackwardCompatibility import backward_compatibility
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
 try:
@@ -371,16 +370,6 @@ class ParameterFile(dict):
         #tmp = kwargs.copy()
         kwargs = {}
         kwargs.update(kw)
-
-        # Change names of parameters to ensure backward compatibility
-        is_old_model = False
-        for par in old_pars:
-            if par in kwargs:
-                is_old_model = True
-                break
-
-        if is_old_model:
-            kwargs.update(backward_compatibility(**kwargs))
 
         ##
         # Up until this point, just kwargs passed in by the user.

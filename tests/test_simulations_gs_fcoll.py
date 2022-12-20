@@ -29,7 +29,7 @@ def test():
     base = ares.util.ParameterBundle('global_signal:basic')
     kw = ares.util.ParameterBundle('speed:careless')
 
-    for h, approach in enumerate(['new', 'old']):
+    for h, approach in enumerate(['new']):
         ax = None
 
         for i, par in enumerate(pars[approach]):
