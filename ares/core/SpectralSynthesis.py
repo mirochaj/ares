@@ -1116,10 +1116,7 @@ class SpectralSynthesis(object):
 
         # Is this luminosity in some bandpass or monochromatic?
         if band is not None:
-            # Will have been supplied in Angstroms
-            b = h_p * c / (np.array(band) * 1e-8) / erg_per_ev
-
-            Loft = self.src.IntegratedEmission(b[1], b[0],
+            Loft = self.src.get_lum_per_sfr_of_t(band=band, band_units='Angstrom',
                 energy_units=energy_units)
 
             # Need to get Hz^-1 units back
@@ -1128,7 +1125,7 @@ class SpectralSynthesis(object):
 
             #raise NotImplemented('help!')
         else:
-            Loft = self.src.get_lum_per_sfr_of_t(wave=wave, avg=window, raw=False)
+            Loft = self.src.get_lum_per_sfr_of_t(wave=wave, window=window, raw=False)
 
             assert energy_units
         #print("Synth. Lum = ", wave, window)

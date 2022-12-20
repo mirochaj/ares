@@ -168,7 +168,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             kw['source_Z'] = Z
 
             src = self._Source(cosm=self.cosm, **kw)
-            L_per_sfr = src.get_lum_per_sfr(wave=wave, avg=window,
+            L_per_sfr = src.get_lum_per_sfr(wave=wave, window=window,
                 band=band, raw=raw, nebular_only=nebular_only, age=age)
 
             ## Must specify band
@@ -1247,7 +1247,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             L_sfr = 10**f_L_sfr(np.log10(Z))
 
         elif self.pf['pop_lum_per_sfr'] is None:
-            L_sfr = self.src.get_lum_per_sfr(wave=wave, avg=window,
+            L_sfr = self.src.get_lum_per_sfr(wave=wave, window=window,
                 band=band, raw=raw, nebular_only=nebular_only, age=age)
         else:
             assert self.pf['pop_calib_lum'] is None, \
@@ -1361,10 +1361,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_lum_per_sfr'] is None:
                 if age is not None:
                     L_sfr = np.array([self.src.get_lum_per_sfr(wave=wave,
-                        avg=window, band=band, raw=raw,
+                        window=window, band=band, raw=raw,
                         nebular_only=nebular_only, age=_age_) for _age_ in age])
                 else:
-                    L_sfr = self.src.get_lum_per_sfr(wave=wave, avg=window,
+                    L_sfr = self.src.get_lum_per_sfr(wave=wave, window=window,
                         band=band, raw=raw, nebular_only=nebular_only)
             else:
                 assert self.pf['pop_calib_lum'] is None, \

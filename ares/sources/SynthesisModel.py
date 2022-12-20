@@ -98,10 +98,32 @@ class SynthesisModelBase(Source):
         if null_ionizing_spec:
             self._data[self.tab_energies_c > E_LL] *= self.pf['source_fesc']
 
-    def get_avg_photon_energy(self, Emin, Emax):
+    def get_avg_photon_energy(self, band, band_units='eV'):
         """
         Return average photon energy in supplied band.
+
+        Parameters
+        ----------
+        band : 2-element tuple, list, np.ndarray
+            Wavelengths or photon energies that define the boundaries of the
+            interval we care about.
+        band_units : str
+            Determines whether user-supplied `band` values are in 'eV' or
+            'Angstroms' (only two options for now).
+
+        Returns
+        -------
+        Average energy of photons in supplied band in eV.
+
         """
+
+        if band_units.lower() == 'ev':
+            Emin, Emax = band
+        elif band_units.lower().startswith('ang'):
+            Emin = h_p * c / (band[1] * 1e-8) / erg_per_ev
+            Emax = h_p * c / (band[0] * 1e-8) / erg_per_ev
+        else:
+            raise NotImplemented('Unrecognized `band_units` option.')
 
         j1 = np.argmin(np.abs(Emin - self.tab_energies_c))
         j2 = np.argmin(np.abs(Emax - self.tab_energies_c))
@@ -294,33 +316,105 @@ class SynthesisModelBase(Source):
 
         return (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
 
-    def _cache_L(self, wave, avg, Z, raw, nebular_only):
+    def _cache_L(self, wave, window, Z, raw, nebular_only):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (wave, avg, Z, raw, nebular_only) in self._cache_L_:
-            return self._cache_L_[(wave, avg, Z, raw, nebular_only)]
+        if (wave, window, Z, raw, nebular_only) in self._cache_L_:
+            return self._cache_L_[(wave, window, Z, raw, nebular_only)]
 
         return None
 
-    def get_lum_per_sfr_of_t(self, wave=1600., avg=1, band=None, Z=None, units='Hz',
-        raw=False, nebular_only=False, energy_units=True):
+    def get_lum_per_sfr_of_t(self, wave=1600., window=1, band=None, Z=None,
+        units='Hz', raw=False, nebular_only=False, energy_units=True,
+        band_units='Angstrom'):
         """
-        UV luminosity per unit SFR.
+        Compute the luminosity per unit SFR (or mass, if source_ssp=True).
+
+        Parameters
+        ----------
+        wave : int, float
+            Wavelength of interest [Angstroms].
+        window : int
+            Will compute luminosity averaged over this number of pixels in the
+            SED table. So, for `window=1`, the returned luminosity is
+            monochromatic, for `window=10` it is the luminosity averaged in a
+            10 pixel window centered on `wave`, etc.
+        band : tuple
+            If provided, should be a range over which to integrate the spectrum,
+            in units of Angstroms.
+
+        Returns
+        -------
+        Units of output depend on input parameters:
+
+        By default, luminosities are output in erg/s/Hz/SFR. If source_ssp=True,
+        then it's erg/s/Hz/(stellar mass).
+
+        If `band` is provided, luminosities are integrated, so we lose the Hz^-1
+        units and just have luminosities in erg/s/SFR or erg/s/mass.
+
+        If `units` is not 'Hz', then returned value will carry Angstrom^-1 units
+        instead of Hz^-1 units.
+
+        Finally, if `energy_units=False`, then we return the photon luminosity,
+        i.e., the output is in photons/s/[Hz or Angstrom]/[SFR or stellar mass].
         """
 
-        cached_result = self._cache_L(wave, avg, Z, raw, nebular_only)
+        #cached_result = self._cache_L(wave, window, band, Z, raw, nebular_only)
 
-        if cached_result is not None:
-            return cached_result
+        #if cached_result is not None:
+        #    return cached_result
 
-        #if type(wave) in [list, tuple, np.ndarray]:
         if band is not None:
-            E1 = h_p * c / (band[0] * 1e-8) / erg_per_ev
-            E2 = h_p * c / (band[1] * 1e-8) / erg_per_ev
 
-            yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
-                energy_units=energy_units, raw=raw, nebular_only=nebular_only)
+            if band_units.lower() == 'angstrom':
+                E1 = h_p * c / (band[1] * 1e-8) / erg_per_ev
+                E2 = h_p * c / (band[0] * 1e-8) / erg_per_ev
+            elif band_units.lower() == 'ev':
+                E1, E2 = band
+            else:
+                raise NotImplemented('Unrecognized option for `band_units`.')
+
+            #yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
+            #    energy_units=energy_units, raw=raw, nebular_only=nebular_only)
+
+            # Find band of interest -- should be more precise and interpolate
+            if E1 is None:
+                E1 = np.min(self.tab_energies_c)
+            if E2 is None:
+                E2 = np.max(self.tab_energies_c)
+
+            if (E1 < np.min(self.tab_energies_c)) and (E2 < np.min(self.tab_energies_c)):
+                return np.zeros_like(self.tab_t)
+
+            i0 = np.argmin(np.abs(self.tab_energies_c - E1))
+            i1 = np.argmin(np.abs(self.tab_energies_c - E2))
+
+            if i0 == i1:
+                print("Emin={}, Emax={}".format(E1, E2))
+                raise ValueError('Are EminNorm and EmaxNorm set properly?')
+
+            if raw and not (nebular_only or self.pf['source_nebular_only']):
+                poke = self.tab_sed_at_age
+                data = self._data_raw
+            else:
+                data = self.tab_sed.copy()
+
+                if nebular_only or self.pf['source_nebular_only']:
+                    poke = self.tab_sed_at_age
+                    data -= self._data_raw
+
+            # Count up the photons in each spectral bin for all times
+            yield_UV = np.zeros_like(self.tab_t)
+            for i in range(self.tab_t.size):
+                if energy_units:
+                    integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
+                else:
+                    integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
+                        / (self.tab_energies_c[i1:i0] * erg_per_ev)
+
+                yield_UV[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
 
         else:
             j = np.argmin(np.abs(wave - self.tab_waves_c))
@@ -341,7 +435,7 @@ class SynthesisModelBase(Source):
                         poke = self.tab_sed_at_age
                         data -= self._data_raw[j,:]
 
-            if avg == 1:
+            if window == 1:
                 if units == 'Hz':
                     yield_UV = data * np.abs(self.tab_dwdn[j])
                 else:
@@ -349,9 +443,9 @@ class SynthesisModelBase(Source):
             else:
                 if Z is not None:
                     raise NotImplemented('hey!')
-                assert avg % 2 != 0, "avg must be odd"
-                avg = int(avg)
-                s = (avg - 1) / 2
+                assert window % 2 != 0, "window must be odd"
+                window = int(window)
+                s = (window - 1) / 2
 
                 j1 = np.argmin(np.abs(wave - s - self.tab_waves_c))
                 j2 = np.argmin(np.abs(wave + s - self.tab_waves_c))
@@ -368,26 +462,26 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        self._cache_L_[(wave, avg, Z, units, raw, nebular_only)] = yield_UV
+        #self._cache_L_[(wave, avg, Z, units, raw, nebular_only)] = yield_UV
 
         return yield_UV
 
-    def _cache_L_per_sfr(self, wave, avg, band, Z, raw, nebular_only, age):
+    def _cache_L_per_sfr(self, wave, window, band, Z, raw, nebular_only, age):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
 
-        if (wave, avg, band, Z, raw, nebular_only, age) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, avg, band, Z, raw, nebular_only, age)]
+        if (wave, window, band, Z, raw, nebular_only, age) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, window, band, Z, raw, nebular_only, age)]
 
         return None
 
-    def get_lum_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
+    def get_lum_per_sfr(self, wave=1600., window=1, Z=None, band=None,
             energy_units=True, raw=False, nebular_only=False, age=None):
         """
         Specific emissivity at provided wavelength at `source_age`.
 
         .. note :: This is just taking self.get_lum_per_sfr_of_t and interpolating
-            to some time, source_age. This is generally used when assuming
+            to some time, `source_age`. This is generally used when assuming
             constant star formation -- in the UV, get_lum_per_sfr_of_t will
             asymptote to a ~constant value after ~100s of Myr.
 
@@ -395,7 +489,7 @@ class SynthesisModelBase(Source):
         ----------
         wave : int, float
             Wavelength at which to determine emissivity.
-        avg : int
+        window : int
             Number of wavelength bins over which to average
 
         Units are
@@ -405,7 +499,7 @@ class SynthesisModelBase(Source):
 
         """
 
-        cached = self._cache_L_per_sfr(wave, avg, band, Z, raw, nebular_only, age)
+        cached = self._cache_L_per_sfr(wave, window, band, Z, raw, nebular_only, age)
 
         if cached is not None:
             return cached
@@ -429,7 +523,7 @@ class SynthesisModelBase(Source):
             func = interp1d(self.tab_t, yield_UV, kind='linear')
             result = func(t)
 
-        self._cache_L_per_sfr_[(wave, avg, band, Z, raw, nebular_only, age)] = result
+        self._cache_L_per_sfr_[(wave, window, band, Z, raw, nebular_only, age)] = result
 
         return result
 
@@ -464,7 +558,8 @@ class SynthesisModelBase(Source):
         """
 
         erg_per_variable = \
-           self.IntegratedEmission(Emin, Emax, energy_units=True, raw=raw)
+           self.get_lum_per_sfr_of_t(band=(Emin, Emax), energy_units=True,
+            raw=raw, band_units='eV')
 
         if self.pf['source_ssp']:
             # erg / s / Msun -> erg / s / g
@@ -479,84 +574,84 @@ class SynthesisModelBase(Source):
             self._Lbol_at_tsf = self.Lbol(self.pf['source_age'])
         return self._Lbol_at_tsf
 
-    def Lbol(self, t, raw=True):
-        """
-        Return bolometric luminosity at time `t`.
+    #def Lbol(self, t, raw=True):
+    #    """
+    #    Return bolometric luminosity at time `t`.
 
-        Assume 1 Msun / yr SFR.
-        """
+    #    Assume 1 Msun / yr SFR.
+    #    """
 
-        L = self.IntegratedEmission(energy_units=True, raw=raw)
+    #    L = self.IntegratedEmission(energy_units=True, raw=raw)
 
-        return np.interp(t, self.tab_t, L)
+    #    return np.interp(t, self.tab_t, L)
 
-    def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False,
-        raw=True, nebular_only=False):
-        """
-        Compute photons emitted integrated in some band for all times.
+    #def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False,
+    #    raw=True, nebular_only=False):
+    #    """
+    #    Compute photons emitted integrated in some band for all times.
 
-        Returns
-        -------
-        Integrated flux between (Emin, Emax) for all times in units of
-        photons / sec / (Msun [/ yr]), unless energy_units=True, in which
-        case its erg instead of photons.
-        """
+    #    Returns
+    #    -------
+    #    Integrated flux between (Emin, Emax) for all times in units of
+    #    photons / sec / (Msun [/ yr]), unless energy_units=True, in which
+    #    case its erg instead of photons.
+    #    """
 
-        # Find band of interest -- should be more precise and interpolate
-        if Emin is None:
-            Emin = np.min(self.tab_energies_c)
-        if Emax is None:
-            Emax = np.max(self.tab_energies_c)
+    #    # Find band of interest -- should be more precise and interpolate
+    #    if Emin is None:
+    #        Emin = np.min(self.tab_energies_c)
+    #    if Emax is None:
+    #        Emax = np.max(self.tab_energies_c)
 
-        if (Emin < np.min(self.tab_energies_c)) and (Emax < np.min(self.tab_energies_c)):
-            return np.zeros_like(self.tab_t)
+    #    if (Emin < np.min(self.tab_energies_c)) and (Emax < np.min(self.tab_energies_c)):
+    #        return np.zeros_like(self.tab_t)
 
-        i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
-        i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
+    #    i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
+    #    i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
 
-        if i0 == i1:
-            print("Emin={}, Emax={}".format(Emin, Emax))
-            raise ValueError('Are EminNorm and EmaxNorm set properly?')
+    #    if i0 == i1:
+    #        print("Emin={}, Emax={}".format(Emin, Emax))
+    #        raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
-        if raw and not (nebular_only or self.pf['source_nebular_only']):
-            poke = self.tab_sed_at_age
-            data = self._data_raw
-        else:
-            data = self.tab_sed.copy()
+    #    if raw and not (nebular_only or self.pf['source_nebular_only']):
+    #        poke = self.tab_sed_at_age
+    #        data = self._data_raw
+    #    else:
+    #        data = self.tab_sed.copy()
 
-            if nebular_only or self.pf['source_nebular_only']:
-                poke = self.tab_sed_at_age
-                data -= self._data_raw
+    #        if nebular_only or self.pf['source_nebular_only']:
+    #            poke = self.tab_sed_at_age
+    #            data -= self._data_raw
 
-        # Count up the photons in each spectral bin for all times
-        flux = np.zeros_like(self.tab_t)
-        for i in range(self.tab_t.size):
-            if energy_units:
-                integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
-            else:
-                integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
-                    / (self.tab_energies_c[i1:i0] * erg_per_ev)
+    #    # Count up the photons in each spectral bin for all times
+    #    flux = np.zeros_like(self.tab_t)
+    #    for i in range(self.tab_t.size):
+    #        if energy_units:
+    #            integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
+    #        else:
+    #            integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
+    #                / (self.tab_energies_c[i1:i0] * erg_per_ev)
 
-            flux[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
+    #        flux[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
 
-        # Current units:
-        # if pop_ssp: photons / sec / Msun
-        # else: photons / sec / (Msun / yr)
-        return flux
+    #    # Current units:
+    #    # if pop_ssp: photons / sec / Msun
+    #    # else: photons / sec / (Msun / yr)
+    #    return flux
 
     @property
     def Nion(self):
         if not hasattr(self, '_Nion'):
-            self._Nion = self.PhotonsPerBaryon(13.6, 24.6)
+            self._Nion = self.get_nphot_per_baryon(13.6, 24.6)
         return self._Nion
 
     @property
     def Nlw(self):
         if not hasattr(self, '_Nlw'):
-            self._Nlw = self.PhotonsPerBaryon(10.2, 13.6)
+            self._Nlw = self.get_nphot_per_baryon(10.2, 13.6)
         return self._Nlw
 
-    def PhotonsPerBaryon(self, Emin, Emax, raw=True, return_all_t=False):
+    def get_nphot_per_baryon(self, Emin, Emax, raw=True, return_all_t=False):
         """
         Compute the number of photons emitted per unit stellar baryon.
 
@@ -578,8 +673,8 @@ class SynthesisModelBase(Source):
         """
 
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
-        photons_per_s_per_msun = self.IntegratedEmission(Emin, Emax, raw=raw,
-            energy_units=False)
+        photons_per_s_per_msun = self.get_lum_per_sfr_of_t(band=(Emin, Emax),
+            raw=raw, energy_units=False, band_units='eV')
 
         # Current units:
         # if pop_ssp:

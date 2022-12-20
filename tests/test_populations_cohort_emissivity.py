@@ -33,7 +33,7 @@ def test():
     assert pop_uv.is_emissivity_scalable
     assert pop_xr.is_emissivity_scalable
 
-    zarr = np.arange(6, 30, 01.)
+    zarr = np.arange(6, 30, 1)
 
     L_lw = np.array([pop_uv.get_luminosity_density(z, Emin=10.2, Emax=13.6) \
         for z in zarr]) * cm_per_mpc**3

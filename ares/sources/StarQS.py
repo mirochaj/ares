@@ -34,7 +34,7 @@ class StarQS(Source):
 
     @property
     def N(self):
-        return self.PhotonsPerBaryon
+        return self.get_nphot_per_baryon()
 
     @property
     def Nion(self):
@@ -48,8 +48,7 @@ class StarQS(Source):
             self._Nlw = self.N[0]
         return self._Nlw
 
-    @property
-    def PhotonsPerBaryon(self):
+    def get_nphot_per_baryon(self):
         return self.Q * self.lifetime * s_per_yr \
             / (self.pf['source_mass'] * g_per_msun * self.cosm.b_per_g)
 

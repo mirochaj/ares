@@ -18,7 +18,7 @@ def test():
     src = ares.sources.SynthesisModel(source_sed='eldridge2009',
         source_sed_degrade=100, source_Z=0.02)
 
-    Ebar = src.get_avg_photon_energy(13.6, 1e2)
+    Ebar = src.get_avg_photon_energy((13.6, 1e2), band_units='eV')
     assert 13.6 <= Ebar <= 1e2
 
     nu = src.tab_freq_c
