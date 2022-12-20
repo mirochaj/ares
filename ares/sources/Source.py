@@ -387,7 +387,7 @@ class Source(object):
 
         return self._hnu_bar_all
 
-    def AveragePhotonEnergy(self, Emin, Emax):
+    def get_avg_photon_energy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
         """

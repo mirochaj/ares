@@ -155,8 +155,8 @@ class SpectralSynthesis(object):
         if wave in self._L_of_Z_t:
             return self._L_of_Z_t[wave]
 
-        tarr = self.src.times
-        Zarr = np.sort(list(self.src.metallicities.values()))
+        tarr = self.src.tab_t
+        Zarr = np.sort(list(self.src.tab_metallicities))
         L = np.zeros((tarr.size, Zarr.size))
         for j, Z in enumerate(Zarr):
             L[:,j] = self.src.L_per_sfr_of_t(wave, Z=Z)
@@ -429,7 +429,7 @@ class SpectralSynthesis(object):
         dL = self.cosm.LuminosityDistance(zobs)
 
         if waves is None:
-            waves = self.src.wavelengths
+            waves = self.src.tab_waves_c
             dwdn = self.src.dwdn
             assert len(spec) == len(waves)
         else:
@@ -574,8 +574,8 @@ class SpectralSynthesis(object):
             lmin = lmin * 1e4 / (1. + zobs)
             lmax = lmax * 1e4 / (1. + zobs)
 
-            lmin = max(lmin, self.src.wavelengths.min())
-            lmax = min(lmax, self.src.wavelengths.max())
+            lmin = max(lmin, self.src.tab_waves_c.min())
+            lmax = min(lmax, self.src.tab_waves_c.max())
 
             # Force edges to be multiples of dlam
             l1 = lmin - lbuffer
@@ -1136,12 +1136,12 @@ class SpectralSynthesis(object):
 
         # Setup interpolant for luminosity as a function of SSP age.
         Loft[Loft == 0] = tiny_lum
-        _func = interp1d(np.log(self.src.times), np.log(Loft),
+        _func = interp1d(np.log(self.src.tab_t), np.log(Loft),
             kind=self.pf['pop_synth_age_interp'], bounds_error=False,
             fill_value=(Loft[0], Loft[-1]))
 
         # Extrapolate linearly at times < 1 Myr
-        _m = (Loft[1] - Loft[0]) / (self.src.times[1] - self.src.times[0])
+        _m = (Loft[1] - Loft[0]) / (self.src.tab_t[1] - self.src.tab_t[0])
         L_small_t = lambda age: _m * age + Loft[0]
 
         if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
@@ -1152,7 +1152,7 @@ class SpectralSynthesis(object):
         # Extrapolate as PL at t < 1 Myr based on first two
         # grid points
         #m = np.log(Loft[1] / Loft[0]) \
-        #  / np.log(self.src.times[1] / self.src.times[0])
+        #  / np.log(self.src.tab_t[1] / self.src.tab_t[0])
         #func = lambda age: np.exp(m * np.log(age) + np.log(Loft[0]))
 
         #if zobs is None:
@@ -1267,7 +1267,7 @@ class SpectralSynthesis(object):
                 else:
                     L_per_msun = np.exp(_func(np.log(ages)))
                     #L_per_msun = np.exp(np.interp(np.log(ages),
-                    #    np.log(self.src.times), np.log(Loft),
+                    #    np.log(self.src.tab_t), np.log(Loft),
                     #    left=np.log(Loft[0]), right=np.log(Loft[-1])))
 
                     _dt = dt[0:i]

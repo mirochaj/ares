@@ -22,7 +22,7 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
         source_ssp=True, source_aging=True)
 
     # Just checking
-    E = toy.energies
+    E = toy.tab_energies_c
     dE = toy.dE
     dndE = toy.dndE
     f = toy.frequencies
@@ -70,26 +70,26 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
         # Plot parameteric model solution
         #ax1.loglog(tarr, L(tarr, wave=wave), color=colors[i], ls='--')
 
-        y2 = toy.data[np.argmin(np.abs(toy.wavelengths - wave)),:]
+        y2 = toy.tab_sed[np.argmin(np.abs(toy.tab_waves_c - wave)),:]
 
         # Plot BPASS solution
         if not show_bpass:
             continue
 
-        y1 = src.data[np.argmin(np.abs(src.wavelengths - wave)),:]
+        y1 = src.tab_sed[np.argmin(np.abs(src.tab_waves_c - wave)),:]
 
     ##
     # Plot spectra
     ##
     for i, _t in enumerate([1, 10, 100]):
 
-        y2 = toy.data[:,np.argmin(np.abs(toy.times - _t))]
+        y2 = toy.tab_sed[:,np.argmin(np.abs(toy.tab_t - _t))]
 
         # Plot BPASS solution
         if not show_bpass:
             continue
 
-        y1 = src.data[:,np.argmin(np.abs(src.times - _t))]
+        y1 = src.tab_sed[:,np.argmin(np.abs(src.tab_t - _t))]
 
     ##
     # Make sure the spectra we put in are the spectra we get out.

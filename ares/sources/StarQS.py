@@ -103,7 +103,7 @@ class StarQS(Source):
         if not hasattr(self, '_Eavg'):
             self._Eavg = []
             for i, pt in enumerate(self.bands):
-                self._Eavg.append(self.ideal.AveragePhotonEnergy(*pt))
+                self._Eavg.append(self.ideal.get_avg_photon_energy(*pt))
             self._Eavg = np.array(self._Eavg)
 
         return self._Eavg

@@ -162,7 +162,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return L_of_Z_func
 
         tmp = []
-        Zarr = np.sort(list(self.src.metallicities.values()))
+        Zarr = np.sort(list(self.src.tab_metallicities))
         for Z in Zarr:
             kw = self.src_kwargs.copy()
             kw['source_Z'] = Z
@@ -1168,8 +1168,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 x = self.get_lum(z=z, wave=wave, window=window)
 
-            phi, b_e = np.histogram(x, bins=bins, weights=1/self.pf['pop_volume'])
-            return bins, phi
+            phi, b_e = np.histogram(x, bins=bin_c2e(bins))
+            return bins, phi / self.pf['pop_volume']
 
         if use_mags:
             _x_, phi_of_x = self._get_uvlf_mags(z, bins, wave=wave, window=window,
@@ -2591,7 +2591,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 return self.run_abundance_match(z=kwargs['z'],
                     Mh=kwargs['Mh'])
         else:
-            return self.fstar(**kwargs)
+            fstar = self.fstar(**kwargs)
+            if False:#fstar.size == 1:
+                return fstar[0]
+            else:
+                return fstar
 
     @property
     def yield_per_sfr(self):
@@ -2780,11 +2784,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not self.pf['pop_star_formation']:
             fstar = SFR = 0.0
         elif self.pf['pop_sfr'] is None:
-            fstar = self.SFE(**kw)
+            fstar = self.get_sfe(**kw)
             SFR = PIR * fstar
         else:
             fstar = 1e-10
-            SFR = self.sfr(**kw) * dtdz
+            SFR = self.get_sfr(**kw) * dtdz
 
         # "Quiet" mass growth
         fsmooth = self.fsmooth(**kw)

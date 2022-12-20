@@ -25,11 +25,11 @@ class SynthesisModelToy(SynthesisModelBase):
         #self.Emax = self.pf['source_Emax']
 
     @property
-    def energies(self):
+    def tab_energies_c(self):
         if not hasattr(self, '_energies'):
             if (self.pf['source_wavelengths'] is not None) or \
                (self.pf['source_lmin'] is not None):
-                self._energies = h_p * c / self.wavelengths / cm_per_ang \
+                self._energies = h_p * c / self.tab_waves_c / cm_per_ang \
                     / erg_per_ev
             else:
                 dE = self.pf['source_dE']
@@ -44,7 +44,7 @@ class SynthesisModelToy(SynthesisModelBase):
         return self._energies
 
     @property
-    def wavelengths(self):
+    def tab_waves_c(self):
         if not hasattr(self, '_wavelengths'):
             if self.pf['source_wavelengths'] is not None:
                 self._wavelengths = self.pf['source_wavelengths']
@@ -53,7 +53,7 @@ class SynthesisModelToy(SynthesisModelBase):
                     self.pf['source_lmax']+self.pf['source_dlam'],
                     self.pf['source_dlam'])
             else:
-                self._wavelengths = h_p * c / self.energies / erg_per_ev \
+                self._wavelengths = h_p * c / self.tab_energies_c / erg_per_ev \
                     / cm_per_ang
 
             if (self._wavelengths.max() < 2e3):
@@ -67,11 +67,11 @@ class SynthesisModelToy(SynthesisModelBase):
     @property
     def frequencies(self):
         if not hasattr(self, '_frequencies'):
-            self._frequencies = c / self.wavelengths / cm_per_ang
+            self._frequencies = c / self.tab_waves_c / cm_per_ang
         return self._frequencies
 
     @property
-    def times(self):
+    def tab_t(self):
         if not hasattr(self, '_times'):
             if self.pf['source_times'] is not None:
                 self._times = self.pf['source_times']
@@ -83,21 +83,21 @@ class SynthesisModelToy(SynthesisModelBase):
     @property
     def dE(self):
         if not hasattr(self, '_dE'):
-            tmp = np.abs(np.diff(self.energies))
+            tmp = np.abs(np.diff(self.tab_energies_c))
             self._dE = np.concatenate((tmp, [tmp[-1]]))
         return self._dE
 
     @property
     def dndE(self):
         if not hasattr(self, '_dndE'):
-            tmp = np.abs(np.diff(self.frequencies) / np.diff(self.energies))
+            tmp = np.abs(np.diff(self.frequencies) / np.diff(self.tab_energies_c))
             self._dndE = np.concatenate((tmp, [tmp[-1]]))
         return self._dndE
 
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
-            self._dwdn =  self.wavelengths**2 / (c * 1e8)
+            self._dwdn =  self.tab_waves_c**2 / (c * 1e8)
         return self._dwdn
 
     @property
@@ -235,14 +235,14 @@ class SynthesisModelToy(SynthesisModelBase):
         return spec
 
     @property
-    def data(self):
+    def tab_sed(self):
         """
         Units of erg / s / A / Msun
         """
         if not hasattr(self, '_data'):
-            self._data = np.zeros((self.wavelengths.size, self.times.size))
-            for i, t in enumerate(self.times):
-                self._data[:,i] = self._Spectrum(t, wave=self.wavelengths)
+            self._data = np.zeros((self.tab_waves_c.size, self.tab_t.size))
+            for i, t in enumerate(self.tab_t):
+                self._data[:,i] = self._Spectrum(t, wave=self.tab_waves_c)
 
             self._add_nebular_emission()
 

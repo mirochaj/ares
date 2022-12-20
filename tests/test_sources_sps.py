@@ -18,7 +18,7 @@ def test():
     src = ares.sources.SynthesisModel(source_sed='eldridge2009',
         source_sed_degrade=100, source_Z=0.02)
 
-    Ebar = src.AveragePhotonEnergy(13.6, 1e2)
+    Ebar = src.get_avg_photon_energy(13.6, 1e2)
     assert 13.6 <= Ebar <= 1e2
 
     nu = src.frequencies
@@ -29,12 +29,12 @@ def test():
 
     # Check caching and Z-interpolation.
     source_sps_data = src.pf['source_Z'], src.pf['source_ssp'], \
-        src.wavelengths, src.times, src.data
+        src.tab_waves_c, src.tab_t, src.tab_sed
 
     src2 = ares.sources.SynthesisModel(source_sed='eldridge2009',
         source_sed_degrade=100, source_Z=0.02, source_sps_data=source_sps_data)
 
-    assert np.allclose(src.data, src2.data)
+    assert np.allclose(src.tab_sed, src2.tab_sed)
 
     # Can't test Z interpolation until we download more than Z=0.02 tables
     # for test suite.

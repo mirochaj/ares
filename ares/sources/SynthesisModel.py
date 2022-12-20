@@ -13,12 +13,14 @@ Description:
 import numpy as np
 from ..data import ARES
 from .Source import Source
+from ..util.Stats import bin_c2e
 from ..util.Math import interp1d
 from ares.physics import Cosmology
 from scipy.optimize import minimize
 from scipy.integrate import cumtrapz
 from ..util.ReadData import read_lit
 from ..physics import NebularEmission
+from functools import cached_property
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz, E_LL
@@ -28,7 +30,7 @@ class SynthesisModelBase(Source):
     def _nebula(self):
         if not hasattr(self, '_nebula_'):
             self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
-            self._nebula_.wavelengths = self.wavelengths
+            self._nebula_.wavelengths = self.tab_waves_c
         return self._nebula_
 
     @property
@@ -38,9 +40,9 @@ class SynthesisModelBase(Source):
             if self.pf['source_nebular'] > 1 and \
                 self.pf['source_nebular_continuum']:
 
-                for i, t in enumerate(self.times):
+                for i, t in enumerate(self.tab_t):
                     if self.pf['source_tneb'] is not None:
-                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
+                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.tab_t))
                     else:
                         j = i
 
@@ -60,9 +62,9 @@ class SynthesisModelBase(Source):
             self._neb_line_ = np.zeros_like(self._data)
             if self.pf['source_nebular'] > 1 and \
                 self.pf['source_nebular_lines']:
-                for i, t in enumerate(self.times):
+                for i, t in enumerate(self.tab_t):
                     if self.pf['source_tneb'] is not None:
-                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.times))
+                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.tab_t))
                     else:
                         j = i
 
@@ -94,17 +96,17 @@ class SynthesisModelBase(Source):
             null_ionizing_spec = self.pf['source_nebular'] > 1
 
         if null_ionizing_spec:
-            self._data[self.energies > E_LL] *= self.pf['source_fesc']
+            self._data[self.tab_energies_c > E_LL] *= self.pf['source_fesc']
 
-    def AveragePhotonEnergy(self, Emin, Emax):
+    def get_avg_photon_energy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
         """
 
-        j1 = np.argmin(np.abs(Emin - self.energies))
-        j2 = np.argmin(np.abs(Emax - self.energies))
+        j1 = np.argmin(np.abs(Emin - self.tab_energies_c))
+        j2 = np.argmin(np.abs(Emax - self.tab_energies_c))
 
-        E = self.energies[j2:j1][-1::-1]
+        E = self.tab_energies_c[j2:j1][-1::-1]
 
         # Units: erg / s / Hz
         to_int = self.Spectrum(E)
@@ -134,9 +136,9 @@ class SynthesisModelBase(Source):
             return cached_result
 
         # reverse energies so they are in ascending order
-        nrg = self.energies[-1::-1]
+        nrg = self.tab_energies_c[-1::-1]
 
-        spec = np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
+        spec = np.interp(E, nrg, self.tab_sed_at_age[-1::-1]) / self.norm
 
         if type(E) != np.ndarray:
             self._cache_spec_[E] = spec
@@ -145,16 +147,16 @@ class SynthesisModelBase(Source):
 
     def get_sed_at_t(self, t=None, i_tsf=None, raw=False, nebular_only=False):
         if i_tsf is None:
-            i_tsf = np.argmin(np.abs(t - self.times))
+            i_tsf = np.argmin(np.abs(t - self.tab_t))
 
         if raw and not (nebular_only or self.pf['source_nebular_only']):
-            poke = self.sed_at_tsf
+            poke = self.tab_sed_at_age
             data = self._data_raw
         else:
-            data = self.data.copy()
+            data = self.tab_sed.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
-                poke = self.sed_at_tsf
+                poke = self.tab_sed_at_age
                 data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
@@ -165,42 +167,32 @@ class SynthesisModelBase(Source):
 
         return sed
 
-    @property
-    def sed_at_tsf(self):
-        if not hasattr(self, '_sed_at_tsf'):
-            self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf,
-                raw=False)
+    @cached_property
+    def tab_sed_at_age(self):
+        self._sed_at_tsf = self.get_sed_at_t(i_tsf=self.i_tsf, raw=False)
         return self._sed_at_tsf
 
-    @property
-    def sed_at_tsf_raw(self):
-        if not hasattr(self, '_sed_at_tsf_raw'):
-            self._sed_at_tsf_raw = self.get_sed_at_t(i_tsf=self.i_tsf,
-                raw=True)
+    @cached_property
+    def tab_sed_at_age_raw(self):
+        self._sed_at_tsf_raw = self.get_sed_at_t(i_tsf=self.i_tsf, raw=True)
         return self._sed_at_tsf_raw
 
-    @property
+    @cached_property
     def dE(self):
-        if not hasattr(self, '_dE'):
-            tmp = np.abs(np.diff(self.energies))
-            self._dE = np.concatenate((tmp, [tmp[-1]]))
+        tmp = np.abs(np.diff(self.tab_energies_c))
+        self._dE = np.concatenate((tmp, [tmp[-1]]))
         return self._dE
 
-    @property
+    @cached_property
     def dndE(self):
-        if not hasattr(self, '_dndE'):
-            tmp = np.abs(np.diff(self.frequencies) / np.diff(self.energies))
-            self._dndE = np.concatenate((tmp, [tmp[-1]]))
+        #if not hasattr(self, '_dndE'):
+        tmp = np.abs(np.diff(self.frequencies) / np.diff(self.tab_energies_c))
+        self._dndE = np.concatenate((tmp, [tmp[-1]]))
         return self._dndE
 
-    @property
+    @cached_property
     def dwdn(self):
-        if not hasattr(self, '_dwdn'):
-            #if np.allclose(np.diff(np.diff(self.wavelengths)), 0):
-            self._dwdn = self.wavelengths**2 / (c * 1e8)
-            #else:
-            #tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
-            #    self._dwdn = np.concatenate((tmp, [tmp[-1]]))
+        self._dwdn = self.tab_waves_c**2 / (c * 1e8)
         return self._dwdn
 
     @property
@@ -214,31 +206,27 @@ class SynthesisModelBase(Source):
             # for SynthesisModels we don't specify luminosities by hand. By
             # using (EminNorm, EmaxNorm), we run the risk of specifying a
             # range not spanned by the model.
-            j1 = np.argmin(np.abs(self.Emin - self.energies))
-            j2 = np.argmin(np.abs(self.Emax - self.energies))
+            j1 = np.argmin(np.abs(self.Emin - self.tab_energies_c))
+            j2 = np.argmin(np.abs(self.Emax - self.tab_energies_c))
 
             # Remember: energy axis in descending order
             # Note use of sed_at_tsf_raw: need to be careful to normalize
             # to total power before application of fesc.
-            self._norm = np.trapz(self.sed_at_tsf_raw[j2:j1][-1::-1],
-                x=self.energies[j2:j1][-1::-1])
+            self._norm = np.trapz(self.tab_sed_at_age_raw[j2:j1][-1::-1],
+                x=self.tab_energies_c[j2:j1][-1::-1])
 
         return self._norm
 
     @property
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
-            self._i_tsf = np.argmin(np.abs(self.pf['source_age'] - self.times))
+            self._i_tsf = np.argmin(np.abs(self.pf['source_age'] - self.tab_t))
         return self._i_tsf
-
-    @property
-    def Nfreq(self):
-        return len(self.energies)
 
     @property
     def E(self):
         if not hasattr(self, '_E'):
-            self._E = np.sort(self.energies)
+            self._E = np.sort(self.tab_energies_c)
         return self._E
 
     @property
@@ -250,31 +238,31 @@ class SynthesisModelBase(Source):
             if self.pf['source_ssp']:
                 raise NotImplemented('No support for SSPs yet (due to t-dep)!')
 
-            _LE = self.sed_at_tsf * self.dE / self.Lbol_at_tsf
+            _LE = self.tab_sed_at_age * self.dE / self.Lbol_at_tsf
 
-            s = np.argsort(self.energies)
+            s = np.argsort(self.tab_energies_c)
             self._LE = _LE[s]
 
         return self._LE
 
-    @property
-    def energies(self):
-        if not hasattr(self, '_energies'):
-            self._energies = h_p * c / (self.wavelengths / 1e8) / erg_per_ev
+    @cached_property
+    def tab_energies_c(self):
+        #if not hasattr(self, '_energies'):
+        self._energies = h_p * c / (self.tab_waves_c / 1e8) / erg_per_ev
         return self._energies
 
     @property
     def Emin(self):
-        return np.min(self.energies)
+        return np.min(self.tab_energies_c)
 
     @property
     def Emax(self):
-        return np.max(self.energies)
+        return np.max(self.tab_energies_c)
 
-    @property
+    @cached_property
     def frequencies(self):
-        if not hasattr(self, '_frequencies'):
-            self._frequencies = c / (self.wavelengths / 1e8)
+        #if not hasattr(self, '_frequencies'):
+        self._frequencies = c / (self.tab_waves_c / 1e8)
         return self._frequencies
 
     @property
@@ -283,10 +271,10 @@ class SynthesisModelBase(Source):
         Photon emissivity.
         """
         if not hasattr(self, '_E_per_M'):
-            self._E_per_M = np.zeros_like(self.data)
-            for i in range(self.times.size):
-                self._E_per_M[:,i] = self.data[:,i] \
-                    / (self.energies * erg_per_ev)
+            self._E_per_M = np.zeros_like(self.tab_sed)
+            for i in range(self.tab_t.size):
+                self._E_per_M[:,i] = self.tab_sed[:,i] \
+                    / (self.tab_energies_c * erg_per_ev)
 
         return self._E_per_M
 
@@ -298,12 +286,12 @@ class SynthesisModelBase(Source):
             routines in GalaxyEnsemble for more precision.
         """
         if data is None:
-            data = self.data
+            data = self.tab_sed
 
-        ok = np.logical_or(wave1 == self.wavelengths,
-                           wave2 == self.wavelengths)
+        ok = np.logical_or(wave1 == self.tab_waves_c,
+                           wave2 == self.tab_waves_c)
 
-        arr = self.wavelengths[ok==1]
+        arr = self.tab_waves_c[ok==1]
 
         Lh_l = np.array(data[ok==1,:])
 
@@ -311,9 +299,6 @@ class SynthesisModelBase(Source):
         logL = np.log(Lh_l)
 
         return (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
-
-    def LUV_of_t(self):
-        return self.L_per_sfr_of_t()
 
     def _cache_L(self, wave, avg, Z, raw, nebular_only):
         if not hasattr(self, '_cache_L_'):
@@ -324,8 +309,8 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def L_per_sfr_of_t(self, wave=1600., avg=1, Z=None, units='Hz',
-        raw=False, nebular_only=False):
+    def L_per_sfr_of_t(self, wave=1600., avg=1, band=None, Z=None, units='Hz',
+        raw=False, nebular_only=False, energy_units=True):
         """
         UV luminosity per unit SFR.
         """
@@ -335,31 +320,31 @@ class SynthesisModelBase(Source):
         if cached_result is not None:
             return cached_result
 
-        if type(wave) in [list, tuple, np.ndarray]:
-
-            E1 = h_p * c / (wave[0] * 1e-8) / erg_per_ev
-            E2 = h_p * c / (wave[1] * 1e-8) / erg_per_ev
+        #if type(wave) in [list, tuple, np.ndarray]:
+        if band is not None:
+            E1 = h_p * c / (band[0] * 1e-8) / erg_per_ev
+            E2 = h_p * c / (band[1] * 1e-8) / erg_per_ev
 
             yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
-                energy_units=True, raw=raw, nebular_only=nebular_only)
+                energy_units=energy_units, raw=raw, nebular_only=nebular_only)
 
         else:
-            j = np.argmin(np.abs(wave - self.wavelengths))
+            j = np.argmin(np.abs(wave - self.tab_waves_c))
 
             if Z is not None:
                 assert not raw, "Fix Z-dep option!"
-                Zvals = np.sort(list(self.metallicities.values()))
+                Zvals = np.sort(list(self.tab_metallicities))
                 k = np.argmin(np.abs(Z - Zvals))
-                raw = self.data # just to be sure it has been read in.
+                raw = self.tab_sed # just to be sure it has been read in.
                 data = self._data_all_Z[k,j]
             else:
                 if raw and not (nebular_only or self.pf['source_nebular_only']):
-                    poke = self.sed_at_tsf
+                    poke = self.tab_sed_at_age
                     data = self._data_raw[j,:]
                 else:
-                    data = self.data[j,:].copy()
+                    data = self.tab_sed[j,:].copy()
                     if nebular_only or self.pf['source_nebular_only']:
-                        poke = self.sed_at_tsf
+                        poke = self.tab_sed_at_age
                         data -= self._data_raw[j,:]
 
             if avg == 1:
@@ -374,14 +359,14 @@ class SynthesisModelBase(Source):
                 avg = int(avg)
                 s = (avg - 1) / 2
 
-                j1 = np.argmin(np.abs(wave - s - self.wavelengths))
-                j2 = np.argmin(np.abs(wave + s - self.wavelengths))
+                j1 = np.argmin(np.abs(wave - s - self.tab_waves_c))
+                j2 = np.argmin(np.abs(wave + s - self.tab_waves_c))
 
                 if units == 'Hz':
-                    yield_UV = np.mean(self.data[j1:j2+1,:] \
+                    yield_UV = np.mean(self.tab_sed[j1:j2+1,:] \
                         * np.abs(self.dwdn[j1:j2+1])[:,None], axis=0)
                 else:
-                    yield_UV = np.mean(self.data[j1:j2+1,:])
+                    yield_UV = np.mean(self.tab_sed[j1:j2+1,:])
 
         # Current units:
         # if pop_ssp:
@@ -393,12 +378,12 @@ class SynthesisModelBase(Source):
 
         return yield_UV
 
-    def _cache_L_per_sfr(self, wave, avg, Z, raw, nebular_only, age):
+    def _cache_L_per_sfr(self, wave, avg, band, Z, raw, nebular_only, age):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
 
-        if (wave, avg, Z, raw, nebular_only, age) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only, age)]
+        if (wave, avg, band, Z, raw, nebular_only, age) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, avg, band, Z, raw, nebular_only, age)]
 
         return None
 
@@ -426,12 +411,13 @@ class SynthesisModelBase(Source):
 
         """
 
-        cached = self._cache_L_per_sfr(wave, avg, Z, raw, nebular_only, age)
+        cached = self._cache_L_per_sfr(wave, avg, band, Z, raw, nebular_only, age)
 
         if cached is not None:
             return cached
 
-        yield_UV = self.L_per_sfr_of_t(wave, raw=raw, nebular_only=nebular_only)
+        yield_UV = self.L_per_sfr_of_t(wave, band=band, raw=raw,
+            nebular_only=nebular_only, energy_units=energy_units)
 
         if age is not None:
             t = age
@@ -439,17 +425,17 @@ class SynthesisModelBase(Source):
             t = self.pf['source_age']
 
         # Interpolate in time to obtain final LUV
-        if t in self.times:
-            result = yield_UV[np.argmin(np.abs(self.times - t))]
+        if t in self.tab_t:
+            result = yield_UV[np.argmin(np.abs(self.tab_t - t))]
         else:
-            k = np.argmin(np.abs(t - self.times))
-            if self.times[k] > t:
+            k = np.argmin(np.abs(t - self.tab_t))
+            if self.tab_t[k] > t:
                 k -= 1
 
-            func = interp1d(self.times, yield_UV, kind='linear')
+            func = interp1d(self.tab_t, yield_UV, kind='linear')
             result = func(t)
 
-        self._cache_L_per_sfr_[(wave, avg, Z, raw, nebular_only, age)] = result
+        self._cache_L_per_sfr_[(wave, avg, band, Z, raw, nebular_only, age)] = result
 
         return result
 
@@ -457,7 +443,7 @@ class SynthesisModelBase(Source):
         # Find band of interest -- should be more precise and interpolate
 
         if unit == 'A':
-            x = self.wavelengths
+            x = self.tab_waves_c
             i0 = np.argmin(np.abs(x - l0))
             i1 = np.argmin(np.abs(x - l1))
         elif unit == 'Hz':
@@ -468,12 +454,12 @@ class SynthesisModelBase(Source):
         # Current units: photons / sec / baryon / Angstrom
 
         # Count up the photons in each spectral bin for all times
-        photons_per_b_t = np.zeros_like(self.times)
-        for i in range(self.times.size):
+        photons_per_b_t = np.zeros_like(self.tab_t)
+        for i in range(self.tab_t.size):
             photons_per_b_t[i] = np.trapz(self.emissivity_per_sfr[i1:i0,i],
                 x=x[i1:i0])
 
-        t = self.times * s_per_myr
+        t = self.tab_t * s_per_myr
 
     def erg_per_phot(self, Emin, Emax):
         return self.eV_per_phot(Emin, Emax) * erg_per_ev
@@ -483,17 +469,17 @@ class SynthesisModelBase(Source):
         Compute the average energy per photon (in eV) in some band.
         """
 
-        i0 = np.argmin(np.abs(self.energies - Emin))
-        i1 = np.argmin(np.abs(self.energies - Emax))
+        i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
+        i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
 
-        # [self.data] = erg / s / A / [depends]
+        # [self.tab_sed] = erg / s / A / [depends]
 
         # Must convert units
-        E_tot = np.trapz(self.data[i1:i0,:].T * self.wavelengths[i1:i0],
-            x=np.log(self.wavelengths[i1:i0]), axis=1)
-        N_tot = np.trapz(self.data[i1:i0,:].T * self.wavelengths[i1:i0] \
-            / self.energies[i1:i0] / erg_per_ev,
-            x=np.log(self.wavelengths[i1:i0]), axis=1)
+        E_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
+            x=np.log(self.tab_waves_c[i1:i0]), axis=1)
+        N_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
+            / self.tab_energies_c[i1:i0] / erg_per_ev,
+            x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
         if self.pf['source_ssp']:
             return E_tot / N_tot / erg_per_ev
@@ -530,7 +516,7 @@ class SynthesisModelBase(Source):
 
         L = self.IntegratedEmission(energy_units=True, raw=raw)
 
-        return np.interp(t, self.times, L)
+        return np.interp(t, self.tab_t, L)
 
     def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False,
         raw=True, nebular_only=False):
@@ -546,40 +532,40 @@ class SynthesisModelBase(Source):
 
         # Find band of interest -- should be more precise and interpolate
         if Emin is None:
-            Emin = np.min(self.energies)
+            Emin = np.min(self.tab_energies_c)
         if Emax is None:
-            Emax = np.max(self.energies)
+            Emax = np.max(self.tab_energies_c)
 
-        if (Emin < np.min(self.energies)) and (Emax < np.min(self.energies)):
-            return np.zeros_like(self.times)
+        if (Emin < np.min(self.tab_energies_c)) and (Emax < np.min(self.tab_energies_c)):
+            return np.zeros_like(self.tab_t)
 
-        i0 = np.argmin(np.abs(self.energies - Emin))
-        i1 = np.argmin(np.abs(self.energies - Emax))
+        i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
+        i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
 
         if i0 == i1:
             print("Emin={}, Emax={}".format(Emin, Emax))
             raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
         if raw and not (nebular_only or self.pf['source_nebular_only']):
-            poke = self.sed_at_tsf
+            poke = self.tab_sed_at_age
             data = self._data_raw
         else:
-            data = self.data.copy()
+            data = self.tab_sed.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
-                poke = self.sed_at_tsf
+                poke = self.tab_sed_at_age
                 data -= self._data_raw
 
         # Count up the photons in each spectral bin for all times
-        flux = np.zeros_like(self.times)
-        for i in range(self.times.size):
+        flux = np.zeros_like(self.tab_t)
+        for i in range(self.tab_t.size):
             if energy_units:
-                integrand = data[i1:i0,i] * self.wavelengths[i1:i0]
+                integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
             else:
-                integrand = data[i1:i0,i] * self.wavelengths[i1:i0] \
-                    / (self.energies[i1:i0] * erg_per_ev)
+                integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
+                    / (self.tab_energies_c[i1:i0] * erg_per_ev)
 
-            flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
+            flux[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
 
         # Current units:
         # if pop_ssp: photons / sec / Msun
@@ -613,7 +599,7 @@ class SynthesisModelBase(Source):
 
         Returns
         -------
-        An array with the same dimensions as ``self.times``, representing the
+        An array with the same dimensions as ``self.tab_t``, representing the
         cumulative number of photons emitted per stellar baryon of star formation
         as a function of time.
 
@@ -633,10 +619,10 @@ class SynthesisModelBase(Source):
         if self.pf['source_ssp']:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             if return_all_t:
-                return cumtrapz(photons_per_b_t, x=self.times*s_per_myr,
+                return cumtrapz(photons_per_b_t, x=self.tab_t*s_per_myr,
                     initial=0.0)
             else:
-                return np.trapz(photons_per_b_t, x=self.times*s_per_myr)
+                return np.trapz(photons_per_b_t, x=self.tab_t*s_per_myr)
         # Take steady-state result
         else:
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \
@@ -656,32 +642,37 @@ class SynthesisModel(SynthesisModelBase):
 
         return self._litinst_
 
-    @property
-    def wavelengths(self):
-        if not hasattr(self, '_wavelengths'):
-            if self.pf['source_sed_by_Z'] is not None:
-                self._wavelengths, junk = self.pf['source_sed_by_Z']
-            else:
-                data = self.data
+    @cached_property
+    def tab_waves_c(self):
+        #if not hasattr(self, '_tab_waves_cs'):
+        if self.pf['source_sed_by_Z'] is not None:
+            self._wavelengths, junk = self.pf['source_sed_by_Z']
+        else:
+            data = self.tab_sed
 
         return self._wavelengths
 
-    @property
-    def weights(self):
-        return self._litinst.weights
+    @cached_property
+    def tab_waves_e(self):
+        self._waves_e = bin_c2e(self.tab_waves_c)
+        return self._waves_e
 
-    @property
-    def times(self):
+    #@property
+    #def weights(self):
+    #    return self._litinst.weights
+
+    @cached_property
+    def tab_t(self):
         if not hasattr(self, '_times'):
             self._times = self._litinst.times
         return self._times
 
-    @property
-    def metallicities(self):
-        return self._litinst.metallicities
+    @cached_property
+    def tab_metallicities(self):
+        return self._litinst.metallicities.values()
 
-    @property
-    def data(self):
+    @cached_property
+    def tab_sed(self):
         """
         Units = erg / s / A / [depends]
 
@@ -693,92 +684,90 @@ class SynthesisModel(SynthesisModelBase):
 
         """
 
-        if not hasattr(self, '_data'):
-
-            if self.pf['source_sps_data'] is not None:
-                _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
-                assert _Z == self.pf['source_Z']
-                assert _ssp == self.pf['source_ssp']
-                self._data = _data
-                self._times = _times
-                self._wavelengths = _waves
-                self._add_nebular_emission()
-                return self._data
-
-            Zall_l = list(self.metallicities.values())
-            Zall = np.sort(Zall_l)
-
-            # Check to see dimensions of tmp. Depending on if we're
-            # interpolating in Z, it might be multiple arrays.
-            if (self.pf['source_Z'] in Zall_l):
-                if self.pf['source_sed_by_Z'] is not None:
-                    _tmp = self.pf['source_sed_by_Z'][1]
-                    self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
-                else:
-                    self._wavelengths, self._data, _fn = \
-                        self._litinst._load(**self.pf)
-
-                    if self.pf['verbose']:
-                        print("# Loaded {}".format(_fn.replace(ARES,
-                            '$ARES')))
-            else:
-                if self.pf['source_sed_by_Z'] is not None:
-                    _tmp = self.pf['source_sed_by_Z'][1]
-                    assert len(_tmp) == len(Zall)
-                else:
-                    # Will load in all metallicities
-                    self._wavelengths, _tmp, _fn = \
-                        self._litinst._load(**self.pf)
-
-                    if self.pf['verbose']:
-                        for _fn_ in _fn:
-                            print("# Loaded {}".format(_fn_.replace(ARES, '$ARES')))
-
-                # Shape is (Z, wavelength, time)?
-                to_interp = np.array(_tmp)
-                self._data_all_Z = to_interp
-
-                # If outside table's metallicity range, just use endpoints
-                if self.pf['source_Z'] > max(Zall):
-                    _raw_data = np.log10(to_interp[-1])
-                elif self.pf['source_Z'] < min(Zall):
-                    _raw_data = np.log10(to_interp[0])
-                else:
-                    # At each time, interpolate between SEDs at two different
-                    # metallicities. Note: interpolating to log10(SED) caused
-                    # problems when nebular emission was on and when
-                    # starburst99 was being used (mysterious),
-                    # hence the log-linear approach here.
-                    _raw_data = np.zeros_like(to_interp[0])
-                    for i, t in enumerate(self._litinst.times):
-                        inter = interp1d(np.log10(Zall),
-                            to_interp[:,:,i], axis=0,
-                            fill_value=0.0, kind=self.pf['interp_Z'])
-                        _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
-
-                self._data = _raw_data
-
-                # By doing the interpolation in log-space we sometimes
-                # get ourselves into trouble in bins with zero flux.
-                # Gotta correct for that!
-                #self._data[np.argwhere(np.isnan(self._data))] = 0.0
-
-            # Normalize by SFR or cluster mass.
-            if self.pf['source_ssp']:
-                # The factor of a million is built-in to the lookup tables
-                self._data *= self.pf['source_mass'] / 1e6
-                if hasattr(self, '_data_all_Z'):
-                    self._data_all_Z *= self.pf['source_mass'] / 1e6
-            else:
-                #raise NotImplemented('need to revisit this.')
-                self._data *= self.pf['source_sfr']
-
-            # Zero-out first and last entry in spectral dimension to avoid
-            # erroneous 'extrapolation' outside the provided range.
-            self._data[0,:] = 0
-            self._data[-1,:] = 0
-
-            # Add nebular emission (duh)
+        if self.pf['source_sps_data'] is not None:
+            _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
+            assert _Z == self.pf['source_Z']
+            assert _ssp == self.pf['source_ssp']
+            self._data = _data
+            self._times = _times
+            self._tab_waves_c = _waves
             self._add_nebular_emission()
+            return self._data
+
+        Zall_l = list(self.tab_metallicities)
+        Zall = np.sort(Zall_l)
+
+        # Check to see dimensions of tmp. Depending on if we're
+        # interpolating in Z, it might be multiple arrays.
+        if (self.pf['source_Z'] in Zall_l):
+            if self.pf['source_sed_by_Z'] is not None:
+                _tmp = self.pf['source_sed_by_Z'][1]
+                self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
+            else:
+                self._wavelengths, self._data, _fn = \
+                    self._litinst._load(**self.pf)
+
+                if self.pf['verbose']:
+                    print("# Loaded {}".format(_fn.replace(ARES,
+                        '$ARES')))
+        else:
+            if self.pf['source_sed_by_Z'] is not None:
+                _tmp = self.pf['source_sed_by_Z'][1]
+                assert len(_tmp) == len(Zall)
+            else:
+                # Will load in all metallicities
+                self._wavelengths, _tmp, _fn = \
+                    self._litinst._load(**self.pf)
+
+                if self.pf['verbose']:
+                    for _fn_ in _fn:
+                        print("# Loaded {}".format(_fn_.replace(ARES, '$ARES')))
+
+            # Shape is (Z, wavelength, time)?
+            to_interp = np.array(_tmp)
+            self._data_all_Z = to_interp
+
+            # If outside table's metallicity range, just use endpoints
+            if self.pf['source_Z'] > max(Zall):
+                _raw_data = np.log10(to_interp[-1])
+            elif self.pf['source_Z'] < min(Zall):
+                _raw_data = np.log10(to_interp[0])
+            else:
+                # At each time, interpolate between SEDs at two different
+                # metallicities. Note: interpolating to log10(SED) caused
+                # problems when nebular emission was on and when
+                # starburst99 was being used (mysterious),
+                # hence the log-linear approach here.
+                _raw_data = np.zeros_like(to_interp[0])
+                for i, t in enumerate(self._litinst.times):
+                    inter = interp1d(np.log10(Zall),
+                        to_interp[:,:,i], axis=0,
+                        fill_value=0.0, kind=self.pf['interp_Z'])
+                    _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
+
+            self._data = _raw_data
+
+            # By doing the interpolation in log-space we sometimes
+            # get ourselves into trouble in bins with zero flux.
+            # Gotta correct for that!
+            #self._data[np.argwhere(np.isnan(self._data))] = 0.0
+
+        # Normalize by SFR or cluster mass.
+        if self.pf['source_ssp']:
+            # The factor of a million is built-in to the lookup tables
+            self._data *= self.pf['source_mass'] / 1e6
+            if hasattr(self, '_data_all_Z'):
+                self._data_all_Z *= self.pf['source_mass'] / 1e6
+        else:
+            #raise NotImplemented('need to revisit this.')
+            self._data *= self.pf['source_sfr']
+
+        # Zero-out first and last entry in spectral dimension to avoid
+        # erroneous 'extrapolation' outside the provided range.
+        self._data[0,:] = 0
+        self._data[-1,:] = 0
+
+        # Add nebular emission (duh)
+        self._add_nebular_emission()
 
         return self._data

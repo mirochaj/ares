@@ -46,37 +46,37 @@ def test():
     pop_sps = ares.populations.GalaxyPopulation(**pars_sps)
 
     for k, t in enumerate([1, 5, 10, 20, 50]):
-        i = np.argmin(np.abs(pop_ares.src.times - t))
+        i = np.argmin(np.abs(pop_ares.src.tab_t - t))
 
         # For some reason, the BPASS+CLOUDY tables only go up to 29999A,
         # so the degraded tables will be one element shorter than their
         # pop_nebular=False counterparts. So, interpolate for errors.
         # (this is really just making shapes the same, since common
         # wavelengths will be identical)
-        y_ares = np.interp(pop_sps.src.wavelengths,
-            pop_ares.src.wavelengths, pop_ares.src.data[:,i])
-        y_ares2 = np.interp(pop_sps.src.wavelengths,
-            pop_ares2.src.wavelengths, pop_ares2.src.data[:,i])
-        err = np.abs(y_ares - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
-        err2 = np.abs(y_ares2 - pop_sps.src.data[:,i]) / pop_sps.src.data[:,i]
+        y_ares = np.interp(pop_sps.src.tab_waves_c,
+            pop_ares.src.tab_waves_c, pop_ares.src.tab_sed[:,i])
+        y_ares2 = np.interp(pop_sps.src.tab_waves_c,
+            pop_ares2.src.tab_waves_c, pop_ares2.src.tab_sed[:,i])
+        err = np.abs(y_ares - pop_sps.src.tab_sed[:,i]) / pop_sps.src.tab_sed[:,i]
+        err2 = np.abs(y_ares2 - pop_sps.src.tab_sed[:,i]) / pop_sps.src.tab_sed[:,i]
 
-        Lion_H = pop_ares.src._nebula.get_ion_lum(pop_ares.src.data[:,i], 0)
-        Lion_He = pop_ares.src._nebula.get_ion_lum(pop_ares.src.data[:,i], 1)
-        Lion_He2 = pop_ares.src._nebula.get_ion_lum(pop_ares.src.data[:,i], 2)
+        Lion_H = pop_ares.src._nebula.get_ion_lum(pop_ares.src.tab_sed[:,i], 0)
+        Lion_He = pop_ares.src._nebula.get_ion_lum(pop_ares.src.tab_sed[:,i], 1)
+        Lion_He2 = pop_ares.src._nebula.get_ion_lum(pop_ares.src.tab_sed[:,i], 2)
 
         assert Lion_H > Lion_He
         assert Lion_He > Lion_He2
 
-        Nion_H = pop_ares.src._nebula.get_ion_num(pop_ares.src.data[:,i], 0)
-        Nion_He = pop_ares.src._nebula.get_ion_num(pop_ares.src.data[:,i], 1)
-        Nion_He2 = pop_ares.src._nebula.get_ion_num(pop_ares.src.data[:,i], 2)
+        Nion_H = pop_ares.src._nebula.get_ion_num(pop_ares.src.tab_sed[:,i], 0)
+        Nion_He = pop_ares.src._nebula.get_ion_num(pop_ares.src.tab_sed[:,i], 1)
+        Nion_He2 = pop_ares.src._nebula.get_ion_num(pop_ares.src.tab_sed[:,i], 2)
 
         assert Nion_H > Nion_He
         assert Nion_He > Nion_He2
 
-        Eion_H = pop_ares.src._nebula.get_ion_Eavg(pop_ares.src.data[:,i], 0)
-        Eion_He = pop_ares.src._nebula.get_ion_Eavg(pop_ares.src.data[:,i], 1)
-        Eion_He2 = pop_ares.src._nebula.get_ion_Eavg(pop_ares.src.data[:,i], 2)
+        Eion_H = pop_ares.src._nebula.get_ion_Eavg(pop_ares.src.tab_sed[:,i], 0)
+        Eion_He = pop_ares.src._nebula.get_ion_Eavg(pop_ares.src.tab_sed[:,i], 1)
+        Eion_He2 = pop_ares.src._nebula.get_ion_Eavg(pop_ares.src.tab_sed[:,i], 2)
 
         assert E_LL < Eion_H < 24.6
         assert 24.6 < Eion_He < 4 * E_LL
@@ -85,24 +85,24 @@ def test():
 
     # Make sure emission at Ly-a is brighter for population with nebular
     # lines included.
-    ilya = np.argmin(np.abs(pop_ares.src.wavelengths - lam_LyA))
-    assert np.all(pop_ares.src.data[ilya,:] > pop_con.src.data[ilya,:])
+    ilya = np.argmin(np.abs(pop_ares.src.tab_waves_c - lam_LyA))
+    assert np.all(pop_ares.src.tab_sed[ilya,:] > pop_con.src.tab_sed[ilya,:])
 
     # Make sure emission at H-a is brighter for population with nebular
     # lines included.
     EHa = pop_ares.src._nebula.hydr.BohrModel(ninto=2, nfrom=3)
-    iHa = np.argmin(np.abs(pop_ares.src.energies - EHa))
-    assert np.all(pop_ares.src.data[iHa,:] > pop_con.src.data[iHa,:])
+    iHa = np.argmin(np.abs(pop_ares.src.tab_energies_c - EHa))
+    assert np.all(pop_ares.src.tab_sed[iHa,:] > pop_con.src.tab_sed[iHa,:])
 
     # Make sure emission in rest-UV continuum is brighter for population with
     # nebular continuum+lines included.
-    i1400 = np.argmin(np.abs(pop_ares.src.wavelengths - 1400))
-    assert np.all(pop_ares.src.data[i1400,:] > pop_con.src.data[i1400,:])
+    i1400 = np.argmin(np.abs(pop_ares.src.tab_waves_c - 1400))
+    assert np.all(pop_ares.src.tab_sed[i1400,:] > pop_con.src.tab_sed[i1400,:])
 
     # Check the Ferland (1980) vs default (Dopita & Sutherland) treatments
-    i1000 = np.argmin(np.abs(pop_ares.src.wavelengths - 1000.))
-    err = abs(pop_ares.src.data[i1000,:] - pop_ares2.src.data[i1000,:]) \
-        / pop_ares.src.data[i1000,:]
+    i1000 = np.argmin(np.abs(pop_ares.src.tab_waves_c - 1000.))
+    err = abs(pop_ares.src.tab_sed[i1000,:] - pop_ares2.src.tab_sed[i1000,:]) \
+        / pop_ares.src.tab_sed[i1000,:]
     assert np.all(err <= 1e-2), \
         "Ferland (1980) results should be closer to Dopita \& Sutherland!"
 

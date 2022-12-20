@@ -79,7 +79,7 @@ def normalize_sed(pop):
         assert pop.pf['pop_Enorm'] is not None
         energy_per_sfr *= s_per_yr / g_per_msun / ev_per_hz
     else:
-        erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
+        erg_per_phot = pop.src.get_avg_photon_energy(E1, E2) * erg_per_ev
 
     if units == 'photons/baryon':
         energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon

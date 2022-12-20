@@ -70,7 +70,7 @@ class SynthesisModelHybrid(SynthesisModelBase): # pragma: no cover
         return data
 
     @property
-    def wavelengths(self):
+    def tab_waves_c(self):
         if self.pf['pop_sps_data'] is not None:
             self.bpass = self.pf['pop_sps_data'][2]
             self.starburst = self.pf['pop_sps_data'][3]
