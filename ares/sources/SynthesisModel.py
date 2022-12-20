@@ -272,19 +272,6 @@ class SynthesisModelBase(Source):
         self._freq_e = c / (self.tab_waves_e / 1e8)
         return self._energies_e
 
-    @property
-    def emissivity_per_sfr(self):
-        """
-        Photon emissivity.
-        """
-        if not hasattr(self, '_E_per_M'):
-            self._E_per_M = np.zeros_like(self.tab_sed)
-            for i in range(self.tab_t.size):
-                self._E_per_M[:,i] = self.tab_sed[:,i] \
-                    / (self.tab_energies_c * erg_per_ev)
-
-        return self._E_per_M
-
     def get_beta(self, wave1=1600, wave2=2300, data=None):
         """
         Return UV slope in band between `wave1` and `wave2`.
@@ -316,7 +303,7 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def L_per_sfr_of_t(self, wave=1600., avg=1, band=None, Z=None, units='Hz',
+    def get_lum_per_sfr_of_t(self, wave=1600., avg=1, band=None, Z=None, units='Hz',
         raw=False, nebular_only=False, energy_units=True):
         """
         UV luminosity per unit SFR.
@@ -394,14 +381,14 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def L_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
+    def get_lum_per_sfr(self, wave=1600., avg=1, Z=None, band=None, window=1,
             energy_units=True, raw=False, nebular_only=False, age=None):
         """
         Specific emissivity at provided wavelength at `source_age`.
 
-        .. note :: This is just taking self.L_per_sfr_of_t and interpolating
+        .. note :: This is just taking self.get_lum_per_sfr_of_t and interpolating
             to some time, source_age. This is generally used when assuming
-            constant star formation -- in the UV, L_per_sfr_of_t will
+            constant star formation -- in the UV, get_lum_per_sfr_of_t will
             asymptote to a ~constant value after ~100s of Myr.
 
         Parameters
@@ -423,7 +410,7 @@ class SynthesisModelBase(Source):
         if cached is not None:
             return cached
 
-        yield_UV = self.L_per_sfr_of_t(wave, band=band, raw=raw,
+        yield_UV = self.get_lum_per_sfr_of_t(wave, band=band, raw=raw,
             nebular_only=nebular_only, energy_units=energy_units)
 
         if age is not None:
@@ -445,28 +432,6 @@ class SynthesisModelBase(Source):
         self._cache_L_per_sfr_[(wave, avg, band, Z, raw, nebular_only, age)] = result
 
         return result
-
-    def integrated_emissivity(self, l0, l1, unit='A'):
-        # Find band of interest -- should be more precise and interpolate
-
-        if unit == 'A':
-            x = self.tab_waves_c
-            i0 = np.argmin(np.abs(x - l0))
-            i1 = np.argmin(np.abs(x - l1))
-        elif unit == 'Hz':
-            x = self.tab_freq_c
-            i1 = np.argmin(np.abs(x - l0))
-            i0 = np.argmin(np.abs(x - l1))
-
-        # Current units: photons / sec / baryon / Angstrom
-
-        # Count up the photons in each spectral bin for all times
-        photons_per_b_t = np.zeros_like(self.tab_t)
-        for i in range(self.tab_t.size):
-            photons_per_b_t[i] = np.trapz(self.emissivity_per_sfr[i1:i0,i],
-                x=x[i1:i0])
-
-        t = self.tab_t * s_per_myr
 
     def erg_per_phot(self, Emin, Emax):
         return self.eV_per_phot(Emin, Emax) * erg_per_ev

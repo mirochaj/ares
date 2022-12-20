@@ -159,7 +159,7 @@ class SpectralSynthesis(object):
         Zarr = np.sort(list(self.src.tab_metallicities))
         L = np.zeros((tarr.size, Zarr.size))
         for j, Z in enumerate(Zarr):
-            L[:,j] = self.src.L_per_sfr_of_t(wave, Z=Z)
+            L[:,j] = self.src.get_lum_per_sfr_of_t(wave, Z=Z)
 
         # Interpolant
         self._L_of_Z_t[wave] = RectBivariateSpline(np.log10(tarr),
@@ -1128,7 +1128,7 @@ class SpectralSynthesis(object):
 
             #raise NotImplemented('help!')
         else:
-            Loft = self.src.L_per_sfr_of_t(wave=wave, avg=window, raw=False)
+            Loft = self.src.get_lum_per_sfr_of_t(wave=wave, avg=window, raw=False)
 
             assert energy_units
         #print("Synth. Lum = ", wave, window)

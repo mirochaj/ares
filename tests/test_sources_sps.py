@@ -22,7 +22,6 @@ def test():
     assert 13.6 <= Ebar <= 1e2
 
     nu = src.tab_freq_c
-    ehat = src.emissivity_per_sfr
 
     beta = src.get_beta()
     assert -3 <= np.mean(beta) <= 2

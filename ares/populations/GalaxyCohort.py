@@ -168,7 +168,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             kw['source_Z'] = Z
 
             src = self._Source(cosm=self.cosm, **kw)
-            L_per_sfr = src.L_per_sfr(wave=wave, avg=window,
+            L_per_sfr = src.get_lum_per_sfr(wave=wave, avg=window,
                 band=band, raw=raw, nebular_only=nebular_only, age=age)
 
             ## Must specify band
@@ -1247,7 +1247,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             L_sfr = 10**f_L_sfr(np.log10(Z))
 
         elif self.pf['pop_lum_per_sfr'] is None:
-            L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+            L_sfr = self.src.get_lum_per_sfr(wave=wave, avg=window,
                 band=band, raw=raw, nebular_only=nebular_only, age=age)
         else:
             assert self.pf['pop_calib_lum'] is None, \
@@ -1360,11 +1360,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             elif self.pf['pop_lum_per_sfr'] is None:
                 if age is not None:
-                    L_sfr = np.array([self.src.L_per_sfr(wave=wave,
+                    L_sfr = np.array([self.src.get_lum_per_sfr(wave=wave,
                         avg=window, band=band, raw=raw,
                         nebular_only=nebular_only, age=_age_) for _age_ in age])
                 else:
-                    L_sfr = self.src.L_per_sfr(wave=wave, avg=window,
+                    L_sfr = self.src.get_lum_per_sfr(wave=wave, avg=window,
                         band=band, raw=raw, nebular_only=nebular_only)
             else:
                 assert self.pf['pop_calib_lum'] is None, \
@@ -1399,7 +1399,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 assert self.pf['pop_dust_yield'] in [None,0], \
                     "pop_dust_yield must be zero for GalaxyCohort objects!"
 
-                # Just the product of SFR and L_per_sfr
+                # Just the product of SFR and L
                 if self.is_central_pop:
                     Lh = sfr * L_sfr
                 else:
@@ -2026,7 +2026,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_lum_per_sfr'] is not None:
             L_per_sfr = self.pf['pop_lum_per_sfr']
         else:
-            L_per_sfr = self.src.L_per_sfr(wave)
+            L_per_sfr = self.src.get_lum_per_sfr(wave)
 
         # Loop over luminosities and perform abundance match
         mh_of_mag = []
@@ -2621,7 +2621,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.pf['pop_calib_lum'] is not None:
                 assert self.pf['pop_ssp'] == False
                 wave = self.pf['pop_calib_wave']
-                boost = self.pf['pop_calib_lum'] / self.src.L_per_sfr(wave)
+                boost = self.pf['pop_calib_lum'] / self.src.get_lum_per_sfr(wave)
             else:
                 boost = 1.
 
