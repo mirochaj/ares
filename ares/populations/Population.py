@@ -20,6 +20,7 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..obs import MagnitudeSystem
 from ..util.ReadData import read_lit
+from ..util.Misc import numeric_types
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..util.Warnings import no_lya_warning
@@ -65,7 +66,7 @@ def normalize_sed(pop):
         # In this case Emin, Emax, EminNorm, EmaxNorm are irrelevant
         E1 = pop.src.Emin
         E2 = pop.src.Emax
-        return pop.src.rad_yield(E1, E2)
+        return pop.src.get_rad_yield(E1, E2)
     else:
         # Remove whitespace and convert everything to lower-case
         units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
@@ -405,6 +406,11 @@ class Population(object):
                 self._is_emissivity_scalable = False
                 return self._is_emissivity_scalable
 
+            if self.is_quiescent:
+                if type(self.pf['pop_age']) not in numeric_types:
+                    self._is_emissivity_scalable = False
+                    return self._is_emissivity_scalable
+
             self._is_emissivity_scalable = True
 
             # If an X-ray source and no PQs, we're scalable.
@@ -711,8 +717,8 @@ class Population(object):
 
             # If tabulated, do things differently
             if self.sed_tab:
-                factor = self.src.rad_yield(Emin, Emax) \
-                    / self.src.rad_yield(*self.reference_band)
+                factor = self.src.get_rad_yield(Emin, Emax) \
+                    / self.src.get_rad_yield(*self.reference_band)
             else:
                 factor = quad(self.src.Spectrum, Emin, Emax)[0] \
                     / quad(self.src.Spectrum, *self.reference_band)[0]

@@ -72,6 +72,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         that requires accessing a SynthesisModel.
         """
 
+        print(f"Calling __gettattr__ for name={name}")
+
         # Indicates that this attribute is being accessed from within a
         # property. Don't want to override that behavior!
         # This is in general pretty dangerous but I don't have any better
@@ -93,7 +95,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # A few special cases
         if self.sed_tab and (name in _sed_tab_attributes):
-            att = self.src.__getattribute__(name)
+            att = self.src.__getattribute__('get_' + name)
 
             if name == 'rad_yield':
                 val = att(self.src.Emin, self.src.Emax)
@@ -109,11 +111,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 pars = {}
                 for par in tmp:
                     if tmp[par] == 'from_sed':
-                        pars[par] = self.src.__getattribute__(name)
+                        pars[par] = self.src.__getattribute__('get_' + name)
                     else:
                         pars[par] = tmp[par]
             else:
                 pars = tmp
+
             Mmin = lambda z: self.get_Mmin(z)
             #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
             result = ParameterizedQuantity(**pars)
@@ -292,13 +295,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._func_nh_
 
     @property
-    def _tab_MAR(self):
-        if not hasattr(self, '_tab_MAR_'):
-            self._tab_MAR_ = self.halos.tab_MAR
-
-        return self._tab_MAR_
-
-    @property
     def _tab_MAR_at_Mmin(self):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
@@ -374,8 +370,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._tab_sfrd_at_threshold_
 
-    def rho_L(self, Emin=None, Emax=None):
-        return self.get_luminosity_density(Emin=Emin, Emax=Emax)
+    #def rho_L(self, Emin=None, Emax=None):
+    #    return self.get_luminosity_density(Emin=Emin, Emax=Emax)
 
     def _get_luminosity_density(self, Emin=None, Emax=None):
         """
@@ -614,12 +610,30 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def get_smd(self, z):
         """
         Compute stellar mass density (SMD) at redshift `z`.
+
+        .. note :: Units are grams, so that one can multiply by `yield_per_sfr`
+            to obtain an emissivity.
+
         """
 
         if not hasattr(self, '_func_smd'):
-            dtdz = np.array([self.cosm.dtdz(z) for z in self.halos.tab_z])
-            self._tab_smd = cumtrapz(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
-                dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
+            if self.is_quiescent:
+                assert self.pf['pop_sfr_model'] == 'smhm-func'
+
+                _tab_smd = np.zeros(self.halos.tab_z.size)
+                for i, z in enumerate(self.halos.tab_z):
+                    smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                    smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
+                    integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i]
+                    _tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
+
+                self._tab_smd = _tab_smd
+            else:
+                dtdz = np.array([self.cosm.dtdz(z) \
+                    for z in self.halos.tab_z])
+                self._tab_smd = cumtrapz(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
+                    dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
+
             self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
                 kind=self.pf['pop_interp_sfrd'])
 
@@ -679,7 +693,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                     # Accretion onto all halos (of mass M) at this redshift
                     # This is *matter*, not *baryons*
-                    MAR = self._tab_MAR[i]
+                    MAR = self.halos.tab_MAR[i]
 
                     # Find Mmin in self.halos.tab_M
                     j1 = np.argmin(np.abs(Mmin - self.halos.tab_M))
@@ -873,33 +887,32 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # NEW: if not star-forming, do not relate emissivity to SFRD.
         # Compute via integration over the results of `get_lum`.
-        if self.is_quiescent:
-            # This is clunky -- should have all routines allow user to
-            # specify in eV / wavelength / frequency?
-            if E is not None:
-                wave = h_p * c * 1e8 / (E * erg_per_ev)
-                Lh = self.get_lum(z, wave=wave)
-            else:
-                if Emin is None:
-                    Emin = self.src.Emin
-                if Emax is None:
-                    Emax = self.src.Emax
+        #if self.is_quiescent:
+        #    # This is clunky -- should have all routines allow user to
+        #    # specify in eV / wavelength / frequency?
+        #    if E is not None:
+        #        wave = h_p * c * 1e8 / (E * erg_per_ev)
+        #        Lh = self.get_lum(z, wave=wave)
+        #    else:
+        #        if Emin is None:
+        #            Emin = self.src.Emin
+        #        if Emax is None:
+        #            Emax = self.src.Emax
 
-            if type(z) in numeric_types:
-                Lh = self.get_lum(z, band=(Emin, Emax), band_units='eV')
-                iz = np.argmin(np.abs(z - self.halos.tab_z))
-                dndlnm = self.halos.tab_dndlnm[iz,:]
-                return np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
-            else:
-                enu = np.zeros_like(z)
-                print('hi', self.id_num, Emin, Emax)
-                for i, _z_ in enumerate(z):
-                    Lh = self.get_lum(_z_, band=(Emin, Emax), band_units='eV')
-                    iz = np.argmin(np.abs(_z_ - self.halos.tab_M))
-                    dndlnm = self.halos.tab_dndlnm[iz,:]
-                    enu[i] = np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
+        #    if type(z) in numeric_types:
+        #        Lh = self.get_lum(z, band=(Emin, Emax), band_units='eV')
+        #        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        #        dndlnm = self.halos.tab_dndlnm[iz,:]
+        #        return np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
+        #    else:
+        #        enu = np.zeros_like(z)
+        #        for i, _z_ in enumerate(z):
+        #            Lh = self.get_lum(_z_, band=(Emin, Emax), band_units='eV')
+        #            iz = np.argmin(np.abs(_z_ - self.halos.tab_M))
+        #            dndlnm = self.halos.tab_dndlnm[iz,:]
+        #            enu[i] = np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
 
-                return enu
+        #        return enu
 
 
         #################

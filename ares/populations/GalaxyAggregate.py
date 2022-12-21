@@ -205,7 +205,10 @@ class GalaxyAggregate(HaloPopulation):
                 return 0.0
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
-        rhoL = self.get_sfrd(z) * self.yield_per_sfr * on
+        if self.is_quiescent:
+            rhoL = self.get_smd(z) * self.yield_per_sfr * on
+        else:
+            rhoL = self.get_sfrd(z) * self.yield_per_sfr * on
 
         ##
         # Models based on photons / baryon
