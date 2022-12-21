@@ -474,9 +474,9 @@ class HaloModel(HaloMassFunction):
         # Load from table if one exists.
         ##
         if self.pf['halo_ps_load'] and load and (not self.pf['halo_ps_linear']):
-            iz = np.argmin(np.abs(z - self.tab_z_ps))
+            iz = np.argmin(np.abs(z - self.tab_z))
 
-            assert abs(z - self.tab_z_ps[iz]) < ztol, \
+            assert abs(z - self.tab_z[iz]) < ztol, \
                 'Supplied redshift (%g) not in table!' % z
 
             if R is not None:
@@ -590,9 +590,9 @@ class HaloModel(HaloMassFunction):
         """ Load table from HDF5 or binary. """
 
         if self.pf['halo_ps_linear']:
-            self._tab_ps_mm = np.zeros((self.tab_z_ps.size, self.tab_k.size))
-            self._tab_cf_mm = np.zeros((self.tab_z_ps.size, self.tab_R.size))
-            for i, _z_ in enumerate(self.tab_z_ps):
+            self._tab_ps_mm = np.zeros((self.tab_z.size, self.tab_k.size))
+            self._tab_cf_mm = np.zeros((self.tab_z.size, self.tab_R.size))
+            for i, _z_ in enumerate(self.tab_z):
                 iz = np.argmin(np.abs(_z_ - self.tab_z))
                 self._tab_ps_mm[i,:] = self._get_ps_lin(self.tab_k, iz)
                 R, cf = get_cf_from_ps_tab(self.tab_k, self._tab_ps_mm[i,:])
@@ -605,7 +605,7 @@ class HaloModel(HaloMassFunction):
 
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')
-            self.tab_z_ps = f['tab_z_ps'].value
+            self.tab_z = f['tab_z_ps'].value
             self.tab_R = f['tab_R'].value
             self.tab_k = f['tab_k'].value
             self.tab_ps_mm = f['tab_ps_mm'].value
@@ -613,7 +613,7 @@ class HaloModel(HaloMassFunction):
             f.close()
         elif re.search('.pkl', fn):
             f = open(fn, 'rb')
-            self.tab_z_ps = pickle.load(f)
+            self.tab_z = pickle.load(f)
             self.tab_R = pickle.load(f)
             self.tab_k = pickle.load(f)
             self.tab_ps_mm = pickle.load(f)
@@ -730,7 +730,7 @@ class HaloModel(HaloMassFunction):
         Tabulate the matter power spectrum as a function of redshift and k.
         """
 
-        pb = ProgressBar(len(self.tab_z_ps), 'ps_dd(z)')
+        pb = ProgressBar(len(self.tab_z), 'ps_dd(z)')
         pb.start()
 
         # Lists to store any checkpoints that are found
@@ -785,7 +785,7 @@ class HaloModel(HaloMassFunction):
 
         # Figure out what redshift still need to be done by somebody
         assignments = []
-        for k, z in enumerate(self.tab_z_ps):
+        for k, z in enumerate(self.tab_z):
             if z in zdone:
                 continue
 
@@ -803,9 +803,9 @@ class HaloModel(HaloMassFunction):
             if len(assignments) % size != 0:
                 print("WARNING: Uneven load: {} redshifts and {} processors!".format(len(assignments), size))
 
-        tab_ps_mm = np.zeros((len(self.tab_z_ps), len(self.tab_k)))
-        tab_cf_mm = np.zeros((len(self.tab_z_ps), len(self.tab_R)))
-        for i, z in enumerate(self.tab_z_ps):
+        tab_ps_mm = np.zeros((len(self.tab_z), len(self.tab_k)))
+        tab_cf_mm = np.zeros((len(self.tab_z), len(self.tab_R)))
+        for i, z in enumerate(self.tab_z):
 
             # Done but not by me!
             if (z in zdone) and (z not in _z):
@@ -843,7 +843,7 @@ class HaloModel(HaloMassFunction):
         pb.finish()
 
         # Grab checkpoints before writing to disk
-        for i, z in enumerate(self.tab_z_ps):
+        for i, z in enumerate(self.tab_z):
 
             # Done but not by me! If not for this, Allreduce would sum
             # solutions from different processors.
@@ -947,7 +947,7 @@ class HaloModel(HaloMassFunction):
 
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
-            f.create_dataset('tab_z_ps', data=self.tab_z_ps)
+            f.create_dataset('tab_z_ps', data=self.tab_z)
             f.create_dataset('tab_R', data=self.tab_R)
             f.create_dataset('tab_k', data=self.tab_k)
             f.create_dataset('tab_ps_mm', data=self.tab_ps_mm)
@@ -957,7 +957,7 @@ class HaloModel(HaloMassFunction):
         # Otherwise, pickle it!
         else:
             f = open(fn, 'wb')
-            pickle.dump(self.tab_z_ps, f)
+            pickle.dump(self.tab_z, f)
             pickle.dump(self.tab_R, f)
             pickle.dump(self.tab_k, f)
             pickle.dump(self.tab_ps_mm, f)

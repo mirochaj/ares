@@ -885,18 +885,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if Emax is None:
                     Emax = self.src.Emax
 
-                w1 = h_p * c * 1e8 / (Emax * erg_per_ev)
-                w2 = h_p * c * 1e8 / (Emin * erg_per_ev)
-
             if type(z) in numeric_types:
-                Lh = self.get_lum(z, band=(w1, w2))
+                Lh = self.get_lum(z, band=(Emin, Emax), band_units='eV')
                 iz = np.argmin(np.abs(z - self.halos.tab_z))
                 dndlnm = self.halos.tab_dndlnm[iz,:]
                 return np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
             else:
                 enu = np.zeros_like(z)
+                print('hi', self.id_num, Emin, Emax)
                 for i, _z_ in enumerate(z):
-                    Lh = self.get_lum(_z_, band=(w1, w2))
+                    Lh = self.get_lum(_z_, band=(Emin, Emax), band_units='eV')
                     iz = np.argmin(np.abs(_z_ - self.halos.tab_M))
                     dndlnm = self.halos.tab_dndlnm[iz,:]
                     enu[i] = np.trapz(Lh * dndlnm, x=np.log(self.halos.tab_M))
@@ -1237,13 +1235,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return b
 
-    def Lh(self, z, wave=1600., window=1, raw=True, nebular_only=False):
-        """
-        For backward compatibility. Just calls self.Luminosity.
-        """
-        return self.get_lum(z, wave=wave, window=window, raw=raw,
-            nebular_only=nebular_only)
-
     def _cache_L(self, z, wave, band, window, energy_units, raw, nebular_only, age):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
@@ -1255,7 +1246,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return None
 
     def get_lum_per_sfr(self, z, Mh=None, wave=1600., window=1., raw=True,
-        nebular_only=False, band=None, age=None):
+        nebular_only=False, band=None, band_units=None, age=None):
         """
         Return luminosity per unit SFR.
         """
@@ -1264,13 +1255,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Z = self.get_metallicity(z, Mh=self.halos.tab_M)
 
             f_L_sfr = self._get_lum_all_Z(wave=wave, band=band,
+                band_units=band_units,
                 window=window, raw=raw, nebular_only=nebular_only, age=age)
 
             L_sfr = 10**f_L_sfr(np.log10(Z))
 
         elif self.pf['pop_lum_per_sfr'] is None:
             L_sfr = self.src.get_lum_per_sfr(wave=wave, window=window,
-                band=band, raw=raw, nebular_only=nebular_only, age=age)
+                band=band, band_units=band_units, raw=raw,
+                nebular_only=nebular_only, age=age)
         else:
             assert self.pf['pop_calib_lum'] is None, \
                 "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
@@ -1871,14 +1864,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 M0x = self.pf['pop_initial_Mh']
                 if (M0x == 0) or (M0x == 1):
                     zform, zfin, Mfin, raw = self.MassAfter()
-                    new_data = self._sort_sam(self.pf['initial_redshift'],
+                    new_data = self._sort_sam(self.zform,
                         zform, raw, sort_by='form')
 
                     self.tmp_data = new_data
 
                 else:
                     zform, zfin, Mfin, raw = self.MassAfter(M0=M0x)
-                    new_data = self._sort_sam(self.pf['initial_redshift'],
+                    new_data = self._sort_sam(self.zform,
                         zform, raw, sort_by='form')
 
                 # This is the redshift at which the first star-forming halo,
@@ -2287,7 +2280,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     # We 'break' here because once Mmax = Mmin, PopIII
                     # should be gone forever.
 
-                    if z < self.pf['initial_redshift']:
+                    if z < self.zform:#self.pf['initial_redshift']:
                         break
                     else:
                         continue
@@ -2396,12 +2389,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             for _i, z in enumerate(self.halos.tab_z[-1::-1]):
 
                 i = self.halos.tab_z.size - _i - 1
-
-                if z <= self.pf['final_redshift']:
-                    break
-
-                if z > self.pf['initial_redshift']:
-                    continue
 
                 if z > self.zform:
                     continue
@@ -3175,12 +3162,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if i == 0:
                 continue
 
-            if z == self.pf['final_redshift']:
+            if z == self.zdead:#self.pf['final_redshift']:
                 break
 
         Nz = len(zfin)
 
-        zfin[0:Nz-i] = self.pf['final_redshift']
+        zfin[0:Nz-i] = self.zdead#self.pf['final_redshift']
         Mfin[0:Nz-i] = max(Mfin)
 
 
@@ -3718,8 +3705,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #print(i, Nz, zarr[-1::-1][i], solver.t, dz[-1::-1][i], solver.t - dz[-1::-1][i])
             solver.integrate(solver.t-dzrev[i])
 
-            #raw_input('<enter>')
-
         if zmax is None:
             zmax = self.zdead
 
@@ -3863,8 +3848,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not self.pf['pop_include_shot']:
             return np.zeros_like(k)
 
-        lum1 = self.get_lum(z, wave=wave1, raw=raw, nebular_only=nebular_only)
-        lum2 = self.get_lum(z, wave=wave2, raw=raw, nebular_only=nebular_only)
+        band1 = wave1 if type(wave1) not in numeric_types else None
+        band2 = wave2 if type(wave2) not in numeric_types else None
+
+        lum1 = self.get_lum(z, wave=wave1, band=band1, band_units='Angstrom',
+            raw=raw, nebular_only=nebular_only)
+        lum2 = self.get_lum(z, wave=wave2, band=band2, band_units='Angstrom',
+            raw=raw, nebular_only=nebular_only)
 
         ps = self.halos.get_ps_shot(z, k=k,
             lum1=lum1, lum2=lum2,
@@ -3935,13 +3925,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if np.all(np.array(wave1) <= 912):
             lum1 = 0
         else:
+            band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, wave=wave1, raw=raw,
+                band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
+            band = wave2 if type(wave2) not in numeric_types else None
             lum2 = self.get_lum(z, wave=wave2, raw=raw,
+                band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
@@ -4037,12 +4031,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if np.all(np.array(wave1) <= 912):
             lum1 = 0
         else:
+            band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, wave=wave1, raw=raw,
+                band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
+            band = wave2 if type(wave2) not in numeric_types else None
             lum2 = self.get_lum(z, wave=wave2, raw=raw,
+                band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
         ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum1,

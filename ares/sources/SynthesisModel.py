@@ -319,18 +319,18 @@ class SynthesisModelBase(Source):
 
         return (logL[0,:] - logL[-1,:]) / (logw[0,None] - logw[-1,None])
 
-    def _cache_L(self, wave, window, Z, raw, nebular_only):
+    def _cache_L(self, kwds):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (wave, window, Z, raw, nebular_only) in self._cache_L_:
-            return self._cache_L_[(wave, window, Z, raw, nebular_only)]
+        if kwds in self._cache_L_:
+            return self._cache_L_[kwds]
 
         return None
 
-    def get_lum_per_sfr_of_t(self, wave=1600., window=1, band=None, Z=None,
-        units='Hz', raw=False, nebular_only=False, energy_units=True,
-        band_units='Angstrom'):
+    def get_lum_per_sfr_of_t(self, wave=1600., window=1, band=None,
+        band_units='Angstrom', units='Hz', raw=False, nebular_only=False,
+        energy_units=True, Z=None):
         """
         Compute the luminosity per unit SFR (or mass, if source_ssp=True).
 
@@ -364,10 +364,12 @@ class SynthesisModelBase(Source):
         i.e., the output is in photons/s/[Hz or Angstrom]/[SFR or stellar mass].
         """
 
-        #cached_result = self._cache_L(wave, window, band, Z, raw, nebular_only)
+        kwds = wave, window, band, band_units, units, raw, nebular_only, \
+            energy_units, Z
 
-        #if cached_result is not None:
-        #    return cached_result
+        cached_result = self._cache_L(kwds)
+        if cached_result is not None:
+            return cached_result
 
         if band is not None:
 
@@ -378,9 +380,6 @@ class SynthesisModelBase(Source):
                 E1, E2 = band
             else:
                 raise NotImplemented('Unrecognized option for `band_units`.')
-
-            #yield_UV = self.IntegratedEmission(Emin=E2, Emax=E1,
-            #    energy_units=energy_units, raw=raw, nebular_only=nebular_only)
 
             # Find band of interest -- should be more precise and interpolate
             if E1 is None:
@@ -465,7 +464,7 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        #self._cache_L_[(wave, avg, Z, units, raw, nebular_only)] = yield_UV
+        self._cache_L_[kwds] = yield_UV
 
         return yield_UV
 

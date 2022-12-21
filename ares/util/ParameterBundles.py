@@ -170,9 +170,9 @@ _pop_hod = \
  'pop_sfr_model': 'smhm-func',
  'final_redshift': 0,
  'pop_zdead': 0,
- 'hmf_dt': None,
- 'hmf_tmax': None,
- 'hmf_zmin': 0,
+ 'halo_dt': None,
+ 'halo_tmax': None,
+ 'halo_zmin': 0,
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
  'pq_func_par0[0]': 3e-4,
@@ -847,13 +847,13 @@ class ParameterBundle(dict):
         Return dictionary of parameters associated with population `num`.
 
         This will take any parameters with ID numbers, and any parameters
-        with the `hmf_` prefix, since populations need to know about that
+        with the `halo_` prefix, since populations need to know about that
         stuff. Also, dustcorr parameters, optical depth stuff.
         """
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
-            if (idnum == num) or prefix.startswith('hmf_') \
+            if (idnum == num) or prefix.startswith('halo_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
                 or prefix.startswith('feedback_') or prefix.startswith('tau_') \
                 or prefix.startswith('master'):

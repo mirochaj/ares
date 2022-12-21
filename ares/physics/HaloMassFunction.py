@@ -307,6 +307,7 @@ class HaloMassFunction(object):
 
             with h5py.File(_path + fn, 'r') as f:
 
+                tab_t = np.array(f[('tab_t')])
                 tab_z = np.array(f[('tab_z')])
                 tab_M = np.array(f[('tab_M')])
                 tab_dndm = np.array(f[('tab_dndm')])
@@ -344,6 +345,7 @@ class HaloMassFunction(object):
             mgtm.append(tab_mgtm)
             tmar.append(tab_MAR)
 
+        self.tab_t = tab_t
         self.tab_z = tab_z
         self.tab_M = tab_M
 
@@ -466,6 +468,10 @@ class HaloMassFunction(object):
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
             self.tab_z = np.array(f[('tab_z')])
+
+            if 'tab_t' in f:
+                self.tab_t = np.array(f[('tab_t')])
+
             self.tab_M = np.array(f[('tab_M')])
             self.tab_dndm = np.array(f[('tab_dndm')])
 
@@ -477,8 +483,10 @@ class HaloMassFunction(object):
 
             self.tab_ngtm = np.array(f[('tab_ngtm')])
             self.tab_mgtm = np.array(f[('tab_mgtm')])
+
             if 'tab_MAR' in f:
                 self._tab_MAR = np.array(f[('tab_MAR')])
+                
             self.tab_growth = np.array(f[('tab_growth')])
 
             f.close()
@@ -685,6 +693,10 @@ class HaloMassFunction(object):
     @tab_z.setter
     def tab_z(self, value):
         self._tab_z = value
+
+    @tab_t.setter
+    def tab_t(self, value):
+        self._tab_t = value
 
     def prep_for_cache(self):
         keys = ['tab_z', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm',
@@ -1445,6 +1457,7 @@ class HaloMassFunction(object):
         if fmt == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('tab_z', data=self.tab_z)
+            f.create_dataset('tab_t', data=self.tab_t)
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_dndm', data=self.tab_dndm)
             f.create_dataset('tab_ngtm', data=self.tab_ngtm)
@@ -1483,6 +1496,7 @@ class HaloMassFunction(object):
         else:
             with open(fn, 'wb') as f:
                 pickle.dump(self.tab_z, f)
+                pickle.dump(self.tab_t, f)
                 pickle.dump(self.tab_M, f)
                 pickle.dump(self.tab_dndm, f)
                 pickle.dump(self.tab_ngtm, f)

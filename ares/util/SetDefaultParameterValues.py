@@ -561,6 +561,7 @@ def PopulationParameters():
                           # it's coherent.
 
     "pop_centrals": True,
+    "pop_ihl": None,
 
     "pop_focc": 1.0,
     "pop_focc_inv": False,
@@ -685,6 +686,7 @@ def PopulationParameters():
 
     # Halo model stuff
     "pop_prof_1h": None,
+    "pop_1h_nebular_only": False,
 
     # For GalaxyEnsemble
     "pop_aging": False,

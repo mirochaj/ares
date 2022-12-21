@@ -21,7 +21,7 @@ _base = \
  'pop_Emin': 0.25, # about 5 microns
  'pop_solve_rte': (0.25, E_LL),
  'tau_clumpy': 0.,
- 'tau_redshift_bins': 4000,
+ 'tau_redshift_bins': 1000,
 
  'halo_dlnk': 0.05,
  'halo_lnk_min': -9.,
