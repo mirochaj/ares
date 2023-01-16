@@ -21,11 +21,9 @@ def test():
     iz = np.argmin(np.abs(6 - pop.halos.tab_z))
     iM = np.argmin(np.abs(1e8 - pop.halos.tab_M))
 
-    try:
-        t = pop.halos.tab_t
-    except AttributeError as err:
-        # Should cause an error! Use even z-sampling by default.
-        pass
+    # Should auto-compute, but even z sampling default
+    t = pop.halos.tab_t
+    assert np.unique(np.diff(t)).size > 1
 
     dndm = pop.halos.tab_dndm[iz,:]
     fcoll8 = pop.halos.tab_fcoll[iz,iM]
@@ -42,7 +40,7 @@ def test():
         "Problem with virial temperature calculation."
 
     # Test caching (motivated by PR #24)
-    cache = pop.halos.tab_z, pop.halos.tab_M, pop.halos.tab_dndm
+    cache = pop.halos.tab_z, pop.halos.tab_t, pop.halos.tab_M, pop.halos.tab_dndm
 
     pop2 = ares.populations.HaloPopulation(halo_mf_cache=cache)
     fcoll8_2 = pop2.halos.tab_fcoll[iz,iM]
@@ -81,6 +79,7 @@ def test():
     pop3.halos.save_hmf(clobber=True, save_MAR=True)
     pop3.halos.save_hmf(clobber=True, save_MAR=True, fmt='pkl')
 
+    print('hey', np.abs(dndm3 - dndm) / dndm)
     assert np.allclose(dndm, dndm3, rtol=1e-2), \
         "Percent-level differences in tabulated and generated HMF!"
 

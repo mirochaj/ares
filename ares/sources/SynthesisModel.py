@@ -646,15 +646,17 @@ class SynthesisModelBase(Source):
 
     @property
     def Nion(self):
-        if not hasattr(self, '_Nion'):
-            self._Nion = self.get_nphot_per_baryon(13.6, 24.6)
-        return self._Nion
+        return self.get_Nion()
 
     @property
     def Nlw(self):
-        if not hasattr(self, '_Nlw'):
-            self._Nlw = self.get_nphot_per_baryon(10.2, 13.6)
-        return self._Nlw
+        return self.get_Nlw()
+
+    def get_Nion(self):
+        return self.get_nphot_per_baryon(13.6, 24.6)
+
+    def get_Nlw(self):
+        return self.get_nphot_per_baryon(10.2, 13.6)
 
     def get_nphot_per_baryon(self, Emin, Emax, raw=True, return_all_t=False):
         """
@@ -677,6 +679,12 @@ class SynthesisModelBase(Source):
 
         """
 
+        if not hasattr(self, '_nphot_per_bar'):
+            self._nphot_per_bar = {}
+
+        if (Emin, Emax, raw, return_all_t) in self._nphot_per_bar:
+            return self._nphot_per_bar[(Emin, Emax, raw, return_all_t)]
+
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
         photons_per_s_per_msun = self.get_lum_per_sfr_of_t(band=(Emin, Emax),
             raw=raw, energy_units=False, band_units='eV')
@@ -691,17 +699,21 @@ class SynthesisModelBase(Source):
         if self.pf['source_ssp']:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             if return_all_t:
-                return cumtrapz(photons_per_b_t, x=self.tab_t*s_per_myr,
+                phot_per_b = cumtrapz(photons_per_b_t, x=self.tab_t*s_per_myr,
                     initial=0.0)
             else:
-                return np.trapz(photons_per_b_t, x=self.tab_t*s_per_myr)
+                phot_per_b = np.trapz(photons_per_b_t, x=self.tab_t*s_per_myr)
         # Take steady-state result
         else:
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \
                 / self.cosm.b_per_msun
 
             # Return last element: steady state result
-            return photons_per_b_t[-1]
+            phot_per_b = photons_per_b_t[-1]
+
+        self._nphot_per_bar[(Emin, Emax, raw, return_all_t)] = phot_per_b
+
+        return phot_per_b
 
 class SynthesisModel(SynthesisModelBase):
     #def __init__(self, **kwargs):

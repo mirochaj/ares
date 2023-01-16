@@ -72,8 +72,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         that requires accessing a SynthesisModel.
         """
 
-        print(f"Calling __gettattr__ for name={name}")
-
         # Indicates that this attribute is being accessed from within a
         # property. Don't want to override that behavior!
         # This is in general pretty dangerous but I don't have any better
@@ -94,12 +92,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             is_php = False
 
         # A few special cases
+        _name = name
         if self.sed_tab and (name in _sed_tab_attributes):
-            att = self.src.__getattribute__('get_' + name)
+
 
             if name == 'rad_yield':
+                _name = 'get_' + name
+                att = self.src.__getattribute__(_name)
                 val = att(self.src.Emin, self.src.Emax)
             else:
+                att = self.src.__getattribute__(_name)
                 val = att
 
             result = lambda **kwargs: val
@@ -111,7 +113,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 pars = {}
                 for par in tmp:
                     if tmp[par] == 'from_sed':
-                        pars[par] = self.src.__getattribute__('get_' + name)
+                        pars[par] = self.src.__getattribute__(_name)
                     else:
                         pars[par] = tmp[par]
             else:
@@ -121,7 +123,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
             result = ParameterizedQuantity(**pars)
 
-            self._update_pq_registry(name, result)
+            self._update_pq_registry(_name, result)
 
         elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
 
@@ -532,8 +534,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         #print('cache', _Emin, _Emax, self._rho_L[(_Emin, _Emax)](10.))
         return self._rho_L[(_Emin, _Emax)]
 
-    def rho_N(self, z, Emin, Emax):
-        return self._get_photon_density(z, Emin, Emax)
+    #def rho_N(self, z, Emin, Emax):
+    #    return self._get_photon_density(z, Emin, Emax)
 
     def _get_photon_density(self, z, Emin, Emax):
         """
@@ -3827,7 +3829,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         fstar = Mst_c / Mh
 
         const = self.cosm.b_per_g * m_H / self.cosm.fbaryon
-        zeta = const * fstar * self.src.Nion * self.fesc(Mh=Mh, z=z)
+        zeta = const * fstar * self.src.get_Nion() * self.fesc(Mh=Mh, z=z)
 
         return Mh, zeta
 

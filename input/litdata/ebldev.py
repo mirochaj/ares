@@ -79,7 +79,7 @@ centrals_sf = \
  #'pq_func_par4[1]': 1.5,
 
  # Add mass evolution too?
- 'pq_func[1]': 'dpl_evolN',
+ 'pq_func[1]': 'dpl_evolNP',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
  'pq_func_par0[1]': 4e-10,
@@ -88,7 +88,8 @@ centrals_sf = \
  'pq_func_par3[1]': -0.9,
  'pq_func_par4[1]': 1e9,
  'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 2.,
+ 'pq_func_par6[1]': 0., # Redshift evol
+ 'pq_func_par7[1]': 0., # peak evol
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',

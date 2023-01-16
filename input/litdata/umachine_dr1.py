@@ -13,9 +13,14 @@ info = \
 
 _input = ARES + '/input/umachine-data/umachine-dr1/observational_constraints'
 
-def get_data(field, sources=None):
+def get_data(field, flag=None, sources=None):
     """
     field options are 'smf', 'uvlf', 'ssfr', 'csfr', 'qf'
+
+    .. note :: For stellar mass functions, things are trickier if we want to
+        sub-divide based on star-forming vs. quiescent galaxies. This is the
+        the sole purpose of the `flag` keyword argument so far. Set `flag=q`
+        for quiescent or 'sf' for star-forming when field='smf' to subdivide.
     """
 
     data = {}
@@ -32,7 +37,8 @@ def get_data(field, sources=None):
             if src not in sources:
                 continue
 
-        data[src] = {}
+        if src not in data:
+            data[src] = {}
 
         # First, read-in header only to figure out what we're dealing with.
         f = open(f"{_input}/{fn}", 'r')
@@ -92,6 +98,20 @@ def get_data(field, sources=None):
 
         x = np.array([Mlo, Mhi]).T
 
+        ##
+        # Modifications for smf with flag='sf' or 'q'
+        # Retrieve quenched fraction in this case
+        if (field == 'smf') and (flag is not None):
+            data_qf = get_data(field='qf', sources=src)
+
+            # First, check that mass range is the same
+            assert np.all(x == data_qf[src][(zlo, zhi)][0]), \
+                f"Mismatch in {src} mass bins for SMF flag={flag}!"
+
+                
+
+        ##
+        # Pack up and move on
         data[src][(zlo, zhi)] = \
             np.atleast_2d(x), phi, np.atleast_2d(yerr)
 

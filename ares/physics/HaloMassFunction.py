@@ -414,13 +414,15 @@ class HaloMassFunction(object):
             return self._load_hmf_wdm()
 
         if self.pf['halo_mf_cache'] is not None:
-            if len(self.pf['halo_mf_cache']) == 3:
-                self.tab_z, self.tab_M, self.tab_dndm = self.pf['halo_mf_cache']
+            if len(self.pf['halo_mf_cache']) == 4:
+                self.tab_z, self.tab_t, self.tab_M, self.tab_dndm = \
+                    self.pf['halo_mf_cache']
+
                 self.tab_ngtm, self.tab_mgtm = self._get_ngtm_mgtm_from_dndm()
                 # tab_MAR will be re-generated automatically if summoned,
                 # as will tab_Mmin_floor.
             else:
-                self.tab_z, self.tab_M, self.tab_dndm, self.tab_mgtm, \
+                self.tab_z, self.tab_t, self.tab_M, self.tab_dndm, self.tab_mgtm, \
                     self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
                         self.pf['halo_mf_cache']
             return
@@ -486,7 +488,7 @@ class HaloMassFunction(object):
 
             if 'tab_MAR' in f:
                 self._tab_MAR = np.array(f[('tab_MAR')])
-                
+
             self.tab_growth = np.array(f[('tab_growth')])
 
             f.close()
@@ -658,6 +660,10 @@ class HaloMassFunction(object):
     def tab_t(self):
         if not hasattr(self, '_tab_t'):
             tab_z = self.tab_z
+
+            if not hasattr(self, '_tab_t'):
+                self._tab_t = self.cosm.t_of_z(self.tab_z) / s_per_myr
+
         return self._tab_t
 
     @property
@@ -678,6 +684,7 @@ class HaloMassFunction(object):
 
                 Nz = int(round(((zmax - zmin) / dz) + 1, 1))
                 self._tab_z = np.linspace(zmin, zmax, Nz)
+                self._tab_t = self.cosm.t_of_z(self._tab_z) / s_per_myr
             else:
                 dt = self.pf['halo_dt'] # Myr
 
@@ -699,7 +706,7 @@ class HaloMassFunction(object):
         self._tab_t = value
 
     def prep_for_cache(self):
-        keys = ['tab_z', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm',
+        keys = ['tab_z', 'tab_t', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm',
             'tab_MAR', 'tab_Mmin_floor']
         hist = [self.__getattribute__(key) for key in keys]
         return hist
