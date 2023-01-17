@@ -251,7 +251,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Array of field values for all halos at redshift `z`.
 
         """
-        zall, data = self.Trajectories()
+        zall, data = self.get_histories()
         iz = np.argmin(np.abs(z - zall))
 
         return data[field][:,iz]
@@ -813,7 +813,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         elif Mh is None:
             k = np.argmin(np.abs(z - self.halos.tab_z))
             if abs(z - self.halos.tab_z[k]) < ztol:
-                return self.tab_sfr[k] * ~self._tab_sfr_mask[k]
+                return self.tab_sfr[k] #* ~self._tab_sfr_mask[k]
             else:
                 Mh = self.halos.tab_M
 
@@ -822,7 +822,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # in cases where we just want to know the SFR at a few redshifts
         # and/or halo masses. But, we're rarely doing such things.
         if not hasattr(self, '_spline_sfr'):
-            log10sfr = np.log10(self.tab_sfr * ~self._tab_sfr_mask)
+            log10sfr = np.log10(self.tab_sfr)# * ~self._tab_sfr_mask)
             # Filter zeros since we're going log10
             log10sfr[np.isinf(log10sfr)] = -90.
             log10sfr[np.isnan(log10sfr)] = -90.
@@ -963,7 +963,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mass in Msun of desired galaxy phase.
 
         """
-        zall, data = self.Trajectories()
+        zall, data = self.get_histories()
         iz = np.argmin(np.abs(z - zall))
 
         if kind in ['halo']:
@@ -1032,7 +1032,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         ##
         # Otherwise, we integrate trajectories.
-        zall, traj_all = self.Trajectories()
+        zall, traj_all = self.get_histories()
         iz = np.argmin(np.abs(z - zall))
         Ms = traj_all['Ms'][:,iz]
         Mh = traj_all['Mh'][:,iz]
@@ -1452,7 +1452,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
-            zarr, data = self.Trajectories()
+            zarr, data = self.get_histories()
 
             iz = np.argmin(np.abs(zarr - z))
 
@@ -3139,7 +3139,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # This loops over a bunch of formation redshifts
         # and computes the trajectories for all SAM fields.
-        zarr, data = self.Trajectories(M0=M0)
+        zarr, data = self.get_histories(M0=M0)
 
         # At this moment, all data is in order of ascending redshift
         # Each element in `data` is 2-D: (zform, zarr)
@@ -3254,14 +3254,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 else:
                     raise NotImplemented('help!')
             else:
-                self._histories = self.Trajectories()[1]
+                self._histories = self.get_histories()[1]
         return self._histories
 
-    #def get_histories(self):
-    #    zall, data = self.Trajectories()
-    #    return data
-
-    def Trajectories(self, M0=0):
+    def get_histories(self, M0=0):
         """
         In this case, the formation time of a halo matters.
 
@@ -3273,7 +3269,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         represents trajectories. So, e.g., to pick out all halo masses at a
         given observed redshift (say z=6) you would do:
 
-            zarr, data = self.Trajectories()
+            zarr, data = self.get_histories()
             k = np.argmin(np.abs(zarr - 6))
             Mh = data[:,k]
 
@@ -3387,15 +3383,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         self.run_sam(z0, M0)
-
-    #def Trajectory(self, z0=None, M0=0):
-    #    """
-    #    Just a wrapper around `RunSAM`.
-    #    """
-    #    return self.run_sam(z0, M0)
-
-    def RunSAM(self, z0=None, M0=0):
-        return self.run_sam(z0=z0, M0=M0)
 
     def run_sam(self, z0=None, M0=0):
         """
