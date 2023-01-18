@@ -12,11 +12,12 @@ Description:
 
 import os
 import gc
+import time
 import numpy as np
 from scipy.integrate import cumtrapz
-from ..util.Misc import numeric_types
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
+from ..util.Misc import numeric_types, get_hash
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c
 
@@ -323,7 +324,7 @@ class LightCone(object): # pragma: no cover
         return ra_e, dec_e, img * cm_per_m**2 / erg_per_s_per_nW
 
     def get_fn(self, fov, channel, pix=1, zlim=None, logmlim=None,
-        prefix=None, suffix=None):
+        prefix=None, suffix=None, fmt='hdf5'):
 
         if zlim is None:
             zlim = self.zlim
@@ -333,8 +334,10 @@ class LightCone(object): # pragma: no cover
 
         pref = 'fov_{:.2f}_pix_{:.1f}'.format(fov, pix)
         pref += '_L{:.0f}_N{:.0f}'.format(self.Lbox, self.dims)
-        pref += '_z_{:.2f}_{:.2f}'.format(*zlim)
-        pref += '_M_{:.1f}_{:.1f}'.format(*logmlim)
+        if zlim is not None:
+            pref += '_z_{:.2f}_{:.2f}'.format(*zlim)
+        if logmlim is not None:
+            pref += '_M_{:.1f}_{:.1f}'.format(*logmlim)
         pref += '_ch_{:.2f}_{:.2f}'.format(*channel)
 
         if prefix is None:
@@ -347,11 +350,12 @@ class LightCone(object): # pragma: no cover
         else:
             suffix = f'_{suffix}'
 
-        return prefix + pref + suffix + '.hdf5'
+        return prefix + pref + suffix + '.' + fmt
 
-    def generate_maps(self, fov, channels, zlim=None, logmlim=None, pix=1,
+    def generate_maps(self, fov, channels, logmlim, dlogm=0.5, zlim=None, pix=1,
         include_galaxy_sizes=False, dlam=20, clobber=False,
-        save_dir=None, prefix=None, suffix=None, **kwargs):
+        save_dir=None, prefix=None, suffix=None, fmt='hdf5', hdr={},
+        **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -383,65 +387,154 @@ class LightCone(object): # pragma: no cover
         if zlim is None:
             zlim = self.zlim
 
-        if logmlim is None:
-            logmlim = -np.inf, 16
-
         if save_dir is None:
             save_dir = '.'
         else:
             if not os.path.exists(save_dir):
                 os.mkdir(save_dir)
 
+        npix = int(fov / (pix / 3600.))
         zchunks = self.get_redshift_chunks(self.zlim)
+        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
+        mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
 
         for channel in channels:
 
+            tot = np.zeros([npix]*2)
+
             for (zlo, zhi) in zchunks:
+
+                totz = np.zeros([npix]*2)
 
                 if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                     continue
 
-                fn = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
-                    logmlim=logmlim, prefix=prefix, suffix=suffix)
+                for (mlo, mhi) in mchunks:
 
-                fn = save_dir + '/' + fn
+                    fn = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
+                        logmlim=(mlo, mhi), prefix=prefix, suffix=suffix, fmt=fmt)
 
-                # Try to read from disk.
-                if os.path.exists(fn) and (not clobber):
-                    print(f"Loaded {fn}")
-                    continue
+                    fn = save_dir + '/' + fn
 
-                print(f"# Will save EBL mock to {fn}.")
+                    # Try to read from disk.
+                    if os.path.exists(fn) and (not clobber):
+                        print(f"Loaded {fn}")
+                        continue
 
-                # Will just be for a single chunk so save_intermediate is
-                # irrelevant.
-                ra_e, dec_e, img = self.get_map(fov, channel, zlim=(zlo, zhi),
-                    logmlim=logmlim,
-                    pix=pix, save_intermediate=False, include_galaxy_sizes=False,
-                    dlam=dlam, use_pbar=False, **kwargs)
+                    print(f"# Will save EBL mock to {fn}.")
 
-                nu = c * 1e4 / np.mean(channel)
-                dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
+                    # Will just be for a single chunk so save_intermediate is
+                    # irrelevant.
+                    ra_e, dec_e, img = self.get_map(fov, channel, zlim=(zlo, zhi),
+                        logmlim=(mlo, mhi),
+                        pix=pix, save_intermediate=False,
+                        include_galaxy_sizes=False,
+                        dlam=dlam, use_pbar=False, **kwargs)
 
-                # `img` is a band-integrated power, convert to band-averaged
-                # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
-                Inu = img[0,:,:] / dnu
+                    nu = c * 1e4 / np.mean(channel)
+                    dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
 
-                with h5py.File(fn, 'w') as f:
-                    f.create_dataset('ebl', data=Inu)
-                    f.create_dataset('ra_bin_e', data=ra_e)
-                    f.create_dataset('ra_bin_c', data=bin_e2c(ra_e))
-                    f.create_dataset('dec_bin_e', data=dec_e)
-                    f.create_dataset('dec_bin_c', data=bin_e2c(dec_e))
-                    f.create_dataset('wave_bin_e', data=channel)
-                    f.create_dataset('z_bin_e', data=[zlo,zhi])
-                    f.create_dataset('m_bin_e', data=logmlim)
-                    f.create_dataset('nu_bin_c', data=nu)
+                    # `img` is a band-integrated power, convert to band-averaged
+                    # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
+                    Inu = img[0,:,:] / dnu
 
-                print(f"# Wrote {fn}.")
+                    # Save
+                    self.save_map(fn, Inu, channel, (zlo, zhi), (mlo, mhi), fov,
+                        pix=pix, fmt=fmt, hdr=hdr)
+
+                    totz += Inu
+
+                ##
+                # Save image summed over mass
+                fnz = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
+                    logmlim=logmlim, prefix=prefix, suffix=suffix, fmt=fmt)
+                fnz = save_dir + '/' + fnz
+
+                self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
+                    pix=pix, fmt=fmt, hdr=hdr)
+
+                # Increment map for this z chunk
+                tot += totz
+
+            ##
+            # Save image summed over mass and redshift.
+            fnt = self.get_fn(fov, channel, pix=pix,
+                zlim=(self.zlim[0], self.zlim[1]),
+                logmlim=logmlim, prefix=prefix, suffix=suffix, fmt=fmt)
+
+            fnt = save_dir + '/' + fnt
+
+            ##
+            # Save image summed over mass
+            self.save_map(fnt, tot, channel, self.zlim, logmlim, fov,
+                pix=pix, fmt=fmt, hdr=hdr)
+
+
+
+    def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
+        hdr={}):
+        """
+        Save map to disk.
+        """
+
+        ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
+
+        nu = c * 1e4 / np.mean(channel)
+
+        if fmt == 'hdf5':
+            with h5py.File(fn, 'w') as f:
+                f.create_dataset('ebl', data=img)
+                f.create_dataset('ra_bin_e', data=ra_e)
+                f.create_dataset('ra_bin_c', data=bin_e2c(ra_e))
+                f.create_dataset('dec_bin_e', data=dec_e)
+                f.create_dataset('dec_bin_c', data=bin_e2c(dec_e))
+                f.create_dataset('wave_bin_e', data=channel)
+                f.create_dataset('z_bin_e', data=zlim)
+                f.create_dataset('m_bin_e', data=logmlim)
+                f.create_dataset('nu_bin_c', data=nu)
+        elif fmt == 'fits':
+            from astropy.io import fits
+
+            # Save as MJy/sr in this case.
+
+            hdr = fits.Header(hdr)
+            #_hdr.update(hdr)
+            #hdr = _hdr
+            hdr['DATE'] = time.ctime()
+
+            hdr['NAXIS'] = 2
+            hdr['BUNIT'] = 'MJy/sr'
+            hdr['CUNIT1'] = 'deg'
+            hdr['CUNIT2'] = 'deg'
+            hdr['CDELT1'] = pix / 3600.
+            hdr['CDELT2'] = pix / 3600.
+            hdr['NAXIS1'] = img.shape[0]
+            hdr['NAXIS2'] = img.shape[1]
+
+            hdr['PLATESC'] = pix
+            hdr['WAVEMIN'] = channel[0]
+            hdr['WAVEMAX'] = channel[1]
+            hdr['CENTRWV'] = np.mean(channel)
+
+            # Stuff specific to this modeling
+            hdr['ZMIN'] = zlim[0]
+            hdr['ZMAX'] = zlim[1]
+            hdr['MHMIN'] = logmlim[0]
+            hdr['MHMAX'] = logmlim[1]
+            hdr['ARES'] = get_hash().decode('utf-8')
+
+            hdr.update(hdr)
+
+            hdu = fits.PrimaryHDU(data=img/1e-17, header=hdr)
+            hdul = fits.HDUList([hdu])
+            hdul.writeto(fn)
+        else:
+            raise NotImplementedError(f'No support for fmt={fmt}')
+
+        print(f"# Wrote {fn}.")
 
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
-        prefix=None, suffix=None, save_dir=None):
+        prefix=None, suffix=None, save_dir=None, fmt='hdf5'):
         """
         Assemble an array of maps.
         """
@@ -451,7 +544,7 @@ class LightCone(object): # pragma: no cover
 
         npix = int(fov / (pix / 3600.))
         zchunks = self.get_redshift_chunks(self.zlim)
-        mbins = np.arange(logmlim[0], logmlim[1]+dlogm, dlogm)
+        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
         mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
 
         layers = np.zeros((len(channels), len(zchunks), len(mbins), npix, npix))
@@ -463,11 +556,11 @@ class LightCone(object): # pragma: no cover
 
             for j, (zlo, zhi) in enumerate(zchunks):
 
-                for k, mbin_lo in enumerate(mbins):
+                for k, (mlo, mhi) in enumerate(mchunks):
 
                     fn = self.get_fn(fov, channel, pix=pix,
                         zlim=(zlo, zhi), prefix=prefix, suffix=suffix,
-                        logmlim=(mbin_lo, mbin_lo+dlogm))
+                        logmlim=(mlo, mhi), fmt=fmt)
 
                     fn = save_dir + '/' + fn
 
@@ -477,8 +570,16 @@ class LightCone(object): # pragma: no cover
 
                     ##
                     # Read!
-                    with h5py.File(fn, 'r') as f:
-                        layers[i,j,k,:,:] = np.array(f[('ebl')])
+                    if fmt == 'hdf5':
+                        with h5py.File(fn, 'r') as f:
+                            layers[i,j,k,:,:] = np.array(f[('ebl')])
+                    elif fmt == 'fits':
+                        from astropy.io import fits
+                        with fits.open(fn) as hdu:
+                            # Convert back to cgs
+                            layers[i,j,k,:,:] = hdu[0].data * 1e-17
+                    else:
+                        raise NotImplementedError(f'No support for fmt={fmt}!')
 
                     print(f"# Loaded {fn}.")
                     Nloaded += 1
