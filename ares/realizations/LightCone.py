@@ -418,7 +418,9 @@ class LightCone(object): # pragma: no cover
 
                     # Try to read from disk.
                     if os.path.exists(fn) and (not clobber):
-                        print(f"Loaded {fn}")
+                        print(f"Found {fn}. Set clobber=True to overwrite.")
+                        _Inu = self._load_map(fn)
+                        totz += _Inu
                         continue
 
                     print(f"# Will save EBL mock to {fn}.")
@@ -450,8 +452,11 @@ class LightCone(object): # pragma: no cover
                     logmlim=logmlim, prefix=prefix, suffix=suffix, fmt=fmt)
                 fnz = save_dir + '/' + fnz
 
-                self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
-                    pix=pix, fmt=fmt, hdr=hdr)
+                # Always overwrite. Not really an issue, if a calculation
+                # terminated early then this file wouldn't have been written.
+                if not os.path.exists(fnz):
+                    self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
+                        pix=pix, fmt=fmt, hdr=hdr)
 
                 # Increment map for this z chunk
                 tot += totz
@@ -466,10 +471,9 @@ class LightCone(object): # pragma: no cover
 
             ##
             # Save image summed over mass
-            self.save_map(fnt, tot, channel, self.zlim, logmlim, fov,
-                pix=pix, fmt=fmt, hdr=hdr)
-
-
+            if not os.path.exists(fnt):
+                self.save_map(fnt, tot, channel, self.zlim, logmlim, fov,
+                    pix=pix, fmt=fmt, hdr=hdr)
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
         hdr={}):
@@ -533,6 +537,25 @@ class LightCone(object): # pragma: no cover
 
         print(f"# Wrote {fn}.")
 
+    def _load_map(self, fn):
+
+        fmt = fn[fn.rfind('.')+1:]
+
+        ##
+        # Read!
+        if fmt == 'hdf5':
+            with h5py.File(fn, 'r') as f:
+                img = np.array(f[('ebl')])
+        elif fmt == 'fits':
+            from astropy.io import fits
+            with fits.open(fn) as hdu:
+                # Convert back to cgs
+                img = hdu[0].data * 1e-17
+        else:
+            raise NotImplementedError(f'No support for fmt={fmt}!')
+
+        return img
+
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
         prefix=None, suffix=None, save_dir=None, fmt='hdf5'):
         """
@@ -568,18 +591,7 @@ class LightCone(object): # pragma: no cover
                     if not os.path.exists(fn):
                         continue
 
-                    ##
-                    # Read!
-                    if fmt == 'hdf5':
-                        with h5py.File(fn, 'r') as f:
-                            layers[i,j,k,:,:] = np.array(f[('ebl')])
-                    elif fmt == 'fits':
-                        from astropy.io import fits
-                        with fits.open(fn) as hdu:
-                            # Convert back to cgs
-                            layers[i,j,k,:,:] = hdu[0].data * 1e-17
-                    else:
-                        raise NotImplementedError(f'No support for fmt={fmt}!')
+                    layers[i,j,k,:,:] = self._load_map(fn)
 
                     print(f"# Loaded {fn}.")
                     Nloaded += 1
