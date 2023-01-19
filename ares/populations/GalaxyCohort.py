@@ -590,6 +590,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self.get_sfrd(z)
 
     @property
+    def focc(self):
+        if not hasattr(self, '_focc'):
+            raise AttributeError('Must be set by hand if at all.')
+        return self._focc
+
+    @focc.setter
+    def focc(self, value):
+        self._focc = value
+
+    @property
     def SFRD(self):
         return self.get_sfrd
 

@@ -149,7 +149,7 @@ class LightCone(object): # pragma: no cover
             #    **kwargs)
 
             ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
-                logmlim=logmlim)
+                logmlim=logmlim, idnum=idnum)
 
             # Could be empty chunks for very massive halos and/or early times.
             if ra is None:

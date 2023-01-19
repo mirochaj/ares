@@ -26,9 +26,10 @@ except ImportError:
     pass
 
 class LogNormal(LightCone): # pragma: no cover
-    def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), seed=None,
-        seed_halos=None, verbose=True, bias_model=0, bias_params=None,
-        bias_replacement=1, bias_within_bin=False, randomise_in_cell=True, **kwargs):
+    def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), verbose=True,
+        seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
+        bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
+        randomise_in_cell=True, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -49,8 +50,10 @@ class LogNormal(LightCone): # pragma: no cover
         self.Lbox = Lbox
         self.dims = dims
         self.zlim = zlim
-        self.seed = seed
-        self.seed_halos = seed_halos
+        self.seed_rho = seed_rho
+        self.seed_halo_mass = seed_halo_mass
+        self.seed_halo_pos = seed_halo_pos
+        self.seed_halo_occ = seed_halo_occ
         self.bias_model = bias_model
         self.bias_params = bias_params
         self.bias_replacement = bias_replacement
@@ -404,7 +407,7 @@ class LogNormal(LightCone): # pragma: no cover
         return mass
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
-        mmin=1e11, mmax=np.inf, randomise_in_cell=True):
+        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, idnum=0):
         """
         Get a realization of a halo population.
 
@@ -474,6 +477,29 @@ class LogNormal(LightCone): # pragma: no cover
 
         if np.any(mass < mmin):
             raise ValueError("help")
+
+        ##
+        # Apply occupation fraction here?
+        if self.sim.pops[idnum].pf['pop_focc'] != 1:
+
+            np.random.seed(seed_occ)
+
+            r = np.random.rand(N)
+            focc = self.sim.pops[idnum].focc(z=z, Mh=mass)
+
+            ok = np.ones(N)
+            ok[r > focc] = 0
+
+            _x = _x[ok==1]
+            _y = _y[ok==1]
+            _z = _z[ok==1]
+            mass = mass[ok==1]
+
+            print(f"# Applied occupation fraction cut for pop #{idnum} at z={zlim} in {np.log10(mmin):.1f},{np.log10(mmax):.1f} mass range.")
+            print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
+
+            if ok.sum() == 0:
+                return None, None, None, None
 
         return _x, _y, _z, mass
 
@@ -558,7 +584,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         return ze, zmid, Re
 
-    def get_catalog(self, zlim=None, logmlim=(11,12), randomise_in_cell=True):
+    def get_catalog(self, zlim=None, logmlim=(11,12), randomise_in_cell=True,
+        idnum=0):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
 
@@ -598,8 +625,14 @@ class LogNormal(LightCone): # pragma: no cover
         Rc = bin_e2c(Re)
         dz = np.diff(ze)
 
-        seeds = self.seed * np.arange(1, len(zmid)+1)
-        seeds_h = self.seed_halos * np.arange(1, len(zmid)+1)
+        # Deterministically adjust the random seeds for the given mass range
+        # and redshift range.
+        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
+        seeds = self.seed_rho * np.arange(1, len(zmid)+1)
+        seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+        seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+        seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
 
         # Figure out if we're getting the catalog of a single chunk
         chunk_id = None
@@ -648,8 +681,9 @@ class LogNormal(LightCone): # pragma: no cover
             #    _ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
             #else:
             halos = self.get_halo_population(z=zmid[i], seed_box=seeds[i],
-                seed=seeds_h[i], mmin=mmin, mmax=mmax,
-                randomise_in_cell=randomise_in_cell)
+                seed=seeds_hm[i], seed_pos=seeds_hp[i], seed_occ=seeds_ho[i],
+                mmin=mmin, mmax=mmax,
+                randomise_in_cell=randomise_in_cell, idnum=idnum)
 
             if halos[0] is None:
                 ra = dec = red = mass = None

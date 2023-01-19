@@ -134,6 +134,7 @@ class CompositePopulation(object):
             elif to_quantity[i] in ['focc']:
                 self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                 self.pops[i].tab_focc = self.pops[entry].tab_focc
+                self.pops[i]._focc = self.pops[entry].focc
             elif to_quantity[i] in ['Mmax_active']:
                 self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                 self.pops[i]._tab_Mmin = self.pops[entry]._tab_Mmax_active
