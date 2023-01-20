@@ -172,3 +172,4 @@ Additional contributions / corrections / suggestions from:
 - Joshua Hibbard
 - Trey Driskell
 - Judah Luberto
+- Paul La Plante

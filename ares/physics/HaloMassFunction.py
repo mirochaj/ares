@@ -464,8 +464,8 @@ class HaloMassFunction(object):
                 else'{0!s}/input/halos'.format(ARES)
 
             _prefix = self.tab_prefix_hmf(True)
-            _fn_ = f'{_path}/{_prefix}.{fmt}'
-            raise IOError("Did not find HMF table suitable for given parameters. Was looking for {}".format(_fn_))
+            _fn_ = f'{_path}/{_prefix}' + '.{}'.format(self.pf['preferred_format'])
+            raise IOError(f"Did not find HMF table suitable for given parameters. Was looking for {_fn_}.")
 
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
             f = h5py.File(self.tab_name, 'r')
