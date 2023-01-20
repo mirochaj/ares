@@ -30,14 +30,14 @@ def_kwargs = \
  #"halo_window": 'sharpk',
 
  # Redshift sampling
- #"halo_zmin": 0.,
- #"halo_zmax": 60.,
- #"halo_dz": 0.05,
+ "halo_zmin": 0.,
+ "halo_zmax": 60.,
+ "halo_dz": 0.05,
 
  # Can do constant timestep instead of constant dz
- "halo_dt": 10,
- "halo_tmin": 30.,
- "halo_tmax": 13.7e3, # Myr
+ #"halo_dt": 10,
+ #"halo_tmin": 30.,
+ #"halo_tmax": 13.7e3, # Myr
 
  # Cosmology
  "cosmology_id": 'best',
@@ -47,14 +47,14 @@ def_kwargs = \
  #"halo_params" : {'a' : 1.0},
  #"filter_params" : {'c' : 2.5}
 
- #"cosmology_id": 'paul',
- #"cosmology_name": 'user',
- #"sigma_8": 0.8159,
- #'primordial_index': 0.9652,
- #'omega_m_0': 0.315579,
- #'omega_b_0': 0.0491,
- #'hubble_0': 0.6726,
- #'omega_l_0': 1. - 0.315579,
+ "cosmology_id": 'paul',
+ "cosmology_name": 'user',
+ "sigma_8": 0.8159,
+ 'primordial_index': 0.9652,
+ 'omega_m_0': 0.315579,
+ 'omega_b_0': 0.0491,
+ 'hubble_0': 0.6726,
+ 'omega_l_0': 1. - 0.315579,
 
 }
 

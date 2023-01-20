@@ -32,19 +32,27 @@ class LightCone(object): # pragma: no cover
     """
 
     def get_pixels(self, fov, pix=1):
-        # Figure out the edges of the domain in RA and DEC (degrees)
-        ra0, ra1 = fov * 0.5 * np.array([-1, 1])
-        dec0, dec1 = fov * 0.5 * np.array([-1, 1])
 
-        pix_deg = pix / 3600.
+        if type(fov) in numeric_types:
+            fov = np.array([fov]*2)
+
+        npixx = int(fov[0] * 3600 / pix)
+        npixy = int(fov[1] * 3600 / pix)
+
+        # Figure out the edges of the domain in RA and DEC (arcsec)
+        ra0, ra1 = fov * 3600 * 0.5 * np.array([-1, 1])
+        dec0, dec1 = fov * 3600 * 0.5 * np.array([-1, 1])
 
         # Pixel coordinates
-        ra_e = np.arange(ra0, ra1 + pix_deg, pix_deg)
-        ra_c = ra_e[0:-1] + 0.5 * pix_deg
-        dec_e = np.arange(dec0, dec1 + pix_deg, pix_deg)
-        dec_c = dec_e[0:-1] + 0.5 * pix_deg
+        ra_e = np.arange(ra0, ra1 + pix, pix)
+        ra_c = ra_e[0:-1] + 0.5 * pix
+        dec_e = np.arange(dec0, dec1 + pix, pix)
+        dec_c = dec_e[0:-1] + 0.5 * pix
 
-        return ra_e, ra_c, dec_e, dec_c
+        assert ra_c.size == npixx
+        assert dec_c.size == npixy
+
+        return ra_e / 3600., ra_c / 3600., dec_e / 3600., dec_c / 3600.
 
     @property
     def tab_z(self):
@@ -92,6 +100,8 @@ class LightCone(object): # pragma: no cover
 
         pix_deg = pix / 3600.
         sr_per_pix = pix_deg**2 / sqdeg_per_std
+
+        assert fov * 3600 / pix % 1 == 0, "FOV must be integer number of pixels wide!"
 
         # In degrees
         if type(fov) in numeric_types:
@@ -393,7 +403,9 @@ class LightCone(object): # pragma: no cover
             if not os.path.exists(save_dir):
                 os.mkdir(save_dir)
 
-        npix = int(fov / (pix / 3600.))
+        assert fov * 3600 / pix % 1 == 0, "FOV must be integer number of pixels wide!"
+
+        npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
         mbins = np.arange(logmlim[0], logmlim[1], dlogm)
         mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
@@ -409,7 +421,8 @@ class LightCone(object): # pragma: no cover
                 if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                     continue
 
-                for (mlo, mhi) in mchunks:
+                # Go from high to low
+                for (mlo, mhi) in mchunks[-1::-1]:
 
                     fn = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
                         logmlim=(mlo, mhi), prefix=prefix, suffix=suffix, fmt=fmt)
@@ -565,7 +578,7 @@ class LightCone(object): # pragma: no cover
         if save_dir is None:
             save_dir = '.'
 
-        npix = int(fov / (pix / 3600.))
+        npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
         mbins = np.arange(logmlim[0], logmlim[1], dlogm)
         mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
