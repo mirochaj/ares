@@ -129,7 +129,7 @@ if (len(options) > 0) and ('clean' not in options):
 else:
     to_download = []
     for key in aux_data.keys():
-        if key in extras:
+        if key in extra:
             continue
         to_download.append(key)
 

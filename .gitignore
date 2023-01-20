@@ -5,6 +5,8 @@
 ares.egg-info
 *.png
 *.tar.gz
+build
+input/*
 docs/_build
 docs/*.py
 docs/*.txt
