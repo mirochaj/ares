@@ -18,7 +18,6 @@ from ..simulations import Simulation
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
-from scipy.interpolate import InterpolatedUnivariateSpline as spline
 
 try:
     import powerbox as pbox
@@ -61,6 +60,10 @@ class LogNormal(LightCone): # pragma: no cover
         self.randomise_in_cell = randomise_in_cell
         self.verbose = verbose
         self.kwargs = kwargs
+
+        if self.bias_model > 0:
+            assert self.bias_params is not None, \
+                "Must provide `bias_params=[a,b]` for `bias_model>0`!"
 
         fov = self.get_fov_from_L(0.5, Lbox)
 
@@ -495,7 +498,7 @@ class LogNormal(LightCone): # pragma: no cover
             _z = _z[ok==1]
             mass = mass[ok==1]
 
-            print(f"# Applied occupation fraction cut for pop #{idnum} at z={z} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
+            print(f"# Applied occupation fraction cut for pop #{idnum} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
             print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
 
             if ok.sum() == 0:

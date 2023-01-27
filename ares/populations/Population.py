@@ -217,6 +217,10 @@ class Population(object):
         return self.pf['pop_aging']
 
     @property
+    def is_diffuse(self):
+        return self.pf['pop_ihl'] is not None
+
+    @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
             if self.pf['pop_sed_model']:

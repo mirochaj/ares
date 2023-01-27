@@ -262,6 +262,13 @@ class LightCone(object): # pragma: no cover
 
                 rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
 
+            ##
+            # Extended emission from IHL, satellites
+            if self.sim.pops[idnum].is_diffuse:
+
+                rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
+
+                raise NotImplemented('help')
 
 
             # May have empty chunks, e.g., very massive halos and/or very
@@ -299,6 +306,25 @@ class LightCone(object): # pragma: no cover
 
                     # Fractional contribution to total flux
                     I = model_SB(rr, dd)
+                    tot = I.sum()
+
+                    if tot == 0:
+                        img[iz,i,j] += _flux_
+                    else:
+                        img[iz,:,:] += _flux_ * I / tot
+
+                elif self.sim.pops[idnum].is_diffuse:
+
+                    #Mh[h]
+
+                    # Need projected mass density for all halos.
+                    # This is 3-D
+                    #model_nfw = self.sim.pops[idnum].halos.get_rho_nfw(z, Mh[h],
+                    #    )
+
+                    #
+
+                    I = model_nfw(rr, dd)
                     tot = I.sum()
 
                     if tot == 0:
@@ -542,9 +568,14 @@ class LightCone(object): # pragma: no cover
 
             hdr.update(hdr)
 
-            hdu = fits.PrimaryHDU(data=img/1e-17, header=hdr)
+            # Right now, image is in erg/s/cm^2/Hz
+            # Convert to MJy/sr
+            # Recall that 1 Jy = 1e-23 erg/s/cm^2/Hz
+
+            hdu = fits.PrimaryHDU(data=img*1e17, header=hdr)
             hdul = fits.HDUList([hdu])
             hdul.writeto(fn)
+            hdul.close()
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
 
