@@ -646,7 +646,7 @@ class LightCone(object): # pragma: no cover
         return img
 
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
-        prefix=None, suffix=None, save_dir=None, fmt='hdf5'):
+        prefix=None, suffix=None, save_dir=None, keep_layers=True, fmt='hdf5'):
         """
         Assemble an array of maps.
         """
@@ -659,7 +659,10 @@ class LightCone(object): # pragma: no cover
         mbins = np.arange(logmlim[0], logmlim[1], dlogm)
         mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
 
-        layers = np.zeros((len(channels), len(zchunks), len(mbins), npix, npix))
+        if keep_layers:
+            layers = np.zeros((len(channels), len(zchunks), len(mbins), npix, npix))
+        else:
+            layers = np.zeros((len(channels), npix, npix))
 
         ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
 
@@ -680,7 +683,10 @@ class LightCone(object): # pragma: no cover
                     if not os.path.exists(fn):
                         continue
 
-                    layers[i,j,k,:,:] = self._load_map(fn)
+                    if keep_layers:
+                        layers[i,j,k,:,:] = self._load_map(fn)
+                    else:
+                        layers[i,:,:] = self._load_map(fn)
 
                     print(f"# Loaded {fn}.")
                     Nloaded += 1
