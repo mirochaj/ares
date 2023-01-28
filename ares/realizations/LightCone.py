@@ -14,8 +14,8 @@ import os
 import gc
 import time
 import numpy as np
-from scipy.integrate import cumtrapz
 from ..util.Stats import bin_e2c, bin_c2e
+from scipy.integrate import cumtrapz, quad
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
@@ -233,6 +233,11 @@ class LightCone(object): # pragma: no cover
             #if self.verbose:
             #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
 
+            # May have empty chunks, e.g., very massive halos and/or very
+            # high redshifts.
+            if not np.any(ok):
+                continue
+
             ##
             # Need some extra info to do more sophisticated modeling...
             if include_galaxy_sizes:
@@ -265,16 +270,31 @@ class LightCone(object): # pragma: no cover
             ##
             # Extended emission from IHL, satellites
             if self.sim.pops[idnum].is_diffuse:
+                mpc_per_arcmin = self.sim.cosm.AngleToComovingLength(_z_,
+                    pix / 60.)
 
-                rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
+                rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
+                                    dec_c * 60 * mpc_per_arcmin)
 
-                raise NotImplemented('help')
+                model_nfw = lambda MM, rr: self.sim.pops[idnum].halos.get_rho_nfw(_z_,
+                    Mh=MM, r=rr)
+
+                # Tabulate surface density as a function of displacement
+                # and halo mass
+                Rall = np.logspace(-3, 2, 1000)
+                Mall = np.linspace(logmlim[0], logmlim[1] + 0.1, 10)
+                dlogm = Mall[1] - Mall[0]
+
+                Sall = np.zeros((Mall.size, Rall.size))
+                for ii, _logM_ in enumerate(Mall):
+                    rho = lambda rr: model_nfw(10**_logM_, rr)
+                    Sigma = lambda R: 2 * \
+                        quad(lambda rr: rr * rho(rr) / np.sqrt(rr**2 - R**2),
+                            R, np.inf)[0]
+                    for jj, _R_ in enumerate(Rall):
+                        Sall[ii,jj] = Sigma(_R_)
 
 
-            # May have empty chunks, e.g., very massive halos and/or very
-            # high redshifts.
-            if not np.any(ok):
-                continue
 
             ##
             # Actually sum fluxes from all objects in image plane.
@@ -315,16 +335,41 @@ class LightCone(object): # pragma: no cover
 
                 elif self.sim.pops[idnum].is_diffuse:
 
-                    #Mh[h]
+                    # Image of distances from halo center
+                    r0 = ra_c[i] * 60 * mpc_per_arcmin
+                    d0 = dec_c[j] * 60 * mpc_per_arcmin
+                    Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
 
-                    # Need projected mass density for all halos.
-                    # This is 3-D
-                    #model_nfw = self.sim.pops[idnum].halos.get_rho_nfw(z, Mh[h],
-                    #    )
+                    # In Msun/cMpc^3
 
-                    #
+                    #Rall = np.linspace(Rarr.min(), Rarr.max() * 1.1, 1000)
+                    #Sall = np.zeros_like(Rall)
+                    #for i, _R_ in enumerate(Rall):
+                    #    Sall[i] = Sigma(_R_)
 
-                    I = model_nfw(rr, dd)
+                    # Interpolate between tabulated solutions.
+                    iM = np.argmin(np.abs(Mh[h] - 10**Mall))
+                    #if Mall[iM] > Mh[h]:
+                    #    iM -= 1
+
+                    if iM < 0:
+                        raise ValueError('this shouldnt happen!')
+
+                    # Do nearest neighbors for now
+                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+
+                    # These are both images!
+                    #Ilo = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+                    #Ihi = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM+1,:])
+                    #dI = Ihi - Ilo
+
+                    ##I = np.interp(np.log10(Mh[h]), Mall[iM:iM:2], [Ilo, Ihi])
+
+                    #print('hey', dlogm, )
+
+                    #I = Ilo \
+                    #     + (dI / dlogm) * (np.log10(Mh[h]) - Mall[iM])
+
                     tot = I.sum()
 
                     if tot == 0:
