@@ -270,30 +270,25 @@ class LightCone(object): # pragma: no cover
             ##
             # Extended emission from IHL, satellites
             if self.sim.pops[idnum].is_diffuse:
+
+                _iz = np.argmin(np.abs(_z_ - self.sim.pops[idnum].halos.tab_z))
+
+                # Remaining dimensions (Mh, R)
+                Sall = self.sim.pops[idnum].halos.tab_Sigma_nfw[_iz,:,:]
+
                 mpc_per_arcmin = self.sim.cosm.AngleToComovingLength(_z_,
                     pix / 60.)
 
                 rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
                                     dec_c * 60 * mpc_per_arcmin)
 
-                model_nfw = lambda MM, rr: self.sim.pops[idnum].halos.get_rho_nfw(_z_,
-                    Mh=MM, r=rr)
 
                 # Tabulate surface density as a function of displacement
                 # and halo mass
-                Rall = np.logspace(-3, 2, 1000)
-                Mall = np.linspace(logmlim[0], logmlim[1] + 0.1, 10)
-                dlogm = Mall[1] - Mall[0]
-
-                Sall = np.zeros((Mall.size, Rall.size))
-                for ii, _logM_ in enumerate(Mall):
-                    rho = lambda rr: model_nfw(10**_logM_, rr)
-                    Sigma = lambda R: 2 * \
-                        quad(lambda rr: rr * rho(rr) / np.sqrt(rr**2 - R**2),
-                            R, np.inf)[0]
-                    for jj, _R_ in enumerate(Rall):
-                        Sall[ii,jj] = Sigma(_R_)
-
+                Rmi, Rma = -3, 1
+                dlogR = 0.25
+                Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+                Mall = self.sim.pops[idnum].halos.tab_M
 
 
             ##
@@ -348,7 +343,7 @@ class LightCone(object): # pragma: no cover
                     #    Sall[i] = Sigma(_R_)
 
                     # Interpolate between tabulated solutions.
-                    iM = np.argmin(np.abs(Mh[h] - 10**Mall))
+                    iM = np.argmin(np.abs(Mh[h] - Mall))
                     #if Mall[iM] > Mh[h]:
                     #    iM -= 1
 

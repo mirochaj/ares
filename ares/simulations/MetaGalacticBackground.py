@@ -354,6 +354,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         elif units.lower() == 'si':
             nu = _E * erg_per_ev / h_p
             f *= nu * _E * erg_per_ev * cm_per_m**2 / erg_per_s_per_nW
+        elif units.lower() == 'mjy':
+            f *= 1e17
         else:
             raise ValueError('Unrecognized units=`{}`.'.format(units))
 

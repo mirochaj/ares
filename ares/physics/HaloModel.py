@@ -73,7 +73,7 @@ class HaloModel(HaloMassFunction):
     def _dc_nfw(self, c):
         return c** 3. / (4. * np.pi) / (np.log(1 + c) - c / (1 + c))
 
-    def get_rho_nfw(self, z, Mh, r):
+    def get_rho_nfw(self, z, Mh, r, truncate=True):
 
         con = self.get_concentration(z, Mh)
         rvir = self.get_Rvir_from_Mh(Mh)
@@ -82,14 +82,16 @@ class HaloModel(HaloMassFunction):
         x = r / r_s
         rn = x / con
 
+        small_sc = rn <= 1 if truncate else True
+
         if np.iterable(x):
             result = np.zeros_like(x)
-            result[rn <= 1] = (self._dc_nfw(con) \
+            result[small_sc==1] = (self._dc_nfw(con) \
                 / (con * r_s)**3 / (x * (1 + x)**2))[rn <= 1]
 
             return result
         else:
-            if rn <= 1.0:
+            if small_sc:
                 return self._dc_nfw(c) / (con * r_s) ** 3 / (x * (1 + x) ** 2)
             else:
                 return 0.0
@@ -142,6 +144,23 @@ class HaloModel(HaloMassFunction):
                 print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
 
         return self._tab_u_nfw
+
+    @property
+    def tab_Sigma_nfw(self):
+        if not hasattr(self, '_tab_Sigma_nfw'):
+
+            fn = f"{ARES}/input/halos/{self.tab_prefix_surf()}.hdf5"
+
+            if os.path.exists(fn):
+                with h5py.File(fn, 'r') as f:
+                    self._tab_Sigma_nfw = np.array(f[('tab_Sigma_nfw')])
+
+                print(f"# Loaded {fn}.")
+            else:
+                self._tab_Sigma_nfw = None
+                print(f"# Did not find {fn}.")
+
+        return self._tab_Sigma_nfw
 
     def get_u_isl(self, z, Mh, k, rmax=1e2):
         """
@@ -644,6 +663,31 @@ class HaloModel(HaloMassFunction):
             % (self.pf['halo_profile'], self.pf['halo_cmr'],
                 logMsize, M1, M2, zsize, z1, z2, kmi, kma, dlogk)
 
+    def tab_prefix_surf(self):
+        M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
+
+        zstr = self.get_table_zstr()
+
+        # Hard-coded for now, change this.
+        Rmi, Rma = -3, 1
+        dlogR = 0.05
+
+        logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
+            / self.pf['halo_dlogM']
+
+        Rsize = (Rma - Rmi) / dlogR
+
+        assert logMsize % 1 == 0
+        logMsize = int(logMsize)
+        assert Rsize % 1 == 0
+        Rsize = int(round(Rsize, 1))
+
+        return 'halo_surf_%s_logM_%i_%i-%i_%s_logR_%.1f-%.1f_dlnR_%.3f' \
+            % (self.pf['halo_cmr'],
+                logMsize, M1, M2, zstr, Rmi, Rma, dlogR)
+
+
+
     def tab_prefix_ps(self, with_size=True):
         """
         What should we name this table?
@@ -1008,7 +1052,7 @@ class HaloModel(HaloMassFunction):
 
             tmp = np.zeros(shape)
             nothing = MPI.COMM_WORLD.Allreduce(self._tab_u_nfw, tmp)
-            self._tab_u_nfw = tmp1
+            self._tab_u_nfw = tmp
 
             # So only root processor writes to disk
             if rank > 0:
@@ -1024,3 +1068,75 @@ class HaloModel(HaloMassFunction):
             print(f"# Wrote {fn}.")
 
         return
+
+    def generate_halo_surface_dens(self, format='hdf5', clobber=False,
+        checkpoint=True, destination=None, **kwargs):
+        """
+        Generate a lookup table for halo surface density.
+        """
+
+        assert format == 'hdf5'
+
+        if destination is None:
+            destination = '.'
+
+        fn = f'{destination}/{self.tab_prefix_surf()}.{format}'
+        if rank == 0:
+            print(f"# Will save to {fn}.")
+
+        # Hard-coded for now, change this.
+        Rmi, Rma = -3, 1
+        dlogR = 0.25
+        R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+
+        shape = (self.tab_z.size, self.tab_M.size, R.size)
+        self._tab_sigma_nfw = np.zeros(shape)
+        if self._tab_sigma_nfw.nbytes / 1e9 > 8:
+            print(f"WARNING: Size of profile table projected to be >8 GB!")
+
+        pb = ProgressBar(len(self.tab_z), 'Sigma(z|M,R)', use=rank==0)
+        pb.start()
+
+        for i, z in enumerate(self.tab_z):
+            if i % size != rank:
+                continue
+
+            pb.update(i)
+
+            model_nfw = lambda MM, rr: self.get_rho_nfw(z, Mh=MM, r=rr,
+                truncate=False)
+
+            # Tabulate surface density as a function of displacement
+            # and halo mass
+
+            dlogm = self.pf['halo_dlogM']
+            Sall = np.zeros((self.tab_M.size, R.size))
+
+            for ii, _M_ in enumerate(self.tab_M):
+                rho = lambda rr: model_nfw(_M_, rr)
+                Sigma = lambda R: 2 * \
+                    quad(lambda rr: rr * rho(rr) / np.sqrt(rr**2 - R**2),
+                    R, np.inf)[0]
+                for jj, _R_ in enumerate(R):
+                    self._tab_sigma_nfw[i,ii,jj] = Sigma(_R_)
+
+        pb.finish()
+
+        if size > 1:
+
+            tmp = np.zeros(shape)
+            nothing = MPI.COMM_WORLD.Allreduce(self._tab_sigma_nfw, tmp)
+            self._tab_sigma_nfw = tmp
+
+            # So only root processor writes to disk
+            if rank > 0:
+                return
+
+        with h5py.File(fn, 'w') as f:
+            f.create_dataset('tab_Sigma_nfw', data=self._tab_sigma_nfw)
+            f.create_dataset('tab_R', data=R)
+            f.create_dataset('tab_M', data=self.tab_M)
+            f.create_dataset('tab_z', data=self.tab_z)
+
+        if rank == 0:
+            print(f"# Wrote {fn}.")

@@ -18,6 +18,7 @@ from ..simulations import Simulation
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
+from ..util.Misc import get_field_from_catalog
 
 try:
     import powerbox as pbox

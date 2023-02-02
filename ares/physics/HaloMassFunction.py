@@ -1333,6 +1333,41 @@ class HaloMassFunction(object):
         return np.maximum(Mmin_vbc, Mmin_H2)
         #return Mmin_vbc + Mmin_H2
 
+    def get_table_zstr(self):
+        if self.pf['halo_dt'] is None:
+            z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
+
+            # Just use integer redshift bounds please.
+            assert z1 % 1 == 0
+            assert z2 % 1 == 0
+
+            z1 = int(z1)
+            z2 = int(z2)
+
+            s = 'z'
+
+            zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
+                / self.pf['halo_dz']) + 1
+
+            return f'{s}_{int(zsize)}_{z1}-{z2}'
+        else:
+            t1, t2 = self.pf['halo_tmin'], self.pf['halo_tmax']
+
+            # Just use integer redshift bounds please.
+            assert t1 % 1 == 0
+            assert t2 % 1 == 0
+
+            # really times just use z for formatting below.
+            t1 = int(t1)
+            t2 = int(t2)
+
+            s = 't'
+
+            tsize = ((self.pf['halo_tmax'] - self.pf['halo_tmin']) \
+                / self.pf['halo_dt']) + 1
+
+            return f'{s}_{int(tsize)}_{t1}-{t2}'
+
     def tab_prefix_hmf(self, with_size=False):
         """
         What should we name this table?

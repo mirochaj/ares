@@ -2488,7 +2488,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             window=window, load=load, raw=raw,
             nebular_only=nebular_only)
 
-        Mh = self.get_mass(z, kind='halo')
+        #Mh = self.get_mass(z, kind='halo')
+        Mh = self.halos.tab_M
 
         if hi is not None:
             Mlo = Mh[np.argmin(np.abs(mags - hi))]

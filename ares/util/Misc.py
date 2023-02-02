@@ -14,6 +14,7 @@ import os
 import subprocess
 import numpy as np
 from ..data import ARES
+from .Stats import bin_e2c
 
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -171,3 +172,58 @@ def split_by_sign(x, y):
         xch = np.split(x, splits)
 
     return xch, ych
+
+def get_field_from_catalog(field, pos, Lbox, dims=512, mesh=None,
+    weight_by_field=True, by_volume=True):
+    """
+    Convert a catalog, i.e., a list of (lum, x, y, z), to luminosity
+    (or whatever) on a mesh.
+
+    .. note :: If you're applying some threshold like Mmin, do so
+        BEFORE running this routine. In this case, ``catalog`` should
+        be a numpy masked array.
+
+    .. note :: If weight_by_field == False, the units of the output
+        will just number of halos per voxel, i.e., independent
+        of the field.
+
+    Parameters
+    ----------
+    catalog : np.ndarray
+        Should have shape (Ngalaxies, 4)
+    dims : int
+        Linear dimensions of box to create. Can alternatively provide
+        desired grid resolution (in Mpc / h) via ``mesh`` keyword
+        argument (see below).
+    mesh : int, float
+        If supplied, should be the linear dimension of voxels used
+        in histogram [Mpc / h].
+    weight_by_field : bool
+        If True, will weight by field (density or luminosity usually)
+    by_volume : bool
+        If True, will divide by voxel volume so field has units of
+        x / cMpc^3, where x = whatever the field is (e.g., mass, luminosity).
+        Otherwise, units will be the same as the input array. We generally
+        set this to True for things like halo mass density, and False
+        for things like the total ionizing photon output, which we want
+        as an absolute photon production rate, not production rate density.
+
+    """
+
+    if mesh is None:
+        mesh = Lbox / float(dims)
+
+    xe = np.arange(0, Lbox+mesh, mesh)
+    ye = np.arange(0, Lbox+mesh, mesh)
+    ze = np.arange(0, Lbox+mesh, mesh)
+
+    _x, _y, _z = pos.T
+
+    data = np.array([_x, _y, _z]).T
+    hist, edges = np.histogramdd(data, bins=[xe, ye, ze],
+        weights=field if weight_by_field else None, normed=False)
+
+    if by_volume:
+        hist /= mesh**3
+
+    return bin_e2c(xe), hist

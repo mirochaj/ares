@@ -259,6 +259,8 @@ class Simulation(object):
         # Modify PS units before return
         if flux_units.lower() == 'si':
             ps *= cm_per_m**4 / erg_per_s_per_nW**2
+        elif flux_units.lower() == 'mjy':
+            ps *= 1e17
 
         if pops is None:
             hist = self.history # poke
