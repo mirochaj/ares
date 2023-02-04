@@ -10,25 +10,26 @@ Description:
 
 """
 import os
+
 import numpy as np
-from ..data import ARES
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
+
+from ..data import ARES
 from ..util.Math import interp1d
 from ..util.ParameterFile import ParameterFile
 from .InitialConditions import InitialConditions
-from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
-    cm_per_mpc, cm_per_kpc, k_B, m_p
+from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
+from .Constants import cm_per_mpc, cm_per_kpc, k_B, m_p
 
-_ares_to_planck = \
-{
- 'omega_m_0': 'omegam*',
- 'omega_b_0': 'omegabh2',
- 'hubble_0': 'H_0',
- 'omega_l_0': 'omegal*',
- 'sigma_8': 'sigma8',
- 'primordial_index': 'ns',
+_ares_to_planck = {
+    'omega_m_0': 'omegam*',
+    'omega_b_0': 'omegabh2',
+    'hubble_0': 'H_0',
+    'omega_l_0': 'omegal*',
+    'sigma_8': 'sigma8',
+    'primordial_index': 'ns',
 }
 
 class Cosmology(object):
@@ -60,11 +61,13 @@ class Cosmology(object):
         self.approx_lowz = False
         self.primordial_index = self.pf['primordial_index']
 
-        self.CriticalDensityNow = self.rho_crit_0 = \
+        self.CriticalDensityNow = self.rho_crit_0 = (
             (3. * self.hubble_0**2) / (8. * np.pi * G)
+        )
 
-        self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
-            * cm_per_mpc**3 / g_per_msun
+        self.mean_density0 = (
+            self.omega_m_0 * self.rho_crit_0 * cm_per_mpc**3 / g_per_msun
+        )
 
         self.helium_by_number = self.y = 1. / (1. / self.Y - 1.) / 4.
 
@@ -128,8 +131,8 @@ class Cosmology(object):
     def path_Planck(self):
         if not hasattr(self, '_path_Planck'):
             name = self.pf['cosmology_name'].replace('planck_', '')
-            self._path_Planck = ARES \
-                 + '/input/planck/base/plikHM_{}'.format(name)
+            _path_Planck = os.path.join(ARES, "input", "planck", "base", f"plikHM_{name}")
+            self._path_Planck = _path_Planck
         return self._path_Planck
 
     def _load_cosmology(self):
@@ -147,7 +150,8 @@ class Cosmology(object):
         if self.pf['cosmology_id'] == 'best':
 
             data = {}
-            with open('{}/{}.minimum'.format(path, prefix), 'r') as f:
+            full_path = os.path.join(path, prefix) + ".minimum"
+            with open(full_path, 'r') as f:
                 for i, line in enumerate(f):
                     if i < 2:
                         continue
@@ -194,14 +198,15 @@ class Cosmology(object):
             # Load chains as one long concatenated super-array
             data = []
             for filenum in range(1, 5):
-                chain_fn = '{}/{}_{}.txt'.format(path, prefix, filenum)
+                chain_fn = os.path.join(path, f"{prefix}_{filenum}.txt")
                 data.append(np.loadtxt(chain_fn, unpack=True))
             data = np.concatenate(data, axis=1)
 
             ##
             # Load parameter names
             pars = []
-            for line in open('{}/{}.paramnames'.format(path, prefix)):
+            full_path = os.path.join(path, prefix) + ".paramnames"
+            for line in open(full_path):
                 if not line.strip():
                     continue
 
@@ -210,7 +215,8 @@ class Cosmology(object):
                 pars.append(chunks[0].strip().replace('*', ''))
 
             pars_in = {}
-            for line in open('{}/{}.inputparams'.format(path, prefix)):
+            full_path = os.path.join(path, prefix) + ".inputparams"
+            for line in open(full_path):
                 if not line.strip():
                     continue
                 if not line.startswith('param['):
@@ -220,8 +226,9 @@ class Cosmology(object):
                 pre = _pre.strip()
                 post = _post.split()
 
-                pars_in[pre.replace('param', '')[1:-1]] = \
-                    np.array([float(elem) for elem in post])
+                pars_in[pre.replace('param', '')[1:-1]] = np.array(
+                    [float(elem) for elem in post]
+                )
 
             ##
             # Just need to map to right array element. Remember that first
@@ -324,9 +331,11 @@ class Cosmology(object):
 
         # Full calculation
         a = 1. / (1. + z)
-        t = (2. / 3. / np.sqrt(1. - self.omega_m_0)) \
-            * np.log((a / self.a_eq)**1.5 + np.sqrt(1. + (a / self.a_eq)**3.)) \
+        t = (
+            (2. / 3. / np.sqrt(1. - self.omega_m_0))
+            * np.log((a / self.a_eq)**1.5 + np.sqrt(1. + (a / self.a_eq)**3.))
             / self.hubble_0
+        )
 
         return t
 
@@ -360,8 +369,10 @@ class Cosmology(object):
                 loz = z < self.zdec
 
                 T[hiz] = self.TCMB(z[hiz])
-                T[loz] = self.TCMB(self.zdec) * (1. + z[loz])**2 \
+                T[loz] = (
+                    self.TCMB(self.zdec) * (1. + z[loz])**2
                     / (1. + self.zdec)**2
+                )
                 return T
 
             if z >= self.zdec:
@@ -489,20 +500,26 @@ class Cosmology(object):
         if self.pf['approx_thermal_history'] == 'exp':
             pars = self.cooling_pars
             norm = -(2. + pars[2]) # Must be set so high-z limit -> -2/3
-            return norm * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
-                   + pars[2] / 3.
+            return (
+                norm * (1. - np.exp(-(z / pars[0])**pars[1])) / 3.
+                + pars[2] / 3.
+            )
         elif self.pf['approx_thermal_history'] == 'exp+gauss':
             pars = self.cooling_pars
-            return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
+            return (
+                2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3.
                 - (4./3.) * (1. + pars[2] * np.exp(-((z - pars[3]) / pars[4])**2))
+            )
         elif self.pf['approx_thermal_history'] == 'tanh':
             pars = self.cooling_pars
             return (-2./3.) - (2./3.) * 0.5 * (np.tanh((pars[0] - z) / pars[1]) + 1.)
         elif self.pf['approx_thermal_history'] == 'exp+pl':
             pars = self.cooling_pars
             norm = -(2. + pars[2]) # Must be set so high-z limit -> -2/3
-            exp = norm * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
+            exp = (
+                norm * (1. - np.exp(-(z / pars[0])**pars[1])) / 3.
                 + pars[2] / 3.
+            )
             pl = pars[4] * ((1. + z) / pars[0])**pars[5]
 
             if type(total) is np.ndarray:
@@ -518,8 +535,10 @@ class Cosmology(object):
 
             return total
         else:
-            return -1. * self.cooling_rate(z, self.Tgas(z)) \
+            return (
+                -1. * self.cooling_rate(z, self.Tgas(z))
                 * (self.t_of_z(z) / self.Tgas(z)) / self.dtdz(z)
+            )
 
     @property
     def z_dec(self):
@@ -605,10 +624,11 @@ class Cosmology(object):
         if not self.approx_highz:
             raise NotImplemented('sorry!')
 
-        dz = ((1. + z)**-0.5 \
-           - dl * cm_per_mpc * self.hubble_0 * np.sqrt(self.omega_m_0) / 2. / c)**-2 \
-           - (1. + z)
-
+        dz = (
+            ((1. + z)**-0.5
+             - dl * cm_per_mpc * self.hubble_0 * np.sqrt(self.omega_m_0) / 2. / c)**-2
+            - (1. + z)
+        )
 
         return dz
 
@@ -622,8 +642,10 @@ class Cosmology(object):
         """
 
         if self.approx_highz:
-            return 2. * c * ((1. + z0)**-0.5 - (1. + z)**-0.5) \
+            return (
+                2. * c * ((1. + z0)**-0.5 - (1. + z)**-0.5)
                 / self.hubble_0 / np.sqrt(self.omega_m_0)
+            )
 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
         integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)
@@ -689,8 +711,10 @@ class Cosmology(object):
         if Tgas is None:
             Tgas = self.Tgas(z)
 
-        k_J = (2. * k_B * Tgas / 3. / mu / m_p)**-0.5 \
+        k_J = (
+            (2. * k_B * Tgas / 3. / mu / m_p)**-0.5
             * np.sqrt(self.OmegaMatter(z)) * self.hubble_0
+        )
 
         l_J = 2. * np.pi / k_J
 
