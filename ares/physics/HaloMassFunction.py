@@ -13,26 +13,41 @@ import os
 import re
 import sys
 import glob
+from packaging import version
 import pickle
-import numpy as np
-from . import Cosmology
-from ..data import ARES
 from types import FunctionType
-from ..util import ParameterFile
+
+import numpy as np
 from scipy.misc import derivative
 from scipy.optimize import fsolve
-from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz, simps
+from scipy.interpolate import (
+    UnivariateSpline,
+    RectBivariateSpline,
+    interp1d,
+    InterpolatedUnivariateSpline,
+)
+
+from . import Cosmology
+from ..data import ARES
+from ..util import ParameterFile
+from ..util.Warnings import no_hmf
 from ..util.PrintInfo import print_hmf
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import CosmologyParameters
-from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, \
-    m_H, k_B, s_per_myr
-from scipy.interpolate import UnivariateSpline, RectBivariateSpline, \
-    interp1d, InterpolatedUnivariateSpline
+from .Constants import (
+    g_per_msun,
+    cm_per_mpc,
+    s_per_yr,
+    G,
+    cm_per_kpc,
+    m_H,
+    k_B,
+    s_per_myr,
+)
 
 
 try:
@@ -56,19 +71,18 @@ except ImportError:
 try:
     import hmf
     from hmf import MassFunction
+    from hmf filters import SharpK, TopHat
     have_hmf = True
-    hmf_vstr = hmf.__version__
-    hmf_vers = float(hmf_vstr[0:hmf_vstr.index('.')+2])
+    hmf_vers = version.parse(hmf.__version__)
 except ImportError:
     have_hmf = False
-    hmf_vers = 0
 
 if have_hmf:
-	if 0 <= hmf_vers <= 3.4:
-		try:
-		    MassFunctionWDM = hmf.wdm.MassFunctionWDM
-		except ImportError:
-		    pass
+    hmf_vers <= version.parse("3.4"):
+	try:
+	    MassFunctionWDM = hmf.wdm.MassFunctionWDM
+	except ImportError:
+	    pass
 
 # Old versions of HMF
 try:
@@ -107,19 +121,23 @@ class HaloMassFunction(object):
         if self.pf['halo_mf_path'] is not None:
             _path = self.pf['halo_mf_path']
         else:
-            _path = '{0!s}/input/halos'.format(ARES)
+            _path = os.path.join(ARES, "input", "halos")
 
         # Look for tables in input directory
-        attempt_load = self.pf['halo_mf_load'] and ARES is not None \
+        attempt_load = (
+            self.pf['halo_mf_load']
+            and ARES is not None
             and (self.tab_name is None)
+        )
 
         if attempt_load:
             prefix = self.tab_prefix_hmf(True)
-            fn = '{0!s}/{1!s}'.format(_path, prefix)
+            fn = os.path.join(_path, prefix)
 
             # First, look for a perfect match
-            if os.path.exists('{0!s}.{1!s}'.format(fn,\
-                self.pf['preferred_format'])):
+            if os.path.exists(
+                    '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
+            ):
                 self.tab_name = '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
             # Next, look for same table different format
             elif os.path.exists('{!s}.hdf5'.format(fn)):
@@ -127,8 +145,8 @@ class HaloMassFunction(object):
             else:
                 # Leave resolution blank, but enforce ranges
                 prefix = self.tab_prefix_hmf()
-                candidates =\
-                    glob.glob('{0!s}/input/halos/{1!s}*'.format(ARES, prefix))
+                full_path = os.path.join(ARES, "input", "halos", prefix)
+                candidates = glob.glob(full_path + "*")
 
                 if len(candidates) == 1:
                     self.tab_name = candidates[0]
@@ -162,8 +180,7 @@ class HaloMassFunction(object):
                         else:
                             ien = None
 
-                        _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
-                            results[ist:ien]
+                        _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = results[ist:ien]
 
                         if (_logMmin > logMmin) or (_logMmax < logMmax):
                             continue
@@ -191,8 +208,8 @@ class HaloMassFunction(object):
         self._is_loaded = False
 
         if self.pf['halo_dfcolldz_smooth']:
-            assert self.pf['halo_dfcolldz_smooth'] % 2 != 0, \
-                'halo_dfcolldz_smooth must be odd!'
+            if self.pf["halo_dfcolldz_smooth"] %2 != 0:
+                raise AssertionError("halo_dfcolldz_smooth must be odd!")
 
     @property
     def Mmax_ceil(self):
@@ -246,16 +263,20 @@ class HaloMassFunction(object):
 
         if self.pf['halo_wdm_interp']:
             wdm_file_hmfs = []
-            import glob
-            for wdm_file in glob.glob('{!s}/input/halos/*'.format(ARES)):
-                if self.pf['halo_window'] in wdm_file and self.pf['halo_mf'] in wdm_file and \
-                	'_wdm_' in wdm_file:
+            full_path = os.path.join(ARES, "input", "halos", "*")
+            for wdm_file in glob.glob(full_path):
+                if (
+                    self.pf['halo_window'] in wdm_file
+                    and self.pf['halo_mf'] in wdm_file
+                    and '_wdm_' in wdm_file
+                ):
                     wdm_file_hmfs.append(wdm_file)
 
-            wdm_m_X_from_hmf_files = [int(hmf_file[hmf_file.find('_wdm') + 5 : hmf_file.find(\
-                '.')]) for hmf_file in wdm_file_hmfs]
+            wdm_m_X_from_hmf_files = [
+                int(hmf_file[hmf_file.find('_wdm') + 5 : hmf_file.find('.')])
+                for hmf_file in wdm_file_hmfs
+            ]
             wdm_m_X_from_hmf_files.sort()
-            #print(wdm_m_X_from_hmf_files)
 
             closest_mass = min(wdm_m_X_from_hmf_files, key=lambda x: abs(x - m_X))
             closest_mass_index = wdm_m_X_from_hmf_files.index(closest_mass)
@@ -276,11 +297,12 @@ class HaloMassFunction(object):
         _fn = self.tab_prefix_hmf(True) + '.hdf5'
 
         if self.pf['halo_mf_path'] is not None:
-            _path = self.pf['halo_mf_path'] + '/'
+            _path = self.pf['halo_mf_path']
         else:
-            _path = "{0!s}/input/halos/".format(ARES)
+            _path = os.path.join(ARES, "input", "halos")
 
-        if not os.path.exists(_path+_fn) and (not self.pf['halo_wdm_interp']):
+        full_path = os.path.join(_path, fn)
+        if not os.path.exists(full_path) and (not self.pf['halo_wdm_interp']):
             raise ValueError("Couldn't find file {} and wdm_interp=False!".format(_fn))
 
         ##
@@ -364,14 +386,22 @@ class HaloMassFunction(object):
             log_mgtm = np.log10(mgtm)
             log_tmar = np.log10(tmar)
 
-            self.tab_dndm = 10**(np.diff(log_dndm, axis=0).squeeze() \
-                * (m_X - m_X_l) + log_dndm[0])
-            self.tab_ngtm = 10**(np.diff(log_ngtm, axis=0).squeeze() \
-                * (m_X - m_X_l) + log_ngtm[0])
-            self.tab_mgtm = 10**(np.diff(log_mgtm, axis=0).squeeze() \
-                * (m_X - m_X_l) + log_mgtm[0])
-            self._tab_MAR = 10**(np.diff(log_tmar, axis=0).squeeze() \
-                * (m_X - m_X_l) + log_tmar[0])
+            self.tab_dndm = 10**(
+                np.diff(log_dndm, axis=0).squeeze()
+                * (m_X - m_X_l) + log_dndm[0]
+            )
+            self.tab_ngtm = 10**(
+                np.diff(log_ngtm, axis=0).squeeze()
+                * (m_X - m_X_l) + log_ngtm[0]
+            )
+            self.tab_mgtm = 10**(
+                np.diff(log_mgtm, axis=0).squeeze()
+                * (m_X - m_X_l) + log_mgtm[0]
+            )
+            self._tab_MAR = 10**(
+                np.diff(log_tmar, axis=0).squeeze()
+                * (m_X - m_X_l) + log_tmar[0]
+            )
 
         if interp:
         	print('# Finished interpolation in WDM mass dimension of HMF.')
@@ -415,16 +445,24 @@ class HaloMassFunction(object):
 
         if self.pf['halo_mf_cache'] is not None:
             if len(self.pf['halo_mf_cache']) == 4:
-                self.tab_z, self.tab_t, self.tab_M, self.tab_dndm = \
+                self.tab_z, self.tab_t, self.tab_M, self.tab_dndm = (
                     self.pf['halo_mf_cache']
+                )
 
                 self.tab_ngtm, self.tab_mgtm = self._get_ngtm_mgtm_from_dndm()
                 # tab_MAR will be re-generated automatically if summoned,
                 # as will tab_Mmin_floor.
             else:
-                self.tab_z, self.tab_t, self.tab_M, self.tab_dndm, self.tab_mgtm, \
-                    self.tab_ngtm, self._tab_MAR, self.tab_Mmin_floor = \
-                        self.pf['halo_mf_cache']
+                (
+                    self.tab_z,
+                    self.tab_t,
+                    self.tab_M,
+                    self.tab_dndm,
+                    self.tab_mgtm,
+                    self.tab_ngtm,
+                    self._tab_MAR,
+                    self.tab_Mmin_floor
+                ) = self.pf['halo_mf_cache']
             return
 
         if self.pf['halo_mf_pca'] is not None: # pragma: no cover
@@ -459,12 +497,13 @@ class HaloMassFunction(object):
                 self.generate_mar()
 
         elif self.tab_name is None:
-            _path = self.pf['halo_mf_path'] \
-                if self.pf['halo_mf_path'] is not None \
-                else'{0!s}/input/halos'.format(ARES)
+            if self.pf["halo_mf_path"] is not None:
+                _path = self.pf["halo_mf_path"]
+            else:
+                _path = os.path.join(ARES, "input", "halos")
 
             _prefix = self.tab_prefix_hmf(True)
-            _fn_ = f'{_path}/{_prefix}' + '.{}'.format(self.pf['preferred_format'])
+            _fn_ = os.path.join(_path, _prefix) + f".{self.pf['preferred_format']}"
             raise IOError(f"Did not find HMF table suitable for given parameters. Was looking for {_fn_}.")
 
         elif ('.hdf5' in self.tab_name) or ('.h5' in self.tab_name):
@@ -514,8 +553,8 @@ class HaloMassFunction(object):
             kw['halo_mf_window'] = self.pf['halo_mf_window']
 
             self.tab_dndm = self.pf['halo_mf_func'](**kw)
-            assert self.tab_dndm.shape == (self.tab_z.size, self.tab_M.size), \
-                "Must return dndm in native shape (z, Mh)!"
+            if self.tab_dndm.shape != (self.tab_z.size, self.tab_M.size):
+                raise AssertionError("Must return dndm in native shape (z, Mh)!")
 
             # Need to re-calculate mgtm and ngtm also.
             self.tab_ngtm = np.zeros_like(self.tab_dndm)
@@ -527,12 +566,22 @@ class HaloMassFunction(object):
                     x=np.log(self.tab_M))
                 mgtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M**2,
                     x=np.log(self.tab_M))
-                self.tab_ngtm[i,:] = ngtm_0 \
-                    - cumtrapz(self.tab_dndm[i] * self.tab_M,
-                        x=np.log(self.tab_M), initial=0.0)
-                self.tab_mgtm[i,:] = mgtm_0 \
-                    - cumtrapz(self.tab_dndm[i] * self.tab_M**2,
-                        x=np.log(self.tab_M), initial=0.0)
+                self.tab_ngtm[i,:] = (
+                    ngtm_0
+                    - cumtrapz(
+                        self.tab_dndm[i] * self.tab_M,
+                        x=np.log(self.tab_M),
+                        initial=0.0,
+                    )
+                )
+                self.tab_mgtm[i,:] = (
+                    mgtm_0
+                    - cumtrapz(
+                        self.tab_dndm[i] * self.tab_M**2,
+                        x=np.log(self.tab_M),
+                        initial=0.0,
+                    )
+                )
 
             # Keep it positive please.
             self.tab_mgtm = np.maximum(self.tab_mgtm, 1e-70)
@@ -557,9 +606,10 @@ class HaloMassFunction(object):
     @property
     def _pars_transfer(self):
         if not hasattr(self, '_pars_transfer_'):
-            _transfer_pars = \
-               {'k_per_logint': self.pf['halo_transfer_k_per_logint'],
-                'kmax': np.log(self.pf['halo_transfer_kmax'])}
+            _transfer_pars = {
+                'k_per_logint': self.pf['halo_transfer_k_per_logint'],
+                'kmax': np.log(self.pf['halo_transfer_kmax'])
+            }
 
             p = camb.CAMBparams()
             p.set_matter_power(**_transfer_pars)
@@ -571,14 +621,13 @@ class HaloMassFunction(object):
     @property
     def _MF(self):
         if not hasattr(self, '_MF_'):
+            if not have_hmf:
+                raise ImportError("Must have hmf installed to do HMF stuff")
 
             logMmin = self.pf['halo_logMmin']
             logMmax = self.pf['halo_logMmax']
             dlogM = self.pf['halo_dlogM']
-			#TODO FIX THIS OR REMOVE CODE
-            from hmf import filters
-            SharpK, TopHat = filters.SharpK, filters.TopHat
-            #from hmf.filters import SharpK, TopHat
+
             if self.pf['halo_mf_window'] == 'tophat':
                 # This is the default in hmf
                 window = TopHat
@@ -587,21 +636,37 @@ class HaloMassFunction(object):
             else:
                 raise ValueError("Unrecognized window function.")
 
-            MFclass = MassFunction if self.pf['halo_wdm_mass'] is None \
-                else MassFunctionWDM
-            xtras = {'wdm_mass': self.pf['halo_wdm_mass']} \
-                if self.pf['halo_wdm_mass'] is not None else {}
+            if self.pf['halo_wdm_mass'] is None:
+                MFclass = MassFunction
+            else:
+                MFclass = MassFunctionWDM
+
+            if self.pf["halo_wdm_mass"] is not None:
+                xtras = {'wdm_mass': self.pf['halo_wdm_mass']}
+            else:
+                xtras = {}
 
             # Initialize Perturbations class
-            self._MF_ = MFclass(Mmin=logMmin, Mmax=logMmax,
-                dlog10m=dlogM, z=self.tab_z[0], filter_model=window,
-                hmf_model=self.pf['halo_mf'], cosmo_params=self._pars_cosmo,
-                growth_params=self._pars_growth, sigma_8=self.cosm.sigma8,
-                n=self.cosm.primordial_index, transfer_params=self._pars_transfer,
-                dlnk=self.pf['halo_dlnk'], lnk_min=self.pf['halo_lnk_min'],
-                lnk_max=self.pf['halo_lnk_max'], hmf_params=self.pf['halo_mf_params'],
-                use_splined_growth=self.pf['halo_use_splined_growth'],\
-                filter_params=self.pf['filter_params'], **xtras)
+            self._MF_ = MFclass(
+                Mmin=logMmin,
+                Mmax=logMmax,
+                dlog10m=dlogM,
+                z=self.tab_z[0],
+                filter_model=window,
+                hmf_model=self.pf['halo_mf'],
+                cosmo_params=self._pars_cosmo,
+                growth_params=self._pars_growth,
+                sigma_8=self.cosm.sigma8,
+                n=self.cosm.primordial_index,
+                transfer_params=self._pars_transfer,
+                dlnk=self.pf['halo_dlnk'],
+                lnk_min=self.pf['halo_lnk_min'],
+                lnk_max=self.pf['halo_lnk_max'],
+                hmf_params=self.pf['halo_mf_params'],
+                use_splined_growth=self.pf['halo_use_splined_growth'],
+                filter_params=self.pf['filter_params'],
+                **xtras,
+            )
 
         return self._MF_
 
@@ -728,7 +793,7 @@ class HaloMassFunction(object):
         MF = self._MF
 
         # Masses in hmf are really Msun / h
-        if hmf_vers < 3 and self.pf['halo_wdm_mass'] is None:
+        if hmf_vers < version.parse("3.0.0") and self.pf['halo_wdm_mass'] is None:
             self.tab_M = self._MF.M / self.cosm.h70
         else:
             self.tab_M = self._MF.m / self.cosm.h70
@@ -935,10 +1000,14 @@ class HaloMassFunction(object):
         minimum virial temperature.
         """
 
-        Mmin_of_z = (self.pf['pop_Mmin'] is None) or \
-            type(self.pf['pop_Mmin']) is FunctionType
-        Mmax_of_z = (self.pf['pop_Tmax'] is not None) or \
-            type(self.pf['pop_Mmax']) is FunctionType
+        Mmin_of_z = (
+            (self.pf['pop_Mmin'] is None)
+            or type(self.pf['pop_Mmin']) is FunctionType
+        )
+        Mmax_of_z = (
+            (self.pf['pop_Tmax'] is not None)
+            or type(self.pf['pop_Mmax']) is FunctionType
+        )
 
         self.logM_min = np.zeros_like(self.tab_z)
         self.logM_max = np.ones_like(self.tab_z) * np.inf
@@ -970,25 +1039,36 @@ class HaloMassFunction(object):
 
         # Main term: rate of change in collapsed fraction in halos that were
         # already above the threshold.
-        self.ztab, self.dfcolldz_tab = \
-            central_difference(self.tab_z, self.fcoll_Tmin)
+        self.ztab, self.dfcolldz_tab = central_difference(
+            self.tab_z, self.fcoll_Tmin
+        )
 
         # Compute boundary term(s)
         if Mmin_of_z:
-            self.ztab, dMmindz = \
-                central_difference(self.tab_z, 10**self.logM_min)
+            self.ztab, dMmindz = central_difference(
+                self.tab_z, 10**self.logM_min
+            )
 
-            bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
-                * dMmindz / self.cosm.mean_density0
+            bc_min = (
+                10**self.logM_min[1:-1]
+                * self.dndm_Mmin[1:-1]
+                * dMmindz
+                / self.cosm.mean_density0
+            )
 
             self.dfcolldz_tab -= bc_min
 
         if Mmax_of_z:
-            self.ztab, dMmaxdz = \
-                central_difference(self.tab_z, 10**self.logM_max)
+            self.ztab, dMmaxdz = central_difference(
+                self.tab_z, 10**self.logM_max
+            )
 
-            bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
-                * dMmaxdz / self.cosm.mean_density0
+            bc_max = (
+                10**self.logM_min[1:-1]
+                * self.dndm_Mmax[1:-1]
+                * dMmaxdz
+                / self.cosm.mean_density0
+            )
 
             self.dfcolldz_tab += bc_max
 
@@ -1077,9 +1157,11 @@ class HaloMassFunction(object):
         elif self.pf['halo_mf'] == 'ST':
             ap, qp = 0.707, 0.3
 
-            bias = 1. \
-                + (ap * nu_sq - 1.) / delta_sc \
+            bias = (
+                1.
+                + (ap * nu_sq - 1.) / delta_sc
                 + (2. * qp / delta_sc) / (1. + (ap * nu_sq)**qp)
+            )
         elif self.pf['halo_mf'] == 'Tinker10':
             y = np.log10(200.)
             A = 1. + 0.24 * y * np.exp(-(4. / y)**4)
@@ -1089,8 +1171,10 @@ class HaloMassFunction(object):
             C = 0.019 + 0.107 * y + 0.19 * np.exp(-(4. / y)**4)
             c = 2.4
 
-            bias = 1. - A * (nu**a / (nu**a + delta_sc**a)) + B * nu**b \
-                 + C * nu**c
+            bias = (
+                1. - A * (nu**a / (nu**a + delta_sc**a)) + B * nu**b
+                + C * nu**c
+            )
         else:
             raise NotImplemented('No bias for non-PS non-ST MF yet!')
 
@@ -1103,8 +1187,10 @@ class HaloMassFunction(object):
         """
 
         if self.Mmax_ceil is not None:
-            return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, self.logMmax_ceil))
+            return (
+                np.squeeze(self.fcoll_spline_2d(z, logMmin))
+                - np.squeeze(self.fcoll_spline_2d(z, self.logMmax_ceil))
+            )
         elif self.pf['pop_Tmax'] is not None:
             logMmax = np.log10(self.VirialMass(z, self.pf['pop_Tmax'],
                 mu=self.pf['mu']))
@@ -1112,8 +1198,10 @@ class HaloMassFunction(object):
             if logMmin >= logMmax:
                 return tiny_fcoll
 
-            return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, logMmax))
+            return (
+                np.squeeze(self.fcoll_spline_2d(z, logMmin))
+                - np.squeeze(self.fcoll_spline_2d(z, logMmax))
+            )
         else:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin))
 
@@ -1191,10 +1279,19 @@ class HaloMassFunction(object):
 
         """
 
-        return 1.98e4 * (mu / 0.6) * (M * self.cosm.h70 / 1e8)**(2. / 3.) * \
-            (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) /
-            self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(1. / 3.) * \
-            ((1. + z) / 10.)
+        return (
+            1.98e4
+            * (mu / 0.6)
+            * (M * self.cosm.h70 / 1e8)**(2. / 3.)
+            * (
+                self.cosm.omega_m_0
+                * self.cosm.CriticalDensityForCollapse(z)
+                / self.cosm.OmegaMatter(z)
+                / 18.
+                / np.pi**2
+            )**(1. / 3.)
+            * ((1. + z) / 10.)
+        )
 
     def VirialMass(self, z, T, mu=0.6):
         return self.get_Mvir(z, T, mu=mu)
@@ -1207,10 +1304,19 @@ class HaloMassFunction(object):
         Equation 26 in Barkana & Loeb (2001), rearranged.
         """
 
-        return (1e8 / self.cosm.h70) * (T / 1.98e4)**1.5 * (mu / 0.6)**-1.5 \
-            * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
-            / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**-0.5 \
+        return (
+            (1e8 / self.cosm.h70)
+            * (T / 1.98e4)**1.5
+            * (mu / 0.6)**-1.5
+            * (
+                self.cosm.omega_m_0
+                * self.cosm.CriticalDensityForCollapse(z)
+                / self.cosm.OmegaMatter(z)
+                / 18.
+                / np.pi**2
+            )**-0.5
             * ((1. + z) / 10.)**-1.5
+        )
 
     def VirialRadius(self, z, M, mu=0.6):
         return self.get_Rvir(z, M, mu=mu)
@@ -1223,10 +1329,18 @@ class HaloMassFunction(object):
         Equation 24 in Barkana & Loeb (2001).
         """
 
-        return 0.784 * (M * self.cosm.h70 / 1e8)**(1. / 3.) \
-            * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
-            / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
+        return (
+            0.784
+            * (M * self.cosm.h70 / 1e8)**(1. / 3.)
+            * (
+                self.cosm.omega_m_0
+                * self.cosm.CriticalDensityForCollapse(z)
+                / self.cosm.OmegaMatter(z)
+                / 18.
+                / np.pi**2
+            )**(-1. / 3.)
             * ((1. + z) / 10.)**-1.
+        )
 
     def CircularVelocity(self, z, M, mu=0.6):
         return self.get_vcirc(z, M, mu=mu)
@@ -1241,14 +1355,25 @@ class HaloMassFunction(object):
         return np.sqrt(2. * G * M * g_per_msun / self.VirialRadius(z, M, mu) / cm_per_kpc)
 
     def MassFromVc(self, z, Vc):
-        cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
-            / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
-        return (1e8 / self.cosm.h70) \
-            *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10.)**1.5
+        cterm = (
+            self.cosm.omega_m_0
+            * self.cosm.CriticalDensityForCollapse(z)
+            / self.cosm.OmegaMatter(z)
+            / 18.
+            / np.pi**2
+        )
+        return (
+            (1e8 / self.cosm.h70)
+            *  (Vc / 23.4)**3
+            / cterm**0.5
+            / ((1. + z) / 10.)**1.5
+        )
 
     def BindingEnergy(self, z, M, mu=0.6):
-        return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(z, M, mu)) \
+        return (
+            (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(z, M, mu))
             * self.cosm.fbaryon / cm_per_kpc
+        )
 
     def MassFromEb(self, z, Eb, mu=0.6):
         # Could do this analytically but I'm lazy
@@ -1278,8 +1403,10 @@ class HaloMassFunction(object):
         Doesn't actually depend on mass, just need to plug something in
         so we don't crash.
         """
-        return np.sqrt(self.VirialRadius(z, M, mu)**3 * cm_per_kpc**3 \
-            / G / M / g_per_msun)
+        return np.sqrt(
+            self.VirialRadius(z, M, mu)**3 * cm_per_kpc**3
+            / G / M / g_per_msun
+        )
 
     @property
     def tab_Mmin_floor(self):
@@ -1308,9 +1435,11 @@ class HaloMassFunction(object):
 
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
-        fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
-            * (1. + (10. * (T / 1e3)**3.5) / (60. + (T / 1e3)**4))**-1. \
+        fH2c = lambda T: (
+            1.6e-4 * ((1. + z) / 20.)**-1.5
+            * (1. + (10. * (T / 1e3)**3.5) / (60. + (T / 1e3)**4))**-1.
             * np.exp(512. / T)
+        )
 
         to_min = lambda T: abs(fH2s(T) - fH2c(T))
         Tcrit = fsolve(to_min, 2e3)[0]
@@ -1362,8 +1491,10 @@ class HaloMassFunction(object):
 
             s = 'z'
 
-            zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
-                / self.pf['halo_dz']) + 1
+            zsize = (
+                (self.pf['halo_zmax'] - self.pf['halo_zmin'])
+                / self.pf['halo_dz']
+            ) + 1
 
         else:
             t1, t2 = self.pf['halo_tmin'], self.pf['halo_tmax']
@@ -1378,13 +1509,17 @@ class HaloMassFunction(object):
 
             s = 't'
 
-            tsize = zsize = ((self.pf['halo_tmax'] - self.pf['halo_tmin']) \
-                / self.pf['halo_dt']) + 1
+            tsize = zsize = (
+                (self.pf['halo_tmax'] - self.pf['halo_tmin'])
+                / self.pf['halo_dt']
+            ) + 1
 
 
         if with_size:
-            logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
+            logMsize = (
+                (self.pf['halo_logMmax'] - self.pf['halo_logMmin'])
                 / self.pf['halo_dlogM']
+            )
 
 
             assert logMsize % 1 == 0
@@ -1392,14 +1527,29 @@ class HaloMassFunction(object):
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))
 
-            s = 'halo_mf_{0!s}_{1!s}_logM_{2}_{3}-{4}_{5}_{6}_{7}-{8}'.format(\
-                self.pf['halo_mf'], self.cosm.get_prefix(),
-                logMsize, M1, M2, s, zsize, z1, z2)
+            s = 'halo_mf_{0!s}_{1!s}_logM_{2}_{3}-{4}_{5}_{6}_{7}-{8}'.format(
+                self.pf['halo_mf'],
+                self.cosm.get_prefix(),
+                logMsize,
+                M1,
+                M2,
+                s,
+                zsize,
+                z1,
+                z2,
+            )
 
         else:
 
-            s = 'halo_mf_{0!s}_{1!s}_logM_*_{2}-{3}_{4}_*_{5}-{6}'.format(\
-                self.pf['halo_mf'], self.cosm.get_prefix(), M1, M2, s, z1, z2)
+            s = 'halo_mf_{0!s}_{1!s}_logM_*_{2}-{3}_{4}_*_{5}-{6}'.format(
+                self.pf['halo_mf'],
+                self.cosm.get_prefix(),
+                M1,
+                M2,
+                s,
+                z1,
+                z2,
+            )
 
         if self.pf['halo_mf_window'].lower() != 'tophat':
             s += '_{}'.format(self.pf['halo_mf_window'].lower())
@@ -1441,8 +1591,8 @@ class HaloMassFunction(object):
 
         # Determine filename
         if fn is None:
-            fn = '{0!s}/{1!s}.{2!s}'.format(destination,\
-                self.tab_prefix_hmf(True), fmt)
+            fn = self.tab_prefix_hmf(True) + "." + fmt
+            fn = os.path.join(destination, fn)
         else:
             if fmt not in fn:
                 print("Suffix of provided filename does not match chosen format.")
@@ -1452,8 +1602,9 @@ class HaloMassFunction(object):
             if clobber and rank == 0:
                 os.remove(fn)
             else:
-                raise IOError(('File {!s} exists! Set clobber=True or ' +\
-                    'remove manually.').format(fn))
+                raise IOError(
+                    f'File {fn} exists! Set clobber=True or remove manually.'
+                )
 
         # Do this first! (Otherwise parallel runs will be garbage)
         self.generate_hmf(save_MAR)
