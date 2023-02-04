@@ -11,13 +11,13 @@ if _os.path.exists('{!s}/.ares/defaults.py'.format(_HOME)):
 else:
     rcParams = {}
 
-import ares.physics
-import ares.util
-import ares.analysis
-import ares.sources
-import ares.populations
-import ares.core
-import ares.solvers
-import ares.simulations
-import ares.inference
-import ares.realizations
+from . import ares.physics
+from . import ares.util
+from . import ares.analysis
+from . import ares.sources
+from . import ares.populations
+from . import ares.core
+from . import ares.solvers
+from . import ares.simulations
+from . import ares.inference
+from . import ares.realizations
