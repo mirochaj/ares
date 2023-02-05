@@ -9,11 +9,15 @@ Created on: Wed Aug 27 10:55:19 MDT 2014
 Description:
 
 """
+import glob
+import os
+import re
+import sys
 
 import numpy as np
 import imp as _imp
+
 from ..data import ARES
-import os, re, sys, glob
 from .Pickling import read_pickle_file
 
 try:
@@ -31,10 +35,10 @@ except ImportError:
 HOME = os.environ.get('HOME')
 sys.path.insert(1, '{!s}/input/litdata'.format(ARES))
 
-_lit_options = glob.glob('{!s}/input/litdata/*.py'.format(ARES))
+_lit_options = glob.glob(os.path.join(ARES, "input", "litdata", "*.py"))
 lit_options = []
 for element in _lit_options:
-    lit_options.append(element.split('/')[-1].replace('.py', ''))
+    lit_options.append(element.split(os.sep)[-1].replace('.py', ''))
 
 def read_lit(prefix, path=None, verbose=True):
     """
@@ -51,19 +55,20 @@ def read_lit(prefix, path=None, verbose=True):
     """
 
     if path is not None:
-        prefix = '{0!s}/{1!s}'.format(path, prefix)
+        prefix = os.path.join(path, prefix)
 
-    has_local = os.path.exists('./{!s}.py'.format(prefix))
-    has_home = os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, prefix))
-    has_litd = os.path.exists('{0!s}/input/litdata/{1!s}.py'.format(ARES, prefix))
+    fn = f"{prefix}.py"
+    has_local = os.path.exists(os.path.join(os.getcwd(), fn))
+    has_home = os.path.exists(os.path.join(HOME, ".ares", fn))
+    has_litd = os.path.exists(os.path.join(ARES, "input", "litdata", fn))
 
     # Load custom defaults
     if has_local:
-        loc = '.'
+        loc = os.getcwd()
     elif has_home:
-        loc = '{!s}/.ares/'.format(HOME)
+        loc = os.path.join(HOME, ".ares")
     elif has_litd:
-        loc = '{!s}/input/litdata/'.format(ARES)
+        loc = os.path.join(ARES, "input", "litdata")
     else:
         return None
 
@@ -71,6 +76,8 @@ def read_lit(prefix, path=None, verbose=True):
         print("WARNING: multiple copies of {!s} found.".format(prefix))
         print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
 
+    # TODO: The imp module is deprecated. This should be replaced with something
+    # from importlib before python v3.12.
     _f, _filename, _data = _imp.find_module(prefix, [loc])
     mod = _imp.load_module(prefix, _f, _filename, _data)
 
