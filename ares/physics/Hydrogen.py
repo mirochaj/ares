@@ -9,6 +9,7 @@ Created on: Mon Mar 12 18:02:07 2012
 Description: Container for hydrogen physics stuff.
 
 """
+from packaging import version
 
 import scipy
 import numpy as np
@@ -38,10 +39,10 @@ try:
 except ImportError:
     have_mpmath = False
 
-_scipy_ver = scipy.__version__.split('.')
+_scipy_ver = version.parse(scipy.__version__)
 
 # This keyword didn't exist until version 0.14
-if float(_scipy_ver[1]) >= 14:
+if _scipy_ver > version.parse("0.14"):
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}
