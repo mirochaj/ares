@@ -79,10 +79,10 @@ except ImportError:
 
 if have_hmf:
     hmf_vers <= version.parse("3.4"):
-	try:
-	    MassFunctionWDM = hmf.wdm.MassFunctionWDM
-	except ImportError:
-	    pass
+    try:
+        MassFunctionWDM = hmf.wdm.MassFunctionWDM
+    except ImportError:
+        pass
 
 # Old versions of HMF
 try:
@@ -404,7 +404,7 @@ class HaloMassFunction(object):
             )
 
         if interp:
-        	print('# Finished interpolation in WDM mass dimension of HMF.')
+            print('# Finished interpolation in WDM mass dimension of HMF.')
 
     def _get_ngtm_mgtm_from_dndm(self):
 
@@ -1555,7 +1555,7 @@ class HaloMassFunction(object):
             s += '_{}'.format(self.pf['halo_mf_window'].lower())
 
         if self.pf['halo_wdm_mass'] is not None:
-        	#TODO: For Testing, the assertion is for correct nonlinear fits.
+            #TODO: For Testing, the assertion is for correct nonlinear fits.
             #assert self.pf['hmf_window'].lower() == 'sharpk'
             s += '_wdm_{:.2f}'.format(self.pf['halo_wdm_mass'])
 
