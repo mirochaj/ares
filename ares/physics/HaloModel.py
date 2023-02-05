@@ -4,11 +4,13 @@ import os
 import re
 import time
 import pickle
+from types import FunctionType, MethodType
+
 import numpy as np
-from ..data import ARES
 import scipy.special as sp
 from scipy.integrate import quad
-from types import FunctionType, MethodType
+
+from ..data import ARES
 from ..util.ProgressBar import ProgressBar
 from .HaloMassFunction import HaloMassFunction
 from .Constants import rho_cgs, c, cm_per_mpc
@@ -130,7 +132,9 @@ class HaloModel(HaloMassFunction):
     @property
     def tab_u_nfw(self):
         if not hasattr(self, '_tab_u_nfw'):
-            fn = f"{ARES}/input/halos/{self.tab_prefix_prof()}.hdf5"
+            fn = os.path.join(
+                ARES, "input", "halos", self.tab_prefix_prof() + ".hdf5"
+            )
 
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
@@ -601,7 +605,8 @@ class HaloModel(HaloMassFunction):
 
             return
 
-        fn = '%s/input/halos/%s.%s' % (ARES, self.tab_prefix_ps(), suffix)
+        fn = f"{self.tab_prefix_ps()}.{suffix}"
+        fn = os.path.join(ARES, "input", "halos", fn)
 
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')
