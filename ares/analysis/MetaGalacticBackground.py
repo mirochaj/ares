@@ -9,21 +9,22 @@ Created on: Tue Sep 18 13:36:56 2012
 Description:
 
 """
-
+import matplotlib.pyplot as pl
 import numpy as np
+from scipy.integrate import trapz
+
 from ..util import labels
 from ..util.Pickling import read_pickle_file
-import matplotlib.pyplot as pl
-from scipy.integrate import trapz
 from ..util.ReadData import flatten_energies
-from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA, \
-    sqdeg_per_std
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
+from ..physics.Constants import (
+    erg_per_ev,
+    J21_num,
+    h_P,
+    c,
+    E_LL,
+    E_LyA,
+    sqdeg_per_std,
+)
 
 class MetaGalacticBackground(object):
     def __init__(self, data=None, **kwargs):
@@ -43,7 +44,7 @@ class MetaGalacticBackground(object):
         elif type(data) == dict:
             self.pf = SetAllDefaults()
             self.history = data.copy()
-        elif isinstance(data, basestring):
+        elif isinstance(data, str):
             self.prefix = data
 
         self.kwargs = kwargs

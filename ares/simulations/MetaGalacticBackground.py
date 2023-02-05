@@ -9,36 +9,47 @@ Created on: Mon Feb 16 12:43:06 MST 2015
 Description:
 
 """
-
 import os
+from packaging import version
 import time
+from types import FunctionType
+
 import scipy
 import numpy as np
+
 from ..core import Grid
 from ..util.Pickling import write_pickle_file
-from types import FunctionType
 from ..util import ParameterFile
 from ..obs import Madau1995
 from ..util.Misc import split_by_sign
 from ..util.Math import interp1d, smooth
 from ..solvers import UniformBackground
-from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
-    as AnalyzeMGB
-from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
-    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c, h_p, k_B, \
-    cm_per_m, erg_per_s_per_nW, lam_LyA, lam_LL
+from ..analysis.MetaGalacticBackground import (
+    MetaGalacticBackground as AnalyzeMGB
+)
+from ..physics.Constants import (
+    E_LyA,
+    E_LL,
+    ev_per_hz,
+    erg_per_ev,
+    sqdeg_per_std,
+    s_per_myr,
+    rhodot_cgs,
+    cm_per_mpc,
+    c,
+    h_p,
+    k_B,
+    cm_per_m,
+    erg_per_s_per_nW,
+    lam_LyA,
+    lam_LL,
+)
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
-_scipy_ver = scipy.__version__.split('.')
+_scipy_ver = version.parse(scipy.__version__)
 
 # This keyword didn't exist until version 0.14
-if float(_scipy_ver[1]) >= 0.14:
+if _scipy_ver >= version.parse("0.14"):
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}
@@ -494,7 +505,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             #        continue
 
             # Linked populations will get
-            if isinstance(self.pf['pop_Mmin{{{}}}'.format(popid)], basestring):
+            if isinstance(self.pf['pop_Mmin{{{}}}'.format(popid)], str):
                 if self.pf['pop_Mmin{{{}}}'.format(popid)] not in self.pf['cosmological_Mmin']:
                     continue
 

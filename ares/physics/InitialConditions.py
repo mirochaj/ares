@@ -12,7 +12,9 @@ Description:
 
 import os
 import re
+
 import numpy as np
+
 from ..data import ARES
 
 try:
@@ -48,7 +50,8 @@ class InitialConditions(object):
         """
         Get recombination history from file or directly from CosmoRec.
         """
-        fn = '{}/input/inits/inits_{}.txt'.format(ARES, self.prefix)
+        fn = f"inits_{self.prefix}"
+        fn = os.path.join(ARES, "input", "inits", fn)
 
         # Look for table first, then run if we don't find it.
         if os.path.exists(fn):
@@ -86,16 +89,16 @@ class InitialConditions(object):
         Run CosmoRec. Assumes we've got an executable waiting for us in
         directory supplied via ``cosmorec_path`` parameter in ARES.
 
-        Will save to $ARES/input/inits. Can check in $ARES/input/inits/outputs
-        for CosmoRec parameter files should any debugging be necessary. They
-        will have the same naming convention, just different filename prefix
-        ("cosmorec" instead of "inits").
+        Will save to $HOME/.ares/input/inits. Can check in
+        $HOME/.ares/input/inits/outputs for CosmoRec parameter files should any
+        debugging be necessary. They will have the same naming convention, just
+        different filename prefix ("cosmorec" instead of "inits").
         """
         # Some defaults copied over from CosmoRec.
         CR_pars = [self.pf[par] for par in _pars_CosmoRec]
 
         # Correct output dir. Just add provided path on top of $ARES
-        CR_pars[-2] = '{}/{}/'.format(ARES, CR_pars[-2])
+        CR_pars[-2] = os.path.join(ARES, CR_pars[-2])
 
         fn_pars = 'cosmorec_{}.dat'.format(self.prefix)
 
@@ -105,13 +108,15 @@ class InitialConditions(object):
         if not os.path.exists(to_outputs):
             os.mkdir(to_outputs)
 
-        with open(to_outputs + '/' + fn_pars, 'w') as f:
+        fn = os.path.join(to_outputs, fn_pars)
+        with open(fn, 'w') as f:
             for element in CR_pars:
                 print(element, file=f)
 
         # Run the thing
-        str_to_exec = '{}/CosmoRec {}/{} >> cr.log'.format(
-            self.pf['cosmorec_path'], to_outputs, fn_pars)
+        cmd_path = os.path.join(self.pf["cosmored_path"], "CosmoRec")
+        output_path = os.path.join(to_outputs, fn_pars)
+        str_to_exec = f"{cmd_path} {output_path} >> cr.log"
         os.system(str_to_exec)
 
         for fn in os.listdir(to_outputs):
@@ -119,17 +124,17 @@ class InitialConditions(object):
                 break
 
         # Convert it to ares format
-        data = np.loadtxt('{}/{}'.format(to_outputs, fn))
+        full_path = os.path.join(to_outputs, fn)
+        data = np.loadtxt(full_path)
 
-        new_data = \
-        {
-         'z': data[:,0][-1::-1],
-         'xe': data[:,1][-1::-1],
-         'Tk': data[:,2][-1::-1],
+        new_data = {
+            'z': data[:,0][-1::-1],
+            'xe': data[:,1][-1::-1],
+            'Tk': data[:,2][-1::-1],
         }
 
-        fn_out = '{}/input/inits/inits_{}.txt'.format(ARES,
-            self.prefix)
+        fn = f"inits_{self.prefix}"
+        fn_out = os.path.join(ARES, "input", "inits", fn)
 
         np.savetxt(fn_out, data[-1::-1,0:3], header='z; xe; Te')
 

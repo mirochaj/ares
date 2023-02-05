@@ -20,13 +20,6 @@ from ..util.SetDefaultParameterValues import *
 from .MultiPhaseMedium import HistoryContainer
 
 try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
-
-try:
     import h5py
 except ImportError:
     pass
@@ -55,7 +48,7 @@ class RaySegment(object):
             self.history = data.copy()
 
         # Read output of a simulation from disk
-        elif isinstance(data, basestring):
+        elif isinstance(data, str):
             self.prefix = data
             self._load_data(data)
 
@@ -69,7 +62,7 @@ class RaySegment(object):
         #    self.grid = data.parcel.grid
         #
         ## Load contents of hdf5 file
-        #elif isinstance(data, basestring):
+        #elif isinstance(data, str):
         #    f = h5py.File(data, 'r')
         #
         #    self.pf = {}

@@ -37,12 +37,6 @@ from ..util.Stats import Gauss1D, error_2D, _error_2D_crude, \
     bin_e2c, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
     read_pickled_logL
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 try:
     from scipy.spatial import Delaunay
@@ -76,12 +70,11 @@ except ImportError:
     rank = 0
     size = 1
 
-default_mp_kwargs = \
-{
- 'diagonal': 'lower',
- 'keep_diagonal': True,
- 'panel_size': (0.5,0.5),
- 'padding': (0,0)
+default_mp_kwargs = {
+    'diagonal': 'lower',
+    'keep_diagonal': True,
+    'panel_size': (0.5,0.5),
+    'padding': (0,0),
 }
 
 numerical_types = [float, np.float64, np.float32, int, np.int32, np.int64]
@@ -121,7 +114,7 @@ class ModelSet(BlobFactory):
         self.is_single_output = True
 
         # Read in data from file (assumed to be pickled)
-        if isinstance(data, basestring):
+        if isinstance(data, str):
 
             # Check to see if perhaps this is just the chain
             if re.search('pkl', data):
@@ -939,7 +932,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_blob_redshifts_float'):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
-                if isinstance(redshift, basestring):
+                if isinstance(redshift, str):
                     self._blob_redshifts_float.append(None)
                 else:
                     self._blob_redshifts_float.append(round(redshift, 3))
@@ -951,7 +944,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_blob_redshifts_float'):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
-                if isinstance(redshift, basestring):
+                if isinstance(redshift, str):
                     z = None
                 else:
                     z = redshift
@@ -1423,7 +1416,7 @@ class ModelSet(BlobFactory):
         if stop is not None:
             stop = -int(stop)
 
-        if isinstance(walkers, basestring):
+        if isinstance(walkers, str):
             assert N < self.nwalkers, \
                 "Only {} walkers available!".format(self.nwalkers)
 
@@ -1464,7 +1457,7 @@ class ModelSet(BlobFactory):
         assert type(pars) in [list, tuple]
         par1, par2 = pars
 
-        if isinstance(walkers, basestring):
+        if isinstance(walkers, str):
             assert N <= self.nwalkers, \
                 "Only {} walkers available!".format(self.nwalkers)
 
@@ -1606,7 +1599,7 @@ class ModelSet(BlobFactory):
 
             if operation is None:
                 cdata = _cdata
-            elif isinstance(operation, basestring):
+            elif isinstance(operation, str):
                 assert self.Nd > 2
 
                 # There's gotta be a faster way to do this...
@@ -1628,7 +1621,7 @@ class ModelSet(BlobFactory):
                 cdata = np.zeros_like(_cdata)
                 for i, idnum in enumerate(np.unique(ids)):
 
-                    #if isinstance(operation, basestring):
+                    #if isinstance(operation, str):
                     tmp = _cdata[ids == idnum]
                     if operation == 'mean':
                         cdata[ids == idnum] = np.mean(tmp)
