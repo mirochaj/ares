@@ -44,10 +44,10 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020',
     'harikane2022')
 datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014',
-	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
+    'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
 datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010',
-	'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
+    'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
 
 groups_lf = \
 {
@@ -1388,14 +1388,14 @@ class GalaxyPopulation(object): # pragma: no cover
                 ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
                 ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
         elif quantity in ['ssfr']:
-        	try:
-        	    ax.set_xscale('log')
-        	    # ax.set_yscale('log')
-        	except ValueError:
-        	    pass
-        	if (not gotax) or force_labels:
-        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
-        	    ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
+            try:
+                ax.set_xscale('log')
+                # ax.set_yscale('log')
+            except ValueError:
+                pass
+            if (not gotax) or force_labels:
+                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+                ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
 
 
         pl.draw()
