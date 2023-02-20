@@ -72,7 +72,7 @@ class LightCone(object): # pragma: no cover
 
     def get_map(self, fov, channel, zlim=None, logmlim=None, pix=1, idnum=0,
         include_galaxy_sizes=False, save_intermediate=True, dlam=20.,
-        use_pbar=True, **kwargs):
+        use_pbar=True, map_units='si', **kwargs):
         """
         Get a map in the user-supplied spectral channel.
 
@@ -87,6 +87,9 @@ class LightCone(object): # pragma: no cover
             catalog.
         pix : int, float
             Pixel scale in arcseconds.
+        map_units : str
+            Options include "si" (nW/m^2/Hz/sr), 'cgs' (erg/s/cm^2/sr), or
+            'Mjy' (MJy/sr)
 
         """
 
@@ -344,26 +347,8 @@ class LightCone(object): # pragma: no cover
 
                     # Interpolate between tabulated solutions.
                     iM = np.argmin(np.abs(Mh[h] - Mall))
-                    #if Mall[iM] > Mh[h]:
-                    #    iM -= 1
 
-                    if iM < 0:
-                        raise ValueError('this shouldnt happen!')
-
-                    # Do nearest neighbors for now
                     I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
-
-                    # These are both images!
-                    #Ilo = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
-                    #Ihi = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM+1,:])
-                    #dI = Ihi - Ilo
-
-                    ##I = np.interp(np.log10(Mh[h]), Mall[iM:iM:2], [Ilo, Ihi])
-
-                    #print('hey', dlogm, )
-
-                    #I = Ilo \
-                    #     + (dI / dlogm) * (np.log10(Mh[h]) - Mall[iM])
 
                     tot = I.sum()
 
@@ -397,7 +382,19 @@ class LightCone(object): # pragma: no cover
         #self._cache_maps[(channel, zlim, pix, include_galaxy_sizes, kwtup)] = \
         #    ra_e, dec_e, img * cm_per_m**2 / erg_per_s_per_nW
 
-        return ra_e, dec_e, img * cm_per_m**2 / erg_per_s_per_nW
+        ##
+        # Remember: using cgs units internally.
+        # 1 Jy = 1e-23 erg/s/cm^2/sr
+        if map_units.lower() == 'si':
+            final_map = img * cm_per_m**2 / erg_per_s_per_nW
+        elif map_units.lower() == 'cgs':
+            final_map = img
+        elif map_units.lower() == 'mjy':
+            final_map = img * 1e17
+        else:
+            raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
+
+        return ra_e, dec_e, final_map
 
     def get_fn(self, fov, channel, pix=1, zlim=None, logmlim=None,
         prefix=None, suffix=None, fmt='hdf5'):
@@ -431,7 +428,7 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, channels, logmlim, dlogm=0.5, zlim=None, pix=1,
         include_galaxy_sizes=False, dlam=20, clobber=False,
         save_dir=None, prefix=None, suffix=None, fmt='hdf5', hdr={},
-        **kwargs):
+        map_units='MJy', **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -510,7 +507,7 @@ class LightCone(object): # pragma: no cover
                         logmlim=(mlo, mhi),
                         pix=pix, save_intermediate=False,
                         include_galaxy_sizes=False,
-                        dlam=dlam, use_pbar=False, **kwargs)
+                        dlam=dlam, use_pbar=False, map_units=map_units, **kwargs)
 
                     nu = c * 1e4 / np.mean(channel)
                     dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
@@ -521,7 +518,7 @@ class LightCone(object): # pragma: no cover
 
                     # Save
                     self.save_map(fn, Inu, channel, (zlo, zhi), (mlo, mhi), fov,
-                        pix=pix, fmt=fmt, hdr=hdr)
+                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
                     totz += Inu
 
@@ -535,7 +532,7 @@ class LightCone(object): # pragma: no cover
                 # terminated early then this file wouldn't have been written.
                 if not os.path.exists(fnz):
                     self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
-                        pix=pix, fmt=fmt, hdr=hdr)
+                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
                 # Increment map for this z chunk
                 tot += totz
@@ -552,10 +549,10 @@ class LightCone(object): # pragma: no cover
             # Save image summed over mass
             if not os.path.exists(fnt):
                 self.save_map(fnt, tot, channel, self.zlim, logmlim, fov,
-                    pix=pix, fmt=fmt, hdr=hdr)
+                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}):
+        hdr={}, map_units='MJy'):
         """
         Save map to disk.
         """
@@ -563,6 +560,9 @@ class LightCone(object): # pragma: no cover
         ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
 
         nu = c * 1e4 / np.mean(channel)
+
+        # Save as MJy/sr in this case.
+
 
         if fmt == 'hdf5':
             with h5py.File(fn, 'w') as f:
@@ -578,15 +578,21 @@ class LightCone(object): # pragma: no cover
         elif fmt == 'fits':
             from astropy.io import fits
 
-            # Save as MJy/sr in this case.
-
             hdr = fits.Header(hdr)
             #_hdr.update(hdr)
             #hdr = _hdr
             hdr['DATE'] = time.ctime()
 
             hdr['NAXIS'] = 2
-            hdr['BUNIT'] = 'MJy/sr'
+            if map_units.lower() == 'mjy':
+                hdr['BUNIT'] = 'MJy/sr'
+            elif map_units.lower() == 'cgs':
+                hdr['BUNIT'] = 'erg/s/cm^2/sr'
+            elif map_units.lower() == 'si':
+                hdr['BUNIT'] = 'nW/m^2/sr'
+            else:
+                raise ValueError('help')
+
             hdr['CUNIT1'] = 'deg'
             hdr['CUNIT2'] = 'deg'
             hdr['CDELT1'] = pix / 3600.
@@ -612,7 +618,7 @@ class LightCone(object): # pragma: no cover
             # Convert to MJy/sr
             # Recall that 1 Jy = 1e-23 erg/s/cm^2/Hz
 
-            hdu = fits.PrimaryHDU(data=img*1e17, header=hdr)
+            hdu = fits.PrimaryHDU(data=img, header=hdr)
             hdul = fits.HDUList([hdu])
             hdul.writeto(fn)
             hdul.close()
@@ -633,8 +639,8 @@ class LightCone(object): # pragma: no cover
         elif fmt == 'fits':
             from astropy.io import fits
             with fits.open(fn) as hdu:
-                # Convert back to cgs
-                img = hdu[0].data * 1e-17
+                # In whatever `map_units` user supplied.
+                img = hdu[0].data
         else:
             raise NotImplementedError(f'No support for fmt={fmt}!')
 

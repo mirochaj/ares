@@ -129,11 +129,11 @@ ihl_q['pop_ihl'] = 1
 ihl_q['pq_func[0]'] = 'pl_evolN'
 ihl_q['pq_func_var[0]'] = 'Mh'
 ihl_q['pq_func_var2[0]'] = '1+z'
-ihl_q['pq_func_par0[0]'] *= 0.01 # 1% of stellar mass -> IHL
-#ihl_q['pq_func_par1[0]'] = 1e12
-#ihl_q['pq_func_par2[0]'] = 0.  # Flat Mh dependence
-#ihl_q['pq_func_par3[0]'] = 1.
-#ihl_q['pq_func_par4[0]'] = 0.  # no evolution yet.
+ihl_q['pq_func_par0[0]'] = 0.01 # 1% of stellar mass -> IHL
+ihl_q['pq_func_par1[0]'] = 1e12
+ihl_q['pq_func_par2[0]'] = 0.  # Flat Mh dependence
+ihl_q['pq_func_par3[0]'] = 1.
+ihl_q['pq_func_par4[0]'] = 0.  # no evolution yet.
 
 ihl_q['pop_Z'] = 0.02
 ihl_q['pop_include_1h'] = True
