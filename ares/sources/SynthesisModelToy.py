@@ -237,15 +237,21 @@ class SynthesisModelToy(SynthesisModelBase):
         return spec
 
     @property
-    def tab_sed(self):
+    def tab_sed_raw(self):
         """
         Units of erg / s / A / Msun
         """
         if not hasattr(self, '_data'):
+            self._added_nebular_emission = False
             self._data = np.zeros((self.tab_waves_c.size, self.tab_t.size))
             for i, t in enumerate(self.tab_t):
                 self._data[:,i] = self._Spectrum(t, wave=self.tab_waves_c)
 
-            self._add_nebular_emission()
-
         return self._data
+
+    @property
+    def tab_sed(self):
+        if not hasattr(self, '_tab_sed'):
+            self._tab_sed = np.zeros_like(self.tab_sed_raw)
+            self._add_nebular_emission(self._tab_sed)
+        return self._tab_sed

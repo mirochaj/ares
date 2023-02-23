@@ -30,73 +30,79 @@ class SynthesisModelBase(Source):
     def _nebula(self):
         if not hasattr(self, '_nebula_'):
             self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
-            self._nebula_.tab_waves_c = self.tab_waves_c
+            self._nebula_.tab_waves_c = self._tab_waves_c
         return self._nebula_
 
-    @property
-    def _neb_cont(self):
-        if not hasattr(self, '_neb_cont_'):
-            self._neb_cont_ = np.zeros_like(self._data)
-            if self.pf['source_nebular'] > 1 and \
-                self.pf['source_nebular_continuum']:
+    def _get_continuum_emission(self, data):
+        #if not hasattr(self, '_neb_cont_'):
+        self._neb_cont = np.zeros_like(data)
+        if self.pf['source_nebular'] > 1 and \
+            self.pf['source_nebular_continuum']:
 
-                for i, t in enumerate(self.tab_t):
-                    if self.pf['source_tneb'] is not None:
-                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.tab_t))
-                    else:
-                        j = i
+            for i, t in enumerate(self.tab_t):
+                if self.pf['source_tneb'] is not None:
+                    j = np.argmin(np.abs(self.pf['source_tneb'] - self.tab_t))
+                else:
+                    j = i
 
-                    spec = self._data_raw[:,j] * self.tab_dwdn
+                spec = data[:,j] * self.tab_dwdn
 
-                    # If is_ssp = False, should do cumulative integral
-                    # over time here.
+                # If is_ssp = False, should do cumulative integral
+                # over time here.
 
-                    self._neb_cont_[:,i] = \
-                        self._nebula.Continuum(spec) / self.tab_dwdn
+                self._neb_cont[:,i] = \
+                    self._nebula.Continuum(spec) / self.tab_dwdn
 
-        return self._neb_cont_
+        return self._neb_cont
 
-    @property
-    def _neb_line(self):
-        if not hasattr(self, '_neb_line_'):
-            self._neb_line_ = np.zeros_like(self._data)
-            if self.pf['source_nebular'] > 1 and \
-                self.pf['source_nebular_lines']:
-                for i, t in enumerate(self.tab_t):
-                    if self.pf['source_tneb'] is not None:
-                        j = np.argmin(np.abs(self.pf['source_tneb'] - self.tab_t))
-                    else:
-                        j = i
+    def _get_line_emission(self, data):
+        #if not hasattr(self, '_neb_line_'):
+        self._neb_line = np.zeros_like(data)
+        if self.pf['source_nebular'] > 1 and \
+            self.pf['source_nebular_lines']:
+            for i, t in enumerate(self.tab_t):
+                if self.pf['source_tneb'] is not None:
+                    j = np.argmin(np.abs(self.pf['source_tneb'] - self.tab_t))
+                else:
+                    j = i
 
-                    spec = self._data_raw[:,j] * self.tab_dwdn
+                spec = data[:,j] * self.tab_dwdn
 
-                    self._neb_line_[:,i] = \
-                        self._nebula.LineEmission(spec) / self.tab_dwdn
+                self._neb_line[:,i] = \
+                    self._nebula.LineEmission(spec) / self.tab_dwdn
 
-        return self._neb_line_
+        return self._neb_line
 
-    def _add_nebular_emission(self):
+    def _add_nebular_emission(self, data):
+
+        if self._added_nebular_emission:
+            raise AttributeError('Already added nebular emission!')
+
         # Keep raw spectrum
-        self._data_raw = self._data.copy()
+        self._data_raw = data.copy()
 
         # Add in nebular continuum (just once!)
         added_neb_cont = 0
         added_neb_line = 0
         null_ionizing_spec = 0
-        if not hasattr(self, '_neb_cont_'):
-            self._data += self._neb_cont
+        #if not hasattr(self, '_neb_cont_'):
+        if (self.pf['source_nebular'] > 1) and self.pf['source_nebular_continuum']:
+            data += self._get_continuum_emission(data)
             added_neb_cont = 1
 
         # Same for nebular lines.
-        if not hasattr(self, '_neb_line_'):
-            self._data += self._neb_line
+        #if not hasattr(self, '_neb_line_'):
+        if self.pf['source_nebular'] > 1 and self.pf['source_nebular_lines']:
+            data += self._get_line_emission(data)
             added_neb_line = 1
 
         if added_neb_cont or added_neb_line:
             null_ionizing_spec = self.pf['source_nebular'] > 1
 
         if null_ionizing_spec:
-            self._data[self.tab_energies_c > E_LL] *= self.pf['source_fesc']
+            data[self.tab_energies_c > E_LL] *= self.pf['source_fesc']
+
+        self._added_nebular_emission = True
 
     def get_avg_photon_energy(self, band, band_units='eV'):
         """
@@ -211,7 +217,7 @@ class SynthesisModelBase(Source):
 
     @cached_property
     def tab_dwdn(self):
-        self._dwdn = self.tab_waves_c**2 / (c * 1e8)
+        self._dwdn = self._tab_waves_c**2 / (c * 1e8)
         return self._dwdn
 
     @property
@@ -730,11 +736,11 @@ class SynthesisModel(SynthesisModelBase):
     def tab_waves_c(self):
         #if not hasattr(self, '_tab_waves_cs'):
         if self.pf['source_sed_by_Z'] is not None:
-            self._wavelengths, junk = self.pf['source_sed_by_Z']
+            self._tab_waves_c, junk = self.pf['source_sed_by_Z']
         else:
-            data = self.tab_sed
+            data = self.tab_sed_raw
 
-        return self._wavelengths
+        return self._tab_waves_c
 
     @cached_property
     def tab_waves_e(self):
@@ -756,7 +762,7 @@ class SynthesisModel(SynthesisModelBase):
         return self._litinst.metallicities.values()
 
     @cached_property
-    def tab_sed(self):
+    def tab_sed_raw(self):
         """
         Units = erg / s / A / [depends]
 
@@ -768,6 +774,8 @@ class SynthesisModel(SynthesisModelBase):
 
         """
 
+        self._added_nebular_emission = False
+
         if self.pf['source_sps_data'] is not None:
             _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
             assert _Z == self.pf['source_Z']
@@ -775,7 +783,8 @@ class SynthesisModel(SynthesisModelBase):
             self._data = _data
             self._times = _times
             self._tab_waves_c = _waves
-            self._add_nebular_emission()
+            print('# WARNING: If supplying source_sps_data, should include any nebular emission too!')
+            #self._add_nebular_emission(self._data)
             return self._data
 
         Zall_l = list(self.tab_metallicities)
@@ -788,7 +797,7 @@ class SynthesisModel(SynthesisModelBase):
                 _tmp = self.pf['source_sed_by_Z'][1]
                 self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
             else:
-                self._wavelengths, self._data, _fn = \
+                self._tab_waves_c, self._data, _fn = \
                     self._litinst._load(**self.pf)
 
                 if self.pf['verbose']:
@@ -800,7 +809,7 @@ class SynthesisModel(SynthesisModelBase):
                 assert len(_tmp) == len(Zall)
             else:
                 # Will load in all metallicities
-                self._wavelengths, _tmp, _fn = \
+                self._tab_waves_c, _tmp, _fn = \
                     self._litinst._load(**self.pf)
 
                 if self.pf['verbose']:
@@ -851,7 +860,11 @@ class SynthesisModel(SynthesisModelBase):
         self._data[0,:] = 0
         self._data[-1,:] = 0
 
-        # Add nebular emission (duh)
-        self._add_nebular_emission()
-
         return self._data
+
+    @cached_property
+    def tab_sed(self):
+        # Add nebular emission (duh)
+        self._tab_sed = self.tab_sed_raw.copy()
+        self._add_nebular_emission(self._tab_sed)
+        return self._tab_sed
