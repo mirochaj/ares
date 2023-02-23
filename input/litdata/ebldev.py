@@ -132,7 +132,7 @@ ihl_q['pq_func_var2[0]'] = '1+z'
 ihl_q['pq_func_par0[0]'] = 0.01 # 1% of stellar mass -> IHL
 ihl_q['pq_func_par1[0]'] = 1e12
 ihl_q['pq_func_par2[0]'] = 0.  # Flat Mh dependence
-ihl_q['pq_func_par3[0]'] = 1.
+ihl_q['pq_func_par3[0]'] = 1.  # Anchored to z=0
 ihl_q['pq_func_par4[0]'] = 0.  # no evolution yet.
 
 ihl_q['pop_Z'] = 0.02
