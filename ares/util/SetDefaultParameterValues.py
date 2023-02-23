@@ -376,6 +376,8 @@ def DustParameters():
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
 
+     'dustext_template': None,
+
     }
 
     pf.update(tmp)

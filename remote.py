@@ -86,7 +86,17 @@ aux_data = \
     'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.zip',
     'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-zre6p5_R3.01.zip',
     'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM_R3.01.zip',
-    None]
+    None],
+ 'extinction': ['https://archive.stsci.edu/hlsps/reference-atlases/cdbs/extinction',
+    'lmc_30dorshell_001.fits',
+    'lmc_diffuse_001.fits',
+    'milkyway_dense_001.fits',
+    'milkyway_diffuse_001.fits',
+    'milkyway_rv21_001.fits',
+    'milkyway_rv4_001.fits',
+    'smc_bar_001.fits',
+    'xgal_starburst_001.fits',
+    None],
 }
 
 if not os.path.exists('input'):
@@ -210,6 +220,9 @@ for i, direc in enumerate(to_download):
 
         # If it's not a tarball, move on
         if (not re.search('tar', _fn_)) and (not re.search('tgz', _fn_)):
+            continue
+
+        if re.search('fits', _fn_):
             continue
 
         # Otherwise, unpack it

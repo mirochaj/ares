@@ -1297,7 +1297,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return L_sfr
 
     def get_sed(self, z, M, waves, stellar_mass=False, per_Hz=False,
-        band=None, window=1, energy_units=True, load=True, raw=True,
+        band=None, window=1, energy_units=True, load=True, raw=False,
         nebular_only=False):
         """
         Just a wrapper around `get_lum` with option of interpolating to new
