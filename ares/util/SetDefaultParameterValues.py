@@ -687,6 +687,7 @@ def PopulationParameters():
     # Halo model stuff
     "pop_prof_1h": None,
     "pop_1h_nebular_only": False,
+    "pop_mask": None, # should be (wavelength or filter, limiting mag)
 
     # For GalaxyEnsemble
     "pop_aging": False,
