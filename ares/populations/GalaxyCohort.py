@@ -1429,10 +1429,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     ihl = self.ihl(z=z, Mh=self.halos.tab_M)
                     Lh *= ihl
 
-                ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                    self.halos.tab_M < self.get_Mmax(z))
-                Lh[~ok] = 0
-
             else:
 
                 # This uses __getattr__ in case we're allowing Z to be
@@ -1452,6 +1448,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     for i, Mc in enumerate(self.halos.tab_M):
                         dndlnm = self.halos.tab_dndlnm_sub[i,:]
                         Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
+
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                self.halos.tab_M < self.get_Mmax(z))
+            Lh[~ok] = 0
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
@@ -1517,6 +1517,37 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 raise NotImplemented('help!')
 
             return self.get_mags_app(z, mags)
+
+    @property
+    def tab_source_mask(self):
+        """
+        Halo mass corresponding to some limiting magnitude set in pop_mask.
+        """
+        if not hasattr(self, '_tab_source_mask'):
+            self._tab_source_mask = np.inf * np.ones_like(self.halos.tab_z)
+
+            if self.pf['pop_mask'] is None:
+                return self._tab_source_mask
+
+            for i, z in enumerate(self.halos.tab_z):
+
+                # Loop over masking thresholds
+                Mh_lim = np.inf
+                for j, mask in enumerate(self.pf['pop_mask']):
+                    mwave, mlim = mask
+
+                    if type(mwave) in numeric_types:
+                        lam_r = mwave * 1e4 / (1. + z)
+                        mags = self.get_mags(z, absolute=False, wave=lam_r)
+                    else:
+                        raise NotImplemented('help')
+
+                    iM = np.argmin(np.abs(mags - mlim))
+                    Mh_lim = min(Mh_lim, self.halos.tab_M[iM])
+
+                self._tab_source_mask[i] = Mh_lim
+
+        return self._tab_source_mask
 
     def _get_phi_of_L(self, z, wave=1600., window=1):
         """
@@ -1945,6 +1976,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 # A suitably large number for (I think) any purpose
                 self._tab_Mmax_ = 1e18 * np.ones_like(self.halos.tab_z)
+
+            # Override switch: source masking
+            if self.pf['pop_mask'] is not None:
+                print("# Applying source mask to mimic observations.")
+                self._tab_Mmax = self.tab_source_mask
 
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
