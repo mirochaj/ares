@@ -2554,6 +2554,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.pf['pop_focc_inv']:
                 self._tab_focc_ = 1. - self._tab_focc_
 
+            self._tab_focc_ = np.minimum(self._tab_focc_, 1)
+            self._tab_focc_ = np.maximum(self._tab_focc_, 0)
+
         return self._tab_focc_
 
     @tab_focc.setter
