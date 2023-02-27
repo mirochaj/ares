@@ -123,6 +123,9 @@ centrals_q['pop_ssfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 3e3
 centrals_q['pop_Z'] = 0.02
+centrals_q['pop_focc'] = 'link:focc:0'
+centrals_q['pop_focc_inv'] = True
+centrals_q['pop_fstar'] = 'link:fstar:0'
 
 ihl_q = centrals_q.copy()
 ihl_q['pop_ihl'] = 1
@@ -150,3 +153,17 @@ satellites_sf['pop_prof_1h'] = 'nfw'
 satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = False
+
+
+base = {}
+_pop0 = centrals_sf.copy()
+_pop1 = centrals_q.copy()
+_pop2 = satellites_sf.copy()
+_pop3 = ihl_q.copy()
+
+for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3]):
+    pf = {}
+    for par in _pop.keys():
+        pf[par + '{%i}' % i] = _pop[par]
+
+    base.update(pf)

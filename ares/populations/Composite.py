@@ -27,7 +27,7 @@ except:
     basestring = str
 
 after_instance = ['pop_rad_yield']
-allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd', 'pop_focc']
+allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd', 'pop_focc', 'pop_fstar']
 
 class CompositePopulation(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -52,8 +52,8 @@ class CompositePopulation(object):
         """
 
         self.pops = [None for i in range(self.Npops)]
-        to_tunnel = [None for i in range(self.Npops)]
-        to_quantity = [None for i in range(self.Npops)]
+        to_tunnel = [[] for i in range(self.Npops)]
+        to_quantity = [[] for i in range(self.Npops)]
         to_copy = [None for i in range(self.Npops)]
         to_attribute = [None for i in range(self.Npops)]
         link_args = [[] for i in range(self.Npops)]
@@ -70,8 +70,8 @@ class CompositePopulation(object):
                 if re.search('link', pf[option]):
                     try:
                         junk, linkto, linkee = pf[option].split(':')
-                        to_tunnel[i] = int(linkee)
-                        to_quantity[i] = linkto
+                        to_tunnel[i].append(int(linkee))
+                        to_quantity[i].append(linkto)
                     except ValueError:
                         # Backward compatibility issue: we used to only ever
                         # link to the SFRD of another population
@@ -82,8 +82,6 @@ class CompositePopulation(object):
                         print('HELLO help please')
 
                     ct += 1
-
-            assert ct < 2
 
             if ct == 0:
                 self.pops[i] = GalaxyPopulation(cosm=self._cosm_, **pf)
@@ -114,62 +112,67 @@ class CompositePopulation(object):
 
         # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
-            if entry is None:
+            if entry == []:
                 continue
 
-            tmp = self.pfs[i].copy()
+            for j, element in enumerate(entry):
+                if j == 0:
+                    tmp = self.pfs[i].copy()
 
-            if self.pops[i] is not None:
-                raise ValueError('Only one link allowed right now!')
+                if to_quantity[i][j] in ['sfrd', 'emissivity']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyAggregate(cosm=self._cosm_, **tmp)
+                    self.pops[i]._sfrd = self.pops[element]._sfrd_func
+                elif to_quantity[i][j] in ['frd']:
+                    if self.pops[i] is None:
+                        self.pops[i] = BlackHoleAggregate(cosm=self._cosm_, **tmp)
+                    self.pops[i]._frd = self.pops[element]._frd_func
+                elif to_quantity[i][j] in ['sfe', 'fstar']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                    self.pops[i]._fstar = self.pops[element].get_sfe
+                elif to_quantity[i][j] in ['focc']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                    self.pops[i].tab_focc = self.pops[element].tab_focc
+                    self.pops[i]._focc = self.pops[element].focc
+                elif to_quantity[i][j] in ['Mmax_active']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                    self.pops[i]._tab_Mmin = self.pops[element]._tab_Mmax_active
+                elif to_quantity[i][j] in ['Mmax']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                    # You'll notice that we're assigning what appears to be an
+                    # array to something that is a function. Fear not! The setter
+                    # for _tab_Mmin will sort this out.
+                    self.pops[i]._tab_Mmin = self.pops[element].Mmax
 
-            if to_quantity[i] in ['sfrd', 'emissivity']:
-                self.pops[i] = GalaxyAggregate(cosm=self._cosm_, **tmp)
-                self.pops[i]._sfrd = self.pops[entry]._sfrd_func
-            elif to_quantity[i] in ['frd']:
-                self.pops[i] = BlackHoleAggregate(cosm=self._cosm_, **tmp)
-                self.pops[i]._frd = self.pops[entry]._frd_func
-            elif to_quantity[i] in ['sfe', 'fstar']:
-                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                self.pops[i]._fstar = self.pops[entry].get_sfe
-            elif to_quantity[i] in ['focc']:
-                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                self.pops[i].tab_focc = self.pops[entry].tab_focc
-                self.pops[i]._focc = self.pops[entry].focc
-            elif to_quantity[i] in ['Mmax_active']:
-                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                self.pops[i]._tab_Mmin = self.pops[entry]._tab_Mmax_active
-            elif to_quantity[i] in ['Mmax']:
-                self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                # You'll notice that we're assigning what appears to be an
-                # array to something that is a function. Fear not! The setter
-                # for _tab_Mmin will sort this out.
-                self.pops[i]._tab_Mmin = self.pops[entry].Mmax
+                    ok = self.pops[i]._tab_Mmin <= self.pops[element]._tab_Mmax
+                    excess = self.pops[i]._tab_Mmin - self.pops[element]._tab_Mmax
 
-                ok = self.pops[i]._tab_Mmin <= self.pops[entry]._tab_Mmax
-                excess = self.pops[i]._tab_Mmin - self.pops[entry]._tab_Mmax
+                    # For some reason there's a machine-dependent tolerance issue
+                    # here that causes a crash in a hard-to-reproduce way.
+                    if not np.all(ok):
+                        err_str = "{}/{} elements not abiding by condition.".format(
+                                ok.size - ok.sum(), ok.size)
+                        err_str += " Typical (Mmin - Mmax) = {}".format(np.mean(excess[~ok]))
 
-                # For some reason there's a machine-dependent tolerance issue
-                # here that causes a crash in a hard-to-reproduce way.
-                if not np.all(ok):
-                    err_str = "{}/{} elements not abiding by condition.".format(
-                            ok.size - ok.sum(), ok.size)
-                    err_str += " Typical (Mmin - Mmax) = {}".format(np.mean(excess[~ok]))
+                        if excess[~ok].mean() < 1e-4:
+                            pass
+                        else:
+                            assert np.all(ok), err_str
 
-                    if excess[~ok].mean() < 1e-4:
-                        pass
-                    else:
-                        assert np.all(ok), err_str
-
-            elif to_quantity[i] in after_instance:
-                continue
-            else:
-                raise NotImplementedError('help')
+                elif to_quantity[i][j] in after_instance:
+                    continue
+                else:
+                    raise NotImplementedError('help')
 
         # Set ID numbers (mostly for debugging purposes)
         for i, pop in enumerate(self.pops):
             pop.id_num = i
 
-        # Posslible few last things that occur after Population objects made
+        # Possible few last things that occur after Population objects made
         for i, entry in enumerate(to_copy):
             if entry is None:
                 continue
