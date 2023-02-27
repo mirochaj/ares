@@ -48,6 +48,8 @@ centrals_sf = \
  'pop_fesc': 0.2,
  'pop_sed_degrade': 10,
 
+ 'pop_nebular': 3,
+
  # Something with dust and metallicity here
 
  # fstar is SMHM for 'smhm-func' SFR model
@@ -117,15 +119,19 @@ centrals_sf = \
 }
 
 centrals_sf.update(_base)
-
 centrals_q = centrals_sf.copy()
 centrals_q['pop_ssfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 3e3
 centrals_q['pop_Z'] = 0.02
-centrals_q['pop_focc'] = 'link:focc:0'
-centrals_q['pop_focc_inv'] = True
 centrals_q['pop_fstar'] = 'link:fstar:0'
+centrals_q['pop_focc'] = 'link:focc:0'
+
+centrals_sf_old = centrals_q.copy()
+centrals_sf_old['pop_nebular'] = 0
+
+# Add this later so old component of SFGs keeps original focc
+centrals_q['pop_focc_inv'] = True
 
 ihl_q = centrals_q.copy()
 ihl_q['pop_ihl'] = 1
@@ -157,11 +163,12 @@ satellites_sf['pop_include_shot'] = False
 
 base = {}
 _pop0 = centrals_sf.copy()
-_pop1 = centrals_q.copy()
-_pop2 = satellites_sf.copy()
-_pop3 = ihl_q.copy()
+_pop1 = centrals_sf_old.copy()
+_pop2 = centrals_q.copy()
+_pop3 = satellites_sf.copy()
+_pop4 = ihl_q.copy()
 
-for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3]):
+for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3, _pop4]):
     pf = {}
     for par in _pop.keys():
         pf[par + '{%i}' % i] = _pop[par]
