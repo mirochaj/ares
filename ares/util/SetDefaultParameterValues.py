@@ -566,6 +566,9 @@ def PopulationParameters():
     "pop_focc": 1.0,
     "pop_focc_inv": False,
 
+    "pop_fsurv": 1.0,
+    "pop_fsurv_inv": False,
+
     "pop_fsup": 0.0,  # Suppression of star-formation at threshold
 
     # Set the emission interval and SED

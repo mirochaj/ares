@@ -63,7 +63,7 @@ def get_data(field, flag=None, sources=None):
                 zarr = np.array([zlo, zhi]).T
                 err = np.atleast_2d(np.array([errlo, errhi])).T
 
-            data[src] = zarr, logSFRD, err
+            data[src] = zarr, logSFRD, err, hdr
 
             continue
 
@@ -108,7 +108,7 @@ def get_data(field, flag=None, sources=None):
             assert np.all(x == data_qf[src][(zlo, zhi)][0]), \
                 f"Mismatch in {src} mass bins for SMF flag={flag}!"
 
-                
+
 
         ##
         # Pack up and move on

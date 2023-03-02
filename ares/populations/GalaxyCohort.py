@@ -600,6 +600,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         self._focc = value
 
     @property
+    def fsurv(self):
+        if not hasattr(self, '_fsurv'):
+            raise AttributeError('Must be set by hand if at all.')
+        return self._fsurv
+
+    @fsurv.setter
+    def fsurv(self, value):
+        self._fsurv = value
+
+    @property
     def SFRD(self):
         return self.get_sfrd
 
@@ -636,7 +646,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 for i, z in enumerate(self.halos.tab_z):
                     smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
                     smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
-                    integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i]
+                    smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
+
+                    integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
+                        * self.tab_focc[i]
                     _tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
 
                 self._tab_smd = _tab_smd
@@ -1422,12 +1435,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
                 mste = self.halos.tab_M * smhm
 
-                # Not for SSPs, L per SFR is really L per Mstell.
-                Lh = mste * L_sfr
+                if self.is_central_pop:
 
-                if self.pf['pop_ihl'] is not None:
-                    ihl = self.ihl(z=z, Mh=self.halos.tab_M)
-                    Lh *= ihl
+                    # Not for SSPs, L per SFR is really L per Mstell.
+                    Lh = mste * L_sfr
+
+                    if self.pf['pop_ihl'] is not None:
+                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                        Lh *= ihl
+                else:
+
+                    iz = np.argmin(np.abs(z - self.halos.tab_z))
+                    fsurv = self.tab_fsurv[iz,:]
+
+                    # In this case, need to integrate over subhalo MF.
+                    Ls = mste * L_sfr
+                    Lh = np.zeros_like(self.halos.tab_M)
+                    for i, Mc in enumerate(self.halos.tab_M):
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
+
 
             else:
 
@@ -1442,11 +1469,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if self.is_central_pop:
                     Lh = sfr * L_sfr
                 else:
+                    iz = np.argmin(np.abs(z - self.halos.tab_z))
+                    fsurv = self.tab_fsurv[iz,:]
+
                     # In this case, need to integrate over subhalo MF.
                     Ls = sfr * L_sfr
                     Lh = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:]
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
                         Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
 
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
@@ -2598,6 +2628,29 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_focc_ = 1 - value
         else:
             self._tab_focc_ = value
+
+    @property
+    def tab_fsurv(self):
+        if not hasattr(self, '_tab_fsurv_'):
+            yy, xx = self._tab_Mz
+            fsurv = self.fsurv(z=xx, Mh=yy)
+
+            if type(fsurv) in [int, float, np.float64]:
+                self._tab_fsurv_ = fsurv * np.ones_like(self.halos.tab_dndm)
+            else:
+                self._tab_fsurv_ = fsurv
+
+            if self.pf['pop_fsurv_inv']:
+                self._tab_fsurv_ = 1. - self._tab_fsurv_
+
+        return self._tab_fsurv_
+
+    @tab_fsurv.setter
+    def tab_fsurv(self, value):
+        if self.pf['pop_fsurv_inv']:
+            self._tab_fsurv_ = 1 - value
+        else:
+            self._tab_fsurv_ = value
 
     def get_smhm(self, **kwargs):
         if self.pf['pop_sfr_model'] in ['smhm-func']:
@@ -4146,6 +4199,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Loop over scales of interest if given an array.
         if type(scale) is np.ndarray:
 
+            assert type(scale[0]) in numeric_types
+
             ps = np.zeros_like(scale)
 
             pb = ProgressBar(scale.shape[0],
@@ -4303,7 +4358,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ps3d = np.zeros_like(k)
 
         if include_shot:
-            ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2, raw=True,
+            ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2,
+                raw=self.pf['pop_1h_nebular_only'],
                 nebular_only=False)
             ps3d += ps_shot
 
