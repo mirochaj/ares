@@ -113,7 +113,7 @@ def get_data(field, flag=None, sources=None):
         ##
         # Pack up and move on
         data[src][(zlo, zhi)] = \
-            np.atleast_2d(x), phi, np.atleast_2d(yerr)
+            np.atleast_2d(x), phi, np.atleast_2d(yerr), hdr
 
     ##
     # Done
