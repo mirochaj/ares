@@ -88,7 +88,7 @@ centrals_sf = \
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
- 'pq_func_par0[2]': 0.95,
+ 'pq_func_par0[2]': 1,
  'pq_func_par1[2]': 0.0,
  'pq_func_par2[2]': 11.8,
  'pq_func_par3[2]': 0.6,
@@ -186,10 +186,10 @@ disruption['pq_func[3]{3}'] = 'logtanh_abs_evolM'
 disruption['pq_func_var[3]{3}'] = 'Mh'
 disruption['pq_func_var2[3]{3}'] = '1+z'
 disruption['pq_val_ceil[3]{3}'] = 1
-disruption['pq_func_par0[3]{3}'] = 0.005 # step = par0-par1
+disruption['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
 disruption['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-disruption['pq_func_par2[3]{3}'] = 12
-disruption['pq_func_par3[3]{3}'] = 0.5 # dlogM
+disruption['pq_func_par2[3]{3}'] = 11
+disruption['pq_func_par3[3]{3}'] = 0.7 # dlogM
 disruption['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
 disruption['pq_func_par5[3]{3}'] = 1   # Pin to z=0
 
