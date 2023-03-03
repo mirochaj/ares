@@ -28,7 +28,7 @@ except:
 
 after_instance = ['pop_rad_yield']
 allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd', 'pop_focc',
-    'pop_fsurv', 'pop_fstar']
+    'pop_fsurv', 'pop_fstar', 'pop_ssfr']
 
 class CompositePopulation(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -132,6 +132,10 @@ class CompositePopulation(object):
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                     self.pops[i]._fstar = self.pops[element].get_sfe
+                elif to_quantity[i][j] in ['ssfr']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                    self.pops[i]._func_ssfr = self.pops[element].get_ssfr
                 elif to_quantity[i][j] in ['focc']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)

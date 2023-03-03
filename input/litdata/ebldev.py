@@ -141,6 +141,18 @@ satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = False
 satellites_sf['pop_fstar'] = 'link:fstar:0'
+satellites_sf['pop_ssfr'] = 'link:ssfr:0'
+
+satellites_old = centrals_sf_old.copy()
+satellites_old['pop_centrals'] = 0
+satellites_old['pop_centrals_id'] = 0
+satellites_old['pop_prof_1h'] = 'nfw'
+satellites_old['pop_include_1h'] = True
+satellites_old['pop_include_2h'] = True
+satellites_old['pop_include_shot'] = False
+satellites_old['pop_fstar'] = 'link:fstar:0'
+satellites_old['pop_ssfr'] = None
+satellites_old['pop_focc'] = 1
 
 satellites_all = satellites_sf.copy()
 satellites_all['pop_focc'] = 1
@@ -158,9 +170,10 @@ _pop0 = centrals_sf.copy()
 _pop1 = centrals_sf_old.copy()
 _pop2 = centrals_q.copy()
 _pop3 = satellites_all.copy()
-_pop4 = ihl_from_sat.copy()
+_pop4 = satellites_old.copy()
+_pop5 = ihl_from_sat.copy()
 
-for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3, _pop4]):
+for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3, _pop4, _pop5]):
     pf = {}
     for par in _pop.keys():
         pf[par + '{%i}' % i] = _pop[par]
@@ -180,7 +193,12 @@ disruption['pq_func_par3[3]{3}'] = 0.5 # dlogM
 disruption['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
 disruption['pq_func_par5[3]{3}'] = 1   # Pin to z=0
 
+disruption['pop_fsurv{4}'] = 'link:fsurv:3'
+
 disruption['pop_Mmin{3}'] = 1e10
 disruption['pop_Mmin{4}'] = 1e10
-disruption['pop_fsurv{4}'] = 'link:fsurv:3'
-disruption['pop_fsurv_inv{4}'] = True
+disruption['pop_Mmin{5}'] = 1e10
+
+
+disruption['pop_fsurv{5}'] = 'link:fsurv:3'
+disruption['pop_fsurv_inv{5}'] = True

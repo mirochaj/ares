@@ -1370,9 +1370,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         kwtup = (z, wave, band, window, energy_units, raw, nebular_only, age)
         cached_result = self._cache_L(*kwtup)
 
-        #if cached_result is not None:
-        #    #print(f"Loading result from cache at z={z}")
-        #    return cached_result
+        if cached_result is not None:
+            #print(f"Loading result from cache at z={z}")
+            return cached_result
 
         if self.pf['pop_halos'] is not None:
             Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
@@ -1548,6 +1548,44 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             return self.get_mags_app(z, mags)
 
+    def get_Mmax_from_maglim(self, z, wave, mlim):
+        """
+        Map some limiting (apparent AB) magnitude at given wavelength onto a
+        corresponding halo mass.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of object.
+        wave : int, float
+            Observed wavelength [microns].
+        mlim : int, float
+            Apparent AB magnitude of interest.
+
+        Returns
+        -------
+        Halo mass in Msun.
+        """
+        if type(wave) in numeric_types:
+            lam_r = wave * 1e4 / (1. + z)
+            mags = self.get_mags(z, absolute=False, wave=lam_r)
+        else:
+            raise NotImplemented('help')
+
+        iM = np.argmin(np.abs(mags - mlim))
+        Mh_lim = self.halos.tab_M[iM]
+
+        return mags, Mh_lim
+
+    def get_mags_tab(self, wave):
+
+        mags = np.inf * np.ones_like(self.halos.tab_dndm)
+        for i, z in enumerate(self.halos.tab_z):
+            # last argument doesn't matter here.
+            mags[i,:], Mhlim = self.get_Mmax_from_maglim(z, wave, 15)
+
+        return mags
+
     @property
     def tab_source_mask(self):
         """
@@ -1564,16 +1602,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 # Loop over masking thresholds
                 Mh_lim = np.inf
                 for j, mask in enumerate(self.pf['pop_mask']):
-                    mwave, mlim = mask
-
-                    if type(mwave) in numeric_types:
-                        lam_r = mwave * 1e4 / (1. + z)
-                        mags = self.get_mags(z, absolute=False, wave=lam_r)
+                    if len(mask) == 2:
+                        mwave, mlim = mask
+                        _mags, Mh_lim_j = self.get_Mmax_from_maglim(z, mwave, mlim)
+                        Mh_lim = min(Mh_lim, Mh_lim_j)
                     else:
-                        raise NotImplemented('help')
-
-                    iM = np.argmin(np.abs(mags - mlim))
-                    Mh_lim = min(Mh_lim, self.halos.tab_M[iM])
+                        mwave, mlim, mags = mask
+                        iM = np.argmin(np.abs(mags[i] - mlim))
+                        Mh_lim = min(Mh_lim, self.halos.tab_M[iM])
 
                 self._tab_source_mask[i] = Mh_lim
 
