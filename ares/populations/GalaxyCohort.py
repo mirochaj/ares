@@ -1572,6 +1572,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             raise NotImplemented('help')
 
+        mags[np.isinf(mags)] = 50
         iM = np.argmin(np.abs(mags - mlim))
         Mh_lim = self.halos.tab_M[iM]
 
@@ -1608,7 +1609,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         Mh_lim = min(Mh_lim, Mh_lim_j)
                     else:
                         mwave, mlim, mags = mask
-                        iM = np.argmin(np.abs(mags[i] - mlim))
+                        # inf means 0 = flux, set to some impossibly faint
+                        # magnitude to avoid issues
+                        if not np.any(np.isfinite(mags[i,:])):
+                            continue
+
+                        mags[i,np.isinf(mags[i])] = 50
+                        iM = np.argmin(np.abs(mags[i,:] - mlim))
+
+                        if abs(mags[i,iM] - mlim) > 0.1:
+                            continue
+
                         Mh_lim = min(Mh_lim, self.halos.tab_M[iM])
 
                 self._tab_source_mask[i] = Mh_lim

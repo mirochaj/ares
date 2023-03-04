@@ -84,7 +84,7 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolM',
+ 'pq_func[2]': 'logtanh_abs_evolM', # Evolving midpoint
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,

@@ -2450,7 +2450,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
 
         Returns
         -------
-        A tuple containing (observed wavelengths [microns], flux [erg/s/Hz]).
+        A tuple containing (observed wavelengths [microns], flux [erg/s/cm^2/Hz]).
 
         Note that the flux array is 2-D, with the first axis corresponding to
         halo mass bins.
