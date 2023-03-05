@@ -1548,7 +1548,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             return self.get_mags_app(z, mags)
 
-    def get_Mmax_from_maglim(self, z, wave, mlim):
+    def get_Mmax_from_maglim(self, z, wave, mlim, mtol=0.05):
         """
         Map some limiting (apparent AB) magnitude at given wavelength onto a
         corresponding halo mass.
@@ -1574,7 +1574,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         mags[np.isinf(mags)] = 50
         iM = np.argmin(np.abs(mags - mlim))
-        Mh_lim = self.halos.tab_M[iM]
+
+        if abs(mags[iM] - mlim) > mtol:
+            Mh_lim = np.inf
+        else:
+            Mh_lim = self.halos.tab_M[iM]
 
         return mags, Mh_lim
 
@@ -1593,7 +1597,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Halo mass corresponding to some limiting magnitude set in pop_mask.
         """
         if not hasattr(self, '_tab_source_mask'):
-            self._tab_source_mask = np.inf * np.ones_like(self.halos.tab_z)
+            self._tab_source_mask = self.halos.tab_M.max() \
+                * np.ones_like(self.halos.tab_z)
 
             if self.pf['pop_mask'] is None:
                 return self._tab_source_mask
@@ -1617,7 +1622,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         mags[i,np.isinf(mags[i])] = 50
                         iM = np.argmin(np.abs(mags[i,:] - mlim))
 
-                        if abs(mags[i,iM] - mlim) > 0.1:
+                        if abs(mags[i,iM] - mlim) > 0.05:
                             continue
 
                         Mh_lim = min(Mh_lim, self.halos.tab_M[iM])
