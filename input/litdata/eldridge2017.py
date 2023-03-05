@@ -9,11 +9,12 @@ Stanway & Eldridge (2018).
 
 import re, os
 import numpy as np
+from ares.data import ARES
 from scipy.interpolate import interp1d
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
-_input = os.getenv('ARES') + '/input/bpass_v2/SEDS'
+_input = ARES + '/input/bpass_v2/'
 
 metallicities = \
 {
@@ -27,29 +28,36 @@ info = \
  'flux_units': r'$L_{\odot} \ \AA^{-1}$',
 }
 
-_log10_times = np.arange(6, 10.1, 0.1)
-times = 10**_log10_times / 1e6            # Convert from yr to Myr
+#_log10_times = np.arange(6, 10.1, 0.1)
+#times = 10**_log10_times / 1e6            # Convert from yr to Myr
+n = np.arange(1, 42)
+times = 10**(6+0.1*(n-2)) / 1e6
 
 def _kwargs_to_fn(**kwargs):
     """
     Determine filename of appropriate BPASS lookup table based on kwargs.
     """
 
+
+
+    path = 'BPASSv2_imf{}'.format(str((kwargs['source_imf'] - 1)).replace('.', ''))
+    path += '_{}'.format(str(int(kwargs['source_imf_Mmax'])))
+
+    if kwargs['source_ssp']:
+        path += '/OUTPUT_POP/'
+    else:
+        path += '/OUTPUT_CONT/'
+
     # All files share this prefix
     fn = 'spectra'
-
-    assert kwargs['source_ssp'], \
-        "No support for continuous star formation in BPASS v2."
-    assert kwargs['source_nebular'] in [0, 2], \
-        "No support for nebular emission in BPASS v2."
 
     if kwargs['source_binaries']:
         fn += '-bin'
     else:
-        fn += '-sin'
+        pass
 
-    fn += '-imf{}'.format(str((kwargs['source_imf'] - 1)).replace('.', ''))
-    fn += '_{}'.format(str(int(kwargs['source_imf_Mmax'])))
+    if kwargs['source_nebular'] == 1:
+        fn += '+nebula'
 
     # Metallicity
     fn += '.z{!s}'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
@@ -59,7 +67,7 @@ def _kwargs_to_fn(**kwargs):
 
     fn += '.dat'
 
-    return _input + '/' + fn
+    return _input + path + fn
 
 def _load(**kwargs):
     """
