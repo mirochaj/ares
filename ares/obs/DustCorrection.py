@@ -6,7 +6,7 @@ Author: Jason Sun and Jordan Mirocha
 Affiliation: UCLA
 Created on: Tue Jan 19 17:55:27 PST 2016
 
-Description: 
+Description:
 
 """
 
@@ -31,11 +31,11 @@ _coeff = \
 }
 
 _magarr = np.arange(-35, 0, 0.1)
-          
+
 class DustCorrection(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
-        
+
     @property
     def method(self):
         if not hasattr(self, '_method'):
@@ -45,33 +45,33 @@ class DustCorrection(object):
                 meth = self.pf['dustcorr_method']
                 self._method = \
                     [meth[i] for i in range(len(meth))]
-                    
+
                 assert len(self._method) == len(self.pf['dustcorr_ztrans'])
             else:
                 self._method = self.pf['dustcorr_method']
 
         return self._method
-    
+
     #   ==========   Parametrization of Auv   ==========   #
-    
+
     def AUV(self, z, mag):
         """
         Return non-negative mean correction <Auv> averaged over Luv assuming a
         normally distributed Auv
         """
-        
-        
+
+
         ##
         # Physical models!
         ##
         if self.method == 'physical':
             raise NotImplemented('help')
-        
+
         ##
         # Empirical prescriptions.
         ##
-        
-        
+
+
         if self.method is None:
             method = None
         elif type(self.method) is list:
@@ -79,7 +79,7 @@ class DustCorrection(object):
                 if z < self.pf['dustcorr_ztrans'][i]:
                     continue
                 if i == (len(self.method) - 1):
-                    break    
+                    break
                 if z <= self.pf['dustcorr_ztrans'][i+1]:
                     break
         else:
@@ -93,61 +93,61 @@ class DustCorrection(object):
         sigma = np.sqrt(s_a**2 + (s_b * beta)**2)
         AUV = a + b * beta + 0.2 * np.log(10) * sigma
         return np.maximum(AUV, 0.0)
-        
+
     def _Mobs_func(self, z):
         if not hasattr(self, '_Mobs_func_'):
             self._Mobs_func_ = {}
-            
+
         if z not in self._Mobs_func_:
             y = []
             for M in _magarr:
                 f_AUV = lambda mag: self.AUV(z, mag)
-                
+
                 to_min = lambda xx: np.abs(xx - f_AUV(xx) - M)
                 y.append(fsolve(to_min, M)[0])
-                
+
             y = np.array(y)
-            
+
             self._Mobs_func_[z] = lambda M: np.interp(M, _magarr, y,
                 left=np.nan, right=0.0)
-            
-        return self._Mobs_func_[z]    
-        
+
+        return self._Mobs_func_[z]
+
     def Mobs(self, z, MUV):
         """
         Return observed  magnitude.
         """
-        
+
         ##
         # Physical models!
         ##
         if self.method == 'physical':
             raise NotImplemented('help')
-        
+
         # Compute the absolute magnitude one measured in the first place,
         # i.e., before correcting for dust.
-        
+
         func = self._Mobs_func(z)
-        
+
         Mobs = func(MUV)
-        
+
         return Mobs
-        
-           
+
+
         #if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
-        #    
+        #
         #    x = []
         #    for M in MUV:
         #        f_AUV = lambda mag: self.AUV(z, mag)
-        #        
+        #
         #        to_min = lambda xx: np.abs(xx - f_AUV(xx) - M)
         #        x.append(fsolve(to_min, M)[0])
-        #        
-        #    x = np.array(x)    
+        #
+        #    x = np.array(x)
         #else:
         #
         #    f_AUV = lambda mag: self.AUV(z, mag)
-        #    
+        #
         #    to_min = lambda xx: np.abs(xx - f_AUV(xx) - MUV)
         #    x = fsolve(to_min, MUV)[0]
         #
@@ -155,29 +155,29 @@ class DustCorrection(object):
 
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
-        
+
         ##
         # Physical models!
         ##
         if self.method == 'physical':
             raise NotImplemented('help')
-            
+
             # Need a population instance.
-        
+
         if isinstance(self.pf['dustcorr_beta'], basestring):
             return self._beta_fit(z, mag)
-        elif type(self.pf['dustcorr_beta']) is FunctionType:    
+        elif type(self.pf['dustcorr_beta']) is FunctionType:
             return self.pf['dustcorr_beta'](z, mag)
         else:
             return self.pf['dustcorr_beta'] * np.ones_like(mag)
-            
+
     def _bouwens2014_beta0(self, z):
         """
         Get the measured UV continuum slope from Bouwens+2014 (Table 3).
         """
-        
+
         _z = round(z,0)
-        
+
         if _z < 4.0:
             val = -1.70; err_rand = 0.07; err_sys = 0.15
         elif _z == 4.0:
@@ -193,14 +193,14 @@ class DustCorrection(object):
         else:
             # Assume constant at z>8
             val = -2.00; err_rand = 0.00; err_sys = 0.00
-                    
+
         return val, err_rand, err_sys
-        
+
     def _bouwens2014_dbeta0_dM0(self, z):
         """
         Get the measured slope of the UV continuum slope from Bouwens+2014.
         """
-        
+
         _z = round(z,0)
         if _z < 4.0:
             val = -0.2; err = 0.04
@@ -217,9 +217,9 @@ class DustCorrection(object):
         else:
             # Assume constant at z>8
             val = -0.15; err = 0.00
-                        
+
         return val, err
-    
+
     def _beta_fit(self, z, mag):
         """
         An linear + exponential fit to Bouwens+14 data adopted from Mason+2015.
@@ -232,7 +232,7 @@ class DustCorrection(object):
             # His Table 3
             beta0 = self._bouwens2014_beta0(z)[0]
             dbeta_dMUV = self._bouwens2014_dbeta0_dM0(z)[0]
-            return dbeta_dMUV * (mag + 19.5) + beta0    
+            return dbeta_dMUV * (mag + 19.5) + beta0
         elif self.pf['dustcorr_beta'] == 'mason2015':
             _M0 = -19.5; _c = -2.33
             # Must handle piecewise function carefully for arrays of magnitudes
@@ -253,4 +253,3 @@ class DustCorrection(object):
         else:
             raise NotImplementedError('Unrecognized dustcorr: {!s}'.format(\
                 self.pf['dustcorr_beta']))
-

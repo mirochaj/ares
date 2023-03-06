@@ -300,7 +300,7 @@ sfe_parameters = \
  "galaxy_lf_1500": r'$\phi(M_{1500}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_lf_1600": r'$\phi(M_{1600}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_smf": r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$',
- "galaxy_ssfr": r'$\dot{M}_{\ast} / M_{\odot} \ [\rm{yr}^{-1}]$',
+ "galaxy_ssfr": r'$\dot{M}_{\ast} / M_{\ast} \ [\rm{yr}^{-1}]$',
 }
 
 for i in range(6):
