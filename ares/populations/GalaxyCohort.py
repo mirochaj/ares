@@ -649,7 +649,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
 
                     integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
-                        * self.tab_focc[i]
+                        * self.tab_focc[i] * g_per_msun / cm_per_mpc**3
                     _tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
 
                 self._tab_smd = _tab_smd

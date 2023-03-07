@@ -29,6 +29,9 @@ for fn in os.listdir('SEDS'):
     if 'readme' in fn:
         continue
 
+    if fn.endswith('.py'):
+        continue
+
     full_fn = 'SEDS/{}'.format(fn)
     out_fn = full_fn+'.deg{}'.format(degrade_to)
 
