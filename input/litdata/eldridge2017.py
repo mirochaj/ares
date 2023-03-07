@@ -60,12 +60,9 @@ def _kwargs_to_fn(**kwargs):
         fn += '+nebula'
 
     # Metallicity
-    fn += '.z{!s}'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
-
+    fn += '.z{!s}.dat'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
     if kwargs['source_sed_degrade'] is not None:
         fn += '.deg{}'.format(kwargs['source_sed_degrade'])
-
-    fn += '.dat'
 
     return _input + path + fn
 
