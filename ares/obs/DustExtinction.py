@@ -103,7 +103,7 @@ class DustExtinction(object):
 
     def get_A_lam(self, wave, Av=0.1):
         R = self.get_R(wave)
-        return -Av * (1. - R) / R
+        return np.maximum(-Av * (1. - R) / R, 0)
 
     def get_slope(self, wave1, wave2):
         return self.get_A_lam(wave1) / self.get_A_lam(wave2)

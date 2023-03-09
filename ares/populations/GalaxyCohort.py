@@ -1483,6 +1483,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self.halos.tab_M < self.get_Mmax(z))
             Lh[~ok] = 0
 
+            if self.pf['dustext_template'] is not None:
+                print("Applying dust extinction")
+                T = self.dustext.get_T_lam(wave, Av=5)
+                Lh *= T
+
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
 

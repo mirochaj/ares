@@ -25,6 +25,7 @@ from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..util.Warnings import no_lya_warning
 from ..obs.DustCorrection import DustCorrection
+from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
@@ -148,6 +149,12 @@ class Population(object):
         if not hasattr(self, '_dust'):
             self._dust = DustCorrection(**self.pf)
         return self._dust
+
+    @property
+    def dustext(self):
+        if not hasattr(self, '_dustext'):
+            self._dustext = DustExtinction(**self.pf)
+        return self._dustext
 
     @property
     def magsys(self):
