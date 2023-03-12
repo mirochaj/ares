@@ -70,7 +70,54 @@ class LightCone(object): # pragma: no cover
                 for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
 
-    def get_map(self, fov, channel, zlim=None, logmlim=None, pix=1, idnum=0,
+    def create_directory_structure(self, path='.', suffix=None):
+        """
+        Our model is:
+
+        ->ebl_fov_<FOV in deg>_pix_<pixel scale in arcsec>_L<box/cMpc/h>_N<dims>/
+        ->  README
+        ->  <parent directory name>.tar.gz
+                *(contains) final mock for each channel summed over all z, M, pops.
+        ->  ch_<spectral channel edges>
+        ->    z_<redshift lower edge, upper edge>_M_<halo mass lower edge, upper>_pid_<pop ID number>.fits
+        ->
+
+        """
+
+        base_dir = '{}/ebl_fov_{:.1f}_pix_{:.1f}'.format(path,
+            self.fov, self.pix, self.Lbox)
+
+    def get_base_dir(self, fov, pix, path='.', suffix=None):
+        """
+        Generate the name for the root directory where all mocks for a given
+        model will go.
+
+        Our model is:
+
+        ->ebl_fov_<FOV/deg>_pix_<pixel scale / arcsec>_L<box/cMpc/h>_N<dims>/
+        ->  README
+
+        Inside this directory, there will be many subdirectories: one for each
+        spectral channel of interest.
+
+        There will also be a series of .fits (or .hdf5) files, which represent
+        "final" maps, i.e., those that are summed over redshift and mass chunks,
+        and also summed over all source populations.
+
+        """
+
+
+        s = '{}/ebl_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(path,
+            fov, pix, self.Lbox, self.dims)
+
+        if suffix is None:
+            print("# WARNING: might be worth providing `suffix` as additional identifier.")
+        else:
+            s += f'_{suffix}'
+
+        return s
+
+    def get_map(self, fov, pix, channel, logmlim=None, zlim=None, idnum=0,
         include_galaxy_sizes=False, save_intermediate=True, dlam=20.,
         use_pbar=True, map_units='si', **kwargs):
         """
@@ -396,39 +443,68 @@ class LightCone(object): # pragma: no cover
 
         return ra_e, dec_e, final_map
 
-    def get_fn(self, fov, channel, pix=1, zlim=None, logmlim=None,
-        prefix=None, suffix=None, fmt='hdf5'):
+    def get_fn(self, channel, logmlim, zlim=None, fmt='hdf5', final=False):
+        """
+
+        """
 
         if zlim is None:
             zlim = self.zlim
 
-        if logmlim is None:
-            logmlim = -np.inf, 16
+        fn = 'z_{:.2f}_{:.2f}'.format(*zlim)
+        fn += '_M_{:.1f}_{:.1f}'.format(*logmlim)
 
-        pref = 'fov_{:.2f}_pix_{:.1f}'.format(fov, pix)
-        pref += '_L{:.0f}_N{:.0f}'.format(self.Lbox, self.dims)
-        if zlim is not None:
-            pref += '_z_{:.2f}_{:.2f}'.format(*zlim)
-        if logmlim is not None:
-            pref += '_M_{:.1f}_{:.1f}'.format(*logmlim)
-        pref += '_ch_{:.2f}_{:.2f}'.format(*channel)
-
-        if prefix is None:
-            prefix = ''
+        if final:
+            fn += '/'
         else:
-            prefix = f'{prefix}_'
+            fn += '_'
 
-        if suffix is None:
-            suffix = ''
-        else:
-            suffix = f'_{suffix}'
+        if channel is not None:
+            fn += 'ch_{:.2f}_{:.2f}'.format(*channel)
 
-        return prefix + pref + suffix + '.' + fmt
+        return fn + '.' + fmt
 
-    def generate_maps(self, fov, channels, logmlim, dlogm=0.5, zlim=None, pix=1,
-        include_galaxy_sizes=False, dlam=20, clobber=False,
-        save_dir=None, prefix=None, suffix=None, fmt='hdf5', hdr={},
-        map_units='MJy', **kwargs):
+    def get_README(self, fov, pix, channels, logmlim, zlim, path='.',
+        suffix=None, fmt='fits', save=False):
+        """
+
+        """
+
+        s = "#" * 78
+        s += '\n# README\n'
+        s += "#" * 78
+        s +=  "\n# This is an automatically-generated file! \n"
+        s += "# In it, we list the names of all maps created with a given set"
+        s += " of parameters.\n"
+        s += "# Note: this is a listing of files that will exist when the "
+        s += "map-making is \n# COMPLETE, i.e., they may not all exist yet.\n"
+        s += "#" * 78
+        s += "\n"
+        s += "# central wavelength (microns); channel lower edge (microns) ; "
+        s += "channel upper edge (microns) ; filename \n"
+
+        # Loop over channels
+        final_dir = 'final_maps'
+
+        for channel in channels:
+            fn = self.get_fn(channel, logmlim, zlim=zlim,
+                fmt=fmt, final=True)
+            s += "{:.4f} ; {:.4f} ; {:.4f} ; {}/{} \n".format(np.mean(channel),
+                channel[0], channel[1], final_dir, fn)
+
+        if save:
+            base_dir = self.get_base_dir(fov=fov, pix=pix, path=path,
+                suffix=suffix)
+            with open(f'{base_dir}/README', 'w') as f:
+                f.write(s)
+            print(f"# Wrote {base_dir}/README")
+
+        return s
+
+    def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
+        include_galaxy_sizes=False, dlam=20, path='.',
+        suffix=None, fmt='hdf5', hdr={}, map_units='MJy',
+        include_pops=None, clobber=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -454,105 +530,193 @@ class LightCone(object): # pragma: no cover
 
         """
 
+        # Create root directory if it doesn't already exist.
+        base_dir = self.get_base_dir(fov=fov, pix=pix, path=path, suffix=suffix)
+        if not os.path.exists(base_dir):
+            os.mkdir(base_dir)
+            os.mkdir(base_dir + '/intermediate_maps')
+            os.mkdir(base_dir + '/final_maps')
+
+        ##
+        # Write a README file that says what all the final products are
+        README = self.get_README(fov=fov, pix=pix, channels=channels,
+            logmlim=logmlim, zlim=zlim, path=path,
+            suffix=suffix, save=True)
+
         if np.array(channels).ndim == 1:
             channels = np.array([channels])
 
         if zlim is None:
             zlim = self.zlim
 
-        if save_dir is None:
-            save_dir = '.'
-        else:
-            if not os.path.exists(save_dir):
-                os.mkdir(save_dir)
+        if include_pops is None:
+            include_pops = range(0, len(self.sim.pops))
 
-        assert fov * 3600 / pix % 1 == 0, "FOV must be integer number of pixels wide!"
+        assert fov * 3600 / pix % 1 == 0, \
+            "FOV must be integer number of pixels wide!"
 
         npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
         mbins = np.arange(logmlim[0], logmlim[1], dlogm)
         mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
 
-        for channel in channels:
+        final_dir = base_dir + '/final_maps'
+        _final_sub = self.get_fn(None, logmlim, zlim=zlim, fmt=fmt,
+            final=True)
+        final_sub = _final_sub[0:_final_sub.rfind('/')]
+        if not os.path.exists(f'{final_dir}/{final_sub}'):
+            os.mkdir(f'{final_dir}/{final_sub}')
 
-            tot = np.zeros([npix]*2)
+        totp = np.zeros([npix]*2)
+        for popid, pop in enumerate(self.sim.pops):
+            if popid not in include_pops:
+                continue
 
-            for (zlo, zhi) in zchunks:
+            intmd_dir = base_dir + f'/intermediate_maps/pop_{popid}'
+            if not os.path.exists(intmd_dir):
+                os.mkdir(intmd_dir)
 
-                totz = np.zeros([npix]*2)
+            for channel in channels:
 
-                if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                    continue
-
-                # Go from high to low
-                for (mlo, mhi) in mchunks[-1::-1]:
-
-                    fn = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
-                        logmlim=(mlo, mhi), prefix=prefix, suffix=suffix, fmt=fmt)
-
-                    fn = save_dir + '/' + fn
-
-                    # Try to read from disk.
-                    if os.path.exists(fn) and (not clobber):
-                        print(f"Found {fn}. Set clobber=True to overwrite.")
-                        _Inu = self._load_map(fn)
-                        totz += _Inu
-                        continue
-
-                    print(f"# Will save EBL mock to {fn}.")
-
-                    # Will just be for a single chunk so save_intermediate is
-                    # irrelevant.
-                    ra_e, dec_e, img = self.get_map(fov, channel, zlim=(zlo, zhi),
-                        logmlim=(mlo, mhi),
-                        pix=pix, save_intermediate=False,
-                        include_galaxy_sizes=False,
-                        dlam=dlam, use_pbar=False, map_units=map_units, **kwargs)
-
-                    nu = c * 1e4 / np.mean(channel)
-                    dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
-
-                    # `img` is a band-integrated power, convert to band-averaged
-                    # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
-                    Inu = img[0,:,:] / dnu
-
-                    # Save
-                    self.save_map(fn, Inu, channel, (zlo, zhi), (mlo, mhi), fov,
-                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
-
-                    totz += Inu
+                tot = np.zeros([npix]*2)
 
                 ##
-                # Save image summed over mass
-                fnz = self.get_fn(fov, channel, pix=pix, zlim=(zlo, zhi),
-                    logmlim=logmlim, prefix=prefix, suffix=suffix, fmt=fmt)
-                fnz = save_dir + '/' + fnz
+                # Look for pre-existing file
 
-                # Always overwrite. Not really an issue, if a calculation
-                # terminated early then this file wouldn't have been written.
-                if not os.path.exists(fnz):
+                # Go from low-z to high-z
+                for (zlo, zhi) in zchunks:
+
+                    # Look for pre-existing file.
+
+                    totz = np.zeros([npix]*2)
+
+                    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
+                        continue
+
+                    # Go from high to low in mass
+                    for (mlo, mhi) in mchunks[-1::-1]:
+
+                        fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
+                            fmt=fmt, final=False)
+
+                        fn = intmd_dir + '/' + fn
+
+                        # Try to read from disk.
+                        if os.path.exists(fn) and (not clobber):
+                            print(f"Found {fn}. Set clobber=True to overwrite.")
+                            _Inu = self._load_map(fn)
+                            totz += _Inu
+                            continue
+
+                        print(f"# Will save EBL mock to {fn}.")
+
+
+                        # Will just be for a single chunk so save_intermediate is
+                        # irrelevant.
+                        ra_e, dec_e, img = self.get_map(fov, pix, channel,
+                            logmlim=(mlo, mhi), zlim=(zlo, zhi),
+                            save_intermediate=False,
+                            include_galaxy_sizes=False,
+                            dlam=dlam, use_pbar=False, map_units=map_units, **kwargs)
+
+                        nu = c * 1e4 / np.mean(channel)
+                        dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
+
+                        # `img` is a band-integrated power, convert to band-averaged
+                        # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
+                        Inu = img[0,:,:] / dnu
+
+                        # Save
+                        self.save_map(fn, Inu, channel, (zlo, zhi), (mlo, mhi),
+                            fov, pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+
+                        totz += Inu
+
+                    ##
+                    # Save image summed over mass
+                    fnz = self.get_fn(channel, logmlim=logmlim, zlim=(zlo, zhi),
+                        fmt=fmt, final=False)
+                    fnz = intmd_dir + '/' + fnz
+
+                    # Always overwrite. Not really an issue, if a calculation
+                    # terminated early then this file wouldn't have been written.
+                    #if not os.path.exists(fnz):
                     self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
-                # Increment map for this z chunk
-                tot += totz
+                    # Increment map for this z chunk
+                    tot += totz
 
-            ##
-            # Save image summed over mass and redshift.
-            fnt = self.get_fn(fov, channel, pix=pix,
-                zlim=(self.zlim[0], self.zlim[1]),
-                logmlim=logmlim, prefix=prefix, suffix=suffix, fmt=fmt)
+                ##
+                # Save image summed over mass and redshift.
+                fnt = self.get_fn(channel, logmlim=logmlim,
+                    zlim=zlim, fmt=fmt, final=False)
 
-            fnt = save_dir + '/' + fnt
+                fnt = intmd_dir + '/' + fnt
 
-            ##
-            # Save image summed over mass
-            if not os.path.exists(fnt):
-                self.save_map(fnt, tot, channel, self.zlim, logmlim, fov,
+                ##
+                # Save image summed over mass
+                #if not os.path.exists(fnt):
+                self.save_map(fnt, tot, channel, zlim, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
+                ##
+                # Increment total image
+                totp += tot
+
+        ##
+        # Wipe slate clean
+        f = open(f"{final_dir}/README", 'a')
+        f.write("# map [central wavelength/micron] ; populations included \n")
+        f.close()
+
+        ##
+        # To finish: sum over populations for each channel.
+        # Do we want to sum over redshift for halo mass sub-intervals too?
+        for channel in channels:
+            totp = np.zeros([npix]*2)
+
+            for popid, pop in enumerate(self.sim.pops):
+                if popid not in include_pops:
+                    continue
+
+                intmd_dir = base_dir + f'/intermediate_maps/pop_{popid}'
+
+                ##
+                # Save image summed over populations.
+                fnp = self.get_fn(channel, logmlim=logmlim,
+                    zlim=zlim, fmt=fmt, final=False)
+                fnp = intmd_dir + '/' + fnp
+
+                _Inu = self._load_map(fnp)
+                totp += _Inu
+
+            ##
+            # Save final products
+            fnp = self.get_fn(channel, logmlim=logmlim,
+                zlim=zlim, fmt=fmt, final=True)
+            fnp = final_dir + '/' + fnp
+
+            self.save_map(fnp, totp, channel, zlim, logmlim, fov,
+                pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+
+            # Make a note of which populations are included in the current
+            # tally.
+
+            s = "{:.4f} ; ".format(np.mean(channel))
+            for pop in include_pops:
+                s += f"{pop},"
+
+            s = s.rstrip(',') + '\n'
+
+            with open(f"{final_dir}/README", 'a') as f:
+                f.write(s)
+
+            print(f"# Wrote {final_dir}/README")
+
+
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}, map_units='MJy'):
+        hdr={}, map_units='MJy', clobber=True):
         """
         Save map to disk.
         """
@@ -620,7 +784,7 @@ class LightCone(object): # pragma: no cover
 
             hdu = fits.PrimaryHDU(data=img, header=hdr)
             hdul = fits.HDUList([hdu])
-            hdul.writeto(fn)
+            hdul.writeto(fn, overwrite=clobber)
             hdul.close()
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
