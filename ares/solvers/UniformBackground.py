@@ -150,7 +150,7 @@ class UniformBackground(object):
                         # As long as within 0.1 eV, call it a match
                         if not lo_close:
                             lo_close = np.allclose(band[0],
-                                pop.pf['pop_solve_rte'][0], atol=0.1)
+                                pop.pf['pop_solve_rte'][0], atol=0.3)
                         if not hi_close:
                             hi_close = np.allclose(band[1],
                                 pop.pf['pop_solve_rte'][1], atol=0.1)
@@ -161,7 +161,7 @@ class UniformBackground(object):
                             tmp.append(True)
                         # Round (close enough?)
                         elif np.allclose(band, pop.pf['pop_solve_rte'],
-                            atol=1e-1, rtol=0.):
+                            atol=1e-3, rtol=0.):
                             tmp.append(True)
                         elif lo_close and hi_close:
                             tmp.append(True)
@@ -489,6 +489,9 @@ class UniformBackground(object):
                     ehat = self.TabulateEmissivity(z, E, pop)
                 else:
                     ehat = None
+
+
+
 
                 # Store stuff for this band
                 tau_by_band.append(tau)
@@ -998,6 +1001,7 @@ class UniformBackground(object):
 
         if scalable:
             Lbol = pop.get_emissivity(z)
+
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev

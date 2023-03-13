@@ -642,25 +642,25 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.is_quiescent:
                 assert self.pf['pop_sfr_model'] == 'smhm-func'
 
-                _tab_smd = np.zeros(self.halos.tab_z.size)
-                for i, z in enumerate(self.halos.tab_z):
-                    smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-                    smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
-                    smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
+                self._tab_smd = np.zeros_like(self.halos.tab_z)
+                for i, _z in enumerate(self.halos.tab_z):
+                    smhm = self.get_smhm(z=_z, Mh=self.halos.tab_M)
+                    smhm[self.halos.tab_M < self.get_Mmin(_z)] = 0
+                    smhm[self.halos.tab_M > self.get_Mmax(_z)] = 0
 
                     integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
                         * self.tab_focc[i] * g_per_msun / cm_per_mpc**3
-                    _tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
-
-                self._tab_smd = _tab_smd
+                    self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
             else:
                 dtdz = np.array([self.cosm.dtdz(z) \
                     for z in self.halos.tab_z])
                 self._tab_smd = cumtrapz(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
                     dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
 
-            self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
-                kind=self.pf['pop_interp_sfrd'])
+            #self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
+            #    kind=self.pf['pop_interp_sfrd'], left=0, right=0)
+            self._func_smd = lambda zz: 10**np.interp(zz, self.halos.tab_z,
+                np.log10(self._tab_smd))
 
         return self._func_smd(z)
 
