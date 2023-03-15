@@ -693,6 +693,7 @@ def PopulationParameters():
     "pop_prof_1h": None,
     "pop_1h_nebular_only": False,
     "pop_mask": None, # should be (wavelength or filter, limiting mag)
+    "pop_mask_interp": None,
 
     # For GalaxyEnsemble
     "pop_aging": False,

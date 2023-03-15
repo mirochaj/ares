@@ -1284,6 +1284,10 @@ class HaloMassFunction(object):
     @property
     def tab_Mmin_floor(self):
         if not hasattr(self, '_tab_Mmin_floor'):
+            if self.pf['cosmological_Mmin'] is None:
+                self._tab_Mmin_floor = np.zeros_like(self.tab_z)
+                return self._tab_Mmin_floor
+                
             if not self._is_loaded:
                 if self.pf['halo_mf_load']:
                     self._load_hmf()

@@ -1573,17 +1573,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         if type(wave) in numeric_types:
             lam_r = wave * 1e4 / (1. + z)
-            mags = self.get_mags(z, absolute=False, wave=lam_r)
+            mags = self.get_mags(z, absolute=False, wave=lam_r, window=50)
         else:
             raise NotImplemented('help')
 
-        mags[np.isinf(mags)] = 50
-        iM = np.argmin(np.abs(mags - mlim))
+        ok = np.isfinite(mags)
+        if ok.sum() == 0:
+            return mags, self.halos.tab_M.max()
 
-        if abs(mags[iM] - mlim) > mtol:
-            Mh_lim = np.inf
-        else:
-            Mh_lim = self.halos.tab_M[iM]
+        Mh_lim = 10**np.interp(mlim, mags[ok==1][-1::-1],
+            np.log10(self.halos.tab_M[ok==1])[-1::-1],
+            left=np.log10(self.halos.tab_M.max()),
+            right=np.log10(self.halos.tab_M.min()))
 
         return mags, Mh_lim
 
@@ -1608,10 +1609,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.pf['pop_mask'] is None:
                 return self._tab_source_mask
 
+            tmp = self._tab_source_mask.copy()
+
             for i, z in enumerate(self.halos.tab_z):
 
+                if self.pf['pop_mask_interp'] is not None:
+                    if i % self.pf['pop_mask_interp'] != 0:
+                        continue
+
                 # Loop over masking thresholds
-                Mh_lim = np.inf
+                Mh_lim = self.halos.tab_M.max()
                 for j, mask in enumerate(self.pf['pop_mask']):
                     if len(mask) == 2:
                         mwave, mlim = mask
@@ -1624,15 +1631,25 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         if not np.any(np.isfinite(mags[i,:])):
                             continue
 
-                        mags[i,np.isinf(mags[i])] = 50
-                        iM = np.argmin(np.abs(mags[i,:] - mlim))
-
-                        if abs(mags[i,iM] - mlim) > 0.05:
+                        ok = np.isfinite(mags[i])
+                        if ok.sum() == 0:
                             continue
 
-                        Mh_lim = min(Mh_lim, self.halos.tab_M[iM])
+                        cand = 10**np.interp(mlim, mags[i,ok==1][-1::-1],
+                            np.log10(self.halos.tab_M[ok==1])[-1::-1],
+                            left=np.log10(self.halos.tab_M.max()),
+                            right=np.log10(self.halos.tab_M.min()))
 
-                self._tab_source_mask[i] = Mh_lim
+                        Mh_lim = min(Mh_lim, cand)
+
+                tmp[i] = Mh_lim
+
+            if self.pf['pop_mask_interp'] is not None:
+                skip = self.pf['pop_mask_interp']
+                self._tab_source_mask = 10**np.interp(self.halos.tab_z,
+                    self.halos.tab_z[::skip], np.log10(tmp[::skip]))
+            else:
+                self._tab_source_mask = tmp
 
         return self._tab_source_mask
 
@@ -2060,19 +2077,21 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Mvir = lambda z: self.halos.VirialMass(z, self.pf['pop_Tmax'],
                     mu=self.pf['mu'])
                 self._tab_Mmax_ = np.array(list(map(Mvir, self.halos.tab_z)))
+
             else:
                 # A suitably large number for (I think) any purpose
                 self._tab_Mmax_ = 1e18 * np.ones_like(self.halos.tab_z)
 
             # Override switch: source masking
             if self.pf['pop_mask'] is not None:
-                print("# Applying source mask to mimic observations.")
-                self._tab_Mmax = self.tab_source_mask
+                # Don't understand this...if tab_source_mask gets called
+                # before this method, things don't work out. 03.15.2023.
+                if hasattr(self, '_tab_source_mask'):
+                    del self._tab_source_mask
+                self._tab_Mmax_ = self.tab_source_mask
 
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
-
-            # Fix SFR?
 
         return self._tab_Mmax_
 

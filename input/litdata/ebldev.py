@@ -29,8 +29,8 @@ _base = \
 centrals_sf = \
 {
  'pop_sfr_model': 'smhm-func',
- 'pop_solve_rte': (0.25, E_LyA),
- 'pop_Emin': 0.25,
+ 'pop_solve_rte': (0.12, E_LyA),
+ 'pop_Emin': 0.12,
  'pop_Emax': 24.6,
 
  'pop_centrals': True,
@@ -40,7 +40,7 @@ centrals_sf = \
  'pop_include_shot': True,
 
  # SED info
- 'pop_sed': 'eldridge2009',
+ 'pop_sed': 'eldridge2017',
  'pop_binaries': False,
  'pop_rad_yield': 'from_sed',
 
