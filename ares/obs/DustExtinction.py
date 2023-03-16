@@ -27,14 +27,14 @@ class DustExtinction(object):
 
     @property
     def method(self):
-        return self.pf['dustext_template']
+        return self.pf['pop_dustext_template']
 
     def get_filename(self):
         """
         Get appropriate filename using regular expression matching.
         """
 
-        prefix = self.pf['dustext_template']
+        prefix = self.pf['pop_dustext_template']
         cands = glob.glob(f'{ARES}/input/extinction/{prefix}*')
 
         if len(cands) == 0:

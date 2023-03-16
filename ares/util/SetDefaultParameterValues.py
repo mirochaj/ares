@@ -376,8 +376,6 @@ def DustParameters():
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
 
-     'dustext_template': None,
-
     }
 
     pf.update(tmp)
@@ -879,6 +877,9 @@ def PopulationParameters():
     "pop_dust_scatter": None,
     "pop_dust_scatter_seed": None,
     "pop_dust_kill_redshift": np.inf,
+
+    "pop_Av": None,
+    'pop_dustext_template': None,
 
 
     "pop_fpoll": 1.0,         # uniform pollution

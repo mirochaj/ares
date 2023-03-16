@@ -1002,8 +1002,14 @@ class UniformBackground(object):
         if scalable:
             Lbol = pop.get_emissivity(z)
 
+            if pop.pf['pop_dustext_template'] is not None:
+                wave = h_p * c * 1e8 / (E * erg_per_ev)
+                T = pop.dustext.get_T_lam(wave, Av=pop.pf['pop_Av'])
+            else:
+                T = 1.
+
             for ll in range(Nz):
-                epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
+                epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
 
         else:
