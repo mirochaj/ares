@@ -162,8 +162,12 @@ ihl_from_sat = centrals_sf_old.copy()
 ihl_from_sat['pop_focc'] = 1
 ihl_from_sat['pop_centrals'] = 0
 ihl_from_sat['pop_centrals_id'] = 0
+ihl_from_sat['pop_prof_1h'] = 'nfw'
 ihl_from_sat['pop_fsurv'] = 'link:fsurv:3'
 ihl_from_sat['pop_surv_inv'] = True
+ihl_from_sat['pop_include_1h'] = True
+ihl_from_sat['pop_include_2h'] = True
+ihl_from_sat['pop_include_shot'] = False
 
 base = _base.copy()
 _pop0 = centrals_sf.copy()

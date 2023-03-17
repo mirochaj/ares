@@ -423,6 +423,11 @@ class Population(object):
                     self._is_emissivity_scalable = False
                     return self._is_emissivity_scalable
 
+            if self.pf['pop_dustext_template'] is not None:
+                if type(self.pf['pop_Av']) not in numeric_types:
+                    self._is_emissivity_scalable = False
+                    return self._is_emissivity_scalable        
+
             self._is_emissivity_scalable = True
 
             # If an X-ray source and no PQs, we're scalable.

@@ -254,7 +254,7 @@ class HaloModel(HaloMassFunction):
         return ans
 
     def _get_ps_integrals(self, k, iz, prof1, prof2, lum1, lum2, mmin1, mmin2,
-        term):
+        focc1, focc2, term):
         """
         Compute integrals over profile, weighted by bias, dndm, etc.,
         needed for halo model.
@@ -268,7 +268,7 @@ class HaloModel(HaloMassFunction):
             integ1 = []; integ2 = []
             for _k in k:
                 _integ1, _integ2 = self._integrate_over_prof(_k, iz,
-                    prof1, prof2, lum1, lum2, mmin1, mmin2, term)
+                    prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term)
                 integ1.append(_integ1)
                 integ2.append(_integ2)
 
@@ -276,12 +276,12 @@ class HaloModel(HaloMassFunction):
             integ2 = np.array(integ2)
         else:
             integ1, integ2 = self._integrate_over_prof(k, iz,
-                prof1, prof2, lum1, lum2, mmin1, mmin2, term)
+                prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term)
 
         return integ1, integ2
 
     def _integrate_over_prof(self, k, iz, prof1, prof2, lum1, lum2, mmin1,
-        mmin2, term):
+        mmin2, focc1, focc2, term):
         """
         Compute integrals over profile, weighted by bias, dndm, etc.,
         needed for halo model.
@@ -348,15 +348,16 @@ class HaloModel(HaloMassFunction):
         ##
         # Are we doing the 1-h or 2-h term?
         if term == 1:
-            integrand = dndlnm * weight1 * weight2 * p1 * p2 / norm1 / norm2
+            integrand = dndlnm * focc1 * weight1 * weight2 \
+                * p1 * p2 / norm1 / norm2
 
             result = np.trapz(integrand[ok==1], x=np.log(self.tab_M[ok==1]))
 
             return result, None
 
         elif term == 2:
-            integrand1 = dndlnm * weight1 * p1 * bias / norm1
-            integrand2 = dndlnm * weight2 * p2 * bias / norm2
+            integrand1 = dndlnm * focc1 * weight1 * p1 * bias / norm1
+            integrand2 = dndlnm * focc2 * weight2 * p2 * bias / norm2
 
             integral1 = np.trapz(integrand1[ok==1], x=np.log(self.tab_M[ok==1]),
                 axis=0)
@@ -408,7 +409,7 @@ class HaloModel(HaloMassFunction):
         return ps_lin
 
     def get_ps_1h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, ztol=1e-3):
+        mmin1=None, mmin2=None, focc1=1, focc2=1, ztol=1e-3):
         """
         Compute 1-halo term of power spectrum.
         """
@@ -416,12 +417,12 @@ class HaloModel(HaloMassFunction):
         iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
 
         integ1, none = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, term=1)
+            lum1, lum2, mmin1, mmin2, focc1, focc2, term=1)
 
         return integ1
 
     def get_ps_2h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, ztol=1e-3):
+        mmin1=None, mmin2=None, focc1=1, focc2=1, ztol=1e-3):
         """
         Get 2-halo term of power spectrum.
         """
@@ -436,14 +437,14 @@ class HaloModel(HaloMassFunction):
                 return ps_lin
 
         integ1, integ2 = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, term=2)
+            lum1, lum2, mmin1, mmin2, focc1, focc2, term=2)
 
         ps = integ1 * integ2 * ps_lin
 
         return ps
 
     def get_ps_shot(self, z, k=None, lum1=None, lum2=None, mmin1=None, mmin2=None,
-        ztol=1e-3):
+        focc1=1, focc2=1, ztol=1e-3):
         """
         Compute the shot noise term quickly.
         """
@@ -451,7 +452,7 @@ class HaloModel(HaloMassFunction):
         iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
 
         dndlnm = self.tab_dndlnm[iz]
-        integrand = dndlnm * lum1 * lum2
+        integrand = dndlnm * focc1 * lum1 * lum2
         shot = np.trapz(integrand, x=np.log(self.tab_M), axis=0)
 
         return shot

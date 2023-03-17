@@ -1484,8 +1484,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Lh[~ok] = 0
 
             if self.pf['pop_dustext_template'] is not None:
-                T = self.dustext.get_T_lam(wave, Av=self.pf['pop_Av'])
+                Av = self.get_Av(z)
+                if type(Av) == np.ndarray:
+                    T = np.array([self.dustext.get_T_lam(wave, Av=_Av) \
+                        for _Av in Av])
+                else:
+                    T = self.dustext.get_T_lam(wave, Av=Av)
+
+                print('hi', wave)
                 Lh *= T
+
+
+            #if type(wave) not in numeric_types:
+            #    print('hi', self.id_num, wave, Lh.shape)
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
@@ -1524,6 +1535,36 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # BHs grow via accretion, i.e., scaling laws can just get
             # painted on.
 
+        else:
+            raise NotImplemented('help')
+
+    def get_Av(self, z):
+        """
+        Get visual extinction.
+        """
+
+        assert self.pf['pop_dustext_template'] is not None
+
+
+        if type(self.pf['pop_Av']) == FunctionType:
+            return self.pf['pop_Av'](z=z, Mh=self.halos.tab_M)
+        elif type(self.pf['pop_Av']) in numeric_types:
+            return self.pf['pop_Av'] * np.ones_like(self.halos.tab_M)
+        elif type(self.pf['pop_Av']) == str:
+            if not hasattr(self, '_func_Av'):
+
+                # Otherwise, get parameterized sSFR setup.
+                pars = get_pq_pars(self.pf['pop_Av'], self.pf)
+
+                _Av_inst = ParameterizedQuantity(**pars)
+
+                self._func_Av = lambda **kwargs: _Av_inst.__call__(**kwargs)
+
+            Mh = self.halos.tab_M
+            smhm = self.get_smhm(z=z, Mh=Mh)
+            Ms = Mh * smhm
+
+            return self._func_Av(z=z, Ms=Ms)
         else:
             raise NotImplemented('help')
 
@@ -4036,9 +4077,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         lum2 = self.get_lum(z, wave=wave2, band=band2, band_units='Angstrom',
             raw=raw, nebular_only=nebular_only)
 
+        if self.pf['pop_focc_inv']:
+            focc1 = (1 - self.focc(z=z, Mh=self.halos.tab_M))
+            focc2 = focc1#(1 - self.focc(z=z, Mh=self.halos.tab_M))
+        else:
+            focc1 = focc2 = self.focc(z=z, Mh=self.halos.tab_M)
+
         ps = self.halos.get_ps_shot(z, k=k,
             lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, ztol=1e-3)
+            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=1e-3)
 
         return ps
 
@@ -4118,9 +4165,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
+        if self.pf['pop_focc_inv']:
+            focc1 = (1 - self.focc(z=z, Mh=self.halos.tab_M))
+            focc2 = focc1#(1 - self.focc(z=z, Mh=self.halos.tab_M))
+        else:
+            focc1 = focc2 = self.focc(z=z, Mh=self.halos.tab_M)
+
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, ztol=1e-3)
+            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=1e-3)
 
         #if type(k) is np.ndarray:
         #    self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps
@@ -4223,8 +4276,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
+        if self.pf['pop_focc_inv']:
+            focc1 = (1 - self.focc(z=z, Mh=self.halos.tab_M))
+            focc2 = focc1#(1 - self.focc(z=z, Mh=self.halos.tab_M))
+        else:
+            focc1 = focc2 = self.focc(z=z, Mh=self.halos.tab_M)
+
         ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum1,
-            lum2=lum2, mmin1=None, mmin2=None, ztol=1e-3)
+            lum2=lum2, mmin1=None, mmin2=None, focc1=focc1, focc2=focc2,
+            ztol=1e-3)
 
         if type(k) is np.ndarray:
             self._cache_ps_1h_[(z, wave1, wave2, raw, nebular_only, prof)] = k, ps
