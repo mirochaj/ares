@@ -52,6 +52,7 @@ setup_args = {
         "tests": tests_reqs,
         "all": all_optional_reqs,
     },
+    entry_points={"console_scripts": ["ares=ares.util.cli:main"]},
     "classifiers": [
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
