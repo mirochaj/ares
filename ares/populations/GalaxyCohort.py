@@ -283,8 +283,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 * self.cosm.b_per_msun
         else:
             s = 'Unrecognized band: ({0:.3g}, {1:.3g})'.format(Emin, Emax)
-            return 0.0
-            #raise NotImplementedError(s)
+            raise NotImplementedError(s)
 
         return self._N_per_Msun[(Emin, Emax)]
 
@@ -412,6 +411,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise ValueError('help!')
 
         need_sam = False
+        use_yield_per_sfr = True
 
         # For all halos. Reduce to a function of redshift only by passing
         # in the array of halo masses stored in 'halos' attribute.
@@ -422,25 +422,28 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
 
             # Get an array for fesc
+
             if Emin in [13.6, E_LL]:
                 # Doesn't matter what Emax is
                 fesc = lambda **kwargs: self.fesc(**kwargs)
             elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
-                return None
+                use_yield_per_sfr = False
+                fesc = lambda **kwargs: 1.0
+                #return None
 
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
                 * N_per_Msun * erg_per_phot
 
             # For de-bugging purposes
-            if not hasattr(self, '_yield_by_band'):
-                self._yield_by_band = {}
-                self._fesc_by_band = {}
+            #if not hasattr(self, '_yield_by_band'):
+            #    self._yield_by_band = {}
+            #    self._fesc_by_band = {}
 
-            if (Emin, Emax) not in self._yield_by_band:
-                self._yield_by_band[(Emin, Emax)] = yield_per_sfr
-                self._fesc_by_band[(Emin, Emax)] = fesc
+            #if (Emin, Emax) not in self._yield_by_band:
+            #    self._yield_by_band[(Emin, Emax)] = yield_per_sfr
+            #    self._fesc_by_band[(Emin, Emax)] = fesc
 
         else:
             # X-rays separate because we never have lookup table.
@@ -461,13 +464,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             yield_per_sfr = lambda **kwargs: self.rad_yield(**kwargs) \
                 * s_per_yr
 
+        ##
+        # Now that we have yield/SFR, go through and determine SFR over
+        # entire halo population to determine full luminosity density.
         ok = ~self._tab_sfr_mask
         tab = np.zeros(self.halos.tab_z.size)
         for i, z in enumerate(self.halos.tab_z):
             if z > self.zform:
                 continue
-
-            #print(z, yield_per_sfr(z=z, Mh=1e10), fesc(z=z, Mh=1e10), N_per_Msun)
 
             # Must grab stuff vs. Mh and interpolate to self.halos.tab_M
             # They are guaranteed to have the same redshifts.
@@ -487,15 +491,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 kw = {'z': z, 'Mh': self.halos.tab_M}
 
-            integrand = self.tab_sfr[i] * self.halos.tab_dndlnm[i] \
-                * self.tab_focc[i] * yield_per_sfr(**kw) * ok[i]
+
+            if use_yield_per_sfr:
+                integrand = self.tab_sfr[i] * self.halos.tab_dndlnm[i] \
+                    * self.tab_focc[i] * yield_per_sfr(**kw) * ok[i]
+            else:
+                # [erg/s]
+                lum_v_Mh = self.get_lum(z, band=(Emin, Emax),
+                    band_units='eV')
+
+                integrand = lum_v_Mh * self.halos.tab_dndlnm[i] \
+                    * self.tab_focc[i] * ok[i]
+
 
             _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-            _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
+            _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
+                initial=0.0)
 
             _tmp = _tot - \
-                np.interp(np.log(self._tab_Mmin[i]), np.log(self.halos.tab_M), _cumtot)
-
+                np.interp(np.log(self._tab_Mmin[i]), np.log(self.halos.tab_M),
+                    _cumtot)
 
             tab[i] = _tmp
 
@@ -531,7 +546,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         self._rho_L[(_Emin, _Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
 
-        #print('cache', _Emin, _Emax, self._rho_L[(_Emin, _Emax)](10.))
         return self._rho_L[(_Emin, _Emax)]
 
     #def rho_N(self, z, Emin, Emax):
@@ -955,6 +969,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # efficient because you're basically calculating the SFRD again
             # and again.
             rhoL = self._get_luminosity_density(Emin, Emax)(z)
+
+            
 
         if E is not None:
             return rhoL * self.src.Spectrum(E) * on
@@ -1485,13 +1501,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             if self.pf['pop_dustext_template'] is not None:
                 Av = self.get_Av(z)
+
+                if type(wave) not in numeric_types:
+                    _wave = np.mean(wave)
+                else:
+                    _wave = wave
+
                 if type(Av) == np.ndarray:
-                    T = np.array([self.dustext.get_T_lam(wave, Av=_Av) \
+                    T = np.array([self.dustext.get_T_lam(_wave, Av=_Av) \
                         for _Av in Av])
                 else:
-                    T = self.dustext.get_T_lam(wave, Av=Av)
+                    T = self.dustext.get_T_lam(_wave, Av=Av)
 
-                print('hi', wave)
                 Lh *= T
 
 

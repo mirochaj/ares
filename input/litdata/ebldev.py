@@ -47,7 +47,7 @@ centrals_sf = \
  'pop_fesc': 0.2,
  'pop_sed_degrade': 10,
 
- 'pop_nebular': 3,
+ 'pop_nebular': 0,
 
  # Something with dust and metallicity here
 
@@ -84,7 +84,7 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolM', # Evolving midpoint
+ 'pq_func[2]': 'logtanh_abs_evolMFC', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
@@ -94,6 +94,8 @@ centrals_sf = \
  'pq_func_par3[2]': 0.6,
  'pq_func_par4[2]': 0.1,
  'pq_func_par5[2]': 1,
+ 'pq_func_par6[2]': 0,
+ 'pq_func_par7[2]': 0,
 
 }
 
@@ -197,6 +199,7 @@ disruption['pq_func_par3[3]{3}'] = 0.7 # dlogM
 disruption['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
 disruption['pq_func_par5[3]{3}'] = 1   # Pin to z=0
 
+
 disruption['pop_fsurv{4}'] = 'link:fsurv:3'
 
 disruption['pop_Mmin{3}'] = 1e10
@@ -206,3 +209,15 @@ disruption['pop_Mmin{5}'] = 1e10
 
 disruption['pop_fsurv{5}'] = 'link:fsurv:3'
 disruption['pop_fsurv_inv{5}'] = True
+
+dust = {}
+dust['pop_dustext_template'] = 'milkyway_rv4'
+dust['pop_Av'] = 'pq[4]'
+dust['pq_func[4]'] = 'pl_evolN'
+dust['pq_func_var[4]'] = 'Ms'
+dust['pq_func_var2[4]'] = '1+z'
+dust['pq_func_par0[4]'] = 1
+dust['pq_func_par1[4]'] = 1e10
+dust['pq_func_par2[4]'] = 0.1
+dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
+dust['pq_func_par4[4]'] = 0.  # no evolution yet.

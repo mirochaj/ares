@@ -20,6 +20,7 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..obs import MagnitudeSystem
 from ..util.ReadData import read_lit
+from functools import cached_property
 from ..util.Misc import numeric_types
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
@@ -396,6 +397,15 @@ class Population(object):
     def is_src_lw_fl(self):
         return False
 
+    @cached_property
+    def is_emissivity_reprocessed(self):
+        """
+        Does intrinsic SED of source populations get modified by, e.g., dust or
+        nebular line emission?
+        """
+        return (self.pf['pop_nebular'] not in [0, 1]) or \
+               (self.pf['pop_dustext_template'] is not None)
+
     @property
     def is_emissivity_separable(self):
         """
@@ -426,7 +436,7 @@ class Population(object):
             if self.pf['pop_dustext_template'] is not None:
                 if type(self.pf['pop_Av']) not in numeric_types:
                     self._is_emissivity_scalable = False
-                    return self._is_emissivity_scalable        
+                    return self._is_emissivity_scalable
 
             self._is_emissivity_scalable = True
 

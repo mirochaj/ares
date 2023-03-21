@@ -91,7 +91,7 @@ class DustExtinction(object):
         """
         Get Rv = Av / E(B-V), will interpolate using lookup table.
 
-            .. note :: This is what is contained in attenuation curves natively.
+        .. note :: This is what is contained in attenuation curves natively.
 
         Parameters
         ----------

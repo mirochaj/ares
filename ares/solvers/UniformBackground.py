@@ -23,8 +23,9 @@ from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
-from scipy.integrate import quad, romberg, romb, trapz, simps
-from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, h_p
+from scipy.integrate import quad, romberg, romb, trapz, simps, cumtrapz
+from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, \
+    h_p, cm_per_mpc
 #from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
 #    flatten_emissivities
 try:
@@ -996,12 +997,43 @@ class UniformBackground(object):
 
         scalable = pop.is_emissivity_scalable
         separable = pop.is_emissivity_separable
+        reprocessed = pop.is_emissivity_reprocessed
 
         H = np.array([self.cosm.HubbleParameter(_z_) for _z_ in z])
 
-        if scalable:
+        ##
+        # Most general case: src.Spectrum does not contain all information.
+        if reprocessed:
+            for ll in range(Nz):
+                iz = np.argmin(np.abs(z[ll] - pop.halos.tab_z))
+
+                ok = np.logical_and(pop.halos.tab_M >= pop.get_Mmin(z[ll]),
+                    pop.halos.tab_M < pop.get_Mmax(z[ll]))
+
+                #print(ll, Nz)
+                for jj in range(Nf):
+                    _wave = h_p * c * 1e8 / (E[jj] * erg_per_ev)
+
+                    # [erg/s/Hz]
+                    lum_v_Mh = pop.get_lum(z[ll], wave=_wave)
+
+                    # Integrate over halo mass to get [erg/s/Hz/cMpc^3]
+                    integrand = lum_v_Mh * pop.halos.tab_dndlnm[iz,:] \
+                        * pop.tab_focc[iz,:] * ok
+                    _tot = np.trapz(integrand, x=np.log(pop.halos.tab_M))
+                    _cumtot = cumtrapz(integrand, x=np.log(pop.halos.tab_M),
+                        initial=0.0)
+
+                    _tmp = _tot - \
+                        np.interp(np.log(pop._tab_Mmin[iz]),
+                            np.log(pop.halos.tab_M), _cumtot)
+
+                    epsilon[ll,jj] = _tmp / H[ll] / erg_per_ev / cm_per_mpc**3
+
+        elif scalable:
             Lbol = pop.get_emissivity(z)
 
+            # Only appropriate if dust extinction constant w/ Ms, z, etc
             if pop.pf['pop_dustext_template'] is not None:
                 wave = h_p * c * 1e8 / (E * erg_per_ev)
                 T = pop.dustext.get_T_lam(wave, Av=pop.pf['pop_Av'])
@@ -1011,6 +1043,8 @@ class UniformBackground(object):
             for ll in range(Nz):
                 epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
+
+            print('vanilla', pop.id_num, epsilon.max())
 
         else:
 
@@ -1098,12 +1132,6 @@ class UniformBackground(object):
                     epsilon[ll,in_band==1] = fix \
                         * pop.get_emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
-
-                    #ehat = pop.Emissivity(redshift, Emin=b[0], Emax=b[1])
-
-                    #if ll == 1:
-                    #    print("Set emissivity for pop {} band #{}".format(pop.id_num, band))
-                    ##    print(f'fix={fix}, raw={ehat} z={redshift}')
 
                 ct += 1
 
