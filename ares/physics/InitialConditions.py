@@ -51,7 +51,7 @@ class InitialConditions(object):
         Get recombination history from file or directly from CosmoRec.
         """
         fn = f"inits_{self.prefix}"
-        fn = os.path.join(ARES, "input", "inits", fn)
+        fn = os.path.join(ARES, "inits", fn)
 
         # Look for table first, then run if we don't find it.
         if os.path.exists(fn):
@@ -89,8 +89,8 @@ class InitialConditions(object):
         Run CosmoRec. Assumes we've got an executable waiting for us in
         directory supplied via ``cosmorec_path`` parameter in ARES.
 
-        Will save to $HOME/.ares/input/inits. Can check in
-        $HOME/.ares/input/inits/outputs for CosmoRec parameter files should any
+        Will save to $HOME/.ares/inits. Can check in
+        $HOME/.ares/inits/outputs for CosmoRec parameter files should any
         debugging be necessary. They will have the same naming convention, just
         different filename prefix ("cosmorec" instead of "inits").
         """
@@ -134,7 +134,7 @@ class InitialConditions(object):
         }
 
         fn = f"inits_{self.prefix}"
-        fn_out = os.path.join(ARES, "input", "inits", fn)
+        fn_out = os.path.join(ARES, "inits", fn)
 
         np.savetxt(fn_out, data[-1::-1,0:3], header='z; xe; Te')
 

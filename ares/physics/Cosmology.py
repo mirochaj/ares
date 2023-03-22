@@ -131,7 +131,7 @@ class Cosmology(object):
     def path_Planck(self):
         if not hasattr(self, '_path_Planck'):
             name = self.pf['cosmology_name'].replace('planck_', '')
-            _path_Planck = os.path.join(ARES, "input", "planck", "base", f"plikHM_{name}")
+            _path_Planck = os.path.join(ARES, "planck", "base", f"plikHM_{name}")
             self._path_Planck = _path_Planck
         return self._path_Planck
 

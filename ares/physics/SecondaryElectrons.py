@@ -28,7 +28,7 @@ try:
 except ImportError:
     have_h5py = False
 
-prefix = os.path.join('input','secondary_electrons')
+prefix = 'secondary_electrons'
 
 # If anything is identically zero for methods 2 and 3,
 # our spline will get screwed up since log(0) = inf

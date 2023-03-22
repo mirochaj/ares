@@ -135,7 +135,7 @@ class HaloModel(HaloMassFunction):
     def tab_u_nfw(self):
         if not hasattr(self, '_tab_u_nfw'):
             fn = os.path.join(
-                ARES, "input", "halos", self.tab_prefix_prof() + ".hdf5"
+                ARES, "halos", self.tab_prefix_prof() + ".hdf5"
             )
 
             if os.path.exists(fn):
@@ -153,7 +153,7 @@ class HaloModel(HaloMassFunction):
     def tab_Sigma_nfw(self):
         if not hasattr(self, '_tab_Sigma_nfw'):
 
-            fn = f"{ARES}/input/halos/{self.tab_prefix_surf()}.hdf5"
+            fn = f"{ARES}/halos/{self.tab_prefix_surf()}.hdf5"
 
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
@@ -626,7 +626,7 @@ class HaloModel(HaloMassFunction):
             return
 
         fn = f"{self.tab_prefix_ps()}.{suffix}"
-        fn = os.path.join(ARES, "input", "halos", fn)
+        fn = os.path.join(ARES, "halos", fn)
 
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')

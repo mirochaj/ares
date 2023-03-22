@@ -25,7 +25,7 @@ from ..populations import GalaxyPopulation
 from ..solvers import OpticalDepth
 
 # define helper function
-def read_FJS10():
+def read_FJS10(parent_dir):
     E_th = [13.6, 24.6, 54.4]
 
     # fmt: off
@@ -63,8 +63,8 @@ def read_FJS10():
     for i, fn in enumerate(xi_files):
         # Read data
         nrg, f_ion, f_heat, f_exc, n_Lya, n_ionHI, n_ionHeI, n_ionHeII, \
-            shull_heat = np.loadtxt("x_int_tables/{!s}".format(fn), skiprows=3,
-                unpack=True)
+            shull_heat = np.loadtxt(f"{parent_dir}/x_int_tables/{fn}",
+                skiprows=3, unpack=True)
 
         if i == 0:
             for j, energy in enumerate(nrg):
@@ -89,7 +89,7 @@ def read_FJS10():
     fHeII_xi = np.array(list(zip(*fHeII)))
 
     # Write to hfd5
-    with h5py.File("secondary_electron_data.hdf5", "w") as h5f:
+    with h5py.File(f"{parent_dir}/secondary_electron_data.hdf5", "w") as h5f:
         h5f.create_dataset("electron_energy", data=energies)
         h5f.create_dataset("ionized_fraction", data=np.array(x))
         h5f.create_dataset("f_heat", data=heat_xi)
@@ -101,6 +101,7 @@ def read_FJS10():
         h5f.create_dataset("fexc", data=fexc_xi)
 
     return
+
 
 # define data sources
 _bpass_v1_links = [
@@ -280,7 +281,7 @@ def generate_optical_depth_tables(path, **kwargs):
 
     # Tabulate tau and save
     tau = igm.TabulateOpticalDepth()
-    igm.save(suffix=kwargs["tau_fmt"], clobber=False)
+    igm.save(suffix='hdf5', clobber=False)
     return
 
 def make_tau(path):
@@ -566,26 +567,55 @@ def download_files(args):
                         "force download"
                     )
             else:
-                print("Running in dry-run mode; would download {full_path}")
+                print(f"Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
             parent_dir = os.path.join(args.path, dset)
-            full_path = os.path.join(parent_dir, aux_data[dset][1])
-            if os.path.exists(full_path):
-                if args.fresh:
-                    _do_download(full_path, dl_link)
-                else:
-                    print(
-                        f"{full_path} already exists; rerun with --fresh to "
-                        "force download"
-                    )
-            else:
-                make_data_dir(parent_dir)
-                _do_download(full_path, dl_link)
+            dl_link = aux_data[dset][0]
 
-        if aux_data[dset][2] is not None:
-            # this is a callable with no arguments
-            aux_data[dset][2]()
+            # Turn files to download into list
+            to_dl = aux_data[dset][1:-1]
+
+            # Loop over [potentially] several files to download
+            for _fn in to_dl:
+                full_path = os.path.join(parent_dir, _fn)
+
+                # Dropbox links are complete, in that the name of the file we
+                # want is embedded in the URL.
+                if 'dropbox' in dl_link:
+                    _fn_dl = dl_link
+                # Otherwise, we need to append the filename onto the URL.
+                else:
+                    _fn_dl =  dl_link + '/' + _fn
+
+                if os.path.exists(full_path):
+                    if args.fresh:
+                        _do_download(full_path, _fn_dl)
+                    else:
+                        print(
+                            f"{full_path} already exists; rerun with --fresh to "
+                            "force download"
+                        )
+                else:
+                    make_data_dir(parent_dir)
+                    _do_download(full_path, _fn_dl)
+
+                # Check to see if we need to un-tar and/or un-zip.
+                # If it's a zip, unzip and move on.
+                if _fn.endswith('.tar.gz'):
+                     f = tarfile.open(full_path)
+                     f.extractall(parent_dir)
+                     f.close()
+                elif _fn.endswith('.zip'):
+                    zip_ref = zipfile.ZipFile(full_path, 'r')
+                    zip_ref.extractall(parent_dir)
+                    zip_ref.close()
+
+            # Might be some final bit of work that's needed.
+            if aux_data[dset][-1] is not None:
+                # this is a callable that can take the parent directory as
+                # an argument.
+                aux_data[dset][-1](parent_dir)
 
     return
 

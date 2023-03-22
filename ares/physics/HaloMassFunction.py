@@ -71,7 +71,6 @@ except ImportError:
 try:
     import hmf
     from hmf import MassFunction
-    from hmf.filters import SharpK, TopHat
     have_hmf = True
     hmf_vers = version.parse(hmf.__version__)
 except ImportError:
@@ -121,7 +120,7 @@ class HaloMassFunction(object):
         if self.pf['halo_mf_path'] is not None:
             _path = self.pf['halo_mf_path']
         else:
-            _path = os.path.join(ARES, "input", "halos")
+            _path = os.path.join(ARES, "halos")
 
         # Look for tables in input directory
         attempt_load = (
@@ -145,7 +144,7 @@ class HaloMassFunction(object):
             else:
                 # Leave resolution blank, but enforce ranges
                 prefix = self.tab_prefix_hmf()
-                full_path = os.path.join(ARES, "input", "halos", prefix)
+                full_path = os.path.join(ARES, "halos", prefix)
                 candidates = glob.glob(full_path + "*")
 
                 if len(candidates) == 1:
@@ -263,7 +262,7 @@ class HaloMassFunction(object):
 
         if self.pf['halo_wdm_interp']:
             wdm_file_hmfs = []
-            full_path = os.path.join(ARES, "input", "halos", "*")
+            full_path = os.path.join(ARES, "halos", "*")
             for wdm_file in glob.glob(full_path):
                 if (
                     self.pf['halo_window'] in wdm_file
@@ -299,7 +298,7 @@ class HaloMassFunction(object):
         if self.pf['halo_mf_path'] is not None:
             _path = self.pf['halo_mf_path']
         else:
-            _path = os.path.join(ARES, "input", "halos")
+            _path = os.path.join(ARES, "halos")
 
         full_path = os.path.join(_path, fn)
         if not os.path.exists(full_path) and (not self.pf['halo_wdm_interp']):
@@ -500,7 +499,7 @@ class HaloMassFunction(object):
             if self.pf["halo_mf_path"] is not None:
                 _path = self.pf["halo_mf_path"]
             else:
-                _path = os.path.join(ARES, "input", "halos")
+                _path = os.path.join(ARES, "halos")
 
             _prefix = self.tab_prefix_hmf(True)
             _fn_ = os.path.join(_path, _prefix) + f".{self.pf['preferred_format']}"
@@ -630,9 +629,9 @@ class HaloMassFunction(object):
 
             if self.pf['halo_mf_window'] == 'tophat':
                 # This is the default in hmf
-                window = TopHat
+                window = hmf.filters.TopHat
             elif self.pf['halo_mf_window'].lower() == 'sharpk':
-                window = SharpK
+                window = hmf.filters.SharpK
             else:
                 raise ValueError("Unrecognized window function.")
 
@@ -1414,7 +1413,7 @@ class HaloMassFunction(object):
             if self.pf['cosmological_Mmin'] is None:
                 self._tab_Mmin_floor = np.zeros_like(self.tab_z)
                 return self._tab_Mmin_floor
-                
+
             if not self._is_loaded:
                 if self.pf['halo_mf_load']:
                     self._load_hmf()
