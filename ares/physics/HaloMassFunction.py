@@ -71,18 +71,18 @@ except ImportError:
 try:
     import hmf
     from hmf import MassFunction
-    from hmf filters import SharpK, TopHat
+    from hmf.filters import SharpK, TopHat
     have_hmf = True
     hmf_vers = version.parse(hmf.__version__)
 except ImportError:
     have_hmf = False
 
 if have_hmf:
-    hmf_vers <= version.parse("3.4"):
-    try:
-        MassFunctionWDM = hmf.wdm.MassFunctionWDM
-    except ImportError:
-        pass
+    if hmf_vers <= version.parse("3.4"):
+        try:
+            MassFunctionWDM = hmf.wdm.MassFunctionWDM
+        except ImportError:
+            pass
 
 # Old versions of HMF
 try:

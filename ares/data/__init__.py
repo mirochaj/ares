@@ -1,3 +1,5 @@
+import os
+
 HOME = os.getenv("HOME")
 ARES = f"{HOME}/.ares"
 

@@ -14,12 +14,93 @@ import zipfile
 from urllib.request import urlretrieve
 from urllib.error import URLError, HTTPError
 
+import numpy as np
+import h5py
+
 from . import ParameterBundle
 from .. import __version__
 from ..data import ARES
 from ..physics import HaloMassFunction
 from ..populations import GalaxyPopulation
 from ..solvers import OpticalDepth
+
+# define helper function
+def read_FJS10():
+    E_th = [13.6, 24.6, 54.4]
+
+    # fmt: off
+    # Ionized fraction points and corresponding files
+    x = np.array(
+        [
+            1.0e-4, 2.318e-4, 4.677e-4, 1.0e-3, 2.318e-3,
+            4.677e-3, 1.0e-2, 2.318e-2, 4.677e-2, 1.0e-1,
+            0.5, 0.9, 0.99, 0.999,
+        ]
+    )
+
+    xi_files = [
+        "xi_0.999.dat", "xi_0.990.dat", "xi_0.900.dat", "xi_0.500.dat",
+        "log_xi_-1.0.dat", "log_xi_-1.3.dat", "log_xi_-1.6.dat",
+        "log_xi_-2.0.dat", "log_xi_-2.3.dat", "log_xi_-2.6.dat",
+        "log_xi_-3.0.dat", "log_xi_-3.3.dat", "log_xi_-3.6.dat",
+        "log_xi_-4.0.dat"
+    ]
+    # fmt: on
+
+    xi_files.reverse()
+
+    # Make some blank arrays
+    energies = np.zeros(258)
+    heat = np.zeros([len(xi_files), 258])
+    fion = np.zeros_like(heat)
+    fexc = np.zeros_like(heat)
+    fLya = np.zeros_like(heat)
+    fHI = np.zeros_like(heat)
+    fHeI = np.zeros_like(heat)
+    fHeII = np.zeros_like(heat)
+
+    # Read in energy and fractional heat deposition for each ionized fraction.
+    for i, fn in enumerate(xi_files):
+        # Read data
+        nrg, f_ion, f_heat, f_exc, n_Lya, n_ionHI, n_ionHeI, n_ionHeII, \
+            shull_heat = np.loadtxt("x_int_tables/{!s}".format(fn), skiprows=3,
+                unpack=True)
+
+        if i == 0:
+            for j, energy in enumerate(nrg):
+                energies[j] = energy
+
+        for j, h in enumerate(f_heat):
+            heat[i][j] = h
+            fion[i][j] = f_ion[j]
+            fexc[i][j] = f_exc[j]
+            fLya[i][j] = (n_Lya[j] * 10.2) / energies[j]
+            fHI[i][j] = (n_ionHI[j] * E_th[0]) / energies[j]
+            fHeI[i][j] = (n_ionHeI[j] * E_th[1]) / energies[j]
+            fHeII[i][j] = (n_ionHeII[j] * E_th[2]) / energies[j]
+
+    # We also want the heating as a function of ionized fraction for each photon energy.
+    heat_xi = np.array(list(zip(*heat)))
+    fion_xi = np.array(list(zip(*fion)))
+    fexc_xi = np.array(list(zip(*fexc)))
+    fLya_xi = np.array(list(zip(*fLya)))
+    fHI_xi = np.array(list(zip(*fHI)))
+    fHeI_xi = np.array(list(zip(*fHeI)))
+    fHeII_xi = np.array(list(zip(*fHeII)))
+
+    # Write to hfd5
+    with h5py.File("secondary_electron_data.hdf5", "w") as h5f:
+        h5f.create_dataset("electron_energy", data=energies)
+        h5f.create_dataset("ionized_fraction", data=np.array(x))
+        h5f.create_dataset("f_heat", data=heat_xi)
+        h5f.create_dataset("fion_HI", data=fHI_xi)
+        h5f.create_dataset("fion_HeI", data=fHeI_xi)
+        h5f.create_dataset("fion_HeII", data=fHeII_xi)
+        h5f.create_dataset("f_Lya", data=fLya_xi)
+        h5f.create_dataset("fion", data=fion_xi)
+        h5f.create_dataset("fexc", data=fexc_xi)
+
+    return
 
 # define data sources
 _bpass_v1_links = [
@@ -48,7 +129,7 @@ aux_data = {
     "secondary_electrons": [
         "https://www.dropbox.com/s/jidsccfnhizm7q2/elec_interp.tar.gz?dl=1",
         "elec_interp.tar.gz",
-        "read_FJS10.py",
+        read_FJS10,
     ],
     "starburst99": [
         "http://www.stsci.edu/science/starburst99/data", "data.tar.gz", None
@@ -327,23 +408,23 @@ def generate_halo_histories(path, fn_hmf):
 
     if "npz" in fn_hmf:
         pref = fn_hmf.replace(".npz", "").replace("halo_mf", "halo_hist")
-    elif 'hdf5' in fn_hmf:
-        pref = fn_hmf.replace('.hdf5', '').replace('halo_mf', 'halo_hist')
+    elif "hdf5" in fn_hmf:
+        pref = fn_hmf.replace(".hdf5", "").replace("halo_mf", "halo_hist")
     else:
-        raise IOError('Unrecognized file format for HMF ({})'.format(fn_hmf))
+        raise IOError("Unrecognized file format for HMF ({})".format(fn_hmf))
 
-    if pars['halo_hist_Mmax'] is not None:
-        pref += '_xM_{:.0f}_{:.2f}'.format(pars['halo_hist_Mmax'], pars['halo_hist_dlogM'])
+    if pars["halo_hist_Mmax"] is not None:
+        pref += "_xM_{:.0f}_{:.2f}".format(pars["halo_hist_Mmax"], pars["halo_hist_dlogM"])
 
-    fn = '{}.hdf5'.format(pref)
+    fn = "{}.hdf5".format(pref)
     if not os.path.exists(fn):
         print("Running new trajectories...")
         zall, hist = pop.Trajectories()
 
-        with h5py.File(fn, 'w') as h5f:
+        with h5py.File(fn, "w") as h5f:
             # Save halo trajectories
             for key in hist:
-                if key not in ['z', 't', 'nh', 'Mh', 'MAR']:
+                if key not in ["z", "t", "nh", "Mh", "MAR"]:
                     continue
                 h5f.create_dataset(key, data=hist[key])
 
@@ -419,7 +500,7 @@ def clean_files(args):
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
-            "{available_dsets}"
+            f"{available_dsets}"
         )
     else:
         dsets = [args.dataset.lower()]
@@ -467,7 +548,7 @@ def download_files(args):
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
-            "{available_dsets}"
+            f"{available_dsets}"
         )
     else:
         dsets = [args.dataset.lower()]
@@ -475,7 +556,7 @@ def download_files(args):
     # check to see if data exists
     if args.dry_run:
         for dset in dsets:
-            full_path = os.path.join(args.path, dset, aux_dsets[dset][1])
+            full_path = os.path.join(args.path, dset, aux_data[dset][1])
             if os.path.exists(full_path):
                 if args.fresh:
                     print(f"Running in dry-run mode; would re-download {full_path}")
@@ -488,7 +569,7 @@ def download_files(args):
                 print("Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
-            full_path = os.path.join(args.path, dset, aux_dsets[dset][1])
+            full_path = os.path.join(args.path, dset, aux_data[dset][1])
             if os.path.exists(full_path):
                 if args.fresh:
                     _do_download(full_path, dl_link)
@@ -500,6 +581,10 @@ def download_files(args):
             else:
                 make_data_dir(full_path)
                 _do_download(full_path, dl_link)
+
+        if aux_data[dset][2] is not None:
+            # this is a callable with no arguments
+            aux_data[dset][2]()
 
     return
 
@@ -523,7 +608,7 @@ def generate_data(args):
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
-            "{available_dsets}"
+            f"{available_dsets}"
         )
     else:
         dsets = [args.dataset.lower()]
@@ -648,7 +733,7 @@ def config_generate_subparser(subparser):
         help="whether to force a new generation or not",
         action="store_true",
     )
-    sp.set_defaults(func=download_files)
+    sp.set_defaults(func=generate_data)
 
     return
 

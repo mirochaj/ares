@@ -7,7 +7,6 @@ from setuptools import find_namespace_packages, setup
 with io.open("README.md", "r", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
-h5py_reqs = ["h5py"]
 mcmc_reqs = ["shapely", "descartes"]
 mpi_reqs = ["mpi4py"]
 hmf_reqs = ["hmf", "camb"]
@@ -16,8 +15,7 @@ progressbar_reqs = ["progressbar2"]
 doc_reqs = ["sphinx", "numpydoc", "nbsphinx"]
 tests_reqs = ["pytest", "coverage"]
 all_optional_reqs = (
-    h5py_reqs
-    + mcmc_reqs
+    mcmc_reqs
     + mpi_reqs
     + hmf_reqs
     + mpmath_reqs
@@ -38,12 +36,13 @@ setup_args = {
     "packages": find_namespace_packages(),
     "use_scm_version": True,
     "install_requires": [
+        "h5py",
         "numpy",
         "matplotlib",
         "scipy",
+        "setuptools_scm",
     ],
     "extras_require": {
-        "h5py": h5py_reqs,
         "mcmc": mcmc_reqs,
         "mpi": mpi_reqs,
         "hmf": hmf_reqs,
@@ -52,7 +51,7 @@ setup_args = {
         "tests": tests_reqs,
         "all": all_optional_reqs,
     },
-    entry_points={"console_scripts": ["ares=ares.util.cli:main"]},
+    "entry_points": {"console_scripts": ["ares=ares.util.cli:main"]},
     "classifiers": [
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
