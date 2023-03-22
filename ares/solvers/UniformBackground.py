@@ -9,11 +9,15 @@ Created on: Wed Sep 24 15:15:36 MDT 2014
 Description:
 
 """
+import gc
+import os
+from math import ceil
+import re
+import types
 
 import numpy as np
-from math import ceil
+
 from ..data import ARES
-import os, re, types, gc
 from ..core import GlobalVolume
 from ..util import ParameterFile
 from ..util.Misc import num_freq_bins
@@ -910,15 +914,16 @@ class UniformBackground(object):
                 print("No $ARES environment variable.")
                 return None
 
-            input_dirs = ['{!s}/input/seds'.format(ARES)]
+            input_dirs = [os.path.join(ARES, "input", "seds")]
 
         else:
-            if isinstance(prefix, basestring):
+            if isinstance(prefix, str):
                 input_dirs = [prefix]
             else:
                 input_dirs = prefix
 
-        guess = '{0!s}/{1!s}.txt'.format(input_dirs[0], fn)
+        guess_fn = f"{fn}.txt"
+        guess = os.path.join(input_dirs[0], guess_fn)
         self.tabname = guess
         if os.path.exists(guess):
             return guess
@@ -932,11 +937,11 @@ class UniformBackground(object):
 
                 # If source properties are right
                 if re.search(pre, fn1):
-                    good_tab = '{0!s}/{1!s}'.format(input_dir, fn1)
+                    good_tab = os.path.join(input_dir, fn1)
 
                 # If number of redshift bins and energy range right...
                 if re.search(pre, fn1) and re.search(post, fn1):
-                    good_tab = '{0!s}/{1!s}'.format(input_dir, fn1)
+                    good_tab = os.path.join(input_dir, fn1)
                     break
 
         self.tabname = good_tab

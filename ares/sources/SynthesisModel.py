@@ -9,21 +9,31 @@ Created on: Mon Apr 11 11:27:45 PDT 2016
 Description:
 
 """
+from functools import cached_property
 
 import numpy as np
+from scipy.optimize import minimize
+from scipy.integrate import cumtrapz
+
 from ..data import ARES
 from .Source import Source
 from ..util.Stats import bin_c2e
 from ..util.Math import interp1d
-from ares.physics import Cosmology
-from scipy.optimize import minimize
-from scipy.integrate import cumtrapz
+from ..physics import Cosmology
 from ..util.ReadData import read_lit
 from ..physics import NebularEmission
-from functools import cached_property
 from ..util.ParameterFile import ParameterFile
-from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H, ev_per_hz, E_LL
+from ..physics.Constants import (
+    h_p,
+    c,
+    erg_per_ev,
+    g_per_msun,
+    s_per_yr,
+    s_per_myr,
+    m_H,
+    ev_per_hz,
+    E_LL,
+)
 
 class SynthesisModelBase(Source):
     @property

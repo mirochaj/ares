@@ -1,38 +1,88 @@
 #!/usr/bin/env python
-from __future__ import print_function
+import io
 import os
+from setuptools import find_namespace_packages, setup
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+# get readme
+with io.open("README.md", "r", encoding="utf-8") as readme_file:
+    readme = readme_file.read()
 
-setup(name='ares',
-      version='0.1',
-      description='Accelerated Reionization Era Simulations',
-      author='Jordan Mirocha',
-      author_email='mirochaj@gmail.com',
-      url='https://github.com/mirochaj/ares',
-      packages=['ares', 'ares.analysis', 'ares.simulations', 'ares.obs',
-       'ares.populations', 'ares.util', 'ares.solvers', 'ares.core',
-       'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom',
-       'ares.realizations'],
-     )
+mcmc_reqs = ["shapely", "descartes"]
+mpi_reqs = ["mpi4py"]
+hmf_reqs = ["hmf", "camb"]
+mpmath_reqs = ["mpmath"]
+progressbar_reqs = ["progressbar2"]
+doc_reqs = ["sphinx", "numpydoc", "nbsphinx"]
+tests_reqs = ["pytest", "coverage"]
+all_optional_reqs = (
+    mcmc_reqs
+    + mpi_reqs
+    + hmf_reqs
+    + mpmath_reqs
+    + progressbar_reqs
+    + doc_reqs
+    + tests_reqs
+)
 
-# Try to set up $HOME/.ares
-HOME = os.getenv('HOME')
-if not os.path.exists('{!s}/.ares'.format(HOME)):
-    try:
-        os.mkdir('{!s}/.ares'.format(HOME))
-    except:
-        pass
+setup_args = {
+    "name": "ares",
+    "description": "Accelerated Reionization Era Simulations",
+    "long_description": readme,
+    "long_description_content_type": "text/markdown",
+    "author": "Jordan Mirocha",
+    "author_email": "mirochaj@gmail.com",
+    "url": "https://github.com/mirochaj/ares",
+    "package_dir": {"ares": "ares"},
+    "packages": find_namespace_packages(),
+    "use_scm_version": True,
+    "install_requires": [
+        "h5py",
+        "numpy",
+        "matplotlib",
+        "scipy",
+        "setuptools_scm",
+    ],
+    "extras_require": {
+        "mcmc": mcmc_reqs,
+        "mpi": mpi_reqs,
+        "hmf": hmf_reqs,
+        "mpmath": mpmath_reqs,
+        "progressbar": progressbar_reqs,
+        "tests": tests_reqs,
+        "all": all_optional_reqs,
+    },
+    "entry_points": {"console_scripts": ["ares=ares.util.cli:main"]},
+    "classifiers": [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Langauge :: Python :: 3.10",
+        "Topic :: Scientific/Engineering :: Astronomy",
+    ],
+    "keywords": "astronomy cosmology reionization",
+}
 
-# Create files for defaults and labels in HOME directory
-for fn in ['defaults', 'labels']:
-    if not os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, fn)):
+if __name__ == "__main__":
+    # Try to set up $HOME/.ares
+    HOME = os.getenv('HOME')
+    if not os.path.exists('{!s}/.ares'.format(HOME)):
         try:
-            f = open('{0!s}/.ares/{1!s}.py'.format(HOME, fn), 'w')
-            print("pf = {}", file=f)
-            f.close()
+            os.mkdir('{!s}/.ares'.format(HOME))
         except:
             pass
+
+    # Create files for defaults and labels in HOME directory
+    for fn in ['defaults', 'labels']:
+        if not os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, fn)):
+            try:
+                f = open('{0!s}/.ares/{1!s}.py'.format(HOME, fn), 'w')
+                print("pf = {}", file=f)
+                f.close()
+            except:
+                pass
+
+    # run package setup
+    setup(**setup_args)

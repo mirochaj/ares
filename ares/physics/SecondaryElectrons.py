@@ -14,18 +14,13 @@ Gnedin, & Shull (2002) also available.
 
 import os
 import sys
+from collections.abc import Iterable
+
 import numpy as np
+
 from ..data import ARES
 from ..util.Pickling import read_pickle_file
 from ..util.Math import LinearNDInterpolator
-
-if sys.version_info[0] >= 3:
-    if sys.version_info[1] > 3:
-        from collections.abc import Iterable
-    else:
-        from collections import Iterable
-else:
-    from collections import Iterable
 
 try:
     import h5py
@@ -51,11 +46,11 @@ class SecondaryElectrons(object):
         if not ARES:
             raise IOError('Must set $ARES environment variable!')
 
-        if os.path.exists(os.path.join(ARES,prefix,'secondary_electron_data.hdf5')):
-            self.fn = os.path.join(ARES,prefix,'secondary_electron_data.hdf5')
+        if os.path.exists(os.path.join(ARES, prefix, 'secondary_electron_data.hdf5')):
+            self.fn = os.path.join(ARES, prefix, 'secondary_electron_data.hdf5')
             have_hdf5_file = True
         else:
-            self.fn = os.path.join(ARES,prefix,'secondary_electron_data.pkl')
+            self.fn = os.path.join(ARES, prefix, 'secondary_electron_data.pkl')
             have_hdf5_file = False
 
         if have_h5py and have_hdf5_file:

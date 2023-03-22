@@ -9,30 +9,29 @@ Created on: Sat Feb 21 11:26:50 MST 2015
 Description:
 
 """
-
 import inspect
+import os
+import re
+import sys
+import types
+
 import numpy as np
-from ..data import ARES
-import os, re, types, sys
-from ..util.Pickling import read_pickle_file, write_pickle_file
 from scipy.integrate import quad
-from ..physics import Cosmology, Hydrogen
 from scipy.interpolate import interp1d as interp1d_scipy
+
+from ..data import ARES
+from ..util.Pickling import read_pickle_file, write_pickle_file
+from ..physics import Cosmology, Hydrogen
 from ..util.Misc import num_freq_bins
 from ..physics.Constants import c, h_p, erg_per_ev, lam_LyA, lam_LL
 from ..util.Math import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
-from ..physics.CrossSections import PhotoIonizationCrossSection, \
+from ..physics.CrossSections import (
+    PhotoIonizationCrossSection,
     ApproximatePhotoIonizationCrossSection
+)
 from ..util.Warnings import tau_tab_z_mismatch, tau_tab_E_mismatch
-
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 try:
     import h5py
@@ -49,18 +48,17 @@ except ImportError:
     rank = 0
 
 # Put this stuff in utils
-defkwargs = \
-{
- 'zf':None,
- 'xray_flux':None,
- 'xray_emissivity': None,
- 'lw_flux':None,
- 'lw_emissivity': None,
- 'tau':None,
- 'return_rc': False,
- 'energy_units':False,
- 'xavg': 0.0,
- 'zxavg':0.0,
+defkwargs = {
+    'zf':None,
+    'xray_flux':None,
+    'xray_emissivity': None,
+    'lw_flux':None,
+    'lw_emissivity': None,
+    'tau':None,
+    'return_rc': False,
+    'energy_units':False,
+    'xavg': 0.0,
+    'zxavg':0.0,
 }
 
 barn = 1e-24
@@ -581,12 +579,13 @@ class OpticalDepth(object):
                 return None
 
             if self.pf['tau_path'] is None:
-                input_dirs = ['{!s}/input/optical_depth'.format(ARES)]
+                indir = os.path.join(ARES, "input", "optical_depth")
+                input_dirs = [indir]
             else:
                 input_dirs = [self.pf['tau_path']]
 
         else:
-            if isinstance(prefix, basestring):
+            if isinstance(prefix, str):
                 input_dirs = [prefix]
             else:
                 input_dirs = prefix

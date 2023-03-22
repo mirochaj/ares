@@ -14,7 +14,12 @@ import os
 import gc
 import time
 import pickle
+
 import numpy as np
+from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
+from scipy.integrate import quad, cumtrapz
+
 from ..data import ARES
 from ..util import read_lit
 from ..util.Math import smooth
@@ -22,18 +27,28 @@ from ..util import ProgressBar
 from ..obs.Survey import Survey
 from .Halo import HaloPopulation
 from ..physics import DustEmission
-from scipy.optimize import curve_fit
 from .GalaxyCohort import GalaxyCohort
-from scipy.interpolate import interp1d
-from scipy.integrate import quad, cumtrapz
 from ..analysis.BlobFactory import BlobFactory
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
 from ..core.SpectralSynthesis import SpectralSynthesis
 from ..sources.SynthesisModelSBS import SynthesisModelSBS
-from ..physics.Constants import rhodot_cgs, s_per_yr, s_per_myr, \
-    g_per_msun, c, Lsun, cm_per_kpc, cm_per_pc, cm_per_mpc, E_LL, E_LyA, \
-    erg_per_ev, h_p, lam_LyA
+from ..physics.Constants import (
+    rhodot_cgs,
+    s_per_yr,
+    s_per_myr,
+    g_per_msun,
+    c,
+    Lsun,
+    cm_per_kpc,
+    cm_per_pc,
+    cm_per_mpc,
+    E_LL,
+    E_LyA,
+    erg_per_ev,
+    h_p,
+    lam_LyA,
+)
 
 try:
     import h5py
@@ -3726,7 +3741,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fn = self.guide.halos.tab_name
 
             suffix = fn[fn.rfind('.')+1:]
-            path = ARES + '/input/halos/'
+            path = os.path.join(ARES, "input", "halos")
             pref = prefix.replace('halo_mf', 'halo_hist')
             if self.pf['halo_hist_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['halo_hist_Mmax'],

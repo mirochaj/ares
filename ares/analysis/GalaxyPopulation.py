@@ -9,34 +9,28 @@ Created on: Thu Jan 28 12:38:11 PST 2016
 Description:
 
 """
-
 import time
-import numpy as np
-from ..util import labels
+
 from matplotlib import cm
+from matplotlib.colors import ListedColormap
+import matplotlib.gridspec as gridspec
+from matplotlib.patches import Patch
 import matplotlib.pyplot as pl
+import numpy as np
+from scipy.optimize import curve_fit
+
+from ..util import labels
 from .ModelSet import ModelSet
 from ..obs.Survey import Survey
 from ..obs import DustCorrection
-from matplotlib.patches import Patch
 from ..util.ReadData import read_lit
 from ..util.Aesthetics import labels
-from scipy.optimize import curve_fit
-import matplotlib.gridspec as gridspec
 from ..util.ProgressBar import ProgressBar
-from matplotlib.colors import ListedColormap
 from ..obs.Photometry import get_filters_from_waves
 from ..physics.Constants import rhodot_cgs, cm_per_pc
 from ..util.Stats import symmetrize_errors, bin_samples
 from ..populations.GalaxyPopulation import GalaxyPopulation as GP
 from ..populations.GalaxyEnsemble import GalaxyEnsemble
-
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'mclure2013', 'parsa2016', 'atek2015',  'alavi2016',
@@ -44,20 +38,31 @@ datasets_lf = ('bouwens2015', 'finkelstein2015', 'bowler2020', 'stefanon2019',
     'oesch2014', 'vanderburg2010', 'morishita2018', 'rojasruiz2020',
     'harikane2022')
 datasets_smf = ('song2016', 'stefanon2017', 'duncan2014', 'tomczak2014',
-	'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
+    'moustakas2013', 'mortlock2011', 'marchesini2009_10', 'perez2008')
 datasets_mzr = ('sanders2015',)
 datasets_ssfr = ('dunne2009', 'daddi2007', 'feulner2005', 'kajisawa2010',
-	'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
+    'karim2011', 'noeske2007', 'whitaker2012', 'gonzalez2012')
 
-groups_lf = \
-{
- 'dropouts': ('parsa2016', 'bouwens2015',
-    'finkelstein2015', 'bowler2020','stefanon2019', 'mclure2013',
-    'vanderburg2010', 'reddy2009', 'oesch2018', 'oesch2013', 'oesch2014',
-    'morishita2018', 'rojasruiz2020', 'harikane2022'),
- 'lensing': ('alavi2016', 'atek2015', 'bouwens2017'),
- 'local': ('weisz2014,'),
- 'all': datasets_lf,
+groups_lf = {
+    'dropouts': (
+        'parsa2016',
+        'bouwens2015',
+        'finkelstein2015',
+        'bowler2020',
+        'stefanon2019',
+        'mclure2013',
+        'vanderburg2010',
+        'reddy2009',
+        'oesch2018',
+        'oesch2013',
+        'oesch2014',
+        'morishita2018',
+        'rojasruiz2020',
+        'harikane2022',
+    ),
+    'lensing': ('alavi2016', 'atek2015', 'bouwens2017'),
+    'local': ('weisz2014,'),
+    'all': datasets_lf,
 }
 groups_ssfr = {'all': datasets_ssfr}
 
@@ -115,7 +120,7 @@ class GalaxyPopulation(object): # pragma: no cover
 
         data = {}
 
-        if isinstance(sources, basestring):
+        if isinstance(sources, str):
             if sources in groups[quantity]:
                 if sources == 'all':
                     srcs = []
@@ -1282,7 +1287,7 @@ class GalaxyPopulation(object): # pragma: no cover
         data = self.compile_data(z, sources, round_z=round_z,
             quantity=quantity, sources_except=sources_except)
 
-        if isinstance(sources, basestring):
+        if isinstance(sources, str):
             if sources in groups[quantity]:
                 if sources == 'all':
                     srcs = []
@@ -1388,14 +1393,14 @@ class GalaxyPopulation(object): # pragma: no cover
                 ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
                 ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
         elif quantity in ['ssfr']:
-        	try:
-        	    ax.set_xscale('log')
-        	    # ax.set_yscale('log')
-        	except ValueError:
-        	    pass
-        	if (not gotax) or force_labels:
-        	    ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
-        	    ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
+            try:
+                ax.set_xscale('log')
+                # ax.set_yscale('log')
+            except ValueError:
+                pass
+            if (not gotax) or force_labels:
+                ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
+                ax.set_ylabel(r'log(SSFR))$ \ [\mathrm{yr}^{-1}]$')
 
 
         pl.draw()
@@ -1667,7 +1672,7 @@ class GalaxyPopulation(object): # pragma: no cover
         """
         if sources in groups[quantity]:
             srcs = groups[quantity][sources]
-        elif isinstance(sources, basestring):
+        elif isinstance(sources, str):
             srcs = [sources]
 
         for i, source in enumerate(srcs):

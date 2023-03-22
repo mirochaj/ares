@@ -9,10 +9,12 @@ Created on: Sun Jul 22 16:28:08 2012
 Description: Initialize a radiation source.
 
 """
-from __future__ import print_function
-import re, os
+import os
+import re
+
 import numpy as np
 from scipy.integrate import quad
+
 from ..util import ParameterFile
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology

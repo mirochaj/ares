@@ -36,13 +36,6 @@ from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     cm_per_pc, m_H, s_per_myr
 
 try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
-
-try:
     import mpmath
 except ImportError:
     pass
