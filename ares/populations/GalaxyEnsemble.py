@@ -26,7 +26,6 @@ from scipy.optimize import curve_fit
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
-from ..analysis.BlobFactory import BlobFactory
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
 from ..core.SpectralSynthesis import SpectralSynthesis
@@ -59,7 +58,7 @@ pars_affect_sfhs.extend(["pop_update_dt", "pop_thin_hist"])
 known_lines = 'Ly-a',
 known_line_waves = lam_LyA,
 
-class GalaxyEnsemble(HaloPopulation,BlobFactory):
+class GalaxyEnsemble(HaloPopulation):
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs

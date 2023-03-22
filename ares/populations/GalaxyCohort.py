@@ -10,20 +10,15 @@ Description:
 
 """
 
-import re
-import time
 import numpy as np
-from ..util import read_lit
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
 from ..analysis import ModelSet
 from scipy.misc import derivative
-from scipy.optimize import fsolve, minimize
-from ..analysis.BlobFactory import BlobFactory
+from scipy.optimize import fsolve
 from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.ParameterFile import par_info, get_pq_pars
-from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
@@ -35,17 +30,6 @@ from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr
 
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
-
-try:
-    import mpmath
-except ImportError:
-    pass
 
 small_dz = 1e-8
 ztol = 1e-4
@@ -54,7 +38,7 @@ tiny_phi = 1e-18
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
     'L_per_sfr', 'sps-toy']
 
-class GalaxyCohort(GalaxyAggregate,BlobFactory):
+class GalaxyCohort(GalaxyAggregate):
 
     def _update_pq_registry(self, name, obj):
         if not hasattr(self, '_pq_registry'):
@@ -970,7 +954,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # and again.
             rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
-            
+
 
         if E is not None:
             return rhoL * self.src.Spectrum(E) * on

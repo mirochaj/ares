@@ -19,6 +19,7 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
 from ..obs import MagnitudeSystem
+from scipy.integrate import cumtrapz
 from ..util.ReadData import read_lit
 from functools import cached_property
 from ..util.Misc import numeric_types
@@ -31,7 +32,7 @@ from scipy.interpolate import interp1d as interp1d_scipy
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
-    ev_per_hz, h_p, cm_per_pc
+    ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -923,3 +924,196 @@ class Population(object):
         """
         d_pc = self.cosm.LuminosityDistance(z) / cm_per_pc
         return mags + 5 * np.log10(d_pc / 10.) - 2.5 * np.log10(1. + z)
+
+    def get_tab_emissivity(self, z, E):
+        """
+        Tabulate emissivity over photon energy and redshift.
+
+        For a scalable emissivity, the tabulation is done for the emissivity
+        in the (EminNorm, EmaxNorm) band because conversion to other bands
+        can simply be applied after-the-fact. However, if the emissivity is
+        NOT scalable, then it is tabulated separately in the (10.2, 13.6),
+        (13.6, 24.6), and X-ray band.
+
+        Parameters
+        ----------
+        z : np.ndarray
+            Array of redshifts
+        E : np.ndarray
+            Array of photon energies [eV]
+        pop : object
+            Better be some kind of Galaxy population object.
+
+        Returns
+        -------
+        A 2-D array, first axis corresponding to redshift, second axis for
+        photon energy.
+
+        Units of emissivity are: erg / s / Hz / cMpc
+
+        """
+
+        Nz, Nf = len(z), len(E)
+
+        Inu = np.zeros(Nf)
+
+        # Special case: delta function SED! Can't normalize a-priori without
+        # knowing binning, so we do it here.
+        if self.src.is_delta:
+            # This is a little weird. Trapezoidal integration doesn't make
+            # sense for a delta function, but it's what happens later, so
+            # insert a factor of a half now so we recover all the flux we
+            # should.
+            Inu[-1] = 1.
+        else:
+            for i in range(Nf):
+                Inu[i] = self.src.Spectrum(E[i])
+
+        # Convert to photon *number* (well, something proportional to it)
+        Inu_hat = Inu / E
+
+        # Now, redshift dependent parts
+        epsilon = np.zeros([Nz, Nf])
+
+        #if Nf == 1:
+        #    return epsilon
+
+        scalable = self.is_emissivity_scalable
+        separable = self.is_emissivity_separable
+        reprocessed = self.is_emissivity_reprocessed
+
+        H = np.array([self.cosm.HubbleParameter(_z_) for _z_ in z])
+
+        ##
+        # Most general case: src.Spectrum does not contain all information.
+        if reprocessed:
+            for ll in range(Nz):
+                iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
+
+                ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z[ll]),
+                    self.halos.tab_M < self.get_Mmax(z[ll]))
+
+                #print(ll, Nz)
+                for jj in range(Nf):
+                    _wave = h_p * c * 1e8 / (E[jj] * erg_per_ev)
+
+                    # [erg/s/Hz]
+                    lum_v_Mh = self.get_lum(z[ll], wave=_wave)
+
+                    # Integrate over halo mass to get [erg/s/Hz/cMpc^3]
+                    integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \
+                        * self.tab_focc[iz,:] * ok
+                    _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
+                    _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
+                        initial=0.0)
+
+                    _tmp = _tot - \
+                        np.interp(np.log(self._tab_Mmin[iz]),
+                            np.log(self.halos.tab_M), _cumtot)
+
+                    epsilon[ll,jj] = _tmp / H[ll] / erg_per_ev / cm_per_mpc**3
+
+        elif scalable:
+            Lbol = self.get_emissivity(z)
+
+            # Only appropriate if dust extinction constant w/ Ms, z, etc
+            if self.pf['pop_dustext_template'] is not None:
+                wave = h_p * c * 1e8 / (E * erg_per_ev)
+                T = self.dustext.get_T_lam(wave, Av=self.pf['pop_Av'])
+            else:
+                T = 1.
+
+            for ll in range(Nz):
+                epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
+                    / erg_per_ev
+
+        else:
+
+            # There is only a distinction here for computational
+            # convenience, really. The LWB gets solved in much more detail
+            # than the LyC or X-ray backgrounds, so it makes sense
+            # to keep the different emissivity chunks separate.
+            ct = 0
+            for band in [(10.2, 13.6), (13.6, 24.6), None]:
+
+                if band is not None:
+
+                    if self.src.Emin > band[1]:
+                        continue
+
+                    if self.src.Emax < band[0]:
+                        continue
+
+                # Remind me of this distinction?
+                if band is None:
+                    b = self.full_band
+                    fix = 1.
+
+                    # Means we already generated the emissivity.
+                    if ct > 0:
+                        continue
+
+                else:
+                    b = band
+
+                    # If aging population, is handled within the pop object.
+                    if not self.is_aging:
+                        fix = 1. / self._convert_band(*band)
+                    else:
+                        fix = 1.
+
+                in_band = np.logical_and(E >= b[0], E <= b[1])
+
+                # Shouldn't be any filled elements yet
+                if np.any(epsilon[:,in_band==1] > 0):
+                    raise ValueError("Non-zero elements already!")
+
+                if not np.any(in_band):
+                    continue
+
+                ###
+                # No need for spectral correction in this case, at least
+                # in Lyman continuum. Treat LWB more carefully.
+                if self.is_aging and band == (13.6, 24.6):
+                    fix = 1. / Inu_hat[in_band==1]
+
+                elif self.is_aging and band == (10.2, 13.6):
+
+                    if self.pf['pop_synth_lwb_method'] == 0:
+                        # No approximation: loop over energy below
+                        raise NotImplemented('sorry dude')
+                    elif self.pf['pop_synth_lwb_method'] == 1:
+                        # Assume SED of continuousy-star-forming source.
+                        Inu_hat_p = self._src_csfr.Spectrum(E[in_band==1]) \
+                            / E[in_band==1]
+                        fix = Inu_hat_p / Inu_hat[in_band==1][0]
+                    else:
+                        raise NotImplemented('sorry dude')
+                ###
+
+                # By definition, rho_L integrates to unity in (b[0], b[1]) band
+                # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band,
+                # hence the 'fix'.
+
+                for ll, redshift in enumerate(z):
+
+                    if (redshift < self.pf['final_redshift']):
+                        continue
+                    if (redshift < self.zdead):
+                        continue
+                    if (redshift > self.zform):
+                        continue
+                    if redshift < self.pf['kill_redshift']:
+                        continue
+                    if redshift > self.pf['first_light_redshift']:
+                        continue
+
+                    # Use Emissivity here rather than rho_L because only
+                    # GalaxyCohort objects will have a rho_L attribute.
+                    epsilon[ll,in_band==1] = fix \
+                        * self.get_emissivity(redshift, Emin=b[0], Emax=b[1]) \
+                        * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
+
+                ct += 1
+
+        return epsilon
