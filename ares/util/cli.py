@@ -244,7 +244,7 @@ def generate_optical_depth_tables(path, **kwargs):
     ----------
     path : str
         The full path to where to save output files.
-    **kwargs
+    kwargs
         Keyword arguments that will be passed to the ares.solvers.OpticalDepth
         instance.
 
@@ -314,7 +314,7 @@ def generate_hmf_tables(path, **kwargs):
     ----------
     path : str
         The full path for where to save output files.
-    **kwargs
+    kwargs
         Keyword arguments passed to the ares.physics.HaloMassFunction object.
 
     Returns
@@ -569,7 +569,8 @@ def download_files(args):
                 print("Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
-            full_path = os.path.join(args.path, dset, aux_data[dset][1])
+            parent_dir = os.path.join(args.path, dset)
+            full_path = os.path.join(parent_dir, aux_data[dset][1])
             if os.path.exists(full_path):
                 if args.fresh:
                     _do_download(full_path, dl_link)
@@ -579,7 +580,7 @@ def download_files(args):
                         "force download"
                     )
             else:
-                make_data_dir(full_path)
+                make_data_dir(parent_dir)
                 _do_download(full_path, dl_link)
 
         if aux_data[dset][2] is not None:
