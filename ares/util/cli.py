@@ -199,6 +199,12 @@ aux_data = {
         "RSR-W2.txt",
         None,
     ],
+    '2mass': [
+        'http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=2MASS/',
+        '2MASS.J',
+        '2MASS.H',
+        '2MASS.K',
+        None],
     "planck": [
         "https://pla.esac.esa.int/pla/aio",
         "product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE"
@@ -207,6 +213,17 @@ aux_data = {
         "product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM_R3.01.zip",
         None,
     ],
+    'extinction': [
+        'https://archive.stsci.edu/hlsps/reference-atlases/cdbs/extinction',
+        'lmc_30dorshell_001.fits',
+        'lmc_diffuse_001.fits',
+        'milkyway_dense_001.fits',
+        'milkyway_diffuse_001.fits',
+        'milkyway_rv21_001.fits',
+        'milkyway_rv4_001.fits',
+        'smc_bar_001.fits',
+        'xgal_starburst_001.fits',
+        None],
 }
 
 # define which files are needed for which things
@@ -462,6 +479,69 @@ def make_halos(path):
     )
     return
 
+def generate_simpl_seds(path, **kwargs):
+    # go to path
+    os.chdir(path)
+
+    #
+    ## INPUT
+    mass = 10.
+    E = 10**np.arange(1, 5.1, 0.1)
+    ##
+    #
+
+    def_kwargs = \
+    {
+     'source_type': 'bh',
+     'source_mass': mass,
+     'source_rmax': 1e2,
+     'source_sed': 'simpl',
+     'source_Emin': 1,
+     'source_Emax': 5e4,
+     'source_EminNorm': 500.,
+     'source_EmaxNorm': 8e3,
+     'source_alpha': -1.5,
+     'source_fsc': 0.1,
+     'source_dlogE': 0.025,
+    }
+    def_kwargs.update(kwargs)
+
+    for i, alpha in enumerate([-2.5, -2, -1.5, -1, -0.5, -0.25]):
+        for j, fsc in enumerate([0.1, 0.5, 0.9]):
+
+            k = i * 3 + j
+
+            if k % size != rank:
+                continue
+
+            fn = 'simpl_M_{0}_fsc_{1:.2f}_alpha_{2:.2f}.txt'.format(mass, fsc, alpha)
+
+            if os.path.exists(fn):
+                print("{!s} already exists.".format(fn))
+                continue
+
+            simpl['source_alpha'] = alpha
+            simpl['source_fsc'] = fsc
+
+            src = ares.sources.BlackHole(**simpl)
+            src.dump(fn, E)
+
+
+def make_simpl(path):
+    for i, alpha in enumerate([-2.5, -2, -1.5, -1, -0.5, -0.25]):
+        for j, fsc in enumerate([0.1, 0.5, 0.9]):
+            fn = 'simpl_M_{0}_fsc_{1:.2f}_alpha_{2:.2f}.txt'.format(mass, fsc, alpha)
+
+            if os.path.exists(fn):
+                print("{!s} already exists.".format(fn))
+                continue
+
+            simpl['source_alpha'] = alpha
+            simpl['source_fsc'] = fsc
+
+            src = ares.sources.BlackHole(**simpl)
+            src.dump(fn, E)
+
 def make_data_dir(path=ARES):
     """
     Make a data directory at the specified path.
@@ -525,6 +605,7 @@ def clean_files(args):
 def _do_download(full_path, dl_link):
     try:
         urlretrieve(dl_link, full_path)
+        print(f"Downloaded {dl_link} to {full_path}.")
     except (URLError, HTTPError) as error:
         print(f"Error downloading file {dl_link} to {full_path}")
         print(f"error: {error}")
