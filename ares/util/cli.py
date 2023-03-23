@@ -23,6 +23,8 @@ from ..data import ARES
 from ..physics import HaloMassFunction
 from ..populations import GalaxyPopulation
 from ..solvers import OpticalDepth
+from ..sources import BlackHole
+from ..simulations import RaySegment
 
 # define helper function
 def read_FJS10(parent_dir):
@@ -483,17 +485,13 @@ def generate_simpl_seds(path, **kwargs):
     # go to path
     os.chdir(path)
 
-    #
-    ## INPUT
-    mass = 10.
+    # Should do this more carefully
     E = 10**np.arange(1, 5.1, 0.1)
-    ##
-    #
 
     def_kwargs = \
     {
      'source_type': 'bh',
-     'source_mass': mass,
+     'source_mass': 10,
      'source_rmax': 1e2,
      'source_sed': 'simpl',
      'source_Emin': 1,
@@ -506,41 +504,44 @@ def generate_simpl_seds(path, **kwargs):
     }
     def_kwargs.update(kwargs)
 
-    for i, alpha in enumerate([-2.5, -2, -1.5, -1, -0.5, -0.25]):
-        for j, fsc in enumerate([0.1, 0.5, 0.9]):
+    fn = 'simpl_M_{0}_fsc_{1:.2f}_alpha_{2:.2f}.txt'.format(
+        def_kwargs['source_mass'], def_kwargs['source_fsc'],
+        def_kwargs['source_alpha'])
 
-            k = i * 3 + j
+    if os.path.exists(fn):
+        print("{!s} already exists.".format(fn))
+        return
 
-            if k % size != rank:
-                continue
-
-            fn = 'simpl_M_{0}_fsc_{1:.2f}_alpha_{2:.2f}.txt'.format(mass, fsc, alpha)
-
-            if os.path.exists(fn):
-                print("{!s} already exists.".format(fn))
-                continue
-
-            simpl['source_alpha'] = alpha
-            simpl['source_fsc'] = fsc
-
-            src = ares.sources.BlackHole(**simpl)
-            src.dump(fn, E)
+    src = BlackHole(**def_kwargs)
+    src.dump(fn, E)
 
 
 def make_simpl(path):
     for i, alpha in enumerate([-2.5, -2, -1.5, -1, -0.5, -0.25]):
         for j, fsc in enumerate([0.1, 0.5, 0.9]):
-            fn = 'simpl_M_{0}_fsc_{1:.2f}_alpha_{2:.2f}.txt'.format(mass, fsc, alpha)
+            generate_simpl_seds(path, source_alpha=alpha, source_fsc=fsc)
 
-            if os.path.exists(fn):
-                print("{!s} already exists.".format(fn))
-                continue
+def generate_rt1d_tabs(path, **kwargs):
+    # go to path
+    os.chdir(path)
 
-            simpl['source_alpha'] = alpha
-            simpl['source_fsc'] = fsc
+    def_kwargs = \
+    {
+     'problem_type': 2,
+     'tables_discrete_gen': True,
+     'tables_energy_bins': 100,
+     'tables_dlogN': [0.05]*2,
+    }
+    def_kwargs.update(kwargs)
 
-            src = ares.sources.BlackHole(**simpl)
-            src.dump(fn, E)
+    sim = RaySegment(**def_kwargs)
+    sim.save_tables(prefix='bb_He_NE_{0}_dlogN_{1:.2g}'.format(
+        def_kwargs['tables_energy_bins'], def_kwargs['tables_dlogN'][0]))
+
+
+def make_rt1d(path):
+    generate_rt1d_tabs(path, include_helium=0, problem_type=2)
+    generate_rt1d_tabs(path, include_helium=1, problem_type=12)
 
 def make_data_dir(path=ARES):
     """
@@ -717,7 +718,7 @@ def generate_data(args):
     None
     """
     # figure out what to generate
-    available_dsets = ["tau", "hmf"]
+    available_dsets = ["tau", "hmf", "simpl", "rt1d"]
     if args.dataset.lower() == "all":
         dsets = available_dsets
     elif args.dataset.lower() not in available_dsets:
@@ -734,12 +735,20 @@ def generate_data(args):
                 print("Running in dry-run mode; would generate optical depth data")
             elif dset == "hmf":
                 print("Running in dry-run mode; would generate halo mass function data")
+            elif dset == "simpl":
+                print("Running in dry-run mode; would generate SIMPL SEDs")
+            elif dset == "rt1d":
+                print("Running in dry-run mode; would generate 1-d radiative transfer tables")
     else:
         for dset in dsets:
             if dset == "tau":
                 make_tau(args.path)
             elif dset == "hmf":
                 make_halos(args.path)
+            elif dset == "simpl":
+                make_simpl(args.path)
+            elif dset == "rt1d":
+                make_rt1d(args.path)
 
     return
 

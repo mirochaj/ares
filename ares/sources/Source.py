@@ -622,7 +622,7 @@ class Source(object):
 
         return L / Q / erg_per_ev, Q
 
-    def dump(self, fn, E, clobber=False):
+    def dump(self, fn, E=None, clobber=False):
         """
         Write SED out to file.
 
