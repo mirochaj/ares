@@ -50,7 +50,7 @@ class InitialConditions(object):
         """
         Get recombination history from file or directly from CosmoRec.
         """
-        fn = f"inits_{self.prefix}"
+        fn = f"inits_{self.prefix}.txt"
         fn = os.path.join(ARES, "inits", fn)
 
         # Look for table first, then run if we don't find it.

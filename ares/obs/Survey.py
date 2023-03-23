@@ -28,7 +28,7 @@ except ImportError:
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
-_path = os.path.join(ARES, "input")
+_path = ARES
 
 class Survey(object):
     def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False,

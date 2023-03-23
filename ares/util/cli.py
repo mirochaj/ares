@@ -107,7 +107,6 @@ def read_FJS10(parent_dir):
 _bpass_v1_links = [
     f"sed_bpass_z{zval}_tar.gz" for zval in ["001", "004", "008", "020", "040"]
 ]
-_bpass_tests = "https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl=1"
 
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
@@ -137,7 +136,11 @@ aux_data = {
     ],
     "bpass_v1": [
         "http://bpass.auckland.ac.nz/2/files"
-    ] + _bpass_v1_links + [_bpass_tests] + [None],
+    ] + _bpass_v1_links + [None],
+    "bpass_v1_tests": [
+        "https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl=1",
+        "sed_degraded.tar.gz",
+        None],
     "bpass_v1_stars": [
         "http://bpass.auckland.ac.nz/1/files", "starsmodels_tar.gz", None
     ],
@@ -222,7 +225,7 @@ datasets = {
         "wfc",
         "wfc3",
         "planck",
-        "bpass_v1",
+        "bpass_v1_tests",
         "optical_depth",
     ],
     "test_files": [

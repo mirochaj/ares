@@ -560,7 +560,7 @@ def PopulationParameters():
 
     "pop_tdyn": 1e7,
     "pop_tstar": None,
-    "pop_sSFR": None,
+    "pop_ssfr": None,
 
 
     "pop_uvlf": None,
