@@ -405,7 +405,8 @@ class Population(object):
         nebular line emission?
         """
         return (self.pf['pop_nebular'] not in [0, 1]) or \
-               (self.pf['pop_dustext_template'] is not None)
+               (self.pf['pop_dustext_template'] is not None) or \
+               (self.pf['pop_dust_yield'] is not None)
 
     @property
     def is_emissivity_separable(self):
@@ -413,6 +414,10 @@ class Population(object):
         Are the frequency and redshift-dependent components independent?
         """
         return True
+
+    @cached_property
+    def is_emissivity_bruteforce(self):
+        return not self.pf['pop_emissivity_tricks']
 
     @property
     def is_emissivity_scalable(self):
@@ -929,6 +934,10 @@ class Population(object):
         """
         Tabulate emissivity over photon energy and redshift.
 
+        .. note :: This is not quite the emissivity -- it contains a factor of
+            the Hubble parameter and has units of photons, not erg, so as to
+            be more readily integrate-able in ares.solvers.UniformBackground.
+
         For a scalable emissivity, the tabulation is done for the emissivity
         in the (EminNorm, EmaxNorm) band because conversion to other bands
         can simply be applied after-the-fact. However, if the emissivity is
@@ -947,9 +956,7 @@ class Population(object):
         Returns
         -------
         A 2-D array, first axis corresponding to redshift, second axis for
-        photon energy.
-
-        Units of emissivity are: erg / s / Hz / cMpc
+        photon energy. Units are photons / s / Hz / (co-moving cm)^3.
 
         """
 
@@ -986,32 +993,37 @@ class Population(object):
 
         ##
         # Most general case: src.Spectrum does not contain all information.
-        if reprocessed:
+        if self.is_emissivity_bruteforce or reprocessed:
+            _waves = h_p * c * 1e8 / (E * erg_per_ev)
+
             for ll in range(Nz):
                 iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
 
                 ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z[ll]),
                     self.halos.tab_M < self.get_Mmax(z[ll]))
 
-                #print(ll, Nz)
                 for jj in range(Nf):
-                    _wave = h_p * c * 1e8 / (E[jj] * erg_per_ev)
 
                     # [erg/s/Hz]
-                    lum_v_Mh = self.get_lum(z[ll], wave=_wave)
+                    lum_v_Mh = self.get_lum(z[ll], wave=_waves[jj], raw=False)
 
-                    # Integrate over halo mass to get [erg/s/Hz/cMpc^3]
+                    # Setup integrand over population [erg/s/Hz/cMpc^3]
                     integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \
                         * self.tab_focc[iz,:] * ok
+
+                    # Integrate
                     _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-                    _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
-                        initial=0.0)
+                    #_cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
+                    #    initial=0.0)
 
-                    _tmp = _tot - \
-                        np.interp(np.log(self._tab_Mmin[iz]),
-                            np.log(self.halos.tab_M), _cumtot)
+                    #_tmp = _tot - \
+                    #    np.interp(np.log(self._tab_Mmin[iz]),
+                    #        np.log(self.halos.tab_M), _cumtot)
 
-                    epsilon[ll,jj] = _tmp / H[ll] / erg_per_ev / cm_per_mpc**3
+                    # Convert from luminosity in erg to photons
+                    epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
+
+            epsilon /= cm_per_mpc**3
 
         elif scalable:
             Lbol = self.get_emissivity(z)

@@ -210,14 +210,41 @@ disruption['pop_Mmin{5}'] = 1e10
 disruption['pop_fsurv{5}'] = 'link:fsurv:3'
 disruption['pop_fsurv_inv{5}'] = True
 
-dust = {}
-dust['pop_dustext_template'] = 'milkyway_rv4'
-dust['pop_Av'] = 'pq[4]'
-dust['pq_func[4]'] = 'pl_evolN'
-dust['pq_func_var[4]'] = 'Ms'
-dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 1
-dust['pq_func_par1[4]'] = 1e10
-dust['pq_func_par2[4]'] = 0.1
-dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
-dust['pq_func_par4[4]'] = 0.  # no evolution yet.
+dust_template = {}
+dust_template['pop_dustext_template'] = 'milkyway_rv4'
+dust_template['pop_Av'] = 'pq[4]'
+dust_template['pq_func[4]'] = 'pl_evolN'
+dust_template['pq_func_var[4]'] = 'Ms'
+dust_template['pq_func_var2[4]'] = '1+z'
+dust_template['pq_func_par0[4]'] = 1
+dust_template['pq_func_par1[4]'] = 1e10
+dust_template['pq_func_par2[4]'] = 0.1
+dust_template['pq_func_par3[4]'] = 1.  # Anchored to z=0
+dust_template['pq_func_par4[4]'] = 0.  # no evolution yet.
+
+dust = \
+{
+ 'pop_dust_yield': 0.4,
+
+ # Dust opacity vs. wavelength
+ "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
+ "pq_func[20]": 'pl',
+ 'pq_func_var[20]': 'wave',
+ 'pq_func_var_lim[20]': (0., np.inf),
+ 'pq_func_var_fill[20]': 0.0,
+ 'pq_func_par0[20]': 1e5,      # opacity at wavelength below
+ 'pq_func_par1[20]': 1e3,
+ 'pq_func_par2[20]': -1.,
+
+ # Screen parameters
+ 'pop_dust_fcov': 1,
+ "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
+ "pq_func[22]": 'pl_evolN',
+ 'pq_func_var[22]': 'Mh',
+ 'pq_func_var2[22]': '1+z',
+ 'pq_func_par0[22]': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ 'pq_func_par1[22]': 1e10,
+ 'pq_func_par2[22]': 0.45,
+ 'pq_func_par3[22]': 5.,
+ 'pq_func_par4[22]': 0.,
+}

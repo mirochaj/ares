@@ -855,6 +855,8 @@ def PopulationParameters():
     "pop_one_halo_term": True,
     "pop_two_halo_term": True,
 
+    "pop_emissivity_tricks": True,
+
     # Generalized normalization
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_rad_yield": 2.6e39,

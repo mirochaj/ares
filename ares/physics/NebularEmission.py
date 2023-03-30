@@ -217,7 +217,7 @@ class NebularEmission(object):
     @property
     def _lam_Hb(self):
         if not hasattr(self, '_lam_Hb_'):
-            Eb = self.hydr.BohrModel(ninto=2, nfrom=3)
+            Eb = self.hydr.BohrModel(ninto=2, nfrom=4)
             self._lam_Hb_ = 1e8 * h_p * c / (Eb * erg_per_ev)
         return self._lam_Hb_
 
@@ -408,6 +408,9 @@ class NebularEmission(object):
         """
 
         return self.HydrogenLines(spec, ninto=2)
+
+    def PaschenSeries(self, spec):
+        return self.HydrogenLines(spec, ninto=3)
 
     @property
     def _jnu_wrt_hbeta(self):

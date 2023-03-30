@@ -480,6 +480,7 @@ class GalaxyCohort(GalaxyAggregate):
                 integrand = self.tab_sfr[i] * self.halos.tab_dndlnm[i] \
                     * self.tab_focc[i] * yield_per_sfr(**kw) * ok[i]
             else:
+                print("is this ever called")
                 # [erg/s]
                 lum_v_Mh = self.get_lum(z, band=(Emin, Emax),
                     band_units='eV')
@@ -941,7 +942,7 @@ class GalaxyCohort(GalaxyAggregate):
         #################
 
         # Use GalaxyAggregate's Emissivity function
-        if self.is_emissivity_scalable:
+        if self.is_emissivity_scalable and (not self.is_emissivity_bruteforce):
             # The advantage here is that the SFRD only has to be calculated
             # once, and the radiation field strength can just be determined
             # by scaling the SFRD.
@@ -953,8 +954,6 @@ class GalaxyCohort(GalaxyAggregate):
             # efficient because you're basically calculating the SFRD again
             # and again.
             rhoL = self._get_luminosity_density(Emin, Emax)(z)
-
-
 
         if E is not None:
             return rhoL * self.src.Spectrum(E) * on
@@ -1462,9 +1461,6 @@ class GalaxyCohort(GalaxyAggregate):
                 # updated from SAM.
                 sfr = self.get_sfr(z)
 
-                assert self.pf['pop_dust_yield'] in [None,0], \
-                    "pop_dust_yield must be zero for GalaxyCohort objects!"
-
                 # Just the product of SFR and L
                 if self.is_central_pop:
                     Lh = sfr * L_sfr
@@ -1498,10 +1494,14 @@ class GalaxyCohort(GalaxyAggregate):
                     T = self.dustext.get_T_lam(_wave, Av=Av)
 
                 Lh *= T
+            elif self.pf['pop_dust_yield'] is not None:
+                if type(wave) not in numeric_types:
+                    _wave = np.mean(wave)
+                else:
+                    _wave = wave
 
-
-            #if type(wave) not in numeric_types:
-            #    print('hi', self.id_num, wave, Lh.shape)
+                tau = self.get_dust_opacity(z=z, wave=_wave)
+                Lh *= np.exp(-tau)
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
@@ -1570,6 +1570,53 @@ class GalaxyCohort(GalaxyAggregate):
             Ms = Mh * smhm
 
             return self._func_Av(z=z, Ms=Ms)
+        else:
+            raise NotImplemented('help')
+
+    def get_dust_opacity(self, z, wave):
+        """
+        Compute dust opacity for all galaxies at redshift `z` and wavelength
+        `wave`.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        wave : int, float, np.ndarray
+            Wavelength [Angstroms]
+
+        Returns
+        -------
+        Opacity (dimensionless) for all halos in population. If input `wave` is
+        a scalar, returns an array of length `self.halos.tab_M`. If `wave` is
+        an array, the return will be a 2-D array with shape (self.halos.tab_M, len(waves))
+        """
+
+        if self.pf['pop_dust_yield'] is not None:
+            assert type(self.pf['pop_dust_yield']) in numeric_types
+
+            Rd = self.dust_scale(z=z, Mh=self.halos.tab_M)
+            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
+            smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
+            Ms = smhm * self.halos.tab_M
+            if self.pf['pop_metal_yield'] is not None:
+                MZ = self.pf['pop_metal_yield'] * Ms
+                Md = self.pf['pop_dust_yield'] * MZ
+            else:
+                Md = self.pf['pop_dust_yield'] * Ms
+
+            Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
+            Sd *= g_per_msun / cm_per_kpc**2
+
+            kappa = self.dust_kappa(wave=wave, z=z)
+            tau = kappa[None,:] * Sd[:,None]
+
+            if type(wave) in numeric_types:
+                return tau[:,0]
+            else:
+                return tau
+
         else:
             raise NotImplemented('help')
 
