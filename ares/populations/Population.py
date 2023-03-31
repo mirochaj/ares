@@ -1005,7 +1005,8 @@ class Population(object):
                 for jj in range(Nf):
 
                     # [erg/s/Hz]
-                    lum_v_Mh = self.get_lum(z[ll], wave=_waves[jj], raw=False)
+                    lum_v_Mh = self.get_lum(z[ll], wave=_waves[jj], raw=False,
+                        window=11)
 
                     # Setup integrand over population [erg/s/Hz/cMpc^3]
                     integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \

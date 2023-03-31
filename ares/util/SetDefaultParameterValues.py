@@ -576,6 +576,8 @@ def PopulationParameters():
 
     "pop_sed_sharp_at": None,
 
+    "pop_sed_null_except": None,
+
     # Can degrade spectral resolution of stellar population synthesis models
     # just to speed things up.
     "pop_sed_degrade": None,
@@ -989,6 +991,7 @@ def SourceParameters():
     "source_position": 0.0,
 
     "source_sed_sharp_at": None,
+    "source_sed_null_except": None,
     "source_sed_degrade": None,
 
     "source_sfr": 1.,
@@ -1151,6 +1154,7 @@ def SynthesisParameters():
     # For synthesis models
     "source_sed": None,
     "source_sed_degrade": None,
+    "source_sed_null_except": None,
     "source_Z": 0.02,
     "source_imf": 2.35,
     "source_tracks": None,

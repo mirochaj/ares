@@ -47,6 +47,16 @@ class NebularEmission(object):
         self._wavelengths = value
 
     @property
+    def tab_waves_e(self):
+        if not hasattr(self, '_tab_waves_e'):
+            raise AttributeError('Must set `tab_waves_e` by hand.')
+        return self._tab_waves_e
+
+    @tab_waves_e.setter
+    def tab_waves_e(self, value):
+        self._tab_waves_e = value
+
+    @property
     def tab_energies_c(self):
         if not hasattr(self, '_energies'):
             self._energies = h_p * c / (self.tab_waves_c / 1e8) / erg_per_ev
@@ -210,7 +220,10 @@ class NebularEmission(object):
 
             waves, ew, ew_std = i11._load(self.pf['source_Z'])
 
-            self._ew_wrt_hbeta_ = waves, ew, ew_std
+            # Figure out indices now
+            ind = np.digitize(waves, self.tab_waves_e) - 1
+
+            self._ew_wrt_hbeta_ = waves, ind, ew, ew_std
 
         return self._ew_wrt_hbeta_
 
@@ -389,10 +402,9 @@ class NebularEmission(object):
 
             tot = np.zeros_like(self.tab_waves_c)
 
-            waves, ew, ew_std = self._ew_wrt_hbeta
+            waves, ind, ew, ew_std = self._ew_wrt_hbeta
             for i, wave in enumerate(waves):
-                j = np.argmin(np.abs(wave - self.tab_waves_c))
-                tot[j] = ew[i] * Hb
+                tot[ind[i]] = ew[i] * Hb
 
         else:
             raise NotImplementedError('Unrecognized source_nebular option!')
@@ -490,7 +502,7 @@ class NebularEmission(object):
             loc = np.argmin(np.abs(nrg - En))
 
             # Need to get Hz^-1 units; `freq` in descending order
-            dnu = freq[loc] - freq[loc+1]
+            dnu = freq[loc-1] - freq[loc]
 
             # In erg/s
             Lline = Nabs * coeff * En * erg_per_ev

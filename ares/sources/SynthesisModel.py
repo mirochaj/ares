@@ -31,6 +31,7 @@ class SynthesisModelBase(Source):
         if not hasattr(self, '_nebula_'):
             self._nebula_ = NebularEmission(cosm=self.cosm, **self.pf)
             self._nebula_.tab_waves_c = self._tab_waves_c
+            self._nebula_.tab_waves_e = self.tab_waves_e
         return self._nebula_
 
     def _get_continuum_emission(self, data):
@@ -514,7 +515,8 @@ class SynthesisModelBase(Source):
         #    return cached
 
         yield_UV = self.get_lum_per_sfr_of_t(wave, band=band, band_units=band_units,
-            raw=raw, nebular_only=nebular_only, energy_units=energy_units)
+            raw=raw, nebular_only=nebular_only, energy_units=energy_units,
+            window=window)
 
         if age is not None:
             t = age
@@ -867,4 +869,20 @@ class SynthesisModel(SynthesisModelBase):
         # Add nebular emission (duh)
         self._tab_sed = self.tab_sed_raw.copy()
         self._add_nebular_emission(self._tab_sed)
+
+        if self.pf['source_sed_null_except'] is not None:
+            tmp = self._tab_sed.copy()
+            for chunk in self.pf['source_sed_null_except']:
+                lo, hi, keep_cont = chunk
+                ok = np.logical_and(self.tab_waves_c >= lo,
+                                    self.tab_waves_c < hi)
+                notok = np.logical_not(ok)
+                self._tab_sed[notok==1,:] = 0
+
+                if keep_cont:
+                    pass
+                else:
+                    self._tab_sed[ok==1,:] = self._tab_sed[ok==1,:] \
+                                        - self.tab_sed_raw[ok==1,:]
+
         return self._tab_sed
