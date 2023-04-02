@@ -1,5 +1,5 @@
 import numpy as np
-from mirocha2017 import dpl, base, flex
+from .mirocha2017 import dpl, base, flex
 from ares.physics.Constants import E_LyA, E_LL
 
 _popII_models = {}

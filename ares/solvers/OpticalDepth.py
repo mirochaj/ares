@@ -578,11 +578,7 @@ class OpticalDepth(object):
                 print("No ARES environment variable.")
                 return None
 
-            if self.pf['tau_path'] is None:
-                indir = os.path.join(ARES, "input", "optical_depth")
-                input_dirs = [indir]
-            else:
-                input_dirs = [self.pf['tau_path']]
+            input_dirs = [os.path.join(ARES, "optical_depth")]
 
         else:
             if isinstance(prefix, str):

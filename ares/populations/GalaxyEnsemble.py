@@ -3741,7 +3741,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             fn = self.guide.halos.tab_name
 
             suffix = fn[fn.rfind('.')+1:]
-            path = os.path.join(ARES, "input", "halos")
+            path = os.path.join(ARES, "halos/")
             pref = prefix.replace('halo_mf', 'halo_hist')
             if self.pf['halo_hist_Mmax'] is not None:
                 pref += '_xM_{:.0f}_{:.2f}'.format(self.pf['halo_hist_Mmax'],

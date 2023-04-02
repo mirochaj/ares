@@ -1049,8 +1049,6 @@ class UniformBackground(object):
                 epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
 
-            print('vanilla', pop.id_num, epsilon.max())
-
         else:
 
             # There is only a distinction here for computational

@@ -13,7 +13,7 @@ Description:
 import re
 import numpy as np
 from ares import rcParams
-#from .ReadData import read_lit
+from ..data import read as read_lit
 from .ParameterFile import pop_id_num, par_info
 from ..physics.Constants import cm_per_kpc, E_LL
 from .PrintInfo import header, footer, separator, line, width, twidth

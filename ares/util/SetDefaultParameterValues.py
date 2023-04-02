@@ -18,11 +18,6 @@ from ..physics.Constants import m_H, cm_per_kpc, s_per_myr, E_LL
 
 inf = np.inf
 
-if ARES is not None:
-    tau_prefix = os.path.join(ARES, 'input', 'optical_depth')
-else:
-    tau_prefix = os.getcwd()
-
 pgroups = [
     'Grid',
     'Physics',
@@ -1475,7 +1470,7 @@ def ControlParameters():
         # Discretizing integration
         "tau_table": None,
         "tau_arrays": None,
-        "tau_prefix": tau_prefix,
+        "tau_prefix": None,
         "tau_instance": None,
         "tau_redshift_bins": 400,
         "tau_approx": True,

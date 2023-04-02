@@ -9,6 +9,7 @@ import argparse
 import os
 import re
 import sys
+import shutil
 import tarfile
 import zipfile
 from urllib.request import urlretrieve
@@ -655,7 +656,13 @@ def download_files(args):
                 print(f"Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
-            parent_dir = os.path.join(args.path, dset)
+
+            if dset.endswith('_tests'):
+                dset_base = dset[0:dset.rfind('_')]
+                parent_dir = os.path.join(args.path, dset_base)
+            else:
+                parent_dir = os.path.join(args.path, dset)
+
             dl_link = aux_data[dset][0]
 
             # Turn files to download into list
@@ -687,7 +694,7 @@ def download_files(args):
 
                 # Check to see if we need to un-tar and/or un-zip.
                 # If it's a zip, unzip and move on.
-                if _fn.endswith('.tar.gz'):
+                if _fn.endswith('tar.gz'):
                      f = tarfile.open(full_path)
                      f.extractall(parent_dir)
                      f.close()
@@ -701,6 +708,7 @@ def download_files(args):
                 # this is a callable that can take the parent directory as
                 # an argument.
                 aux_data[dset][-1](parent_dir)
+
 
     return
 
