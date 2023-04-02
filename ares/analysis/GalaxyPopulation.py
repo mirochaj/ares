@@ -23,8 +23,8 @@ from ..util import labels
 from .ModelSet import ModelSet
 from ..obs.Survey import Survey
 from ..obs import DustCorrection
-from ..util.ReadData import read_lit
 from ..util.Aesthetics import labels
+from ares.data import read as read_lit
 from ..util.ProgressBar import ProgressBar
 from ..obs.Photometry import get_filters_from_waves
 from ..physics.Constants import rhodot_cgs, cm_per_pc

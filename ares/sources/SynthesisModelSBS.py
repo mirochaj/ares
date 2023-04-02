@@ -14,8 +14,8 @@ import sys
 import numpy as np
 from .Source import Source
 import matplotlib.pyplot as pl
-from ..util.ReadData import read_lit
 from functools import cached_property
+from ares.data import read as read_lit
 from scipy.integrate import quad, cumtrapz
 from ..util.Stats import bin_c2e, bin_e2c
 from ..util.ParameterFile import ParameterFile

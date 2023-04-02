@@ -19,9 +19,9 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
 from ..obs import MagnitudeSystem
-from ..util.ReadData import read_lit
 from functools import cached_property
 from ..util.Misc import numeric_types
+from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..util.Warnings import no_lya_warning

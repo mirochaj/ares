@@ -11,9 +11,10 @@ Description:
 """
 
 import numpy as np
+from ares.util import ParameterFile
 from ares.util.Stats import bin_c2e
 from functools import cached_property
-from ares.util import ParameterFile, read_lit
+from ares.data import read as read_lit
 from ares.physics.Hydrogen import Hydrogen
 from ares.physics.RateCoefficients import RateCoefficients
 from ares.physics.Constants import h_p, c, k_B, erg_per_ev, E_LyA, E_LL, Ryd, \

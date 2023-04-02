@@ -20,7 +20,7 @@ from .Source import Source
 from ..util.Stats import bin_c2e
 from ..util.Math import interp1d
 from ..physics import Cosmology
-from ..util.ReadData import read_lit
+from ares.data import read as read_lit
 from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import (

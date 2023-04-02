@@ -13,7 +13,6 @@ Description:
 import re
 import time
 import numpy as np
-from ..util import read_lit
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
@@ -963,7 +962,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # and again.
             rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
-            
+
 
         if E is not None:
             return rhoL * self.src.Spectrum(E) * on

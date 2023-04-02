@@ -18,7 +18,7 @@ from .Star import _Planck
 from .Source import Source
 
 from ..util.Math import interp1d
-from ..util.ReadData import read_lit
+from ares.data import read as read_lit
 from ..util.SetDefaultParameterValues import BlackHoleParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 from ..physics.Constants import (

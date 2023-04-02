@@ -21,13 +21,13 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumtrapz
 
 from ..data import ARES
-from ..util import read_lit
 from ..util.Math import smooth
 from ..util import ProgressBar
 from ..obs.Survey import Survey
 from .Halo import HaloPopulation
 from ..physics import DustEmission
 from .GalaxyCohort import GalaxyCohort
+from ares.data import read as read_lit
 from ..analysis.BlobFactory import BlobFactory
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter

@@ -33,58 +33,6 @@ except ImportError:
     rank = 0
 
 HOME = os.environ.get('HOME')
-sys.path.insert(1, '{!s}/input/litdata'.format(ARES))
-
-_lit_options = glob.glob(os.path.join(ARES, "input", "litdata", "*.py"))
-lit_options = []
-for element in _lit_options:
-    lit_options.append(element.split(os.sep)[-1].replace('.py', ''))
-
-def read_lit(prefix, path=None, verbose=True):
-    """
-    Read data from the literature.
-
-    Parameters
-    ----------
-    prefix : str
-        Everything preceeding the '.py' in the name of the module.
-    path : str
-        If you want to look somewhere besides $ARES/input/litdata, provide
-        that path here.
-
-    """
-
-    if path is not None:
-        prefix = os.path.join(path, prefix)
-
-    fn = f"{prefix}.py"
-    has_local = os.path.exists(os.path.join(os.getcwd(), fn))
-    has_home = os.path.exists(os.path.join(HOME, ".ares", fn))
-    has_litd = os.path.exists(os.path.join(ARES, "input", "litdata", fn))
-
-    # Load custom defaults
-    if has_local:
-        loc = os.getcwd()
-    elif has_home:
-        loc = os.path.join(HOME, ".ares")
-    elif has_litd:
-        loc = os.path.join(ARES, "input", "litdata")
-    else:
-        return None
-
-    if has_local + has_home + has_litd > 1:
-        print("WARNING: multiple copies of {!s} found.".format(prefix))
-        print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
-
-    # TODO: The imp module is deprecated. This should be replaced with something
-    # from importlib before python v3.12.
-    _f, _filename, _data = _imp.find_module(prefix, [loc])
-    mod = _imp.load_module(prefix, _f, _filename, _data)
-
-    # Save this for sanity checks later
-    mod.path = loc
-
-    return mod
 
 def flatten_energies(E):
     """
