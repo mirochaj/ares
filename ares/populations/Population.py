@@ -996,6 +996,16 @@ class Population(object):
         if self.is_emissivity_bruteforce or reprocessed:
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
 
+            _window = 2 * np.abs(np.diff(_waves))
+            window = [round(_window[jj],0) for jj in range(Nf-1)]
+            window.append(1)
+
+            if self.is_quiescent:
+                window = np.ones_like(_waves)
+
+            #for jj in range(Nf):
+            #    _window[jj]
+
             for ll in range(Nz):
                 iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
 
@@ -1004,9 +1014,21 @@ class Population(object):
 
                 for jj in range(Nf):
 
+                    # Skip: could put this in get_lum?
+                    skip = False
+                    if self.pf['pop_sed_null_except'] is not None:
+                        for element in self.pf['pop_sed_null_except']:
+                            lo, hi, keep_cont = element
+                            if (not keep_cont) and not (lo <= _waves[jj] < hi):
+                                skip = True
+                                break
+
+                    if skip:
+                        continue
+
                     # [erg/s/Hz]
                     lum_v_Mh = self.get_lum(z[ll], wave=_waves[jj], raw=False,
-                        window=11)
+                        window=window[jj] if window[jj] % 2 == 1 else window[jj]+1)
 
                     # Setup integrand over population [erg/s/Hz/cMpc^3]
                     integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \

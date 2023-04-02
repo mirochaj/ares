@@ -18,6 +18,7 @@ metallicities = np.array([2e-2, 8e-3, 4e-3, 4e-4, 1e-5, 1e-7, 0.])
 line_waves = {}
 line_ids = {}
 line_info = []
+line_names = []
 with open(fn_lines, 'r') as f:
     for i, line in enumerate(f):
 
@@ -41,6 +42,7 @@ with open(fn_lines, 'r') as f:
             line_ids[line_str] = [line_id]
 
         line_info.append((line_id, wave))
+        line_names.append(line_str)
 
 line_info = np.array(line_info)
 

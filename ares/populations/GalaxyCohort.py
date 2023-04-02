@@ -1665,7 +1665,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
         if type(wave) in numeric_types:
             lam_r = wave * 1e4 / (1. + z)
-            mags = self.get_mags(z, absolute=False, wave=lam_r, window=50)
+            mags = self.get_mags(z, absolute=False, wave=lam_r, window=51)
         else:
             raise NotImplemented('help')
 
