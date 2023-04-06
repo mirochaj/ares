@@ -215,6 +215,9 @@ class GalaxyCohort(GalaxyAggregate):
             Mg0 = Mh * fb * (1. - smhm)
 
             Mg = Mg0 * (1. - self.get_mass_loss(z, Mh=Mh))
+
+
+
             Z = MZ / Mg
 
         else:
