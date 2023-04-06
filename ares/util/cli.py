@@ -164,9 +164,16 @@ aux_data = {
         None,
     ],
     "wfc3": [
-        "https://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation"
-        "/wfc3/performance/throughputs/_documents/",
-        "IR.zip",
+        "http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=HST/",
+        "WFC3_IR.F098M",
+        "WFC3_IR.F105W",
+        "WFC3_IR.F110W",
+        "WFC3_IR.F125W",
+        "WFC3_IR.F127M",
+        "WFC3_IR.F139M",
+        "WFC3_IR.F140W",
+        "WFC3_IR.F153M",
+        "WFC3_IR.F160W",
         None,
     ],
     "wfc": [

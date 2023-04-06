@@ -312,10 +312,10 @@ class Survey(object):
         data = {}
         for fn in os.listdir(path):
 
-            if '.txt' not in fn:
+            if not fn.startswith('WFC3_IR'):
                 continue
 
-            pre = fn[fn.find('_f')+1:fn.rfind('.')].upper()
+            pre = fn[fn.find('_IR')+4:]
 
             # Read-in no matter what
             if get_all or (pre in filters):
