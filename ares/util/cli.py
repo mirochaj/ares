@@ -583,6 +583,8 @@ def clean_files(args):
     # figure out what to delete
     if args.dataset.lower() == "all":
         dsets = available_dsets
+    elif args.dataset.lower() == "tests":
+        dsets = datasets['tests']
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
@@ -632,6 +634,8 @@ def download_files(args):
     # figure out what to download
     if args.dataset.lower() == "all":
         dsets = available_dsets
+    elif args.dataset.lower() == "tests":
+        dsets = datasets['tests']
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
