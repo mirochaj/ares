@@ -870,6 +870,7 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
+
     "pop_dust_holes": 'big',
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
     "pop_dust_yield_delay": 0,
@@ -889,8 +890,9 @@ def PopulationParameters():
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
-    "pop_mass_escape": 0.0,
+    "pop_mass_loss": 0.0,
     "pop_fstar_res": 0.0,
+    "pop_metal_loss": 0.0,
 
     # Transition mass
     "pop_transition": 0,

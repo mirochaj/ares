@@ -130,7 +130,7 @@ class GalaxyCohort(GalaxyAggregate):
         return result
 
     def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=True,
-        nebular_only=False, age=None):
+        nebular_only=False, age=None, band_units='Angstrom'):
         """
         Get the luminosity (per SFR) for all possible metallicities.
 
@@ -158,7 +158,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             src = self._Source(cosm=self.cosm, **kw)
             L_per_sfr = src.get_lum_per_sfr(wave=wave, window=window,
-                band=band, raw=raw, nebular_only=nebular_only, age=age)
+                band=band, raw=raw, nebular_only=nebular_only, age=age,
+                band_units=band_units)
 
             ## Must specify band
             #if name == 'rad_yield':
@@ -195,15 +196,36 @@ class GalaxyCohort(GalaxyAggregate):
         assert self.pf['pop_enrichment'] == 1, \
             "Only pop_enrichment=1 available for GalaxyCohort right now."
 
+        fb = self.cosm.fbaryon
         fmr = self.pf['pop_mass_yield']
         fZy = fmr * self.pf['pop_metal_yield']
 
-        Ms = self.get_field(z, 'Ms')
-        MZ = Ms * fZy
-        Mg = self.get_field(z, 'Mg')
+        if Mh is None:
+            Mh = self.halos.tab_M
 
-        Z = MZ / Mg / self.pf['pop_fpoll']
+        if self.is_user_smhm:
 
+            smhm = self.get_smhm(z=z, Mh=Mh)
+            smhm[Mh < self.get_Mmin(z)] = 0
+            smhm[Mh > self.get_Mmax(z)] = 0
+            Ms = smhm * Mh
+            MZ = Ms * fZy * (1. - self.get_metal_loss(z, Mh=Mh))
+
+            # Cosmological gas mass minus stellar mass
+            Mg0 = Mh * fb * (1. - smhm)
+
+            Mg = Mg0 * (1. - self.get_mass_loss(z, Mh=Mh))
+            Z = MZ / Mg
+
+        else:
+
+            Ms = self.get_field(z, 'Ms')
+            MZ = Ms * fZy
+            Mg = self.get_field(z, 'Mg')
+
+            Z = MZ / Mg / self.pf['pop_fpoll']
+
+        # Enforce metallicity floor
         Z[Mg==0] = 1e-3
         Z = np.maximum(Z, 1e-3)
 
@@ -212,6 +234,31 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             _Mh = self.get_field(z, 'Mh')
             return 10**np.interp(np.log10(Mh), np.log10(_Mh), np.log10(Z))
+
+    def get_metal_loss(self, z, Mh=None):
+
+        if not hasattr(self, '_func_loss_metals'):
+
+            # Otherwise, get parameterized sSFR setup.
+            pars = get_pq_pars(self.pf['pop_metal_loss'], self.pf)
+
+            PQ = ParameterizedQuantity(**pars)
+
+            self._func_loss_metals = lambda **kwargs: PQ.__call__(**kwargs)
+
+        return self._func_loss_metals(z=z, Mh=Mh)
+
+    def get_mass_loss(self, z, Mh=None):
+        if not hasattr(self, '_func_loss_gas'):
+
+            # Otherwise, get parameterized sSFR setup.
+            pars = get_pq_pars(self.pf['pop_mass_loss'], self.pf)
+
+            PQ = ParameterizedQuantity(**pars)
+
+            self._func_loss_gas = lambda **kwargs: PQ.__call__(**kwargs)
+
+        return self._func_loss_gas(z=z, Mh=Mh)
 
     def get_field(self, z, field):
         """
@@ -235,10 +282,16 @@ class GalaxyCohort(GalaxyAggregate):
         Array of field values for all halos at redshift `z`.
 
         """
-        zall, data = self.get_histories()
-        iz = np.argmin(np.abs(z - zall))
+        if self.is_user_smhm:
+            if field == 'Mh':
+                return self.halos.tab_M
+            else:
+                raise NotImplementedError('help')
+        else:
+            zall, data = self.get_histories()
+            iz = np.argmin(np.abs(z - zall))
 
-        return data[field][:,iz]
+            return data[field][:,iz]
 
     def get_photons_per_Msun(self, Emin, Emax):
         """
@@ -1283,7 +1336,7 @@ class GalaxyCohort(GalaxyAggregate):
         return None
 
     def get_lum_per_sfr(self, z, Mh=None, wave=1600., window=1., raw=True,
-        nebular_only=False, band=None, band_units=None, age=None):
+        nebular_only=False, band=None, band_units='Angstrom', age=None):
         """
         Return luminosity per unit SFR.
         """
@@ -3673,6 +3726,8 @@ class GalaxyCohort(GalaxyAggregate):
         redshifts, halo mass, gas mass, stellar mass, metal mass
 
         """
+
+        print("why is this happening")
 
         # jac=self._SAM_jac
         solver = ode(self._SAM).set_integrator('lsoda',

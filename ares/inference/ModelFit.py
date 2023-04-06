@@ -54,10 +54,6 @@ try:
     from emcee.utils import sample_ball
     emcee_v = int(emcee.__version__[0])
 
-    if emcee_v >= 3:
-        print("# WARNING: ARES not fully emcee version >= 3 compatible!")
-        print("#          emcee 2.2.1 is a safe bet for now.")
-
 except ImportError:
     emcee_v = None
 

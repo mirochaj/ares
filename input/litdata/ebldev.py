@@ -248,3 +248,33 @@ dust = \
  'pq_func_par3[22]': 5.,
  'pq_func_par4[22]': 0.,
 }
+
+metals = \
+{
+ 'pop_metal_yield': 0.1,
+
+ # Fraction of metals lost
+ "pop_metal_loss": 'pq[30]',
+ "pq_func[30]": 'pl_evolN',
+ 'pq_func_var[30]': 'Mh',
+ 'pq_func_var2[30]': '1+z',
+ 'pq_func_par0[30]': 0.1,
+ 'pq_func_par1[30]': 1e10,
+ 'pq_func_par2[30]': 0.5,
+ 'pq_func_par3[30]': 0.,
+ 'pq_func_par4[30]': 0.,   # no evolution
+ 'pq_val_ceil[30]': 1,
+ 'pq_val_floor[30]': 0,
+
+ "pop_mass_loss": 'pq[31]',
+ "pq_func[31]": 'pl_evolN',
+ 'pq_func_var[31]': 'Mh',
+ 'pq_func_var2[31]': '1+z',
+ 'pq_func_par0[31]': 0.1,
+ 'pq_func_par1[31]': 1e10,
+ 'pq_func_par2[31]': 0.5,
+ 'pq_func_par3[31]': 0.,
+ 'pq_func_par4[31]': 0.,   # no evolution
+ 'pq_val_ceil[31]': 1,
+ 'pq_val_floor[31]': 0,
+}
