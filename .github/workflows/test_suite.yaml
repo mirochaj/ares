@@ -38,7 +38,7 @@ jobs:
     - name: Build
       run: |
         pip install .
-        python remote.py minimal
+        ares download tests
     - name: Test with pytest
       run: |
         pytest --cov-config=.coveragerc --cov=ares --cov-report=xml -v tests/*.py
