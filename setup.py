@@ -7,18 +7,14 @@ from setuptools import find_namespace_packages, setup
 with io.open("README.md", "r", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
-mcmc_reqs = ["shapely", "descartes"]
-mpi_reqs = ["mpi4py"]
 hmf_reqs = ["hmf", "camb"]
-mpmath_reqs = ["mpmath"]
+math_reqs = ["mpmath", "mcfit"]
 progressbar_reqs = ["progressbar2"]
 doc_reqs = ["sphinx", "numpydoc", "nbsphinx"]
-tests_reqs = ["pytest", "coverage"]
+tests_reqs = ["pytest", "coverage", "pytest-cov"] + math_reqs + hmf_reqs
 all_optional_reqs = (
-    mcmc_reqs
-    + mpi_reqs
-    + hmf_reqs
-    + mpmath_reqs
+    hmf_reqs
+    + math_reqs
     + progressbar_reqs
     + doc_reqs
     + tests_reqs
@@ -43,11 +39,10 @@ setup_args = {
         "setuptools_scm",
     ],
     "extras_require": {
-        "mcmc": mcmc_reqs,
-        "mpi": mpi_reqs,
         "hmf": hmf_reqs,
-        "mpmath": mpmath_reqs,
+        "math": math_reqs,
         "progressbar": progressbar_reqs,
+        "doc": doc_reqs,
         "tests": tests_reqs,
         "all": all_optional_reqs,
     },
