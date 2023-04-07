@@ -1091,7 +1091,7 @@ class GalaxyEnsemble(HaloPopulation):
         fZy = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield']
 
         if self.pf['pop_dust_yield'] is not None:
-            fd = self.guide.dust_yield(z=z2d, Mh=Mh)
+            fd = self.guide.get_dust_yield(z=z2d, Mh=Mh)
             have_dust = np.any(fd > 0)
         else:
             fd = 0.0
@@ -3004,7 +3004,7 @@ class GalaxyEnsemble(HaloPopulation):
     def extras(self):
         if not hasattr(self, '_extras'):
             if self.pf['pop_dust_yield'] is not None:
-                self._extras = {'kappa': self.guide.dust_kappa}
+                self._extras = {'kappa': self.guide.get_dust_absorption_coeff}
             else:
                 self._extras = {}
         return self._extras
@@ -3207,7 +3207,7 @@ class GalaxyEnsemble(HaloPopulation):
         if self.pf['pop_dust_yield'] == 0:
             return np.zeros_like(Mh)
 
-        kappa = self.guide.dust_kappa(wave=wave, Mh=Mh, z=z)
+        kappa = self.guide.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
         Sd = self.get_field(z, 'Sd')
         return kappa * Sd
 

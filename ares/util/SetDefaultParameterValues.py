@@ -884,7 +884,8 @@ def PopulationParameters():
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
-    "pop_dust_kappa": None,   # opacity in [cm^2 / g]
+    "pop_dust_absorption_coeff": None,   # opacity in [cm^2 / g]
+
     "pop_dust_scatter": None,
     "pop_dust_scatter_seed": None,
     "pop_dust_kill_redshift": np.inf,

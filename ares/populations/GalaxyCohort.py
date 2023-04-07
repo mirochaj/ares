@@ -23,8 +23,7 @@ from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
 from ..util.Stats import bin_c2e, bin_e2c
-from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
-    LinearNDInterpolator
+from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity, numeric_types
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
@@ -39,94 +38,94 @@ _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
 
 class GalaxyCohort(GalaxyAggregate):
 
-    def _update_pq_registry(self, name, obj):
-        if not hasattr(self, '_pq_registry'):
-            self._pq_registry = {}
+    #def _update_pq_registry(self, name, obj):
+    #    if not hasattr(self, '_pq_registry'):
+    #        self._pq_registry = {}
 
-        if name in self._pq_registry:
-            raise KeyError('{!s} already in registry!'.format(name))
+    #    if name in self._pq_registry:
+    #        raise KeyError('{!s} already in registry!'.format(name))
 
-        self._pq_registry[name] = obj
+    #    self._pq_registry[name] = obj
 
-    def __getattr__(self, name):
-        """
-        This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet). The only special case is really L1600_per_sfr, since
-        that requires accessing a SynthesisModel.
-        """
+    #def __getattr__(self, name):
+    #    """
+    #    This gets called anytime we try to fetch an attribute that doesn't
+    #    exist (yet). The only special case is really L1600_per_sfr, since
+    #    that requires accessing a SynthesisModel.
+    #    """
 
-        # Indicates that this attribute is being accessed from within a
-        # property. Don't want to override that behavior!
-        # This is in general pretty dangerous but I don't have any better
-        # ideas right now. It makes debugging hard but it's SO convenient...
-        if (name[0] == '_'):
-            if name.startswith('_tab'):
-                return self.__getattribute__(name)
+    #    # Indicates that this attribute is being accessed from within a
+    #    # property. Don't want to override that behavior!
+    #    # This is in general pretty dangerous but I don't have any better
+    #    # ideas right now. It makes debugging hard but it's SO convenient...
+    #    if (name[0] == '_'):
+    #        if name.startswith('_tab'):
+    #            return self.__getattribute__(name)
 
-            raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
+    #        raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
 
-        # This is the name of the thing as it appears in the parameter file.
-        full_name = 'pop_' + name
+    #    # This is the name of the thing as it appears in the parameter file.
+    #    full_name = 'pop_' + name
 
-        # Now, possibly make an attribute
-        try:
-            is_php = self.pf[full_name][0:2] == 'pq'
-        except (IndexError, TypeError):
-            is_php = False
+    #    # Now, possibly make an attribute
+    #    try:
+    #        is_php = self.pf[full_name][0:2] == 'pq'
+    #    except (IndexError, TypeError):
+    #        is_php = False
 
-        # A few special cases
-        _name = name
-        if self.sed_tab and (name in _sed_tab_attributes):
+    #    # A few special cases
+    #    _name = name
+    #    if self.sed_tab and (name in _sed_tab_attributes):
 
 
-            if name == 'rad_yield':
-                _name = 'get_' + name
-                att = self.src.__getattribute__(_name)
-                val = att(self.src.Emin, self.src.Emax)
-            else:
-                att = self.src.__getattribute__(_name)
-                val = att
+    #        if name == 'rad_yield':
+    #            _name = 'get_' + name
+    #            att = self.src.__getattribute__(_name)
+    #            val = att(self.src.Emin, self.src.Emax)
+    #        else:
+    #            att = self.src.__getattribute__(_name)
+    #            val = att
 
-            result = lambda **kwargs: val
+    #        result = lambda **kwargs: val
 
-        elif is_php:
-            tmp = get_pq_pars(self.pf[full_name], self.pf)
-            # Correct values that are strings:
-            if self.sed_tab:
-                pars = {}
-                for par in tmp:
-                    if tmp[par] == 'from_sed':
-                        pars[par] = self.src.__getattribute__(_name)
-                    else:
-                        pars[par] = tmp[par]
-            else:
-                pars = tmp
+    #    elif is_php:
+    #        tmp = get_pq_pars(self.pf[full_name], self.pf)
+    #        # Correct values that are strings:
+    #        if self.sed_tab:
+    #            pars = {}
+    #            for par in tmp:
+    #                if tmp[par] == 'from_sed':
+    #                    pars[par] = self.src.__getattribute__(_name)
+    #                else:
+    #                    pars[par] = tmp[par]
+    #        else:
+    #            pars = tmp
 
-            Mmin = lambda z: self.get_Mmin(z)
-            #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
-            result = ParameterizedQuantity(**pars)
+    #        Mmin = lambda z: self.get_Mmin(z)
+    #        #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
+    #        result = ParameterizedQuantity(**pars)
 
-            self._update_pq_registry(_name, result)
+    #        self._update_pq_registry(_name, result)
 
-        elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
+    #    elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
 
-            # Need to be careful here: has user-specified units!
-            # We've assumed that this cannot be parameterized...
-            # i.e., previous elif won't ever catch rad_yield
-            if name == 'rad_yield':
-                result = lambda **kwargs: normalize_sed(self)
-            else:
-                result = lambda **kwargs: self.pf[full_name]
+    #        # Need to be careful here: has user-specified units!
+    #        # We've assumed that this cannot be parameterized...
+    #        # i.e., previous elif won't ever catch rad_yield
+    #        if name == 'rad_yield':
+    #            result = lambda **kwargs: normalize_sed(self)
+    #        else:
+    #            result = lambda **kwargs: self.pf[full_name]
 
-        elif type(self.pf[full_name]) is FunctionType:
-            result = lambda **kwargs: self.pf[full_name](**kwargs)
-        else:
-            raise TypeError('dunno how to handle: {!s}'.format(name))
+    #    elif type(self.pf[full_name]) is FunctionType:
+    #        result = lambda **kwargs: self.pf[full_name](**kwargs)
+    #    else:
+    #        raise TypeError('dunno how to handle: {!s}'.format(name))
 
-        # Check to see if Z?
-        setattr(self, name, result)
+    #    # Check to see if Z?
+    #    setattr(self, name, result)
 
-        return result
+    #    return result
 
     def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=True,
         nebular_only=False, age=None, band_units='Angstrom'):
@@ -1628,15 +1627,63 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_dust_opacity(self, z, wave):
+    def _get_function(self, par):
+        """
+        Returns a function representation of input parameter `par`.
+
+        For example, the user supplies the parameter `pop_dust_yield`. This
+        routien figures out if that's a number, a function, or a string
+        indicating a ParameterizedQuantity, and creates a callable function
+        no matter what.
+        """
+        if not hasattr(self, f'_get_{par}'):
+            t = type(self.pf[par])
+
+            if t in numeric_types:
+                func = lambda **kwargs: self.pf[par]
+            elif t == FunctionType:
+                func = lambda **kwargs: self.pf[par]
+            elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
+                pars = get_pq_pars(self.pf[par], self.pf)
+                ob = ParameterizedQuantity(**pars)
+                func = lambda **kwargs: ob.__call__(**kwargs)
+                setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
+            else:
+                raise NotImplementedError(f"Unrecognized option for `{par}`.")
+
+            setattr(self, '_get_{}'.format(par.strip('pop_')), func)
+
+        return getattr(self, '_get_{}'.format(par.strip('pop_')))
+
+    def get_dust_yield(self, z, Mh):
+        """
+        Return fraction of metals locked up in dust grains.
+        """
+
+        func = self._get_function('pop_dust_yield')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_scale(self, z, Mh):
+        """
+        Return dust scale length in kiloparsecs.
+        """
+
+        func = self._get_function('pop_dust_scale')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_opacity(self, z, Mh, wave):
         """
         Compute dust opacity for all galaxies at redshift `z` and wavelength
         `wave`.
 
         Parameters
         ----------
-        z : int, float
+        z : int, float, np.ndarray
             Redshift
+        Mh : int, float, np.ndarray
+            Halo mass of interest [Msun].
         wave : int, float, np.ndarray
             Wavelength [Angstroms]
 
@@ -1644,36 +1691,44 @@ class GalaxyCohort(GalaxyAggregate):
         -------
         Opacity (dimensionless) for all halos in population. If input `wave` is
         a scalar, returns an array of length `self.halos.tab_M`. If `wave` is
-        an array, the return will be a 2-D array with shape (self.halos.tab_M, len(waves))
+        an array, the return will be a 2-D array with shape
+        (len(Mh), len(waves)).
         """
 
-        if self.pf['pop_dust_yield'] is not None:
-            assert type(self.pf['pop_dust_yield']) in numeric_types
+        if self.pf['pop_dust_yield'] is None:
+            raise ValueError("`pop_dust_yield` is None!")
 
-            Rd = self.dust_scale(z=z, Mh=self.halos.tab_M)
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-            smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
-            smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
-            Ms = smhm * self.halos.tab_M
-            if self.pf['pop_metal_yield'] is not None:
-                MZ = self.pf['pop_metal_yield'] * Ms
-                Md = self.pf['pop_dust_yield'] * MZ
-            else:
-                Md = self.pf['pop_dust_yield'] * Ms
+        assert type(self.pf['pop_dust_yield']) in numeric_types
 
-            Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
-            Sd *= g_per_msun / cm_per_kpc**2
-
-            kappa = self.dust_kappa(wave=wave, z=z)
-            tau = kappa[None,:] * Sd[:,None]
-
-            if type(wave) in numeric_types:
-                return tau[:,0]
-            else:
-                return tau
-
+        Rd = self.get_dust_scale(z=z, Mh=self.halos.tab_M)
+        smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+        smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
+        smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
+        Ms = smhm * self.halos.tab_M
+        if self.pf['pop_metal_yield'] is not None:
+            MZ = self.pf['pop_metal_yield'] * Ms
+            Md = self.pf['pop_dust_yield'] * MZ
         else:
-            raise NotImplemented('help')
+            Md = self.pf['pop_dust_yield'] * Ms
+
+        Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
+        Sd *= g_per_msun / cm_per_kpc**2
+
+        kappa = self.get_dust_absorption_coeff(wave=wave, z=z)
+        tau = kappa[None,:] * Sd[:,None]
+
+        if type(wave) in numeric_types:
+            return tau[:,0]
+        else:
+            return tau
+
+    def get_dust_absorption_coeff(self, z, Mh, wave):
+        """
+        Get dust absorption coefficient [cm^2 / g].
+        """
+        func = self._get_function('pop_dust_absorption_coeff')
+        result = func(z=z, Mh=Mh, wave=wave)
+        return result
 
     def get_mags(self, z, absolute=True, wave=1600, band=None,
         band_units='Angstrom', window=1,
@@ -2545,13 +2600,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._tab_sfr_
 
-    @property
-    def SFRD_at_threshold(self):
-        if not hasattr(self, '_SFRD_at_threshold'):
-            self._SFRD_at_threshold = \
-                lambda z: np.interp(z, self.halos.tab_z, self._tab_sfrd_at_threshold)
-        return self._SFRD_at_threshold
-
     def get_nh_active(self, z):
         """
         Compute number of active halos at given redshift `z`.
@@ -2884,9 +2932,6 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def SFE(self, **kwargs):
-        return self.get_sfe(**kwargs)
-
     def get_fstar(self, **kwargs):
         return self.get_sfe(**kwargs)
 
@@ -2986,7 +3031,7 @@ class GalaxyCohort(GalaxyAggregate):
                     pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
                     Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
                     self._mlf_inst = ParameterizedQuantity(**pars)
-                    self._update_pq_registry('mlf', self._mlf_inst)
+                    #self._update_pq_registry('mlf', self._mlf_inst)
 
                     self._fstar = \
                         lambda **kwargs: boost * self.fshock(**kwargs) \
@@ -3993,15 +4038,15 @@ class GalaxyCohort(GalaxyAggregate):
         MZ = np.array(metals)[-1::-1]
 
         if self.pf['pop_dust_yield'] is not None:
-            Md = self.dust_yield(z=z, Mh=Mh) * MZ
-            Rd = self.dust_scale(z=z, Mh=Mh)
+            Md = self.get_dust_yield(z=z, Mh=Mh) * MZ
+            Rd = self.get_dust_scale(z=z, Mh=Mh)
             # Assumes spherical symmetry, uniform dust density
             Sd = 3. * Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
         else:
             Md = Rd = Sd = np.zeros_like(Mh)
 
         #f self.pf['pop_dust_yield'] > 0:
-        #   tau = self.dust_kappa(wave=1600.)
+        #   tau = self.get_dust_absorption_coeff(wave=1600.)
         #lse:
         #   tau = None
 

@@ -139,7 +139,7 @@ _screen = \
  'pop_dust_yield': 0.4,
 
  # Dust opacity vs. wavelength
- "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
+ "pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
  "pq_func[20]": 'pl',
  'pq_func_var[20]': 'wave',
  'pq_func_var_lim[20]': (912., np.inf),
