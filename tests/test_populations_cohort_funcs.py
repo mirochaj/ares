@@ -28,7 +28,6 @@ def test():
 
     # Check some basic attributes
     assert pop.is_synthesis_model
-    assert not pop.is_sfr_constant
     assert pop.is_sfe_constant # in redshift!
     assert pop.is_metallicity_constant
 
@@ -84,10 +83,6 @@ def test():
     phi_Ms = pop.get_smf(zarr[0])
 
     mags, rho_surf = pop.get_surface_density(6.)
-
-    dsfe_dMh = pop.get_sfe_slope(6., 1e9)
-
-    assert abs(dsfe_dMh - pop.pf['pq_func_par2[0]']) < 0.05
 
     assert -15 <= pop.get_mag_lim(6.) <= 0., \
         f"Limiting magnitude MUV={pop.get_mag_lim(6.)} unreasonable."

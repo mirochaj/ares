@@ -176,9 +176,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         return L_of_Z_func
 
-    def get_metallicity(self, z, Mh=None):
+    def get_metallicity(self, z, Mh=None, as_Z=True):
         """
-        Get the gas phase metallicity of all halos in the model.
+        Get the metallicity of all halos in the model.
 
         ..note :: This is a derived quantity, which is why it's not accessible
             via `get_field`.
@@ -3021,24 +3021,6 @@ class GalaxyCohort(GalaxyAggregate):
     def fstar(self, value):
         self._fstar = value
 
-    def get_sfe_slope(self, z, Mh):
-        """
-        This is a power-law index describing the relationship between the
-        SFE and and halo mass.
-
-        Parameters
-        ----------
-        z : int, float
-            Redshift
-        M : int, float
-            Halo mass in [Msun]
-
-        """
-
-        logfst = lambda logM: np.log10(self.SFE(z=z, Mh=10**logM))
-
-        return derivative(logfst, np.log10(Mh), dx=0.01)[0]
-
     @property
     def _tab_Mz(self):
         if not hasattr(self, '_tab_Mz_'):
@@ -3255,7 +3237,7 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_star_formation']:
             fstar = SFR = 0.0
         elif self.pf['pop_sfr'] is None:
-            fstar = self.SFE(**kw)
+            fstar = self.get_sfe(**kw)
             SFR = PIR * fstar
         else:
             fstar = 1e-10
@@ -3345,7 +3327,7 @@ class GalaxyCohort(GalaxyAggregate):
         kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg}
 
         #
-        fstar = self.SFE(**kw)
+        fstar = self.get_sfe(**kw)
         tstar = 1e7 * s_per_yr
 
         Mdot_h = -1. * self.get_MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
@@ -3385,40 +3367,6 @@ class GalaxyCohort(GalaxyAggregate):
         results = [y1p, y2p, y3p, y4p]
 
         return np.array(results)
-
-    @property
-    def is_metallicity_constant(self):
-        if not hasattr(self, '_is_metallicity_constant'):
-            self._is_metallicity_constant = not self.pf['pop_enrichment']
-        return self._is_metallicity_constant
-
-    @property
-    def is_sfe_constant(self):
-        """ Is the SFE constant in redshift (at fixed halo mass)?"""
-        if not hasattr(self, '_is_sfe_constant'):
-
-            if self.is_sfr_constant:
-                self._is_sfe_constant = 0
-                return self._is_sfe_constant
-
-            self._is_sfe_constant = 1
-            for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
-                self._is_sfe_constant *= self.fstar(z=10, Mh=mass) \
-                                   == self.fstar(z=20, Mh=mass)
-
-            self._is_sfe_constant = bool(self._is_sfe_constant)
-
-        return self._is_sfe_constant
-
-    @property
-    def is_sfr_constant(self):
-        """ Is the SFR constant in redshift (at fixed halo mass)?"""
-        if not hasattr(self, '_is_sfr_constant'):
-            if self.pf['pop_sfr'] is not None:
-                self._is_sfr_constant = 1
-            else:
-                self._is_sfr_constant = 0
-        return self._is_sfr_constant
 
     def get_duration(self, zend=6.):
         """
@@ -3606,6 +3554,9 @@ class GalaxyCohort(GalaxyAggregate):
         if hasattr(self, '_trajectories'):
             return self._trajectories
 
+        if not self.is_sam:
+            raise NotImplementedError('This is an HOD model! No such thing as history.')
+
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'SFE', 'MAR',
             'Md', 'Sd', 'nh', 'Z', 't']
 
@@ -3706,9 +3657,6 @@ class GalaxyCohort(GalaxyAggregate):
         self._trajectories = np.array(zform), results
 
         return np.array(zform), results
-
-    def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
-        self.run_sam(z0, M0)
 
     def run_sam(self, z0=None, M0=0):
         """
@@ -3893,7 +3841,7 @@ class GalaxyCohort(GalaxyAggregate):
                 Mbh_t.append(solver.y[5])
 
             if 'sfe' in self.pf['pop_sfr_model']:
-                sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
+                sfe_t.append(self.get_sfe(z=redshifts[-1], Mh=Mh_t[-1]))
 
             z = zrev[i]
 

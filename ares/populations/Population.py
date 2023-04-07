@@ -205,18 +205,36 @@ class Population(object):
         return self._affects_igm
 
     @property
+    def is_metallicity_constant(self):
+        if not hasattr(self, '_is_metallicity_constant'):
+            self._is_metallicity_constant = not self.pf['pop_enrichment']
+        return self._is_metallicity_constant
+
+    @cached_property
+    def is_sfe_constant(self):
+        """ Is the SFE constant in redshift (at fixed halo mass)?"""
+
+        _is_sfe_constant = 1
+
+        for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
+            _is_sfe_constant *= self.get_fstar(z=10, Mh=mass) \
+                             == self.get_fstar(z=20, Mh=mass)
+
+        return bool(_is_sfe_constant)
+
+    @cached_property
     def is_central_pop(self):
         return self.pf['pop_centrals']
 
-    @property
+    @cached_property
     def is_satellite_pop(self):
         return not self.is_central_pop
 
-    @property
+    @cached_property
     def is_star_forming(self):
         return not self.is_quiescent
 
-    @property
+    @cached_property
     def is_quiescent(self):
         return (self.pf['pop_sfr_model'] == 'smhm-func') and \
             (self.pf['pop_ssfr'] is None)
@@ -224,6 +242,21 @@ class Population(object):
     @property
     def is_aging(self):
         return self.pf['pop_aging']
+
+    @property
+    def is_hod(self):
+        """
+        Is this a halo occupation model, i.e., does NOT require time
+        integration?
+        """
+        return self.is_user_smhm
+
+    @property
+    def is_sam(self):
+        """
+        Is this a semi-analytic model, i.e., requires time integration?
+        """
+        return not self.is_hod
 
     @property
     def is_diffuse(self):
