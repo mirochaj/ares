@@ -3172,7 +3172,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Eq. 4: metal mass -- constant return per unit star formation for now
         if self.pf['pop_enrichment']:
             y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
-                * (1. - self.pf['pop_mass_escape']) \
+                * (1. - self.pf['pop_mass_loss']) \
                 + NPIR * Zfrac
         else:
             y4p = 0.0
@@ -3294,7 +3294,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
-            * (1. - self.pf['pop_mass_escape']) \
+            * (1. - self.pf['pop_mass_loss']) \
             + NPIR * Zfrac
 
         if (Mh < Mmin) or (Mh > Mmax):
@@ -3380,7 +3380,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         # Could make a PHP pretty easily.
-        y6p = self.pf['pop_metal_yield'] * y3p * (1. - self.pf['pop_mass_escape'])
+        y6p = self.pf['pop_metal_yield'] * y3p * (1. - self.pf['pop_mass_loss'])
 
         results = [y1p, y2p, y3p, y4p]
 
@@ -3728,8 +3728,6 @@ class GalaxyCohort(GalaxyAggregate):
         redshifts, halo mass, gas mass, stellar mass, metal mass
 
         """
-
-        print("why is this happening")
 
         # jac=self._SAM_jac
         solver = ode(self._SAM).set_integrator('lsoda',

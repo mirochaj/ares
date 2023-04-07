@@ -45,6 +45,7 @@ omit =
     ares/util/Warnings.py
     ares/analysis/*.py
     ares/inference/*.py
+    ares/data/*.py
 
 ignore_errors = True
 
