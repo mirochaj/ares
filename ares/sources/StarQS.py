@@ -17,7 +17,7 @@ from .Star import Star
 from .Source import Source
 from ..physics import Cosmology
 from scipy.integrate import quad
-from ..util.ReadData import read_lit
+from ares.data import read as read_lit
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import erg_per_ev, ev_per_hz, s_per_yr, g_per_msun, \
     c, h_p

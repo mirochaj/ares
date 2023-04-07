@@ -9,25 +9,18 @@ Created on: Tue Jan 19 17:55:27 PST 2016
 Description:
 
 """
+from types import FunctionType
 
 import numpy as np
-from types import FunctionType
-from ..util import ParameterFile
 from scipy.optimize import fsolve
 from scipy.interpolate import interp1d
 
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
+from ..util import ParameterFile
 
-_coeff = \
-{
- 'meurer1999': [4.43, 1.99],
- 'pettini1998': [1.49, 0.68],
- 'capak2015': [0.312, 0.176],
+_coeff = {
+    'meurer1999': [4.43, 1.99],
+    'pettini1998': [1.49, 0.68],
+    'capak2015': [0.312, 0.176],
 }
 
 _magarr = np.arange(-35, 0, 0.1)
@@ -133,7 +126,6 @@ class DustCorrection(object):
 
         return Mobs
 
-
         #if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
         #
         #    x = []
@@ -164,7 +156,7 @@ class DustCorrection(object):
 
             # Need a population instance.
 
-        if isinstance(self.pf['dustcorr_beta'], basestring):
+        if isinstance(self.pf['dustcorr_beta'], str):
             return self._beta_fit(z, mag)
         elif type(self.pf['dustcorr_beta']) is FunctionType:
             return self.pf['dustcorr_beta'](z, mag)

@@ -12,7 +12,6 @@ Description:
 
 import sys
 import numpy as np
-from ..util import read_lit
 import os, inspect, re
 from types import FunctionType
 from .Halo import HaloPopulation
@@ -92,6 +91,7 @@ class GalaxyAggregate(HaloPopulation):
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
                 self._sfrd_ = ParameterizedQuantity(**pars)
             else:
+                raise NotImplemented('help')
                 tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.get_sfrd(z, **self.pf['pop_kwargs'])
 

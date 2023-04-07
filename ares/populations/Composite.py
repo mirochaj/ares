@@ -19,13 +19,6 @@ from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
 from .BlackHoleAggregate import BlackHoleAggregate
 
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
-
 after_instance = ['pop_rad_yield']
 allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd', 'pop_focc',
     'pop_fsurv', 'pop_fstar', 'pop_ssfr']
@@ -64,7 +57,7 @@ class CompositePopulation(object):
 
             for option in allowed_options:
 
-                if (pf[option] is None) or (not isinstance(pf[option], basestring)):
+                if (pf[option] is None) or (not isinstance(pf[option], str)):
                     # Only can happen for pop_Mmin
                     continue
 
@@ -90,7 +83,7 @@ class CompositePopulation(object):
             # This is poor design, but things are setup such that only one
             # quantity can be linked. This is a way around that.
             for option in after_instance:
-                if (pf[option] is None) or (not isinstance(pf[option], basestring)):
+                if (pf[option] is None) or (not isinstance(pf[option], str)):
                     # Only can happen for pop_Mmin
                     continue
 

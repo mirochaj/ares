@@ -45,11 +45,11 @@ def test(tol=0.25):
 
     pop = ares.populations.GalaxyPopulation(**pars)
 
-    _b14 = ares.util.read_lit('bouwens2014')
+    _b14 = ares.data.read('bouwens2014')
     hst_shallow = _b14.filt_shallow
     hst_deep = _b14.filt_deep
 
-    c94_windows = ares.util.read_lit('calzetti1994').windows
+    c94_windows = ares.data.read('calzetti1994').windows
     wave_lo = np.min(c94_windows)
     wave_hi = np.max(c94_windows)
 

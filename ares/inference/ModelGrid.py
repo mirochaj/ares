@@ -10,8 +10,6 @@ Description: For working with big model grids. Setting them up, running them,
 and analyzing them.
 
 """
-from __future__ import print_function
-
 import os
 import gc
 import re
