@@ -18,6 +18,7 @@ from urllib.error import URLError, HTTPError
 import numpy as np
 import h5py
 
+from .Math import smooth
 from . import ParameterBundle
 from .. import __version__
 from ..data import ARES
@@ -26,6 +27,7 @@ from ..populations import GalaxyPopulation
 from ..solvers import OpticalDepth
 from ..sources import BlackHole
 from ..simulations import RaySegment
+
 
 # define helper function
 def read_FJS10(parent_dir):
@@ -500,6 +502,64 @@ def make_halos(path):
     )
     return
 
+def generate_lowres_sps(path, degrade_to, exact_files=None):
+    """
+    Takes publicly-available stellar population synthesis (SPS) models and
+    degrades spectral resolution to `degrade_to` in Angstroms.
+    """
+    # go to path
+    os.chdir(path)
+
+    for fn in os.listdir('SEDS/'):
+
+        # Back door to only do this for specific files.
+        if exact_files is not None:
+            if fn not in exact_files:
+                continue
+
+        if fn.split('.')[-1].startswith('deg'):
+            continue
+
+        if 'readme' in fn:
+            continue
+
+        if fn.endswith('.py'):
+            continue
+
+        full_fn = 'SEDS/{}'.format(fn)
+        out_fn = full_fn+'.deg{}'.format(degrade_to)
+
+        if os.path.exists(out_fn):
+            print("File {} exists! Moving on...".format(out_fn))
+            continue
+
+        print("Loading {}...".format(full_fn))
+        data = np.loadtxt(full_fn)
+        wave = data[:,0]
+
+        ok = wave % degrade_to == 0
+
+        new_wave = wave[ok==1]
+        assert data.shape[0] / degrade_to % 1 == 0
+        new_data = np.zeros((int(data.shape[0] / degrade_to), data.shape[1]))
+        new_data[:,0] = new_wave
+
+        for i in range(data.shape[1]):
+            if i == 0:
+                continue
+
+            ys = smooth(data[:,i], degrade_to+1)[ok==1]
+
+            new_data[:,i] = ys
+
+        np.savetxt(out_fn, new_data)
+        print("Wrote {}".format(out_fn))
+
+        del data, wave
+
+def make_lowres_sps(path):
+    generate_lowres_sps(path, degrade_to=10)
+
 def generate_simpl_seds(path, **kwargs):
     # go to path
     os.chdir(path)
@@ -748,7 +808,7 @@ def generate_data(args):
     None
     """
     # figure out what to generate
-    available_dsets = ["tau", "hmf", "simpl", "rt1d"]
+    available_dsets = ["optical_depth", "halos", "simpl", "rt1d", "bpass_v1"]
     if args.dataset.lower() == "all":
         dsets = available_dsets
     elif args.dataset.lower() not in available_dsets:
@@ -761,24 +821,30 @@ def generate_data(args):
 
     if args.dry_run:
         for dset in dsets:
-            if dset == "tau":
+            if dset == "optical_depth":
                 print("Running in dry-run mode; would generate optical depth data")
-            elif dset == "hmf":
+            elif dset == "halos":
                 print("Running in dry-run mode; would generate halo mass function data")
             elif dset == "simpl":
                 print("Running in dry-run mode; would generate SIMPL SEDs")
             elif dset == "rt1d":
                 print("Running in dry-run mode; would generate 1-d radiative transfer tables")
+            elif dset == "bpass_v1":
+                print("Running in dry-run mode; would degrade SPS SEDs...")
     else:
         for dset in dsets:
-            if dset == "tau":
-                make_tau(args.path)
-            elif dset == "hmf":
-                make_halos(args.path)
+            path = os.path.join(args.path, dset)
+
+            if dset == "optical_depth":
+                make_tau(path)
+            elif dset == "halos":
+                make_halos(path)
             elif dset == "simpl":
-                make_simpl(args.path)
+                make_simpl(path)
             elif dset == "rt1d":
-                make_rt1d(args.path)
+                make_rt1d(path)
+            elif dset == "bpass_v1":
+                make_lowres_sps(path)
 
     return
 
