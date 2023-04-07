@@ -11,7 +11,7 @@ info = \
  'reference': 'Behroozi, Wechsler, Hearin, & Conroy, 2019, MNRAS, 488, 3143',
 }
 
-_input = ARES + '/input/umachine-data/umachine-dr1/observational_constraints'
+_input = ARES + '/umachine-data/umachine-dr1/observational_constraints'
 
 def get_data(field, flag=None, sources=None):
     """
