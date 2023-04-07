@@ -24,7 +24,7 @@ If you have `git` installed, you can clone *ARES* and its entire revision histor
 
     git clone https://github.com/mirochaj/ares.git
     cd ares
-    python setup.py install
+    pip install -e .
 
 *ARES* will look in ``$HOME/.ares`` for lookup tables of various kinds. To download said lookup tables, run ::
 
@@ -36,7 +36,7 @@ This might take a few minutes. If something goes wrong with the download, you ca
 
 to get fresh copies of everything. If you're concerned that a download may have been interrupted and/or the file appears to be corrupted (strange I/O errors may indicate this), you can also just download fresh copies of the particular file you want to replace. For example, to grab a fresh initial conditions file, simply do ::
 
-    ares download inits --fresh
+    ares download planck --fresh
 
 
 

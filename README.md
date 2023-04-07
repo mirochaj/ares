@@ -91,7 +91,7 @@ To clone a copy and install:
 ```
 git clone https://github.org/mirochaj/ares.git
 cd ares
-python setup.py install
+pip install . # or pip install -e .
 ```
 
 **ares** will look in ``$HOME/.ares`` for lookup tables of various kinds. To download said lookup tables, run:
@@ -115,23 +115,23 @@ To generate a model for the global 21-cm signal, simply type:
 ```python
 import ares
 
-sim = ares.simulations.Global21cm()      # Initialize a simulation object
-sim.run()   
+sim = ares.simulations.Simulation()      # Initialize a simulation object
+sim.get_21cm_gs()   
 ```                                               
 
-You can examine the contents of ``sim.history``, a dictionary which contains
+You can examine the contents of ``sim_gs.history``, a dictionary which contains
 the redshift evolution of all IGM physical quantities, or use some built-in
 analysis routines:
 
 ```python
-sim.GlobalSignature()
+sim_gs.Plot21cmGlobalSignal()
 ```    
 
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type:
 
 ```python
-import matplotlib.pyplot as pl
-pl.show()
+import matplotlib.pyplot as plt
+plt.show()
 ```
 
 ## Help
