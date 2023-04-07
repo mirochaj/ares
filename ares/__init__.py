@@ -1,7 +1,7 @@
 """Init file for ARES package."""
 
-import os as _os
-import imp as _imp
+import os
+import importlib
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from setuptools_scm import get_version
@@ -20,13 +20,12 @@ except(LookupError, ImportError):
         # package is not installed
         pass
 
-_HOME = _os.environ.get('HOME')
+_HOME = os.environ.get('HOME')
 
 # Load custom defaults
-if _os.path.exists('{!s}/.ares/defaults.py'.format(_HOME)):
-    (_f, _filename, _data) =\
-        _imp.find_module('defaults', ['{!s}/.ares/'.format(_HOME)])
-    rcParams = _imp.load_module('defaults.py', _f, _filename, _data).pf
+if os.path.exists(f'{_HOME}/.ares/defaults'):
+    mod = importlib.import_module(f'{_HOME}/.ares/defaults')
+    rcParams = mod.pf
 else:
     rcParams = {}
 
