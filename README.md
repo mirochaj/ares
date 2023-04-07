@@ -94,16 +94,16 @@ cd ares
 python setup.py install
 ```
 
-**ares** will look in ``ares/input`` for lookup tables of various kinds. To download said lookup tables, run:
+**ares** will look in ``$HOME/.ares`` for lookup tables of various kinds. To download said lookup tables, run:
 
 ```
-python remote.py
+ares download all
 ```
 
 This might take a few minutes. If something goes wrong with the download, you can run
 
 ```
-python remote.py fresh
+ares download all --fresh
 ```
 
 to get fresh copies of everything.

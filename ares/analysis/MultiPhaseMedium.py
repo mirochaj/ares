@@ -23,12 +23,6 @@ from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
 from mpl_toolkits.axes_grid1 import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 try:
     import h5py
@@ -96,7 +90,7 @@ class MultiPhaseMedium(object):
             self.history = data.copy()
 
         # Read output of a simulation from disk
-        elif isinstance(data, basestring):
+        elif isinstance(data, str):
             self.prefix = data
             self._load_data(data)
 

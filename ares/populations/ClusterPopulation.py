@@ -14,7 +14,6 @@ import os
 import re
 import inspect
 import numpy as np
-from ..util import read_lit
 from types import FunctionType
 from ..util.Math import interp1d
 from .Population import Population
@@ -74,6 +73,7 @@ class ClusterPopulation(Population): # pragma: no cover
                 pars = get_pq_pars(self.pf['pop_frd'], self.pf)
                 self._frd_ = ParameterizedQuantity(**pars)
             else:
+                raise NotImplemented('help')
                 tmp = read_lit(self.pf['pop_frd'], verbose=self.pf['verbose'])
                 self._frd_ = lambda z: tmp.FRD(z, **self.pf['pop_kwargs'])
 

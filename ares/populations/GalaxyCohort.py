@@ -30,7 +30,6 @@ from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr
 
-
 small_dz = 1e-8
 ztol = 1e-4
 z0 = 9. # arbitrary

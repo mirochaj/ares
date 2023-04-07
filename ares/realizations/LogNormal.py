@@ -18,7 +18,6 @@ from ..simulations import Simulation
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
-from ..util.Misc import get_field_from_catalog
 
 try:
     import powerbox as pbox
@@ -77,7 +76,7 @@ class LogNormal(LightCone): # pragma: no cover
     @property
     def sim(self):
         if not hasattr(self, '_sim'):
-            self._sim = Simulation(**self.kwargs)
+            self._sim = Simulation(verbose=self.verbose, **self.kwargs)
         return self._sim
 
     @property

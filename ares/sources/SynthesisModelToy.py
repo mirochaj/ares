@@ -12,8 +12,8 @@ Description:
 
 import numpy as np
 from ..util.Stats import bin_c2e
-from ..util.ReadData import read_lit
 from functools import cached_property
+from ares.data import read as read_lit
 from .SynthesisModel import SynthesisModelBase
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import c, h_p, erg_per_ev, cm_per_ang, ev_per_hz, E_LL

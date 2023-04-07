@@ -87,6 +87,15 @@ aux_data = \
  #   'wfc_F814W.dat',
  #   'wfc_F850LP.dat',
  #   None],
+ 'panstarrs': ['http://svo2.cab.inta-csic.es/svo/theory/fps3/',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.g',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.r',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.w',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.open',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.i',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.z',
+    'getdata.php?format=ascii&id=PAN-STARRS/PS1.y',
+    None],
  'planck': ['https://pla.esac.esa.int/pla/aio',
     'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE-lowl-lowE_R3.00.zip',
     'product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-zre6p5_R3.01.zip',
@@ -144,7 +153,7 @@ if (len(options) > 0) and ('clean' not in options):
 else:
     to_download = []
     for key in aux_data.keys():
-        if key in extras:
+        if key in extra:
             continue
         to_download.append(key)
 

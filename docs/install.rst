@@ -26,17 +26,17 @@ If you have `git` installed, you can clone *ARES* and its entire revision histor
     cd ares
     python setup.py install
 
-*ARES* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run ::
+*ARES* will look in ``$HOME/.ares`` for lookup tables of various kinds. To download said lookup tables, run ::
 
-    python remote.py
+    ares download all
 
 This might take a few minutes. If something goes wrong with the download, you can run    ::
 
-    python remote.py fresh
+    ares download --fresh
 
 to get fresh copies of everything. If you're concerned that a download may have been interrupted and/or the file appears to be corrupted (strange I/O errors may indicate this), you can also just download fresh copies of the particular file you want to replace. For example, to grab a fresh initial conditions file, simply do ::
 
-    python remote.py fresh inits
+    ares download inits --fresh
 
 
 

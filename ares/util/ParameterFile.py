@@ -13,12 +13,6 @@ Description:
 import re
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 try:
     from mpi4py import MPI
@@ -138,7 +132,7 @@ def count_properties(**kwargs):
     phpIDs = []
     for par in kwargs:
 
-        if not isinstance(kwargs[par], basestring):
+        if not isinstance(kwargs[par], str):
             continue
 
         if kwargs[par][0:2] != 'pq':
@@ -172,7 +166,7 @@ def identify_pqs(**kwargs):
 
     for par in kwargs:
 
-        if not isinstance(kwargs[par], basestring):
+        if not isinstance(kwargs[par], str):
             continue
 
         if (kwargs[par] != 'pq') and (kwargs[par][0:3] != 'pq['):
@@ -440,7 +434,7 @@ class ParameterFile(dict):
                 # See if this parameter is linked to another population
                 # OR another parameter within the same population.
                 # The latter only occurs for PHPs.
-                if isinstance(kwargs[par], basestring):
+                if isinstance(kwargs[par], str):
                     prefix_link, popid_link, phpid_link = par_info(kwargs[par])
                     if (popid_link is None) and (phpid_link is None):
                         # Move-on: nothing to see here

@@ -16,12 +16,6 @@ from ..data import ARES
 from types import FunctionType
 import types, os, textwrap, glob, re
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 try:
     from mpi4py import MPI
@@ -49,25 +43,22 @@ twidth = width - len(pre) - len(post) - 2
 pad = settings['pad']
 #
 
-e_methods = \
-{
- 0: 'all photo-electron energy -> heat',
- 1: 'Shull & vanSteenberg (1985)',
- 2: 'Ricotti, Gnedin, & Shull (2002)',
- 3: 'Furlanetto & Stoever (2010)'
+e_methods = {
+    0: 'all photo-electron energy -> heat',
+    1: 'Shull & vanSteenberg (1985)',
+    2: 'Ricotti, Gnedin, & Shull (2002)',
+    3: 'Furlanetto & Stoever (2010)'
 }
 
-rate_srcs = \
-{
- 'fk94': 'Fukugita & Kawasaki (1994)',
- 'chianti': 'Chianti'
+rate_srcs = {
+    'fk94': 'Fukugita & Kawasaki (1994)',
+    'chianti': 'Chianti'
 }
 
-S_methods = \
-{
- 1: 'Salpha = const. = 1',
- 2: 'Chuzhoy, Alvarez, & Shapiro (2005)',
- 3: 'Furlanetto & Pritchard (2006)'
+S_methods = {
+    1: 'Salpha = const. = 1',
+    2: 'Chuzhoy, Alvarez, & Shapiro (2005)',
+    3: 'Furlanetto & Pritchard (2006)'
 }
 
 def footer():
@@ -150,7 +141,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
         # Loop over columns
         numbers = ''
         for j in range(len(cols)):
-            if isinstance(data[i][j], basestring):
+            if isinstance(data[i][j], str):
                 numbers += data[i][j].center(cwidth[j+1])
                 continue
             elif type(data[i][j]) is bool:
@@ -404,7 +395,7 @@ def print_pop(pop):
 
     # Redshift evolution stuff
     if pop.pf['pop_sfrd'] is not None:
-        if isinstance(pop.pf['pop_sfrd'], basestring):
+        if isinstance(pop.pf['pop_sfrd'], str):
             print(line("SFRD        : {!s}".format(pop.pf['pop_sfrd'])))
         else:
             print(line("SFRD        : parameterized"))

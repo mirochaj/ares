@@ -11,7 +11,6 @@ Description:
 """
 
 import numpy as np
-from ..util import read_lit
 from inspect import ismethod
 from types import FunctionType
 from .Population import Population

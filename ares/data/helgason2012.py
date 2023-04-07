@@ -5,7 +5,7 @@ Helgason et al. (2012).
 import numpy as np
 
 # Table 2
-helgason_cols = ['l_eff', 'N', 'zmax', 'Mstar', 'q', 'pstar', 'alpha', 'r']
+helgason_cols = ['l_eff', 'N', 'zmax', 'Mstar', 'q', 'pstar', 'p', 'alpha', 'r']
 helgason_fits = \
 {
  'UV': [0.15, 24, 8.0, -19.62, 1.1, 2.43, 0.2, -1.00, 0.086],

@@ -13,7 +13,9 @@ Description:
 import re
 import os
 import copy
+
 import numpy as np
+
 from ..data import ARES
 from ..physics.Constants import c
 from ..physics.Cosmology import Cosmology
@@ -26,7 +28,7 @@ except ImportError:
 flux_AB = 3631. * 1e-23 # 3631 * 1e-23 erg / s / cm**2 / Hz
 nanoJ = 1e-23 * 1e-9
 
-_path = ARES + '/input'
+_path = ARES
 
 class Survey(object):
     def __init__(self, cam='nircam', mod='modA', chip=1, force_perfect=False,
@@ -160,8 +162,9 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
-        path = '{}/nircam/nircam_throughputs/{}/filters_only'.format(_path,
-            self.mod)
+        path = os.path.join(
+            _path, "nircam", "nircam_throughputs", self.mod, "filters_only"
+        )
 
         data = {}
         for fn in os.listdir(path):
@@ -181,8 +184,8 @@ class Survey(object):
                 cent = float('{}.{}'.format(num[0], num[1:]))
 
                 # Wavelength [micron], transmission
-                x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
-                    skiprows=1)
+                full_path = os.path.join(path, fn)
+                x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
                 data[pre] = self._get_filter_prop(x, y, cent)
 
@@ -209,8 +212,8 @@ class Survey(object):
                     cent = float('{}.{}'.format(pre[1], pre[2:k]))
 
                     # Wavelength [micron], transmission
-                    x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
-                        skiprows=1)
+                    full_path = os.path.join(path, fn)
+                    x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
                     data[pre] = self._get_filter_prop(x, y, cent)
 
@@ -234,7 +237,7 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
-        path = '{}/wfc'.format(_path)
+        path = os.path.join(_path, "wfc")
 
         data = {}
         for fn in os.listdir(path):
@@ -256,8 +259,8 @@ class Survey(object):
 
                 cent = float('0.{}'.format(pre[1:4]))
 
-                x, y = np.loadtxt('{}/{}'.format(path, fn),
-                    unpack=True, skiprows=1)
+                full_path = os.path.join(path, fn)
+                x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
                 # Convert wavelengths from nanometers to microns
                 data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -279,8 +282,8 @@ class Survey(object):
                     k = pre.rfind(_filters)
                     cent = float('0.{}'.format(pre[1:k]))
 
-                    x, y = np.loadtxt('{}/{}'.format(path, fn),
-                        unpack=True, skiprows=1)
+                    full_path = os.path.join(path, fn)
+                    x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
                     # Convert wavelengths from nanometers to microns
                     data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -304,15 +307,15 @@ class Survey(object):
             if type(filter_set) != list:
                 filter_set = [filter_set]
 
-        path = path = '{}/wfc3'.format(_path)
+        path = os.path.join(_path, "wfc3")
 
         data = {}
         for fn in os.listdir(path):
 
-            if '.txt' not in fn:
+            if not fn.startswith('WFC3_IR'):
                 continue
 
-            pre = fn[fn.find('_f')+1:fn.rfind('.')].upper()
+            pre = fn[fn.find('_IR')+4:]
 
             # Read-in no matter what
             if get_all or (pre in filters):
@@ -323,8 +326,8 @@ class Survey(object):
 
                 cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                x, y = np.loadtxt('{}/{}'.format(path, fn),
-                    unpack=True, skiprows=1)
+                full_path = os.path.join(path, fn)
+                x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
                 # Convert wavelengths from Angstroms to microns
                 data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -348,8 +351,8 @@ class Survey(object):
                     # string identifier.
                     cent = float('{}.{}'.format(pre[1], pre[2:-1]))
 
-                    x, y = np.loadtxt('{}/{}'.format(path, fn),
-                        unpack=True, skiprows=1)
+                    full_path = os.path.join(path, fn)
+                    x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
                     # Convert wavelengths from Angstroms to microns
                     data[pre] = self._get_filter_prop(x / 1e4, y, cent)
@@ -362,12 +365,12 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
-        path = '{}/irac'.format(_path)
+        path = os.path.join(_path, "irac")
 
         data = {}
         for fn in os.listdir(path):
-            x, y = np.loadtxt('{}/{}'.format(path, fn), unpack=True,
-                skiprows=1)
+            full_path = os.path.join(path, fn)
+            x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
             if 'ch1' in fn:
                 cent = 3.6
@@ -397,7 +400,7 @@ class Survey(object):
 
         A = np.pi * (0.5 * 2.4)**2
 
-        path = '{}/roman'.format(_path)
+        path = os.path.join(_path, "roman")
 
         data = {}
         for fn in os.listdir(path):
@@ -405,9 +408,10 @@ class Survey(object):
             if fn != _fn:
                 continue
 
-            df = pd.read_excel(path + '/' + _fn,
-                sheet_name='Roman_effarea_20201130',
-                header=1)
+            full_path = os.path.join(path, _fn)
+            df = pd.read_excel(
+                full_path, sheet_name='Roman_effarea_20201130', header=1
+            )
 
             _cols = df.columns
             cols = [col.strip() for col in _cols]
@@ -437,13 +441,13 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
-        path = '{}/wise'.format(_path)
+        path = os.path.join(_path, "wise")
 
         data = {}
         cent = 3.368, 4.618
         for i, filt in enumerate(['W1', 'W2']):
-            x, y, z = np.loadtxt('{}/{}'.format(path, f'RSR-{filt}.txt'),
-                unpack=True)
+            full_path = os.path.join(path, f"RSR-{filt}.txt")
+            x, y, z = np.loadtxt(full_path, unpack=True)
             data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
 
             self._filter_cache[filt] = copy.deepcopy(data[filt])
@@ -454,9 +458,10 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
-        path = '{}/spherex/Public-products-master'.format(_path)
+        path = os.path.join(_path, "spherex", "Public-products-master")
         fn = 'Surface_Brightness_v28_base_cbe.txt'
-        x, allsky, deep = np.loadtxt('{}/{}'.format(path, fn), unpack=True)
+        full_path = os.path.join(path, fn)
+        x, allsky, deep = np.loadtxt(full_path, unpack=True)
 
         self._filter_cache['all'] = x, allsky, deep
 
@@ -466,12 +471,12 @@ class Survey(object):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
-        path = '{}/rubin/throughputs/baseline'.format(_path)
+        path = os.path.join(_path, "rubin", "throughputs", "baseline")
 
         data = {}
         for i, filt in enumerate(list('ugrizy')):
-            x, y = np.loadtxt('{}/{}'.format(path, f'total_{filt}.dat'),
-                unpack=True)
+            full_path = os.path.join(path, f"total_{filt}.dat")
+            x, y = np.loadtxt(full_path, unpack=True)
             cent = np.mean(x[y > 0])
             data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent)
 

@@ -9,19 +9,11 @@ Created on: Sun Oct 19 19:50:31 MDT 2014
 Description:
 
 """
-
 import os
 import subprocess
 import numpy as np
 from ..data import ARES
 from .Stats import bin_e2c
-
-try:
-    # this runs with no issues in python 2 but raises error in python 3
-    basestring
-except:
-    # this try/except allows for python 2/3 compatible string type checking
-    basestring = str
 
 numeric_types = [int, float, np.int64, np.float64]
 

@@ -9,11 +9,15 @@ Created on: Wed Aug 27 10:55:19 MDT 2014
 Description:
 
 """
+import glob
+import os
+import re
+import sys
 
 import numpy as np
 import imp as _imp
+
 from ..data import ARES
-import os, re, sys, glob
 from .Pickling import read_pickle_file
 
 try:
@@ -29,55 +33,6 @@ except ImportError:
     rank = 0
 
 HOME = os.environ.get('HOME')
-sys.path.insert(1, '{!s}/input/litdata'.format(ARES))
-
-_lit_options = glob.glob('{!s}/input/litdata/*.py'.format(ARES))
-lit_options = []
-for element in _lit_options:
-    lit_options.append(element.split('/')[-1].replace('.py', ''))
-
-def read_lit(prefix, path=None, verbose=True):
-    """
-    Read data from the literature.
-
-    Parameters
-    ----------
-    prefix : str
-        Everything preceeding the '.py' in the name of the module.
-    path : str
-        If you want to look somewhere besides $ARES/input/litdata, provide
-        that path here.
-
-    """
-
-    if path is not None:
-        prefix = '{0!s}/{1!s}'.format(path, prefix)
-
-    has_local = os.path.exists('./{!s}.py'.format(prefix))
-    has_home = os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, prefix))
-    has_litd = os.path.exists('{0!s}/input/litdata/{1!s}.py'.format(ARES, prefix))
-
-    # Load custom defaults
-    if has_local:
-        loc = '.'
-    elif has_home:
-        loc = '{!s}/.ares/'.format(HOME)
-    elif has_litd:
-        loc = '{!s}/input/litdata/'.format(ARES)
-    else:
-        return None
-
-    if has_local + has_home + has_litd > 1:
-        print("WARNING: multiple copies of {!s} found.".format(prefix))
-        print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
-
-    _f, _filename, _data = _imp.find_module(prefix, [loc])
-    mod = _imp.load_module(prefix, _f, _filename, _data)
-
-    # Save this for sanity checks later
-    mod.path = loc
-
-    return mod
 
 def flatten_energies(E):
     """

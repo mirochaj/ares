@@ -1,6 +1,6 @@
-from mirocha2017 import base as _base
-from mirocha2018 import low as _low, med as _med, high as _high, bb as _bb
-from mirocha2020 import _halo_updates
+from .mirocha2017 import base as _base
+from .mirocha2018 import low as _low, med as _med, high as _high, bb as _bb
+from .mirocha2020 import _halo_updates
 from ares.util import ParameterBundle as PB
 from ares.physics.Constants import E_LyA, E_LL, lam_LyA
 

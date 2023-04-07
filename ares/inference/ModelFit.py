@@ -10,18 +10,24 @@ Description:
 
 """
 
-from __future__ import print_function
-
+import copy
+import gc
 import glob
+import os
+import re
+import sys
+import time
+import types
+from types import FunctionType
+
 import numpy as np
+
 from ..util import get_hash
 from ..util.MPIPool import MPIPool
 from ..physics.Constants import nu_0_mhz
 from ..util.Warnings import not_a_restart
 from ..util.ParameterFile import par_info
-import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
-from types import FunctionType#, InstanceType # InstanceType not in Python3
 from ..analysis import ModelSet
 from ..analysis.BlobFactory import BlobFactory
 from ..sources import BlackHole, SynthesisModel
@@ -31,18 +37,6 @@ from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain, read_pickled_logL
-
-#import psutil
-#
-#ps = psutil.Process(os.getpid())
-#
-#def write_memory(checkpt):
-#    t = time.time()
-#    #mem = psutil.virtual_memory().active / 1e9
-#    mem = ps.memory_info().rss / 1e6
-#
-#    with open('memory.txt', 'a') as f:
-#        f.write("{} {} {} {}\n".format(t, mem, rank, checkpt))
 
 try:
     from distpy.distribution import DistributionSet

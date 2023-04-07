@@ -10,7 +10,7 @@ Description:
 
 """
 
-from mirocha2017 import dpl
+from .mirocha2017 import dpl
 
 base = dpl.copy()
 base['pop_sfr_model'] = '21cmfast'

@@ -504,7 +504,7 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.',
         suffix=None, fmt='hdf5', hdr={}, map_units='MJy',
-        include_pops=None, clobber=False, **kwargs):
+        include_pops=None, clobber=False, save_catalogs=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -666,7 +666,7 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Wipe slate clean
-        f = open(f"{final_dir}/README", 'a')
+        f = open(f"{final_dir}/README", 'w')
         f.write("# map [central wavelength/micron] ; populations included \n")
         f.close()
 
