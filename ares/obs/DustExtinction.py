@@ -35,7 +35,7 @@ class DustExtinction(object):
         """
 
         prefix = self.pf['pop_dustext_template']
-        cands = glob.glob(f'{ARES}/input/extinction/{prefix}*')
+        cands = glob.glob(f'{ARES}/extinction/{prefix}*')
 
         if len(cands) == 0:
             raise IOError(f'No files found with prefix={prefix}!')
