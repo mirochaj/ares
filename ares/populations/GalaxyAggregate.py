@@ -141,8 +141,8 @@ class GalaxyAggregate(HaloPopulation):
 
         return self.get_sfrd(z) / self.pf['pop_mass'] / g_per_msun
 
-    def Emissivity(self, z, E=None, Emin=None, Emax=None):
-        return self.get_emissivity(z, E=E, Emin=Emin, Emax=Emax)
+    #def get_radiative_yield(self, z):
+    #    pass
 
     def get_emissivity(self, z, E=None, Emin=None, Emax=None):
         """
@@ -178,9 +178,9 @@ class GalaxyAggregate(HaloPopulation):
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         if self.is_quiescent:
-            rhoL = self.get_smd(z) * self.yield_per_sfr * on
+            rhoL = self.get_smd(z) * self.tab_radiative_yield * on
         else:
-            rhoL = self.get_sfrd(z) * self.yield_per_sfr * on
+            rhoL = self.get_sfrd(z) * self.tab_radiative_yield * on
 
         ##
         # Models based on photons / baryon
@@ -222,11 +222,15 @@ class GalaxyAggregate(HaloPopulation):
         else:
             return rhoL
 
-    def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
-        return self.Emissivity(z, E=E, Emin=Emin, Emax=Emax) / (E * erg_per_ev)
+    #def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
+    #    return self.Emissivity(z, E=E, Emin=Emin, Emax=Emax) / (E * erg_per_ev)
 
-    def LuminosityDensity(self, z, Emin=None, Emax=None):
-        return self.get_luminosity_density(z, Emin=Emin, Emax=Emax)
+    #def LuminosityDensity(self, z, Emin=None, Emax=None):
+    #    return self.get_luminosity_density(z, Emin=Emin, Emax=Emax)
+
+    def get_fesc(self, z):
+        func = self._get_function('pop_fesc')
+        return func(z)
 
     def get_luminosity_density(self, z, Emin=None, Emax=None):
         """
@@ -243,9 +247,9 @@ class GalaxyAggregate(HaloPopulation):
 
         """
 
-        return self.Emissivity(z, Emin=Emin, Emax=Emax)
+        return self.get_emissivity(z, Emin=Emin, Emax=Emax)
 
-    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
+    def get_photon_luminosity_density(self, z, Emin=None, Emax=None):
         """
         Return the photon luminosity density in the (Emin, Emax) band.
 
@@ -260,7 +264,7 @@ class GalaxyAggregate(HaloPopulation):
 
         """
 
-        rhoL = self.LuminosityDensity(z, Emin, Emax)
+        rhoL = self.get_luminosity_density(z, Emin, Emax)
         eV_per_phot = self._get_energy_per_photon(Emin, Emax)
 
         return rhoL / (eV_per_phot * erg_per_ev)

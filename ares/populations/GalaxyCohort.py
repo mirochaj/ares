@@ -325,10 +325,10 @@ class GalaxyCohort(GalaxyAggregate):
         # Otherwise, calculate what it should be
         if (Emin, Emax) in [(E_LL, 24.6), (13.6, 24.6)]:
             # Should be based on energy at this point, not photon number
-            self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.tab_M) \
+            self._N_per_Msun[(Emin, Emax)] = self.get_Nion(z=None, Mh=self.halos.tab_M) \
                 * self.cosm.b_per_msun
         elif (Emin, Emax) == (10.2, 13.6):
-            self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.tab_M) \
+            self._N_per_Msun[(Emin, Emax)] = self.get_Nlw(z=None, Mh=self.halos.tab_M) \
                 * self.cosm.b_per_msun
         else:
             s = 'Unrecognized band: ({0:.3g}, {1:.3g})'.format(Emin, Emax)
@@ -352,33 +352,6 @@ class GalaxyCohort(GalaxyAggregate):
                     for i in range(self.halos.tab_z.size)])
 
         return self._tab_MAR_at_Mmin_
-
-    @property
-    def _tab_nh_at_Mmin(self):
-        if not hasattr(self, '_tab_nh_at_Mmin_'):
-            self._tab_nh_at_Mmin_ = \
-                np.array([self._func_nh(self.halos.tab_z[i],
-                    np.log(self._tab_Mmin[i])) \
-                    for i in range(self.halos.tab_z.size)]).squeeze()
-
-        return self._tab_nh_at_Mmin_
-
-    @property
-    def _tab_fstar_at_Mmin(self):
-        if not hasattr(self, '_tab_fstar_at_Mmin_'):
-            self._tab_fstar_at_Mmin_ = \
-                self.get_fstar(z=self.halos.tab_z, Mh=self._tab_Mmin)
-        return self._tab_fstar_at_Mmin_
-
-    @property
-    def _tab_sfr_at_Mmin(self):
-        if not hasattr(self, '_tab_sfr_at_Mmin_'):
-            self._tab_sfr_at_Mmin_ = \
-                np.array([self.get_fstar(z=self.halos.tab_z[i],
-                    Mh=self._tab_Mmin[i]) \
-                    for i in range(self.halos.tab_z.size)])
-        return self._tab_sfr_at_Mmin_
-
 
     def _get_luminosity_density(self, Emin=None, Emax=None):
         """
@@ -431,9 +404,9 @@ class GalaxyCohort(GalaxyAggregate):
 
             if Emin in [13.6, E_LL]:
                 # Doesn't matter what Emax is
-                fesc = lambda **kwargs: self.fesc(**kwargs)
+                fesc = lambda **kwargs: self.get_fesc(**kwargs)
             elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
-                fesc = lambda **kwargs: self.fesc_LW(**kwargs)
+                fesc = lambda **kwargs: self.get_fesc_LW(**kwargs)
             else:
                 use_yield_per_sfr = False
                 fesc = lambda **kwargs: 1.0
@@ -553,9 +526,9 @@ class GalaxyCohort(GalaxyAggregate):
         N_per_Msun = self.get_photons_per_Msun(Emin=Emin, Emax=Emax)
 
         if abs(Emin - E_LL) < 0.1:
-            fesc = self.fesc(z=z, Mh=self.halos.tab_M)
+            fesc = self.get_fesc(z=z, Mh=self.halos.tab_M)
         elif (abs(Emin - E_LyA) < 0.1 and abs(Emax - E_LL) < 0.1):
-            fesc = self.fesc_LW(z=z, Mh=self.halos.tab_M)
+            fesc = self.get_fesc_LW(z=z, Mh=self.halos.tab_M)
         else:
             raise NotImplementedError('help!')
 
@@ -1577,33 +1550,17 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def _get_function(self, par):
-        """
-        Returns a function representation of input parameter `par`.
+    def get_fesc(self, z, Mh):
+        func = self._get_function('pop_fesc')
+        return func(z=z, Mh=Mh)
 
-        For example, the user supplies the parameter `pop_dust_yield`. This
-        routien figures out if that's a number, a function, or a string
-        indicating a ParameterizedQuantity, and creates a callable function
-        no matter what.
-        """
-        if not hasattr(self, f'_get_{par}'):
-            t = type(self.pf[par])
+    def get_fesc_LW(self, z, Mh):
+        func = self._get_function('pop_fesc_LW')
+        return func(z=z, Mh=Mh)
 
-            if t in numeric_types:
-                func = lambda **kwargs: self.pf[par]
-            elif t == FunctionType:
-                func = lambda **kwargs: self.pf[par]
-            elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
-                pars = get_pq_pars(self.pf[par], self.pf)
-                ob = ParameterizedQuantity(**pars)
-                func = lambda **kwargs: ob.__call__(**kwargs)
-                setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
-            else:
-                raise NotImplementedError(f"Unrecognized option for `{par}`.")
-
-            setattr(self, '_get_{}'.format(par.strip('pop_')), func)
-
-        return getattr(self, '_get_{}'.format(par.strip('pop_')))
+    def get_Nion(self, z, Mh):
+        func = self._get_function('pop_Nion')
+        return func(z=z, Mh=Mh)
 
     def get_dust_yield(self, z, Mh):
         """
@@ -2941,17 +2898,19 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 return fstar
 
-    @property
-    def yield_per_sfr(self):
-        # Need this to avoid inheritance issue with GalaxyAggregate
-        if not hasattr(self, '_yield_per_sfr'):
+    #@cached_property
+    #def tab_yield_per_sfr(self):
+    #    # Need this to avoid inheritance issue with GalaxyAggregate
+    #    #if not hasattr(self, '_yield_per_sfr'):
 
-            if type(self.rad_yield) is FunctionType:
-                self._yield_per_sfr = self.rad_yield()
-            else:
-                self._yield_per_sfr = self.rad_yield
+    #    #if type(self.rad_yield) is FunctionType:
+    #    #    self._yield_per_sfr = self.rad_yield()
+    #    #else:
+    #    #    self._yield_per_sfr = self.rad_yield
 
-        return self._yield_per_sfr
+    #
+
+    #    return self._yield_per_sfr
 
     @property
     def fstar(self):

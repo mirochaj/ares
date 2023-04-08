@@ -9,13 +9,13 @@ Created on: Sun Jul 22 16:28:08 2012
 Description: Initialize a radiation source.
 
 """
+
 import os
 import re
-
 import numpy as np
 from scipy.integrate import quad
-
 from ..util import ParameterFile
+from functools import cached_property
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile
@@ -33,6 +33,10 @@ except ImportError:
 
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
+
+_sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
+    'schaerer2002', 'hybrid',
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
 
 class Source(object):
     def __init__(self, grid=None, cosm=None, logN=None, init_tabs=True,
@@ -56,6 +60,10 @@ class Source(object):
         if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
 
+    @cached_property
+    def is_sed_tabular(self):
+        print("Should do this more carefully")
+        return self.pf['source_sed'] in _sed_tabs
     @property
     def Emin(self):
         return self.pf['source_Emin']
@@ -555,7 +563,11 @@ class Source(object):
     #    else:
     #        return Lnu
     #
+
     def Spectrum(self, E, t=0.0):
+        return self.get_spectrum(E, t=t)
+
+    def get_spectrum(self, E, t=0.0):
         r"""
         Return fraction of bolometric luminosity emitted at energy E.
 

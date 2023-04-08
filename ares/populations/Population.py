@@ -25,9 +25,11 @@ from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..util.Warnings import no_lya_warning
+from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
@@ -126,6 +128,34 @@ class Population(object):
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
         pass
+
+    def _get_function(self, par):
+        """
+        Returns a function representation of input parameter `par`.
+
+        For example, the user supplies the parameter `pop_dust_yield`. This
+        routien figures out if that's a number, a function, or a string
+        indicating a ParameterizedQuantity, and creates a callable function
+        no matter what.
+        """
+        if not hasattr(self, f'_get_{par}'):
+            t = type(self.pf[par])
+
+            if t in numeric_types:
+                func = lambda **kwargs: self.pf[par]
+            elif t == FunctionType:
+                func = lambda **kwargs: self.pf[par]
+            elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
+                pars = get_pq_pars(self.pf[par], self.pf)
+                ob = ParameterizedQuantity(**pars)
+                func = lambda **kwargs: ob.__call__(**kwargs)
+                setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
+            else:
+                raise NotImplementedError(f"Unrecognized option for `{par}`.")
+
+            setattr(self, '_get_{}'.format(par.strip('pop_')), func)
+
+        return getattr(self, '_get_{}'.format(par.strip('pop_')))
 
     @property
     def info(self):
@@ -657,18 +687,32 @@ class Population(object):
 
         return self._src_csfr_
 
-    @property
-    def yield_per_sfr(self):
-        if not hasattr(self, '_yield_per_sfr'):
+    @cached_property
+    def tab_radiative_yield(self):
+        """
+        This is the conversion factor between star formation and luminosity.
 
-            # erg/g
-            self._yield_per_sfr = normalize_sed(self)
+        If this is a star-forming population, i.e., self.is_star_forming=True,
+        then it is [erg/s/(Msun/yr)].
 
-        return self._yield_per_sfr
+        If this is a quiescent population (self.is_quiescent=True), then the
+        units are [erg/s/Msun] for the corresponding age (`pop_age`).
+        """
+        #if not hasattr(self, '_yield_per_sfr'):
 
-    @yield_per_sfr.setter
-    def yield_per_sfr(self, value):
-        self._yield_per_sfr = value
+        ## erg/g
+        #self._yield_per_sfr = normalize_sed(self)
+
+        if self.src.is_sed_tabular:
+            E1 = self.src.Emin
+            E2 = self.src.Emax
+            return self.src.get_rad_yield(E1, E2)
+        else:
+            return normalize_sed(self)#self.pf['source_rad_yield']
+
+    #@yield_per_sfr.setter
+    #def yield_per_sfr(self, value):
+    #    self._yield_per_sfr = value
 
     @property
     def is_fcoll_model(self):
@@ -698,18 +742,13 @@ class Population(object):
         return self.pf['pop_sfr_model'] == 'smhm-func'
 
     @property
-    def sed_tab(self):
-        if not hasattr(self, '_sed_tab'):
-            if self.pf['pop_sed'] in _sed_tabs:
-                self._sed_tab = True
-            else:
-                self._sed_tab = False
-        return self._sed_tab
+    def is_sed_tab(self):
+        return self.src.is_sed_tabular
 
     @property
     def reference_band(self):
         if not hasattr(self, '_reference_band'):
-            if self.sed_tab:
+            if self.is_sed_tab:
                 self._reference_band = self.src.Emin, self.src.Emax
             else:
                 self._reference_band = \
@@ -722,9 +761,9 @@ class Population(object):
             self._full_band = (self.pf['pop_Emin'], self.pf['pop_Emax'])
         return self._full_band
 
-    @property
-    def model(self):
-        return self.pf['pop_model']
+    #@property
+    #def model(self):
+    #    return self.pf['pop_model']
 
     def _convert_band(self, Emin, Emax):
         """
@@ -781,7 +820,7 @@ class Population(object):
                     self.id_num))
 
             # If tabulated, do things differently
-            if self.sed_tab:
+            if self.is_sed_tab:
                 factor = self.src.get_rad_yield(Emin, Emax) \
                     / self.src.get_rad_yield(*self.reference_band)
             else:
@@ -845,7 +884,7 @@ class Population(object):
                 "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                 self.id_num))
 
-        if self.sed_tab:
+        if self.is_sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
             integrand = lambda E: self.src.Spectrum(E) * E

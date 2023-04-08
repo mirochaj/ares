@@ -68,7 +68,7 @@ def test():
 
     assert not pop_fesc.is_emissivity_scalable
 
-    assert pop_fesc.fesc(Mh=1e10) < pop_fesc.fesc(Mh=1e9)
+    assert pop_fesc.get_fesc(z=None, Mh=1e10) < pop_fesc.get_fesc(z=None, Mh=1e9)
 
     L_ion2 = np.array([pop_fesc.get_luminosity_density(z, Emin=E_LL, Emax=24.6) \
         for z in zarr]) * cm_per_mpc**3
