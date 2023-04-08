@@ -722,9 +722,9 @@ class GalaxyEnsemble(HaloPopulation):
             if band is not None:
                 if Emin in [13.6, E_LL]:
                     # Doesn't matter what Emax is
-                    fesc = self.guide.fesc(z=z, Mh=Mh)
+                    fesc = self.guide.get_fesc(z=z, Mh=Mh)
                 elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
-                    fesc = self.guide.fesc_LW(z=z, Mh=Mh)
+                    fesc = self.guide.get_fesc_LW(z=z, Mh=Mh)
                 else:
                     fesc = 1.
             else:
@@ -1300,7 +1300,7 @@ class GalaxyEnsemble(HaloPopulation):
             else:
                 have_delay = False
 
-            delay = self.guide.dust_yield_delay(z=z2d, Mh=Mh)
+            delay = self.get_dust_yield_delay(z=z2d, Mh=Mh)
 
             if np.all(fg == 0):
                 if type(fd) in [int, float, np.float64] and (not have_delay):
@@ -1346,7 +1346,7 @@ class GalaxyEnsemble(HaloPopulation):
                     Md[:,k+1] = Md[:,k] + (Md_p + Md_g) * dt[k]
 
             # Dust surface density.
-            Rd = self.guide.dust_scale(z=z2d, Mh=Mh)
+            Rd = self.guide.get_dust_scale(z=z2d, Mh=Mh)
             Sd = np.divide(Md, np.power(Rd, 2.)) \
                 / 4. / np.pi
 
@@ -1354,7 +1354,7 @@ class GalaxyEnsemble(HaloPopulation):
 
             # Can add scatter to surface density
             if self.pf['pop_dust_scatter'] is not None:
-                sigma = self.guide.dust_scatter(z=z2d, Mh=Mh)
+                sigma = self.guide.get_dust_scatter(z=z2d, Mh=Mh)
                 noise = np.zeros_like(Sd)
                 np.random.seed(self.pf['pop_dust_scatter_seed'])
                 for _i, _z in enumerate(z):
@@ -1366,7 +1366,7 @@ class GalaxyEnsemble(HaloPopulation):
             Sd *= g_per_msun / cm_per_kpc**2
 
             if self.pf['pop_dust_fcov'] is not None:
-                fcov = self.guide.dust_fcov(z=z2d, Mh=Mh)
+                fcov = self.guide.get_dust_fcov(z=z2d, Mh=Mh)
             else:
                 fcov = 1.
 
@@ -1388,7 +1388,7 @@ class GalaxyEnsemble(HaloPopulation):
                     np.cumsum((MAR[:,0:-1] * fb - SFR[:,0:-1]) * dt, axis=1)))
 
                 if self.pf['pop_enrichment'] == 2:
-                    Vd = 4. * np.pi * self.guide.dust_scale(z=z2d, Mh=Mh)**3 / 3.
+                    Vd = 4. * np.pi * self.guide.get_dust_scale(z=z2d, Mh=Mh)**3 / 3.
                     rho_Z = MZ / Vd
                     Vg = 4. * np.pi * self.halos.VirialRadius(z2d, Mh)**3 / 3.
                     rho_g = Mg / Vg
@@ -1445,7 +1445,7 @@ class GalaxyEnsemble(HaloPopulation):
             # Re-compute dust surface density
             if have_dust and (self.pf['pop_dust_scatter'] is not None):
                 Sd = Md / 4. / np.pi \
-                    / self.guide.dust_scale(z=z2d, Mh=Mh)**2
+                    / self.guide.get_dust_scale(z=z2d, Mh=Mh)**2
                 Sd += noise
                 Sd *= g_per_msun / cm_per_kpc**2
 
@@ -1697,6 +1697,10 @@ class GalaxyEnsemble(HaloPopulation):
         }
 
         return results
+
+    def get_dust_yield_delay(self, z, Mh):
+        func = self._get_function('pop_dust_yield_delay')
+        return func(z=z, Mh=Mh)
 
     def get_field(self, z, field):
         iz = np.argmin(np.abs(z - self.histories['z']))

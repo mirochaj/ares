@@ -612,10 +612,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_sfrd(z)
 
-    #@SFRD.setter
-    #def SFRD(self, value):
-    #    self._SFRD = value
-
     def get_smd(self, z):
         """
         Compute stellar mass density (SMD) at redshift `z`.
@@ -1586,6 +1582,24 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         func = self._get_function('pop_dust_scale')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_scatter(self, z, Mh):
+        """
+        Return dust scale length in kiloparsecs.
+        """
+
+        func = self._get_function('pop_dust_scatter')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_fcov(self, z, Mh):
+        """
+        Return dust scale length in kiloparsecs.
+        """
+
+        func = self._get_function('pop_dust_fcov')
         result = func(z=z, Mh=Mh)
         return result
 
