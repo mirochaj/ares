@@ -29,7 +29,6 @@ def test(atol=1e-4):
     pars['pq_func_par2[0]'] = -2.
     pop = ares.populations.GalaxyPopulation(**pars)
 
-    print(pop.get_sfrd(z=9.) * rhodot_cgs)
     assert pop.get_sfrd(z=9.) * rhodot_cgs == 1e-2, \
         "Problem with PL SFRD"
 
@@ -163,9 +162,9 @@ def test(atol=1e-4):
     pars['pq_func_par3[0]'] = 0.5
     pop = ares.populations.GalaxyPopulation(**pars)
 
-    sfrd = pop.get_sfrd(z=20.) * rhodot_cgs
+    sfrd = pop.get_sfrd(z=9.) * rhodot_cgs
     assert abs(sfrd - 1e-2) < atol, \
-        "Problem with 'tanh_rel' SFRD"
+        f"Problem with 'tanh_rel' SFRD (={sfrd})"
 
     pars['pop_sfrd'] = 'pq[0]'
     pars['pq_func[0]'] = 'logtanh_abs'
@@ -184,14 +183,14 @@ def test(atol=1e-4):
     pars['pq_func[0]'] = 'logtanh_rel'
     pars['pq_func_var[0]'] = '1+z'
     pars['pq_func_par0[0]'] = 1. / rhodot_cgs
-    pars['pq_func_par1[0]'] = 0.5e-2
+    pars['pq_func_par1[0]'] = 1e-2 / rhodot_cgs
     pars['pq_func_par2[0]'] = np.log10(20.)
     pars['pq_func_par3[0]'] = 0.05
     pop = ares.populations.GalaxyPopulation(**pars)
 
     sfrd = pop.get_sfrd(z=9.) * rhodot_cgs
     assert abs(sfrd - 1e-2) < atol, \
-        "Problem with 'tanh_rel' SFRD"
+        f"Problem with 'tanh_rel' SFRD (={sfrd})"
 
     # A few step functions
     pars['pop_sfrd'] = 'pq[0]'

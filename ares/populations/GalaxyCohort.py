@@ -2905,7 +2905,10 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 boost = 1.
 
-            return func(**kwargs) * boost
+            _func_ = lambda **kwargs: func(**kwargs) * boost
+            self._get_fstar = _func_
+
+            return self._get_fstar(**kwargs)
 
     #@cached_property
     #def tab_yield_per_sfr(self):

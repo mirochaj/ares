@@ -781,7 +781,6 @@ def PopulationParameters():
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
-    "pop_sfrd_units": 'msun/yr/mpc^3',
 
     # For BHs
     "pop_bh_formation": False,

@@ -250,10 +250,11 @@ class Population(object):
         """ Is the SFE constant in redshift (at fixed halo mass)?"""
 
         _is_sfe_constant = 1
-
         for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
-            _is_sfe_constant *= self.get_fstar(z=10, Mh=mass) \
-                             == self.get_fstar(z=20, Mh=mass)
+            is_equal = self.get_fstar(z=10, Mh=mass) \
+                    == self.get_fstar(z=20, Mh=mass)
+
+            _is_sfe_constant *= np.all(is_equal)
 
         return bool(_is_sfe_constant)
 
@@ -726,7 +727,7 @@ class Population(object):
     @property
     def is_user_sfrd(self):
         return (self.pf['pop_sfr_model'].lower() in \
-            ['sfrd-func', 'sfrd-tab', 'sfrd-class'])
+            ['sfrd-func', 'sfrd-class'])
 
     @property
     def is_link_sfrd(self):

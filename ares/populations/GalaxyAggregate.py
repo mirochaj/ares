@@ -98,30 +98,19 @@ class GalaxyAggregate(HaloPopulation):
         if not np.any(on):
             return z * on
 
-        # Check to see if supplied directly by user.
+        # If we already setup a function, call it.
         # This will also cover the case where it has been linked to the SFRD
         # of another source population.
-        func = self._get_function('pop_sfrd')
-        if func is not None:
-            return func(z=z)
+        if hasattr(self, '_get_sfrd'):
+            return self._get_sfrd(z=z) * on
 
+        # Check to see if supplied directly by user.
+        if self.pf['pop_sfrd'] is not None:
+            func = self._get_function('pop_sfrd')
+            if func is not None:
+                return func(z=z)
 
-        #if hasattr(self, '_get_sfrd'):
-        #    return self._get_sfrd(z) * on
-
-
-
-        # SFRD given by some function
-        #if self.is_link_sfrd:
-            # Already in the right units
-
-        #    return self._sfrd(z) * on
-        elif self.is_user_sfrd:
-            if self.pf['pop_sfrd_units'] == 'internal':
-                return self._sfrd(z=z) * on
-            else:
-                return self._sfrd(z=z) * on / rhodot_cgs
-
+        # Sanity check.
         if (not self.is_fcoll_model) and (not self.is_user_sfe):
             raise ValueError('Must be an fcoll model!')
 
