@@ -675,7 +675,6 @@ def PopulationParameters():
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
     "pop_facc": 0.0,
-    "pop_fsmooth": 1.0,
 
     # Next 3: relative to fraction of halo acquiring the material
     'pop_acc_frac_metals': 1.0,

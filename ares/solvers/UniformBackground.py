@@ -783,7 +783,7 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=E_LyA, Emax=E_LL) \
+            rhoLW = pop.get_photon_luminosity_density(z, Emin=E_LyA, Emax=E_LL) \
                 * (E_LL - 11.18) / (E_LL - E_LyA)
 
             # Crude mean photon energy
@@ -877,7 +877,7 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=E_LyA, Emax=E_LL)
+            rhoLW = pop.get_photon_luminosity_density(z, Emin=E_LyA, Emax=E_LL)
 
             return norm * (1. + z)**3 * (1. + pop.pf['pop_frec_bar']) * \
                 rhoLW / dnu

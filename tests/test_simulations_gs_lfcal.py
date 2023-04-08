@@ -27,7 +27,7 @@ def test():
     sim = ares.simulations.Simulation(**pars)
     sim_gs = sim.get_21cm_gs()
 
-    sfrd = sim.pops[0].SFRD(zarr) * rhodot_cgs
+    sfrd = sim.pops[0].get_sfrd(zarr) * rhodot_cgs
 
     # Check for reasonable values
     assert np.all(sfrd < 1)
