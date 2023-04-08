@@ -1128,7 +1128,7 @@ class GalaxyCohort(GalaxyAggregate):
         if self.is_uvlf_parametric:
             assert absolute
             func = self._get_function('pop_uvlf')
-            return bins, func(MUV=bins, z=z)
+            return bins, func(z=z, MUV=bins)
 
         ##
         # Otherwise, standard SFE parameterized approach.

@@ -144,7 +144,7 @@ class Population(object):
             if t in numeric_types:
                 func = lambda **kwargs: self.pf[par]
             elif t == FunctionType:
-                func = lambda **kwargs: self.pf[par]
+                func = lambda **kwargs: self.pf[par](**kwargs)
             elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
                 pars = get_pq_pars(self.pf[par], self.pf)
                 ob = ParameterizedQuantity(**pars)
