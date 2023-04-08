@@ -12,24 +12,17 @@ Description:
 
 import sys
 import numpy as np
-import os, inspect, re
 from types import FunctionType
 from .Halo import HaloPopulation
-from collections import namedtuple
 from ..util.Math import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
 from ..util.ParameterFile import get_pq_pars, pop_id_num
 from scipy.interpolate import interp1d as interp1d_scipy
-from scipy.optimize import fsolve, fmin, curve_fit
-from scipy.special import gamma, gammainc, gammaincc
-from ..sources import Star, BlackHole, StarQS, SynthesisModel
-from ..util import ParameterFile, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL, k_B
+    E_LyA, s_per_myr, cm_per_mpc, c, E_LL, k_B
 
-_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']
 tiny_sfrd = 1e-15
 
 class GalaxyAggregate(HaloPopulation):
@@ -50,27 +43,6 @@ class GalaxyAggregate(HaloPopulation):
                 self._sfrd_ = None
             elif type(self.pf['pop_sfrd']) is FunctionType:
                 self._sfrd_ = self.pf['pop_sfrd']
-            elif inspect.ismethod(self.pf['pop_sfrd']):
-                self._sfrd_ = self.pf['pop_sfrd']
-            elif inspect.isclass(self.pf['pop_sfrd']):
-
-                # Translate to parameter names used by external class
-                pmap = self.pf['pop_user_pmap']
-
-                # Need to be careful with pop ID numbers here.
-                pars = {}
-                for key in pmap:
-
-                    val = pmap[key]
-
-                    prefix, popid = pop_id_num(val)
-
-                    if popid != self.id_num:
-                        continue
-
-                    pars[key] = self.pf[prefix]
-
-                self._sfrd_ = self.pf['pop_sfrd'](**pars)
             elif type(self.pf['pop_sfrd']) is tuple:
                 z, sfrd = self.pf['pop_sfrd']
 

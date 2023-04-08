@@ -536,10 +536,6 @@ def PopulationParameters():
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
     "pop_sed_model": True,    # or False
 
-    "pop_sfr_above_threshold": True,
-    "pop_sfr_cross_threshold": True,
-    "pop_sfr_cross_upto_Tmin": inf,
-
     "pop_ham_z": None,
 
     # Mass accretion rate
@@ -972,19 +968,6 @@ def PopulationParameters():
     'pop_sf_C': 3.0,
     'pop_sf_D': 2.0,
 
-
-    # Utility
-    "pop_user_par0": None,
-    "pop_user_par1": None,
-    "pop_user_par2": None,
-    "pop_user_par3": None,
-    "pop_user_par4": None,
-    "pop_user_par5": None,
-    "pop_user_par6": None,
-    "pop_user_par7": None,
-    "pop_user_par8": None,
-    "pop_user_par9": None,
-    "pop_user_pmap": {},
     }
 
     pf.update(tmp)

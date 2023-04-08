@@ -175,6 +175,17 @@ class GalaxyCohort(GalaxyAggregate):
 
         return L_of_Z_func
 
+    def get_radiative_yield(self, z, Mh):
+        """
+        Returns the total output [in erg/s] in the band defined by
+        `pop_EminNorm`, `pop_EmaxNorm`. Or, if this population's SED is from
+        a stellar population synthesis model (or other lookup table), it
+        is the total output in the energy range covered in that table.
+        """
+
+        if self.pf['pop_rad_yield'] is not None:
+            pass
+
     def get_metallicity(self, z, Mh=None, as_Z=True):
         """
         Get the metallicity of all halos in the model.
@@ -368,49 +379,6 @@ class GalaxyCohort(GalaxyAggregate):
                     for i in range(self.halos.tab_z.size)])
         return self._tab_sfr_at_Mmin_
 
-    @property
-    def _tab_sfrd_at_threshold(self):
-        """
-        Star formation rate density from halos just crossing threshold.
-
-        Essentially the second term of Equation A1 from Furlanetto+ 2017.
-        """
-        if not hasattr(self, '_tab_sfrd_at_threshold_'):
-            if not self.pf['pop_sfr_cross_threshold']:
-                self._tab_sfrd_at_threshold_ = np.zeros_like(self.halos.tab_z)
-                return self._tab_sfrd_at_threshold_
-
-            # Model: const SFR in threshold-crossing halos.
-            if type(self.pf['pop_sfr']) in [int, float, np.float64]:
-                self._tab_sfrd_at_threshold_ = self.pf['pop_sfr'] \
-                    * self._tab_nh_at_Mmin * self._tab_Mmin
-            else:
-                active = 1. - self.fsup(z=self.halos.tab_z)
-                self._tab_sfrd_at_threshold_ = active * self._tab_eta \
-                    * self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
-                    * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                    * self._tab_nh_at_Mmin \
-                    * self.focc(z=self.halos.tab_z, Mh=self._tab_Mmin)
-
-            #Mmin_dot = lambda z: -1. * derivative(self.Mmin, z) * s_per_yr / self.cosm.dtdz(z)
-            #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * Mmin_dot(self.halos.tab_z)
-
-            self._tab_sfrd_at_threshold_ *= g_per_msun / s_per_yr / cm_per_mpc**3
-
-            # Don't count this "new" star formation once the minimum mass
-            # exceeds some value. At this point, it will (probably, hopefully)
-            # be included in the star-formation of some other population.
-            if np.isfinite(self.pf['pop_sfr_cross_upto_Tmin']):
-                Tlim = self.pf['pop_sfr_cross_upto_Tmin']
-                Mlim = self.halos.VirialMass(z=self.halos.tab_z, T=Tlim)
-
-                mask = self.Mmin < Mlim
-                self._tab_sfrd_at_threshold_ *= mask
-
-        return self._tab_sfrd_at_threshold_
-
-    #def rho_L(self, Emin=None, Emax=None):
-    #    return self.get_luminosity_density(Emin=Emin, Emax=Emax)
 
     def _get_luminosity_density(self, Emin=None, Emax=None):
         """
@@ -499,7 +467,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 pass
 
-            yield_per_sfr = lambda **kwargs: self.rad_yield(**kwargs) \
+            yield_per_sfr = lambda **kwargs: self.get_radiative_yield(**kwargs) \
                 * s_per_yr
 
         ##
@@ -554,33 +522,6 @@ class GalaxyCohort(GalaxyAggregate):
             tab[i] = _tmp
 
         tab *= 1. / s_per_yr / cm_per_mpc**3
-
-        if self.pf['pop_sfr_cross_threshold']:
-
-            y = yield_per_sfr(z=self.halos.tab_z, Mh=self._tab_Mmin)
-
-            if self.pf['pop_sfr'] is not None:
-                thresh = self._tab_sfr_at_Mmin \
-                    * self._tab_nh_at_Mmin * self._tab_Mmin \
-                    * y / s_per_yr / cm_per_mpc**3
-            else:
-
-                if not np.all(self._tab_eta == 1):
-                    raise NotImplemented('Needs fixing! Shape issue.')
-
-                eta = 1.
-
-                active = 1. - self.fsup(z=self.halos.tab_z)
-                thresh = active * eta * \
-                    self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
-                    * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                    * self._tab_nh_at_Mmin * y \
-                    / s_per_yr / cm_per_mpc**3
-
-            tab += thresh
-
-        _Emin = round(Emin, 1)
-        _Emax = round(Emax, 1)
 
         self._rho_L[(_Emin, _Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
@@ -642,29 +583,41 @@ class GalaxyCohort(GalaxyAggregate):
         # until CALLED. Used only for tunneling (see `pop_tunnel` parameter).
         return self.get_sfrd(z)
 
-    @property
-    def focc(self):
-        if not hasattr(self, '_focc'):
-            raise AttributeError('Must be set by hand if at all.')
-        return self._focc
+    #@property
+    #def focc(self):
+    #    if not hasattr(self, '_focc'):
+    #        raise AttributeError('Must be set by hand if at all.')
+    #    return self._focc
 
-    @focc.setter
-    def focc(self, value):
-        self._focc = value
+    #@focc.setter
+    #def focc(self, value):
+    #    self._focc = value
 
-    @property
-    def fsurv(self):
-        if not hasattr(self, '_fsurv'):
-            raise AttributeError('Must be set by hand if at all.')
-        return self._fsurv
+    #@property
+    #def fsurv(self):
+    #    if not hasattr(self, '_fsurv'):
+    #        raise AttributeError('Must be set by hand if at all.')
+    #    return self._fsurv
 
-    @fsurv.setter
-    def fsurv(self, value):
-        self._fsurv = value
+    #@fsurv.setter
+    #def fsurv(self, value):
+    #    self._fsurv = value
 
-    @property
-    def SFRD(self):
-        return self.get_sfrd
+    def get_focc(self, z, Mh):
+        """
+        Get occupation fraction.
+        """
+        func = self._get_function('pop_focc')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_fsurv(self, z, Mh):
+        """
+        Get survival fraction.
+        """
+        func = self._get_function('pop_fsurv')
+        result = func(z=z, Mh=Mh)
+        return result
 
     def get_sfrd(self, z):
         """
@@ -678,9 +631,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_sfrd(z)
 
-    @SFRD.setter
-    def SFRD(self, value):
-        self._SFRD = value
+    #@SFRD.setter
+    #def SFRD(self, value):
+    #    self._SFRD = value
 
     def get_smd(self, z):
         """
@@ -1060,9 +1013,6 @@ class GalaxyCohort(GalaxyAggregate):
             return np.interp(Mh, data['Mh'][:,iz], data['Mg'][:,iz])
         else:
             raise NotImplementedError('Unrecognized mass kind={}.'.format(kind))
-
-    def StellarMassFunction(self, z, bins=None, units='dex'):
-        return self.get_smf(z, bins=bins, units=units)
 
     def get_smf(self, z, bins=None, units='dex'):
         """
@@ -2723,9 +2673,6 @@ class GalaxyCohort(GalaxyAggregate):
 
             self._tab_nh_active_ *= 1. / cm_per_mpc**3
 
-            #if self.pf['pop_sfr_cross_threshold']:
-            #    self.tab_sfrd_total_ += self._tab_sfrd_at_threshold
-
         return self._tab_nh_active_
 
     @property
@@ -2881,7 +2828,7 @@ class GalaxyCohort(GalaxyAggregate):
     def tab_focc(self):
         if not hasattr(self, '_tab_focc_'):
             yy, xx = self._tab_Mz
-            focc = self.focc(z=xx, Mh=yy)
+            focc = self.get_focc(z=xx, Mh=yy)
 
             if type(focc) in [int, float, np.float64]:
                 self._tab_focc_ = focc * np.ones_like(self.halos.tab_dndm)
@@ -2907,7 +2854,7 @@ class GalaxyCohort(GalaxyAggregate):
     def tab_fsurv(self):
         if not hasattr(self, '_tab_fsurv_'):
             yy, xx = self._tab_Mz
-            fsurv = self.fsurv(z=xx, Mh=yy)
+            fsurv = self.get_fsurv(z=xx, Mh=yy)
 
             if type(fsurv) in [int, float, np.float64]:
                 self._tab_fsurv_ = fsurv * np.ones_like(self.halos.tab_dndm)
