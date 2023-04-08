@@ -54,8 +54,8 @@ class Global21cm(AnalyzeGlobal21cm):
 
         self.kwargs = kwargs
 
-        if self.pf['verbose']:
-            print_sim(self)
+        #if self.pf['verbose']:
+        #    print_sim(self)
 
     @property
     def timer(self):

@@ -138,7 +138,8 @@ class Population(object):
         indicating a ParameterizedQuantity, and creates a callable function
         no matter what.
         """
-        if not hasattr(self, f'_get_{par}'):
+
+        if not hasattr(self, '_get_{}'.format(par.strip('pop_'))):
             t = type(self.pf[par])
 
             if t in numeric_types:
@@ -152,6 +153,10 @@ class Population(object):
                 setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
             else:
                 raise NotImplementedError(f"Unrecognized option for `{par}`.")
+
+            if f'{par}_inv' in self.pf:
+                if self.pf[f'{par}_inv']:
+                    func = lambda **kwargs: 1. - func(**kwargs)
 
             setattr(self, '_get_{}'.format(par.strip('pop_')), func)
 

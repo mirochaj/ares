@@ -82,19 +82,10 @@ class GalaxyAggregate(HaloPopulation):
         """
         Compute the comoving star formation rate density (SFRD).
 
-        Given that we're in the StellarPopulation class, we are assuming
-        that all emissivities are tied to the star formation history. The
-        SFRD can be supplied explicitly as a function of redshift, or can
-        be computed via the "collapsed fraction" formalism. That is, compute
-        the SFRD given a minimum virial temperature of star forming halos
-        (Tmin) and a star formation efficiency (fstar).
-
-        If supplied as a function, the units should be Msun yr**-1 cMpc**-3.
-
         Parameters
         ----------
-        z : float
-            redshift
+        z : int, float, np.ndarray
+            Redshift(s) of interest.
 
         Returns
         -------
@@ -107,11 +98,24 @@ class GalaxyAggregate(HaloPopulation):
         if not np.any(on):
             return z * on
 
+        # Check to see if supplied directly by user.
+        # This will also cover the case where it has been linked to the SFRD
+        # of another source population.
+        func = self._get_function('pop_sfrd')
+        if func is not None:
+            return func(z=z)
+
+
+        #if hasattr(self, '_get_sfrd'):
+        #    return self._get_sfrd(z) * on
+
+
+
         # SFRD given by some function
-        if self.is_link_sfrd:
+        #if self.is_link_sfrd:
             # Already in the right units
 
-            return self._sfrd(z) * on
+        #    return self._sfrd(z) * on
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
                 return self._sfrd(z=z) * on

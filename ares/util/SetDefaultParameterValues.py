@@ -38,27 +38,6 @@ pgroups = [
     'Absorber',
 ]
 
-# Blob stuff
-_blob_redshifts = list('BCD')
-_blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
-
-# Nothing population specific
-_blob_names = [
-    'z',
-    'dTb',
-    'curvature',
-    'igm_Tk',
-    'igm_Ts',
-    'cgm_h_2',
-    'igm_h_1',
-    'cgm_k_ion',
-    'igm_k_heat',
-    'Ja',
-    'tau_e',
-]
-
-default_blobs = (_blob_names, _blob_names)
-
 # Start setting up list of parameters to be set
 defaults = []
 

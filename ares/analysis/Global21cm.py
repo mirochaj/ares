@@ -17,11 +17,11 @@ from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from matplotlib.ticker import ScalarFormatter
-from ..analysis.BlobFactory import BlobFactory
+#from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import interp1d, splrep, splev
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
 
-class Global21cm(MultiPhaseMedium,BlobFactory):
+class Global21cm(MultiPhaseMedium):
 
     def __getattr__(self, name):
         """
@@ -30,8 +30,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         """
 
         # Trickery
-        if hasattr(BlobFactory, name):
-            return BlobFactory.__dict__[name].__get__(self, BlobFactory)
+        #if hasattr(BlobFactory, name):
+        #    return BlobFactory.__dict__[name].__get__(self, BlobFactory)
 
         if hasattr(MultiPhaseMedium, name):
             return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
@@ -43,6 +43,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
         # Now, possibly make an attribute
         if name not in self.__dict__.keys():
+
+            print('hi', name)
 
             # See if this is a turning point
             spl = name.split('_')
