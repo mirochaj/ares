@@ -78,6 +78,10 @@ def test():
 
     assert np.all(spec0[i10_0,waves < 2000] > spec1[i10_1,waves < 2000])
 
+    # Do the same thing with the emissivity
+    assert sim.pops[0].get_emissivity(6, E=6) \
+         > sim.pops[1].get_emissivity(6, E=6)
+
 
     dust = ares.util.ParameterBundle('mirocha2023:dust')
     dust.num = 0
@@ -91,6 +95,8 @@ def test():
     tau = simD.pops[0].get_dust_opacity(6, Mh, wave=5e3)
     assert np.any(tau > 0)
     assert np.all(simD.pops[0].get_spec(2, waves) <= spec0)
+
+
 
 
 if __name__ == '__main__':

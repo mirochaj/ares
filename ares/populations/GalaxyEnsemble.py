@@ -81,12 +81,6 @@ class GalaxyEnsemble(HaloPopulation):
         # May not actually need this...
         HaloPopulation.__init__(self, **kwargs)
 
-    def __dict__(self, name):
-        if name in self.__dict__:
-            return self.__dict__[name]
-
-        raise NotImplemented('help!')
-
     @property
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
@@ -573,9 +567,6 @@ class GalaxyEnsemble(HaloPopulation):
                     value[key] = value[key][:,-1::-1]
 
         self._histories = value
-
-    def Trajectories(self):
-        return self.RunSAM()
 
     def RunSAM(self):
         """

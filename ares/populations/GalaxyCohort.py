@@ -17,14 +17,13 @@ from ..util import ProgressBar
 from ..analysis import ModelSet
 from scipy.misc import derivative
 from scipy.optimize import fsolve
+from ..util.Misc import numeric_types
 from scipy.integrate import quad, simps, cumtrapz, ode
-from ..util.ParameterFile import par_info, get_pq_pars
 from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
 from ..util.Stats import bin_c2e, bin_e2c
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity, numeric_types
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr
