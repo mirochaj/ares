@@ -185,29 +185,27 @@ for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3, _pop4, _pop5]):
 
     base.update(pf)
 
-disruption = base.copy()
-disruption['pop_fsurv{3}'] = 'pq[3]'
-disruption['pq_func[3]{3}'] = 'logtanh_abs_evolM'
-disruption['pq_func_var[3]{3}'] = 'Mh'
-disruption['pq_func_var2[3]{3}'] = '1+z'
-disruption['pq_val_ceil[3]{3}'] = 1
-disruption['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
-disruption['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-disruption['pq_func_par2[3]{3}'] = 11
-disruption['pq_func_par3[3]{3}'] = 0.7 # dlogM
-disruption['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
-disruption['pq_func_par5[3]{3}'] = 1   # Pin to z=0
+base['pop_fsurv{3}'] = 'pq[3]'
+base['pq_func[3]{3}'] = 'logtanh_abs_evolM'
+base['pq_func_var[3]{3}'] = 'Mh'
+base['pq_func_var2[3]{3}'] = '1+z'
+base['pq_val_ceil[3]{3}'] = 1
+base['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
+base['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
+base['pq_func_par2[3]{3}'] = 11
+base['pq_func_par3[3]{3}'] = 0.7 # dlogM
+base['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
+base['pq_func_par5[3]{3}'] = 1   # Pin to z=0
 
 
-disruption['pop_fsurv{4}'] = 'link:fsurv:3'
+base['pop_fsurv{4}'] = 'link:fsurv:3'
 
-disruption['pop_Mmin{3}'] = 1e10
-disruption['pop_Mmin{4}'] = 1e10
-disruption['pop_Mmin{5}'] = 1e10
+base['pop_Mmin{3}'] = 1e10
+base['pop_Mmin{4}'] = 1e10
+base['pop_Mmin{5}'] = 1e10
 
-
-disruption['pop_fsurv{5}'] = 'link:fsurv:3'
-disruption['pop_fsurv_inv{5}'] = True
+base['pop_fsurv{5}'] = 'link:fsurv:3'
+base['pop_fsurv_inv{5}'] = True
 
 dust_template = {}
 dust_template['pop_dustext_template'] = 'milkyway_rv4'

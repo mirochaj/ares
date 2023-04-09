@@ -8,13 +8,6 @@ ARES = f"{HOME}/.ares"
 if not os.path.exists(ARES):
     raise IOError("The directory ~/.ares does not exist. Please make it, or re-run package installation.")
 
-
-#sys.path.insert(1, '{!s}/input/litdata'.format(ARES))
-#_lit_options = glob.glob(os.path.join(ARES, "input", "litdata", "*.py"))
-#lit_options = []
-#for element in _lit_options:
-#    lit_options.append(element.split(os.sep)[-1].replace('.py', ''))
-
 def read(prefix, path=None, verbose=True):
     """
     Read data from the literature.

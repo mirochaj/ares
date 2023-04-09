@@ -62,8 +62,8 @@ class Source(object):
 
     @cached_property
     def is_sed_tabular(self):
-        print("Should do this more carefully")
         return self.pf['source_sed'] in _sed_tabs
+        
     @property
     def Emin(self):
         return self.pf['source_Emin']

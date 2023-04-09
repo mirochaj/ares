@@ -4,7 +4,6 @@ from ares.util.Pickling import read_pickle_file, write_pickle_file,\
 
 from ares.util.Aesthetics import labels
 from ares.util.WriteData import CheckPoints
-from ares.util.BlobBundles import BlobBundle
 from ares.util.ProgressBar import ProgressBar
 from ares.util.ParameterFile import ParameterFile
 from ares.util.ParameterBundles import ParameterBundle

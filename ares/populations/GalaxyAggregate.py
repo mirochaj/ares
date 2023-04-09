@@ -12,71 +12,28 @@ Description:
 
 import sys
 import numpy as np
-from types import FunctionType
 from .Halo import HaloPopulation
-from ..util.Math import interp1d
-from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
-from ..util.ParameterFile import get_pq_pars, pop_id_num
-from scipy.interpolate import interp1d as interp1d_scipy
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, s_per_myr, cm_per_mpc, c, E_LL, k_B
-
-tiny_sfrd = 1e-15
 
 class GalaxyAggregate(HaloPopulation):
     def __init__(self, **kwargs):
         """
-        Initializes a GalaxyPopulation object (duh).
+        Initializes a GalaxyAggregate object.
+
+        The defining feature of GalaxyAggregate models is that galaxy properties
+        are not specified as a function of halo mass -- they may only be
+        functions of redshift, hence the 'aggregate' designation, as we're
+        averaging over the whole population at any given redshift.
+
+        The most important parameter is `pop_sfr_model`. It should be either
+        'fcoll', or the user should have provided `pop_sfrd` directly.
         """
 
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
         HaloPopulation.__init__(self, **kwargs)
-        #self.pf.update(**kwargs)
-
-    @property
-    def _sfrd(self):
-        if not hasattr(self, '_sfrd_'):
-            if self.pf['pop_sfrd'] is None:
-                self._sfrd_ = None
-            elif type(self.pf['pop_sfrd']) is FunctionType:
-                self._sfrd_ = self.pf['pop_sfrd']
-            elif type(self.pf['pop_sfrd']) is tuple:
-                z, sfrd = self.pf['pop_sfrd']
-
-                assert np.all(np.diff(z) > 0), "Redshifts must be ascending."
-
-                if self.pf['pop_sfrd_units'] == 'internal':
-                    sfrd[sfrd * rhodot_cgs <= tiny_sfrd] = tiny_sfrd / rhodot_cgs
-                else:
-                    sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
-
-                interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_interp_sfrd'],
-                    bounds_error=False, fill_value=-np.inf)
-
-                self._sfrd_ = lambda **kw: np.exp(interp(kw['z']))
-            elif isinstance(self.pf['pop_sfrd'], interp1d_scipy):
-                self._sfrd_ = self.pf['pop_sfrd']
-            elif self.pf['pop_sfrd'][0:2] == 'pq':
-                pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
-                self._sfrd_ = ParameterizedQuantity(**pars)
-            else:
-                raise NotImplemented('help')
-                tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
-                self._sfrd_ = lambda z: tmp.get_sfrd(z, **self.pf['pop_kwargs'])
-
-        return self._sfrd_
-
-    @_sfrd.setter
-    def _sfrd(self, value):
-        self._sfrd_ = value
-
-    def _sfrd_func(self, z):
-        # This is a cheat so that the SFRD spline isn't constructed
-        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter).
-        return self.get_sfrd(z)
 
     def get_sfrd(self, z):
         """
@@ -117,6 +74,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD computed via fcoll parameterization
         sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z) * on
 
+        # Maybe don't need to do this anymore?
         if np.any(sfrd < 0):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'],
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
@@ -124,10 +82,7 @@ class GalaxyAggregate(HaloPopulation):
 
         return sfrd
 
-    def _frd_func(self, z):
-        return self.FRD(z)
-
-    def FRD(self, z):
+    def get_formation_rate_density(self, z):
         """
         In the odd units of stars / cm^3 / s.
         """
@@ -215,15 +170,12 @@ class GalaxyAggregate(HaloPopulation):
         else:
             return rhoL
 
-    #def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
-    #    return self.Emissivity(z, E=E, Emin=Emin, Emax=Emax) / (E * erg_per_ev)
-
-    #def LuminosityDensity(self, z, Emin=None, Emax=None):
-    #    return self.get_luminosity_density(z, Emin=Emin, Emax=Emax)
-
     def get_fesc(self, z):
+        """
+        Get the escape fraction of ionizing photons.
+        """
         func = self._get_function('pop_fesc')
-        return func(z)
+        return func(z=z)
 
     def get_luminosity_density(self, z, Emin=None, Emax=None):
         """

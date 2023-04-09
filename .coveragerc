@@ -39,7 +39,7 @@ exclude_lines =
 
 omit =
     ares/util/Aesthetics.py
-    ares/util/BlobBundles.py
+    ares/util/cli.py
     ares/util/MPIPool.py
     ares/util/PrintInfo.py
     ares/util/Warnings.py

@@ -537,11 +537,19 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
         data = np.loadtxt(full_fn)
         wave = data[:,0]
 
+        assert np.all(np.diff(wave) == 1), \
+            "Expecting intrinsic spectral resolution of 1 Angstrom."
+
+        # We're taking every degrade_to'th wavelength, and will save the
+        # SED smoothed with a boxcar to that
         ok = wave % degrade_to == 0
 
         new_wave = wave[ok==1]
-        assert data.shape[0] / degrade_to % 1 == 0
-        new_data = np.zeros((int(data.shape[0] / degrade_to), data.shape[1]))
+
+        # No longer require first and last bins to be preserved
+        #assert data.shape[0] / degrade_to % 1 == 0
+
+        new_data = np.zeros((new_wave.size, data.shape[1]))
         new_data[:,0] = new_wave
 
         for i in range(data.shape[1]):
@@ -558,7 +566,8 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
         del data, wave
 
 def make_lowres_sps(path):
-    generate_lowres_sps(path, degrade_to=10)
+    #generate_lowres_sps(path, degrade_to=10)
+    generate_lowres_sps(path, degrade_to=100)
 
 def generate_simpl_seds(path, **kwargs):
     # go to path

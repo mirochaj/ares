@@ -256,29 +256,12 @@ class GalaxyCohort(GalaxyAggregate):
             return 10**np.interp(np.log10(Mh), np.log10(_Mh), np.log10(Z))
 
     def get_metal_loss(self, z, Mh=None):
-
-        if not hasattr(self, '_func_loss_metals'):
-
-            # Otherwise, get parameterized sSFR setup.
-            pars = get_pq_pars(self.pf['pop_metal_loss'], self.pf)
-
-            PQ = ParameterizedQuantity(**pars)
-
-            self._func_loss_metals = lambda **kwargs: PQ.__call__(**kwargs)
-
-        return self._func_loss_metals(z=z, Mh=Mh)
+        func = self._get_function('pop_metal_loss')
+        return func(z=z, Mh=Mh)
 
     def get_mass_loss(self, z, Mh=None):
-        if not hasattr(self, '_func_loss_gas'):
-
-            # Otherwise, get parameterized sSFR setup.
-            pars = get_pq_pars(self.pf['pop_mass_loss'], self.pf)
-
-            PQ = ParameterizedQuantity(**pars)
-
-            self._func_loss_gas = lambda **kwargs: PQ.__call__(**kwargs)
-
-        return self._func_loss_gas(z=z, Mh=Mh)
+        func = self._get_function('pop_mass_loss')
+        return func(z=z, Mh=Mh)
 
     def get_field(self, z, field):
         """
@@ -305,6 +288,10 @@ class GalaxyCohort(GalaxyAggregate):
         if self.is_user_smhm:
             if field == 'Mh':
                 return self.halos.tab_M
+            elif field == 'Ms':
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+                return mste
             else:
                 raise NotImplementedError('help')
         else:
@@ -559,11 +546,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._rho_N[(Emin, Emax)](z)
 
-    def _sfrd_func(self, z):
-        # This is a cheat so that the SFRD spline isn't constructed
-        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter).
-        return self.get_sfrd(z)
-
     def get_focc(self, z, Mh):
         """
         Get occupation fraction.
@@ -639,10 +621,6 @@ class GalaxyCohort(GalaxyAggregate):
         MGR = np.maximum(self.MGR(z, Mh), 0.)
         eta = self.eta(z, Mh)
         return eta * MGR
-
-    #def get_MDR(self, z, Mh):
-    #    # Mass "delivery" rate
-    #    return self.MGR(z, Mh) * (1. - self.fsmooth(z=z, Mh=Mh))
 
     @property
     def eta(self):
@@ -1272,13 +1250,35 @@ class GalaxyCohort(GalaxyAggregate):
 
         return L_sfr
 
-    def get_sed(self, z, M, waves, stellar_mass=False, per_Hz=False,
+    def get_spec(self, z, waves, M=None, stellar_mass=False, per_Hz=False,
         band=None, window=1, energy_units=True, load=True, raw=False,
         nebular_only=False):
         """
+        Compute the SED for all galaxies at given redshift.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        waves : np.ndarray
+            Array of rest-wavelengths at which to generate SED [Angstrom].
+        M : np.ndarray, optional
+            If not supplied, will generate SED in pre-determined set of
+            halo mass bins corresponding to `self.halos.tab_M`. Otherwise,
+            will interpolate onto user-supplied range.
+        stellar_mass : bool
+            If True, assumes the user-supplied `M` values (above) are stellar
+            masses, not halo masses, in which case the SMHM is first computed
+            and interpolation is done in M_stell rather than M_h.
+
+
         Just a wrapper around `get_lum` with option of interpolating to new
         mass.
         """
+
+        if M is None:
+            assert not stellar_mass
+            M = self.halos.tab_M
 
         if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
 
@@ -1311,17 +1311,10 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-
-    def Luminosity(self, z, **kwargs):
-        return self.get_lum(z, **kwargs)
-
     def get_lum(self, z, wave=1600, band=None, window=1, band_units='Angstrom',
         energy_units=True, load=True, raw=True, nebular_only=False, age=None):
         """
         Return the luminosity of all halos at given redshift `z`.
-
-        .. note :: This does not apply any sort of reddening or escape fraction,
-            i.e., it is the intrinsic luminosity of halos.
 
         Returns
         -------
@@ -1352,7 +1345,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             if self.pf['pop_ssp'] and self.pf['pop_age'] is not None:
 
-                age = self.age(z=z, Mh=self.halos.tab_M)
+                age = self.get_age(z=z, Mh=self.halos.tab_M)
 
                 if type(age) in numeric_types:
                     age = age * np.ones_like(self.halos.tab_M)
@@ -1464,7 +1457,7 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     _wave = wave
 
-                tau = self.get_dust_opacity(z=z, wave=_wave)
+                tau = self.get_dust_opacity(z=z, Mh=Mh, wave=_wave)
                 Lh *= np.exp(-tau)
 
             if not hasattr(self, '_cache_L'):
@@ -1514,28 +1507,22 @@ class GalaxyCohort(GalaxyAggregate):
 
         assert self.pf['pop_dustext_template'] is not None
 
+        func = self._get_function('pop_Av')
 
-        if type(self.pf['pop_Av']) == FunctionType:
-            return self.pf['pop_Av'](z=z, Mh=self.halos.tab_M)
-        elif type(self.pf['pop_Av']) in numeric_types:
-            return self.pf['pop_Av'] * np.ones_like(self.halos.tab_M)
-        elif type(self.pf['pop_Av']) == str:
-            if not hasattr(self, '_func_Av'):
+        # Should set this up to convert from dust opacity too.
 
-                # Otherwise, get parameterized sSFR setup.
-                pars = get_pq_pars(self.pf['pop_Av'], self.pf)
+        return func(z=z)
 
-                _Av_inst = ParameterizedQuantity(**pars)
+        #Mh = self.halos.tab_M
+        #smhm = self.get_smhm(z=z, Mh=Mh)
+        #Ms = Mh * smhm
 
-                self._func_Av = lambda **kwargs: _Av_inst.__call__(**kwargs)
+        #return self._func_Av(z=z, Ms=Ms)
 
-            Mh = self.halos.tab_M
-            smhm = self.get_smhm(z=z, Mh=Mh)
-            Ms = Mh * smhm
 
-            return self._func_Av(z=z, Ms=Ms)
-        else:
-            raise NotImplemented('help')
+    def get_age(self, z, Mh):
+        func = self._get_function('pop_age')
+        return func(z=z, Mh=Mh)
 
     def get_fesc(self, z, Mh):
         func = self._get_function('pop_fesc')
@@ -1626,7 +1613,7 @@ class GalaxyCohort(GalaxyAggregate):
         Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
         Sd *= g_per_msun / cm_per_kpc**2
 
-        kappa = self.get_dust_absorption_coeff(wave=wave, z=z)
+        kappa = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
         tau = kappa[None,:] * Sd[:,None]
 
         if type(wave) in numeric_types:

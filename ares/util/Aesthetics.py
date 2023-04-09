@@ -10,7 +10,8 @@ Description:
 
 """
 
-import os, imp, re
+import os, re
+import importlib
 import numpy as np
 from matplotlib import cm
 from .ParameterFile import par_info
@@ -37,8 +38,7 @@ colors_charlotte2 = lambda z: _ch_c2(_normz(z))
 # Load custom defaults
 HOME = os.environ.get('HOME')
 if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
-    f, filename, data = imp.find_module('labels', ['{!s}/.ares/'.format(HOME)])
-    custom_labels = imp.load_module('labels.py', f, filename, data).pf
+    custom_labels = importlib.import_module(f'{HOME}/.ares/labels').pf
 else:
     custom_labels = {}
 
