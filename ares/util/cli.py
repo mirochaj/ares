@@ -143,7 +143,7 @@ aux_data = {
         "http://bpass.auckland.ac.nz/2/files"
     ] + _bpass_v1_links + [None],
     "bpass_v1_tests": [
-        "https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl=1",
+        "https://www.dropbox.com/s/8l69msro6n06hjx/sed_degraded.tar.gz?dl=1",
         "sed_degraded.tar.gz",
         None],
     "bpass_v1_stars": [
