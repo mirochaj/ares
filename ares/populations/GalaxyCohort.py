@@ -906,7 +906,7 @@ class GalaxyCohort(GalaxyAggregate):
             rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
         if E is not None:
-            return rhoL * self.src.Spectrum(E) * on
+            return rhoL * self.src.get_spectrum(E) * on
         else:
             return rhoL * on
 
@@ -1484,7 +1484,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Need to do bolometric correction.
             E = h_p * c / (wave * 1e-8) / erg_per_ev
-            I_E = self.src.Spectrum(E)
+            I_E = self.src.get_spectrum(E)
 
             Lh = Lbol * I_E * ev_per_hz
 
@@ -4175,7 +4175,7 @@ class GalaxyCohort(GalaxyAggregate):
         z : int, float
             Redshift of interest
         k : int, float, np.ndarray
-            Wave-numbers of interests [1 / cMpc].
+            Wave-numbers of interest [1 / cMpc].
         wave1 : int, float
             Rest wavelength of interest [Angstrom]
         wave2 : int, float

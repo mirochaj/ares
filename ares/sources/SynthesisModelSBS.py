@@ -162,7 +162,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
     def load(self):
         raise NotImplemented('help')
 
-    def Spectrum(self, E, T):
+    def get_spectrum(self, E, T):
         """ Returns specific intensity of blackbody at temperature T [K]."""
 
         nu = E * erg_per_ev / h_p
@@ -303,13 +303,13 @@ class SynthesisModelSBS(Source): # pragma: no cover
                     Toft = np.interp(self.times, A[i] / 1e6, T[i], right=0.)
 
                     tot = quad(lambda EE: _Planck(EE, Toft[0]), 0., np.inf)[0]
-                    spec = self.Spectrum(self.energies, Toft[0]) / erg_per_ev / tot
+                    spec = self.get_spectrum(self.energies, Toft[0]) / erg_per_ev / tot
 
                     self._tab_Ls[i] = Loft * spec[:,None] * dedn[:,None] \
                         * np.abs(dndl)[:,None]
                 else:
                     tot = quad(lambda EE: _Planck(EE, T[i]), 0., np.inf)[0]
-                    spec = self.Spectrum(self.energies, T[i]) / erg_per_ev / tot
+                    spec = self.get_spectrum(self.energies, T[i]) / erg_per_ev / tot
                     self._tab_Ls[i] = L[i] * spec * dedn * np.abs(dndl)
 
         return self._tab_Ls

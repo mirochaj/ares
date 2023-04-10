@@ -94,7 +94,7 @@ class BlackHole(Source):
             pass
         elif isinstance(self.pf['source_sed'], str):
             from_lit = read_lit(self.pf['source_sed'])
-            self._UserDefined = from_lit.Spectrum
+            self._UserDefined = from_lit.get_spectrum
         elif type(self.pf['source_sed']) in [np.ndarray, tuple, list]:
             E, LE = self.pf['source_sed']
             tmp = interp1d(E, LE, kind='cubic')

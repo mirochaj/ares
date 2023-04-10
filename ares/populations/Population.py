@@ -830,8 +830,8 @@ class Population(object):
                 factor = self.src.get_rad_yield(Emin, Emax) \
                     / self.src.get_rad_yield(*self.reference_band)
             else:
-                factor = quad(self.src.Spectrum, Emin, Emax)[0] \
-                    / quad(self.src.Spectrum, *self.reference_band)[0]
+                factor = quad(self.src.get_spectrum, Emin, Emax)[0] \
+                    / quad(self.src.get_spectrum, *self.reference_band)[0]
 
             self._conversion_factors[(Emin, Emax)] = factor
 
@@ -893,9 +893,9 @@ class Population(object):
         if self.is_sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
-            integrand = lambda E: self.src.Spectrum(E) * E
+            integrand = lambda E: self.src.get_spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0] \
-                / quad(self.src.Spectrum, Emin, Emax)[0]
+                / quad(self.src.get_spectrum, Emin, Emax)[0]
 
         self._eV_per_phot[(Emin, Emax)] = Eavg
 
@@ -1051,7 +1051,7 @@ class Population(object):
             Inu[-1] = 1.
         else:
             for i in range(Nf):
-                Inu[i] = self.src.Spectrum(E[i])
+                Inu[i] = self.src.get_spectrum(E[i])
 
         # Convert to photon *number* (well, something proportional to it)
         Inu_hat = Inu / E
@@ -1196,7 +1196,7 @@ class Population(object):
                         raise NotImplemented('sorry dude')
                     elif self.pf['pop_synth_lwb_method'] == 1:
                         # Assume SED of continuousy-star-forming source.
-                        Inu_hat_p = self._src_csfr.Spectrum(E[in_band==1]) \
+                        Inu_hat_p = self._src_csfr.get_spectrum(E[in_band==1]) \
                             / E[in_band==1]
                         fix = Inu_hat_p / Inu_hat[in_band==1][0]
                     else:

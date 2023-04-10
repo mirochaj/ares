@@ -148,7 +148,7 @@ class SynthesisModelBase(Source):
         E = self.tab_energies_c[j2:j1][-1::-1]
 
         # Units: erg / s / Hz
-        to_int = self.Spectrum(E)
+        to_int = self.get_spectrum(E)
 
         # Units: erg / s
         return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
@@ -165,7 +165,7 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def Spectrum(self, E):
+    def get_spectrum(self, E, t=None):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
@@ -234,7 +234,7 @@ class SynthesisModelBase(Source):
     @property
     def _norm(self):
         """
-        Normalization constant that forces self.Spectrum to have unity
+        Normalization constant that forces self.get_spectrum to have unity
         integral in the (Emin, Emax) band.
         """
         if not hasattr(self, '_norm_'):

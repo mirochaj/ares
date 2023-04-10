@@ -603,7 +603,7 @@ class ClusterPopulation(Population): # pragma: no cover
         #    rhoL *= self.pf['pop_fesc_LW']
 
         if E is not None:
-            return rhoL * self.src.Spectrum(E)
+            return rhoL * self.src.get_spectrum(E)
         else:
             return rhoL
 

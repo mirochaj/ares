@@ -187,14 +187,14 @@ _pop_hod = \
 
 # sSFR(z, Mstell)
  'pop_ssfr': 'pq[1]',
- 'pq_func[1]': 'pl_evolN',
- 'pq_func_var[1]': 'Ms',
- 'pq_func_var2[1]': '1+z',
- 'pq_func_par0[1]': 2e-10,
- 'pq_func_par1[1]': 1e10,
- 'pq_func_par2[1]': -0.0,
- 'pq_func_par3[1]': 1.,
- 'pq_func_par4[1]': 1.5,
+ #'pq_func[1]': 'pl_evolN',
+ #'pq_func_var[1]': 'Ms',
+ #'pq_func_var2[1]': '1+z',
+ #'pq_func_par0[1]': 2e-10,
+ #'pq_func_par1[1]': 1e10,
+ #'pq_func_par2[1]': -0.0,
+ #'pq_func_par3[1]': 1.,
+ #'pq_func_par4[1]': 1.5,
 
  'pq_func[1]': 'dpl_evolN',
  'pq_func_var[1]': 'Ms',

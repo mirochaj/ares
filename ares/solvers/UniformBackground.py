@@ -986,7 +986,7 @@ class UniformBackground(object):
             Inu[-1] = 1.
         else:
             for i in range(Nf):
-                Inu[i] = pop.src.Spectrum(E[i])
+                Inu[i] = pop.src.get_spectrum(E[i])
 
         # Convert to photon *number* (well, something proportional to it)
         Inu_hat = Inu / E
@@ -1103,7 +1103,7 @@ class UniformBackground(object):
                         raise NotImplemented('sorry dude')
                     elif pop.pf['pop_synth_lwb_method'] == 1:
                         # Assume SED of continuousy-star-forming source.
-                        Inu_hat_p = pop._src_csfr.Spectrum(E[in_band==1]) \
+                        Inu_hat_p = pop._src_csfr.get_spectrum(E[in_band==1]) \
                             / E[in_band==1]
                         fix = Inu_hat_p / Inu_hat[in_band==1][0]
                     else:

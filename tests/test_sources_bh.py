@@ -65,7 +65,7 @@ def test():
     Earr = np.logspace(2, 4, 100)
 
     for src in [bh_mcd, bh_sim, bh_s04]:
-        sed = bh_mcd.Spectrum(Earr)
+        sed = bh_mcd.get_spectrum(Earr)
 
 
 if __name__ == '__main__':

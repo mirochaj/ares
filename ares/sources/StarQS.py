@@ -152,12 +152,12 @@ class StarQS(Source):
             if self.pf['source_piecewise']:
                 self._norm = []
                 for i, band in enumerate(self.bands):
-                    F = quad(lambda E: self.ideal.Spectrum(E), *band)[0]
+                    F = quad(lambda E: self.ideal.get_spectrum(E), *band)[0]
                     self._norm.append(self.I[i] / F)
                 self._norm = np.array(self._norm)
             else:
                 band = (13.6, self.pf['source_Emax'])
-                F = quad(lambda E: self.ideal.Spectrum(E), *band)[0]
+                F = quad(lambda E: self.ideal.get_spectrum(E), *band)[0]
                 self._norm = np.array([np.sum(self.I[1:]) / F]*4)
 
         return self._norm
@@ -171,13 +171,13 @@ class StarQS(Source):
     def _SpectrumPiecewise(self, E):
 
         if E < self.bands[0][1]:
-            return self.norm_[0] * self.ideal.Spectrum(E)
+            return self.norm_[0] * self.ideal.get_spectrum(E)
         elif self.bands[1][0] <= E < self.bands[1][1]:
-            return self.norm_[1] * self.ideal.Spectrum(E)
+            return self.norm_[1] * self.ideal.get_spectrum(E)
         elif self.bands[2][0] <= E < self.bands[2][1]:
-            return self.norm_[2] * self.ideal.Spectrum(E)
+            return self.norm_[2] * self.ideal.get_spectrum(E)
         else:
-            return self.norm_[3] * self.ideal.Spectrum(E)
+            return self.norm_[3] * self.ideal.get_spectrum(E)
 
     @property
     def _spec_f(self):
@@ -250,6 +250,6 @@ class StarQS(Source):
 
         E = h_p * c / (wave * 1e-8) / erg_per_ev
 
-        L = self.Lbol * self.Spectrum(E) * ev_per_hz / sfr_eff
+        L = self.Lbol * self.get_spectrum(E) * ev_per_hz / sfr_eff
 
         return L

@@ -506,7 +506,7 @@ class IntegralTable(object):
             self._I_E = {}
             for absorber in self.grid.absorbers:
                 E = self.E[absorber]
-                self._I_E[absorber] = np.array(list(map(self.src.Spectrum, E)))
+                self._I_E[absorber] = np.array(list(map(self.src.get_spectrum, E)))
 
         return self._I_E
 
@@ -602,12 +602,12 @@ class IntegralTable(object):
         else:
 
             if self.pf['photon_conserving']:
-                integrand = lambda E: self.src.Spectrum(E, t=t) * \
+                integrand = lambda E: self.src.get_spectrum(E, t=t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
 
             else:
                 integrand = lambda E: self.grid.bf_cross_sections[absorber](E) * \
-                    self.src.Spectrum(E, t=t) * \
+                    self.src.get_spectrum(E, t=t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E \
                     / self.E_th[absorber]
 
@@ -649,11 +649,11 @@ class IntegralTable(object):
         else:
             # Otherwise, continuous spectrum
             if self.pf['photon_conserving']:
-                integrand = lambda E: self.src.Spectrum(E, t = t) * \
+                integrand = lambda E: self.src.get_spectrum(E, t = t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0])
             else:
                 integrand = lambda E: self.grid.bf_cross_sections[absorber](E) * \
-                    self.src.Spectrum(E, t=t) * \
+                    self.src.get_spectrum(E, t=t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) \
                     / self.E_th[absorber]
 
@@ -686,13 +686,13 @@ class IntegralTable(object):
             if self.pf['photon_conserving']:
                 integrand = lambda E: \
                     self.esec.DepositionFraction(x,E=E-Ei, channel='heat') * \
-                    self.src.Spectrum(E, t=t) * \
+                    self.src.get_spectrum(E, t=t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
             else:
                 integrand = lambda E: \
                     self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
                     PhotoIonizationCrossSection(E, absorber) * \
-                    self.src.Spectrum(E, t = t) * \
+                    self.src.get_spectrum(E, t = t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E \
                     / self.E_th[absorber]
 
@@ -723,13 +723,13 @@ class IntegralTable(object):
             if self.pf['photon_conserving']:
                 integrand = lambda E: \
                     self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
-                    self.src.Spectrum(E, t = t) * \
+                    self.src.get_spectrum(E, t = t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0])
             else:
                 integrand = lambda E: \
                     self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
                     PhotoIonizationCrossSection(E, species) * \
-                    self.src.Spectrum(E, t = t) * \
+                    self.src.get_spectrum(E, t = t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) \
                     / self.E_th[absorber]
 
@@ -760,7 +760,7 @@ class IntegralTable(object):
             if self.pf['photon_conserving']:
                 integrand = lambda E: \
                     self.esec.DepositionFraction(x, E=E-Ej, channel=absorber) * \
-                    self.src.Spectrum(E, t = t) * \
+                    self.src.get_spectrum(E, t = t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
 
             #else:
@@ -798,7 +798,7 @@ class IntegralTable(object):
             if self.pf['photon_conserving']:
                 integrand = lambda E: \
                     self.esec.DepositionFraction(x, E=E-Ej, channel=absorber) * \
-                    self.src.Spectrum(E, t = t) * \
+                    self.src.get_spectrum(E, t = t) * \
                     np.exp(-self.SpecificOpticalDepth(E, N)[0])
             #else:
             #    integrand = lambda E: PhotoIonizationCrossSection(E, species) * \
