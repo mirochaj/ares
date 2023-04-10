@@ -21,11 +21,10 @@ pars_ml = \
 def _SFRD(z, a=None, b=None, c=None, d=None):
     return a * (1. + z)**b / (1 + ((1 + z) / c)**d)
 
-def SFRD(z):
+def get_sfrd(z):
     return _SFRD(z, **pars_ml)
-    
+
 info = \
 {
  'Lmin': '0.03 * Lstar',
-}    
-    
+}

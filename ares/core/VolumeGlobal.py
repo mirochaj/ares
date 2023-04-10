@@ -342,7 +342,7 @@ class GlobalVolume(object):
         Provides units of per atom.
         """
 
-        if self.pf['photon_counting']:
+        if self.grid.dims == 1:
             prefix = zone
         else:
             prefix = 'igm'
@@ -466,6 +466,8 @@ class GlobalVolume(object):
 
             Lx = pop.get_luminosity_density(z, Emin=pop.pf['pop_Emin_xray'],
                 Emax=pop.pf['pop_Emax'])
+
+            Lx /= cm_per_mpc**3
 
             return weight * fheat * Lx * (1. + z)**3
 
@@ -616,7 +618,7 @@ class GlobalVolume(object):
 
         Qdot = pop.get_photon_luminosity_density(z, Emin=E_LL, Emax=24.6)
 
-        return weight * Qdot * (1. + z)**3
+        return weight * Qdot * (1. + z)**3 / cm_per_mpc**3
 
     def IonizationRateIGM(self, z, species=0, popid=0, band=0, **kwargs):
         """
@@ -661,6 +663,8 @@ class GlobalVolume(object):
 
             Lx = pop.get_luminosity_density(z, Emin=pop.pf['pop_Emin_xray'],
                 Emax=pop.pf['pop_Emax'])
+
+            Lx /= cm_per_mpc**3
 
             weight = self.rate_to_coefficient(z, species, **kw)
             primary = weight * Lx \

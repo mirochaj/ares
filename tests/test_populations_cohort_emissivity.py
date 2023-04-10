@@ -36,17 +36,18 @@ def test():
     zarr = np.arange(6, 30, 1)
 
     L_lw = np.array([pop_uv.get_luminosity_density(z, Emin=10.2, Emax=13.6) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
     L_ion = np.array([pop_uv.get_luminosity_density(z, Emin=13.6, Emax=1e2) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
     L_X = np.array([pop_xr.get_luminosity_density(z, Emin=5e2, Emax=8e3) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
     L_X2 = np.array([pop_xr.get_luminosity_density(z, Emin=None, Emax=None) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
 
     N_ion = np.array([pop_uv.get_photon_density(z, Emin=13.6, Emax=1e2) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
 
+    print(L_X[0])
 
     assert np.all(L_X < L_ion)
     assert np.all(L_ion < L_lw)
@@ -71,9 +72,9 @@ def test():
     assert pop_fesc.get_fesc(z=None, Mh=1e10) < pop_fesc.get_fesc(z=None, Mh=1e9)
 
     L_ion2 = np.array([pop_fesc.get_luminosity_density(z, Emin=E_LL, Emax=24.6) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
     N_ion2 = np.array([pop_fesc.get_photon_density(z, Emin=E_LL, Emax=24.6) \
-        for z in zarr]) * cm_per_mpc**3
+        for z in zarr])
 
     # If low-mass halos dominate, emissivity should evolve more gradually at late
     # times.

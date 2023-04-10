@@ -74,6 +74,10 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD computed via fcoll parameterization
         sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z) * on
 
+        # At the moment, `sfrd` has cgs units. From version 1 onward, we'll use
+        # Msun/cMpc^3/yr as the default internal unit.
+        sfrd *= rhodot_cgs
+
         # Maybe don't need to do this anymore?
         if np.any(sfrd < 0):
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'],
@@ -109,7 +113,7 @@ class GalaxyAggregate(HaloPopulation):
 
         Returns
         -------
-        Emissivity in units of erg / s / c-cm**3 [/ eV]
+        Emissivity in units of erg / s / cMpc^3 [/ eV]
 
         """
 
@@ -117,11 +121,12 @@ class GalaxyAggregate(HaloPopulation):
         if not np.any(on):
             return z * on
 
-        if self.pf['pop_sed_model'] and (Emin is not None) \
-          and (Emax is not None):
-            if (Emin > self.pf['pop_Emax']):
+        from_band = (Emin is not None) and (Emax is not None)
+
+        if self.pf['pop_sed_model'] and from_band:
+            if (Emin > self.src.Emax):
                 return 0.0
-            if (Emax < self.pf['pop_Emin']):
+            if (Emax < self.src.Emin):
                 return 0.0
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
@@ -130,21 +135,29 @@ class GalaxyAggregate(HaloPopulation):
         else:
             rhoL = self.get_sfrd(z) * self.tab_radiative_yield * on
 
+        # At this point [rhoL] = erg/s/cMpc^-3
+
         ##
         # Models based on photons / baryon
         ##
         if not self.pf['pop_sed_model']:
             if (round(Emin, 1), round(Emax, 1)) == (10.2, 13.6):
-                return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
-                    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
-                    / self.cosm.g_per_baryon
+                return (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
+                    * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
+                    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                #return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
+                #    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
+                #    / self.cosm.g_per_baryon
             elif round(Emin, 1) == 13.6:
-                return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
-                    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
-                    / self.cosm.g_per_baryon #/ (Emax - Emin)
+                return (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
+                    * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
+                    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                #return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
+                #    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
+                #    / self.cosm.g_per_baryon #/ (Emax - Emin)
             else:
                 return rhoL * self.pf['pop_fX'] * self.pf['pop_cX'] \
-                    / (g_per_msun / s_per_yr)
+                    / ((self.cosm.g_per_baryon / g_per_msun) / s_per_yr)
 
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
@@ -188,7 +201,7 @@ class GalaxyAggregate(HaloPopulation):
 
         Returns
         -------
-        Luminosity density in erg / s / c-cm**3.
+        Luminosity density in erg / s / cMpc**3.
 
         """
 
@@ -205,7 +218,7 @@ class GalaxyAggregate(HaloPopulation):
 
         Returns
         -------
-        Photon luminosity density in photons / s / c-cm**3.
+        Photon luminosity density in photons / s / cMpc**3.
 
         """
 

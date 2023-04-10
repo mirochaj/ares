@@ -44,8 +44,6 @@ class Global21cm(MultiPhaseMedium):
         # Now, possibly make an attribute
         if name not in self.__dict__.keys():
 
-            print('hi', name)
-
             # See if this is a turning point
             spl = name.split('_')
 

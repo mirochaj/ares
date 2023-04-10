@@ -342,7 +342,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _tab_MAR_at_Mmin(self):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
-                np.array([self.get_MAR(self.halos.tab_z[i], self._tab_Mmin[i]) \
+                np.array([self.get_mar(self.halos.tab_z[i], self._tab_Mmin[i]) \
                     for i in range(self.halos.tab_z.size)])
 
         return self._tab_MAR_at_Mmin_
@@ -488,7 +488,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             tab[i] = _tmp
 
-        tab *= 1. / s_per_yr / cm_per_mpc**3
+        tab *= 1. / s_per_yr #/ cm_per_mpc**3
 
         self._rho_L[(_Emin, _Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
@@ -504,7 +504,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        Luminosity density in units of photons / s / (comoving cm)**3.
+        Luminosity density in units of photons / s / cMpc**3.
         """
 
         if not hasattr(self, '_rho_N'):
@@ -538,7 +538,7 @@ class GalaxyCohort(GalaxyAggregate):
             tab[i] = tot - \
                 np.interp(np.log(self._tab_Mmin[i]), np.log(self.halos.tab_M), cumtot)
 
-        tab *= 1. / s_per_yr / cm_per_mpc**3
+        tab *= 1. / s_per_yr #/ cm_per_mpc**3
 
         self._rho_N[(Emin, Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
@@ -585,8 +585,9 @@ class GalaxyCohort(GalaxyAggregate):
         """
         Compute stellar mass density (SMD) at redshift `z`.
 
-        .. note :: Units are grams, so that one can multiply by `yield_per_sfr`
-            to obtain an emissivity.
+        Returns
+        -------
+        Stellar mass density in Msun/cMpc^3.
 
         """
 
@@ -601,7 +602,7 @@ class GalaxyCohort(GalaxyAggregate):
                     smhm[self.halos.tab_M > self.get_Mmax(_z)] = 0
 
                     integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
-                        * self.tab_focc[i] * g_per_msun / cm_per_mpc**3
+                        * self.tab_focc[i]
                     self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
             else:
                 dtdz = np.array([self.cosm.dtdz(z) \
@@ -616,7 +617,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_smd(z)
 
-    def get_MAR(self, z, Mh):
+    def get_mar(self, z, Mh):
         MGR = np.maximum(self.MGR(z, Mh), 0.)
         eta = self.eta(z, Mh)
         return eta * MGR
@@ -851,7 +852,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        Emissivity in units of erg / s / c-cm**3 [/ eV]
+        Emissivity in units of erg / s / cMpc**3 [/ eV]
 
         """
 
@@ -2676,7 +2677,7 @@ class GalaxyCohort(GalaxyAggregate):
                 #    if (z_dead - z) >= 2 and abs(z - self.zdead) < 0.2:
                 #        break
 
-            self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
+            #self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._tab_sfrd_total_
 
@@ -2700,7 +2701,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        SFRD in internal units of g/cm^3/s (comoving).
+        SFRD in units of Msun/yr/cMpc^3.
         """
 
         mags = self.get_mags(z, absolute=absolute, wave=wave, band=band,
@@ -2731,8 +2732,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        SFRD in internal units of g/cm^3/s (comoving).
-
+        SFRD in units of Msun/yr/cMpc^3.
         """
 
         # Check for exact match
@@ -2755,7 +2755,7 @@ class GalaxyCohort(GalaxyAggregate):
         _sfrd_tab = np.trapz(integrand[iz,ilo:ihi+1],
             x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
-        _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
+        #_sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return _sfrd_tab
 
@@ -2992,7 +2992,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Splitting up the inflow. P = pristine.
         # Units = Msun / yr -> Msun / dz
         #if self.pf['pop_sfr_model'] in ['sfe-func']:
-        PIR = fb * self.get_MAR(z, Mh) * dtdz
+        PIR = fb * self.get_mar(z, Mh) * dtdz
         #NPIR = fb * self.get_MDR(z, Mh) * dtdz
         MGR = np.atleast_1d(self.MGR(z, Mh))
         #else:
@@ -3103,7 +3103,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Splitting up the inflow. P = pristine.
         # Units = Msun / yr -> Msun / dz
         #if self.pf['pop_sfr_model'] in ['sfe-func']:
-        PIR = fb * self.get_MAR(z, Mh) * dtdz
+        PIR = fb * self.get_mar(z, Mh) * dtdz
         #NPIR = fb * self.get_MDR(z, Mh) * dtdz
         #else:
         #    PIR = NPIR = 0.0 # unused
@@ -3221,7 +3221,7 @@ class GalaxyCohort(GalaxyAggregate):
         fstar = self.get_sfe(**kw)
         tstar = 1e7 * s_per_yr
 
-        Mdot_h = -1. * self.get_MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        Mdot_h = -1. * self.get_mar(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Need cooling curve here eventually.
         Z_cgm = MZ_cgm / Mg_cgm

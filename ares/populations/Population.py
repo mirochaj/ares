@@ -68,6 +68,7 @@ def normalize_sed(pop):
         Zfactor = 1.
 
     if pop.pf['pop_rad_yield'] == 'from_sed':
+        print('This should never happen...?')
         # In this case Emin, Emax, EminNorm, EmaxNorm are irrelevant
         E1 = pop.src.Emin
         E2 = pop.src.Emax
@@ -76,23 +77,23 @@ def normalize_sed(pop):
         # Remove whitespace and convert everything to lower-case
         units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
         if units == 'erg/s/sfr':
-            return Zfactor * pop.pf['pop_rad_yield'] * s_per_yr / g_per_msun
+            return Zfactor * pop.pf['pop_rad_yield']
 
     energy_per_sfr = pop.pf['pop_rad_yield']
 
     # RARE: monochromatic normalization
     if units == 'erg/s/sfr/hz':
         assert pop.pf['pop_Enorm'] is not None
-        energy_per_sfr *= s_per_yr / g_per_msun / ev_per_hz
+        energy_per_sfr *= 1. / ev_per_hz
     else:
         erg_per_phot = pop.src.get_avg_photon_energy(E1, E2) * erg_per_ev
 
     if units == 'photons/baryon':
-        energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
+        energy_per_sfr *= erg_per_phot / (pop.cosm.g_per_baryon / g_per_msun)
     elif units == 'photons/msun':
-        energy_per_sfr *= erg_per_phot / g_per_msun
+        energy_per_sfr *= erg_per_phot
     elif units == 'photons/s/sfr':
-        energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun
+        energy_per_sfr *= erg_per_phot * s_per_yr
     elif units == 'erg/s/sfr/hz':
         pass
     else:
@@ -712,10 +713,11 @@ class Population(object):
         if self.src.is_sed_tabular:
             E1 = self.src.Emin
             E2 = self.src.Emax
-            return self.src.get_rad_yield(E1, E2)
+            y = self.src.get_rad_yield(E1, E2)
         else:
-            return normalize_sed(self)#self.pf['source_rad_yield']
+            y = normalize_sed(self)#self.pf['source_rad_yield']
 
+        return y #/ g_per_msun
     #@yield_per_sfr.setter
     #def yield_per_sfr(self, value):
     #    self._yield_per_sfr = value

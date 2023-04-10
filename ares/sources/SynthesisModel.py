@@ -573,7 +573,7 @@ class SynthesisModelBase(Source):
     #    else:
     #        return E_tot[-1] / N_tot[-1] / erg_per_ev
 
-    def get_rad_yield(self, Emin, Emax, raw=True):
+    def get_rad_yield(self, Emin=None, Emax=None, raw=True):
         """
         This is essentially converting the units of get_lum_per_sfr into
         our internal cgs units system.
@@ -584,12 +584,12 @@ class SynthesisModelBase(Source):
             raw=raw, band_units='eV')
 
         if self.pf['source_ssp']:
-            # erg / s / Msun -> erg / s / g
+            # erg / s / Msun
             return np.interp(self.pf['source_age'], self.tab_t,
-                erg_per_variable / g_per_msun)
+                erg_per_variable)
         else:
-            # erg / g
-            return erg_per_variable[-1] * s_per_yr / g_per_msun
+            # erg / Msun
+            return erg_per_variable[-1] * s_per_yr
 
     #@property
     #def Lbol_at_tsf(self):

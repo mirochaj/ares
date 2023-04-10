@@ -12,7 +12,6 @@ Description:
 
 import ares
 import numpy as np
-from ares.physics.Constants import rho_cgs, rhodot_cgs
 
 def test():
 
@@ -36,8 +35,8 @@ def test():
 
     assert np.all(pop.tab_focc == 1)
 
-    sfrd = pop.get_sfrd(zarr) * rhodot_cgs
-    smd = pop.get_smd(zarr) * rho_cgs
+    sfrd = pop.get_sfrd(zarr)
+    smd = pop.get_smd(zarr)
 
     # Check for reasonable values of SFRD, stellar mass density
     assert np.all(sfrd < 1)

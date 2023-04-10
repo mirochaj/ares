@@ -391,7 +391,8 @@ def generate_hmf_tables(path, **kwargs):
 
     def_kwargs.update(kwargs)
 
-    halos = HaloMassFunction(halo_mf_analytic=False, halo_mf_load=False, **kwargs)
+    halos = HaloMassFunction(halo_mf_analytic=False, halo_mf_load=False,
+        **def_kwargs)
     halos.info
 
     try:
@@ -462,8 +463,8 @@ def generate_halo_histories(path, fn_hmf):
 
     fn = "{}.hdf5".format(pref)
     if not os.path.exists(fn):
-        print("Running new trajectories...")
-        zall, hist = pop.Trajectories()
+        print("# Running new trajectories...")
+        zall, hist = pop.get_histories()
 
         with h5py.File(fn, "w") as h5f:
             # Save halo trajectories
@@ -472,9 +473,9 @@ def generate_halo_histories(path, fn_hmf):
                     continue
                 h5f.create_dataset(key, data=hist[key])
 
-        print("Wrote {}".format(fn))
+        print("# Wrote {}".format(fn))
     else:
-        print("File {} exists. Exiting.".format(fn))
+        print("# File {} exists. Exiting.".format(fn))
     return
 
 def make_halos(path):
