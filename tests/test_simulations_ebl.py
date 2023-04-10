@@ -31,6 +31,8 @@ def test():
     Pshot3 = pop.get_ps_shot(z=pop.halos.tab_z[1], k=1, wave1=1600., wave2=1600)
     #assert Pshot3 > Pshot2
 
+    # Check that fluctuations and mean are order unity in SI units
+
 
 """
 Things to test:

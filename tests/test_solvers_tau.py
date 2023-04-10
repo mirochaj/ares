@@ -14,7 +14,7 @@ import os
 import time
 import ares
 import numpy as np
-from ares.physics.Constants import c, ev_per_hz, erg_per_ev
+from ares.physics.Constants import c, ev_per_hz, erg_per_ev, cm_per_mpc
 
 def test(tol=1e-1):
 
@@ -110,7 +110,8 @@ def test(tol=1e-1):
 
             # Cosmologically-limited solution to the RTE
             # [Equation A1 in Mirocha (2014)]
-            f_an = np.array([pop.get_emissivity(zf, EE) for EE in E])
+            f_an = np.array([pop.get_emissivity(zf, EE) / cm_per_mpc**3 \
+                for EE in E])
             f_an *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
                 / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
             f_an *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
