@@ -1125,8 +1125,6 @@ class Population(object):
                     # Convert from luminosity in erg to photons
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
 
-            epsilon /= cm_per_mpc**3
-
         elif scalable:
             Lbol = self.get_emissivity(z)
 

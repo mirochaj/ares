@@ -879,7 +879,7 @@ class UniformBackground(object):
 
             rhoLW = pop.get_photon_luminosity_density(z, Emin=E_LyA, Emax=E_LL)
             rhoLW /= cm_per_mpc**3
-            
+
             return norm * (1. + z)**3 * (1. + pop.pf['pop_frec_bar']) * \
                 rhoLW / dnu
 
@@ -1031,7 +1031,7 @@ class UniformBackground(object):
                         np.interp(np.log(pop._tab_Mmin[iz]),
                             np.log(pop.halos.tab_M), _cumtot)
 
-                    epsilon[ll,jj] = _tmp / H[ll] / erg_per_ev #/ cm_per_mpc**3
+                    epsilon[ll,jj] = _tmp / H[ll] / erg_per_ev
 
         elif scalable:
             Lbol = pop.get_emissivity(z)
@@ -1236,7 +1236,7 @@ class UniformBackground(object):
                 flux = c_over_four_pi \
                     * ((xsq[ll] * trapz_base) * ehat[ll] / cm_per_mpc**3) \
                     + exp_term * (c_over_four_pi * xsq[ll+1] \
-                    * trapz_base * ehat_r[ll] \
+                    * trapz_base * (ehat_r[ll] / cm_per_mpc**3) \
                     + np.hstack((flux[1:], [0])) / Rsq)
                     #+ np.roll(flux, -1) / Rsq)
 
