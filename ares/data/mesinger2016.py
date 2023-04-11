@@ -52,7 +52,6 @@ _base['pop_fstar{0}'] = 0.1
 
 # Ly-a
 _base['pop_solve_rte{0}'] = (E_LyA, E_LL)
-_base['pop_sed_model{0}'] = True
 _base['pop_sed{0}'] = 'pl'
 _base['pop_alpha{0}'] = 0
 _base['pop_Emin{0}'] = E_LyA
@@ -65,7 +64,6 @@ _base['pop_lw_src{0}'] = True
 
 # X-ray
 _base['pop_solve_rte{1}'] = True
-_base['pop_sed_model{1}'] = True
 _base['tau_redshift_bins'] = 1000
 _base['pop_sed{1}'] = 'pl'
 _base['pop_alpha{1}'] = -1.5
@@ -77,7 +75,6 @@ _base['pop_rad_yield{1}'] = 2.6e39 * 0.5
 _base['pop_src_ion_igm{1}'] = True
 
 # LyC
-_base['pop_sed_model{2}'] = True
 _base['pop_fesc{2}'] = 0.1
 _base['pop_rad_yield{2}'] = 2e3
 _base['pop_rad_yield_units{2}'] = 'photons/baryon'

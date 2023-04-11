@@ -79,7 +79,7 @@ _src_lya = \
  'pop_heat_src_igm': False,
  'pop_ion_src_cgm': False,
  'pop_ion_src_igm': False,
- 'pop_sed_model': False,
+ 'pop_sed': None,
 }
 
 _src_ion = \
@@ -92,7 +92,7 @@ _src_ion = \
  'pop_heat_src_igm': False,
  'pop_ion_src_cgm': True,
  'pop_ion_src_igm': False,
- 'pop_sed_model': False,
+ 'pop_sed': None,
 }
 
 _src_xray = \
@@ -110,14 +110,13 @@ _src_xray = \
  'pop_heat_src_igm': True,
  'pop_ion_src_cgm': False,
  'pop_ion_src_igm': True,
- 'pop_sed_model': True,
  'pop_fXh': 0.2,
 }
 
 
 _sed_toy = \
 {
- 'pop_sed_model': False,
+ 'pop_sed': None,
  'pop_Nion': 4e3,
  'pop_Nlw': 9690,
  'pop_rad_yield': 2.6e39,
@@ -132,7 +131,7 @@ _sed_toy = \
 
 _sed_xi = \
 {
- 'pop_sed_model': False,
+ 'pop_sed': None,
  'pop_xi_LW': 40.,
  'pop_xi_UV': 969.,
  'pop_xi_XR': 0.1,
@@ -293,7 +292,6 @@ _crte_xrb = \
 
 _crte_lwb = _crte_xrb.copy()
 _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
-_crte_lwb['pop_sed_model'] = True
 _crte_lwb["pop_Emin"] = 10.2
 _crte_lwb["pop_Emax"] = 13.6
 _crte_lwb['pop_alpha'] = 0.0

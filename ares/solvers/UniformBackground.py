@@ -877,7 +877,7 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.get_photon_luminosity_density(z, Emin=E_LyA, Emax=E_LL)
+            rhoLW = pop.get_photon_emissivity(z, Emin=E_LyA, Emax=E_LL)
             rhoLW /= cm_per_mpc**3
 
             return norm * (1. + z)**3 * (1. + pop.pf['pop_frec_bar']) * \

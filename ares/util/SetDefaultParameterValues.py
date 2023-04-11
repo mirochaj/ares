@@ -116,7 +116,6 @@ def MultiPhaseParameters():
         "cgm_collisional_ionization": False,
         "cgm_cosmological_ics": False,
 
-        "photon_counting": False,
         "monotonic_EoR": 1e-6,
 
         "igm_grid_cells": 1,
@@ -513,7 +512,6 @@ def PopulationParameters():
     "pop_tunnel": None,
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
-    "pop_sed_model": True,    # or False
 
     "pop_ham_z": None,
 

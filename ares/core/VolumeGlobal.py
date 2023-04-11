@@ -464,7 +464,7 @@ class GlobalVolume(object):
         if not solve_rte:
             weight = self.rate_to_coefficient(z, species, **kw)
 
-            Lx = pop.get_luminosity_density(z, Emin=pop.pf['pop_Emin_xray'],
+            Lx = pop.get_emissivity(z, Emin=pop.pf['pop_Emin_xray'],
                 Emax=pop.pf['pop_Emax'])
 
             Lx /= cm_per_mpc**3
@@ -616,7 +616,7 @@ class GlobalVolume(object):
         else:
             weight = 1.0
 
-        Qdot = pop.get_photon_luminosity_density(z, Emin=E_LL, Emax=24.6)
+        Qdot = pop.get_photon_emissivity(z, Emin=E_LL, Emax=24.6)
 
         return weight * Qdot * (1. + z)**3 / cm_per_mpc**3
 
@@ -661,7 +661,7 @@ class GlobalVolume(object):
         if (not solve_rte) or \
             (not np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_Emin_xray'])):
 
-            Lx = pop.get_luminosity_density(z, Emin=pop.pf['pop_Emin_xray'],
+            Lx = pop.get_emissivity(z, Emin=pop.pf['pop_Emin_xray'],
                 Emax=pop.pf['pop_Emax'])
 
             Lx /= cm_per_mpc**3

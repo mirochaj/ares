@@ -33,8 +33,8 @@ def test():
     assert abs(sfrd[5] - pop3.get_sfrd(zarr[5])) < 1e-8, \
         "{:.3e} {:.3e}".format(sfrd[5], pop3.SFRD(zarr[5]))
 
-
-
+    # Make sure we get zero outside (pop_zdead, pop_zform)
+    assert pop.get_sfrd(100) == 0
 
 if __name__ == '__main__':
     test()

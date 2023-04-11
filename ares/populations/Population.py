@@ -55,7 +55,7 @@ def normalize_sed(pop):
     """
 
     # In this case, we're just using Nlw, Nion, etc.
-    if not pop.pf['pop_sed_model']:
+    if pop.pf['pop_sed'] is None:
         return 1.0
 
     E1 = pop.pf['pop_EminNorm']
@@ -302,7 +302,7 @@ class Population(object):
     @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 E21 = 1.4e9 * (h_p / erg_per_ev)
                 self._is_src_radio = \
                     (self.pf['pop_Emin'] <= E21 <= self.pf['pop_Emax']) \
@@ -328,7 +328,7 @@ class Population(object):
     @property
     def is_src_lya(self):
         if not hasattr(self, '_is_src_lya'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_lya = \
                     (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
@@ -356,7 +356,7 @@ class Population(object):
     @property
     def is_src_ion_cgm(self):
         if not hasattr(self, '_is_src_ion_cgm'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_ion_cgm = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_cgm']
@@ -368,7 +368,7 @@ class Population(object):
     @property
     def is_src_ion_igm(self):
         if not hasattr(self, '_is_src_ion_igm'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_ion_igm = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_igm']
@@ -402,7 +402,7 @@ class Population(object):
     @property
     def is_src_heat_igm(self):
         if not hasattr(self, '_is_src_heat_igm'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_heat_igm = \
                     (E_LL <= self.pf['pop_Emin']) \
                     and self.pf['pop_heat_src_igm']
@@ -427,7 +427,7 @@ class Population(object):
     def is_src_uv(self):
         # Delete this eventually but right now doing so will break stuff
         if not hasattr(self, '_is_src_uv'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_uv = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_cgm']
@@ -439,7 +439,7 @@ class Population(object):
     @property
     def is_src_xray(self):
         if not hasattr(self, '_is_src_xray'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_xray = \
                     (E_LL <= self.pf['pop_Emin']) \
                     and self.pf['pop_heat_src_igm']
@@ -455,7 +455,7 @@ class Population(object):
                 self._is_src_lw = False
             elif not self.pf['pop_lw_src']:
                 self._is_src_lw = False
-            elif self.pf['pop_sed_model']:
+            elif self.pf['pop_sed'] is not None:
                 self._is_src_lw = \
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax'])
             else:
@@ -861,7 +861,7 @@ class Population(object):
 
         """
 
-        if not self.pf['pop_sed_model']:
+        if self.pf['pop_sed'] is None:
             Eavg = np.mean([Emin, Emax])
             self._eV_per_phot[(Emin, Emax)] = Eavg
             return Eavg
