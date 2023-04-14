@@ -472,16 +472,6 @@ class Global21cm(AnalyzeGlobal21cm):
         if suffix == 'pkl':
             write_pickle_file(self.history._data, fn, ndumps=1, open_mode='w',\
                 safe_mode=False, verbose=False)
-
-            tau = self.tau_CMB()
-
-            try:
-                write_pickle_file(self.blobs, '{0!s}.blobs.{1!s}'.format(\
-                    prefix, suffix), ndumps=1, open_mode='w', safe_mode=False,\
-                    verbose=self.pf['verbose'])
-            except AttributeError:
-                print('Error writing {0!s}.blobs.{1!s}'.format(prefix, suffix))
-
         elif suffix in ['hdf5', 'h5']:
             import h5py
 

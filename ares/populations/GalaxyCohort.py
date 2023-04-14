@@ -1138,7 +1138,7 @@ class GalaxyCohort(GalaxyAggregate):
             window=window, absolute=absolute)
 
     def get_lf(self, z, bins, use_mags=True, wave=1600., window=1.,
-        absolute=True):
+        absolute=True, raw=False, nebular_only=False, band=None, band_units=None):
         """
         Reconstructed luminosity function.
 
@@ -1163,9 +1163,10 @@ class GalaxyCohort(GalaxyAggregate):
 
             if use_mags:
                 x = self.get_mags(z=z, wave=wave, window=window,
-                    absolute=absolute)
+                    absolute=absolute, raw=raw, nebular_only=nebular_only)
             else:
-                x = self.get_lum(z=z, wave=wave, window=window)
+                x = self.get_lum(z=z, wave=wave, window=window,
+                    raw=raw, nebular_only=nebular_only)
 
             phi, b_e = np.histogram(x, bins=bin_c2e(bins))
             return bins, phi / self.pf['pop_volume']
@@ -1174,8 +1175,12 @@ class GalaxyCohort(GalaxyAggregate):
             _x_, phi_of_x = self._get_uvlf_mags(z, bins, wave=wave, window=window,
                 absolute=absolute)
         else:
-            raise NotImplemented('needs fixing')
-            phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
+            # By default, we compute dn/dL
+            bins, phi_of_x = self._get_phi_of_L(z, wave=wave, window=window,
+                raw=raw, nebular_only=nebular_only, band=band,
+                band_units=band_units)
+            #raise NotImplemented('needs fixing')
+            #phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
 
         return bins, phi_of_x
 
@@ -1754,7 +1759,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._tab_source_mask
 
-    def _get_phi_of_L(self, z, wave=1600., window=1):
+    def _get_phi_of_L(self, z, wave=1600., window=1, raw=False,
+        nebular_only=False, band=None, band_units=None):
         """
         Compute the luminosity function at redshift z.
 
@@ -1770,7 +1776,8 @@ class GalaxyCohort(GalaxyAggregate):
             if (z, wave, window) in self._phi_of_L:
                 return self._phi_of_L[(z, wave, window)]
 
-        Lh = self.get_lum(z, wave=wave, window=window)
+        Lh = self.get_lum(z, wave=wave, window=window,
+            raw=raw, nebular_only=nebular_only, band=band, band_units=band_units)
 
         if self.pf['pop_halos'] is None:
             Mh = self.halos.tab_M
