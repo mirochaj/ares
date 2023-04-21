@@ -193,7 +193,7 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_rad_yield'] is not None:
             pass
 
-    def get_metallicity(self, z, Mh=None, as_Z=True):
+    def get_metallicity(self, z, Mh=None, gas_phase=False):
         """
         Get the metallicity of all halos in the model.
 
@@ -225,16 +225,32 @@ class GalaxyCohort(GalaxyAggregate):
             smhm[Mh < self.get_Mmin(z)] = 0
             smhm[Mh > self.get_Mmax(z)] = 0
             Ms = smhm * Mh
-            MZ = Ms * fZy * (1. - self.get_metal_loss(z, Mh=Mh))
 
-            # Cosmological gas mass minus stellar mass
-            Mg0 = Mh * fb * (1. - smhm)
+            if self.pf['pop_mzr'] is not None:
+                func = self._get_function('pop_mzr')
 
-            Mg = Mg0 * (1. - self.get_mass_loss(z, Mh=Mh))
+                Zgas = func(z=z, Ms=np.log10(Ms))
 
+                if gas_phase:
+                    Z = Zgas
+                else:
+                    Z = 10**(Zgas - 12.) \
+                        * self.cosm.X / self.pf['pop_fox']
 
+            else:
+                MZ = Ms * fZy * (1. - self.get_metal_loss(z, Mh=Mh))
 
-            Z = MZ / Mg
+                # Cosmological gas mass minus stellar mass
+                Mg0 = Mh * fb * (1. - smhm)
+
+                Mg = Mg0 * (1. - self.get_mass_loss(z, Mh=Mh))
+
+                Zstell = MZ / Mg
+
+                if gas_phase:
+                    Z = 12. + np.log10(self.pf['pop_fox'] * Zstell / self.cosm.X)
+                else:
+                    Z = Zstell
 
         else:
 
@@ -243,10 +259,13 @@ class GalaxyCohort(GalaxyAggregate):
             Mg = self.get_field(z, 'Mg')
 
             Z = MZ / Mg / self.pf['pop_fpoll']
+            Z[Mg==0] = 1e-3
+
+            assert not gas_phase
 
         # Enforce metallicity floor
-        Z[Mg==0] = 1e-3
-        Z = np.maximum(Z, 1e-3)
+        if not gas_phase:
+            Z = np.maximum(Z, 1e-3)
 
         if Mh is None:
             return Z
@@ -261,6 +280,18 @@ class GalaxyCohort(GalaxyAggregate):
     def get_mass_loss(self, z, Mh=None):
         func = self._get_function('pop_mass_loss')
         return func(z=z, Mh=Mh)
+
+    def get_gas_mass(self, z, Mh=None):
+        """
+        Uses `pop_gas_fraction`, which is defined relative to cosmic baryon
+        fraction, so a value of unity means a halo has Mgas = Mh * fbaryon.
+
+        .. note :: This does not subtract off mass in stars, so Mgas+Mstell
+            could in principle exceed fbaryon * Mh.
+
+        """
+        func = self._get_function('pop_gas_fraction')
+        return func(z=z, Mh=Mh) * Mh * self.cosm.fbaryon
 
     def get_field(self, z, field):
         """
@@ -1373,6 +1404,10 @@ class GalaxyCohort(GalaxyAggregate):
 
                 L_sfr = 10**f_L_sfr(np.log10(Z))
 
+                #L_sfr = self.get_lum_per_sfr(wave=wave, #Z=Z,
+                #    window=window, band=band, band_units=band_units, raw=raw,
+                #    nebular_only=nebular_only)
+
             elif self.pf['pop_lum_per_sfr'] is None:
                 if age is not None:
                     L_sfr = np.array([self.src.get_lum_per_sfr(wave=wave,
@@ -1602,18 +1637,27 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_dust_yield'] is None:
             raise ValueError("`pop_dust_yield` is None!")
 
-        assert type(self.pf['pop_dust_yield']) in numeric_types
-
-        Rd = self.get_dust_scale(z=z, Mh=self.halos.tab_M)
         smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
         smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
         smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
         Ms = smhm * self.halos.tab_M
-        if self.pf['pop_metal_yield'] is not None:
-            MZ = self.pf['pop_metal_yield'] * Ms
+        Rd = self.get_dust_scale(z=z, Mh=self.halos.tab_M)
+
+        if self.pf['pop_mzr'] is not None:
+
+            Z = self.get_metallicity(z=z, Mh=Mh, gas_phase=False)
+            Mgas = self.get_gas_mass(z=z, Mh=Mh)
+            MZ = Z * Mgas
             Md = self.pf['pop_dust_yield'] * MZ
         else:
-            Md = self.pf['pop_dust_yield'] * Ms
+
+            assert type(self.pf['pop_dust_yield']) in numeric_types
+
+            if self.pf['pop_metal_yield'] is not None:
+                MZ = self.pf['pop_metal_yield'] * Ms
+                Md = self.pf['pop_dust_yield'] * MZ
+            else:
+                Md = self.pf['pop_dust_yield'] * Ms
 
         Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
         Sd *= g_per_msun / cm_per_kpc**2

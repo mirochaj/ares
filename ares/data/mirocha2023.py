@@ -270,7 +270,7 @@ metals = \
  'pq_func_par0[30]': 0.,
  'pq_func_par1[30]': 1e12,
  'pq_func_par2[30]': 0.5,
- 'pq_func_par3[30]': 0.,
+ 'pq_func_par3[30]': 1.,   # pin to z=0
  'pq_func_par4[30]': 0.,   # no evolution
  'pq_val_ceil[30]': 1,
  'pq_val_floor[30]': 0,
@@ -282,7 +282,38 @@ metals = \
  'pq_func_par0[31]': 0.,
  'pq_func_par1[31]': 1e12,
  'pq_func_par2[31]': 0.5,
- 'pq_func_par3[31]': 0.,
+ 'pq_func_par3[31]': 1.,   # pin to z=0
+ 'pq_func_par4[31]': 0.,   # no evolution
+ 'pq_val_ceil[31]': 1,
+ 'pq_val_floor[31]': 0,
+}
+
+mzr = \
+{
+ 'pop_mzr': 'pq[30]',
+ 'pop_fox': 0.03,
+ "pq_func[30]": 'linear_evolN',
+ 'pq_func_var[30]': 'Ms',
+ 'pq_func_var2[30]': '1+z',
+ 'pq_func_par0[30]': 8.65,
+ 'pq_func_par1[30]': 10,
+ 'pq_func_par2[30]': 0.25,
+ 'pq_func_par3[30]': 1.,   # pin to z=0
+ 'pq_func_par4[30]': -0.08,   # no evolution
+ 'pq_val_ceil[30]': 9,
+ 'pq_val_floor[30]': 6,
+}
+
+gas = \
+{
+ "pop_gas_fraction": 'pq[31]',
+ "pq_func[31]": 'pl_evolN',
+ 'pq_func_var[31]': 'Mh',
+ 'pq_func_var2[31]': '1+z',
+ 'pq_func_par0[31]': 0.7,
+ 'pq_func_par1[31]': 1e12,
+ 'pq_func_par2[31]': -0.25,
+ 'pq_func_par3[31]': 1.,   # pin to z=0
  'pq_func_par4[31]': 0.,   # no evolution
  'pq_val_ceil[31]': 1,
  'pq_val_floor[31]': 0,
