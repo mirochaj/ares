@@ -236,14 +236,26 @@ dust = \
  # Screen parameters
  'pop_dust_fcov': 1,
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
- "pq_func[22]": 'pl_evolN',
+ #"pq_func[22]": 'pl_evolN',
+ #'pq_func_var[22]': 'Mh',
+ #'pq_func_var2[22]': '1+z',
+ #'pq_func_par0[22]': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ #'pq_func_par1[22]': 1e10,
+ #'pq_func_par2[22]': 0.45,
+ #'pq_func_par3[22]': 5.,
+ #'pq_func_par4[22]': 0.,
+
+ "pq_func[22]": 'dpl_evolN',
  'pq_func_var[22]': 'Mh',
  'pq_func_var2[22]': '1+z',
- 'pq_func_par0[22]': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
- 'pq_func_par1[22]': 1e10,
- 'pq_func_par2[22]': 0.45,
- 'pq_func_par3[22]': 5.,
- 'pq_func_par4[22]': 0.,
+ 'pq_func_par0[22]': 1.6,     # Normalization of length scale
+ 'pq_func_par1[22]': 3e11,    # normalize at Mh=1e10
+ 'pq_func_par2[22]': 0.45,    # low-mass sope
+ 'pq_func_par3[22]': 0.45,    # high-mass slope
+ 'pq_func_par4[22]': 1e10,    # peak mass
+ 'pq_func_par5[22]': 1.,      # pin to z=1
+ 'pq_func_par6[22]': 0.0      # no z evolution by default
+
 }
 
 metals = \
