@@ -178,34 +178,41 @@ _pop3 = satellites_all.copy()
 _pop4 = satellites_old.copy()
 _pop5 = ihl_from_sat.copy()
 
-for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3, _pop4, _pop5]):
+for i, _pop in enumerate([_pop0, _pop1, _pop2]):
     pf = {}
     for par in _pop.keys():
         pf[par + '{%i}' % i] = _pop[par]
 
     base.update(pf)
 
-base['pop_fsurv{3}'] = 'pq[3]'
-base['pq_func[3]{3}'] = 'logtanh_abs_evolM'
-base['pq_func_var[3]{3}'] = 'Mh'
-base['pq_func_var2[3]{3}'] = '1+z'
-base['pq_val_ceil[3]{3}'] = 1
-base['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
-base['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-base['pq_func_par2[3]{3}'] = 11
-base['pq_func_par3[3]{3}'] = 0.7 # dlogM
-base['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
-base['pq_func_par5[3]{3}'] = 1   # Pin to z=0
+subhalos = {}
+for i, _pop in enumerate([_pop3, _pop4, _pop5]):
+    pf = {}
+    for par in _pop.keys():
+        pf[par + '{%i}' % i] = _pop[par]
 
+    subhalos.update(pf)
 
-base['pop_fsurv{4}'] = 'link:fsurv:3'
+subhalos['pop_fsurv{3}'] = 'pq[3]'
+subhalos['pq_func[3]{3}'] = 'logtanh_abs_evolM'
+subhalos['pq_func_var[3]{3}'] = 'Mh'
+subhalos['pq_func_var2[3]{3}'] = '1+z'
+subhalos['pq_val_ceil[3]{3}'] = 1
+subhalos['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
+subhalos['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
+subhalos['pq_func_par2[3]{3}'] = 11
+subhalos['pq_func_par3[3]{3}'] = 0.7 # dlogM
+subhalos['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
+subhalos['pq_func_par5[3]{3}'] = 1   # Pin to z=0
 
-base['pop_Mmin{3}'] = 1e10
-base['pop_Mmin{4}'] = 1e10
-base['pop_Mmin{5}'] = 1e10
+subhalos['pop_fsurv{4}'] = 'link:fsurv:3'
 
-base['pop_fsurv{5}'] = 'link:fsurv:3'
-base['pop_fsurv_inv{5}'] = True
+subhalos['pop_Mmin{3}'] = 1e10
+subhalos['pop_Mmin{4}'] = 1e10
+subhalos['pop_Mmin{5}'] = 1e10
+
+subhalos['pop_fsurv{5}'] = 'link:fsurv:3'
+subhalos['pop_fsurv_inv{5}'] = True
 
 dust_template = {}
 dust_template['pop_dustext_template'] = 'milkyway_rv4'
@@ -317,4 +324,28 @@ gas = \
  'pq_func_par4[31]': 0.,   # no evolution
  'pq_val_ceil[31]': 1,
  'pq_val_floor[31]': 0,
+}
+
+Av = \
+{
+ "pop_Av": 'pq[31]',
+ "pq_func[31]": 'pl_evolN',
+ 'pq_func_var[31]': 'Ms',
+ 'pq_func_var2[31]': '1+z',
+ 'pq_func_par0[31]': 0.5,
+ 'pq_func_par1[31]': 1e10,
+ 'pq_func_par2[31]': 0.25,
+ 'pq_func_par3[31]': 1.,   # pin to z=0
+ 'pq_func_par4[31]': 0.,   # no evolution
+ 'pq_val_floor[31]': 0,
+
+ # Dust opacity vs. wavelength
+ "pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
+ "pq_func[20]": 'pl',
+ 'pq_func_var[20]': 'wave',
+ 'pq_func_var_lim[20]': (0., np.inf),
+ 'pq_func_var_fill[20]': 0.0,
+ 'pq_func_par0[20]': 1e5,      # opacity at wavelength below
+ 'pq_func_par1[20]': 1e3,
+ 'pq_func_par2[20]': -1.,
 }

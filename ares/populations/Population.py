@@ -1079,6 +1079,8 @@ class Population(object):
             window = [round(_window[jj],0) for jj in range(Nf-1)]
             window.append(1)
 
+
+
             if self.is_quiescent:
                 window = np.ones_like(_waves)
 
