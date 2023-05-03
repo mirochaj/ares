@@ -189,7 +189,7 @@ subhalos = {}
 for i, _pop in enumerate([_pop3, _pop4, _pop5]):
     pf = {}
     for par in _pop.keys():
-        pf[par + '{%i}' % i] = _pop[par]
+        pf[par + '{%i}' % (i + 3)] = _pop[par]
 
     subhalos.update(pf)
 

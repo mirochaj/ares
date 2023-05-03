@@ -4364,6 +4364,11 @@ class GalaxyCohort(GalaxyAggregate):
 
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
+                    if z < self.zdead:
+                        continue
+                    if z > self.zform:
+                        continue
+                        
                     integrand[i] = self._get_ps_obs(z, _scale_,
                         wave_obs1, wave_obs2,
                         include_shot=include_shot,

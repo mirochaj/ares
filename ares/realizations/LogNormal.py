@@ -488,7 +488,7 @@ class LogNormal(LightCone): # pragma: no cover
             np.random.seed(seed_occ)
 
             r = np.random.rand(N)
-            focc = self.sim.pops[idnum].focc(z=z, Mh=mass)
+            focc = self.sim.pops[idnum].get_focc(z=z, Mh=mass)
 
             ok = np.ones(N)
             ok[r > focc] = 0
@@ -762,7 +762,7 @@ class LogNormal(LightCone): # pragma: no cover
         red = self.get_field(z, 'redshift', mmin=mmin)
 
             # Could supply "red" instead of "z" here to get some evolution.
-        lum = self.sim.pops[idnum].get_sed(z, Mh, waves,
+        lum = self.sim.pops[idnum].get_spec(z, waves, M=Mh,
             stellar_mass=False)
 
         return waves, lum
