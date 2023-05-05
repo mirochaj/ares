@@ -148,7 +148,7 @@ class SynthesisModelBase(Source):
         E = self.tab_energies_c[j2:j1][-1::-1]
 
         # Units: erg / s / Hz
-        to_int = self.Spectrum(E)
+        to_int = self.get_spectrum(E)
 
         # Units: erg / s
         return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
@@ -165,7 +165,7 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def Spectrum(self, E):
+    def get_spectrum(self, E, t=None):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
@@ -234,7 +234,7 @@ class SynthesisModelBase(Source):
     @property
     def _norm(self):
         """
-        Normalization constant that forces self.Spectrum to have unity
+        Normalization constant that forces self.get_spectrum to have unity
         integral in the (Emin, Emax) band.
         """
         if not hasattr(self, '_norm_'):
@@ -573,10 +573,12 @@ class SynthesisModelBase(Source):
     #    else:
     #        return E_tot[-1] / N_tot[-1] / erg_per_ev
 
-    def get_rad_yield(self, Emin, Emax, raw=True):
+    def get_rad_yield(self, Emin=None, Emax=None, raw=True):
         """
-        This is essentially converting the units of get_lum_per_sfr into
-        our internal cgs units system.
+        The amount of radiative energy output in a given band [erg/s/[depends]].
+
+        If a simple stellar population (source_ssp==True), [depends] = Msun,
+        otherwise it's Msun/yr.
         """
 
         erg_per_variable = \
@@ -584,12 +586,12 @@ class SynthesisModelBase(Source):
             raw=raw, band_units='eV')
 
         if self.pf['source_ssp']:
-            # erg / s / Msun -> erg / s / g
+            # erg / s / Msun
             return np.interp(self.pf['source_age'], self.tab_t,
-                erg_per_variable / g_per_msun)
+                erg_per_variable)
         else:
-            # erg / g
-            return erg_per_variable[-1] * s_per_yr / g_per_msun
+            # erg / Msun
+            return erg_per_variable[-1]
 
     #@property
     #def Lbol_at_tsf(self):

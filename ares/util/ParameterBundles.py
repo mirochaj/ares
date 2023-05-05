@@ -79,7 +79,7 @@ _src_lya = \
  'pop_heat_src_igm': False,
  'pop_ion_src_cgm': False,
  'pop_ion_src_igm': False,
- 'pop_sed_model': False,
+ 'pop_sed': None,
 }
 
 _src_ion = \
@@ -92,7 +92,7 @@ _src_ion = \
  'pop_heat_src_igm': False,
  'pop_ion_src_cgm': True,
  'pop_ion_src_igm': False,
- 'pop_sed_model': False,
+ 'pop_sed': None,
 }
 
 _src_xray = \
@@ -110,14 +110,13 @@ _src_xray = \
  'pop_heat_src_igm': True,
  'pop_ion_src_cgm': False,
  'pop_ion_src_igm': True,
- 'pop_sed_model': True,
  'pop_fXh': 0.2,
 }
 
 
 _sed_toy = \
 {
- 'pop_sed_model': False,
+ 'pop_sed': None,
  'pop_Nion': 4e3,
  'pop_Nlw': 9690,
  'pop_rad_yield': 2.6e39,
@@ -132,7 +131,7 @@ _sed_toy = \
 
 _sed_xi = \
 {
- 'pop_sed_model': False,
+ 'pop_sed': None,
  'pop_xi_LW': 40.,
  'pop_xi_UV': 969.,
  'pop_xi_XR': 0.1,
@@ -187,14 +186,14 @@ _pop_hod = \
 
 # sSFR(z, Mstell)
  'pop_ssfr': 'pq[1]',
- 'pq_func[1]': 'pl_evolN',
- 'pq_func_var[1]': 'Ms',
- 'pq_func_var2[1]': '1+z',
- 'pq_func_par0[1]': 2e-10,
- 'pq_func_par1[1]': 1e10,
- 'pq_func_par2[1]': -0.0,
- 'pq_func_par3[1]': 1.,
- 'pq_func_par4[1]': 1.5,
+ #'pq_func[1]': 'pl_evolN',
+ #'pq_func_var[1]': 'Ms',
+ #'pq_func_var2[1]': '1+z',
+ #'pq_func_par0[1]': 2e-10,
+ #'pq_func_par1[1]': 1e10,
+ #'pq_func_par2[1]': -0.0,
+ #'pq_func_par3[1]': 1.,
+ #'pq_func_par4[1]': 1.5,
 
  'pq_func[1]': 'dpl_evolN',
  'pq_func_var[1]': 'Ms',
@@ -293,7 +292,6 @@ _crte_xrb = \
 
 _crte_lwb = _crte_xrb.copy()
 _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
-_crte_lwb['pop_sed_model'] = True
 _crte_lwb["pop_Emin"] = 10.2
 _crte_lwb["pop_Emax"] = 13.6
 _crte_lwb['pop_alpha'] = 0.0
@@ -338,7 +336,7 @@ _dust_kappa = \
 {
  "pop_dust_yield": 0.4,    # Mdust = dust_yield * metal mass
 
- "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
+ "pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
  "pq_func[20]": 'pl',
  'pq_func_var[20]': 'wave',
  'pq_func_par0[20]': 1e5,      # opacity at wavelength below

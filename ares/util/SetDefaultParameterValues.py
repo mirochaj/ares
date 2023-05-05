@@ -38,27 +38,6 @@ pgroups = [
     'Absorber',
 ]
 
-# Blob stuff
-_blob_redshifts = list('BCD')
-_blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
-
-# Nothing population specific
-_blob_names = [
-    'z',
-    'dTb',
-    'curvature',
-    'igm_Tk',
-    'igm_Ts',
-    'cgm_h_2',
-    'igm_h_1',
-    'cgm_k_ion',
-    'igm_k_heat',
-    'Ja',
-    'tau_e',
-]
-
-default_blobs = (_blob_names, _blob_names)
-
 # Start setting up list of parameters to be set
 defaults = []
 
@@ -137,7 +116,6 @@ def MultiPhaseParameters():
         "cgm_collisional_ionization": False,
         "cgm_cosmological_ics": False,
 
-        "photon_counting": False,
         "monotonic_EoR": 1e-6,
 
         "igm_grid_cells": 1,
@@ -534,11 +512,6 @@ def PopulationParameters():
     "pop_tunnel": None,
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
-    "pop_sed_model": True,    # or False
-
-    "pop_sfr_above_threshold": True,
-    "pop_sfr_cross_threshold": True,
-    "pop_sfr_cross_upto_Tmin": inf,
 
     "pop_ham_z": None,
 
@@ -679,7 +652,6 @@ def PopulationParameters():
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
     "pop_facc": 0.0,
-    "pop_fsmooth": 1.0,
 
     # Next 3: relative to fraction of halo acquiring the material
     'pop_acc_frac_metals': 1.0,
@@ -807,7 +779,6 @@ def PopulationParameters():
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
-    "pop_sfrd_units": 'msun/yr/mpc^3',
 
     # For BHs
     "pop_bh_formation": False,
@@ -876,6 +847,12 @@ def PopulationParameters():
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.1,
+
+    "pop_gas_fraction": None,
+
+    "pop_mzr": None,
+    "pop_fox": 0.03,
+
     "pop_dust_holes": 'big',
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
     "pop_dust_yield_delay": 0,
@@ -883,7 +860,8 @@ def PopulationParameters():
     "pop_dust_scale": 0.1,    # 100 pc
     "pop_dust_fcov": 1.0,
     "pop_dust_geom": 'screen',  # or 'mixed'
-    "pop_dust_kappa": None,   # opacity in [cm^2 / g]
+    "pop_dust_absorption_coeff": None,   # opacity in [cm^2 / g]
+
     "pop_dust_scatter": None,
     "pop_dust_scatter_seed": None,
     "pop_dust_kill_redshift": np.inf,
@@ -895,8 +873,9 @@ def PopulationParameters():
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
-    "pop_mass_escape": 0.0,
+    "pop_mass_loss": 0.0,
     "pop_fstar_res": 0.0,
+    "pop_metal_loss": 0.0,
 
     # Transition mass
     "pop_transition": 0,
@@ -969,19 +948,6 @@ def PopulationParameters():
     'pop_sf_C': 3.0,
     'pop_sf_D': 2.0,
 
-
-    # Utility
-    "pop_user_par0": None,
-    "pop_user_par1": None,
-    "pop_user_par2": None,
-    "pop_user_par3": None,
-    "pop_user_par4": None,
-    "pop_user_par5": None,
-    "pop_user_par6": None,
-    "pop_user_par7": None,
-    "pop_user_par8": None,
-    "pop_user_par9": None,
-    "pop_user_pmap": {},
     }
 
     pf.update(tmp)

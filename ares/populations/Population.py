@@ -25,9 +25,11 @@ from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..util.Warnings import no_lya_warning
+from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
@@ -53,7 +55,7 @@ def normalize_sed(pop):
     """
 
     # In this case, we're just using Nlw, Nion, etc.
-    if not pop.pf['pop_sed_model']:
+    if pop.pf['pop_sed'] is None:
         return 1.0
 
     E1 = pop.pf['pop_EminNorm']
@@ -66,6 +68,7 @@ def normalize_sed(pop):
         Zfactor = 1.
 
     if pop.pf['pop_rad_yield'] == 'from_sed':
+        print('This should never happen...?')
         # In this case Emin, Emax, EminNorm, EmaxNorm are irrelevant
         E1 = pop.src.Emin
         E2 = pop.src.Emax
@@ -74,23 +77,23 @@ def normalize_sed(pop):
         # Remove whitespace and convert everything to lower-case
         units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
         if units == 'erg/s/sfr':
-            return Zfactor * pop.pf['pop_rad_yield'] * s_per_yr / g_per_msun
+            return Zfactor * pop.pf['pop_rad_yield']
 
     energy_per_sfr = pop.pf['pop_rad_yield']
 
     # RARE: monochromatic normalization
     if units == 'erg/s/sfr/hz':
         assert pop.pf['pop_Enorm'] is not None
-        energy_per_sfr *= s_per_yr / g_per_msun / ev_per_hz
+        energy_per_sfr *= 1. / ev_per_hz
     else:
         erg_per_phot = pop.src.get_avg_photon_energy(E1, E2) * erg_per_ev
 
     if units == 'photons/baryon':
-        energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
+        energy_per_sfr *= erg_per_phot / (pop.cosm.g_per_baryon / g_per_msun)
     elif units == 'photons/msun':
-        energy_per_sfr *= erg_per_phot / g_per_msun
+        energy_per_sfr *= erg_per_phot
     elif units == 'photons/s/sfr':
-        energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun
+        energy_per_sfr *= erg_per_phot * s_per_yr
     elif units == 'erg/s/sfr/hz':
         pass
     else:
@@ -126,6 +129,39 @@ class Population(object):
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
         pass
+
+    def _get_function(self, par):
+        """
+        Returns a function representation of input parameter `par`.
+
+        For example, the user supplies the parameter `pop_dust_yield`. This
+        routien figures out if that's a number, a function, or a string
+        indicating a ParameterizedQuantity, and creates a callable function
+        no matter what.
+        """
+
+        if not hasattr(self, '_get_{}'.format(par.strip('pop_'))):
+            t = type(self.pf[par])
+
+            if t in numeric_types:
+                func = lambda **kwargs: self.pf[par]
+            elif t == FunctionType:
+                func = lambda **kwargs: self.pf[par](**kwargs)
+            elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
+                pars = get_pq_pars(self.pf[par], self.pf)
+                ob = ParameterizedQuantity(**pars)
+                func = lambda **kwargs: ob.__call__(**kwargs)
+                setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
+            else:
+                raise NotImplementedError(f"Unrecognized option for `{par}`.")
+
+            if f'{par}_inv' in self.pf:
+                if self.pf[f'{par}_inv']:
+                    func = lambda **kwargs: 1. - func(**kwargs)
+
+            setattr(self, '_get_{}'.format(par.strip('pop_')), func)
+
+        return getattr(self, '_get_{}'.format(par.strip('pop_')))
 
     @property
     def info(self):
@@ -205,18 +241,37 @@ class Population(object):
         return self._affects_igm
 
     @property
+    def is_metallicity_constant(self):
+        if not hasattr(self, '_is_metallicity_constant'):
+            self._is_metallicity_constant = not self.pf['pop_enrichment']
+        return self._is_metallicity_constant
+
+    @cached_property
+    def is_sfe_constant(self):
+        """ Is the SFE constant in redshift (at fixed halo mass)?"""
+
+        _is_sfe_constant = 1
+        for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
+            is_equal = self.get_fstar(z=10, Mh=mass) \
+                    == self.get_fstar(z=20, Mh=mass)
+
+            _is_sfe_constant *= np.all(is_equal)
+
+        return bool(_is_sfe_constant)
+
+    @cached_property
     def is_central_pop(self):
         return self.pf['pop_centrals']
 
-    @property
+    @cached_property
     def is_satellite_pop(self):
         return not self.is_central_pop
 
-    @property
+    @cached_property
     def is_star_forming(self):
         return not self.is_quiescent
 
-    @property
+    @cached_property
     def is_quiescent(self):
         return (self.pf['pop_sfr_model'] == 'smhm-func') and \
             (self.pf['pop_ssfr'] is None)
@@ -226,13 +281,28 @@ class Population(object):
         return self.pf['pop_aging']
 
     @property
+    def is_hod(self):
+        """
+        Is this a halo occupation model, i.e., does NOT require time
+        integration?
+        """
+        return self.is_user_smhm
+
+    @property
+    def is_sam(self):
+        """
+        Is this a semi-analytic model, i.e., requires time integration?
+        """
+        return not self.is_hod
+
+    @property
     def is_diffuse(self):
         return self.pf['pop_ihl'] is not None
 
     @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 E21 = 1.4e9 * (h_p / erg_per_ev)
                 self._is_src_radio = \
                     (self.pf['pop_Emin'] <= E21 <= self.pf['pop_Emax']) \
@@ -258,7 +328,7 @@ class Population(object):
     @property
     def is_src_lya(self):
         if not hasattr(self, '_is_src_lya'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_lya = \
                     (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
@@ -286,7 +356,7 @@ class Population(object):
     @property
     def is_src_ion_cgm(self):
         if not hasattr(self, '_is_src_ion_cgm'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_ion_cgm = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_cgm']
@@ -298,7 +368,7 @@ class Population(object):
     @property
     def is_src_ion_igm(self):
         if not hasattr(self, '_is_src_ion_igm'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_ion_igm = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_igm']
@@ -332,7 +402,7 @@ class Population(object):
     @property
     def is_src_heat_igm(self):
         if not hasattr(self, '_is_src_heat_igm'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_heat_igm = \
                     (E_LL <= self.pf['pop_Emin']) \
                     and self.pf['pop_heat_src_igm']
@@ -357,7 +427,7 @@ class Population(object):
     def is_src_uv(self):
         # Delete this eventually but right now doing so will break stuff
         if not hasattr(self, '_is_src_uv'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_uv = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_cgm']
@@ -369,7 +439,7 @@ class Population(object):
     @property
     def is_src_xray(self):
         if not hasattr(self, '_is_src_xray'):
-            if self.pf['pop_sed_model']:
+            if self.pf['pop_sed'] is not None:
                 self._is_src_xray = \
                     (E_LL <= self.pf['pop_Emin']) \
                     and self.pf['pop_heat_src_igm']
@@ -385,7 +455,7 @@ class Population(object):
                 self._is_src_lw = False
             elif not self.pf['pop_lw_src']:
                 self._is_src_lw = False
-            elif self.pf['pop_sed_model']:
+            elif self.pf['pop_sed'] is not None:
                 self._is_src_lw = \
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax'])
             else:
@@ -624,18 +694,33 @@ class Population(object):
 
         return self._src_csfr_
 
-    @property
-    def yield_per_sfr(self):
-        if not hasattr(self, '_yield_per_sfr'):
+    @cached_property
+    def tab_radiative_yield(self):
+        """
+        This is the conversion factor between star formation and luminosity.
 
-            # erg/g
-            self._yield_per_sfr = normalize_sed(self)
+        If this is a star-forming population, i.e., self.is_star_forming=True,
+        then it is [erg/s/(Msun/yr)].
 
-        return self._yield_per_sfr
+        If this is a quiescent population (self.is_quiescent=True), then the
+        units are [erg/s/Msun] for the corresponding age (`pop_age`).
+        """
+        #if not hasattr(self, '_yield_per_sfr'):
 
-    @yield_per_sfr.setter
-    def yield_per_sfr(self, value):
-        self._yield_per_sfr = value
+        ## erg/g
+        #self._yield_per_sfr = normalize_sed(self)
+
+        if self.src.is_sed_tabular:
+            E1 = self.src.Emin
+            E2 = self.src.Emax
+            y = self.src.get_rad_yield(E1, E2)
+        else:
+            y = normalize_sed(self)#self.pf['source_rad_yield']
+
+        return y #/ g_per_msun
+    #@yield_per_sfr.setter
+    #def yield_per_sfr(self, value):
+    #    self._yield_per_sfr = value
 
     @property
     def is_fcoll_model(self):
@@ -644,7 +729,7 @@ class Population(object):
     @property
     def is_user_sfrd(self):
         return (self.pf['pop_sfr_model'].lower() in \
-            ['sfrd-func', 'sfrd-tab', 'sfrd-class'])
+            ['sfrd-func', 'sfrd-class'])
 
     @property
     def is_link_sfrd(self):
@@ -665,18 +750,13 @@ class Population(object):
         return self.pf['pop_sfr_model'] == 'smhm-func'
 
     @property
-    def sed_tab(self):
-        if not hasattr(self, '_sed_tab'):
-            if self.pf['pop_sed'] in _sed_tabs:
-                self._sed_tab = True
-            else:
-                self._sed_tab = False
-        return self._sed_tab
+    def is_sed_tab(self):
+        return self.src.is_sed_tabular
 
     @property
     def reference_band(self):
         if not hasattr(self, '_reference_band'):
-            if self.sed_tab:
+            if self.is_sed_tab:
                 self._reference_band = self.src.Emin, self.src.Emax
             else:
                 self._reference_band = \
@@ -689,9 +769,9 @@ class Population(object):
             self._full_band = (self.pf['pop_Emin'], self.pf['pop_Emax'])
         return self._full_band
 
-    @property
-    def model(self):
-        return self.pf['pop_model']
+    #@property
+    #def model(self):
+    #    return self.pf['pop_model']
 
     def _convert_band(self, Emin, Emax):
         """
@@ -748,12 +828,12 @@ class Population(object):
                     self.id_num))
 
             # If tabulated, do things differently
-            if self.sed_tab:
+            if self.is_sed_tab:
                 factor = self.src.get_rad_yield(Emin, Emax) \
                     / self.src.get_rad_yield(*self.reference_band)
             else:
-                factor = quad(self.src.Spectrum, Emin, Emax)[0] \
-                    / quad(self.src.Spectrum, *self.reference_band)[0]
+                factor = quad(self.src.get_spectrum, Emin, Emax)[0] \
+                    / quad(self.src.get_spectrum, *self.reference_band)[0]
 
             self._conversion_factors[(Emin, Emax)] = factor
 
@@ -781,7 +861,7 @@ class Population(object):
 
         """
 
-        if not self.pf['pop_sed_model']:
+        if self.pf['pop_sed'] is None:
             Eavg = np.mean([Emin, Emax])
             self._eV_per_phot[(Emin, Emax)] = Eavg
             return Eavg
@@ -812,12 +892,12 @@ class Population(object):
                 "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                 self.id_num))
 
-        if self.sed_tab:
+        if self.is_sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
-            integrand = lambda E: self.src.Spectrum(E) * E
+            integrand = lambda E: self.src.get_spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0] \
-                / quad(self.src.Spectrum, Emin, Emax)[0]
+                / quad(self.src.get_spectrum, Emin, Emax)[0]
 
         self._eV_per_phot[(Emin, Emax)] = Eavg
 
@@ -973,7 +1053,7 @@ class Population(object):
             Inu[-1] = 1.
         else:
             for i in range(Nf):
-                Inu[i] = self.src.Spectrum(E[i])
+                Inu[i] = self.src.get_spectrum(E[i])
 
         # Convert to photon *number* (well, something proportional to it)
         Inu_hat = Inu / E
@@ -998,6 +1078,8 @@ class Population(object):
             _window = 2 * np.abs(np.diff(_waves))
             window = [round(_window[jj],0) for jj in range(Nf-1)]
             window.append(1)
+
+
 
             if self.is_quiescent:
                 window = np.ones_like(_waves)
@@ -1044,8 +1126,6 @@ class Population(object):
 
                     # Convert from luminosity in erg to photons
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
-
-            epsilon /= cm_per_mpc**3
 
         elif scalable:
             Lbol = self.get_emissivity(z)
@@ -1118,7 +1198,7 @@ class Population(object):
                         raise NotImplemented('sorry dude')
                     elif self.pf['pop_synth_lwb_method'] == 1:
                         # Assume SED of continuousy-star-forming source.
-                        Inu_hat_p = self._src_csfr.Spectrum(E[in_band==1]) \
+                        Inu_hat_p = self._src_csfr.get_spectrum(E[in_band==1]) \
                             / E[in_band==1]
                         fix = Inu_hat_p / Inu_hat[in_band==1][0]
                     else:

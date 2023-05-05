@@ -17,119 +17,125 @@ from ..util import ProgressBar
 from ..analysis import ModelSet
 from scipy.misc import derivative
 from scipy.optimize import fsolve
+from ..util.Misc import numeric_types
 from scipy.integrate import quad, simps, cumtrapz, ode
-from ..util.ParameterFile import par_info, get_pq_pars
 from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
 from ..util.Stats import bin_c2e, bin_e2c
-from ..util.Math import central_difference, interp1d_wrapper, interp1d, \
-    LinearNDInterpolator
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity, numeric_types
+from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr
 
 small_dz = 1e-8
 ztol = 1e-4
-z0 = 9. # arbitrary
+#z0 = 9. # arbitrary
 tiny_phi = 1e-18
-_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
-    'L_per_sfr', 'sps-toy']
+#_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
+#    'L_per_sfr', 'sps-toy']
 
 class GalaxyCohort(GalaxyAggregate):
+    """
+    Create a GalaxyCohort instance.
 
-    def _update_pq_registry(self, name, obj):
-        if not hasattr(self, '_pq_registry'):
-            self._pq_registry = {}
+    The defining feature of GalaxyCohort models is that galaxy properties can
+    be functions of halo mass and/or redshift, providing a slight
+    generalization over the GalaxyAggregate models.
 
-        if name in self._pq_registry:
-            raise KeyError('{!s} already in registry!'.format(name))
+    The most important parameter is `pop_sfr_model`.
+    """
+    #def _update_pq_registry(self, name, obj):
+    #    if not hasattr(self, '_pq_registry'):
+    #        self._pq_registry = {}
 
-        self._pq_registry[name] = obj
+    #    if name in self._pq_registry:
+    #        raise KeyError('{!s} already in registry!'.format(name))
 
-    def __getattr__(self, name):
-        """
-        This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet). The only special case is really L1600_per_sfr, since
-        that requires accessing a SynthesisModel.
-        """
+    #    self._pq_registry[name] = obj
 
-        # Indicates that this attribute is being accessed from within a
-        # property. Don't want to override that behavior!
-        # This is in general pretty dangerous but I don't have any better
-        # ideas right now. It makes debugging hard but it's SO convenient...
-        if (name[0] == '_'):
-            if name.startswith('_tab'):
-                return self.__getattribute__(name)
+    #def __getattr__(self, name):
+    #    """
+    #    This gets called anytime we try to fetch an attribute that doesn't
+    #    exist (yet). The only special case is really L1600_per_sfr, since
+    #    that requires accessing a SynthesisModel.
+    #    """
 
-            raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
+    #    # Indicates that this attribute is being accessed from within a
+    #    # property. Don't want to override that behavior!
+    #    # This is in general pretty dangerous but I don't have any better
+    #    # ideas right now. It makes debugging hard but it's SO convenient...
+    #    if (name[0] == '_'):
+    #        if name.startswith('_tab'):
+    #            return self.__getattribute__(name)
 
-        # This is the name of the thing as it appears in the parameter file.
-        full_name = 'pop_' + name
+    #        raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
 
-        # Now, possibly make an attribute
-        try:
-            is_php = self.pf[full_name][0:2] == 'pq'
-        except (IndexError, TypeError):
-            is_php = False
+    #    # This is the name of the thing as it appears in the parameter file.
+    #    full_name = 'pop_' + name
 
-        # A few special cases
-        _name = name
-        if self.sed_tab and (name in _sed_tab_attributes):
+    #    # Now, possibly make an attribute
+    #    try:
+    #        is_php = self.pf[full_name][0:2] == 'pq'
+    #    except (IndexError, TypeError):
+    #        is_php = False
+
+    #    # A few special cases
+    #    _name = name
+    #    if self.sed_tab and (name in _sed_tab_attributes):
 
 
-            if name == 'rad_yield':
-                _name = 'get_' + name
-                att = self.src.__getattribute__(_name)
-                val = att(self.src.Emin, self.src.Emax)
-            else:
-                att = self.src.__getattribute__(_name)
-                val = att
+    #        if name == 'rad_yield':
+    #            _name = 'get_' + name
+    #            att = self.src.__getattribute__(_name)
+    #            val = att(self.src.Emin, self.src.Emax)
+    #        else:
+    #            att = self.src.__getattribute__(_name)
+    #            val = att
 
-            result = lambda **kwargs: val
+    #        result = lambda **kwargs: val
 
-        elif is_php:
-            tmp = get_pq_pars(self.pf[full_name], self.pf)
-            # Correct values that are strings:
-            if self.sed_tab:
-                pars = {}
-                for par in tmp:
-                    if tmp[par] == 'from_sed':
-                        pars[par] = self.src.__getattribute__(_name)
-                    else:
-                        pars[par] = tmp[par]
-            else:
-                pars = tmp
+    #    elif is_php:
+    #        tmp = get_pq_pars(self.pf[full_name], self.pf)
+    #        # Correct values that are strings:
+    #        if self.sed_tab:
+    #            pars = {}
+    #            for par in tmp:
+    #                if tmp[par] == 'from_sed':
+    #                    pars[par] = self.src.__getattribute__(_name)
+    #                else:
+    #                    pars[par] = tmp[par]
+    #        else:
+    #            pars = tmp
 
-            Mmin = lambda z: self.get_Mmin(z)
-            #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
-            result = ParameterizedQuantity(**pars)
+    #        Mmin = lambda z: self.get_Mmin(z)
+    #        #result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
+    #        result = ParameterizedQuantity(**pars)
 
-            self._update_pq_registry(_name, result)
+    #        self._update_pq_registry(_name, result)
 
-        elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
+    #    elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
 
-            # Need to be careful here: has user-specified units!
-            # We've assumed that this cannot be parameterized...
-            # i.e., previous elif won't ever catch rad_yield
-            if name == 'rad_yield':
-                result = lambda **kwargs: normalize_sed(self)
-            else:
-                result = lambda **kwargs: self.pf[full_name]
+    #        # Need to be careful here: has user-specified units!
+    #        # We've assumed that this cannot be parameterized...
+    #        # i.e., previous elif won't ever catch rad_yield
+    #        if name == 'rad_yield':
+    #            result = lambda **kwargs: normalize_sed(self)
+    #        else:
+    #            result = lambda **kwargs: self.pf[full_name]
 
-        elif type(self.pf[full_name]) is FunctionType:
-            result = lambda **kwargs: self.pf[full_name](**kwargs)
-        else:
-            raise TypeError('dunno how to handle: {!s}'.format(name))
+    #    elif type(self.pf[full_name]) is FunctionType:
+    #        result = lambda **kwargs: self.pf[full_name](**kwargs)
+    #    else:
+    #        raise TypeError('dunno how to handle: {!s}'.format(name))
 
-        # Check to see if Z?
-        setattr(self, name, result)
+    #    # Check to see if Z?
+    #    setattr(self, name, result)
 
-        return result
+    #    return result
 
-    def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=True,
-        nebular_only=False, age=None):
+    def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=False,
+        nebular_only=False, age=None, band_units='Angstrom'):
         """
         Get the luminosity (per SFR) for all possible metallicities.
 
@@ -157,7 +163,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             src = self._Source(cosm=self.cosm, **kw)
             L_per_sfr = src.get_lum_per_sfr(wave=wave, window=window,
-                band=band, raw=raw, nebular_only=nebular_only, age=age)
+                band=band, raw=raw, nebular_only=nebular_only, age=age,
+                band_units=band_units)
 
             ## Must specify band
             #if name == 'rad_yield':
@@ -175,9 +182,20 @@ class GalaxyCohort(GalaxyAggregate):
 
         return L_of_Z_func
 
-    def get_metallicity(self, z, Mh=None):
+    def get_radiative_yield(self, z, Mh):
         """
-        Get the gas phase metallicity of all halos in the model.
+        Returns the total output [in erg/s] in the band defined by
+        `pop_EminNorm`, `pop_EmaxNorm`. Or, if this population's SED is from
+        a stellar population synthesis model (or other lookup table), it
+        is the total output in the energy range covered in that table.
+        """
+
+        if self.pf['pop_rad_yield'] is not None:
+            pass
+
+    def get_metallicity(self, z, Mh=None, gas_phase=False):
+        """
+        Get the metallicity of all halos in the model.
 
         ..note :: This is a derived quantity, which is why it's not accessible
             via `get_field`.
@@ -194,23 +212,86 @@ class GalaxyCohort(GalaxyAggregate):
         assert self.pf['pop_enrichment'] == 1, \
             "Only pop_enrichment=1 available for GalaxyCohort right now."
 
+        fb = self.cosm.fbaryon
         fmr = self.pf['pop_mass_yield']
         fZy = fmr * self.pf['pop_metal_yield']
 
-        Ms = self.get_field(z, 'Ms')
-        MZ = Ms * fZy
-        Mg = self.get_field(z, 'Mg')
+        if Mh is None:
+            Mh = self.halos.tab_M
 
-        Z = MZ / Mg / self.pf['pop_fpoll']
+        if self.is_user_smhm:
 
-        Z[Mg==0] = 1e-3
-        Z = np.maximum(Z, 1e-3)
+            smhm = self.get_smhm(z=z, Mh=Mh)
+            smhm[Mh < self.get_Mmin(z)] = 0
+            smhm[Mh > self.get_Mmax(z)] = 0
+            Ms = smhm * Mh
+
+            if self.pf['pop_mzr'] is not None:
+                func = self._get_function('pop_mzr')
+
+                Zgas = func(z=z, Ms=np.log10(Ms))
+
+                if gas_phase:
+                    Z = Zgas
+                else:
+                    Z = 10**(Zgas - 12.) \
+                        * self.cosm.X / self.pf['pop_fox']
+
+            else:
+                MZ = Ms * fZy * (1. - self.get_metal_loss(z, Mh=Mh))
+
+                # Cosmological gas mass minus stellar mass
+                Mg0 = Mh * fb * (1. - smhm)
+
+                Mg = Mg0 * (1. - self.get_mass_loss(z, Mh=Mh))
+
+                Zstell = MZ / Mg
+
+                if gas_phase:
+                    Z = 12. + np.log10(self.pf['pop_fox'] * Zstell / self.cosm.X)
+                else:
+                    Z = Zstell
+
+        else:
+
+            Ms = self.get_field(z, 'Ms')
+            MZ = Ms * fZy
+            Mg = self.get_field(z, 'Mg')
+
+            Z = MZ / Mg / self.pf['pop_fpoll']
+            #Z[Mg==0] = 1e-3
+
+            assert not gas_phase
+
+        # Enforce metallicity floor
+        #if not gas_phase:
+        #    Z = np.maximum(Z, 1e-3)
 
         if Mh is None:
             return Z
         else:
             _Mh = self.get_field(z, 'Mh')
             return 10**np.interp(np.log10(Mh), np.log10(_Mh), np.log10(Z))
+
+    def get_metal_loss(self, z, Mh=None):
+        func = self._get_function('pop_metal_loss')
+        return func(z=z, Mh=Mh)
+
+    def get_mass_loss(self, z, Mh=None):
+        func = self._get_function('pop_mass_loss')
+        return func(z=z, Mh=Mh)
+
+    def get_gas_mass(self, z, Mh=None):
+        """
+        Uses `pop_gas_fraction`, which is defined relative to cosmic baryon
+        fraction, so a value of unity means a halo has Mgas = Mh * fbaryon.
+
+        .. note :: This does not subtract off mass in stars, so Mgas+Mstell
+            could in principle exceed fbaryon * Mh.
+
+        """
+        func = self._get_function('pop_gas_fraction')
+        return func(z=z, Mh=Mh) * Mh * self.cosm.fbaryon
 
     def get_field(self, z, field):
         """
@@ -234,10 +315,20 @@ class GalaxyCohort(GalaxyAggregate):
         Array of field values for all halos at redshift `z`.
 
         """
-        zall, data = self.get_histories()
-        iz = np.argmin(np.abs(z - zall))
+        if self.is_user_smhm:
+            if field == 'Mh':
+                return self.halos.tab_M
+            elif field == 'Ms':
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+                return mste
+            else:
+                raise NotImplementedError('help')
+        else:
+            zall, data = self.get_histories()
+            iz = np.argmin(np.abs(z - zall))
 
-        return data[field][:,iz]
+            return data[field][:,iz]
 
     def get_photons_per_Msun(self, Emin, Emax):
         """
@@ -259,10 +350,10 @@ class GalaxyCohort(GalaxyAggregate):
         # Otherwise, calculate what it should be
         if (Emin, Emax) in [(E_LL, 24.6), (13.6, 24.6)]:
             # Should be based on energy at this point, not photon number
-            self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.tab_M) \
+            self._N_per_Msun[(Emin, Emax)] = self.get_Nion(z=None, Mh=self.halos.tab_M) \
                 * self.cosm.b_per_msun
         elif (Emin, Emax) == (10.2, 13.6):
-            self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.tab_M) \
+            self._N_per_Msun[(Emin, Emax)] = self.get_Nlw(z=None, Mh=self.halos.tab_M) \
                 * self.cosm.b_per_msun
         else:
             s = 'Unrecognized band: ({0:.3g}, {1:.3g})'.format(Emin, Emax)
@@ -282,80 +373,10 @@ class GalaxyCohort(GalaxyAggregate):
     def _tab_MAR_at_Mmin(self):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
-                np.array([self.get_MAR(self.halos.tab_z[i], self._tab_Mmin[i]) \
+                np.array([self.get_mar(self.halos.tab_z[i], self._tab_Mmin[i]) \
                     for i in range(self.halos.tab_z.size)])
 
         return self._tab_MAR_at_Mmin_
-
-    @property
-    def _tab_nh_at_Mmin(self):
-        if not hasattr(self, '_tab_nh_at_Mmin_'):
-            self._tab_nh_at_Mmin_ = \
-                np.array([self._func_nh(self.halos.tab_z[i],
-                    np.log(self._tab_Mmin[i])) \
-                    for i in range(self.halos.tab_z.size)]).squeeze()
-
-        return self._tab_nh_at_Mmin_
-
-    @property
-    def _tab_fstar_at_Mmin(self):
-        if not hasattr(self, '_tab_fstar_at_Mmin_'):
-            self._tab_fstar_at_Mmin_ = \
-                self.get_fstar(z=self.halos.tab_z, Mh=self._tab_Mmin)
-        return self._tab_fstar_at_Mmin_
-
-    @property
-    def _tab_sfr_at_Mmin(self):
-        if not hasattr(self, '_tab_sfr_at_Mmin_'):
-            self._tab_sfr_at_Mmin_ = \
-                np.array([self.get_fstar(z=self.halos.tab_z[i],
-                    Mh=self._tab_Mmin[i]) \
-                    for i in range(self.halos.tab_z.size)])
-        return self._tab_sfr_at_Mmin_
-
-    @property
-    def _tab_sfrd_at_threshold(self):
-        """
-        Star formation rate density from halos just crossing threshold.
-
-        Essentially the second term of Equation A1 from Furlanetto+ 2017.
-        """
-        if not hasattr(self, '_tab_sfrd_at_threshold_'):
-            if not self.pf['pop_sfr_cross_threshold']:
-                self._tab_sfrd_at_threshold_ = np.zeros_like(self.halos.tab_z)
-                return self._tab_sfrd_at_threshold_
-
-            # Model: const SFR in threshold-crossing halos.
-            if type(self.pf['pop_sfr']) in [int, float, np.float64]:
-                self._tab_sfrd_at_threshold_ = self.pf['pop_sfr'] \
-                    * self._tab_nh_at_Mmin * self._tab_Mmin
-            else:
-                active = 1. - self.fsup(z=self.halos.tab_z)
-                self._tab_sfrd_at_threshold_ = active * self._tab_eta \
-                    * self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
-                    * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                    * self._tab_nh_at_Mmin \
-                    * self.focc(z=self.halos.tab_z, Mh=self._tab_Mmin)
-
-            #Mmin_dot = lambda z: -1. * derivative(self.Mmin, z) * s_per_yr / self.cosm.dtdz(z)
-            #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * Mmin_dot(self.halos.tab_z)
-
-            self._tab_sfrd_at_threshold_ *= g_per_msun / s_per_yr / cm_per_mpc**3
-
-            # Don't count this "new" star formation once the minimum mass
-            # exceeds some value. At this point, it will (probably, hopefully)
-            # be included in the star-formation of some other population.
-            if np.isfinite(self.pf['pop_sfr_cross_upto_Tmin']):
-                Tlim = self.pf['pop_sfr_cross_upto_Tmin']
-                Mlim = self.halos.VirialMass(z=self.halos.tab_z, T=Tlim)
-
-                mask = self.Mmin < Mlim
-                self._tab_sfrd_at_threshold_ *= mask
-
-        return self._tab_sfrd_at_threshold_
-
-    #def rho_L(self, Emin=None, Emax=None):
-    #    return self.get_luminosity_density(Emin=Emin, Emax=Emax)
 
     def _get_luminosity_density(self, Emin=None, Emax=None):
         """
@@ -408,9 +429,9 @@ class GalaxyCohort(GalaxyAggregate):
 
             if Emin in [13.6, E_LL]:
                 # Doesn't matter what Emax is
-                fesc = lambda **kwargs: self.fesc(**kwargs)
+                fesc = lambda **kwargs: self.get_fesc(**kwargs)
             elif (Emin, Emax) in [(10.2, 13.6), (E_LyA, E_LL)]:
-                fesc = lambda **kwargs: self.fesc_LW(**kwargs)
+                fesc = lambda **kwargs: self.get_fesc_LW(**kwargs)
             else:
                 use_yield_per_sfr = False
                 fesc = lambda **kwargs: 1.0
@@ -444,7 +465,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 pass
 
-            yield_per_sfr = lambda **kwargs: self.rad_yield(**kwargs) \
+            yield_per_sfr = lambda **kwargs: self.get_radiative_yield(**kwargs) \
                 * s_per_yr
 
         ##
@@ -498,34 +519,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             tab[i] = _tmp
 
-        tab *= 1. / s_per_yr / cm_per_mpc**3
-
-        if self.pf['pop_sfr_cross_threshold']:
-
-            y = yield_per_sfr(z=self.halos.tab_z, Mh=self._tab_Mmin)
-
-            if self.pf['pop_sfr'] is not None:
-                thresh = self._tab_sfr_at_Mmin \
-                    * self._tab_nh_at_Mmin * self._tab_Mmin \
-                    * y / s_per_yr / cm_per_mpc**3
-            else:
-
-                if not np.all(self._tab_eta == 1):
-                    raise NotImplemented('Needs fixing! Shape issue.')
-
-                eta = 1.
-
-                active = 1. - self.fsup(z=self.halos.tab_z)
-                thresh = active * eta * \
-                    self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
-                    * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                    * self._tab_nh_at_Mmin * y \
-                    / s_per_yr / cm_per_mpc**3
-
-            tab += thresh
-
-        _Emin = round(Emin, 1)
-        _Emax = round(Emax, 1)
+        tab *= 1. / s_per_yr #/ cm_per_mpc**3
 
         self._rho_L[(_Emin, _Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
@@ -541,7 +535,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        Luminosity density in units of photons / s / (comoving cm)**3.
+        Luminosity density in units of photons / s / cMpc**3.
         """
 
         if not hasattr(self, '_rho_N'):
@@ -557,9 +551,9 @@ class GalaxyCohort(GalaxyAggregate):
         N_per_Msun = self.get_photons_per_Msun(Emin=Emin, Emax=Emax)
 
         if abs(Emin - E_LL) < 0.1:
-            fesc = self.fesc(z=z, Mh=self.halos.tab_M)
+            fesc = self.get_fesc(z=z, Mh=self.halos.tab_M)
         elif (abs(Emin - E_LyA) < 0.1 and abs(Emax - E_LL) < 0.1):
-            fesc = self.fesc_LW(z=z, Mh=self.halos.tab_M)
+            fesc = self.get_fesc_LW(z=z, Mh=self.halos.tab_M)
         else:
             raise NotImplementedError('help!')
 
@@ -575,41 +569,36 @@ class GalaxyCohort(GalaxyAggregate):
             tab[i] = tot - \
                 np.interp(np.log(self._tab_Mmin[i]), np.log(self.halos.tab_M), cumtot)
 
-        tab *= 1. / s_per_yr / cm_per_mpc**3
+        tab *= 1. / s_per_yr #/ cm_per_mpc**3
 
         self._rho_N[(Emin, Emax)] = interp1d(self.halos.tab_z, tab,
             kind=self.pf['pop_interp_sfrd'])
 
         return self._rho_N[(Emin, Emax)](z)
 
-    def _sfrd_func(self, z):
-        # This is a cheat so that the SFRD spline isn't constructed
-        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter).
-        return self.get_sfrd(z)
+    def get_focc(self, z, Mh):
+        """
+        Get occupation fraction.
+        """
+        func = self._get_function('pop_focc')
+        result = func(z=z, Mh=Mh)
+        return result
 
-    @property
-    def focc(self):
-        if not hasattr(self, '_focc'):
-            raise AttributeError('Must be set by hand if at all.')
-        return self._focc
+    def get_fsurv(self, z, Mh):
+        """
+        Get survival fraction.
+        """
+        func = self._get_function('pop_fsurv')
+        result = func(z=z, Mh=Mh)
+        return result
 
-    @focc.setter
-    def focc(self, value):
-        self._focc = value
-
-    @property
-    def fsurv(self):
-        if not hasattr(self, '_fsurv'):
-            raise AttributeError('Must be set by hand if at all.')
-        return self._fsurv
-
-    @fsurv.setter
-    def fsurv(self, value):
-        self._fsurv = value
-
-    @property
-    def SFRD(self):
-        return self.get_sfrd
+    def get_fshock(self, **kwargs):
+        """
+        Get survival fraction.
+        """
+        func = self._get_function('pop_fshock')
+        result = func(**kwargs)
+        return result
 
     def get_sfrd(self, z):
         """
@@ -623,16 +612,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_sfrd(z)
 
-    @SFRD.setter
-    def SFRD(self, value):
-        self._SFRD = value
-
     def get_smd(self, z):
         """
         Compute stellar mass density (SMD) at redshift `z`.
 
-        .. note :: Units are grams, so that one can multiply by `yield_per_sfr`
-            to obtain an emissivity.
+        Returns
+        -------
+        Stellar mass density in Msun/cMpc^3.
 
         """
 
@@ -647,7 +633,7 @@ class GalaxyCohort(GalaxyAggregate):
                     smhm[self.halos.tab_M > self.get_Mmax(_z)] = 0
 
                     integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
-                        * self.tab_focc[i] * g_per_msun / cm_per_mpc**3
+                        * self.tab_focc[i]
                     self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
             else:
                 dtdz = np.array([self.cosm.dtdz(z) \
@@ -662,14 +648,10 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_smd(z)
 
-    def get_MAR(self, z, Mh):
-        MGR = np.maximum(self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh), 0.)
+    def get_mar(self, z, Mh):
+        MGR = np.maximum(self.MGR(z, Mh), 0.)
         eta = self.eta(z, Mh)
         return eta * MGR
-
-    def get_MDR(self, z, Mh):
-        # Mass "delivery" rate
-        return self.MGR(z, Mh) * (1. - self.fsmooth(z=z, Mh=Mh))
 
     @property
     def eta(self):
@@ -812,9 +794,10 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         # User may have supplied a function for SFR(z, Mh) directly.
-        if self.pf['pop_sfr'] is not None:
-            if type(self.pf['pop_sfr']) == 'str':
-                return self.sfr(z=z, Mh=Mh)
+        #if self.pf['pop_sfr'] is not None:
+        #    func = self._get_function('pop_sfr')
+        #    if type(self.pf['pop_sfr']) == 'str':
+        #        return func(z=z, Mh=Mh)
 
         # Will use only if interpolating onto user-supplied set of halo masses.
         flipM = False
@@ -900,7 +883,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        Emissivity in units of erg / s / c-cm**3 [/ eV]
+        Emissivity in units of erg / s / cMpc**3 [/ eV]
 
         """
 
@@ -955,7 +938,7 @@ class GalaxyCohort(GalaxyAggregate):
             rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
         if E is not None:
-            return rhoL * self.src.Spectrum(E) * on
+            return rhoL * self.src.get_spectrum(E) * on
         else:
             return rhoL * on
 
@@ -1006,10 +989,10 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplementedError('Unrecognized mass kind={}.'.format(kind))
 
-    def StellarMassFunction(self, z, bins=None, units='dex'):
-        return self.get_smf(z, bins=bins, units=units)
-
     def get_smf(self, z, bins=None, units='dex'):
+        return self.get_mf(z, bins=bins, units=units, mass='stellar')
+
+    def get_mf(self, z, bins=None, units='dex', mass='stellar'):
         """
         Return stellar mass function.
 
@@ -1034,22 +1017,36 @@ class GalaxyCohort(GalaxyAggregate):
             logMh = np.log10(self.halos.tab_M)
             logMh_e = bin_c2e(logMh)
 
-            fstar = self.tab_fstar[iz,:]
-            Ms_c = fstar * self.halos.tab_M
+            if mass == 'stellar':
+                fstar = self.tab_fstar[iz,:]
+                Ms_c = fstar * self.halos.tab_M
 
-            fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
-            Ms_e = fstar_e * 10**logMh_e
-            logMs_e = np.log10(Ms_e)
+                fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
+                Ms_e = fstar_e * 10**logMh_e
+                logMs_e = np.log10(Ms_e)
+
+                dlogmdlogM = np.diff(logMh_e) / np.diff(logMs_e)
+
+                logMc = np.log10(Ms_c)
+
+            elif mass == 'gas':
+                Mg_c = self.get_gas_mass(z=z, Mh=self.halos.tab_M)
+                Mg_e = self.get_gas_mass(z=z, Mh=10**logMh_e)
+
+                dlogmdlogM = np.diff(logMh_e) / np.diff(np.log10(Mg_e))
+
+                logMc = np.log10(Mg_c)
+            else:
+                raise NotImplementedError('help')
 
 
-            dlogmdlogMs = np.diff(logMh_e) / np.diff(logMs_e)
 
-            phi = dndlogm * dlogmdlogMs * self.tab_focc[iz,:]
+            phi = dndlogm * dlogmdlogM * self.tab_focc[iz,:]
 
             if bins is not None:
-                return bins, np.interp(bins, np.log10(Ms_c), phi)
+                return bins, np.interp(bins, logMc, phi)
             else:
-                return np.log10(Ms_c), phi
+                return logMc, phi
 
         ##
         # Otherwise, we integrate trajectories.
@@ -1082,10 +1079,6 @@ class GalaxyCohort(GalaxyAggregate):
             return 10**bin_c, phi
         else:
             return phi
-
-    def SurfaceDensity(self, z, mag=None, dz=1., dtheta=1., wave=1600.):
-        return self.get_surface_density(z, mag=mag, dz=dz, dtheta=dtheta,
-            wave=wave)
 
     def get_surface_density(self, z, maglim=None, dz=1., dtheta=1., wave=1600.,
         window=1):
@@ -1141,7 +1134,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         if self.is_uvlf_parametric:
             assert absolute
-            return bins, self.uvlf(MUV=bins, z=z)
+            func = self._get_function('pop_uvlf')
+            return bins, func(z=z, MUV=bins)
 
         ##
         # Otherwise, standard SFE parameterized approach.
@@ -1186,16 +1180,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         return phi_of_x
 
-    def LuminosityFunction(self, z, bins, **kwargs):
-        return self.get_lf(z, bins, **kwargs)
-
     def get_uvlf(self, z, bins, use_mags=True, wave=1600., window=1.,
         absolute=True):
         return self.get_lf(z, bins, use_mags=use_mags, wave=wave,
             window=window, absolute=absolute)
 
     def get_lf(self, z, bins, use_mags=True, wave=1600., window=1.,
-        absolute=True):
+        absolute=True, raw=False, nebular_only=False, band=None, band_units=None):
         """
         Reconstructed luminosity function.
 
@@ -1220,9 +1211,10 @@ class GalaxyCohort(GalaxyAggregate):
 
             if use_mags:
                 x = self.get_mags(z=z, wave=wave, window=window,
-                    absolute=absolute)
+                    absolute=absolute, raw=raw, nebular_only=nebular_only)
             else:
-                x = self.get_lum(z=z, wave=wave, window=window)
+                x = self.get_lum(z=z, wave=wave, window=window,
+                    raw=raw, nebular_only=nebular_only)
 
             phi, b_e = np.histogram(x, bins=bin_c2e(bins))
             return bins, phi / self.pf['pop_volume']
@@ -1231,8 +1223,12 @@ class GalaxyCohort(GalaxyAggregate):
             _x_, phi_of_x = self._get_uvlf_mags(z, bins, wave=wave, window=window,
                 absolute=absolute)
         else:
-            raise NotImplemented('needs fixing')
-            phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
+            # By default, we compute dn/dL
+            bins, phi_of_x = self._get_phi_of_L(z, wave=wave, window=window,
+                raw=raw, nebular_only=nebular_only, band=band,
+                band_units=band_units)
+            #raise NotImplemented('needs fixing')
+            #phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
 
         return bins, phi_of_x
 
@@ -1281,8 +1277,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         return None
 
-    def get_lum_per_sfr(self, z, Mh=None, wave=1600., window=1., raw=True,
-        nebular_only=False, band=None, band_units=None, age=None):
+    def get_lum_per_sfr(self, z, Mh=None, wave=1600., window=1., raw=False,
+        nebular_only=False, band=None, band_units='Angstrom', age=None):
         """
         Return luminosity per unit SFR.
         """
@@ -1307,13 +1303,35 @@ class GalaxyCohort(GalaxyAggregate):
 
         return L_sfr
 
-    def get_sed(self, z, M, waves, stellar_mass=False, per_Hz=False,
+    def get_spec(self, z, waves, M=None, stellar_mass=False, per_Hz=False,
         band=None, window=1, energy_units=True, load=True, raw=False,
         nebular_only=False):
         """
+        Compute the SED for all galaxies at given redshift.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        waves : np.ndarray
+            Array of rest-wavelengths at which to generate SED [Angstrom].
+        M : np.ndarray, optional
+            If not supplied, will generate SED in pre-determined set of
+            halo mass bins corresponding to `self.halos.tab_M`. Otherwise,
+            will interpolate onto user-supplied range.
+        stellar_mass : bool
+            If True, assumes the user-supplied `M` values (above) are stellar
+            masses, not halo masses, in which case the SMHM is first computed
+            and interpolation is done in M_stell rather than M_h.
+
+
         Just a wrapper around `get_lum` with option of interpolating to new
         mass.
         """
+
+        if M is None:
+            assert not stellar_mass
+            M = self.halos.tab_M
 
         if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
 
@@ -1346,17 +1364,10 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-
-    def Luminosity(self, z, **kwargs):
-        return self.get_lum(z, **kwargs)
-
     def get_lum(self, z, wave=1600, band=None, window=1, band_units='Angstrom',
-        energy_units=True, load=True, raw=True, nebular_only=False, age=None):
+        energy_units=True, load=True, raw=False, nebular_only=False, age=None):
         """
         Return the luminosity of all halos at given redshift `z`.
-
-        .. note :: This does not apply any sort of reddening or escape fraction,
-            i.e., it is the intrinsic luminosity of halos.
 
         Returns
         -------
@@ -1387,7 +1398,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             if self.pf['pop_ssp'] and self.pf['pop_age'] is not None:
 
-                age = self.age(z=z, Mh=self.halos.tab_M)
+                age = self.get_age(z=z, Mh=self.halos.tab_M)
 
                 if type(age) in numeric_types:
                     age = age * np.ones_like(self.halos.tab_M)
@@ -1409,6 +1420,10 @@ class GalaxyCohort(GalaxyAggregate):
                     nebular_only=nebular_only, age=age)
 
                 L_sfr = 10**f_L_sfr(np.log10(Z))
+
+                #L_sfr = self.get_lum_per_sfr(wave=wave, #Z=Z,
+                #    window=window, band=band, band_units=band_units, raw=raw,
+                #    nebular_only=nebular_only)
 
             elif self.pf['pop_lum_per_sfr'] is None:
                 if age is not None:
@@ -1493,13 +1508,14 @@ class GalaxyCohort(GalaxyAggregate):
                     T = self.dustext.get_T_lam(_wave, Av=Av)
 
                 Lh *= T
-            elif self.pf['pop_dust_yield'] is not None:
+            elif (self.pf['pop_dust_yield'] is not None) or \
+                (self.pf['pop_Av'] is not None):
                 if type(wave) not in numeric_types:
                     _wave = np.mean(wave)
                 else:
                     _wave = wave
 
-                tau = self.get_dust_opacity(z=z, wave=_wave)
+                tau = self.get_dust_opacity(z=z, Mh=Mh, wave=_wave)
                 Lh *= np.exp(-tau)
 
             if not hasattr(self, '_cache_L'):
@@ -1527,7 +1543,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Need to do bolometric correction.
             E = h_p * c / (wave * 1e-8) / erg_per_ev
-            I_E = self.src.Spectrum(E)
+            I_E = self.src.get_spectrum(E)
 
             Lh = Lbol * I_E * ev_per_hz
 
@@ -1547,40 +1563,84 @@ class GalaxyCohort(GalaxyAggregate):
         Get visual extinction.
         """
 
-        assert self.pf['pop_dustext_template'] is not None
+        #assert self.pf['pop_dustext_template'] is not None
+
+        func = self._get_function('pop_Av')
+
+        # Should set this up to convert from dust opacity too.
+
+        return func(z=z)
+
+        #Mh = self.halos.tab_M
+        #smhm = self.get_smhm(z=z, Mh=Mh)
+        #Ms = Mh * smhm
+
+        #return self._func_Av(z=z, Ms=Ms)
 
 
-        if type(self.pf['pop_Av']) == FunctionType:
-            return self.pf['pop_Av'](z=z, Mh=self.halos.tab_M)
-        elif type(self.pf['pop_Av']) in numeric_types:
-            return self.pf['pop_Av'] * np.ones_like(self.halos.tab_M)
-        elif type(self.pf['pop_Av']) == str:
-            if not hasattr(self, '_func_Av'):
+    def get_age(self, z, Mh):
+        func = self._get_function('pop_age')
+        return func(z=z, Mh=Mh)
 
-                # Otherwise, get parameterized sSFR setup.
-                pars = get_pq_pars(self.pf['pop_Av'], self.pf)
+    def get_fesc(self, z, Mh):
+        func = self._get_function('pop_fesc')
+        return func(z=z, Mh=Mh)
 
-                _Av_inst = ParameterizedQuantity(**pars)
+    def get_fesc_LW(self, z, Mh):
+        func = self._get_function('pop_fesc_LW')
+        return func(z=z, Mh=Mh)
 
-                self._func_Av = lambda **kwargs: _Av_inst.__call__(**kwargs)
+    def get_Nion(self, z, Mh):
+        func = self._get_function('pop_Nion')
+        return func(z=z, Mh=Mh)
 
-            Mh = self.halos.tab_M
-            smhm = self.get_smhm(z=z, Mh=Mh)
-            Ms = Mh * smhm
+    def get_dust_yield(self, z, Mh):
+        """
+        Return fraction of metals locked up in dust grains.
+        """
 
-            return self._func_Av(z=z, Ms=Ms)
-        else:
-            raise NotImplemented('help')
+        func = self._get_function('pop_dust_yield')
+        result = func(z=z, Mh=Mh)
+        return result
 
-    def get_dust_opacity(self, z, wave):
+    def get_dust_scale(self, z, Mh):
+        """
+        Return dust scale length in kiloparsecs.
+        """
+
+        func = self._get_function('pop_dust_scale')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_scatter(self, z, Mh):
+        """
+        Return dust scale length in kiloparsecs.
+        """
+
+        func = self._get_function('pop_dust_scatter')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_fcov(self, z, Mh):
+        """
+        Return dust scale length in kiloparsecs.
+        """
+
+        func = self._get_function('pop_dust_fcov')
+        result = func(z=z, Mh=Mh)
+        return result
+
+    def get_dust_opacity(self, z, Mh, wave):
         """
         Compute dust opacity for all galaxies at redshift `z` and wavelength
         `wave`.
 
         Parameters
         ----------
-        z : int, float
+        z : int, float, np.ndarray
             Redshift
+        Mh : int, float, np.ndarray
+            Halo mass of interest [Msun].
         wave : int, float, np.ndarray
             Wavelength [Angstroms]
 
@@ -1588,40 +1648,68 @@ class GalaxyCohort(GalaxyAggregate):
         -------
         Opacity (dimensionless) for all halos in population. If input `wave` is
         a scalar, returns an array of length `self.halos.tab_M`. If `wave` is
-        an array, the return will be a 2-D array with shape (self.halos.tab_M, len(waves))
+        an array, the return will be a 2-D array with shape
+        (len(Mh), len(waves)).
         """
 
-        if self.pf['pop_dust_yield'] is not None:
-            assert type(self.pf['pop_dust_yield']) in numeric_types
+        smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+        smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
+        smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
+        Ms = smhm * self.halos.tab_M
 
-            Rd = self.dust_scale(z=z, Mh=self.halos.tab_M)
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-            smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
-            smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
-            Ms = smhm * self.halos.tab_M
-            if self.pf['pop_metal_yield'] is not None:
-                MZ = self.pf['pop_metal_yield'] * Ms
+        kappa = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
+
+        # If we parameterized Av directly, we're basically done.
+        if self.pf['pop_Av'] is not None:
+            func = self._get_function('pop_Av')
+            Av = func(z=z, Ms=Ms)
+            k5000 = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=5000.)
+
+            e_mtau = 10**(-Av / 2.5)
+            tau_v = -1. * np.log(e_mtau)
+            tau = (kappa[None,:] / k5000[None,:]) * tau_v[:,None]
+        else:
+            Rd = self.get_dust_scale(z=z, Mh=self.halos.tab_M)
+            if self.pf['pop_dust_yield'] is None:
+                raise ValueError("`pop_dust_yield` is None!")
+
+            if self.pf['pop_mzr'] is not None:
+                Z = self.get_metallicity(z=z, Mh=Mh, gas_phase=False)
+                Mgas = self.get_gas_mass(z=z, Mh=Mh)
+                MZ = Z * Mgas
                 Md = self.pf['pop_dust_yield'] * MZ
             else:
-                Md = self.pf['pop_dust_yield'] * Ms
+
+                assert type(self.pf['pop_dust_yield']) in numeric_types
+
+                if self.pf['pop_metal_yield'] is not None:
+                    MZ = self.pf['pop_metal_yield'] * Ms
+                    Md = self.pf['pop_dust_yield'] * MZ
+                else:
+                    Md = self.pf['pop_dust_yield'] * Ms
 
             Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
             Sd *= g_per_msun / cm_per_kpc**2
 
-            kappa = self.dust_kappa(wave=wave, z=z)
+
             tau = kappa[None,:] * Sd[:,None]
 
-            if type(wave) in numeric_types:
-                return tau[:,0]
-            else:
-                return tau
-
+        if type(wave) in numeric_types:
+            return tau[:,0]
         else:
-            raise NotImplemented('help')
+            return tau
+
+    def get_dust_absorption_coeff(self, z, Mh, wave):
+        """
+        Get dust absorption coefficient [cm^2 / g].
+        """
+        func = self._get_function('pop_dust_absorption_coeff')
+        result = func(z=z, Mh=Mh, wave=wave)
+        return result
 
     def get_mags(self, z, absolute=True, wave=1600, band=None,
         band_units='Angstrom', window=1,
-        load=True, raw=True, nebular_only=False, apply_dustcorr=False):
+        load=True, raw=False, nebular_only=False, apply_dustcorr=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
 
@@ -1744,7 +1832,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._tab_source_mask
 
-    def _get_phi_of_L(self, z, wave=1600., window=1):
+    def _get_phi_of_L(self, z, wave=1600., window=1, raw=False,
+        nebular_only=False, band=None, band_units=None):
         """
         Compute the luminosity function at redshift z.
 
@@ -1760,18 +1849,19 @@ class GalaxyCohort(GalaxyAggregate):
             if (z, wave, window) in self._phi_of_L:
                 return self._phi_of_L[(z, wave, window)]
 
-        Lh = self.get_lum(z, wave=wave, window=window)
+        Lh = self.get_lum(z, wave=wave, window=window,
+            raw=raw, nebular_only=nebular_only, band=band, band_units=band_units)
 
         if self.pf['pop_halos'] is None:
             Mh = self.halos.tab_M
         else:
             Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
 
-        fobsc = (1. - self.fobsc(z=z, Mh=Mh))
+        #fobsc = (1. - self.get_fobsc(z=z, Mh=Mh))
         # Means obscuration refers to fractional dimming of individual
         # objects
-        if self.pf['pop_fobsc_by'] == 'lum':
-            Lh *= fobsc
+        #if self.pf['pop_fobsc_by'] == 'lum':
+        #    Lh *= fobsc
 
         logL_Lh = np.log(Lh)
 
@@ -1785,10 +1875,7 @@ class GalaxyCohort(GalaxyAggregate):
             dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1],
                 axis=0, kind=self.pf['pop_interp_lf'])
 
-            if self.pf['pop_focc_inv']:
-                dndm = dndm_func(z) * (1 - self.focc(z=z, Mh=self.halos.tab_M[0:-1]))
-            else:
-                dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.tab_M[0:-1])
+            dndm = dndm_func(z) * self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
 
         # In this case, obscuration means fraction of objects you don't see
         # in the UV.
@@ -1868,7 +1955,7 @@ class GalaxyCohort(GalaxyAggregate):
         return self._phi_of_M[(z, wave, window)]
 
     def get_mag_lim(self, z, absolute=True, wave=1600, band=None, window=1,
-        load=True, raw=True, nebular_only=False, apply_dustcorr=False):
+        load=True, raw=False, nebular_only=False, apply_dustcorr=False):
         """
         Compute the magnitude corresponding to the minimum mass threshold.
         """
@@ -2361,18 +2448,8 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if self.is_user_smhm:
-            if not hasattr(self, '_func_ssfr'):
-                if self.pf['pop_ssfr'] is None:
-                    return 0
-
-                # Otherwise, get parameterized sSFR setup.
-                pars = get_pq_pars(self.pf['pop_ssfr'], self.pf)
-
-                _ssfr_inst = ParameterizedQuantity(**pars)
-
-                self._func_ssfr = lambda **kwargs: _ssfr_inst.__call__(**kwargs)
-
-            return self._func_ssfr(z=z, Ms=Ms)
+            func = self._get_function('pop_ssfr')
+            return func(z=z, Ms=Ms)
         else:
             raise NotImplemented('help')
 
@@ -2435,7 +2512,7 @@ class GalaxyCohort(GalaxyAggregate):
                     #if self.pf['pop_sfr_above_threshold']:
 
                     if self.pf['pop_sfr_model'] == 'sfr-func':
-                        self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.tab_M)
+                        self._tab_sfr_[i] = self.get_sfr(z=z, Mh=self.halos.tab_M)
                     else:
                         raise ValueError('shouldnt happen.')
             elif self.pf['pop_sfr_model'] == 'sfr-tab':
@@ -2489,13 +2566,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._tab_sfr_
 
-    @property
-    def SFRD_at_threshold(self):
-        if not hasattr(self, '_SFRD_at_threshold'):
-            self._SFRD_at_threshold = \
-                lambda z: np.interp(z, self.halos.tab_z, self._tab_sfrd_at_threshold)
-        return self._SFRD_at_threshold
-
     def get_nh_active(self, z):
         """
         Compute number of active halos at given redshift `z`.
@@ -2517,8 +2587,8 @@ class GalaxyCohort(GalaxyAggregate):
 
                 i = self.halos.tab_z.size - k - 1
 
-                if not self.pf['pop_sfr_above_threshold']:
-                    break
+                #if not self.pf['pop_sfr_above_threshold']:
+                #    break
 
                 if z > self.zform:
                     continue
@@ -2619,9 +2689,6 @@ class GalaxyCohort(GalaxyAggregate):
 
             self._tab_nh_active_ *= 1. / cm_per_mpc**3
 
-            #if self.pf['pop_sfr_cross_threshold']:
-            #    self.tab_sfrd_total_ += self._tab_sfrd_at_threshold
-
         return self._tab_nh_active_
 
     @property
@@ -2690,12 +2757,12 @@ class GalaxyCohort(GalaxyAggregate):
                 #    if (z_dead - z) >= 2 and abs(z - self.zdead) < 0.2:
                 #        break
 
-            self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
+            #self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._tab_sfrd_total_
 
     def get_sfrd_in_mag_range(self, z, lo=None, hi=-17, absolute=True, wave=1600,
-        band=None, window=1, load=True, raw=True, nebular_only=False,
+        band=None, window=1, load=True, raw=False, nebular_only=False,
         apply_dustcorr=False):
         """
         Return SFRD integrated above some limiting magnitude.
@@ -2714,7 +2781,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        SFRD in internal units of g/cm^3/s (comoving).
+        SFRD in units of Msun/yr/cMpc^3.
         """
 
         mags = self.get_mags(z, absolute=absolute, wave=wave, band=band,
@@ -2745,8 +2812,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         Returns
         -------
-        SFRD in internal units of g/cm^3/s (comoving).
-
+        SFRD in units of Msun/yr/cMpc^3.
         """
 
         # Check for exact match
@@ -2769,7 +2835,7 @@ class GalaxyCohort(GalaxyAggregate):
         _sfrd_tab = np.trapz(integrand[iz,ilo:ihi+1],
             x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
-        _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
+        #_sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return _sfrd_tab
 
@@ -2777,33 +2843,23 @@ class GalaxyCohort(GalaxyAggregate):
     def tab_focc(self):
         if not hasattr(self, '_tab_focc_'):
             yy, xx = self._tab_Mz
-            focc = self.focc(z=xx, Mh=yy)
+            focc = self.get_focc(z=xx, Mh=yy)
 
             if type(focc) in [int, float, np.float64]:
                 self._tab_focc_ = focc * np.ones_like(self.halos.tab_dndm)
             else:
                 self._tab_focc_ = focc
 
-            if self.pf['pop_focc_inv']:
-                self._tab_focc_ = 1. - self._tab_focc_
-
             self._tab_focc_ = np.minimum(self._tab_focc_, 1)
             self._tab_focc_ = np.maximum(self._tab_focc_, 0)
 
         return self._tab_focc_
 
-    @tab_focc.setter
-    def tab_focc(self, value):
-        if self.pf['pop_focc_inv']:
-            self._tab_focc_ = 1 - value
-        else:
-            self._tab_focc_ = value
-
     @property
     def tab_fsurv(self):
         if not hasattr(self, '_tab_fsurv_'):
             yy, xx = self._tab_Mz
-            fsurv = self.fsurv(z=xx, Mh=yy)
+            fsurv = self.get_fsurv(z=xx, Mh=yy)
 
             if type(fsurv) in [int, float, np.float64]:
                 self._tab_fsurv_ = fsurv * np.ones_like(self.halos.tab_dndm)
@@ -2828,19 +2884,14 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def SFE(self, **kwargs):
-        return self.get_sfe(**kwargs)
+    def get_sfe(self, **kwargs):
+        return self.get_fstar(**kwargs)
 
     def get_fstar(self, **kwargs):
-        return self.get_sfe(**kwargs)
-
-    def get_sfe(self, **kwargs):
         """
         Compute star formation efficiency (SFE).
 
         .. note :: Takes keyword arguments only (see below).
-
-        .. note :: Just a wrapper around self.fstar.
 
 
         Parameters
@@ -2852,6 +2903,9 @@ class GalaxyCohort(GalaxyAggregate):
 
 
         """
+
+        if hasattr(self, '_get_fstar'):
+            return self._get_fstar(**kwargs)
 
         if self.pf['pop_sfr_model'] in ['uvlf', 'ham']:
             if type(kwargs['z']) == np.ndarray:
@@ -2887,33 +2941,29 @@ class GalaxyCohort(GalaxyAggregate):
                 return self.run_abundance_match(z=kwargs['z'],
                     Mh=kwargs['Mh'])
         else:
-            fstar = self.fstar(**kwargs)
-            if False:#fstar.size == 1:
-                return fstar[0]
-            else:
-                return fstar
-
-    @property
-    def yield_per_sfr(self):
-        # Need this to avoid inheritance issue with GalaxyAggregate
-        if not hasattr(self, '_yield_per_sfr'):
-
-            if type(self.rad_yield) is FunctionType:
-                self._yield_per_sfr = self.rad_yield()
-            else:
-                self._yield_per_sfr = self.rad_yield
-
-        return self._yield_per_sfr
-
-    @property
-    def fstar(self):
-        if not hasattr(self, '_fstar'):
-
             if not self.pf['pop_star_formation']:
-                self._fstar = lambda **kwargs: 0.0
+                self._get_fstar = lambda **kwargs: 0.0
+                return self._get_fstar(**kwargs)
+
 
             assert self.pf['pop_sfr'] is None
 
+            ##
+            # Some models based on mass-loading factor, convert to fstar
+            if self.pf['pop_mlf'] is not None:
+                _func = self._get_function('pop_mlf')
+
+                func = lambda **kwargs: self.get_fshock(**kwargs) \
+                    / ((1. / self.pf['pop_fstar_max'] + _func(**kwargs)))
+            ##
+            # fstar itself, easy.
+            elif self.pf['pop_fstar'] is not None:
+                func = self._get_function('pop_fstar')
+            else:
+                raise ValueError('Unrecognized data type for pop_fstar!')
+
+            # Boost factor is to do metallicity dependent effects without
+            # having to adjust fstar parameters
             if self.pf['pop_calib_lum'] is not None:
                 assert self.pf['pop_ssp'] == False
                 wave = self.pf['pop_calib_wave']
@@ -2921,67 +2971,25 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 boost = 1.
 
-            if self.pf['pop_mlf'] is not None:
-                if type(self.pf['pop_mlf']) in [float, np.float64]:
-                    # Note that fshock is really fcool
-                    self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
-                        / ((1. / self.pf['pop_fstar_max'] + self.pf['pop_mlf']))
-                elif self.pf['pop_mlf'][0:2] == 'pq':
-                    pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
-                    Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
-                    self._mlf_inst = ParameterizedQuantity(**pars)
-                    self._update_pq_registry('mlf', self._mlf_inst)
+            _func_ = lambda **kwargs: func(**kwargs) * boost
+            self._get_fstar = _func_
 
-                    self._fstar = \
-                        lambda **kwargs: boost * self.fshock(**kwargs) \
-                            / ((1. / self.pf['pop_fstar_max'] + self._mlf_inst(**kwargs)))
+            return self._get_fstar(**kwargs)
 
-            elif self.pf['pop_fstar'] is not None:
-                if type(self.pf['pop_fstar']) in [float, np.float64]:
-                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
-                elif hasattr(self.pf['pop_fstar'], '__call__'):
-                    self._fstar = \
-                        lambda **kwargs: self.pf['pop_fstar'](**kwargs) * boost
-                elif self.pf['pop_fstar'][0:2] == 'pq':
-                    pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
+    #@cached_property
+    #def tab_yield_per_sfr(self):
+    #    # Need this to avoid inheritance issue with GalaxyAggregate
+    #    #if not hasattr(self, '_yield_per_sfr'):
 
-                    #Mmin = lambda z: np.interp(z, self.halos.tab_z, self._tab_Mmin)
-                    #self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin},
-                    #    self.pf, **pars)
-                    #
-                    #self._update_pq_registry('fstar', self._fstar_inst)
+    #    #if type(self.rad_yield) is FunctionType:
+    #    #    self._yield_per_sfr = self.rad_yield()
+    #    #else:
+    #    #    self._yield_per_sfr = self.rad_yield
 
-                    self._fstar_inst = ParameterizedQuantity(**pars)
+    #
 
-                    self._fstar = \
-                        lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
-                            * boost
-            else:
-                raise ValueError('Unrecognized data type for pop_fstar!')
+    #    return self._yield_per_sfr
 
-        return self._fstar
-
-    @fstar.setter
-    def fstar(self, value):
-        self._fstar = value
-
-    def get_sfe_slope(self, z, Mh):
-        """
-        This is a power-law index describing the relationship between the
-        SFE and and halo mass.
-
-        Parameters
-        ----------
-        z : int, float
-            Redshift
-        M : int, float
-            Halo mass in [Msun]
-
-        """
-
-        logfst = lambda logM: np.log10(self.SFE(z=z, Mh=10**logM))
-
-        return derivative(logfst, np.log10(Mh), dx=0.01)[0]
 
     @property
     def _tab_Mz(self):
@@ -3064,9 +3072,9 @@ class GalaxyCohort(GalaxyAggregate):
         # Splitting up the inflow. P = pristine.
         # Units = Msun / yr -> Msun / dz
         #if self.pf['pop_sfr_model'] in ['sfe-func']:
-        PIR = fb * self.get_MAR(z, Mh) * dtdz
-        NPIR = fb * self.get_MDR(z, Mh) * dtdz
-        MGR = self.MGR(z, Mh)
+        PIR = fb * self.get_mar(z, Mh) * dtdz
+        #NPIR = fb * self.get_MDR(z, Mh) * dtdz
+        MGR = np.atleast_1d(self.MGR(z, Mh))
         #else:
         #    PIR = NPIR = MGR = 0.0
 
@@ -3087,16 +3095,16 @@ class GalaxyCohort(GalaxyAggregate):
             SFR = self.get_sfr(**kw) * dtdz
 
         # "Quiet" mass growth
-        fsmooth = self.fsmooth(**kw)
+        #fsmooth = self.fsmooth(**kw)
 
         # Eq. 1: halo mass.
         y1p = MGR * dtdz
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:
-            y2p = PIR * (1. - SFR/PIR) + NPIR * Gfrac
+            y2p = PIR * (1. - SFR/PIR) #+ NPIR * Gfrac
         else:
-            y2p = PIR * (1. - fstar) + NPIR * Gfrac
+            y2p = PIR * (1. - fstar) #+ NPIR * Gfrac
 
         # Add option of parameterized stifling of gas supply, and
         # ejection of gas.
@@ -3109,22 +3117,22 @@ class GalaxyCohort(GalaxyAggregate):
         # Eq. 3: stellar mass
         Mmin = self.get_Mmin(z)
         if (Mh < Mmin) or (Mh > Mmax):
-            y3p = SFR = 0.
+            y3p = SFR = np.array([0.0])
         else:
-            y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
+            y3p = SFR * (1. - self.pf['pop_mass_yield']) #+ NPIR * Sfrac
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         if self.pf['pop_enrichment']:
             y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
-                * (1. - self.pf['pop_mass_escape']) \
-                + NPIR * Zfrac
+                * (1. - self.pf['pop_mass_loss']) #\
+                #+ NPIR * Zfrac
         else:
-            y4p = 0.0
+            y4p = np.array([0.0])
 
         if (Mh < Mmin) or (Mh > Mmax):
-            y5p = 0.
+            y5p = np.array([0.0])
         else:
-            y5p = SFR + NPIR * Sfrac
+            y5p = SFR #+ NPIR * Sfrac
 
         # BH accretion rate
         if self.pf['pop_bh_formation']:
@@ -3137,14 +3145,15 @@ class GalaxyCohort(GalaxyAggregate):
                 if Mbh > 0:
                     y6p = Mbh * dtdz_s * fduty * (1. - eta) / eta / t_edd
                 else:
-                    y6p = 0.0
+                    y6p = np.array([0.0])
 
         else:
-            y6p = 0.0
+            y6p = np.array([0.0])
 
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
 
+        #print(y1p, y2p, y3p, y4p, y5p, y6p)
         results = [y1p, y2p, y3p, y4p, y5p, y6p]
 
         return np.array(results)
@@ -3174,8 +3183,8 @@ class GalaxyCohort(GalaxyAggregate):
         # Splitting up the inflow. P = pristine.
         # Units = Msun / yr -> Msun / dz
         #if self.pf['pop_sfr_model'] in ['sfe-func']:
-        PIR = fb * self.get_MAR(z, Mh) * dtdz
-        NPIR = fb * self.get_MDR(z, Mh) * dtdz
+        PIR = fb * self.get_mar(z, Mh) * dtdz
+        #NPIR = fb * self.get_MDR(z, Mh) * dtdz
         #else:
         #    PIR = NPIR = 0.0 # unused
 
@@ -3199,14 +3208,14 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_star_formation']:
             fstar = SFR = 0.0
         elif self.pf['pop_sfr'] is None:
-            fstar = self.SFE(**kw)
+            fstar = self.get_sfe(**kw)
             SFR = PIR * fstar
         else:
             fstar = 1e-10
-            SFR = self.sfr(**kw) * dtdz
+            SFR = self.get_sfr(**kw) * dtdz
 
         # "Quiet" mass growth
-        fsmooth = self.fsmooth(**kw)
+        #fsmooth = self.fsmooth(**kw)
 
         # Eq. 1: halo mass.
         _y1p = lambda _Mh: self.MGR(z, _Mh) * dtdz
@@ -3214,9 +3223,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:
-            y2p = PIR * (1. - SFR/PIR) + NPIR * Gfrac
+            y2p = PIR * (1. - SFR/PIR) #+ NPIR * Gfrac
         else:
-            y2p = PIR * (1. - fstar) + NPIR * Gfrac
+            y2p = PIR * (1. - fstar) #+ NPIR * Gfrac
 
         #_yp = lambda _Mh: self.MGR(z, _Mh) * dtdz
         #y2p = derivative(_yp2, Mh)
@@ -3238,7 +3247,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
-            * (1. - self.pf['pop_mass_escape']) \
+            * (1. - self.pf['pop_mass_loss']) \
             + NPIR * Zfrac
 
         if (Mh < Mmin) or (Mh > Mmax):
@@ -3289,10 +3298,10 @@ class GalaxyCohort(GalaxyAggregate):
         kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg}
 
         #
-        fstar = self.SFE(**kw)
+        fstar = self.get_sfe(**kw)
         tstar = 1e7 * s_per_yr
 
-        Mdot_h = -1. * self.get_MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        Mdot_h = -1. * self.get_mar(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Need cooling curve here eventually.
         Z_cgm = MZ_cgm / Mg_cgm
@@ -3324,45 +3333,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         # Could make a PHP pretty easily.
-        y6p = self.pf['pop_metal_yield'] * y3p * (1. - self.pf['pop_mass_escape'])
+        y6p = self.pf['pop_metal_yield'] * y3p * (1. - self.pf['pop_mass_loss'])
 
         results = [y1p, y2p, y3p, y4p]
 
         return np.array(results)
-
-    @property
-    def is_metallicity_constant(self):
-        if not hasattr(self, '_is_metallicity_constant'):
-            self._is_metallicity_constant = not self.pf['pop_enrichment']
-        return self._is_metallicity_constant
-
-    @property
-    def is_sfe_constant(self):
-        """ Is the SFE constant in redshift (at fixed halo mass)?"""
-        if not hasattr(self, '_is_sfe_constant'):
-
-            if self.is_sfr_constant:
-                self._is_sfe_constant = 0
-                return self._is_sfe_constant
-
-            self._is_sfe_constant = 1
-            for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
-                self._is_sfe_constant *= self.fstar(z=10, Mh=mass) \
-                                   == self.fstar(z=20, Mh=mass)
-
-            self._is_sfe_constant = bool(self._is_sfe_constant)
-
-        return self._is_sfe_constant
-
-    @property
-    def is_sfr_constant(self):
-        """ Is the SFR constant in redshift (at fixed halo mass)?"""
-        if not hasattr(self, '_is_sfr_constant'):
-            if self.pf['pop_sfr'] is not None:
-                self._is_sfr_constant = 1
-            else:
-                self._is_sfr_constant = 0
-        return self._is_sfr_constant
 
     def get_duration(self, zend=6.):
         """
@@ -3550,6 +3525,9 @@ class GalaxyCohort(GalaxyAggregate):
         if hasattr(self, '_trajectories'):
             return self._trajectories
 
+        if not self.is_sam:
+            raise NotImplementedError('This is an HOD model! No such thing as history.')
+
         keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Mbh', 'SFR', 'SFE', 'MAR',
             'Md', 'Sd', 'nh', 'Z', 't']
 
@@ -3650,9 +3628,6 @@ class GalaxyCohort(GalaxyAggregate):
         self._trajectories = np.array(zform), results
 
         return np.array(zform), results
-
-    def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
-        self.run_sam(z0, M0)
 
     def run_sam(self, z0=None, M0=0):
         """
@@ -3837,7 +3812,7 @@ class GalaxyCohort(GalaxyAggregate):
                 Mbh_t.append(solver.y[5])
 
             if 'sfe' in self.pf['pop_sfr_model']:
-                sfe_t.append(self.SFE(z=redshifts[-1], Mh=Mh_t[-1]))
+                sfe_t.append(self.get_sfe(z=redshifts[-1], Mh=Mh_t[-1]))
 
             z = zrev[i]
 
@@ -3989,15 +3964,15 @@ class GalaxyCohort(GalaxyAggregate):
         MZ = np.array(metals)[-1::-1]
 
         if self.pf['pop_dust_yield'] is not None:
-            Md = self.dust_yield(z=z, Mh=Mh) * MZ
-            Rd = self.dust_scale(z=z, Mh=Mh)
+            Md = self.get_dust_yield(z=z, Mh=Mh) * MZ
+            Rd = self.get_dust_scale(z=z, Mh=Mh)
             # Assumes spherical symmetry, uniform dust density
             Sd = 3. * Md * g_per_msun / 4. / np.pi / (Rd * cm_per_kpc)**2
         else:
             Md = Rd = Sd = np.zeros_like(Mh)
 
         #f self.pf['pop_dust_yield'] > 0:
-        #   tau = self.dust_kappa(wave=1600.)
+        #   tau = self.get_dust_absorption_coeff(wave=1600.)
         #lse:
         #   tau = None
 
@@ -4086,7 +4061,7 @@ class GalaxyCohort(GalaxyAggregate):
         fstar = Mst_c / Mh
 
         const = self.cosm.b_per_g * m_H / self.cosm.fbaryon
-        zeta = const * fstar * self.src.get_Nion() * self.fesc(Mh=Mh, z=z)
+        zeta = const * fstar * self.src.get_Nion() * self.get_fesc(z=z, Mh=Mh)
 
         return Mh, zeta
 
@@ -4096,7 +4071,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
         return 1. * k**0
 
-    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=True,
+    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
         nebular_only=False):
         """
         Return shot noise term of halo power spectrum.
@@ -4128,11 +4103,7 @@ class GalaxyCohort(GalaxyAggregate):
         lum2 = self.get_lum(z, wave=wave2, band=band2, band_units='Angstrom',
             raw=raw, nebular_only=nebular_only)
 
-        if self.pf['pop_focc_inv']:
-            focc1 = (1 - self.focc(z=z, Mh=self.halos.tab_M))
-            focc2 = focc1#(1 - self.focc(z=z, Mh=self.halos.tab_M))
-        else:
-            focc1 = focc2 = self.focc(z=z, Mh=self.halos.tab_M)
+        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
 
         ps = self.halos.get_ps_shot(z, k=k,
             lum1=lum1, lum2=lum2,
@@ -4168,7 +4139,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             return ps
 
-    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=True, nebular_only=False):
+    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False, nebular_only=False):
         """
         Return 2-halo term of 3-d power spectrum.
 
@@ -4216,11 +4187,7 @@ class GalaxyCohort(GalaxyAggregate):
                 band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
-        if self.pf['pop_focc_inv']:
-            focc1 = (1 - self.focc(z=z, Mh=self.halos.tab_M))
-            focc2 = focc1#(1 - self.focc(z=z, Mh=self.halos.tab_M))
-        else:
-            focc1 = focc2 = self.focc(z=z, Mh=self.halos.tab_M)
+        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
@@ -4278,7 +4245,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return prof
 
-    def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=True,
+    def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=False,
         nebular_only=False, prof=None):
         """
         Return 1-halo term of 3-d power spectrum.
@@ -4288,7 +4255,7 @@ class GalaxyCohort(GalaxyAggregate):
         z : int, float
             Redshift of interest
         k : int, float, np.ndarray
-            Wave-numbers of interests [1 / cMpc].
+            Wave-numbers of interest [1 / cMpc].
         wave1 : int, float
             Rest wavelength of interest [Angstrom]
         wave2 : int, float
@@ -4327,11 +4294,7 @@ class GalaxyCohort(GalaxyAggregate):
                 band=band, band_units='Angstrom',
                 nebular_only=nebular_only)
 
-        if self.pf['pop_focc_inv']:
-            focc1 = (1 - self.focc(z=z, Mh=self.halos.tab_M))
-            focc2 = focc1#(1 - self.focc(z=z, Mh=self.halos.tab_M))
-        else:
-            focc1 = focc2 = self.focc(z=z, Mh=self.halos.tab_M)
+        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
 
         ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum1,
             lum2=lum2, mmin1=None, mmin2=None, focc1=focc1, focc2=focc2,
@@ -4344,7 +4307,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
-        time_res=1, raw=True, nebular_only=False, prof=None):
+        time_res=1, raw=False, nebular_only=False, prof=None):
         """
         Compute the angular power spectrum of this galaxy population.
 
@@ -4401,6 +4364,11 @@ class GalaxyCohort(GalaxyAggregate):
 
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
+                    if z < self.zdead:
+                        continue
+                    if z > self.zform:
+                        continue
+                        
                     integrand[i] = self._get_ps_obs(z, _scale_,
                         wave_obs1, wave_obs2,
                         include_shot=include_shot,
@@ -4444,7 +4412,7 @@ class GalaxyCohort(GalaxyAggregate):
         return ps
 
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
-        include_1h=True, include_2h=True, scale_units='arcsec', raw=True,
+        include_1h=True, include_2h=True, scale_units='arcsec', raw=False,
         nebular_only=False, prof=None):
         """
         Compute integrand of angular power spectrum integral.

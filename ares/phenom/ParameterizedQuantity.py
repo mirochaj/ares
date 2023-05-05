@@ -694,12 +694,51 @@ class Linear(BasePQ):
         y = self.args[0] + self.args[2] * (x - self.args[1])
         return y
 
+class LinearEvolvingNorm(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        p0 = self.args[0] + self.args[4] * (t - self.args[3])
+
+        x = kwargs[self.x]
+        y = p0 + self.args[2] * (x - self.args[1])
+        return y
+
 class LogLinear(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
         logy = self.args[0] + self.args[2] * (x - self.args[1])
         y = 10**logy
         return y
+
+class LogLinearEvolvingNorm(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        p0 = self.args[0] * (t / self.args[3])**self.args[4]
+
+        x = kwargs[self.x]
+        logy = self.args[0] + self.args[2] * (x - self.args[1])
+        y = 10**logy
+        return y
+
+
 
 
 class PointsLinear(BasePQ):
@@ -782,6 +821,12 @@ class ParameterizedQuantity(object):
             self.func = SchechterEvolving(**kwargs)
         elif kwargs["pq_func"] in ["linear"]:
             self.func = Linear(**kwargs)
+        elif kwargs["pq_func"] in ["linear_evolN"]:
+            self.func = LinearEvolvingNorm(**kwargs)
+        elif kwargs["pq_func"] in ["loglin"]:
+            self.func = LogLinear(**kwargs)
+        elif kwargs["pq_func"] in ["loglin_evolN"]:
+            raise NotImplemented('help')
         elif kwargs["pq_func"] in ["p_linear"]:
             self.func = PointsLinear(**kwargs)
         else:

@@ -27,7 +27,6 @@ from ..physics.Constants import nu_0_mhz, erg_per_ev, h_p
 from ..util import labels as default_labels
 from ..util.Pickling import read_pickle_file, write_pickle_file
 import matplotlib.patches as patches
-from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
 from ..util.ParameterFile import count_populations, par_info
@@ -35,9 +34,7 @@ from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, error_2D, _error_2D_crude, \
     bin_e2c, correlation_matrix
-from ..util.ReadData import concatenate, read_pickled_chain,\
-    read_pickled_logL
-
+    
 try:
     from scipy.spatial import Delaunay
 except ImportError:

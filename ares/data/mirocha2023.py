@@ -18,7 +18,6 @@ _base = \
 
  'final_redshift': 0,
 
-
  'tau_redshift_bins': 1000,
 
  'halo_dlnk': 0.05,
@@ -179,36 +178,41 @@ _pop3 = satellites_all.copy()
 _pop4 = satellites_old.copy()
 _pop5 = ihl_from_sat.copy()
 
-for i, _pop in enumerate([_pop0, _pop1, _pop2, _pop3, _pop4, _pop5]):
+for i, _pop in enumerate([_pop0, _pop1, _pop2]):
     pf = {}
     for par in _pop.keys():
         pf[par + '{%i}' % i] = _pop[par]
 
     base.update(pf)
 
-disruption = base.copy()
-disruption['pop_fsurv{3}'] = 'pq[3]'
-disruption['pq_func[3]{3}'] = 'logtanh_abs_evolM'
-disruption['pq_func_var[3]{3}'] = 'Mh'
-disruption['pq_func_var2[3]{3}'] = '1+z'
-disruption['pq_val_ceil[3]{3}'] = 1
-disruption['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
-disruption['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-disruption['pq_func_par2[3]{3}'] = 11
-disruption['pq_func_par3[3]{3}'] = 0.7 # dlogM
-disruption['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
-disruption['pq_func_par5[3]{3}'] = 1   # Pin to z=0
+subhalos = {}
+for i, _pop in enumerate([_pop3, _pop4, _pop5]):
+    pf = {}
+    for par in _pop.keys():
+        pf[par + '{%i}' % (i + 3)] = _pop[par]
 
+    subhalos.update(pf)
 
-disruption['pop_fsurv{4}'] = 'link:fsurv:3'
+subhalos['pop_fsurv{3}'] = 'pq[3]'
+subhalos['pq_func[3]{3}'] = 'logtanh_abs_evolM'
+subhalos['pq_func_var[3]{3}'] = 'Mh'
+subhalos['pq_func_var2[3]{3}'] = '1+z'
+subhalos['pq_val_ceil[3]{3}'] = 1
+subhalos['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
+subhalos['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
+subhalos['pq_func_par2[3]{3}'] = 11
+subhalos['pq_func_par3[3]{3}'] = 0.7 # dlogM
+subhalos['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
+subhalos['pq_func_par5[3]{3}'] = 1   # Pin to z=0
 
-disruption['pop_Mmin{3}'] = 1e10
-disruption['pop_Mmin{4}'] = 1e10
-disruption['pop_Mmin{5}'] = 1e10
+subhalos['pop_fsurv{4}'] = 'link:fsurv:3'
 
+subhalos['pop_Mmin{3}'] = 1e10
+subhalos['pop_Mmin{4}'] = 1e10
+subhalos['pop_Mmin{5}'] = 1e10
 
-disruption['pop_fsurv{5}'] = 'link:fsurv:3'
-disruption['pop_fsurv_inv{5}'] = True
+subhalos['pop_fsurv{5}'] = 'link:fsurv:3'
+subhalos['pop_fsurv_inv{5}'] = True
 
 dust_template = {}
 dust_template['pop_dustext_template'] = 'milkyway_rv4'
@@ -227,7 +231,7 @@ dust = \
  'pop_dust_yield': 0.4,
 
  # Dust opacity vs. wavelength
- "pop_dust_kappa": 'pq[20]',   # opacity in [cm^2 / g]
+ "pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
  "pq_func[20]": 'pl',
  'pq_func_var[20]': 'wave',
  'pq_func_var_lim[20]': (0., np.inf),
@@ -239,12 +243,109 @@ dust = \
  # Screen parameters
  'pop_dust_fcov': 1,
  "pop_dust_scale": 'pq[22]',       # Scale radius [in kpc]
- "pq_func[22]": 'pl_evolN',
+ #"pq_func[22]": 'pl_evolN',
+ #'pq_func_var[22]': 'Mh',
+ #'pq_func_var2[22]': '1+z',
+ #'pq_func_par0[22]': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
+ #'pq_func_par1[22]': 1e10,
+ #'pq_func_par2[22]': 0.45,
+ #'pq_func_par3[22]': 5.,
+ #'pq_func_par4[22]': 0.,
+
+ "pq_func[22]": 'dpl_evolN',
  'pq_func_var[22]': 'Mh',
  'pq_func_var2[22]': '1+z',
- 'pq_func_par0[22]': 1.6,     # Note that Rhalo ~ Mh^1/3 / (1+z)
- 'pq_func_par1[22]': 1e10,
- 'pq_func_par2[22]': 0.45,
- 'pq_func_par3[22]': 5.,
- 'pq_func_par4[22]': 0.,
+ 'pq_func_par0[22]': 1.6,     # Normalization of length scale
+ 'pq_func_par1[22]': 3e11,    # normalize at Mh=1e10
+ 'pq_func_par2[22]': 0.45,    # low-mass sope
+ 'pq_func_par3[22]': 0.45,    # high-mass slope
+ 'pq_func_par4[22]': 1e10,    # peak mass
+ 'pq_func_par5[22]': 1.,      # pin to z=1
+ 'pq_func_par6[22]': 0.0      # no z evolution by default
+
+}
+
+metals = \
+{
+ 'pop_metal_yield': 0.1,
+
+ # Fraction of metals lost
+ "pop_metal_loss": 'pq[30]',
+ "pq_func[30]": 'pl_evolN',
+ 'pq_func_var[30]': 'Mh',
+ 'pq_func_var2[30]': '1+z',
+ 'pq_func_par0[30]': 0.,
+ 'pq_func_par1[30]': 1e12,
+ 'pq_func_par2[30]': 0.5,
+ 'pq_func_par3[30]': 1.,   # pin to z=0
+ 'pq_func_par4[30]': 0.,   # no evolution
+ 'pq_val_ceil[30]': 1,
+ 'pq_val_floor[30]': 0,
+
+ "pop_mass_loss": 'pq[31]',
+ "pq_func[31]": 'pl_evolN',
+ 'pq_func_var[31]': 'Mh',
+ 'pq_func_var2[31]': '1+z',
+ 'pq_func_par0[31]': 0.,
+ 'pq_func_par1[31]': 1e12,
+ 'pq_func_par2[31]': 0.5,
+ 'pq_func_par3[31]': 1.,   # pin to z=0
+ 'pq_func_par4[31]': 0.,   # no evolution
+ 'pq_val_ceil[31]': 1,
+ 'pq_val_floor[31]': 0,
+}
+
+mzr = \
+{
+ 'pop_mzr': 'pq[30]',
+ 'pop_fox': 0.03,
+ "pq_func[30]": 'linear_evolN',
+ 'pq_func_var[30]': 'Ms',
+ 'pq_func_var2[30]': '1+z',
+ 'pq_func_par0[30]': 8.65,
+ 'pq_func_par1[30]': 10,
+ 'pq_func_par2[30]': 0.25,
+ 'pq_func_par3[30]': 1.,   # pin to z=0
+ 'pq_func_par4[30]': -0.08,   # no evolution
+ 'pq_val_ceil[30]': 9,
+ 'pq_val_floor[30]': 6,
+}
+
+gas = \
+{
+ "pop_gas_fraction": 'pq[31]',
+ "pq_func[31]": 'pl_evolN',
+ 'pq_func_var[31]': 'Mh',
+ 'pq_func_var2[31]': '1+z',
+ 'pq_func_par0[31]': 0.7,
+ 'pq_func_par1[31]': 1e12,
+ 'pq_func_par2[31]': -0.25,
+ 'pq_func_par3[31]': 1.,   # pin to z=0
+ 'pq_func_par4[31]': 0.,   # no evolution
+ 'pq_val_ceil[31]': 1,
+ 'pq_val_floor[31]': 0,
+}
+
+Av = \
+{
+ "pop_Av": 'pq[31]',
+ "pq_func[31]": 'pl_evolN',
+ 'pq_func_var[31]': 'Ms',
+ 'pq_func_var2[31]': '1+z',
+ 'pq_func_par0[31]': 0.5,
+ 'pq_func_par1[31]': 1e10,
+ 'pq_func_par2[31]': 0.25,
+ 'pq_func_par3[31]': 1.,   # pin to z=0
+ 'pq_func_par4[31]': 0.,   # no evolution
+ 'pq_val_floor[31]': 0,
+
+ # Dust opacity vs. wavelength
+ "pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
+ "pq_func[20]": 'pl',
+ 'pq_func_var[20]': 'wave',
+ 'pq_func_var_lim[20]': (0., np.inf),
+ 'pq_func_var_fill[20]': 0.0,
+ 'pq_func_par0[20]': 1e5,      # opacity at wavelength below
+ 'pq_func_par1[20]': 1e3,
+ 'pq_func_par2[20]': -1.,
 }

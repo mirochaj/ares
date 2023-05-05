@@ -47,7 +47,7 @@ def test():
     assert pop.get_ssfr(z, Ms=1e10) < pop.get_ssfr(z+1, Ms=1e10)
 
     #test SFRD
-    SFRD = pop.get_sfrd(8) * ares.physics.Constants.rhodot_cgs
+    SFRD = pop.get_sfrd(8)
     assert 1e-4 <= SFRD <= 1, f"SFRD={SFRD} unreasonable"
 
 if __name__ == '__main__':

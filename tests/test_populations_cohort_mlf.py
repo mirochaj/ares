@@ -113,9 +113,9 @@ def test():
     assert np.allclose(pop_sfe.dfcolldt(z), pop_eta_2.dfcolldt(z))
 
     ok = np.logical_and(Mh >= 1e10, Mh <= 1e12)
-    MAR = pop_sfe.get_MAR(6, Mh=Mh)
-    MAR1 = pop_eta_1.get_MAR(6, Mh=Mh)
-    MAR2 = pop_eta_2.get_MAR(6, Mh=Mh)
+    MAR = pop_sfe.get_mar(6, Mh=Mh)
+    MAR1 = pop_eta_1.get_mar(6, Mh=Mh)
+    MAR2 = pop_eta_2.get_mar(6, Mh=Mh)
 
     # These are effectively different models, so only looking for
     # OOM agreement.

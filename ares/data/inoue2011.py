@@ -8,7 +8,7 @@ import os
 import numpy as np
 from ares.data import ARES
 
-path = ARES + '/input/inoue2011/'
+path = ARES + '/inoue2011/'
 
 fn_lines = '{}/LineList.txt'.format(path)
 fn_data = '{}/LineRatio_nodust.txt'.format(path)
@@ -19,6 +19,7 @@ line_waves = {}
 line_ids = {}
 line_info = []
 line_names = []
+line_waves_all = []
 with open(fn_lines, 'r') as f:
     for i, line in enumerate(f):
 
@@ -43,6 +44,7 @@ with open(fn_lines, 'r') as f:
 
         line_info.append((line_id, wave))
         line_names.append(line_str)
+        line_waves_all.append(wave)
 
 line_info = np.array(line_info)
 

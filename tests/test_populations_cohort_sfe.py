@@ -153,7 +153,7 @@ def test():
     pop = ares.populations.GalaxyPopulation(**pars)
 
     bins = np.arange(-25, 0, 0.1)
-    def uvlf(MUV, z):
+    def uvlf(z, MUV):
         mags, phi = pop.get_uvlf(z, bins)
         return np.interp(MUV, mags, phi)
 

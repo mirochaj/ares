@@ -116,7 +116,7 @@ class CompositePopulation(object):
                 if to_quantity[i][j] in ['sfrd', 'emissivity']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyAggregate(cosm=self._cosm_, **tmp)
-                    self.pops[i]._sfrd = self.pops[element]._sfrd_func
+                    self.pops[i]._get_sfrd = self.pops[element].get_sfrd
                 elif to_quantity[i][j] in ['frd']:
                     if self.pops[i] is None:
                         self.pops[i] = BlackHoleAggregate(cosm=self._cosm_, **tmp)
@@ -124,21 +124,28 @@ class CompositePopulation(object):
                 elif to_quantity[i][j] in ['sfe', 'fstar']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                    self.pops[i]._fstar = self.pops[element].get_sfe
+                    self.pops[i]._get_fstar = self.pops[element].get_fstar
                 elif to_quantity[i][j] in ['ssfr']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                    self.pops[i]._func_ssfr = self.pops[element].get_ssfr
+                    self.pops[i]._get_ssfr = self.pops[element].get_ssfr
                 elif to_quantity[i][j] in ['focc']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                    self.pops[i].tab_focc = self.pops[element].tab_focc
-                    self.pops[i]._focc = self.pops[element].focc
+                    if tmp[f'pop_{to_quantity[i][j]}_inv']:
+                        self.pops[i]._get_focc = lambda **kw: \
+                            1. - self.pops[element].get_focc(**kw)
+                    else:
+                        self.pops[i]._get_focc = self.pops[element].get_focc
                 elif to_quantity[i][j] in ['fsurv']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                    self.pops[i].tab_fsurv = self.pops[element].tab_fsurv
-                    self.pops[i]._fsurv = self.pops[element].fsurv
+                    #self.pops[i].tab_fsurv = self.pops[element].tab_fsurv
+                    if tmp[f'pop_{to_quantity[i][j]}_inv']:
+                        self.pops[i]._get_fsurv = lambda **kw: \
+                            1. - self.pops[element].get_fsurv(**kw)
+                    else:
+                        self.pops[i]._get_fsurv = self.pops[element].get_fsurv
                 elif to_quantity[i][j] in ['Mmax_active']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)

@@ -10,7 +10,8 @@ Description:
 
 """
 
-import os, imp, re
+import os, re
+import importlib
 import numpy as np
 from matplotlib import cm
 from .ParameterFile import par_info
@@ -37,8 +38,7 @@ colors_charlotte2 = lambda z: _ch_c2(_normz(z))
 # Load custom defaults
 HOME = os.environ.get('HOME')
 if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
-    f, filename, data = imp.find_module('labels', ['{!s}/.ares/'.format(HOME)])
-    custom_labels = imp.load_module('labels.py', f, filename, data).pf
+    custom_labels = importlib.import_module(f'{HOME}/.ares/labels').pf
 else:
     custom_labels = {}
 
@@ -331,153 +331,3 @@ labels.update(powspec)
 
 # Add custom labels
 labels.update(custom_labels)
-
-def logify_str(s, sup=None):
-    s_no_dollar = str(s.replace('$', ''))
-
-    new_s = s_no_dollar
-
-    if sup is not None:
-        new_s += '[{!s}]'.format(sup_scriptify_str(s))
-
-    return r'$\mathrm{log}_{10}' + new_s + '$'
-
-def undo_mathify(s):
-    return str(s.replace('$', ''))
-
-def mathify_str(s):
-    return r'${!s}$'.format(s)
-
-class Labeler(object): # pragma: no cover
-    def __init__(self, pars, is_log=False, extra_labels={}, **kwargs):
-        self.pars = self.parameters = pars
-        self.base_kwargs = kwargs
-        self.extras = extra_labels
-
-        self.labels = labels.copy()
-        self.labels.update(self.extras)
-
-        if type(is_log) == bool:
-            self.is_log = {par:is_log for par in pars}
-        else:
-            self.is_log = {}
-            for par in pars:
-                if par in self.parameters:
-                    k = self.parameters.index(par)
-                    self.is_log[par] = is_log[k]
-                else:
-                    # Blobs are never log10-ified before storing to disk
-                    self.is_log[par] = False
-
-    def units(self, prefix):
-        units = None
-        for kwarg in self.base_kwargs:
-            if not re.search(prefix, kwarg):
-                continue
-
-            if re.search('units', kwarg):
-                units = self.base_kwargs[kwarg]
-
-        return units
-
-    def _find_par(self, popid, phpid):
-        kwarg = None
-        look_for_1 = '{{{}}}'.format(popid)
-        look_for_2 = '[{}]'.format(phpid)
-        for kwarg in self.base_kwargs:
-            if phpid is not None:
-                if self.base_kwargs[kwarg] == 'pq[{}]'.format(phpid):
-                    break
-
-        return kwarg.replace('{{{}}}'.format(popid), '')
-
-    def label(self, par, take_log=False, un_log=False):
-        """
-        Create a pretty label for this parameter (if possible).
-        """
-
-        if par in self.labels:
-            label = self.labels[par]
-
-            if par in self.parameters:
-                if take_log:
-                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-                elif self.is_log[par] and (not un_log):
-                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-                else:
-                    return label
-            else:
-                return label
-
-        prefix, popid, phpid = par_info(par)
-
-        _par = par
-        # Correct prefix is phpid is not None
-        if phpid is not None:
-            s = 'pq[{}]'.format(phpid)
-
-            for _par in self.base_kwargs:
-                if self.base_kwargs[_par] != s:
-                    continue
-                break
-
-            prefix = _par
-
-        units = self.units(prefix)
-
-        label = None
-
-        # Simplest case. Not popid, not a PQ, label found.
-        if popid == phpid == None and (prefix in self.labels):
-            label = self.labels[prefix]
-        # Has pop ID number but is not a PQ, label found.
-        elif (popid is not None) and (phpid is None) and (prefix in self.labels):
-            label = self.labels[prefix]
-        elif (popid is not None) and (phpid is None) and (prefix.strip('pop_') in self.labels):
-            label = self.labels[prefix.strip('pop_')]
-        # Has Pop ID, not a PQ, no label found.
-        elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
-            try:
-                hard = self._find_par(popid, phpid)
-            except:
-                hard = None
-
-            if hard is not None:
-                # If all else fails, just typset the parameter decently
-                label = prefix
-                #parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
-                #label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
-                #    popid, phpid, parnum)
-        # Is PQ, label found. Just need to parse []s.
-        elif phpid is not None and (prefix in self.labels):
-            parnum = list(map(int, re.findall(r'\d+', par.replace('[{}]'.format(phpid),''))))
-            if len(parnum) == 1:
-                label = r'${0!s}^{{\mathrm{{par}}\ {1}}}$'.format(\
-                    undo_mathify(self.labels[prefix]), parnum[0])
-            else:
-                label = r'${0!s}^{{\mathrm{{par}}\ {1},{2}}}$'.format(\
-                    undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
-        # Otherwise, just use number. Not worth the trouble right now.
-        elif (popid is None) and (phpid is not None) and par.startswith('pq_'):
-            label = 'par {}'.format(self.parameters.index(par))
-
-        # Troubleshoot if label not found
-        if label is None:
-            label = prefix
-            if re.search('pop_', prefix):
-                if prefix[4:] in self.labels:
-                    label = self.labels[prefix[4:]]
-            else:
-                label = r'${!s}$'.format(par.replace('_', '\_'))
-
-        if par in self.parameters:
-            #print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
-            #    un_log))
-            if take_log:
-                return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-            elif self.is_log[par] and (not un_log):
-                return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-            else:
-                return label
-
-        return label

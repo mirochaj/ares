@@ -174,7 +174,7 @@ class SynthesisModelToy(SynthesisModelBase):
             if is_on:
                 # This is normalized to Q in each sub-band.
                 E = h_p * c / (wave * cm_per_ang) / erg_per_ev
-                spec = self._Star.Spectrum(E)
+                spec = self._Star.get_spectrum(E)
                 # Right here, `spec` integrates to unity over relevant bands.
 
                 mass = self._Star.pf['source_mass']

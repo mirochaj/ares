@@ -9,13 +9,12 @@ Created on: Wed Aug 27 10:55:19 MDT 2014
 Description:
 
 """
-import glob
+
 import os
 import re
 import sys
-
+import glob
 import numpy as np
-import imp as _imp
 
 from ..data import ARES
 from .Pickling import read_pickle_file
@@ -49,24 +48,6 @@ def flatten_energies(E):
             to_return.append(float(band))
 
     return to_return
-
-def flatten_energies_OLD(E):
-    """
-    Take fluxes sorted by band and flatten to single energy dimension.
-    """
-
-    to_return = []
-    for i, band in enumerate(E):
-        if type(band) is list:
-            for j, flux_seg in enumerate(band):
-                to_return.extend(flux_seg)
-        else:
-            try:
-                to_return.extend(band)
-            except TypeError:
-                to_return.append(band)
-
-    return np.array(to_return)
 
 def flatten_flux(arr):
     return flatten_energies(arr)
@@ -183,125 +164,5 @@ def _sort_history(all_data, prefix='', squeeze=False):
 
     return data
 
-def read_pickled_blobs(fn):
-    """
-    Reads arbitrary meta-data blobs from emcee that have been pickled.
-
-    Parameters
-    ----------
-    chain : str
-        Name of file containing flattened chain.
-    logL : str
-        Name of file containing likelihoods.
-    pars : str
-        List of parameters corresponding to second dimension of chain.
-
-    Returns
-    -------
-    All the stuff.
-
-    """
-
-    pass
-
-def flatten_blobs(data):
-    """
-    Take a 3-D array, eliminate dimension corresponding to walkers, thus
-    reducing it to 2-D
-    """
-
-    # Prevents a crash in MCMC.ModelFit
-    if np.all(data == {}):
-        return None
-
-    if len(data.shape) != 4:
-        raise ValueError('chain ain\'t the right shape.')
-
-    new = []
-    for i in range(data.shape[1]):
-        new.extend(data[:,i,:,:])
-
-    return new
-
-def flatten_chain(data):
-    """
-    Take a 3-D array, eliminate dimension corresponding to walkers, thus
-    reducing it to 2-D
-    """
-
-    if len(data.shape) != 3:
-        raise ValueError("Chain shape {} incorrect. Should be 3-D".format(data.shape))
-
-    new = []
-    for i in range(data.shape[1]):
-        new.extend(data[:,i,:])
-
-    # Is there a reason not to cast this to an array?
-    return new
-
-def flatten_logL(data):
-    """
-    Take a 2-D array, eliminate dimension corresponding to walkers, thus
-    reducing it to 1-D
-    """
-
-    if len(data.shape) != 2:
-        raise ValueError("loglikelihood shape {} incorrect. Should be 2-D".format(data.shape))
-
-    new = []
-    for i in range(data.shape[1]):
-        new.extend(data[:,i])
-
-    return new
-
 def concatenate(lists):
     return np.concatenate(lists, axis=0)
-
-def read_pickled_blobs(fn):
-    return concatenate(read_pickle_file(fn, nloads=None, verbose=False))
-
-def read_pickled_logL(fn):
-    # Removes chunks dimension
-    data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
-
-    Nd = len(data.shape)
-
-    # A flattened logL should have dimension (iterations)
-    if Nd == 1:
-        return data
-
-    # (walkers, iterations)
-    elif Nd >= 2:
-        new_data = []
-        for element in data:
-            if Nd == 2:
-                new_data.extend(element)
-            else:
-                new_data.extend(element[0,:])
-        return np.array(new_data)
-
-
-    else:
-        raise ValueError('unrecognized logL shape')
-
-def read_pickled_chain(fn):
-
-    # Removes chunks dimension
-    data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
-
-    Nd = len(data.shape)
-
-    # Flattened chain
-    if Nd == 2:
-        return np.array(data)
-
-    # Unflattnened chain
-    elif Nd == 3:
-        new_data = []
-        for element in data:
-            new_data.extend(element)
-
-        return np.array(new_data)
-
-    else:
-        raise ValueError('Unrecognized chain shape')

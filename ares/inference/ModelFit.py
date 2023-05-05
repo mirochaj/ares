@@ -34,9 +34,6 @@ from ..sources import BlackHole, SynthesisModel
 from ..analysis.TurningPoints import TurningPoints
 from ..util.Stats import Gauss1D, get_nu, bin_e2c
 from ..util.Pickling import read_pickle_file, write_pickle_file
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
-from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
-    read_pickled_chain, read_pickled_logL
 
 try:
     from distpy.distribution import DistributionSet
@@ -47,6 +44,7 @@ try:
     import emcee
     from emcee.utils import sample_ball
     emcee_v = int(emcee.__version__[0])
+
 except ImportError:
     emcee_v = None
 

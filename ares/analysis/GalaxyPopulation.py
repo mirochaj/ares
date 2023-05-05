@@ -1255,7 +1255,7 @@ class GalaxyPopulation(object): # pragma: no cover
 
             return axB, axD, axB2, axD2
 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False,
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, round_wave=0,
         force_labels=False, AUV=None, wavelength=1600., sed_model=None,
         quantity='lf', use_labels=True,
         take_log=False, imf=None, mags='intrinsic', sources_except=[],
@@ -1336,10 +1336,8 @@ class GalaxyPopulation(object): # pragma: no cover
 
             # Shift band [optional]
             if quantity in ['lf']:
-                if data[source]['wavelength'] != wavelength:
-                    #shift = sed_model.
-                    print("# WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
-                        source, data[source]['wavelength'], wavelength))
+                if abs(data[source]['wavelength'] - wavelength) > round_wave:
+                    continue
             #else:
             if source in ['stefanon2017', 'duncan2014']:
                 shift = 0.25

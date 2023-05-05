@@ -252,7 +252,7 @@ class LightCone(object): # pragma: no cover
             # Shape of seds is (N galaxies, N wavelengths)
             # Shape of (ra, dec, red) is just (Ngalaxies)
             waves = np.arange(_wlo, _whi+dlam, dlam)
-            seds = self.sim.pops[idnum].get_sed(_z_, Mh, waves,
+            seds = self.sim.pops[idnum].get_spec(_z_, waves, M=Mh,
                 stellar_mass=False)
             #waves, seds = self.get_seds(z=_z_)
             owaves = waves[None,:] * (1. + red[:,None])

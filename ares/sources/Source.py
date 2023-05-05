@@ -9,13 +9,13 @@ Created on: Sun Jul 22 16:28:08 2012
 Description: Initialize a radiation source.
 
 """
+
 import os
 import re
-
 import numpy as np
 from scipy.integrate import quad
-
 from ..util import ParameterFile
+from functools import cached_property
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile
@@ -33,6 +33,10 @@ except ImportError:
 
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
+
+_sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
+    'schaerer2002', 'hybrid',
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
 
 class Source(object):
     def __init__(self, grid=None, cosm=None, logN=None, init_tabs=True,
@@ -55,6 +59,10 @@ class Source(object):
         # Create lookup tables for integral quantities
         if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
+
+    @cached_property
+    def is_sed_tabular(self):
+        return self.pf['source_sed'] in _sed_tabs
 
     @property
     def Emin(self):
@@ -199,7 +207,7 @@ class Source(object):
 
         n = np.arange(2, self.hydr.nmax)
         En = np.array(list(map(self.hydr.ELyn, n)))
-        In = np.array(list(map(self.Spectrum, En))) / En
+        In = np.array(list(map(self.get_spectrum, En))) / En
         fr = np.array(list(map(self.hydr.frec, n)))
 
         return np.sum(fr * In) / np.sum(In)
@@ -394,8 +402,8 @@ class Source(object):
         Return average photon energy in supplied band.
         """
 
-        integrand = lambda EE: self.Spectrum(EE) * EE
-        norm = lambda EE: self.Spectrum(EE)
+        integrand = lambda EE: self.get_spectrum(EE) * EE
+        norm = lambda EE: self.get_spectrum(EE)
 
         return quad(integrand, Emin, Emax, points=self.sharp_points)[0] \
              / quad(norm, Emin, Emax, points=self.sharp_points)[0]
@@ -418,8 +426,8 @@ class Source(object):
         Compute the average energy per photon (in eV) in some band.
         """
 
-        i1 = lambda E: self.Spectrum(E)
-        i2 = lambda E: self.Spectrum(E) / E
+        i1 = lambda E: self.get_spectrum(E)
+        i2 = lambda E: self.get_spectrum(E) / E
 
         # Must convert units
         final = quad(i1, Emin, Emax, points=self.sharp_points)[0] \
@@ -435,7 +443,7 @@ class Source(object):
         if not hasattr(self, '_sigma_bar_all'):
             self._sigma_bar_all = np.zeros_like(self.grid.zeros_absorbers)
             for i, absorber in enumerate(self.grid.absorbers):
-                integrand = lambda x: self.Spectrum(x) \
+                integrand = lambda x: self.get_spectrum(x) \
                     * self.grid.bf_cross_sections[absorber](x) / x
 
                 self._sigma_bar_all[i] = self.Lbol \
@@ -449,7 +457,7 @@ class Source(object):
         if not hasattr(self, '_sigma_tilde_all'):
             self._sigma_tilde_all = np.zeros_like(self.grid.zeros_absorbers)
             for i, absorber in enumerate(self.grid.absorbers):
-                integrand = lambda x: self.Spectrum(x) \
+                integrand = lambda x: self.get_spectrum(x) \
                     * self.grid.bf_cross_sections[absorber](x)
                 self._sigma_tilde_all[i] = quad(integrand,
                     self.grid.ioniz_thresholds[absorber], self.Emax,
@@ -467,7 +475,7 @@ class Source(object):
         if not hasattr(self, '_fLbol_ioniz_all'):
             self._fLbol_ioniz_all = np.zeros_like(self.grid.zeros_absorbers)
             for i, absorber in enumerate(self.grid.absorbers):
-                self._fLbol_ioniz_all[i] = quad(self.Spectrum,
+                self._fLbol_ioniz_all[i] = quad(self.get_spectrum,
                     self.grid.ioniz_thresholds[absorber], self.Emax,
                     points=self.sharp_points)[0]
 
@@ -555,7 +563,8 @@ class Source(object):
     #    else:
     #        return Lnu
     #
-    def Spectrum(self, E, t=0.0):
+
+    def get_spectrum(self, E, t=0.0):
         r"""
         Return fraction of bolometric luminosity emitted at energy E.
 
@@ -615,9 +624,9 @@ class Source(object):
         else:
             f = lambda x: 1.0
 
-        L = self.Lbol * quad(lambda x: self.Spectrum(x) * f(x), Emin, Emax,
+        L = self.Lbol * quad(lambda x: self.get_spectrum(x) * f(x), Emin, Emax,
             points=self.sharp_points)[0]
-        Q = self.Lbol * quad(lambda x: self.Spectrum(x) * f(x) / x, Emin,
+        Q = self.Lbol * quad(lambda x: self.get_spectrum(x) * f(x) / x, Emin,
             Emax, points=self.sharp_points)[0] / erg_per_ev
 
         return L / Q / erg_per_ev, Q
@@ -644,7 +653,7 @@ class Source(object):
         else:
             out = 'ascii'
 
-        LE = list(map(self.Spectrum, E))
+        LE = list(map(self.get_spectrum, E))
 
         if out == 'hdf5':
             f = h5py.File(fn, 'w')

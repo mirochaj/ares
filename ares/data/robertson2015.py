@@ -22,13 +22,12 @@ sfrd_err = \
  'c': 0.14,
  'd': 0.19,
 }
-    
+
 def _SFRD(z, a=None, b=None, c=None, d=None):
-    return a * (1. + z)**b / (1. + ((1. + z) / c)**d) 
-    
-def SFRD(z, **kwargs):
+    return a * (1. + z)**b / (1. + ((1. + z) / c)**d)
+
+def get_sfrd(z, **kwargs):
     if not kwargs:
         kwargs = sfrd_pars
-        
-    return _SFRD(z, **kwargs)
 
+    return _SFRD(z, **kwargs)

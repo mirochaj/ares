@@ -14,11 +14,11 @@ from scipy.interpolate import interp1d
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
-_input = ARES + '/input/bpass_v2/'
+_input = ARES + '/bpass_v2/'
 
 metallicities = \
 {
- '040': 0.040, '030': 0.040, '020': 0.020, '010': 0.010,
+ '040': 0.040, '030': 0.030, '020': 0.020, '010': 0.010,
  '008': 0.008, '006': 0.006, '004': 0.004, '003': 0.003,
  '001': 0.002, '001': 0.001,
 }

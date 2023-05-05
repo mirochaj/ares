@@ -143,7 +143,7 @@ aux_data = {
         "http://bpass.auckland.ac.nz/2/files"
     ] + _bpass_v1_links + [None],
     "bpass_v1_tests": [
-        "https://www.dropbox.com/s/bq10l5f6gzqqvu7/sed_degraded.tar.gz?dl=1",
+        "https://www.dropbox.com/s/8l69msro6n06hjx/sed_degraded.tar.gz?dl=1",
         "sed_degraded.tar.gz",
         None],
     "bpass_v1_stars": [
@@ -391,7 +391,8 @@ def generate_hmf_tables(path, **kwargs):
 
     def_kwargs.update(kwargs)
 
-    halos = HaloMassFunction(halo_mf_analytic=False, halo_mf_load=False, **kwargs)
+    halos = HaloMassFunction(halo_mf_analytic=False, halo_mf_load=False,
+        **def_kwargs)
     halos.info
 
     try:
@@ -462,8 +463,8 @@ def generate_halo_histories(path, fn_hmf):
 
     fn = "{}.hdf5".format(pref)
     if not os.path.exists(fn):
-        print("Running new trajectories...")
-        zall, hist = pop.Trajectories()
+        print("# Running new trajectories...")
+        zall, hist = pop.get_histories()
 
         with h5py.File(fn, "w") as h5f:
             # Save halo trajectories
@@ -472,9 +473,9 @@ def generate_halo_histories(path, fn_hmf):
                     continue
                 h5f.create_dataset(key, data=hist[key])
 
-        print("Wrote {}".format(fn))
+        print("# Wrote {}".format(fn))
     else:
-        print("File {} exists. Exiting.".format(fn))
+        print("# File {} exists. Exiting.".format(fn))
     return
 
 def make_halos(path):
@@ -537,11 +538,19 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
         data = np.loadtxt(full_fn)
         wave = data[:,0]
 
+        assert np.all(np.diff(wave) == 1), \
+            "Expecting intrinsic spectral resolution of 1 Angstrom."
+
+        # We're taking every degrade_to'th wavelength, and will save the
+        # SED smoothed with a boxcar to that
         ok = wave % degrade_to == 0
 
         new_wave = wave[ok==1]
-        assert data.shape[0] / degrade_to % 1 == 0
-        new_data = np.zeros((int(data.shape[0] / degrade_to), data.shape[1]))
+
+        # No longer require first and last bins to be preserved
+        #assert data.shape[0] / degrade_to % 1 == 0
+
+        new_data = np.zeros((new_wave.size, data.shape[1]))
         new_data[:,0] = new_wave
 
         for i in range(data.shape[1]):
@@ -558,7 +567,8 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
         del data, wave
 
 def make_lowres_sps(path):
-    generate_lowres_sps(path, degrade_to=10)
+    #generate_lowres_sps(path, degrade_to=10)
+    generate_lowres_sps(path, degrade_to=100)
 
 def generate_simpl_seds(path, **kwargs):
     # go to path
