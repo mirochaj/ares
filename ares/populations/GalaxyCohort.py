@@ -134,6 +134,20 @@ class GalaxyCohort(GalaxyAggregate):
 
     #    return result
 
+    def _get_src_by_Z(self, i):
+        if not hasattr(self, '_src_by_Z'):
+            self._src_by_Z = {}
+
+        if i in self._src_by_Z:
+            return self._src_by_Z[i]
+
+        Zarr = np.sort(list(self.src.tab_metallicities))
+        kw = self.src_kwargs.copy()
+        kw['source_Z'] = Zarr[i]
+        src = self._Source(cosm=self.cosm, **kw)
+        self._src_by_Z[i] = src
+        return src
+
     def _get_lum_all_Z(self, wave=1600., band=None, window=1, raw=False,
         nebular_only=False, age=None, band_units='Angstrom'):
         """
@@ -157,20 +171,12 @@ class GalaxyCohort(GalaxyAggregate):
 
         tmp = []
         Zarr = np.sort(list(self.src.tab_metallicities))
-        for Z in Zarr:
-            kw = self.src_kwargs.copy()
-            kw['source_Z'] = Z
-
-            src = self._Source(cosm=self.cosm, **kw)
+        for i, Z in enumerate(Zarr):
+            src = self._get_src_by_Z(i)
             L_per_sfr = src.get_lum_per_sfr(wave=wave, window=window,
                 band=band, raw=raw, nebular_only=nebular_only, age=age,
                 band_units=band_units)
 
-            ## Must specify band
-            #if name == 'rad_yield':
-            #    val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
-            #else:
-            #    val = att
             tmp.append(L_per_sfr)
 
         # Interpolant
@@ -4368,7 +4374,7 @@ class GalaxyCohort(GalaxyAggregate):
                         continue
                     if z > self.zform:
                         continue
-                        
+
                     integrand[i] = self._get_ps_obs(z, _scale_,
                         wave_obs1, wave_obs2,
                         include_shot=include_shot,

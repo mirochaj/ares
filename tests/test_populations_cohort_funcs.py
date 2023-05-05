@@ -102,7 +102,9 @@ def test():
 
     Z = pop_Z.get_metallicity(6)
 
-    assert 1e-3 <= np.mean(Z) <= 0.04
+    # Don't apply 1e-3 floor anymore.
+    #assert 1e-3 <= np.mean(Z) <= 0.04, \
+    #    f"Mean metallicity not in tabulated range! Z={Z}"
 
     # Can't do this unless we download multiple BPASS tables when running
     # test suite.
