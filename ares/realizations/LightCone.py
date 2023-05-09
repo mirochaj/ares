@@ -460,12 +460,15 @@ class LightCone(object): # pragma: no cover
             fn += '_'
 
         if channel is not None:
-            fn += 'ch_{:.2f}_{:.2f}'.format(*channel)
+            try:
+                fn += '{:.2f}_{:.2f}'.format(*channel)
+            except:
+                fn += f'{channel}'
 
         return fn + '.' + fmt
 
     def get_README(self, fov, pix, channels, logmlim, zlim, path='.',
-        suffix=None, fmt='fits', save=False):
+        suffix=None, fmt='fits', save=False, is_map=True):
         """
 
         """
@@ -484,22 +487,251 @@ class LightCone(object): # pragma: no cover
         s += "channel upper edge (microns) ; filename \n"
 
         # Loop over channels
-        final_dir = 'final_maps'
+        if is_map:
+            final_dir = 'final_maps'
+            rstr = 'maps'
+        else:
+            final_dir = 'final_cats'
+            rstr = 'cats'
 
+        if channels in [None, 'Mh', ['Mh']]:
+            channels = ['Mh']
+
+        # Loop over channels and record filenames. If not supplied, must be
+        # galaxy catalog containing only positions (no photometry).
         for channel in channels:
             fn = self.get_fn(channel, logmlim, zlim=zlim,
                 fmt=fmt, final=True)
-            s += "{:.4f} ; {:.4f} ; {:.4f} ; {}/{} \n".format(np.mean(channel),
-                channel[0], channel[1], final_dir, fn)
 
+            if is_map:
+                s += "{:.4f} ; {:.4f} ; {:.4f} ; {}/{} \n".format(
+                    np.mean(channel), channel[0], channel[1], final_dir, fn)
+            else:
+                s += "{} ; {}/{}".format(channel, final_dir, fn)
+        #else:
+        #    assert not is_map
+        #    fn = self.get_fn(None, logmlim, zlim=zlim,
+        #        fmt=fmt, final=True)
+        #    s += "None ; {}/{}".format(final_dir, fn)
+
+        ##
+        # Write
         if save:
             base_dir = self.get_base_dir(fov=fov, pix=pix, path=path,
                 suffix=suffix)
-            with open(f'{base_dir}/README', 'w') as f:
+            with open(f'{base_dir}/README_{rstr}', 'w') as f:
                 f.write(s)
             print(f"# Wrote {base_dir}/README")
 
         return s
+
+    def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
+        include_galaxy_sizes=False, dlam=20, path='.',
+        suffix=None, fmt='hdf5', hdr={},
+        include_pops=None, clobber=False, save_catalogs=False, **kwargs):
+        """
+        Generate galaxy catalogs.
+        """
+
+        # Create root directory if it doesn't already exist.
+        base_dir = self.get_base_dir(fov=fov, pix=pix, path=path, suffix=suffix)
+        if not os.path.exists(base_dir):
+            os.mkdir(base_dir)
+        if not os.path.exists(base_dir + '/final_cats'):
+            os.mkdir(base_dir + '/intermediate_cats')
+            os.mkdir(base_dir + '/final_cats')
+
+        #
+        if channels is None:
+            run_phot = False
+            channels = ['Mh']
+        else:
+            run_phot = True
+
+        ##
+        # Write a README file that says what all the final products are
+        README = self.get_README(fov=fov, pix=pix, channels=channels,
+            logmlim=logmlim, zlim=zlim, path=path, fmt=fmt,
+            suffix=suffix, save=True, is_map=False)
+
+        if zlim is None:
+            zlim = self.zlim
+
+        if include_pops is None:
+            include_pops = range(0, len(self.sim.pops))
+
+        assert fov * 3600 / pix % 1 == 0, \
+            "FOV must be integer number of pixels wide!"
+
+        npix = int(fov * 3600 / pix)
+        zchunks = self.get_redshift_chunks(self.zlim)
+        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
+        mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
+
+        final_dir = base_dir + '/final_cats'
+        _final_sub = self.get_fn(None, logmlim, zlim=zlim, fmt=fmt,
+            final=True)
+        final_sub = _final_sub[0:_final_sub.rfind('/')]
+        if not os.path.exists(f'{final_dir}/{final_sub}'):
+            os.mkdir(f'{final_dir}/{final_sub}')
+
+        ##
+        # Loop over populations, make catalogs.
+        for channel in channels:
+            ra_allp = []
+            dec_allp = []
+            red_allp = []
+            dat_allp = []
+            for popid, pop in enumerate(self.sim.pops):
+                if popid not in include_pops:
+                    continue
+
+                intmd_dir = base_dir + f'/intermediate_cats/pop_{popid}'
+                if not os.path.exists(intmd_dir):
+                    os.mkdir(intmd_dir)
+
+                # Go from low-z to high-z
+                ra_allz = []
+                dec_allz = []
+                red_allz = []
+                dat_allz = []
+                for (zlo, zhi) in zchunks:
+
+                    # Look for pre-existing file.
+
+                    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
+                        continue
+
+                    ra_z = []
+                    dec_z = []
+                    red_z = []
+                    dat_z = []
+
+                    # Go from high to low in mass
+                    for (mlo, mhi) in mchunks[-1::-1]:
+
+                        fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
+                            fmt=fmt, final=False)
+
+                        fn = intmd_dir + '/' + fn
+
+                        # Try to read from disk.
+                        if os.path.exists(fn) and (not clobber):
+                            print(f"Found {fn}. Set clobber=True to overwrite.")
+                            #_Inu = self._load_cat(fn)
+                            continue
+
+                        ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
+                            logmlim=(mlo, mhi), idnum=popid)
+
+                        # Could be empty chunks for very massive halos and/or early times.
+                        if ra is None:
+                            continue
+
+                        # Check that (RA, DEC) range in galaxy catalog is within the
+                        # requested FOV.
+                        theta_cat = self.sim.cosm.ComovingLengthToAngle(zhi, 1) \
+                            * (self.Lbox / self.sim.cosm.h70) / 60.
+
+
+                        # Hack out galaxies outside our requested lightcone.
+                        ok = np.logical_and(np.abs(ra) < fov / 2.,
+                                            np.abs(dec) < fov / 2.)
+                        ra = ra[ok==1]
+                        dec = dec[ok==1]
+                        red = red[ok==1]
+                        Mh = Mh[ok==1]
+
+                        self.save_cat(fn, (ra, dec, red, Mh),
+                            None, (zlo, zhi), (mlo, mhi),
+                            fov, pix=pix, fmt=fmt, hdr=hdr)
+
+                        ra_z.extend(list(ra))
+                        dec_z.extend(list(dec))
+                        red_z.extend(list(red))
+
+
+                        if not run_phot:
+                            dat_z.extend(list(Mh))
+                            continue
+
+                        seds = self.sim.pops[popid].get_spec(_z_, waves, M=Mh,
+                            stellar_mass=False)
+                        #dat_z.extend(list(Mh))
+
+                    ##
+                    # Done with all mass chunks
+
+                    # Save intermediate chunk: all masses, single redshift chunk
+                    fnt = self.get_fn(channel, logmlim=logmlim,
+                        zlim=(zlo, zhi), fmt=fmt, final=False)
+
+                    fnt = intmd_dir + '/' + fnt
+
+                    self.save_cat(fnt, (ra_z, dec_z, red_z, dat_z),
+                        None, (zlo, zhi), (mlo, mhi),
+                        fov, pix=pix, fmt=fmt, hdr=hdr)
+
+                    ra_allz.extend(ra_z)
+                    dec_allz.extend(dec_z)
+                    red_allz.extend(red_z)
+                    dat_allz.extend(dat_z)
+
+                    del ra_z, dec_z, red_z, dat_z
+
+                ##
+                # Done with all redshift chunks for this population.
+                fnp = self.get_fn(channel, logmlim=logmlim,
+                    zlim=zlim, fmt=fmt, final=False)
+
+                fnp = intmd_dir + '/' + fnp
+
+                self.save_cat(fnp, (ra_allz, dec_allz, red_allz, dat_allz),
+                    None, zlim, logmlim,
+                    fov, pix=pix, fmt=fmt, hdr=hdr)
+
+                ra_allp.extend(ra_allz)
+                dec_allp.extend(dec_allz)
+                red_allp.extend(red_allz)
+                dat_allp.extend(dat_allz)
+
+            del ra_allz, dec_allz, red_allz, dat_allz
+
+            ##
+            # Combine catalogs over populations?
+            fnf = self.get_fn(channel, logmlim=logmlim,
+                zlim=zlim, fmt=fmt, final=True)
+
+            fnf = final_dir + '/' + fnf
+
+            print(f"Trying to save final catalog to {fnf}")
+            print(f"final_dir={final_dir}, fnf={fnf}, channel={channel}")
+
+
+            self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
+                channel, zlim, logmlim,
+                fov, pix=pix, fmt=fmt, hdr=hdr)
+
+        ##
+        # Done with channels
+
+        ##
+        # Wipe slate clean
+        f = open(f"{final_dir}/README", 'w')
+        f.write("# filter ; populations included \n")
+        f.close()
+
+        s = f"{channel} ; "
+        for pop in include_pops:
+            s += f"{pop},"
+
+        s = s.rstrip(',') + '\n'
+
+        with open(f"{final_dir}/README", 'a') as f:
+            f.write(s)
+
+        print(f"# Wrote {final_dir}/README")
+
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.',
@@ -534,6 +766,7 @@ class LightCone(object): # pragma: no cover
         base_dir = self.get_base_dir(fov=fov, pix=pix, path=path, suffix=suffix)
         if not os.path.exists(base_dir):
             os.mkdir(base_dir)
+        if not os.path.exists(base_dir + '/final_maps'):
             os.mkdir(base_dir + '/intermediate_maps')
             os.mkdir(base_dir + '/final_maps')
 
@@ -714,6 +947,30 @@ class LightCone(object): # pragma: no cover
 
             print(f"# Wrote {final_dir}/README")
 
+    def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
+        hdr={}, clobber=True):
+        """
+        Save galaxy catalog.
+        """
+        ra, dec, red, X = cat
+
+        if fmt == 'hdf5':
+            with h5py.File(fn, 'w') as f:
+                f.create_dataset('ra', data=ra)
+                f.create_dataset('dec', data=dec)
+                f.create_dataset('z', data=red)
+                f.create_dataset(channel if channel is not None else 'Mh',
+                    data=X)
+
+                # Save hdr
+                grp = f.create_group('hdr')
+                for key in hdr:
+                    grp.create_dataset(key, data=hdr[key])
+
+        else:
+            raise NotImplemented(f'Unrecognized `fmt` option "{fmt}"')
+
+        print(f"# Wrote {fn}.")
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
         hdr={}, map_units='MJy', clobber=True):
