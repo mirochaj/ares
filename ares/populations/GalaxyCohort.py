@@ -299,6 +299,10 @@ class GalaxyCohort(GalaxyAggregate):
         func = self._get_function('pop_gas_fraction')
         return func(z=z, Mh=Mh) * Mh * self.cosm.fbaryon
 
+    def get_size(self, z, Ms):
+        func = self._get_function('pop_msr')
+        return func(z=z, Ms=Ms)
+
     def get_field(self, z, field):
         """
         Return results from SAM (all masses) at input redshift.

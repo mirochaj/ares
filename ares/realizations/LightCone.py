@@ -18,6 +18,7 @@ from ..util.Stats import bin_e2c, bin_c2e
 from scipy.integrate import cumtrapz, quad
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
+from astropy.modeling.models import Sersic2D
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c
 
@@ -118,7 +119,7 @@ class LightCone(object): # pragma: no cover
         return s
 
     def get_map(self, fov, pix, channel, logmlim=None, zlim=None, idnum=0,
-        include_galaxy_sizes=False, save_intermediate=True, dlam=20.,
+        include_galaxy_sizes=False, size_cut=0.5, save_intermediate=True, dlam=20.,
         use_pbar=True, map_units='si', **kwargs):
         """
         Get a map in the user-supplied spectral channel.
@@ -252,9 +253,11 @@ class LightCone(object): # pragma: no cover
             # Shape of seds is (N galaxies, N wavelengths)
             # Shape of (ra, dec, red) is just (Ngalaxies)
             waves = np.arange(_wlo, _whi+dlam, dlam)
+
+            # Need to supply band or window?
             seds = self.sim.pops[idnum].get_spec(_z_, waves, M=Mh,
-                stellar_mass=False)
-            #waves, seds = self.get_seds(z=_z_)
+                stellar_mass=False, per_Hz=False, window=dlam)
+
             owaves = waves[None,:] * (1. + red[:,None])
 
             # Frequency "squashing", i.e., our 'per Angstrom' interval is
@@ -299,17 +302,51 @@ class LightCone(object): # pragma: no cover
 
                 ##
                 # NEED TO GENERALIZE THIS
-                Rkpc = self.cat.get_field(_z_, 'Re_maj', isolate_chunk=True,
-                    **kwargs)
-                nsers = self.cat.get_field(_z_, 'sersic_n', isolate_chunk=True,
-                    **kwargs)
-                pa = self.cat.get_field(_z_, 'position_angle', isolate_chunk=True,
-                    **kwargs)
-                R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
+                #Rkpc = self.cat.get_field(_z_, 'Re_maj', isolate_chunk=True,
+                #    **kwargs)
+                #nsers = self.cat.get_field(_z_, 'sersic_n', isolate_chunk=True,
+                #    **kwargs)
+                #pa = self.cat.get_field(_z_, 'position_angle', isolate_chunk=True,
+                #    **kwargs)
+
+                Ms = self.sim.pops[idnum].get_smhm(z=red, Mh=Mh) * Mh
+                Rkpc = self.pops[0].get_size(z=red, Ms=Ms)
+
+                R_sec = np.zeros_like(Rkpc)
+                for kk in range(red.size):
+                    R_sec[kk] = self.sim.cosm.ProperLengthToAngle(red[kk], Rkpc[kk] * 1e-3)
+                R_sec *= 60.
+
+                # Will paint anything half-light radius greater than a pixel
+                if size_cut == 0.5:
+                    r_X = R_sec
+                # General option: paint anything with size, defined as the
+                # radius containing `size_cut` fraction of the light, that
+                # exceeds a pixel.
+                else:
+                    rarr = np.logspace(-1, 1.5, 500)
+                    cog_sfg = [self.sim.pops[idnum].get_sersic_cog(r, n=4) \
+                        for r in rarr]
+
+                    R_X = np.interp(size_cut, cog_sfg, rarr) * np.ones_like(R_sec)
+
+
+                print('hi', size_cut, R_X[0])
+
+                #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
+
+                # Uniform for now.
+                nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
+                pa = np.random.random(size=Rkpc.size) * 360
+
+                # Ellipticity = 1 - b/a
+                ellip = np.random.random(size=Rkpc.size)
 
                 # Size in degrees
                 R_deg = R_sec / 3600.
                 R_pix = R_deg / pix_deg
+
+                R_X /= (3600 * pix_deg)
 
                 # All in degrees
                 x0, y0 = ra, dec
@@ -363,11 +400,12 @@ class LightCone(object): # pragma: no cover
 
                 # HERE: account for fact that galaxies aren't point sources.
                 # [optional]
-                if include_galaxy_sizes and R_pix[h] > 0.5:
+                if include_galaxy_sizes and R_X[h] >= 1:
 
                     model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
                         x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
-                        n=nsers[h], theta=pa[h] * np.pi / 180.)
+                        n=nsers[h], theta=pa[h] * np.pi / 180.,
+                        ellip=ellip[h])
 
                     # Fractional contribution to total flux
                     I = model_SB(rr, dd)
@@ -528,7 +566,7 @@ class LightCone(object): # pragma: no cover
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.',
         suffix=None, fmt='hdf5', hdr={},
-        include_pops=None, clobber=False, save_catalogs=False, **kwargs):
+        include_pops=None, clobber=False, **kwargs):
         """
         Generate galaxy catalogs.
         """
@@ -732,11 +770,10 @@ class LightCone(object): # pragma: no cover
 
         print(f"# Wrote {final_dir}/README")
 
-
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
-        include_galaxy_sizes=False, dlam=20, path='.',
+        include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
         suffix=None, fmt='hdf5', hdr={}, map_units='MJy',
-        include_pops=None, clobber=False, save_catalogs=False, **kwargs):
+        include_pops=None, clobber=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -849,8 +886,10 @@ class LightCone(object): # pragma: no cover
                         ra_e, dec_e, img = self.get_map(fov, pix, channel,
                             logmlim=(mlo, mhi), zlim=(zlo, zhi),
                             save_intermediate=False,
-                            include_galaxy_sizes=False,
-                            dlam=dlam, use_pbar=False, map_units=map_units, **kwargs)
+                            include_galaxy_sizes=include_galaxy_sizes,
+                            size_cut=size_cut,
+                            dlam=dlam, use_pbar=False, map_units=map_units,
+                            **kwargs)
 
                         nu = c * 1e4 / np.mean(channel)
                         dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])

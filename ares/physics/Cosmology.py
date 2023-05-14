@@ -727,6 +727,13 @@ class Cosmology(object):
         f = lambda ang: self.AngleToComovingLength(z, ang) - R
         return fsolve(f, x0=0.1)[0]
 
+    def ProperLengthToAngle(self, z, R):
+        """
+        Convert a length scale (proper) to an observed angle [arcmin].
+        """
+        f = lambda ang: self.AngleToProperLength(z, ang) - R
+        return fsolve(f, x0=0.1)[0]
+
     def AngleToComovingLength(self, z, angle):
         return self.AngleToProperLength(z, angle) * (1. + z)
 

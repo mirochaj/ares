@@ -1,3 +1,4 @@
+from ares.analysis.MockSky import MockSky
 from ares.analysis.ModelSet import ModelSet
 from ares.analysis.RaySegment import RaySegment
 from ares.analysis.Global21cm import Global21cm
