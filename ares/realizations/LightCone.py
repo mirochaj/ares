@@ -13,6 +13,7 @@ Description:
 import os
 import gc
 import time
+import h5py
 import numpy as np
 from ..util.Stats import bin_e2c, bin_c2e
 from scipy.integrate import cumtrapz, quad
@@ -23,9 +24,10 @@ from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c
 
 try:
-    import h5py
+    from astropy.io import fits
 except ImportError:
     pass
+
 
 class LightCone(object): # pragma: no cover
     """
@@ -317,30 +319,35 @@ class LightCone(object): # pragma: no cover
                     R_sec[kk] = self.sim.cosm.ProperLengthToAngle(red[kk], Rkpc[kk] * 1e-3)
                 R_sec *= 60.
 
-                # Will paint anything half-light radius greater than a pixel
-                if size_cut == 0.5:
-                    r_X = R_sec
-                # General option: paint anything with size, defined as the
-                # radius containing `size_cut` fraction of the light, that
-                # exceeds a pixel.
-                else:
-                    rarr = np.logspace(-1, 1.5, 500)
-                    cog_sfg = [self.sim.pops[idnum].get_sersic_cog(r, n=4) \
-                        for r in rarr]
-
-                    R_X = np.interp(size_cut, cog_sfg, rarr) * np.ones_like(R_sec)
-
-
-                print('hi', size_cut, R_X[0])
-
-                #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
-
                 # Uniform for now.
                 nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
                 pa = np.random.random(size=Rkpc.size) * 360
 
                 # Ellipticity = 1 - b/a
                 ellip = np.random.random(size=Rkpc.size)
+
+                # Will paint anything half-light radius greater than a pixel
+                if size_cut == 0.5:
+                    R_X = R_sec
+                # General option: paint anything with size, defined as the
+                # radius containing `size_cut` fraction of the light, that
+                # exceeds a pixel.
+                else:
+                    rarr = np.logspace(-1, 1.5, 500)
+                    #cog_sfg = [self.sim.pops[idnum].get_sersic_cog(r,
+                    #    n=nsers[h]) \
+                    #    for r in rarr]
+
+                    rmax = [self.sim.pops[idnum].get_sersic_rmax(size_cut,
+                        nsers[h]) for h in range(Rkpc.size)]
+
+                    R_X = np.array(rmax) * R_sec
+
+                print('hi', size_cut, R_X[0:10])
+
+                #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
+
+
 
                 # Size in degrees
                 R_deg = R_sec / 3600.
@@ -682,7 +689,8 @@ class LightCone(object): # pragma: no cover
 
                         self.save_cat(fn, (ra, dec, red, Mh),
                             None, (zlo, zhi), (mlo, mhi),
-                            fov, pix=pix, fmt=fmt, hdr=hdr)
+                            fov, pix=pix, fmt=fmt, hdr=hdr,
+                            clobber=clobber)
 
                         ra_z.extend(list(ra))
                         dec_z.extend(list(dec))
@@ -708,7 +716,7 @@ class LightCone(object): # pragma: no cover
 
                     self.save_cat(fnt, (ra_z, dec_z, red_z, dat_z),
                         None, (zlo, zhi), (mlo, mhi),
-                        fov, pix=pix, fmt=fmt, hdr=hdr)
+                        fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
 
                     ra_allz.extend(ra_z)
                     dec_allz.extend(dec_z)
@@ -726,7 +734,7 @@ class LightCone(object): # pragma: no cover
 
                 self.save_cat(fnp, (ra_allz, dec_allz, red_allz, dat_allz),
                     None, zlim, logmlim,
-                    fov, pix=pix, fmt=fmt, hdr=hdr)
+                    fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
 
                 ra_allp.extend(ra_allz)
                 dec_allp.extend(dec_allz)
@@ -748,7 +756,7 @@ class LightCone(object): # pragma: no cover
 
             self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
                 channel, zlim, logmlim,
-                fov, pix=pix, fmt=fmt, hdr=hdr)
+                fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
 
         ##
         # Done with channels
@@ -987,11 +995,15 @@ class LightCone(object): # pragma: no cover
             print(f"# Wrote {final_dir}/README")
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}, clobber=True):
+        hdr={}, clobber=False):
         """
         Save galaxy catalog.
         """
         ra, dec, red, X = cat
+
+        if os.path.exists(fn) and (not clobber):
+            print(f"# {fn} exists! Set clobber=True to overwrite.")
+            return
 
         if fmt == 'hdf5':
             with h5py.File(fn, 'w') as f:
@@ -1006,16 +1018,31 @@ class LightCone(object): # pragma: no cover
                 for key in hdr:
                     grp.create_dataset(key, data=hdr[key])
 
+        elif fmt == 'fits':
+            col1 = fits.Column(name='ra', format='D', unit='deg', array=ra)
+            col2 = fits.Column(name='dec', format='D', unit='deg', array=dec)
+            col3 = fits.Column(name='z', format='D', unit='', array=red)
+            col4 = fits.Column(name=channel if channel is not None else 'Mh',
+                format='D', unit='', array=X)
+            coldefs = fits.ColDefs([col1, col2, col3, col4])
+
+            hdu = fits.BinTableHDU.from_columns(coldefs)
+
+            hdu.writeto(fn, overwrite=clobber)
         else:
             raise NotImplemented(f'Unrecognized `fmt` option "{fmt}"')
 
         print(f"# Wrote {fn}.")
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}, map_units='MJy', clobber=True):
+        hdr={}, map_units='MJy', clobber=False):
         """
         Save map to disk.
         """
+
+        if os.path.exists(fn) and (not clobber):
+            print(f"# {fn} exists! Set clobber=True to overwrite.")
+            return
 
         ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
 

@@ -1033,19 +1033,25 @@ class Population(object):
         .. note :: The radius returned is normalized to the effective radius,
             so plugging in `frac=0.5` should yield unity (i.e., the half-light
             radius).
-            
+
         """
         if not hasattr(self, '_tab_sersic_rmax'):
             self._tab_sersic_rmax = {}
 
         if frac in self._tab_sersic_rmax:
-            return np.interp(n, tab_sersic_n, self._tab_sersic_rmax[frac])
+            return np.interp(n, self.tab_sersic_n, self._tab_sersic_rmax[frac])
 
         rarr = np.logspace(-1, 1.5, 500)
-        cog_sfg = [self.sim.pops[idnum].get_sersic_cog(r, n=4) \
-            for r in rarr]
 
-        x_R = np.interp(size_cut, cog_sfg, rarr)
+        x = np.zeros_like(self.tab_sersic_n)
+        for i, _n_ in enumerate(self.tab_sersic_n):
+            cog_sfg = [self.get_sersic_cog(r, n=_n_) for r in rarr]
+
+            x[i] = np.interp(frac, cog_sfg, rarr)
+
+        self._tab_sersic_rmax[frac] = x
+
+        return np.interp(n, self.tab_sersic_n, x)
 
     def get_tab_emissivity(self, z, E):
         """

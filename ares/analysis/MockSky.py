@@ -417,11 +417,25 @@ class MockSky(object):
         return img, hdr
 
     def load_cat(self, fn):
-        with h5py.File(fn, 'r') as f:
-            ra = np.array(f[('ra')])
-            dec = np.array(f[('dec')])
-            red = np.array(f[('z')])
-            X = np.array(f[('Mh')])
+        if fn.endswith('hdf5'):
+            with h5py.File(fn, 'r') as f:
+                ra = np.array(f[('ra')])
+                dec = np.array(f[('dec')])
+                red = np.array(f[('z')])
+                X = np.array(f[('Mh')])
+        elif fn.endswith('fits'):
+            with fits.open(fn) as f:
+                data = f[1].data
+                ra = data['ra']
+                dec = data['dec']
+                red = data['z']
+
+                # Hack for now.
+                name = data.columns[3].name
+                X = data[name]
+        else:
+            raise NotImplemented('Unrecognized file format `{}`'.format(
+                fn[fn.rfind('.'):]))
 
         return ra, dec, red, X
 
