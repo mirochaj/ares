@@ -1374,6 +1374,33 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
+    def get_spec_obs(self, z, M, waves=None, per_Hz=False):
+        if waves is None:
+            waves = self.src.tab_waves_c
+            dwdn = self.src.tab_dwdn
+        else:
+            dwdn = waves**2 / (c * 1e8)
+
+        spec = self.get_spec(z, waves=waves, M=M, per_Hz=per_Hz)
+        dL = self.cosm.LuminosityDistance(z)
+
+        # Flux at Earth in erg/s/cm^2/Hz
+        f = spec / (4. * np.pi * dL**2)
+
+        # Correct for redshifting and change in units.
+        if per_Hz:
+            f *= (1. + z)
+        else:
+            f /= dwdn
+            f /= (1. + z)
+
+        owaves = waves * (1. + z) / 1e4
+
+        tau = 0#self.OpticalDepth(z, owaves)
+        T = np.exp(-tau)
+
+        return owaves, f * T
+
     def get_lum(self, z, wave=1600, band=None, window=1, band_units='Angstrom',
         energy_units=True, load=True, raw=False, nebular_only=False, age=None):
         """

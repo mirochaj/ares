@@ -73,6 +73,26 @@ class LightCone(object): # pragma: no cover
                 for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
 
+    def thin_sample(self, max_sources=None):
+
+        if (max_sources is not None):
+            if (ct == 0) and (max_sources >= Mh.size):
+                # In this case, we can accommodate all the galaxies in
+                # the catalog, so don't do anything yet.
+                pass
+            else:
+                # Flag entries until we hit target.
+                # This is not efficient but oh well.
+                for h in range(Mh.size):
+                    ok[h] = 0
+
+                    if ok.sum() == max_sources:
+                        break
+
+                # This will be the final iteration.
+                if ct + ok.sum() == max_sources:
+                    self._hit_max_sources = True
+
     def create_directory_structure(self, path='.', suffix=None):
         """
         Our model is:
@@ -122,7 +142,7 @@ class LightCone(object): # pragma: no cover
 
     def get_map(self, fov, pix, channel, logmlim=None, zlim=None, idnum=0,
         include_galaxy_sizes=False, size_cut=0.5, save_intermediate=True, dlam=20.,
-        use_pbar=True, map_units='si', **kwargs):
+        use_pbar=True, map_units='si', max_sources=None, **kwargs):
         """
         Get a map in the user-supplied spectral channel.
 
@@ -188,9 +208,17 @@ class LightCone(object): # pragma: no cover
             use=use_pbar)
         pb.start()
 
+        # Track max_sources
+        _hit_max_sources = False
+
+        ct = 0
+
         ##
         # Loop over redshift chunks and assemble image.
         for _iz_, (zlo, zhi) in enumerate(zall):
+
+            if _hit_max_sources:
+                break
 
             if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                 continue
@@ -201,15 +229,6 @@ class LightCone(object): # pragma: no cover
                 iz = _iz_
             else:
                 iz = 0
-
-            #ra = self.get_field(z=_z_, name='ra', isolate_chunk=True,
-            #    **kwargs)
-            #dec = self.get_field(z=_z_, name='dec', isolate_chunk=True,
-            #    **kwargs)
-            #red = self.get_field(z=_z_, name='redshift', isolate_chunk=True,
-            #    **kwargs)
-            #Mh = self.get_field(z=_z_, name='mass', isolate_chunk=True,
-            #    **kwargs)
 
             ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
                 logmlim=logmlim, idnum=idnum)
@@ -232,6 +251,66 @@ class LightCone(object): # pragma: no cover
             #    f"Catalog spans RA range ({dra}) smaller than requested FoV!"
             #assert dde >= dec[0], \
             #    f"Catalog spans DEC range ({dde}) smaller than requested FoV!"
+
+            ##
+            # Figure out which bin each galaxy is in.
+            ra_bin = np.digitize(ra, bins=ra_e)
+            dec_bin = np.digitize(dec, bins=dec_e)
+            mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
+            mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
+            ra_ind = ra_bin - 1
+            de_ind = dec_bin - 1
+
+            # Mask out galaxies that aren't in our desired image plane.
+            okp = np.logical_not(np.logical_or(mask_ra, mask_de))
+
+            # Filter out galaxies outside specified redshift range.
+            # [usually don't do this within chunk, but hey, functionality there]
+            if zlim is not None:
+                okz = np.logical_and(red >= zlim[0], red < zlim[1])
+                ok = np.logical_and(okp, okz)
+            else:
+                ok = okp
+
+            # For debugging and tests, we can dramatically limit the
+            # number of sources. Thin out the herd here.
+            if (max_sources is not None):
+                if (ct == 0) and (max_sources >= Mh.size):
+                    # In this case, we can accommodate all the galaxies in
+                    # the catalog, so don't do anything yet.
+                    pass
+                else:
+                    # Flag entries until we hit target.
+                    # This is not efficient but oh well.
+                    for h in range(Mh.size):
+                        ok[h] = 0
+
+                        if ok.sum() == max_sources:
+                            break
+
+                    # This will be the final iteration.
+                    if ct + ok.sum() == max_sources:
+                        _hit_max_sources = True
+
+            #if self.verbose:
+            #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
+
+            # May have empty chunks, e.g., very massive halos and/or very
+            # high redshifts.
+            if not np.any(ok):
+                continue
+
+            # Increment counter
+            ct += ok.sum()
+
+            ##
+            # Isolate OK entries.
+            ra = ra[ok==1]
+            dec = dec[ok==1]
+            red = red[ok==1]
+            Mh = Mh[ok==1]
+            ra_ind = ra_ind[ok==1]
+            de_ind = de_ind[ok==1]
 
             # Get luminosity distance to each object.
             d_L = np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc
@@ -267,49 +346,8 @@ class LightCone(object): # pragma: no cover
             flux = corr[:,None] * seds[:,:] / (1. + red[:,None]) / sr_per_pix
 
             ##
-            # Figure out which bin each galaxy is in.
-            ra_bin = np.digitize(ra, bins=ra_e)
-            dec_bin = np.digitize(dec, bins=dec_e)
-            mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
-            mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
-            ra_ind = ra_bin - 1
-            de_ind = dec_bin - 1
-
-            # Mask out galaxies that aren't in our desired image plane.
-            okp = np.logical_not(np.logical_or(mask_ra, mask_de))
-
-            # Filter out galaxies outside specified redshift range.
-            if zlim is not None:
-                okz = np.logical_and(red >= zlim[0], red < zlim[1])
-                ok = np.logical_and(okp, okz)
-            else:
-                ok = okp
-
-            #if self.verbose:
-            #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
-
-            # May have empty chunks, e.g., very massive halos and/or very
-            # high redshifts.
-            if not np.any(ok):
-                continue
-
-            ##
             # Need some extra info to do more sophisticated modeling...
             if include_galaxy_sizes:
-
-                # Should have routine built into `cat` that returns
-                # structural parameters.
-                # For Sersic option, returns Re, n, PA.
-                # Potentially other options in the future.
-
-                ##
-                # NEED TO GENERALIZE THIS
-                #Rkpc = self.cat.get_field(_z_, 'Re_maj', isolate_chunk=True,
-                #    **kwargs)
-                #nsers = self.cat.get_field(_z_, 'sersic_n', isolate_chunk=True,
-                #    **kwargs)
-                #pa = self.cat.get_field(_z_, 'position_angle', isolate_chunk=True,
-                #    **kwargs)
 
                 Ms = self.sim.pops[idnum].get_smhm(z=red, Mh=Mh) * Mh
                 Rkpc = self.pops[0].get_size(z=red, Ms=Ms)
@@ -342,8 +380,6 @@ class LightCone(object): # pragma: no cover
                         nsers[h]) for h in range(Rkpc.size)]
 
                     R_X = np.array(rmax) * R_sec
-
-                print('hi', size_cut, R_X[0:10])
 
                 #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
 
@@ -389,8 +425,8 @@ class LightCone(object): # pragma: no cover
             # Actually sum fluxes from all objects in image plane.
             for h in range(ra.size):
 
-                if not ok[h]:
-                    continue
+                #if not ok[h]:
+                #    continue
 
                 # Where this galaxy lives in pixel coordinates
                 i, j = ra_ind[h], de_ind[h]
@@ -559,6 +595,7 @@ class LightCone(object): # pragma: no cover
         #        fmt=fmt, final=True)
         #    s += "None ; {}/{}".format(final_dir, fn)
 
+
         ##
         # Write
         if save:
@@ -572,7 +609,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.',
-        suffix=None, fmt='hdf5', hdr={},
+        suffix=None, fmt='hdf5', hdr={}, max_sources=False,
         include_pops=None, clobber=False, **kwargs):
         """
         Generate galaxy catalogs.
@@ -622,6 +659,7 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Loop over populations, make catalogs.
+
         for channel in channels:
             ra_allp = []
             dec_allp = []
@@ -652,8 +690,14 @@ class LightCone(object): # pragma: no cover
                     red_z = []
                     dat_z = []
 
+                    ct = 0
+
                     # Go from high to low in mass
                     for (mlo, mhi) in mchunks[-1::-1]:
+
+                        if max_sources is not None:
+                            if ct >= max_sources:
+                                break
 
                         fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
                             fmt=fmt, final=False)
@@ -682,10 +726,33 @@ class LightCone(object): # pragma: no cover
                         # Hack out galaxies outside our requested lightcone.
                         ok = np.logical_and(np.abs(ra) < fov / 2.,
                                             np.abs(dec) < fov / 2.)
+
+                        # Limit number of sources, just for testing.
+                        if (max_sources is not None):
+                            if (ct == 0) and (max_sources >= Mh.size):
+                                # In this case, we can accommodate all the galaxies in
+                                # the catalog, so don't do anything yet.
+                                pass
+                            else:
+                                # Flag entries until we hit target.
+                                # This is not efficient but oh well.
+                                for h in range(Mh.size):
+                                    ok[h] = 0
+
+                                    if ok.sum() == max_sources:
+                                        break
+
+                                # This will be the final iteration.
+                                if ct + ok.sum() == max_sources:
+                                    self._hit_max_sources = True
+
+                        # Isolate OK entries.
                         ra = ra[ok==1]
                         dec = dec[ok==1]
                         red = red[ok==1]
                         Mh = Mh[ok==1]
+
+                        ct += ok.sum()
 
                         self.save_cat(fn, (ra, dec, red, Mh),
                             None, (zlo, zhi), (mlo, mhi),
@@ -781,7 +848,7 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
         suffix=None, fmt='hdf5', hdr={}, map_units='MJy',
-        include_pops=None, clobber=False, **kwargs):
+        include_pops=None, clobber=False, max_sources=None, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -897,6 +964,7 @@ class LightCone(object): # pragma: no cover
                             include_galaxy_sizes=include_galaxy_sizes,
                             size_cut=size_cut,
                             dlam=dlam, use_pbar=False, map_units=map_units,
+                            max_sources=max_sources,
                             **kwargs)
 
                         nu = c * 1e4 / np.mean(channel)
