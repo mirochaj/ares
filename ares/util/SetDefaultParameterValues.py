@@ -1323,6 +1323,7 @@ def CosmologyParameters():
         "cosmology_name": 'planck_TTTEEE_lowl_lowE',  # Can pass 'named cosmologies'
         "cosmology_number": None,
         "path_to_CosmoRec": None,
+        "interpolate_cosmology_in_z": False,
 
         # As you might have guessed, these parameters are all unique to CosmoRec
         'cosmorec_nz': 1000,

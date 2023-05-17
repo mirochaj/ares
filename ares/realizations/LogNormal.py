@@ -159,8 +159,13 @@ class LogNormal(LightCone): # pragma: no cover
             nbar = np.trapz(dndm * m, x=np.log(m)) \
                  - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
 
+            # Memory to hold (x, y, z, m) for N halos
             N = nbar * (Lbox / self.sim.cosm.h70)**3
-            mz = N * 8 * 4
+            mz = N * 8 * 4 # 4 is for (x, y, z, m)
+            # Memory to hold density for dims**3 voxels
+            mz += dims**3 * 8
+
+            # Running tally over redshift
             mc += mz
 
             mem_z.append(mz)
@@ -736,6 +741,10 @@ class LogNormal(LightCone): # pragma: no cover
 
         chunks = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
         return chunks
+
+    def get_mass_chunks(self, logmlim, dlogm):
+        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
+        return np.array([(mbin, mbin+dlogm) for mbin in mbins])
 
     def get_zindex(self, z):
         """

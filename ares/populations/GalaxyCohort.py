@@ -14,6 +14,7 @@ import numpy as np
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
+from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -1382,7 +1383,7 @@ class GalaxyCohort(GalaxyAggregate):
             dwdn = waves**2 / (c * 1e8)
 
         spec = self.get_spec(z, waves=waves, M=M, per_Hz=per_Hz)
-        dL = self.cosm.LuminosityDistance(z)
+        dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
         f = spec / (4. * np.pi * dL**2)
@@ -1745,7 +1746,8 @@ class GalaxyCohort(GalaxyAggregate):
         return result
 
     def get_mags(self, z, absolute=True, wave=1600, band=None,
-        band_units='Angstrom', window=1,
+        band_units='Angstrom', window=1, cam=None, filters=None,
+        filter_set=None, presets=None,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
@@ -1754,6 +1756,16 @@ class GalaxyCohort(GalaxyAggregate):
             depending on value of `absolute` keyword argument.
 
         """
+
+        if presets is not None:
+            filter_set = None
+            cam, filters = self._get_presets(z, presets)
+
+        if type(filters) == dict:
+            filters = filters[round(z)]
+
+        if type(filters) == str:
+            filters = (filters, )
 
         L = self.get_lum(z, wave=wave, band=band, band_units=band_units,
             window=window, energy_units=True, load=load, raw=raw,

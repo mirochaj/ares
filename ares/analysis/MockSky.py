@@ -317,12 +317,15 @@ class MockSky(object):
             channel edges [microns], filenames, list of included source pops).
 
         """
+        chan_n = np.loadtxt(f'{self.base_dir}/README_maps', unpack=True,
+            delimiter=';', dtype=str, usecols=[0],
+            converters=lambda s: s.strip(), ndmin=1)
         chan_c = np.loadtxt(f'{self.base_dir}/README_maps', unpack=True,
-            delimiter=';', dtype=float, usecols=[0], ndmin=1)
+            delimiter=';', dtype=float, usecols=[1], ndmin=1)
         chan_e = np.loadtxt(f'{self.base_dir}/README_maps', unpack=True,
-            delimiter=';', dtype=float, usecols=[1,2], ndmin=2)
+            delimiter=';', dtype=float, usecols=[2,3], ndmin=2)
         _fn = np.loadtxt(f'{self.base_dir}/README_maps', unpack=True,
-            delimiter=';', dtype=str, usecols=[3],
+            delimiter=';', dtype=str, usecols=[4],
             converters=lambda s: s.strip(), ndmin=1)
 
         # Account for case with only one output file

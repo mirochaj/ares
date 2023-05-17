@@ -28,7 +28,6 @@ try:
 except ImportError:
     pass
 
-
 class LightCone(object): # pragma: no cover
     """
     This should be inherited by the other classes in this submodule.
@@ -69,7 +68,7 @@ class LightCone(object): # pragma: no cover
         Luminosity distance (for each self.tab_z) in cMpc.
         """
         if not hasattr(self, '_tab_dL'):
-            self._tab_dL = np.array([self.sim.cosm.LuminosityDistance(z) \
+            self._tab_dL = np.array([self.sim.cosm.get_luminosity_distance(z) \
                 for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
 
@@ -494,7 +493,7 @@ class LightCone(object): # pragma: no cover
 
             ##
             # Clear out some memory sheesh
-            del seds, flux, _flux_, ra, dec, red, Mh
+            del seds, flux, _flux_, ra, dec, red, Mh, ok
             gc.collect()
 
         pb.finish()
@@ -514,17 +513,18 @@ class LightCone(object): # pragma: no cover
         # Remember: using cgs units internally.
         # 1 Jy = 1e-23 erg/s/cm^2/sr
         if map_units.lower() == 'si':
-            final_map = img * cm_per_m**2 / erg_per_s_per_nW
+            img *= cm_per_m**2 / erg_per_s_per_nW
         elif map_units.lower() == 'cgs':
-            final_map = img
+            pass
         elif map_units.lower() == 'mjy':
-            final_map = img * 1e17
+            img *= 1e17
         else:
             raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
 
-        return ra_e, dec_e, final_map
+        return ra_e, dec_e, img
 
-    def get_fn(self, channel, logmlim, zlim=None, fmt='hdf5', final=False):
+    def get_fn(self, channel, logmlim, zlim=None, fmt='hdf5', final=False,
+        channel_name=None):
         """
 
         """
@@ -541,15 +541,18 @@ class LightCone(object): # pragma: no cover
             fn += '_'
 
         if channel is not None:
-            try:
-                fn += '{:.2f}_{:.2f}'.format(*channel)
-            except:
-                fn += f'{channel}'
+            if channel_name is not None:
+                fn += channel_name
+            else:
+                try:
+                    fn += '{:.2f}_{:.2f}'.format(*channel)
+                except:
+                    fn += f'{channel}'
 
         return fn + '.' + fmt
 
     def get_README(self, fov, pix, channels, logmlim, zlim, path='.',
-        suffix=None, fmt='fits', save=False, is_map=True):
+        suffix=None, fmt='fits', save=False, is_map=True, channel_names=None):
         """
 
         """
@@ -558,14 +561,14 @@ class LightCone(object): # pragma: no cover
         s += '\n# README\n'
         s += "#" * 78
         s +=  "\n# This is an automatically-generated file! \n"
-        s += "# In it, we list the names of all maps created with a given set"
-        s += " of parameters.\n"
+        s += "# In it, we list maps created with a given set of parameters.\n"
         s += "# Note: this is a listing of files that will exist when the "
         s += "map-making is \n# COMPLETE, i.e., they may not all exist yet.\n"
         s += "#" * 78
         s += "\n"
-        s += "# central wavelength (microns); channel lower edge (microns) ; "
-        s += "channel upper edge (microns) ; filename \n"
+        s += "# channel name [optional]; central wavelength (microns); "
+        s += "channel lower edge (microns) ; channel upper edge (microns) ; "
+        s += "filename \n"
 
         # Loop over channels
         if is_map:
@@ -578,14 +581,18 @@ class LightCone(object): # pragma: no cover
         if channels in [None, 'Mh', ['Mh']]:
             channels = ['Mh']
 
+        if channel_names is None:
+            channel_names = [None] * len(channels)
+
         # Loop over channels and record filenames. If not supplied, must be
         # galaxy catalog containing only positions (no photometry).
-        for channel in channels:
+        for h, channel in enumerate(channels):
             fn = self.get_fn(channel, logmlim, zlim=zlim,
-                fmt=fmt, final=True)
+                fmt=fmt, final=True, channel_name=channel_names[h])
 
             if is_map:
-                s += "{:.4f} ; {:.4f} ; {:.4f} ; {}/{} \n".format(
+                s += "{} ; {:.6f} ; {:.6f} ; {:.6f} ; {}/{} \n".format(
+                    channel_names[h],
                     np.mean(channel), channel[0], channel[1], final_dir, fn)
             else:
                 s += "{} ; {}/{}".format(channel, final_dir, fn)
@@ -608,7 +615,7 @@ class LightCone(object): # pragma: no cover
         return s
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
-        include_galaxy_sizes=False, dlam=20, path='.',
+        include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='hdf5', hdr={}, max_sources=False,
         include_pops=None, clobber=False, **kwargs):
         """
@@ -630,10 +637,14 @@ class LightCone(object): # pragma: no cover
         else:
             run_phot = True
 
+        if channel_names is None:
+            channel_names = [None] * len(channels)
+
         ##
         # Write a README file that says what all the final products are
         README = self.get_README(fov=fov, pix=pix, channels=channels,
             logmlim=logmlim, zlim=zlim, path=path, fmt=fmt,
+            channel_names=channel_names,
             suffix=suffix, save=True, is_map=False)
 
         if zlim is None:
@@ -647,12 +658,11 @@ class LightCone(object): # pragma: no cover
 
         npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
-        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
-        mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
+        mchunks = self.get_mass_chunks(logmlim, dlogm)
 
         final_dir = base_dir + '/final_cats'
         _final_sub = self.get_fn(None, logmlim, zlim=zlim, fmt=fmt,
-            final=True)
+            final=True, channel_name=None)
         final_sub = _final_sub[0:_final_sub.rfind('/')]
         if not os.path.exists(f'{final_dir}/{final_sub}'):
             os.mkdir(f'{final_dir}/{final_sub}')
@@ -660,7 +670,7 @@ class LightCone(object): # pragma: no cover
         ##
         # Loop over populations, make catalogs.
 
-        for channel in channels:
+        for h, channel in enumerate(channels):
             ra_allp = []
             dec_allp = []
             red_allp = []
@@ -700,7 +710,7 @@ class LightCone(object): # pragma: no cover
                                 break
 
                         fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
-                            fmt=fmt, final=False)
+                            fmt=fmt, final=False, channel_name=channel_names[h])
 
                         fn = intmd_dir + '/' + fn
 
@@ -777,7 +787,8 @@ class LightCone(object): # pragma: no cover
 
                     # Save intermediate chunk: all masses, single redshift chunk
                     fnt = self.get_fn(channel, logmlim=logmlim,
-                        zlim=(zlo, zhi), fmt=fmt, final=False)
+                        zlim=(zlo, zhi), fmt=fmt, final=False,
+                        channel_name=channel_names[h])
 
                     fnt = intmd_dir + '/' + fnt
 
@@ -795,7 +806,8 @@ class LightCone(object): # pragma: no cover
                 ##
                 # Done with all redshift chunks for this population.
                 fnp = self.get_fn(channel, logmlim=logmlim,
-                    zlim=zlim, fmt=fmt, final=False)
+                    zlim=zlim, fmt=fmt, final=False,
+                    channel_name=channel_names[h])
 
                 fnp = intmd_dir + '/' + fnp
 
@@ -813,7 +825,8 @@ class LightCone(object): # pragma: no cover
             ##
             # Combine catalogs over populations?
             fnf = self.get_fn(channel, logmlim=logmlim,
-                zlim=zlim, fmt=fmt, final=True)
+                zlim=zlim, fmt=fmt, final=True,
+                channel_name=channel_names[h])
 
             fnf = final_dir + '/' + fnf
 
@@ -847,7 +860,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
-        suffix=None, fmt='hdf5', hdr={}, map_units='MJy',
+        suffix=None, fmt='hdf5', hdr={}, map_units='MJy', channel_names=None,
         include_pops=None, clobber=False, max_sources=None, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
@@ -885,11 +898,14 @@ class LightCone(object): # pragma: no cover
         ##
         # Write a README file that says what all the final products are
         README = self.get_README(fov=fov, pix=pix, channels=channels,
-            logmlim=logmlim, zlim=zlim, path=path,
+            logmlim=logmlim, zlim=zlim, path=path, channel_names=channel_names,
             suffix=suffix, save=True)
 
         if np.array(channels).ndim == 1:
             channels = np.array([channels])
+
+        if channel_names is None:
+            channel_names = [None] * len(channels)
 
         if zlim is None:
             zlim = self.zlim
@@ -902,8 +918,7 @@ class LightCone(object): # pragma: no cover
 
         npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
-        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
-        mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
+        mchunks = self.get_mass_chunks(logmlim, dlogm)
 
         final_dir = base_dir + '/final_maps'
         _final_sub = self.get_fn(None, logmlim, zlim=zlim, fmt=fmt,
@@ -912,6 +927,11 @@ class LightCone(object): # pragma: no cover
         if not os.path.exists(f'{final_dir}/{final_sub}'):
             os.mkdir(f'{final_dir}/{final_sub}')
 
+        ##
+        # Should check for final maps first
+
+        ##
+        # Proceed to generation if final maps not found.
         totp = np.zeros([npix]*2)
         for popid, pop in enumerate(self.sim.pops):
             if popid not in include_pops:
@@ -921,9 +941,9 @@ class LightCone(object): # pragma: no cover
             if not os.path.exists(intmd_dir):
                 os.mkdir(intmd_dir)
 
-            for channel in channels:
+            for h, channel in enumerate(channels):
 
-                tot = np.zeros([npix]*2)
+                totc = np.zeros([npix]*2)
 
                 ##
                 # Look for pre-existing file
@@ -942,7 +962,7 @@ class LightCone(object): # pragma: no cover
                     for (mlo, mhi) in mchunks[-1::-1]:
 
                         fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
-                            fmt=fmt, final=False)
+                            fmt=fmt, final=False, channel_name=channel_names[h])
 
                         fn = intmd_dir + '/' + fn
 
@@ -951,10 +971,11 @@ class LightCone(object): # pragma: no cover
                             print(f"Found {fn}. Set clobber=True to overwrite.")
                             _Inu = self._load_map(fn)
                             totz += _Inu
+                            del _Inu
+                            gc.collect()
                             continue
 
                         print(f"# Will save EBL mock to {fn}.")
-
 
                         # Will just be for a single chunk so save_intermediate is
                         # irrelevant.
@@ -975,15 +996,19 @@ class LightCone(object): # pragma: no cover
                         Inu = img[0,:,:] / dnu
 
                         # Save
-                        self.save_map(fn, Inu, channel, (zlo, zhi), (mlo, mhi),
+                        self.save_map(fn, img[0,:,:] / dnu, channel,
+                            (zlo, zhi), (mlo, mhi),
                             fov, pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
-                        totz += Inu
+                        totz += img[0,:,:] / dnu
+
+                        del img
+                        gc.collect()
 
                     ##
                     # Save image summed over mass
                     fnz = self.get_fn(channel, logmlim=logmlim, zlim=(zlo, zhi),
-                        fmt=fmt, final=False)
+                        fmt=fmt, final=False, channel_name=channel_names[h])
                     fnz = intmd_dir + '/' + fnz
 
                     # Always overwrite. Not really an issue, if a calculation
@@ -993,24 +1018,32 @@ class LightCone(object): # pragma: no cover
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
                     # Increment map for this z chunk
-                    tot += totz
+                    totc += totz
+
+                    del totz
+                    gc.collect()
 
                 ##
                 # Save image summed over mass and redshift.
                 fnt = self.get_fn(channel, logmlim=logmlim,
-                    zlim=zlim, fmt=fmt, final=False)
+                    zlim=zlim, fmt=fmt, final=False, channel_name=channel_names[h])
 
                 fnt = intmd_dir + '/' + fnt
 
                 ##
                 # Save image summed over mass
                 #if not os.path.exists(fnt):
-                self.save_map(fnt, tot, channel, zlim, logmlim, fov,
+                self.save_map(fnt, totc, channel, zlim, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
                 ##
                 # Increment total image
-                totp += tot
+                totp += totc
+                del totc
+                gc.collect()
+
+            ##
+            # On to next population
 
         ##
         # Wipe slate clean
@@ -1021,7 +1054,7 @@ class LightCone(object): # pragma: no cover
         ##
         # To finish: sum over populations for each channel.
         # Do we want to sum over redshift for halo mass sub-intervals too?
-        for channel in channels:
+        for h, channel in enumerate(channels):
             totp = np.zeros([npix]*2)
 
             for popid, pop in enumerate(self.sim.pops):
@@ -1033,7 +1066,8 @@ class LightCone(object): # pragma: no cover
                 ##
                 # Save image summed over populations.
                 fnp = self.get_fn(channel, logmlim=logmlim,
-                    zlim=zlim, fmt=fmt, final=False)
+                    zlim=zlim, fmt=fmt, final=False,
+                    channel_name=channel_names[h])
                 fnp = intmd_dir + '/' + fnp
 
                 _Inu = self._load_map(fnp)
@@ -1042,7 +1076,7 @@ class LightCone(object): # pragma: no cover
             ##
             # Save final products
             fnp = self.get_fn(channel, logmlim=logmlim,
-                zlim=zlim, fmt=fmt, final=True)
+                zlim=zlim, fmt=fmt, final=True, channel_name=channel_names[h])
             fnp = final_dir + '/' + fnp
 
             self.save_map(fnp, totp, channel, zlim, logmlim, fov,
@@ -1165,7 +1199,8 @@ class LightCone(object): # pragma: no cover
             hdr['ZMAX'] = zlim[1]
             hdr['MHMIN'] = logmlim[0]
             hdr['MHMAX'] = logmlim[1]
-            hdr['ARES'] = get_hash().decode('utf-8')
+            # This doesn't work anymore
+            #hdr['ARES'] = get_hash().decode('utf-8')
 
             hdr.update(hdr)
 
@@ -1212,11 +1247,10 @@ class LightCone(object): # pragma: no cover
 
         npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
-        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
-        mchunks = np.array([(mbin, mbin+dlogm) for mbin in mbins])
+        mchunks = self.get_mass_chunks(logmlim, dlogm)
 
         if keep_layers:
-            layers = np.zeros((len(channels), len(zchunks), len(mbins), npix, npix))
+            layers = np.zeros((len(channels), len(zchunks), len(mchunks), npix, npix))
         else:
             layers = np.zeros((len(channels), npix, npix))
 
