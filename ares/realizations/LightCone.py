@@ -28,6 +28,8 @@ try:
 except ImportError:
     pass
 
+from memory_profiler import profile
+
 class LightCone(object): # pragma: no cover
     """
     This should be inherited by the other classes in this submodule.
@@ -311,9 +313,9 @@ class LightCone(object): # pragma: no cover
             ra_ind = ra_ind[ok==1]
             de_ind = de_ind[ok==1]
 
-            # Get luminosity distance to each object.
-            d_L = np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc
-            corr = 1. / 4. / np.pi / d_L**2
+            # Get geometrical dilution factor
+            corr = 1. / 4. / np.pi \
+                / (np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc)**2
 
             # Get flux from each object. Units = erg/s/cm^2/Ang.
             # Already accounting for geometrical dilution but provided at
@@ -493,7 +495,8 @@ class LightCone(object): # pragma: no cover
 
             ##
             # Clear out some memory sheesh
-            del seds, flux, _flux_, ra, dec, red, Mh, ok
+            del seds, flux, _flux_, ra, dec, red, Mh, ok, ra_ind, de_ind, \
+                mask_ra, mask_de
             gc.collect()
 
         pb.finish()
@@ -762,6 +765,14 @@ class LightCone(object): # pragma: no cover
                         red = red[ok==1]
                         Mh = Mh[ok==1]
 
+                        # Center position on particular pointing [optional]
+                        if hdr is not None:
+                            if 'CRVAL1' in hdr:
+                                ra += hdr['CRVAL1']
+                                dec += hdr['CRVAL2']
+                            else:
+                                raise NotImplemented('help')
+
                         ct += ok.sum()
 
                         self.save_cat(fn, (ra, dec, red, Mh),
@@ -861,7 +872,8 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
         suffix=None, fmt='hdf5', hdr={}, map_units='MJy', channel_names=None,
-        include_pops=None, clobber=False, max_sources=None, **kwargs):
+        include_pops=None, clobber=False, max_sources=None,
+        keep_layers=True, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -932,7 +944,6 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Proceed to generation if final maps not found.
-        totp = np.zeros([npix]*2)
         for popid, pop in enumerate(self.sim.pops):
             if popid not in include_pops:
                 continue
@@ -943,6 +954,8 @@ class LightCone(object): # pragma: no cover
 
             for h, channel in enumerate(channels):
 
+                # Keep running total of image in this channel including
+                # all redshift and mass chunks
                 totc = np.zeros([npix]*2)
 
                 ##
@@ -953,7 +966,10 @@ class LightCone(object): # pragma: no cover
 
                     # Look for pre-existing file.
 
-                    totz = np.zeros([npix]*2)
+                    # Keep running total of image from this zchunk, all
+                    # mass chunks.
+                    if keep_layers:
+                        totz = np.zeros([npix]*2)
 
                     if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                         continue
@@ -967,13 +983,14 @@ class LightCone(object): # pragma: no cover
                         fn = intmd_dir + '/' + fn
 
                         # Try to read from disk.
-                        if os.path.exists(fn) and (not clobber):
-                            print(f"Found {fn}. Set clobber=True to overwrite.")
-                            _Inu = self._load_map(fn)
-                            totz += _Inu
-                            del _Inu
-                            gc.collect()
-                            continue
+                        if keep_layers:
+                            if os.path.exists(fn) and (not clobber):
+                                print(f"Found {fn}. Set clobber=True to overwrite.")
+                                _Inu = self._load_map(fn)
+                                totz += _Inu
+                                del _Inu
+                                gc.collect()
+                                continue
 
                         print(f"# Will save EBL mock to {fn}.")
 
@@ -993,16 +1010,19 @@ class LightCone(object): # pragma: no cover
 
                         # `img` is a band-integrated power, convert to band-averaged
                         # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
-                        Inu = img[0,:,:] / dnu
-
                         # Save
-                        self.save_map(fn, img[0,:,:] / dnu, channel,
-                            (zlo, zhi), (mlo, mhi),
-                            fov, pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+                        if keep_layers:
+                            self.save_map(fn, img[0,:,:] / dnu, channel,
+                                (zlo, zhi), (mlo, mhi),
+                                fov, pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
-                        totz += img[0,:,:] / dnu
+                            totz += img[0,:,:] / dnu
+                        else:
+                            # Increment channel map directly if we don't care
+                            # about keeping z layers.
+                            totc += img[0,:,:] / dnu
 
-                        del img
+                        del img, ra_e, dec_e
                         gc.collect()
 
                     ##
@@ -1014,14 +1034,19 @@ class LightCone(object): # pragma: no cover
                     # Always overwrite. Not really an issue, if a calculation
                     # terminated early then this file wouldn't have been written.
                     #if not os.path.exists(fnz):
-                    self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
-                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+                    if keep_layers:
+                        self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
+                            pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
-                    # Increment map for this z chunk
-                    totc += totz
+                        # Increment map for this z chunk
+                        totc += totz
 
-                    del totz
-                    gc.collect()
+                        del totz
+                        gc.collect()
+
+                    # End loop over mass chunks
+
+                # End loop over redshift chunks
 
                 ##
                 # Save image summed over mass and redshift.
@@ -1031,16 +1056,20 @@ class LightCone(object): # pragma: no cover
                 fnt = intmd_dir + '/' + fnt
 
                 ##
-                # Save image summed over mass
-                #if not os.path.exists(fnt):
-                self.save_map(fnt, totc, channel, zlim, logmlim, fov,
-                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+                # Save image summed over both redshift and mass
+                # for single channel, single population
 
                 ##
                 # Increment total image
-                totp += totc
+                #if keep_layers:
+                self.save_map(fnt, totc, channel, zlim, logmlim, fov,
+                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+                #tot += totc
                 del totc
+
                 gc.collect()
+
+            # End loop over channels
 
             ##
             # On to next population
@@ -1052,10 +1081,12 @@ class LightCone(object): # pragma: no cover
         f.close()
 
         ##
+        # Save final products
+
+        ##
         # To finish: sum over populations for each channel.
-        # Do we want to sum over redshift for halo mass sub-intervals too?
         for h, channel in enumerate(channels):
-            totp = np.zeros([npix]*2)
+            tot = np.zeros([npix]*2)
 
             for popid, pop in enumerate(self.sim.pops):
                 if popid not in include_pops:
@@ -1071,7 +1102,10 @@ class LightCone(object): # pragma: no cover
                 fnp = intmd_dir + '/' + fnp
 
                 _Inu = self._load_map(fnp)
-                totp += _Inu
+                tot += _Inu
+
+                del _Inu
+                gc.collect()
 
             ##
             # Save final products
@@ -1079,7 +1113,7 @@ class LightCone(object): # pragma: no cover
                 zlim=zlim, fmt=fmt, final=True, channel_name=channel_names[h])
             fnp = final_dir + '/' + fnp
 
-            self.save_map(fnp, totp, channel, zlim, logmlim, fov,
+            self.save_map(fnp, tot, channel, zlim, logmlim, fov,
                 pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
 
             # Make a note of which populations are included in the current

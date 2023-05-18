@@ -10,6 +10,7 @@ Description:
 
 """
 
+import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
@@ -724,6 +725,9 @@ class LogNormal(LightCone): # pragma: no cover
                 mass = np.hstack((mass, _m))
 
             ct += 1
+
+            del _ra, _de, _red, _m
+            gc.collect()
 
         pbar.finish()
 
