@@ -125,7 +125,9 @@ class LogNormal(LightCone): # pragma: no cover
         """
         Return rough estimate of memory needed vs. redshift in GB.
 
-        .. note :: Assumes you need (x, y, z, mass) for each halo.
+        .. note :: Assumes you need (x, y, z, mass) for each halo. Also, this
+            is an estimate for the entire halo population -- the memory needed
+            for a single population will be less if (for example) f_occ < 1.
 
         Returns
         -------
@@ -256,18 +258,26 @@ class LogNormal(LightCone): # pragma: no cover
         be used to retrieve the box itself.
         """
 
-        #if not hasattr(self, '_cache_box'):
-        #    self._cache_box = {}
+        if not hasattr(self, '_cache_box'):
+            self._cache_box = {}
 
-        #if (z, seed) in self._cache_box:
-        #    return self._cache_box[(z, seed)]
+        if (z, seed) in self._cache_box:
+            return self._cache_box[(z, seed)]
 
         power = lambda k: self.get_ps_mm(z, k)
 
         pb = pbox.LogNormalPowerBox(N=self.dims, dim=3, pk=power,
             boxlength=self.Lbox, seed=seed)
 
-        #self._cache_box[(z, seed)] = pb
+        # Only keep one box in memory at a time.
+        if len(self._cache_box.keys()) > 0:
+            del self._cache_box
+            gc.collect()
+
+            self._cache_box = {}
+
+        self._cache_box[(z, seed)] = pb
+        #print('NOT CACHING BOX')
 
         return pb
 
@@ -416,7 +426,8 @@ class LogNormal(LightCone): # pragma: no cover
         return mass
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
-        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, idnum=0):
+        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, idnum=0,
+        verbose=True):
         """
         Get a realization of a halo population.
 
@@ -504,11 +515,15 @@ class LogNormal(LightCone): # pragma: no cover
             _z = _z[ok==1]
             mass = mass[ok==1]
 
-            print(f"# Applied occupation fraction cut for pop #{idnum} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
-            print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
+            if verbose:
+                print(f"# Applied occupation fraction cut for pop #{idnum} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
+                print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
 
             if ok.sum() == 0:
                 return None, None, None, None
+
+        del focc, ok, r, pos
+        gc.collect()
 
         return _x, _y, _z, mass
 
@@ -594,7 +609,7 @@ class LogNormal(LightCone): # pragma: no cover
         return ze, zmid, Re
 
     def get_catalog(self, zlim=None, logmlim=(11,12), randomise_in_cell=True,
-        idnum=0):
+        idnum=0, verbose=True):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
 
@@ -660,6 +675,10 @@ class LogNormal(LightCone): # pragma: no cover
         theta_min = self.sim.cosm.ComovingLengthToAngle(zmax, 1) \
             * (self.Lbox / self.sim.cosm.h70) / 60.
 
+        # We use this info to shave off the edges around the box at increasingly
+        # high redshift corresponding to angles greater than the angle subtended
+        # by the low-z edge of the box.
+
         #if self.verbose:
         #    print("# FOV at front edge (z={:.1f}) of lightcone: {:.1f} degrees.".format(
         #        zmin, theta_max
@@ -691,7 +710,7 @@ class LogNormal(LightCone): # pragma: no cover
             #else:
             halos = self.get_halo_population(z=zmid[i], seed_box=seeds[i],
                 seed=seeds_hm[i], seed_pos=seeds_hp[i], seed_occ=seeds_ho[i],
-                mmin=mmin, mmax=mmax,
+                mmin=mmin, mmax=mmax, verbose=verbose,
                 randomise_in_cell=randomise_in_cell, idnum=idnum)
 
             if halos[0] is None:
@@ -726,7 +745,7 @@ class LogNormal(LightCone): # pragma: no cover
 
             ct += 1
 
-            del _ra, _de, _red, _m
+            del _ra, _de, _red, _m, halos
             gc.collect()
 
         pbar.finish()

@@ -141,36 +141,38 @@ class LightCone(object): # pragma: no cover
 
         return s
 
-    def get_map(self, fov, pix, channel, logmlim=None, zlim=None, idnum=0,
-        include_galaxy_sizes=False, size_cut=0.5, save_intermediate=True, dlam=20.,
-        use_pbar=True, map_units='si', max_sources=None, **kwargs):
+    #@profile
+    def get_map(self, fov, pix, channel, logmlim, zlim, idnum=0,
+        include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
+        use_pbar=True, verbose=False, max_sources=None, buffer=None, **kwargs):
         """
-        Get a map in the user-supplied spectral channel.
+        Get a map for a single channel, redshift chunk, mass chunk, and
+        source population.
+
+        .. note :: To get a 'full' map, containing contributions from multiple
+            redshift and mass chunks, and potentially populations, see the
+            wrapper routine `generate_maps`.
 
         Parameters
         ----------
         fov : int, float
             Field of view (single dimension) in degrees.
+        pix : int, float
+            Pixel scale in arcseconds.
         channel : tuple, list, np.ndarray
             Edges of the spectral channel of interest [microns].
         zlim : tuple, list, np.ndarray
             Optional redshift range. If None, will include all objects in the
             catalog.
-        pix : int, float
-            Pixel scale in arcseconds.
-        map_units : str
-            Options include "si" (nW/m^2/Hz/sr), 'cgs' (erg/s/cm^2/sr), or
-            'Mjy' (MJy/sr)
 
+        Returns
+        -------
+        If `buffer` is None, will return a map in our internal cgs units. If
+        `buffer` is supplied, will increment that array, again in cgs fluxes.
+        Any conversion of (using `map_units`) takes place *only* in the
+        `generate_maps` routine.
         """
 
-        #if not hasattr(self, '_cache_maps'):
-        #    self._cache_maps = {}
-
-        #kwtup = tuple(kwargs.items())
-
-        #if (channel, zlim, pix, include_galaxy_sizes, kwtup) in self._cache_maps:
-        #    return self._cache_maps[(channel, zlim, pix, include_galaxy_sizes, kwtup)]
 
         pix_deg = pix / 3600.
         sr_per_pix = pix_deg**2 / sqdeg_per_std
@@ -184,11 +186,7 @@ class LightCone(object): # pragma: no cover
         assert np.diff(fov) == 0, "Only square FOVs allowed right now."
 
         zall = self.get_redshift_chunks(zlim=self.zlim)
-
-        if zlim is None:
-            zlim = self.zlim
-        if logmlim is None:
-            logmlim = -np.inf, 16
+        assert zlim in zall
 
         # Figure out the edges of the domain in RA and DEC (degrees)
         # Pixel coordinates
@@ -197,334 +195,335 @@ class LightCone(object): # pragma: no cover
         Npix = [ra_c.size, dec_c.size]
 
         # Initialize empty map
-        if save_intermediate:
-            img = np.zeros([len(zall)] + Npix, dtype=np.float64)
-        else:
-            img = np.zeros([1] + Npix, dtype=np.float64)
+        img = buffer
+        #if buffer is not None:
+        #    img = buffer
+        #elif save_intermediate:
+        #    img = np.zeros([len(zall)] + Npix, dtype=np.float64)
+        #else:
+        #    img = np.zeros([1] + Npix, dtype=np.float64)
 
         ##
         # Might take awhile.
-        pb = ProgressBar(len(zall),
-            name="img(z; Mh>={:.1f}, Mh<{:.1f})".format(logmlim[0], logmlim[1]),
-            use=use_pbar)
-        pb.start()
+        #pb = ProgressBar(len(zall),
+        #    name="img(z; Mh>={:.1f}, Mh<{:.1f})".format(logmlim[0], logmlim[1]),
+        #    use=use_pbar)
+        #pb.start()
 
         # Track max_sources
         _hit_max_sources = False
 
         ct = 0
 
+        zlo, zhi = zlim
+
         ##
         # Loop over redshift chunks and assemble image.
-        for _iz_, (zlo, zhi) in enumerate(zall):
+        #for _iz_, (zlo, zhi) in enumerate(zall):
 
-            if _hit_max_sources:
-                break
+        #    if _hit_max_sources:
+        #        break
 
-            if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                continue
+        #    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
+        #        continue
 
-            _z_ = np.mean([zlo, zhi])
+        _z_ = np.mean([zlo, zhi])
 
-            if save_intermediate:
-                iz = _iz_
+            #   if save_intermediate:
+            #       iz = _iz_
+            #   else:
+            #       iz = 0
+
+        ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
+            logmlim=logmlim, idnum=idnum, verbose=verbose)
+
+        # Could be empty chunks for very massive halos and/or early times.
+        if ra is None:
+            return #None, None, None
+
+        # Check that (RA, DEC) range in galaxy catalog is within the
+        # requested FOV.
+        theta_cat = self.sim.cosm.ComovingLengthToAngle(zhi, 1) \
+            * (self.Lbox / self.sim.cosm.h70) / 60.
+
+        assert theta_cat >= fov[0], \
+            f"Catalog FoV ({theta_cat:.2f}) smaller than requested FoV at z={zhi:.2f}!"
+
+        #dra = ra.max() - ra.min()
+        #dde = dec.max() - dec.min()
+        #assert dra >= fov[0], \
+        #    f"Catalog spans RA range ({dra}) smaller than requested FoV!"
+        #assert dde >= dec[0], \
+        #    f"Catalog spans DEC range ({dde}) smaller than requested FoV!"
+
+        ##
+        # Figure out which bin each galaxy is in.
+        ra_bin = np.digitize(ra, bins=ra_e)
+        dec_bin = np.digitize(dec, bins=dec_e)
+        mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
+        mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
+        ra_ind = ra_bin - 1
+        de_ind = dec_bin - 1
+
+        # Mask out galaxies that aren't in our desired image plane.
+        okp = np.logical_not(np.logical_or(mask_ra, mask_de))
+
+        # Filter out galaxies outside specified redshift range.
+        # [usually don't do this within chunk, but hey, functionality there]
+        if zlim is not None:
+            okz = np.logical_and(red >= zlim[0], red < zlim[1])
+            ok = np.logical_and(okp, okz)
+        else:
+            ok = okp
+
+        # For debugging and tests, we can dramatically limit the
+        # number of sources. Thin out the herd here.
+        if (max_sources is not None):
+            if (ct == 0) and (max_sources >= Mh.size):
+                # In this case, we can accommodate all the galaxies in
+                # the catalog, so don't do anything yet.
+                pass
             else:
-                iz = 0
+                # Flag entries until we hit target.
+                # This is not efficient but oh well.
+                for h in range(Mh.size):
+                    ok[h] = 0
 
-            ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
-                logmlim=logmlim, idnum=idnum)
+                    if ok.sum() == max_sources:
+                        break
 
-            # Could be empty chunks for very massive halos and/or early times.
-            if ra is None:
-                continue
+                # This will be the final iteration.
+                if ct + ok.sum() == max_sources:
+                    _hit_max_sources = True
 
-            # Check that (RA, DEC) range in galaxy catalog is within the
-            # requested FOV.
-            theta_cat = self.sim.cosm.ComovingLengthToAngle(zhi, 1) \
-                * (self.Lbox / self.sim.cosm.h70) / 60.
+        #if self.verbose:
+        #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
 
-            assert theta_cat >= fov[0], \
-                f"Catalog FoV ({theta_cat:.2f}) smaller than requested FoV at z={zhi:.2f}!"
+        # May have empty chunks, e.g., very massive halos and/or very
+        # high redshifts.
+        if not np.any(ok):
+            return #None, None, None
 
-            #dra = ra.max() - ra.min()
-            #dde = dec.max() - dec.min()
-            #assert dra >= fov[0], \
-            #    f"Catalog spans RA range ({dra}) smaller than requested FoV!"
-            #assert dde >= dec[0], \
-            #    f"Catalog spans DEC range ({dde}) smaller than requested FoV!"
+        # Increment counter
+        ct += ok.sum()
 
-            ##
-            # Figure out which bin each galaxy is in.
-            ra_bin = np.digitize(ra, bins=ra_e)
-            dec_bin = np.digitize(dec, bins=dec_e)
-            mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
-            mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
-            ra_ind = ra_bin - 1
-            de_ind = dec_bin - 1
+        ##
+        # Isolate OK entries.
+        ra = ra[ok==1]
+        dec = dec[ok==1]
+        red = red[ok==1]
+        Mh = Mh[ok==1]
+        ra_ind = ra_ind[ok==1]
+        de_ind = de_ind[ok==1]
 
-            # Mask out galaxies that aren't in our desired image plane.
-            okp = np.logical_not(np.logical_or(mask_ra, mask_de))
+        # Get geometrical dilution factor
+        corr = 1. / 4. / np.pi \
+            / (np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc)**2
 
-            # Filter out galaxies outside specified redshift range.
-            # [usually don't do this within chunk, but hey, functionality there]
-            if zlim is not None:
-                okz = np.logical_and(red >= zlim[0], red < zlim[1])
-                ok = np.logical_and(okp, okz)
+        # Get flux from each object. Units = erg/s/cm^2/Ang.
+        # Already accounting for geometrical dilution but provided at
+        # rest wavelengths, so must divide by (1+z) to get flux in observer
+        # frame.
+
+        # Find bounding wavelength range to limit memory consumption, i.e.,
+        # don't grab rest-frame SED outside of range needed by observer.
+        # This really only helps if the user has instituted a cut in
+        # redshift that eliminates a significant fraction of any chunk.
+        _zlo = zlim[0] if zlim is not None else red.min()
+        _zhi = zlim[1] if zlim is not None else red.max()
+        _wlo = channel[0] * 1e4 / (1. + min(red.max(), _zhi))
+        _whi = channel[1] * 1e4 / (1. + max(red.min(), _zlo))
+
+        # [waves] = Angstroms rest-frame, [seds] = erg/s/A.
+        # Shape of seds is (N galaxies, N wavelengths)
+        # Shape of (ra, dec, red) is just (Ngalaxies)
+        waves = np.arange(_wlo, _whi+dlam, dlam)
+
+        # Need to supply band or window?
+        seds = self.sim.pops[idnum].get_spec(_z_, waves, M=Mh,
+            stellar_mass=False, per_Hz=False, window=dlam)
+
+        owaves = waves[None,:] * (1. + red[:,None])
+
+        # Frequency "squashing", i.e., our 'per Angstrom' interval is
+        # different in the observer frame by a factor of 1+z.
+        flux = corr[:,None] * seds[:,:] / (1. + red[:,None]) / sr_per_pix
+
+        ##
+        # Need some extra info to do more sophisticated modeling...
+        if include_galaxy_sizes:
+
+            Ms = self.sim.pops[idnum].get_smhm(z=red, Mh=Mh) * Mh
+            Rkpc = self.pops[0].get_size(z=red, Ms=Ms)
+
+            R_sec = np.zeros_like(Rkpc)
+            for kk in range(red.size):
+                R_sec[kk] = self.sim.cosm.ProperLengthToAngle(red[kk], Rkpc[kk] * 1e-3)
+            R_sec *= 60.
+
+            # Uniform for now.
+            nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
+            pa = np.random.random(size=Rkpc.size) * 360
+
+            # Ellipticity = 1 - b/a
+            ellip = np.random.random(size=Rkpc.size)
+
+            # Will paint anything half-light radius greater than a pixel
+            if size_cut == 0.5:
+                R_X = R_sec
+            # General option: paint anything with size, defined as the
+            # radius containing `size_cut` fraction of the light, that
+            # exceeds a pixel.
             else:
-                ok = okp
+                rarr = np.logspace(-1, 1.5, 500)
+                #cog_sfg = [self.sim.pops[idnum].get_sersic_cog(r,
+                #    n=nsers[h]) \
+                #    for r in rarr]
 
-            # For debugging and tests, we can dramatically limit the
-            # number of sources. Thin out the herd here.
-            if (max_sources is not None):
-                if (ct == 0) and (max_sources >= Mh.size):
-                    # In this case, we can accommodate all the galaxies in
-                    # the catalog, so don't do anything yet.
-                    pass
+                rmax = [self.sim.pops[idnum].get_sersic_rmax(size_cut,
+                    nsers[h]) for h in range(Rkpc.size)]
+
+                R_X = np.array(rmax) * R_sec
+
+            #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
+
+
+
+            # Size in degrees
+            R_deg = R_sec / 3600.
+            R_pix = R_deg / pix_deg
+
+            R_X /= (3600 * pix_deg)
+
+            # All in degrees
+            x0, y0 = ra, dec
+            a, b = R_deg, R_deg
+
+            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
+
+        ##
+        # Extended emission from IHL, satellites
+        if self.sim.pops[idnum].is_diffuse:
+
+            _iz = np.argmin(np.abs(_z_ - self.sim.pops[idnum].halos.tab_z))
+
+            # Remaining dimensions (Mh, R)
+            Sall = self.sim.pops[idnum].halos.tab_Sigma_nfw[_iz,:,:]
+
+            mpc_per_arcmin = self.sim.cosm.AngleToComovingLength(_z_,
+                pix / 60.)
+
+            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
+                                dec_c * 60 * mpc_per_arcmin)
+
+
+            # Tabulate surface density as a function of displacement
+            # and halo mass
+            Rmi, Rma = -3, 1
+            dlogR = 0.25
+            Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+            Mall = self.sim.pops[idnum].halos.tab_M
+
+
+        ##
+        # Actually sum fluxes from all objects in image plane.
+        for h in range(ra.size):
+
+            #if not ok[h]:
+            #    continue
+
+            # Where this galaxy lives in pixel coordinates
+            i, j = ra_ind[h], de_ind[h]
+
+            # Compute flux more precisely than summing by differencing
+            # the cumulative integral over the band at the channel edges.
+            cflux = cumtrapz(flux[h] * owaves[h], x=np.log(owaves[h]),
+                initial=0.0)
+
+            # Remember: `owaves` is in Angstroms, `channel` elements are
+            # in microns.
+            _flux_ = np.interp(channel[1] * 1e4, owaves[h], cflux) \
+                   - np.interp(channel[0] * 1e4, owaves[h], cflux)
+
+            # HERE: account for fact that galaxies aren't point sources.
+            # [optional]
+            if include_galaxy_sizes and R_X[h] >= 1:
+
+                model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
+                    x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
+                    n=nsers[h], theta=pa[h] * np.pi / 180.,
+                    ellip=ellip[h])
+
+                # Fractional contribution to total flux
+                I = model_SB(rr, dd)
+                tot = I.sum()
+
+                if tot == 0:
+                    img[i,j] += _flux_
                 else:
-                    # Flag entries until we hit target.
-                    # This is not efficient but oh well.
-                    for h in range(Mh.size):
-                        ok[h] = 0
+                    img[:,:] += _flux_ * I / tot
 
-                        if ok.sum() == max_sources:
-                            break
+            elif self.sim.pops[idnum].is_diffuse:
 
-                    # This will be the final iteration.
-                    if ct + ok.sum() == max_sources:
-                        _hit_max_sources = True
+                # Image of distances from halo center
+                r0 = ra_c[i] * 60 * mpc_per_arcmin
+                d0 = dec_c[j] * 60 * mpc_per_arcmin
+                Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
 
-            #if self.verbose:
-            #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
+                # In Msun/cMpc^3
 
-            # May have empty chunks, e.g., very massive halos and/or very
-            # high redshifts.
-            if not np.any(ok):
-                continue
+                #Rall = np.linspace(Rarr.min(), Rarr.max() * 1.1, 1000)
+                #Sall = np.zeros_like(Rall)
+                #for i, _R_ in enumerate(Rall):
+                #    Sall[i] = Sigma(_R_)
 
-            # Increment counter
-            ct += ok.sum()
+                # Interpolate between tabulated solutions.
+                iM = np.argmin(np.abs(Mh[h] - Mall))
 
-            ##
-            # Isolate OK entries.
-            ra = ra[ok==1]
-            dec = dec[ok==1]
-            red = red[ok==1]
-            Mh = Mh[ok==1]
-            ra_ind = ra_ind[ok==1]
-            de_ind = de_ind[ok==1]
+                I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
 
-            # Get geometrical dilution factor
-            corr = 1. / 4. / np.pi \
-                / (np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc)**2
+                tot = I.sum()
 
-            # Get flux from each object. Units = erg/s/cm^2/Ang.
-            # Already accounting for geometrical dilution but provided at
-            # rest wavelengths, so must divide by (1+z) to get flux in observer
-            # frame.
-
-            # Find bounding wavelength range to limit memory consumption, i.e.,
-            # don't grab rest-frame SED outside of range needed by observer.
-            # This really only helps if the user has instituted a cut in
-            # redshift that eliminates a significant fraction of any chunk.
-            _zlo = zlim[0] if zlim is not None else red.min()
-            _zhi = zlim[1] if zlim is not None else red.max()
-            _wlo = channel[0] * 1e4 / (1. + min(red.max(), _zhi))
-            _whi = channel[1] * 1e4 / (1. + max(red.min(), _zlo))
-
-            # [waves] = Angstroms rest-frame, [seds] = erg/s/A.
-            # Shape of seds is (N galaxies, N wavelengths)
-            # Shape of (ra, dec, red) is just (Ngalaxies)
-            waves = np.arange(_wlo, _whi+dlam, dlam)
-
-            # Need to supply band or window?
-            seds = self.sim.pops[idnum].get_spec(_z_, waves, M=Mh,
-                stellar_mass=False, per_Hz=False, window=dlam)
-
-            owaves = waves[None,:] * (1. + red[:,None])
-
-            # Frequency "squashing", i.e., our 'per Angstrom' interval is
-            # different in the observer frame by a factor of 1+z.
-            flux = corr[:,None] * seds[:,:] / (1. + red[:,None]) / sr_per_pix
-
-            ##
-            # Need some extra info to do more sophisticated modeling...
-            if include_galaxy_sizes:
-
-                Ms = self.sim.pops[idnum].get_smhm(z=red, Mh=Mh) * Mh
-                Rkpc = self.pops[0].get_size(z=red, Ms=Ms)
-
-                R_sec = np.zeros_like(Rkpc)
-                for kk in range(red.size):
-                    R_sec[kk] = self.sim.cosm.ProperLengthToAngle(red[kk], Rkpc[kk] * 1e-3)
-                R_sec *= 60.
-
-                # Uniform for now.
-                nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
-                pa = np.random.random(size=Rkpc.size) * 360
-
-                # Ellipticity = 1 - b/a
-                ellip = np.random.random(size=Rkpc.size)
-
-                # Will paint anything half-light radius greater than a pixel
-                if size_cut == 0.5:
-                    R_X = R_sec
-                # General option: paint anything with size, defined as the
-                # radius containing `size_cut` fraction of the light, that
-                # exceeds a pixel.
+                if tot == 0:
+                    img[i,j] += _flux_
                 else:
-                    rarr = np.logspace(-1, 1.5, 500)
-                    #cog_sfg = [self.sim.pops[idnum].get_sersic_cog(r,
-                    #    n=nsers[h]) \
-                    #    for r in rarr]
-
-                    rmax = [self.sim.pops[idnum].get_sersic_rmax(size_cut,
-                        nsers[h]) for h in range(Rkpc.size)]
-
-                    R_X = np.array(rmax) * R_sec
-
-                #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
-
-
-
-                # Size in degrees
-                R_deg = R_sec / 3600.
-                R_pix = R_deg / pix_deg
-
-                R_X /= (3600 * pix_deg)
-
-                # All in degrees
-                x0, y0 = ra, dec
-                a, b = R_deg, R_deg
-
-                rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
+                    img[iz][:,:] += _flux_ * I / tot
 
             ##
-            # Extended emission from IHL, satellites
-            if self.sim.pops[idnum].is_diffuse:
-
-                _iz = np.argmin(np.abs(_z_ - self.sim.pops[idnum].halos.tab_z))
-
-                # Remaining dimensions (Mh, R)
-                Sall = self.sim.pops[idnum].halos.tab_Sigma_nfw[_iz,:,:]
-
-                mpc_per_arcmin = self.sim.cosm.AngleToComovingLength(_z_,
-                    pix / 60.)
-
-                rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
-                                    dec_c * 60 * mpc_per_arcmin)
-
-
-                # Tabulate surface density as a function of displacement
-                # and halo mass
-                Rmi, Rma = -3, 1
-                dlogR = 0.25
-                Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
-                Mall = self.sim.pops[idnum].halos.tab_M
-
-
-            ##
-            # Actually sum fluxes from all objects in image plane.
-            for h in range(ra.size):
-
-                #if not ok[h]:
-                #    continue
-
-                # Where this galaxy lives in pixel coordinates
-                i, j = ra_ind[h], de_ind[h]
-
-                # Compute flux more precisely than summing by differencing
-                # the cumulative integral over the band at the channel edges.
-                cflux = cumtrapz(flux[h] * owaves[h], x=np.log(owaves[h]),
-                    initial=0.0)
-
-                # Remember: `owaves` is in Angstroms, `channel` elements are
-                # in microns.
-                _flux_ = np.interp(channel[1] * 1e4, owaves[h], cflux) \
-                       - np.interp(channel[0] * 1e4, owaves[h], cflux)
-
-                # HERE: account for fact that galaxies aren't point sources.
-                # [optional]
-                if include_galaxy_sizes and R_X[h] >= 1:
-
-                    model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
-                        x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
-                        n=nsers[h], theta=pa[h] * np.pi / 180.,
-                        ellip=ellip[h])
-
-                    # Fractional contribution to total flux
-                    I = model_SB(rr, dd)
-                    tot = I.sum()
-
-                    if tot == 0:
-                        img[iz,i,j] += _flux_
-                    else:
-                        img[iz,:,:] += _flux_ * I / tot
-
-                elif self.sim.pops[idnum].is_diffuse:
-
-                    # Image of distances from halo center
-                    r0 = ra_c[i] * 60 * mpc_per_arcmin
-                    d0 = dec_c[j] * 60 * mpc_per_arcmin
-                    Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
-
-                    # In Msun/cMpc^3
-
-                    #Rall = np.linspace(Rarr.min(), Rarr.max() * 1.1, 1000)
-                    #Sall = np.zeros_like(Rall)
-                    #for i, _R_ in enumerate(Rall):
-                    #    Sall[i] = Sigma(_R_)
-
-                    # Interpolate between tabulated solutions.
-                    iM = np.argmin(np.abs(Mh[h] - Mall))
-
-                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
-
-                    tot = I.sum()
-
-                    if tot == 0:
-                        img[iz,i,j] += _flux_
-                    else:
-                        img[iz,:,:] += _flux_ * I / tot
-
-                ##
-                # Otherwise just add flux to single pixel
+            # Otherwise just add flux to single pixel
+            else:
+                if buffer is not None:
+                    img[i,j] += _flux_
                 else:
-                    img[iz,i,j] += _flux_
+                    img[i,j] += _flux_
 
-            pb.update(_iz_)
+        #pb.update(_iz_)
 
-            ##
-            # Clear out some memory sheesh
-            del seds, flux, _flux_, ra, dec, red, Mh, ok, ra_ind, de_ind, \
-                mask_ra, mask_de
-            gc.collect()
+        ##
+        # Clear out some memory sheesh
+        del seds, flux, _flux_, ra, dec, red, Mh, ok, ra_ind, de_ind, \
+            mask_ra, mask_de
+        gc.collect()
 
-        pb.finish()
+        #pb.finish()
 
         ##
         # Hmmm
-        if np.any(np.isnan(img)):
-            print("* WARNING: {:.4f}% of pixels are NaN! Removing...".format(
-                100 * np.isnan(img).sum() / float(img.size)
-            ))
-            img[np.isnan(img)] = 0.0
+        #if np.any(np.isnan(img)):
+        #    print("* WARNING: {:.4f}% of pixels are NaN! Removing...".format(
+        #        100 * np.isnan(img).sum() / float(img.size)
+        #    ))
+        #    img[np.isnan(img)] = 0.0
 
         #self._cache_maps[(channel, zlim, pix, include_galaxy_sizes, kwtup)] = \
         #    ra_e, dec_e, img * cm_per_m**2 / erg_per_s_per_nW
 
-        ##
-        # Remember: using cgs units internally.
-        # 1 Jy = 1e-23 erg/s/cm^2/sr
-        if map_units.lower() == 'si':
-            img *= cm_per_m**2 / erg_per_s_per_nW
-        elif map_units.lower() == 'cgs':
-            pass
-        elif map_units.lower() == 'mjy':
-            img *= 1e17
-        else:
-            raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
+        #gc.collect()
 
-        return ra_e, dec_e, img
+
+            #return ra_e, dec_e, img
+        #else:
+        #    return None, None, None
 
     def get_fn(self, channel, logmlim, zlim=None, fmt='hdf5', final=False,
         channel_name=None):
@@ -795,6 +794,7 @@ class LightCone(object): # pragma: no cover
 
                     ##
                     # Done with all mass chunks
+                    print('hi', h, channel, channel_names)
 
                     # Save intermediate chunk: all masses, single redshift chunk
                     fnt = self.get_fn(channel, logmlim=logmlim,
@@ -873,7 +873,7 @@ class LightCone(object): # pragma: no cover
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
         suffix=None, fmt='hdf5', hdr={}, map_units='MJy', channel_names=None,
         include_pops=None, clobber=False, max_sources=None,
-        keep_layers=True, **kwargs):
+        keep_layers=True, use_pbar=True, verbose=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -931,7 +931,24 @@ class LightCone(object): # pragma: no cover
         npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
         mchunks = self.get_mass_chunks(logmlim, dlogm)
+        pchunks = include_pops
 
+        # Assemble list of map layers to run.
+        all_chunks = []
+        for h, popid in enumerate(pchunks):
+            for i, channel in enumerate(channels):
+                for j, zchunk in enumerate(zchunks):
+
+                    # Option to limit redshift range.
+                    zlo, zhi = zchunk
+                    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
+                        continue
+
+                    for k, mchunk in enumerate(mchunks):
+                        all_chunks.append((popid, channel, channel_names[i],
+                            zchunk, mchunk))
+
+        # Make directories to save final maps
         final_dir = base_dir + '/final_maps'
         _final_sub = self.get_fn(None, logmlim, zlim=zlim, fmt=fmt,
             final=True)
@@ -940,139 +957,131 @@ class LightCone(object): # pragma: no cover
             os.mkdir(f'{final_dir}/{final_sub}')
 
         ##
-        # Should check for final maps first
+        # Remember: using cgs units internally. Compute conversion factor to
+        # users favorite units (within reason).
+        # 1 Jy = 1e-23 erg/s/cm^2/sr
+        if map_units.lower() == 'si':
+            f_norm = cm_per_m**2 / erg_per_s_per_nW
+        elif map_units.lower() == 'cgs':
+            f_norm = 1.
+        elif map_units.lower() == 'mjy':
+            f_norm = 1e17
+        else:
+            raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
+
+        if verbose:
+            print(f"# Generating {len(all_chunks)} individual map layers...")
+
+        pb = ProgressBar(len(all_chunks),
+            name="img(Mh>={:.1f}, Mh<{:.1f}, z>={:.2f}, z<{:.2f})".format(
+                logmlim[0], logmlim[1], zlim[0], zlim[1]),
+            use=use_pbar)
+        pb.start()
 
         ##
-        # Proceed to generation if final maps not found.
-        for popid, pop in enumerate(self.sim.pops):
-            if popid not in include_pops:
-                continue
+        # Should check for final maps first
 
+        # Make preliminary buffer for channel map
+        cimg = np.zeros([npix]*2)
+
+        ##
+        # Start doing work.
+        for h, chunk in enumerate(all_chunks):
+
+            # Unpack info about this chunk
+            popid, channel, chname, zchunk, mchunk = chunk
+
+            pb.update(h)
+
+            # Will need channel width in Hz to recover specific intensities
+            # averaged over band.
+            nu = c * 1e4 / np.mean(channel)
+            dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
+
+            # Create directory for intermediate products if it doesn't
+            # already exist.
             intmd_dir = base_dir + f'/intermediate_maps/pop_{popid}'
             if not os.path.exists(intmd_dir):
                 os.mkdir(intmd_dir)
 
-            for h, channel in enumerate(channels):
+            # What buffer should we increment?
+            if (not keep_layers):
+                buffer = cimg
+            else:
+                buffer = np.zeros([npix]*2)
 
-                # Keep running total of image in this channel including
-                # all redshift and mass chunks
-                totc = np.zeros([npix]*2)
+            # Generate map
+            self.get_map(fov, pix, channel,
+                logmlim=mchunk, zlim=zchunk,
+                include_galaxy_sizes=include_galaxy_sizes,
+                size_cut=size_cut,
+                dlam=dlam, use_pbar=False,
+                max_sources=max_sources,
+                buffer=buffer, verbose=verbose,
+                **kwargs)
 
-                ##
-                # Look for pre-existing file
+            # Save every mass chunk within every redshift chunk if the user
+            # says so.
+            if keep_layers:
+                fn = self.get_fn(channel, mchunk, zchunk,
+                    fmt=fmt, final=False, channel_name=chname)
+                fn = intmd_dir + '/' + fn
+                self.save_map(fn, cimg * f_norm / dnu,
+                    channel, zchunk, logmlim, fov,
+                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                    verbose=verbose)
 
-                # Go from low-z to high-z
-                for (zlo, zhi) in zchunks:
-
-                    # Look for pre-existing file.
-
-                    # Keep running total of image from this zchunk, all
-                    # mass chunks.
-                    if keep_layers:
-                        totz = np.zeros([npix]*2)
-
-                    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                        continue
-
-                    # Go from high to low in mass
-                    for (mlo, mhi) in mchunks[-1::-1]:
-
-                        fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
-                            fmt=fmt, final=False, channel_name=channel_names[h])
-
-                        fn = intmd_dir + '/' + fn
-
-                        # Try to read from disk.
-                        if keep_layers:
-                            if os.path.exists(fn) and (not clobber):
-                                print(f"Found {fn}. Set clobber=True to overwrite.")
-                                _Inu = self._load_map(fn)
-                                totz += _Inu
-                                del _Inu
-                                gc.collect()
-                                continue
-
-                        print(f"# Will save EBL mock to {fn}.")
-
-                        # Will just be for a single chunk so save_intermediate is
-                        # irrelevant.
-                        ra_e, dec_e, img = self.get_map(fov, pix, channel,
-                            logmlim=(mlo, mhi), zlim=(zlo, zhi),
-                            save_intermediate=False,
-                            include_galaxy_sizes=include_galaxy_sizes,
-                            size_cut=size_cut,
-                            dlam=dlam, use_pbar=False, map_units=map_units,
-                            max_sources=max_sources,
-                            **kwargs)
-
-                        nu = c * 1e4 / np.mean(channel)
-                        dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
-
-                        # `img` is a band-integrated power, convert to band-averaged
-                        # intensity so that map has units of nW m^-2 Hz^-1 sr^-1.
-                        # Save
-                        if keep_layers:
-                            self.save_map(fn, img[0,:,:] / dnu, channel,
-                                (zlo, zhi), (mlo, mhi),
-                                fov, pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
-
-                            totz += img[0,:,:] / dnu
-                        else:
-                            # Increment channel map directly if we don't care
-                            # about keeping z layers.
-                            totc += img[0,:,:] / dnu
-
-                        del img, ra_e, dec_e
-                        gc.collect()
-
-                    ##
-                    # Save image summed over mass
-                    fnz = self.get_fn(channel, logmlim=logmlim, zlim=(zlo, zhi),
-                        fmt=fmt, final=False, channel_name=channel_names[h])
-                    fnz = intmd_dir + '/' + fnz
-
-                    # Always overwrite. Not really an issue, if a calculation
-                    # terminated early then this file wouldn't have been written.
-                    #if not os.path.exists(fnz):
-                    if keep_layers:
-                        self.save_map(fnz, totz, channel, (zlo, zhi), logmlim, fov,
-                            pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
-
-                        # Increment map for this z chunk
-                        totc += totz
-
-                        del totz
-                        gc.collect()
-
-                    # End loop over mass chunks
-
-                # End loop over redshift chunks
-
-                ##
-                # Save image summed over mass and redshift.
-                fnt = self.get_fn(channel, logmlim=logmlim,
-                    zlim=zlim, fmt=fmt, final=False, channel_name=channel_names[h])
-
-                fnt = intmd_dir + '/' + fnt
-
-                ##
-                # Save image summed over both redshift and mass
-                # for single channel, single population
-
-                ##
-                # Increment total image
-                #if keep_layers:
-                self.save_map(fnt, totc, channel, zlim, logmlim, fov,
-                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
-                #tot += totc
-                del totc
-
-                gc.collect()
-
-            # End loop over channels
+                # Increment map for this z chunk
+                cimg += buffer
 
             ##
-            # On to next population
+            # Otherwise, figure out what (if anything) needs to be
+            # written to disk now.
+
+
+            done_w_chan = False
+            done_w_pop = False
+            done_w_z = False
+
+            # Figure out what files need to be written
+            if h == len(all_chunks) - 1:
+                # Write everything on final iteration.
+                done_w_chan = done_w_pop = done_w_z = True
+            else:
+
+                pnext, cnext, nnext, znext, mnext = all_chunks[h+1]
+
+                if (channel[0] != cnext[0]):
+                    done_w_chan = True
+                if (popid != pnext):
+                    done_w_pop = True
+                if znext[0] < zchunk[0]:
+                    done_w_z = True
+
+            # Done with entire z chunk, i.e., all halo mass chunks.
+            if done_w_z:
+                fn = self.get_fn(channel, logmlim, zchunk,
+                    fmt=fmt, final=False, channel_name=chname)
+                fn = intmd_dir + '/' + fn
+                self.save_map(fn, cimg * f_norm / dnu,
+                    channel, zchunk, logmlim, fov,
+                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                    verbose=verbose)
+
+            # Means we've done all redshifts and all masses
+            if done_w_chan:
+                fn = self.get_fn(channel, logmlim, zlim,
+                    fmt=fmt, final=False, channel_name=chname)
+                fn = intmd_dir + '/' + fn
+                self.save_map(fn, cimg * f_norm / dnu,
+                    channel, zlim, logmlim, fov,
+                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                    verbose=verbose)
+
+                del cimg
+                gc.collect()
+
+                cimg = np.zeros([npix]*2)
 
         ##
         # Wipe slate clean
@@ -1128,7 +1137,8 @@ class LightCone(object): # pragma: no cover
             with open(f"{final_dir}/README", 'a') as f:
                 f.write(s)
 
-            print(f"# Wrote {final_dir}/README")
+            if verbose:
+                print(f"# Wrote {final_dir}/README")
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
         hdr={}, clobber=False):
@@ -1171,13 +1181,14 @@ class LightCone(object): # pragma: no cover
         print(f"# Wrote {fn}.")
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}, map_units='MJy', clobber=False):
+        hdr={}, map_units='MJy', clobber=False, verbose=True):
         """
         Save map to disk.
         """
 
         if os.path.exists(fn) and (not clobber):
-            print(f"# {fn} exists! Set clobber=True to overwrite.")
+            if verbose:
+                print(f"# {fn} exists! Set clobber=True to overwrite.")
             return
 
         ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
@@ -1246,10 +1257,15 @@ class LightCone(object): # pragma: no cover
             hdul = fits.HDUList([hdu])
             hdul.writeto(fn, overwrite=clobber)
             hdul.close()
+
+            del hdu, hdul
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
 
         print(f"# Wrote {fn}.")
+
+        del img
+        gc.collect()
 
     def _load_map(self, fn):
 
