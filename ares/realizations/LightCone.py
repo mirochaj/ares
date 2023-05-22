@@ -35,7 +35,7 @@ class LightCone(object): # pragma: no cover
     This should be inherited by the other classes in this submodule.
     """
 
-    def get_pixels(self, fov, pix=1):
+    def get_pixels(self, fov, pix=1, hdr=None):
 
         if type(fov) in numeric_types:
             fov = np.array([fov]*2)
@@ -387,8 +387,6 @@ class LightCone(object): # pragma: no cover
 
             #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
 
-
-
             # Size in degrees
             R_deg = R_sec / 3600.
             R_pix = R_deg / pix_deg
@@ -487,15 +485,12 @@ class LightCone(object): # pragma: no cover
                 if tot == 0:
                     img[i,j] += _flux_
                 else:
-                    img[iz][:,:] += _flux_ * I / tot
+                    img[:,:] += _flux_ * I / tot
 
             ##
             # Otherwise just add flux to single pixel
             else:
-                if buffer is not None:
-                    img[i,j] += _flux_
-                else:
-                    img[i,j] += _flux_
+                img[i,j] += _flux_
 
         #pb.update(_iz_)
 
@@ -619,7 +614,7 @@ class LightCone(object): # pragma: no cover
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='hdf5', hdr={}, max_sources=False,
-        include_pops=None, clobber=False, **kwargs):
+        include_pops=None, clobber=False, verbose=False, **kwargs):
         """
         Generate galaxy catalogs.
         """
@@ -671,7 +666,6 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Loop over populations, make catalogs.
-
         for h, channel in enumerate(channels):
             ra_allp = []
             dec_allp = []
@@ -748,8 +742,8 @@ class LightCone(object): # pragma: no cover
                             else:
                                 # Flag entries until we hit target.
                                 # This is not efficient but oh well.
-                                for h in range(Mh.size):
-                                    ok[h] = 0
+                                for _h in range(Mh.size):
+                                    ok[_h] = 0
 
                                     if ok.sum() == max_sources:
                                         break
@@ -763,14 +757,6 @@ class LightCone(object): # pragma: no cover
                         dec = dec[ok==1]
                         red = red[ok==1]
                         Mh = Mh[ok==1]
-
-                        # Center position on particular pointing [optional]
-                        if hdr is not None:
-                            if 'CRVAL1' in hdr:
-                                ra += hdr['CRVAL1']
-                                dec += hdr['CRVAL2']
-                            else:
-                                raise NotImplemented('help')
 
                         ct += ok.sum()
 
@@ -794,7 +780,6 @@ class LightCone(object): # pragma: no cover
 
                     ##
                     # Done with all mass chunks
-                    print('hi', h, channel, channel_names)
 
                     # Save intermediate chunk: all masses, single redshift chunk
                     fnt = self.get_fn(channel, logmlim=logmlim,
@@ -867,7 +852,8 @@ class LightCone(object): # pragma: no cover
         with open(f"{final_dir}/README", 'a') as f:
             f.write(s)
 
-        print(f"# Wrote {final_dir}/README")
+        if verbose:
+            print(f"# Wrote {final_dir}/README")
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
@@ -1026,10 +1012,10 @@ class LightCone(object): # pragma: no cover
                 fn = self.get_fn(channel, mchunk, zchunk,
                     fmt=fmt, final=False, channel_name=chname)
                 fn = intmd_dir + '/' + fn
-                self.save_map(fn, cimg * f_norm / dnu,
+                self.save_map(fn, buffer * f_norm / dnu,
                     channel, zchunk, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
-                    verbose=verbose)
+                    verbose=verbose, clobber=clobber)
 
                 # Increment map for this z chunk
                 cimg += buffer
@@ -1066,7 +1052,7 @@ class LightCone(object): # pragma: no cover
                 self.save_map(fn, cimg * f_norm / dnu,
                     channel, zchunk, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
-                    verbose=verbose)
+                    verbose=verbose, clobber=clobber)
 
             # Means we've done all redshifts and all masses
             if done_w_chan:
@@ -1076,7 +1062,7 @@ class LightCone(object): # pragma: no cover
                 self.save_map(fn, cimg * f_norm / dnu,
                     channel, zlim, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
-                    verbose=verbose)
+                    verbose=verbose, clobber=clobber)
 
                 del cimg
                 gc.collect()
@@ -1123,7 +1109,8 @@ class LightCone(object): # pragma: no cover
             fnp = final_dir + '/' + fnp
 
             self.save_map(fnp, tot, channel, zlim, logmlim, fov,
-                pix=pix, fmt=fmt, hdr=hdr, map_units=map_units)
+                pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                clobber=clobber)
 
             # Make a note of which populations are included in the current
             # tally.
@@ -1141,7 +1128,7 @@ class LightCone(object): # pragma: no cover
                 print(f"# Wrote {final_dir}/README")
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}, clobber=False):
+        hdr={}, clobber=False, verbose=False):
         """
         Save galaxy catalog.
         """
@@ -1178,7 +1165,8 @@ class LightCone(object): # pragma: no cover
         else:
             raise NotImplemented(f'Unrecognized `fmt` option "{fmt}"')
 
-        print(f"# Wrote {fn}.")
+        if verbose:
+            print(f"# Wrote {fn}.")
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
         hdr={}, map_units='MJy', clobber=False, verbose=True):
@@ -1253,6 +1241,8 @@ class LightCone(object): # pragma: no cover
             # Convert to MJy/sr
             # Recall that 1 Jy = 1e-23 erg/s/cm^2/Hz
 
+            print("creating HDU", channel, img.sum())
+
             hdu = fits.PrimaryHDU(data=img, header=hdr)
             hdul = fits.HDUList([hdu])
             hdul.writeto(fn, overwrite=clobber)
@@ -1264,8 +1254,8 @@ class LightCone(object): # pragma: no cover
 
         print(f"# Wrote {fn}.")
 
-        del img
-        gc.collect()
+        #del img
+        #gc.collect()
 
     def _load_map(self, fn):
 
