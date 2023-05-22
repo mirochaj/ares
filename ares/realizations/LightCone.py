@@ -28,8 +28,6 @@ try:
 except ImportError:
     pass
 
-from memory_profiler import profile
-
 class LightCone(object): # pragma: no cover
     """
     This should be inherited by the other classes in this submodule.
