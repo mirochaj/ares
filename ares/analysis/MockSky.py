@@ -252,7 +252,7 @@ class MockSky(object):
 
         """
 
-        chan_c, chan_e, fn_fin, pops = self.get_final_maps()
+        chan_n, chan_c, chan_e, fn_fin, pops = self.get_final_maps()
 
         if zlim is None:
             zlim = self.zlim
@@ -268,10 +268,12 @@ class MockSky(object):
             if chan_c[k] != channel:
                 print(f"# WARNING: closest channel to requested: {chan_c[k]}")
 
+            ch_n = [chan_n[k]]
             ch_e = [chan_e[k]]
             ch_c = [chan_c[k]]
             fn = fn_fin[k]
         else:
+            ch_n = chan_n
             ch_e = chan_e
             ch_c = chan_c
             fn = fn_fin
@@ -280,7 +282,7 @@ class MockSky(object):
         if (zlim == self.zlim) and (logmlim == self.logmlim):
             if (popid is None) or (np.unique(pops).size == 1):
                 # In this case, it's just a final map we're interested in.
-                return ch_c, ch_e, [fn]
+                return ch_n, ch_c, ch_e, [fn]
 
         ##
         # If we made it here, we're interested in some intermediate data product.
@@ -297,11 +299,14 @@ class MockSky(object):
             fn = 'z_{:.2f}_{:.2f}'.format(*list(zlim))
             fn += '_M_{:.1f}_{:.1f}'.format(*list(logmlim))
 
-            for _chan in ch_e:
-                _fn = fn + '_{:.2f}_{:.2f}'.format(*_chan)
+            for j, _chan in enumerate(ch_e):
+                if ch_n[j] is not None:
+                    _fn = fn + '_{}'.format(ch_n[j])
+                else:
+                    _fn = fn + '_{:.2f}_{:.2f}'.format(*_chan)
                 all_fn.append(f"{subdir}/{_fn}.{self.fmt}")
 
-        return ch_c, ch_e, all_fn
+        return ch_n, ch_c, ch_e, all_fn
 
     def get_final_maps(self):
         """
@@ -348,7 +353,7 @@ class MockSky(object):
             # Shouldn't happen anymore.
             pops = None
 
-        return chan_c, chan_e.T, fn, pops
+        return chan_n, chan_c, chan_e.T, fn, pops
 
     def get_final_cats(self):
         """
@@ -401,7 +406,7 @@ class MockSky(object):
 
         """
 
-        ch_c, ch_e, all_fn = self.get_filenames(channel=channel,
+        ch_n, ch_c, ch_e, all_fn = self.get_filenames(channel=channel,
             popid=popid, zlim=zlim, logmlim=logmlim)
 
         if len(all_fn) > 1:
@@ -459,7 +464,7 @@ class MockSky(object):
 
         # Grab info about available maps just so we know what the image
         # dimensions should be and how to map RA/DEC to pixels.
-        ch_c, ch_e, all_fn, pops_maps = self.get_final_maps()
+        ch_n, ch_c, ch_e, all_fn, pops_maps = self.get_final_maps()
 
         _img_, _hdr_ = self.load_map(ch_c[0])
 

@@ -613,7 +613,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='hdf5', hdr={}, max_sources=False,
+        suffix=None, fmt='hdf5', hdr={}, max_sources=None,
         include_pops=None, clobber=False, verbose=False, **kwargs):
         """
         Generate galaxy catalogs.
@@ -1240,8 +1240,6 @@ class LightCone(object): # pragma: no cover
             # Right now, image is in erg/s/cm^2/Hz
             # Convert to MJy/sr
             # Recall that 1 Jy = 1e-23 erg/s/cm^2/Hz
-
-            print("creating HDU", channel, img.sum())
 
             hdu = fits.PrimaryHDU(data=img, header=hdr)
             hdul = fits.HDUList([hdu])
