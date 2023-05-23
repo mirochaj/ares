@@ -269,7 +269,7 @@ class LightCone(object): # pragma: no cover
         # Filter out galaxies outside specified redshift range.
         # [usually don't do this within chunk, but hey, functionality there]
         if zlim is not None:
-            okz = np.logical_and(red >= zlim[0], red < zlim[1])
+            okz = np.logical_and(red >= zlo, red < zhi)
             ok = np.logical_and(okp, okz)
         else:
             ok = okp

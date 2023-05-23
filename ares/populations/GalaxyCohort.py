@@ -1532,7 +1532,9 @@ class GalaxyCohort(GalaxyAggregate):
             Lh[~ok] = 0
 
             if self.pf['pop_dustext_template'] is not None:
-                Av = self.get_Av(z)
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+                Av = self.get_Av(z=z, Ms=mste)
 
                 if type(wave) not in numeric_types:
                     _wave = np.mean(wave)
@@ -1596,7 +1598,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_Av(self, z):
+    def get_Av(self, z, Ms):
         """
         Get visual extinction.
         """
@@ -1607,7 +1609,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Should set this up to convert from dust opacity too.
 
-        return func(z=z)
+        return func(z=z, Ms=Ms)
 
         #Mh = self.halos.tab_M
         #smhm = self.get_smhm(z=z, Mh=Mh)
@@ -1695,6 +1697,14 @@ class GalaxyCohort(GalaxyAggregate):
         smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
         Ms = smhm * self.halos.tab_M
 
+        if self.pf['pop_dustext_template'] is not None:
+            func = self._get_function('pop_Av')
+            Av = func(z=z, Ms=Ms)
+            tau = self.dustext.get_tau_lam(wave, Av=Av)
+            return tau
+
+        ##
+        # Otherwise, compute kappa via parameterized function.
         kappa = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
 
         # If we parameterized Av directly, we're basically done.
