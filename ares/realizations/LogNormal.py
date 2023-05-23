@@ -66,13 +66,13 @@ class LogNormal(LightCone): # pragma: no cover
             assert self.bias_params is not None, \
                 "Must provide `bias_params=[a,b]` for `bias_model>0`!"
 
-        fov = self.get_fov_from_L(0.5, Lbox)
-
         if verbose:
+            zchunks = self.get_redshift_chunks(self.zlim)
             print("# Maximum FoV given box size:")
-            for z in [0.2, 1, 2, 3, 4, 5, 6, 10]:
-                fov = self.get_fov_from_L(z, Lbox)
-                print(f"# At z={z:.1f}: {fov:.2f} degrees")
+            for chunk in zchunks:
+                zlo, zhi = chunk
+                fov = self.get_fov_from_L(zhi, Lbox)
+                print(f"# At z_back={zhi:.3f}: {fov:.2f} degrees")
 
     @property
     def sim(self):
