@@ -1,3 +1,4 @@
+
 # **ARES**
 [![Documentation Status](https://readthedocs.org/projects/ares/badge/?version=latest)](http://ares.readthedocs.io/en/latest/?badge=latest) ![Tests](https://github.com/mirochaj/ares/actions/workflows/test_suite.yaml/badge.svg) [![codecov](https://codecov.io/gh/mirochaj/ares/branch/main/graph/badge.svg?token=Q3CCKIMQJF)](https://codecov.io/gh/mirochaj/ares) [![Last Commit](https://img.shields.io/github/last-commit/mirochaj/ares)](https://img.shields.io/github/last-commit/mirochaj/ares)
 
@@ -60,10 +61,10 @@ and optionally,
 
 - [camb](https://camb.readthedocs.io/en/latest/)
 - [hmf](https://github.com/steven-murray/hmf)
+- [astropy](https://www.astropy.org/)
+- [dust_extinction](https://dust-extinction.readthedocs.io/en/stable/index.html)
 - [mpi4py](http://mpi4py.scipy.org)
 - [pymp](https://github.com/classner/pymp)
-- [emcee](http://dan.iel.fm/emcee/current/)
-- [distpy](https://bitbucket.org/ktausch/distpy)
 - [progressbar2](http://progressbar-2.readthedocs.io/en/latest/)
 - [setuptools](https://pypi.python.org/pypi/setuptools)
 - [mpmath](http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html)

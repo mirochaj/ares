@@ -14,7 +14,6 @@ import numpy as np
 from inspect import ismethod
 from types import FunctionType
 from .Population import Population
-from scipy.integrate import cumtrapz
 from ..util.PrintInfo import print_pop
 from scipy.interpolate import interp1d
 from ..physics.HaloModel import HaloModel

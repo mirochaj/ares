@@ -339,13 +339,15 @@ Av = \
  'pq_func_par4[31]': 0.,   # no evolution
  'pq_val_floor[31]': 0,
 
+ "pop_dustext_template": 'milkyway_diffuse',
+
  # Dust opacity vs. wavelength
- "pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
- "pq_func[20]": 'pl',
- 'pq_func_var[20]': 'wave',
- 'pq_func_var_lim[20]': (0., np.inf),
- 'pq_func_var_fill[20]': 0.0,
- 'pq_func_par0[20]': 1e5,      # opacity at wavelength below
- 'pq_func_par1[20]': 1e3,
- 'pq_func_par2[20]': -1.,
+ #"pop_dust_absorption_coeff": 'pq[20]',   # opacity in [cm^2 / g]
+ #"pq_func[20]": 'pl',
+ #'pq_func_var[20]': 'wave',
+ #'pq_func_var_lim[20]': (0., np.inf),
+ #'pq_func_var_fill[20]': 0.0,
+ #'pq_func_par0[20]': 1e5,      # opacity at wavelength below
+ #'pq_func_par1[20]': 1e3,
+ #'pq_func_par2[20]': -1.,
 }

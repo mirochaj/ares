@@ -14,6 +14,7 @@ import numpy as np
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
+from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -298,6 +299,10 @@ class GalaxyCohort(GalaxyAggregate):
         """
         func = self._get_function('pop_gas_fraction')
         return func(z=z, Mh=Mh) * Mh * self.cosm.fbaryon
+
+    def get_size(self, z, Ms):
+        func = self._get_function('pop_msr')
+        return func(z=z, Ms=Ms)
 
     def get_field(self, z, field):
         """
@@ -1370,6 +1375,33 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
+    def get_spec_obs(self, z, M, waves=None, per_Hz=False):
+        if waves is None:
+            waves = self.src.tab_waves_c
+            dwdn = self.src.tab_dwdn
+        else:
+            dwdn = waves**2 / (c * 1e8)
+
+        spec = self.get_spec(z, waves=waves, M=M, per_Hz=per_Hz)
+        dL = self.cosm.get_luminosity_distance(z)
+
+        # Flux at Earth in erg/s/cm^2/Hz
+        f = spec / (4. * np.pi * dL**2)
+
+        # Correct for redshifting and change in units.
+        if per_Hz:
+            f *= (1. + z)
+        else:
+            f /= dwdn
+            f /= (1. + z)
+
+        owaves = waves * (1. + z) / 1e4
+
+        tau = 0#self.OpticalDepth(z, owaves)
+        T = np.exp(-tau)
+
+        return owaves, f * T
+
     def get_lum(self, z, wave=1600, band=None, window=1, band_units='Angstrom',
         energy_units=True, load=True, raw=False, nebular_only=False, age=None):
         """
@@ -1500,7 +1532,9 @@ class GalaxyCohort(GalaxyAggregate):
             Lh[~ok] = 0
 
             if self.pf['pop_dustext_template'] is not None:
-                Av = self.get_Av(z)
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+                Av = self.get_Av(z=z, Ms=mste)
 
                 if type(wave) not in numeric_types:
                     _wave = np.mean(wave)
@@ -1564,7 +1598,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_Av(self, z):
+    def get_Av(self, z, Ms):
         """
         Get visual extinction.
         """
@@ -1575,7 +1609,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Should set this up to convert from dust opacity too.
 
-        return func(z=z)
+        return func(z=z, Ms=Ms)
 
         #Mh = self.halos.tab_M
         #smhm = self.get_smhm(z=z, Mh=Mh)
@@ -1663,6 +1697,14 @@ class GalaxyCohort(GalaxyAggregate):
         smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
         Ms = smhm * self.halos.tab_M
 
+        if self.pf['pop_dustext_template'] is not None:
+            func = self._get_function('pop_Av')
+            Av = func(z=z, Ms=Ms)
+            tau = self.dustext.get_tau_lam(wave, Av=Av)
+            return tau
+
+        ##
+        # Otherwise, compute kappa via parameterized function.
         kappa = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
 
         # If we parameterized Av directly, we're basically done.
@@ -1714,7 +1756,8 @@ class GalaxyCohort(GalaxyAggregate):
         return result
 
     def get_mags(self, z, absolute=True, wave=1600, band=None,
-        band_units='Angstrom', window=1,
+        band_units='Angstrom', window=1, cam=None, filters=None,
+        filter_set=None, presets=None,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
@@ -1723,6 +1766,16 @@ class GalaxyCohort(GalaxyAggregate):
             depending on value of `absolute` keyword argument.
 
         """
+
+        if presets is not None:
+            filter_set = None
+            cam, filters = self._get_presets(z, presets)
+
+        if type(filters) == dict:
+            filters = filters[round(z)]
+
+        if type(filters) == str:
+            filters = (filters, )
 
         L = self.get_lum(z, wave=wave, band=band, band_units=band_units,
             window=window, energy_units=True, load=load, raw=raw,

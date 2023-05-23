@@ -17,6 +17,7 @@ from ..data import read as read_lit
 from .ParameterFile import pop_id_num, par_info
 from ..physics.Constants import cm_per_kpc, E_LL
 from .PrintInfo import header, footer, separator, line, width, twidth
+from .SetDefaultParameterValues import CosmologyParameters, ControlParameters
 
 try:
     from mpi4py import MPI
@@ -25,6 +26,8 @@ try:
 except ImportError:
     rank = 0
     size = 1
+
+keepers = list(CosmologyParameters().keys()) + list(ControlParameters().keys())
 
 def _add_pop_tag(par, num):
     """
@@ -854,7 +857,7 @@ class ParameterBundle(dict):
             if (idnum == num) or prefix.startswith('halo_') \
                 or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
                 or prefix.startswith('feedback_') or prefix.startswith('tau_') \
-                or prefix.startswith('master'):
+                or prefix.startswith('master') or (prefix in keepers):
 
                 if strip_id:
                     tmp[prefix] = self[par]

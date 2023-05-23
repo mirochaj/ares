@@ -21,6 +21,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from dust_extinction.grain_models import WD01
+    have_dustext = True
+except ImportError:
+    have_dustext = False
+
 class DustExtinction(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -45,15 +51,50 @@ class DustExtinction(object):
             return cands[0]
 
     @property
+    def _dustext_instance(self):
+        if not hasattr(self, '_dustext_instance_'):
+            assert have_dustext, "Need dust_extinction package for this!"
+            mth1, curve = self.method.split(':')
+
+            self._dustext_instance_ = WD01(curve)
+            assert mth1 == 'WD01'
+
+        return self._dustext_instance_
+
+    @property
+    def tab_x(self):
+        """
+        1/wavelengths [micron^-1].
+        """
+        if not hasattr(self, '_tab_x'):
+            self._tab_x = 1e4 / self.tab_waves_c
+        return self._tab_x
+
+    @property
     def tab_waves_c(self):
+        """
+        Wavelengths in Angstroms.
+        """
         if not hasattr(self, '_tab_waves_c'):
-            self._load()
+            if self.method.startswith('WD01'):
+                self._tab_waves_c = 1e4 / self._dustext_instance.data_x
+            else:
+                self._load()
         return self._tab_waves_c
 
     @property
     def tab_extinction(self):
+        """
+        Lookup table of Rv=Av/E(B-V).
+        """
         if not hasattr(self, '_tab_extinction'):
-            self._load()
+            if self.method.startswith('WD01'):
+                # Callable expects [x] = 1 / microns
+                from astropy.units import micron
+                self._tab_extinction = self._dustext_instance(self.tab_x / micron)
+            else:
+                raise NotImplemented('issue with E(B-V)-based lookup tab not resolved.')
+                self._load()
         return self._tab_extinction
 
     def _load(self):
@@ -62,7 +103,7 @@ class DustExtinction(object):
 
         Returns
         -------
-        Tuple containing (avelengths in Angstroms, Av/E(B-V)).
+        Tuple containing (wavelengths in Angstroms, Av/E(B-V)).
         """
 
         fn = self.get_filename()
@@ -87,9 +128,9 @@ class DustExtinction(object):
             self._tab_waves_c = 1e4 / np.array(invwave)[-1::-1]
             self._tab_extinction = np.array(extinct)[-1::-1]
 
-    def get_R(self, wave):
+    def get_curve(self, wave):
         """
-        Get Rv = Av / E(B-V), will interpolate using lookup table.
+        Get extinction (or attenuation) curve from lookup table.
 
         .. note :: This is what is contained in attenuation curves natively.
 
@@ -102,8 +143,7 @@ class DustExtinction(object):
         return np.interp(wave, self.tab_waves_c, self.tab_extinction)
 
     def get_A_lam(self, wave, Av=0.1):
-        R = self.get_R(wave)
-        return np.maximum(-Av * (1. - R) / R, 0)
+        return self.get_curve(wave) * Av
 
     def get_slope(self, wave1, wave2):
         return self.get_A_lam(wave1) / self.get_A_lam(wave2)

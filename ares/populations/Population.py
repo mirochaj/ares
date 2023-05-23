@@ -21,6 +21,7 @@ from scipy.integrate import quad
 from ..obs import MagnitudeSystem
 from functools import cached_property
 from ..util.Misc import numeric_types
+from scipy.special import gammaincinv
 from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
@@ -1008,6 +1009,49 @@ class Population(object):
         """
         d_pc = self.cosm.LuminosityDistance(z) / cm_per_pc
         return mags + 5 * np.log10(d_pc / 10.) - 2.5 * np.log10(1. + z)
+
+    def get_sersic_prof(self, r, n):
+        b = gammaincinv(2. * n, 0.5)
+        return np.exp(-b * (r**(1. / n) - 1.))
+
+    def get_sersic_cog(self, rmax, n):
+        integrand = lambda r: 2 * np.pi * self.get_sersic_prof(r, n=n) * r
+        tot = quad(integrand, 0, np.inf)[0]
+        int_lt_rmax = quad(integrand, 0, rmax)[0] / tot
+
+        return int_lt_rmax
+
+    @cached_property
+    def tab_sersic_n(self):
+        return np.arange(0.3, 6.25, 0.05)
+
+    def get_sersic_rmax(self, frac, n):
+        """
+        Return the radius containing `frac` per-cent of the total surface
+        brightness for a Sersic profile of index `n`.
+
+        .. note :: The radius returned is normalized to the effective radius,
+            so plugging in `frac=0.5` should yield unity (i.e., the half-light
+            radius).
+
+        """
+        if not hasattr(self, '_tab_sersic_rmax'):
+            self._tab_sersic_rmax = {}
+
+        if frac in self._tab_sersic_rmax:
+            return np.interp(n, self.tab_sersic_n, self._tab_sersic_rmax[frac])
+
+        rarr = np.logspace(-1, 1.5, 500)
+
+        x = np.zeros_like(self.tab_sersic_n)
+        for i, _n_ in enumerate(self.tab_sersic_n):
+            cog_sfg = [self.get_sersic_cog(r, n=_n_) for r in rarr]
+
+            x[i] = np.interp(frac, cog_sfg, rarr)
+
+        self._tab_sersic_rmax[frac] = x
+
+        return np.interp(n, self.tab_sersic_n, x)
 
     def get_tab_emissivity(self, z, E):
         """
