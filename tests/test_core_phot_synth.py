@@ -45,11 +45,11 @@ def test(tol=0.25):
 
     pop = ares.populations.GalaxyPopulation(**pars)
 
-    _b14 = ares.data.read('bouwens2014')
+    _b14 = ares.util.read_lit('bouwens2014')
     hst_shallow = _b14.filt_shallow
     hst_deep = _b14.filt_deep
 
-    c94_windows = ares.data.read('calzetti1994').windows
+    c94_windows = ares.util.read_lit('calzetti1994').windows
     wave_lo = np.min(c94_windows)
     wave_hi = np.max(c94_windows)
 
@@ -82,7 +82,7 @@ def test(tol=0.25):
         mag_from_spec = omags[0,np.argmin(np.abs(1600. - waves))]
 
         # Compute observed magnitude at 1600A by hand from luminosity
-        L = pop.get_lum(z, wave=1600., load=load)
+        L = pop.get_lum(z, x=1600., units='Angstroms', load=load)
         f = L[0] * (1. + z) / (4. * np.pi * dL**2)
         mag_from_flux = -2.5 * np.log10(f / flux_AB) - magcorr
 

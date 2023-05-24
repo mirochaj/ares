@@ -345,6 +345,35 @@ class LogTanhAbsEvolvingMidpointFloorCeiling(BasePQ):
 
         return y
 
+class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+
+        logx = np.log10(x)
+
+        hi = self.args[0] + self.args[6] * ((1. + kwargs['z']) / self.args[5])
+        lo = self.args[1] + self.args[7] * ((1. + kwargs['z']) / self.args[5])
+        w = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[5])
+
+        hi = np.minimum(hi, 1.)
+        lo = np.maximum(lo, 0.)
+        w = np.maximum(w, 0)
+
+        step = (hi - lo) * 0.5
+
+        if self.t == '1+z':
+            mid = self.args[2] \
+                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+        else:
+            raise NotImplemented('help')
+
+        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
+
+        return y
+
 class LogTanhAbsEvolvingWidth(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -803,6 +832,8 @@ class ParameterizedQuantity(object):
             self.func = LogTanhAbsEvolvingMidpoint(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolMFC':
             self.func = LogTanhAbsEvolvingMidpointFloorCeiling(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs_evolMFCW':
+            self.func = LogTanhAbsEvolvingMidpointFloorCeilingWidth(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolW':
             self.func = LogTanhAbsEvolvingWidth(**kwargs)
         elif kwargs["pq_func"] == "logtanh_rel":

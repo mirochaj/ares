@@ -76,7 +76,7 @@ def test():
     assert pop.get_nh_active(6) > pop.get_nh_active(10)
 
     # Luminosity function and stellar mass functions
-    x, phi_M = pop.get_lf(zarr[0], mag_bins, use_mags=True, wave=1600.)
+    x, phi_M = pop.get_lf(zarr[0], mag_bins, use_mags=True, x=1600., units='Angstroms')
 
     # A bit slow :/
     phi_Ms = pop.get_smf(zarr[0])

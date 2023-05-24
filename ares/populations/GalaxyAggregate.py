@@ -80,7 +80,7 @@ class GalaxyAggregate(HaloPopulation):
 
         return sfrd
 
-    def get_emissivity(self, z, E=None, Emin=None, Emax=None):
+    def get_emissivity(self, z, x=None, band=None, units='eV'):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
@@ -117,19 +117,21 @@ class GalaxyAggregate(HaloPopulation):
         # Models based on photons / baryon
         ##
         if self.pf['pop_sed'] is None:
+            bname = self.src.get_band_name(x=x, band=band, units=units)
+
             # In this case, photon yields have been provided via parameters.
             # Just need to convert SFRD to baryons/s/cMpc^3
-            if (round(Emin, 1), round(Emax, 1)) == (10.2, 13.6):
+            if bname == 'LW':
                 return (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
                     * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
-                    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                    * self._get_energy_per_photon(band, units=units) * erg_per_ev
                 #return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
                 #    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
                 #    / self.cosm.g_per_baryon
-            elif round(Emin, 1) == 13.6:
+            elif bname == 'LyC':
                 return (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
                     * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
-                    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                    * self._get_energy_per_photon(band, units=units) * erg_per_ev
                 #return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
                 #    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
                 #    / self.cosm.g_per_baryon #/ (Emax - Emin)
@@ -147,7 +149,9 @@ class GalaxyAggregate(HaloPopulation):
         # At this point [rhoL] = erg/s/cMpc^-3
 
         # Convert from reference band to arbitrary band
-        rhoL *= self._convert_band(Emin, Emax)
+        rhoL *= self._convert_band(band, units=units)
+
+        Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
         # Apply reprocessing
         if (Emax is None) or (Emin is None):
@@ -165,8 +169,8 @@ class GalaxyAggregate(HaloPopulation):
 
             rhoL *= fesc
 
-        if E is not None:
-            return rhoL * self.src.get_spectrum(E)
+        if x is not None:
+            return rhoL * self.src.get_spectrum(x, units=units)
         else:
             return rhoL
 
@@ -177,7 +181,7 @@ class GalaxyAggregate(HaloPopulation):
         func = self._get_function('pop_fesc')
         return func(z=z)
 
-    def get_photon_emissivity(self, z, Emin=None, Emax=None):
+    def get_photon_emissivity(self, z, band=None):
         """
         Return the photon luminosity density in the (Emin, Emax) band.
 
@@ -192,8 +196,8 @@ class GalaxyAggregate(HaloPopulation):
 
         """
 
-        rhoL = self.get_emissivity(z, Emin=Emin, Emax=Emax)
-        eV_per_phot = self._get_energy_per_photon(Emin, Emax)
+        rhoL = self.get_emissivity(z, band=band)
+        eV_per_phot = self._get_energy_per_photon(band)
 
         return rhoL / (eV_per_phot * erg_per_ev)
 

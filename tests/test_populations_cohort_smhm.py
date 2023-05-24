@@ -50,8 +50,8 @@ def test():
     assert np.all(sim.pops[2].get_focc(6, Mh) == 1. - sim.pops[0].get_focc(6, Mh))
 
     # Check luminosity, SEDs etc?
-    L0 = sim.pops[0].get_lum(6, wave=1600)
-    L1 = sim.pops[1].get_lum(6, wave=1600)
+    L0 = sim.pops[0].get_lum(6, x=1600)
+    L1 = sim.pops[1].get_lum(6, x=1600)
 
     Z = sim.pops[0].get_metallicity(6)
     assert np.all(Z == 0), \
@@ -83,8 +83,8 @@ def test():
     assert np.all(spec0[i10_0,waves < 2000] > spec1[i10_1,waves < 2000])
 
     # Do the same thing with the emissivity
-    assert sim.pops[0].get_emissivity(6, E=6) \
-         > sim.pops[1].get_emissivity(6, E=6)
+    assert sim.pops[0].get_emissivity(6, x=6, units='eV') \
+         > sim.pops[1].get_emissivity(6, x=6, units='eV')
 
 
     dust = ares.util.ParameterBundle('mirocha2023:dust')

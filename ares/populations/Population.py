@@ -500,6 +500,10 @@ class Population(object):
 
         if not hasattr(self, '_is_emissivity_scalable'):
 
+            if self.is_emissivity_bruteforce:
+                self._is_emissivity_scalable = False
+                return self._is_emissivity_scalable
+
             if self.is_aging:
                 self._is_emissivity_scalable = False
                 return self._is_emissivity_scalable
@@ -528,14 +532,6 @@ class Population(object):
             # (1) there are mass- or time-dependent radiative properties
             # (2) if there are wavelength-dependent escape fractions.
             # (3) maybe that's it?
-
-            if (self.affects_cgm) and (not self.affects_igm):
-                if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
-                    if self.pf['verbose']:
-                        print("# WARNING: revisit scalability wrt fesc.")
-                    #print("Not scalable cuz fesc pop={}".format(self.id_num))
-            #        self._is_emissivity_scalable = False
-            #        return False
 
             for par in self.pf.pqs:
 
@@ -714,7 +710,7 @@ class Population(object):
         if self.src.is_sed_tabular:
             E1 = self.src.Emin
             E2 = self.src.Emax
-            y = self.src.get_rad_yield(E1, E2)
+            y = self.src.get_rad_yield((E1, E2), units='eV')
         else:
             y = normalize_sed(self)#self.pf['source_rad_yield']
 
@@ -774,7 +770,7 @@ class Population(object):
     #def model(self):
     #    return self.pf['pop_model']
 
-    def _convert_band(self, Emin, Emax):
+    def _convert_band(self, band, units='eV'):
         """
         Convert from fractional luminosity in reference band to given bounds.
 
@@ -800,6 +796,11 @@ class Population(object):
         # If we're here, it means we need to use some SED info
 
         different_band = False
+
+        if band is None:
+            band = self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm']
+
+        Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
         # Lower bound
         if (Emin is not None) and (self.src is not None):
@@ -830,8 +831,8 @@ class Population(object):
 
             # If tabulated, do things differently
             if self.is_sed_tab:
-                factor = self.src.get_rad_yield(Emin, Emax) \
-                    / self.src.get_rad_yield(*self.reference_band)
+                factor = self.src.get_rad_yield((Emin, Emax), units='eV') \
+                    / self.src.get_rad_yield(self.reference_band, units='eV')
             else:
                 factor = quad(self.src.get_spectrum, Emin, Emax)[0] \
                     / quad(self.src.get_spectrum, *self.reference_band)[0]
@@ -842,7 +843,7 @@ class Population(object):
 
         return 1.0
 
-    def _get_energy_per_photon(self, Emin, Emax):
+    def _get_energy_per_photon(self, band, units='eV'):
         """
         Compute the mean energy per photon in the provided band.
 
@@ -861,6 +862,8 @@ class Population(object):
         Photon energy in eV.
 
         """
+
+        Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
         if self.pf['pop_sed'] is None:
             Eavg = np.mean([Emin, Emax])
@@ -885,20 +888,20 @@ class Population(object):
             return self._eV_per_phot[(Emin, Emax)]
 
         if Emin < self.pf['pop_Emin']:
-            print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+            print(("# WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
                 "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
                 self.id_num))
         if Emax > self.pf['pop_Emax']:
-            print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+            print(("# WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
                 "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                 self.id_num))
 
-        if self.is_sed_tab:
-            Eavg = self.src.eV_per_phot(Emin, Emax)
-        else:
-            integrand = lambda E: self.src.get_spectrum(E) * E
-            Eavg = quad(integrand, Emin, Emax)[0] \
-                / quad(self.src.get_spectrum, Emin, Emax)[0]
+        #if self.is_sed_tab:
+        Eavg = self.src.eV_per_phot(Emin, Emax)
+        #else:
+        #    integrand = lambda E: self.src.get_spectrum(E) * E
+        #    Eavg = quad(integrand, Emin, Emax)[0] \
+        #        / quad(self.src.get_spectrum, Emin, Emax, limit=100)[0]
 
         self._eV_per_phot[(Emin, Emax)] = Eavg
 
