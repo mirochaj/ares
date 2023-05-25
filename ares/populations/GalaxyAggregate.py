@@ -113,6 +113,10 @@ class GalaxyAggregate(HaloPopulation):
         #    if (Emax < self.src.Emin):
         #        return 0.0
 
+        if (x is None) and (band is None):
+            band = self.src.Emin, self.src.Emax
+            assert units.lower() == 'ev'
+
         ##
         # Models based on photons / baryon
         ##
@@ -150,38 +154,42 @@ class GalaxyAggregate(HaloPopulation):
 
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(band, units=units)
+        rhoL *= self.get_fesc(z, Mh=None, x=x, band=band, units=units)
 
-        Emin, Emax = self.src.get_ev_from_x(band, units=units)
+        #print('hi', band, self._convert_band(band, units=units),
+        #    self.get_fesc(z, Mh=None, x=x, band=band, units=units))
 
-        # Apply reprocessing
-        if (Emax is None) or (Emin is None):
-            if self.pf['pop_reproc']:
-                rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
-        elif Emax > E_LL and Emin < self.pf['pop_Emin_xray']:
-            rhoL *= self.pf['pop_fesc']
-        elif Emax <= E_LL:
-            if self.pf['pop_reproc']:
-                fesc = (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
-            elif Emin >= E_LyA:
-                fesc = self.pf['pop_fesc_LW']
-            else:
-                fesc = 1.
+        #Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
-            rhoL *= fesc
+        ## Apply reprocessing
+        #if (Emax is None) or (Emin is None):
+        #    if self.pf['pop_reproc']:
+        #        rhoL *= (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
+        #elif Emax > E_LL and Emin < self.pf['pop_Emin_xray']:
+        #    rhoL *= self.pf['pop_fesc']
+        #elif Emax <= E_LL:
+        #    if self.pf['pop_reproc']:
+        #        fesc = (1. - self.pf['pop_fesc']) * self.pf['pop_frep']
+        #    elif Emin >= E_LyA:
+        #        fesc = self.pf['pop_fesc_LW']
+        #    else:
+        #        fesc = 1.
+
+        #    rhoL *= fesc
 
         if x is not None:
             return rhoL * self.src.get_spectrum(x, units=units)
         else:
             return rhoL
 
-    def get_fesc(self, z):
-        """
-        Get the escape fraction of ionizing photons.
-        """
-        func = self._get_function('pop_fesc')
-        return func(z=z)
+    #def get_fesc(self, z):
+    #    """
+    #    Get the escape fraction of ionizing photons.
+    #    """
+    #    func = self._get_function('pop_fesc')
+    #    return func(z=z)
 
-    def get_photon_emissivity(self, z, band=None):
+    def get_photon_emissivity(self, z, band=None, units='eV'):
         """
         Return the photon luminosity density in the (Emin, Emax) band.
 
@@ -196,8 +204,8 @@ class GalaxyAggregate(HaloPopulation):
 
         """
 
-        rhoL = self.get_emissivity(z, band=band)
-        eV_per_phot = self._get_energy_per_photon(band)
+        rhoL = self.get_emissivity(z, band=band, units=units)
+        eV_per_phot = self._get_energy_per_photon(band, units=units)
 
         return rhoL / (eV_per_phot * erg_per_ev)
 

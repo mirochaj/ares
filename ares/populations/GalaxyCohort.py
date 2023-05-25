@@ -884,6 +884,25 @@ class GalaxyCohort(GalaxyAggregate):
         #return self.cosm.fbar_over_fcdm * self.get_MAR(z, Mh) * self.eta(z) \
         #    * self.SFE(z=z, Mh=Mh)
 
+    def get_zindex(self, z):
+        """
+        Get index such that user-supplied `z` will lie in range given by:
+            (self.halos.tab_z[iz], self.halos.tab_z[iz+1])
+
+        """
+
+        if z < self.halos.tab_z.min():
+            raise ValueError(f"z={z} < tabulated range!")
+        if z > self.halos.tab_z.max():
+            raise ValueError(f"z={z} > tabulated range!")
+
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+        if z > self.halos.tab_z[iz]:
+            iz -= 1
+
+        return iz
+
     def get_emissivity(self, z, x=None, band=None, units='eV'):
         """
         Compute the emissivity of this population as a function of redshift
@@ -911,16 +930,26 @@ class GalaxyCohort(GalaxyAggregate):
             rhoL = super(GalaxyCohort, self).get_emissivity(z, x=x,
                 band=band, units=units)
         else:
-            L_h = self.get_lum(z, x=x, band=band, units='eV')
-            iz = np.argmin(np.abs(z - self.halos.tab_z))
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                self.halos.tab_M < self.get_Mmax(z))
+            iz = self.get_zindex(z)
+            z1 = self.halos.tab_z[iz]
+            z2 = self.halos.tab_z[iz+1]
 
-            integ = L_h * self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:]
+            L1 = self.get_lum(z1, x=x, band=band, units='eV')
+            L2 = self.get_lum(z2, x=x, band=band, units='eV')
 
-            rhoL = np.trapz(integ * ok, x=np.log(self.halos.tab_M))
+            ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
+                self.halos.tab_M < self.get_Mmax(z1))
+            ok2 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
+                self.halos.tab_M < self.get_Mmax(z2))
 
-            print("Should interpolate in z.")
+            integ1 = L1 * self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:]
+            integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] * self.tab_focc[iz+1,:]
+
+            rhoL1 = np.trapz(integ1 * ok1, x=np.log(self.halos.tab_M))
+            rhoL2 = np.trapz(integ2 * ok2, x=np.log(self.halos.tab_M))
+
+            rhoL = rhoL1 + (z - z1) * (rhoL2 - rhoL1) / (z2 - z1)
+
         #else:
         #    # Here, the radiation backgrounds cannot just be scaled.
         #    # Note that this method can always be used, it's just less
@@ -1621,58 +1650,6 @@ class GalaxyCohort(GalaxyAggregate):
     def get_age(self, z, Mh):
         func = self._get_function('pop_age')
         return func(z=z, Mh=Mh)
-
-    def get_fesc_UV(self, z, Mh):
-        func = self._get_function('pop_fesc')
-        return func(z=z, Mh=Mh)
-
-    def get_fesc_LW(self, z, Mh):
-        func = self._get_function('pop_fesc_LW')
-        return func(z=z, Mh=Mh)
-
-    def get_fesc(self, z, Mh, x=None, band=None, units='eV'):
-        """
-        Synthesize fesc and fesc_LW into single function to avoid having
-        if/else blocks checking wavelength ranges elsewhere.
-
-        Parameters
-        ----------
-        z : int, float
-            Redshift of interest.
-        Mh : int, float, np.ndarray
-            Halo mass [Msun], optional.
-        x : int, float
-            Wavelength or photon energy or photon frequency of interest,
-            depending on value of `units`.
-        band : 2-element tuple of int or float
-            (Lower edge, upper edge) of bandpass of interest, units determined
-            by `units`.
-        units : str
-            Units assumed for input. By default, uses electron volts. Other
-            options include "Angstrom", "Hz" [not yet implemented]
-
-        """
-
-        assert (x is not None) or (band is not None), \
-            "Must supply `x` or `band`! "
-
-        bname = self.src.get_band_name(x=x, band=band, units=units)
-
-        if bname == 'LyC':
-            fesc = self.get_fesc_UV(z, Mh)
-        elif bname == 'LW':
-            fesc = self.get_fesc_LW(z, Mh)
-        else:
-            fesc = 1.0
-
-        if type(Mh) in numeric_types:
-            return fesc
-        elif type(fesc) in numeric_types:
-            return fesc * np.ones_like(Mh)
-        else:
-            return fesc
-
-        # Add X-rays here?
 
     def get_Nion(self, z, Mh):
         func = self._get_function('pop_Nion')
@@ -4176,8 +4153,8 @@ class GalaxyCohort(GalaxyAggregate):
         """
         return 1. * k**0
 
-    def get_ps_shot(self, z, k, x1=1600., x2=1600., raw=False,
-        nebular_only=False, units='Angstrom'):
+    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
+        nebular_only=False):
         """
         Return shot noise term of halo power spectrum.
 
@@ -4200,12 +4177,12 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_include_shot']:
             return np.zeros_like(k)
 
-        band1 = x1 if type(x1) not in numeric_types else None
-        band2 = x2 if type(x2) not in numeric_types else None
+        band1 = wave1 if type(wave1) not in numeric_types else None
+        band2 = wave2 if type(wave2) not in numeric_types else None
 
-        lum1 = self.get_lum(z, x=x1, band=band1, units='Angstrom',
+        lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
             raw=raw, nebular_only=nebular_only)
-        lum2 = self.get_lum(z, x=x2, band=band2, units='Angstrom',
+        lum2 = self.get_lum(z, x=wave1, band=band2, units='Angstrom',
             raw=raw, nebular_only=nebular_only)
 
         focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
@@ -4280,16 +4257,16 @@ class GalaxyCohort(GalaxyAggregate):
             lum1 = 0
         else:
             band = wave1 if type(wave1) not in numeric_types else None
-            lum1 = self.get_lum(z, wave=wave1, raw=raw,
-                band=band, band_units='Angstrom',
+            lum1 = self.get_lum(z, x=wave1, raw=raw,
+                band=band, units='Angstrom',
                 nebular_only=nebular_only)
 
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
             band = wave2 if type(wave2) not in numeric_types else None
-            lum2 = self.get_lum(z, wave=wave2, raw=raw,
-                band=band, band_units='Angstrom',
+            lum2 = self.get_lum(z, x=wave2, raw=raw,
+                band=band, units='Angstrom',
                 nebular_only=nebular_only)
 
         focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)

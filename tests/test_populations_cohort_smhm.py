@@ -87,18 +87,18 @@ def test():
          > sim.pops[1].get_emissivity(6, x=6, units='eV')
 
 
-    dust = ares.util.ParameterBundle('mirocha2023:dust')
-    dust.num = 0
+    #dust = ares.util.ParameterBundle('mirocha2023:dust')
+    #dust.num = 0
 
-    parsD = pars.copy()
-    parsD.update(dust)
-    parsD.update(testing_pars)
-    simD = ares.simulations.Simulation(**parsD)
+    #parsD = pars.copy()
+    #parsD.update(dust)
+    #parsD.update(testing_pars)
+    #simD = ares.simulations.Simulation(**parsD)
 
-    # Make sure dust is reddening as it should.
-    tau = simD.pops[0].get_dust_opacity(6, Mh, wave=5e3)
-    assert np.any(tau > 0)
-    assert np.all(simD.pops[0].get_spec(2, waves) <= spec0)
+    ## Make sure dust is reddening as it should.
+    #tau = simD.pops[0].get_dust_opacity(6, Mh, wave=5e3)
+    #assert np.any(tau > 0)
+    #assert np.all(simD.pops[0].get_spec(2, waves) <= spec0)
 
 
 

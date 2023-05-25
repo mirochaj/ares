@@ -33,7 +33,7 @@ def test():
     assert 1e-6 <= np.mean(sfrd) <= 1e-1
 
     x, phi_M = sim.pops[0].get_lf(zarr[0], mags, use_mags=True,
-        wave=1600.)
+        x=1600., units='Angstroms')
 
     assert 90 <= sim_gs.nu_C <= 115, \
         "Global signal unreasonable! nu_min={:.1f} MHz".format(sim_gs.nu_C)

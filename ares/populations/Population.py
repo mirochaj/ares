@@ -32,7 +32,7 @@ from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
-    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
+    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc
 
@@ -663,7 +663,7 @@ class Population(object):
                     # For litdata
                     self._src = self._Source
             else:
-                self._src = None
+                self._src = DummySource(cosm=self.cosm, **self.src_kwargs)
 
         return self._src
 
@@ -710,7 +710,7 @@ class Population(object):
         if self.src.is_sed_tabular:
             E1 = self.src.Emin
             E2 = self.src.Emax
-            y = self.src.get_rad_yield((E1, E2), units='eV')
+            y = self.src.get_rad_yield(band=(E1, E2), units='eV')
         else:
             y = normalize_sed(self)#self.pf['source_rad_yield']
 
@@ -770,7 +770,59 @@ class Population(object):
     #def model(self):
     #    return self.pf['pop_model']
 
-    def _convert_band(self, band, units='eV'):
+    def get_fesc_UV(self, z, Mh):
+        func = self._get_function('pop_fesc')
+        return func(z=z, Mh=Mh)
+
+    def get_fesc_LW(self, z, Mh):
+        func = self._get_function('pop_fesc_LW')
+        return func(z=z, Mh=Mh)
+
+    def get_fesc(self, z, Mh=None, x=None, band=None, units='eV'):
+        """
+        Synthesize fesc and fesc_LW into single function to avoid having
+        if/else blocks checking wavelength ranges elsewhere.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        Mh : int, float, np.ndarray
+            Halo mass [Msun], optional.
+        x : int, float
+            Wavelength or photon energy or photon frequency of interest,
+            depending on value of `units`.
+        band : 2-element tuple of int or float
+            (Lower edge, upper edge) of bandpass of interest, units determined
+            by `units`.
+        units : str
+            Units assumed for input. By default, uses electron volts. Other
+            options include "Angstrom", "Hz" [not yet implemented]
+
+        """
+
+        assert (x is not None) or (band is not None), \
+            "Must supply `x` or `band`! "
+
+        bname = self.src.get_band_name(x=x, band=band, units=units)
+
+        if bname == 'LyC':
+            fesc = self.get_fesc_UV(z, Mh)
+        elif bname == 'LW':
+            fesc = self.get_fesc_LW(z, Mh)
+        else:
+            fesc = 1.0
+
+        if type(Mh) in numeric_types:
+            return fesc
+        elif type(fesc) in numeric_types:
+            return fesc * np.ones_like(Mh)
+        else:
+            return fesc
+
+        # Add X-rays here?
+
+    def _convert_band(self, band=None, units='eV'):
         """
         Convert from fractional luminosity in reference band to given bounds.
 
@@ -778,15 +830,15 @@ class Population(object):
 
         Parameters
         ----------
-        Emin : int, float
-            Minimum energy [eV]
-        Emax : int, float
-            Maximum energy [eV]
+        band : tuple
+            (min, max) energy/wavelength/freq [units]
+        units : str
+            Units of each element in `band`.
 
         Returns
         -------
         Multiplicative factor that converts LF in reference band to that
-        defined by ``(Emin, Emax)``.
+        defined by user-supplied `band`.
 
         """
 
@@ -798,7 +850,8 @@ class Population(object):
         different_band = False
 
         if band is None:
-            band = self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm']
+            assert units.lower() == 'ev'
+            band = self.pf['pop_Emin'], self.pf['pop_Emax']
 
         Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
@@ -1125,8 +1178,6 @@ class Population(object):
             _window = 2 * np.abs(np.diff(_waves))
             window = [round(_window[jj],0) for jj in range(Nf-1)]
             window.append(1)
-
-
 
             if self.is_quiescent:
                 window = np.ones_like(_waves)

@@ -130,7 +130,7 @@ def test():
     spec = pop.get_spec_obs(6., waves=np.array([1600]))
 
     # Test galaxy bias calculation
-    b = pop.get_bias(6., limit=-19.4, absolute=True, wave=1600.)
+    b = pop.get_bias(6., limit=-19.4, absolute=True, x=1600.)
     assert 4 <= b <= 6, "bias unreasonable! b={}".format(b)
 
     b2 = pop.get_bias_from_scaling_relations(6.,
@@ -144,10 +144,10 @@ def test():
     assert abs(b2 - b) < 1
     assert abs(b3 - b) < 1
 
-    b = pop.get_bias(6., limit=28, absolute=False, wave=1600.)
+    b = pop.get_bias(6., limit=28, absolute=False, x=1600.)
     assert 2 <= b <= 10, "bias unreasonable! b={}".format(b)
 
-    b = pop.get_bias(6., limit=1e10, cut_in_mass=True, wave=1600.)
+    b = pop.get_bias(6., limit=1e10, cut_in_mass=True, x=1600.)
     assert 3 <= b <= 5, "bias unreasonable! b={}".format(b)
 
     # Surface density
@@ -187,15 +187,15 @@ def test():
 
     # Emissivity stuff: just OOM check at the moment.
     zarr = np.arange(6, 30)
-    e_ion = np.array([pop.get_emissivity(z, Emin=E_LL, Emax=1e2) \
+    e_ion = np.array([pop.get_emissivity(z, band=(E_LL, 1e2), units='eV') \
         for z in zarr]) * cm_per_mpc**3
-    e_ion2 = np.array([pop.get_emissivity(z, Emin=E_LL, Emax=1e2) \
+    e_ion2 = np.array([pop.get_emissivity(z, band=(E_LL, 1e2), units='eV') \
         for z in zarr]) * cm_per_mpc**3     # check caching
 
     assert 1e37 <= np.mean(e_ion) <= 1e41
     assert np.allclose(e_ion, e_ion2)
 
-    n_ion = np.array([pop.get_photon_density(z, Emin=E_LL, Emax=1e2) \
+    n_ion = np.array([pop.get_photon_density(z, band=(E_LL, 1e2), units='eV') \
         for z in zarr]) * cm_per_mpc**3
 
     assert 1e47 <= np.mean(n_ion) <= 1e51

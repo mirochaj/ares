@@ -166,10 +166,12 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def get_spectrum(self, E, t=None):
+    def get_spectrum(self, x, t=None, units='eV'):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
+
+        E = self.get_ev_from_x(x, units=units)
 
         cached_result = self._cache_spec(E)
         if cached_result is not None:
@@ -561,7 +563,8 @@ class SynthesisModelBase(Source):
         else:
             return E_tot[-1] / N_tot[-1] / erg_per_ev
 
-    def get_rad_yield(self, band=None, units='eV', units_out='erg/Hz', raw=True):
+    def get_rad_yield(self, band=None, units='eV', units_out='erg/s/Hz',
+        raw=True):
         """
         The amount of radiative energy output in a given band [erg/s/[depends]].
 

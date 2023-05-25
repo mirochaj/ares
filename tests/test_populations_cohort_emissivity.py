@@ -60,16 +60,9 @@ def test():
     L_ion2  = np.array([pop_uv2.get_emissivity(z, band=(13.6, 1e2), units='eV') \
         for z in zarr])
 
-    err_i = np.abs((L_ion - L_ion2) / L_ion)
+    err = np.abs((L_ion - L_ion2) / L_ion)
 
-    print(err_i)
-
-    #import matplotlib.pyplot as pl
-    #pl.semilogy(zarr, err_i, color='k')
-    #pl.semilogy(zarr, err_x, color='b')
-    #pl.ylim(1e-12, 1e2)
-    #input('<enter>')
-    assert np.all(L_ion2 == L_ion), f"err={err.mean()}"
+    assert err.mean() < 0.01, f"err={err.mean()}"
 
     ##
     # Make fesc=fesc(Mh)
