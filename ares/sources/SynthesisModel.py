@@ -485,7 +485,7 @@ class SynthesisModelBase(Source):
         return None
 
     def get_lum_per_sfr(self, x=1600., window=1, Z=None, band=None,
-        units='eV', units_out='erg/s/Hz', raw=False, nebular_only=False,
+        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False,
         age=None):
         """
         Specific emissivity at provided wavelength at `source_age`.

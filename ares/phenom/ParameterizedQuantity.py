@@ -895,3 +895,33 @@ class ParameterizedQuantity(object):
                 y = np.maximum(y, self.func.val_floor)
 
         return y
+
+
+def get_function_from_par(par, pf):
+    """
+    Returns a function representation of input parameter `par`.
+
+    For example, the user supplies the parameter `pop_dust_yield`. This
+    routien figures out if that's a number, a function, or a string
+    indicating a ParameterizedQuantity, and creates a callable function
+    no matter what.
+    """
+
+    t = type(pf[par])
+
+    if t in numeric_types:
+        func = lambda **kwargs: pf[par]
+    elif t == FunctionType:
+        func = lambda **kwargs: pf[par](**kwargs)
+    elif isinstance(pf[par], str) and pf[par].startswith('pq'):
+        pars = get_pq_pars(pf[par], pf)
+        ob = ParameterizedQuantity(**pars)
+        func = lambda **kwargs: ob.__call__(**kwargs)
+    else:
+        raise NotImplementedError(f"Unrecognized option for `{par}`.")
+
+    if f'{par}_inv' in pf:
+        if pf[f'{par}_inv']:
+            func = lambda **kwargs: 1. - func(**kwargs)
+
+    return func

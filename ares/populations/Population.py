@@ -30,7 +30,7 @@ from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity
+from ..phenom.ParameterizedQuantity import get_function_from_par
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
@@ -142,26 +142,8 @@ class Population(object):
         """
 
         if not hasattr(self, '_get_{}'.format(par.strip('pop_'))):
-            t = type(self.pf[par])
-
-            if t in numeric_types:
-                func = lambda **kwargs: self.pf[par]
-            elif t == FunctionType:
-                func = lambda **kwargs: self.pf[par](**kwargs)
-            elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
-                pars = get_pq_pars(self.pf[par], self.pf)
-                ob = ParameterizedQuantity(**pars)
-                func = lambda **kwargs: ob.__call__(**kwargs)
-                setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
-            else:
-                raise NotImplementedError(f"Unrecognized option for `{par}`.")
-
-            if f'{par}_inv' in self.pf:
-                if self.pf[f'{par}_inv']:
-                    func = lambda **kwargs: 1. - func(**kwargs)
-
+            func = get_function_from_par(par, self.pf)
             setattr(self, '_get_{}'.format(par.strip('pop_')), func)
-
         return getattr(self, '_get_{}'.format(par.strip('pop_')))
 
     @property
@@ -182,17 +164,17 @@ class Population(object):
     def id_num(self, value):
         self._id_num = int(value)
 
+    #@property
+    #def dust(self):
+    #    if not hasattr(self, '_dust'):
+    #        self._dust = DustCorrection(**self.pf)
+    #    return self._dust
+
     @property
     def dust(self):
         if not hasattr(self, '_dust'):
-            self._dust = DustCorrection(**self.pf)
+            self._dust = DustExtinction(**self.pf)
         return self._dust
-
-    @property
-    def dustext(self):
-        if not hasattr(self, '_dustext'):
-            self._dustext = DustExtinction(**self.pf)
-        return self._dustext
 
     @property
     def magsys(self):
@@ -240,6 +222,13 @@ class Population(object):
         if not hasattr(self, '_affects_igm'):
             self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
         return self._affects_igm
+
+    @property
+    def is_dusty(self):
+        if not hasattr(self, '_is_dusty'):
+            self._is_dusty = self.dust.is_template or self.dust.is_irxb \
+                or self.dust.is_parameterized
+        return self._is_dusty
 
     @property
     def is_metallicity_constant(self):
@@ -1227,13 +1216,6 @@ class Population(object):
 
         elif scalable:
             Lbol = self.get_emissivity(z)
-
-            # Only appropriate if dust extinction constant w/ Ms, z, etc
-            if self.pf['pop_dustext_template'] is not None:
-                wave = h_p * c * 1e8 / (E * erg_per_ev)
-                T = self.dustext.get_T_lam(wave, Av=self.pf['pop_Av'])
-            else:
-                T = 1.
 
             for ll in range(Nz):
                 epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \

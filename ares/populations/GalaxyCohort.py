@@ -1207,7 +1207,7 @@ class GalaxyCohort(GalaxyAggregate):
             window=window, absolute=absolute)
 
     def get_lf(self, z, bins, use_mags=True, x=1600., units='Angstrom', window=1.,
-        absolute=True, raw=False, nebular_only=False, band=None, band_units=None):
+        absolute=True, raw=False, nebular_only=False, band=None):
         """
         Reconstructed luminosity function.
 
@@ -1561,32 +1561,54 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Apply dust reddening
-            if self.pf['pop_dustext_template'] is not None:
+            if not self.is_dusty:
+                T = 1
+            # Depending on approach, either need to first get Av, dust
+            # surface density, or MUV-Beta/IRXB
+            else:
+                wave = self.src.get_ang_from_x(x, units=units)
+
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-                mste = self.halos.tab_M * smhm
-                Av = self.get_Av(z=z, Ms=mste)
-
-                if type(wave) not in numeric_types:
-                    _wave = np.mean(wave)
+                Ms = self.halos.tab_M * smhm
+                if self.pf['pop_dust_template'] is not None:
+                    Av = self.get_Av(z=z, Ms=Ms)
+                    Sd = None
+                elif self.pf['pop_dust_yield'] is not None:
+                    Av = None
+                    Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
                 else:
-                    _wave = wave
+                    raise NotImplemented('help')
 
-                if type(Av) == np.ndarray:
-                    T = np.array([self.dustext.get_T_lam(_wave, Av=_Av) \
-                        for _Av in Av])
-                else:
-                    T = self.dustext.get_T_lam(_wave, Av=Av)
-
+                T = self.dust.get_transmission(wave, Av=Av, Sd=Sd)
                 Lh *= T
-            elif (self.pf['pop_dust_yield'] is not None) or \
-                (self.pf['pop_Av'] is not None):
-                if type(wave) not in numeric_types:
-                    _wave = np.mean(wave)
-                else:
-                    _wave = wave
 
-                tau = self.get_dust_opacity(z=z, Mh=Mh, wave=_wave)
-                Lh *= np.exp(-tau)
+
+            #if self.pf['pop_dustext_template'] is not None:
+            #    smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            #    mste = self.halos.tab_M * smhm
+            #    Av = self.get_Av(z=z, Ms=mste)
+
+            #    if type(wave) not in numeric_types:
+            #        _wave = np.mean(wave)
+            #    else:
+            #        _wave = wave
+
+            #    if type(Av) == np.ndarray:
+            #        T = np.array([self.dustext.get_T_lam(_wave, Av=_Av) \
+            #            for _Av in Av])
+            #    else:
+            #        T = self.dustext.get_T_lam(_wave, Av=Av)
+
+            #    Lh *= T
+            #elif (self.pf['pop_dust_yield'] is not None) or \
+            #    (self.pf['pop_Av'] is not None):
+            #    if type(wave) not in numeric_types:
+            #        _wave = np.mean(wave)
+            #    else:
+            #        _wave = wave
+
+            #    tau = self.get_dust_opacity(z=z, Mh=Mh, wave=_wave)
+            #    Lh *= np.exp(-tau)
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
@@ -1691,90 +1713,18 @@ class GalaxyCohort(GalaxyAggregate):
         result = func(z=z, Mh=Mh)
         return result
 
-    def get_dust_opacity(self, z, Mh, wave):
-        """
-        Compute dust opacity for all galaxies at redshift `z` and wavelength
-        `wave`.
+    def get_dust_surface_density(self, z, Mh):
+        fb = self.cosm.fbaryon
+        fmr = self.pf['pop_mass_yield']
+        fZy = fmr * self.pf['pop_metal_yield']
+        fd = self.get_dust_yield(z=z, Mh=Mh)
+        Md = fd * fZy * Ms
+        Rd = self.get_dust_scale(z=z, Mh=Mh)
+        # Assumes spherical symmetry, uniform dust density
+        Sd = 3. * Md * g_per_msun \
+            / 4. / np.pi / (Rd * cm_per_kpc)**2
 
-        Parameters
-        ----------
-        z : int, float, np.ndarray
-            Redshift
-        Mh : int, float, np.ndarray
-            Halo mass of interest [Msun].
-        wave : int, float, np.ndarray
-            Wavelength [Angstroms]
-
-        Returns
-        -------
-        Opacity (dimensionless) for all halos in population. If input `wave` is
-        a scalar, returns an array of length `self.halos.tab_M`. If `wave` is
-        an array, the return will be a 2-D array with shape
-        (len(Mh), len(waves)).
-        """
-
-        smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-        smhm[self.halos.tab_M < self.get_Mmin(z)] = 0
-        smhm[self.halos.tab_M > self.get_Mmax(z)] = 0
-        Ms = smhm * self.halos.tab_M
-
-        if self.pf['pop_dustext_template'] is not None:
-            func = self._get_function('pop_Av')
-            Av = func(z=z, Ms=Ms)
-            tau = self.dustext.get_tau_lam(wave, Av=Av)
-            return tau
-
-        ##
-        # Otherwise, compute kappa via parameterized function.
-        kappa = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
-
-        # If we parameterized Av directly, we're basically done.
-        if self.pf['pop_Av'] is not None:
-            func = self._get_function('pop_Av')
-            Av = func(z=z, Ms=Ms)
-            k5000 = self.get_dust_absorption_coeff(z=z, Mh=Mh, wave=5000.)
-
-            e_mtau = 10**(-Av / 2.5)
-            tau_v = -1. * np.log(e_mtau)
-            tau = (kappa[None,:] / k5000[None,:]) * tau_v[:,None]
-        else:
-            Rd = self.get_dust_scale(z=z, Mh=self.halos.tab_M)
-            if self.pf['pop_dust_yield'] is None:
-                raise ValueError("`pop_dust_yield` is None!")
-
-            if self.pf['pop_mzr'] is not None:
-                Z = self.get_metallicity(z=z, Mh=Mh, gas_phase=False)
-                Mgas = self.get_gas_mass(z=z, Mh=Mh)
-                MZ = Z * Mgas
-                Md = self.pf['pop_dust_yield'] * MZ
-            else:
-
-                assert type(self.pf['pop_dust_yield']) in numeric_types
-
-                if self.pf['pop_metal_yield'] is not None:
-                    MZ = self.pf['pop_metal_yield'] * Ms
-                    Md = self.pf['pop_dust_yield'] * MZ
-                else:
-                    Md = self.pf['pop_dust_yield'] * Ms
-
-            Sd = np.divide(Md, np.power(Rd, 2.)) / 4. / np.pi
-            Sd *= g_per_msun / cm_per_kpc**2
-
-
-            tau = kappa[None,:] * Sd[:,None]
-
-        if type(wave) in numeric_types:
-            return tau[:,0]
-        else:
-            return tau
-
-    def get_dust_absorption_coeff(self, z, Mh, wave):
-        """
-        Get dust absorption coefficient [cm^2 / g].
-        """
-        func = self._get_function('pop_dust_absorption_coeff')
-        result = func(z=z, Mh=Mh, wave=wave)
-        return result
+        return Sd
 
     def get_mags(self, z, absolute=True, x=1600, band=None,
         units='Angstrom', window=1, cam=None, filters=None,
@@ -2445,6 +2395,7 @@ class GalaxyCohort(GalaxyAggregate):
             assert self.pf['pop_sfr_model'] in ['uvlf', 'ham']
             def uvlf(z, mag):
                 _x_, _phi_ = self.get_lf(z, mags_obs)
+
                 return np.interp(mag, _x_, _phi_)
 
         else:
@@ -2469,7 +2420,8 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_lum_per_sfr'] is not None:
             L_per_sfr = self.pf['pop_lum_per_sfr']
         else:
-            L_per_sfr = self.src.get_lum_per_sfr(x=x, units=units)
+            L_per_sfr = self.src.get_lum_per_sfr(x=x, units=units,
+                units_out='erg/s/Hz')
 
         # Loop over luminosities and perform abundance match
         mh_of_mag = []
@@ -2503,6 +2455,8 @@ class GalaxyCohort(GalaxyAggregate):
                     np.log10(self.halos.tab_MAR[iz,:]))
 
             MAR *= self.cosm.fbar_over_fcdm
+
+            print('hi', j, _mag_, LUV_dc[j], int_phiM, ngtm)
 
             _fstar_ = LUV_dc[j] / L_per_sfr / MAR
 

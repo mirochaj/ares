@@ -15,6 +15,9 @@ import glob
 import numpy as np
 from ..data import ARES
 from ..util import ParameterFile
+from ..util.Misc import numeric_types
+from functools import cached_property
+from ..phenom.ParameterizedQuantity import get_function_from_par
 
 try:
     from astropy.io import fits
@@ -31,22 +34,42 @@ class DustExtinction(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
 
-    @property
+    @cached_property
     def method(self):
-        return self.pf['pop_dustext_template']
+        return self.pf['pop_dust_template']
+
+    @cached_property
+    def is_template(self):
+        is_templ = self.pf['pop_dust_template'] is not None
+        if is_templ:
+            assert have_dustext
+        return is_templ
+
+    @cached_property
+    def is_irxb(self):
+        return False
+        #raise NotImplemented('help')
+        #return self.pf['pop_dustext_template'] is not None
+
+    @cached_property
+    def is_parameterized(self):
+        return self.pf['pop_dust_absorption_coeff'] is not None
 
     def get_filename(self):
         """
         Get appropriate filename using regular expression matching.
         """
 
-        prefix = self.pf['pop_dustext_template']
+        assert self.is_template, \
+            "Only need filename if we're pulling dust extinction from a template."
+
+        prefix = self.pf['pop_dust_template']
         cands = glob.glob(f'{ARES}/extinction/{prefix}*')
 
         if len(cands) == 0:
             raise IOError(f'No files found with prefix={prefix}!')
         elif len(cands) > 1:
-            raise IOError(f'Multiple files found for dustext_template={prefix}: {cands}')
+            raise IOError(f'Multiple files found for dust_template={prefix}: {cands}')
         else:
             return cands[0]
 
@@ -128,6 +151,39 @@ class DustExtinction(object):
             self._tab_waves_c = 1e4 / np.array(invwave)[-1::-1]
             self._tab_extinction = np.array(extinct)[-1::-1]
 
+    def get_transmission(self, wave, Av=None, Sd=None, MUV=None):
+        """
+        Return the dust transmission at user-supplied wavelength [Angstroms].
+
+        .. note :: Transmission is equivalent to e^-tau, where tau is the dust
+            optical depth.
+
+        .. note :: Only one of the optional keyword arguments will actually be
+            used, which one depends on methodology.
+
+        Parameters
+        ----------
+        wave : int, float
+            Wavelength of interest [Angstroms].
+        Av : int, float, np.ndarray
+            Visual extinction in magnitudes [optional].
+        Sd : int, float, np.ndarray
+            Dust surface density in g / cm^2 [optional].
+
+        Returns
+        -------
+        Fraction of intensity transmissted at input wavelength.
+
+        """
+
+        if Av is not None:
+            return 10**(-self.get_attenuation(wave, Av=Av) / 2.5)
+        elif Sd is not None:
+            tau = Sd * self.get_absorption_coeff(wave)
+            return np.exp(-tau)
+        else:
+            raise NotImplemented('help')
+
     def get_curve(self, wave):
         """
         Get extinction (or attenuation) curve from lookup table.
@@ -140,13 +196,24 @@ class DustExtinction(object):
             Wavelength [Angstroms]
 
         """
-        return np.interp(wave, self.tab_waves_c, self.tab_extinction)
 
-    def get_A_lam(self, wave, Av=0.1):
-        return self.get_curve(wave) * Av
+        if self.is_template:
+            return np.interp(wave, self.tab_waves_c, self.tab_extinction)
+        else:
+            raise NotImplemented('help')
+
+    def get_attenuation(self, wave, Av=None, Sd=None):
+        if self.is_template:
+            return self.get_curve(wave) * Av
+        elif self.is_parameterized:
+            #tau = np.log(10) * attenuation / 2.5
+            tau = self.get_opacity(wave, Av=Av, Sd=Sd)
+            return 2.5 * tau / np.log(10.)
+        else:
+            raise NotImplemented('help')
 
     def get_slope(self, wave1, wave2):
-        return self.get_A_lam(wave1) / self.get_A_lam(wave2)
+        return self.get_attenuation(wave1) / self.get_attenuation(wave2)
 
     def get_uv_slope(self):
         return self.get_slope(1500., 3000.)
@@ -159,9 +226,10 @@ class DustExtinction(object):
 
     def get_A2175(self, baseline=False):
         if baseline:
-            return 0.33 * self.get_A_lam(1500.) + 0.67 * self.get_A_lam(3000.)
+            return 0.33 * self.get_attenuation(1500.) \
+                + 0.67 * self.get_attenuation(3000.)
         else:
-            return self.get_A_lam(2175)
+            return self.get_attenuation(2175)
 
     def get_B(self):
         """
@@ -169,15 +237,54 @@ class DustExtinction(object):
         """
         return self.get_A2175() / self.get_A2175(baseline=True)
 
-    def get_tau_lam(self, wave, Av=0.1):
-        """
-        Return optical depth corresponding to given extinction.
-        """
-        A = self.get_A_lam(wave, Av=Av)
-        return np.log(10) * A / 2.5
+    #def get_optical_depth(self, wave, Av=0.1):
+    #    """
+    #    Return optical depth corresponding to given extinction.
+    #    """
+    #    A = self.get_attenuation(wave, Av=Av)
+    #    return np.log(10) * A / 2.5
 
-    def get_T_lam(self, wave, Av=0.1):
+    def get_opacity(self, wave, Av=None, Sd=None):
         """
-        Return transmission (equivalent to e^-tau) corresponding to extinction.
+        Compute dust opacity at wavelength `wave`.
+
+        Parameters
+        ----------
+        wave : int, float, np.ndarray
+            Wavelength [Angstroms]
+
+        Returns
+        -------
+        Opacity (dimensionless) for all halos in population. If input `wave` is
+        a scalar, returns an array of length `self.halos.tab_M`. If `wave` is
+        an array, the return will be a 2-D array with shape
+        (len(Mh), len(waves)).
         """
-        return 10**(-self.get_A_lam(wave, Av=Av) / 2.5)
+
+        if self.is_template:
+            # Alternatively: tau = np.log(10) * attenuation / 2.5
+            T = self.get_transmission(wave, Av=Av, Sd=Sd)
+            tau = -np.log(T)
+        elif self.is_parameterized:
+            kappa = self.get_absorption_coeff(wave=wave)
+            tau = kappa * Sd
+        else:
+            raise NotImplemented('help')
+
+        return tau
+        #if type(wave) in numeric_types:
+        #    return tau[:,0]
+        #else:
+        #    return tau
+
+    def get_absorption_coeff(self, wave):
+        """
+        Get dust absorption coefficient [cm^2 / g].
+        """
+
+        assert self.is_parameterized
+
+        if not hasattr(self, '_get_kappa_'):
+            self._get_kappa_ = get_function_from_par('pop_dust_absorption_coeff',
+                self.pf)
+        return self._get_kappa_(wave=wave)
