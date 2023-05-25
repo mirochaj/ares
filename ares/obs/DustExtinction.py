@@ -176,10 +176,10 @@ class DustExtinction(object):
 
         """
 
-        if Av is not None:
+        if self.is_template:
             return 10**(-self.get_attenuation(wave, Av=Av) / 2.5)
-        elif Sd is not None:
-            tau = Sd * self.get_absorption_coeff(wave)
+        elif self.is_parameterized:
+            tau = self.get_opacity(wave, Av=Av, Sd=Sd)
             return np.exp(-tau)
         else:
             raise NotImplemented('help')
@@ -203,46 +203,25 @@ class DustExtinction(object):
             raise NotImplemented('help')
 
     def get_attenuation(self, wave, Av=None, Sd=None):
+        if type(wave) in numeric_types:
+            wave = np.array([wave])
+
         if self.is_template:
-            return self.get_curve(wave) * Av
+            if type(Av) in numeric_types:
+                Av = np.array([Av])
+            A = self.get_curve(wave)[None,:] * Av[:,None]
         elif self.is_parameterized:
-            #tau = np.log(10) * attenuation / 2.5
+            if type(Sd) in numeric_types:
+                Sd = np.array([Sd])
             tau = self.get_opacity(wave, Av=Av, Sd=Sd)
-            return 2.5 * tau / np.log(10.)
+            A = 2.5 * tau / np.log(10.)
         else:
             raise NotImplemented('help')
 
-    def get_slope(self, wave1, wave2):
-        return self.get_attenuation(wave1) / self.get_attenuation(wave2)
-
-    def get_uv_slope(self):
-        return self.get_slope(1500., 3000.)
-
-    def get_optical_slope(self):
-        return self.get_slope(4400., 5500.)
-
-    def get_Rv(self):
-        return 1. / (self.get_optical_slope() - 1.)
-
-    def get_A2175(self, baseline=False):
-        if baseline:
-            return 0.33 * self.get_attenuation(1500.) \
-                + 0.67 * self.get_attenuation(3000.)
+        if type(wave) in numeric_types:
+            return A[:,0]
         else:
-            return self.get_attenuation(2175)
-
-    def get_B(self):
-        """
-        Get "UV bump" strength (Salim & Narayanan 2018 Eq. 4)
-        """
-        return self.get_A2175() / self.get_A2175(baseline=True)
-
-    #def get_optical_depth(self, wave, Av=0.1):
-    #    """
-    #    Return optical depth corresponding to given extinction.
-    #    """
-    #    A = self.get_attenuation(wave, Av=Av)
-    #    return np.log(10) * A / 2.5
+            return A
 
     def get_opacity(self, wave, Av=None, Sd=None):
         """
@@ -260,22 +239,27 @@ class DustExtinction(object):
         an array, the return will be a 2-D array with shape
         (len(Mh), len(waves)).
         """
+        if type(wave) in numeric_types:
+            wave = np.array([wave])
 
         if self.is_template:
+            if type(Av) in numeric_types:
+                Av = np.array([Av])
             # Alternatively: tau = np.log(10) * attenuation / 2.5
             T = self.get_transmission(wave, Av=Av, Sd=Sd)
             tau = -np.log(T)
         elif self.is_parameterized:
+            if type(Sd) in numeric_types:
+                Sd = np.array([Sd])
             kappa = self.get_absorption_coeff(wave=wave)
-            tau = kappa * Sd
+            tau = kappa[None,:] * Sd[:,None]
         else:
             raise NotImplemented('help')
 
-        return tau
-        #if type(wave) in numeric_types:
-        #    return tau[:,0]
-        #else:
-        #    return tau
+        if wave.size == 1:
+            return tau[:,0]
+        else:
+            return tau
 
     def get_absorption_coeff(self, wave):
         """
