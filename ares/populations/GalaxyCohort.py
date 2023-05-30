@@ -1405,7 +1405,7 @@ class GalaxyCohort(GalaxyAggregate):
             f /= dwdn
             f /= (1. + z)
 
-        owaves = waves * (1. + z) / 1e4    
+        owaves = waves * (1. + z) / 1e4
 
         return owaves, f
 
@@ -1951,6 +1951,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         _MAB = self.magsys.L_to_MAB(Lh)
 
+        wave = self.src.get_ang_from_x(x, units=units)
         if (self.pf['dustcorr_method'] is not None) and wave <= 1600:
             MAB = self.dust.Mobs(z, _MAB)
         else:
@@ -2340,7 +2341,7 @@ class GalaxyCohort(GalaxyAggregate):
             empirical dust corrections.
 
         """
-        return self.dust.AUV(z, MUV)
+        return self.dust.get_attenuation(z, MUV)
 
     def run_abundance_match(self, z, Mh, uvlf=None, x=1600., units='Angstroms'):
         """

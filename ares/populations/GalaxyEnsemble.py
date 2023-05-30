@@ -2953,7 +2953,7 @@ class GalaxyEnsemble(HaloPopulation):
     def extras(self):
         if not hasattr(self, '_extras'):
             if self.pf['pop_dust_yield'] is not None:
-                self._extras = {'kappa': self.guide.get_dust_absorption_coeff}
+                self._extras = {'kappa': self.guide.dust.get_absorption_coeff}
             else:
                 self._extras = {}
         return self._extras
@@ -3182,12 +3182,10 @@ class GalaxyEnsemble(HaloPopulation):
 
         Mh = self.get_field(z, 'Mh')
 
-        if self.pf['pop_dust_yield'] is None:
-            return np.zeros_like(Mh)
-        if self.pf['pop_dust_yield'] == 0:
+        if not self.is_dusty:
             return np.zeros_like(Mh)
 
-        kappa = self.guide.get_dust_absorption_coeff(z=z, Mh=Mh, wave=wave)
+        kappa = self.guide.dust.get_absorption_coeff(wave)
         Sd = self.get_field(z, 'Sd')
         return kappa * Sd
 
@@ -3830,7 +3828,7 @@ class GalaxyEnsemble(HaloPopulation):
             print("Wrote {}.parameters.pkl.".format(prefix))
 
     @property
-    def dust(self):
+    def dust_emission(self):
         """
         (void) -> DustEmission
 

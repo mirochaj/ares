@@ -464,7 +464,7 @@ class Population(object):
         nebular line emission?
         """
         return (self.pf['pop_nebular'] not in [0, 1]) or \
-               (self.pf['pop_dustext_template'] is not None) or \
+               (self.pf['pop_dust_template'] is not None) or \
                (self.pf['pop_dust_yield'] is not None)
 
     @property
@@ -502,7 +502,7 @@ class Population(object):
                     self._is_emissivity_scalable = False
                     return self._is_emissivity_scalable
 
-            if self.pf['pop_dustext_template'] is not None:
+            if self.pf['pop_dust_template'] is not None:
                 if type(self.pf['pop_Av']) not in numeric_types:
                     self._is_emissivity_scalable = False
                     return self._is_emissivity_scalable
@@ -1218,7 +1218,7 @@ class Population(object):
             Lbol = self.get_emissivity(z)
 
             for ll in range(Nz):
-                epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
+                epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
 
         else:

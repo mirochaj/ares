@@ -1318,7 +1318,7 @@ class SpectralSynthesis(object):
                 #_kappa = self._cache_kappa(wave)
 
                 #if _kappa is None:
-                kappa = extras['kappa'](wave=x, Mh=Mh, z=zobs)
+                kappa = extras['kappa'](wave=x)
                 #self._cache_kappa_[wave] = kappa
                 #else:
                 #    kappa = _kappa
