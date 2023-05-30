@@ -83,7 +83,7 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolMFCW', # Evolving midpoint, floor, ceiling
+ 'pq_func[2]': 'logtanh_abs_evolMFC', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
@@ -95,7 +95,7 @@ centrals_sf = \
  'pq_func_par5[2]': 1,
  'pq_func_par6[2]': 0,
  'pq_func_par7[2]': 0,
- 'pq_func_par8[2]': 0,
+
 }
 
 #centrals_sf.update(_base)

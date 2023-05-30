@@ -1385,7 +1385,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_spec_obs(self, z, M, waves=None, per_Hz=False):
+    def get_spec_obs(self, z, waves=None,  M=None, per_Hz=False):
         if waves is None:
             waves = self.src.tab_waves_c
             dwdn = self.src.tab_dwdn
@@ -1405,12 +1405,9 @@ class GalaxyCohort(GalaxyAggregate):
             f /= dwdn
             f /= (1. + z)
 
-        owaves = waves * (1. + z) / 1e4
+        owaves = waves * (1. + z) / 1e4    
 
-        tau = 0#self.OpticalDepth(z, owaves)
-        T = np.exp(-tau)
-
-        return owaves, f * T
+        return owaves, f
 
     def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, age=None):
@@ -1563,9 +1560,9 @@ class GalaxyCohort(GalaxyAggregate):
             # Apply dust reddening
             if not self.is_dusty:
                 T = 1
-            # Depending on approach, either need to first get Av, dust
-            # surface density, or MUV-Beta/IRXB
             else:
+                # Depending on approach, either need to first get Av, dust
+                # surface density, or MUV-Beta/IRXB
                 wave = self.src.get_ang_from_x(x, units=units)
 
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
@@ -1580,35 +1577,11 @@ class GalaxyCohort(GalaxyAggregate):
                     raise NotImplemented('help')
 
                 T = self.dust.get_transmission(wave, Av=Av, Sd=Sd)
-                Lh *= T
+                Lh *= T.squeeze()
 
-
-            #if self.pf['pop_dustext_template'] is not None:
-            #    smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-            #    mste = self.halos.tab_M * smhm
-            #    Av = self.get_Av(z=z, Ms=mste)
-
-            #    if type(wave) not in numeric_types:
-            #        _wave = np.mean(wave)
-            #    else:
-            #        _wave = wave
-
-            #    if type(Av) == np.ndarray:
-            #        T = np.array([self.dustext.get_T_lam(_wave, Av=_Av) \
-            #            for _Av in Av])
-            #    else:
-            #        T = self.dustext.get_T_lam(_wave, Av=Av)
-
-            #    Lh *= T
-            #elif (self.pf['pop_dust_yield'] is not None) or \
-            #    (self.pf['pop_Av'] is not None):
-            #    if type(wave) not in numeric_types:
-            #        _wave = np.mean(wave)
-            #    else:
-            #        _wave = wave
-
-            #    tau = self.get_dust_opacity(z=z, Mh=Mh, wave=_wave)
-            #    Lh *= np.exp(-tau)
+            ##
+            # Apply IGM filtering here eventually. Actually, that could be
+            # dangerous -- perhaps should only ever be done in post.
 
             if not hasattr(self, '_cache_L'):
                 self._cache_L = {}
@@ -1718,6 +1691,14 @@ class GalaxyCohort(GalaxyAggregate):
         fmr = self.pf['pop_mass_yield']
         fZy = fmr * self.pf['pop_metal_yield']
         fd = self.get_dust_yield(z=z, Mh=Mh)
+        if self.is_user_smhm:
+
+            smhm = self.get_smhm(z=z, Mh=Mh)
+            smhm[Mh < self.get_Mmin(z)] = 0
+            smhm[Mh > self.get_Mmax(z)] = 0
+            Ms = smhm * Mh
+        else:
+            raise NotImplemented('help')
         Md = fd * fZy * Ms
         Rd = self.get_dust_scale(z=z, Mh=Mh)
         # Assumes spherical symmetry, uniform dust density
