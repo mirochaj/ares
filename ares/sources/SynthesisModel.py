@@ -15,6 +15,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import cumtrapz
 
+from ..core import SpectralSynthesis
 from ..data import ARES
 from .Source import Source
 from ..util.Stats import bin_c2e
@@ -165,10 +166,12 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def get_spectrum(self, E, t=None):
+    def get_spectrum(self, x, t=None, units='eV'):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
+
+        E = self.get_ev_from_x(x, units=units)
 
         cached_result = self._cache_spec(E)
         if cached_result is not None:
@@ -345,15 +348,15 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def get_lum_per_sfr_of_t(self, wave=1600., window=1, band=None,
-        band_units='Angstrom', units='Hz', raw=False, nebular_only=False,
-        energy_units=True, Z=None):
+    def get_lum_per_sfr_of_t(self, x=1600., window=1, band=None,
+        units='Angstrom', units_out='erg/s/Hz', raw=False, nebular_only=False,
+        Z=None):
         """
         Compute the luminosity per unit SFR (or mass, if source_ssp=True).
 
         Parameters
         ----------
-        wave : int, float
+        x : int, float
             Wavelength of interest [Angstroms].
         window : int
             Will compute luminosity averaged over this number of pixels in the
@@ -381,8 +384,7 @@ class SynthesisModelBase(Source):
         i.e., the output is in photons/s/[Hz or Angstrom]/[SFR or stellar mass].
         """
 
-        kwds = wave, window, band, band_units, units, raw, nebular_only, \
-            energy_units, Z
+        kwds = x, window, band, units, units_out, raw, nebular_only, Z
 
         cached_result = self._cache_L(kwds)
         if cached_result is not None:
@@ -390,20 +392,7 @@ class SynthesisModelBase(Source):
 
         if band is not None:
 
-            if band_units.lower() == 'angstrom':
-                E1 = h_p * c / (band[1] * 1e-8) / erg_per_ev
-                E2 = h_p * c / (band[0] * 1e-8) / erg_per_ev
-            elif band_units.lower() == 'ev':
-                E1, E2 = band
-            else:
-                raise NotImplemented('Unrecognized option for `band_units`.')
-
-            # Find band of interest -- should be more precise and interpolate
-            if E1 is None:
-                E1 = np.min(self.tab_energies_c)
-            if E2 is None:
-                E2 = np.max(self.tab_energies_c)
-
+            E1, E2 = self.get_ev_from_x(band, units=units)
             if (E1 < np.min(self.tab_energies_c)) and (E2 < np.min(self.tab_energies_c)):
                 return np.zeros_like(self.tab_t)
 
@@ -427,7 +416,7 @@ class SynthesisModelBase(Source):
             # Count up the photons in each spectral bin for all times
             yield_UV = np.zeros_like(self.tab_t)
             for i in range(self.tab_t.size):
-                if energy_units:
+                if 'erg' in units_out:
                     integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
                 else:
                     integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
@@ -436,6 +425,7 @@ class SynthesisModelBase(Source):
                 yield_UV[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
 
         else:
+            wave = self.get_ang_from_x(x, units=units)
             j = np.argmin(np.abs(wave - self.tab_waves_c))
 
             if Z is not None:
@@ -455,7 +445,7 @@ class SynthesisModelBase(Source):
                         data -= self._data_raw[j,:]
 
             if window == 1:
-                if units == 'Hz':
+                if 'Hz' in units_out:
                     yield_UV = data * np.abs(self.tab_dwdn[j])
                 else:
                     yield_UV = data
@@ -469,7 +459,7 @@ class SynthesisModelBase(Source):
                 j1 = np.argmin(np.abs(wave - s - self.tab_waves_c))
                 j2 = np.argmin(np.abs(wave + s - self.tab_waves_c))
 
-                if units == 'Hz':
+                if 'Hz' in units_out:
                     yield_UV = np.mean(self.tab_sed[j1:j2+1,:] \
                         * np.abs(self.tab_dwdn[j1:j2+1])[:,None], axis=0)
                 else:
@@ -494,8 +484,8 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def get_lum_per_sfr(self, wave=1600., window=1, Z=None, band=None,
-        band_units='eV', energy_units=True, raw=False, nebular_only=False,
+    def get_lum_per_sfr(self, x=1600., window=1, Z=None, band=None,
+        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False,
         age=None):
         """
         Specific emissivity at provided wavelength at `source_age`.
@@ -519,13 +509,13 @@ class SynthesisModelBase(Source):
 
         """
 
-        cached = self._cache_L_per_sfr(wave, window, band, Z, raw, nebular_only, age)
+        #cached = self._cache_L_per_sfr(x, window, band, units_out, Z, raw, nebular_only, age)
 
         #if cached is not None:
         #    return cached
 
-        yield_UV = self.get_lum_per_sfr_of_t(wave, band=band, band_units=band_units,
-            raw=raw, nebular_only=nebular_only, energy_units=energy_units,
+        yield_UV = self.get_lum_per_sfr_of_t(x, band=band, units=units,
+            raw=raw, nebular_only=nebular_only, units_out=units_out,
             window=window)
 
         if age is not None:
@@ -544,36 +534,37 @@ class SynthesisModelBase(Source):
             func = interp1d(self.tab_t, yield_UV, kind='linear')
             result = func(t)
 
-        self._cache_L_per_sfr_[(wave, window, band, Z, raw, nebular_only, age)] = result
+        #self._cache_L_per_sfr_[(x, window, band, Z, raw, nebular_only, age)] = result
 
         return result
 
-    #def erg_per_phot(self, Emin, Emax):
-    #    return self.eV_per_phot(Emin, Emax) * erg_per_ev
+    def erg_per_phot(self, Emin, Emax):
+        return self.eV_per_phot(Emin, Emax) * erg_per_ev
 
-    #def eV_per_phot(self, Emin, Emax):
-    #    """
-    #    Compute the average energy per photon (in eV) in some band.
-    #    """
+    def eV_per_phot(self, Emin, Emax):
+        """
+        Compute the average energy per photon (in eV) in some band.
+        """
 
-    #    i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
-    #    i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
+        i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
+        i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
 
-    #    # [self.tab_sed] = erg / s / A / [depends]
+        # [self.tab_sed] = erg / s / A / [depends]
 
-    #    # Must convert units
-    #    E_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
-    #        x=np.log(self.tab_waves_c[i1:i0]), axis=1)
-    #    N_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
-    #        / self.tab_energies_c[i1:i0] / erg_per_ev,
-    #        x=np.log(self.tab_waves_c[i1:i0]), axis=1)
+        # Must convert units
+        E_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
+            x=np.log(self.tab_waves_c[i1:i0]), axis=1)
+        N_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
+            / self.tab_energies_c[i1:i0] / erg_per_ev,
+            x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
-    #    if self.pf['source_ssp']:
-    #        return E_tot / N_tot / erg_per_ev
-    #    else:
-    #        return E_tot[-1] / N_tot[-1] / erg_per_ev
+        if self.pf['source_ssp']:
+            return E_tot / N_tot / erg_per_ev
+        else:
+            return E_tot[-1] / N_tot[-1] / erg_per_ev
 
-    def get_rad_yield(self, Emin=None, Emax=None, raw=True):
+    def get_rad_yield(self, band=None, units='eV', units_out='erg/s/Hz',
+        raw=True):
         """
         The amount of radiative energy output in a given band [erg/s/[depends]].
 
@@ -582,8 +573,8 @@ class SynthesisModelBase(Source):
         """
 
         erg_per_variable = \
-            self.get_lum_per_sfr_of_t(band=(Emin, Emax), energy_units=True,
-            raw=raw, band_units='eV')
+            self.get_lum_per_sfr_of_t(band=band, units=units,
+            units_out=units_out, raw=raw)
 
         if self.pf['source_ssp']:
             # erg / s / Msun
@@ -673,12 +664,12 @@ class SynthesisModelBase(Source):
         return self.get_Nlw()
 
     def get_Nion(self):
-        return self.get_nphot_per_baryon(13.6, 24.6)
+        return self.get_nphot_per_baryon(band=(13.6, 24.6), units='eV')
 
     def get_Nlw(self):
-        return self.get_nphot_per_baryon(10.2, 13.6)
+        return self.get_nphot_per_baryon(band=(10.2, 13.6), units='eV')
 
-    def get_nphot_per_baryon(self, Emin, Emax, raw=True, return_all_t=False):
+    def get_nphot_per_baryon(self, band, units='eV', raw=True, return_all_t=False):
         """
         Compute the number of photons emitted per unit stellar baryon.
 
@@ -702,12 +693,12 @@ class SynthesisModelBase(Source):
         if not hasattr(self, '_nphot_per_bar'):
             self._nphot_per_bar = {}
 
-        if (Emin, Emax, raw, return_all_t) in self._nphot_per_bar:
-            return self._nphot_per_bar[(Emin, Emax, raw, return_all_t)]
+        if (band, raw, return_all_t) in self._nphot_per_bar:
+            return self._nphot_per_bar[(band, raw, return_all_t)]
 
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
-        photons_per_s_per_msun = self.get_lum_per_sfr_of_t(band=(Emin, Emax),
-            raw=raw, energy_units=False, band_units='eV')
+        photons_per_s_per_msun = self.get_lum_per_sfr_of_t(band=band,
+            raw=raw, units_out='/s/Hz', units=units)
 
         # Current units:
         # if pop_ssp:
@@ -731,7 +722,7 @@ class SynthesisModelBase(Source):
             # Return last element: steady state result
             phot_per_b = photons_per_b_t[-1]
 
-        self._nphot_per_bar[(Emin, Emax, raw, return_all_t)] = phot_per_b
+        self._nphot_per_bar[(band, raw, return_all_t)] = phot_per_b
 
         return phot_per_b
 

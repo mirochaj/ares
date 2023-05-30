@@ -94,3 +94,7 @@ class Toy(Source):
 
     def _NormalizeSpectrum(self):
         return np.ones_like(self.E) * self.Lbol
+
+class DummySource(Source):
+    def __init__(self, **kwargs):
+        Source.__init__(self, **kwargs)

@@ -30,9 +30,9 @@ from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
-from ..phenom.ParameterizedQuantity import ParameterizedQuantity
+from ..phenom.ParameterizedQuantity import get_function_from_par
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
-    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid
+    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc
 
@@ -142,26 +142,8 @@ class Population(object):
         """
 
         if not hasattr(self, '_get_{}'.format(par.strip('pop_'))):
-            t = type(self.pf[par])
-
-            if t in numeric_types:
-                func = lambda **kwargs: self.pf[par]
-            elif t == FunctionType:
-                func = lambda **kwargs: self.pf[par](**kwargs)
-            elif isinstance(self.pf[par], str) and self.pf[par].startswith('pq'):
-                pars = get_pq_pars(self.pf[par], self.pf)
-                ob = ParameterizedQuantity(**pars)
-                func = lambda **kwargs: ob.__call__(**kwargs)
-                setattr(self, '_obj_{}'.format(par.strip('pop_')), ob)
-            else:
-                raise NotImplementedError(f"Unrecognized option for `{par}`.")
-
-            if f'{par}_inv' in self.pf:
-                if self.pf[f'{par}_inv']:
-                    func = lambda **kwargs: 1. - func(**kwargs)
-
+            func = get_function_from_par(par, self.pf)
             setattr(self, '_get_{}'.format(par.strip('pop_')), func)
-
         return getattr(self, '_get_{}'.format(par.strip('pop_')))
 
     @property
@@ -182,17 +164,17 @@ class Population(object):
     def id_num(self, value):
         self._id_num = int(value)
 
+    #@property
+    #def dust(self):
+    #    if not hasattr(self, '_dust'):
+    #        self._dust = DustCorrection(**self.pf)
+    #    return self._dust
+
     @property
     def dust(self):
         if not hasattr(self, '_dust'):
-            self._dust = DustCorrection(**self.pf)
+            self._dust = DustExtinction(**self.pf)
         return self._dust
-
-    @property
-    def dustext(self):
-        if not hasattr(self, '_dustext'):
-            self._dustext = DustExtinction(**self.pf)
-        return self._dustext
 
     @property
     def magsys(self):
@@ -240,6 +222,13 @@ class Population(object):
         if not hasattr(self, '_affects_igm'):
             self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
         return self._affects_igm
+
+    @property
+    def is_dusty(self):
+        if not hasattr(self, '_is_dusty'):
+            self._is_dusty = self.dust.is_template or self.dust.is_irxb \
+                or self.dust.is_parameterized
+        return self._is_dusty
 
     @property
     def is_metallicity_constant(self):
@@ -475,7 +464,7 @@ class Population(object):
         nebular line emission?
         """
         return (self.pf['pop_nebular'] not in [0, 1]) or \
-               (self.pf['pop_dustext_template'] is not None) or \
+               (self.pf['pop_dust_template'] is not None) or \
                (self.pf['pop_dust_yield'] is not None)
 
     @property
@@ -500,6 +489,10 @@ class Population(object):
 
         if not hasattr(self, '_is_emissivity_scalable'):
 
+            if self.is_emissivity_bruteforce:
+                self._is_emissivity_scalable = False
+                return self._is_emissivity_scalable
+
             if self.is_aging:
                 self._is_emissivity_scalable = False
                 return self._is_emissivity_scalable
@@ -509,7 +502,7 @@ class Population(object):
                     self._is_emissivity_scalable = False
                     return self._is_emissivity_scalable
 
-            if self.pf['pop_dustext_template'] is not None:
+            if self.pf['pop_dust_template'] is not None:
                 if type(self.pf['pop_Av']) not in numeric_types:
                     self._is_emissivity_scalable = False
                     return self._is_emissivity_scalable
@@ -528,14 +521,6 @@ class Population(object):
             # (1) there are mass- or time-dependent radiative properties
             # (2) if there are wavelength-dependent escape fractions.
             # (3) maybe that's it?
-
-            if (self.affects_cgm) and (not self.affects_igm):
-                if self.pf['pop_fesc'] != self.pf['pop_fesc_LW']:
-                    if self.pf['verbose']:
-                        print("# WARNING: revisit scalability wrt fesc.")
-                    #print("Not scalable cuz fesc pop={}".format(self.id_num))
-            #        self._is_emissivity_scalable = False
-            #        return False
 
             for par in self.pf.pqs:
 
@@ -667,7 +652,7 @@ class Population(object):
                     # For litdata
                     self._src = self._Source
             else:
-                self._src = None
+                self._src = DummySource(cosm=self.cosm, **self.src_kwargs)
 
         return self._src
 
@@ -714,7 +699,7 @@ class Population(object):
         if self.src.is_sed_tabular:
             E1 = self.src.Emin
             E2 = self.src.Emax
-            y = self.src.get_rad_yield(E1, E2)
+            y = self.src.get_rad_yield(band=(E1, E2), units='eV')
         else:
             y = normalize_sed(self)#self.pf['source_rad_yield']
 
@@ -774,7 +759,59 @@ class Population(object):
     #def model(self):
     #    return self.pf['pop_model']
 
-    def _convert_band(self, Emin, Emax):
+    def get_fesc_UV(self, z, Mh):
+        func = self._get_function('pop_fesc')
+        return func(z=z, Mh=Mh)
+
+    def get_fesc_LW(self, z, Mh):
+        func = self._get_function('pop_fesc_LW')
+        return func(z=z, Mh=Mh)
+
+    def get_fesc(self, z, Mh=None, x=None, band=None, units='eV'):
+        """
+        Synthesize fesc and fesc_LW into single function to avoid having
+        if/else blocks checking wavelength ranges elsewhere.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        Mh : int, float, np.ndarray
+            Halo mass [Msun], optional.
+        x : int, float
+            Wavelength or photon energy or photon frequency of interest,
+            depending on value of `units`.
+        band : 2-element tuple of int or float
+            (Lower edge, upper edge) of bandpass of interest, units determined
+            by `units`.
+        units : str
+            Units assumed for input. By default, uses electron volts. Other
+            options include "Angstrom", "Hz" [not yet implemented]
+
+        """
+
+        assert (x is not None) or (band is not None), \
+            "Must supply `x` or `band`! "
+
+        bname = self.src.get_band_name(x=x, band=band, units=units)
+
+        if bname == 'LyC':
+            fesc = self.get_fesc_UV(z, Mh)
+        elif bname == 'LW':
+            fesc = self.get_fesc_LW(z, Mh)
+        else:
+            fesc = 1.0
+
+        if type(Mh) in numeric_types:
+            return fesc
+        elif type(fesc) in numeric_types:
+            return fesc * np.ones_like(Mh)
+        else:
+            return fesc
+
+        # Add X-rays here?
+
+    def _convert_band(self, band=None, units='eV'):
         """
         Convert from fractional luminosity in reference band to given bounds.
 
@@ -782,15 +819,15 @@ class Population(object):
 
         Parameters
         ----------
-        Emin : int, float
-            Minimum energy [eV]
-        Emax : int, float
-            Maximum energy [eV]
+        band : tuple
+            (min, max) energy/wavelength/freq [units]
+        units : str
+            Units of each element in `band`.
 
         Returns
         -------
         Multiplicative factor that converts LF in reference band to that
-        defined by ``(Emin, Emax)``.
+        defined by user-supplied `band`.
 
         """
 
@@ -800,6 +837,12 @@ class Population(object):
         # If we're here, it means we need to use some SED info
 
         different_band = False
+
+        if band is None:
+            assert units.lower() == 'ev'
+            band = self.pf['pop_Emin'], self.pf['pop_Emax']
+
+        Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
         # Lower bound
         if (Emin is not None) and (self.src is not None):
@@ -830,8 +873,8 @@ class Population(object):
 
             # If tabulated, do things differently
             if self.is_sed_tab:
-                factor = self.src.get_rad_yield(Emin, Emax) \
-                    / self.src.get_rad_yield(*self.reference_band)
+                factor = self.src.get_rad_yield((Emin, Emax), units='eV') \
+                    / self.src.get_rad_yield(self.reference_band, units='eV')
             else:
                 factor = quad(self.src.get_spectrum, Emin, Emax)[0] \
                     / quad(self.src.get_spectrum, *self.reference_band)[0]
@@ -842,7 +885,7 @@ class Population(object):
 
         return 1.0
 
-    def _get_energy_per_photon(self, Emin, Emax):
+    def _get_energy_per_photon(self, band, units='eV'):
         """
         Compute the mean energy per photon in the provided band.
 
@@ -861,6 +904,8 @@ class Population(object):
         Photon energy in eV.
 
         """
+
+        Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
         if self.pf['pop_sed'] is None:
             Eavg = np.mean([Emin, Emax])
@@ -885,20 +930,20 @@ class Population(object):
             return self._eV_per_phot[(Emin, Emax)]
 
         if Emin < self.pf['pop_Emin']:
-            print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+            print(("# WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
                 "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
                 self.id_num))
         if Emax > self.pf['pop_Emax']:
-            print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+            print(("# WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
                 "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                 self.id_num))
 
-        if self.is_sed_tab:
-            Eavg = self.src.eV_per_phot(Emin, Emax)
-        else:
-            integrand = lambda E: self.src.get_spectrum(E) * E
-            Eavg = quad(integrand, Emin, Emax)[0] \
-                / quad(self.src.get_spectrum, Emin, Emax)[0]
+        #if self.is_sed_tab:
+        Eavg = self.src.eV_per_phot(Emin, Emax)
+        #else:
+        #    integrand = lambda E: self.src.get_spectrum(E) * E
+        #    Eavg = quad(integrand, Emin, Emax)[0] \
+        #        / quad(self.src.get_spectrum, Emin, Emax, limit=100)[0]
 
         self._eV_per_phot[(Emin, Emax)] = Eavg
 
@@ -1123,8 +1168,6 @@ class Population(object):
             window = [round(_window[jj],0) for jj in range(Nf-1)]
             window.append(1)
 
-
-
             if self.is_quiescent:
                 window = np.ones_like(_waves)
 
@@ -1174,15 +1217,8 @@ class Population(object):
         elif scalable:
             Lbol = self.get_emissivity(z)
 
-            # Only appropriate if dust extinction constant w/ Ms, z, etc
-            if self.pf['pop_dustext_template'] is not None:
-                wave = h_p * c * 1e8 / (E * erg_per_ev)
-                T = self.dustext.get_T_lam(wave, Av=self.pf['pop_Av'])
-            else:
-                T = 1.
-
             for ll in range(Nz):
-                epsilon[ll,:] = T * Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
+                epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
 
         else:

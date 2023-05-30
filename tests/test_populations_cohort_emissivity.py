@@ -26,7 +26,7 @@ def test():
     # Test that Mh-dep fesc, Nion, etc. work and lead to qualitative
     # shifts we expect.
 
-    sim = ares.simulations.Global21cm(**pars)
+    sim = ares.simulations.Simulation(**pars)
     pop_uv = sim.pops[0]
     pop_xr = sim.pops[1]
 
@@ -35,22 +35,34 @@ def test():
 
     zarr = np.arange(6, 30, 1)
 
-    L_lw = np.array([pop_uv.get_emissivity(z, Emin=10.2, Emax=13.6) \
+    L_lw = np.array([pop_uv.get_emissivity(z, band=(10.2, 13.6)) \
         for z in zarr])
-    L_ion = np.array([pop_uv.get_emissivity(z, Emin=13.6, Emax=1e2) \
+    L_ion = np.array([pop_uv.get_emissivity(z, band=(13.6, 1e2)) \
         for z in zarr])
-    L_X = np.array([pop_xr.get_emissivity(z, Emin=5e2, Emax=8e3) \
-        for z in zarr])
-    L_X2 = np.array([pop_xr.get_emissivity(z, Emin=None, Emax=None) \
+    L_X = np.array([pop_xr.get_emissivity(z, band=(5e2, 8e3)) \
         for z in zarr])
 
-    N_ion = np.array([pop_uv.get_photon_emissivity(z, Emin=13.6, Emax=1e2) \
+    N_ion = np.array([pop_uv.get_photon_emissivity(z, band=(13.6, 1e2)) \
         for z in zarr])
 
     assert np.all(L_X < L_ion)
     assert np.all(L_ion < L_lw)
     assert 1e37 <= L_X[0] <= 1e39
-    assert np.all(L_X == L_X2)
+
+    # Should check against solution obtained with pop_emissivity_tricks=False
+    pars_no_trx = pars.copy()
+    pars_no_trx['pop_emissivity_tricks{0}'] = False
+
+    sim_no_trx = ares.simulations.Simulation(**pars_no_trx)
+    pop_uv2 = sim_no_trx.pops[0]
+    assert not pop_uv2.is_emissivity_scalable
+
+    L_ion2  = np.array([pop_uv2.get_emissivity(z, band=(13.6, 1e2), units='eV') \
+        for z in zarr])
+
+    err = np.abs((L_ion - L_ion2) / L_ion)
+
+    assert err.mean() < 0.01, f"err={err.mean()}"
 
     ##
     # Make fesc=fesc(Mh)
@@ -67,11 +79,12 @@ def test():
 
     assert not pop_fesc.is_emissivity_scalable
 
-    assert pop_fesc.get_fesc(z=None, Mh=1e10) < pop_fesc.get_fesc(z=None, Mh=1e9)
+    assert pop_fesc.get_fesc(z=None, Mh=1e10, x=13.62, units='ev') \
+         < pop_fesc.get_fesc(z=None, Mh=1e9,  x=13.62, units='ev')
 
-    L_ion2 = np.array([pop_fesc.get_emissivity(z, Emin=E_LL, Emax=24.6) \
+    L_ion2 = np.array([pop_fesc.get_emissivity(z, band=(E_LL, 24.6)) \
         for z in zarr])
-    N_ion2 = np.array([pop_fesc.get_photon_emissivity(z, Emin=E_LL, Emax=24.6) \
+    N_ion2 = np.array([pop_fesc.get_photon_emissivity(z, band=(E_LL, 24.6)) \
         for z in zarr])
 
     # If low-mass halos dominate, emissivity should evolve more gradually at late

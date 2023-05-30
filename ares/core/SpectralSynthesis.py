@@ -200,7 +200,7 @@ class SpectralSynthesis(object):
             if waves is None:
                 waves = np.arange(rest_wave[0], rest_wave[1]+dlam, dlam)
 
-            owaves, oflux = self.ObserveSpectrum(zobs, spec=spec, waves=waves,
+            owaves, oflux = self.get_spec_obs(zobs, spec=spec, waves=waves,
                 sfh=sfh, zarr=zarr, tarr=tarr, flux_units='Ang', hist=hist,
                 extras=extras, idnum=idnum, window=window)
 
@@ -396,9 +396,6 @@ class SpectralSynthesis(object):
             else:
                 return popt[1]
 
-    def ObserveSpectrum(self, zobs, **kwargs):
-        return self.get_spec_obs(zobs, **kwargs)
-
     def get_spec_obs(self, zobs, spec=None, sfh=None, waves=None,
         flux_units='Hz', tarr=None, tobs=None, zarr=None, hist={},
         idnum=None, window=1, extras={}, nthreads=1, load=True, use_pbar=True):
@@ -592,7 +589,7 @@ class SpectralSynthesis(object):
                 use_pbar=use_pbar)
 
             # Observed wavelengths in micron, flux in erg/s/cm^2/Hz
-            wave_obs, flux_obs = self.ObserveSpectrum(zobs, spec=spec,
+            wave_obs, flux_obs = self.get_spec_obs(zobs, spec=spec,
                 waves=waves, extras=extras, window=window)
 
         elif ospec is not None:
@@ -728,7 +725,7 @@ class SpectralSynthesis(object):
                 for i in p.xrange(0, waves.size):
                     slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                    spec[slc] = self.get_lum(wave=waves[i],
+                    spec[slc] = self.get_lum(x=waves[i], units='Angstroms',
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                         band=band, hist=hist, idnum=idnum,
                         extras=extras, window=window, load=load,
@@ -742,7 +739,7 @@ class SpectralSynthesis(object):
 
                 slc = (Ellipsis, i) if (batch_mode or time_series) else i
 
-                tmp = self.get_lum(wave=wave,
+                tmp = self.get_lum(x=wave, units='Angstroms',
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                     band=band, hist=hist, idnum=idnum,
                     extras=extras, window=window, load=load,
@@ -869,8 +866,8 @@ class SpectralSynthesis(object):
         # more likely than not, the redshift and wavelength are the only
         # things that change and that's an easy logical check to do.
         # Checking that SFHs, histories, etc., is more expensive.
-        ok_keys = ('wave', 'zobs', 'tobs', 'idnum', 'sfh', 'tarr', 'zarr',
-            'window', 'band', 'hist', 'extras', 'load', 'energy_units')
+        ok_keys = ('x', 'zobs', 'tobs', 'idnum', 'sfh', 'tarr', 'zarr',
+            'window', 'band', 'hist', 'extras', 'load', 'units_out')
 
         ct = -1
 
@@ -894,8 +891,8 @@ class SpectralSynthesis(object):
             # result so long as wavelength and zobs match requested values.
             # This should only be used when SpectralSynthesis is summoned
             # internally! Likely to lead to confusing behavior otherwise.
-            if (self.careful_cache == 0) and ('wave' in kw) and ('zobs' in kw):
-                if (kw['wave'] == kwds['wave']) and (kw['zobs'] == kwds['zobs']):
+            if (self.careful_cache == 0) and ('x' in kw) and ('zobs' in kw):
+                if (kw['x'] == kwds['x']) and (kw['zobs'] == kwds['zobs']):
                     notok = 0
                     break
 
@@ -963,9 +960,9 @@ class SpectralSynthesis(object):
         else:
             return kwds, None
 
-    def get_lum(self, wave=1600., sfh=None, tarr=None, zarr=None, window=1,
-        zobs=None, tobs=None, band=None, band_units='Angstrom', idnum=None,
-        hist={}, extras={}, load=True, energy_units=True, use_pbar=True):
+    def get_lum(self, x=1600., sfh=None, tarr=None, zarr=None, window=1,
+        zobs=None, tobs=None, band=None, units='Angstrom', idnum=None,
+        hist={}, extras={}, load=True, units_out='erg/s/Hz', use_pbar=True):
         """
         Synthesize luminosity of galaxy with given star formation history at a
         given wavelength and time.
@@ -981,10 +978,10 @@ class SpectralSynthesis(object):
         zarr : np.ndarray
             Array of redshift in ascending order (so decreasing time). Only
             supply if not passing `tarr` argument.
-        wave : int, float
-            Wavelength of interest [Angstrom]
+        x : int, float
+            Wavelength (or photon energy or freq.) of interest [`units`]
         window : int
-            Average over interval about `wave`. [Angstrom]
+            Average over interval about `x`. [Angstrom]
         zobs : int, float
             Redshift of observation.
         tobs : int, float
@@ -996,7 +993,7 @@ class SpectralSynthesis(object):
 
         Returns
         -------
-        Luminosity at wavelength=`wave` in units of erg/s/Hz.
+        Luminosity at `x` in units of `units_out`.
 
         """
 
@@ -1023,9 +1020,9 @@ class SpectralSynthesis(object):
             else:
                 tarr = hist['t']
 
-        kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'wave':wave, 'tarr':tarr,
+        kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'x':x, 'tarr':tarr,
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist,
-            'extras':extras, 'window': window, 'energy_units': energy_units}
+            'extras':extras, 'window': window, 'units_out': units_out}
 
         if False:
             _kwds, cached_result = self._cache_lum(kw)
@@ -1116,8 +1113,8 @@ class SpectralSynthesis(object):
 
         # Get luminosity per unit SFR vs. time at whatever wavelength or in
         # whatever band the user wants.
-        Loft = self.src.get_lum_per_sfr_of_t(wave=wave, window=window,
-            band=band, band_units=band_units, energy_units=energy_units,
+        Loft = self.src.get_lum_per_sfr_of_t(x=x, units=units, window=window,
+            band=band, units_out=units_out,
             raw=False)
 
         # Setup interpolant for luminosity as a function of SSP age.
@@ -1185,7 +1182,7 @@ class SpectralSynthesis(object):
                 logA = np.log10(ages)
                 logZ = np.log10(Z[:,0:i+1])
                 L_per_msun = np.zeros_like(ages)
-                logL_at_wave = self.L_of_Z_t(wave)
+                logL_at_wave = self.L_of_Z_t(x)
 
                 L_per_msun = np.zeros_like(logZ)
                 for j, _Z_ in enumerate(range(logZ.shape[0])):
@@ -1321,7 +1318,7 @@ class SpectralSynthesis(object):
                 #_kappa = self._cache_kappa(wave)
 
                 #if _kappa is None:
-                kappa = extras['kappa'](wave=wave, Mh=Mh, z=zobs)
+                kappa = extras['kappa'](wave=x)
                 #self._cache_kappa_[wave] = kappa
                 #else:
                 #    kappa = _kappa

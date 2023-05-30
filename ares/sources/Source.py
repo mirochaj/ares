@@ -15,16 +15,17 @@ import re
 import numpy as np
 from scipy.integrate import quad
 from ..util import ParameterFile
+from ..util.Misc import numeric_types
 from functools import cached_property
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile
 from ..core.IntegralTables import IntegralTable
 from ..core.InterpolationTables import LookupTable
-from ..physics.Constants import erg_per_ev, E_LL, s_per_myr
 from ..util.SetDefaultParameterValues import SourceParameters, \
     CosmologyParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
+from ..physics.Constants import erg_per_ev, E_LL, s_per_myr, E_LyA, h_p, c
 
 try:
     import h5py
@@ -408,6 +409,101 @@ class Source(object):
         return quad(integrand, Emin, Emax, points=self.sharp_points)[0] \
              / quad(norm, Emin, Emax, points=self.sharp_points)[0]
 
+    def get_ang_from_x(self, x, units='eV'):
+        xout = self.get_ev_from_x(x, units=units)
+        return h_p * c / erg_per_ev / xout / 1e-8
+
+    def get_ev_from_x(self, x, units='eV'):
+        """
+        Convert input `x` from `units` to electron volts.
+        """
+        type_in = type(x)
+        if type_in in [list, tuple]:
+            x = np.array(x)
+        elif type_in in numeric_types:
+            x = np.array([x])
+
+        if units.lower() == 'ev':
+            xout = x
+        elif units.lower().startswith('ang'):
+            xout = h_p * c / erg_per_ev / x / 1e-8
+        elif units.lower().startswith('mic'):
+            xout = h_p * c / erg_per_ev / x / 1e-4
+        elif units.lower().startswith('hz'):
+            xout = h_p * x / erg_per_ev
+        else:
+            raise NotImplemented('help ')
+
+        # Re-order if necessary
+        if x.size > 1:
+            if xout[0] > xout[1]:
+                xout = np.flip(xout)
+
+        if type_in == tuple:
+            return tuple(xout)
+        elif type_in == list:
+            return list(xout)
+        elif type_in in numeric_types:
+            return float(xout)
+        else:
+            return xout
+
+    def get_band_name(self, x=None, band=None, units='eV'):
+        """
+        Some bandpasses get special treatment, e.g., Lyman-Werner,
+        Lyman-continuum, X-ray.
+
+
+        Parameters
+        ----------
+        """
+
+        monochromatic = False
+
+        # Convert from monochromatic wavelength/energy/frequency to band
+        if band is None:
+            assert x is not None, "Must supply `x` or `band`!"
+            monochromatic = True
+            band = x, x
+
+        # Unpack band and convert units to eV for band identification
+        Emin, Emax = self.get_ev_from_x(band, units=units)
+
+        # Easier case, check that energy/wave/freq lies in given interval.
+        if monochromatic:
+            if Emin >= self.pf['pop_Emin_xray']:
+                name = 'Xray'
+            elif Emax < E_LyA:
+                name = 'OIR'
+            elif (Emin > E_LyA) and (Emin < E_LL):
+                name = 'LW'
+            elif (Emin > E_LL):
+                name = 'LyC'
+            else:
+                name = None
+
+            return name
+
+        # Slightly harder case, user provides bands. More annoying because
+        # we're sloppy with sigfigs, check for variations of the same thing.
+        if Emin >= self.pf['pop_Emin_xray']:
+            name = 'Xray'
+        elif Emax < E_LyA:
+            name = 'OIR'
+        elif (Emin, Emax) in [(E_LL, 24.6), (13.6, 24.6)]:
+            name = 'LyC'
+        elif (Emin > E_LL) and (Emax < self.pf['pop_Emin_xray']):
+            name = 'LyC'
+        elif (Emin, Emax) in [(10.2, 13.6), (11.2, 13.6),
+            (10.2, E_LL), (11.2, E_LL), (E_LyA, 13.6), (E_LyA, E_LL)]:
+            name = 'LW'
+        elif (Emin > E_LyA) and (Emax < E_LL):
+            name = 'LW'
+        else:
+            name = None
+
+        return name
+
     @property
     def qdot_bar(self):
         """
@@ -430,8 +526,8 @@ class Source(object):
         i2 = lambda E: self.get_spectrum(E) / E
 
         # Must convert units
-        final = quad(i1, Emin, Emax, points=self.sharp_points)[0] \
-              / quad(i2, Emin, Emax, points=self.sharp_points)[0]
+        final = quad(i1, Emin, Emax, points=self.sharp_points, limit=50)[0] \
+              / quad(i2, Emin, Emax, points=self.sharp_points, limit=50)[0]
 
         return final
 
@@ -564,7 +660,7 @@ class Source(object):
     #        return Lnu
     #
 
-    def get_spectrum(self, E, t=0.0):
+    def get_spectrum(self, x, t=0.0, units='eV'):
         r"""
         Return fraction of bolometric luminosity emitted at energy E.
 
@@ -573,8 +669,8 @@ class Source(object):
 
         Parameters
         ----------
-        E: float
-            Emission energy in eV
+        x: float
+            Emission energy in `units`.
         t: float
             Time in seconds since source turned on.
         i: int
@@ -587,6 +683,8 @@ class Source(object):
         eV\ :sup:`-1`\.
 
         """
+
+        E = self.get_ev_from_x(x, units=units)
 
         if self.pf['source_Ekill'] is not None:
             if self.pf['source_Ekill'][0] <= E <= self.pf['source_Ekill'][1]:

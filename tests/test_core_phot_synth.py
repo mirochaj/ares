@@ -70,7 +70,7 @@ def test(tol=0.25):
             filt_hst = hst_shallow
 
         hist = pop.histories
-        owaves, oflux = pop.synth.ObserveSpectrum(zobs=z, sfh=hist['SFR'],
+        owaves, oflux = pop.synth.get_spec_obs(zobs=z, sfh=hist['SFR'],
             tarr=hist['t'], zarr=hist['z'], waves=waves, hist=hist,
             extras=pop.extras, load=load)
 
@@ -82,7 +82,7 @@ def test(tol=0.25):
         mag_from_spec = omags[0,np.argmin(np.abs(1600. - waves))]
 
         # Compute observed magnitude at 1600A by hand from luminosity
-        L = pop.get_lum(z, wave=1600., load=load)
+        L = pop.get_lum(z, x=1600., units='Angstroms', load=load)
         f = L[0] * (1. + z) / (4. * np.pi * dL**2)
         mag_from_flux = -2.5 * np.log10(f / flux_AB) - magcorr
 
@@ -90,12 +90,12 @@ def test(tol=0.25):
         mag_from_lum = pop.magsys.L_to_MAB(L[0])
 
         # Compute 1600A magnitude using different smoothing windows
-        _f, mag_from_spec_20 = pop.get_mags(z, wave=1600., window=21,
-            load=load)
-        _f, mag_from_spec_50 = pop.get_mags(z, wave=1600., window=51,
-            load=load)
-        _f, mag_from_spec_100 = pop.get_mags(z, wave=1600., window=201,
-            load=load)
+        _f, mag_from_spec_20 = pop.get_mags(z, x=1600., window=21,
+            load=load, units='Angstroms')
+        _f, mag_from_spec_50 = pop.get_mags(z, x=1600., window=51,
+            load=load, units='Angstroms')
+        _f, mag_from_spec_100 = pop.get_mags(z, x=1600., window=201,
+            load=load, units='Angstroms')
 
         # Different ways to estimate magnitude from HST photometry
         _f, mag_from_phot_mean = pop.get_mags(z, cam=('wfc', 'wfc3'),
@@ -103,10 +103,10 @@ def test(tol=0.25):
             method='gmean', load=load)
         _f, mag_from_phot_close = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
-            method='closest', load=load, wave=1600.)
+            method='closest', load=load, x=1600., units='Angstroms')
         _f, mag_from_phot_interp = pop.get_mags(z, cam=('wfc', 'wfc3'),
             filters=filt_hst[zstr],
-            method='interp', load=load, wave=1600.)
+            method='interp', load=load, x=1600., units='Angstroms')
 
         # These should be identical to machine precision
         assert abs(mag_from_spec-mag_from_flux) < 1e-8, \

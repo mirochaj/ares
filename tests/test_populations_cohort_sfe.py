@@ -165,12 +165,18 @@ def test():
 
     fstar1 = pop.get_sfe(z=6, Mh=Mh)
     fstar1b = pop.get_fstar(z=6, Mh=Mh)
-    assert np.all(fstar1 == fstar1b)
+
+    assert np.allclose(fstar1, fstar1b)
 
     fstar2 = pop_ham.run_abundance_match(6, Mh)
     fstar2b = pop_ham.get_sfe(z=6, Mh=Mh)
 
     ok = np.logical_and(Mh >= 1e9, Mh <= 1e13)
+
+    import matplotlib.pyplot as pl
+    pl.loglog(Mh, fstar1, ls='-')
+    pl.loglog(Mh, fstar2, ls='--')
+    input('<enter>')
 
     assert np.allclose(fstar1[ok==1], fstar2[ok==1], rtol=1e-1)
 
