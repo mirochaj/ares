@@ -10,6 +10,7 @@ Description:
 
 """
 
+import numbers
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
@@ -143,7 +144,7 @@ class GalaxyCohort(GalaxyAggregate):
             return self._src_by_Z[i]
 
         Zarr = np.sort(list(self.src.tab_metallicities))
-        kw = self.src_kwargs.copy()
+        kw = self.src_kwargs[0].copy()
         kw['source_Z'] = Zarr[i]
         src = self._Source(cosm=self.cosm, **kw)
         self._src_by_Z[i] = src
@@ -244,6 +245,7 @@ class GalaxyCohort(GalaxyAggregate):
                         * self.cosm.X / self.pf['pop_fox']
 
             else:
+                raise NotImplemented('this is probably a bad idea')
                 MZ = Ms * fZy * (1. - self.get_metal_loss(z, Mh=Mh))
 
                 # Cosmological gas mass minus stellar mass
@@ -1297,33 +1299,33 @@ class GalaxyCohort(GalaxyAggregate):
 
         return None
 
-    def get_lum_per_sfr(self, z, Mh=None, x=1600., window=1., raw=False,
-        nebular_only=False, band=None, units='Angstrom', age=None):
-        """
-        Return luminosity per unit SFR.
-        """
+    #def get_lum_per_sfr(self, z, Mh=None, x=1600., window=1., raw=False,
+    #    nebular_only=False, band=None, units='Angstrom', age=None):
+    #    """
+    #    Return luminosity per unit SFR.
+    #    """
 
-        if not self.is_metallicity_constant:
-            Z = self.get_metallicity(z, Mh=self.halos.tab_M)
+    #    if not self.is_metallicity_constant:
+    #        Z = self.get_metallicity(z, Mh=self.halos.tab_M)
 
-            f_L_sfr = self._get_lum_all_Z(x=x, band=band,
-                units=units,
-                window=window, raw=raw, nebular_only=nebular_only, age=age)
+    #        f_L_sfr = self._get_lum_all_Z(x=x, band=band,
+    #            units=units,
+    #            window=window, raw=raw, nebular_only=nebular_only, age=age)
 
-            L_sfr = 10**f_L_sfr(np.log10(Z))
+    #        L_sfr = 10**f_L_sfr(np.log10(Z))
 
-        elif self.pf['pop_lum_per_sfr'] is None:
-            L_sfr = self.src.get_lum_per_sfr(x=x, window=window,
-                band=band, units=units, raw=raw,
-                nebular_only=nebular_only, age=age)
-        else:
-            assert self.pf['pop_calib_lum'] is None, \
-                "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
-            L_sfr = self.pf['pop_lum_per_sfr']
+    #    elif self.pf['pop_lum_per_sfr'] is None:
+    #        L_sfr = self.src.get_lum_per_sfr(x=x, window=window,
+    #            band=band, units=units, raw=raw,
+    #            nebular_only=nebular_only, age=age)
+    #    else:
+    #        assert self.pf['pop_calib_lum'] is None, \
+    #            "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
+    #        L_sfr = self.pf['pop_lum_per_sfr']
 
-        return L_sfr
+    #    return L_sfr
 
-    def get_spec(self, z, waves, M=None, stellar_mass=False, per_Hz=False,
+    def get_spec(self, z, waves, per_Hz=False,
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
         nebular_only=False):
         """
@@ -1349,30 +1351,14 @@ class GalaxyCohort(GalaxyAggregate):
         mass.
         """
 
-        if M is None:
-            assert not stellar_mass
-            M = self.halos.tab_M
-
         if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
 
-            # In this case, assume `M` supplied is stellar mass.
-            # Convert to a halo mass via SMHM.
-            if stellar_mass:
-                # Mstell = Mhalo * SMHM
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-                mste = self.halos.tab_M * smhm
-                Mh = np.interp(M, mste, self.halos.tab_M)
-            else:
-                Mh = M * 1.
-
-            lum = np.zeros((M.size, waves.size))
+            lum = np.zeros((self.halos.tab_M.size, waves.size))
             for i, wave in enumerate(waves):
-                l = self.get_lum(z, x=wave, units='Angstroms',
+                lum[:,i] = self.get_lum(z, x=wave, units='Angstroms',
                     band=band, window=window,
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only)
-                lum[:,i] = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
-                    np.log10(l))
 
             if per_Hz:
                 pass
@@ -1385,14 +1371,14 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_spec_obs(self, z, waves=None,  M=None, per_Hz=False):
+    def get_spec_obs(self, z, waves=None, per_Hz=False):
         if waves is None:
             waves = self.src.tab_waves_c
             dwdn = self.src.tab_dwdn
         else:
             dwdn = waves**2 / (c * 1e8)
 
-        spec = self.get_spec(z, waves=waves, M=M, per_Hz=per_Hz)
+        spec = self.get_spec(z, waves=waves, per_Hz=per_Hz)
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
@@ -1408,6 +1394,162 @@ class GalaxyCohort(GalaxyAggregate):
         owaves = waves * (1. + z) / 1e4
 
         return owaves, f
+
+    def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
+        units_out='erg/s/A', load=True, raw=False, nebular_only=False):
+        """
+        Determine the luminosity of stellar population(s) for all halos.
+        """
+
+        ##
+        # Manual override: if user supplies L/SFR directly.
+        if self.pf['pop_lum_per_sfr'] is not None:
+
+            assert self.pf['pop_calib_lum'] is None, \
+                "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
+            return self.pf['pop_lum_per_sfr']
+        ##
+
+        Lh = np.zeros_like(self.halos.tab_M)
+        for i, src in enumerate(self.srcs):
+            age = src.pf['source_age']
+            Zfe = src.pf['source_Z']
+
+            ##
+            # First, determine age for all halos (if necessary).
+            # Currently, only applies to SSP sources or sources with complex SFHs
+            #if (src.is_ssp or self.is_sed_multicomponent):
+            assert isinstance(age, numbers.Number), \
+                f"Age must be constant in this case! source_age={age}"
+
+            # Enforce maximum of a Hubble time
+            t_H = self.cosm.HubbleTime(z) / s_per_myr
+            #age[age > t_H] = t_H
+            if age > t_H:
+                age = t_H
+                print(f"WARNING: age exceeds Hubble time at z={z}.")
+
+            ##
+            # Next, determine metallicity across population (if necessary)
+            if self.is_metallicity_constant or isinstance(Zfe, numbers.Number):
+                Z = Zfe * np.ones_like(self.halos.tab_M)
+                f_L_sfr = None
+            else:
+                Z = self.get_metallicity(z, Mh=self.halos.tab_M)
+
+                f_L_sfr = self._get_lum_all_Z(x=x, band=band,
+                    units=units, window=window, raw=raw,
+                    nebular_only=nebular_only, age=age)
+
+                #
+
+                #L_sfr = self.get_lum_per_sfr(wave=wave, #Z=Z,
+                #    window=window, band=band, band_units=band_units, raw=raw,
+                #    nebular_only=nebular_only)
+
+            # Now, determine luminosity per unit SFR for all halos.
+            # Handle cases with variations in age or metallicity across population.
+            #if age is not None:
+            if False:
+                L_sfr = np.array([src.get_lum_per_sfr(x=x,
+                    window=window, band=band, units=units, raw=raw,
+                    nebular_only=nebular_only, age=_age_,
+                    units_out=units_out) for _age_ in age])
+            else:
+                if f_L_sfr is None:
+                    L_sfr = src.get_lum_per_sfr(x=x, window=window,
+                        band=band, units=units, units_out=units_out,
+                        raw=raw, nebular_only=nebular_only)
+                else:
+                    L_sfr = 10**f_L_sfr(np.log10(Z))
+
+            ##
+            # Special treatment for SSPs
+            if src.is_ssp:
+
+                # Mstell = Mhalo * SMHM
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                mste = self.halos.tab_M * smhm
+
+                if self.is_central_pop:
+
+                    # Not for SSPs, L per SFR is really L per Mstell.
+                    _Lh_ = mste * L_sfr
+
+                    if self.pf['pop_ihl'] is not None:
+                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                        _Lh_ *= ihl
+                else:
+
+                    iz = np.argmin(np.abs(z - self.halos.tab_z))
+                    fsurv = self.tab_fsurv[iz,:]
+
+                    # In this case, need to integrate over subhalo MF.
+                    Ls = mste * L_sfr
+                    _Lh_ = np.zeros_like(self.halos.tab_M)
+                    for i, Mc in enumerate(self.halos.tab_M):
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        _Lh_[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
+
+
+            else:
+
+                # This uses __getattr__ in case we're allowing Z to be
+                # updated from SAM.
+                sfr = self.get_sfr(z)
+
+                # Just the product of SFR and L
+                if self.is_central_pop:
+                    _Lh_ = sfr * L_sfr
+                else:
+                    iz = np.argmin(np.abs(z - self.halos.tab_z))
+                    fsurv = self.tab_fsurv[iz,:]
+
+                    # In this case, need to integrate over subhalo MF.
+                    Ls = sfr * L_sfr
+                    _Lh_ = np.zeros_like(self.halos.tab_M)
+                    for i, Mc in enumerate(self.halos.tab_M):
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        _Lh_[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
+
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                self.halos.tab_M < self.get_Mmax(z))
+            _Lh_[~ok] = 0
+            ##
+            Lh += _Lh_
+
+        ##
+        # Apply fesc
+        fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
+            units=units)
+        Lh *= fesc
+
+        ##
+        # Apply dust reddening
+        if not self.is_dusty:
+            T = 1
+        else:
+            # Depending on approach, either need to first get Av, dust
+            # surface density, or MUV-Beta/IRXB
+            wave = self.src.get_ang_from_x(x, units=units)
+
+            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            Ms = self.halos.tab_M * smhm
+            if self.pf['pop_dust_template'] is not None:
+                Av = self.get_Av(z=z, Ms=Ms)
+                Sd = None
+            elif self.pf['pop_dust_yield'] is not None:
+                Av = None
+                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
+            else:
+                raise NotImplemented('help')
+
+            T = self.dust.get_transmission(wave, Av=Av, Sd=Sd)
+            Lh *= T.squeeze()
+
+        ##
+        # Done
+        return Lh
 
     def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, age=None):
@@ -1452,144 +1594,9 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Have options for stars or BHs
         if self.pf['pop_star_formation']:
-
-            if self.pf['pop_ssp'] and self.pf['pop_age'] is not None:
-
-                age = self.get_age(z=z, Mh=self.halos.tab_M)
-
-                if type(age) in numeric_types:
-                    age = age * np.ones_like(self.halos.tab_M)
-
-                # Assert that age < Hubble time at this redshift
-                t_H = self.cosm.HubbleTime(z) / s_per_myr
-                age[age > t_H] = t_H
-                if np.any(age > t_H):
-                    print(f"WARNING: some ages exceed Hubble time at z={z}.")
-
-            if not self.is_metallicity_constant:
-                if age is not None:
-                    raise NotImplemented("This is probably broken.")
-
-                Z = self.get_metallicity(z, Mh=self.halos.tab_M)
-
-                f_L_sfr = self._get_lum_all_Z(x=x, band=band,
-                    units=units, window=window, raw=raw,
-                    nebular_only=nebular_only, age=age)
-
-                L_sfr = 10**f_L_sfr(np.log10(Z))
-
-                #L_sfr = self.get_lum_per_sfr(wave=wave, #Z=Z,
-                #    window=window, band=band, band_units=band_units, raw=raw,
-                #    nebular_only=nebular_only)
-
-            elif self.pf['pop_lum_per_sfr'] is None:
-                if age is not None:
-                    L_sfr = np.array([self.src.get_lum_per_sfr(x=x,
-                        window=window, band=band, units=units, raw=raw,
-                        nebular_only=nebular_only, age=_age_,
-                        units_out=units_out) for _age_ in age])
-                else:
-                    L_sfr = self.src.get_lum_per_sfr(x=x, window=window,
-                        band=band, units=units, units_out=units_out,
-                        raw=raw, nebular_only=nebular_only)
-            else:
-                assert self.pf['pop_calib_lum'] is None, \
-                    "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
-                L_sfr = self.pf['pop_lum_per_sfr']
-
-            if self.is_quiescent:
-
-                assert self.pf['pop_ssp']
-
-                # Mstell = Mhalo * SMHM
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-                mste = self.halos.tab_M * smhm
-
-                if self.is_central_pop:
-
-                    # Not for SSPs, L per SFR is really L per Mstell.
-                    Lh = mste * L_sfr
-
-                    if self.pf['pop_ihl'] is not None:
-                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
-                        Lh *= ihl
-                else:
-
-                    iz = np.argmin(np.abs(z - self.halos.tab_z))
-                    fsurv = self.tab_fsurv[iz,:]
-
-                    # In this case, need to integrate over subhalo MF.
-                    Ls = mste * L_sfr
-                    Lh = np.zeros_like(self.halos.tab_M)
-                    for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
-                        Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
-
-
-            else:
-
-                # This uses __getattr__ in case we're allowing Z to be
-                # updated from SAM.
-                sfr = self.get_sfr(z)
-
-                # Just the product of SFR and L
-                if self.is_central_pop:
-                    Lh = sfr * L_sfr
-                else:
-                    iz = np.argmin(np.abs(z - self.halos.tab_z))
-                    fsurv = self.tab_fsurv[iz,:]
-
-                    # In this case, need to integrate over subhalo MF.
-                    Ls = sfr * L_sfr
-                    Lh = np.zeros_like(self.halos.tab_M)
-                    for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
-                        Lh[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
-
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                self.halos.tab_M < self.get_Mmax(z))
-            Lh[~ok] = 0
-
-            ##
-            # Apply fesc
-            fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
-                units=units)
-            Lh *= fesc
-
-            ##
-            # Apply dust reddening
-            if not self.is_dusty:
-                T = 1
-            else:
-                # Depending on approach, either need to first get Av, dust
-                # surface density, or MUV-Beta/IRXB
-                wave = self.src.get_ang_from_x(x, units=units)
-
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-                Ms = self.halos.tab_M * smhm
-                if self.pf['pop_dust_template'] is not None:
-                    Av = self.get_Av(z=z, Ms=Ms)
-                    Sd = None
-                elif self.pf['pop_dust_yield'] is not None:
-                    Av = None
-                    Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
-                else:
-                    raise NotImplemented('help')
-
-                T = self.dust.get_transmission(wave, Av=Av, Sd=Sd)
-                Lh *= T.squeeze()
-
-            ##
-            # Apply IGM filtering here eventually. Actually, that could be
-            # dangerous -- perhaps should only ever be done in post.
-
-            if not hasattr(self, '_cache_L'):
-                self._cache_L = {}
-
-            self._cache_L_[kwtup] = Lh
-
-            return Lh
-
+            Lh = self._get_lum_stellar_pop(z, x=x, band=band, window=window,
+                units=units, units_out=units_out, load=load, raw=raw,
+                nebular_only=nebular_only)
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()
@@ -1614,14 +1621,22 @@ class GalaxyCohort(GalaxyAggregate):
 
             #self._cache_L_[(z, wave)] = Lh
 
-            return Lh
-
             # Don't need to do trajectories unless we're letting
             # BHs grow via accretion, i.e., scaling laws can just get
             # painted on.
-
         else:
             raise NotImplemented('help')
+
+        ##
+        # Apply IGM filtering here eventually. Actually, that could be
+        # dangerous -- perhaps should only ever be done in post.
+
+        if not hasattr(self, '_cache_L'):
+            self._cache_L = {}
+
+        self._cache_L_[kwtup] = Lh
+
+        return Lh
 
     def get_Av(self, z, Ms):
         """
@@ -1845,7 +1860,7 @@ class GalaxyCohort(GalaxyAggregate):
         return self._tab_source_mask
 
     def _get_phi_of_L(self, z, x=1600., window=1, raw=False,
-        nebular_only=False, band=None, units=None):
+        nebular_only=False, band=None, units='Angstroms'):
         """
         Compute the luminosity function at redshift z.
 

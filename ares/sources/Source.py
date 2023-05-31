@@ -65,6 +65,10 @@ class Source(object):
     def is_sed_tabular(self):
         return self.pf['source_sed'] in _sed_tabs
 
+    @cached_property
+    def is_ssp(self):
+        return self.pf['source_ssp']
+
     @property
     def Emin(self):
         return self.pf['source_Emin']

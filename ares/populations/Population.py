@@ -591,39 +591,54 @@ class Population(object):
                 self._src_kwargs = {}
                 return {}
 
-            self._src_kwargs = dict(self.pf)
-            if self._Source in [Star, StarQS, Toy, DeltaFunction]:
-                spars = StellarParameters()
-                for par in spars:
-
-                    par_pop = par.replace('source', 'pop')
-                    if par_pop in self.pf:
-                        self._src_kwargs[par] = self.pf[par_pop]
-                    else:
-                        self._src_kwargs[par] = spars[par]
-
-            elif self._Source is BlackHole:
-                bpars = BlackHoleParameters()
-                for par in bpars:
-                    par_pop = par.replace('source', 'pop')
-
-                    if par_pop in self.pf:
-                        self._src_kwargs[par] = self.pf[par_pop]
-                    else:
-                        self._src_kwargs[par] = bpars[par]
-
-            elif self._Source in [SynthesisModel, SynthesisModelToy]:
-                bpars = SynthesisParameters()
-                for par in bpars:
-                    par_pop = par.replace('source', 'pop')
-
-                    if par_pop in self.pf:
-                        self._src_kwargs[par] = self.pf[par_pop]
-                    else:
-                        self._src_kwargs[par] = bpars[par]
+            components = []
+            if not self.is_sed_multicomponent:
+                components = [self.pf['pop_sfh']]
             else:
-                self._src_kwargs = self.pf.copy()
-                self._src_kwargs.update(self.pf['pop_kwargs'])
+                components = self.pf['pop_sfh'].split('+')
+
+            self._src_kwargs = []
+            for i, component in enumerate(components):
+                self._src_kwargs.append(dict(self.pf))
+
+                if self._Source in [Star, StarQS, Toy, DeltaFunction]:
+                    assert i == 0
+                    spars = StellarParameters()
+                    for par in spars:
+
+                        par_pop = par.replace('source', 'pop')
+                        if par_pop in self.pf:
+                            self._src_kwargs[i][par] = self.pf[par_pop]
+                        else:
+                            self._src_kwargs[i][par] = spars[par]
+
+                elif self._Source is BlackHole:
+                    assert i == 0
+                    bpars = BlackHoleParameters()
+                    for par in bpars:
+                        par_pop = par.replace('source', 'pop')
+
+                        if par_pop in self.pf:
+                            self._src_kwargs[i][par] = self.pf[par_pop]
+                        else:
+                            self._src_kwargs[i][par] = bpars[par]
+
+                elif self._Source in [SynthesisModel, SynthesisModelToy]:
+                    bpars = SynthesisParameters()
+                    for par in bpars:
+                        par_pop = par.replace('source', 'pop')
+
+                        if par_pop in self.pf:
+                            if self.is_sed_multicomponent and \
+                                (par in ['source_Z', 'source_age', 'source_ssp']):
+                                self._src_kwargs[i][par] = self.pf[par_pop][i]
+                            else:
+                                self._src_kwargs[i][par] = self.pf[par_pop]
+                        else:
+                            self._src_kwargs[i][par] = bpars[par]
+                else:
+                    self._src_kwargs[i] = self.pf.copy()
+                    self._src_kwargs[i].update(self.pf['pop_kwargs'])
 
         # Sometimes we need to know about cosmology...
 
@@ -638,6 +653,20 @@ class Population(object):
         return self._is_synthesis_model
 
     @property
+    def srcs(self):
+        if not hasattr(self, '_srcs'):
+            self._srcs = []
+            for i, kw in enumerate(self.src_kwargs):
+                try:
+                    src = self._Source(cosm=self.cosm, **kw)
+                except TypeError:
+                    # For litdata
+                    src = self._Source
+                self._srcs.append(src)
+
+        return self._srcs
+
+    @property
     def src(self):
         if not hasattr(self, '_src'):
             if self.pf['pop_psm_instance'] is not None:
@@ -646,11 +675,12 @@ class Population(object):
             elif self.pf['pop_src_instance'] is not None:
                 self._src = self.pf['pop_src_instance']
             elif self._Source is not None:
-                try:
-                    self._src = self._Source(cosm=self.cosm, **self.src_kwargs)
-                except TypeError:
-                    # For litdata
-                    self._src = self._Source
+                self._src = self.srcs[0]
+                #try:
+                #    self._src = self._Source(cosm=self.cosm, **self.src_kwargs)
+                #except TypeError:
+                #    # For litdata
+                #    self._src = self._Source
             else:
                 self._src = DummySource(cosm=self.cosm, **self.src_kwargs)
 
@@ -738,6 +768,11 @@ class Population(object):
     @property
     def is_sed_tab(self):
         return self.src.is_sed_tabular
+
+    @cached_property
+    def is_sed_multicomponent(self):
+        assert self.pf['pop_sfr_model'] != 'ensemble'
+        return '+' in self.pf['pop_sfh']
 
     @property
     def reference_band(self):

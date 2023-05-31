@@ -274,7 +274,7 @@ class SynthesisModelBase(Source):
         Should be dimensionless?
         """
         if not hasattr(self, '_LE'):
-            if self.pf['source_ssp']:
+            if self.is_ssp:
                 raise NotImplemented('No support for SSPs yet (due to t-dep)!')
 
             Lbol_at_tsf = self.get_lum_per_sfr(band=(None,None),
@@ -484,9 +484,8 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def get_lum_per_sfr(self, x=1600., window=1, Z=None, band=None,
-        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False,
-        age=None):
+    def get_lum_per_sfr(self, x=1600., window=1, Z=None, age=None, band=None,
+        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False):
         """
         Specific emissivity at provided wavelength at `source_age`.
 
@@ -558,7 +557,7 @@ class SynthesisModelBase(Source):
             / self.tab_energies_c[i1:i0] / erg_per_ev,
             x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             return E_tot / N_tot / erg_per_ev
         else:
             return E_tot[-1] / N_tot[-1] / erg_per_ev
@@ -576,7 +575,7 @@ class SynthesisModelBase(Source):
             self.get_lum_per_sfr_of_t(band=band, units=units,
             units_out=units_out, raw=raw)
 
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             # erg / s / Msun
             return np.interp(self.pf['source_age'], self.tab_t,
                 erg_per_variable)
@@ -707,7 +706,7 @@ class SynthesisModelBase(Source):
         #     photons / sec / (Msun / yr)
 
         # Integrate (cumulatively) over time
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             if return_all_t:
                 phot_per_b = cumtrapz(photons_per_b_t, x=self.tab_t*s_per_myr,
@@ -784,7 +783,7 @@ class SynthesisModel(SynthesisModelBase):
         if self.pf['source_sps_data'] is not None:
             _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
             assert _Z == self.pf['source_Z']
-            assert _ssp == self.pf['source_ssp']
+            assert _ssp == self.is_ssp
             self._data = _data
             self._times = _times
             self._tab_waves_c = _waves
@@ -851,7 +850,7 @@ class SynthesisModel(SynthesisModelBase):
             #self._data[np.argwhere(np.isnan(self._data))] = 0.0
 
         # Normalize by SFR or cluster mass.
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             # The factor of a million is built-in to the lookup tables
             self._data *= self.pf['source_mass'] / 1e6
             if hasattr(self, '_data_all_Z'):
