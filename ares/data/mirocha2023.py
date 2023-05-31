@@ -40,8 +40,6 @@ centrals_sf = \
 
  # SED info
  'pop_sed': 'eldridge2017',
- 'pop_sfh': 'const+burst',
- 'pop_binaries': False,
  'pop_rad_yield': 'from_sed',
 
  'pop_fesc': 0.2,
@@ -50,82 +48,10 @@ centrals_sf = \
  'pop_nebular': 0,
 
  'pop_sfh': 'constant+ssp',
- 'pop_age': (100, 5e3),
-
- # Something with dust and metallicity here
-
- # fstar is SMHM for 'smhm-func' SFR model
- 'pop_fstar': 'pq[0]',
- 'pq_func[0]': 'dpl_evolNP',
- 'pq_func_var[0]': 'Mh',
- 'pq_func_var2[0]': '1+z',
- 'pq_func_par0[0]': 4e-4,
- 'pq_func_par1[0]': 1.5e12,
- 'pq_func_par2[0]': 1.0,
- 'pq_func_par3[0]': -0.6,
- 'pq_func_par4[0]': 1e10,
- 'pq_func_par5[0]': 1.,     # pivot in 1+z
- 'pq_func_par6[0]': 0.,     # norm
- 'pq_func_par7[0]': 0.0,    # Mp
- 'pq_func_par8[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
- 'pq_func_par9[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
- 'pq_val_ceil[0]': 1,
-
-# sSFR(z, Mstell)
- 'pop_ssfr': 'pq[1]',
- 'pq_func[1]': 'dpl_evolNP',
- 'pq_func_var[1]': 'Ms',
- 'pq_func_var2[1]': '1+z',
- 'pq_func_par0[1]': 4e-10,
- 'pq_func_par1[1]': 5e9,
- 'pq_func_par2[1]': 0.0,
- 'pq_func_par3[1]': -0.9,
- 'pq_func_par4[1]': 1e9,
- 'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 0., # Redshift evol
- 'pq_func_par7[1]': 0., # peak evol
-
- # Some occupation function stuff here.
- 'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolMFC', # Evolving midpoint, floor, ceiling
- 'pq_func_var[2]': 'Mh',
- 'pq_func_var2[2]': '1+z',
- 'pq_val_ceil[2]': 1,
- 'pq_func_par0[2]': 1,
- 'pq_func_par1[2]': 0.0,
- 'pq_func_par2[2]': 11.8,
- 'pq_func_par3[2]': 0.6,
- 'pq_func_par4[2]': 0.1,
- 'pq_func_par5[2]': 1,
- 'pq_func_par6[2]': 0,
- 'pq_func_par7[2]': 0,
-
-}
-
-centrals_sf = \
-{
- 'pop_sfr_model': 'smhm-func',
- 'pop_solve_rte': (0.12, E_LyA),
- 'pop_Emin': 0.12,
- 'pop_Emax': 24.6,
-
- 'pop_centrals': True,
- 'pop_zdead': 0,
- 'pop_include_1h': False,
- 'pop_include_2h': True,
- 'pop_include_shot': True,
-
- # SED info
- 'pop_sed': 'eldridge2017',
+ 'pop_ssp': (False, True),
+ 'pop_age': (100, 3e3),
+ 'pop_Z': (0.008, 0.02), # placeholder, really
  'pop_binaries': False,
- 'pop_rad_yield': 'from_sed',
-
- 'pop_fesc': 0.2,
- 'pop_sed_degrade': 10,
-
- 'pop_nebular': 0,
-
- 'pop_sfh': 'constant+ssp',
 
  # Something with dust and metallicity here
 
@@ -180,6 +106,7 @@ centrals_sf = \
 #centrals_sf.update(_base)
 
 centrals_q = centrals_sf.copy()
+centrals_q['pop_sfh'] = 'ssp'
 centrals_q['pop_ssfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 3e3
@@ -187,8 +114,6 @@ centrals_q['pop_Z'] = 0.02
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
-
-# Add this later so old component of SFGs keeps original focc
 centrals_q['pop_focc_inv'] = True
 
 ihl_scaled = centrals_q.copy()
@@ -254,21 +179,21 @@ for i, _pop in enumerate([_pop2]):
 
     subhalos.update(pf)
 
-subhalos['pop_fsurv{3}'] = 'pq[3]'
-subhalos['pq_func[3]{3}'] = 'logtanh_abs_evolM'
-subhalos['pq_func_var[3]{3}'] = 'Mh'
-subhalos['pq_func_var2[3]{3}'] = '1+z'
-subhalos['pq_val_ceil[3]{3}'] = 1
-subhalos['pq_func_par0[3]{3}'] = 0.0  # step = par0-par1
-subhalos['pq_func_par1[3]{3}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-subhalos['pq_func_par2[3]{3}'] = 11
-subhalos['pq_func_par3[3]{3}'] = 0.7 # dlogM
-subhalos['pq_func_par4[3]{3}'] = 0.  # Evolution in midpoint
-subhalos['pq_func_par5[3]{3}'] = 1   # Pin to z=0
+subhalos['pop_fsurv{2}'] = 'pq[3]'
+subhalos['pq_func[3]{2}'] = 'logtanh_abs_evolM'
+subhalos['pq_func_var[3]{2}'] = 'Mh'
+subhalos['pq_func_var2[3]{2}'] = '1+z'
+subhalos['pq_val_ceil[3]{2}'] = 1
+subhalos['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
+subhalos['pq_func_par1[3]{2}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
+subhalos['pq_func_par2[3]{2}'] = 11
+subhalos['pq_func_par3[3]{2}'] = 0.7 # dlogM
+subhalos['pq_func_par4[3]{2}'] = 0.  # Evolution in midpoint
+subhalos['pq_func_par5[3]{2}'] = 1   # Pin to z=0
 
-subhalos['pop_fsurv{4}'] = 'link:fsurv:3'
+#subhalos['pop_fsurv{4}'] = 'link:fsurv:3'
 
-subhalos['pop_Mmin{3}'] = 1e10
+subhalos['pop_Mmin{2}'] = 1e10
 subhalos['pop_Mmin{4}'] = 1e10
 subhalos['pop_Mmin{5}'] = 1e10
 
@@ -302,4 +227,5 @@ mzr = \
  'pq_func_par4[30]': -0.08,   # no evolution
  'pq_val_ceil[30]': 9,
  'pq_val_floor[30]': 6,
+ 'pop_Z': ('mzr', 0.02),
 }

@@ -466,7 +466,8 @@ class UniformBackground(object):
                 tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
 
                 if compute_emissivities:
-                    ehat = [pop.get_tab_emissivity(z, Earr) for Earr in E]
+                    ehat = [pop.get_tab_emissivity(z, Earr) \
+                        for Earr in E]
                 else:
                     ehat = None
 

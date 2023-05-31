@@ -1427,7 +1427,7 @@ class GalaxyCohort(GalaxyAggregate):
             #age[age > t_H] = t_H
             if age > t_H:
                 age = t_H
-                print(f"WARNING: age exceeds Hubble time at z={z}.")
+                #print(f"WARNING: age exceeds Hubble time at z={z}.")
 
             ##
             # Next, determine metallicity across population (if necessary)
@@ -1531,7 +1531,11 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             # Depending on approach, either need to first get Av, dust
             # surface density, or MUV-Beta/IRXB
-            wave = self.src.get_ang_from_x(x, units=units)
+            if band is not None:
+                wave = np.mean(self.src.get_ang_from_x(band, units=units))
+                print("is this the best approach?")
+            else:
+                wave = self.src.get_ang_from_x(x, units=units)
 
             smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
             Ms = self.halos.tab_M * smhm
@@ -1776,8 +1780,8 @@ class GalaxyCohort(GalaxyAggregate):
         -------
         Halo mass in Msun.
         """
-        if type(wave) in numeric_types:
-            lam_r = wave * 1e4 / (1. + z)
+        if isinstance(x, numbers.Number):
+            lam_r = x * 1e4 / (1. + z)
             mags = self.get_mags(z, absolute=False, x=lam_r, window=51,
                 units='Angstrom')
         else:
@@ -4483,7 +4487,7 @@ class GalaxyCohort(GalaxyAggregate):
             E21 = h_p * c / (wave1[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu1 = self.get_emissivity(z, Emin=E21, Emax=E11)
+            enu1 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         if type(wave_obs2) in [int, float, np.float64]:
             is_band_int = False
@@ -4508,7 +4512,7 @@ class GalaxyCohort(GalaxyAggregate):
             E22 = h_p * c / (wave2[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu2 = self.get_emissivity(z, Emin=E22, Emax=E12)
+            enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         # Need angular diameter distance and H(z) for all that follows
         d = self.cosm.ComovingRadialDistance(0., z)           # [cm]

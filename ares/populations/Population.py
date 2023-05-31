@@ -771,8 +771,8 @@ class Population(object):
 
     @cached_property
     def is_sed_multicomponent(self):
-        assert self.pf['pop_sfr_model'] != 'ensemble'
-        return '+' in self.pf['pop_sfh']
+        return ('+' in self.pf['pop_sfh']) \
+           and (self.pf['pop_sfr_model'] != 'ensemble')
 
     @property
     def reference_band(self):
@@ -1230,7 +1230,8 @@ class Population(object):
                         continue
 
                     # [erg/s/Hz]
-                    lum_v_Mh = self.get_lum(z[ll], wave=_waves[jj], raw=False,
+                    lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
+                        raw=False, units_out='erg/s/Hz',
                         window=window[jj] if window[jj] % 2 == 1 else window[jj]+1)
 
                     # Setup integrand over population [erg/s/Hz/cMpc^3]
@@ -1340,7 +1341,7 @@ class Population(object):
                     # Use Emissivity here rather than rho_L because only
                     # GalaxyCohort objects will have a rho_L attribute.
                     epsilon[ll,in_band==1] = fix \
-                        * self.get_emissivity(redshift, Emin=b[0], Emax=b[1]) \
+                        * self.get_emissivity(redshift, band=b, units='eV') \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
 
                 ct += 1

@@ -184,6 +184,9 @@ _screen_dpl = \
  'pq_func_par6[22]': 0.0      # no z evolution by default
 }
 
+dust_screen = _screen.copy()
+dust_screen.update(_screen_dpl)
+
 plrd = _base.copy()
 plrd.update(_screen)
 

@@ -11,6 +11,7 @@ Description:
 """
 from functools import cached_property
 
+import numbers
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import cumtrapz
@@ -463,7 +464,7 @@ class SynthesisModelBase(Source):
                     yield_UV = np.mean(self.tab_sed[j1:j2+1,:] \
                         * np.abs(self.tab_dwdn[j1:j2+1])[:,None], axis=0)
                 else:
-                    yield_UV = np.mean(self.tab_sed[j1:j2+1,:])
+                    yield_UV = np.mean(self.tab_sed[j1:j2+1,:], axis=0)
 
         # Current units:
         # if pop_ssp:
@@ -824,10 +825,12 @@ class SynthesisModel(SynthesisModelBase):
             to_interp = np.array(_tmp)
             self._data_all_Z = to_interp
 
+            is_num = isinstance(self.pf['source_Z'], numbers.Number)
+
             # If outside table's metallicity range, just use endpoints
-            if self.pf['source_Z'] > max(Zall):
+            if is_num and self.pf['source_Z'] > max(Zall):
                 _raw_data = np.log10(to_interp[-1])
-            elif self.pf['source_Z'] < min(Zall):
+            elif is_num and self.pf['source_Z'] < min(Zall):
                 _raw_data = np.log10(to_interp[0])
             else:
                 # At each time, interpolate between SEDs at two different
@@ -840,7 +843,13 @@ class SynthesisModel(SynthesisModelBase):
                     inter = interp1d(np.log10(Zall),
                         to_interp[:,:,i], axis=0,
                         fill_value=0.0, kind=self.pf['interp_Z'])
-                    _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
+
+                    # In the general case where metallicity varies, do we
+                    # ever use this?
+                    if is_num:
+                        _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
+                    else:
+                        _raw_data[:,i] = inter(np.log10(Zall.min()))
 
             self._data = _raw_data
 
