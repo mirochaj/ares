@@ -1410,6 +1410,40 @@ class GalaxyCohort(GalaxyAggregate):
             return self.pf['pop_lum_per_sfr']
         ##
 
+        ##
+        # Determine fesc [will apply in a minute]
+        fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
+            units=units)
+
+
+        ##
+        # Determine dust reddening [will apply in a minute]
+        if not self.is_dusty:
+            T = 1
+        else:
+            # Depending on approach, either need to first get Av, dust
+            # surface density, or MUV-Beta/IRXB
+            if band is not None:
+                wave = np.mean(self.src.get_ang_from_x(band, units=units))
+                print("is this the best approach?")
+            else:
+                wave = self.src.get_ang_from_x(x, units=units)
+
+            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            Ms = self.halos.tab_M * smhm
+            if self.pf['pop_dust_template'] is not None:
+                Av = self.get_Av(z=z, Ms=Ms)
+                Sd = None
+            elif self.pf['pop_dust_yield'] is not None:
+                Av = None
+                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
+            else:
+                raise NotImplemented('help')
+
+            T = self.dust.get_transmission(wave, Av=Av, Sd=Sd).squeeze()
+
+        ##
+        # Loop over components (most often just one) and determine L
         Lh = np.zeros_like(self.halos.tab_M)
         for i, src in enumerate(self.srcs):
             age = src.pf['source_age']
@@ -1464,6 +1498,10 @@ class GalaxyCohort(GalaxyAggregate):
                     L_sfr = 10**f_L_sfr(np.log10(Z))
 
             ##
+            # Apply fesc and dust transmission now
+            L_sfr *= fesc * T
+
+            ##
             # Special treatment for SSPs
             if src.is_ssp:
 
@@ -1489,8 +1527,8 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
                         dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
-                        _Lh_[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
-
+                        _Lh_[i] = np.trapz(Ls * dndlnm,
+                            x=np.log(self.halos.tab_M))
 
             else:
 
@@ -1510,7 +1548,8 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
                         dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
-                        _Lh_[i] = np.trapz(Ls * dndlnm, x=np.log(self.halos.tab_M))
+                        _Lh_[i] = np.trapz(Ls * dndlnm,
+                            x=np.log(self.halos.tab_M))
 
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                 self.halos.tab_M < self.get_Mmax(z))
@@ -1518,38 +1557,6 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             Lh += _Lh_
 
-        ##
-        # Apply fesc
-        fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
-            units=units)
-        Lh *= fesc
-
-        ##
-        # Apply dust reddening
-        if not self.is_dusty:
-            T = 1
-        else:
-            # Depending on approach, either need to first get Av, dust
-            # surface density, or MUV-Beta/IRXB
-            if band is not None:
-                wave = np.mean(self.src.get_ang_from_x(band, units=units))
-                print("is this the best approach?")
-            else:
-                wave = self.src.get_ang_from_x(x, units=units)
-
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-            Ms = self.halos.tab_M * smhm
-            if self.pf['pop_dust_template'] is not None:
-                Av = self.get_Av(z=z, Ms=Ms)
-                Sd = None
-            elif self.pf['pop_dust_yield'] is not None:
-                Av = None
-                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
-            else:
-                raise NotImplemented('help')
-
-            T = self.dust.get_transmission(wave, Av=Av, Sd=Sd)
-            Lh *= T.squeeze()
 
         ##
         # Done
@@ -1881,7 +1888,8 @@ class GalaxyCohort(GalaxyAggregate):
                 return self._phi_of_L[(z, x, window)]
 
         Lh = self.get_lum(z, x=x, window=window,
-            raw=raw, nebular_only=nebular_only, band=band, units=units)
+            raw=raw, nebular_only=nebular_only, band=band, units=units,
+            units_out='erg/s/Hz')
 
         if self.pf['pop_halos'] is None:
             Mh = self.halos.tab_M
@@ -4320,15 +4328,15 @@ class GalaxyCohort(GalaxyAggregate):
             lum1 = 0
         else:
             band = wave1 if type(wave1) not in numeric_types else None
-            lum1 = self.get_lum(z, wave=wave1, raw=raw,
-                band=band, band_units='Angstrom',
+            lum1 = self.get_lum(z, x=wave1, raw=raw,
+                band=band, units='Angstrom',
                 nebular_only=nebular_only)
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
             band = wave2 if type(wave2) not in numeric_types else None
-            lum2 = self.get_lum(z, wave=wave2, raw=raw,
-                band=band, band_units='Angstrom',
+            lum2 = self.get_lum(z, x=wave2, raw=raw,
+                band=band, units='Angstrom',
                 nebular_only=nebular_only)
 
         focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)

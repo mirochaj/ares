@@ -136,16 +136,29 @@ ihl_scaled['pop_Mmin'] = 1e10
 ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
 
-satellites = centrals_sf.copy()
-satellites['pop_centrals'] = 0
-satellites['pop_centrals_id'] = 0
-satellites['pop_prof_1h'] = 'nfw'
-satellites['pop_include_1h'] = True
-satellites['pop_include_2h'] = True
-satellites['pop_include_shot'] = False
-satellites['pop_fstar'] = 'link:fstar:0'
-satellites['pop_ssfr'] = 'link:ssfr:0'
+satellites_sf = centrals_sf.copy()
+satellites_sf['pop_focc'] = 1
+satellites_sf['pop_focc_inv'] = False
+satellites_sf['pop_centrals'] = 0
+satellites_sf['pop_centrals_id'] = 0
+satellites_sf['pop_prof_1h'] = 'nfw'
+satellites_sf['pop_include_1h'] = True
+satellites_sf['pop_include_2h'] = True
+satellites_sf['pop_include_shot'] = False
+satellites_sf['pop_fstar'] = 'link:fstar:0'
+satellites_sf['pop_ssfr'] = 'link:ssfr:0'
 
+satellites_q = centrals_q.copy()
+satellites_q['pop_focc'] = 1
+satellites_q['pop_focc_inv'] = False
+satellites_q['pop_centrals'] = 0
+satellites_q['pop_centrals_id'] = 2
+satellites_q['pop_prof_1h'] = 'nfw'
+satellites_q['pop_include_1h'] = True
+satellites_q['pop_include_2h'] = True
+satellites_q['pop_include_shot'] = False
+satellites_q['pop_fstar'] = 'link:fstar:0'
+satellites_q['pop_ssfr'] = None
 
 #
 #ihl_from_sat = centrals_sf_old.copy()
@@ -162,7 +175,8 @@ satellites['pop_ssfr'] = 'link:ssfr:0'
 base = _base.copy()
 _pop0 = centrals_sf.copy()
 _pop1 = centrals_q.copy()
-_pop2 = satellites.copy()
+_pop2 = satellites_sf.copy()
+_pop3 = satellites_q.copy()
 
 for i, _pop in enumerate([_pop0, _pop1]):
     pf = {}
@@ -172,10 +186,10 @@ for i, _pop in enumerate([_pop0, _pop1]):
     base.update(pf)
 
 subhalos = {}
-for i, _pop in enumerate([_pop2]):
+for i, _pop in enumerate([_pop2, _pop3]):
     pf = {}
     for par in _pop.keys():
-        pf[par + '{%i}' % (i + 3)] = _pop[par]
+        pf[par + '{%i}' % (i + 2)] = _pop[par]
 
     subhalos.update(pf)
 
@@ -191,14 +205,8 @@ subhalos['pq_func_par3[3]{2}'] = 0.7 # dlogM
 subhalos['pq_func_par4[3]{2}'] = 0.  # Evolution in midpoint
 subhalos['pq_func_par5[3]{2}'] = 1   # Pin to z=0
 
-#subhalos['pop_fsurv{4}'] = 'link:fsurv:3'
-
-subhalos['pop_Mmin{2}'] = 1e10
-subhalos['pop_Mmin{4}'] = 1e10
-subhalos['pop_Mmin{5}'] = 1e10
-
-subhalos['pop_fsurv{5}'] = 'link:fsurv:3'
-subhalos['pop_fsurv_inv{5}'] = True
+subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
+subhalos['pop_fsurv_inv{3}'] = True
 
 dust = {}
 dust['pop_dust_template'] = 'WD01:MWRV31'
