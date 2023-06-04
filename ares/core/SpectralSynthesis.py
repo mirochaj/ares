@@ -50,6 +50,14 @@ class SpectralSynthesis(object):
         self._src = value
 
     @property
+    def _src_csfr(self):
+        return self._src_csfr_
+
+    @_src_csfr.setter
+    def _src_csfr(self, value):
+        self._src_csfr_ = value
+
+    @property
     def oversampling_enabled(self):
         if not hasattr(self, '_oversampling_enabled'):
             self._oversampling_enabled = True
@@ -1127,9 +1135,12 @@ class SpectralSynthesis(object):
         _m = (Loft[1] - Loft[0]) / (self.src.tab_t[1] - self.src.tab_t[0])
         L_small_t = lambda age: _m * age + Loft[0]
 
-        if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
-            L_asympt = np.exp(_func(np.log(self.src.pf['source_age'])))
-
+        if not self.src.pf['source_aging']:
+            # use _src_csfr?
+            #L_asympt = np.exp(_func(np.log(self.src.pf['source_age'])))
+            L_asympt = self._src_csfr.get_lum_per_sfr(x=x, units=units,
+                window=window, band=band, units_out=units_out,
+                raw=False)
         ##
         # Loop over the history of object(s) and compute the luminosity of
         # simple stellar populations of the corresponding ages (relative to
@@ -1151,7 +1162,7 @@ class SpectralSynthesis(object):
 
             ##
             # Life if easy for constant SFR models
-            if not (self.src.pf['source_aging'] or self.src.pf['source_ssp']):
+            if not self.src.pf['source_aging']:
 
                 if not do_all_time:
                     Lhist = L_asympt * sfh[:,i]

@@ -354,9 +354,10 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
 
         logx = np.log10(x)
 
-        hi = self.args[0] + self.args[6] * ((1. + kwargs['z']) / self.args[5])
-        lo = self.args[1] + self.args[7] * ((1. + kwargs['z']) / self.args[5])
-        w = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[5])
+        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4])
+        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4])
+        mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4])
+        w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4])
 
         hi = np.minimum(hi, 1.)
         lo = np.maximum(lo, 0.)
@@ -364,11 +365,33 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
 
         step = (hi - lo) * 0.5
 
-        if self.t == '1+z':
-            mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
+
+        return y
+
+class LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
         else:
-            raise NotImplemented('help')
+            x = kwargs[self.x]
+
+        logx = np.log10(x)
+
+        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[9] * ((1. + kwargs['z']) / self.args[4])**2
+        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[10] * ((1. + kwargs['z']) / self.args[4])**2
+        mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[11] * ((1. + kwargs['z']) / self.args[4])**2
+        w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[12] * ((1. + kwargs['z']) / self.args[4])**2
+
+        hi = np.minimum(hi, 1.)
+        lo = np.maximum(lo, 0.)
+        w = np.maximum(w, 0)
+
+        step = (hi - lo) * 0.5
 
         y = lo + step * (np.tanh((mid - logx) / w) + 1.)
 
@@ -834,6 +857,8 @@ class ParameterizedQuantity(object):
             self.func = LogTanhAbsEvolvingMidpointFloorCeiling(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolMFCW':
             self.func = LogTanhAbsEvolvingMidpointFloorCeilingWidth(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs_evolMFCWflex':
+            self.func = LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolW':
             self.func = LogTanhAbsEvolvingWidth(**kwargs)
         elif kwargs["pq_func"] == "logtanh_rel":

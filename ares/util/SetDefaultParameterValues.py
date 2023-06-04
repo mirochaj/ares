@@ -1044,7 +1044,7 @@ def SourceParameters():
         "source_prof_1h": None,
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
-        
+
         "source_psm_instance": None,
         "source_age": 100.0,
         "source_tneb": None,
@@ -1159,6 +1159,7 @@ def SynthesisParameters():
 
         "source_psm_instance": None,
         "source_age": 100.0,
+        "source_aging": False,
         "source_tneb": None,
         "source_binaries": False,        # for BPASS
         "source_sed_by_Z": None,

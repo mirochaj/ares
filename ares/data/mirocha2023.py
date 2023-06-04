@@ -57,7 +57,7 @@ centrals_sf = \
 
  # fstar is SMHM for 'smhm-func' SFR model
  'pop_fstar': 'pq[0]',
- 'pq_func[0]': 'dpl_evolNP',
+ 'pq_func[0]': 'dpl_evolNPS',
  'pq_func_var[0]': 'Mh',
  'pq_func_var2[0]': '1+z',
  'pq_func_par0[0]': 4e-4,
@@ -74,7 +74,7 @@ centrals_sf = \
 
 # sSFR(z, Mstell)
  'pop_ssfr': 'pq[1]',
- 'pq_func[1]': 'dpl_evolNP',
+ 'pq_func[1]': 'dpl_evolNPS',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
  'pq_func_par0[1]': 4e-10,
@@ -88,7 +88,7 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolMFC', # Evolving midpoint, floor, ceiling
+ 'pq_func[2]': 'logtanh_abs_evolMFCW', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
@@ -96,11 +96,15 @@ centrals_sf = \
  'pq_func_par1[2]': 0.0,
  'pq_func_par2[2]': 11.8,
  'pq_func_par3[2]': 0.6,
- 'pq_func_par4[2]': 0.1,
- 'pq_func_par5[2]': 1,
+ 'pq_func_par4[2]': 1,   # redshift pivot
+ 'pq_func_par5[2]': 0.,
  'pq_func_par6[2]': 0,
  'pq_func_par7[2]': 0,
-
+ 'pq_func_par8[2]': 0,
+ 'pq_func_par9[2]': 0.,
+ 'pq_func_par10[2]': 0,
+ 'pq_func_par11[2]': 0,
+ 'pq_func_par12[2]': 0,
 }
 
 #centrals_sf.update(_base)

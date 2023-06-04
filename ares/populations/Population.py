@@ -699,7 +699,7 @@ class Population(object):
                 self._src_csfr_ = self.pf['pop_src_instance']
             elif self._Source is not None:
                 try:
-                    kw = self.src_kwargs.copy()
+                    kw = self.src_kwargs[0].copy()
                     kw['source_ssp'] = False
                     self._src_csfr_ = self._Source(cosm=self.cosm, **kw)
                 except TypeError:
