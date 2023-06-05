@@ -70,6 +70,11 @@ centrals_sf = \
  'pq_func_par7[0]': 0.0,    # Mp
  'pq_func_par8[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_func_par9[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par10[0]': 0.0,
+ 'pq_func_par11[0]': 0.0,
+ 'pq_func_par12[0]': 0.0,
+ 'pq_func_par13[0]': 0.0,
+ 
  'pq_val_ceil[0]': 1,
 
 # sSFR(z, Mstell)
@@ -78,13 +83,15 @@ centrals_sf = \
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
  'pq_func_par0[1]': 4e-10,
- 'pq_func_par1[1]': 5e9,
+ 'pq_func_par1[1]': 2e9,
  'pq_func_par2[1]': 0.0,
  'pq_func_par3[1]': -0.9,
  'pq_func_par4[1]': 1e9,
  'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 0., # Redshift evol
+ 'pq_func_par6[1]': 2.2, # Redshift evol
  'pq_func_par7[1]': 0., # peak evol
+ 'pq_func_par8[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par9[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
@@ -218,11 +225,11 @@ dust['pop_Av'] = 'pq[4]'
 dust['pq_func[4]'] = 'pl_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 1
+dust['pq_func_par0[4]'] = 0.3
 dust['pq_func_par1[4]'] = 1e10
 dust['pq_func_par2[4]'] = 0.1
 dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
-dust['pq_func_par4[4]'] = 0.  # no evolution yet.
+dust['pq_func_par4[4]'] = -0.1  # no evolution yet.
 
 mzr = \
 {
@@ -234,9 +241,9 @@ mzr = \
  'pq_func_var2[30]': '1+z',
  'pq_func_par0[30]': 8.65,
  'pq_func_par1[30]': 10,
- 'pq_func_par2[30]': 0.25,
- 'pq_func_par3[30]': 1.,   # pin to z=0
- 'pq_func_par4[30]': -0.08,   # no evolution
+ 'pq_func_par2[30]': 0.1,
+ 'pq_func_par3[30]': 1.,     # pin to z=0
+ 'pq_func_par4[30]': -0.08,   # mild evolution
  'pq_val_ceil[30]': 9,
  'pq_val_floor[30]': 6,
  'pop_Z': ('mzr', 0.02),

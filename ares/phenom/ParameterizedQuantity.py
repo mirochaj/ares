@@ -642,6 +642,46 @@ class DoublePowerLawEvolvingNormPeakSlope(BasePQ):
 
         return y
 
+class DoublePowerLawEvolvingNormPeakSlopeFlex(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        # This is the peak mass
+        p1 = 10**(np.log10(self.args[1]) + self.args[7] * (t / self.args[5]) \
+           + self.args[11] * (t / self.args[5])**2)
+
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+
+        s1 = self.args[2] + self.args[8] * (t / self.args[5]) \
+           + + self.args[12] * (t / self.args[5])**2
+        s2 = self.args[3] + self.args[9] * (t / self.args[5]) \
+           + + self.args[13] * (t / self.args[5])**2
+
+
+        # This is to conserve memory.
+        xx = x / p1
+        y  = xx**-s1
+        y += xx**-s2
+        np.divide(1., y, out=y)
+
+        if self.t == "1+z":
+            y *= 10**(np.log10(normcorr * self.args[0]) \
+               + self.args[6] * ((1. + kwargs["z"]) / self.args[5]) \
+               + self.args[10] * ((1. + kwargs["z"]) / self.args[5])**2)
+        else:
+            raise NotImplemented('help')
+            y *= normcorr * self.args[0] \
+               + self.args[6] * (kwargs[self.t] / self.args[5]) \
+               + self.args[10] * (kwargs[self.t] / self.args[5])**2
+
+        return y
+
 class DoublePowerLawEvolvingNormPeakSlopeFloor(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
@@ -829,6 +869,8 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingNormPeak(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolNPS":
             self.func = DoublePowerLawEvolvingNormPeakSlope(**kwargs)
+        elif kwargs["pq_func"] == "dpl_evolNPSflex":
+            self.func = DoublePowerLawEvolvingNormPeakSlopeFlex(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolNPSF":
             self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
         elif kwargs["pq_func"] == "exp":
