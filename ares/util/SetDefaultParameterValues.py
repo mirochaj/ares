@@ -591,11 +591,16 @@ def PopulationParameters():
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
 
+    # Used only for approximate SFH treatments in GalaxyCohort
+    # "real" spectral synthesis done in GalaxyEnsemble by default
+    "pop_sfh": 'const',
+
+    # Numerics of specral synthesis
     "pop_sfh_oversample": 0,
     "pop_ssp_oversample": False,
     "pop_ssp_oversample_age": 30.,
 
-    "pop_sfh": False,             # account for SFH in spectrum modeling
+
 
     # Option of setting Z, t, or just supplying SSP table?
 
@@ -871,7 +876,7 @@ def PopulationParameters():
     "pop_Av": None,
     'pop_dust_template': None,
     "pop_dust_absorption_coeff": None,   # opacity in [cm^2 / g]
-    
+
 
 
     "pop_fpoll": 1.0,         # uniform pollution
@@ -1038,6 +1043,8 @@ def SourceParameters():
         "source_nebular_caseBdeparture": 1.0,
         "source_prof_1h": None,
         "source_ssp": False,             # a.k.a., continuous SF
+        "source_sfh": 'const',
+
         "source_psm_instance": None,
         "source_age": 100.0,
         "source_tneb": None,
@@ -1148,8 +1155,11 @@ def SynthesisParameters():
         "source_fesc": 0.0,
 
         "source_ssp": False,             # a.k.a., continuous SF
+        "source_sfh": 'const',
+
         "source_psm_instance": None,
         "source_age": 100.0,
+        "source_aging": False,
         "source_tneb": None,
         "source_binaries": False,        # for BPASS
         "source_sed_by_Z": None,

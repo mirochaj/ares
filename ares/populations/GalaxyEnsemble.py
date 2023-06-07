@@ -14,7 +14,7 @@ import os
 import gc
 import time
 import pickle
-
+import numbers
 import numpy as np
 from scipy.optimize import curve_fit
 
@@ -1073,8 +1073,11 @@ class GalaxyEnsemble(HaloPopulation):
 
             np.random.seed(self.pf['pop_fduty_seed'])
 
-            fduty = self.guide.fduty(z=z2d, Mh=Mh)
+            fduty = self.get_fduty(z=z2d, Mh=Mh)
             T_on = self.pf['pop_fduty_dt']
+
+            if isinstance(fduty, numbers.Number):
+                fduty = fduty * np.ones_like(Mh)
 
             if T_on is not None:
 
@@ -1640,6 +1643,10 @@ class GalaxyEnsemble(HaloPopulation):
 
         return results
 
+    def get_fduty(self, z, Mh):
+        func = self._get_function('pop_fduty')
+        return func(z=z, Mh=Mh)
+
     def get_dust_yield_delay(self, z, Mh):
         func = self._get_function('pop_dust_yield_delay')
         return func(z=z, Mh=Mh)
@@ -2039,6 +2046,7 @@ class GalaxyEnsemble(HaloPopulation):
         if not hasattr(self, '_synth'):
             self._synth = SpectralSynthesis(**self.pf)
             self._synth.src = self.src
+            self._synth._src_csfr = self._src_csfr
             self._synth.oversampling_enabled = self.pf['pop_ssp_oversample']
             self._synth.oversampling_below = self.pf['pop_ssp_oversample_age']
             self._synth.careful_cache = self.pf['pop_synth_cache_level']

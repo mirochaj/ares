@@ -12,6 +12,7 @@ Description: Initialize a radiation source.
 
 import os
 import re
+import numbers
 import numpy as np
 from scipy.integrate import quad
 from ..util import ParameterFile
@@ -64,6 +65,10 @@ class Source(object):
     @cached_property
     def is_sed_tabular(self):
         return self.pf['source_sed'] in _sed_tabs
+
+    @cached_property
+    def is_ssp(self):
+        return self.pf['source_ssp']
 
     @property
     def Emin(self):
@@ -410,8 +415,26 @@ class Source(object):
              / quad(norm, Emin, Emax, points=self.sharp_points)[0]
 
     def get_ang_from_x(self, x, units='eV'):
+        """
+        Convert input `x` from `units` to Angstroms.
+        """
         xout = self.get_ev_from_x(x, units=units)
-        return h_p * c / erg_per_ev / xout / 1e-8
+
+        type_in = type(x)
+
+        if isinstance(x, numbers.Number):
+            out = h_p * c / erg_per_ev / xout / 1e-8
+        else:
+            out = h_p * c / erg_per_ev / np.array(xout) / 1e-8
+
+        if type_in == tuple:
+            return tuple(out)
+        elif type_in == list:
+            return list(out)
+        elif type_in in numeric_types:
+            return float(out)
+        else:
+            return out
 
     def get_ev_from_x(self, x, units='eV'):
         """

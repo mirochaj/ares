@@ -354,9 +354,10 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
 
         logx = np.log10(x)
 
-        hi = self.args[0] + self.args[6] * ((1. + kwargs['z']) / self.args[5])
-        lo = self.args[1] + self.args[7] * ((1. + kwargs['z']) / self.args[5])
-        w = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[5])
+        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4])
+        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4])
+        mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4])
+        w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4])
 
         hi = np.minimum(hi, 1.)
         lo = np.maximum(lo, 0.)
@@ -364,11 +365,33 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
 
         step = (hi - lo) * 0.5
 
-        if self.t == '1+z':
-            mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
+
+        return y
+
+class LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
         else:
-            raise NotImplemented('help')
+            x = kwargs[self.x]
+
+        logx = np.log10(x)
+
+        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[9] * ((1. + kwargs['z']) / self.args[4])**2
+        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[10] * ((1. + kwargs['z']) / self.args[4])**2
+        mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[11] * ((1. + kwargs['z']) / self.args[4])**2
+        w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[12] * ((1. + kwargs['z']) / self.args[4])**2
+
+        hi = np.minimum(hi, 1.)
+        lo = np.maximum(lo, 0.)
+        w = np.maximum(w, 0)
+
+        step = (hi - lo) * 0.5
 
         y = lo + step * (np.tanh((mid - logx) / w) + 1.)
 
@@ -619,6 +642,46 @@ class DoublePowerLawEvolvingNormPeakSlope(BasePQ):
 
         return y
 
+class DoublePowerLawEvolvingNormPeakSlopeFlex(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        # This is the peak mass
+        p1 = 10**(np.log10(self.args[1]) + self.args[7] * (t / self.args[5]) \
+           + self.args[11] * (t / self.args[5])**2)
+
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+
+        s1 = self.args[2] + self.args[8] * (t / self.args[5]) \
+           + + self.args[12] * (t / self.args[5])**2
+        s2 = self.args[3] + self.args[9] * (t / self.args[5]) \
+           + + self.args[13] * (t / self.args[5])**2
+
+
+        # This is to conserve memory.
+        xx = x / p1
+        y  = xx**-s1
+        y += xx**-s2
+        np.divide(1., y, out=y)
+
+        if self.t == "1+z":
+            y *= 10**(np.log10(normcorr * self.args[0]) \
+               + self.args[6] * ((1. + kwargs["z"]) / self.args[5]) \
+               + self.args[10] * ((1. + kwargs["z"]) / self.args[5])**2)
+        else:
+            raise NotImplemented('help')
+            y *= normcorr * self.args[0] \
+               + self.args[6] * (kwargs[self.t] / self.args[5]) \
+               + self.args[10] * (kwargs[self.t] / self.args[5])**2
+
+        return y
+
 class DoublePowerLawEvolvingNormPeakSlopeFloor(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
@@ -806,6 +869,8 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingNormPeak(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolNPS":
             self.func = DoublePowerLawEvolvingNormPeakSlope(**kwargs)
+        elif kwargs["pq_func"] == "dpl_evolNPSflex":
+            self.func = DoublePowerLawEvolvingNormPeakSlopeFlex(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolNPSF":
             self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
         elif kwargs["pq_func"] == "exp":
@@ -834,6 +899,8 @@ class ParameterizedQuantity(object):
             self.func = LogTanhAbsEvolvingMidpointFloorCeiling(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolMFCW':
             self.func = LogTanhAbsEvolvingMidpointFloorCeilingWidth(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs_evolMFCWflex':
+            self.func = LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolW':
             self.func = LogTanhAbsEvolvingWidth(**kwargs)
         elif kwargs["pq_func"] == "logtanh_rel":

@@ -11,6 +11,7 @@ Description:
 """
 from functools import cached_property
 
+import numbers
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import cumtrapz
@@ -274,7 +275,7 @@ class SynthesisModelBase(Source):
         Should be dimensionless?
         """
         if not hasattr(self, '_LE'):
-            if self.pf['source_ssp']:
+            if self.is_ssp:
                 raise NotImplemented('No support for SSPs yet (due to t-dep)!')
 
             Lbol_at_tsf = self.get_lum_per_sfr(band=(None,None),
@@ -463,7 +464,7 @@ class SynthesisModelBase(Source):
                     yield_UV = np.mean(self.tab_sed[j1:j2+1,:] \
                         * np.abs(self.tab_dwdn[j1:j2+1])[:,None], axis=0)
                 else:
-                    yield_UV = np.mean(self.tab_sed[j1:j2+1,:])
+                    yield_UV = np.mean(self.tab_sed[j1:j2+1,:], axis=0)
 
         # Current units:
         # if pop_ssp:
@@ -484,9 +485,8 @@ class SynthesisModelBase(Source):
 
         return None
 
-    def get_lum_per_sfr(self, x=1600., window=1, Z=None, band=None,
-        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False,
-        age=None):
+    def get_lum_per_sfr(self, x=1600., window=1, Z=None, age=None, band=None,
+        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False):
         """
         Specific emissivity at provided wavelength at `source_age`.
 
@@ -558,7 +558,7 @@ class SynthesisModelBase(Source):
             / self.tab_energies_c[i1:i0] / erg_per_ev,
             x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             return E_tot / N_tot / erg_per_ev
         else:
             return E_tot[-1] / N_tot[-1] / erg_per_ev
@@ -576,7 +576,7 @@ class SynthesisModelBase(Source):
             self.get_lum_per_sfr_of_t(band=band, units=units,
             units_out=units_out, raw=raw)
 
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             # erg / s / Msun
             return np.interp(self.pf['source_age'], self.tab_t,
                 erg_per_variable)
@@ -707,7 +707,7 @@ class SynthesisModelBase(Source):
         #     photons / sec / (Msun / yr)
 
         # Integrate (cumulatively) over time
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             if return_all_t:
                 phot_per_b = cumtrapz(photons_per_b_t, x=self.tab_t*s_per_myr,
@@ -784,7 +784,7 @@ class SynthesisModel(SynthesisModelBase):
         if self.pf['source_sps_data'] is not None:
             _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
             assert _Z == self.pf['source_Z']
-            assert _ssp == self.pf['source_ssp']
+            assert _ssp == self.is_ssp
             self._data = _data
             self._times = _times
             self._tab_waves_c = _waves
@@ -825,10 +825,12 @@ class SynthesisModel(SynthesisModelBase):
             to_interp = np.array(_tmp)
             self._data_all_Z = to_interp
 
+            is_num = isinstance(self.pf['source_Z'], numbers.Number)
+
             # If outside table's metallicity range, just use endpoints
-            if self.pf['source_Z'] > max(Zall):
+            if is_num and self.pf['source_Z'] > max(Zall):
                 _raw_data = np.log10(to_interp[-1])
-            elif self.pf['source_Z'] < min(Zall):
+            elif is_num and self.pf['source_Z'] < min(Zall):
                 _raw_data = np.log10(to_interp[0])
             else:
                 # At each time, interpolate between SEDs at two different
@@ -841,7 +843,13 @@ class SynthesisModel(SynthesisModelBase):
                     inter = interp1d(np.log10(Zall),
                         to_interp[:,:,i], axis=0,
                         fill_value=0.0, kind=self.pf['interp_Z'])
-                    _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
+
+                    # In the general case where metallicity varies, do we
+                    # ever use this?
+                    if is_num:
+                        _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
+                    else:
+                        _raw_data[:,i] = inter(np.log10(Zall.min()))
 
             self._data = _raw_data
 
@@ -851,7 +859,7 @@ class SynthesisModel(SynthesisModelBase):
             #self._data[np.argwhere(np.isnan(self._data))] = 0.0
 
         # Normalize by SFR or cluster mass.
-        if self.pf['source_ssp']:
+        if self.is_ssp:
             # The factor of a million is built-in to the lookup tables
             self._data *= self.pf['source_mass'] / 1e6
             if hasattr(self, '_data_all_Z'):

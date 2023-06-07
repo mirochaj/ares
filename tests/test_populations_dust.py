@@ -15,8 +15,11 @@ import numpy as np
 
 def test():
     pars = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
-    pars.update(ares.util.ParameterBundle('mirocha2023:Av'))
+    pars.update(ares.util.ParameterBundle('mirocha2023:dust'))
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
+    pars['pop_Z'] = (0.02, 0.02)
+    pars['pop_age'] = (100, 100)
+    pars['pop_ssp'] = False, False
     pars['pop_dust_template'] = 'WD01:MWRV31'
 
     pop_Av = ares.populations.GalaxyPopulation(**pars)
@@ -39,7 +42,10 @@ def test():
 
     pars2 = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
     pars2.update(ares.util.ParameterBundle('testing:galaxies'))
-    pars2.update(ares.util.ParameterBundle('mirocha2023:dust'))
+    pars2['pop_Z'] = (0.02, 0.02)
+    pars2['pop_age'] = (100, 100)
+    pars2['pop_ssp'] = False, False
+    pars2.update(ares.util.ParameterBundle('mirocha2020:dust_screen'))
     pars2['pop_dust_template'] = None
     pars2['pop_dust_absorption_coeff'] = 'pq[20]'
     pars2["pq_func[20]"] = 'pl'
@@ -83,6 +89,9 @@ def test():
 
     pars0 = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
     pars0.update(ares.util.ParameterBundle('testing:galaxies'))
+    pars0['pop_Z'] = (0.02, 0.02)
+    pars0['pop_age'] = (100, 100)
+    pars0['pop_ssp'] = False, False
     pop0 = ares.populations.GalaxyPopulation(**pars0)
     assert not pop0.is_dusty
 
