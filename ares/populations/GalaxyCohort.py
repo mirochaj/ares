@@ -1329,26 +1329,18 @@ class GalaxyCohort(GalaxyAggregate):
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
         nebular_only=False):
         """
-        Compute the SED for all galaxies at given redshift.
+        Compute the rest-frame SED for all galaxies at given redshift.
+
+        .. note :: Really just a wrapper around `get_lum`.
 
         Parameters
         ----------
         z : int, float
             Redshift of interest
         waves : np.ndarray
-            Array of rest-wavelengths at which to generate SED [Angstrom].
-        M : np.ndarray, optional
-            If not supplied, will generate SED in pre-determined set of
-            halo mass bins corresponding to `self.halos.tab_M`. Otherwise,
-            will interpolate onto user-supplied range.
-        stellar_mass : bool
-            If True, assumes the user-supplied `M` values (above) are stellar
-            masses, not halo masses, in which case the SMHM is first computed
-            and interpolation is done in M_stell rather than M_h.
+            Array of rest-wavelengths at which to generate SED [Angstroms].
 
 
-        Just a wrapper around `get_lum` with option of interpolating to new
-        mass.
         """
 
         if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
@@ -1372,13 +1364,33 @@ class GalaxyCohort(GalaxyAggregate):
             raise NotImplemented('help')
 
     def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz'):
+        """
+        Return the spectra of all objects in the observer frame at z=0.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        waves : np.ndarray
+            Wavelengths at which to generate spectra [Angstroms].
+        units_out : str
+            Controls whether fluxes returned are per Angstrom or per Hz.
+
+        Returns
+        -------
+        Tuple containing:
+            (observed wavelengths [microns], observed fluxes [units_out])
+
+        The fluxes array is (num galaxies, num wavelengths) in shape.
+
+        """
         if waves is None:
             waves = self.src.tab_waves_c
             dwdn = self.src.tab_dwdn
         else:
             dwdn = waves**2 / (c * 1e8)
 
-        spec = self.get_spec(z, waves=waves, units_out=units_out)
+        spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz')
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
@@ -1735,7 +1747,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_mags(self, z, absolute=True, x=1600, band=None,
         units='Angstrom', window=1, cam=None, filters=None,
-        filter_set=None, presets=None,
+        filter_set=None, presets=None, absolulute=False,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.

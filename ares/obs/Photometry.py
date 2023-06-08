@@ -241,6 +241,9 @@ class Photometry(object):
         # Convert to magnitudes
         mphot = -2.5 * np.log10(yphot_corr / flux_AB)
 
+        if batch_mode:
+            mphot = np.swapaxes(mphot, 0, 1)
+
         # We're done
         return fphot, xphot, wphot, mphot
 
