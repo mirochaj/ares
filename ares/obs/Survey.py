@@ -139,10 +139,16 @@ class Survey(object):
             return self._read_roman(filters)
         elif self.camera == 'wise':
             return self._read_wise(filters)
+        elif self.camera == '2mass':
+            return self._read_2mass(filters)
+        elif self.camera == 'euclid':
+            return self._read_euclid(filters)
         elif self.camera == 'spherex':
             return self._read_spherex(filters)
         elif self.camera == 'rubin':
             return self._read_rubin(filters)
+        elif self.camera == 'panstarrs':
+            return self._read_panstarrs(filters)
         else:
             raise NotImplemented('help')
 
@@ -448,6 +454,61 @@ class Survey(object):
         for i, filt in enumerate(['W1', 'W2']):
             full_path = os.path.join(path, f"RSR-{filt}.txt")
             x, y, z = np.loadtxt(full_path, unpack=True)
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_2mass(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "2mass")
+
+        data = {}
+        cent = 1.235, 1.662, 2.159
+        for i, filt in enumerate(['J', 'H', 'Ks']):
+            full_path = os.path.join(path, f"2MASS.{filt}")
+            x, y = np.loadtxt(full_path, unpack=True)
+            x *= 1e-4
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_euclid(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "euclid")
+
+        data = {}
+        cent = 1.0809, 1.3673, 1.7714
+        for i, filt in enumerate(['Y', 'J', 'H']):
+            full_path = os.path.join(path,
+                f"NISP-PHOTO-PASSBANDS-V1-{filt}_throughput.dat")
+            x, y = np.loadtxt(full_path, unpack=True, usecols=[0,1])
+            x *= 1e-3
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_panstarrs(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "panstarrs")
+
+        data = {}
+        cent = 0.493601, 0.620617, 0.755348, 0.870475, 0.952863
+        for i, filt in enumerate(['g', 'r', 'i', 'z', 'y']):
+            full_path = os.path.join(path, f"PS1.{filt}")
+            x, y = np.loadtxt(full_path, unpack=True, usecols=[0,1])
+            x *= 1e-4
             data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
 
             self._filter_cache[filt] = copy.deepcopy(data[filt])

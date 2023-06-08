@@ -1325,7 +1325,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     #    return L_sfr
 
-    def get_spec(self, z, waves, per_Hz=False,
+    def get_spec(self, z, waves,
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
         nebular_only=False):
         """
@@ -1360,7 +1360,7 @@ class GalaxyCohort(GalaxyAggregate):
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only)
 
-            if per_Hz:
+            if 'hz' in units_out.lower():
                 pass
             else:
                 dwdn = waves**2 / (c * 1e8)
@@ -1371,21 +1371,21 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_spec_obs(self, z, waves=None, per_Hz=False):
+    def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz'):
         if waves is None:
             waves = self.src.tab_waves_c
             dwdn = self.src.tab_dwdn
         else:
             dwdn = waves**2 / (c * 1e8)
 
-        spec = self.get_spec(z, waves=waves, per_Hz=per_Hz)
+        spec = self.get_spec(z, waves=waves, units_out=units_out)
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
         f = spec / (4. * np.pi * dL**2)
 
         # Correct for redshifting and change in units.
-        if per_Hz:
+        if 'hz' in units_out.lower():
             f *= (1. + z)
         else:
             f /= dwdn
