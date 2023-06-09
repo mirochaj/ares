@@ -153,7 +153,7 @@ class SpectralSynthesis(object):
 
         return self._L_of_Z_t[wave]
 
-    def Slope(self, zobs=None, tobs=None, spec=None, waves=None,
+    def get_slope(self, zobs=None, tobs=None, spec=None, waves=None,
         sfh=None, zarr=None, tarr=None, hist={}, idnum=None,
         cam=None, rest_wave=None, band=None,
         return_norm=False, filters=None, filter_set=None, dlam=20.,

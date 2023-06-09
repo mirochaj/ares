@@ -15,8 +15,8 @@ from .Survey import Survey
 from ..util import ParameterFile
 from ..physics.Constants import flux_AB, c
 
-all_cameras = ['wfc', 'wfc3', 'nircam', 'roman', 'irac', 'wise', '2mass',
-    'panstarrs', 'euclid', 'spherex']
+all_cameras = ['wfc', 'wfc3', 'hubble', 'hst', 'nircam', 'roman', 'irac',
+    'spitzer', 'wise', '2mass', 'panstarrs', 'euclid', 'spherex']
 
 class Photometry(object):
     def __init__(self, **kwargs):
@@ -51,7 +51,7 @@ class Photometry(object):
         return self.cameras[cam].get_filter_info(filt)
 
     def get_required_spectral_range(self, zobs, cam, filters=None,
-        filter_set=None, picky=True, rest_wave=None, tol=0.2, dlam=20.):
+        picky=True, restricted_range=None, tol=0.2, dlam=20.):
         """
         Return a range of rest-wavelengths [Angstroms] needed to sample the
         full range of wavelengths probed by a given set of photometric filters.
@@ -63,8 +63,9 @@ class Photometry(object):
 
         # Get transmission curves
         if cam in self.cameras.keys():
-            filter_data = self.cameras[cam].read_throughputs(
-                filter_set=filter_set, filters=filters)
+            filter_data = self.cameras[cam].read_throughputs(filters=filters)
+        else:
+            raise NotImplementedError(f'Unrecognized `cam`={cam}')
 
         # Figure out spectral range we need to model for these filters.
         # Find bluest and reddest filters, set wavelength range with some
@@ -81,18 +82,20 @@ class Photometry(object):
             # Right now, will include filters as long as their center is in
             # the requested band. This results in fluctuations in slope
             # measurements, so to be more stringent set picky=True.
-            #if rest_wave is not None:
+            if restricted_range is not None:
 
-            #    if picky:
-            #        l = (cent - dx[1]) * 1e4 / (1. + zobs)
-            #        r = (cent + dx[0]) * 1e4 / (1. + zobs)
+                rest_lo, rest_hi = restricted_range
 
-            #        if (l < rest_wave[0]) or (r > rest_wave[1]):
-            #            continue
+                if picky:
+                    l = (cent - dx[1]) * 1e4 / (1. + zobs)
+                    r = (cent + dx[0]) * 1e4 / (1. + zobs)
 
-            #    cent_r = cent * 1e4 / (1. + zobs)
-            #    if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
-            #        continue
+                    if (l < rest_lo) or (r > rest_hi):
+                        continue
+
+                cent_r = cent * 1e4 / (1. + zobs)
+                if (cent_r < rest_lo) or (cent_r > rest_hi):
+                    continue
 
             lmin = min(lmin, cent - dx[1] * (1. + tol))
             lmax = max(lmax, cent + dx[0] * (1. + tol))
@@ -114,7 +117,7 @@ class Photometry(object):
         return waves
 
     def get_photometry(self, flux, owaves, flux_units=None,
-        cam='wfc3', filters='all', filter_set=None, presets=None,
+        cam='wfc3', filters=None, presets=None,
         rest_wave=None,
         idnum=None, picky=False,
         load=True, use_pbar=True):
@@ -147,8 +150,7 @@ class Photometry(object):
 
         # Get transmission curves
         if cam in self.cameras.keys():
-            filter_data = self.cameras[cam].read_throughputs(
-                filter_set=filter_set, filters=filters)
+            filter_data = self.cameras[cam].read_throughputs(filters=filters)
         else:
             # Can supply spectral windows, e.g., Calzetti+ 1994, in which
             # case we assume perfect transmission but otherwise just treat
@@ -209,7 +211,7 @@ class Photometry(object):
         # transmission fraction) and convert to observed magnitudes.
         for filt in all_filters:
 
-            if filters != 'all':
+            if (filters != 'all') and (filters is not None):
                 if filt not in filters:
                     continue
 
@@ -263,6 +265,100 @@ class Photometry(object):
         # We're done
         return fphot, xphot, wphot, mphot
 
+    def get_avg_mags(self, mags, x, method=None, wave=None, z=None):
+        """
+        Occasionally, we might want to report some band-averaged magnitude.
+        """
+
+        ##
+        # First, easy stuff.
+        # If only one filter, or no averaging requested, just return.
+        if (method is None) or (mags.ndim == 1):
+            return mags
+
+        if mags.ndim == 2:
+            if mags.shape[1] == 1:
+                return mags[:,0]
+
+
+        ##
+        # From here onward, may be doing some averaging.
+        Nhalos = mags.shape[0]
+        Nfilters = mags.shape[1]
+
+        filt, xfilt, dxfilt = x
+
+        ##
+        # Interpolate etc.
+        ##
+        xout = None
+        mout = None
+
+        # NaNs caused be zero flux will mess things up below, so make a
+        # masked array first to avoid headaches.
+        mags = np.ma.array(mags, mask=np.isnan(mags))
+
+        if method == 'gmean':
+            if not (np.all(mags < 0) or np.all(mags > 0)):
+                raise ValueError('If geometrically averaging magnitudes, must all be the same sign!')
+
+            #if len(mags) == 0:
+            #    Mg = -99999 * np.ones(hist['SFR'].shape[0])
+            #else:
+            mout = np.nanprod(np.abs(mags), axis=1)**(1. / float(Nfilters))
+            mout = -1 * mout if np.all(mout < 0) else mout
+
+        elif method == 'closest':
+            assert wave is not None, "Must supply wavelength for this method!"
+            #if len(mags) == 0:
+            #    Mg = -99999 * np.ones(hist['SFR'].shape[0])
+            #else:
+            # Get closest to specified rest-wavelength
+            rphot = np.array(xfilt) * 1e4 / (1. + z)
+            k = np.argmin(np.abs(rphot - wave))
+            mout = mags[:,k]
+            xout = filt[k]
+        elif method == 'interp':
+            #if len(mags) == 0:
+            #    Mg = -99999 * np.ones(Nhalos)
+            #else:
+            rphot = np.array(xfilt) * 1e4 / (1. + z)
+            kall = np.argsort(np.abs(rphot - wave))
+            _k1 = kall[0]#np.argmin(np.abs(rphot - wave))
+
+            if len(kall) == 1:
+                mout = mags[:,_k1]
+            else:
+                _k2 = kall[1]
+
+                if rphot[_k2] < rphot[_k1]:
+                    k1 = _k2
+                    k2 = _k1
+                else:
+                    k1 = _k1
+                    k2 = _k2
+
+                dy = mags[:,k2] - mags[:,k1]
+                dx = rphot[k2] - rphot[k1]
+                m = dy / dx
+
+                mout = mags[:,k1] + m * (wave - rphot[k1])
+
+        #elif method == 'mono':
+        #    if len(mags) == 0:
+        #        Mg = -99999 * np.ones(Nhalos)
+        #    else:
+        #        Mg = M
+        else:
+            raise NotImplemented('method={} not recognized.'.format(method))
+
+        #if MUV is not None:
+        #    Mout = np.interp(MUV, M[-1::-1], Mg[-1::-1])
+        #else:
+        #    Mout = Mg
+
+
+        return mout
 
 def get_filters_from_waves(z, fset, wave_lo=1300., wave_hi=2600., picky=True):
     """

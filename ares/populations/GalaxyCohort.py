@@ -1233,7 +1233,7 @@ class GalaxyCohort(GalaxyAggregate):
             assert self.pf['pop_volume'] is not None
 
             if use_mags:
-                x = self.get_mags(z=z, x=x, units=units, window=window,
+                _x_, x = self.get_mags(z=z, x=x, units=units, window=window,
                     absolute=absolute, raw=raw, nebular_only=nebular_only)
             else:
                 x = self.get_lum(z=z, x=x, units=units, window=window,
@@ -1747,8 +1747,9 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_mags(self, z, absolute=True, x=1600, band=None,
         units='Angstrom', window=1, cam=None, filters=None, dlam=20,
-        filter_set=None, presets=None, absolulute=False,
-        load=True, raw=False, nebular_only=False, apply_dustcorr=False):
+        presets=None, absolulute=False, method=None,
+        load=True, raw=False, nebular_only=False, apply_dustcorr=False,
+        restricted_range=None):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
 
@@ -1771,9 +1772,11 @@ class GalaxyCohort(GalaxyAggregate):
                 nebular_only=nebular_only)
 
             mags = self.magsys.L_to_MAB(L)
+            xout = x
         else:
             waves = self.phot.get_required_spectral_range(z, cam=cam,
-                filters=filters, filter_set=filter_set, dlam=dlam)
+                filters=filters, dlam=dlam,
+                restricted_range=restricted_range)
 
             owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz')
 
@@ -1784,17 +1787,21 @@ class GalaxyCohort(GalaxyAggregate):
             mags = self.get_mags_abs(z, mags)
 
             # In this case, return filter names, central wavlengths, and FWHM
-            x = filt, xfilt, dxfilt
+            xout = filt, xfilt, dxfilt
+
+        # Take geometric mean or anything?
+        wave = self.src.get_ang_from_x(x, units=units) # only used if method='closest'
+        mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
 
         ##
         # Potentially convert to apparent magnitudes.
         if absolute:
-            return x, mags
+            return xout, mags
         else:
             if apply_dustcorr:
                 raise NotImplemented('help!')
 
-            return x, self.get_mags_app(z, mags)
+            return xout, self.get_mags_app(z, mags)
 
     def get_Mmax_from_maglim(self, z, x, mlim, mtol=0.05):
         """
@@ -1816,7 +1823,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
         if isinstance(x, numbers.Number):
             lam_r = x * 1e4 / (1. + z)
-            mags = self.get_mags(z, absolute=False, x=lam_r, window=51,
+            _x_, mags = self.get_mags(z, absolute=False, x=lam_r, window=51,
                 units='Angstrom')
         else:
             raise NotImplemented('help')
@@ -2027,7 +2034,7 @@ class GalaxyCohort(GalaxyAggregate):
         Compute the magnitude corresponding to the minimum mass threshold.
         """
 
-        mags = self.get_mags(z, absolute=absolute, x=x, units=units, band=band,
+        _x_, mags = self.get_mags(z, absolute=absolute, x=x, units=units, band=band,
             window=window, load=load, raw=raw,
             nebular_only=nebular_only, apply_dustcorr=apply_dustcorr)
 
@@ -2855,7 +2862,7 @@ class GalaxyCohort(GalaxyAggregate):
         SFRD in units of Msun/yr/cMpc^3.
         """
 
-        mags = self.get_mags(z, absolute=absolute, x=x, band=band, units=units,
+        _x_, mags = self.get_mags(z, absolute=absolute, x=x, band=band, units=units,
             window=window, load=load, raw=raw,
             nebular_only=nebular_only)
 
