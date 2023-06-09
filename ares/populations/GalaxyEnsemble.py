@@ -2065,13 +2065,6 @@ class GalaxyEnsemble(HaloPopulation):
     #        filter_set=filter_set, dlam=dlam, method=method, idnum=idnum,
     #        window=window, load=load, presets=presets, absolute=absolute)
 
-    def get_filter_info(self, cam, filt):
-        """
-        Returns the central wavelength and width of user-supplied filter,
-        both in microns.
-        """
-        return self.synth.cameras[cam].get_filter_info(filt)
-
     def get_mags(self, z, MUV=None, x=1600., units='Angstroms', cam=None, filters=None,
         filter_set=None, dlam=20., method=None, idnum=None, window=1,
         load=True, presets=None, absolute=True, use_pbar=True):

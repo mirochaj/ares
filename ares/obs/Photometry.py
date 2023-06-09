@@ -43,10 +43,80 @@ class Photometry(object):
 
         return self._cameras
 
+    def get_filter_info(self, cam, filt):
+        """
+        Returns the central wavelength and width of user-supplied filter,
+        both in microns.
+        """
+        return self.cameras[cam].get_filter_info(filt)
+
+    def get_required_spectral_range(self, zobs, cam, filters=None,
+        filter_set=None, picky=True, rest_wave=None, tol=0.2, dlam=20.):
+        """
+        Return a range of rest-wavelengths [Angstroms] needed to sample the
+        full range of wavelengths probed by a given set of photometric filters.
+        """
+
+        # Might be stored for all redshifts so pick out zobs
+        if type(filters) == dict:
+            filters = filters[round(zobs)]
+
+        # Get transmission curves
+        if cam in self.cameras.keys():
+            filter_data = self.cameras[cam].read_throughputs(
+                filter_set=filter_set, filters=filters)
+
+        # Figure out spectral range we need to model for these filters.
+        # Find bluest and reddest filters, set wavelength range with some
+        # padding above and below these limits.
+        lmin = np.inf
+        lmax = 0.0
+        for filt in filter_data:
+            x, y, cent, dx, Tavg = filter_data[filt]
+
+            # If we're only doing this for the sake of measuring a slope, we
+            # might restrict the range based on wavelengths of interest,
+            # i.e., we may not use all the filters.
+
+            # Right now, will include filters as long as their center is in
+            # the requested band. This results in fluctuations in slope
+            # measurements, so to be more stringent set picky=True.
+            #if rest_wave is not None:
+
+            #    if picky:
+            #        l = (cent - dx[1]) * 1e4 / (1. + zobs)
+            #        r = (cent + dx[0]) * 1e4 / (1. + zobs)
+
+            #        if (l < rest_wave[0]) or (r > rest_wave[1]):
+            #            continue
+
+            #    cent_r = cent * 1e4 / (1. + zobs)
+            #    if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
+            #        continue
+
+            lmin = min(lmin, cent - dx[1] * (1. + tol))
+            lmax = max(lmax, cent + dx[0] * (1. + tol))
+
+        # Convert from microns to Angstroms, undo redshift.
+        lmin = lmin * 1e4 / (1. + zobs)
+        lmax = lmax * 1e4 / (1. + zobs)
+
+        #lmin = max(lmin, self.src.tab_waves_c.min())
+        #lmax = min(lmax, self.src.tab_waves_c.max())
+
+        # Force edges to be multiples of dlam
+        l1 = lmin - dlam * 2
+        l1 -= l1 % dlam
+        l2 = lmax + dlam * 2
+
+        waves = np.arange(l1, l2+dlam, dlam)
+
+        return waves
+
     def get_photometry(self, flux, owaves, flux_units=None,
         cam='wfc3', filters='all', filter_set=None, presets=None,
         rest_wave=None,
-        idnum=None, picky=False, lbuffer=200.,
+        idnum=None, picky=False,
         load=True, use_pbar=True):
         """
         Take as input a spectrum (or set of spectra) and 'photometrize' them,
@@ -117,60 +187,6 @@ class Photometry(object):
 
         sorter = np.argsort(_waves)
         all_filters = [_all_filters[ind] for ind in sorter]
-
-        # Figure out spectral range we need to model for these filters.
-        # Find bluest and reddest filters, set wavelength range with some
-        # padding above and below these limits.
-        #lmin = np.inf
-        #lmax = 0.0
-        #ct = 0
-        #for filt in filter_data:
-        #    x, y, cent, dx, Tavg = filter_data[filt]
-
-        #    # If we're only doing this for the sake of measuring a slope, we
-        #    # might restrict the range based on wavelengths of interest,
-        #    # i.e., we may not use all the filters.
-
-        #    # Right now, will include filters as long as their center is in
-        #    # the requested band. This results in fluctuations in slope
-        #    # measurements, so to be more stringent set picky=True.
-        #    if rest_wave is not None:
-
-        #        if picky:
-        #            l = (cent - dx[1]) * 1e4 / (1. + zobs)
-        #            r = (cent + dx[0]) * 1e4 / (1. + zobs)
-
-        #            if (l < rest_wave[0]) or (r > rest_wave[1]):
-        #                continue
-
-        #        cent_r = cent * 1e4 / (1. + zobs)
-        #        if (cent_r < rest_wave[0]) or (cent_r > rest_wave[1]):
-        #            continue
-
-        #    lmin = min(lmin, cent - dx[1] * 1.2)
-        #    lmax = max(lmax, cent + dx[0] * 1.2)
-        #    ct += 1
-
-        ## No filters in range requested
-        #if ct == 0:
-        #    return [], [], [], []
-
-        # Here's our array of REST wavelengths
-        #if waves is None:
-        #    # Convert from microns to Angstroms, undo redshift.
-        #    lmin = lmin * 1e4 / (1. + zobs)
-        #    lmax = lmax * 1e4 / (1. + zobs)
-
-        #    lmin = max(lmin, self.src.tab_waves_c.min())
-        #    lmax = min(lmax, self.src.tab_waves_c.max())
-
-        #    # Force edges to be multiples of dlam
-        #    l1 = lmin - lbuffer
-        #    l1 -= l1 % dlam
-        #    l2 = lmax + lbuffer
-
-        #    waves = np.arange(l1, l2+dlam, dlam)
-
 
         # Might be running over lots of galaxies
         batch_mode = False

@@ -1746,7 +1746,7 @@ class GalaxyCohort(GalaxyAggregate):
         return Sd
 
     def get_mags(self, z, absolute=True, x=1600, band=None,
-        units='Angstrom', window=1, cam=None, filters=None,
+        units='Angstrom', window=1, cam=None, filters=None, dlam=20,
         filter_set=None, presets=None, absolulute=False,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False):
         """
@@ -1757,29 +1757,44 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        if presets is not None:
-            filter_set = None
-            cam, filters = self._get_presets(z, presets)
+        use_filters = (cam is not None) or (presets is not None)
 
-        if type(filters) == dict:
-            filters = filters[round(z)]
+        ##
+        # If no cam, filters, or presets supplied, will return magnitudes
+        # at input wavelength `x`. Otherwise, will first generate spectra
+        # using `get_spec_obs` over wavelength range needed to span wavelength
+        # range covered by requested photometry.
 
-        if type(filters) == str:
-            filters = (filters, )
+        if (not use_filters):
+            L = self.get_lum(z, x=x, band=band, units=units,
+                window=window, units_out='erg/s/Hz', load=load, raw=raw,
+                nebular_only=nebular_only)
 
-        L = self.get_lum(z, x=x, band=band, units=units,
-            window=window, units_out='erg/s/Hz', load=load, raw=raw,
-            nebular_only=nebular_only)
+            mags = self.magsys.L_to_MAB(L)
+        else:
+            waves = self.phot.get_required_spectral_range(z, cam=cam,
+                filters=filters, filter_set=filter_set, dlam=dlam)
 
-        mags = self.magsys.L_to_MAB(L)
+            owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz')
 
+            # This is always apparent magnitudes
+            filt, xfilt, dxfilt, mags = self.phot.get_photometry(flux, owaves,
+                cam=cam, filters=filters)
+
+            mags = self.get_mags_abs(z, mags)
+
+            # In this case, return filter names, central wavlengths, and FWHM
+            x = filt, xfilt, dxfilt
+
+        ##
+        # Potentially convert to apparent magnitudes.
         if absolute:
-            return mags
+            return x, mags
         else:
             if apply_dustcorr:
                 raise NotImplemented('help!')
 
-            return self.get_mags_app(z, mags)
+            return x, self.get_mags_app(z, mags)
 
     def get_Mmax_from_maglim(self, z, x, mlim, mtol=0.05):
         """
