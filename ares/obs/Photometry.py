@@ -210,11 +210,6 @@ class Photometry(object):
         # Loop over filters, compute fluxes in band (accounting for
         # transmission fraction) and convert to observed magnitudes.
         for filt in all_filters:
-
-            if (filters != 'all') and (filters is not None):
-                if filt not in filters:
-                    continue
-
             x, T, cent, dx, Tavg = filter_data[filt]
 
             #if rest_wave is not None:

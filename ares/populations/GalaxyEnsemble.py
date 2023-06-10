@@ -2128,7 +2128,7 @@ class GalaxyEnsemble(HaloPopulation):
 
         # Either load previous result or compute from scratch
         if cached_result is not None:
-            M, mags, xph = cached_result
+            M, mags, xout = cached_result
         elif (not use_filters):
             # Take monochromatic (or within some window) MUV
             L = self.get_lum(z, x=x, units=units, window=window, load=load)
@@ -2140,7 +2140,8 @@ class GalaxyEnsemble(HaloPopulation):
                 filters=filters, dlam=dlam,
                 restricted_range=restricted_range)
 
-            owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz')
+            owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz',
+                idnum=idnum)
 
             # This is always apparent magnitudes
             filt, xfilt, dxfilt, mags = self.phot.get_photometry(flux, owaves,
@@ -2181,8 +2182,8 @@ class GalaxyEnsemble(HaloPopulation):
 
         ##
         # Cache
-        if hasattr(self, '_cache_mags_'):
-            self._cache_mags_[kw_tup] = M, mags, xph
+        #if hasattr(self, '_cache_mags_'):
+        #    self._cache_mags_[kw_tup] = M, mags, xph
 
         ##
         # Some final adjustments
@@ -2192,7 +2193,7 @@ class GalaxyEnsemble(HaloPopulation):
         mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
 
         if absolute:
-            return x, mags
+            return xout, mags
             #M_final = Mout #- magcorr
         else:
             return xout, self.get_mags_app(z, mags)

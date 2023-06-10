@@ -1422,9 +1422,14 @@ class GalaxyCohort(GalaxyAggregate):
             return self.pf['pop_lum_per_sfr']
         ##
 
+        if self.pf['pop_halos'] is None:
+            Mh = self.halos.tab_M
+        else:
+            Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
+
         ##
         # Determine fesc [will apply in a minute]
-        fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
+        fesc = self.get_fesc(z, Mh=Mh, x=x, band=band,
             units=units)
 
 
@@ -1441,14 +1446,14 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 wave = self.src.get_ang_from_x(x, units=units)
 
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            smhm = self.get_smhm(z=z, Mh=Mh)
             Ms = self.halos.tab_M * smhm
             if self.pf['pop_dust_template'] is not None:
                 Av = self.get_Av(z=z, Ms=Ms)
                 Sd = None
             elif self.pf['pop_dust_yield'] is not None:
                 Av = None
-                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
+                Sd = self.get_dust_surface_density(z, Mh=Mh)
             else:
                 raise NotImplemented('help')
 
@@ -1456,7 +1461,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Loop over components (most often just one) and determine L
-        Lh = np.zeros_like(self.halos.tab_M)
+        Lh = np.zeros_like(Mh, dtype=np.float64)
         for i, src in enumerate(self.srcs):
             age = src.pf['source_age']
             Zfe = src.pf['source_Z']
@@ -1478,10 +1483,10 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # Next, determine metallicity across population (if necessary)
             if self.is_metallicity_constant or isinstance(Zfe, numbers.Number):
-                Z = Zfe * np.ones_like(self.halos.tab_M)
+                Z = Zfe * np.ones_like(Mh)
                 f_L_sfr = None
             else:
-                Z = self.get_metallicity(z, Mh=self.halos.tab_M)
+                Z = self.get_metallicity(z, Mh=Mh)
 
                 f_L_sfr = self._get_lum_all_Z(x=x, band=band,
                     units=units, window=window, raw=raw,
@@ -1518,7 +1523,7 @@ class GalaxyCohort(GalaxyAggregate):
             if src.is_ssp:
 
                 # Mstell = Mhalo * SMHM
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                smhm = self.get_smhm(z=z, Mh=Mh)
                 mste = self.halos.tab_M * smhm
 
                 if self.is_central_pop:
@@ -1527,7 +1532,7 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = mste * L_sfr
 
                     if self.pf['pop_ihl'] is not None:
-                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                        ihl = self.ihl(z=z, Mh=Mh)
                         _Lh_ *= ihl
                 else:
 
@@ -1563,8 +1568,8 @@ class GalaxyCohort(GalaxyAggregate):
                         _Lh_[i] = np.trapz(Ls * dndlnm,
                             x=np.log(self.halos.tab_M))
 
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                self.halos.tab_M < self.get_Mmax(z))
+            ok = np.logical_and(Mh >= self.get_Mmin(z),
+                Mh < self.get_Mmax(z))
             _Lh_[~ok] = 0
             ##
             Lh += _Lh_
