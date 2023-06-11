@@ -25,7 +25,7 @@ from scipy.special import gammaincinv
 from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
-from ..util.Warnings import no_lya_warning
+from ..obs.Photometry import Photometry
 from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
@@ -177,6 +177,12 @@ class Population(object):
         return self._dust
 
     @property
+    def phot(self):
+        if not hasattr(self, '_phot'):
+            self._phot = Photometry(**self.pf)
+        return self._phot
+
+    @property
     def magsys(self):
         if not hasattr(self, '_magsys'):
             self._magsys = MagnitudeSystem(cosm=self.cosm, **self.pf)
@@ -324,6 +330,7 @@ class Population(object):
                     and self.pf['pop_lya_src']
 
                 if self.pf['pop_lya_src'] and (not self._is_src_lya):
+                    from ..util.Warnings import no_lya_warning
                     if abs(self.pf['pop_Emin'] - E_LyA) < 1.:
                         no_lya_warning(self)
             else:

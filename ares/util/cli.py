@@ -160,6 +160,13 @@ aux_data = {
         "792/figure2_plotdata.csv",
         None,
     ],
+    "euclid": [
+        "https://euclid.esac.esa.int/msp/refdata/data/",
+        "NISP-PHOTO-PASSBANDS-V1-Y_throughput.dat",
+        "NISP-PHOTO-PASSBANDS-V1-J_throughput.dat",
+        "NISP-PHOTO-PASSBANDS-V1-H_throughput.dat",
+        None,
+    ],
     "nircam": [
         "https://jwst-docs.stsci.edu/files/97978094/97978135/1/1596073152953",
         "nircam_throughputs_22April2016_v4.tar.gz",
@@ -190,6 +197,17 @@ aux_data = {
         "080924ch2trans_full.txt",
         None,
     ],
+    "panstarrs": [
+        "http://svo2.cab.inta-csic.es/theory/fps3/getdata.php?format=ascii&id=PAN-STARRS/",
+        "PS1.g",
+        "PS1.r",
+        "PS1.w",
+        "PS1.open",
+        "PS1.i",
+        "PS1.z",
+        "PS1.y",
+        None,
+    ],
     "roman": [
         "https://roman.gsfc.nasa.gov/science/RRI/",
         "Roman_effarea_20201130.xlsx",
@@ -215,7 +233,7 @@ aux_data = {
         'http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=2MASS/',
         '2MASS.J',
         '2MASS.H',
-        '2MASS.K',
+        '2MASS.Ks',
         None],
     "planck": [
         "https://pla.esac.esa.int/pla/aio",

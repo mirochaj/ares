@@ -60,7 +60,7 @@ def test():
     assert 1 <= zeta.mean() <= 100, "zeta unreasonable!"
 
     L = pop.get_lum(6)
-    mag = pop.get_mags(6, absolute=True)
+    x, mag = pop.get_mags(6, absolute=True)
 
     assert L.size == Mhalo.size
     assert mag.size == Mhalo.size

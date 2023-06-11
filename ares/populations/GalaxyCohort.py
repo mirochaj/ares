@@ -1233,7 +1233,7 @@ class GalaxyCohort(GalaxyAggregate):
             assert self.pf['pop_volume'] is not None
 
             if use_mags:
-                x = self.get_mags(z=z, x=x, units=units, window=window,
+                _x_, x = self.get_mags(z=z, x=x, units=units, window=window,
                     absolute=absolute, raw=raw, nebular_only=nebular_only)
             else:
                 x = self.get_lum(z=z, x=x, units=units, window=window,
@@ -1325,30 +1325,22 @@ class GalaxyCohort(GalaxyAggregate):
 
     #    return L_sfr
 
-    def get_spec(self, z, waves, per_Hz=False,
+    def get_spec(self, z, waves,
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
         nebular_only=False):
         """
-        Compute the SED for all galaxies at given redshift.
+        Compute the rest-frame SED for all galaxies at given redshift.
+
+        .. note :: Really just a wrapper around `get_lum`.
 
         Parameters
         ----------
         z : int, float
             Redshift of interest
         waves : np.ndarray
-            Array of rest-wavelengths at which to generate SED [Angstrom].
-        M : np.ndarray, optional
-            If not supplied, will generate SED in pre-determined set of
-            halo mass bins corresponding to `self.halos.tab_M`. Otherwise,
-            will interpolate onto user-supplied range.
-        stellar_mass : bool
-            If True, assumes the user-supplied `M` values (above) are stellar
-            masses, not halo masses, in which case the SMHM is first computed
-            and interpolation is done in M_stell rather than M_h.
+            Array of rest-wavelengths at which to generate SED [Angstroms].
 
 
-        Just a wrapper around `get_lum` with option of interpolating to new
-        mass.
         """
 
         if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func']:
@@ -1360,7 +1352,7 @@ class GalaxyCohort(GalaxyAggregate):
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only)
 
-            if per_Hz:
+            if 'hz' in units_out.lower():
                 pass
             else:
                 dwdn = waves**2 / (c * 1e8)
@@ -1371,21 +1363,41 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-    def get_spec_obs(self, z, waves=None, per_Hz=False):
+    def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz'):
+        """
+        Return the spectra of all objects in the observer frame at z=0.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        waves : np.ndarray
+            Wavelengths at which to generate spectra [Angstroms].
+        units_out : str
+            Controls whether fluxes returned are per Angstrom or per Hz.
+
+        Returns
+        -------
+        Tuple containing:
+            (observed wavelengths [microns], observed fluxes [units_out])
+
+        The fluxes array is (num galaxies, num wavelengths) in shape.
+
+        """
         if waves is None:
             waves = self.src.tab_waves_c
             dwdn = self.src.tab_dwdn
         else:
             dwdn = waves**2 / (c * 1e8)
 
-        spec = self.get_spec(z, waves=waves, per_Hz=per_Hz)
+        spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz')
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
         f = spec / (4. * np.pi * dL**2)
 
         # Correct for redshifting and change in units.
-        if per_Hz:
+        if 'hz' in units_out.lower():
             f *= (1. + z)
         else:
             f /= dwdn
@@ -1410,9 +1422,14 @@ class GalaxyCohort(GalaxyAggregate):
             return self.pf['pop_lum_per_sfr']
         ##
 
+        if self.pf['pop_halos'] is None:
+            Mh = self.halos.tab_M
+        else:
+            Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
+
         ##
         # Determine fesc [will apply in a minute]
-        fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
+        fesc = self.get_fesc(z, Mh=Mh, x=x, band=band,
             units=units)
 
 
@@ -1429,14 +1446,14 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 wave = self.src.get_ang_from_x(x, units=units)
 
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            smhm = self.get_smhm(z=z, Mh=Mh)
             Ms = self.halos.tab_M * smhm
             if self.pf['pop_dust_template'] is not None:
                 Av = self.get_Av(z=z, Ms=Ms)
                 Sd = None
             elif self.pf['pop_dust_yield'] is not None:
                 Av = None
-                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
+                Sd = self.get_dust_surface_density(z, Mh=Mh)
             else:
                 raise NotImplemented('help')
 
@@ -1444,7 +1461,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Loop over components (most often just one) and determine L
-        Lh = np.zeros_like(self.halos.tab_M)
+        Lh = np.zeros_like(Mh, dtype=np.float64)
         for i, src in enumerate(self.srcs):
             age = src.pf['source_age']
             Zfe = src.pf['source_Z']
@@ -1466,10 +1483,10 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # Next, determine metallicity across population (if necessary)
             if self.is_metallicity_constant or isinstance(Zfe, numbers.Number):
-                Z = Zfe * np.ones_like(self.halos.tab_M)
+                Z = Zfe * np.ones_like(Mh)
                 f_L_sfr = None
             else:
-                Z = self.get_metallicity(z, Mh=self.halos.tab_M)
+                Z = self.get_metallicity(z, Mh=Mh)
 
                 f_L_sfr = self._get_lum_all_Z(x=x, band=band,
                     units=units, window=window, raw=raw,
@@ -1506,7 +1523,7 @@ class GalaxyCohort(GalaxyAggregate):
             if src.is_ssp:
 
                 # Mstell = Mhalo * SMHM
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                smhm = self.get_smhm(z=z, Mh=Mh)
                 mste = self.halos.tab_M * smhm
 
                 if self.is_central_pop:
@@ -1515,7 +1532,7 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = mste * L_sfr
 
                     if self.pf['pop_ihl'] is not None:
-                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                        ihl = self.ihl(z=z, Mh=Mh)
                         _Lh_ *= ihl
                 else:
 
@@ -1551,8 +1568,8 @@ class GalaxyCohort(GalaxyAggregate):
                         _Lh_[i] = np.trapz(Ls * dndlnm,
                             x=np.log(self.halos.tab_M))
 
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                self.halos.tab_M < self.get_Mmax(z))
+            ok = np.logical_and(Mh >= self.get_Mmin(z),
+                Mh < self.get_Mmax(z))
             _Lh_[~ok] = 0
             ##
             Lh += _Lh_
@@ -1734,9 +1751,10 @@ class GalaxyCohort(GalaxyAggregate):
         return Sd
 
     def get_mags(self, z, absolute=True, x=1600, band=None,
-        units='Angstrom', window=1, cam=None, filters=None,
-        filter_set=None, presets=None,
-        load=True, raw=False, nebular_only=False, apply_dustcorr=False):
+        units='Angstrom', window=1, cam=None, filters=None, dlam=20,
+        presets=None, absolulute=False, method=None,
+        load=True, raw=False, nebular_only=False, apply_dustcorr=False,
+        restricted_range=None):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
 
@@ -1745,29 +1763,50 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        if presets is not None:
-            filter_set = None
-            cam, filters = self._get_presets(z, presets)
+        use_filters = (cam is not None) or (presets is not None)
 
-        if type(filters) == dict:
-            filters = filters[round(z)]
+        ##
+        # If no cam, filters, or presets supplied, will return magnitudes
+        # at input wavelength `x`. Otherwise, will first generate spectra
+        # using `get_spec_obs` over wavelength range needed to span wavelength
+        # range covered by requested photometry.
 
-        if type(filters) == str:
-            filters = (filters, )
+        if (not use_filters):
+            L = self.get_lum(z, x=x, band=band, units=units,
+                window=window, units_out='erg/s/Hz', load=load, raw=raw,
+                nebular_only=nebular_only)
 
-        L = self.get_lum(z, x=x, band=band, units=units,
-            window=window, units_out='erg/s/Hz', load=load, raw=raw,
-            nebular_only=nebular_only)
+            mags = self.magsys.L_to_MAB(L)
+            xout = x
+        else:
+            waves = self.phot.get_required_spectral_range(z, cam=cam,
+                filters=filters, dlam=dlam,
+                restricted_range=restricted_range)
 
-        mags = self.magsys.L_to_MAB(L)
+            owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz')
 
+            # This is always apparent magnitudes
+            filt, xfilt, dxfilt, mags = self.phot.get_photometry(flux, owaves,
+                cam=cam, filters=filters)
+
+            mags = self.get_mags_abs(z, mags)
+
+            # In this case, return filter names, central wavlengths, and FWHM
+            xout = filt, xfilt, dxfilt
+
+        # Take geometric mean or anything?
+        wave = self.src.get_ang_from_x(x, units=units) # only used if method='closest'
+        mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
+
+        ##
+        # Potentially convert to apparent magnitudes.
         if absolute:
-            return mags
+            return xout, mags
         else:
             if apply_dustcorr:
                 raise NotImplemented('help!')
 
-            return self.get_mags_app(z, mags)
+            return xout, self.get_mags_app(z, mags)
 
     def get_Mmax_from_maglim(self, z, x, mlim, mtol=0.05):
         """
@@ -1789,7 +1828,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
         if isinstance(x, numbers.Number):
             lam_r = x * 1e4 / (1. + z)
-            mags = self.get_mags(z, absolute=False, x=lam_r, window=51,
+            _x_, mags = self.get_mags(z, absolute=False, x=lam_r, window=51,
                 units='Angstrom')
         else:
             raise NotImplemented('help')
@@ -2000,7 +2039,7 @@ class GalaxyCohort(GalaxyAggregate):
         Compute the magnitude corresponding to the minimum mass threshold.
         """
 
-        mags = self.get_mags(z, absolute=absolute, x=x, units=units, band=band,
+        _x_, mags = self.get_mags(z, absolute=absolute, x=x, units=units, band=band,
             window=window, load=load, raw=raw,
             nebular_only=nebular_only, apply_dustcorr=apply_dustcorr)
 
@@ -2828,7 +2867,7 @@ class GalaxyCohort(GalaxyAggregate):
         SFRD in units of Msun/yr/cMpc^3.
         """
 
-        mags = self.get_mags(z, absolute=absolute, x=x, band=band, units=units,
+        _x_, mags = self.get_mags(z, absolute=absolute, x=x, band=band, units=units,
             window=window, load=load, raw=raw,
             nebular_only=nebular_only)
 

@@ -2053,28 +2053,10 @@ class GalaxyEnsemble(HaloPopulation):
 
         return self._synth
 
-    #def Magnitude(self, z, MUV=None, wave=1600., cam=None, filters=None,
-    #    filter_set=None, dlam=20., method='gmean', idnum=None, window=1,
-    #    load=True, presets=None, absolute=True):
-    #    """
-    #    For backward compatibility as we move to get_* method model.
-
-    #    See `get_mags` below.
-    #    """
-    #    return self.get_mags(z, MUV=MUV, wave=wave, cam=cam, filters=filters,
-    #        filter_set=filter_set, dlam=dlam, method=method, idnum=idnum,
-    #        window=window, load=load, presets=presets, absolute=absolute)
-
-    def get_filter_info(self, cam, filt):
-        """
-        Returns the central wavelength and width of user-supplied filter,
-        both in microns.
-        """
-        return self.synth.cameras[cam].get_filter_info(filt)
-
-    def get_mags(self, z, MUV=None, x=1600., units='Angstroms', cam=None, filters=None,
-        filter_set=None, dlam=20., method=None, idnum=None, window=1,
-        load=True, presets=None, absolute=True, use_pbar=True):
+    def get_mags(self, z, MUV=None, x=1600., units='Angstroms', cam=None,
+        filters=None, dlam=20., method=None, idnum=None,
+        window=1, load=True, presets=None, absolute=True, use_pbar=True,
+        restricted_range=None):
         """
         Return the magnitude of objects at specified wavelength or
         as-estimated via given photometry.
@@ -2116,19 +2098,21 @@ class GalaxyEnsemble(HaloPopulation):
 
         """
 
-        if presets is not None:
-            filter_set = None
-            cam, filters = self._get_presets(z, presets)
+        use_filters = (cam is not None) or (presets is not None)
 
-        if type(filters) is dict:
-            filters = filters[round(z)]
+        #if presets is not None:
+        #    filter_set = None
+        #    cam, filters = self._get_presets(z, presets)
 
-        if type(filters) == str:
-            filters = (filters, )
+        #if type(filters) is dict:
+        #    filters = filters[round(z)]
+
+        #if type(filters) == str:
+        #    filters = (filters, )
 
         # Don't put any binning stuff in here!
         kw = {'z': z, 'cam': cam, 'filters': filters, 'window': window,
-            'filter_set': filter_set, 'dlam':dlam, 'method': method,
+            'dlam':dlam, 'method': method,
             'x': x, 'absolute': absolute}
 
         kw_tup = tuple(kw.items())
@@ -2139,139 +2123,82 @@ class GalaxyEnsemble(HaloPopulation):
             cached_result = None
 
         # Compute magnitude correction factor
-        dL = self.cosm.LuminosityDistance(z) / cm_per_pc
-        magcorr = 5. * (np.log10(dL) - 1.) - 2.5 * np.log10(1. + z)
+        #dL = self.cosm.LuminosityDistance(z) / cm_per_pc
+        #magcorr = 5. * (np.log10(dL) - 1.) - 2.5 * np.log10(1. + z)
 
         # Either load previous result or compute from scratch
-        fil = filters
         if cached_result is not None:
-            M, mags, xph = cached_result
-        else:
+            M, mags, xout = cached_result
+        elif (not use_filters):
             # Take monochromatic (or within some window) MUV
             L = self.get_lum(z, x=x, units=units, window=window, load=load)
+            mags = self.magsys.L_to_MAB(L)
+            xout = x
+        else:
 
-            M = self.magsys.L_to_MAB(L)
-            # May or may not use this.
+            waves = self.phot.get_required_spectral_range(z, cam=cam,
+                filters=filters, dlam=dlam,
+                restricted_range=restricted_range)
+
+            owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz',
+                idnum=idnum)
+
+            # This is always apparent magnitudes
+            filt, xfilt, dxfilt, mags = self.phot.get_photometry(flux, owaves,
+                cam=cam, filters=filters)
+
+            mags = self.get_mags_abs(z, mags)
+
+            # In this case, return filter names, central wavlengths, and FWHM
+            xout = filt, xfilt, dxfilt
 
             ##
             # Compute apparent magnitudes from photometry
-            if (filters is not None) or (filter_set is not None):
-                assert cam is not None
+            #if (filters is not None) or (filter_set is not None):
+            #    assert cam is not None
 
-                hist = self.histories
+            #    hist = self.histories
 
-                if type(cam) not in [tuple, list]:
-                    cam = [cam]
+            #    if type(cam) not in [tuple, list]:
+            #        cam = [cam]
 
-                mags = []
-                xph  = []
-                fil = []
-                for j, _cam in enumerate(cam):
-                    _filters, xphot, dxphot, ycorr = \
-                        self.synth.get_photometry(zobs=z, sfh=hist['SFR'],
-                        zarr=hist['z'], hist=hist, dlam=dlam,
-                        cam=_cam, filters=filters, filter_set=filter_set,
-                        idnum=idnum, extras=self.extras, rest_wave=None,
-                        use_pbar=use_pbar)
+            #    mags = []
+            #    xph  = []
+            #    fil = []
+            #    for j, _cam in enumerate(cam):
+            #        _filters, xphot, dxphot, ycorr = \
+            #            self.synth.get_photometry(zobs=z, sfh=hist['SFR'],
+            #            zarr=hist['z'], hist=hist, dlam=dlam,
+            #            cam=_cam, filters=filters, filter_set=filter_set,
+            #            idnum=idnum, extras=self.extras, rest_wave=None,
+            #            use_pbar=use_pbar)
 
-                    mags.extend(list(np.array(ycorr)))
-                    xph.extend(xphot)
-                    fil.extend(_filters)
+            #        mags.extend(list(np.array(ycorr)))
+            #        xph.extend(xphot)
+            #        fil.extend(_filters)
 
-                mags = np.array(mags)
-            else:
-                xph = None
-                mags = M + magcorr
+            #    mags = np.array(mags)
 
-            if hasattr(self, '_cache_mags_'):
-                self._cache_mags_[kw_tup] = M, mags, xph
-
-        wave = self.src.get_ang_from_x(x, units=units)
 
         ##
-        # Interpolate etc.
+        # Cache
+        #if hasattr(self, '_cache_mags_'):
+        #    self._cache_mags_[kw_tup] = M, mags, xph
+
         ##
-        xout = None
-        if (filters is not None) or (filter_set is not None):
-            hist = self.histories
+        # Some final adjustments
 
-            # Can return all photometry
-            if method is None:
-                xout = fil
-                Mg = mags
-            elif len(filters) == 1:
-                xout = filters
-                Mg = mags.squeeze()
-            # Or combine in some way below
-            elif method == 'gmean':
-                if len(mags) == 0:
-                    Mg = -99999 * np.ones(hist['SFR'].shape[0])
-                else:
-                    Mg = np.nanprod(np.abs(mags), axis=0)**(1. / float(len(mags)))
-
-                    if not (np.all(mags < 0) or np.all(mags > 0)):
-                        raise ValueError('If geometrically averaging magnitudes, must all be the same sign!')
-
-                    Mg = -1 * Mg if np.all(mags < 0) else Mg
-
-                Mg = Mg.squeeze()
-
-            elif method == 'closest':
-                if len(mags) == 0:
-                    Mg = -99999 * np.ones(hist['SFR'].shape[0])
-                else:
-                    # Get closest to specified rest-wavelength
-                    rphot = np.array(xph) * 1e4 / (1. + z)
-                    k = np.argmin(np.abs(rphot - wave))
-                    Mg = mags[k,:]
-                    xout = filters[k]
-            elif method == 'interp':
-                if len(mags) == 0:
-                    Mg = -99999 * np.ones(hist['SFR'].shape[0])
-                else:
-                    rphot = np.array(xph) * 1e4 / (1. + z)
-                    kall = np.argsort(np.abs(rphot - wave))
-                    _k1 = kall[0]#np.argmin(np.abs(rphot - wave))
-
-                    if len(kall) == 1:
-                        Mg = mags[_k1,:]
-                    else:
-                        _k2 = kall[1]
-
-                        if rphot[_k2] < rphot[_k1]:
-                            k1 = _k2
-                            k2 = _k1
-                        else:
-                            k1 = _k1
-                            k2 = _k2
-
-                        dy = mags[k2,:] - mags[k1,:]
-                        dx = rphot[k2] - rphot[k1]
-                        m = dy / dx
-
-                        Mg = mags[k1,:] + m * (wave - rphot[k1])
-
-            elif method == 'mono':
-                if len(mags) == 0:
-                    Mg = -99999 * np.ones(hist['SFR'].shape[0])
-                else:
-                    Mg = M
-            else:
-                raise NotImplemented('method={} not recognized.'.format(method))
-
-            if MUV is not None:
-                Mout = np.interp(MUV, M[-1::-1], Mg[-1::-1])
-            else:
-                Mout = Mg
-        else:
-            Mout = mags
+        # Take geometric mean or anything?
+        wave = self.src.get_ang_from_x(x, units=units) # only used if method='closest'
+        mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
 
         if absolute:
-            M_final = Mout - magcorr
+            return xout, mags
+            #M_final = Mout #- magcorr
         else:
-            M_final = Mout
+            return xout, self.get_mags_app(z, mags)
 
-        return xout, M_final
+        #return xout, M_final
 
     #def Luminosity(self, z, wave=1600., band=None, idnum=None, window=1,
     #    load=True, energy_units=True):
@@ -2408,7 +2335,7 @@ class GalaxyEnsemble(HaloPopulation):
 
         return line_wave, flux
 
-    def get_spec_obs(self, z, waves, idnum=None):
+    def get_spec_obs(self, z, waves, units_out='erg/s/Hz', idnum=None):
         """
         Generate z=0 observed spectrum for all sources.
 
@@ -2427,6 +2354,8 @@ class GalaxyEnsemble(HaloPopulation):
         halo mass bins.
 
         """
+
+        assert units_out == 'erg/s/Hz'
 
         owaves, flux = self.synth.get_spec_obs(z, hist=self.histories,
             waves=waves, sfh=self.histories['SFR'], extras=self.extras,
@@ -2488,8 +2417,8 @@ class GalaxyEnsemble(HaloPopulation):
 
         return L
 
-    def get_bias(self, z, limit=None, x=1600., units='Angstroms', cam=None, filters=None,
-        filter_set=None, dlam=20., method=None, idnum=None, window=1,
+    def get_bias(self, z, limit=None, x=1600., units='Angstroms', cam=None,
+        filters=None, dlam=20., method=None, idnum=None, window=1,
         load=True, presets=None, cut_in_flux=False, cut_in_mass=False,
         absolute=False, factor=1, limit_is_lower=True, limit_lower=None,
         depths=None, color_cuts=None, logic='or'):
@@ -2553,7 +2482,7 @@ class GalaxyEnsemble(HaloPopulation):
             raise NotImplemented('help')
         else:
             filt, mags = self.get_mags(z, x=x, units=units, cam=cam,
-                filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+                filters=filters, dlam=dlam, method=method,
                 idnum=idnum, window=window, load=load, presets=presets,
                 absolute=absolute)
 
@@ -2763,17 +2692,17 @@ class GalaxyEnsemble(HaloPopulation):
 
     def LuminosityFunction(self, z, bins=None, use_mags=True, wave=1600.,
         window=1,
-        band=None, cam=None, filters=None, filter_set=None, dlam=20.,
+        band=None, cam=None, filters=None, dlam=20.,
         method='closest', load=True, presets=None, absolute=True, total_IR=False):
 
         return self.get_lf(z, bins=bins, use_mags=use_mags,
             wave=wave, window=window, band=band, cam=cam, filters=filters,
-            filter_set=filter_set, dlam=dlam, method=method,
+            dlam=dlam, method=method,
             load=load, presets=presets, absolute=absolute,
             total_IR=total_IR)
 
     def get_lf(self, z, bins=None, use_mags=True, x=1600., units='Angstroms',
-        window=1, band=None, cam=None, filters=None, filter_set=None,
+        window=1, band=None, cam=None, filters=None,
         dlam=20., method='closest', load=True, presets=None, absolute=True,
         total_IR=False):
         """
@@ -2982,8 +2911,8 @@ class GalaxyEnsemble(HaloPopulation):
     def _nircam(self): # pragma: no cover
         if not hasattr(self, '_nircam_'):
             nircam = Survey(cam='nircam')
-            nircam_M = nircam._read_nircam(filter_set='M')
-            nircam_W = nircam._read_nircam(filter_set='W')
+            nircam_M = nircam._read_nircam(filters='M')
+            nircam_W = nircam._read_nircam(filters='W')
 
             self._nircam_ = nircam_M, nircam_W
         return self._nircam_
@@ -3137,7 +3066,7 @@ class GalaxyEnsemble(HaloPopulation):
         return cam, filters
 
     def get_lae_fraction(self, z, bins, absolute=True, model=1, Tcrit=0.7,
-        x=1600., units='Angstroms', cam=None, filters=None, filter_set=None,
+        x=1600., units='Angstroms', cam=None, filters=None,
         dlam=20., method='closest', window=1, load=True, presets=None):
         """
         Compute Lyman-alpha emitter (LAE) fraction vs. UV magnitude relation.
@@ -3170,7 +3099,7 @@ class GalaxyEnsemble(HaloPopulation):
         nh = self.get_field(z, 'nh')
 
         filt, mags = self.get_mags(z, absolute=absolute, x=x, units=units, cam=cam,
-            filters=filters, filter_set=filter_set, dlam=dlam, method=method,
+            filters=filters, dlam=dlam, method=method,
             window=window, load=load, presets=presets)
 
         tau = self.get_dust_opacity(z, wave=x)
@@ -3204,7 +3133,7 @@ class GalaxyEnsemble(HaloPopulation):
         return self.get_uv_slope(z, **kwargs)
 
     def get_uv_slope(self, z, waves=None, rest_wave=None, cam=None,
-        filters=None, filter_set=None, dlam=20., method='linear', magmethod='gmean',
+        filters=None, dlam=20., method='linear', magmethod='gmean',
         return_binned=False, Mbins=None, Mwave=1600., MUV=None, Mstell=None,
         return_scatter=False, load=True, massbins=None, return_err=False,
         presets=None):
@@ -3248,7 +3177,7 @@ class GalaxyEnsemble(HaloPopulation):
 
         # Don't put any binning stuff in here!
         kw = {'z':z, 'waves':waves, 'rest_wave':rest_wave, 'cam': cam,
-            'filters': filters, 'filter_set': filter_set,
+            'filters': filters,
             'dlam':dlam, 'method': method, 'magmethod': magmethod}
 
         kw_tup = tuple(kw.items())
@@ -3269,9 +3198,9 @@ class GalaxyEnsemble(HaloPopulation):
 
             ##
             # Run in batch.
-            _beta_r = self.synth.Slope(zobs=z, sfh=raw['SFR'], waves=waves,
+            _beta_r = self.synth.get_slope(zobs=z, sfh=raw['SFR'], waves=waves,
                 zarr=raw['z'], hist=raw, dlam=dlam, cam=cam, filters=filters,
-                filter_set=filter_set, rest_wave=rest_wave, method=method,
+                rest_wave=rest_wave, method=method,
                 extras=self.extras, return_err=return_err)
 
             if return_err:
@@ -3602,7 +3531,7 @@ class GalaxyEnsemble(HaloPopulation):
 
     def get_surface_density(self, z, bins=None, dz=1., dtheta=1., x=1600.,
         units='Angstroms',
-        cam=None, filters=None, filter_set=None, depths=None, dlam=20.,
+        cam=None, filters=None, depths=None, dlam=20.,
         method='closest', window=1, load=True, presets=None, absolute=False,
         use_mags=True, use_central_z=True, zstep=0.1, return_evol=False,
         use_volume=False, save_by_band=False):
@@ -3632,7 +3561,7 @@ class GalaxyEnsemble(HaloPopulation):
 
                 # First, compute the luminosity function.
                 _x, phi = self.get_lf(z, bins=bins, x=x, units=units, cam=cam,
-                    filters=filt, filter_set=filter_set, dlam=dlam, method=method,
+                    filters=filt, dlam=dlam, method=method,
                     window=window, load=load, presets=presets, absolute=absolute,
                     use_mags=use_mags)
 
@@ -3658,7 +3587,7 @@ class GalaxyEnsemble(HaloPopulation):
                     # Compute LF at midpoint of this bin.
                     _x, phi[j] = self.get_lf(zmid, bins=bins, x=x, cam=cam,
                         units=units,
-                        filters=filt, filter_set=filter_set, dlam=dlam, method=method,
+                        filters=filt, dlam=dlam, method=method,
                         window=window, load=load, presets=presets, absolute=absolute,
                         use_mags=use_mags)
 
@@ -3697,7 +3626,7 @@ class GalaxyEnsemble(HaloPopulation):
             return x, nltm
 
     def get_volume_density(self, z, bins=None, x=1600., units='Angstroms',
-        cam=None, filters=None, filter_set=None, dlam=20., method='closest',
+        cam=None, filters=None, dlam=20., method='closest',
         window=1, load=True, presets=None, absolute=False, use_mags=True,
         use_central_z=True, zstep=0.1, return_evol=False):
         """
@@ -3711,7 +3640,7 @@ class GalaxyEnsemble(HaloPopulation):
         """
 
         return self.get_surface_density(z, bins=bins, x=x, units=units,
-            cam=cam, filters=filters, filter_set=filter_set, dlam=dlam,
+            cam=cam, filters=filters, dlam=dlam,
             method=method, window=window, load=load, presets=presets,
             absolute=absolute, use_mags=use_mags, use_central_z=True,
             zstep=zstep, return_evol=return_evol, use_volume=True)

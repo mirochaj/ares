@@ -26,7 +26,6 @@ from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB, \
 nanoJ = 1e-23 * 1e-9
 
 tiny_lum = 1e-8
-all_cameras = ['wfc', 'wfc3', 'nircam', 'roman', 'irac']
 
 def _powlaw(x, p0, p1):
     return p0 * (x / 1.)**p1
@@ -78,16 +77,6 @@ class SpectralSynthesis(object):
         self._oversampling_below = value
 
     @property
-    def force_perfect(self):
-        if not hasattr(self, '_force_perfect'):
-            self._force_perfect = False
-        return self._force_perfect
-
-    @force_perfect.setter
-    def force_perfect(self, value):
-        self._force_perfect = value
-
-    @property
     def careful_cache(self):
         if not hasattr(self, '_careful_cache_'):
             self._careful_cache_ = True
@@ -96,17 +85,6 @@ class SpectralSynthesis(object):
     @careful_cache.setter
     def careful_cache(self, value):
         self._careful_cache_ = value
-
-    @property
-    def cameras(self):
-        if not hasattr(self, '_cameras'):
-            self._cameras = {}
-            for cam in all_cameras:
-                self._cameras[cam] = Survey(cam=cam,
-                    force_perfect=self.force_perfect,
-                    cache=self.pf['pop_synth_cache_phot'])
-
-        return self._cameras
 
     @property
     def hydr(self):
@@ -175,7 +153,7 @@ class SpectralSynthesis(object):
 
         return self._L_of_Z_t[wave]
 
-    def Slope(self, zobs=None, tobs=None, spec=None, waves=None,
+    def get_slope(self, zobs=None, tobs=None, spec=None, waves=None,
         sfh=None, zarr=None, tarr=None, hist={}, idnum=None,
         cam=None, rest_wave=None, band=None,
         return_norm=False, filters=None, filter_set=None, dlam=20.,
@@ -460,9 +438,6 @@ class SpectralSynthesis(object):
 
         return owaves, f * T
 
-    def Photometry(self, **kwargs):
-        return self.get_photometry(**kwargs)
-
     def get_photometry(self, spec=None, sfh=None, cam='wfc3', filters='all',
         filter_set=None, dlam=20., rest_wave=None, extras={}, window=1,
         tarr=None, zarr=None, waves=None, zobs=None, tobs=None, band=None,
@@ -677,9 +652,6 @@ class SpectralSynthesis(object):
 
         # We're done
         return fphot, xphot, wphot, mphot
-
-    def Spectrum(self, waves, **kwargs):
-        return self.get_spec_rest(waves, **kwargs)
 
     def get_spec_rest(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},

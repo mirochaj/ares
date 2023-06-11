@@ -36,10 +36,9 @@ class Survey(object):
         self.camera = cam
         self.chip = chip
         self.force_perfect = force_perfect
-        self.cache = cache
         self.mod = mod
 
-    def PlotFilters(self, ax=None, fig=1, filter_set='W',
+    def PlotFilters(self, ax=None, fig=1,
         filters=None, annotate=True, annotate_kw={}, skip=None, rotation=90,
         **kwargs): # pragma: no cover
         """
@@ -55,7 +54,7 @@ class Survey(object):
         else:
             gotax = True
 
-        data = self.read_throughputs(filter_set, filters)
+        data = self.read_throughputs(filters)
 
         colors = ['k', 'b', 'g', 'c', 'm', 'y', 'r', 'orange'] * 10
         for i, filt in enumerate(data.keys()):
@@ -94,7 +93,7 @@ class Survey(object):
 
         return ax
 
-    def read_throughputs(self, filter_set='W', filters=None):
+    def read_throughputs(self, filters=None):
         """
         Assembles a dictionary of throughput curves.
 
@@ -109,58 +108,42 @@ class Survey(object):
 
 
         """
-        if ((self.camera, None, 'all') in self.cache) and (filters is not None):
-            cached_phot = self.cache[(self.camera, None, 'all')]
 
-            # Just grab the filters that were requested!
-            result = {}
-            for filt in filters:
-                if filt not in cached_phot:
-                    continue
-                result[filt] = cached_phot[filt]
-
-            return result
-
-        if self.camera == 'nircam':
-            return self._read_nircam(filter_set, filters)
+        if self.camera in ['nircam', 'jwst']:
+            return self._read_nircam(filters)
         elif self.camera in ['hst', 'hubble']:
-            wfc = self._read_wfc(filter_set, filters)
-            wfc3 = self._read_wfc3(filter_set, filters)
+            wfc = self._read_wfc(filters)
+            wfc3 = self._read_wfc3(filters)
             hst = wfc.copy()
             hst.update(wfc3)
             return hst
         elif self.camera == 'wfc3':
-            return self._read_wfc3(filter_set, filters)
+            return self._read_wfc3(filters)
         elif self.camera == 'wfc':
-            return self._read_wfc(filter_set, filters)
-        elif self.camera == 'irac':
-            return self._read_irac(filter_set, filters)
+            return self._read_wfc(filters)
+        elif self.camera in ['irac', 'spitzer']:
+            return self._read_irac(filters)
         elif self.camera == 'roman':
             return self._read_roman(filters)
         elif self.camera == 'wise':
             return self._read_wise(filters)
+        elif self.camera == '2mass':
+            return self._read_2mass(filters)
+        elif self.camera == 'euclid':
+            return self._read_euclid(filters)
         elif self.camera == 'spherex':
             return self._read_spherex(filters)
         elif self.camera == 'rubin':
             return self._read_rubin(filters)
+        elif self.camera == 'panstarrs':
+            return self._read_panstarrs(filters)
         else:
             raise NotImplemented('help')
 
-    def _read_nircam(self, filter_set='W', filters=None): # pragma: no cover
+    def _read_nircam(self, filters=None): # pragma: no cover
 
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
-
-        get_all = False
-        if filters is not None:
-            if filters == 'all':
-                get_all = True
-            else:
-                assert type(filters) in [list, tuple]
-        else:
-            filters = []
-            if type(filter_set) != list:
-                filter_set = [filter_set]
 
         path = os.path.join(
             _path, "nircam", "nircam_throughputs", self.mod, "filters_only"
@@ -169,73 +152,37 @@ class Survey(object):
         data = {}
         for fn in os.listdir(path):
 
-            pre = fn.split('_')[0]
+            fname = fn.split('_')[0]
 
-            if get_all or (pre in filters):
-
-                if pre in self._filter_cache:
-                    data[pre] = self._filter_cache[pre]
-                    continue
-
-                if ('W2' in pre):
-                    continue
-
-                num = re.findall(r'\d+', pre)[0]
-                cent = float('{}.{}'.format(num[0], num[1:]))
-
-                # Wavelength [micron], transmission
-                full_path = os.path.join(path, fn)
-                x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
-
-                data[pre] = self._get_filter_prop(x, y, cent)
-
-                self._filter_cache[pre] = copy.deepcopy(data[pre])
-
-            elif filter_set is not None:
-
-                for _filters in filter_set:
-
-                    if _filters in self._filter_cache:
-                        data[pre] = self._filter_cache[_filters]
+            # Do we care about this filter? If not, move along.
+            if filters is not None:
+                if type(filters) == str:
+                    if filters not in fname:
                         continue
 
-                    if _filters not in pre:
-                        continue
+            if fname in self._filter_cache:
+                data[fname] = self._filter_cache[fname]
+                continue
 
-                    # Need to distinguish W from W2
-                    if (_filters == 'W') and ('W2' in pre):
-                        continue
+            if ('W2' in fname):
+                continue
 
-                    # Determine the center wavelength of the filter based its string
-                    # identifier.
-                    k = pre.rfind(_filters)
-                    cent = float('{}.{}'.format(pre[1], pre[2:k]))
+            num = re.findall(r'\d+', fname)[0]
+            cent = float('{}.{}'.format(num[0], num[1:]))
 
-                    # Wavelength [micron], transmission
-                    full_path = os.path.join(path, fn)
-                    x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
+            # Wavelength [micron], transmission
+            full_path = os.path.join(path, fn)
+            x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
-                    data[pre] = self._get_filter_prop(x, y, cent)
+            data[fname] = self._get_filter_prop(x, y, cent)
 
-                    self._filter_cache[pre] = copy.deepcopy(data[pre])
+            self._filter_cache[fname] = copy.deepcopy(data[fname])
 
         return data
 
-    def _read_wfc(self, filter_set='W', filters=None):
+    def _read_wfc(self, filters=None):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
-
-        get_all = False
-        if filters is not None:
-            if filters == 'all':
-                get_all = True
-            else:
-                assert type(filters) in [list, tuple]
-        else:
-            filters = []
-            # Grab all 'W' or 'N' etc. filters
-            if type(filter_set) != list:
-                filter_set = [filter_set]
 
         path = os.path.join(_path, "wfc")
 
@@ -249,63 +196,36 @@ class Survey(object):
             if fn.endswith('tar.gz'):
                 continue
 
-            pre = fn.split('wfc_')[1].split('.dat')[0]
+            # Full name of the filter, e.g., F606W
+            fname = fn.split('wfc_')[1].split('.dat')[0]
 
-            if get_all or (pre in filters):
-
-                if pre in self._filter_cache:
-                    data[pre] = self._filter_cache[pre]
-                    continue
-
-                cent = float('0.{}'.format(pre[1:4]))
-
-                full_path = os.path.join(path, fn)
-                x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
-
-                # Convert wavelengths from nanometers to microns
-                data[pre] = self._get_filter_prop(x / 1e4, y, cent)
-
-                self._filter_cache[pre] = copy.deepcopy(data[pre])
-
-            elif filter_set is not None:
-                for _filters in filter_set:
-
-                    if _filters in self._filter_cache:
-                        data[pre] = self._filter_cache[_filters]
+            # Do we care about this filter? If not, move along.
+            if filters is not None:
+                if type(filters) == str:
+                    if filters not in fname:
                         continue
 
-                    if _filters not in pre:
-                        continue
+            #if get_all or (pre in filters):
 
-                    # Determine the center wavelength of the filter based on its string
-                    # identifier.
-                    k = pre.rfind(_filters)
-                    cent = float('0.{}'.format(pre[1:k]))
+            if fname in self._filter_cache:
+                data[fname] = self._filter_cache[fname]
+                continue
 
-                    full_path = os.path.join(path, fn)
-                    x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
+            cent = float('0.{}'.format(fname[1:4]))
 
-                    # Convert wavelengths from nanometers to microns
-                    data[pre] = self._get_filter_prop(x / 1e4, y, cent)
+            full_path = os.path.join(path, fn)
+            x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
-                    self._filter_cache[pre] = copy.deepcopy(data[pre])
+            # Convert wavelengths from nanometers to microns
+            data[fname] = self._get_filter_prop(x / 1e4, y, cent)
+
+            self._filter_cache[fname] = copy.deepcopy(data[fname])
 
         return data
 
-    def _read_wfc3(self, filter_set='W', filters=None):
+    def _read_wfc3(self, filters=None):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
-
-        get_all = False
-        if filters is not None:
-            if filters == 'all':
-                get_all = True
-            else:
-                assert type(filters) in [list, tuple]
-        else:
-            filters = []
-            if type(filter_set) != list:
-                filter_set = [filter_set]
 
         path = os.path.join(_path, "wfc3")
 
@@ -315,53 +235,31 @@ class Survey(object):
             if not fn.startswith('WFC3_IR'):
                 continue
 
-            pre = fn[fn.find('_IR')+4:]
+            fname = fn[fn.find('_IR')+4:]
 
-            # Read-in no matter what
-            if get_all or (pre in filters):
-
-                if pre in self._filter_cache:
-                    data[pre] = self._filter_cache[pre]
-                    continue
-
-                cent = float('{}.{}'.format(pre[1], pre[2:-1]))
-
-                full_path = os.path.join(path, fn)
-                x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
-
-                # Convert wavelengths from Angstroms to microns
-                data[pre] = self._get_filter_prop(x / 1e4, y, cent)
-
-                self._filter_cache[pre] = copy.deepcopy(data[pre])
-
-
-            elif filter_set is not None:
-
-
-                for _filters in filter_set:
-
-                    if _filters in self._filter_cache:
-                        data[pre] = self._filter_cache[_filters]
+            # Do we care about this filter? If not, move along.
+            if filters is not None:
+                if type(filters) == str:
+                    if filters not in fname:
                         continue
 
-                    if _filters not in pre:
-                        continue
+            if fname in self._filter_cache:
+                data[fname] = self._filter_cache[fname]
+                continue
 
-                    # Determine the center wavelength of the filter based on its
-                    # string identifier.
-                    cent = float('{}.{}'.format(pre[1], pre[2:-1]))
+            cent = float('{}.{}'.format(fname[1], fname[2:-1]))
 
-                    full_path = os.path.join(path, fn)
-                    x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
+            full_path = os.path.join(path, fn)
+            x, y = np.loadtxt(full_path, unpack=True, skiprows=1)
 
-                    # Convert wavelengths from Angstroms to microns
-                    data[pre] = self._get_filter_prop(x / 1e4, y, cent)
+            # Convert wavelengths from Angstroms to microns
+            data[fname] = self._get_filter_prop(x / 1e4, y, cent)
 
-                    self._filter_cache[pre] = copy.deepcopy(data[pre])
+            self._filter_cache[fname] = copy.deepcopy(data[fname])
 
         return data
 
-    def _read_irac(self, filter_set='W', filters=None):
+    def _read_irac(self, filters=None):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
 
@@ -454,6 +352,61 @@ class Survey(object):
 
         return data
 
+    def _read_2mass(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "2mass")
+
+        data = {}
+        cent = 1.235, 1.662, 2.159
+        for i, filt in enumerate(['J', 'H', 'Ks']):
+            full_path = os.path.join(path, f"2MASS.{filt}")
+            x, y = np.loadtxt(full_path, unpack=True)
+            x *= 1e-4
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_euclid(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "euclid")
+
+        data = {}
+        cent = 1.0809, 1.3673, 1.7714
+        for i, filt in enumerate(['Y', 'J', 'H']):
+            full_path = os.path.join(path,
+                f"NISP-PHOTO-PASSBANDS-V1-{filt}_throughput.dat")
+            x, y = np.loadtxt(full_path, unpack=True, usecols=[0,1])
+            x *= 1e-3
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_panstarrs(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "panstarrs")
+
+        data = {}
+        cent = 0.493601, 0.620617, 0.755348, 0.870475, 0.952863
+        for i, filt in enumerate(['g', 'r', 'i', 'z', 'y']):
+            full_path = os.path.join(path, f"PS1.{filt}")
+            x, y = np.loadtxt(full_path, unpack=True, usecols=[0,1])
+            x *= 1e-4
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
     def _read_spherex(self, filters=None):
         if not hasattr(self, '_filter_cache'):
             self._filter_cache = {}
@@ -537,7 +490,7 @@ class Survey(object):
         filter.
         """
 
-        data = self.read_throughputs(filters='all')
+        data = self.read_throughputs()
 
         wave_obs = drop_wave * 1e-4 * (1. + z)
 

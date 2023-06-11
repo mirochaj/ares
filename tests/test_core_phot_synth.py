@@ -98,13 +98,13 @@ def test(tol=0.25):
             load=load, units='Angstroms')
 
         # Different ways to estimate magnitude from HST photometry
-        _f, mag_from_phot_mean = pop.get_mags(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_mean = pop.get_mags(z, cam='hst',
             filters=filt_hst[zstr],
             method='gmean', load=load)
-        _f, mag_from_phot_close = pop.get_mags(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_close = pop.get_mags(z, cam='hst',
             filters=filt_hst[zstr],
             method='closest', load=load, x=1600., units='Angstroms')
-        _f, mag_from_phot_interp = pop.get_mags(z, cam=('wfc', 'wfc3'),
+        _f, mag_from_phot_interp = pop.get_mags(z, cam='hst',
             filters=filt_hst[zstr],
             method='interp', load=load, x=1600., units='Angstroms')
 
