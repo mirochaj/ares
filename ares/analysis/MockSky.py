@@ -100,6 +100,7 @@ class MockSky(object):
         self.fmt = fmt
         self.npix = self.fov * 3600 // pix
         self.shape = (self.npix, self.npix)
+        self.prefix = prefix
 
         # Replace FOV, pix if base_dir is supplied
         if base_dir is not None:
@@ -110,8 +111,8 @@ class MockSky(object):
             self.Lbox = float(_L[1:])
             self.dims = int(_N[1:])
         else:
-            self.base_dir = 'ebl_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(
-                self.fov, self.pix, self.Lbox, self.dims)
+            self.base_dir = '{}_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(
+                self.prefix, self.fov, self.pix, self.Lbox, self.dims)
             if suffix is not None:
                 self.base_dir += f'_{suffix}'
 

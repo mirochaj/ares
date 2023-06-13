@@ -15,7 +15,6 @@ import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
 from scipy.integrate import cumtrapz
-from ..simulations import Simulation
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
@@ -29,7 +28,7 @@ class LogNormal(LightCone): # pragma: no cover
     def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
-        randomise_in_cell=True, **kwargs):
+        randomise_in_cell=True, prefix='ares_mock', **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -61,6 +60,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.randomise_in_cell = randomise_in_cell
         self.verbose = verbose
         self.kwargs = kwargs
+        self.prefix = prefix
 
         if self.bias_model > 0:
             assert self.bias_params is not None, \
@@ -73,34 +73,6 @@ class LogNormal(LightCone): # pragma: no cover
             for z in [0.2, 1, 2, 3, 4, 5, 6, 10]:
                 fov = self.get_fov_from_L(z, Lbox)
                 print(f"# At z={z:.1f}: {fov:.2f} degrees")
-
-    @property
-    def sim(self):
-        if not hasattr(self, '_sim'):
-            self._sim = Simulation(verbose=self.verbose, **self.kwargs)
-        return self._sim
-
-    @property
-    def pops(self):
-        if not hasattr(self, '_pops'):
-            self._pops = self.sim.pops
-        return self._pops
-
-    @property
-    def dx(self):
-        if not hasattr(self, '_dx'):
-            self._dx = self.Lbox / float(self.dims)
-        return self._dx
-
-    @property
-    def tab_xe(self):
-        if not hasattr(self, '_xe'):
-            self._xe = np.arange(0, self.Lbox+self.dx, self.dx)
-        return self._xe
-
-    @property
-    def tab_xc(self):
-        return bin_e2c(self.tab_xe)
 
     def get_fov_from_L(self, z, Lbox):
         """
@@ -247,6 +219,9 @@ class LogNormal(LightCone): # pragma: no cover
         self._cache_ps[z] = power
 
         return power(k)
+
+    def get_density_field(self, z, seed=None):
+        return self.get_box(z=z, seed=seed)
 
     def get_box(self, z, seed=None):
         """
@@ -527,87 +502,6 @@ class LogNormal(LightCone): # pragma: no cover
 
         return _x, _y, _z, mass
 
-    def _get_catalog_from_coeval(self, halos, z0=0.2):
-        """
-        Make a catalog in lightcone coordinates (RA, DEC, redshift).
-
-        .. note :: RA and DEC output in degrees.
-
-        """
-
-        xmpc, ympc, zmpc, mass = halos
-
-        # Shift coordinates to +/- 0.5 * Lbox
-        xmpc = xmpc - 0.5 * self.Lbox / self.sim.cosm.h70
-        ympc = ympc - 0.5 * self.Lbox / self.sim.cosm.h70
-
-        # Don't shift zmpc at all, z0 is the front face of the box
-
-        # First, get redshifts
-        zarr = np.linspace(0, 10, 1000)
-        #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
-        #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
-
-        dofz = np.array([self.sim.cosm.ComovingRadialDistance(0, z) \
-            for z in zarr]) / cm_per_mpc
-
-        # arcmin / Mpc -> deg / Mpc
-        angl = np.array([self.sim.cosm.ComovingLengthToAngle(z, 1) \
-            for z in zarr]) / 60.
-
-        # Move the front edge of the box to redshift `z0`
-        d0 = np.interp(z0, zarr, dofz)
-
-        # Translate LOS distances to redshifts.
-        red = np.interp(zmpc + d0, dofz, zarr)
-
-        # Conversion from physical to angular coordinates
-        deg_per_mpc = np.interp(zmpc + d0, dofz, angl)
-
-        ra  = xmpc * deg_per_mpc
-        dec = ympc * deg_per_mpc
-
-        return ra, dec, red
-
-    def get_domain_info(self, zlim=None, Lbox=None):
-        """
-        Figure out how domain will be divided up along line of sight.
-
-        Returns
-        -------
-        A tuple containing (chunk edges in redshift, chunk edges in comoving Mpc).
-        """
-
-        if Lbox is None:
-            Lbox = self.Lbox
-
-        # First, get redshifts
-        zarr = np.arange(0, 30, 0.05)
-        dofz = np.array([self.sim.cosm.ComovingRadialDistance(0, z) \
-            for z in zarr]) / cm_per_mpc
-
-        if zlim is None:
-            zmin, zmax = self.zlim
-        else:
-            zmin, zmax = zlim
-
-        Rmin = np.interp(zmin, zarr, dofz)
-        Rmax = np.interp(zmax, zarr, dofz)
-        Nbox = 1 + int((Rmax - Rmin) // (Lbox / self.sim.cosm.h70))
-
-        Re = np.arange(Rmin, Rmax+(Lbox / self.sim.cosm.h70), Lbox / self.sim.cosm.h70)
-
-        Rc = bin_e2c(Re)
-        ze = np.interp(Re, dofz, zarr)
-        dz = np.diff(ze)
-
-        # Redshift midpoint
-        zmid = np.zeros_like(Rc)
-        for i, zlo in enumerate(ze[0:-1]):
-            zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.sim.cosm.h70), dofz, zarr)
-
-        return ze, zmid, Re
-
     def get_catalog(self, zlim=None, logmlim=(11,12), randomise_in_cell=True,
         idnum=0, verbose=True):
         """
@@ -753,34 +647,6 @@ class LogNormal(LightCone): # pragma: no cover
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
 
         return ra, dec, red, mass
-
-
-    def get_redshift_chunks(self, zlim):
-        """
-        Return the edges of each co-eval cube as positioned along the LoS.
-        """
-
-        ze, zmid, Re = self.get_domain_info(zlim)
-
-        chunks = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
-        return chunks
-
-    def get_mass_chunks(self, logmlim, dlogm):
-        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
-        return np.array([(mbin, mbin+dlogm) for mbin in mbins])
-
-    def get_zindex(self, z):
-        """
-        For a given redshift, return the index of the chunk that contains it
-        in the LoS direction.
-        """
-        zall = self.get_redshift_chunks()
-        zlo, zhi = np.array(zall).T
-        iz = np.argmin(np.abs(z - zlo))
-        if zlo[iz] > z:
-            iz -= 1
-
-        return iz
 
     def get_seds(self, z, idnum=0, wave_range=(800., 5e4), mmin=1e11,
         dlam=20, tol_logM=0.1):

@@ -715,6 +715,7 @@ def PopulationParameters():
 
     "pop_histories": None,
     "pop_halos": None,
+    "pop_density": None,
     "pop_volume": None,
 
     "pop_guide_pop": None,

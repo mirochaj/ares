@@ -15,6 +15,7 @@ import gc
 import time
 import h5py
 import numpy as np
+from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
 from scipy.integrate import cumtrapz, quad
 from ..util.ProgressBar import ProgressBar
@@ -33,7 +34,32 @@ class LightCone(object): # pragma: no cover
     This should be inherited by the other classes in this submodule.
     """
 
+    def get_fov_max(self, zlim):
+        """
+        Determine the biggest field-of-view we can produce (without repeated
+        structures) given the input box size (self.Lbox).
+
+        Returns
+        -------
+        Maximal field of view [degrees] in linear dimension.
+        """
+
+        zlo, zhi = zlim
+
+        # arcmin / Mpc -> deg / Mpc
+        L = self.Lbox / self.sim.cosm.h70
+        angl_per_Llo = self.sim.cosm.ComovingLengthToAngle(zlo, L) / 60.
+        angl_per_Lhi = self.sim.cosm.ComovingLengthToAngle(zhi, L) / 60.
+
+        return angl_per_Lhi
+
     def get_pixels(self, fov, pix=1, hdr=None):
+        """
+        For a given field of view [deg, linear dimension] and pixel scale `pix`
+        [arcseconds], return arrays containing bin edges and centers in both
+        dimensions, i.e., (RA_edges, RA_centers, DEC_edges, DEC_centers), all
+        in degrees.
+        """
 
         if type(fov) in numeric_types:
             fov = np.array([fov]*2)
@@ -57,6 +83,34 @@ class LightCone(object): # pragma: no cover
         return ra_e / 3600., ra_c / 3600., dec_e / 3600., dec_c / 3600.
 
     @property
+    def sim(self):
+        if not hasattr(self, '_sim'):
+            self._sim = Simulation(verbose=self.verbose, **self.kwargs)
+        return self._sim
+
+    @property
+    def pops(self):
+        if not hasattr(self, '_pops'):
+            self._pops = self.sim.pops
+        return self._pops
+
+    @property
+    def dx(self):
+        if not hasattr(self, '_dx'):
+            self._dx = self.Lbox / float(self.dims)
+        return self._dx
+
+    @property
+    def tab_xe(self):
+        if not hasattr(self, '_xe'):
+            self._xe = np.arange(0, self.Lbox+self.dx, self.dx)
+        return self._xe
+
+    @property
+    def tab_xc(self):
+        return bin_e2c(self.tab_xe)
+
+    @property
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
             self._tab_z = np.arange(0, 30, 0.1)
@@ -71,6 +125,117 @@ class LightCone(object): # pragma: no cover
             self._tab_dL = np.array([self.sim.cosm.get_luminosity_distance(z) \
                 for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
+
+    def get_domain_info(self, zlim=None, Lbox=None):
+        """
+        Figure out how domain will be divided up along line of sight.
+
+        Returns
+        -------
+        A tuple containing (chunk edges in redshift, chunk midpoints in redshift,
+            chunk edges in comoving Mpc).
+
+        """
+
+        if Lbox is None:
+            Lbox = self.Lbox
+
+        # First, get redshifts. This is just for interpolation.
+        zarr = np.arange(0, 30, 0.05)
+        dofz = np.array([self.sim.cosm.ComovingRadialDistance(0, z) \
+            for z in zarr]) / cm_per_mpc
+
+        if zlim is None:
+            zmin, zmax = self.zlim
+        else:
+            zmin, zmax = zlim
+
+        Rmin = np.interp(zmin, zarr, dofz)
+        Rmax = np.interp(zmax, zarr, dofz)
+        Nbox = 1 + int((Rmax - Rmin) // (Lbox / self.sim.cosm.h70))
+
+        Re = np.arange(Rmin, Rmax+(Lbox / self.sim.cosm.h70), Lbox / self.sim.cosm.h70)
+
+        Rc = bin_e2c(Re)
+        ze = np.interp(Re, dofz, zarr)
+        dz = np.diff(ze)
+
+        # Redshift midpoint
+        zmid = np.zeros_like(Rc)
+        for i, zlo in enumerate(ze[0:-1]):
+            zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.sim.cosm.h70), dofz, zarr)
+
+        return ze, zmid, Re
+
+    def get_redshift_chunks(self, zlim):
+        """
+        Return the edges of each co-eval cube as positioned along the LoS.
+        """
+
+        ze, zmid, Re = self.get_domain_info(zlim)
+
+        chunks = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
+        return chunks
+
+    def get_mass_chunks(self, logmlim, dlogm):
+        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
+        return np.array([(mbin, mbin+dlogm) for mbin in mbins])
+
+    def get_zindex(self, z):
+        """
+        For a given redshift, return the index of the chunk that contains it
+        in the LoS direction.
+        """
+        zall = self.get_redshift_chunks()
+        zlo, zhi = np.array(zall).T
+        iz = np.argmin(np.abs(z - zlo))
+        if zlo[iz] > z:
+            iz -= 1
+
+        return iz
+
+    def _get_catalog_from_coeval(self, halos, z0=0.2):
+        """
+        Make a catalog in lightcone coordinates (RA, DEC, redshift).
+
+        .. note :: RA and DEC output in degrees.
+
+        """
+
+        xmpc, ympc, zmpc, mass = halos
+
+        # Shift coordinates to +/- 0.5 * Lbox
+        xmpc = (xmpc - 0.5 * self.Lbox) / self.sim.cosm.h70
+        ympc = (ympc - 0.5 * self.Lbox) / self.sim.cosm.h70
+
+        # Don't shift zmpc at all, z0 is the front face of the box
+
+        # First, get redshifts
+        zarr = np.linspace(0, 10, 1000)
+        #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
+        #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
+
+        dofz = np.array([self.sim.cosm.ComovingRadialDistance(0, z) \
+            for z in zarr]) / cm_per_mpc
+
+        # arcmin / Mpc -> deg / Mpc
+        angl = np.array([self.sim.cosm.ComovingLengthToAngle(z, 1) \
+            for z in zarr]) / 60.
+
+        # Move the front edge of the box to redshift `z0`
+        d0 = np.interp(z0, zarr, dofz)
+
+        # Translate LOS distances to redshifts.
+        red = np.interp(zmpc + d0, dofz, zarr)
+
+        # Conversion from physical to angular coordinates
+        deg_per_mpc = np.interp(zmpc + d0, dofz, angl)
+
+        ra  = xmpc * deg_per_mpc
+        dec = ympc * deg_per_mpc
+
+        return ra, dec, red
+
 
     def thin_sample(self, max_sources=None):
 
@@ -96,7 +261,7 @@ class LightCone(object): # pragma: no cover
         """
         Our model is:
 
-        ->ebl_fov_<FOV in deg>_pix_<pixel scale in arcsec>_L<box/cMpc/h>_N<dims>/
+        -><prefix>_fov_<FOV in deg>_pix_<pixel scale in arcsec>_L<box/cMpc/h>_N<dims>/
         ->  README
         ->  <parent directory name>.tar.gz
                 *(contains) final mock for each channel summed over all z, M, pops.
@@ -106,7 +271,7 @@ class LightCone(object): # pragma: no cover
 
         """
 
-        base_dir = '{}/ebl_fov_{:.1f}_pix_{:.1f}'.format(path,
+        base_dir = '{}/{}_fov_{:.1f}_pix_{:.1f}'.format(path, self.prefix,
             self.fov, self.pix, self.Lbox)
 
     def get_base_dir(self, fov, pix, path='.', suffix=None):
@@ -116,7 +281,7 @@ class LightCone(object): # pragma: no cover
 
         Our model is:
 
-        ->ebl_fov_<FOV/deg>_pix_<pixel scale / arcsec>_L<box/cMpc/h>_N<dims>/
+        -><prefix>_fov_<FOV/deg>_pix_<pixel scale / arcsec>_L<box/cMpc/h>_N<dims>/
         ->  README
 
         Inside this directory, there will be many subdirectories: one for each
@@ -129,8 +294,8 @@ class LightCone(object): # pragma: no cover
         """
 
 
-        s = '{}/ebl_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(path,
-            fov, pix, self.Lbox, self.dims)
+        s = '{}/{}_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(path,
+            self.prefix, fov, pix, self.Lbox, self.dims)
 
         if suffix is None:
             print("# WARNING: might be worth providing `suffix` as additional identifier.")
@@ -609,12 +774,27 @@ class LightCone(object): # pragma: no cover
 
         return s
 
+    def generate_lightcone(self, fov, pix, channels):
+        """
+        Generate a lightcone.
+        """
+        pass
+
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='hdf5', hdr={}, max_sources=None,
         include_pops=None, clobber=False, verbose=False, **kwargs):
         """
         Generate galaxy catalogs.
+
+        Parameters
+        ----------
+        fov : int, float
+            Field of view (single dimension) in degrees, so total area is
+            FOV^2/deg^2.
+        pix : int, float
+            Pixel scale in arcseconds.
+
         """
 
         # Create root directory if it doesn't already exist.
@@ -626,7 +806,7 @@ class LightCone(object): # pragma: no cover
             os.mkdir(base_dir + '/final_cats')
 
         #
-        if channels is None:
+        if (channels is None) or (channels == ['Mh']):
             run_phot = False
             channels = ['Mh']
         else:
@@ -771,6 +951,8 @@ class LightCone(object): # pragma: no cover
                         if not run_phot:
                             dat_z.extend(list(Mh))
                             continue
+
+                        raise NotImplemented('not there yet')
 
                         seds = self.sim.pops[popid].get_spec(_z_, waves, M=Mh,
                             stellar_mass=False)
