@@ -548,7 +548,7 @@ class LogNormal(LightCone): # pragma: no cover
         fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
         seeds = self.seed_rho * np.arange(1, len(zmid)+1)
-        seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+        q = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
         seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
         seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
 
@@ -610,6 +610,9 @@ class LogNormal(LightCone): # pragma: no cover
             if halos[0] is None:
                 ra = dec = red = mass = None
                 continue
+
+            ##
+            # Perform random flips and translations here
 
             _ra, _de, _red = self._get_catalog_from_coeval(halos, z0=zlo)
             _m = halos[-1]

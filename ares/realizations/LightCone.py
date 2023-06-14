@@ -20,6 +20,7 @@ from ..util.Stats import bin_e2c, bin_c2e
 from scipy.integrate import cumtrapz, quad
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
+from scipy.spatial.transform import Rotation
 from astropy.modeling.models import Sersic2D
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c
@@ -28,6 +29,8 @@ try:
     from astropy.io import fits
 except ImportError:
     pass
+
+angles_90 = 90 * np.arange(4)
 
 class LightCone(object): # pragma: no cover
     """
@@ -193,6 +196,217 @@ class LightCone(object): # pragma: no cover
             iz -= 1
 
         return iz
+
+    def get_catalog(self, zlim=None, logmlim=(11,12), idnum=0, verbose=True):
+        """
+        Get a galaxy catalog in (RA, DEC, redshift) coordinates.
+
+        .. note :: This is essentially a wrapper around `_get_catalog_from_coeval`,
+            i.e., we're just figuring out how many chunks are needed along the
+            line of sight and re-generating the relevant cubes.
+
+        Parameters
+        ----------
+        zlim : tuple
+            Restrict redshift range to be between:
+
+                zlim[0] <= z < zlim[1].
+
+        logmlim : tuple
+            Restrict halo mass range to be between:
+
+                10**logmlim[0] <= Mh/Msun 10**logmlim[1]
+
+        Returns
+        -------
+        A tuple containing (ra, dec, redshift, <mass or magnitudes or SFR or w/e>)
+
+        """
+
+        if zlim is None:
+            zlim = self.zlim
+
+        zmin, zmax = zlim
+        mmin, mmax = 10**np.array(logmlim)
+
+        # Version of Lbox in actual cMpc
+        L = self.Lbox / self.sim.cosm.h70
+
+        # First, get full domain info
+        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
+        Rc = bin_e2c(Re)
+        dz = np.diff(ze)
+
+        # Deterministically adjust the random seeds for the given mass range
+        # and redshift range.
+        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
+        # Figure out if we're getting the catalog of a single chunk
+        chunk_id = None
+        for i, Rlo in enumerate(Re[0:-1]):
+            zlo, zhi = ze[i:i+2]
+
+            if (zlo == zlim[0]) and (zhi == zlim[1]):
+                chunk_id = i
+                break
+
+        ##
+        # Setup random seeds
+        np.random.seed(self.seed_rot)
+        r_rot = np.random.randint(0, high=4, size=(len(Re)-1)*3).reshape(
+            len(Re)-1, 3
+        )
+
+        np.random.seed(self.seed_tra)
+        r_tra = np.random.rand(len(Re)-1, 3)
+
+        ##
+        # Print-out information about FOV
+        # arcmin / Mpc -> deg / Mpc
+        theta_zmin = self.sim.cosm.ComovingLengthToAngle(zmin, 1) * L / 60.
+        theta_zmax = self.sim.cosm.ComovingLengthToAngle(zmax, 1) * L / 60.
+
+        pbar = ProgressBar(Rc.size, name=f"lc(z>={zmin},z<{zmax})",
+            use=chunk_id is None)
+        pbar.start()
+
+        ct = 0
+        zlo = zmin * 1.
+        for i, Rlo in enumerate(Re[0:-1]):
+            pbar.update(i)
+
+            zlo, zhi = ze[i:i+2]
+
+            if chunk_id is not None:
+                if i != chunk_id:
+                    continue
+
+            if (zhi <= zlim[0]) or (zlo >= zlim[1]):
+                continue
+
+            # Contains (x, y, z, mass)
+            # Note that x, y, z are in cMpc / h units, not actual cMpc.
+            halos = self.get_halo_population(z=zmid[i],
+                mmin=mmin, mmax=mmax, verbose=verbose, idnum=idnum)
+
+            if halos[0].size == 0:
+                ra = dec = red = mass = None
+                continue
+
+            # Might change later if we do domain decomposition
+            x0 = y0 = z0 = 0.0
+            dx = dy = dz = self.Lbox
+
+            ##
+            # Perform random flips and translations here
+            if self.apply_rotations:
+
+                _x_, _y_, _z_, _m_ = halos
+
+                # Put positions in space centered on (0,0,0), i.e.,
+                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
+                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
+                _x = _x_ - (x0 + 0.5 * dx)
+                _y = _y_ - (y0 + 0.5 * dy)
+                _z = _z_ - (z0 + 0.5 * dz)
+
+                # This is just the format required by Rotation below.
+                _view = np.array([_x, _y, _z]).T
+
+                # Loop over axes
+                for k in range(3):
+
+                    # Force new viewing angles to be orthogonal to box faces
+                    r = r_rot[i,k]
+                    _theta = angles_90[r] * np.pi / 180.
+
+                    axis = np.zeros(3)
+                    axis[k] = 1
+
+                    rot = Rotation.from_rotvec(_theta * axis)
+                    _view = rot.apply(_view)
+
+                # Read in our new 'view' of the catalog, undo the shift
+                # so we're back in [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)] region.
+                _x, _y, _z = _view.T
+                _x += (0.5 * dx)
+                _y += (0.5 * dy)
+                _z += (0.5 * dz)
+
+                halos = [_x, _y, _z, _m_]
+
+            else:
+                pass
+
+            ##
+            # Random translations
+            if self.apply_translations:
+                _x_, _y_, _z_, _m_ = halos
+
+                # Put positions in space centered on (0,0,0), i.e.,
+                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
+                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
+                _x = _x_.copy()
+                _y = _y_.copy()
+                _z = _z_.copy()
+
+                _x += r_tra[i,0] * dx
+                overx = _x > dx
+                _x[overx] = _x[overx] - dx
+
+                _y += r_tra[i,1] * dy
+                overy = _y > dy
+                _y[overy] = _y[overy] - dy
+
+                _z += r_tra[i,2] * dz
+                overz = _z > dz
+                _z[overz] = _z[overz] - dz
+
+                halos = [_x, _y, _z, _m_]
+
+            else:
+                pass
+
+            ##
+            # Convert to (ra, dec, redshift) coordinates.
+            # Note: the conversion from cMpc/h to cMpc occurs inside
+            # _get_catalog_from_coeval here:
+            _ra, _de, _red = self._get_catalog_from_coeval(halos, z0=zlo)
+            _m = halos[-1]
+
+            okr = np.logical_and(_ra <  0.5 * theta_zmin,
+                                 _ra > -0.5 * theta_zmin)
+            okd = np.logical_and(_de <  0.5 * theta_zmin,
+                                 _de > -0.5 * theta_zmin)
+            ok = np.logical_and(okr, okd)
+
+                # Cache intermediate outputs too!
+                #self._cache_cats[(zlo, zhi, mmin)] = \
+                #    _ra[ok==1], _de[ok==1], _red[ok==1], _m[ok==1]
+
+                #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
+
+            if ct == 0:
+                ra = _ra.copy()
+                dec = _de.copy()
+                red = _red.copy()
+                mass = _m.copy()
+            else:
+                ra = np.hstack((ra, _ra))
+                dec = np.hstack((dec, _de))
+                red = np.hstack((red, _red))
+                mass = np.hstack((mass, _m))
+
+            ct += 1
+
+            del _ra, _de, _red, _m, halos
+            gc.collect()
+
+        pbar.finish()
+
+        #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
+
+        return ra, dec, red, mass
 
     def _get_catalog_from_coeval(self, halos, z0=0.2):
         """
