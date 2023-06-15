@@ -2012,8 +2012,8 @@ class GalaxyCohort(GalaxyAggregate):
             MAB = _MAB
 
         #if self.pf['pop_halos'] is None:
-        #    phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
-        #    phi_of_M[phi_of_M==0] = tiny_phi
+        phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
+        phi_of_M[phi_of_M==0] = tiny_phi
         #else:
         #    raise NotImplemented('help')
 
