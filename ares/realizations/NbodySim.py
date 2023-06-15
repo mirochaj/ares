@@ -70,6 +70,9 @@ class NbodySim(LightCone): # pragma: no cover
         in cMpc / h (between 0 and self.Lbox), and mass is in Msun.
 
         """
+
+        # Should setup to keep box in memory until we change to a different z
+
         m, xx, yy, zz = self.sim.pops[0].pf['pop_halos'](z).T
 
         ok = np.logical_and(m >= mmin, m < mmax)

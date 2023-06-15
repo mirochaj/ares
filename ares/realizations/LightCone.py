@@ -23,7 +23,7 @@ from ..util.Misc import numeric_types, get_hash
 from scipy.spatial.transform import Rotation
 from astropy.modeling.models import Sersic2D
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
-    erg_per_s_per_nW, c
+    erg_per_s_per_nW, c, s_per_myr
 
 try:
     from astropy.io import fits
@@ -37,7 +37,7 @@ class LightCone(object): # pragma: no cover
     This should be inherited by the other classes in this submodule.
     """
 
-    def get_fov_max(self, zlim):
+    def get_max_fov(self, zlim):
         """
         Determine the biggest field-of-view we can produce (without repeated
         structures) given the input box size (self.Lbox).
@@ -54,7 +54,19 @@ class LightCone(object): # pragma: no cover
         angl_per_Llo = self.sim.cosm.ComovingLengthToAngle(zlo, L) / 60.
         angl_per_Lhi = self.sim.cosm.ComovingLengthToAngle(zhi, L) / 60.
 
-        return angl_per_Lhi
+        return angl_per_Llo
+
+    def get_max_timestep(self):
+        """
+        Based on the size of our box, return the time interval corresponding to
+        along the z-axis for each chunk of our lightcone.
+        """
+
+        ze, zc, Re = self.get_domain_info()
+
+        te = self.sim.cosm.t_of_z(ze) / s_per_myr
+
+        return np.diff(te)
 
     def get_pixels(self, fov, pix=1, hdr=None):
         """
@@ -618,21 +630,6 @@ class LightCone(object): # pragma: no cover
         if ra is None:
             return #None, None, None
 
-        # Check that (RA, DEC) range in galaxy catalog is within the
-        # requested FOV.
-        theta_cat = self.sim.cosm.ComovingLengthToAngle(zhi, 1) \
-            * (self.Lbox / self.sim.cosm.h70) / 60.
-
-        assert theta_cat >= fov[0], \
-            f"Catalog FoV ({theta_cat:.2f}) smaller than requested FoV at z={zhi:.2f}!"
-
-        #dra = ra.max() - ra.min()
-        #dde = dec.max() - dec.min()
-        #assert dra >= fov[0], \
-        #    f"Catalog spans RA range ({dra}) smaller than requested FoV!"
-        #assert dde >= dec[0], \
-        #    f"Catalog spans DEC range ({dde}) smaller than requested FoV!"
-
         ##
         # Figure out which bin each galaxy is in.
         ra_bin = np.digitize(ra, bins=ra_e)
@@ -717,8 +714,8 @@ class LightCone(object): # pragma: no cover
         waves = np.arange(_wlo, _whi+dlam, dlam)
 
         # Need to supply band or window?
-        seds = self.sim.pops[idnum].get_spec(_z_, waves, M=Mh,
-            stellar_mass=False, per_Hz=False, window=dlam)
+        seds = self.sim.pops[idnum].get_spec(_z_, waves, Mh=Mh,
+            units_out='erg/s/Hz', window=dlam+1)
 
         owaves = waves[None,:] * (1. + red[:,None])
 
@@ -956,7 +953,10 @@ class LightCone(object): # pragma: no cover
             channels = ['Mh']
 
         if channel_names is None:
-            channel_names = [None] * len(channels)
+            if is_map:
+                channel_names = [None] * len(channels)
+            else:
+                channel_names = channels
 
         # Loop over channels and record filenames. If not supplied, must be
         # galaxy catalog containing only positions (no photometry).
@@ -969,7 +969,7 @@ class LightCone(object): # pragma: no cover
                     channel_names[h],
                     np.mean(channel), channel[0], channel[1], final_dir, fn)
             else:
-                s += "{} ; {}/{}".format(channel, final_dir, fn)
+                s += "{} ; {}/{} \n".format(channel, final_dir, fn)
         #else:
         #    assert not is_map
         #    fn = self.get_fn(None, logmlim, zlim=zlim,
@@ -1019,7 +1019,7 @@ class LightCone(object): # pragma: no cover
             os.mkdir(base_dir + '/intermediate_cats')
             os.mkdir(base_dir + '/final_cats')
 
-        #
+        # At least save halo mass since we get it for free.
         if (channels is None) or (channels == ['Mh']):
             run_phot = False
             channels = ['Mh']
@@ -1027,7 +1027,7 @@ class LightCone(object): # pragma: no cover
             run_phot = True
 
         if channel_names is None:
-            channel_names = [None] * len(channels)
+            channel_names = channels
 
         ##
         # Write a README file that says what all the final products are
@@ -1047,6 +1047,7 @@ class LightCone(object): # pragma: no cover
 
         npix = int(fov * 3600 / pix)
         zchunks = self.get_redshift_chunks(self.zlim)
+        zcent, ze, Re = self.get_domain_info(self.zlim)
         mchunks = self.get_mass_chunks(logmlim, dlogm)
 
         final_dir = base_dir + '/final_cats'
@@ -1076,7 +1077,7 @@ class LightCone(object): # pragma: no cover
                 dec_allz = []
                 red_allz = []
                 dat_allz = []
-                for (zlo, zhi) in zchunks:
+                for i, (zlo, zhi) in enumerate(zchunks):
 
                     # Look for pre-existing file.
 
@@ -1091,7 +1092,7 @@ class LightCone(object): # pragma: no cover
                     ct = 0
 
                     # Go from high to low in mass
-                    for (mlo, mhi) in mchunks[-1::-1]:
+                    for j, (mlo, mhi) in enumerate(mchunks[-1::-1]):
 
                         if max_sources is not None:
                             if ct >= max_sources:
@@ -1115,15 +1116,12 @@ class LightCone(object): # pragma: no cover
                         if ra is None:
                             continue
 
-                        # Check that (RA, DEC) range in galaxy catalog is within the
-                        # requested FOV.
-                        theta_cat = self.sim.cosm.ComovingLengthToAngle(zhi, 1) \
-                            * (self.Lbox / self.sim.cosm.h70) / 60.
-
-
                         # Hack out galaxies outside our requested lightcone.
-                        ok = np.logical_and(np.abs(ra) < fov / 2.,
+                        ok = np.logical_and(np.abs(ra)  < fov / 2.,
                                             np.abs(dec) < fov / 2.)
+
+                        if ok.sum() == 0:
+                            continue
 
                         # Limit number of sources, just for testing.
                         if (max_sources is not None):
@@ -1144,6 +1142,7 @@ class LightCone(object): # pragma: no cover
                                 if ct + ok.sum() == max_sources:
                                     self._hit_max_sources = True
 
+
                         # Isolate OK entries.
                         ra = ra[ok==1]
                         dec = dec[ok==1]
@@ -1152,25 +1151,39 @@ class LightCone(object): # pragma: no cover
 
                         ct += ok.sum()
 
-                        self.save_cat(fn, (ra, dec, red, Mh),
-                            None, (zlo, zhi), (mlo, mhi),
-                            fov, pix=pix, fmt=fmt, hdr=hdr,
-                            clobber=clobber)
-
                         ra_z.extend(list(ra))
                         dec_z.extend(list(dec))
                         red_z.extend(list(red))
 
+                        ##
+                        # Unpack channel info
+                        # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
+                        # photometric info, e.g., ('roman', 'F087'),
+                        # or special quantities like Ly-a EW or luminosity.
+                        # Note: if pops[idnum] is a GalaxyEnsemble object
+                        if channel in ['Mh', 'Ms', 'SFR']:
+                            dat = Mh
+                        elif channel.lower().startswith('ew'):
+                            raise NotImplemented('help')
+                        else:
+                            cam, filt = channel.split('_')
 
-                        if not run_phot:
-                            dat_z.extend(list(Mh))
-                            continue
+                            _filt, mags = self.sim.pops[popid].get_mags(zcent[i],
+                                absolute=False, cam=cam, filters=[filt],
+                                Mh=Mh)
 
-                        raise NotImplemented('not there yet')
+                            dat = np.atleast_1d(mags.squeeze())
 
-                        seds = self.sim.pops[popid].get_spec(_z_, waves, M=Mh,
-                            stellar_mass=False)
-                        #dat_z.extend(list(Mh))
+                        ##
+                        # Save
+                        # Future: save ra, dec, redshift separately? Could
+                        # get heavy.
+                        self.save_cat(fn, (ra, dec, red, dat),
+                            channel, (zlo, zhi), (mlo, mhi),
+                            fov, pix=pix, fmt=fmt, hdr=hdr,
+                            clobber=clobber)
+
+                        dat_z.extend(list(dat))
 
                     ##
                     # Done with all mass chunks
@@ -1183,7 +1196,7 @@ class LightCone(object): # pragma: no cover
                     fnt = intmd_dir + '/' + fnt
 
                     self.save_cat(fnt, (ra_z, dec_z, red_z, dat_z),
-                        None, (zlo, zhi), (mlo, mhi),
+                        channel, (zlo, zhi), (mlo, mhi),
                         fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
 
                     ra_allz.extend(ra_z)
@@ -1202,7 +1215,7 @@ class LightCone(object): # pragma: no cover
                 fnp = intmd_dir + '/' + fnp
 
                 self.save_cat(fnp, (ra_allz, dec_allz, red_allz, dat_allz),
-                    None, zlim, logmlim,
+                    channel, zlim, logmlim,
                     fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
 
                 ra_allp.extend(ra_allz)
@@ -1222,8 +1235,6 @@ class LightCone(object): # pragma: no cover
 
             print(f"Trying to save final catalog to {fnf}")
             print(f"final_dir={final_dir}, fnf={fnf}, channel={channel}")
-
-
             self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
                 channel, zlim, logmlim,
                 fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
@@ -1537,8 +1548,7 @@ class LightCone(object): # pragma: no cover
                 f.create_dataset('ra', data=ra)
                 f.create_dataset('dec', data=dec)
                 f.create_dataset('z', data=red)
-                f.create_dataset(channel if channel is not None else 'Mh',
-                    data=X)
+                f.create_dataset(channel, data=X)
 
                 # Save hdr
                 grp = f.create_group('hdr')
@@ -1549,8 +1559,8 @@ class LightCone(object): # pragma: no cover
             col1 = fits.Column(name='ra', format='D', unit='deg', array=ra)
             col2 = fits.Column(name='dec', format='D', unit='deg', array=dec)
             col3 = fits.Column(name='z', format='D', unit='', array=red)
-            col4 = fits.Column(name=channel if channel is not None else 'Mh',
-                format='D', unit='', array=X)
+
+            col4 = fits.Column(name=channel, format='D', unit='', array=X)
             coldefs = fits.ColDefs([col1, col2, col3, col4])
 
             hdu = fits.BinTableHDU.from_columns(coldefs)

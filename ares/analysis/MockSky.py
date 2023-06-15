@@ -168,7 +168,6 @@ class MockSky(object):
         zchunks = []
         mchunks = []
         for fn in os.listdir(_subdir):
-            print('hi', fn, fn.split('_'))
             z, zlo, zhi, m, mlo, mhi, chlo, chi = fn.split('_')
             chi = chi[0:chi.rfind('.')]
 
@@ -462,6 +461,9 @@ class MockSky(object):
         _ra, _dec, red, X = self.load_cat(fn_cat[k])
 
         ok = np.logical_and(red >= z-0.5*dz, red < z+0.5*dz)
+
+        if maglim is not None:
+            ok = np.logical_and(ok, X < maglim)
 
         # Grab info about available maps just so we know what the image
         # dimensions should be and how to map RA/DEC to pixels.
