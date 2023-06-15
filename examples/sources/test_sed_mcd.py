@@ -16,7 +16,7 @@ import matplotlib.pyplot as pl
 
 bh_pars = \
 {
- 'source_type': 'bh', 
+ 'source_type': 'bh',
  'source_mass': 10.,
  'source_rmax': 1e3,
  'source_sed': 'mcd',
@@ -30,5 +30,3 @@ bh = ares.analysis.Source(src)
 
 ax = bh.PlotSpectrum()
 pl.draw()
-
-

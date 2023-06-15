@@ -100,6 +100,7 @@ class MockSky(object):
         self.fmt = fmt
         self.npix = self.fov * 3600 // pix
         self.shape = (self.npix, self.npix)
+        self.prefix = prefix
 
         # Replace FOV, pix if base_dir is supplied
         if base_dir is not None:
@@ -110,8 +111,8 @@ class MockSky(object):
             self.Lbox = float(_L[1:])
             self.dims = int(_N[1:])
         else:
-            self.base_dir = 'ebl_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(
-                self.fov, self.pix, self.Lbox, self.dims)
+            self.base_dir = '{}_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(
+                self.prefix, self.fov, self.pix, self.Lbox, self.dims)
             if suffix is not None:
                 self.base_dir += f'_{suffix}'
 
@@ -167,7 +168,6 @@ class MockSky(object):
         zchunks = []
         mchunks = []
         for fn in os.listdir(_subdir):
-            print('hi', fn, fn.split('_'))
             z, zlo, zhi, m, mlo, mhi, chlo, chi = fn.split('_')
             chi = chi[0:chi.rfind('.')]
 
@@ -461,6 +461,9 @@ class MockSky(object):
         _ra, _dec, red, X = self.load_cat(fn_cat[k])
 
         ok = np.logical_and(red >= z-0.5*dz, red < z+0.5*dz)
+
+        if maglim is not None:
+            ok = np.logical_and(ok, X < maglim)
 
         # Grab info about available maps just so we know what the image
         # dimensions should be and how to map RA/DEC to pixels.

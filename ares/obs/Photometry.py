@@ -190,6 +190,9 @@ class Photometry(object):
         sorter = np.argsort(_waves)
         all_filters = [_all_filters[ind] for ind in sorter]
 
+        if filters is None:
+            filters = all_filters
+
         # Might be running over lots of galaxies
         batch_mode = False
         if flux.ndim == 2:
@@ -210,6 +213,10 @@ class Photometry(object):
         # Loop over filters, compute fluxes in band (accounting for
         # transmission fraction) and convert to observed magnitudes.
         for filt in all_filters:
+
+            if filt not in filters:
+                continue
+
             x, T, cent, dx, Tavg = filter_data[filt]
 
             #if rest_wave is not None:
