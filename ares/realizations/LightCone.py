@@ -1158,8 +1158,6 @@ class LightCone(object): # pragma: no cover
                         dec_z.extend(list(dec))
                         red_z.extend(list(red))
 
-                        print('yo yo', zcent[i], ok.sum(), ra, channel, Mh)
-
                         ##
                         # Unpack channel info
                         # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
