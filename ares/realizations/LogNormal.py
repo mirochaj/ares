@@ -27,6 +27,8 @@ except ImportError:
 class LogNormal(LightCone): # pragma: no cover
     def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
+        seed_rot=None, seed_trans=None,
+        apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, prefix='ares_mock', **kwargs):
         """
@@ -53,6 +55,11 @@ class LogNormal(LightCone): # pragma: no cover
         self.seed_halo_mass = seed_halo_mass
         self.seed_halo_pos = seed_halo_pos
         self.seed_halo_occ = seed_halo_occ
+        self.seed_rot = seed_rot
+        self.seed_tra = seed_trans
+        self.apply_rotations = apply_rotations
+        self.apply_translations = apply_translations
+
         self.bias_model = bias_model
         self.bias_params = bias_params
         self.bias_replacement = bias_replacement
@@ -73,6 +80,24 @@ class LogNormal(LightCone): # pragma: no cover
             for z in [0.2, 1, 2, 3, 4, 5, 6, 10]:
                 fov = self.get_fov_from_L(z, Lbox)
                 print(f"# At z={z:.1f}: {fov:.2f} degrees")
+
+    def get_seed_kwargs(self, chunk, logmlim):
+        # Deterministically adjust the random seeds for the given mass range
+        # and redshift range.
+        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
+        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
+
+        if not hasattr(self, '_seeds'):
+            self._seeds = self.seed_rho * np.arange(1, len(zmid)+1)
+            self._seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+            self._seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+            self._seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+
+        i = chunk
+        return {'seed_box': self._seeds[i],
+            'seed': self._seeds_hm[i], 'seed_pos': self._seeds_hp[i],
+            'seed_occ': self._seeds_ho[i]}
 
     def get_fov_from_L(self, z, Lbox):
         """
@@ -502,7 +527,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         return _x, _y, _z, mass
 
-    def get_catalog(self, zlim=None, logmlim=(11,12), randomise_in_cell=True,
+    def get_catalog_OLD(self, zlim=None, logmlim=(11,12), randomise_in_cell=True,
         idnum=0, verbose=True):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
@@ -545,12 +570,12 @@ class LogNormal(LightCone): # pragma: no cover
 
         # Deterministically adjust the random seeds for the given mass range
         # and redshift range.
-        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+        #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
-        seeds = self.seed_rho * np.arange(1, len(zmid)+1)
-        q = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
-        seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
-        seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+        #seeds = self.seed_rho * np.arange(1, len(zmid)+1)
+        #q = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+        #seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+        #seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
 
         # Figure out if we're getting the catalog of a single chunk
         chunk_id = None
@@ -611,8 +636,6 @@ class LogNormal(LightCone): # pragma: no cover
                 ra = dec = red = mass = None
                 continue
 
-            ##
-            # Perform random flips and translations here
 
             _ra, _de, _red = self._get_catalog_from_coeval(halos, z0=zlo)
             _m = halos[-1]

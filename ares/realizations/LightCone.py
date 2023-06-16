@@ -251,7 +251,7 @@ class LightCone(object): # pragma: no cover
 
         # Deterministically adjust the random seeds for the given mass range
         # and redshift range.
-        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+        #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
         # Figure out if we're getting the catalog of a single chunk
         chunk_id = None
@@ -263,7 +263,7 @@ class LightCone(object): # pragma: no cover
                 break
 
         ##
-        # Setup random seeds
+        # Setup random seeds for random rotations and translations
         np.random.seed(self.seed_rot)
         r_rot = np.random.randint(0, high=4, size=(len(Re)-1)*3).reshape(
             len(Re)-1, 3
@@ -296,10 +296,13 @@ class LightCone(object): # pragma: no cover
             if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                 continue
 
+            seed_kwargs = self.get_seed_kwargs(i, logmlim)
+
             # Contains (x, y, z, mass)
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             halos = self.get_halo_population(z=zmid[i],
-                mmin=mmin, mmax=mmax, verbose=verbose, idnum=idnum)
+                mmin=mmin, mmax=mmax, verbose=verbose, idnum=idnum,
+                **seed_kwargs)
 
             if halos[0].size == 0:
                 ra = dec = red = mass = None
@@ -715,7 +718,7 @@ class LightCone(object): # pragma: no cover
 
         # Need to supply band or window?
         seds = self.sim.pops[idnum].get_spec(_z_, waves, Mh=Mh,
-            units_out='erg/s/Hz', window=dlam+1)
+            units_out='erg/s/Hz', window=dlam+1 if dlam % 2 == 0 else dlam)
 
         owaves = waves[None,:] * (1. + red[:,None])
 
@@ -1155,6 +1158,8 @@ class LightCone(object): # pragma: no cover
                         dec_z.extend(list(dec))
                         red_z.extend(list(red))
 
+                        print('yo yo', zcent[i], ok.sum(), ra, channel, Mh)
+
                         ##
                         # Unpack channel info
                         # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
@@ -1168,6 +1173,7 @@ class LightCone(object): # pragma: no cover
                         else:
                             cam, filt = channel.split('_')
 
+                            print('getting phot', filt, cam)
                             _filt, mags = self.sim.pops[popid].get_mags(zcent[i],
                                 absolute=False, cam=cam, filters=[filt],
                                 Mh=Mh)
@@ -1369,9 +1375,6 @@ class LightCone(object): # pragma: no cover
             use=use_pbar)
         pb.start()
 
-        ##
-        # Should check for final maps first
-
         # Make preliminary buffer for channel map
         cimg = np.zeros([npix]*2)
 
@@ -1381,6 +1384,16 @@ class LightCone(object): # pragma: no cover
 
             # Unpack info about this chunk
             popid, channel, chname, zchunk, mchunk = chunk
+
+            ##
+            # Should check for final maps first
+            fn_fin = self.get_fn(channel, logmlim=logmlim,
+                zlim=zlim, fmt=fmt, final=True, channel_name=chname)
+            fn_fin = final_dir + '/' + fn_fin
+
+            if os.path.exists(fn_fin) and (not clobber):
+                print(f"# Found final map {fn_fin}. Set clobber=True to re-generate")
+                continue
 
             pb.update(h)
 

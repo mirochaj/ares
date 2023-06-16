@@ -105,7 +105,21 @@ class MockSky(object):
         # Replace FOV, pix if base_dir is supplied
         if base_dir is not None:
             self.base_dir = base_dir
-            ebl, _fov, fov, _pix, pix, _L, _N = base_dir.split('_')
+
+            # Be careful to account for prefix and suffix potentially having
+            # underscores in them.
+            post = base_dir[base_dir.find('fov'):]
+            self.prefix = base_dir[0:base_dir.find('fov')-1]
+
+            try:
+                _fov, fov, _pix, pix, _L, _N = post.split('_')
+            except ValueError:
+                iN = post.find('_N')
+                _suffix = post[iN+1:]
+                i_ = _suffix.find('_')
+                _fov, fov, _pix, pix, _L, _N = post[0:iN+i_+1].split('_')
+                self.suffix = _suffix[i_+1:]
+
             self.fov = float(fov)
             self.pix = float(pix)
             self.Lbox = float(_L[1:])
@@ -400,19 +414,21 @@ class MockSky(object):
 
         return filt, fn, pops
 
-    def load_map(self, channel, popid=None, zlim=None, logmlim=None,
-        as_fits=False):
+    def load_map(self, fn=None, channel=None, popid=None, zlim=None,
+        logmlim=None, as_fits=False):
         """
 
         """
 
-        ch_n, ch_c, ch_e, all_fn = self.get_filenames(channel=channel,
-            popid=popid, zlim=zlim, logmlim=logmlim)
+        if fn is None:
+            assert channel is not None, "Must provide channel if not `fn`."
+            ch_n, ch_c, ch_e, all_fn = self.get_filenames(channel=channel,
+                popid=popid, zlim=zlim, logmlim=logmlim)
 
-        if len(all_fn) > 1:
-            raise ValueError(f"File selection criteria not unique! all_fn={all_fn}")
+            if len(all_fn) > 1:
+                raise ValueError(f"File selection criteria not unique! all_fn={all_fn}")
 
-        fn = all_fn[0]
+            fn = all_fn[0]
 
         if as_fits:
             return fits.open(fn)
@@ -469,7 +485,7 @@ class MockSky(object):
         # dimensions should be and how to map RA/DEC to pixels.
         ch_n, ch_c, ch_e, all_fn, pops_maps = self.get_final_maps()
 
-        _img_, _hdr_ = self.load_map(ch_c[0])
+        _img_, _hdr_ = self.load_map(channel=ch_c[0])
 
         #ra_0 = _hdr_['CRVAL1']
         #dec_0 = _hdr_['CRVAL2']

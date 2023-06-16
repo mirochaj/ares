@@ -254,6 +254,9 @@ class Photometry(object):
             yphot_corr.append(_yphot / corr)
             wphot.append(dx)
 
+        if fphot == []:
+            raise ValueError("No photometry done! Filter names right?")
+
         xphot = np.array(xphot)
         wphot = np.array(wphot)
         yphot_corr = np.array(yphot_corr)

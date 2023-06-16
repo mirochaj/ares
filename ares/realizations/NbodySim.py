@@ -59,7 +59,7 @@ class NbodySim(LightCone): # pragma: no cover
         self.seed_tra = seed_trans
 
     def get_halo_population(self, z, mmin=0, mmax=np.inf, verbose=False,
-        idnum=0):
+        idnum=0, **seed_kwargs):
         """
         This returns "raw" halo data for a given redshift, i.e., we're just
         pulling halo masses and their positions in co-eval boxes.
@@ -81,3 +81,6 @@ class NbodySim(LightCone): # pragma: no cover
 
     def get_density_field(self, z):
         return self.sim.pops[0].pf['pop_density'](z)
+
+    def get_seed_kwargs(self, chunk=None, logmlim=None):
+        return {}
