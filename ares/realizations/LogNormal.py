@@ -296,6 +296,10 @@ class LogNormal(LightCone): # pragma: no cover
             have already done a Poisson draw given <N>.
 
 
+        Returns
+        -------
+        Array containing 3-D positions of halos, shape (number of halos, 3).
+        In Lbox / h [cMpc] units.
         """
 
         # Get all voxel positions
@@ -433,7 +437,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         Returns
         -------
-        Tuple containing (x, y, z, mass).
+        Tuple containing (x, y, z, mass), where x, y, and z are halo positions
+        in cMpc / h (between 0 and self.Lbox), and mass is in Msun.
 
         """
 
@@ -475,7 +480,7 @@ class LogNormal(LightCone): # pragma: no cover
             raise NotImplemented('help')
 
         # `pos` is in [0, Lbox / h] domain in each dimension
-        _x, _y, _z = (pos.T / h) #- 0.5 * (self.Lbox / h)
+        _x, _y, _z = pos.T#(pos.T / h) #- 0.5 * (self.Lbox / h)
         N = _x.size
 
         if N == 0:

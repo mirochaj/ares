@@ -117,12 +117,18 @@ class LightCone(object): # pragma: no cover
 
     @property
     def tab_xe(self):
+        """
+        Edges of grid zones in Lbox / h [cMpc] units.
+        """
         if not hasattr(self, '_xe'):
             self._xe = np.arange(0, self.Lbox+self.dx, self.dx)
         return self._xe
 
     @property
     def tab_xc(self):
+        """
+        Centers of grid zones in Lbox / h [cMpc] units.
+        """
         return bin_e2c(self.tab_xe)
 
     @property
@@ -1171,7 +1177,6 @@ class LightCone(object): # pragma: no cover
                         else:
                             cam, filt = channel.split('_')
 
-                            print('getting phot', filt, cam)
                             _filt, mags = self.sim.pops[popid].get_mags(zcent[i],
                                 absolute=False, cam=cam, filters=[filt],
                                 Mh=Mh)
@@ -1356,10 +1361,12 @@ class LightCone(object): # pragma: no cover
         # users favorite units (within reason).
         # 1 Jy = 1e-23 erg/s/cm^2/sr
         if map_units.lower() == 'si':
+            # aka (1e2)^2 / 0.01 = 1e6
             f_norm = cm_per_m**2 / erg_per_s_per_nW
         elif map_units.lower() == 'cgs':
             f_norm = 1.
         elif map_units.lower() == 'mjy':
+            # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr = 1e17 MJy / cgs units
             f_norm = 1e17
         else:
             raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
@@ -1413,6 +1420,7 @@ class LightCone(object): # pragma: no cover
                 buffer = np.zeros([npix]*2)
 
             # Generate map
+            # Internal flux units are cgs [erg/s/Hz/sr]
             self.get_map(fov, pix, channel,
                 logmlim=mchunk, zlim=zchunk,
                 include_galaxy_sizes=include_galaxy_sizes,
@@ -1524,6 +1532,8 @@ class LightCone(object): # pragma: no cover
                 zlim=zlim, fmt=fmt, final=True, channel_name=channel_names[h])
             fnp = final_dir + '/' + fnp
 
+            # Intermediate maps will already have been converted to
+            # map_units.
             self.save_map(fnp, tot, channel, zlim, logmlim, fov,
                 pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                 clobber=clobber)
