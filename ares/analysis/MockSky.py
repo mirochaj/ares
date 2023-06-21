@@ -20,7 +20,7 @@ except ImportError:
     pass
 
 class MockSky(object):
-    def __init__(self, fov=4, pix=1, logmlim=(10, 14), zlim=(0.2, 3),
+    def __init__(self, fov=4, pix=1, logmlim=None, zlim=None,
         base_dir=None, Lbox=512, dims=128, prefix='ares_mock', suffix=None,
         fmt='fits'):
         """
@@ -124,6 +124,13 @@ class MockSky(object):
             self.pix = float(pix)
             self.Lbox = float(_L[1:])
             self.dims = int(_N[1:])
+
+            # These need to be determined from file contents
+            zchunks, mchunks = self.get_available_subintervals()
+            if zlim is None:
+                self.zlim = (zchunks.min(), zchunks.max())
+            if logmlim is None:
+                self.logmlim = (mchunks.min(), mchunks.max())
         else:
             self.base_dir = '{}_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(
                 self.prefix, self.fov, self.pix, self.Lbox, self.dims)
@@ -182,16 +189,16 @@ class MockSky(object):
         zchunks = []
         mchunks = []
         for fn in os.listdir(_subdir):
-            z, zlo, zhi, m, mlo, mhi, chlo, chi = fn.split('_')
-            chi = chi[0:chi.rfind('.')]
+
+            # May save channel edges in filename or with channel name
+            try:
+                z, zlo, zhi, m, mlo, mhi, chlo, chi = fn.split('_')
+                chi = chi[0:chi.rfind('.')]
+            except ValueError:
+                z, zlo, zhi, m, mlo, mhi, chname = fn.split('_')
 
             zchunk = (float(zlo), float(zhi))
             mchunk = (float(mlo), float(mhi))
-
-            if mchunk == self.logmlim:
-                continue
-            if zchunk == self.zlim:
-                continue
 
             if zchunk not in zchunks:
                 zchunks.append(zchunk)
@@ -433,10 +440,15 @@ class MockSky(object):
         if as_fits:
             return fits.open(fn)
 
-        with fits.open(fn) as hdu:
-            # In whatever `map_units` user supplied.
-            img = hdu[0].data
-            hdr = hdu[0].header
+        try:
+
+            with fits.open(fn) as hdu:
+                # In whatever `map_units` user supplied.
+                img = hdu[0].data
+                hdr = hdu[0].header
+        except FileNotFoundError:
+            img = hdr = None
+            print(f"# No file {fn} found.")
 
         return img, hdr
 
@@ -463,7 +475,7 @@ class MockSky(object):
 
         return ra, dec, red, X
 
-    def get_galaxy_map(self, z, dz=0.1, maglim=None, magfilt='Mh'):
+    def get_galaxy_map(self, z, dz=0.1, maglim=None, magfilt='Mh', pops=None):
         """
         Return an image containing the number of galaxies in each pixel at
         the specified redshift, (z - dz/2, z+dz/2), with optional magnitude

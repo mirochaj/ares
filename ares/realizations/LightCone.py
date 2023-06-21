@@ -565,17 +565,17 @@ class LightCone(object): # pragma: no cover
 
         Returns
         -------
-        If `buffer` is None, will return a map in our internal cgs units. If
-        `buffer` is supplied, will increment that array, again in cgs fluxes.
-        Any conversion of (using `map_units`) takes place *only* in the
-        `generate_maps` routine.
+        If `buffer` is None, will return a map in our internal erg/s/sr. If
+        `buffer` is supplied, will increment that array, same units.
+        Any conversion of units (using `map_units`) takes place *only* in the
+        `generate_maps` routine. 
         """
-
 
         pix_deg = pix / 3600.
         sr_per_pix = pix_deg**2 / sqdeg_per_std
 
-        assert fov * 3600 / pix % 1 == 0, "FOV must be integer number of pixels wide!"
+        assert fov * 3600 / pix % 1 == 0, \
+            "FOV must be integer number of pixels wide!"
 
         # In degrees
         if type(fov) in numeric_types:
@@ -724,7 +724,7 @@ class LightCone(object): # pragma: no cover
 
         # Need to supply band or window?
         seds = self.sim.pops[idnum].get_spec(_z_, waves, Mh=Mh,
-            units_out='erg/s/Hz', window=dlam+1 if dlam % 2 == 0 else dlam)
+            units_out='erg/s/Ang', window=dlam+1 if dlam % 2 == 0 else dlam)
 
         owaves = waves[None,:] * (1. + red[:,None])
 
@@ -1421,6 +1421,7 @@ class LightCone(object): # pragma: no cover
 
             # Generate map
             # Internal flux units are cgs [erg/s/Hz/sr]
+            # but get_map returns a channel-integrated flux, so just erg/s/sr
             self.get_map(fov, pix, channel,
                 logmlim=mchunk, zlim=zchunk,
                 include_galaxy_sizes=include_galaxy_sizes,

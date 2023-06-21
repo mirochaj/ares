@@ -904,11 +904,11 @@ class Population(object):
             if (Emin, Emax) in self._conversion_factors:
                 return self._conversion_factors[(Emin, Emax)]
 
-            if round(Emin, 2) < round(self.pf['pop_Emin'], 2):
+            if self.pf['verbose'] and (round(Emin, 2) < round(self.pf['pop_Emin'], 2)):
                 print(("WARNING: Emin ({0:.2f} eV) < pop_Emin ({1:.2f} eV) " +\
                     "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
                     self.id_num))
-            if Emax > self.pf['pop_Emax']:
+            if self.pf['verbose'] and (Emax > self.pf['pop_Emax']):
                 print(("WARNING: Emax ({0:.2f} eV) > pop_Emax ({1:.2f} eV) " +\
                     "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
                     self.id_num))

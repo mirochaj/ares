@@ -171,7 +171,7 @@ _flex2 = \
  'pq_func_par9[0]{0}': 0.,          # Redshift evolution of high-mass slope
 
  # Floor parameters
- 'pq_func_par10[0]{0}': 0.0,
+ 'pq_func_par10[0]{0}': 1e-6,
  'pq_func_par11[0]{0}': 0.0,
 
  # Okamoto parameters

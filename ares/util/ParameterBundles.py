@@ -632,7 +632,7 @@ _Bundles = \
 }
 
 class ParameterBundle(dict):
-    def __init__(self, bundle=None, id_num=None, bset=None, verbose=True,
+    def __init__(self, bundle=None, id_num=None, bset=None, verbose=False,
         **kwargs):
         self.bundle = bundle
         self.kwargs = kwargs
@@ -699,6 +699,9 @@ class ParameterBundle(dict):
             if key in tmp and rank == 0:
 
                 if other[key] == tmp[key]:
+                    continue
+
+                if not self.verbose:
                     continue
 
                 if first_update:

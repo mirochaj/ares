@@ -179,6 +179,32 @@ class ExponentialInverse(BasePQ):
 
         return self.args[0] * np.exp(-(x / self.args[1])**self.args[2])
 
+class ExponentialInverseComplement(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        return 1 - self.args[0] * np.exp(-(x / self.args[1])**self.args[2])
+
+class ExponentialInverseComplementEvolvingTurnover(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        p1 = self.args[1] * (t / self.args[3])**self.args[4]
+
+        return 1 - self.args[0] * np.exp(-(x / p1)**self.args[2])
+
+
 class Normal(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -530,6 +556,43 @@ class DoublePowerLawExtendedEvolvingNorm(BasePQ):
 
         return y
 
+class DoublePowerLawExtendedEvolvingNormPeakX(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        # This is the peak mass
+        p1 = self.args[1] * (t / self.args[5])**self.args[7]
+
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+
+        # This is to conserve memory.
+        xx = x / p1
+        y  = np.power(xx, -self.args[2])
+        y += np.power(xx, -self.args[3])
+        y = np.power(y, -1.)#np.divide(1., y, out=y)
+
+        if self.t == "1+z":
+            y *= normcorr * self.args[0] \
+                * ((1. + kwargs["z"]) / self.args[5])**self.args[6]
+        else:
+            y *= normcorr * self.args[0] \
+                * (kwargs[self.t] / self.args[5])**self.args[6]
+
+        # Need to add evolution for S(M) parameters here.
+        piv = self.args[8] * (t / self.args[5])**-self.args[11]
+        gam3 = self.args[9] * (t / self.args[5])**-self.args[12]
+        gam4 = self.args[10] * (t / self.args[5])**-self.args[13]
+
+        y *= (1. + (x / piv)**gam3)**gam4
+
+        return y
+
 class DoublePowerLawEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
@@ -859,6 +922,8 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawExtended(**kwargs)
         elif kwargs["pq_func"] == "dplx_evolN":
             self.func = DoublePowerLawExtendedEvolvingNorm(**kwargs)
+        elif kwargs["pq_func"] == "dplx_evolNPX":
+            self.func = DoublePowerLawExtendedEvolvingNormPeakX(**kwargs)
         elif kwargs["pq_func"] in ["dpl_normP"]:
             self.func = DoublePowerLawPeakNorm(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolN":
@@ -881,6 +946,10 @@ class ParameterizedQuantity(object):
             self.func = LogNormal(**kwargs)
         elif kwargs["pq_func"] == "exp-":
             self.func = ExponentialInverse(**kwargs)
+        elif kwargs['pq_func'] == 'exp-comp':
+            self.func = ExponentialInverseComplement(**kwargs)
+        elif kwargs['pq_func'] == 'exp-comp_evolT':
+            self.func = ExponentialInverseComplementEvolvingTurnover(**kwargs)
         elif kwargs["pq_func"] == "pwpl":
             self.func = PiecewisePowerLaw(**kwargs)
         elif kwargs["pq_func"] == "ramp":
