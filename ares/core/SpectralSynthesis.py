@@ -1213,10 +1213,10 @@ class SpectralSynthesis(object):
                         Lall = L_per_msun * _SFR
 
                 else:
-                    L_per_msun = np.exp(_func(np.log(ages)))
-                    #L_per_msun = np.exp(np.interp(np.log(ages),
-                    #    np.log(self.src.tab_t), np.log(Loft),
-                    #    left=np.log(Loft[0]), right=np.log(Loft[-1])))
+                    #L_per_msun = np.exp(_func(np.log(ages)))
+                    L_per_msun = np.exp(np.interp(np.log(ages),
+                        np.log(self.src.tab_t), np.log(Loft),
+                        left=np.log(Loft[0]), right=np.log(Loft[-1])))
 
                     _dt = dt[0:i]
 
