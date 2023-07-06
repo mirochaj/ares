@@ -32,7 +32,8 @@ from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import get_function_from_par
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
-    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource
+    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource, \
+    Galaxy
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc
 
@@ -566,7 +567,10 @@ class Population(object):
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:
-                self._Source_ = SynthesisModel
+                if self.pf['pop_sfh'] in ['exp_decl']:
+                    self._Source_ = Galaxy
+                else:
+                    self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in ['hybrid']:
                 self._Source_ = SynthesisModelHybrid
             elif self.pf['pop_sed'] in _single_star_models:
@@ -630,7 +634,7 @@ class Population(object):
                         else:
                             self._src_kwargs[i][par] = bpars[par]
 
-                elif self._Source in [SynthesisModel, SynthesisModelToy]:
+                elif self._Source in [SynthesisModel, SynthesisModelToy, Galaxy]:
                     bpars = SynthesisParameters()
                     for par in bpars:
                         par_pop = par.replace('source', 'pop')
@@ -669,6 +673,11 @@ class Population(object):
                 except TypeError:
                     # For litdata
                     src = self._Source
+
+                # Only used by `Galaxy` right now.
+                src.tab_t_pop = self.halos.tab_t
+                src.tab_z_pop = self.halos.tab_z
+
                 self._srcs.append(src)
 
         return self._srcs

@@ -23,8 +23,7 @@ from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile
 from ..core.IntegralTables import IntegralTable
 from ..core.InterpolationTables import LookupTable
-from ..util.SetDefaultParameterValues import SourceParameters, \
-    CosmologyParameters
+from ..util.SetDefaultParameterValues import CosmologyParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 from ..physics.Constants import erg_per_ev, E_LL, s_per_myr, E_LyA, h_p, c
 
@@ -61,6 +60,26 @@ class Source(object):
         # Create lookup tables for integral quantities
         if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
+
+    @property
+    def tab_t_pop(self):
+        if not hasattr(self, '_tab_t_pop'):
+            raise AttributeError('Must set tab_t_pop by hand.')
+        return self._tab_t_pop
+
+    @tab_t_pop.setter
+    def tab_t_pop(self, value):
+        self._tab_t_pop = value
+
+    @property
+    def tab_z_pop(self):
+        if not hasattr(self, '_tab_z_pop'):
+            raise AttributeError('Must set tab_z_pop by hand.')
+        return self._tab_z_pop 
+
+    @tab_z_pop.setter
+    def tab_z_pop(self, value):
+        self._tab_z_pop = value
 
     @cached_property
     def is_sed_tabular(self):

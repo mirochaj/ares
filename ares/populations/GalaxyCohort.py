@@ -1461,15 +1461,23 @@ class GalaxyCohort(GalaxyAggregate):
             # First, determine age for all halos (if necessary).
             # Currently, only applies to SSP sources or sources with complex SFHs
             #if (src.is_ssp or self.is_sed_multicomponent):
-            assert isinstance(age, numbers.Number), \
-                f"Age must be constant in this case! source_age={age}"
+            assert isinstance(age, numbers.Number) or (age is None), \
+                f"Age must be constant or None for now! source_age={age}"
 
-            # Enforce maximum of a Hubble time
-            t_H = self.cosm.HubbleTime(z) / s_per_myr
-            #age[age > t_H] = t_H
-            if age > t_H:
-                age = t_H
-                #print(f"WARNING: age exceeds Hubble time at z={z}.")
+            ##
+            # Special treatment of 'real' star formation histories
+            if src.pf['source_sfh'] not in ['const', 'ssp']:
+                # Override age to just be time since Big Bang, since that's
+                # what we're going to tabulate SED in.
+                age = self.cosm.t_of_z(z) / s_per_myr
+            else:
+
+                # Enforce maximum of a Hubble time
+                t_H = self.cosm.HubbleTime(z) / s_per_myr
+                #age[age > t_H] = t_H
+                if age > t_H:
+                    age = t_H
+                    #print(f"WARNING: age exceeds Hubble time at z={z}.")
 
             ##
             # Next, determine metallicity across population (if necessary)

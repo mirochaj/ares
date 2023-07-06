@@ -1025,7 +1025,6 @@ def SourceParameters():
         "source_hardening": 'extrinsic',
 
         # Synthesis models
-        "source_sfh": None,
         "source_Z": 0.02,
         "source_imf": 2.35,
         "source_imf_Mmax": 300,
@@ -1133,6 +1132,7 @@ def SynthesisParameters():
     {
         # For synthesis models
         "source_sed": None,
+        "source_sfh": 'constant',
         "source_sed_degrade": None,
         "source_sed_null_except": None,
         "source_Z": 0.02,
