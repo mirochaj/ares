@@ -1044,6 +1044,7 @@ def SourceParameters():
         "source_prof_1h": None,
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
+        "source_sfh_axes": None,
 
         "source_psm_instance": None,
         "source_age": 100.0,
@@ -1067,6 +1068,7 @@ def SourceParameters():
 
         # SFH
         "source_sfh": None,
+        "source_sfh_axes": None,
         "source_meh": None,
 
         # BH
@@ -1133,6 +1135,7 @@ def SynthesisParameters():
         # For synthesis models
         "source_sed": None,
         "source_sfh": 'constant',
+        "source_sfh_axes": None,
         "source_sed_degrade": None,
         "source_sed_null_except": None,
         "source_Z": 0.02,
@@ -1157,7 +1160,7 @@ def SynthesisParameters():
 
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
-
+        "source_sfh_axes": None,
         "source_psm_instance": None,
         "source_age": 100.0,
         "source_aging": False,
