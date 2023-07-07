@@ -145,8 +145,6 @@ class Galaxy(SynthesisModel):
     def get_spec_obs(self):
         pass
 
-
-
     def get_mags(self):
         pass
 
@@ -176,6 +174,7 @@ class Galaxy(SynthesisModel):
 
         if not os.path.exists(fn[0:fn.rfind('/')]):
             os.mkdir(fn[0:fn.rfind('/')])
+            os.mkdir(fn + '_checkpoints')
 
         axes = self.pf['source_sfh_axes']
         axes_names = [ax[0] for ax in axes]
@@ -232,34 +231,41 @@ class Galaxy(SynthesisModel):
 
         for i, ind in enumerate(coords):
 
-            #ind = coords[i]
             kw = kwargs_flat[i]
 
             for j, _t_ in enumerate(tasc):
 
+                # Model ID number, just used for progressbar and parellelism
                 k = i * len(kwargs_flat) + j
 
                 if k % size != rank:
                     continue
 
-                pb.update(k)
-
-                zobs = zdes[j]
-
-                if zobs > 0.5:
-                    continue
-
-                if zobs < 0.4:
-                    continue
-
-                print('hey', zobs)
-
-                sfh_asc = self.get_sfr(tasc, **kw)
-                spec = self.synth.get_spec_rest(waves,
-                    sfh=sfh_asc, tarr=tasc, zobs=zobs, load=False, use_pbar=False)
+                fn_ch = fn + '_checkpoints/t_{:.3f}'.format(np.log10(_t_))
+                for l, name in enumerate(axes_names):
+                    fn_ch += f'_{name}_{np.log10(kw[name]):.2f}'
 
                 s = slice(None),j, *list(ind)
+
+                # Check for checkpoint file
+                if os.path.exists(fn_ch):
+                    spec = np.loadtxt(fn_ch, unpack=True)
+                    data[s] = spec
+                    continue
+
+                ##
+                # Otherwise, continue on and generate from scratch
+                sfh_asc = self.get_sfr(tasc, **kw)
+                spec = self.synth.get_spec_rest(waves,
+                    sfh=sfh_asc, tarr=tasc, zobs=zdes[j],
+                    load=False, use_pbar=False)
+
+                ##
+                # Save checkpoint
+                np.savetxt(fn_ch, spec.T)
                 data[s] = spec
+
+                pb.update(k)
 
         pb.finish()
 
@@ -276,6 +282,9 @@ class Galaxy(SynthesisModel):
 
         with h5py.File(fn, 'w') as f:
             f.create_dataset('seds', data=sed_tab)
+            f.create_dataset('time', data=self.tab_t_pop)
+            f.create_dataset('z', data=self.tab_z_pop)
+            f.create_dataset('waves', data=waves)
             f.create_dataset('axes_names', data=axes_names)
             f.create_dataset('axes_vals', data=axes_vals)
 
@@ -283,6 +292,18 @@ class Galaxy(SynthesisModel):
 
         return sed_tab
 
-
+    @property
     def tab_sed_synth(self):
-        pass
+        if not hasattr(self, '_tab_sed_synth'):
+            self._tab_sed_synth = self.generate_sed_tables()
+        return self._tab_sed_synth
+
+    def get_lum_per_sfr(self, x=1600., window=1, Z=None, age=None, band=None,
+        units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False,
+        **kwargs):
+        """
+        Overhaul usual get_lum_per_sfr by reading from lookup table and
+        interpolating to gridpoint appropriate for given SFH (defined by kwargs).
+        """
+
+        assert age is not None, "Must provide `age` as time since Big Bang!"

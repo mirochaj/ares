@@ -21,10 +21,10 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..util.Misc import numeric_types
 from scipy.integrate import quad, simps, cumtrapz, ode
-from scipy.interpolate import RectBivariateSpline
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed
 from ..util.Stats import bin_c2e, bin_e2c
+from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
@@ -1404,6 +1404,78 @@ class GalaxyCohort(GalaxyAggregate):
 
         return owaves, f
 
+    @property
+    def tab_sfh_kwargs(self):
+        """
+        Build a table of parameters that define the SFH of galaxies in halos
+        with mass Mh at all z.
+        """
+
+        if not hasattr(self, '_tab_sfh_kwargs'):
+            axes = self.src.pf['source_sfh_axes']
+            axes_names = [ax[0] for ax in axes]
+            axes_vals =  [ax[1] for ax in axes]
+
+            deg = self.src.pf['source_sfh_degrade']
+
+            tab = -np.inf * np.ones((self.halos.tab_t[::deg].size,
+                self.halos.tab_M[::deg].size, len(axes_names)))
+
+            tarr = self.halos.tab_t[::deg]
+            Marr = self.halos.tab_M[::deg]
+
+            bbox = [np.inf, -np.inf, np.inf, -np.inf]
+            for i, t in enumerate(tarr):
+                z = self.halos.tab_z[i]
+                smhm = self.get_smhm(z=z, Mh=Marr)
+                Ms = Marr * smhm
+                sfr = self.get_sfr(z, Mh=Marr)
+
+                for j, Mh in enumerate(Marr):
+                    if sfr[j] == 0:
+                        continue
+
+                    kw = self.src.get_kwargs(t, mass=Ms[j], sfr=sfr[j])
+
+                    for k in range(len(axes_names)):
+                        tab[i,j,k] = kw[axes_names[k]]
+
+                    bbox[0] = min(bbox[0], t)
+                    bbox[1] = max(bbox[1], t)
+                    bbox[2] = min(bbox[2], Mh)
+                    bbox[3] = max(bbox[3], Mh)
+
+
+            #import matplotlib.pyplot as pl
+            #from matplotlib.colors import LogNorm
+            #fig, axes = pl.subplots(2, 2, figsize=(8, 8))
+            #axes[0][0].imshow(tab[-1::-1,:,0], norm=LogNorm(), interpolation='none')
+            #axes[0][1].imshow(tab[-1::-1,:,1], norm=LogNorm(), interpolation='none')
+
+            ##
+            # Interpolate back to native resolution
+            self._tab_sfh_kwargs = np.zeros((self.halos.tab_t.size,
+                self.halos.tab_M.size, len(axes_names)))
+
+            for k in range(len(axes_names)):
+                tasc = tarr[-1::-1]
+                tab_asc = tab[-1::-1,:,:]
+
+                xx, yy = np.meshgrid(tasc, Marr, indexing='ij')
+                pts = np.column_stack((xx.ravel(), yy.ravel()))
+
+                interp = LinearNDInterpolator(np.log10(pts),
+                    np.log10(tab[:,:,k].ravel()))
+
+                for j, t in enumerate(self.halos.tab_t):
+                    self._tab_sfh_kwargs[j,:,k] = \
+                        10**interp(np.log10(t), np.log10(self.halos.tab_M))
+
+            #axes[1][0].imshow(self._tab_sfh_kwargs[:,:,0], norm=LogNorm(), interpolation='none')
+            #axes[1][1].imshow(self._tab_sfh_kwargs[:,:,1], norm=LogNorm(), interpolation='none')
+
+        return self._tab_sfh_kwargs
+
     def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None):
         """
@@ -1424,6 +1496,11 @@ class GalaxyCohort(GalaxyAggregate):
         fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
             units=units)
 
+        # Generally need to know stellar masses and SFRs, just do it now.
+        smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+        Ms = self.halos.tab_M * smhm
+        sfr = self.get_sfr(z)
+
         ##
         # Determine dust reddening [will apply in a minute]
         if not self.is_dusty:
@@ -1437,8 +1514,6 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 wave = self.src.get_ang_from_x(x, units=units)
 
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-            Ms = self.halos.tab_M * smhm
             if self.pf['pop_dust_template'] is not None:
                 Av = self.get_Av(z=z, Ms=Ms)
                 Sd = None
@@ -1466,10 +1541,15 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Special treatment of 'real' star formation histories
+            complex_sfh = False
             if src.pf['source_sfh'] not in ['const', 'ssp']:
+                complex_sfh = True
                 # Override age to just be time since Big Bang, since that's
                 # what we're going to tabulate SED in.
                 age = self.cosm.t_of_z(z) / s_per_myr
+
+                # For now
+                assert self.is_metallicity_constant
             else:
 
                 # Enforce maximum of a Hubble time
@@ -1499,7 +1579,24 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Now, determine luminosity per unit SFR for all halos.
             # Handle cases with variations in age or metallicity across population.
-            #if age is not None:
+            if complex_sfh:
+
+                # In this case, need to pull luminosity from lookup table of
+                # SEDs over grid of SFH parameters. The time dimension of
+                # this table is assumed to be time since Big Bang.
+                # We're still calling a routine called `get_lum_per_sfr`,
+                # but we need to pass it parameters that define the SFH.
+                Mh = self.halos.tab_M
+                zobs = z
+                tobs = self.cosm.t_of_z(zobs) / s_per_myr
+
+                lum = src.get_lum_per_sfr(x=x)
+
+                raise NotImplemented('not quite done')
+
+                # Put [per SFR] back in just for what follows.
+                L_sfr = lum / sfr
+
             if False:
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,

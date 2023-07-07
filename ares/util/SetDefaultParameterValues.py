@@ -594,6 +594,7 @@ def PopulationParameters():
     # Used only for approximate SFH treatments in GalaxyCohort
     # "real" spectral synthesis done in GalaxyEnsemble by default
     "pop_sfh": 'const',
+    "pop_sfh_degrade": 1,
 
     # Numerics of specral synthesis
     "pop_sfh_oversample": 0,
@@ -1136,6 +1137,7 @@ def SynthesisParameters():
         "source_sed": None,
         "source_sfh": 'constant',
         "source_sfh_axes": None,
+        "source_sfh_degrade": 1,
         "source_sed_degrade": None,
         "source_sed_null_except": None,
         "source_Z": 0.02,
