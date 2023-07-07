@@ -165,6 +165,13 @@ class Galaxy(SynthesisModel):
 
         return fn
 
+    def get_sfh_axes(self):
+        axes = self.pf['source_sfh_axes']
+        axes_names = [ax[0] for ax in axes]
+        axes_vals =  [ax[1] for ax in axes]
+
+        return axes_names, axes_vals
+
     def generate_sed_tables(self, use_pbar=True):
         """
         Create a lookup table for the SED given this SFH model.
@@ -176,9 +183,7 @@ class Galaxy(SynthesisModel):
             os.mkdir(fn[0:fn.rfind('/')])
             os.mkdir(fn + '_checkpoints')
 
-        axes = self.pf['source_sfh_axes']
-        axes_names = [ax[0] for ax in axes]
-        axes_vals =  [ax[1] for ax in axes]
+        axes_names, axes_vals = self.get_sfh_axes()
 
         ##
         # Look for matching file
@@ -187,21 +192,20 @@ class Galaxy(SynthesisModel):
                 sed_tab = np.array(f[('seds')])
 
                 # Check axes
-                axes_vals = np.array(f[('axes_vals')])
-                axes_names = list(f[('axes_names')])
+                #axes_vals = np.array(f[('axes_vals')])
+                #axes_names = list(f[('axes_names')])
 
             print(f"# Loaded {fn}.")
             return sed_tab
 
-        elif rank == 0:
+        else:
             print(f"# Did not find {fn}. Will generate from scratch.")
 
         ##
         # If we didn't find one, generate from scratch
         shape = np.array([vals.size for vals in axes_vals])
-        axes_ind  =  [range(shape[i]) for i in range(len(axes))]
+        axes_ind  =  [range(shape[i]) for i in range(len(axes_names))]
         ndim = len(axes_names)
-        size = np.product(shape)
 
         combos = itertools.product(*axes_vals)
         coords = itertools.product(*axes_ind)
@@ -213,8 +217,11 @@ class Galaxy(SynthesisModel):
 
         # Create an N+2 dimension SED lookup table, where N is the number of
         # free parameters associated with the SFH.
-        tasc = self.tab_t_pop[-1::-1]
-        zdes = self.tab_z_pop[-1::-1]
+        deg = self.pf['pop_sfh_degrade']
+        tarr = self.tab_t_pop[::deg]
+        zarr = self.tab_z_pop[::deg]
+        tasc = tarr[-1::-1]
+        zdes = zarr[-1::-1]
 
         waves = self.tab_waves_c
 
@@ -228,20 +235,26 @@ class Galaxy(SynthesisModel):
         pb.start()
 
         data = np.zeros([waves.size, tasc.size] + list(shape))
-
+        ind_flat = []
         for i, ind in enumerate(coords):
 
             kw = kwargs_flat[i]
+            ind_flat.append(ind)
 
             for j, _t_ in enumerate(tasc):
 
                 # Model ID number, just used for progressbar and parellelism
-                k = i * len(kwargs_flat) + j
+                k = i * len(tasc) + j
 
                 if k % size != rank:
                     continue
 
-                fn_ch = fn + '_checkpoints/t_{:.3f}'.format(np.log10(_t_))
+                ##
+                # Eventually remove
+                if zdes[j] > 1:
+                    continue
+
+                fn_ch = fn + '_checkpoints/t_{:.4f}'.format(np.log10(_t_))
                 for l, name in enumerate(axes_names):
                     fn_ch += f'_{name}_{np.log10(kw[name]):.2f}'
 
@@ -270,27 +283,59 @@ class Galaxy(SynthesisModel):
         pb.finish()
 
         if size > 1: # pragma: no cover
-            sed_tab = np.zeros_like(data)
-            nothing = MPI.COMM_WORLD.Allreduce(data, sed_tab)
+            data_deg = np.zeros_like(data)
+            nothing = MPI.COMM_WORLD.Allreduce(data, data_deg)
         else:
-            sed_tab = data
+            data_deg = data.copy()
+
+        del data
 
         ##
-        # Save results
+        # Let root processor do the rest.
         if rank > 0:
             sys.exit(0)
 
+        ##
+        # Interpolate to higher resolution table.
+        if deg not in [None, 1]:
+            data = np.zeros([waves.size, self.tab_t_pop.size] + list(shape))
+
+            pb = ProgressBar(len(kwargs_flat) * self.tab_t_pop.size * waves.size,
+                name='seds|sfhs', use=self.pf['progress_bar'] and use_pbar)
+            pb.start()
+
+            ct = 0
+            for i, ind in enumerate(ind_flat):
+                for j, t in enumerate(self.tab_t_pop):
+                    for k, wave in enumerate(waves):
+
+                        s = k,j,*ind
+                        sdeg = k,slice(None),*ind
+                        data[s] = 10**np.interp(np.log10(t), np.log10(tarr),
+                            np.log10(data_deg[sdeg]))
+
+                        pb.update(ct)
+                        ct += 1
+
+            pb.finish()
+            print("# Done interpolating back to native `t` grid.")
+        else:
+            data = data_deg
+
+        ##
+        # Save to disk.
         with h5py.File(fn, 'w') as f:
-            f.create_dataset('seds', data=sed_tab)
+            f.create_dataset('seds', data=data)
             f.create_dataset('time', data=self.tab_t_pop)
             f.create_dataset('z', data=self.tab_z_pop)
             f.create_dataset('waves', data=waves)
             f.create_dataset('axes_names', data=axes_names)
-            f.create_dataset('axes_vals', data=axes_vals)
+            for k in range(axes_names):
+                f.create_dataset('axes_vals_{k}', data=axes_vals[k])
 
         print(f"# Wrote {fn}.")
 
-        return sed_tab
+        return data
 
     @property
     def tab_sed_synth(self):
@@ -298,7 +343,7 @@ class Galaxy(SynthesisModel):
             self._tab_sed_synth = self.generate_sed_tables()
         return self._tab_sed_synth
 
-    def get_lum_per_sfr(self, x=1600., window=1, Z=None, age=None, band=None,
+    def get_lum_for_sfh(self, x=1600., window=1, Z=None, age=None, band=None,
         units='Angstroms', units_out='erg/s/Hz', raw=False, nebular_only=False,
         **kwargs):
         """
@@ -307,3 +352,5 @@ class Galaxy(SynthesisModel):
         """
 
         assert age is not None, "Must provide `age` as time since Big Bang!"
+
+        sed_tab = self.generate_sed_tables()

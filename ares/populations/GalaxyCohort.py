@@ -1412,17 +1412,14 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if not hasattr(self, '_tab_sfh_kwargs'):
-            axes = self.src.pf['source_sfh_axes']
-            axes_names = [ax[0] for ax in axes]
-            axes_vals =  [ax[1] for ax in axes]
+            axes_names, axes_vals = self.src.get_sfh_axes()
 
             deg = self.src.pf['source_sfh_degrade']
+            tarr = self.halos.tab_t[::deg]
+            Marr = self.halos.tab_M[::deg]
 
             tab = -np.inf * np.ones((self.halos.tab_t[::deg].size,
                 self.halos.tab_M[::deg].size, len(axes_names)))
-
-            tarr = self.halos.tab_t[::deg]
-            Marr = self.halos.tab_M[::deg]
 
             bbox = [np.inf, -np.inf, np.inf, -np.inf]
             for i, t in enumerate(tarr):
@@ -1452,29 +1449,63 @@ class GalaxyCohort(GalaxyAggregate):
             #axes[0][0].imshow(tab[-1::-1,:,0], norm=LogNorm(), interpolation='none')
             #axes[0][1].imshow(tab[-1::-1,:,1], norm=LogNorm(), interpolation='none')
 
+            self._tab_sfh_kwargs = tab
             ##
             # Interpolate back to native resolution
-            self._tab_sfh_kwargs = np.zeros((self.halos.tab_t.size,
-                self.halos.tab_M.size, len(axes_names)))
+            #self._tab_sfh_kwargs = np.zeros((self.halos.tab_t.size,
+            #    self.halos.tab_M.size, len(axes_names)))
 
-            for k in range(len(axes_names)):
-                tasc = tarr[-1::-1]
-                tab_asc = tab[-1::-1,:,:]
+            #for k in range(len(axes_names)):
+            #    tasc = tarr[-1::-1]
+            #    tab_asc = tab[-1::-1,:,:]
 
-                xx, yy = np.meshgrid(tasc, Marr, indexing='ij')
-                pts = np.column_stack((xx.ravel(), yy.ravel()))
+            #    xx, yy = np.meshgrid(tasc, Marr, indexing='ij')
+            #    pts = np.column_stack((xx.ravel(), yy.ravel()))
 
-                interp = LinearNDInterpolator(np.log10(pts),
-                    np.log10(tab[:,:,k].ravel()))
+            #    interp = LinearNDInterpolator(np.log10(pts),
+            #        np.log10(tab[:,:,k].ravel()))
 
-                for j, t in enumerate(self.halos.tab_t):
-                    self._tab_sfh_kwargs[j,:,k] = \
-                        10**interp(np.log10(t), np.log10(self.halos.tab_M))
+            #    for j, t in enumerate(self.halos.tab_t):
+            #        self._tab_sfh_kwargs[j,:,k] = \
+            #            10**interp(np.log10(t), np.log10(self.halos.tab_M))
 
             #axes[1][0].imshow(self._tab_sfh_kwargs[:,:,0], norm=LogNorm(), interpolation='none')
             #axes[1][1].imshow(self._tab_sfh_kwargs[:,:,1], norm=LogNorm(), interpolation='none')
 
         return self._tab_sfh_kwargs
+
+    @property
+    def tab_sfh_kwargs_native(self):
+        """
+        Build a table of parameters that define the SFH of galaxies in halos
+        with mass Mh at all z.
+        """
+
+        if not hasattr(self, '_tab_sfh_kwargs_native'):
+            axes_names, axes_vals = self.src.get_sfh_axes()
+
+            deg = self.src.pf['source_sfh_degrade']
+            tarr = self.halos.tab_t[::deg]
+            Marr = self.halos.tab_M[::deg]
+
+            self._tab_sfh_kwargs_native = np.zeros((self.halos.tab_t.size,
+                self.halos.tab_M.size, len(axes_names)))
+
+            tab = self.tab_sfh_kwargs
+            tasc = tarr[-1::-1]
+            tab_asc = tab[-1::-1,:,:]
+
+            for k in range(len(axes_names)):
+
+                xx, yy = np.meshgrid(tasc, Marr, indexing='ij')
+                pts = np.column_stack((xx.ravel(), yy.ravel()))
+                interp = LinearNDInterpolator(np.log10(pts),
+                    np.log10(tab[:,:,k].ravel()))
+                for j, t in enumerate(self.halos.tab_t):
+                    self._tab_sfh_kwargs_native[j,:,k] = \
+                        10**interp(np.log10(t), np.log10(self.halos.tab_M))
+
+        return self._tab_sfh_kwargs_native
 
     def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None):
@@ -1562,7 +1593,7 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # Next, determine metallicity across population (if necessary)
             if self.is_metallicity_constant or isinstance(Zfe, numbers.Number):
-                Z = Zfe * np.ones_like(Mh)
+                Z = Zfe * np.ones_like(self.halos.tab_M)
                 f_L_sfr = None
             else:
                 Z = self.get_metallicity(z, Mh=self.halos.tab_M)
@@ -1581,23 +1612,47 @@ class GalaxyCohort(GalaxyAggregate):
             # Handle cases with variations in age or metallicity across population.
             if complex_sfh:
 
+                print("Doing hard thing!")
+
+                # This table is (waves, times since Big Bang, SFH dims)
+                tab_sed = self.src.tab_sed_synth
+
+                # Return what the SFH dims are
+                axes_names, axes_vals = self.src.get_sfh_axes()
+
                 # In this case, need to pull luminosity from lookup table of
                 # SEDs over grid of SFH parameters. The time dimension of
                 # this table is assumed to be time since Big Bang.
                 # We're still calling a routine called `get_lum_per_sfr`,
                 # but we need to pass it parameters that define the SFH.
-                Mh = self.halos.tab_M
+
                 zobs = z
                 tobs = self.cosm.t_of_z(zobs) / s_per_myr
 
-                lum = src.get_lum_per_sfr(x=x)
+                #lum = src.get_lum_per_sfr(x=x)
 
-                raise NotImplemented('not quite done')
+                # Tabulated kwargs over (halos.tab_t, halos.tab_M)
+                iz = np.argmin(np.abs(z - self.halos.tab_z))
 
-                # Put [per SFR] back in just for what follows.
+                # Need to be more careful here, allow for window, band, etc
+                iw = np.argmin(np.abs(x - self.src.tab_waves_c))
+
+                lum = np.zeros_like(self.halos.tab_M)
+                for j, _Mh_ in enumerate(self.halos.tab_M):
+
+                    # This is (time, halo mass, len(sfh axes))
+                    #print('hi', self.tab_sfh_kwargs_native.shape, iz, j)
+                    kwarr = self.tab_sfh_kwargs_native[iz,j,:]
+
+                    isfh = [np.argmin(np.abs(kwarr[k] - axes_vals[k])) \
+                        for k in range(len(axes_names))]
+
+                    s = iw,iz,*isfh
+
+                    lum[j] = tab_sed[s]
+
                 L_sfr = lum / sfr
-
-            if False:
+            elif False:
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,
@@ -1616,7 +1671,9 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Special treatment for SSPs
-            if src.is_ssp:
+            if complex_sfh:
+                _Lh_ = L_sfr * sfr
+            elif src.is_ssp:
 
                 # Mstell = Mhalo * SMHM
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
@@ -1670,7 +1727,6 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             Lh += _Lh_
 
-
         ##
         # Done
         if Mh is None:
@@ -1717,6 +1773,8 @@ class GalaxyCohort(GalaxyAggregate):
             Lh = self._get_lum_stellar_pop(z, x=x, band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,
                 nebular_only=nebular_only, Mh=Mh)
+
+            print('hellooo', Lh.shape)
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()
