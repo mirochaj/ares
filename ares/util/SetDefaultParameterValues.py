@@ -595,6 +595,7 @@ def PopulationParameters():
     # "real" spectral synthesis done in GalaxyEnsemble by default
     "pop_sfh": 'const',
     "pop_sfh_degrade": 1,
+    "pop_age_definition": None,
 
     # Numerics of specral synthesis
     "pop_sfh_oversample": 0,

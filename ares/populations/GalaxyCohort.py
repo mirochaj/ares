@@ -1551,6 +1551,7 @@ class GalaxyCohort(GalaxyAggregate):
         for i, src in enumerate(self.srcs):
             age = src.pf['source_age']
             Zfe = src.pf['source_Z']
+            age_def = self.pf['pop_age_definition']
 
             ##
             # First, determine age for all halos (if necessary).
@@ -1574,9 +1575,22 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # Enforce maximum of a Hubble time
                 t_H = self.cosm.HubbleTime(z) / s_per_myr
+
+                if age_def == None:
+                    pass
+                elif isinstance(age_def, numbers.Number):
+                    age = age_def * Ms / sfr / 1e6
+                    print("Computed ages", age)
+                else:
+                    raise NotImplemented('help')
+
                 #age[age > t_H] = t_H
-                if age > t_H:
-                    age = t_H
+                if isinstance(age, numbers.Number):
+                    if age > t_H:
+                        age = t_H
+                else:
+                    age[age > t_H] = t_H
+
                     #print(f"WARNING: age exceeds Hubble time at z={z}.")
 
             ##
@@ -1650,7 +1664,7 @@ class GalaxyCohort(GalaxyAggregate):
                     ##
                     # Average over band, window [optional]
                     if band is not None:
-                        E1, E2 = self.get_ev_from_x(band, units=units)
+                        E1, E2 = self.src.get_ev_from_x(band, units=units)
                         if (E1 < np.min(self.src.tab_energies_c)) and \
                            (E2 < np.min(self.src.tab_energies_c)):
                             continue
@@ -1662,8 +1676,8 @@ class GalaxyCohort(GalaxyAggregate):
                             print("Emin={}, Emax={}".format(E1, E2))
                             raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
-                        lum[j] = np.trapz(sed * self.tab_freq_c[i1:i0],
-                            x=np.log(self.tab_freq_c[i1:i0]))
+                        lum[j] = np.trapz(sed * self.src.tab_freq_c[i1:i0],
+                            x=np.log(self.src.tab_freq_c[i1:i0]))
                     elif window != 1:
                         assert window % 2 != 0, "window must be odd"
                         window = int(window)

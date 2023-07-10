@@ -248,3 +248,16 @@ mzr = \
  'pq_val_floor[30]': 6,
  'pop_Z': ('mzr', 0.02),
 }
+
+
+expd = base.copy()
+expd['pop_ssp{0}'] = True
+expd['pop_sfh{0}'] = 'exp_decl'
+expd['pop_sfh_axes{0}'] = ('norm', 10**np.arange(-6, 4.2, 0.2)), \
+                          ('tau', 10**np.arange(2, 4.2, 0.2))
+
+expd['pop_age{0}'] = None
+expd['pop_Z{0}'] = 0.02
+expd['pop_aging{0}'] = True
+expd['pop_sed_degrade{0}'] = 10
+expd['pop_sfh_degrade{0}'] = 1  # Tabulate in (z, Mh) degraded by 10x wrt native

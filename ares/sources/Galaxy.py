@@ -97,7 +97,8 @@ class Galaxy(SynthesisModel):
             # defined in Myr.
             f_sSFR = lambda logtau: 1e-6 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
-            tau = 10**fmin(func, 2., disp=disp, full_output=True)[0]
+            tau = 10**fmin(func, 2., disp=disp, full_output=disp,
+                ftol=0.01, xtol=0.01)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -223,7 +224,7 @@ class Galaxy(SynthesisModel):
                 for k in range(len(axes_names)):
                     assert axes_names[k] == _axes_names[k].decode(), \
                         f"Mismatch in axis={k} between parameters and table!"
-                    assert np.all(axes_vals[k] == _axes_vals[k]), \
+                    assert np.allclose(axes_vals[k],_axes_vals[k]), \
                         f"Mismatch in axis={k} values between parameters and table!"
 
             if self.pf['verbose']:
