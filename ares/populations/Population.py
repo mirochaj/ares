@@ -1185,18 +1185,20 @@ class Population(object):
 
         # Special case: delta function SED! Can't normalize a-priori without
         # knowing binning, so we do it here.
+        Inu_hat = None
         if self.src.is_delta:
             # This is a little weird. Trapezoidal integration doesn't make
             # sense for a delta function, but it's what happens later, so
             # insert a factor of a half now so we recover all the flux we
             # should.
             Inu[-1] = 1.
-        else:
+            Inu_hat = Inu / E
+        elif self.is_emissivity_scalable:
             for i in range(Nf):
                 Inu[i] = self.src.get_spectrum(E[i])
 
-        # Convert to photon *number* (well, something proportional to it)
-        Inu_hat = Inu / E
+            # Convert to photon *number* (well, something proportional to it)
+            Inu_hat = Inu / E
 
         # Now, redshift dependent parts
         epsilon = np.zeros([Nz, Nf])

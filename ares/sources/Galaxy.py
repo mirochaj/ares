@@ -14,8 +14,10 @@ import os
 import sys
 import itertools
 import numpy as np
+from ..data import ARES
 from ..util import ProgressBar
 from scipy.optimize import fmin
+from scipy.integrate import quad
 from ..core import SpectralSynthesis
 from ..physics.Constants import s_per_myr
 from .SynthesisModel import SynthesisModel
@@ -67,18 +69,39 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented('help')
 
-    def get_kwargs(self, t, mass, sfr):
+    @property
+    def _tau_guess(self):
+        if not hasattr(self, '_tau_guess_'):
+            self._t_in = 10**np.arange(0, 4.5, 0.1)
+            self._sSFR_in = 10**np.arange(-11, -7, 0.1)
+            self._tau_guess_ = np.zeros((self._t_in.size, self._sSFR_in.size))
+            for i, _t_ in enumerate(self._t_in):
+                sSFR = lambda logtau: 1. \
+                    / (10**logtau * (np.exp(_t_ / 10**logtau) - 1.))
+                for j, _sSFR_ in enumerate(self._sSFR_in):
+                    func = lambda logtau: np.abs(np.log10(sSFR(logtau) / _sSFR_))
+                    self._tau_guess[i,j] = fmin(func, 3., disp=False)[0]
+
+        return self._tau_guess_
+
+    def get_kwargs(self, t, mass, sfr, disp=False):
         """
         Determine the free parameters of a model needed to produce stellar mass
         `mass` and star formation rate `sfr` at `t` [since Big Bang / Myr].
         """
 
         if self.pf['source_sfh'] == 'exp_decl':
-            # Almost analytic here
-            sSFR = lambda logtau: 1. / (10**logtau * (np.exp(t / 10**logtau) - 1.))
-            func = lambda tau: np.abs(np.log10(sSFR(tau) / (sfr / mass)))
-            tau = 10**fmin(func, 3., disp=False)[0]
-            norm = mass / tau / (1 - np.exp(-t / tau)) / 1e6
+            # For this model, the sSFR uniquely determines tau. Just need to
+            # solve for it numerically. Put factor of 10^-6 out front to make
+            # sure that the units match input [Msun / yr], despite tau being
+            # defined in Myr.
+            f_sSFR = lambda logtau: 1e-6 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
+            func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
+            tau = 10**fmin(func, 2., disp=disp, full_output=True)[0]
+
+            # Can analytically solve for normalization once tau in hand.
+            norm = sfr / np.exp(-t / tau)
+
             kw = {'norm': norm, 'tau': tau}
         else:
             raise NotImplemented('help')
@@ -107,7 +130,7 @@ class Galaxy(SynthesisModel):
             tau = kwargs['tau']
             norm = kwargs['norm']
 
-            # Factor of 1e6 is to convert Myr -> years
+            # Factor of 1e6 is to convert tau/Myr -> years
             return norm * 1e6 * tau * (1. - np.exp(-t / tau))
         else:
             raise NotImplemented('help')
@@ -181,6 +204,7 @@ class Galaxy(SynthesisModel):
 
         if not os.path.exists(fn[0:fn.rfind('/')]):
             os.mkdir(fn[0:fn.rfind('/')])
+        if not os.path.exists(fn + '_checkpoints'):
             os.mkdir(fn + '_checkpoints')
 
         axes_names, axes_vals = self.get_sfh_axes()
@@ -191,11 +215,19 @@ class Galaxy(SynthesisModel):
             with h5py.File(fn, 'r') as f:
                 sed_tab = np.array(f[('seds')])
 
-                # Check axes
-                #axes_vals = np.array(f[('axes_vals')])
-                #axes_names = list(f[('axes_names')])
+                # Check that axes match what's in parameter file.
+                _axes_names = list(f[('axes_names')])
+                _axes_vals = [np.array(f[(f'axes_vals_{k}')]) \
+                    for k in range(len(_axes_names))]
 
-            print(f"# Loaded {fn}.")
+                for k in range(len(axes_names)):
+                    assert axes_names[k] == _axes_names[k].decode(), \
+                        f"Mismatch in axis={k} between parameters and table!"
+                    assert np.all(axes_vals[k] == _axes_vals[k]), \
+                        f"Mismatch in axis={k} values between parameters and table!"
+
+            if self.pf['verbose']:
+                print("# Loaded {}".format(fn.replace(ARES, '$ARES')))
             return sed_tab
 
         else:
@@ -223,7 +255,8 @@ class Galaxy(SynthesisModel):
         tasc = tarr[-1::-1]
         zdes = zarr[-1::-1]
 
-        waves = self.tab_waves_c
+        degL = self.pf['pop_sed_degrade']
+        waves = self.tab_waves_c[::degL]
 
         ##
         # If we didn't find a matching file, make a new one
@@ -247,11 +280,6 @@ class Galaxy(SynthesisModel):
                 k = i * len(tasc) + j
 
                 if k % size != rank:
-                    continue
-
-                ##
-                # Eventually remove
-                if zdes[j] > 1:
                     continue
 
                 fn_ch = fn + '_checkpoints/t_{:.4f}'.format(np.log10(_t_))
@@ -326,12 +354,12 @@ class Galaxy(SynthesisModel):
         # Save to disk.
         with h5py.File(fn, 'w') as f:
             f.create_dataset('seds', data=data)
-            f.create_dataset('time', data=self.tab_t_pop)
+            f.create_dataset('t', data=self.tab_t_pop)
             f.create_dataset('z', data=self.tab_z_pop)
             f.create_dataset('waves', data=waves)
             f.create_dataset('axes_names', data=axes_names)
-            for k in range(axes_names):
-                f.create_dataset('axes_vals_{k}', data=axes_vals[k])
+            for k in range(len(axes_names)):
+                f.create_dataset(f'axes_vals_{k}', data=axes_vals[k])
 
         print(f"# Wrote {fn}.")
 
