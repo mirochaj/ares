@@ -1549,7 +1549,6 @@ class GalaxyCohort(GalaxyAggregate):
         # Loop over components (most often just one) and determine L
         Lh = np.zeros_like(self.halos.tab_M, dtype=np.float64)
         for i, src in enumerate(self.srcs):
-            age = src.pf['source_age']
             Zfe = src.pf['source_Z']
             age_def = self.pf['pop_age_definition']
 
@@ -1557,8 +1556,8 @@ class GalaxyCohort(GalaxyAggregate):
             # First, determine age for all halos (if necessary).
             # Currently, only applies to SSP sources or sources with complex SFHs
             #if (src.is_ssp or self.is_sed_multicomponent):
-            assert isinstance(age, numbers.Number) or (age is None), \
-                f"Age must be constant or None for now! source_age={age}"
+            #assert isinstance(age, numbers.Number) or (age is None), \
+            #    f"Age must be constant or None for now! source_age={age}"
 
             ##
             # Special treatment of 'real' star formation histories
@@ -1577,21 +1576,17 @@ class GalaxyCohort(GalaxyAggregate):
                 t_H = self.cosm.HubbleTime(z) / s_per_myr
 
                 if age_def == None:
-                    pass
+                    age = src.pf['source_age']
                 elif isinstance(age_def, numbers.Number):
                     age = age_def * Ms / sfr / 1e6
-                    print("Computed ages", age)
                 else:
                     raise NotImplemented('help')
 
-                #age[age > t_H] = t_H
                 if isinstance(age, numbers.Number):
                     if age > t_H:
                         age = t_H
                 else:
                     age[age > t_H] = t_H
-
-                    #print(f"WARNING: age exceeds Hubble time at z={z}.")
 
             ##
             # Next, determine metallicity across population (if necessary)
@@ -1632,8 +1627,9 @@ class GalaxyCohort(GalaxyAggregate):
 
                 #lum = src.get_lum_per_sfr(x=x)
 
-                deg = self.pf['pop_sed_degrade']
-                waves = self.src.tab_waves_c[::deg]
+                #deg = self.pf['pop_sed_degrade']
+                waves = self.src.tab_waves_c#[::deg]
+                dwdn = self.src.tab_dwdn#[::deg]
 
                 # Tabulated kwargs over (halos.tab_t, halos.tab_M)
                 iz = np.argmin(np.abs(z - self.halos.tab_z))
@@ -1655,8 +1651,8 @@ class GalaxyCohort(GalaxyAggregate):
                     # Synthesis done natively in erg/s/Hz
                     if 'Hz' in units_out:
                         pass
-                    else:
-                        sed /= self.src.tab_dwdn[::deg]
+                    elif band is not None:
+                        sed /= dwdn
 
                     if x is not None:
                         wave = self.src.get_ang_from_x(x, units=units)
@@ -1664,20 +1660,16 @@ class GalaxyCohort(GalaxyAggregate):
                     ##
                     # Average over band, window [optional]
                     if band is not None:
-                        E1, E2 = self.src.get_ev_from_x(band, units=units)
-                        if (E1 < np.min(self.src.tab_energies_c)) and \
-                           (E2 < np.min(self.src.tab_energies_c)):
-                            continue
+                        lam_hi, lam_lo = self.src.get_ang_from_x(band, units=units)
+                        i0 = np.argmin(np.abs(waves - lam_lo))
+                        i1 = np.argmin(np.abs(waves - lam_hi))
 
-                        i0 = np.argmin(np.abs(self.src.tab_energies_c - E1))
-                        i1 = np.argmin(np.abs(self.src.tab_energies_c - E2))
+                        # sed will be in erg/s/Hz at this point based on
+                        # if/else above
+                        integ = sed / dwdn
+                        lum[j] = np.trapz(integ[i0:i1] * waves[i0:i1],
+                            x=np.log(waves[i0:i1]))
 
-                        if i0 == i1:
-                            print("Emin={}, Emax={}".format(E1, E2))
-                            raise ValueError('Are EminNorm and EmaxNorm set properly?')
-
-                        lum[j] = np.trapz(sed * self.src.tab_freq_c[i1:i0],
-                            x=np.log(self.src.tab_freq_c[i1:i0]))
                     elif window != 1:
                         assert window % 2 != 0, "window must be odd"
                         window = int(window)
@@ -1693,7 +1685,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 L_sfr = lum / sfr
 
-            elif False:
+            elif age_def is not None:
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,

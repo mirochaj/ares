@@ -88,7 +88,7 @@ centrals_sf = \
  'pq_func_par3[1]': -0.9,
  'pq_func_par4[1]': 1e9,
  'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 2.,     # PL index for normalization evolution
+ 'pq_func_par6[1]': 2.5,     # PL index for normalization evolution
  'pq_func_par7[1]': 2.5,    # PL index for peak mass
  'pq_func_par8[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_func_par9[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
@@ -225,9 +225,9 @@ dust['pop_Av'] = 'pq[4]'
 dust['pq_func[4]'] = 'pl_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 0.3
+dust['pq_func_par0[4]'] = 0.5
 dust['pq_func_par1[4]'] = 1e10
-dust['pq_func_par2[4]'] = 0.1
+dust['pq_func_par2[4]'] = 0.2
 dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
 dust['pq_func_par4[4]'] = 0.  # no evolution yet.
 

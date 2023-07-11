@@ -256,8 +256,8 @@ class Galaxy(SynthesisModel):
         tasc = tarr[-1::-1]
         zdes = zarr[-1::-1]
 
-        degL = self.pf['pop_sed_degrade']
-        waves = self.tab_waves_c[::degL]
+        #degL = self.pf['pop_sed_degrade']
+        waves = self.tab_waves_c#[::degL]
 
         ##
         # If we didn't find a matching file, make a new one

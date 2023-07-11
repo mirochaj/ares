@@ -598,11 +598,8 @@ def PopulationParameters():
     "pop_age_definition": None,
 
     # Numerics of specral synthesis
-    "pop_sfh_oversample": 0,
     "pop_ssp_oversample": False,
     "pop_ssp_oversample_age": 30.,
-
-
 
     # Option of setting Z, t, or just supplying SSP table?
 
