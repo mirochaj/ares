@@ -1476,6 +1476,11 @@ class GalaxyCohort(GalaxyAggregate):
             axes_names, axes_vals = self.src.get_sfh_axes()
 
             deg = self.src.pf['source_sfh_degrade']
+
+            if deg in [1, None]:
+                self._tab_sfh_kwargs_native = self.tab_sfh_kwargs
+                return self._tab_sfh_kwargs_native
+
             tarr = self.halos.tab_t[::deg]
             Marr = self.halos.tab_M[::deg]
 
@@ -1567,7 +1572,7 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # Special treatment of 'real' star formation histories
             complex_sfh = False
-            if src.pf['source_sfh'] in ['exp_decl']:
+            if src.pf['source_sfh'] in ['exp_decl', 'exp_rise', 'delayed_tau']:
                 complex_sfh = True
                 # Override age to just be time since Big Bang, since that's
                 # what we're going to tabulate SED in.

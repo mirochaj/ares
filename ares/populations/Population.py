@@ -567,7 +567,7 @@ class Population(object):
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:
-                if self.pf['pop_sfh'] in ['exp_decl']:
+                if self.pf['pop_sfh'] in ['exp_decl', 'exp_rise', 'delayed_tau']:
                     self._Source_ = Galaxy
                 else:
                     self._Source_ = SynthesisModel
