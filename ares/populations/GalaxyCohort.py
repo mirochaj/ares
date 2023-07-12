@@ -1434,6 +1434,7 @@ class GalaxyCohort(GalaxyAggregate):
                 Ms = Marr * smhm
                 sfr = self.get_sfr(z, Mh=Marr)
 
+                tau_prev = 3.
                 for j, Mh in enumerate(Marr):
                     if sfr[j] == 0:
                         continue
@@ -1441,7 +1442,11 @@ class GalaxyCohort(GalaxyAggregate):
                     if (Mh > self.get_Mmax(z)) or (Mh < self.get_Mmin(z)):
                         continue
 
-                    kw = self.src.get_kwargs(t, mass=Ms[j], sfr=sfr[j])
+                    kw = self.src.get_kwargs(t, mass=Ms[j], sfr=sfr[j],
+                        tau_guess=tau_prev)
+
+                    if 'tau' in kw:
+                        tau_prev = kw['tau']
 
                     for k in range(len(axes_names)):
                         tab[i,j,k] = kw[axes_names[k]]
@@ -1637,6 +1642,11 @@ class GalaxyCohort(GalaxyAggregate):
                 lum = np.zeros_like(self.halos.tab_M)
                 for j, _Mh_ in enumerate(self.halos.tab_M):
 
+                    if _Mh_ < self.get_Mmin(z):
+                        continue
+                    if _Mh_ > self.get_Mmax(z):
+                        continue
+
                     # This is (time, halo mass, len(sfh axes))
                     kwarr = self.tab_sfh_kwargs_native[iz,j,:]
 
@@ -1646,13 +1656,12 @@ class GalaxyCohort(GalaxyAggregate):
 
                     slc = slice(None),iz,*isfh
 
-                    sed = tab_sed[slc]
-
                     # Synthesis done natively in erg/s/Hz
                     if 'Hz' in units_out:
-                        pass
+                        sed = tab_sed[slc]
                     elif band is not None:
-                        sed /= dwdn
+                        # Put back in per Angstrom for integral
+                        sed = tab_sed[slc] / dwdn
 
                     if x is not None:
                         wave = self.src.get_ang_from_x(x, units=units)
@@ -1666,9 +1675,14 @@ class GalaxyCohort(GalaxyAggregate):
 
                         # sed will be in erg/s/Hz at this point based on
                         # if/else above
-                        integ = sed / dwdn
-                        lum[j] = np.trapz(integ[i0:i1] * waves[i0:i1],
+                        lum[j] = np.trapz(sed[i0:i1] * waves[i0:i1],
                             x=np.log(waves[i0:i1]))
+
+                        print('hi', z, np.log10(_Mh_), band, units, i0, i1,
+                            sed[i0:i1].min(), sed[i0:i1].mean(),
+                            dwdn[i0:i1].mean(), waves[i0:i1].mean(), lum[j])
+
+                        input('<enter>')
 
                     elif window != 1:
                         assert window % 2 != 0, "window must be odd"

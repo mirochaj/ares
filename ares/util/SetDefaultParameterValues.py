@@ -595,7 +595,9 @@ def PopulationParameters():
     # "real" spectral synthesis done in GalaxyEnsemble by default
     "pop_sfh": 'const',
     "pop_sfh_degrade": 1,
+    "pop_sfh_fallback": None,
     "pop_age_definition": None,
+
 
     # Numerics of specral synthesis
     "pop_ssp_oversample": False,
@@ -1136,6 +1138,7 @@ def SynthesisParameters():
         "source_sfh": 'constant',
         "source_sfh_axes": None,
         "source_sfh_degrade": 1,
+        "source_sfh_fallback": None,
         "source_sed_degrade": None,
         "source_sed_null_except": None,
         "source_Z": 0.02,

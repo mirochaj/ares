@@ -62,10 +62,29 @@ class Galaxy(SynthesisModel):
         norm :
         """
 
-        if self.pf['source_sfh'] == 'exp_decl':
+        assert kwargs != {}, "kwargs are not optional!"
+
+        if 'sfh' in kwargs:
+            sfh = kwargs['sfh']
+        else:
+            sfh = self.pf['source_sfh']
+
+        if sfh == 'exp_decl':
             norm = kwargs['norm']
             tau = kwargs['tau']
             return norm * np.exp(-t / tau)
+        elif sfh == 'exp_rise':
+            norm = kwargs['norm']
+            tau = kwargs['tau']
+            return norm * np.exp(t / tau)
+        elif sfh == 'const':
+            norm = kwargs['norm']
+            tau = kwargs['tau']
+            t0 = kwargs['t0']
+
+            sfr = norm * np.ones_like(t)
+            sfr[t < t0] = 0
+            return sfr
         else:
             raise NotImplemented('help')
 
@@ -84,55 +103,102 @@ class Galaxy(SynthesisModel):
 
         return self._tau_guess_
 
-    def get_kwargs(self, t, mass, sfr, disp=False):
+    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.05, tau_guess=1e3):
         """
         Determine the free parameters of a model needed to produce stellar mass
         `mass` and star formation rate `sfr` at `t` [since Big Bang / Myr].
         """
 
         if self.pf['source_sfh'] == 'exp_decl':
+
             # For this model, the sSFR uniquely determines tau. Just need to
             # solve for it numerically. Put factor of 10^-6 out front to make
             # sure that the units match input [Msun / yr], despite tau being
             # defined in Myr.
-            f_sSFR = lambda logtau: 1e-6 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
+            f_sSFR = lambda logtau: 1e-6 \
+                / (10**logtau * (np.exp(t / 10**logtau) - 1.))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
-            tau = 10**fmin(func, 2., disp=disp, full_output=disp,
-                ftol=0.01, xtol=0.01)[0]
+            tau = 10**fmin(func, np.log10(abs(tau_guess)),
+                disp=disp, full_output=disp, ftol=0.01, xtol=0.01)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
 
+            _mass = 1e6 * norm * tau * (1 - np.exp(-t / tau))
+
+            # Stellar mass = A * tau * (1 - e^(-t / tau))
+            # For rising history, mass = A * tau * (e^(t / tau) - 1)
+
             kw = {'norm': norm, 'tau': tau}
+
+            ##
+            # If we're not allowing a fallback option in the event that this
+            # SFH cannot simultaneously satisfy mass and SFR, just return.
+            if self.pf['source_sfh_fallback'] is None:
+                return kw
+
+            if abs(_mass - mass) / mass < mtol:
+                return kw
+
         else:
             raise NotImplemented('help')
+
+        ##
+        # If we're here, we're exploring fallback options.
+
+        # Check stellar mass -- if way above requested `mass`, then the
+        # exponentially declining history is inadequate. Switch to
+        # exponentially rising history.
+        if self.pf['source_sfh_fallback'] == 'exp_rise':
+            f_sSFR2 = lambda logtau: 1e-6 \
+                / (10**logtau * (1 - np.exp(-t / 10**logtau)))
+            func2 = lambda logtau: np.abs(np.log10(f_sSFR2(logtau) / (sfr / mass)))
+            tau = 10**fmin(func2, np.log10(abs(tau_guess)),
+                disp=disp, full_output=disp, ftol=0.01, xtol=0.01)[0]
+
+            # Can analytically solve for normalization once tau in hand.
+            norm = sfr / np.exp(t / tau)
+
+            # Fools get_sfr routine into doing an exponential rise!
+            kw['tau'] = tau
+            kw['norm'] = norm
+            kw['sfh'] = 'exp_rise'
+
+        elif self.pf['source_sfh_fallback'] == 'const':
+            kw['norm'] = sfr
+            kw['tau'] = np.inf
+            kw['t0'] = t - mass / sfr / 1e6
+            kw['sfh'] = 'const'
+        else:
+            raise NotImplemented("help!")
 
         return kw
-
-    def get_sfh(self, t, mass, sfr, **kwargs):
-        """
-        Return the SFR over all times, provided a boundary condition on the
-        stellar mass and SFR at some time `t`.
-        """
-
-        if self.pf['source_sfh'] == 'exp_decl':
-            kw = self.get_kwargs(t, mass, sfr)
-            return self.get_sfr(self.tab_t_pop, **kw)
-        else:
-            raise NotImplemented('help')
 
     def get_mass(self, t, **kwargs):
         """
         Return stellar mass for a given SFH model, integrate analytically
-        if possible.
+        when possible.
         """
 
-        if self.pf['source_sfh'] == 'exp_decl':
+        if 'sfh' in kwargs:
+            sfh = kwargs['sfh']
+        else:
+            sfh = self.pf['source_sfh']
+
+        if sfh == 'exp_decl':
             tau = kwargs['tau']
             norm = kwargs['norm']
 
             # Factor of 1e6 is to convert tau/Myr -> years
             return norm * 1e6 * tau * (1. - np.exp(-t / tau))
+        elif sfh == 'exp_rise':
+            tau = kwargs['tau']
+            norm = kwargs['norm']
+
+            # Factor of 1e6 is to convert tau/Myr -> years
+            return norm * 1e6 * tau * (np.exp(t / tau) - 1)
+        elif sfh == 'delayed_tau':
+            raise NotImplemented('help')
         else:
             raise NotImplemented('help')
 
@@ -151,18 +217,30 @@ class Galaxy(SynthesisModel):
             waves = self.tab_waves_c
 
         if kwargs == {}:
-            sfh = self.get_sfh(t, mass, sfr)
-        else:
             assert (t is not None) and (mass is not None) and (sfr is not None), \
                 "Must provide kwargs or (t, mass, sfr)"
+            kw = self.get_kwargs(t, mass, sfr)
+            sfh = self.get_sfr(self.tab_t_pop, **kw)
+        else:
             sfh = self.get_sfr(self.tab_t_pop, **kwargs)
 
         tasc = self.tab_t_pop[-1::-1]
         sfh_asc = sfh[-1::-1]
 
-        spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
-            waves=waves, zobs=zobs, load=False)
-                #hist={'SFR': sfh, 't': t})
+        # General case: synthesize SED
+        if True:#'sfh' not in kw:
+            spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
+                waves=waves, zobs=zobs, load=False)
+            return spec
+
+        ##
+        # If using fallback option 'const' or 'ssp', don't need to synthesize!
+        if kw['sfh'] == 'const':
+            pass
+        elif kw['sfh'] == 'ssp':
+            pass
+        else:
+            raise NotImplemented('help')
 
         return spec
 
