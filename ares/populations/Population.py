@@ -721,6 +721,7 @@ class Population(object):
                 except TypeError:
                     # For litdata
                     self._src_csfr_ = self._Source
+
             else:
                 self._src_csfr_ = None
 

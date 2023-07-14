@@ -85,7 +85,7 @@ centrals_sf = \
  'pq_func_par0[1]': 3e-10,
  'pq_func_par1[1]': 2e9,
  'pq_func_par2[1]': 0.0,
- 'pq_func_par3[1]': -0.9,
+ 'pq_func_par3[1]': -0.8,
  'pq_func_par4[1]': 1e9,
  'pq_func_par5[1]': 1.,
  'pq_func_par6[1]': 2.5,     # PL index for normalization evolution

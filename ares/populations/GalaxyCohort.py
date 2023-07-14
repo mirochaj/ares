@@ -10,6 +10,8 @@ Description:
 
 """
 
+import os
+import h5py
 import numbers
 import numpy as np
 from inspect import ismethod
@@ -29,6 +31,14 @@ from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr
+
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
 
 small_dz = 1e-8
 ztol = 1e-4
@@ -650,7 +660,7 @@ class GalaxyCohort(GalaxyAggregate):
                         * self.tab_focc[i]
                     self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
             else:
-                dtdz = np.array([self.cosm.dtdz(z) \
+                dtdz = np.array([self.cosm.dtdz(z) / s_per_yr \
                     for z in self.halos.tab_z])
                 self._tab_smd = cumtrapz(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
                     dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
@@ -1405,6 +1415,116 @@ class GalaxyCohort(GalaxyAggregate):
         return owaves, f
 
     @property
+    def tab_sed(self):
+        if not hasattr(self, '_tab_sed'):
+            fn = self.pf['pop_sed_table']
+
+            if os.path.exists(fn):
+                with h5py.File(fn, 'r') as f:
+                    waves = np.array(f[('waves')])
+                    seds = np.array(f[('seds')])
+                    z = np.array(f[('z')])
+                    t = np.array(f[('t')])
+
+                print(f"# Loaded {fn}.")
+            else:
+                seds = None
+
+            seds[np.isinf(seds)] = 0
+
+            self._tab_sed = seds
+
+        return self._tab_sed
+
+    def generate_sed_tables(self, use_pbar=True):
+        """
+        Generate a lookup table of SEDs for every halo at every redshift.
+        """
+
+        tab = self.tab_sed
+        if tab is not None:
+            return tab
+
+        deg = 1
+        tarr = self.halos.tab_t[::deg]
+        zarr = self.halos.tab_z[::deg]
+        Marr = self.halos.tab_M[::deg]
+        waves = self.src.tab_waves_c
+
+        tab = np.zeros((tarr.size, Marr.size, waves.size))
+
+        if not os.path.exists('checkpoints'):
+            os.mkdir('checkpoints')
+
+        pb = ProgressBar(tarr.size * Marr.size, name='seds',
+            use=self.pf['progress_bar'] and use_pbar)
+        pb.start()
+
+        for i, t in enumerate(tarr):
+            z = zarr[i]
+
+            if z > self.zform:
+                continue
+            if z < self.zdead:
+                continue
+
+            smhm = self.get_smhm(z=z, Mh=Marr)
+            Ms = Marr * smhm
+            sfr = self.get_sfr(z, Mh=Marr)
+
+            #tau_prev = 1e3
+            for j, Mh in enumerate(Marr):
+
+                fn = f'checkpoints/z_{z:.4f}_log10M_{np.log10(Mh):.4f}.txt'
+
+                k = i * len(Marr) + j
+                pb.update(k)
+
+                if k % size != rank:
+                    continue
+
+                if os.path.exists(fn):
+                    spec = np.loadtxt(fn, unpack=True)
+                    tab[i,j,:] = spec
+                    continue
+
+                # Actually, maybe not...well, this won't happen unless
+                # a halo never forms stars.
+                if sfr[j] == 0:
+                    continue
+
+                if (Mh > self.get_Mmax(z)) or (Mh < self.get_Mmin(z)):
+                    continue
+
+                #kw = self.src.get_kwargs(t, mass=Ms[j], sfr=sfr[j],
+                #    tau_guess=tau_prev)
+
+                #sfh = self.src.get_sfr(tasc[0:i], **kw)
+
+                tab[i,j,:] = self.src.get_spec(z, t=t, mass=Ms[j],
+                    sfr=sfr[j], waves=waves, use_pbar=False)
+
+                np.savetxt(fn, tab[i,j,:].T)
+
+                #if 'tau' in kw:
+                #    tau_prev = min(1e3, kw['tau'])
+
+        pb.finish()
+
+        fn = 'sed_table.hdf5'
+        with h5py.File(fn, 'w') as f:
+            f.create_dataset('waves', data=waves)
+            f.create_dataset('seds', data=tab)
+            f.create_dataset('z', data=zarr)
+            f.create_dataset('t', data=tarr)
+
+            # Should save some parameters too.
+
+        print(f"Wrote {fn}.")
+
+        return tab
+
+    @property
     def tab_sfh_kwargs(self):
         """
         Build a table of parameters that define the SFH of galaxies in halos
@@ -1434,7 +1554,7 @@ class GalaxyCohort(GalaxyAggregate):
                 Ms = Marr * smhm
                 sfr = self.get_sfr(z, Mh=Marr)
 
-                tau_prev = 3.
+                tau_prev = 1e3
                 for j, Mh in enumerate(Marr):
                     if sfr[j] == 0:
                         continue
@@ -1446,7 +1566,7 @@ class GalaxyCohort(GalaxyAggregate):
                         tau_guess=tau_prev)
 
                     if 'tau' in kw:
-                        tau_prev = kw['tau']
+                        tau_prev = min(1e3, kw['tau'])
 
                     for k in range(len(axes_names)):
                         tab[i,j,k] = kw[axes_names[k]]
@@ -1620,56 +1740,55 @@ class GalaxyCohort(GalaxyAggregate):
             # Handle cases with variations in age or metallicity across population.
             if complex_sfh:
 
-                # This table is (waves, times since Big Bang, SFH dims)
-                tab_sed = self.src.tab_sed_synth
+                waves = self.src.tab_waves_c
+                dwdn = self.src.tab_dwdn
 
-                # Return what the SFH dims are
-                axes_names, axes_vals = self.src.get_sfh_axes()
-
-                # In this case, need to pull luminosity from lookup table of
-                # SEDs over grid of SFH parameters. The time dimension of
-                # this table is assumed to be time since Big Bang.
-                # We're still calling a routine called `get_lum_per_sfr`,
-                # but we need to pass it parameters that define the SFH.
-
-                zobs = z
-                tobs = self.cosm.t_of_z(zobs) / s_per_myr
-
-                #lum = src.get_lum_per_sfr(x=x)
-
-                #deg = self.pf['pop_sed_degrade']
-                waves = self.src.tab_waves_c#[::deg]
-                dwdn = self.src.tab_dwdn#[::deg]
-
-                # Tabulated kwargs over (halos.tab_t, halos.tab_M)
                 iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+                ##
+                # Read from lookup table.
+                if self.tab_sed is not None:
+                    # Recall that this is (redshift, halo mass, wavelengths)
+                    tab_seds = self.tab_sed[iz,:,:]
+                else:
+
+                    raise DeprecationError('help')
+
+                    # This table is (waves, times since Big Bang, SFH dims)
+                    tab_sed = self.src.tab_sed_synth
+
+                    # Return what the SFH dims are
+                    axes_names, axes_vals = self.src.get_sfh_axes()
+
+                    # In this case, need to pull luminosity from lookup table of
+                    # SEDs over grid of SFH parameters. The time dimension of
+                    # this table is assumed to be time since Big Bang.
+                    # We're still calling a routine called `get_lum_per_sfr`,
+                    # but we need to pass it parameters that define the SFH.
+
+                    zobs = z
+                    tobs = self.cosm.t_of_z(zobs) / s_per_myr
+
+                    #lum = src.get_lum_per_sfr(x=x)
+
+                    #deg = self.pf['pop_sed_degrade']
+
+
+                # Synthesis done natively in erg/s/Hz
+                if 'Hz' in units_out:
+                    seds = tab_seds[:,:]
+                elif band is not None:
+                    # Put back in per Angstrom for integral
+                    seds = tab_seds[:,:] / dwdn[None,:]
+
+                if x is not None:
+                    wave = self.src.get_ang_from_x(x, units=units)
 
                 lum = np.zeros_like(self.halos.tab_M)
                 for j, _Mh_ in enumerate(self.halos.tab_M):
 
-                    if _Mh_ < self.get_Mmin(z):
-                        continue
-                    if _Mh_ > self.get_Mmax(z):
-                        continue
-
-                    # This is (time, halo mass, len(sfh axes))
-                    kwarr = self.tab_sfh_kwargs_native[iz,j,:]
-
-                    # Could interpolate....
-                    isfh = [np.argmin(np.abs(kwarr[k] - axes_vals[k])) \
-                        for k in range(len(axes_names))]
-
-                    slc = slice(None),iz,*isfh
-
-                    # Synthesis done natively in erg/s/Hz
-                    if 'Hz' in units_out:
-                        sed = tab_sed[slc]
-                    elif band is not None:
-                        # Put back in per Angstrom for integral
-                        sed = tab_sed[slc] / dwdn
-
-                    if x is not None:
-                        wave = self.src.get_ang_from_x(x, units=units)
+                    # For a single halo, all waves
+                    sed = seds[j,:]
 
                     ##
                     # Average over band, window [optional]
@@ -1681,13 +1800,7 @@ class GalaxyCohort(GalaxyAggregate):
                         # sed will be in erg/s/Hz at this point based on
                         # if/else above
                         lum[j] = np.trapz(sed[i0:i1] * waves[i0:i1],
-                            x=np.log(waves[i0:i1]))
-
-                        print('hi', z, np.log10(_Mh_), band, units, i0, i1,
-                            sed[i0:i1].min(), sed[i0:i1].mean(),
-                            dwdn[i0:i1].mean(), waves[i0:i1].mean(), lum[j])
-
-                        input('<enter>')
+                            x=np.log(waves[i0:i1])) #/ dnu
 
                     elif window != 1:
                         assert window % 2 != 0, "window must be odd"
@@ -1702,7 +1815,29 @@ class GalaxyCohort(GalaxyAggregate):
                         iw = np.argmin(np.abs(wave - waves))
                         lum[j] = sed[iw]
 
+
+                # Change to appropriate units
+                #if 'hz' in units_out.lower():
+
+
                 L_sfr = lum / sfr
+
+                #lum = np.zeros_like(self.halos.tab_M)
+                #for j, _Mh_ in enumerate(self.halos.tab_M):
+
+                #    if _Mh_ < self.get_Mmin(z):
+                #        continue
+                #    if _Mh_ > self.get_Mmax(z):
+                #        continue
+
+                #    # This is (time, halo mass, len(sfh axes))
+                #    kwarr = self.tab_sfh_kwargs_native[iz,j,:]
+
+                #    # Could interpolate....
+                #    isfh = [np.argmin(np.abs(kwarr[k] - axes_vals[k])) \
+                #        for k in range(len(axes_names))]
+
+                #    slc = slice(None),iz,*isfh
 
             elif age_def is not None:
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,

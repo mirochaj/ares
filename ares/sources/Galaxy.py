@@ -41,6 +41,15 @@ class Galaxy(SynthesisModel):
     """
 
     @property
+    def _src_csfr(self):
+        if not hasattr(self, '_src_csfr_'):
+            kw = self.pf.copy()
+            kw['source_ssp'] = False
+            self._src_csfr_ = Galaxy(cosm=self.cosm, **kw)
+
+        return self._src_csfr_
+
+    @property
     def tH(self):
         if not hasattr(self, '_tH'):
             self._tH = self.cosm.t_of_z(0.) / s_per_myr
@@ -51,7 +60,7 @@ class Galaxy(SynthesisModel):
         if not hasattr(self, '_synth'):
             self._synth = SpectralSynthesis(**self.pf)
             self._synth.src = self
-            #self._synth._src_csfr = self._src_csfr
+            self._synth._src_csfr = self._src_csfr
             self._synth.oversampling_enabled = self.pf['pop_ssp_oversample']
             self._synth.oversampling_below = self.pf['pop_ssp_oversample_age']
             self._synth.careful_cache = self.pf['pop_synth_cache_level']
@@ -117,22 +126,7 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented('help')
 
-    @property
-    def _tau_guess(self):
-        if not hasattr(self, '_tau_guess_'):
-            self._t_in = 10**np.arange(0, 4.5, 0.1)
-            self._sSFR_in = 10**np.arange(-11, -7, 0.1)
-            self._tau_guess_ = np.zeros((self._t_in.size, self._sSFR_in.size))
-            for i, _t_ in enumerate(self._t_in):
-                sSFR = lambda logtau: 1. \
-                    / (10**logtau * (np.exp(_t_ / 10**logtau) - 1.))
-                for j, _sSFR_ in enumerate(self._sSFR_in):
-                    func = lambda logtau: np.abs(np.log10(sSFR(logtau) / _sSFR_))
-                    self._tau_guess[i,j] = fmin(func, 3., disp=False)[0]
-
-        return self._tau_guess_
-
-    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.05, tau_guess=1e3,
+    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.1, tau_guess=1e3,
         sfh=None, **kwargs):
         """
         Determine the free parameters of a model needed to produce stellar mass
@@ -152,8 +146,8 @@ class Galaxy(SynthesisModel):
             f_sSFR = lambda logtau: 1e-6 \
                 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
-            tau = 10**fmin(func, np.log10(abs(tau_guess)),
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.01)[0]
+            tau = 10**fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -168,7 +162,7 @@ class Galaxy(SynthesisModel):
             f_sSFR = lambda logtau: 1e-6 \
                 / (10**logtau * (1 - np.exp(-t / 10**logtau)))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
-            tau = 10**fmin(func, np.log10(abs(tau_guess)),
+            tau = 10**fmin(func, np.log10(tau_guess),
                 disp=disp, full_output=disp, ftol=0.01, xtol=0.01)[0]
 
             # Can analytically solve for normalization once tau in hand.
@@ -226,20 +220,33 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented("help!")
 
+        # Check stellar mass -- if way above requested `mass`, then the
+        # requested history is inadequate. Switch to something else, potentially.
+        err = abs(_mass - mass) / mass
+        if err < mtol:
+            return kw
+
         # If we're not allowing a fallback option in the event that this
         # SFH cannot simultaneously satisfy mass and SFR, just return.
         if self.pf['source_sfh_fallback'] is None:
             return kw
 
-        # Check stellar mass -- if way above requested `mass`, then the
-        # requested history is inadequate. Switch to something else, potentially.
-        if abs(_mass - mass) / mass < mtol:
-            return kw
+        if sfh == 'const':
+            print("Failing on const SFH", np.log10(_mass), np.log10(mass), sfr, t)
 
+        if kw['sfh'] != self.pf['source_sfh']:
+            #print("Double fail?")
+            #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
+            #input('enter>')
+            sfh_fall = 'const'
+        else:
+            sfh_fall = self.pf['source_sfh_fallback']
         ##
         # If we're here, we're exploring fallback options.
         kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
-            mtol=mtol, sfh=self.pf['source_sfh_fallback'])
+            mtol=mtol, sfh=sfh_fall)
+
+        #print("done with retry", kw)
 
         return kw
 
@@ -281,7 +288,8 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented('help')
 
-    def get_spec(self, zobs, t=None, mass=None, sfr=None, waves=None, **kwargs):
+    def get_spec(self, zobs, t=None, mass=None, sfr=None, waves=None,
+        tau_guess=1e3, use_pbar=True, **kwargs):
         """
         Return the rest-frame spectrum of a galaxy at given t, that has
         stellar mass `mass` and SFR `sfr`.
@@ -298,26 +306,48 @@ class Galaxy(SynthesisModel):
         if kwargs == {}:
             assert (t is not None) and (mass is not None) and (sfr is not None), \
                 "Must provide kwargs or (t, mass, sfr)"
-            kw = self.get_kwargs(t, mass, sfr)
-            sfh = self.get_sfr(self.tab_t_pop, **kw)
+            kw = self.get_kwargs(t, mass, sfr, tau_guess=tau_guess)
         else:
-            sfh = self.get_sfr(self.tab_t_pop, **kwargs)
+            kw = kwargs
+
+        sfh = self.get_sfr(self.tab_t_pop, **kw)
 
         tasc = self.tab_t_pop[-1::-1]
         sfh_asc = sfh[-1::-1]
 
         # General case: synthesize SED
-        if True:#'sfh' not in kw:
+        if ('sfh' not in kwargs) or (kwargs['sfh'] not in ['const', 'burst']):
             spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
-                waves=waves, zobs=zobs, load=False)
+                waves=waves, zobs=zobs, load=False, use_pbar=use_pbar)
             return spec
 
         ##
         # If using fallback option 'const' or 'ssp', don't need to synthesize!
         if kw['sfh'] == 'const':
-            pass
-        elif kw['sfh'] == 'ssp':
-            pass
+
+            assert np.all(np.diff(sfh[sfh > 0]) == 0)
+            sfr = sfh.max()
+
+            src = self._src_csfr
+            # Figure out how long this galaxy is "on"
+            age = tasc[sfh_asc>0].max() - tasc[sfh_asc>0].min()
+
+            if age > src.tab_t.max():
+                return np.interp(waves, src.tab_waves, src.tab_sed[:,-1])
+
+            # First, interpolate in age
+            ilo = np.argmin(np.abs(age - self.tab_t))
+            if src.tab_t[ilo] > age:
+                ilo -= 1
+
+            sed_lo = src.tab_sed[:,ilo] * src.tab_dwdn
+            sed_hi = src.tab_sed[:,ilo+1] * src.tab_dwdn
+
+            sed = [np.interp(age, src.tab_t[ilo:ilo+2], [sed_lo[i], sed_hi[i]]) \
+                for i, wave in enumerate(src.tab_waves_c)]
+
+            # Then, interpolate in wavelength
+            return sfr * np.interp(waves, self.tab_waves_c, sed)
         else:
             raise NotImplemented('help')
 

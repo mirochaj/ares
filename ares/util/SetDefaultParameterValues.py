@@ -552,6 +552,7 @@ def PopulationParameters():
 
     # Set the emission interval and SED
     "pop_sed": 'pl',
+    "pop_sed_table": None,
 
     "pop_sed_sharp_at": None,
 
