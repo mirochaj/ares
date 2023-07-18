@@ -531,7 +531,8 @@ class SynthesisModelBase(Source):
             if self.tab_t[k] > t:
                 k -= 1
 
-            func = interp1d(self.tab_t, yield_UV, kind='linear')
+            func = interp1d(self.tab_t, yield_UV, kind='linear',
+                bounds_error=False, left=yield_UV[0], right=yield_UV[-1])
             result = func(t)
 
         #self._cache_L_per_sfr_[(x, window, band, Z, raw, nebular_only, age)] = result

@@ -81,6 +81,18 @@ class BasePQ(object):
                     self.tlim = kwargs["pq_func_var2_lim"]
                     self.tfill = kwargs["pq_func_var2_fill"]
 
+    def get_time_var(self, **kwargs):
+        if (self.t == "z") and ("z" in kwargs):
+            t = kwargs[self.t]
+        elif (self.t == "1+z") and ("z" in kwargs):
+            t = 1. + kwargs["z"]
+        elif (self.t == 'a') and ("z" in kwargs):
+            t = 1. / (1. + kwargs["z"])
+        else:
+            raise KeyError(f"Time variable {self.t} not available given input kwargs.")
+
+        return t
+
 class PowerLaw(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -371,6 +383,30 @@ class LogTanhAbsEvolvingMidpointFloorCeiling(BasePQ):
 
         return y
 
+class LogSigmoidEvolvingFloorCeilingWidth(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == '1+z':
+            x = 1. + kwargs['z']
+        else:
+            x = kwargs[self.x]
+
+        logx = np.log10(x)
+
+        lo = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[9] * ((1. + kwargs['z']) / self.args[4])**2
+        hi = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[10] * ((1. + kwargs['z']) / self.args[4])**2
+        mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[11] * ((1. + kwargs['z']) / self.args[4])**2
+        w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4]) \
+            + self.args[12] * ((1. + kwargs['z']) / self.args[4])**2
+
+        sigma = 1. / (1. + np.exp(-(logx - mid) / w))
+
+        y = lo + (hi - lo) * (1. - sigma)
+
+        return y
+
 class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
     def __call__(self, **kwargs):
         if self.x == '1+z':
@@ -385,13 +421,14 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
         mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4])
         w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4])
 
-        hi = np.minimum(hi, 1.)
+        hi = hi#np.minimum(hi, 1.)
         lo = np.maximum(lo, 0.)
         w = np.maximum(w, 0)
 
-        step = (hi - lo) * 0.5
+        step = (hi - lo)
 
-        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
+        # tanh(x) goes from -1 to 1 as x goes from -inf to inf.
+        y = lo + step * 0.5 * (np.tanh((mid - logx) / w) + 1.)
 
         return y
 
@@ -676,10 +713,12 @@ class DoublePowerLawEvolvingNormPeakSlope(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
 
-        if self.t == "1+z":
-            t = 1. + kwargs["z"]
-        else:
-            t = kwargs[self.t]
+        #if self.t == "1+z":
+        #    t = 1. + kwargs["z"]
+        #else:
+        #    t = kwargs[self.t]
+
+        t = self.get_time_var(**kwargs)
 
         # This is the peak mass
         p1 = self.args[1] * (t / self.args[5])**self.args[7]
@@ -696,12 +735,12 @@ class DoublePowerLawEvolvingNormPeakSlope(BasePQ):
         y += xx**-s2
         np.divide(1., y, out=y)
 
-        if self.t == "1+z":
-            y *= normcorr * self.args[0] \
-                * ((1. + kwargs["z"]) / self.args[5])**self.args[6]
+        if self.t == 'a':
+            raise NotImplemented('help')
         else:
             y *= normcorr * self.args[0] \
-                * (kwargs[self.t] / self.args[5])**self.args[6]
+                * (t / self.args[5])**self.args[6]
+
 
         return y
 
@@ -974,6 +1013,8 @@ class ParameterizedQuantity(object):
             self.func = LogTanhAbsEvolvingWidth(**kwargs)
         elif kwargs["pq_func"] == "logtanh_rel":
             self.func = LogTanhRel(**kwargs)
+        elif kwargs["pq_func"] == 'logsigmoid_abs_evol_FCW':
+            self.func = LogSigmoidEvolvingFloorCeilingWidth(**kwargs)
         elif kwargs["pq_func"] == "step_abs":
             self.func = StepAbs(**kwargs)
         elif kwargs["pq_func"] == "step_rel":

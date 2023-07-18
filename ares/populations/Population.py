@@ -51,6 +51,8 @@ _sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
     'schaerer2002', 'hybrid',
     'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
 
+complex_sfhs = ['exp_decl', 'exp_rise', 'delayed_tau', 'exp_decl_trunc']
+
 def normalize_sed(pop):
     """
     Convert yield to erg / g.
@@ -484,7 +486,8 @@ class Population(object):
 
     @cached_property
     def is_emissivity_bruteforce(self):
-        return not self.pf['pop_emissivity_tricks']
+        return (not self.pf['pop_emissivity_tricks']) \
+            or (self.pf['pop_sfh'] != None)
 
     @property
     def is_emissivity_scalable(self):
@@ -567,7 +570,7 @@ class Population(object):
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:
-                if self.pf['pop_sfh'] in ['exp_decl', 'exp_rise', 'delayed_tau']:
+                if self.pf['pop_sfh'] in complex_sfhs:
                     self._Source_ = Galaxy
                 else:
                     self._Source_ = SynthesisModel

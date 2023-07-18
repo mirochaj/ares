@@ -38,8 +38,6 @@ def _kwargs_to_fn(**kwargs):
     Determine filename of appropriate BPASS lookup table based on kwargs.
     """
 
-
-
     path = 'BPASSv2_imf{}'.format(str((kwargs['source_imf'] - 1)).replace('.', ''))
     path += '_{}'.format(str(int(kwargs['source_imf_Mmax'])))
 

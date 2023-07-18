@@ -95,32 +95,30 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolMFCW', # Evolving midpoint, floor, ceiling
+ 'pq_func[2]': 'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
- 'pq_func_par0[2]': 1,
- 'pq_func_par1[2]': 0.0,
- 'pq_func_par2[2]': 11.8,
- 'pq_func_par3[2]': 0.6,
+ 'pq_val_floor[2]': 0,
+ 'pq_func_par0[2]': 0,
+ 'pq_func_par1[2]': 1.0,
+ 'pq_func_par2[2]': 12,
+ 'pq_func_par3[2]': 0.4,
  'pq_func_par4[2]': 1,   # redshift pivot
  'pq_func_par5[2]': 0.,
  'pq_func_par6[2]': 0,
  'pq_func_par7[2]': 0,
  'pq_func_par8[2]': 0,
- 'pq_func_par9[2]': 0.,
- 'pq_func_par10[2]': 0,
- 'pq_func_par11[2]': 0,
- 'pq_func_par12[2]': 0,
 }
 
 #centrals_sf.update(_base)
 
 centrals_q = centrals_sf.copy()
 centrals_q['pop_sfh'] = 'ssp'
+centrals_q['pop_aging'] = True
 centrals_q['pop_ssfr'] = None
 centrals_q['pop_ssp'] = True
-centrals_q['pop_age'] = 3e3
+centrals_q['pop_age'] = 1e4
 centrals_q['pop_Z'] = 0.02
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'

@@ -95,6 +95,20 @@ class Galaxy(SynthesisModel):
             norm = kwargs['norm']
             tau = kwargs['tau']
             return norm * np.exp(-t / tau)
+        elif sfh == 'exp_decl_trunc':
+            norm = kwargs['norm']
+            tau = kwargs['tau']
+            t0 = kwargs['t0']
+
+            sfr = norm * np.exp(-t / tau)
+            if type(sfr) == np.ndarray:
+                sfr[t < t0] = 0
+            else:
+                if t < t0:
+                    sfr = 0
+                else:
+                    pass
+            return sfr
         elif sfh == 'exp_rise':
             norm = kwargs['norm']
             tau = kwargs['tau']
@@ -157,6 +171,25 @@ class Galaxy(SynthesisModel):
             _mass = 1e6 * norm * tau * (1 - np.exp(-t / tau))
 
             kw = {'norm': norm, 'tau': tau, 'sfh': 'exp_decl'}
+        elif sfh == 'exp_decl_trunc':
+            assert 't0' in kwargs, "Must provide `t0` for sfh='exp_decl_trunc'!"
+            t0 = kwargs['t0']
+            f_sSFR = lambda logtau: 1e-6 \
+                / (10**logtau * (np.exp(t / 10**logtau) - np.exp(t0 / 10**logtau)))
+            func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
+            tau = 10**fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
+
+            # Can analytically solve for normalization once tau in hand.
+            norm = sfr / np.exp(-t / tau)
+
+            # Stellar mass = A * tau * (1 - e^(-t / tau))
+            # For rising history, mass = A * tau * (e^(t / tau) - 1)
+            _mass = 1e6 * norm * tau * (np.exp(-t0 / tau) - np.exp(-t / tau))
+            kw['tau'] = tau
+            kw['norm'] = norm
+            kw['sfh'] = 'exp_decl_trunc'
+            kw['t0'] = t0
 
         elif sfh == 'exp_rise':
             f_sSFR = lambda logtau: 1e-6 \
@@ -244,7 +277,7 @@ class Galaxy(SynthesisModel):
         ##
         # If we're here, we're exploring fallback options.
         kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
-            mtol=mtol, sfh=sfh_fall)
+            mtol=mtol, sfh=sfh_fall, **kwargs)
 
         #print("done with retry", kw)
 
@@ -333,7 +366,7 @@ class Galaxy(SynthesisModel):
             age = tasc[sfh_asc>0].max() - tasc[sfh_asc>0].min()
 
             if age > src.tab_t.max():
-                return np.interp(waves, src.tab_waves, src.tab_sed[:,-1])
+                return np.interp(waves, src.tab_waves_c, src.tab_sed[:,-1])
 
             # First, interpolate in age
             ilo = np.argmin(np.abs(age - self.tab_t))

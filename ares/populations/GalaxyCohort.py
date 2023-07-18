@@ -24,7 +24,7 @@ from scipy.optimize import fsolve
 from ..util.Misc import numeric_types
 from scipy.integrate import quad, simps, cumtrapz, ode
 from .GalaxyAggregate import GalaxyAggregate
-from .Population import normalize_sed
+from .Population import normalize_sed, complex_sfhs
 from ..util.Stats import bin_c2e, bin_e2c
 from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
@@ -822,6 +822,10 @@ class GalaxyCohort(GalaxyAggregate):
         #    func = self._get_function('pop_sfr')
         #    if type(self.pf['pop_sfr']) == 'str':
         #        return func(z=z, Mh=Mh)
+
+        if self.is_quiescent:
+            return np.zeros_like(Mh) if Mh is not None else \
+                np.zeros_like(self.halos.tab_M)
 
         # Will use only if interpolating onto user-supplied set of halo masses.
         flipM = False
@@ -1692,7 +1696,7 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # Special treatment of 'real' star formation histories
             complex_sfh = False
-            if src.pf['source_sfh'] in ['exp_decl', 'exp_rise', 'delayed_tau']:
+            if src.pf['source_sfh'] in complex_sfhs:
                 complex_sfh = True
                 # Override age to just be time since Big Bang, since that's
                 # what we're going to tabulate SED in.
