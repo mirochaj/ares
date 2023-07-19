@@ -568,7 +568,7 @@ class LightCone(object): # pragma: no cover
         If `buffer` is None, will return a map in our internal erg/s/sr. If
         `buffer` is supplied, will increment that array, same units.
         Any conversion of units (using `map_units`) takes place *only* in the
-        `generate_maps` routine. 
+        `generate_maps` routine.
         """
 
         pix_deg = pix / 3600.
@@ -730,7 +730,7 @@ class LightCone(object): # pragma: no cover
 
         # Frequency "squashing", i.e., our 'per Angstrom' interval is
         # different in the observer frame by a factor of 1+z.
-        flux = corr[:,None] * seds[:,:] / (1. + red[:,None]) / sr_per_pix
+        flux = corr[:,None] * seds[:,:] / (1. + red[:,None])
 
         ##
         # Need some extra info to do more sophisticated modeling...

@@ -109,6 +109,10 @@ centrals_sf = \
  'pq_func_par6[2]': 0,
  'pq_func_par7[2]': 0,
  'pq_func_par8[2]': 0,
+ 'pq_func_par9[2]': 0,
+ 'pq_func_par10[2]': 0,
+ 'pq_func_par11[2]': 0,
+ 'pq_func_par12[2]': 0,
 }
 
 #centrals_sf.update(_base)
