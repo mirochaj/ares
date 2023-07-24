@@ -134,7 +134,7 @@ class LightCone(object): # pragma: no cover
     @property
     def tab_z(self):
         if not hasattr(self, '_tab_z'):
-            self._tab_z = np.arange(0, 30, 0.1)
+            self._tab_z = np.arange(0.01, 20, 0.01)
         return self._tab_z
 
     @property
@@ -565,14 +565,14 @@ class LightCone(object): # pragma: no cover
 
         Returns
         -------
-        If `buffer` is None, will return a map in our internal erg/s/sr. If
+        If `buffer` is None, will return a map in our internal erg/s/cm^2/sr. If
         `buffer` is supplied, will increment that array, same units.
         Any conversion of units (using `map_units`) takes place *only* in the
         `generate_maps` routine.
         """
 
         pix_deg = pix / 3600.
-        sr_per_pix = pix_deg**2 / sqdeg_per_std
+        #sr_per_pix = pix_deg**2 / sqdeg_per_std
 
         assert fov * 3600 / pix % 1 == 0, \
             "FOV must be integer number of pixels wide!"
@@ -724,8 +724,10 @@ class LightCone(object): # pragma: no cover
 
         # Need to supply band or window?
         seds = self.sim.pops[idnum].get_spec(_z_, waves, Mh=Mh,
-            units_out='erg/s/Ang', window=dlam+1 if dlam % 2 == 0 else dlam)
+            units_out='erg/s/Ang',
+            window=dlam+1 if dlam % 2 == 0 else dlam)
 
+        # `owaves` is still in Angstroms
         owaves = waves[None,:] * (1. + red[:,None])
 
         # Frequency "squashing", i.e., our 'per Angstrom' interval is
@@ -932,7 +934,8 @@ class LightCone(object): # pragma: no cover
         return fn + '.' + fmt
 
     def get_README(self, fov, pix, channels, logmlim, zlim, path='.',
-        suffix=None, fmt='fits', save=False, is_map=True, channel_names=None):
+        suffix=None, fmt='fits', save=False, is_map=True, channel_names=None,
+        verbose=False):
         """
 
         """
@@ -993,7 +996,9 @@ class LightCone(object): # pragma: no cover
                 suffix=suffix)
             with open(f'{base_dir}/README_{rstr}', 'w') as f:
                 f.write(s)
-            print(f"# Wrote {base_dir}/README")
+
+            if verbose:
+                print(f"# Wrote {base_dir}/README")
 
         return s
 
@@ -1043,7 +1048,7 @@ class LightCone(object): # pragma: no cover
         README = self.get_README(fov=fov, pix=pix, channels=channels,
             logmlim=logmlim, zlim=zlim, path=path, fmt=fmt,
             channel_names=channel_names,
-            suffix=suffix, save=True, is_map=False)
+            suffix=suffix, save=True, is_map=False, verbose=verbose)
 
         if zlim is None:
             zlim = self.zlim
@@ -1113,13 +1118,13 @@ class LightCone(object): # pragma: no cover
                         fn = intmd_dir + '/' + fn
 
                         # Try to read from disk.
-                        if os.path.exists(fn) and (not clobber):
+                        if os.path.exists(fn) and (not clobber) and verbose:
                             print(f"Found {fn}. Set clobber=True to overwrite.")
                             #_Inu = self._load_cat(fn)
                             continue
 
                         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
-                            logmlim=(mlo, mhi), idnum=popid)
+                            logmlim=(mlo, mhi), idnum=popid, verbose=verbose)
 
                         # Could be empty chunks for very massive halos and/or early times.
                         if ra is None:
@@ -1190,7 +1195,7 @@ class LightCone(object): # pragma: no cover
                         self.save_cat(fn, (ra, dec, red, dat),
                             channel, (zlo, zhi), (mlo, mhi),
                             fov, pix=pix, fmt=fmt, hdr=hdr,
-                            clobber=clobber)
+                            clobber=clobber, verbose=verbose)
 
                         dat_z.extend(list(dat))
 
@@ -1206,7 +1211,8 @@ class LightCone(object): # pragma: no cover
 
                     self.save_cat(fnt, (ra_z, dec_z, red_z, dat_z),
                         channel, (zlo, zhi), (mlo, mhi),
-                        fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
+                        fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber,
+                        verbose=verbose)
 
                     ra_allz.extend(ra_z)
                     dec_allz.extend(dec_z)
@@ -1225,7 +1231,8 @@ class LightCone(object): # pragma: no cover
 
                 self.save_cat(fnp, (ra_allz, dec_allz, red_allz, dat_allz),
                     channel, zlim, logmlim,
-                    fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
+                    fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber,
+                    verbose=verbose)
 
                 ra_allp.extend(ra_allz)
                 dec_allp.extend(dec_allz)
@@ -1246,7 +1253,8 @@ class LightCone(object): # pragma: no cover
             print(f"final_dir={final_dir}, fnf={fnf}, channel={channel}")
             self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
                 channel, zlim, logmlim,
-                fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber)
+                fov, pix=pix, fmt=fmt, hdr=hdr,
+                clobber=clobber, verbose=verbose)
 
         ##
         # Done with channels
@@ -1266,8 +1274,7 @@ class LightCone(object): # pragma: no cover
         with open(f"{final_dir}/README", 'a') as f:
             f.write(s)
 
-        if verbose:
-            print(f"# Wrote {final_dir}/README")
+        print(f"# Wrote {final_dir}/README")
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',
@@ -1292,6 +1299,31 @@ class LightCone(object): # pragma: no cover
 
         The user is encouraged to add descriptive `prefix` and `suffix` that
         will be prepended/appended to this string.
+
+        Parameters
+        ----------
+        fov : int, float
+            Field of view, linear dimension, in degrees.
+        pix : int, float
+            Pixel scale, i.e., size of each pixel (linear dimension) [arcsec]
+        channels : list
+            List of channel edges, e.g., [(1, 1.05), (1.05, 1.1)] [microns].
+        logmlim : tuple
+            Halo mass range to include in model (log10(Mhalo/Msun)), e.g.,
+            (12, 13).
+        dlogm : float
+            To limit memory consumption, only generate halos in a log10(mass)
+            bin this wide at a time.
+        zlim : tuple
+            Boundaries of lightcone used to create map in redshift.
+        dlam : int, float
+            Generate galaxy SEDs at intrinsic resolution of `dlam` (Angstroms)
+            before ultimately binning into `channels`.
+        include_pops : tuple, list
+            Integers corresponding to population ID numbers to be included in
+            calculation, e.g., [0] would just include the first population,
+            typically star-forming galaxies, while [0, 1] would include the
+            first two (ID number 1 is usually quiescent centrals).
 
         Returns
         -------
@@ -1396,7 +1428,7 @@ class LightCone(object): # pragma: no cover
                 zlim=zlim, fmt=fmt, final=True, channel_name=chname)
             fn_fin = final_dir + '/' + fn_fin
 
-            if os.path.exists(fn_fin) and (not clobber):
+            if os.path.exists(fn_fin) and (not clobber) and verbose:
                 print(f"# Found final map {fn_fin}. Set clobber=True to re-generate")
                 continue
 
@@ -1405,7 +1437,7 @@ class LightCone(object): # pragma: no cover
             # Will need channel width in Hz to recover specific intensities
             # averaged over band.
             nu = c * 1e4 / np.mean(channel)
-            dnu = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
+            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
 
             # Create directory for intermediate products if it doesn't
             # already exist.
@@ -1420,8 +1452,8 @@ class LightCone(object): # pragma: no cover
                 buffer = np.zeros([npix]*2)
 
             # Generate map
-            # Internal flux units are cgs [erg/s/Hz/sr]
-            # but get_map returns a channel-integrated flux, so just erg/s/sr
+            # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
+            # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
             self.get_map(fov, pix, channel,
                 logmlim=mchunk, zlim=zchunk,
                 include_galaxy_sizes=include_galaxy_sizes,
@@ -1676,7 +1708,8 @@ class LightCone(object): # pragma: no cover
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
 
-        print(f"# Wrote {fn}.")
+        if verbose:
+            print(f"# Wrote {fn}.")
 
         #del img
         #gc.collect()

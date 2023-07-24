@@ -1362,18 +1362,13 @@ class GalaxyCohort(GalaxyAggregate):
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only)
 
-            if 'hz' in units_out.lower():
-                pass
-            else:
-                dwdn = waves**2 / (c * 1e8)
-                lum = lum / dwdn[None,:]
-
             return lum
 
         else:
             raise NotImplemented('help')
 
-    def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz', Mh=None):
+    def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz', Mh=None,
+        window=1, band=None):
         """
         Return the spectra of all objects in the observer frame at z=0.
 
@@ -1401,7 +1396,7 @@ class GalaxyCohort(GalaxyAggregate):
             dwdn = waves**2 / (c * 1e8)
 
         spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz',
-            Mh=Mh)
+            Mh=Mh, window=window, band=band)
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
