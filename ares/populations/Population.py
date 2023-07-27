@@ -51,7 +51,8 @@ _sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
     'schaerer2002', 'hybrid',
     'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
 
-simple_sfhs = [None, 'const', 'ssp', 'burst']
+simple_sfhs = [None, 'const', 'ssp', 'burst', 'const+ssp', 'constant+ssp',
+    'const+burst', 'constant+burst']
 complex_sfhs = ['exp_decl', 'exp_rise', 'delayed_tau', 'exp_decl_trunc']
 
 def normalize_sed(pop):
@@ -278,7 +279,7 @@ class Population(object):
 
     @property
     def is_aging(self):
-        return self.pf['pop_aging']
+        return self.pf['pop_aging'] and self.pf['pop_ssfr'] not in simple_sfhs
 
     @property
     def is_hod(self):

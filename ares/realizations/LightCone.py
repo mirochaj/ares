@@ -723,6 +723,8 @@ class LightCone(object): # pragma: no cover
         waves = np.arange(_wlo, _whi+dlam, dlam)
 
         # Need to supply band or window?
+        # Note: NOT using get_spec_obs because every object has a
+        # slightly different redshift, want more precise fluxes.
         seds = self.sim.pops[idnum].get_spec(_z_, waves, Mh=Mh,
             units_out='erg/s/Ang',
             window=dlam+1 if dlam % 2 == 0 else dlam)
@@ -1249,8 +1251,6 @@ class LightCone(object): # pragma: no cover
 
             fnf = final_dir + '/' + fnf
 
-            print(f"Trying to save final catalog to {fnf}")
-            print(f"final_dir={final_dir}, fnf={fnf}, channel={channel}")
             self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
                 channel, zlim, logmlim,
                 fov, pix=pix, fmt=fmt, hdr=hdr,
@@ -1274,7 +1274,8 @@ class LightCone(object): # pragma: no cover
         with open(f"{final_dir}/README", 'a') as f:
             f.write(s)
 
-        print(f"# Wrote {final_dir}/README")
+        if verbose:
+            print(f"# Wrote {final_dir}/README")
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20, path='.',

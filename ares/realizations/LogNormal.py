@@ -73,14 +73,6 @@ class LogNormal(LightCone): # pragma: no cover
             assert self.bias_params is not None, \
                 "Must provide `bias_params=[a,b]` for `bias_model>0`!"
 
-        fov = self.get_fov_from_L(0.5, Lbox)
-
-        if verbose:
-            print("# Maximum FoV given box size:")
-            for z in [0.2, 1, 2, 3, 4, 5, 6, 10]:
-                fov = self.get_fov_from_L(z, Lbox)
-                print(f"# At z={z:.1f}: {fov:.2f} degrees")
-
     def get_seed_kwargs(self, chunk, logmlim):
         # Deterministically adjust the random seeds for the given mass range
         # and redshift range.

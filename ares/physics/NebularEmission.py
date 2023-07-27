@@ -219,7 +219,7 @@ class NebularEmission(object):
         if not hasattr(self, '_ew_wrt_hbeta_'):
             i11 = read_lit('inoue2011')
 
-            waves, ew, ew_std = i11._load(self.pf['source_Z'])
+            waves, ew, ew_std = i11.read(self.pf['source_Z'])
 
             # Figure out indices now
             ind = np.digitize(waves, self.tab_waves_e) - 1

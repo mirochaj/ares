@@ -127,6 +127,7 @@ common = \
  'angular_scale_q_sec': r'$2 \pi / q \ [\mathrm{arcsec}]$',
  'angular_scale_l': r'Multipole moment, $l$',
  'flux_nuInu': label_flux_nuInu,
+ 'flux_ang': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \rm{cm}^{-2} \ \mathrm{\AA}^{-1}$',
  'intensity_AA': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{\AA}^{-1}$',
  'lambda_AA': r'$\lambda \ (\AA)$',
  'L_nu': label_L_nu,
