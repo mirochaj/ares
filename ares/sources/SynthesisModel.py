@@ -189,17 +189,28 @@ class SynthesisModelBase(Source):
         return spec
 
     def get_sed_at_t(self, t=None, i_tsf=None, raw=False, nebular_only=False):
+        """
+        Retrieve the SED at a user specified time [Myr].
+
+        .. note :: This is essentially relieving us of having to find the
+            appropriate index in the 2-D SED table, tab_sed, and/or
+            remembering the order of its dimensions.
+
+        """
+
+        # Find the index closest to the time requested by the user.
         if i_tsf is None:
             i_tsf = np.argmin(np.abs(t - self.tab_t))
 
+        # Construct a modified version of the SED [optional]
         if raw and not (nebular_only or self.pf['source_nebular_only']):
-            poke = self.tab_sed_at_age
+            poke = self.tab_sed#_at_age
             data = self._data_raw
         else:
             data = self.tab_sed.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
-                poke = self.tab_sed_at_age
+                poke = self.tab_sed#_at_age
                 data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
