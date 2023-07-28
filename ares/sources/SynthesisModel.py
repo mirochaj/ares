@@ -193,13 +193,15 @@ class SynthesisModelBase(Source):
             i_tsf = np.argmin(np.abs(t - self.tab_t))
 
         if raw and not (nebular_only or self.pf['source_nebular_only']):
-            poke = self.tab_sed_at_age
+            # Just need to make sure the _data_raw attribute exists
+            poke = self.tab_sed
             data = self._data_raw
         else:
             data = self.tab_sed.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
-                poke = self.tab_sed_at_age
+                # Just need to make sure the _data_raw attribute exists
+                poke = self.tab_sed
                 data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
