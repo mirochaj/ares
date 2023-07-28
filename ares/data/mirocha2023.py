@@ -15,6 +15,7 @@ _base = \
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
+ 'cosmological_Mmin': None,
 
  'final_redshift': 1e-2,
 
@@ -52,6 +53,9 @@ centrals_sf = \
  'pop_age': (100, 1e4),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
+
+ 'pop_Tmin': None,
+ 'pop_Mmin': 1e8,
 
  # Something with dust and metallicity here
 
