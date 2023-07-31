@@ -913,6 +913,29 @@ class LogLinear(BasePQ):
         y = 10**logy
         return y
 
+class LinLog(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+        y = self.args[0] + self.args[2] * (np.log10(x) - self.args[1])
+        return y
+
+class LinLogEvolvingNorm(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        p0 = self.args[0] * (t / self.args[3])**self.args[4]
+
+        y = p0 + self.args[2] * (np.log10(x) - self.args[1])
+        return y
+
 class LogLinearEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -1033,6 +1056,10 @@ class ParameterizedQuantity(object):
             self.func = LinearEvolvingNorm(**kwargs)
         elif kwargs["pq_func"] in ["loglin"]:
             self.func = LogLinear(**kwargs)
+        elif kwargs["pq_func"] in ["linlog"]:
+            self.func = LinLog(**kwargs)
+        elif kwargs["pq_func"] in ["linlog_evolN"]:
+            self.func = LinLogEvolvingNorm(**kwargs)    
         elif kwargs["pq_func"] in ["loglin_evolN"]:
             raise NotImplemented('help')
         elif kwargs["pq_func"] in ["p_linear"]:
