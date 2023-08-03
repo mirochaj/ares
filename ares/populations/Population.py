@@ -1240,19 +1240,7 @@ class Population(object):
                     self.halos.tab_M < self.get_Mmax(z[ll]))
 
                 for jj in range(Nf):
-
-                    # Skip: could put this in get_lum?
-                    skip = False
-                    if self.pf['pop_sed_null_except'] is not None:
-                        for element in self.pf['pop_sed_null_except']:
-                            lo, hi, keep_cont = element
-                            if (not keep_cont) and not (lo <= _waves[jj] < hi):
-                                skip = True
-                                break
-
-                    if skip:
-                        continue
-
+                    
                     # [erg/s/Hz]
                     lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
                         raw=False, units_out='erg/s/Hz',

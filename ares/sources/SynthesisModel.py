@@ -82,7 +82,7 @@ class SynthesisModelBase(Source):
                 spec = data[:,j] * self.tab_dwdn
 
                 self._neb_line[:,i] = \
-                    self._nebula.LineEmission(spec) / self.tab_dwdn
+                    self._nebula.get_line_emission(spec) / self.tab_dwdn
 
         return self._neb_line
 
@@ -884,12 +884,29 @@ class SynthesisModel(SynthesisModelBase):
         self._tab_sed = self.tab_sed_raw.copy()
         self._add_nebular_emission(self._tab_sed)
 
+        # Can reduce SED to *only* specific windows, e.g., to create a
+        # "lines only" model (probably for intuition-building).
         if self.pf['source_sed_null_except'] is not None:
+            iall = np.arange(0, self.tab_waves_c.size)
             tmp = self._tab_sed.copy()
             for chunk in self.pf['source_sed_null_except']:
                 lo, hi, keep_cont = chunk
-                ok = np.logical_and(self.tab_waves_c >= lo,
-                                    self.tab_waves_c < hi)
+
+                # Need to be inclusive here. If the null_except window is
+                # broader than the intrinsic resolution (controlled by
+                # source_sed_degrade) then we could accidentally null out
+                # the region of interest.
+                ilo = np.argmin(np.abs(lo - self.tab_waves_c))
+                if self.tab_waves_e[ilo] > lo:
+                    ilo -= 1
+
+                ihi = np.argmin(np.abs(hi - self.tab_waves_c))
+                if self.tab_waves_e[ihi] < hi:
+                    ihi += 1
+
+                ok = np.logical_and(iall >= ilo, iall < ihi)
+                #ok = np.logical_and(self.tab_waves_c >= lo,
+                #                    self.tab_waves_c < hi)
                 notok = np.logical_not(ok)
                 self._tab_sed[notok==1,:] = 0
 
