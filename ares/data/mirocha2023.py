@@ -15,10 +15,11 @@ _base = \
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
+ 'cosmological_Mmin': None,
 
- 'final_redshift': 0,
+ 'final_redshift': 1e-2,
 
- 'tau_redshift_bins': 1000,
+ 'tau_redshift_bins': 100,
 
  'halo_dlnk': 0.05,
  'halo_lnk_min': -9.,
@@ -43,15 +44,18 @@ centrals_sf = \
  'pop_rad_yield': 'from_sed',
 
  'pop_fesc': 0.2,
- 'pop_sed_degrade': 10,
+ 'pop_sed_degrade': 100,
 
  'pop_nebular': 0,
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100, 3e3),
- 'pop_Z': (0.008, 0.02), # placeholder, really
+ 'pop_age': (100, 1e4),
+ 'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
+
+ 'pop_Tmin': None,
+ 'pop_Mmin': 1e8,
 
  # Something with dust and metallicity here
 
@@ -60,16 +64,16 @@ centrals_sf = \
  'pq_func[0]': 'dpl_evolNPS',
  'pq_func_var[0]': 'Mh',
  'pq_func_var2[0]': '1+z',
- 'pq_func_par0[0]': 4e-4,
- 'pq_func_par1[0]': 1.5e12,
- 'pq_func_par2[0]': 1.0,
- 'pq_func_par3[0]': -0.6,
+ 'pq_func_par0[0]': 9.7957e-04,
+ 'pq_func_par1[0]': 8.7620e+11,
+ 'pq_func_par2[0]': 8.1798e-01,
+ 'pq_func_par3[0]': -7.2136e-01,
  'pq_func_par4[0]': 1e10,
  'pq_func_par5[0]': 1.,     # pivot in 1+z
- 'pq_func_par6[0]': 0.,     # norm
- 'pq_func_par7[0]': 0.0,    # Mp
- 'pq_func_par8[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
- 'pq_func_par9[0]': 0.0,    # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par6[0]': -1.7136e-01,
+ 'pq_func_par7[0]': 1.1776e-01,
+ 'pq_func_par8[0]': 5.3506e-01,
+ 'pq_func_par9[0]': -9.1944e-01,
  'pq_func_par10[0]': 0.0,
  'pq_func_par11[0]': 0.0,
  'pq_func_par12[0]': 0.0,
@@ -82,45 +86,47 @@ centrals_sf = \
  'pq_func[1]': 'dpl_evolNPS',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
- 'pq_func_par0[1]': 3e-10,
+ 'pq_func_par0[1]': 4e-10,
  'pq_func_par1[1]': 2e9,
  'pq_func_par2[1]': 0.0,
- 'pq_func_par3[1]': -0.9,
- 'pq_func_par4[1]': 1e9,
+ 'pq_func_par3[1]': -0.8,
+ 'pq_func_par4[1]': 1e8,
  'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 2.,     # PL index for normalization evolution
- 'pq_func_par7[1]': 2.5,    # PL index for peak mass
+ 'pq_func_par6[1]': 2.5,       # PL index for normalization evolution
+ 'pq_func_par7[1]': 2.5,       # PL index for peak mass
  'pq_func_par8[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_func_par9[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logtanh_abs_evolMFCW', # Evolving midpoint, floor, ceiling
+ 'pq_func[2]': 'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
- 'pq_func_par0[2]': 1,
- 'pq_func_par1[2]': 0.0,
- 'pq_func_par2[2]': 11.8,
- 'pq_func_par3[2]': 0.6,
+ 'pq_val_floor[2]': 0,
+ 'pq_func_par0[2]': 7.3452e-02,
+ 'pq_func_par1[2]': 5.7451e-01,
+ 'pq_func_par2[2]': 1.2559e+01,
+ 'pq_func_par3[2]': 3.6616e-01,
  'pq_func_par4[2]': 1,   # redshift pivot
- 'pq_func_par5[2]': 0.,
- 'pq_func_par6[2]': 0,
- 'pq_func_par7[2]': 0,
- 'pq_func_par8[2]': 0,
- 'pq_func_par9[2]': 0.,
- 'pq_func_par10[2]': 0,
- 'pq_func_par11[2]': 0,
- 'pq_func_par12[2]': 0,
+ 'pq_func_par5[2]': 1.2106e-01,
+ 'pq_func_par6[2]': 2.9696e-01,
+ 'pq_func_par7[2]': -2.6572e-01,
+ 'pq_func_par8[2]': -8.0466e-02,
+ 'pq_func_par9[2]': 9.7426e-03,
+ 'pq_func_par10[2]': -4.6582e-02,
+ 'pq_func_par11[2]': 3.4529e-02,
+ 'pq_func_par12[2]': 1.4549e-02,
 }
 
 #centrals_sf.update(_base)
 
 centrals_q = centrals_sf.copy()
 centrals_q['pop_sfh'] = 'ssp'
+centrals_q['pop_aging'] = True
 centrals_q['pop_ssfr'] = None
 centrals_q['pop_ssp'] = True
-centrals_q['pop_age'] = 3e3
+centrals_q['pop_age'] = 1e4
 centrals_q['pop_Z'] = 0.02
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
@@ -225,11 +231,12 @@ dust['pop_Av'] = 'pq[4]'
 dust['pq_func[4]'] = 'pl_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 0.3
+dust['pq_func_par0[4]'] = 0.5
 dust['pq_func_par1[4]'] = 1e10
-dust['pq_func_par2[4]'] = 0.1
+dust['pq_func_par2[4]'] = 0.2
 dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
 dust['pq_func_par4[4]'] = 0.  # no evolution yet.
+dust['pq_val_floor[4]'] = 0
 
 mzr = \
 {
@@ -248,3 +255,16 @@ mzr = \
  'pq_val_floor[30]': 6,
  'pop_Z': ('mzr', 0.02),
 }
+
+
+expd = base.copy()
+expd['pop_ssp{0}'] = True
+expd['pop_sfh{0}'] = 'exp_decl'
+expd['pop_sfh_axes{0}'] = ('norm', 10**np.arange(-6, 4.2, 0.2)), \
+                          ('tau', 10**np.arange(2, 4.2, 0.2))
+
+expd['pop_age{0}'] = None
+expd['pop_Z{0}'] = 0.02
+expd['pop_aging{0}'] = True
+expd['pop_sed_degrade{0}'] = 10
+expd['pop_sfh_degrade{0}'] = 1  # Tabulate in (z, Mh) degraded by 10x wrt native

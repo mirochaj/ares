@@ -48,6 +48,8 @@ with open(fn_lines, 'r') as f:
 
 line_info = np.array(line_info)
 
+del i, line, line_spl, line_id, wave, line_str
+
 line_data = {}
 with open(fn_data, 'r') as f:
     data = np.loadtxt(f)
@@ -76,9 +78,10 @@ def _read(Z, Ztol=1e-4):
         return 0.5 * (dat1 + dat2), line_info
 
 
-def _load(Z, Ztol=1e-4):
+def read(Z, Ztol=1e-4):
     """
-    Returns wavelengths and
+    Returns wavelengths, mean line intensity (wrt H-beta), and
+    standard deviation over grid of models.
     """
     data, info = _read(Z, Ztol=Ztol)
 

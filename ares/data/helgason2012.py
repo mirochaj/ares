@@ -49,7 +49,10 @@ helgason_ebl['M'] = (0.75, 0.83, -0.31), (0.24, 0.45, -0.13), (0.07, 0.20, -0.04
     (0.02, 0.09, -0.02), (3.28, 1.21, -0.49)
 
 
-def plot(ax, as_contours=True, **kwargs):
+def plot_ebl(ax, as_contours=True, **kwargs):
+    """
+    Plot the mean EBL [nW/m^2/sr] as a function of observed wavelength [microns].
+    """
     waves_pl = []
     lo = []; hi = []
     for i, band in enumerate(bands):

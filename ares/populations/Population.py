@@ -32,7 +32,8 @@ from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import get_function_from_par
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
-    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource
+    SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource, \
+    Galaxy
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
     ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc
 
@@ -49,6 +50,10 @@ _single_star_models = ['schaerer2002']
 _sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
     'schaerer2002', 'hybrid',
     'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
+
+simple_sfhs = [None, 'const', 'ssp', 'burst', 'const+ssp', 'constant+ssp',
+    'const+burst', 'constant+burst']
+complex_sfhs = ['exp_decl', 'exp_rise', 'delayed_tau', 'exp_decl_trunc']
 
 def normalize_sed(pop):
     """
@@ -274,7 +279,7 @@ class Population(object):
 
     @property
     def is_aging(self):
-        return self.pf['pop_aging']
+        return self.pf['pop_aging'] and self.pf['pop_ssfr'] not in simple_sfhs
 
     @property
     def is_hod(self):
@@ -483,7 +488,8 @@ class Population(object):
 
     @cached_property
     def is_emissivity_bruteforce(self):
-        return not self.pf['pop_emissivity_tricks']
+        return (not self.pf['pop_emissivity_tricks']) \
+            or (self.pf['pop_sfh'] not in simple_sfhs)
 
     @property
     def is_emissivity_scalable(self):
@@ -566,7 +572,10 @@ class Population(object):
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:
-                self._Source_ = SynthesisModel
+                if self.pf['pop_sfh'] in complex_sfhs:
+                    self._Source_ = Galaxy
+                else:
+                    self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in ['hybrid']:
                 self._Source_ = SynthesisModelHybrid
             elif self.pf['pop_sed'] in _single_star_models:
@@ -630,7 +639,7 @@ class Population(object):
                         else:
                             self._src_kwargs[i][par] = bpars[par]
 
-                elif self._Source in [SynthesisModel, SynthesisModelToy]:
+                elif self._Source in [SynthesisModel, SynthesisModelToy, Galaxy]:
                     bpars = SynthesisParameters()
                     for par in bpars:
                         par_pop = par.replace('source', 'pop')
@@ -669,6 +678,11 @@ class Population(object):
                 except TypeError:
                     # For litdata
                     src = self._Source
+
+                # Only used by `Galaxy` right now.
+                src.tab_t_pop = self.halos.tab_t
+                src.tab_z_pop = self.halos.tab_z
+
                 self._srcs.append(src)
 
         return self._srcs
@@ -712,6 +726,7 @@ class Population(object):
                 except TypeError:
                     # For litdata
                     self._src_csfr_ = self._Source
+
             else:
                 self._src_csfr_ = None
 
@@ -1176,18 +1191,20 @@ class Population(object):
 
         # Special case: delta function SED! Can't normalize a-priori without
         # knowing binning, so we do it here.
+        Inu_hat = None
         if self.src.is_delta:
             # This is a little weird. Trapezoidal integration doesn't make
             # sense for a delta function, but it's what happens later, so
             # insert a factor of a half now so we recover all the flux we
             # should.
             Inu[-1] = 1.
-        else:
+            Inu_hat = Inu / E
+        elif self.is_emissivity_scalable:
             for i in range(Nf):
                 Inu[i] = self.src.get_spectrum(E[i])
 
-        # Convert to photon *number* (well, something proportional to it)
-        Inu_hat = Inu / E
+            # Convert to photon *number* (well, something proportional to it)
+            Inu_hat = Inu / E
 
         # Now, redshift dependent parts
         epsilon = np.zeros([Nz, Nf])
@@ -1223,19 +1240,7 @@ class Population(object):
                     self.halos.tab_M < self.get_Mmax(z[ll]))
 
                 for jj in range(Nf):
-
-                    # Skip: could put this in get_lum?
-                    skip = False
-                    if self.pf['pop_sed_null_except'] is not None:
-                        for element in self.pf['pop_sed_null_except']:
-                            lo, hi, keep_cont = element
-                            if (not keep_cont) and not (lo <= _waves[jj] < hi):
-                                skip = True
-                                break
-
-                    if skip:
-                        continue
-
+                    
                     # [erg/s/Hz]
                     lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
                         raw=False, units_out='erg/s/Hz',

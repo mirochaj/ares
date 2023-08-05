@@ -140,6 +140,10 @@ class MockSky(object):
     def get_pixels(self):
         """
         Returns the pixel edges and centers in both RA and DEC.
+
+        .. note :: These are RELATIVE to the center of the map, which
+            is specified in the map headers via `CRVAL1` and `CRVAL2`.
+            
         """
         fov = self.fov
         pix = self.pix

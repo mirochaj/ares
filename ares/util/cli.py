@@ -529,7 +529,7 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
     # go to path
     os.chdir(path)
 
-    for fn in os.listdir('SEDS/'):
+    for fn in os.listdir('.'):
 
         # Back door to only do this for specific files.
         if exact_files is not None:
@@ -545,7 +545,7 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
         if fn.endswith('.py'):
             continue
 
-        full_fn = 'SEDS/{}'.format(fn)
+        full_fn = '{}'.format(fn)
         out_fn = full_fn+'.deg{}'.format(degrade_to)
 
         if os.path.exists(out_fn):
@@ -872,7 +872,7 @@ def generate_data(args):
             elif dset == "rt1d":
                 make_rt1d(path)
             elif dset == "bpass_v1":
-                make_lowres_sps(path)
+                make_lowres_sps(path + '/SEDS')
 
     return
 

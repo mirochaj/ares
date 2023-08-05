@@ -82,7 +82,7 @@ class SynthesisModelBase(Source):
                 spec = data[:,j] * self.tab_dwdn
 
                 self._neb_line[:,i] = \
-                    self._nebula.LineEmission(spec) / self.tab_dwdn
+                    self._nebula.get_line_emission(spec) / self.tab_dwdn
 
         return self._neb_line
 
@@ -204,13 +204,15 @@ class SynthesisModelBase(Source):
 
         # Construct a modified version of the SED [optional]
         if raw and not (nebular_only or self.pf['source_nebular_only']):
-            poke = self.tab_sed#_at_age
+            # Just need to make sure the _data_raw attribute exists
+            poke = self.tab_sed
             data = self._data_raw
         else:
             data = self.tab_sed.copy()
 
             if nebular_only or self.pf['source_nebular_only']:
-                poke = self.tab_sed#_at_age
+                # Just need to make sure the _data_raw attribute exists
+                poke = self.tab_sed
                 data -= self._data_raw
 
         # erg / s / Hz -> erg / s / eV
@@ -412,8 +414,11 @@ class SynthesisModelBase(Source):
             i1 = np.argmin(np.abs(self.tab_energies_c - E2))
 
             if i0 == i1:
-                print("Emin={}, Emax={}".format(E1, E2))
-                raise ValueError('Are EminNorm and EmaxNorm set properly?')
+                if E1 == E2:
+                    raise ValueError('Are EminNorm and EmaxNorm set properly?')
+                else:
+                    #print("WARNING: No intra-bin correction yet!")
+                    return np.zeros_like(self.tab_t)
 
             if raw and not (nebular_only or self.pf['source_nebular_only']):
                 poke = self.tab_sed_at_age
@@ -542,7 +547,8 @@ class SynthesisModelBase(Source):
             if self.tab_t[k] > t:
                 k -= 1
 
-            func = interp1d(self.tab_t, yield_UV, kind='linear')
+            func = interp1d(self.tab_t, yield_UV, kind='linear',
+                bounds_error=False, left=yield_UV[0], right=yield_UV[-1])
             result = func(t)
 
         #self._cache_L_per_sfr_[(x, window, band, Z, raw, nebular_only, age)] = result
@@ -892,12 +898,29 @@ class SynthesisModel(SynthesisModelBase):
         self._tab_sed = self.tab_sed_raw.copy()
         self._add_nebular_emission(self._tab_sed)
 
+        # Can reduce SED to *only* specific windows, e.g., to create a
+        # "lines only" model (probably for intuition-building).
         if self.pf['source_sed_null_except'] is not None:
+            iall = np.arange(0, self.tab_waves_c.size)
             tmp = self._tab_sed.copy()
             for chunk in self.pf['source_sed_null_except']:
                 lo, hi, keep_cont = chunk
-                ok = np.logical_and(self.tab_waves_c >= lo,
-                                    self.tab_waves_c < hi)
+
+                # Need to be inclusive here. If the null_except window is
+                # broader than the intrinsic resolution (controlled by
+                # source_sed_degrade) then we could accidentally null out
+                # the region of interest.
+                ilo = np.argmin(np.abs(lo - self.tab_waves_c))
+                if self.tab_waves_e[ilo] > lo:
+                    ilo -= 1
+
+                ihi = np.argmin(np.abs(hi - self.tab_waves_c))
+                if self.tab_waves_e[ihi] < hi:
+                    ihi += 1
+
+                ok = np.logical_and(iall >= ilo, iall < ihi)
+                #ok = np.logical_and(self.tab_waves_c >= lo,
+                #                    self.tab_waves_c < hi)
                 notok = np.logical_not(ok)
                 self._tab_sed[notok==1,:] = 0
 

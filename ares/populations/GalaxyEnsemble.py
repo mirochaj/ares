@@ -1524,7 +1524,7 @@ class GalaxyEnsemble(HaloPopulation):
         # Unbind some gas.
         # Continue
 
-        dt_over = self.pf['pop_sfh_oversample']
+        dt_over = self.pf['pop_ssp_oversample']
         if dt_over > 0:
             raise NotImplemented('help')
 

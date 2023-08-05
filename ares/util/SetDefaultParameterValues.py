@@ -552,6 +552,7 @@ def PopulationParameters():
 
     # Set the emission interval and SED
     "pop_sed": 'pl',
+    "pop_sed_table": None,
 
     "pop_sed_sharp_at": None,
 
@@ -594,13 +595,14 @@ def PopulationParameters():
     # Used only for approximate SFH treatments in GalaxyCohort
     # "real" spectral synthesis done in GalaxyEnsemble by default
     "pop_sfh": 'const',
+    "pop_sfh_degrade": 1,
+    "pop_sfh_fallback": None,
+    "pop_age_definition": None,
+
 
     # Numerics of specral synthesis
-    "pop_sfh_oversample": 0,
     "pop_ssp_oversample": False,
     "pop_ssp_oversample_age": 30.,
-
-
 
     # Option of setting Z, t, or just supplying SSP table?
 
@@ -1025,7 +1027,6 @@ def SourceParameters():
         "source_hardening": 'extrinsic',
 
         # Synthesis models
-        "source_sfh": None,
         "source_Z": 0.02,
         "source_imf": 2.35,
         "source_imf_Mmax": 300,
@@ -1045,6 +1046,7 @@ def SourceParameters():
         "source_prof_1h": None,
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
+        "source_sfh_axes": None,
 
         "source_psm_instance": None,
         "source_age": 100.0,
@@ -1068,6 +1070,7 @@ def SourceParameters():
 
         # SFH
         "source_sfh": None,
+        "source_sfh_axes": None,
         "source_meh": None,
 
         # BH
@@ -1133,6 +1136,10 @@ def SynthesisParameters():
     {
         # For synthesis models
         "source_sed": None,
+        "source_sfh": 'constant',
+        "source_sfh_axes": None,
+        "source_sfh_degrade": 1,
+        "source_sfh_fallback": None,
         "source_sed_degrade": None,
         "source_sed_null_except": None,
         "source_Z": 0.02,
@@ -1157,7 +1164,7 @@ def SynthesisParameters():
 
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
-
+        "source_sfh_axes": None,
         "source_psm_instance": None,
         "source_age": 100.0,
         "source_aging": False,

@@ -219,7 +219,7 @@ class NebularEmission(object):
         if not hasattr(self, '_ew_wrt_hbeta_'):
             i11 = read_lit('inoue2011')
 
-            waves, ew, ew_std = i11._load(self.pf['source_Z'])
+            waves, ew, ew_std = i11.read(self.pf['source_Z'])
 
             # Figure out indices now
             ind = np.digitize(waves, self.tab_waves_e) - 1
@@ -363,7 +363,7 @@ class NebularEmission(object):
 
         return tot
 
-    def LineEmission(self, spec):
+    def get_line_emission(self, spec):
         """
         Add as many nebular lines as we have models for.
 
@@ -399,7 +399,9 @@ class NebularEmission(object):
             tot += self.BalmerSeries(spec)
         elif self.pf['source_nebular'] in [3, 'inoue2011']:
             _tot = self.BalmerSeries(spec)
-            Hb = _tot[np.argmin(np.abs(self._lam_Hb - self.tab_waves_c))]
+            iHb = np.digitize(self._lam_Hb, bins=self.tab_waves_e) - 1
+            #iHb = np.argmin(np.abs(self._lam_Hb - self.tab_waves_c))
+            Hb = _tot[iHb]
 
             tot = np.zeros_like(self.tab_waves_c)
 
@@ -480,6 +482,7 @@ class NebularEmission(object):
 
             # Determine resulting photons energy
             En = self.hydr.BohrModel(ninto=ninto, nfrom=n)
+            lam_n = h_p * c * 1e8 / (En * erg_per_ev)
 
             # Need to generalize
             if ninto == 1:
@@ -500,7 +503,7 @@ class NebularEmission(object):
             #     / np.sqrt(2. * np.pi) * erg_per_ev * ev_per_hz / sigm
 
             # Find correct element in array. Assume delta function
-            loc = np.argmin(np.abs(nrg - En))
+            loc = np.digitize(lam_n, bins=self.tab_waves_e) - 1#np.argmin(np.abs(nrg - En))
 
             # Need to get Hz^-1 units; `freq` in descending order
             dnu = freq[loc-1] - freq[loc]
