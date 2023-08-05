@@ -403,8 +403,11 @@ class SynthesisModelBase(Source):
             i1 = np.argmin(np.abs(self.tab_energies_c - E2))
 
             if i0 == i1:
-                print("Emin={}, Emax={}".format(E1, E2))
-                raise ValueError('Are EminNorm and EmaxNorm set properly?')
+                if E1 == E2:
+                    raise ValueError('Are EminNorm and EmaxNorm set properly?')
+                else:
+                    #print("WARNING: No intra-bin correction yet!")
+                    return np.zeros_like(self.tab_t)
 
             if raw and not (nebular_only or self.pf['source_nebular_only']):
                 poke = self.tab_sed_at_age
