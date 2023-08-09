@@ -92,7 +92,7 @@ centrals_sf = \
  'pq_func_par3[1]': -0.8,
  'pq_func_par4[1]': 1e8,
  'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 2.5,       # PL index for normalization evolution
+ 'pq_func_par6[1]': 2.,       # PL index for normalization evolution
  'pq_func_par7[1]': 2.5,       # PL index for peak mass
  'pq_func_par8[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
  'pq_func_par9[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
@@ -268,3 +268,44 @@ expd['pop_Z{0}'] = 0.02
 expd['pop_aging{0}'] = True
 expd['pop_sed_degrade{0}'] = 10
 expd['pop_sfh_degrade{0}'] = 1  # Tabulate in (z, Mh) degraded by 10x wrt native
+
+smhmd = base.copy()
+smhmd['pop_fstar{1}'] = 'pq[10]'
+smhmd['pq_func[10]{1}'] = 'dpl_evolNPS'
+smhmd['pq_func_var[10]{1}'] = 'Mh'
+smhmd['pq_func_var2[10]{1}'] = '1+z'
+smhmd['pq_func_par0[10]{1}'] = 9.7957e-04
+smhmd['pq_func_par1[10]{1}'] = 8.7620e+11
+smhmd['pq_func_par2[10]{1}'] = 8.1798e-01
+smhmd['pq_func_par3[10]{1}'] = -7.2136e-01
+smhmd['pq_func_par4[10]{1}'] = 1e10
+smhmd['pq_func_par5[10]{1}'] = 1.     # pivot in 1+z
+smhmd['pq_func_par6[10]{1}'] = -1.7136e-01
+smhmd['pq_func_par7[10]{1}'] = 1.1776e-01
+smhmd['pq_func_par8[10]{1}'] = 5.3506e-01
+smhmd['pq_func_par9[10]{1}'] = -9.1944e-01
+smhmd['pq_func_par10[10]{1}'] = 0.0
+smhmd['pq_func_par11[10]{1}'] = 0.0
+smhmd['pq_func_par12[10]{1}'] = 0.0
+smhmd['pq_func_par13[10]{1}'] = 0.0
+smhmd['pq_val_ceil[10]{1}'] = 1
+
+smhmB13 = smhmd.copy()
+for suffix in ['[0]{0}', '[10]{1}']:
+    smhmB13[f'pq_func{suffix}'] = 'dpl_evolB13'
+    smhmB13[f'pq_func_var2{suffix}'] = 'z'
+
+    smhmB13[f'pq_func_par5{suffix}'] = 0.0
+    smhmB13[f'pq_func_par6{suffix}'] = 0.0
+    smhmB13[f'pq_func_par7{suffix}'] = 0.0
+    smhmB13[f'pq_func_par8{suffix}'] = 0.0
+
+    smhmB13[f'pq_func_par9{suffix}'] = 0.0
+    smhmB13[f'pq_func_par10{suffix}'] = 0.0
+    smhmB13[f'pq_func_par11{suffix}'] = 0.0
+    smhmB13[f'pq_func_par12{suffix}'] = 0.0
+
+    smhmB13[f'pq_func_par13{suffix}'] = 0.0
+    smhmB13[f'pq_func_par14{suffix}'] = 0.0
+    smhmB13[f'pq_func_par15{suffix}'] = 0.0
+    smhmB13[f'pq_func_par16{suffix}'] = 0.0

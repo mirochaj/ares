@@ -42,7 +42,7 @@ func_options = {
     "p_linear": "(p[3] - p[2])/(p[1] - p[0]) * (x - p[1]) + p[3]",
 }
 
-Np_max = 15
+Np_max = 20
 
 optional_kwargs = "pq_val_ceil", "pq_val_floor", "pq_var_ceil", "pq_var_floor"
 
@@ -820,6 +820,49 @@ class DoublePowerLawEvolvingNormPeakSlopeFloor(BasePQ):
 
         return np.maximum(y, floor)
 
+class DoublePowerLawEvolvingAsB13(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+
+        # Need scale factor
+        a = 1. / (1. + kwargs['z'])
+
+        # Basic idea here is to have parameters that dictate
+        # low-z, medium-z, and high-z behaviour, e.g.,
+        # log10(f_star,10) = p[0] + p[5] * (1 - a) \
+        #                  + p[9] * np.log(1 + z) + p[13] * z
+
+        logp0 = np.log10(self.args[0]) + self.args[5] * (1 - a) \
+              + self.args[9] * np.log(1 + kwargs['z']) \
+              + self.args[13] * kwargs['z']
+        p0 = 10**logp0
+
+        logp1 = np.log10(self.args[1]) + self.args[6] * (1 - a) \
+              + self.args[10] * np.log(1 + kwargs['z']) \
+              + self.args[14] * kwargs['z']
+
+        p1 = 10**logp1
+
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+
+        s1 = self.args[2] + self.args[7] * (1 - a) \
+              + self.args[11] * np.log(1 + kwargs['z']) \
+              + self.args[15] * kwargs['z']
+
+        s2 = self.args[3] + self.args[8] * (1 - a) \
+              + self.args[12] * np.log(1 + kwargs['z']) \
+              + self.args[16] * kwargs['z']
+
+        # This is to conserve memory.
+        xx = x / p1
+        y  = xx**-s1
+        y += xx**-s2
+        np.divide(1., y, out=y)
+
+        y *= normcorr * p0
+
+        return y
 
 class Okamoto(BasePQ):
     def __call__(self, **kwargs):
@@ -1000,6 +1043,8 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingNormPeakSlopeFlex(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolNPSF":
             self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
+        elif kwargs["pq_func"] == "dpl_evolB13":
+            self.func = DoublePowerLawEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] == "exp":
             self.func = Exponential(**kwargs)
         elif kwargs["pq_func"] in ["normal", "gaussian"]:
@@ -1059,7 +1104,7 @@ class ParameterizedQuantity(object):
         elif kwargs["pq_func"] in ["linlog"]:
             self.func = LinLog(**kwargs)
         elif kwargs["pq_func"] in ["linlog_evolN"]:
-            self.func = LinLogEvolvingNorm(**kwargs)    
+            self.func = LinLogEvolvingNorm(**kwargs)
         elif kwargs["pq_func"] in ["loglin_evolN"]:
             raise NotImplemented('help')
         elif kwargs["pq_func"] in ["p_linear"]:

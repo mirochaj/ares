@@ -11,7 +11,7 @@ info = \
  'reference': 'Behroozi, Wechsler, Hearin, & Conroy, 2019, MNRAS, 488, 3143',
 }
 
-_input = ARES + '/umachine-data/umachine-dr1/observational_constraints'
+_input = ARES + '/umachine-data/umachine-dr1'
 
 def get_data(field, flag=None, sources=None):
     """
@@ -24,7 +24,7 @@ def get_data(field, flag=None, sources=None):
     """
 
     data = {}
-    for fn in os.listdir(_input):
+    for fn in os.listdir(_input + '/observational_constraints'):
         if not fn.endswith(field):
             continue
 
@@ -41,7 +41,7 @@ def get_data(field, flag=None, sources=None):
             data[src] = {}
 
         # First, read-in header only to figure out what we're dealing with.
-        f = open(f"{_input}/{fn}", 'r')
+        f = open(f"{_input}/observational_constraints/{fn}", 'r')
 
         hdr = {}
         line = f.readline()
@@ -54,7 +54,7 @@ def get_data(field, flag=None, sources=None):
         # Special case: cosmic SFRD
         if hdr['type'].startswith('cosmic sfr'):
             zlo, zhi, logSFRD, errlo, errhi = \
-                np.loadtxt(f"{_input}/{fn}", unpack=True)
+                np.loadtxt(f"{_input}/observational_constraints/{fn}", unpack=True)
 
             if type(zlo) in [int, float, np.float64]:
                 zarr = np.array([[zlo], [zhi]]).T
@@ -76,7 +76,8 @@ def get_data(field, flag=None, sources=None):
         zlo, zhi = float(hdr['zlow']), float(hdr['zhigh'])
         zmean = (zlo + zhi) / 2.
 
-        Mlo, Mhi, phi, errlo, errhi = np.loadtxt(f"{_input}/{fn}",
+        Mlo, Mhi, phi, errlo, errhi = \
+            np.loadtxt(f"{_input}/observational_constraints/{fn}",
             unpack=True)
 
         if np.any(phi < 0):
@@ -117,4 +118,43 @@ def get_data(field, flag=None, sources=None):
 
     ##
     # Done
+    return data
+
+def get_results(field, method=None):
+    """
+    Now we're hunting for actual modeling results.
+    """
+
+    if field != 'smhm':
+        raise NotImplemented('help')
+
+    subdir = f'{_input}/data/{field}'
+    if method is not None:
+        subdir += f'/{method}'
+
+    data = {}
+    for fn in os.listdir(subdir):
+        if not fn.startswith(f'{field}_a'):
+            continue
+
+        ##
+        # Convention here is to put scale factor in filename, e.g.,
+        # `field`_a<0.12345>.dat
+        astr = fn[fn.rfind('_')+2:fn.rfind('.')]
+        a = float(astr)
+        z = (1. / a) - 1
+        data[z] = {}
+
+        # Load
+        _data = np.loadtxt(f"{subdir}/{fn}", unpack=True)
+
+        with open(f"{subdir}/{fn}", 'r') as f:
+            _cols = f.readline()[1:].split()
+
+        # Get rid of column numbers embedded in header
+        cols = [col[0:col.rfind('(')] for col in _cols]
+
+        data[z]['cols'] = cols
+        data[z]['data'] = _data
+
     return data

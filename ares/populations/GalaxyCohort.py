@@ -636,7 +636,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_sfrd(z)
 
-    def get_smd(self, z):
+    def get_freturn(self, t):
+        """
+        t in Myr.
+        """
+        return 0.05 * np.log(1. + t / 1.4)
+
+    def get_smd(self, z, mass_return=False):
         """
         Compute stellar mass density (SMD) at redshift `z`.
 
@@ -647,6 +653,9 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if not hasattr(self, '_func_smd'):
+            self._func_smd = {}
+
+        if mass_return not in self._func_smd:
             if self.is_quiescent:
                 assert self.pf['pop_sfr_model'] == 'smhm-func'
 
@@ -659,6 +668,22 @@ class GalaxyCohort(GalaxyAggregate):
                     integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
                         * self.tab_focc[i]
                     self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
+            elif mass_return:
+                tasc = self.halos.tab_t[-1::-1]
+                zasc = self.halos.tab_z[-1::-1]
+
+                # `zasc` is redshift in ascending time order
+                smd_ret = []
+                for i, _t_ in enumerate(tasc):
+
+                    # Re-compute integrand accounting for f_return
+                    smd_of_z = [self.get_sfrd(zasc[k]) \
+                        * (1 - self.get_freturn(tasc[i] - tasc[k])) \
+                            for k, _z_ in enumerate(zasc[0:i])]
+
+                    smd_ret.append(np.trapz(smd_of_z, x=tasc[0:i] * 1e6))
+
+                self._tab_smd = np.array(smd_ret)[-1::-1]
             else:
                 dtdz = np.array([self.cosm.dtdz(z) / s_per_yr \
                     for z in self.halos.tab_z])
@@ -667,10 +692,11 @@ class GalaxyCohort(GalaxyAggregate):
 
             #self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
             #    kind=self.pf['pop_interp_sfrd'], left=0, right=0)
-            self._func_smd = lambda zz: 10**np.interp(zz, self.halos.tab_z,
-                np.log10(self._tab_smd))
+            self._func_smd[mass_return] = \
+                lambda zz: 10**np.interp(zz, self.halos.tab_z,
+                    np.log10(self._tab_smd))
 
-        return self._func_smd(z)
+        return self._func_smd[mass_return](z)
 
     def get_mar(self, z, Mh):
         MGR = np.maximum(self.MGR(z, Mh), 0.)
@@ -3218,6 +3244,40 @@ class GalaxyCohort(GalaxyAggregate):
             Mhi = Mh[np.argmin(np.abs(mags - lo))]
         else:
             Mhi = None
+
+        return self.get_sfrd_in_mass_range(z, Mlo=Mlo, Mhi=Mhi)
+
+    def get_sfrd_in_sfr_range(self, z, lo=None, hi=None):
+        """
+        Return SFRD integrated above some limiting SFR.
+
+        .. note :: Relatively crude at this stage. No interpolation, just
+            using nearest grid points in (z, Mh) space.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        lo, hi : int, float
+            Magnitude cuts of interest.
+
+        Returns
+        -------
+        SFRD in units of Msun/yr/cMpc^3.
+        """
+
+        Mh = self.halos.tab_M
+        sfr = self.get_sfr(z=z, Mh=Mh)
+
+        if hi is not None:
+            Mhi = Mh[np.argmin(np.abs(sfr - hi))]
+        else:
+            Mhi = None
+
+        if lo is not None:
+            Mlo = Mh[np.argmin(np.abs(sfr - lo))]
+        else:
+            Mlo = 0
 
         return self.get_sfrd_in_mass_range(z, Mlo=Mlo, Mhi=Mhi)
 
