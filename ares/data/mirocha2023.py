@@ -228,11 +228,11 @@ subhalos['pop_fsurv_inv{3}'] = True
 dust = {}
 dust['pop_dust_template'] = 'WD01:MWRV31'
 dust['pop_Av'] = 'pq[4]'
-dust['pq_func[4]'] = 'pl_evolN'
+dust['pq_func[4]'] = 'linlog_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 0.5
-dust['pq_func_par1[4]'] = 1e10
+dust['pq_func_par0[4]'] = 0.2
+dust['pq_func_par1[4]'] = 9
 dust['pq_func_par2[4]'] = 0.2
 dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
 dust['pq_func_par4[4]'] = 0.  # no evolution yet.
