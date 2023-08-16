@@ -403,6 +403,9 @@ class LogSigmoidEvolvingFloorCeilingWidth(BasePQ):
 
         sigma = 1. / (1. + np.exp(-(logx - mid) / w))
 
+        lo = np.maximum(lo, 0)
+        hi = np.minimum(hi, 1)
+
         y = lo + (hi - lo) * (1. - sigma)
 
         return y
@@ -416,18 +419,21 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
 
         logx = np.log10(x)
 
-        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4])
-        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4])
+        lo = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4])
+        hi = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4])
+
         mid= self.args[2] + self.args[7] * ((1. + kwargs['z']) / self.args[4])
         w  = self.args[3] + self.args[8] * ((1. + kwargs['z']) / self.args[4])
 
         hi = hi#np.minimum(hi, 1.)
         lo = np.maximum(lo, 0.)
+        mid = np.maximum(mid, 0)
         w = np.maximum(w, 0)
 
         step = (hi - lo)
 
         # tanh(x) goes from -1 to 1 as x goes from -inf to inf.
+        # So, for logx < mid
         y = lo + step * 0.5 * (np.tanh((mid - logx) / w) + 1.)
 
         return y

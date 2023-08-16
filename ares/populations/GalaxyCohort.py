@@ -608,10 +608,24 @@ class GalaxyCohort(GalaxyAggregate):
         result = func(z=z, Mh=Mh)
         return result
 
+    @property
+    def _get_fsurv(self):
+        if not hasattr(self, '_get_fsurv_'):
+            raise AttributeError("Must set _get_fsurv by hand.")
+        return self._get_fsurv_
+
+    @_get_fsurv.setter
+    def _get_fsurv(self, value):
+        self._get_fsurv_ = value
+
     def get_fsurv(self, z, Mh):
         """
         Get survival fraction.
         """
+
+        if hasattr(self, '_get_fsurv_'):
+            return self._get_fsurv(z=z, Mh=Mh)
+
         func = self._get_function('pop_fsurv')
         result = func(z=z, Mh=Mh)
         return result
@@ -1897,7 +1911,7 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = mste * L_sfr
 
                     if self.pf['pop_ihl'] is not None:
-                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                        ihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
                         _Lh_ *= ihl
                 else:
 
@@ -2044,6 +2058,10 @@ class GalaxyCohort(GalaxyAggregate):
         #Ms = Mh * smhm
 
         #return self._func_Av(z=z, Ms=Ms)
+
+    def get_ihl(self, z, Mh):
+        func = self._get_function('pop_ihl')
+        return func(z=z, Mh=Mh)
 
     def get_age(self, z, Mh):
         func = self._get_function('pop_age')
@@ -3344,17 +3362,17 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 self._tab_fsurv_ = fsurv
 
-            if self.pf['pop_fsurv_inv']:
-                self._tab_fsurv_ = 1. - self._tab_fsurv_
+            #if self.pf['pop_fsurv_inv']:
+            #    self._tab_fsurv_ = 1. - self._tab_fsurv_
 
         return self._tab_fsurv_
 
-    @tab_fsurv.setter
-    def tab_fsurv(self, value):
-        if self.pf['pop_fsurv_inv']:
-            self._tab_fsurv_ = 1 - value
-        else:
-            self._tab_fsurv_ = value
+    #@tab_fsurv.setter
+    #def tab_fsurv(self, value):
+    #    if self.pf['pop_fsurv_inv']:
+    #        self._tab_fsurv_ = 1 - value
+    #    else:
+    #        self._tab_fsurv_ = value
 
     def get_smhm(self, **kwargs):
         if self.pf['pop_sfr_model'] in ['smhm-func']:

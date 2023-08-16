@@ -141,7 +141,7 @@ class Population(object):
         Returns a function representation of input parameter `par`.
 
         For example, the user supplies the parameter `pop_dust_yield`. This
-        routien figures out if that's a number, a function, or a string
+        routine figures out if that's a number, a function, or a string
         indicating a ParameterizedQuantity, and creates a callable function
         no matter what.
         """
@@ -149,6 +149,8 @@ class Population(object):
         if not hasattr(self, '_get_{}'.format(par.strip('pop_'))):
             func = get_function_from_par(par, self.pf)
             setattr(self, '_get_{}'.format(par.strip('pop_')), func)
+        else:
+            func = getattr(self, '_get_{}'.format(par.strip('pop_')))
         return getattr(self, '_get_{}'.format(par.strip('pop_')))
 
     @property
@@ -1240,7 +1242,7 @@ class Population(object):
                     self.halos.tab_M < self.get_Mmax(z[ll]))
 
                 for jj in range(Nf):
-                    
+
                     # [erg/s/Hz]
                     lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
                         raw=False, units_out='erg/s/Hz',

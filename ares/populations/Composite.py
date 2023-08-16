@@ -138,14 +138,14 @@ class CompositePopulation(object):
                     else:
                         self.pops[i]._get_focc = self.pops[element].get_focc
                 elif to_quantity[i][j] in ['fsurv']:
+                    element_hard = 1 * element
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
-                    #self.pops[i].tab_fsurv = self.pops[element].tab_fsurv
                     if tmp[f'pop_{to_quantity[i][j]}_inv']:
                         self.pops[i]._get_fsurv = lambda **kw: \
-                            1. - self.pops[element].get_fsurv(**kw)
+                            1. - self.pops[element_hard].get_fsurv(**kw)
                     else:
-                        self.pops[i]._get_fsurv = self.pops[element].get_fsurv
+                        self.pops[i]._get_fsurv = self.pops[element_hard].get_fsurv
                 elif to_quantity[i][j] in ['Mmax_active']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)

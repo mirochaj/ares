@@ -99,7 +99,7 @@ centrals_sf = \
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
+ 'pq_func[2]': 'logtanh_abs_evolMFCW',#'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
@@ -210,29 +210,47 @@ for i, _pop in enumerate([_pop2, _pop3]):
 
     subhalos.update(pf)
 
+# This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 'pq[3]'
-subhalos['pq_func[3]{2}'] = 'logtanh_abs_evolM'
+subhalos['pop_fsurv_inv{2}'] = False
+subhalos['pq_func[3]{2}'] = 'logtanh_abs_evolMFCW'
 subhalos['pq_func_var[3]{2}'] = 'Mh'
 subhalos['pq_func_var2[3]{2}'] = '1+z'
 subhalos['pq_val_ceil[3]{2}'] = 1
+subhalos['pq_val_floor[3]{2}'] = 0
 subhalos['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
-subhalos['pq_func_par1[3]{2}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-subhalos['pq_func_par2[3]{2}'] = 11
-subhalos['pq_func_par3[3]{2}'] = 0.7 # dlogM
-subhalos['pq_func_par4[3]{2}'] = 0.  # Evolution in midpoint
-subhalos['pq_func_par5[3]{2}'] = 1   # Pin to z=0
+subhalos['pq_func_par1[3]{2}'] = 1 # fsurv = par1 + step * tanh(stuff)
+subhalos['pq_func_par2[3]{2}'] = 11.5
+subhalos['pq_func_par3[3]{2}'] = 1 # dlogM
+subhalos['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
+subhalos['pq_func_par5[3]{2}'] = 0
+subhalos['pq_func_par6[3]{2}'] = 0
+subhalos['pq_func_par7[3]{2}'] = 0
+subhalos['pq_func_par8[3]{2}'] = 0
+subhalos['pq_func_par9[3]{2}'] = 0
+subhalos['pq_func_par10[3]{2}'] = 0
+subhalos['pq_func_par11[3]{2}'] = 0
+subhalos['pq_func_par12[3]{2}'] = 0
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = True
 
+ihl_like_z14 = {}
+ihl_like_z14['pq_func_par0[3]{2}'] = 0.00 # step = par0-par1
+ihl_like_z14['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
+ihl_like_z14['pq_func_par2[3]{2}'] = 11.3
+ihl_like_z14['pq_func_par3[3]{2}'] = 0.8 # dlogM
+ihl_like_z14['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
+ihl_like_z14['pq_func_par5[3]{2}'] = -1. # Evolves as (1+z)^{-1}
+
 dust = {}
 dust['pop_dust_template'] = 'WD01:MWRV31'
 dust['pop_Av'] = 'pq[4]'
-dust['pq_func[4]'] = 'linlog_evolN'
+dust['pq_func[4]'] = 'pl_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
 dust['pq_func_par0[4]'] = 0.2
-dust['pq_func_par1[4]'] = 9
+dust['pq_func_par1[4]'] = 1e10
 dust['pq_func_par2[4]'] = 0.2
 dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
 dust['pq_func_par4[4]'] = 0.  # no evolution yet.
@@ -253,7 +271,7 @@ mzr = \
  'pq_func_par4[30]': -0.08,   # mild evolution
  'pq_val_ceil[30]': 9,
  'pq_val_floor[30]': 6,
- 'pop_Z': ('mzr', 0.02),
+ 'pop_Z': 0.02,#('mzr', 0.02),
 }
 
 
@@ -309,3 +327,54 @@ for suffix in ['[0]{0}', '[10]{1}']:
     smhmB13[f'pq_func_par14{suffix}'] = 0.0
     smhmB13[f'pq_func_par15{suffix}'] = 0.0
     smhmB13[f'pq_func_par16{suffix}'] = 0.0
+
+
+smhmB13.update({
+ 'pq_func_par0[0]{0}': 3.1559e-04,
+ 'pq_func_par1[0]{0}': 1.4521e+12,
+ 'pq_func_par2[0]{0}': 1.0693e+00,
+ 'pq_func_par3[0]{0}': -7.0010e-01,
+ 'pq_func_par6[10]{1}': -6.9398e-03,
+ 'pq_func_par7[10]{1}': 2.1749e-04,
+ 'pq_func_par8[10]{1}': 8.8807e-03,
+ 'pq_func_par9[10]{1}': 1.0307e-02,
+ 'pq_func_par5[0]{0}': 9.9192e-03,
+ 'pq_func_par6[0]{0}': 1.5888e-02,
+ 'pq_func_par7[0]{0}': 2.0770e-02,
+ 'pq_func_par8[0]{0}': 6.0360e-03,
+ 'pq_func_par9[0]{0}': -3.6131e-03,
+ 'pq_func_par10[0]{0}': -1.4787e-02,
+ 'pq_func_par11[0]{0}': -3.6238e-04,
+ 'pq_func_par12[0]{0}': -1.9508e-02,
+ 'pq_func_par13[0]{0}': 1.7167e-02,
+ 'pq_func_par14[0]{0}': 1.8271e-02,
+ 'pq_func_par5[10]{1}': -7.2802e-03,
+ 'pq_func_par6[10]{1}': -6.9398e-03,
+ 'pq_func_par7[10]{1}': 2.1749e-04,
+ 'pq_func_par8[10]{1}': 8.8807e-03,
+ 'pq_func_par9[10]{1}': 1.0307e-02,
+ 'pq_func_par10[10]{1}': -5.7586e-03,
+ 'pq_func_par11[10]{1}': 1.8675e-03,
+ 'pq_func_par12[10]{1}': -2.0282e-02,
+ 'pq_func_par13[10]{1}': 7.6943e-03,
+ 'pq_func_par14[10]{1}': -2.5364e-02,
+ 'pq_func_par0[2]{0}': 1.3463e-01,
+ 'pq_func_par1[2]{0}': 9.7362e-01,
+ 'pq_func_par2[2]{0}': 1.1910e+01,
+ 'pq_func_par3[2]{0}': 2.4182e+00,
+ 'pq_func_par5[2]{0}': -3.7304e-01,
+ 'pq_func_par6[2]{0}': 1.4029e-02,
+ 'pq_func_par7[2]{0}': 5.9401e-01,
+ 'pq_func_par8[2]{0}': -1.5604e-03,
+ 'pq_func_par0[1]{0}': 2.8247e-10,
+ 'pq_func_par1[1]{0}': 2.3799e+09,
+ 'pq_func_par3[1]{0}': -8.2960e-01,
+ 'pq_func_par6[1]{0}': 1.8245e+00,
+ 'pq_func_par7[1]{0}': 1.6625e+00,
+ 'pq_func_par0[4]{0}': 1.1166e+00,
+ 'pq_func_par2[4]{0}': 3.5351e-02,
+ 'pq_func_par4[4]{0}': -1.7454e-01,
+ 'mu_0': 1.8875e-01,
+ 'mu_a': 1.3690e-01,
+ 'kappa': 1.1977e-01,
+})

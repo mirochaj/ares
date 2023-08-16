@@ -14,12 +14,6 @@ import re
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
 
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-except ImportError:
-    rank = 0
-
 old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin', 'Mmin', 'fXh']
 
 _cosmo_params = CosmologyParameters()
