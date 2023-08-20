@@ -17,6 +17,11 @@ from ..util import ParameterFile
 from ..util.ParameterFile import get_pq_pars
 from ..util.Misc import numeric_types
 
+try:
+    from scipy.special import erf
+except ImportError:
+    pass
+
 def tanh_astep(M, lo, hi, logM0, logdM):
     # NOTE: lo = value at the low-mass end
     return (lo - hi) * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
@@ -173,6 +178,15 @@ class PowerLawEvolvingSlopeWithGradient(BasePQ):
             * (x / self.args[5])**self.args[6]
 
         return self.args[0] * (x / self.args[1])**p2
+
+class Erf(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        return 0.5 * (1. + erf((np.log10(x) - self.args[0]) / np.sqrt(2) / self.args[1]))
 
 class Exponential(BasePQ):
     def __call__(self, **kwargs):
@@ -1027,6 +1041,8 @@ class ParameterizedQuantity(object):
             self.func = PowerLawEvolvingSlope(**kwargs)
         elif kwargs["pq_func"] == "pl_evolS2":
             self.func = PowerLawEvolvingSlopeWithGradient(**kwargs)
+        elif kwargs["pq_func"] == "erf":
+            self.func = Erf(**kwargs)
         elif kwargs["pq_func"] in ["dpl", "dpl_arbnorm"]:
             self.func = DoublePowerLaw(**kwargs)
         elif kwargs["pq_func"] == "dplx":

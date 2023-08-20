@@ -1917,12 +1917,13 @@ class GalaxyCohort(GalaxyAggregate):
 
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
                     fsurv = self.tab_fsurv[iz,:]
+                    focc = self.tab_focc[iz,:]
 
                     # In this case, need to integrate over subhalo MF.
                     Ls = mste * L_sfr
                     _Lh_ = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
                         _Lh_[i] = np.trapz(Ls * dndlnm,
                             x=np.log(self.halos.tab_M))
 
@@ -1938,12 +1939,13 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
                     fsurv = self.tab_fsurv[iz,:]
+                    focc = self.tab_focc[iz,:]
 
                     # In this case, need to integrate over subhalo MF.
                     Ls = sfr * L_sfr
                     _Lh_ = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
                         _Lh_[i] = np.trapz(Ls * dndlnm,
                             x=np.log(self.halos.tab_M))
 

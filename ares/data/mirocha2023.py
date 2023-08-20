@@ -235,6 +235,14 @@ subhalos['pq_func_par12[3]{2}'] = 0
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = True
 
+subhalo_focc = {
+ 'pop_focc': 'pq[20]',
+ 'pq_func[20]': 'erf',
+ 'pq_func_var[20]': 'Mh',
+ 'pq_func_par0[20]': 8,
+ 'pq_func_par1[20]': 1,
+}
+
 ihl_like_z14 = {}
 ihl_like_z14['pq_func_par0[3]{2}'] = 0.00 # step = par0-par1
 ihl_like_z14['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
