@@ -545,6 +545,8 @@ def PopulationParameters():
     "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
                           # it's coherent.
 
+    "pop_fduty_boost_sfr": False,
+
     "pop_centrals": True,
     "pop_ihl": None,
 

@@ -243,6 +243,9 @@ subhalo_focc = {
  'pq_func_par1[20]': 1,
 }
 
+maximal_ihl = {'pop_focc{2}': 1, 'pop_fsurv{2}': 0}
+minimal_ihl = {'pop_focc{2}': 1, 'pop_fsurv{2}': 1}
+
 ihl_like_z14 = {}
 ihl_like_z14['pq_func_par0[3]{2}'] = 0.00 # step = par0-par1
 ihl_like_z14['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)

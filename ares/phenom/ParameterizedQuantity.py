@@ -188,6 +188,24 @@ class Erf(BasePQ):
 
         return 0.5 * (1. + erf((np.log10(x) - self.args[0]) / np.sqrt(2) / self.args[1]))
 
+class ErfEvolvingMidpointSlope(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        p0 = self.args[0] + self.args[2] * (t - self.args[4])
+        p1 = self.args[1] + self.args[3] * (t - self.args[4])
+
+        return 0.5 * (1. + erf((np.log10(x) - p0) / np.sqrt(2) / p1))
+
+
 class Exponential(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -1043,6 +1061,8 @@ class ParameterizedQuantity(object):
             self.func = PowerLawEvolvingSlopeWithGradient(**kwargs)
         elif kwargs["pq_func"] == "erf":
             self.func = Erf(**kwargs)
+        elif kwargs["pq_func"] == "erf_evol":
+            self.func = ErfEvolvingMidpointSlope(**kwargs)
         elif kwargs["pq_func"] in ["dpl", "dpl_arbnorm"]:
             self.func = DoublePowerLaw(**kwargs)
         elif kwargs["pq_func"] == "dplx":
