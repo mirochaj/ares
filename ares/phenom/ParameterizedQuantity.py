@@ -186,7 +186,52 @@ class Erf(BasePQ):
         else:
             x = kwargs[self.x]
 
-        return 0.5 * (1. + erf((np.log10(x) - self.args[0]) / np.sqrt(2) / self.args[1]))
+        lo = self.args[0]
+        hi = self.args[1]
+        step = hi - lo
+        x50 = self.args[2]
+        sigma = self.args[3]
+
+        return lo \
+            + step * 0.5 * (1. + erf((np.log10(x) - x50) / np.sqrt(2) / sigma))
+
+class ErfEvolvingAsB13(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        # Need scale factor
+        a = 1. / (1. + kwargs['z'])
+
+        # Basic idea here is to have parameters that dictate
+        # low-z, medium-z, and high-z behaviour, e.g.,
+        # log10(f_star,10) = p[0] + p[5] * (1 - a) \
+        #                  + p[9] * np.log(1 + z) + p[13] * z
+
+        lo = self.args[0] + self.args[4] * (1 - a) \
+              + self.args[8] * np.log(1 + kwargs['z']) \
+              + self.args[12] * kwargs['z']
+        hi = self.args[1] + self.args[5] * (1 - a) \
+              + self.args[9] * np.log(1 + kwargs['z']) \
+              + self.args[13] * kwargs['z']
+
+        lo = np.maximum(0, lo)
+        hi = np.minimum(1, hi)
+
+        step = hi - lo
+
+        x50 = self.args[2] + self.args[6] * (1 - a) \
+              + self.args[10] * np.log(1 + kwargs['z']) \
+              + self.args[14] * kwargs['z']
+
+        sigma = self.args[3] + self.args[7] * (1 - a) \
+              + self.args[11] * np.log(1 + kwargs['z']) \
+              + self.args[15] * kwargs['z']
+
+        return lo \
+            + step * 0.5 * (1. + erf((np.log10(x) - x50) / np.sqrt(2) / sigma))
 
 class ErfEvolvingMidpointSlope(BasePQ):
     def __call__(self, **kwargs):
@@ -1061,8 +1106,8 @@ class ParameterizedQuantity(object):
             self.func = PowerLawEvolvingSlopeWithGradient(**kwargs)
         elif kwargs["pq_func"] == "erf":
             self.func = Erf(**kwargs)
-        elif kwargs["pq_func"] == "erf_evol":
-            self.func = ErfEvolvingMidpointSlope(**kwargs)
+        elif kwargs["pq_func"] == "erf_evolB13":
+            self.func = ErfEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] in ["dpl", "dpl_arbnorm"]:
             self.func = DoublePowerLaw(**kwargs)
         elif kwargs["pq_func"] == "dplx":
