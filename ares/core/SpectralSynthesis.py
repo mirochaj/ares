@@ -14,7 +14,7 @@ import time
 import numpy as np
 from ..obs import Survey
 from ..util import ProgressBar
-from ..obs import Madau1995
+from ..obs import OpticalDepth
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
@@ -94,44 +94,44 @@ class SpectralSynthesis(object):
         return self._hydr
 
     @property
-    def madau1995(self):
-        if not hasattr(self, '_madau1995'):
-            self._madau1995 = Madau1995(hydr=self.hydr, cosm=self.cosm,
+    def igm(self):
+        if not hasattr(self, '_igm'):
+            self._igm = OpticalDepth(hydr=self.hydr, cosm=self.cosm,
                 **self.pf)
-        return self._madau1995
+        return self._igm
 
-    def OpticalDepth(self, z, owaves):
-        """
-        Compute Lyman series line blanketing following Madau (1995).
+    #def OpticalDepth(self, z, owaves):
+    #    """
+    #    Compute Lyman series line blanketing following Madau (1995).
 
-        Parameters
-        ----------
-        zobs : int, float
-            Redshift of object.
-        owaves : np.ndarray
-            Observed wavelengths in microns.
+    #    Parameters
+    #    ----------
+    #    zobs : int, float
+    #        Redshift of object.
+    #    owaves : np.ndarray
+    #        Observed wavelengths in microns.
 
-        """
+    #    """
 
-        if self.pf['tau_clumpy'] is None:
-            return 0.0
+    #    if self.pf['tau_clumpy'] is None:
+    #        return 0.0
 
-        assert self.pf['tau_clumpy'] in ['madau1995', 1, True, 2], \
-            "tau_clumpy in [1,2,'madau1995'] are currently the sole options!"
+    #    assert self.pf['tau_clumpy'] in ['madau1995', 1, True, 2], \
+    #        "tau_clumpy in [1,2,'madau1995'] are currently the sole options!"
 
-        tau = np.zeros_like(owaves)
-        rwaves = owaves * 1e4 / (1. + z)
+    #    tau = np.zeros_like(owaves)
+    #    rwaves = owaves * 1e4 / (1. + z)
 
-        # Scorched earth option: null all flux at < 912 Angstrom
-        if self.pf['tau_clumpy'] == 1:
-            tau[rwaves < lam_LL] = np.inf
-        # Or all wavelengths < 1216 A (rest)
-        elif self.pf['tau_clumpy'] == 2:
-            tau[rwaves < lam_LyA] = np.inf
-        else:
-            tau = self.madau1995(z, owaves)
+    #    # Scorched earth option: null all flux at < 912 Angstrom
+    #    if self.pf['tau_clumpy'] == 1:
+    #        tau[rwaves < lam_LL] = np.inf
+    #    # Or all wavelengths < 1216 A (rest)
+    #    elif self.pf['tau_clumpy'] == 2:
+    #        tau[rwaves < lam_LyA] = np.inf
+    #    else:
+    #        tau = self.madau1995(z, owaves)
 
-        return tau
+    #    return tau
 
     def L_of_Z_t(self, wave):
 

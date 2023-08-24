@@ -244,6 +244,10 @@ subhalos['pq_func_par9[3]{2}'] = 0
 subhalos['pq_func_par10[3]{2}'] = 0
 subhalos['pq_func_par11[3]{2}'] = 0
 subhalos['pq_func_par12[3]{2}'] = 0
+subhalos['pq_func_par13[3]{2}'] = 0
+subhalos['pq_func_par14[3]{2}'] = 0
+subhalos['pq_func_par15[3]{2}'] = 0
+subhalos['pq_func_par16[3]{2}'] = 0
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = True
@@ -275,11 +279,11 @@ dust['pop_Av'] = 'pq[4]'
 dust['pq_func[4]'] = 'pl_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 0.2
+dust['pq_func_par0[4]'] = 0.   # Off by default
 dust['pq_func_par1[4]'] = 1e10
 dust['pq_func_par2[4]'] = 0.2
-dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
-dust['pq_func_par4[4]'] = 0.  # no evolution yet.
+dust['pq_func_par3[4]'] = 1.   # Anchored to z=0
+dust['pq_func_par4[4]'] = 0.   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
 mzr = \

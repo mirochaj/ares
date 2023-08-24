@@ -1698,8 +1698,9 @@ class GalaxyCohort(GalaxyAggregate):
             # Depending on approach, either need to first get Av, dust
             # surface density, or MUV-Beta/IRXB
             if band is not None:
+                # For now, just going to compute transmission using
+                # central wavelength of band.
                 wave = np.mean(self.src.get_ang_from_x(band, units=units))
-                print("is this the best approach?")
             else:
                 wave = self.src.get_ang_from_x(x, units=units)
 
@@ -1713,6 +1714,7 @@ class GalaxyCohort(GalaxyAggregate):
                 raise NotImplemented('help')
 
             T = self.dust.get_transmission(wave, Av=Av, Sd=Sd).squeeze()
+
 
         ##
         # Loop over components (most often just one) and determine L
@@ -2034,6 +2036,13 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Apply IGM filtering here eventually. Actually, that could be
         # dangerous -- perhaps should only ever be done in post.
+        if band is not None:
+            wave = np.mean(self.src.get_ang_from_x(band, units=units))
+        else:
+            wave = self.src.get_ang_from_x(x, units=units)
+
+        T = self.igm.get_transmission(z, wave * 1e-4 * (1. + z))
+        Lh *= T
 
         if not hasattr(self, '_cache_L'):
             self._cache_L = {}
@@ -4571,7 +4580,7 @@ class GalaxyCohort(GalaxyAggregate):
         return 1. * k**0
 
     def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
-        nebular_only=False):
+        nebular_only=False, ztol=1e-3):
         """
         Return shot noise term of halo power spectrum.
 
@@ -4606,7 +4615,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ps = self.halos.get_ps_shot(z, k=k,
             lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=1e-3)
+            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         return ps
 
@@ -4638,7 +4647,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             return ps
 
-    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False, nebular_only=False):
+    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False,
+        nebular_only=False, ztol=1e-3):
         """
         Return 2-halo term of 3-d power spectrum.
 
@@ -4690,7 +4700,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=1e-3)
+            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         #if type(k) is np.ndarray:
         #    self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps

@@ -1,5 +1,5 @@
 from ares.obs.Survey import Survey
-from ares.obs.OpticalDepth import Madau1995
+from ares.obs.OpticalDepth import OpticalDepth
 from ares.obs.DustCorrection import DustCorrection
 from ares.obs.DustExtinction import DustExtinction
 from ares.obs.MagnitudeSystem import MagnitudeSystem

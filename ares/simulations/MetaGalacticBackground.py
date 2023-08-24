@@ -20,7 +20,6 @@ import numpy as np
 from ..core import Grid
 from ..util.Pickling import write_pickle_file
 from ..util import ParameterFile
-from ..obs import Madau1995
 from ..util.Misc import split_by_sign
 from ..util.Math import interp1d, smooth
 from ..solvers import UniformBackground
@@ -332,33 +331,34 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Attenuate by HI absorbers in IGM at z < zf?
         # Note: duplicated from ares.static.SpectralSynthesis. Do better.
-        if (self.pf['tau_clumpy'] is not None):
-            assert self.pf['tau_clumpy'] in [0, 'madau1995', 1, 2]
+        #self.pops[popid].get_transmission()
+        #if (self.pf['tau_clumpy'] is not None):
+        #    assert self.pf['tau_clumpy'] in [0, 'madau1995', 1, 2]
 
-            if zf is None:
-                assert np.allclose(np.array(_zf) - _zf[0], 0)
-                zf = _zf[0]
+        #    if zf is None:
+        #        assert np.allclose(np.array(_zf) - _zf[0], 0)
+        #        zf = _zf[0]
 
-            tau = np.zeros_like(_lam)
-            rwaves = _lam * 1e4 / (1. + zf)
+        #    tau = np.zeros_like(_lam)
+        #    rwaves = _lam * 1e4 / (1. + zf)
 
-            # X-ray cutoff in Ang
-            lam_X = h_p * c * 1e8 / erg_per_ev / 2e2
+        #    # X-ray cutoff in Ang
+        #    lam_X = h_p * c * 1e8 / erg_per_ev / 2e2
 
-            if self.pf['tau_clumpy'] == 0:
-                pass
-            elif self.pf['tau_clumpy'] == 1:
-                tau[rwaves < lam_LL] = np.inf
-                tau[rwaves < lam_X] = 0.0
-            # Or all wavelengths < 1216 A (rest)
-            elif self.pf['tau_clumpy'] == 2:
-                tau[rwaves < lam_LyA] = np.inf
-                tau[rwaves < lam_X] = 0.0
-            else:
-                m95 = Madau1995(hydr=self.grid.hydr, **self.pf)
-                tau = m95(zf, _lam)
+        #    if self.pf['tau_clumpy'] == 0:
+        #        pass
+        #    elif self.pf['tau_clumpy'] == 1:
+        #        tau[rwaves < lam_LL] = np.inf
+        #        tau[rwaves < lam_X] = 0.0
+        #    # Or all wavelengths < 1216 A (rest)
+        #    elif self.pf['tau_clumpy'] == 2:
+        #        tau[rwaves < lam_LyA] = np.inf
+        #        tau[rwaves < lam_X] = 0.0
+        #    else:
+        #        m95 = Madau1995(hydr=self.grid.hydr, **self.pf)
+        #        tau = m95(zf, _lam)
 
-            f *= np.exp(-tau)
+        #    f *= np.exp(-tau)
 
         if units.lower() == 'cgs':
             pass

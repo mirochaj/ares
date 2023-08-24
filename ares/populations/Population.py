@@ -26,6 +26,7 @@ from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..obs.Photometry import Photometry
+from ..obs.OpticalDepth import OpticalDepth
 from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
@@ -182,6 +183,13 @@ class Population(object):
         if not hasattr(self, '_dust'):
             self._dust = DustExtinction(**self.pf)
         return self._dust
+
+    @property
+    def igm(self):
+        if not hasattr(self, '_igm'):
+            self._igm = OpticalDepth(cosm=self.cosm,
+                **self.pf)
+        return self._igm
 
     @property
     def phot(self):

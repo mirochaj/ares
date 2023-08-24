@@ -15,16 +15,21 @@ from ..physics import Hydrogen, Cosmology
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import h_p, c, erg_per_ev, lam_LL, lam_LyA
 
-class Madau1995(object):
-    def __init__(self, hydr=None, **kwargs):
+class OpticalDepth(object):
+    def __init__(self, cosm=None, hydr=None, **kwargs):
         self.pf = ParameterFile(**kwargs)
         self.hydr = hydr
+        self.cosm = cosm
 
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
             self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm
+
+    @cosm.setter
+    def cosm(self, value):
+        self._cosm = value
 
     @property
     def hydr(self):
@@ -39,8 +44,7 @@ class Madau1995(object):
     def hydr(self, value):
         self._hydr = value
 
-    def __call__(self, z, owaves, l_tol=1e-8):
-
+    def get_transmission(self, z, owaves, l_tol=1e-8):
         """
         Compute optical depth of photons at observed wavelengths `owaves`
         emitted by object(s) at redshift `z`.
@@ -57,9 +61,32 @@ class Madau1995(object):
         Optical depth at all wavelengths assuming Madau (1995) model.
 
         """
+
+        if type(owaves) in [int, float, np.int64, np.float64]:
+            owaves = np.array([owaves])
+
+        if self.pf['tau_clumpy'] in [0, None, False]:
+            tau = np.zeros_like(owaves)
+        elif self.pf['tau_clumpy'] == 'madau1995':
+            tau = self.get_tau_m95(z, owaves)
+        else:
+            assert self.pf['tau_clumpy'] in [1, 2], \
+                "Only know tau_clumpy = 1, 2, or madau1995"
+
+            rwaves = owaves * 1e4 / (1. + z)
+            tau = np.zeros_like(rwaves)
+            cut = lam_LL if  self.pf['tau_clumpy'] == 1 else lam_LyA
+            tau[rwaves < cut] = np.inf
+
+            # X-ray cutoff in Ang
+            lam_X = h_p * c * 1e8 / erg_per_ev / 2e2
+            tau[rwaves < lam_X] = 0.0
+
+        return np.exp(-tau)
+
+    def get_tau_m95(self, z, owaves, l_tol=1e-3):
         rwaves = owaves * 1e4 / (1. + z)
         tau = np.zeros_like(owaves)
-
         # Text just after Eq. 15.
         A = 0.0036, 1.7e-3, 1.2e-3, 9.3e-4
         l = [h_p * c * 1e8 / (self.hydr.ELyn(n) * erg_per_ev) \
