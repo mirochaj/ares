@@ -652,7 +652,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_freturn(self, t):
         """
-        t in Myr.
+        t in Myr. This is from Behroozi+ 2013.
         """
         return 0.05 * np.log(1. + t / 1.4)
 

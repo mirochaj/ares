@@ -21,6 +21,7 @@ from ..data import ARES
 from .Source import Source
 from ..util.Stats import bin_c2e
 from ..util.Math import interp1d
+from ..util.Misc import numeric_types
 from ..physics import Cosmology
 from ares.data import read as read_lit
 from ..physics import NebularEmission
@@ -807,14 +808,16 @@ class SynthesisModel(SynthesisModelBase):
 
         if self.pf['source_sps_data'] is not None:
             _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
-            assert _Z == self.pf['source_Z'], \
-                f"Cached Z={_Z}, from parameter file it's {self.pf['source_Z']}"
-            assert _ssp == self.is_ssp, \
-                f"Cached ssp={_Z}, from parameter file it's {self.is_ssp}"
+            if type(_Z) in numeric_types:
+                assert _Z == self.pf['source_Z'], \
+                    f"Cached Z={_Z}, from parameter file it's {self.pf['source_Z']}"
+            if type(_ssp) in [int, bool]:
+                assert _ssp == self.is_ssp, \
+                    f"Cached ssp={_ssp}, from parameter file it's {self.is_ssp}"
             self._data = _data
             self._times = _times
             self._tab_waves_c = _waves
-            print('# WARNING: If supplying source_sps_data, should include any nebular emission too!')
+            #print('# WARNING: If supplying source_sps_data, should include any nebular emission too!')
             #self._add_nebular_emission(self._data)
             return self._data
 
