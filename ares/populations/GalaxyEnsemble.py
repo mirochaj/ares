@@ -1979,8 +1979,6 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-
-        print('hey', key in self._cache_L_, key, self._cache_L_.keys())
         if key in self._cache_L_:
             return self._cache_L_[key]
 

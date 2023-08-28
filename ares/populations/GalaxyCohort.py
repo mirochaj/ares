@@ -2492,11 +2492,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not self.pf['pop_star_formation']:
             fstar = SFR = 0.0
         elif self.pf['pop_sfr'] is None:
-            fstar = self.SFE(**kw)
+            fstar = float(self.get_sfe(z=z, Mh=Mh))
             SFR = PIR * fstar
         else:
             fstar = 1e-10
-            SFR = self.sfr(**kw) * dtdz
+            SFR = self.get_sfr(z=z, Mh=Mh) * dtdz
 
         # "Quiet" mass growth
         fsmooth = self.fsmooth(**kw)
