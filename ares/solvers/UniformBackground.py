@@ -582,9 +582,9 @@ class UniformBackground(object):
         if tau is None:
             no_tau_table(self)
 
-            if self.pf['tau_approx'] is 'neutral':
+            if self.pf['tau_approx'] == 'neutral':
                 tau_solver.ionization_history = lambda z: 0.0
-            elif self.pf['tau_approx'] is 'post_EoR':
+            elif self.pf['tau_approx'] == 'post_EoR':
                 tau_solver.ionization_history = lambda z: 1.0
             elif type(self.pf['tau_approx']) is types.FunctionType:
                 tau_solver.ionization_history = self.pf['tau_approx']
