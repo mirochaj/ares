@@ -489,8 +489,8 @@ class MultiPhaseMedium(object):
             tmp = self.parcel_cgm.grid.data
             self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
             for i, cgm_data in enumerate(self.all_data_cgm):
-                self.all_data_cgm[i]['rho'] = \
-                    self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])
+                rho = self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])
+                self.all_data_cgm[i]['rho'] = np.array([rho])
 
                 self.all_data_cgm[i]['n'] = \
                     self.parcel_cgm.grid.particle_density(cgm_data, self.all_z[i])
@@ -532,8 +532,8 @@ class MultiPhaseMedium(object):
                 snapshot['he_3'] = 1e-10
 
             snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
-            snapshot['n'] = \
-                self.parcel_igm.grid.particle_density(snapshot.copy(), red)
+            n = self.parcel_igm.grid.particle_density(snapshot.copy(), red)
+            snapshot['n'] = float(n)
 
             # Need to keep the cell number dimension for consistency
             for element in snapshot:

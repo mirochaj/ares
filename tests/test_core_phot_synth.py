@@ -115,8 +115,8 @@ def test(tol=0.25):
             "These should all be identical! z={}".format(z)
 
         results = [mag_from_spec, mag_from_flux, mag_from_lum,
-            mag_from_spec_20, mag_from_spec_50, mag_from_spec_100,
-            mag_from_phot_mean, mag_from_phot_close, mag_from_phot_interp]
+            mag_from_spec_20[0], mag_from_spec_50[0], mag_from_spec_100[0],
+            mag_from_phot_mean[0], mag_from_phot_close[0], mag_from_phot_interp[0]]
 
         assert np.all(np.abs(np.diff(results)) < tol), \
             "Error in magnitudes! z={}".format(z)
