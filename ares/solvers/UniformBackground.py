@@ -967,8 +967,6 @@ class UniformBackground(object):
 
         """
 
-        print('hello', my_id, energies.shape, redshifts.shape, ehat.shape, tau.shape)
-
         # Some stuff we need
         x = 1. + redshifts
         xsq = x**2
