@@ -144,7 +144,7 @@ class Global21cm(AnalyzeGlobal21cm):
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.get_21cm_dTb(z[i], Ts, xavg)
             self.all_data_igm[i]['dTb'] = Tb
-            self.all_data_igm[i]['Ts'] = np.array([Ts])
+            self.all_data_igm[i]['Ts'] = Ts
             dTb.append(Tb)
 
         return dTb
