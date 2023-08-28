@@ -61,62 +61,75 @@ centrals_sf = \
 
  # fstar is SMHM for 'smhm-func' SFR model
  'pop_fstar': 'pq[0]',
- 'pq_func[0]': 'dpl_evolNPS',
+ 'pq_func[0]': 'dpl_evolB13',
  'pq_func_var[0]': 'Mh',
  'pq_func_var2[0]': '1+z',
- 'pq_func_par0[0]': 9.7957e-04,
- 'pq_func_par1[0]': 8.7620e+11,
- 'pq_func_par2[0]': 8.1798e-01,
- 'pq_func_par3[0]': -7.2136e-01,
- 'pq_func_par4[0]': 1e10,
- 'pq_func_par5[0]': 1.,     # pivot in 1+z
- 'pq_func_par6[0]': -1.7136e-01,
- 'pq_func_par7[0]': 1.1776e-01,
- 'pq_func_par8[0]': 5.3506e-01,
- 'pq_func_par9[0]': -9.1944e-01,
+ 'pq_func_par0[0]': 0.0003,
+ 'pq_func_par1[0]': 1.5e12,
+ 'pq_func_par2[0]': 1,
+ 'pq_func_par3[0]': -0.6,
+ 'pq_func_par4[0]': 1e10,           # normalization pinned to this Mh
+ 'pq_func_par5[0]': 0,
+ 'pq_func_par6[0]': 0,
+ 'pq_func_par7[0]': 0,
+ 'pq_func_par8[0]': 0,
+ 'pq_func_par9[0]': 0.0,
  'pq_func_par10[0]': 0.0,
  'pq_func_par11[0]': 0.0,
  'pq_func_par12[0]': 0.0,
  'pq_func_par13[0]': 0.0,
+ 'pq_func_par14[0]': 0.0,
+ 'pq_func_par15[0]': 0.0,
+ 'pq_func_par16[0]': 0.0,
 
  'pq_val_ceil[0]': 1,
 
 # sSFR(z, Mstell)
  'pop_ssfr': 'pq[1]',
- 'pq_func[1]': 'dpl_evolNPS',
+ 'pq_func[1]': 'dpl_evolB13',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
  'pq_func_par0[1]': 4e-10,
  'pq_func_par1[1]': 2e9,
  'pq_func_par2[1]': 0.0,
  'pq_func_par3[1]': -0.8,
- 'pq_func_par4[1]': 1e8,
- 'pq_func_par5[1]': 1.,
- 'pq_func_par6[1]': 2.5,       # PL index for normalization evolution
- 'pq_func_par7[1]': 2.5,       # PL index for peak mass
- 'pq_func_par8[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
- 'pq_func_par9[1]': 0., # Only use if slopes evolve, e.g., in dplp_evolNPS
+ 'pq_func_par4[1]': 1e8,   # Mstell anchor
+ 'pq_func_par5[1]': 1.3,   # scales (1-a) term
+ 'pq_func_par6[1]': 2,     # scales (1-a) term
+ 'pq_func_par7[1]': 0,     # scales (1-a) term
+ 'pq_func_par8[1]': 0,     # scales (1-a) term
+ 'pq_func_par9[1]': 0.0,   # scales log(1+z) term
+ 'pq_func_par10[1]': 0.0,  # scales log(1+z) term
+ 'pq_func_par11[1]': 0.0,  # scales log(1+z) term
+ 'pq_func_par12[1]': 0.0,  # scales log(1+z) term
+ 'pq_func_par13[1]': 0.0,
+ 'pq_func_par14[1]': 0.0,
+ 'pq_func_par15[1]': 0.0,
+ 'pq_func_par16[1]': 0.0,
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
- 'pq_func[2]': 'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
+ 'pq_func[2]': 'erf_evolB13',#'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
  'pq_func_var[2]': 'Mh',
  'pq_func_var2[2]': '1+z',
  'pq_val_ceil[2]': 1,
  'pq_val_floor[2]': 0,
- 'pq_func_par0[2]': 7.3452e-02,
- 'pq_func_par1[2]': 5.7451e-01,
- 'pq_func_par2[2]': 1.2559e+01,
- 'pq_func_par3[2]': 3.6616e-01,
- 'pq_func_par4[2]': 1,   # redshift pivot
- 'pq_func_par5[2]': 1.2106e-01,
- 'pq_func_par6[2]': 2.9696e-01,
- 'pq_func_par7[2]': -2.6572e-01,
- 'pq_func_par8[2]': -8.0466e-02,
- 'pq_func_par9[2]': 9.7426e-03,
- 'pq_func_par10[2]': -4.6582e-02,
- 'pq_func_par11[2]': 3.4529e-02,
- 'pq_func_par12[2]': 1.4549e-02,
+ 'pq_func_par0[2]': 0,
+ 'pq_func_par1[2]': 0.85,
+ 'pq_func_par2[2]': 12.2,
+ 'pq_func_par3[2]': -0.7,
+ 'pq_func_par4[2]': 0.5,    # terms that scale (1 - a)
+ 'pq_func_par5[2]': 0.1,    # terms that scale (1 - a)
+ 'pq_func_par6[2]': 0.3,    # terms that scale (1 - a)
+ 'pq_func_par7[2]': 0,      # terms that scale (1 - a)
+ 'pq_func_par8[2]': 0,      # terms that scale log(1+z)
+ 'pq_func_par9[2]': 0,      # terms that scale log(1+z)
+ 'pq_func_par10[2]': 0,     # terms that scale log(1+z)
+ 'pq_func_par11[2]': 0,     # terms that scale log(1+z)
+ 'pq_func_par12[2]': 0,     # terms that scale z
+ 'pq_func_par13[2]': 0,     # terms that scale z
+ 'pq_func_par14[2]': 0,     # terms that scale z
+ 'pq_func_par15[2]': 0,     # terms that scale z
 }
 
 #centrals_sf.update(_base)
@@ -210,20 +223,55 @@ for i, _pop in enumerate([_pop2, _pop3]):
 
     subhalos.update(pf)
 
+# This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 'pq[3]'
-subhalos['pq_func[3]{2}'] = 'logtanh_abs_evolM'
+subhalos['pop_fsurv_inv{2}'] = False
+subhalos['pq_func[3]{2}'] = 'erf_evolB13'
 subhalos['pq_func_var[3]{2}'] = 'Mh'
 subhalos['pq_func_var2[3]{2}'] = '1+z'
 subhalos['pq_val_ceil[3]{2}'] = 1
+subhalos['pq_val_floor[3]{2}'] = 0
 subhalos['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
-subhalos['pq_func_par1[3]{2}'] = 0.95 # fsurv = par1 + step * tanh(stuff)
-subhalos['pq_func_par2[3]{2}'] = 11
-subhalos['pq_func_par3[3]{2}'] = 0.7 # dlogM
-subhalos['pq_func_par4[3]{2}'] = 0.  # Evolution in midpoint
-subhalos['pq_func_par5[3]{2}'] = 1   # Pin to z=0
+subhalos['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
+subhalos['pq_func_par2[3]{2}'] = 11.5
+subhalos['pq_func_par3[3]{2}'] = 1 # dlogM
+subhalos['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
+subhalos['pq_func_par5[3]{2}'] = 0
+subhalos['pq_func_par6[3]{2}'] = 0
+subhalos['pq_func_par7[3]{2}'] = 0
+subhalos['pq_func_par8[3]{2}'] = 0
+subhalos['pq_func_par9[3]{2}'] = 0
+subhalos['pq_func_par10[3]{2}'] = 0
+subhalos['pq_func_par11[3]{2}'] = 0
+subhalos['pq_func_par12[3]{2}'] = 0
+subhalos['pq_func_par13[3]{2}'] = 0
+subhalos['pq_func_par14[3]{2}'] = 0
+subhalos['pq_func_par15[3]{2}'] = 0
+subhalos['pq_func_par16[3]{2}'] = 0
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = True
+
+subhalo_focc = {
+ 'pop_focc': 'pq[20]',
+ 'pq_func[20]': 'erf',
+ 'pq_func_var[20]': 'Mh',
+ 'pq_func_par0[20]': 0,
+ 'pq_func_par1[20]': 1,
+ 'pq_func_par2[20]': 8,
+ 'pq_func_par3[20]': 1,
+}
+
+maximal_ihl = {'pop_focc{2}': 1, 'pop_fsurv{2}': 0}
+minimal_ihl = {'pop_focc{2}': 1, 'pop_fsurv{2}': 1}
+
+ihl_like_z14 = {}
+ihl_like_z14['pq_func_par0[3]{2}'] = 0.00 # step = par0-par1
+ihl_like_z14['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
+ihl_like_z14['pq_func_par2[3]{2}'] = 11.3
+ihl_like_z14['pq_func_par3[3]{2}'] = 0.8 # dlogM
+ihl_like_z14['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
+ihl_like_z14['pq_func_par5[3]{2}'] = -1. # Evolves as (1+z)^{-1}
 
 dust = {}
 dust['pop_dust_template'] = 'WD01:MWRV31'
@@ -231,11 +279,11 @@ dust['pop_Av'] = 'pq[4]'
 dust['pq_func[4]'] = 'pl_evolN'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 0.5
+dust['pq_func_par0[4]'] = 0.   # Off by default
 dust['pq_func_par1[4]'] = 1e10
 dust['pq_func_par2[4]'] = 0.2
-dust['pq_func_par3[4]'] = 1.  # Anchored to z=0
-dust['pq_func_par4[4]'] = 0.  # no evolution yet.
+dust['pq_func_par3[4]'] = 1.   # Anchored to z=0
+dust['pq_func_par4[4]'] = 0.   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
 mzr = \
@@ -253,7 +301,7 @@ mzr = \
  'pq_func_par4[30]': -0.08,   # mild evolution
  'pq_val_ceil[30]': 9,
  'pq_val_floor[30]': 6,
- 'pop_Z': ('mzr', 0.02),
+ 'pop_Z': 0.02,#('mzr', 0.02),
 }
 
 
@@ -268,3 +316,27 @@ expd['pop_Z{0}'] = 0.02
 expd['pop_aging{0}'] = True
 expd['pop_sed_degrade{0}'] = 10
 expd['pop_sfh_degrade{0}'] = 1  # Tabulate in (z, Mh) degraded by 10x wrt native
+
+smhm_Q = {}
+smhm_Q['pop_fstar{1}'] = 'pq[10]'
+smhm_Q['pq_func[10]{1}'] = 'dpl_evolB13'
+smhm_Q['pq_func_var[10]{1}'] = 'Mh'
+smhm_Q['pq_func_var2[10]{1}'] = '1+z'
+smhm_Q['pq_func_par0[10]{1}'] = 9.7957e-04
+smhm_Q['pq_func_par1[10]{1}'] = 8.7620e+11
+smhm_Q['pq_func_par2[10]{1}'] = 8.1798e-01
+smhm_Q['pq_func_par3[10]{1}'] = -7.2136e-01
+smhm_Q['pq_func_par4[10]{1}'] = 1e10
+smhm_Q['pq_func_par5[10]{1}'] = 1.     # pivot in 1+z
+smhm_Q['pq_func_par6[10]{1}'] = -1.7136e-01
+smhm_Q['pq_func_par7[10]{1}'] = 1.1776e-01
+smhm_Q['pq_func_par8[10]{1}'] = 5.3506e-01
+smhm_Q['pq_func_par9[10]{1}'] = -9.1944e-01
+smhm_Q['pq_func_par10[10]{1}'] = 0.0
+smhm_Q['pq_func_par11[10]{1}'] = 0.0
+smhm_Q['pq_func_par12[10]{1}'] = 0.0
+smhm_Q['pq_func_par13[10]{1}'] = 0.0
+smhm_Q['pq_func_par14[10]{1}'] = 0.0
+smhm_Q['pq_func_par15[10]{1}'] = 0.0
+smhm_Q['pq_func_par16[10]{1}'] = 0.0
+smhm_Q['pq_val_ceil[10]{1}'] = 1

@@ -26,6 +26,7 @@ from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
 from ..obs.Photometry import Photometry
+from ..obs.OpticalDepth import OpticalDepth
 from ..util.ParameterFile import get_pq_pars
 from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
@@ -141,7 +142,7 @@ class Population(object):
         Returns a function representation of input parameter `par`.
 
         For example, the user supplies the parameter `pop_dust_yield`. This
-        routien figures out if that's a number, a function, or a string
+        routine figures out if that's a number, a function, or a string
         indicating a ParameterizedQuantity, and creates a callable function
         no matter what.
         """
@@ -149,6 +150,8 @@ class Population(object):
         if not hasattr(self, '_get_{}'.format(par.strip('pop_'))):
             func = get_function_from_par(par, self.pf)
             setattr(self, '_get_{}'.format(par.strip('pop_')), func)
+        else:
+            func = getattr(self, '_get_{}'.format(par.strip('pop_')))
         return getattr(self, '_get_{}'.format(par.strip('pop_')))
 
     @property
@@ -180,6 +183,13 @@ class Population(object):
         if not hasattr(self, '_dust'):
             self._dust = DustExtinction(**self.pf)
         return self._dust
+
+    @property
+    def igm(self):
+        if not hasattr(self, '_igm'):
+            self._igm = OpticalDepth(cosm=self.cosm,
+                **self.pf)
+        return self._igm
 
     @property
     def phot(self):
@@ -1240,7 +1250,7 @@ class Population(object):
                     self.halos.tab_M < self.get_Mmax(z[ll]))
 
                 for jj in range(Nf):
-                    
+
                     # [erg/s/Hz]
                     lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
                         raw=False, units_out='erg/s/Hz',

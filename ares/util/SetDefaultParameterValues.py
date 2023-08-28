@@ -330,9 +330,15 @@ def ParameterizedQuantityParameters():
         "pq_func_par5": None,
         "pq_func_par6": None,
         "pq_func_par7": None,
-        "pq_func_par7": None,
         "pq_func_par8": None,
         "pq_func_par9": None,
+        "pq_func_par10": None,
+        "pq_func_par11": None,
+        "pq_func_par12": None,
+        "pq_func_par13": None,
+        "pq_func_par14": None,
+        "pq_func_par15": None,
+        "pq_func_par16": None,
 
         "pq_boost": 1.0,
         "pq_iboost": 1.0,
@@ -538,6 +544,8 @@ def PopulationParameters():
     "pop_fduty_seed": None,
     "pop_fduty_dt": None, # if not None, SF occurs in on/off bursts, i.e.,
                           # it's coherent.
+
+    "pop_fduty_boost_sfr": False,
 
     "pop_centrals": True,
     "pop_ihl": None,

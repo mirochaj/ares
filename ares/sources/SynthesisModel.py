@@ -21,6 +21,7 @@ from ..data import ARES
 from .Source import Source
 from ..util.Stats import bin_c2e
 from ..util.Math import interp1d
+from ..util.Misc import numeric_types
 from ..physics import Cosmology
 from ares.data import read as read_lit
 from ..physics import NebularEmission
@@ -413,13 +414,6 @@ class SynthesisModelBase(Source):
             i0 = np.argmin(np.abs(self.tab_energies_c - E1))
             i1 = np.argmin(np.abs(self.tab_energies_c - E2))
 
-            if i0 == i1:
-                if E1 == E2:
-                    raise ValueError('Are EminNorm and EmaxNorm set properly?')
-                else:
-                    #print("WARNING: No intra-bin correction yet!")
-                    return np.zeros_like(self.tab_t)
-
             if raw and not (nebular_only or self.pf['source_nebular_only']):
                 poke = self.tab_sed_at_age
                 data = self._data_raw
@@ -433,13 +427,27 @@ class SynthesisModelBase(Source):
             # Count up the photons in each spectral bin for all times
             yield_UV = np.zeros_like(self.tab_t)
             for i in range(self.tab_t.size):
-                if 'erg' in units_out:
-                    integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
-                else:
-                    integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
-                        / (self.tab_energies_c[i1:i0] * erg_per_ev)
 
-                yield_UV[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
+                # Special treatment for narrow bands
+                if (i0 == i1) or abs(i0 - i1) == 1:
+                    l1, l2 = self.get_ang_from_x(band, units=units)
+                    dlam = abs(l1 - l2)
+
+                    if 'erg' in units_out:
+                        yield_UV[i] = data[i1,i] * dlam
+                    else:
+                        yield_UV[i] = data[i1,i] * dlam \
+                            / (self.tab_energies_c[i1] * erg_per_ev)
+
+                else:
+
+                    if 'erg' in units_out:
+                        integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
+                    else:
+                        integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
+                            / (self.tab_energies_c[i1:i0] * erg_per_ev)
+
+                    yield_UV[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
 
         else:
             wave = self.get_ang_from_x(x, units=units)
@@ -800,12 +808,16 @@ class SynthesisModel(SynthesisModelBase):
 
         if self.pf['source_sps_data'] is not None:
             _Z, _ssp, _waves, _times, _data = self.pf['source_sps_data']
-            assert _Z == self.pf['source_Z']
-            assert _ssp == self.is_ssp
+            if type(_Z) in numeric_types:
+                assert _Z == self.pf['source_Z'], \
+                    f"Cached Z={_Z}, from parameter file it's {self.pf['source_Z']}"
+            if type(_ssp) in [int, bool]:
+                assert _ssp == self.is_ssp, \
+                    f"Cached ssp={_ssp}, from parameter file it's {self.is_ssp}"
             self._data = _data
             self._times = _times
             self._tab_waves_c = _waves
-            print('# WARNING: If supplying source_sps_data, should include any nebular emission too!')
+            #print('# WARNING: If supplying source_sps_data, should include any nebular emission too!')
             #self._add_nebular_emission(self._data)
             return self._data
 

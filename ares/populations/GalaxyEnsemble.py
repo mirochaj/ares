@@ -1079,6 +1079,11 @@ class GalaxyEnsemble(HaloPopulation):
             if isinstance(fduty, numbers.Number):
                 fduty = fduty * np.ones_like(Mh)
 
+            if self.pf['pop_fduty_boost_sfr']:
+                boost = 1. / fduty#np.exp((1. / (fduty))**0.5)
+            else:
+                boost = 1.
+
             if T_on is not None:
 
                 fduty_avg = np.mean(fduty, axis=1)
@@ -1119,7 +1124,9 @@ class GalaxyEnsemble(HaloPopulation):
 
                 off = r >= fduty
 
+            SFR *= boost
             SFR[off==True] = 0
+
 
         # Never do this!
         if self.pf['conserve_memory']:
@@ -1298,12 +1305,21 @@ class GalaxyEnsemble(HaloPopulation):
             iz = np.argmin(np.abs(6. - z))
 
             # Can add scatter to surface density
-            if self.pf['pop_dust_scatter'] is not None:
-                sigma = self.guide.get_dust_scatter(z=z2d, Mh=Mh)
+            if self.pf['pop_dust_scatter'] not in [None, 0]:
+                if type(self.pf['pop_dust_scatter']) is str:
+                    scat_is_func = True
+                    sigma = self.guide.get_dust_scatter(z=z2d, Mh=Mh)
+                else:
+                    scat_is_func = False
+                    sigma = self.pf['pop_dust_scatter']
+
                 noise = np.zeros_like(Sd)
                 np.random.seed(self.pf['pop_dust_scatter_seed'])
                 for _i, _z in enumerate(z):
-                    noise[:,_i] = self.get_noise_lognormal(Sd[:,_i], sigma[:,_i])
+                    if scat_is_func:
+                        noise[:,_i] = self.get_noise_lognormal(Sd[:,_i], sigma[:,_i])
+                    else:
+                        noise[:,_i] = self.get_noise_lognormal(Sd[:,_i], sigma)
 
                 Sd += noise
 

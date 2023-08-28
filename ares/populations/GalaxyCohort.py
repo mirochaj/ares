@@ -608,10 +608,24 @@ class GalaxyCohort(GalaxyAggregate):
         result = func(z=z, Mh=Mh)
         return result
 
+    @property
+    def _get_fsurv(self):
+        if not hasattr(self, '_get_fsurv_'):
+            raise AttributeError("Must set _get_fsurv by hand.")
+        return self._get_fsurv_
+
+    @_get_fsurv.setter
+    def _get_fsurv(self, value):
+        self._get_fsurv_ = value
+
     def get_fsurv(self, z, Mh):
         """
         Get survival fraction.
         """
+
+        if hasattr(self, '_get_fsurv_'):
+            return self._get_fsurv(z=z, Mh=Mh)
+
         func = self._get_function('pop_fsurv')
         result = func(z=z, Mh=Mh)
         return result
@@ -636,7 +650,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._func_sfrd(z)
 
-    def get_smd(self, z):
+    def get_freturn(self, t):
+        """
+        t in Myr. This is from Behroozi+ 2013.
+        """
+        return 0.05 * np.log(1. + t / 1.4)
+
+    def get_smd(self, z, mass_return=False):
         """
         Compute stellar mass density (SMD) at redshift `z`.
 
@@ -647,6 +667,9 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if not hasattr(self, '_func_smd'):
+            self._func_smd = {}
+
+        if mass_return not in self._func_smd:
             if self.is_quiescent:
                 assert self.pf['pop_sfr_model'] == 'smhm-func'
 
@@ -659,6 +682,22 @@ class GalaxyCohort(GalaxyAggregate):
                     integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
                         * self.tab_focc[i]
                     self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
+            elif mass_return:
+                tasc = self.halos.tab_t[-1::-1]
+                zasc = self.halos.tab_z[-1::-1]
+
+                # `zasc` is redshift in ascending time order
+                smd_ret = []
+                for i, _t_ in enumerate(tasc):
+
+                    # Re-compute integrand accounting for f_return
+                    smd_of_z = [self.get_sfrd(zasc[k]) \
+                        * (1 - self.get_freturn(tasc[i] - tasc[k])) \
+                            for k, _z_ in enumerate(zasc[0:i])]
+
+                    smd_ret.append(np.trapz(smd_of_z, x=tasc[0:i] * 1e6))
+
+                self._tab_smd = np.array(smd_ret)[-1::-1]
             else:
                 dtdz = np.array([self.cosm.dtdz(z) / s_per_yr \
                     for z in self.halos.tab_z])
@@ -667,10 +706,11 @@ class GalaxyCohort(GalaxyAggregate):
 
             #self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
             #    kind=self.pf['pop_interp_sfrd'], left=0, right=0)
-            self._func_smd = lambda zz: 10**np.interp(zz, self.halos.tab_z,
-                np.log10(self._tab_smd))
+            self._func_smd[mass_return] = \
+                lambda zz: 10**np.interp(zz, self.halos.tab_z,
+                    np.log10(self._tab_smd))
 
-        return self._func_smd(z)
+        return self._func_smd[mass_return](z)
 
     def get_mar(self, z, Mh):
         MGR = np.maximum(self.MGR(z, Mh), 0.)
@@ -1658,8 +1698,9 @@ class GalaxyCohort(GalaxyAggregate):
             # Depending on approach, either need to first get Av, dust
             # surface density, or MUV-Beta/IRXB
             if band is not None:
+                # For now, just going to compute transmission using
+                # central wavelength of band.
                 wave = np.mean(self.src.get_ang_from_x(band, units=units))
-                print("is this the best approach?")
             else:
                 wave = self.src.get_ang_from_x(x, units=units)
 
@@ -1673,6 +1714,7 @@ class GalaxyCohort(GalaxyAggregate):
                 raise NotImplemented('help')
 
             T = self.dust.get_transmission(wave, Av=Av, Sd=Sd).squeeze()
+
 
         ##
         # Loop over components (most often just one) and determine L
@@ -1871,18 +1913,19 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = mste * L_sfr
 
                     if self.pf['pop_ihl'] is not None:
-                        ihl = self.ihl(z=z, Mh=self.halos.tab_M)
+                        ihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
                         _Lh_ *= ihl
                 else:
 
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
                     fsurv = self.tab_fsurv[iz,:]
+                    focc = self.tab_focc[iz,:]
 
                     # In this case, need to integrate over subhalo MF.
                     Ls = mste * L_sfr
                     _Lh_ = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
                         _Lh_[i] = np.trapz(Ls * dndlnm,
                             x=np.log(self.halos.tab_M))
 
@@ -1898,12 +1941,13 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
                     fsurv = self.tab_fsurv[iz,:]
+                    focc = self.tab_focc[iz,:]
 
                     # In this case, need to integrate over subhalo MF.
                     Ls = sfr * L_sfr
                     _Lh_ = np.zeros_like(self.halos.tab_M)
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * fsurv
+                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
                         _Lh_[i] = np.trapz(Ls * dndlnm,
                             x=np.log(self.halos.tab_M))
 
@@ -1992,6 +2036,13 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Apply IGM filtering here eventually. Actually, that could be
         # dangerous -- perhaps should only ever be done in post.
+        if band is not None:
+            wave = np.mean(self.src.get_ang_from_x(band, units=units))
+        else:
+            wave = self.src.get_ang_from_x(x, units=units)
+
+        T = self.igm.get_transmission(z, wave * 1e-4 * (1. + z))
+        Lh *= T
 
         if not hasattr(self, '_cache_L'):
             self._cache_L = {}
@@ -2018,6 +2069,10 @@ class GalaxyCohort(GalaxyAggregate):
         #Ms = Mh * smhm
 
         #return self._func_Av(z=z, Ms=Ms)
+
+    def get_ihl(self, z, Mh):
+        func = self._get_function('pop_ihl')
+        return func(z=z, Mh=Mh)
 
     def get_age(self, z, Mh):
         func = self._get_function('pop_age')
@@ -3221,6 +3276,40 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self.get_sfrd_in_mass_range(z, Mlo=Mlo, Mhi=Mhi)
 
+    def get_sfrd_in_sfr_range(self, z, lo=None, hi=None):
+        """
+        Return SFRD integrated above some limiting SFR.
+
+        .. note :: Relatively crude at this stage. No interpolation, just
+            using nearest grid points in (z, Mh) space.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        lo, hi : int, float
+            Magnitude cuts of interest.
+
+        Returns
+        -------
+        SFRD in units of Msun/yr/cMpc^3.
+        """
+
+        Mh = self.halos.tab_M
+        sfr = self.get_sfr(z=z, Mh=Mh)
+
+        if hi is not None:
+            Mhi = Mh[np.argmin(np.abs(sfr - hi))]
+        else:
+            Mhi = None
+
+        if lo is not None:
+            Mlo = Mh[np.argmin(np.abs(sfr - lo))]
+        else:
+            Mlo = 0
+
+        return self.get_sfrd_in_mass_range(z, Mlo=Mlo, Mhi=Mhi)
+
     def get_sfrd_in_mass_range(self, z, Mlo, Mhi=None):
         """
         Compute SFRD within given halo mass range, [Mlo, Mhi], each in Msun.
@@ -3284,17 +3373,17 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 self._tab_fsurv_ = fsurv
 
-            if self.pf['pop_fsurv_inv']:
-                self._tab_fsurv_ = 1. - self._tab_fsurv_
+            #if self.pf['pop_fsurv_inv']:
+            #    self._tab_fsurv_ = 1. - self._tab_fsurv_
 
         return self._tab_fsurv_
 
-    @tab_fsurv.setter
-    def tab_fsurv(self, value):
-        if self.pf['pop_fsurv_inv']:
-            self._tab_fsurv_ = 1 - value
-        else:
-            self._tab_fsurv_ = value
+    #@tab_fsurv.setter
+    #def tab_fsurv(self, value):
+    #    if self.pf['pop_fsurv_inv']:
+    #        self._tab_fsurv_ = 1 - value
+    #    else:
+    #        self._tab_fsurv_ = value
 
     def get_smhm(self, **kwargs):
         if self.pf['pop_sfr_model'] in ['smhm-func']:
@@ -4491,7 +4580,7 @@ class GalaxyCohort(GalaxyAggregate):
         return 1. * k**0
 
     def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
-        nebular_only=False):
+        nebular_only=False, ztol=1e-3):
         """
         Return shot noise term of halo power spectrum.
 
@@ -4526,7 +4615,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ps = self.halos.get_ps_shot(z, k=k,
             lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=1e-3)
+            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         return ps
 
@@ -4558,7 +4647,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             return ps
 
-    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False, nebular_only=False):
+    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False,
+        nebular_only=False, ztol=1e-3):
         """
         Return 2-halo term of 3-d power spectrum.
 
@@ -4610,7 +4700,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=1e-3)
+            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         #if type(k) is np.ndarray:
         #    self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps
