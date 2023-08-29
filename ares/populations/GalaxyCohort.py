@@ -1374,7 +1374,8 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_spec(self, z, waves, Mh=None,
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
-        nebular_only=False):
+        nebular_only=False, include_dust_transmission=True,
+        include_igm_transmission=True):
         """
         Compute the rest-frame SED for all galaxies at given redshift.
 
@@ -1400,7 +1401,9 @@ class GalaxyCohort(GalaxyAggregate):
                 lum[:,i] = self.get_lum(z, x=wave, units='Angstroms',
                     band=band, window=window, Mh=Mh,
                     units_out=units_out, load=False, raw=raw,
-                    nebular_only=nebular_only)
+                    nebular_only=nebular_only,
+                    include_dust_transmission=include_dust_transmission,
+                    include_igm_transmission=include_igm_transmission)
 
             return lum
 
@@ -1408,7 +1411,8 @@ class GalaxyCohort(GalaxyAggregate):
             raise NotImplemented('help')
 
     def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz', Mh=None,
-        window=1, band=None):
+        window=1, band=None, include_dust_transmission=True,
+        include_igm_transmission=True):
         """
         Return the spectra of all objects in the observer frame at z=0.
 
@@ -1436,7 +1440,9 @@ class GalaxyCohort(GalaxyAggregate):
             dwdn = waves**2 / (c * 1e8)
 
         spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz',
-            Mh=Mh, window=window, band=band)
+            Mh=Mh, window=window, band=band,
+            include_dust_transmission=include_dust_transmission,
+            include_igm_transmission=include_igm_transmission)
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
@@ -1661,6 +1667,45 @@ class GalaxyCohort(GalaxyAggregate):
                         10**interp(np.log10(t), np.log10(self.halos.tab_M))
 
         return self._tab_sfh_kwargs_native
+
+    def get_transmission(self, z, x, units='Angstroms', band=None,
+        include_dust_transmission=True, include_igm_transmission=True):
+        """
+        Convenience routine that wraps self.dust.get_transmission and
+        self.igm.get_transmission, and does all the galaxy-property-finding
+        for us. For example, for dust transmission need to know dust surface
+        density or Av; this routine fetches that first.
+        """
+
+        if not (include_dust_transmission or include_igm_transmission):
+            return np.ones_like(waves)
+
+        waves = self.src.get_ang_from_x(x if band is None else band, units=units)
+        if band is not None:
+            waves = np.mean(waves)
+
+        owaves = waves * 1e-4 * (1. + z)
+        if self.is_dusty and include_dust_transmission:
+            if self.pf['pop_dust_template'] is not None:
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                Ms = self.halos.tab_M * smhm
+                Av = self.get_Av(z=z, Ms=Ms)
+                Sd = None
+            elif self.pf['pop_dust_yield'] is not None:
+                Av = None
+                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
+
+            Tdust = self.dust.get_transmission(waves,
+                Av=Av, Sd=Sd).squeeze()
+        else:
+            Tdust = np.ones_like(waves)
+
+        if include_igm_transmission:
+            Tigm = self.igm.get_transmission(z, owaves)
+        else:
+            Tigm = 1
+
+        return Tdust * Tigm
 
     def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None):
@@ -1969,7 +2014,8 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
-        age=None, Mh=None):
+        age=None, Mh=None, include_dust_transmission=True,
+        include_igm_transmission=True):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -2033,15 +2079,10 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-        ##
-        # Apply IGM filtering here eventually. Actually, that could be
-        # dangerous -- perhaps should only ever be done in post.
-        if band is not None:
-            wave = np.mean(self.src.get_ang_from_x(band, units=units))
-        else:
-            wave = self.src.get_ang_from_x(x, units=units)
+        T = self.get_transmission(z, x, units=units, band=band,
+            include_dust_transmission=include_dust_transmission,
+            include_igm_transmission=include_igm_transmission)
 
-        T = self.igm.get_transmission(z, wave * 1e-4 * (1. + z))
         Lh *= T
 
         if not hasattr(self, '_cache_L'):
@@ -2124,7 +2165,6 @@ class GalaxyCohort(GalaxyAggregate):
         fZy = fmr * self.pf['pop_metal_yield']
         fd = self.get_dust_yield(z=z, Mh=Mh)
         if self.is_user_smhm:
-
             smhm = self.get_smhm(z=z, Mh=Mh)
             smhm[Mh < self.get_Mmin(z)] = 0
             smhm[Mh > self.get_Mmax(z)] = 0

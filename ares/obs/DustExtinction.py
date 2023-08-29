@@ -253,6 +253,15 @@ class DustExtinction(object):
                 Sd = np.array([Sd])
             kappa = self.get_absorption_coeff(wave=wave)
             tau = kappa[None,:] * Sd[:,None]
+
+            # Note that inf * 0 = NaN, which is a problem. This happens
+            # sometimes, e.g., we set tau=inf in the Lyman continuum and then
+            # we turn off dust by hand so Sd = 0, and we get nonsense answers.
+            # Just check for that here.
+            if np.any(np.isnan(tau)):
+                ok_bad = np.logical_and(np.isinf(kappa[None,:]),
+                                        Sd[:,None] == 0)
+                tau[ok_bad==1] = 0
         else:
             raise NotImplemented('help')
 

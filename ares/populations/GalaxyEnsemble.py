@@ -1332,7 +1332,7 @@ class GalaxyEnsemble(HaloPopulation):
                 fcov = 1.
 
         else:
-            Md = Sd = 0.
+            Md = Sd = np.zeros_like(z2d)
             Rd = np.inf
             fcov = 1.0
 
@@ -2351,7 +2351,8 @@ class GalaxyEnsemble(HaloPopulation):
 
         return line_wave, flux
 
-    def get_spec_obs(self, z, waves, units_out='erg/s/Hz', idnum=None):
+    def get_spec_obs(self, z, waves, units_out='erg/s/Hz', idnum=None,
+        include_dust_transmission=True, include_igm_transmission=True):
         """
         Generate z=0 observed spectrum for all sources.
 
@@ -2377,10 +2378,53 @@ class GalaxyEnsemble(HaloPopulation):
             waves=waves, sfh=self.histories['SFR'], extras=self.extras,
             idnum=idnum)
 
+        T = self.get_transmission(z, waves, units='Angstroms',
+            include_dust_transmission=include_dust_transmission,
+            include_igm_transmission=include_igm_transmission)
+
         return owaves, flux
 
+    def get_transmission(self, z, x, units='Angstroms', band=None,
+        include_dust_transmission=True, include_igm_transmission=True):
+        """
+        Convenience routine that wraps self.dust.get_transmission and
+        self.igm.get_transmission, and does all the galaxy-property-finding
+        for us. For example, for dust transmission need to know dust surface
+        density or Av; this routine fetches that first.
+        """
+
+        if not (include_dust_transmission or include_igm_transmission):
+            return np.ones_like(waves)
+
+        waves = self.src.get_ang_from_x(x if band is None else band, units=units)
+        if band is not None:
+            waves = np.mean(waves)
+
+        owaves = waves * 1e-4 * (1. + z)
+        if self.is_dusty and include_dust_transmission:
+            if self.pf['pop_dust_template'] is not None:
+                raise NotImplemented('help')
+                Av = self.get_Av(z=z, Ms=self.histories['Ms'])
+                Sd = None
+            elif self.pf['pop_dust_yield'] is not None:
+                Av = None
+                Sd = self.get_field(z, 'Sd')
+
+            Tdust = self.dust.get_transmission(waves,
+                Av=Av, Sd=Sd)
+        else:
+            Tdust = np.ones_like(waves)
+
+        if include_igm_transmission:
+            Tigm = self.igm.get_transmission(z, owaves)
+        else:
+            Tigm = np.ones_like(waves)
+
+        return Tdust * Tigm
+
     def get_lum(self, z, x=1600., band=None, units='Angstrom',
-        idnum=None, window=1, load=True, units_out='erg/s/Hz'):
+        idnum=None, window=1, load=True, units_out='erg/s/Hz',
+        include_dust_transmission=True, include_igm_transmission=True):
         """
         Return the luminosity for one or all sources at wavelength `x`.
 
@@ -2428,6 +2472,11 @@ class GalaxyEnsemble(HaloPopulation):
             L = self.synth.get_lum(x=x, units=units, zobs=z, hist=raw,
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 band=band, units_out=units_out)
+
+            T = self.get_transmission(z, x, units=units, band=band,
+                include_dust_transmission=include_dust_transmission,
+                include_igm_transmission=include_igm_transmission)
+            L = L * T
 
         self._cache_L_[(z, x, band, idnum, window, units_out)] = L.copy()
 

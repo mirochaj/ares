@@ -14,7 +14,6 @@ import time
 import numpy as np
 from ..obs import Survey
 from ..util import ProgressBar
-from ..obs import OpticalDepth
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
@@ -92,13 +91,6 @@ class SpectralSynthesis(object):
             from ..physics.Hydrogen import Hydrogen
             self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
         return self._hydr
-
-    @property
-    def igm(self):
-        if not hasattr(self, '_igm'):
-            self._igm = OpticalDepth(hydr=self.hydr, cosm=self.cosm,
-                **self.pf)
-        return self._igm
 
     #def OpticalDepth(self, z, owaves):
     #    """
@@ -433,10 +425,7 @@ class SpectralSynthesis(object):
 
         owaves = waves * (1. + zobs) / 1e4
 
-        tau = self.OpticalDepth(zobs, owaves)
-        T = np.exp(-tau)
-
-        return owaves, f * T
+        return owaves, f
 
     def get_photometry(self, spec=None, sfh=None, cam='wfc3', filters='all',
         filter_set=None, dlam=20., rest_wave=None, extras={}, window=1,
