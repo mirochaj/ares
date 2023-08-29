@@ -21,14 +21,6 @@ try:
 except ImportError:
     have_h5py = False
 
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
-
 class CheckPoints(object):
     def __init__(self, pf=None, grid=None, time_units=s_per_myr,
         dtDataDump=5., dzDataDump=None, logdtDataDump=None, logdzDataDump=None,

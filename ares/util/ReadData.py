@@ -25,12 +25,6 @@ try:
 except ImportError:
     have_h5py = False
 
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-except ImportError:
-    rank = 0
-
 HOME = os.environ.get('HOME')
 
 def flatten_energies(E):
