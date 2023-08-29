@@ -525,7 +525,6 @@ _galaxies_testing = \
  "cosmology_id": 'best',
  "cosmology_name": 'planck_TTTEEE_lowl_lowE',
  'pop_sed_degrade': 100,
- 'pop_Z': 0.02,
  'pop_sed': 'eldridge2009',
  'pop_thin_hist': 0,
 }

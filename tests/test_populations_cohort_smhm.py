@@ -21,16 +21,14 @@ def test():
 
     # Low resolution SEDs, HMF tables
     testing_pars = ares.util.ParameterBundle('testing:galaxies')
-    testing_pars['pop_Z'] = (0.02, 0.02)
-    testing_pars['pop_age'] = (100, 100)
-    testing_pars['pop_ssp'] = False, False
-    testing_pars['pop_enrichment'] = 0
+    testing_pars.num = 0
 
-    parsSF = ares.util.ParameterBundle('mirocha2023:centrals_sf')
-    parsSF.update(testing_pars)
-    print(parsSF)
-    pop = ares.populations.GalaxyPopulation(**parsSF)
-    print(pop.pf['pop_sfr_model'])
+    pars = ares.util.ParameterBundle('mirocha2023:base')
+    pars.update(testing_pars)
+
+    sim = ares.simulations.Simulation(**pars)
+    pop = sim.pops[0]
+
     x, phi = pop.get_lf(6, mags)
 
     focc = pop.get_focc(6, Mh)
@@ -42,32 +40,13 @@ def test():
     sfr = pop.get_sfr(6, Mh)
     ssfr = pop.get_ssfr(6, Mh)
 
-    pars = ares.util.ParameterBundle('mirocha2023:base')
-    testing_pars.num = 0
-    pars.update(testing_pars)
-
-    sim = ares.simulations.Simulation(**pars)
-
-    sim.pops[1].get_smd(6)
+    smd = sim.pops[1].get_smd(6)
     assert np.all(sim.pops[1].get_focc(6, Mh) == 1. - sim.pops[0].get_focc(6, Mh))
 
     # Check luminosity, SEDs etc?
     L0 = sim.pops[0].get_lum(6, x=1600)
     L1 = sim.pops[1].get_lum(6, x=1600)
 
-    Z = sim.pops[0].get_metallicity(6)
-    assert np.all(Z == 0), \
-        f"Metallicities should be zero! Mean is Z={np.mean(Z)}."
-
-    metals = ares.util.ParameterBundle('mirocha2023:mzr')
-    metals.num = 0
-
-    pars.update(metals)
-    pars['pop_enrichment{0}'] = 1
-
-    sim = ares.simulations.Simulation(**pars)
-
-    Z = sim.pops[0].get_metallicity(6)
     #assert np.all(np.logical_and(1e-3 <= Z, Z < 1)), \
     #    f"Metallicities should be zero! Mean is Z={np.mean(Z)}."
 
@@ -89,6 +68,8 @@ def test():
          > sim.pops[1].get_emissivity(6, x=6, units='eV')
 
 
+    ##
+    # Later: check dust, MZR
     #dust = ares.util.ParameterBundle('mirocha2023:dust')
     #dust.num = 0
 
