@@ -527,6 +527,7 @@ _galaxies_testing = \
  'pop_sed_degrade': 100,
  'pop_sed': 'eldridge2009',
  'pop_thin_hist': 0,
+ 'pop_Z': 0.02,
 }
 
 _rt06_1 = \

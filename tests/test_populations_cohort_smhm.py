@@ -25,6 +25,7 @@ def test():
 
     pars = ares.util.ParameterBundle('mirocha2023:base')
     pars.update(testing_pars)
+    pars['pop_Z{0}'] = (0.02, 0.02)
 
     sim = ares.simulations.Simulation(**pars)
     pop = sim.pops[0]
