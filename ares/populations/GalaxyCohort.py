@@ -1736,32 +1736,6 @@ class GalaxyCohort(GalaxyAggregate):
             pass
 
         ##
-        # Determine dust reddening [will apply in a minute]
-        if not self.is_dusty:
-            T = 1
-        else:
-            # Depending on approach, either need to first get Av, dust
-            # surface density, or MUV-Beta/IRXB
-            if band is not None:
-                # For now, just going to compute transmission using
-                # central wavelength of band.
-                wave = np.mean(self.src.get_ang_from_x(band, units=units))
-            else:
-                wave = self.src.get_ang_from_x(x, units=units)
-
-            if self.pf['pop_dust_template'] is not None:
-                Av = self.get_Av(z=z, Ms=Ms)
-                Sd = None
-            elif self.pf['pop_dust_yield'] is not None:
-                Av = None
-                Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
-            else:
-                raise NotImplemented('help')
-
-            T = self.dust.get_transmission(wave, Av=Av, Sd=Sd).squeeze()
-
-
-        ##
         # Loop over components (most often just one) and determine L
         Lh = np.zeros_like(self.halos.tab_M, dtype=np.float64)
         for i, src in enumerate(self.srcs):
@@ -1939,8 +1913,8 @@ class GalaxyCohort(GalaxyAggregate):
                     L_sfr = 10**f_L_sfr(np.log10(Z))
 
             ##
-            # Apply fesc and dust transmission now
-            L_sfr *= fesc * T
+            # Apply fesc
+            L_sfr *= fesc
 
             ##
             # Special treatment for SSPs
