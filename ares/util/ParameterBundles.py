@@ -89,7 +89,7 @@ _src_ion = \
 {
  'pop_sfr_model': 'fcoll',
  'pop_Nion': 4000.,
- 'pop_fesc': 0.1,
+ 'pop_fesc': 0.2,
  'pop_lw_src': False,
  'pop_lya_src': False,
  'pop_heat_src_igm': False,
