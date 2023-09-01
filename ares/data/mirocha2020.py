@@ -120,8 +120,8 @@ legacy = _legacy.copy()
 legacy.update(_legacy_best)
 
 legacy_irxb = legacy.copy()
-legacy_irxb['dustcorr_method'] = 'meurer1999'
-legacy_irxb['dustcorr_beta'] = 'bouwens2014'
+legacy_irxb['pop_irxbeta'] = 'meurer1999'
+legacy_irxb['pop_muvbeta'] = 'bouwens2014'
 
 # zcal=4
 _legacy_irxb_best = \

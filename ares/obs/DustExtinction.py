@@ -15,6 +15,7 @@ import glob
 import numpy as np
 from ..data import ARES
 from ..util import ParameterFile
+from types import FunctionType
 from ..util.Misc import numeric_types
 from functools import cached_property
 from ..phenom.ParameterizedQuantity import get_function_from_par
@@ -29,6 +30,24 @@ try:
     have_dustext = True
 except ImportError:
     have_dustext = False
+
+# These are AUV = a + b * beta, with a and b in that order in these tuples
+_coeff_irxb = {
+    'meurer1999': (4.43, 1.99),
+    'pettini1998': (1.49, 0.68),
+    'capak2015': (0.312, 0.176),
+}
+
+# These are beta = a + b * (mag + 19.5)
+_coeff_b14 = {
+ 'lowz': (-1.7, -0.2),
+ 4: (-1.85, -0.11),
+ 5: (-1.91, -0.14),
+ 6: (-2.00, -0.20),
+ 7: (-2.05, -0.20),
+ 8: (-2.13, -0.20),
+ 'highz': (-2, -0.15),
+}
 
 class DustExtinction(object):
     def __init__(self, **kwargs):
@@ -47,9 +66,8 @@ class DustExtinction(object):
 
     @cached_property
     def is_irxb(self):
-        return False
-        #raise NotImplemented('help')
-        #return self.pf['pop_dustext_template'] is not None
+        return (self.pf['pop_muvbeta'] is not None) and \
+            (self.pf['pop_irxbeta'] is not None)
 
     @cached_property
     def is_parameterized(self):
@@ -181,6 +199,8 @@ class DustExtinction(object):
         elif self.is_parameterized:
             tau = self.get_opacity(wave, Av=Av, Sd=Sd)
             return np.exp(-tau)
+        elif self.is_irxb:
+            pass
         else:
             raise NotImplemented('help')
 
@@ -202,7 +222,56 @@ class DustExtinction(object):
         else:
             raise NotImplemented('help')
 
-    def get_attenuation(self, wave, Av=None, Sd=None):
+    def get_beta_from_MUV(self, MUV, z=None):
+        assert self.is_irxb
+
+        if type(self.pf['pop_muvbeta']) == str:
+            assert self.pf['pop_muvbeta'] == 'bouwens2014', \
+                "Only know Bouwens+ 2014 MUV-Beta right now!"
+
+            zint = round(z, 0)
+
+            if zint < 4:
+                zint = 'lowz'
+            elif zint >= 9:
+                zint = 'highz'
+
+            a, b = _coeff_b14[zint]
+
+            return a + b * (MUV + 19.5)
+        elif type(self.pf['pop_muvbeta']) == FunctionType:
+            raise NotImplemented('help')
+        elif type(self.pf['pop_muvbeta']) in numeric_types:
+            beta = self.pf['pop_muvbeta']
+        else:
+            raise NotImplemented('help')
+
+        return beta
+
+    def get_AUV_from_irxb(self, MUV=None, beta=None, z=None):
+        assert self.is_irxb
+
+        if MUV is not None:
+            beta = self.get_beta_from_MUV(MUV, z=z)
+
+        # Currently only allow named IRX-Beta relations
+        if type(self.pf['pop_irxbeta']) == str:
+            assert self.pf['pop_irxbeta'] in _coeff_irxb.keys(), \
+                f"Don't know {self.pf['pop_irxbeta']} IRX-Beta relation!"
+
+            b, m = _coeff_irxb[self.pf['pop_irxbeta']]
+
+            return b + m * beta
+        elif type(self.pf['pop_irxbeta']) in [list, tuple, np.ndarray]:
+            assert len(self.pf['pop_irxbeta']) == 2
+            b, m = self.pf['pop_irxbeta']
+
+            return b + m * beta
+        else:
+            raise NotImplemented('help')
+
+    def get_attenuation(self, wave, Av=None, Sd=None, MUV=None, beta=None,
+        z=None):
         if type(wave) in numeric_types:
             wave = np.array([wave])
 
@@ -215,6 +284,12 @@ class DustExtinction(object):
                 Sd = np.array([Sd])
             tau = self.get_opacity(wave, Av=Av, Sd=Sd)
             A = 2.5 * tau / np.log(10.)
+        elif self.is_irxb:
+            assert 1000 <= wave <= 2000, \
+                "Should only use this method for UV attenuation!"
+            assert (MUV is not None) or (beta is not None), \
+                "Must provide `MUV` or `beta`!"
+            A = self.get_AUV_from_irxb(MUV, beta, z=z)
         else:
             raise NotImplemented('help')
 

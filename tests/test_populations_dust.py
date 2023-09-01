@@ -39,7 +39,6 @@ def test():
     assert np.exp(-pop_Av.dust.get_opacity(1500, Av=0.5)) \
         == pop_Av.dust.get_transmission(1500, Av=0.5)
 
-
     pars2 = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
     pars2.update(ares.util.ParameterBundle('testing:galaxies'))
     pars2['pop_Z'] = (0.02, 0.02)
@@ -79,7 +78,6 @@ def test():
 
 
     # Check that all works if Mh is an array
-
     Sd = np.logspace(-6, -5, 10)
     tau = pop_Sd.dust.get_opacity(waves, Sd=Sd)
 
@@ -117,6 +115,19 @@ def test():
         ow, spec = pop.get_spec_obs(z=2, waves=waves)
 
         assert np.all(spec <= spec0)
+
+    ##
+    # Check MUV-Beta approach to reddening
+    for muvbeta in [-2, 'bouwens2014']:
+        pars_irxb = ares.util.ParameterBundle('mirocha2020:legacy_irxb')
+        pars_irxb['pop_muvbeta'] = muvbeta # just for testing
+
+        pars_irxb.update(ares.util.ParameterBundle('testing:galaxies'))
+        pop_irxb = ares.populations.GalaxyPopulation(**pars_irxb)
+
+        AUV = pop_irxb.dust.get_attenuation(wave=1600, MUV=-20, z=6)
+        assert 0 <= AUV <= 3, "AUV unreasonable!"
+
 
 if __name__ == '__main__':
     test()

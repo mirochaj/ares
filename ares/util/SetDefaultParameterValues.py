@@ -888,7 +888,8 @@ def PopulationParameters():
     'pop_dust_template': None,
     "pop_dust_absorption_coeff": None,   # opacity in [cm^2 / g]
 
-
+    "pop_muvbeta": None,
+    "pop_irxbeta": None,
 
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
