@@ -115,8 +115,10 @@ class Galaxy(SynthesisModel):
             return norm * np.exp(-self.tH / tau) * np.exp(t / tau)
         elif sfh == 'const':
             norm = kwargs['norm']
-            tau = kwargs['tau']
-            t0 = kwargs['t0']
+            if 't0' in kwargs:
+                t0 = kwargs['t0']
+            else:
+                t0 = 0
 
             sfr = norm * np.ones_like(t)
             sfr[t < t0] = 0
@@ -321,35 +323,53 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented('help')
 
-    def get_spec(self, zobs, t=None, mass=None, sfr=None, waves=None,
+    def get_spec(self, zobs, t=None, sfh=None, mass=None, sfr=None, waves=None,
         tau_guess=1e3, use_pbar=True, **kwargs):
         """
-        Return the rest-frame spectrum of a galaxy at given t, that has
+        Return the rest-frame spectrum of a galaxy at observed redshift, `zobs`.
+
+        There are a few options for how this works:
+        1) The user can supply an array of times, `t`, and the corresponding
+           star formation history, `sfh`, directly as keyword arguments.
+
+        that has
         stellar mass `mass` and SFR `sfr`.
 
         Parameters
         ----------
         t : np.ndarray
-            Array of times in Myr since Big Bang.
+            Array of times in Myr since Big Bang in Myr.
         """
 
         if waves is None:
             waves = self.tab_waves_c
 
-        if kwargs == {}:
+        kw = None
+        perform_synthesis = True
+        if (sfh is not None) and (type(sfh) == np.ndarray):
+            assert t is not None
+            if np.all(np.diff(t) > 0):
+                tasc = t.copy()
+                sfh_asc = sfh.copy()
+                t = t[-1::-1]
+                sfh = sfh[-1::-1]
+
+        elif kwargs == {}:
             assert (t is not None) and (mass is not None) and (sfr is not None), \
                 "Must provide kwargs or (t, mass, sfr)"
             kw = self.get_kwargs(t, mass, sfr, tau_guess=tau_guess)
         else:
             kw = kwargs
 
-        sfh = self.get_sfr(self.tab_t_pop, **kw)
-
-        tasc = self.tab_t_pop[-1::-1]
-        sfh_asc = sfh[-1::-1]
+        if kw is not None:
+            sfh = self.get_sfr(self.tab_t_pop, **kw)
+            tasc = self.tab_t_pop[-1::-1]
+            sfh_asc = sfh[-1::-1]
+            perform_synthesis = \
+                ('sfh' not in kwargs) or (kwargs['sfh'] not in ['const', 'burst'])
 
         # General case: synthesize SED
-        if ('sfh' not in kwargs) or (kwargs['sfh'] not in ['const', 'burst']):
+        if perform_synthesis:
             spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
                 waves=waves, zobs=zobs, load=False, use_pbar=use_pbar)
             return spec
