@@ -39,20 +39,18 @@ to get fresh copies of everything. If you're concerned that a download may have 
     ares download planck --fresh
 
 
+Trouble with external datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The file downloads described above have been known to fail on occasion. There are a variety of reasons for this:
 
-*ARES* versions
----------------
-The first stable release of *ARES* was used in `Mirocha et al. (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_, and is tagged as `v0.1` in the revision history. The tag `v0.2` is associated with `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_. Note that these tags are just shortcuts to specific revisions. You can switch between them just like you would switch between branches, e.g.,
+- Intermittent network connectivity might mean only one download fails while the rest proceed no problem. In this case, running with the `--fresh` flag should do the trick.
+- Over time, some of these files may be moved to a new site, and so the hardcoded links in ARES will point to the wrong place. If you copy-paste the link into your browser and there is no file to be found, please let me know. Better yet, if you can find the new home of this file, go ahead and submit a pull request with the updated path (which you should find in `ares.util.cli` in the `aux_data` dictionary).
+- There are also some potentially-OS dependent failure modes. For example, some of the files downloaded are `.zip` files or tarballs, and so there is an unpacking step that may actually be to blame for the failure. In the future, it's probably worth handling these errors separately, but in the meantime, please check if the error is a red herring by verifying whether or not the file has been downloaded, and if it has, try to unpack it yourself by hand.
 
-::
 
-    git update v0.2
-
-If you're unsure which version is best for you, see the :doc:`history`.
-
-Don't have Python already?
---------------------------
-If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install Python and many commonly-used Python packages for you. `Anaconda <https://www.continuum.io/downloads>`_ is also good for this.
+Downloading BPASS versions >= 2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If you want to use newer versions of BPASS, you'll have to download those files by hand from the Google Drive folders where they are hosted, which you can navigate to from `here <https://bpass.auckland.ac.nz/9.html>`_. Then, unpack in `$HOME/.ares/bpass_v2`.
 
 Help
 ----

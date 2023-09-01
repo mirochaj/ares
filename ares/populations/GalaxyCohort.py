@@ -1265,9 +1265,23 @@ class GalaxyCohort(GalaxyAggregate):
         Parameters
         ----------
         z : int, float
-            Redshift. Will interpolate between values in halos.tab_z if necessary.
-        mags : bool
-            If True, x-values will be in absolute (AB) magnitudes
+            Redshift. Will interpolate between values in halos.tab_z if
+            necessary.
+        bins : bool
+            Bin (centers) at which to compute LF.
+        use_mags : bool
+            If True, will return luminosity function vs. AB magnitudes,
+            otherwise will use luminosities.
+        absolute : bool
+            If True and use_mags==True, returns LF at absolute AB magnitudes,
+            otherwise will use apparent mags.
+        x : int, float
+            Wavelength (or photon energy or w/e) of interest. Whether it's a
+            wavelength or not is determined by `units` parameter, 'Angstroms'
+            by default.
+        window : int
+            Can compute galaxy luminosities averaged over some `window`, often
+            50-100 Angstroms
 
         Returns
         -------

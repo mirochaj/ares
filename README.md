@@ -116,8 +116,9 @@ To generate a model for the global 21-cm signal, simply type:
 ```python
 import ares
 
-sim = ares.simulations.Simulation()      # Initialize a simulation object
-sim.get_21cm_gs()   
+pars = ares.util.ParameterBundle('global_signal:basic') # Parameters
+sim = ares.simulations.Simulation(**pars)               # Initialize a simulation object
+gs = sim.get_21cm_gs()   
 ```                                               
 
 You can examine the contents of ``sim_gs.history``, a dictionary which contains
@@ -125,7 +126,7 @@ the redshift evolution of all IGM physical quantities, or use some built-in
 analysis routines:
 
 ```python
-sim_gs.Plot21cmGlobalSignal()
+gs.Plot21cmGlobalSignal()
 ```    
 
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type:
@@ -135,13 +136,24 @@ import matplotlib.pyplot as plt
 plt.show()
 ```
 
+To generate a quick luminosity function, you could do
+
+```python
+pars = ares.util.ParameterBundle('mirocha2020:legacy')
+pop = ares.populations.GalaxyPopulation(**pars)
+
+bins, phi = pop.get_uvlf(z=6, bins=np.arange(-25, -10, 0.1))
+
+plt.semilogy(bins, phi)
+```
+
 ## Help
 
 If you encounter problems with installation or running simple scripts, first check the Troubleshooting page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!
 
 ## Contributors
 
-Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/home) (McGill)
+Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/home) 
 
 Additional contributions / corrections / suggestions from:
 

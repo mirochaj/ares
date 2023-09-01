@@ -35,3 +35,7 @@ Additional contributions / corrections / suggestions from:
    * Felix Bilodeau-Chagnon
    * Venno Vipp
    * Oscar Hernandez
+   * Joshua Hibbard
+   * Trey Driskell
+   * Judah Luberto
+   * Paul La Plante
