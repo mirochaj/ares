@@ -118,16 +118,29 @@ def test():
 
     ##
     # Check MUV-Beta approach to reddening
-    for muvbeta in [-2, 'bouwens2014']:
-        pars_irxb = ares.util.ParameterBundle('mirocha2020:legacy_irxb')
-        pars_irxb['pop_muvbeta'] = muvbeta # just for testing
-
+    pars_leg = ares.util.ParameterBundle('mirocha2020:legacy')
+    pars_leg.update(ares.util.ParameterBundle('testing:galaxies'))
+    pop_leg = ares.populations.GalaxyPopulation(**pars_leg)
+    mags = np.arange(-25, -10, 0.1)
+    for muvbeta in [-2., 'bouwens2014']:
+        # Use same parameters as no-dust case to ensure systematic effect
+        pars_irxb = ares.util.ParameterBundle('mirocha2020:legacy')
         pars_irxb.update(ares.util.ParameterBundle('testing:galaxies'))
+        pars_irxb['pop_muvbeta'] = muvbeta
+        pars_irxb['pop_irxbeta'] = 'meurer1999'
         pop_irxb = ares.populations.GalaxyPopulation(**pars_irxb)
 
         AUV = pop_irxb.dust.get_attenuation(wave=1600, MUV=-20, z=6)
         assert 0 <= AUV <= 3, "AUV unreasonable!"
 
+        lf_wd = pop_irxb.get_uvlf(6, mags)[1]
+        lf_0d = pop_leg.get_uvlf(6, mags)[1]
+
+        diff = (lf_0d - lf_wd)
+
+        # Check that UVLF is suppressed when we include dust.
+        assert np.all(diff <= 1), \
+            "Issue with phenomenological dust correction!"
 
 if __name__ == '__main__':
     test()

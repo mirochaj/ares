@@ -200,7 +200,9 @@ class DustExtinction(object):
             tau = self.get_opacity(wave, Av=Av, Sd=Sd)
             return np.exp(-tau)
         elif self.is_irxb:
-            pass
+            # This case is handled separately by the `get_lf` method in
+            # ares.populations objects.
+            return 1.0
         else:
             raise NotImplemented('help')
 
@@ -261,12 +263,12 @@ class DustExtinction(object):
 
             b, m = _coeff_irxb[self.pf['pop_irxbeta']]
 
-            return b + m * beta
+            return np.maximum(b + m * beta, 0)
         elif type(self.pf['pop_irxbeta']) in [list, tuple, np.ndarray]:
             assert len(self.pf['pop_irxbeta']) == 2
             b, m = self.pf['pop_irxbeta']
 
-            return b + m * beta
+            return np.maximum(b + m * beta, 0)
         else:
             raise NotImplemented('help')
 
@@ -289,7 +291,7 @@ class DustExtinction(object):
                 "Should only use this method for UV attenuation!"
             assert (MUV is not None) or (beta is not None), \
                 "Must provide `MUV` or `beta`!"
-            A = self.get_AUV_from_irxb(MUV, beta, z=z)
+            A = self.get_AUV_from_irxb(MUV=MUV, beta=beta, z=z)
         else:
             raise NotImplemented('help')
 

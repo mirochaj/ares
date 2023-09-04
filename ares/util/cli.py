@@ -154,12 +154,6 @@ aux_data = {
         "umachine-dr1-obs-only.tar.gz",
         None,
     ],
-    "edges": [
-        "http://loco.lab.asu.edu/download",
-        "790/figure1_plotdata.csv",
-        "792/figure2_plotdata.csv",
-        None,
-    ],
     "euclid": [
         "https://euclid.esac.esa.int/msp/refdata/data/",
         "NISP-PHOTO-PASSBANDS-V1-Y_throughput.dat",

@@ -1313,6 +1313,28 @@ class GalaxyCohort(GalaxyAggregate):
             #raise NotImplemented('needs fixing')
             #phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
 
+        ##
+        # Might need to apply dust correction if using empirical approach.
+        if self.is_dusty and self.dust.is_irxb:
+            # In this case, the modeled magnitudes are dust-uncorrected, i.e.,
+            # reflective of the intrinsic luminosity of sources.
+            # So, we need to compute the attenuation expected at our
+            # observed magnitudes, `bins`.
+            wave = self.src.get_ang_from_x(x, units=units)
+            AUV = self.dust.get_attenuation(wave, MUV=bins, z=z)
+
+            # Dust-reddened magnitudes
+            Mdr = bins + AUV
+
+            # Now we need to interpolate back onto given mag bins
+            # to recover observed LF.
+            phi_of_x = np.exp(np.interp(bins, Mdr, np.log(phi_of_x),
+                left=-np.inf, right=-np.inf))
+
+            assert absolute, "Need to generalize if absolute==False"
+
+        ##
+        # Done
         return bins, phi_of_x
 
     def get_uvlf(self, z, bins):
@@ -1691,15 +1713,16 @@ class GalaxyCohort(GalaxyAggregate):
         density or Av; this routine fetches that first.
         """
 
-        if not (include_dust_transmission or include_igm_transmission):
-            return np.ones_like(waves)
-
         waves = self.src.get_ang_from_x(x if band is None else band, units=units)
         if band is not None:
             waves = np.mean(waves)
 
         owaves = waves * 1e-4 * (1. + z)
-        if self.is_dusty and include_dust_transmission:
+
+        if not (include_dust_transmission or include_igm_transmission):
+            return np.ones_like(waves)
+
+        if self.is_dusty and include_dust_transmission and (not self.dust.is_irxb):
             if self.pf['pop_dust_template'] is not None:
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
                 Ms = self.halos.tab_M * smhm
@@ -2436,10 +2459,7 @@ class GalaxyCohort(GalaxyAggregate):
         _MAB = self.magsys.L_to_MAB(Lh)
 
         wave = self.src.get_ang_from_x(x, units=units)
-        if (self.pf['dustcorr_method'] is not None) and wave <= 1600:
-            MAB = self.dust.Mobs(z, _MAB)
-        else:
-            MAB = _MAB
+        MAB = _MAB
 
         #if self.pf['pop_halos'] is None:
         phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))

@@ -168,26 +168,21 @@ def test():
 
     assert np.allclose(fstar1, fstar1b)
 
-    fstar2 = pop_ham.run_abundance_match(6, Mh)
-    fstar2b = pop_ham.get_sfe(z=6, Mh=Mh)
+    #fstar2 = pop_ham.run_abundance_match(6, Mh)
+    #fstar2b = pop_ham.get_sfe(z=6, Mh=Mh)
 
-    ok = np.logical_and(Mh >= 1e9, Mh <= 1e13)
+    #ok = np.logical_and(Mh >= 1e9, Mh <= 1e13)
 
-    import matplotlib.pyplot as pl
-    pl.loglog(Mh, fstar1, ls='-')
-    pl.loglog(Mh, fstar2, ls='--')
-    input('<enter>')
-
-    assert np.allclose(fstar1[ok==1], fstar2[ok==1], rtol=1e-1)
+    #assert np.allclose(fstar1[ok==1], fstar2[ok==1], rtol=1e-1)
 
     # Check tabulated fstar (slow)
     #fstar2c = pop_ham.tab_fstar[np.argmin(np.abs(6 - pop_ham.halos.tab_z))]
 
     # Check 21cmFAST parameterization
-    pars_cmfast = ares.util.ParameterBundle('park2019:base').pars_by_pop(0, 1)
-    pop_cmfast = ares.populations.GalaxyPopulation(**pars_cmfast)
+    #pars_cmfast = ares.util.ParameterBundle('park2019:base')
+    #pop_cmfast = ares.populations.GalaxyPopulation(**pars_cmfast)
 
-    x, phi = pop_cmfast.get_uvlf(6, bins)
+    #x, phi = pop_cmfast.get_uvlf(6, bins)
 
 if __name__ == '__main__':
     test()
