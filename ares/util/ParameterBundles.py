@@ -12,7 +12,6 @@ Description:
 
 import re
 import numpy as np
-from ares import rcParams
 from ..data import read as read_lit
 from .ParameterFile import pop_id_num, par_info
 from ..physics.Constants import cm_per_kpc, E_LL
@@ -662,7 +661,7 @@ class ParameterBundle(dict):
         # Assume format: "modeltype:model", e.g., "pop:fcoll" or "sed:uv"
         pre, post = bundle.split(':')
 
-        kw = rcParams.copy()
+        kw = {}
 
         if pre in self.bset.keys():
             _kw = self.bset[pre][post]

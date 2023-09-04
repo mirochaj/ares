@@ -69,15 +69,5 @@ if __name__ == "__main__":
         except:
             pass
 
-    # Create files for defaults and labels in HOME directory
-    for fn in ['defaults', 'labels']:
-        if not os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, fn)):
-            try:
-                f = open('{0!s}/.ares/{1!s}.py'.format(HOME, fn), 'w')
-                print("pf = {}", file=f)
-                f.close()
-            except:
-                pass
-
     # run package setup
     setup(**setup_args)

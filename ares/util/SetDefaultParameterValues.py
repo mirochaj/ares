@@ -12,7 +12,6 @@ import os
 
 import numpy as np
 
-from .. import rcParams
 from ..data import ARES
 from ..physics.Constants import m_H, cm_per_kpc, s_per_myr, E_LL
 
@@ -97,8 +96,6 @@ def GridParameters():
         "tables_dt": s_per_myr,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 def MultiPhaseParameters():
@@ -129,8 +126,6 @@ def MultiPhaseParameters():
         "igm_cosmological_ics": False,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 def SlabParameters():
@@ -145,8 +140,6 @@ def SlabParameters():
         "slab_profile": 0,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 # BoundaryConditionParameters?
@@ -154,8 +147,6 @@ def FudgeParameters():
     pf = {
         "z_heII_EoR": 3.0,
     }
-
-    pf.update(rcParams)
 
     return pf
 
@@ -167,8 +158,6 @@ def AbsorberParameters():
         'cddf_zlow': 1.5,
         'cddf_gamma_low': 0.2,
     }
-
-    pf.update(rcParams)
 
     return pf
 
@@ -308,8 +297,6 @@ def PhysicsParameters():
         'feedback_ion_Mmin_smooth': False,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 def ParameterizedQuantityParameters():
@@ -348,8 +335,6 @@ def ParameterizedQuantityParameters():
         "pq_var_floor": None,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 def DustParameters():
@@ -374,7 +359,6 @@ def DustParameters():
     }
 
     pf.update(tmp)
-    pf.update(rcParams)
 
     return pf
 
@@ -488,7 +472,6 @@ def PowerSpectrumParameters():
     }
 
     pf.update(tmp)
-    pf.update(rcParams)
 
     return pf
 
@@ -972,7 +955,6 @@ def PopulationParameters():
     }
 
     pf.update(tmp)
-    pf.update(rcParams)
 
     return pf
 
@@ -1102,8 +1084,6 @@ def SourceParameters():
         "source_rmax": 1e3,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 def StellarParameters():
@@ -1113,7 +1093,6 @@ def StellarParameters():
     }
 
     pf.update(SourceParameters())
-    pf.update(rcParams)
 
     return pf
 
@@ -1136,7 +1115,6 @@ def BlackHoleParameters():
     }
 
     pf.update(SourceParameters())
-    pf.update(rcParams)
 
     return pf
 
@@ -1327,7 +1305,6 @@ def HaloMassFunctionParameters():
         "halo_MAR_from_CDM": True,
     }
 
-    pf.update(rcParams)
 
     return pf
 
@@ -1376,8 +1353,6 @@ def CosmologyParameters():
         'cosmorec_fmt': '.dat',
     }
 
-    pf.update(rcParams)
-
     return pf
 
 def HaloParameters():
@@ -1387,8 +1362,6 @@ def HaloParameters():
         "halo_cmr": 'duffy',
         "halo_delta": 200.0,
     }
-
-    pf.update(rcParams)
 
     return pf
 
@@ -1512,8 +1485,6 @@ def ControlParameters():
         'use_mcfit': True,
     }
 
-    pf.update(rcParams)
-
     return pf
 
 _sampling_parameters = {
@@ -1554,7 +1525,6 @@ def TanhParameters():
         'tanh_scale_freq': 1.0
     }
 
-    pf.update(rcParams)
     pf.update(_sampling_parameters)
 
     return pf
@@ -1567,8 +1537,6 @@ def GaussianParameters():
         'gaussian_sigma': 10.0,
         'gaussian_bias_temp': 0,
     }
-
-    pf.update(rcParams)
     pf.update(_sampling_parameters)
 
     return pf
