@@ -46,10 +46,7 @@ def read(prefix, path=None, verbose=True):
             print("WARNING: multiple copies of {!s} found.".format(prefix))
             print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
 
-    # TODO: The imp module is deprecated. This should be replaced with something
-    # from importlib before python v3.12.
-    #_f, _filename, _data = _imp.find_module(prefix, [loc])
-    #mod = _imp.load_module(prefix, _f, _filename, _data)
+
     mod = importlib.__import__(f"{loc}/{prefix}")
 
     # Save this for sanity checks later
