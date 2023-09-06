@@ -1,5 +1,5 @@
 import numpy as np
-from ares.physics.Constants import E_LyA, E_LL
+from ares.physics.Constants import E_LyA
 
 _base = \
 {
@@ -89,16 +89,16 @@ centrals_sf = \
  'pq_func[1]': 'dpl_evolB13',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
- 'pq_func_par0[1]': 4e-10,
+ 'pq_func_par0[1]': 5e-10,
  'pq_func_par1[1]': 2e9,
- 'pq_func_par2[1]': 0.0,
- 'pq_func_par3[1]': -0.8,
+ 'pq_func_par2[1]': -0.1,
+ 'pq_func_par3[1]': -0.7,
  'pq_func_par4[1]': 1e8,   # Mstell anchor
- 'pq_func_par5[1]': 1.3,   # scales (1-a) term
- 'pq_func_par6[1]': 2,     # scales (1-a) term
+ 'pq_func_par5[1]': 2.,    # scales (1-a) term
+ 'pq_func_par6[1]': 0.,    # scales (1-a) term
  'pq_func_par7[1]': 0,     # scales (1-a) term
  'pq_func_par8[1]': 0,     # scales (1-a) term
- 'pq_func_par9[1]': 0.0,   # scales log(1+z) term
+ 'pq_func_par9[1]': 0.2,   # scales log(1+z) term
  'pq_func_par10[1]': 0.0,  # scales log(1+z) term
  'pq_func_par11[1]': 0.0,  # scales log(1+z) term
  'pq_func_par12[1]': 0.0,  # scales log(1+z) term
@@ -282,8 +282,8 @@ dust['pq_func_var2[4]'] = '1+z'
 dust['pq_func_par0[4]'] = 0.   # Off by default
 dust['pq_func_par1[4]'] = 1e10
 dust['pq_func_par2[4]'] = 0.2
-dust['pq_func_par3[4]'] = 1.   # Anchored to z=0
-dust['pq_func_par4[4]'] = 0.   # no evolution yet.
+dust['pq_func_par3[4]'] = 1.     # Anchored to z=0
+dust['pq_func_par4[4]'] = 0   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
 mzr = \

@@ -687,7 +687,8 @@ class HaloMassFunction(object):
         if not hasattr(self, '_tab_dndlnm_sub'):
 
             if self.pf['halo_mf_sub'] == 'Tinker08':
-                # Tabulate
+                # This is Eq. 12 / Fig. 8 in Tinker & Wetzel 2010 ApJ 719 88
+                # (dunno why I have this indicated at Tinker08, should update)
                 args = [self.tab_M, self.tab_M]
                 Mc, Ms = np.meshgrid(*args, indexing='ij')
                 dndlnm = 0.3 * (Ms / Mc)**-0.7 * np.exp(-9.9 * (Ms / Mc)**2.5)

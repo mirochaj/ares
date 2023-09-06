@@ -2783,7 +2783,8 @@ class GalaxyCohort(GalaxyAggregate):
                 # before this method, things don't work out. 03.15.2023.
                 if hasattr(self, '_tab_source_mask'):
                     del self._tab_source_mask
-                self._tab_Mmax_ = self.tab_source_mask
+                self._tab_Mmax_ = np.minimum(self.tab_source_mask,
+                    self._tab_Mmax_)
 
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
@@ -4994,7 +4995,7 @@ class GalaxyCohort(GalaxyAggregate):
             nu1 = c / (wave1 * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz
-            enu1 = self.get_emissivity(z, E=E1) * ev_per_hz
+            #enu1 = self.get_emissivity(z, E=E1) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_int = True
@@ -5007,7 +5008,7 @@ class GalaxyCohort(GalaxyAggregate):
             E21 = h_p * c / (wave1[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu1 = self.get_emissivity(z, band=(E21, E11), units='eV')
+            #enu1 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         if type(wave_obs2) in [int, float, np.float64]:
             is_band_int = False
@@ -5019,7 +5020,7 @@ class GalaxyCohort(GalaxyAggregate):
             nu2 = c / (wave2 * 1e-8)
 
             # [enu] = erg/s/cm^3/Hz
-            enu2 = self.get_emissivity(z, E=E2) * ev_per_hz
+            #enu2 = self.get_emissivity(z, E=E2) * ev_per_hz
             # Not clear about * nu at the end
         else:
             is_band_int = True
@@ -5032,7 +5033,7 @@ class GalaxyCohort(GalaxyAggregate):
             E22 = h_p * c / (wave2[1] * 1e-8) / erg_per_ev
 
             # [enu] = erg/s/cm^3
-            enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
+            #enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         # Need angular diameter distance and H(z) for all that follows
         d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
