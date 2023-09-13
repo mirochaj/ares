@@ -162,6 +162,23 @@ class PowerLawEvolvingSlope(BasePQ):
 
         return self.args[0] * (x / self.args[1])**p2
 
+class PowerLawEvolvingNormSlope(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        if self.t == "1+z":
+            t = 1. + kwargs["z"]
+        else:
+            t = kwargs[self.t]
+
+        p0 = self.args[0] * (t / self.args[3])**self.args[4]
+        p2 = self.args[2] * (t / self.args[3])**self.args[5]
+
+        return p0 * (x / self.args[1])**p2
+
 class PowerLawEvolvingSlopeWithGradient(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -1102,6 +1119,8 @@ class ParameterizedQuantity(object):
             self.func = PowerLawEvolvingNorm(**kwargs)
         elif kwargs["pq_func"] == "pl_evolS":
             self.func = PowerLawEvolvingSlope(**kwargs)
+        elif kwargs["pq_func"] == "pl_evolNS":
+            self.func = PowerLawEvolvingNormSlope(**kwargs)    
         elif kwargs["pq_func"] == "pl_evolS2":
             self.func = PowerLawEvolvingSlopeWithGradient(**kwargs)
         elif kwargs["pq_func"] == "erf":
