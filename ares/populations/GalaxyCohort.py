@@ -30,7 +30,7 @@ from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
-    cm_per_pc, m_H, s_per_myr
+    cm_per_pc, m_H, s_per_myr, Lsun
 
 try:
     from mpi4py import MPI
@@ -1948,6 +1948,43 @@ class GalaxyCohort(GalaxyAggregate):
                         raw=raw, nebular_only=nebular_only)
                 else:
                     L_sfr = 10**f_L_sfr(np.log10(Z))
+
+
+            ##
+            # Add by-hand line emission [optional]
+            if (not src.is_ssp) and \
+               (self.pf['pop_lum_per_sfr_at_wave'] is not None):
+
+                L_lines = 0.0
+
+                if x is not None:
+                    wave = self.src.get_ang_from_x(x, units=units)
+                elif band is not None:
+                    band = self.src.get_ang_from_x(band, units=units)
+
+                for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
+
+                    if (x is not None) and (wave == _wave_):
+                        raise NotImplemented('help')
+                    elif (band is not None) and (band[0] <= _wave_ <= band[1]):
+                        L_lines = Lsun * 10**_lum_
+                        if 'erg/s/A' in units_out:
+                            dlam = (band[1] - band[0])
+                            dnu = None
+                            L_lines /= dlam
+                        else:
+                            dlam = None
+                            dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
+                            L_lines /= dnu
+
+                        #L_lines *= s_per_yr
+
+                        print("Got a hit!", z, _lum_, units_out, dlam, dnu,
+                            _wave_, L_sfr, L_lines, L_lines / L_sfr)
+
+                # Count it
+                L_sfr += L_lines
+
 
             ##
             # Apply fesc

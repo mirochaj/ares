@@ -279,15 +279,18 @@ ihl_like_z14['pq_func_par5[3]{2}'] = -1. # Evolves as (1+z)^{-1}
 dust = {}
 dust['pop_dust_template'] = 'WD01:MWRV31'
 dust['pop_Av'] = 'pq[4]'
-dust['pq_func[4]'] = 'pl_evolNS'
+dust['pq_func[4]'] = 'pl_evolB13'
 dust['pq_func_var[4]'] = 'Ms'
 dust['pq_func_var2[4]'] = '1+z'
 dust['pq_func_par0[4]'] = 0.   # Off by default
 dust['pq_func_par1[4]'] = 1e10
 dust['pq_func_par2[4]'] = 0.2
-dust['pq_func_par3[4]'] = 1.     # Anchored to z=0
+dust['pq_func_par3[4]'] = 0   # no evolution yet.
 dust['pq_func_par4[4]'] = 0   # no evolution yet.
 dust['pq_func_par5[4]'] = 0   # no evolution yet.
+dust['pq_func_par6[4]'] = 0   # no evolution yet.
+dust['pq_func_par7[4]'] = 0   # no evolution yet.
+dust['pq_func_par8[4]'] = 0   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
 mzr = \
@@ -399,30 +402,32 @@ best_smfs_diff = \
 
 best_smfs_same = \
 {
-'pq_func_par0[0]{0}': 1.8501e-03,
-'pq_func_par1[0]{0}': 2.5866e+11,
-'pq_func_par2[0]{0}': 1.0064e+00,
-'pq_func_par3[0]{0}': -5.7355e-01,
-'pq_func_par5[0]{0}': 1.2506e-01,
-'pq_func_par6[0]{0}': 1.5261e+00,
-'pq_func_par9[0]{0}': -2.1945e+00,
-'pq_func_par13[0]{0}': 6.4024e-01,
-'pq_func_par0[2]{0}': 4.1912e-02,
-'pq_func_par1[2]{0}': 8.2874e-01,
-'pq_func_par2[2]{0}': 1.2067e+01,
-'pq_func_par3[2]{0}': -6.1266e-01,
-'pq_func_par4[2]{0}': 9.1439e-02,
-'pq_func_par5[2]{0}': -2.6653e-01,
-'pq_func_par6[2]{0}': 5.4683e-01,
-'pq_func_par7[2]{0}': 3.4699e-01,
-'pq_func_par8[2]{0}': 1.2415e-01,
-'pq_func_par9[2]{0}': 7.6586e-02,
-'pq_func_par10[2]{0}': -3.0371e-01,
-'pq_func_par11[2]{0}': 2.5823e-01,
-'pq_func_par12[2]{0}': 1.7982e-01,
-'pq_func_par13[2]{0}': 2.0090e-01,
-'pq_func_par14[2]{0}': -6.2245e-02,
-'pq_func_par15[2]{0}': -5.1786e-02,
+'pq_func_par0[0]{0}': 1.1289e-03,
+'pq_func_par1[0]{0}': 4.1297e+11,
+'pq_func_par2[0]{0}': 1.0769e+00,
+'pq_func_par3[0]{0}': -5.5430e-01,
+'pq_func_par5[0]{0}': 3.1670e+00,
+'pq_func_par9[0]{0}': -5.0345e+00,
+'pq_func_par13[0]{0}': 1.2415e+00,
+'pq_func_par6[0]{0}': -1.7257e+00,
+'pq_func_par10[0]{0}': 2.6368e+00,
+'pq_func_par14[0]{0}': -4.8918e-01,
+'pq_func_par0[2]{0}': 8.2539e-02,
+'pq_func_par1[2]{0}': 8.7477e-01,
+'pq_func_par2[2]{0}': 1.1952e+01,
+'pq_func_par3[2]{0}': -8.2253e-01,
+'pq_func_par4[2]{0}': 3.5025e-01,
+'pq_func_par8[2]{0}': -5.2800e-01,
+'pq_func_par12[2]{0}': 4.1665e-01,
+'pq_func_par5[2]{0}': -2.2707e-01,
+'pq_func_par9[2]{0}': 1.1299e-02,
+'pq_func_par13[2]{0}': 1.7257e-01,
+'pq_func_par6[2]{0}': 4.0418e-01,
+'pq_func_par10[2]{0}': 4.0058e-01,
+'pq_func_par14[2]{0}': -3.2362e-01,
+'pq_func_par7[2]{0}': 1.5066e+00,
+'pq_func_par11[2]{0}': -5.6386e-01,
+'pq_func_par15[2]{0}': 1.0131e-01,
 }
 
 best_ssfr = \
