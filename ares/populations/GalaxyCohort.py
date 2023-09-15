@@ -1952,6 +1952,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Add by-hand line emission [optional]
+            # Just be careful not to double count.
             if (not src.is_ssp) and \
                (self.pf['pop_lum_per_sfr_at_wave'] is not None):
 
@@ -1976,11 +1977,6 @@ class GalaxyCohort(GalaxyAggregate):
                             dlam = None
                             dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
                             L_lines /= dnu
-
-                        #L_lines *= s_per_yr
-
-                        print("Got a hit!", z, _lum_, units_out, dlam, dnu,
-                            _wave_, L_sfr, L_lines, L_lines / L_sfr)
 
                 # Count it
                 L_sfr += L_lines
