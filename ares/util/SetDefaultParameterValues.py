@@ -1040,6 +1040,7 @@ def SourceParameters():
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
         "source_sfh_axes": None,
+        "source_sfh_fallback": None,
 
         "source_psm_instance": None,
         "source_age": 100.0,

@@ -61,9 +61,9 @@ class Galaxy(SynthesisModel):
             self._synth = SpectralSynthesis(**self.pf)
             self._synth.src = self
             self._synth._src_csfr = self._src_csfr
-            self._synth.oversampling_enabled = self.pf['pop_ssp_oversample']
-            self._synth.oversampling_below = self.pf['pop_ssp_oversample_age']
-            self._synth.careful_cache = self.pf['pop_synth_cache_level']
+            self._synth.oversampling_enabled = False
+            self._synth.oversampling_below = 30
+            self._synth.careful_cache = 1
 
         return self._synth
 
@@ -142,8 +142,14 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented('help')
 
+    def _get_freturn(self, t):
+        """
+        t in Myr. This is from Behroozi+ 2013.
+        """
+        return 0.05 * np.log(1. + t / 1.4)
+
     def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.1, tau_guess=1e3,
-        sfh=None, **kwargs):
+        sfh=None, mass_return=False, tarr=None, **kwargs):
         """
         Determine the free parameters of a model needed to produce stellar mass
         `mass` and star formation rate `sfr` at `t` [since Big Bang / Myr].
@@ -172,7 +178,30 @@ class Galaxy(SynthesisModel):
             # For rising history, mass = A * tau * (e^(t / tau) - 1)
             _mass = 1e6 * norm * tau * (1 - np.exp(-t / tau))
 
+            ##
+            # Refine if mass_return is on.
+            if mass_return:
+                def func(pars):
+                    logA, logtau = pars
+                    sfr0 = self.get_sfr(t, norm=10**logA, tau=10**logtau,
+                        sfh=sfh, **kwargs)
+                    dSFR = np.log10(sfr0 / sfr)
+
+                    mhist = self.get_mass(tarr, norm=10**logA, tau=10**logtau,
+                        mass_return=True, sfh=sfh, **kwargs)
+                    dMst = np.log10(np.max(mhist) / mass)
+
+                    return abs(dSFR) + abs(dMst)
+
+                best = fmin(func, [np.log10(norm), np.log10(tau)],
+                    disp=disp, full_output=disp, ftol=0.01, xtol=0.01)
+
+                norm, tau = 10**best
+
+            ##
+            # Save to dict
             kw = {'norm': norm, 'tau': tau, 'sfh': 'exp_decl'}
+            #
         elif sfh == 'exp_decl_trunc':
             assert 't0' in kwargs, "Must provide `t0` for sfh='exp_decl_trunc'!"
             t0 = kwargs['t0']
@@ -233,7 +262,7 @@ class Galaxy(SynthesisModel):
                 dSFR = self.get_sfr(t, t0=t0, norm=10**logA, tau=10**logtau) \
                      - sfr
                 dMst = self.get_mass(t, t0=t0, norm=10**logA, tau=10**logtau) \
-                     - sfr
+                     - mass
 
                 return abs(dSFR) + abs(dMst)
 
@@ -285,7 +314,7 @@ class Galaxy(SynthesisModel):
 
         return kw
 
-    def get_mass(self, t, **kwargs):
+    def get_mass(self, t, mass_return=False, **kwargs):
         """
         Return stellar mass for a given SFH model, integrate analytically
         when possible.
@@ -296,7 +325,32 @@ class Galaxy(SynthesisModel):
         else:
             sfh = self.pf['source_sfh']
 
-        if sfh == 'exp_decl':
+        if mass_return:
+            func = lambda tt: self.get_sfr(tt, **kwargs)
+
+            flip = False
+            if not np.all(np.diff(t) > 0):
+                flip = True
+                tasc = t[-1::-1]
+            else:
+                tasc = t
+
+            smd_ret = []
+            for i, _t_ in enumerate(tasc):
+
+                # Re-compute integrand accounting for f_return
+                smd_of_t = [func(tasc[k]) \
+                    * (1 - self._get_freturn(tasc[i] - tasc[k])) \
+                        for k, _tt_ in enumerate(tasc[0:i])]
+
+                smd_ret.append(np.trapz(smd_of_t, x=tasc[0:i] * 1e6))
+
+            if flip:
+                return np.array(smd_ret)[-1::-1]
+            else:
+                return np.array(smd_ret)
+
+        elif sfh == 'exp_decl':
             tau = kwargs['tau']
             norm = kwargs['norm']
 
@@ -353,6 +407,9 @@ class Galaxy(SynthesisModel):
                 sfh_asc = sfh.copy()
                 t = t[-1::-1]
                 sfh = sfh[-1::-1]
+            else:
+                tasc = t[-1::-1]
+                sfh_asc = sfh[-1::-1]
 
         elif kwargs == {}:
             assert (t is not None) and (mass is not None) and (sfr is not None), \
@@ -372,6 +429,7 @@ class Galaxy(SynthesisModel):
         if perform_synthesis:
             spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
                 waves=waves, zobs=zobs, load=False, use_pbar=use_pbar)
+            print('hello', np.all(np.isinf(spec)))
             return spec
 
         ##
@@ -412,8 +470,8 @@ class Galaxy(SynthesisModel):
     def get_mags(self):
         pass
 
-    def get_lum_per_sfr(self):
-        pass
+    #def get_lum_per_sfr(self):
+    #    pass
 
     def get_tab_fn(self):
         """

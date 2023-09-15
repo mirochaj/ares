@@ -1083,8 +1083,7 @@ class SpectralSynthesis(object):
         # Get luminosity per unit SFR vs. time at whatever wavelength or in
         # whatever band the user wants.
         Loft = self.src.get_lum_per_sfr_of_t(x=x, units=units, window=window,
-            band=band, units_out=units_out,
-            raw=False)
+            band=band, units_out=units_out, raw=False)
 
         # Setup interpolant for luminosity as a function of SSP age.
         Loft[Loft == 0] = tiny_lum

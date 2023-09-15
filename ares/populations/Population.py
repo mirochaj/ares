@@ -28,7 +28,6 @@ from ..util.PrintInfo import print_pop
 from ..obs.Photometry import Photometry
 from ..obs.OpticalDepth import OpticalDepth
 from ..util.ParameterFile import get_pq_pars
-from ..obs.DustCorrection import DustCorrection
 from ..obs.DustExtinction import DustExtinction
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import get_function_from_par
@@ -171,12 +170,6 @@ class Population(object):
     @id_num.setter
     def id_num(self, value):
         self._id_num = int(value)
-
-    #@property
-    #def dust(self):
-    #    if not hasattr(self, '_dust'):
-    #        self._dust = DustCorrection(**self.pf)
-    #    return self._dust
 
     @property
     def dust(self):
