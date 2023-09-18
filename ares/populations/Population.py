@@ -492,7 +492,9 @@ class Population(object):
     @cached_property
     def is_emissivity_bruteforce(self):
         return (not self.pf['pop_emissivity_tricks']) \
-            or (self.pf['pop_sfh'] not in simple_sfhs)
+            or (self.pf['pop_sfh'] not in simple_sfhs) \
+            or (self.pf['pop_lum_corr'] is not None) \
+            or (self.pf['pop_lum_per_sfr_at_wave'] is not None)
 
     @property
     def is_emissivity_scalable(self):
@@ -1303,7 +1305,7 @@ class Population(object):
 
                     # If aging population, is handled within the pop object.
                     if not self.is_aging:
-                        fix = 1. / self._convert_band(*band)
+                        fix = 1. / self._convert_band(band, units='eV')
                     else:
                         fix = 1.
 

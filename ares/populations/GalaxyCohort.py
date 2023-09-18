@@ -21,6 +21,7 @@ from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.misc import derivative
 from scipy.optimize import fsolve
+from functools import cached_property
 from ..util.Misc import numeric_types
 from scipy.integrate import quad, simps, cumtrapz, ode
 from .GalaxyAggregate import GalaxyAggregate
@@ -1799,13 +1800,19 @@ class GalaxyCohort(GalaxyAggregate):
                 assert self.is_metallicity_constant
             else:
 
+
                 # Enforce maximum of a Hubble time
                 t_H = self.cosm.HubbleTime(z) / s_per_myr
+                age_is_num = isinstance(src.pf['source_age'], numbers.Number)
 
-                if age_def == None:
+                if (age_def in [None, 'mixed']) and age_is_num and src.pf['source_age'] >= 1:
                     age = src.pf['source_age']
-                elif isinstance(age_def, numbers.Number):
+                    age_def = None
+                elif isinstance(self.pf['pop_age_definition'], numbers.Number):
+                    # e.g., mass doubling time
                     age = age_def * Ms / sfr / 1e6
+                elif (not age_is_num) and src.pf['source_age'].lower() == 'hubble':
+                    age = np.array([t_H] * len(Ms))
                 else:
                     raise NotImplemented('help')
 
@@ -1915,8 +1922,6 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # Change to appropriate units
                 #if 'hz' in units_out.lower():
-
-
                 L_sfr = lum / sfr
 
                 #lum = np.zeros_like(self.halos.tab_M)
@@ -2045,6 +2050,56 @@ class GalaxyCohort(GalaxyAggregate):
             _Lh_[~ok] = 0
             ##
             Lh += _Lh_
+
+        ##
+        # [optional] Apply correction to galaxy luminosities.
+        if self.pf['pop_lum_corr'] is not None:
+
+            assert self.pf['pop_nebular'] == 0, \
+                "Need to handle nebular emission separately for pop_lum_corr."
+
+            if type(self.pf['pop_lum_corr']) in numeric_types:
+                kludge = self.pf['pop_lum_corr']
+            else:
+                ##
+                # Need to interpolate in redshift, stellar mass, wavelength
+                corr = self.tab_lum_corr
+                corr_z = self._tab_lum_corr_z
+                corr_M = self._tab_lum_corr_Ms # actually log10(stellar mass)
+                corr_w = self._tab_lum_corr_waves
+
+                # Use correction for mean of band [if provided] or exact wavelength
+                if band is not None:
+                    _band = self.src.get_ang_from_x(band, units=units)
+                    wave = np.mean(_band)
+                elif x is not None:
+                    wave = self.src.get_ang_from_x(x, units=units)
+
+                iw = np.argmin(np.abs(wave - corr_w))
+
+                # Bracket redshift range
+                ilo = np.argmin(np.abs(z - corr_z))
+
+                # If requested z < tabulated range, just return
+                if (ilo == 0) and (z < corr_z[ilo]):
+                    kludge = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw])
+                elif ilo == len(corr_z) - 1:
+                    kludge = np.interp(np.log10(Ms), corr_M, corr[-1,:,iw])
+                else:
+                    # Make sure we're bracketing redshift range.
+                    if corr_z[ilo] > z:
+                        ilo -= 1
+
+                    kludge1 = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw])
+                    kludge2 = np.interp(np.log10(Ms), corr_M, corr[ilo+1,:,iw])
+                    m = (kludge2 - kludge1) / (corr_z[ilo+1] - corr_z[ilo])
+
+                    # Interpolate in redshift
+                    kludge = kludge1 + m * (z - corr_z[ilo])
+
+            ##
+            # Apply luminosity correction
+            Lh = Lh * kludge
 
         ##
         # Done
@@ -2281,6 +2336,25 @@ class GalaxyCohort(GalaxyAggregate):
                 raise NotImplemented('help!')
 
             return xout, self.get_mags_app(z, mags)
+
+    @cached_property
+    def tab_lum_corr(self):
+        if self.pf['pop_lum_corr'] is None:
+            return None
+
+        # Read from file
+        assert type(self.pf['pop_lum_corr']) == str
+
+        with h5py.File(self.pf['pop_lum_corr'], 'r') as f:
+            self._tab_lum_corr_z = np.array(f[('z')])
+            self._tab_lum_corr_Ms = np.array(f[('Ms')])
+            self._tab_lum_corr_waves = np.array(f[('waves')])
+            self._tab_lum_corr = np.array(f[('corr')])
+
+        if self.pf['verbose']:
+            print(f"# Loaded {self.pf['pop_lum_corr']}.")
+
+        return self._tab_lum_corr
 
     def get_Mmax_from_maglim(self, z, x, mlim, mtol=0.05):
         """

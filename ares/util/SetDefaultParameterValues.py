@@ -891,6 +891,7 @@ def PopulationParameters():
     "pop_lum_per_sfr": None,
 
     "pop_lum_per_sfr_at_wave": None,
+    "pop_lum_corr": None,
 
     "pop_calib_Z": None,        # not implemented
 
