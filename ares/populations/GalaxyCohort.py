@@ -162,7 +162,7 @@ class GalaxyCohort(GalaxyAggregate):
         return src
 
     def _get_lum_all_Z(self, x=1600., band=None, window=1, raw=False,
-        nebular_only=False, age=None, units='Angstrom'):
+        nebular_only=False, age=None, units='Angstrom', units_out='erg/s/A'):
         """
         Get the luminosity (per SFR) for all possible metallicities.
 
@@ -176,27 +176,43 @@ class GalaxyCohort(GalaxyAggregate):
             self._cache_lum_all_Z = {}
 
         # Grab result from cache if it exists.
-        if (x, window, band, raw, nebular_only, age) in self._cache_lum_all_Z:
-            L_of_Z_func = \
-                self._cache_lum_all_Z[(x, window, band, raw, nebular_only, age)]
+        #if (x, window, band, raw, nebular_only, age) in self._cache_lum_all_Z:
+        #    L_of_Z_func = \
+        #        self._cache_lum_all_Z[(x, window, band, raw, nebular_only, age)]
 
-            return L_of_Z_func
+        #    return L_of_Z_func
+
+        age_is_arr = type(age) == np.ndarray
 
         tmp = []
         Zarr = np.sort(list(self.src.tab_metallicities))
         for i, Z in enumerate(Zarr):
             src = self._get_src_by_Z(i)
-            L_per_sfr = src.get_lum_per_sfr(x=x, units=units, window=window,
-                band=band, raw=raw, nebular_only=nebular_only, age=age)
+
+            if age_is_arr:
+                L_per_sfr = [src.get_lum_per_sfr(x=x, units=units, window=window,
+                    band=band, raw=raw, nebular_only=nebular_only, age=_age,
+                    units_out=units_out) for _age in age]
+            else:
+                L_per_sfr = src.get_lum_per_sfr(x=x, units=units, window=window,
+                    band=band, raw=raw, nebular_only=nebular_only, age=age,
+                    units_out=units_out)
 
             tmp.append(L_per_sfr)
 
-        # Interpolant
-        L_of_Z_func = interp1d_wrapper(np.log10(Zarr), np.log10(tmp),
-            self.pf['interp_Z'])
+        tmp = np.log10(tmp)
 
-        self._cache_lum_all_Z[(x, window, band, raw, nebular_only, age)] = \
-            L_of_Z_func
+        # Interpolant
+        if age_is_arr:
+            def L_of_Z_func(logZ, logA):
+                iZ = np.argmin(np.abs(logZ - np.log10(Zarr)))
+                return np.interp(logA, np.log10(age), tmp[iZ,:])
+        else:
+            L_of_Z_func = interp1d_wrapper(np.log10(Zarr), tmp,
+                self.pf['interp_Z'])
+
+        #self._cache_lum_all_Z[(x, window, band, raw, nebular_only, age)] = \
+        #    L_of_Z_func
 
         return L_of_Z_func
 
@@ -1799,8 +1815,6 @@ class GalaxyCohort(GalaxyAggregate):
                 # For now
                 assert self.is_metallicity_constant
             else:
-
-
                 # Enforce maximum of a Hubble time
                 t_H = self.cosm.HubbleTime(z) / s_per_myr
                 age_is_num = isinstance(src.pf['source_age'], numbers.Number)
@@ -1822,6 +1836,9 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     age[age > t_H] = t_H
 
+
+            age_is_arr = type(age) == np.ndarray
+
             ##
             # Next, determine metallicity across population (if necessary)
             if self.is_metallicity_constant or isinstance(Zfe, numbers.Number):
@@ -1832,13 +1849,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 f_L_sfr = self._get_lum_all_Z(x=x, band=band,
                     units=units, window=window, raw=raw,
-                    nebular_only=nebular_only, age=age)
-
-                #
-
-                #L_sfr = self.get_lum_per_sfr(wave=wave, #Z=Z,
-                #    window=window, band=band, band_units=band_units, raw=raw,
-                #    nebular_only=nebular_only)
+                    nebular_only=nebular_only, age=age, units_out=units_out)
 
             # Now, determine luminosity per unit SFR for all halos.
             # Handle cases with variations in age or metallicity across population.
@@ -1952,8 +1963,10 @@ class GalaxyCohort(GalaxyAggregate):
                         band=band, units=units, units_out=units_out,
                         raw=raw, nebular_only=nebular_only)
                 else:
-                    L_sfr = 10**f_L_sfr(np.log10(Z))
-
+                    if age_is_arr:
+                        L_sfr = 10**f_L_sfr(np.log10(Z), np.log10(age))
+                    else:
+                        L_sfr = 10**f_L_sfr(np.log10(Z))
 
             ##
             # Add by-hand line emission [optional]

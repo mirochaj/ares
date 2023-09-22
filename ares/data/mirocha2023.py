@@ -301,14 +301,14 @@ mzr = \
  "pq_func[30]": 'linear_evolN',
  'pq_func_var[30]': 'Ms',
  'pq_func_var2[30]': '1+z',
- 'pq_func_par0[30]': 8.65,
+ 'pq_func_par0[30]': 8.75,
  'pq_func_par1[30]': 10,
- 'pq_func_par2[30]': 0.2,
+ 'pq_func_par2[30]': 0.25,
  'pq_func_par3[30]': 1.,     # pin to z=0
- 'pq_func_par4[30]': -0.08,   # mild evolution
- 'pq_val_ceil[30]': 9,
+ 'pq_func_par4[30]': -0.1,   # mild evolution
+ 'pq_val_ceil[30]': 8.8,
  'pq_val_floor[30]': 6,
- 'pop_Z': 0.02,#('mzr', 0.02),
+ 'pop_Z': ('mzr', 0.02),
 }
 
 
