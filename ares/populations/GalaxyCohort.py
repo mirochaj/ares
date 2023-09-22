@@ -1169,7 +1169,7 @@ class GalaxyCohort(GalaxyAggregate):
     def get_surface_density(self, z, maglim=None, dz=1., dtheta=1., x=1600.,
         units='Angstroms', window=1):
         """
-        Get the surface density of galaxies in a given redshift chunk.
+        Get the cumulative surface density of galaxies in a given redshift chunk.
 
         Parameters
         ----------
@@ -1209,6 +1209,45 @@ class GalaxyCohort(GalaxyAggregate):
             return np.interp(maglim, mags, cgal)
         else:
             return mags, cgal
+
+    def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
+        units='Angstroms', window=1, absolute=False, cam=None, filters=None,
+        dlam=20, zbin=0.2):
+        """
+        Compute the *differential* surface density of galaxies.
+
+        This is basically `get_surface_density` integrated over redshift
+        but left in "per magnitude bin" units.
+
+        Parameters
+        ----------
+
+        """
+
+        zedges = np.arange(zmin, zmax+zbin, zbin)
+        zcen = bin_e2c(zedges)
+        counts = np.zeros_like(bins)
+
+        for i, z in enumerate(zcen):
+            if cam is None:
+                _x_ = x / (1. + z)
+            else:
+                _x_ = None
+
+            mags, phi = self.get_lf(z, bins, x=_x_,
+                units=units, window=window,
+                use_mags=True, absolute=absolute, cam=cam, filters=filters,
+                dlam=dlam)
+
+            if np.all(np.isinf(phi)):
+                continue
+
+            vol = self.cosm.ProjectedVolume(z, angle=1., dz=zbin)
+
+            counts += phi * vol
+
+        return counts
+
 
     @property
     def is_uvlf_parametric(self):
@@ -1273,7 +1312,8 @@ class GalaxyCohort(GalaxyAggregate):
             window=window, absolute=absolute)
 
     def get_lf(self, z, bins, use_mags=True, x=1600., units='Angstrom', window=1.,
-        absolute=True, raw=False, nebular_only=False, band=None):
+        absolute=True, raw=False, nebular_only=False, band=None, cam=None,
+        filters=None, dlam=20, presets=None):
         """
         Reconstructed luminosity function.
 
@@ -1312,7 +1352,9 @@ class GalaxyCohort(GalaxyAggregate):
 
             if use_mags:
                 _x_, x = self.get_mags(z=z, x=x, units=units, window=window,
-                    absolute=absolute, raw=raw, nebular_only=nebular_only)
+                    absolute=absolute, raw=raw, nebular_only=nebular_only,
+                    cam=cam, filters=filters, dlam=dlam,
+                    presets=presets)
             else:
                 x = self.get_lum(z=z, x=x, units=units, window=window,
                     raw=raw, nebular_only=nebular_only)
