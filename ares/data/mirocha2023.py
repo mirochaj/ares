@@ -19,7 +19,7 @@ _base = \
 
  'final_redshift': 1e-2,
 
- 'tau_redshift_bins': 500,
+ 'tau_redshift_bins': 100,
 
  'halo_dlnk': 0.05,
  'halo_lnk_min': -9.,

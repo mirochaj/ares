@@ -3539,10 +3539,12 @@ class GalaxyCohort(GalaxyAggregate):
             exact_match = True
         else:
             exact_match = False
-            print("* WARNING: requested `z` not in grid, no interpolation implemented yet!")
 
         ok = ~self._tab_sfr_mask
         integrand = ok * self.tab_sfr * self.halos.tab_dndlnm * self.tab_focc
+
+        if not exact_match and self.halos.tab_z[iz] > z:
+            iz -= 1
 
         ilo = np.argmin(np.abs(self.halos.tab_M - Mlo))
         if Mhi is None:
@@ -3550,12 +3552,21 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             ihi = np.argmin(np.abs(self.halos.tab_M - Mhi))
 
-        _sfrd_tab = np.trapz(integrand[iz,ilo:ihi+1],
+        zlo = self.halos.tab_z[iz]
+        zhi = self.halos.tab_z[iz+1]
+
+        _sfrd_lo = np.trapz(integrand[iz,ilo:ihi+1],
             x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
-        #_sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
+        if not exact_match:
+            _sfrd_hi = np.trapz(integrand[iz+1,ilo:ihi+1],
+                x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
-        return _sfrd_tab
+            _sfrd = np.interp(z, [zlo, zhi], [_sfrd_lo, _sfrd_hi])
+        else:
+            _sfrd = _sfrd_lo
+
+        return _sfrd
 
     @property
     def tab_focc(self):
