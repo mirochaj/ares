@@ -966,6 +966,9 @@ class SpectralSynthesis(object):
 
         """
 
+
+        assert units.lower().startswith('ang')
+
         setup_1 = (sfh is not None) and \
             ((tarr is not None) or (zarr is not None))
         setup_2 = hist != {}
@@ -1148,16 +1151,22 @@ class SpectralSynthesis(object):
             # function of age and Z.
             if self.pf['pop_enrichment']:
 
-                assert batch_mode
+                #assert batch_mode
 
                 logA = np.log10(ages)
-                logZ = np.log10(Z[:,0:i+1])
-                L_per_msun = np.zeros_like(ages)
                 logL_at_wave = self.L_of_Z_t(x)
 
-                L_per_msun = np.zeros_like(logZ)
-                for j, _Z_ in enumerate(range(logZ.shape[0])):
-                    L_per_msun[j,:] = 10**logL_at_wave(logA, logZ[j,:],
+                if batch_mode:
+                    logZ = np.log10(Z[:,0:i+1])
+
+                    L_per_msun = np.zeros_like(logZ)
+                    for j, _Z_ in enumerate(range(logZ.shape[0])):
+                        L_per_msun[j,:] = 10**logL_at_wave(logA, logZ[j,:],
+                            grid=False)
+
+                else:
+                    logZ = np.log10(Z[0:i+1])
+                    L_per_msun = 10**logL_at_wave(logA, logZ,
                         grid=False)
 
                 # erg/s/Hz
