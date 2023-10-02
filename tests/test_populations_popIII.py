@@ -14,8 +14,8 @@ import ares
 import numpy as np
 from ares.physics.Constants import rhodot_cgs, s_per_myr
 
-#def test():
-
+def test():
+    pass
 #mags = np.arange(-25, -5, 0.1)
 #zarr = np.arange(6, 30, 0.1)
 #
@@ -65,6 +65,5 @@ from ares.physics.Constants import rhodot_cgs, s_per_myr
 #assert np.all(duration <= hubble_time / s_per_myr)
 #
 #
-##if _name__ == '__main__':
-##    test()
-#
+if __name__ == '__main__':
+    test()
