@@ -966,9 +966,6 @@ class SpectralSynthesis(object):
 
         """
 
-
-        assert units.lower().startswith('ang')
-
         setup_1 = (sfh is not None) and \
             ((tarr is not None) or (zarr is not None))
         setup_2 = hist != {}
@@ -994,7 +991,8 @@ class SpectralSynthesis(object):
 
         kw = {'sfh':sfh, 'zobs':zobs, 'tobs':tobs, 'x':x, 'tarr':tarr,
             'zarr':zarr, 'band':band, 'idnum':idnum, 'hist':hist,
-            'extras':extras, 'window': window, 'units_out': units_out}
+            'extras':extras, 'window': window, 'units_out': units_out,
+            'units': units}
 
         if False:
             _kwds, cached_result = self._cache_lum(kw)
@@ -1154,7 +1152,8 @@ class SpectralSynthesis(object):
                 #assert batch_mode
 
                 logA = np.log10(ages)
-                logL_at_wave = self.L_of_Z_t(x)
+                wave = self.src.get_ang_from_x(x, units=units)
+                logL_at_wave = self.L_of_Z_t(wave)
 
                 if batch_mode:
                     logZ = np.log10(Z[:,0:i+1])
@@ -1298,7 +1297,8 @@ class SpectralSynthesis(object):
                 #_kappa = self._cache_kappa(wave)
 
                 #if _kappa is None:
-                kappa = extras['kappa'](wave=x)
+                wave = self.src.get_ang_from_x(x, units=units)
+                kappa = extras['kappa'](wave=wave)
                 #self._cache_kappa_[wave] = kappa
                 #else:
                 #    kappa = _kappa

@@ -355,6 +355,7 @@ class Galaxy(SynthesisModel):
             kw['sfh'] = 'const'
 
             _mass = mass # guaranteed
+            _sfr = sfr
         elif sfh == 'delayed_tau':
             assert 't0' in kwargs, \
                 "Must assume a value for t0 for SFH=delayed_tau"
@@ -400,7 +401,6 @@ class Galaxy(SynthesisModel):
         err = abs(np.log10(_mass / mass)) \
             + abs(np.log10(_sfr / sfr))
         if err < mtol:
-            print('all good', err,abs(np.log10(_mass / mass)), abs(np.log10(_sfr / sfr)), kw)
             return kw
 
         # If we're not allowing a fallback option in the event that this
@@ -539,6 +539,10 @@ class Galaxy(SynthesisModel):
             sfh_asc = sfh[-1::-1]
             perform_synthesis = \
                 ('sfh' not in kwargs) or (kwargs['sfh'] not in ['const', 'burst'])
+
+        if hist != {}:
+            if 'Z' in hist:
+                perform_synthesis = True
 
         # General case: synthesize SED
         if perform_synthesis:

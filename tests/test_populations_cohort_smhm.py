@@ -62,19 +62,24 @@ def test():
     i10_0 = np.argmin(np.abs(1e10 - Mst0))
     i10_1 = np.argmin(np.abs(1e10 - Mst1))
 
-    assert np.all(spec0[i10_0,waves < 2000] > spec1[i10_1,waves < 2000])
+    # Photons < 1216A might get absorbed by IGM, so just compare rest-UV
+    # at 1216 < wavelength/Angstroms < 2000
+    ok = np.logical_and(waves > 1216, waves < 2000)
+
+    assert np.all(spec0[i10_0,ok==1] > spec1[i10_1,ok==1]), \
+        f"{spec0[i10_0,waves < 2000][0]}, {spec1[i10_1,waves < 2000][0]}"
 
     # Do the same thing with the emissivity
     assert sim.pops[0].get_emissivity(6, x=6, units='eV') \
          > sim.pops[1].get_emissivity(6, x=6, units='eV')
 
 
-    ##
-    # Later: check dust, MZR
-    #dust = ares.util.ParameterBundle('mirocha2023:dust')
-    #dust.num = 0
+##
+# Later: check dust, MZR
+#dust = ares.util.ParameterBundle('mirocha2023:dust')
+#dust.num = 0
 
-    #parsD = pars.copy()
+#parsD = pars.copy()
     #parsD.update(dust)
     #parsD.update(testing_pars)
     #simD = ares.simulations.Simulation(**parsD)
@@ -83,8 +88,6 @@ def test():
     #tau = simD.pops[0].get_dust_opacity(6, Mh, wave=5e3)
     #assert np.any(tau > 0)
     #assert np.all(simD.pops[0].get_spec(2, waves) <= spec0)
-
-
 
 
 if __name__ == '__main__':
