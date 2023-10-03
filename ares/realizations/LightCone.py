@@ -1012,7 +1012,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='hdf5', hdr={}, max_sources=None,
+        suffix=None, fmt='hdf5', hdr={}, max_sources=None, cat_units='mags',
         include_pops=None, clobber=False, verbose=False, **kwargs):
         """
         Generate galaxy catalogs.
@@ -1188,7 +1188,19 @@ class LightCone(object): # pragma: no cover
                                 absolute=False, cam=cam, filters=[filt],
                                 Mh=Mh)
 
-                            dat = np.atleast_1d(mags.squeeze())
+                            if cat_units == 'mags':
+                                dat = np.atleast_1d(mags.squeeze())
+                            elif 'jy' in cat_units.lower():
+                                flux = 3631. * 10**(mags / -2.5)
+
+                                if cat_units.lower() == 'jy':
+                                    dat = np.atleast_1d(flux.squeeze())
+                                elif cat_units.lower() == 'microjy':
+                                    dat = np.atleast_1d(1e6 * flux.squeeze())
+                                else:
+                                    raise NotImplemented('help')
+                            else:
+                                raise NotImplemented('Unrecognized `cat_units`.')
 
                         ##
                         # Save
@@ -1332,6 +1344,8 @@ class LightCone(object): # pragma: no cover
 
         """
 
+        pix_deg = pix / 3600.
+
         # Create root directory if it doesn't already exist.
         base_dir = self.get_base_dir(fov=fov, pix=pix, path=path, suffix=suffix)
         if not os.path.exists(base_dir):
@@ -1393,16 +1407,20 @@ class LightCone(object): # pragma: no cover
         # Remember: using cgs units internally. Compute conversion factor to
         # users favorite units (within reason).
         # 1 Jy = 1e-23 erg/s/cm^2/sr
-        if map_units.lower() == 'si':
+        if (map_units.lower() == 'si') or ('nw/m^2' in map_units.lower()):
             # aka (1e2)^2 / 0.01 = 1e6
             f_norm = cm_per_m**2 / erg_per_s_per_nW
         elif map_units.lower() == 'cgs':
             f_norm = 1.
-        elif map_units.lower() == 'mjy':
+        elif 'mjy' in map_units.lower():
             # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr = 1e17 MJy / cgs units
             f_norm = 1e17
         else:
             raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
+
+        if '/sr' in map_units.lower():
+            sr_per_pix = pix_deg**2 / sqdeg_per_std
+            f_norm /= sr_per_pix
 
         if verbose:
             print(f"# Generating {len(all_chunks)} individual map layers...")
@@ -1644,7 +1662,6 @@ class LightCone(object): # pragma: no cover
 
         # Save as MJy/sr in this case.
 
-
         if fmt == 'hdf5':
             with h5py.File(fn, 'w') as f:
                 f.create_dataset('ebl', data=img)
@@ -1665,10 +1682,14 @@ class LightCone(object): # pragma: no cover
             hdr['DATE'] = time.ctime()
 
             hdr['NAXIS'] = 2
-            if map_units.lower() == 'mjy':
-                hdr['BUNIT'] = 'MJy/sr'
+            if 'mjy' in map_units.lower():
+                hdr['BUNIT'] = map_units
             elif map_units.lower() == 'cgs':
                 hdr['BUNIT'] = 'erg/s/cm^2/sr'
+            elif 'erg/s/cm^2' in map_units.lower():
+                hdr['BUNIT'] = map_units
+            elif 'nW/m^2' in map_units.lower():
+                hdr['BUNIT'] = map_units
             elif map_units.lower() == 'si':
                 hdr['BUNIT'] = 'nW/m^2/sr'
             else:
@@ -1696,10 +1717,6 @@ class LightCone(object): # pragma: no cover
 
             hdr.update(hdr)
 
-            # Right now, image is in erg/s/cm^2/Hz
-            # Convert to MJy/sr
-            # Recall that 1 Jy = 1e-23 erg/s/cm^2/Hz
-
             hdu = fits.PrimaryHDU(data=img, header=hdr)
             hdul = fits.HDUList([hdu])
             hdul.writeto(fn, overwrite=clobber)
@@ -1711,9 +1728,6 @@ class LightCone(object): # pragma: no cover
 
         if verbose:
             print(f"# Wrote {fn}.")
-
-        #del img
-        #gc.collect()
 
     def _load_map(self, fn):
 
