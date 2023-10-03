@@ -1224,6 +1224,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
+        assert units.lower().startswith('ang')
+
         zedges = np.arange(zmin, zmax+zbin, zbin)
         zcen = bin_e2c(zedges)
         counts = np.zeros_like(bins)

@@ -81,6 +81,10 @@ centrals_sf = \
  'pq_func_par14[0]': 0.0,           # peak
  'pq_func_par15[0]': 0.0,           # low
  'pq_func_par16[0]': 0.0,           # high
+ 'pq_func_par17[0]': 0.0,           # norm
+ 'pq_func_par18[0]': 0.0,           # peak
+ 'pq_func_par19[0]': 0.0,           # low
+ 'pq_func_par20[0]': 0.0,           # high
 
  'pq_val_ceil[0]': 1,
 
@@ -107,6 +111,10 @@ centrals_sf = \
  'pq_func_par13[2]': 0,     # terms that scale z
  'pq_func_par14[2]': 0,     # terms that scale z
  'pq_func_par15[2]': 0,     # terms that scale z
+ 'pq_func_par16[2]': 0,     # terms that scale a
+ 'pq_func_par17[2]': 0,     # terms that scale a
+ 'pq_func_par18[2]': 0,     # terms that scale a
+ 'pq_func_par19[2]': 0,     # terms that scale a
 }
 
 _ssfr_dpl = \
@@ -133,6 +141,10 @@ _ssfr_dpl = \
  'pq_func_par14[1]': 0.0,
  'pq_func_par15[1]': 0.0,
  'pq_func_par16[1]': 0.0,
+ 'pq_func_par17[1]': 0.0,
+ 'pq_func_par18[1]': 0.0,
+ 'pq_func_par19[1]': 0.0,
+ 'pq_func_par20[1]': 0.0,
 }
 
 centrals_sf.update(_ssfr_dpl)
@@ -291,6 +303,8 @@ dust['pq_func_par5[4]'] = 0   # no evolution yet.
 dust['pq_func_par6[4]'] = 0   # no evolution yet.
 dust['pq_func_par7[4]'] = 0   # no evolution yet.
 dust['pq_func_par8[4]'] = 0   # no evolution yet.
+dust['pq_func_par9[4]'] = 0   # no evolution yet.
+dust['pq_func_par10[4]'] = 0   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
 mzr = \
@@ -346,6 +360,10 @@ smhm_Q['pq_func_par13[10]{1}'] = 0.0
 smhm_Q['pq_func_par14[10]{1}'] = 0.0
 smhm_Q['pq_func_par15[10]{1}'] = 0.0
 smhm_Q['pq_func_par16[10]{1}'] = 0.0
+smhm_Q['pq_func_par17[10]{1}'] = 0.0
+smhm_Q['pq_func_par18[10]{1}'] = 0.0
+smhm_Q['pq_func_par19[10]{1}'] = 0.0
+smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
 
 best_smfs_diff = \
