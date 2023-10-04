@@ -1120,8 +1120,9 @@ class LightCone(object): # pragma: no cover
                         fn = intmd_dir + '/' + fn
 
                         # Try to read from disk.
-                        if os.path.exists(fn) and (not clobber) and verbose:
-                            print(f"Found {fn}. Set clobber=True to overwrite.")
+                        if os.path.exists(fn) and (not clobber):
+                            if verbose:
+                                print(f"Found {fn}. Set clobber=True to overwrite.")
                             #_Inu = self._load_cat(fn)
                             continue
 
@@ -1447,8 +1448,9 @@ class LightCone(object): # pragma: no cover
                 zlim=zlim, fmt=fmt, final=True, channel_name=chname)
             fn_fin = final_dir + '/' + fn_fin
 
-            if os.path.exists(fn_fin) and (not clobber) and verbose:
-                print(f"# Found final map {fn_fin}. Set clobber=True to re-generate")
+            if os.path.exists(fn_fin) and (not clobber):
+                if verbose:
+                    print(f"# Found final map {fn_fin}. Set clobber=True to re-generate")
                 continue
 
             pb.update(h)
@@ -1613,7 +1615,8 @@ class LightCone(object): # pragma: no cover
         ra, dec, red, X = cat
 
         if os.path.exists(fn) and (not clobber):
-            print(f"# {fn} exists! Set clobber=True to overwrite.")
+            if verbose:
+                print(f"# {fn} exists! Set clobber=True to overwrite.")
             return
 
         if fmt == 'hdf5':

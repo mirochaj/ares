@@ -92,8 +92,6 @@ class MockSky(object):
         """
         self.fov = fov
         self.pix = pix
-        self.logmlim = logmlim
-        self.zlim = zlim
         self.Lbox = Lbox
         self.dims = dims
         self.suffix = suffix
@@ -125,17 +123,19 @@ class MockSky(object):
             self.Lbox = float(_L[1:])
             self.dims = int(_N[1:])
 
-            # These need to be determined from file contents
-            zchunks, mchunks = self.get_available_subintervals()
-            if zlim is None:
-                self.zlim = (zchunks.min(), zchunks.max())
-            if logmlim is None:
-                self.logmlim = (mchunks.min(), mchunks.max())
+
         else:
             self.base_dir = '{}_fov_{:.1f}_pix_{:.1f}_L{:.0f}_N{:.0f}'.format(
                 self.prefix, self.fov, self.pix, self.Lbox, self.dims)
             if suffix is not None:
                 self.base_dir += f'_{suffix}'
+
+        # These need to be determined from file contents
+        zchunks, mchunks = self.get_available_subintervals()
+        if zlim is None:
+            self.zlim = (zchunks.min(), zchunks.max())
+        if logmlim is None:
+            self.logmlim = (mchunks.min(), mchunks.max())
 
     def get_pixels(self):
         """
@@ -143,7 +143,7 @@ class MockSky(object):
 
         .. note :: These are RELATIVE to the center of the map, which
             is specified in the map headers via `CRVAL1` and `CRVAL2`.
-            
+
         """
         fov = self.fov
         pix = self.pix
