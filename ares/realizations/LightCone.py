@@ -1196,7 +1196,7 @@ class LightCone(object): # pragma: no cover
 
                                 if cat_units.lower() == 'jy':
                                     dat = np.atleast_1d(flux.squeeze())
-                                elif cat_units.lower() == 'microjy':
+                                elif cat_units.lower() in ['microjy', 'ujy']:
                                     dat = np.atleast_1d(1e6 * flux.squeeze())
                                 else:
                                     raise NotImplemented('help')
@@ -1228,6 +1228,7 @@ class LightCone(object): # pragma: no cover
                     self.save_cat(fnt, (ra_z, dec_z, red_z, dat_z),
                         channel, (zlo, zhi), (mlo, mhi),
                         fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber,
+                        cat_units=cat_units,
                         verbose=verbose)
 
                     ra_allz.extend(ra_z)
@@ -1248,6 +1249,7 @@ class LightCone(object): # pragma: no cover
                 self.save_cat(fnp, (ra_allz, dec_allz, red_allz, dat_allz),
                     channel, zlim, logmlim,
                     fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber,
+                    cat_units=cat_units,
                     verbose=verbose)
 
                 ra_allp.extend(ra_allz)
@@ -1267,7 +1269,7 @@ class LightCone(object): # pragma: no cover
 
             self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
                 channel, zlim, logmlim,
-                fov, pix=pix, fmt=fmt, hdr=hdr,
+                fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=cat_units,
                 clobber=clobber, verbose=verbose)
 
         ##
