@@ -73,6 +73,15 @@ class LogNormal(LightCone): # pragma: no cover
             assert self.bias_params is not None, \
                 "Must provide `bias_params=[a,b]` for `bias_model>0`!"
 
+        ##
+        # Adjust upper bound in zlim based on box size!
+        ze, zmid, Re = self.get_domain_info(zlim=zlim, Lbox=self.Lbox)
+
+        self.zlim = np.min(ze), np.max(ze)
+        if verbose:
+            print(f"# Overriding user-supplied zlim slightly to accommodate box size.")
+            print(f"# Old zlim={zlim}, updated zlim={self.zlim}")
+
     def get_seed_kwargs(self, chunk, logmlim):
         # Deterministically adjust the random seeds for the given mass range
         # and redshift range.
