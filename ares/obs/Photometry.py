@@ -48,7 +48,7 @@ class Photometry(object):
         Returns the central wavelength and width of user-supplied filter,
         both in microns.
         """
-        return self.cameras[cam].get_filter_info(filt)
+        return self.cameras[cam.lower()].get_filter_info(filt)
 
     def get_required_spectral_range(self, zobs, cam, filters=None,
         picky=True, restricted_range=None, tol=0.2, dlam=20.):
@@ -62,8 +62,8 @@ class Photometry(object):
             filters = filters[round(zobs)]
 
         # Get transmission curves
-        if cam in self.cameras.keys():
-            filter_data = self.cameras[cam].read_throughputs(filters=filters)
+        if cam.lower() in self.cameras.keys():
+            filter_data = self.cameras[cam.lower()].read_throughputs(filters=filters)
         else:
             raise NotImplementedError(f'Unrecognized `cam`={cam}')
 
@@ -149,8 +149,8 @@ class Photometry(object):
             filters = filters[round(zobs)]
 
         # Get transmission curves
-        if cam in self.cameras.keys():
-            filter_data = self.cameras[cam].read_throughputs(filters=filters)
+        if cam.lower() in self.cameras.keys():
+            filter_data = self.cameras[cam.lower()].read_throughputs(filters=filters)
         else:
             # Can supply spectral windows, e.g., Calzetti+ 1994, in which
             # case we assume perfect transmission but otherwise just treat

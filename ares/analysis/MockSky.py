@@ -131,11 +131,17 @@ class MockSky(object):
                 self.base_dir += f'_{suffix}'
 
         # These need to be determined from file contents
-        zchunks, mchunks = self.get_available_subintervals()
         if zlim is None:
+            zchunks, mchunks = self.get_available_subintervals()
             self.zlim = (zchunks.min(), zchunks.max())
+        else:
+            self.zlim = zlim
+
         if logmlim is None:
+            zchunks, mchunks = self.get_available_subintervals()
             self.logmlim = (mchunks.min(), mchunks.max())
+        else:
+            self.logmlim = logmlim
 
     def get_pixels(self):
         """

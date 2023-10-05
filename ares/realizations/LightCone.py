@@ -1210,6 +1210,7 @@ class LightCone(object): # pragma: no cover
                         self.save_cat(fn, (ra, dec, red, dat),
                             channel, (zlo, zhi), (mlo, mhi),
                             fov, pix=pix, fmt=fmt, hdr=hdr,
+                            cat_units=cat_units,
                             clobber=clobber, verbose=verbose)
 
                         dat_z.extend(list(dat))
@@ -1608,7 +1609,7 @@ class LightCone(object): # pragma: no cover
                 print(f"# Wrote {final_dir}/README")
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
-        hdr={}, clobber=False, verbose=False):
+        hdr={}, clobber=False, verbose=False, cat_units=''):
         """
         Save galaxy catalog.
         """
@@ -1636,7 +1637,7 @@ class LightCone(object): # pragma: no cover
             col2 = fits.Column(name='dec', format='D', unit='deg', array=dec)
             col3 = fits.Column(name='z', format='D', unit='', array=red)
 
-            col4 = fits.Column(name=channel, format='D', unit='', array=X)
+            col4 = fits.Column(name=channel, format='D', unit=cat_units, array=X)
             coldefs = fits.ColDefs([col1, col2, col3, col4])
 
             hdu = fits.BinTableHDU.from_columns(coldefs)
