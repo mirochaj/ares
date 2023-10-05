@@ -469,6 +469,7 @@ class MockSky(object):
                 dec = np.array(f[('dec')])
                 red = np.array(f[('z')])
                 X = np.array(f[('Mh')])
+                Xunit = None
         elif fn.endswith('fits'):
             with fits.open(fn) as f:
                 data = f[1].data
@@ -479,29 +480,40 @@ class MockSky(object):
                 # Hack for now.
                 name = data.columns[3].name
                 X = data[name]
+                Xunit = f[1].header['TUNIT4']
         else:
             raise NotImplemented('Unrecognized file format `{}`'.format(
                 fn[fn.rfind('.'):]))
 
-        return ra, dec, red, X
+        return ra, dec, red, X, Xunit
 
     def get_galaxy_map(self, z, dz=0.1, maglim=None, magfilt='Mh', pops=None):
         """
         Return an image containing the number of galaxies in each pixel at
         the specified redshift, (z - dz/2, z+dz/2), with optional magnitude
-        cut [not yet implemented].
+        cut.
         """
 
         filt, fn_cat, pops = self.get_final_cats()
 
         k = list(filt).index(magfilt)
 
-        _ra, _dec, red, X = self.load_cat(fn_cat[k])
+        _ra, _dec, red, X, Xunits = self.load_cat(fn_cat[k])
 
         ok = np.logical_and(red >= z-0.5*dz, red < z+0.5*dz)
 
         if maglim is not None:
-            ok = np.logical_and(ok, X < maglim)
+            if Xunits.lower() != 'mags':
+                if Xunits.lower() in ['ujy', 'microjy']:
+                    mags = -np.log10(X * 1e-6 / 3631.) * 2.5
+                elif Xunits.lower() == 'jy':
+                    mags = -np.log10(X / 3631.) * 2.5
+                else:
+                    raise NotImplemented('help')
+            else:
+                mags = X
+
+            ok = np.logical_and(ok, mags < maglim)
 
         # Grab info about available maps just so we know what the image
         # dimensions should be and how to map RA/DEC to pixels.
