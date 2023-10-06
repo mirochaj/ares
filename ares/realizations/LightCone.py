@@ -1644,7 +1644,10 @@ class LightCone(object): # pragma: no cover
 
             hdu = fits.BinTableHDU.from_columns(coldefs)
 
-            hdu.writeto(fn, overwrite=clobber)
+            if os.path.exists(fn) and (not clobber):
+                print(f"# {fn} exists and clobber=False. Moving on.")
+            else:
+                hdu.writeto(fn, overwrite=clobber)
         else:
             raise NotImplemented(f'Unrecognized `fmt` option "{fmt}"')
 
@@ -1679,6 +1682,10 @@ class LightCone(object): # pragma: no cover
                 f.create_dataset('z_bin_e', data=zlim)
                 f.create_dataset('m_bin_e', data=logmlim)
                 f.create_dataset('nu_bin_c', data=nu)
+
+            if verbose:
+                print(f"# Wrote {fn}.")
+
         elif fmt == 'fits':
             from astropy.io import fits
 
@@ -1723,17 +1730,22 @@ class LightCone(object): # pragma: no cover
 
             hdr.update(hdr)
 
-            hdu = fits.PrimaryHDU(data=img, header=hdr)
-            hdul = fits.HDUList([hdu])
-            hdul.writeto(fn, overwrite=clobber)
-            hdul.close()
+            if os.path.exists(fn) and (not clobber):
+                print(f"# {fn} exists and clobber=False. Moving on.")
+            else:
+                hdu = fits.PrimaryHDU(data=img, header=hdr)
+                hdul = fits.HDUList([hdu])
+                hdul.writeto(fn, overwrite=clobber)
+                hdul.close()
 
-            del hdu, hdul
+                if verbose:
+                    print(f"# Wrote {fn}.")
+
+                del hdu, hdul
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
 
-        if verbose:
-            print(f"# Wrote {fn}.")
+
 
     def _load_map(self, fn):
 
