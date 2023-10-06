@@ -161,30 +161,7 @@ class LightCone(object): # pragma: no cover
         if Lbox is None:
             Lbox = self.Lbox
 
-        # First, get redshifts. This is just for interpolation.
-        zarr = np.arange(0, 30, 0.05)
-        dofz = np.array([self.sim.cosm.ComovingRadialDistance(0, z) \
-            for z in zarr]) / cm_per_mpc
-
-        if zlim is None:
-            zmin, zmax = self.zlim
-        else:
-            zmin, zmax = zlim
-
-        Rmin = np.interp(zmin, zarr, dofz)
-        Rmax = np.interp(zmax, zarr, dofz)
-        Nbox = 1 + int((Rmax - Rmin) // (Lbox / self.sim.cosm.h70))
-
-        Re = np.arange(Rmin, Rmax+(Lbox / self.sim.cosm.h70), Lbox / self.sim.cosm.h70)
-
-        Rc = bin_e2c(Re)
-        ze = np.interp(Re, dofz, zarr)
-        dz = np.diff(ze)
-
-        # Redshift midpoint
-        zmid = np.zeros_like(Rc)
-        for i, zlo in enumerate(ze[0:-1]):
-            zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.sim.cosm.h70), dofz, zarr)
+        ze, zmid, Re = self.sim.cosm.get_lightcone_boundaries(zlim, Lbox)
 
         return ze, zmid, Re
 
@@ -1744,8 +1721,6 @@ class LightCone(object): # pragma: no cover
                 del hdu, hdul
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
-
-
 
     def _load_map(self, fn):
 

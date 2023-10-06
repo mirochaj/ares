@@ -19,6 +19,7 @@ from functools import cached_property
 
 from ..data import ARES
 from ..util.Math import interp1d
+from ..util.Stats import bin_e2c
 from ..util.ParameterFile import ParameterFile
 from .InitialConditions import InitialConditions
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
@@ -573,6 +574,30 @@ class Cosmology(object):
             return np.interp(z, self.tab_z, self._tab_H)
         else:
             return self._get_Hofz(z)
+
+    def get_lightcone_boundaries(self, zlim, Lbox):
+        """
+        Based on size of co-eval cubes (in Mpc/h), and redshift limits,
+        determine all of the sub-intervals in redshift along line of sight.
+        """
+        zarr = np.arange(0, 30, 0.05)
+        dofz = np.array([self.ComovingRadialDistance(0, z) \
+            for z in zarr]) / cm_per_mpc
+
+        Rmin = np.interp(zlim[0], zarr, dofz)
+        Rmax = np.interp(zlim[1], zarr, dofz)
+        Nbox = 1 + int((Rmax - Rmin) // (Lbox / self.h70))
+
+        Re = np.arange(Rmin, Rmax+(Lbox / self.h70), Lbox / self.h70)
+
+        Rc = bin_e2c(Re)
+        ze = np.interp(Re, dofz, zarr)
+
+        zmid = np.zeros_like(Rc)
+        for i, zlo in enumerate(ze[0:-1]):
+            zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.h70), dofz, zarr)
+
+        return ze, zmid, Re
 
     def HubbleLength(self, z):
         return c / self.HubbleParameter(z)

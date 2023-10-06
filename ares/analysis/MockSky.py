@@ -132,16 +132,28 @@ class MockSky(object):
 
         # These need to be determined from file contents
         if zlim is None:
-            zchunks, mchunks = self.get_available_subintervals()
-            self.zlim = (zchunks.min(), zchunks.max())
+            cand = []
+            for fn in os.listdir(f'{self.base_dir}/final_maps'):
+                if fn == 'README':
+                    continue
+
+                if not fn.startswith('z_'):
+                    continue
+
+                zbounds = fn[2:fn.rfind('_M_')].split('_')
+                zlo, zhi = float(zbounds[0]), float(zbounds[1])
+
+                cand.append((zlo, zhi))
+
+            zlo_all, zhi_all = np.array(cand).T
+            if not np.all(np.diff(zlo_all) == 0):
+                raise IOError(f'WARNING: multiple lightcones found in {self.base_dir}.')
+
+            self.zlim = cand[0]
         else:
             self.zlim = zlim
 
-        if logmlim is None:
-            zchunks, mchunks = self.get_available_subintervals()
-            self.logmlim = (mchunks.min(), mchunks.max())
-        else:
-            self.logmlim = logmlim
+        self.logmlim = logmlim
 
     def get_pixels(self):
         """
