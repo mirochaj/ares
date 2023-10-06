@@ -2242,7 +2242,7 @@ class GalaxyCohort(GalaxyAggregate):
         if Mh is None:
             Lh *= T
         else:
-            _T_ = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
+            _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
             Lh *= _T_
 
         if not hasattr(self, '_cache_L'):
