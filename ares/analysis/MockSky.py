@@ -131,8 +131,9 @@ class MockSky(object):
                 self.base_dir += f'_{suffix}'
 
         # These need to be determined from file contents
-        if zlim is None:
-            cand = []
+        if (zlim is None) or (logmlim is None):
+            candz = []
+            candm = []
             for fn in os.listdir(f'{self.base_dir}/final_maps'):
                 if fn == 'README':
                     continue
@@ -142,18 +143,28 @@ class MockSky(object):
 
                 zbounds = fn[2:fn.rfind('_M_')].split('_')
                 zlo, zhi = float(zbounds[0]), float(zbounds[1])
+                Mbounds = fn[fn.rfind('M_')+2:].split('_')
+                Mlo, Mhi = float(Mbounds[0]), float(Mbounds[1])
 
-                cand.append((zlo, zhi))
+                candz.append((zlo, zhi))
+                candm.append((Mlo, Mhi))
 
-            zlo_all, zhi_all = np.array(cand).T
-            if not np.all(np.diff(zlo_all) == 0):
+            zlo_all, zhi_all = np.array(candz).T
+            mlo_all, mhi_all = np.array(candm).T
+
+            if zlim is None and not np.all(np.diff(zlo_all) == 0):
+                raise IOError(f'WARNING: multiple lightcones found in {self.base_dir}.')
+            if logmlim is None and not np.all(np.diff(mlo_all) == 0):
                 raise IOError(f'WARNING: multiple lightcones found in {self.base_dir}.')
 
-            self.zlim = cand[0]
+            if zlim is None:
+                self.zlim = candz[0]
+            if logmlim is None:
+                self.logmlim = candm[0]
+
         else:
             self.zlim = zlim
-
-        self.logmlim = logmlim
+            self.logmlim = logmlim
 
     def get_pixels(self):
         """
