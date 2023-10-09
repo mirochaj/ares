@@ -34,14 +34,6 @@ _normz = lambda zz: (zz - _zall[0]) / float(_zall[-1] - _zall[0])
 colors_charlotte1 = lambda z: _ch_c1(_normz(z))
 colors_charlotte2 = lambda z: _ch_c2(_normz(z))
 
-
-# Load custom defaults
-HOME = os.environ.get('HOME')
-if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
-    custom_labels = importlib.import_module(f'{HOME}/.ares/labels').pf
-else:
-    custom_labels = {}
-
 prefixes = ['igm_', 'cgm_']
 
 #
@@ -329,6 +321,3 @@ labels.update(pop_parameters)
 labels.update(tp_parameters)
 labels.update(sfe_parameters)
 labels.update(powspec)
-
-# Add custom labels
-labels.update(custom_labels)

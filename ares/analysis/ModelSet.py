@@ -34,7 +34,7 @@ from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, error_2D, _error_2D_crude, \
     bin_e2c, correlation_matrix
-    
+
 try:
     from scipy.spatial import Delaunay
 except ImportError:
@@ -2546,7 +2546,7 @@ class ModelSet(BlobFactory):
         if 'labels' in kw:
             labels = kwargs['labels']
         else:
-            labels = self.custom_labels
+            labels = {}
 
         # Only make a new plot window if there isn't already one
         if ax is None:
