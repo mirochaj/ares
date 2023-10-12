@@ -2239,7 +2239,9 @@ class GalaxyCohort(GalaxyAggregate):
             include_dust_transmission=include_dust_transmission,
             include_igm_transmission=include_igm_transmission)
 
-        if Mh is None:
+        if np.all(T==1):
+            pass
+        elif Mh is None:
             Lh *= T
         else:
             _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
