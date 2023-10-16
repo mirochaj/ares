@@ -1417,16 +1417,21 @@ class GalaxyCohort(GalaxyAggregate):
         tab_M = self.halos.tab_M
         tab_b = self.halos.tab_bias[iz,:]
         tab_n = self.halos.tab_dndm[iz,:]
+        tab_f = self.tab_focc[iz,:]
 
         if cut_in_flux:
             raise NotImplemented('help')
         elif cut_in_mass:
-            ok = tab_M >= limit
+            if type(limit) in [list, tuple, np.ndarray]:
+                lo, hi = limit
+                ok = np.logical_and(tab_M >= lo, tab_M < hi)
+            else:
+                ok = tab_M >= limit
         else:
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
-        integ_top = tab_b[ok==1] * tab_n[ok==1]
-        integ_bot = tab_n[ok==1]
+        integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
+        integ_bot = tab_n[ok==1] * tab_f[ok==1]
 
         b = np.trapz(integ_top * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
           / np.trapz(integ_bot * tab_M[ok==1], x=np.log(tab_M[ok==1]))
