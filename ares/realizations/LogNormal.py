@@ -80,7 +80,9 @@ class LogNormal(LightCone): # pragma: no cover
         self.zlim = np.min(ze), np.max(ze)
         if verbose:
             print(f"# Overriding user-supplied zlim slightly to accommodate box size.")
-            print(f"# Old zlim={zlim}, updated zlim={self.zlim}")
+            print(f"# Old zlim=({zlim[0]:.3f},{zlim[1]:.3f})")
+            print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
+            print(f"# Number of co-eval chunks: {zmid.size}")
 
     def get_seed_kwargs(self, chunk, logmlim):
         # Deterministically adjust the random seeds for the given mass range
@@ -527,6 +529,8 @@ class LogNormal(LightCone): # pragma: no cover
 
             if ok.sum() == 0:
                 return None, None, None, None
+        else:
+            focc = r = ok = None
 
         del focc, ok, r, pos
         gc.collect()

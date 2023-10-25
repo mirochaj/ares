@@ -454,7 +454,7 @@ class MockSky(object):
 
         return filt, fn, pops
 
-    def load_map(self, fn=None, channel=None, popid=None, zlim=None,
+    def get_map(self, fn=None, channel=None, popid=None, zlim=None,
         logmlim=None, as_fits=False):
         """
 
@@ -485,7 +485,7 @@ class MockSky(object):
 
         return img, hdr
 
-    def load_cat(self, fn):
+    def get_cat(self, fn):
         if fn.endswith('hdf5'):
             with h5py.File(fn, 'r') as f:
                 ra = np.array(f[('ra')])
@@ -521,7 +521,7 @@ class MockSky(object):
 
         k = list(filt).index(magfilt)
 
-        _ra, _dec, red, X, Xunits = self.load_cat(fn_cat[k])
+        _ra, _dec, red, X, Xunits = self.get_cat(fn_cat[k])
 
         ok = np.logical_and(red >= z-0.5*dz, red < z+0.5*dz)
 
@@ -542,7 +542,7 @@ class MockSky(object):
         # dimensions should be and how to map RA/DEC to pixels.
         ch_n, ch_c, ch_e, all_fn, pops_maps = self.get_final_maps()
 
-        _img_, _hdr_ = self.load_map(channel=ch_c[0])
+        _img_, _hdr_ = self.get_map(channel=ch_c[0])
 
         #ra_0 = _hdr_['CRVAL1']
         #dec_0 = _hdr_['CRVAL2']

@@ -397,7 +397,10 @@ class LightCone(object): # pragma: no cover
 
             ct += 1
 
-            del _ra, _de, _red, _m, halos
+            del _ra, _de, _red, halos, okr, okd, ok, _m
+            if self.apply_rotations or self.apply_translations:
+                del _x, _x_, _y, _y_, _z, _z_, _m_
+
             gc.collect()
 
         pbar.finish()
@@ -634,6 +637,7 @@ class LightCone(object): # pragma: no cover
             okz = np.logical_and(red >= zlo, red < zhi)
             ok = np.logical_and(okp, okz)
         else:
+            okz = None
             ok = okp
 
         # For debugging and tests, we can dramatically limit the
@@ -860,8 +864,8 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Clear out some memory sheesh
-        del seds, flux, _flux_, ra, dec, red, Mh, ok, ra_ind, de_ind, \
-            mask_ra, mask_de
+        del seds, flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
+            mask_ra, mask_de, corr, owaves
         gc.collect()
 
         #pb.finish()
@@ -1481,8 +1485,6 @@ class LightCone(object): # pragma: no cover
             ##
             # Otherwise, figure out what (if anything) needs to be
             # written to disk now.
-
-
             done_w_chan = False
             done_w_pop = False
             done_w_z = False
@@ -1522,7 +1524,7 @@ class LightCone(object): # pragma: no cover
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                     verbose=verbose, clobber=clobber)
 
-                del cimg
+                del cimg, buffer
                 gc.collect()
 
                 cimg = np.zeros([npix]*2)

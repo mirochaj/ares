@@ -2168,10 +2168,10 @@ class GalaxyCohort(GalaxyAggregate):
         if Mh is None:
             return Lh
         else:
-            tmp = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
+            Lh = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
                 np.log10(Lh))
 
-            return tmp
+            return Lh
 
     def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
@@ -2255,7 +2255,7 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_cache_L'):
             self._cache_L = {}
 
-        self._cache_L_[kwtup] = Lh
+        #self._cache_L_[kwtup] = Lh
 
         return Lh
 
