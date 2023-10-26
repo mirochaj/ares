@@ -875,10 +875,13 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         # User may have supplied a function for SFR(z, Mh) directly.
-        #if self.pf['pop_sfr'] is not None:
-        #    func = self._get_function('pop_sfr')
-        #    if type(self.pf['pop_sfr']) == 'str':
-        #        return func(z=z, Mh=Mh)
+        if self.pf['pop_sfr'] is not None:
+            func = self._get_function('pop_sfr')
+
+            if Mh is None:
+                Mh = self.halos.tab_M
+                
+            return func(z=z, Mh=Mh)
 
         if self.is_quiescent:
             return np.zeros_like(Mh) if Mh is not None else \
@@ -3145,8 +3148,15 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if self.is_user_smhm:
-            func = self._get_function('pop_ssfr')
-            return func(z=z, Ms=Ms)
+            if self.pf['pop_ssfr'] is not None:
+                func = self._get_function('pop_ssfr')
+                return func(z=z, Ms=Ms)
+            else:
+                iz = np.argmin(np.abs(z - self.halos.tab_z))
+                _Ms = self.tab_fstar[iz,:] * self.halos.tab_M
+                Mh = np.interp(Ms, _Ms, self.halos.tab_M)
+
+                return self.get_sfr(z=z, Mh=Mh) / Ms
         else:
             raise NotImplemented('help')
 
@@ -3687,8 +3697,6 @@ class GalaxyCohort(GalaxyAggregate):
                 self._get_fstar = lambda **kwargs: 0.0
                 return self._get_fstar(**kwargs)
 
-
-            assert self.pf['pop_sfr'] is None
 
             ##
             # Some models based on mass-loading factor, convert to fstar
