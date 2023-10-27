@@ -880,7 +880,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             if Mh is None:
                 Mh = self.halos.tab_M
-                
+
             return func(z=z, Mh=Mh)
 
         if self.is_quiescent:
@@ -2246,6 +2246,9 @@ class GalaxyCohort(GalaxyAggregate):
         T = self.get_transmission(z, x, units=units, band=band,
             include_dust_transmission=include_dust_transmission,
             include_igm_transmission=include_igm_transmission)
+
+        if (type(T) in numeric_types) or (T.size == 1):
+            T = float(T) * np.ones_like(Lh)
 
         if np.all(T==1):
             pass

@@ -121,7 +121,7 @@ sim = ares.simulations.Simulation(**pars)               # Initialize a simulatio
 gs = sim.get_21cm_gs()   
 ```                                               
 
-You can examine the contents of ``sim_gs.history``, a dictionary which contains
+You can examine the contents of ``gs.history``, a dictionary which contains
 the redshift evolution of all IGM physical quantities, or use some built-in
 analysis routines:
 
@@ -153,7 +153,7 @@ If you encounter problems with installation or running simple scripts, first che
 
 ## Contributors
 
-Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/home) 
+Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/home)
 
 Additional contributions / corrections / suggestions from:
 

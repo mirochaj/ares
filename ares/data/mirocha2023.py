@@ -157,13 +157,13 @@ _sfr_dpl = \
  'pq_func_par0[1]': 0.01,
  'pq_func_par1[1]': 3e12,
  'pq_func_par2[1]': 1.6,
- 'pq_func_par3[1]': -1.6,
+ 'pq_func_par3[1]': 0.2,
  'pq_func_par4[1]': 1e10,  # Mh anchor
  'pq_func_par5[1]': 0.6,    # scales (1-a) term
  'pq_func_par6[1]': 0.,     # scales (1-a) term
  'pq_func_par7[1]': 0,      # scales (1-a) term
  'pq_func_par8[1]': 0,      # scales (1-a) term
- 'pq_func_par9[1]': 0.2,    # scales log(1+z) term
+ 'pq_func_par9[1]': 0.,    # scales log(1+z) term
  'pq_func_par10[1]': 0.0,   # scales log(1+z) term
  'pq_func_par11[1]': 0.0,   # scales log(1+z) term
  'pq_func_par12[1]': 0.0,   # scales log(1+z) term
