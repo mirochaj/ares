@@ -11,7 +11,7 @@ _base = \
 
  # NIRB
  'tau_approx': 0,#'neutral',
- 'tau_clumpy': 2,
+ 'tau_clumpy': 0,
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
@@ -183,6 +183,7 @@ centrals_q = centrals_sf.copy()
 centrals_q['pop_sfh'] = 'ssp'
 centrals_q['pop_aging'] = True
 centrals_q['pop_ssfr'] = None
+centrals_q['pop_sfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 1e4
 centrals_q['pop_Z'] = 0.02
@@ -479,3 +480,26 @@ best_ssfr = \
 'pq_func_par13[1]{0}': 7.2800e-02,
 'pq_func_par14[1]{0}': -1.8903e-01,
 }
+
+best_sfr = \
+{
+'pq_func_par0[1]{0}': 7.4748e-03,
+'pq_func_par1[1]{0}': 9.3513e+10,
+'pq_func_par2[1]{0}': 1.8852e+00,
+'pq_func_par3[1]{0}': 2.3410e-01,
+'pq_func_par5[1]{0}': -8.0080e-01,
+'pq_func_par9[1]{0}': 6.6126e-01,
+'pq_func_par13[1]{0}': -1.2146e-02,
+'pq_func_par6[1]{0}': 2.7706e+00,
+'pq_func_par10[1]{0}': -1.6599e+00,
+'pq_func_par14[1]{0}': 4.8501e-01,
+'pq_func_par7[1]{0}': -6.7612e+00,
+'pq_func_par11[1]{0}': 7.6991e+00,
+'pq_func_par15[1]{0}': -1.8067e+00,
+'pq_func_par8[1]{0}': -4.3245e+00,
+'pq_func_par12[1]{0}': 4.6987e+00,
+'pq_func_par16[1]{0}': -1.0069e+00,
+}
+
+#base.update(best_smf_same)
+#base.update(best_sfr)

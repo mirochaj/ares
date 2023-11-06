@@ -278,11 +278,12 @@ class Population(object):
     @cached_property
     def is_quiescent(self):
         return (self.pf['pop_sfr_model'] == 'smhm-func') and \
-            (self.pf['pop_ssfr'] is None)
+            (self.pf['pop_ssfr'] is None and self.pf['pop_sfr'] is None)
 
     @property
     def is_aging(self):
-        return self.pf['pop_aging'] and self.pf['pop_ssfr'] not in simple_sfhs
+        return self.pf['pop_aging'] and \
+            (self.pf['pop_sfh'] not in simple_sfhs)
 
     @property
     def is_hod(self):

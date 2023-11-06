@@ -67,12 +67,11 @@ class Survey(object):
                 if filt not in filters:
                     continue
 
+            c = colors[i]
             if kwargs != {}:
                 if 'color' in kwargs:
                     c = kwargs['color']
                     del kwargs['color']
-            else:
-                c = colors[i]
 
             ax.plot(data[filt][0], data[filt][1], label=filt, color=c,
                 **kwargs)
@@ -232,10 +231,13 @@ class Survey(object):
         data = {}
         for fn in os.listdir(path):
 
-            if not fn.startswith('WFC3_IR'):
+            if not (fn.startswith('WFC3_IR') or fn.startswith('WFC3_UVIS')):
                 continue
 
-            fname = fn[fn.find('_IR')+4:]
+            if '_IR' in fn:
+                fname = fn[fn.find('_IR')+4:]
+            else:
+                fname = fn[fn.find('_UVIS1')+7:]
 
             # Do we care about this filter? If not, move along.
             if filters is not None:
@@ -247,7 +249,13 @@ class Survey(object):
                 data[fname] = self._filter_cache[fname]
                 continue
 
-            cent = float('{}.{}'.format(fname[1], fname[2:-1]))
+            if '_IR' in fn:
+                cent = float('{}.{}'.format(fname[1], fname[2:-1]))
+            else:
+                if 'LP' in fname:
+                    cent = float('0.{}'.format(fname[1:-2]))
+                else:
+                    cent = float('0.{}'.format(fname[1:-1]))
 
             full_path = os.path.join(path, fn)
             x, y = np.loadtxt(full_path, unpack=True, skiprows=1)

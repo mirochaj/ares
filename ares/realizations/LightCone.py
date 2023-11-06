@@ -923,18 +923,18 @@ class LightCone(object): # pragma: no cover
 
         """
 
-        s = "#" * 78
-        s += '\n# README\n'
-        s += "#" * 78
-        s +=  "\n# This is an automatically-generated file! \n"
-        s += "# In it, we list maps created with a given set of parameters.\n"
-        s += "# Note: this is a listing of files that will exist when the "
-        s += "map-making is \n# COMPLETE, i.e., they may not all exist yet.\n"
-        s += "#" * 78
-        s += "\n"
-        s += "# channel name [optional]; central wavelength (microns); "
-        s += "channel lower edge (microns) ; channel upper edge (microns) ; "
-        s += "filename \n"
+        hdr = "#" * 78
+        hdr += '\n# README\n'
+        hdr += "#" * 78
+        hdr +=  "\n# This is an automatically-generated file! \n"
+        hdr += "# In it, we list maps created with a given set of parameters.\n"
+        hdr += "# Note: this is a listing of files that will exist when the "
+        hdr += "map-making is \n# COMPLETE, i.e., they may not all exist yet.\n"
+        hdr += "#" * 78
+        hdr += "\n"
+        hdr += "# channel name [optional]; central wavelength (microns); "
+        hdr += "channel lower edge (microns) ; channel upper edge (microns) ; "
+        hdr += "filename \n"
 
         # Loop over channels
         if is_map:
@@ -955,6 +955,7 @@ class LightCone(object): # pragma: no cover
 
         # Loop over channels and record filenames. If not supplied, must be
         # galaxy catalog containing only positions (no photometry).
+        s = ''
         for h, channel in enumerate(channels):
             fn = self.get_fn(channel, logmlim, zlim=zlim,
                 fmt=fmt, final=True, channel_name=channel_names[h])
@@ -977,11 +978,16 @@ class LightCone(object): # pragma: no cover
         if save:
             base_dir = self.get_base_dir(fov=fov, pix=pix, path=path,
                 suffix=suffix)
+
+            if not os.path.exists(f'{base_dir}/README_{rstr}'):
+                with open(f'{base_dir}/README_{rstr}', 'w') as f:
+                    f.write(hdr)
+
             with open(f'{base_dir}/README_{rstr}', 'w') as f:
-                f.write(s)
+                f.write(s)        
 
             if verbose:
-                print(f"# Wrote {base_dir}/README")
+                print(f"# Wrote to {base_dir}/README_{rstr}")
 
         return s
 
@@ -1530,10 +1536,11 @@ class LightCone(object): # pragma: no cover
                 cimg = np.zeros([npix]*2)
 
         ##
-        # Wipe slate clean
-        f = open(f"{final_dir}/README", 'w')
-        f.write("# map [central wavelength/micron] ; populations included \n")
-        f.close()
+        # Create fresh file if none exists yet.
+        if not os.path.exists(f"{final_dir}/README"):
+            f = open(f"{final_dir}/README", 'w')
+            f.write("# map [central wavelength/micron] ; populations included \n")
+            f.close()
 
         ##
         # Save final products

@@ -177,6 +177,11 @@ aux_data = {
         "WFC3_IR.F140W",
         "WFC3_IR.F153M",
         "WFC3_IR.F160W",
+        "WFC3_UVIS1.F336W",
+        "WFC3_UVIS1.F475W",
+        "WFC3_UVIS1.F625W",
+        "WFC3_UVIS1.F775W",
+        "WFC3_UVIS1.F850LP",
         None,
     ],
     "wfc": [

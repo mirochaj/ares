@@ -2074,6 +2074,7 @@ class GalaxyCohort(GalaxyAggregate):
                     if self.pf['pop_ihl'] is not None:
                         ihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
                         _Lh_ *= ihl
+
                 else:
 
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
@@ -2252,9 +2253,12 @@ class GalaxyCohort(GalaxyAggregate):
 
         if np.all(T==1):
             pass
+        elif np.all(T == 0):
+            return np.zeros_like(Lh)
         elif Mh is None:
             Lh *= T
         else:
+            print('hi', Lh.shape, Mh.shape, T.shape, T)
             _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
             Lh *= _T_
 
