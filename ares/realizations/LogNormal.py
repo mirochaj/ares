@@ -25,12 +25,12 @@ except ImportError:
     pass
 
 class LogNormal(LightCone): # pragma: no cover
-    def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), verbose=True,
+    def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
         seed_rot=None, seed_trans=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
-        randomise_in_cell=True, prefix='ares_mock', **kwargs):
+        randomise_in_cell=True, base_dir='ares_mock', **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -50,7 +50,9 @@ class LogNormal(LightCone): # pragma: no cover
         """
         self.Lbox = Lbox
         self.dims = dims
-        self.zlim = zlim
+        self.zmin = zmin
+        self.zmax = zmax
+        self.zlim = (zmin, zmax)
         self.seed_rho = seed_rho
         self.seed_halo_mass = seed_halo_mass
         self.seed_halo_pos = seed_halo_pos
@@ -67,7 +69,8 @@ class LogNormal(LightCone): # pragma: no cover
         self.randomise_in_cell = randomise_in_cell
         self.verbose = verbose
         self.kwargs = kwargs
-        self.prefix = prefix
+        self.base_dir = base_dir
+        self.model_name = model_name
 
         if self.bias_model > 0:
             assert self.bias_params is not None, \
@@ -75,12 +78,12 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Adjust upper bound in zlim based on box size!
-        ze, zmid, Re = self.get_domain_info(zlim=zlim, Lbox=self.Lbox)
+        ze, zmid, Re = self.get_domain_info(zlim=(zmin, zmax), Lbox=self.Lbox)
 
         self.zlim = np.min(ze), np.max(ze)
         if verbose:
             print(f"# Overriding user-supplied zlim slightly to accommodate box size.")
-            print(f"# Old zlim=({zlim[0]:.3f},{zlim[1]:.3f})")
+            print(f"# Old zlim=({zmin:.3f},{zmax:.3f})")
             print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
             print(f"# Number of co-eval chunks: {zmid.size}")
 
@@ -536,167 +539,3 @@ class LogNormal(LightCone): # pragma: no cover
         gc.collect()
 
         return _x, _y, _z, mass
-
-    def get_catalog_OLD(self, zlim=None, logmlim=(11,12), randomise_in_cell=True,
-        idnum=0, verbose=True):
-        """
-        Get a galaxy catalog in (RA, DEC, redshift) coordinates.
-
-        Parameters
-        ----------
-        zlim : tuple
-            Restrict redshift range to be between:
-
-                zlim[0] <= z < zlim[1].
-
-        logmlim : tuple
-            Restrict halo mass range to be between:
-
-                10**logmlim[0] <= Mh/Msun 10**logmlim[1]
-
-        .. note :: This is essentially a wrapper around `_get_catalog_from_coeval`,
-            i.e., we're just figuring out how many chunks are needed along the
-            line of sight and re-generating the relevant cubes.
-
-        """
-
-        #if not hasattr(self, '_cache_cats'):
-        #    self._cache_cats = {}
-
-        #if (zmin, zmax, mmin) in self._cache_cats:
-            #print(f"# Loaded from cache (zmin={zmin}, zmax={zmax}, mmin={mmin})")
-        #    return self._cache_cats[(zmin, zmax, mmin)]
-
-        if zlim is None:
-            zlim = self.zlim
-
-        zmin, zmax = zlim
-        mmin, mmax = 10**np.array(logmlim)
-
-        # First, get full domain info
-        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
-        Rc = bin_e2c(Re)
-        dz = np.diff(ze)
-
-        # Deterministically adjust the random seeds for the given mass range
-        # and redshift range.
-        #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
-
-        #seeds = self.seed_rho * np.arange(1, len(zmid)+1)
-        #q = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
-        #seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
-        #seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
-
-        # Figure out if we're getting the catalog of a single chunk
-        chunk_id = None
-        for i, Rlo in enumerate(Re[0:-1]):
-            zlo, zhi = ze[i:i+2]
-
-            if (zlo == zlim[0]) and (zhi == zlim[1]):
-                chunk_id = i
-                break
-
-        ##
-        # Print-out information about FOV
-        # arcmin / Mpc -> deg / Mpc
-        theta_max = self.sim.cosm.ComovingLengthToAngle(zmin, 1) \
-            * (self.Lbox / self.sim.cosm.h70) / 60.
-        theta_min = self.sim.cosm.ComovingLengthToAngle(zmax, 1) \
-            * (self.Lbox / self.sim.cosm.h70) / 60.
-
-        # We use this info to shave off the edges around the box at increasingly
-        # high redshift corresponding to angles greater than the angle subtended
-        # by the low-z edge of the box.
-
-        #if self.verbose:
-        #    print("# FOV at front edge (z={:.1f}) of lightcone: {:.1f} degrees.".format(
-        #        zmin, theta_max
-        #    ))
-        #    print("# FOV at back edge (z={:.1f}) of lightcone: {:.1f} degrees.".format(
-        #        zmax, theta_min
-        #    ))
-
-        pbar = ProgressBar(Rc.size, name=f"lc(z>={zmin},z<{zmax})",
-            use=chunk_id is None)
-        pbar.start()
-
-        ct = 0
-        zlo = zmin * 1.
-        for i, Rlo in enumerate(Re[0:-1]):
-            pbar.update(i)
-
-            zlo, zhi = ze[i:i+2]
-
-            if chunk_id is not None:
-                if i != chunk_id:
-                    continue
-
-            if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                continue
-
-            #if (zlo, zhi, mmin) in self._cache_cats:
-            #    _ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
-            #else:
-            halos = self.get_halo_population(z=zmid[i], seed_box=seeds[i],
-                seed=seeds_hm[i], seed_pos=seeds_hp[i], seed_occ=seeds_ho[i],
-                mmin=mmin, mmax=mmax, verbose=verbose,
-                randomise_in_cell=randomise_in_cell, idnum=idnum)
-
-            if halos[0] is None:
-                ra = dec = red = mass = None
-                continue
-
-
-            _ra, _de, _red = self._get_catalog_from_coeval(halos, z0=zlo)
-            _m = halos[-1]
-
-            okr = np.logical_and(_ra <  0.5 * theta_min,
-                                 _ra > -0.5 * theta_min)
-            okd = np.logical_and(_de <  0.5 * theta_min,
-                                 _de > -0.5 * theta_min)
-            ok = np.logical_and(okr, okd)
-
-                # Cache intermediate outputs too!
-                #self._cache_cats[(zlo, zhi, mmin)] = \
-                #    _ra[ok==1], _de[ok==1], _red[ok==1], _m[ok==1]
-
-                #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
-
-            if ct == 0:
-                ra = _ra.copy()
-                dec = _de.copy()
-                red = _red.copy()
-                mass = _m.copy()
-            else:
-                ra = np.hstack((ra, _ra))
-                dec = np.hstack((dec, _de))
-                red = np.hstack((red, _red))
-                mass = np.hstack((mass, _m))
-
-            ct += 1
-
-            del _ra, _de, _red, _m, halos
-            gc.collect()
-
-        pbar.finish()
-
-        #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
-
-        return ra, dec, red, mass
-
-    def get_seds(self, z, idnum=0, wave_range=(800., 5e4), mmin=1e11,
-        dlam=20, tol_logM=0.1):
-        """
-
-        """
-
-        waves = np.arange(wave_range[0], wave_range[1]+dlam, dlam)
-
-        Mh = self.get_field(z, 'mass', mmin=mmin)
-        red = self.get_field(z, 'redshift', mmin=mmin)
-
-            # Could supply "red" instead of "z" here to get some evolution.
-        lum = self.sim.pops[idnum].get_spec(z, waves, M=Mh,
-            stellar_mass=False)
-
-        return waves, lum
