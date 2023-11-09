@@ -65,16 +65,16 @@ class LightCone(object): # pragma: no cover
 
         # Co-eval box size and grid zones
         if dryrun:
-            print(f"# Creating {sofar}/L_{self.Lbox:.0f}")
-        elif not os.path.exists(f"{sofar}/L_{self.Lbox:.0f}"):
-            os.mkdir(f"{sofar}/L_{self.Lbox:.0f}")
+            print(f"# Creating {sofar}/box_{self.Lbox:.0f}")
+        elif not os.path.exists(f"{sofar}/box_{self.Lbox:.0f}"):
+            os.mkdir(f"{sofar}/box_{self.Lbox:.0f}")
 
         if dryrun:
-            print(f"# Creating {sofar}/L_{self.Lbox:.0f}/N_{self.dims:.0f}")
-        elif not os.path.exists(f"{sofar}/L_{self.Lbox:.0f}/N_{self.dims:.0f}"):
-            os.mkdir(f"{sofar}/L_{self.Lbox:.0f}/N_{self.dims:.0f}")
+            print(f"# Creating {sofar}/box_{self.Lbox:.0f}/dim_{self.dims:.0f}")
+        elif not os.path.exists(f"{sofar}/box_{self.Lbox:.0f}/dim_{self.dims:.0f}"):
+            os.mkdir(f"{sofar}/box_{self.Lbox:.0f}/dim_{self.dims:.0f}")
 
-        sofar = f"{sofar}/L_{self.Lbox:.0f}/N_{self.dims:.0f}"
+        sofar = f"{sofar}/box_{self.Lbox:.0f}/dim_{self.dims:.0f}"
 
         # Model name
         if dryrun:
@@ -971,9 +971,9 @@ class LightCone(object): # pragma: no cover
         #else:
         #    return None, None, None
 
-    def get_output_dir(self, fov, pix, zlim, logmlim):
+    def get_output_dir(self, fov, pix, zlim, logmlim=None):
         fn = f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"
-        fn += f"/L_{self.Lbox:.0f}/N_{self.dims:.0f}"
+        fn += f"/box_{self.Lbox:.0f}/dim_{self.dims:.0f}"
         fn += f"/{self.model_name}"
         fn += f"/zmin_{self.zmin:.3f}"
 
@@ -983,10 +983,12 @@ class LightCone(object): # pragma: no cover
         #
         if final:
             fn += f"/zmax_{zlim[1]:.3f}"
-            fn += f"/m_{logmlim[0]:.2f}_{logmlim[1]:.2f}"
+            if logmlim is not None:
+                fn += f"/m_{logmlim[0]:.2f}_{logmlim[1]:.2f}"
         else:
             fn += f'/checkpoints/z_{zlim[0]:.3f}_{zlim[1]:.3f}'
-            fn += f'/m_{logmlim[0]:.2f}_{logmlim[1]:.2f}'
+            if logmlim is not None:
+                fn += f'/m_{logmlim[0]:.2f}_{logmlim[1]:.2f}'
 
         # Everything should exist up to the m_??.??_??.?? subdirectory
         if not os.path.exists(fn):
@@ -1732,7 +1734,7 @@ class LightCone(object): # pragma: no cover
                     done_w_z = True
 
             # Means we've done all redshifts and all masses
-            if done_w_chan:
+            if done_w_chan and run_new:
                 _fn = self.get_map_fn(fov, pix, channel, popid,
                     logmlim=logmlim, zlim=self.zlim, fmt=fmt)
                 self.save_map(_fn, cimg * f_norm / dnu,
