@@ -597,6 +597,10 @@ class Cosmology(object):
         for i, zlo in enumerate(ze[0:-1]):
             zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.h70), dofz, zarr)
 
+            # Stop once we enclose requested upper boundary
+            if ze[i+1] >= zlim[1]:
+                break
+
         return ze, zmid, Re
 
     def HubbleLength(self, z):
