@@ -2258,7 +2258,6 @@ class GalaxyCohort(GalaxyAggregate):
         elif Mh is None:
             Lh *= T
         else:
-            print('hi', Lh.shape, Mh.shape, T.shape, T)
             _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
             Lh *= _T_
 
