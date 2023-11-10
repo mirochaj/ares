@@ -338,7 +338,7 @@ class LightCone(object): # pragma: no cover
 
         # Figure out if we're getting the catalog of a single chunk
         chunk_id = None
-        for i, Rlo in enumerate(Re[0:-1]):
+        for i, Rlo in enumerate(zmid):
             zlo, zhi = ze[i:i+2]
 
             if (zlo == zlim[0]) and (zhi == zlim[1]):
@@ -469,7 +469,7 @@ class LightCone(object): # pragma: no cover
             # Convert to (ra, dec, redshift) coordinates.
             # Note: the conversion from cMpc/h to cMpc occurs inside
             # _get_catalog_from_coeval here:
-            _ra, _de, _red = self._get_catalog_from_coeval(halos, z0=zlo)
+            _ra, _de, _red = self._get_catalog_from_coeval(halos, zlo=zlo)
             _m = halos[-1]
 
             okr = np.logical_and(_ra <  0.5 * theta_zmin,
@@ -509,7 +509,7 @@ class LightCone(object): # pragma: no cover
 
         return ra, dec, red, mass
 
-    def _get_catalog_from_coeval(self, halos, z0=0.2):
+    def _get_catalog_from_coeval(self, halos, zlo=0.2):
         """
         Make a catalog in lightcone coordinates (RA, DEC, redshift).
 
@@ -538,13 +538,13 @@ class LightCone(object): # pragma: no cover
             for z in zarr]) / 60.
 
         # Move the front edge of the box to redshift `z0`
-        d0 = np.interp(z0, zarr, dofz)
+        d0 = np.interp(zlo, zarr, dofz)
 
         # Translate LOS distances to redshifts.
-        red = np.interp(zmpc + d0, dofz, zarr)
+        red = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, zarr)
 
         # Conversion from physical to angular coordinates
-        deg_per_mpc = np.interp(zmpc + d0, dofz, angl)
+        deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, angl)
 
         ra  = xmpc * deg_per_mpc
         dec = ympc * deg_per_mpc
@@ -1065,7 +1065,7 @@ class LightCone(object): # pragma: no cover
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='hdf5', hdr={}, max_sources=None, cat_units='mags',
-        include_pops=None, clobber=False, verbose=False, dryrun=True, **kwargs):
+        include_pops=None, clobber=False, verbose=False, dryrun=False, **kwargs):
         """
         Generate galaxy catalogs.
 
@@ -1684,6 +1684,9 @@ class LightCone(object): # pragma: no cover
 
                 run_new = False
             else:
+                if verbose:
+                    print(f"# Generating map {fn}...")
+
                 # Generate map
                 # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
                 # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
@@ -1734,9 +1737,12 @@ class LightCone(object): # pragma: no cover
                     done_w_z = True
 
             # Means we've done all redshifts and all masses
-            if done_w_chan and run_new:
-                _fn = self.get_map_fn(fov, pix, channel, popid,
-                    logmlim=logmlim, zlim=self.zlim, fmt=fmt)
+            _fn = self.get_map_fn(fov, pix, channel, popid,
+                logmlim=logmlim, zlim=self.zlim, fmt=fmt)
+            if done_w_chan and ((not os.path.exists(_fn)) or clobber):
+
+                write_README = not os.path.exists(_fn)
+
                 self.save_map(_fn, cimg * f_norm / dnu,
                     channel, self.zlim, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
@@ -1755,8 +1761,9 @@ class LightCone(object): # pragma: no cover
 
                 ##
                 # # Append to README to indicate channel map is complete
-                with open(f'{base_dir}/README', 'a') as f:
-                    f.write(s_ch)
+                if write_README:
+                    with open(f'{base_dir}/README', 'a') as f:
+                        f.write(s_ch)
 
                 # Setup blank buffer for next iteration
                 cimg = np.zeros([npix]*2)
@@ -1764,6 +1771,8 @@ class LightCone(object): # pragma: no cover
             # Next task
 
         # All done.
+        pb.finish()
+
         return
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
