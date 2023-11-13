@@ -109,7 +109,7 @@ class LogNormal(LightCone): # pragma: no cover
             if self.seed_pa is not None:
                 self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
             else:
-                self._seeds_pa = [None] * len(zmid)    
+                self._seeds_pa = [None] * len(zmid)
 
         i = chunk
         return {'seed_box': self._seeds[i],
@@ -285,7 +285,7 @@ class LogNormal(LightCone): # pragma: no cover
         power = lambda k: self.get_ps_mm(z, k)
 
         pb = pbox.LogNormalPowerBox(N=self.dims, dim=3, pk=power,
-            boxlength=self.Lbox, seed=seed)
+            boxlength=self.Lbox / self.sim.cosm.h70, seed=seed)
 
         # Only keep one box in memory at a time.
         if len(self._cache_box.keys()) > 0:

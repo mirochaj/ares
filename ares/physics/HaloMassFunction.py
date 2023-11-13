@@ -813,11 +813,10 @@ class HaloMassFunction(object):
 
         for i, z in enumerate(self.tab_z):
 
-            if i > 0:
-                self._MF.update(z=z)
-
             if i % size != rank:
                 continue
+
+            self._MF.update(z=z)    
 
             # Undo little h for all main quantities
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
