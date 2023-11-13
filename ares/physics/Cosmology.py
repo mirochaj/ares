@@ -575,31 +575,47 @@ class Cosmology(object):
         else:
             return self._get_Hofz(z)
 
-    def get_lightcone_boundaries(self, zlim, Lbox):
+    def get_lightcone_boundaries(self, zlim, Lbox, rtol=1e-6):
         """
         Based on size of co-eval cubes (in Mpc/h), and redshift limits,
         determine all of the sub-intervals in redshift along line of sight.
         """
-        zarr = np.arange(0, 30, 0.05)
+
+        zarr = np.linspace(0.001, 10, 1000)
         dofz = np.array([self.ComovingRadialDistance(0, z) \
             for z in zarr]) / cm_per_mpc
 
         Rmin = np.interp(zlim[0], zarr, dofz)
         Rmax = np.interp(zlim[1], zarr, dofz)
-        Nbox = 1 + int((Rmax - Rmin) // (Lbox / self.h70))
+        Nbox = int((Rmax - Rmin) // (Lbox / self.h70))
 
-        Re = np.arange(Rmin, Rmax+(Lbox / self.h70), Lbox / self.h70)
+        # Make sure we have enough boxes along LoS to enclose requested
+        # upper edge in redshift.
+        # Note the tolerance here, introduced because the boundaries are
+        # computed via interpolation, possibility of small mismatch.
+        if (Rmin + Nbox * (Lbox / self.h70)) < (1 - rtol) * Rmax:
+            Nbox += 1
 
-        Rc = bin_e2c(Re)
-        ze = np.interp(Re, dofz, zarr)
+        _Re = np.array([Rmin + i * Lbox / self.h70 for i in range(Nbox+1)])
+        _Rc = bin_e2c(_Re)
+        _ze = np.interp(_Re, dofz, zarr)
 
-        zmid = np.zeros_like(Rc)
-        for i, zlo in enumerate(ze[0:-1]):
-            zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.h70), dofz, zarr)
-
+        Re = []
+        ze = []
+        for i, zz in enumerate(_ze):
             # Stop once we enclose requested upper boundary
-            if ze[i+1] >= zlim[1]:
+            # This is kind of a hack...shouldn't need?
+            if (zz >= zlim[1]) and (_ze[i-1] > zlim[1]):
                 break
+
+            ze.append(zz)
+            Re.append(_Re[i])
+
+        ze = np.array(ze)
+        Re = np.array(Re)
+        zmid = np.zeros(ze.size - 1)
+        for i in range(zmid.size):
+            zmid[i] = np.interp(Re[i]+0.5*(Lbox / self.h70), dofz, zarr)
 
         return ze, zmid, Re
 

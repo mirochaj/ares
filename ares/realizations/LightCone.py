@@ -526,7 +526,7 @@ class LightCone(object): # pragma: no cover
         # Don't shift zmpc at all, z0 is the front face of the box
 
         # First, get redshifts
-        zarr = np.linspace(0, 10, 1000)
+        zarr = np.arange(0, 10, 0.01)
         #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
         #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
 
