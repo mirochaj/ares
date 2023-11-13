@@ -649,6 +649,8 @@ class LightCone(object): # pragma: no cover
         zall = self.get_redshift_chunks(zlim=self.zlim)
         assert zlim in zall
 
+        ichunk = zall.index(zlim)
+
         # Figure out the edges of the domain in RA and DEC (degrees)
         # Pixel coordinates
         ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
@@ -694,6 +696,8 @@ class LightCone(object): # pragma: no cover
             #       iz = _iz_
             #   else:
             #       iz = 0
+
+        seed_kw = self.get_seed_kwargs(ichunk, logmlim)
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, idnum=idnum, verbose=verbose)
@@ -813,7 +817,9 @@ class LightCone(object): # pragma: no cover
             R_sec *= 60.
 
             # Uniform for now.
+            np.random.seed(seed_kw['seed_nsers'])
             nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
+            np.random.seed(seed_kw['seed_pa'])
             pa = np.random.random(size=Rkpc.size) * 360
 
             # Ellipticity = 1 - b/a
@@ -1064,8 +1070,9 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='hdf5', hdr={}, max_sources=None, cat_units='mags',
-        include_pops=None, clobber=False, verbose=False, dryrun=False, **kwargs):
+        suffix=None, fmt='fits', hdr={}, max_sources=None, cat_units='uJy',
+        include_pops=None, clobber=False, verbose=False, dryrun=False,
+        use_pbar=True, **kwargs):
         """
         Generate galaxy catalogs.
 
@@ -1120,6 +1127,13 @@ class LightCone(object): # pragma: no cover
         all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
+        # Progress bar
+        pb = ProgressBar(len(all_chunks),
+            name="img(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
+                logmlim[0], logmlim[1], zlim[0], zlim[1]),
+            use=use_pbar)
+        pb.start()
+
         ##
         # Start doing work.
         ct = 0
@@ -1140,7 +1154,7 @@ class LightCone(object): # pragma: no cover
             fn = self.get_cat_fn(fov, pix, channel, popid,
                 logmlim=mchunk, zlim=zchunk)
 
-            #pb.update(h)
+            pb.update(h)
 
             if dryrun:
                 print(f"# Dry run: would run catalog {fn}")
@@ -1234,13 +1248,12 @@ class LightCone(object): # pragma: no cover
 
                 ##
                 # Save
-                # Future: save ra, dec, redshift separately? Could
-                # get heavy.
                 self.save_cat(fn, (_ra, _dec, _red, _dat),
                     channel, zchunk, mchunk,
                     fov, pix=pix, fmt=fmt, hdr=hdr,
                     cat_units=cat_units,
                     clobber=clobber, verbose=verbose)
+
 
                 dat.extend(list(_dat))
 
@@ -1251,9 +1264,9 @@ class LightCone(object): # pragma: no cover
             else:
                 done_w_chan = channel != all_chunks[h+1][1]
 
+            # If we're done with this channel, save file containing
+            # full redshift and mass range.
             if done_w_chan:
-                ##
-                # Combine catalogs over populations?
                 _fn = self.get_cat_fn(fov, pix, channel, popid,
                     logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
@@ -1262,208 +1275,17 @@ class LightCone(object): # pragma: no cover
                     fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=cat_units,
                     clobber=clobber, verbose=verbose)
 
+                del ra, dec, red, dat
+                dat = []
+                ra = []
+                dec = []
+                red = []
+
+        pb.finish()
 
         ##
         # Done
         return
-
-        ##
-        # Loop over populations, make catalogs.
-        for h, channel in enumerate(channels):
-            break
-
-            ra_allp = []
-            dec_allp = []
-            red_allp = []
-            dat_allp = []
-            for popid, pop in enumerate(self.sim.pops):
-                if popid not in include_pops:
-                    continue
-
-                # Go from low-z to high-z
-                ra_allz = []
-                dec_allz = []
-                red_allz = []
-                dat_allz = []
-                for i, (zlo, zhi) in enumerate(zchunks):
-
-                    # Look for pre-existing file.
-
-                    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                        continue
-
-                    ra_z = []
-                    dec_z = []
-                    red_z = []
-                    dat_z = []
-
-                    ct = 0
-
-                    # Go from high to low in mass
-                    for j, (mlo, mhi) in enumerate(mchunks[-1::-1]):
-
-                        if max_sources is not None:
-                            if ct >= max_sources:
-                                break
-
-                        fn = self.get_fn(channel, (mlo, mhi), (zlo, zhi),
-                            fmt=fmt, final=False, channel_name=channel_names[h])
-
-                        fn = intmd_dir + '/' + fn
-
-                        # Try to read from disk.
-                        if os.path.exists(fn) and (not clobber):
-                            if verbose:
-                                print(f"Found {fn}. Set clobber=True to overwrite.")
-                            #_Inu = self._load_cat(fn)
-                            continue
-
-                        ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
-                            logmlim=(mlo, mhi), idnum=popid, verbose=verbose)
-
-                        # Could be empty chunks for very massive halos and/or early times.
-                        if ra is None:
-                            continue
-
-                        # Hack out galaxies outside our requested lightcone.
-                        ok = np.logical_and(np.abs(ra)  < fov / 2.,
-                                            np.abs(dec) < fov / 2.)
-
-                        if ok.sum() == 0:
-                            continue
-
-                        # Limit number of sources, just for testing.
-                        if (max_sources is not None):
-                            if (ct == 0) and (max_sources >= Mh.size):
-                                # In this case, we can accommodate all the galaxies in
-                                # the catalog, so don't do anything yet.
-                                pass
-                            else:
-                                # Flag entries until we hit target.
-                                # This is not efficient but oh well.
-                                for _h in range(Mh.size):
-                                    ok[_h] = 0
-
-                                    if ok.sum() == max_sources:
-                                        break
-
-                                # This will be the final iteration.
-                                if ct + ok.sum() == max_sources:
-                                    self._hit_max_sources = True
-
-
-                        # Isolate OK entries.
-                        ra = ra[ok==1]
-                        dec = dec[ok==1]
-                        red = red[ok==1]
-                        Mh = Mh[ok==1]
-
-                        ct += ok.sum()
-
-                        ra_z.extend(list(ra))
-                        dec_z.extend(list(dec))
-                        red_z.extend(list(red))
-
-                        ##
-                        # Unpack channel info
-                        # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
-                        # photometric info, e.g., ('roman', 'F087'),
-                        # or special quantities like Ly-a EW or luminosity.
-                        # Note: if pops[idnum] is a GalaxyEnsemble object
-                        if channel in ['Mh', 'Ms', 'SFR']:
-                            dat = Mh
-                        elif channel.lower().startswith('ew'):
-                            raise NotImplemented('help')
-                        else:
-                            cam, filt = channel.split('_')
-
-                            _filt, mags = self.sim.pops[popid].get_mags(zcent[i],
-                                absolute=False, cam=cam, filters=[filt],
-                                Mh=Mh)
-
-                            if cat_units == 'mags':
-                                dat = np.atleast_1d(mags.squeeze())
-                            elif 'jy' in cat_units.lower():
-                                flux = 3631. * 10**(mags / -2.5)
-
-                                if cat_units.lower() == 'jy':
-                                    dat = np.atleast_1d(flux.squeeze())
-                                elif cat_units.lower() in ['microjy', 'ujy']:
-                                    dat = np.atleast_1d(1e6 * flux.squeeze())
-                                else:
-                                    raise NotImplemented('help')
-                            else:
-                                raise NotImplemented('Unrecognized `cat_units`.')
-
-                        ##
-                        # Save
-                        # Future: save ra, dec, redshift separately? Could
-                        # get heavy.
-                        self.save_cat(fn, (ra, dec, red, dat),
-                            channel, (zlo, zhi), (mlo, mhi),
-                            fov, pix=pix, fmt=fmt, hdr=hdr,
-                            cat_units=cat_units,
-                            clobber=clobber, verbose=verbose)
-
-                        dat_z.extend(list(dat))
-
-                    ##
-                    # Done with all mass chunks
-
-                    # Save intermediate chunk: all masses, single redshift chunk
-                    fnt = self.get_cat_fn(channel, logmlim=logmlim,
-                        zlim=(zlo, zhi), fmt=fmt, final=False,
-                        channel_name=channel_names[h])
-
-                    self.save_cat(fnt, (ra_z, dec_z, red_z, dat_z),
-                        channel, (zlo, zhi), (mlo, mhi),
-                        fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber,
-                        cat_units=cat_units,
-                        verbose=verbose)
-
-                    ra_allz.extend(ra_z)
-                    dec_allz.extend(dec_z)
-                    red_allz.extend(red_z)
-                    dat_allz.extend(dat_z)
-
-                    del ra_z, dec_z, red_z, dat_z
-
-                ##
-                # Done with all redshift chunks for this population.
-                fnp = self.get_map_fn(channel, logmlim=logmlim,
-                    zlim=zlim, fmt=fmt, final=False,
-                    channel_name=channel_names[h])
-
-                fnp = intmd_dir + '/' + fnp
-
-                self.save_cat(fnp, (ra_allz, dec_allz, red_allz, dat_allz),
-                    channel, zlim, logmlim,
-                    fov, pix=pix, fmt=fmt, hdr=hdr, clobber=clobber,
-                    cat_units=cat_units,
-                    verbose=verbose)
-
-                ra_allp.extend(ra_allz)
-                dec_allp.extend(dec_allz)
-                red_allp.extend(red_allz)
-                dat_allp.extend(dat_allz)
-
-            del ra_allz, dec_allz, red_allz, dat_allz
-
-            ##
-            # Combine catalogs over populations?
-            fnf = self.get_fn(channel, logmlim=logmlim,
-                zlim=zlim, fmt=fmt, final=True,
-                channel_name=channel_names[h])
-
-            fnf = final_dir + '/' + fnf
-
-            self.save_cat(fnf, (ra_allp, dec_allp, red_allp, dat_allp),
-                channel, zlim, logmlim,
-                fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=cat_units,
-                clobber=clobber, verbose=verbose)
-
-        ##
-        # Done
 
     def get_layers(self, channels, logmlim, dlogm=0.5, include_pops=None,
         channel_names=None):
@@ -1518,7 +1340,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
-        suffix=None, fmt='hdf5', hdr={}, map_units='MJy', channel_names=None,
+        suffix=None, fmt='fits', hdr={}, map_units='MJy', channel_names=None,
         include_pops=None, clobber=False, max_sources=None,
         keep_layers=True, use_pbar=True, verbose=False, dryrun=False, **kwargs):
         """
@@ -1775,7 +1597,7 @@ class LightCone(object): # pragma: no cover
 
         return
 
-    def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
+    def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='fits',
         hdr={}, clobber=False, verbose=False, cat_units=''):
         """
         Save galaxy catalog.
@@ -1819,7 +1641,7 @@ class LightCone(object): # pragma: no cover
         if verbose:
             print(f"# Wrote {fn}.")
 
-    def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='hdf5',
+    def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='fits',
         hdr={}, map_units='MJy', clobber=False, verbose=True):
         """
         Save map to disk.
@@ -1955,7 +1777,7 @@ class LightCone(object): # pragma: no cover
         return ra, dec, red, X, Xunit
 
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
-        prefix=None, suffix=None, save_dir=None, keep_layers=True, fmt='hdf5'):
+        prefix=None, suffix=None, save_dir=None, keep_layers=True, fmt='fits'):
         """
         Assemble an array of maps.
         """

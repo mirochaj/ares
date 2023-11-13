@@ -27,7 +27,7 @@ except ImportError:
 class LogNormal(LightCone): # pragma: no cover
     def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
-        seed_rot=None, seed_trans=None,
+        seed_rot=None, seed_trans=None, seed_pa=None, seed_nsers=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', **kwargs):
@@ -59,6 +59,8 @@ class LogNormal(LightCone): # pragma: no cover
         self.seed_halo_occ = seed_halo_occ
         self.seed_rot = seed_rot
         self.seed_tra = seed_trans
+        self.seed_pa = seed_pa
+        self.seed_nsers = seed_nsers
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
 
@@ -100,10 +102,20 @@ class LogNormal(LightCone): # pragma: no cover
             self._seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
             self._seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
 
+            if self.seed_nsers is not None:
+                self._seeds_nsers = self.seed_nsers * np.arange(1, len(zmid)+1) * fmh
+            else:
+                self._seeds_nsers = [None] * len(zmid)
+            if self.seed_pa is not None:
+                self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
+            else:
+                self._seeds_pa = [None] * len(zmid)    
+
         i = chunk
         return {'seed_box': self._seeds[i],
             'seed': self._seeds_hm[i], 'seed_pos': self._seeds_hp[i],
-            'seed_occ': self._seeds_ho[i]}
+            'seed_occ': self._seeds_ho[i],
+            'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
 
     def get_fov_from_L(self, z, Lbox):
         """
@@ -437,7 +449,7 @@ class LogNormal(LightCone): # pragma: no cover
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, idnum=0,
-        verbose=True):
+        verbose=True, **_kw_):
         """
         Get a realization of a halo population.
 
