@@ -294,6 +294,10 @@ subhalos['pq_func_par13[3]{2}'] = 0
 subhalos['pq_func_par14[3]{2}'] = 0
 subhalos['pq_func_par15[3]{2}'] = 0
 subhalos['pq_func_par16[3]{2}'] = 0
+subhalos['pq_func_par17[3]{2}'] = 0
+subhalos['pq_func_par18[3]{2}'] = 0
+subhalos['pq_func_par19[3]{2}'] = 0
+subhalos['pq_func_par20[3]{2}'] = 0
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = True
@@ -503,3 +507,62 @@ best_sfr = \
 
 #base.update(best_smf_same)
 #base.update(best_sfr)
+
+best = \
+{
+'pq_func_par0[0]{0}': 1.4528e-03,
+'pq_func_par1[0]{0}': 8.0368e+11,
+'pq_func_par2[0]{0}': 1.0138e+00,
+'pq_func_par3[0]{0}': -5.4139e-01,
+'pq_func_par5[0]{0}': -4.4920e-01,
+'pq_func_par9[0]{0}': -3.1000e-01,
+'pq_func_par13[0]{0}': -1.5618e-01,
+'pq_func_par6[0]{0}': -3.6642e-01,
+'pq_func_par10[0]{0}': 3.9501e-01,
+'pq_func_par14[0]{0}': 1.4752e-01,
+'pq_func_par0[2]{0}': 6.8249e-02,
+'pq_func_par1[2]{0}': 6.7548e-01,
+'pq_func_par2[2]{0}': 1.1821e+01,
+'pq_func_par3[2]{0}': -2.8344e-01,
+'pq_func_par4[2]{0}': 8.3226e-01,
+'pq_func_par8[2]{0}': 1.9903e-02,
+'pq_func_par12[2]{0}': -6.6032e-02,
+'pq_func_par5[2]{0}': 2.4409e-01,
+'pq_func_par9[2]{0}': 1.3869e-01,
+'pq_func_par13[2]{0}': 4.0331e-02,
+'pq_func_par6[2]{0}': 4.3713e-01,
+'pq_func_par10[2]{0}': 4.7108e-02,
+'pq_func_par14[2]{0}': -4.6672e-02,
+'pq_func_par7[2]{0}': -7.9427e-02,
+'pq_func_par11[2]{0}': 3.8848e-02,
+'pq_func_par15[2]{0}': 8.2503e-03,
+'pq_func_par0[1]{0}': 1.0485e-02,
+'pq_func_par1[1]{0}': 9.1208e+10,
+'pq_func_par2[1]{0}': 1.8199e+00,
+'pq_func_par3[1]{0}': 3.7529e-01,
+'pq_func_par5[1]{0}': -2.2829e-01,
+'pq_func_par9[1]{0}': 2.4969e-01,
+'pq_func_par13[1]{0}': 5.7209e-02,
+'pq_func_par6[1]{0}': 1.3389e+00,
+'pq_func_par10[1]{0}': -1.0108e-01,
+'pq_func_par14[1]{0}': -5.2890e-02,
+'pq_func_par7[1]{0}': 7.3728e-02,
+'pq_func_par11[1]{0}': -1.2489e-01,
+'pq_func_par15[1]{0}': -2.4701e-02,
+'pq_func_par8[1]{0}': 8.7978e-02,
+'pq_func_par12[1]{0}': 5.6333e-02,
+'pq_func_par16[1]{0}': 2.1005e-02,
+'pq_func_par0[4]{0}': 9.2995e-01,
+'pq_func_par2[4]{0}': 6.5168e-02,
+'pq_func_par3[4]{0}': 8.7186e-01,
+'pq_func_par5[4]{0}': -6.5286e-01,
+'pq_func_par7[4]{0}': -5.0222e-02,
+'pq_func_par4[4]{0}': -1.4911e+00,
+'pq_func_par6[4]{0}': 1.2853e+00,
+'pq_func_par8[4]{0}': -2.0233e-01,
+'mu_0': -3.0337e-01,
+'mu_a': 4.9473e-01,
+'kappa': 1.2483e-01,
+}
+
+base.update(best)

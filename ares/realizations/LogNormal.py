@@ -448,7 +448,7 @@ class LogNormal(LightCone): # pragma: no cover
         return mass
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
-        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, idnum=0,
+        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
         verbose=True, **_kw_):
         """
         Get a realization of a halo population.
@@ -523,12 +523,12 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Apply occupation fraction here?
-        if self.sim.pops[idnum].pf['pop_focc'] != 1:
+        if self.sim.pops[popid].pf['pop_focc'] != 1:
 
             np.random.seed(seed_occ)
 
             r = np.random.rand(N)
-            focc = self.sim.pops[idnum].get_focc(z=z, Mh=mass)
+            focc = self.sim.pops[popid].get_focc(z=z, Mh=mass)
 
             ok = np.ones(N)
             ok[r > focc] = 0
@@ -539,7 +539,7 @@ class LogNormal(LightCone): # pragma: no cover
             mass = mass[ok==1]
 
             if verbose:
-                print(f"# Applied occupation fraction cut for pop #{idnum} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
+                print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
                 print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
 
             if ok.sum() == 0:

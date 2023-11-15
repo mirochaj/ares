@@ -1075,6 +1075,24 @@ class HaloModel(HaloMassFunction):
 
         return
 
+    def get_halo_surface_dens(self, z, Mh, R):
+        model_nfw = lambda MM, rr: self.get_rho_nfw(z, Mh=MM, r=rr,
+            truncate=False)
+
+        # Tabulate surface density as a function of displacement
+        # and halo mass
+
+        rho = lambda rr: model_nfw(Mh, rr)
+        Sigma = lambda R: 2 * \
+            quad(lambda rr: rr * rho(rr) / np.sqrt(rr**2 - R**2),
+            R, np.inf)[0]
+
+        tab_sigma_nfw = np.zeros(R.size)
+        for jj, _R_ in enumerate(R):
+            tab_sigma_nfw[jj] = Sigma(_R_)
+
+        return tab_sigma_nfw
+
     def generate_halo_surface_dens(self, format='hdf5', clobber=False,
         checkpoint=True, destination=None, **kwargs):
         """
