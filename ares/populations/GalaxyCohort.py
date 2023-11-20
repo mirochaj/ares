@@ -1206,6 +1206,7 @@ class GalaxyCohort(GalaxyAggregate):
         Ngal = phi * vol
 
         # Cumulative surface density of galaxies *brighter than* Mobs
+        # [and optionally brighter ]
         cgal = cumtrapz(Ngal, x=mags, initial=Ngal[0])
 
         if maglim is not None:
@@ -1215,7 +1216,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
-        dlam=20, zbin=0.2):
+        dlam=20, zbin=0.2, selection=None):
         """
         Compute the *differential* surface density of galaxies.
 
@@ -1249,7 +1250,46 @@ class GalaxyCohort(GalaxyAggregate):
 
             vol = self.cosm.ProjectedVolume(z, angle=1., dz=zbin)
 
-            counts += phi * vol
+            # Optional: apply selection in other band.
+            if selection is not None:
+                assert type(selection) == dict
+                assert 'maglim' in selection.keys()
+
+                if 'cam' not in selection.keys():
+                    _xs_ = selection['x'] / (1. + z)
+                    _ws_ = selection['window']
+                else:
+                    _xs_ = _ws_ = None
+
+                _xs_, mags_sel = self.get_mags(z=z, x=_xs_, units=units,
+                    absolute=absolute, window=_ws_) #raw=raw,
+                    #nebular_only=nebular_only,
+                    #)
+
+                _xf_, mags_foc = self.get_mags(z=z,
+                    #raw=raw,
+                    #nebular_only=nebular_only,
+                    x=_x_,
+                    units=units, window=window,
+                    absolute=absolute, cam=cam, filters=filters,
+                    dlam=dlam)
+
+                # Need to figure out how limiting magnitude in selection band
+                # maps to magnitude in band of interest.
+                fin = np.isfinite(mags_sel)
+                maglim = np.interp(selection['maglim'], mags_sel[fin==1][-1::-1],
+                    mags_foc[fin==1][-1::-1],
+                    right=mags_foc[fin==1].max())
+
+
+                ok = mags <= maglim
+            else:
+                ok = np.ones_like(phi)
+
+
+            ##
+            # Increment counts
+            counts[ok==1] += phi[ok==1] * vol
 
         return counts
 

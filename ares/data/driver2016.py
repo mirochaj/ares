@@ -3,6 +3,10 @@ Table 2 in Driver et al. 2016
 """
 
 import numpy as np
+from ares.data import ARES
+from astropy.io import fits
+
+_input = ARES + '/driver2016'
 
 ebl = {}
 ebl['FUV'] = 0.153, 1.45, 1.45, 1.36, 0.07, 0.00, 0.04, 0.16
@@ -44,3 +48,39 @@ def plot_ebl(ax, **kwargs):
     ax.fill_between(waves_pl, lo, hi, **kwargs)
 
     return ax
+
+def get_available_bands():
+    hdulist = fits.open(f'{_input}/Table3MRT.fits')
+    data = hdulist[1].data
+    all_bands = []
+    for element in data:
+
+        if element[1] not in all_bands:
+            all_bands.append(element[1])
+
+    return all_bands
+
+def get_cts(band):
+    """
+    Return number counts for a given band.
+
+    Options include: ugriz, JHK, W1, W2, and Hubble filters
+    """
+    hdulist = fits.open(f'{_input}/Table3MRT.fits')
+    data = hdulist[1].data
+    telescopes = []
+
+    mags = []
+    cts = []
+    err = []
+    for element in data:
+        if element[1] != band:
+            continue
+
+        _err = np.sqrt(element[4]**2 + (1e-2 * element[6] * element[3])**2)
+
+        mags.append(element[2])
+        cts.append(element[3])
+        err.append(_err)
+
+    return np.array(mags), np.array(cts), np.array(err)
