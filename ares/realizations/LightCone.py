@@ -1473,18 +1473,28 @@ class LightCone(object): # pragma: no cover
             else:
                 buffer = np.zeros([npix]*2)
 
-            run_new = True
+            ran_new = True
             if os.path.exists(fn) and (not clobber):
                 if verbose:
                     print(f"# Found map {fn}. Set clobber=True to re-generate")
 
-                # Load and increment
-                buffer += self._load_map(fn)
+                # Load map
+                _buffer, _hdr = self._load_map(fn)
+
+                if _hdr['BUNIT'] == map_units:
+                    _buffer *= (f_norm / dnu)**-1.
+                else:
+                    raise NotImplemented('help')
+
+                # Might need to adjust units before incrementing
+                #buffer += _buffer
+                # Increment map for this z chunk
+                cimg += _buffer
 
                 if verbose:
                     print(f"# Loaded map {fn}.")
 
-                run_new = False
+                ran_new = False
             else:
                 if verbose:
                     print(f"# Generating map {fn}...")
@@ -1503,7 +1513,7 @@ class LightCone(object): # pragma: no cover
 
             # Save every mass chunk within every redshift chunk if the user
             # says so.
-            if keep_layers and run_new:
+            if keep_layers and ran_new:
                 # fov, pix, channel, popid, logmlim=None, zlim=None
                 _fn = self.get_map_fn(fov, pix, channel, popid,
                     logmlim=mchunk, zlim=zchunk,
@@ -1543,7 +1553,7 @@ class LightCone(object): # pragma: no cover
                 logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
             if (done_w_chan or done_w_pop) and \
-                ((not os.path.exists(_fn)) or clobber):
+                (not os.path.exists(_fn) or clobber):
 
                 self.save_map(_fn, cimg * f_norm / dnu,
                     channel, self.zlim, logmlim, fov,
@@ -1739,10 +1749,11 @@ class LightCone(object): # pragma: no cover
             with fits.open(fn) as hdu:
                 # In whatever `map_units` user supplied.
                 img = hdu[0].data
+                hdr = hdu[0].header
         else:
             raise NotImplementedError(f'No support for fmt={fmt}!')
 
-        return img
+        return img, hdr
 
     def _load_cat(self, fn):
         if fn.endswith('hdf5'):
@@ -1774,6 +1785,8 @@ class LightCone(object): # pragma: no cover
         """
         Assemble an array of maps.
         """
+
+        raise NotImplemented('needs fixing')
 
         if save_dir is None:
             save_dir = '.'
@@ -1807,7 +1820,7 @@ class LightCone(object): # pragma: no cover
                         continue
 
                     if keep_layers:
-                        layers[i,j,k,:,:] = self._load_map(fn)
+                        layers[i,j,k,:,:], _hdr = self._load_map(fn)
                     else:
                         layers[i,:,:] = self._load_map(fn)
 
