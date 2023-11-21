@@ -1320,7 +1320,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
-        suffix=None, fmt='fits', hdr={}, map_units='MJy', channel_names=None,
+        suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=None, clobber=False, max_sources=None,
         keep_layers=True, use_pbar=True, verbose=False, dryrun=False, **kwargs):
         """
@@ -1635,7 +1635,7 @@ class LightCone(object): # pragma: no cover
             print(f"# Wrote {fn}.")
 
     def save_map(self, fn, img, channel, zlim, logmlim, fov, pix=1, fmt='fits',
-        hdr={}, map_units='MJy', clobber=False, verbose=True):
+        hdr={}, map_units='MJy/sr', clobber=False, verbose=True):
         """
         Save map to disk.
         """
