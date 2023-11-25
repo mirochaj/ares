@@ -460,7 +460,8 @@ class HaloMassFunction(object):
                     self.tab_mgtm,
                     self.tab_ngtm,
                     self._tab_MAR,
-                    self.tab_Mmin_floor
+                    self.tab_Mmin_floor,
+                    self.tab_bias
                 ) = self.pf['halo_mf_cache']
             return
 
@@ -772,7 +773,7 @@ class HaloMassFunction(object):
 
     def prep_for_cache(self):
         keys = ['tab_z', 'tab_t', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm',
-            'tab_MAR', 'tab_Mmin_floor']
+            'tab_MAR', 'tab_Mmin_floor', 'tab_bias']
         hist = [self.__getattribute__(key) for key in keys]
         return hist
 
@@ -816,7 +817,7 @@ class HaloMassFunction(object):
             if i % size != rank:
                 continue
 
-            self._MF.update(z=z)    
+            self._MF.update(z=z)
 
             # Undo little h for all main quantities
             self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
