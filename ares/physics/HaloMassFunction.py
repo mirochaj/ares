@@ -461,7 +461,7 @@ class HaloMassFunction(object):
                     self.tab_ngtm,
                     self._tab_MAR,
                     self.tab_Mmin_floor,
-                    self.tab_bias
+                    self._tab_bias
                 ) = self.pf['halo_mf_cache']
             return
 
