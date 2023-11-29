@@ -187,3 +187,34 @@ _flex2 = \
 }
 
 dflex = _flex2
+
+dplx = dpl.copy()
+dplx['pq_func[0]{0}'] = 'dplx_evolNPX'
+dplx['pq_func_var2[0]{0}'] = '1+z'
+dplx['pq_func_par0[0]{0}'] = 2e-2
+dplx['pq_func_par4[0]{0}'] = 1e10
+dplx['pq_func_par5[0]{0}'] = 7
+dplx['pq_func_par6[0]{0}'] = 0     # no evolution in normalization
+dplx['pq_func_par7[0]{0}'] = 0     # no evolution in peak
+dplx['pq_func_par8[0]{0}'] = 1e5   # inflection pt in SFE
+dplx['pq_func_par9[0]{0}'] = 0     # gamma_3
+dplx['pq_func_par10[0]{0}'] = 0    # gamma_4
+dplx['pq_func_par11[0]{0}'] = 0    # evolution in inflection pt
+dplx['pq_func_par12[0]{0}'] = 0    # evol in gamma_3
+dplx['pq_func_par13[0]{0}'] = 0    # evol in gamma_4
+
+dplx['pq_val_ceil[0]{0}'] = 1.0
+
+dplx['pop_focc{0}'] = 'pq[1]'
+dplx['pq_func[1]{0}'] = 'exp-comp_evolT'
+dplx['pq_func_var[1]{0}'] = 'Mh'
+dplx['pq_func_var2[1]{0}'] = '1+z'
+dplx['pq_func_par0[1]{0}'] = 1
+dplx['pq_func_par1[1]{0}'] = 1e9    # critical mass
+dplx['pq_func_par2[1]{0}'] = 3      # exponent
+dplx['pq_func_par3[1]{0}'] = 7      # pivot 1+z
+dplx['pq_func_par4[1]{0}'] = 0      # evolution in turnover mass
+
+dplx['cosmological_Mmin'] = False
+dplx['pop_Tmin{0}'] = None
+dplx['pop_Mmin{0}'] = 1e4
