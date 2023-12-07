@@ -44,7 +44,7 @@ centrals_sf = \
  'pop_rad_yield': 'from_sed',
 
  'pop_fesc': 0.2,
- 'pop_sed_degrade': 100,
+ 'pop_sed_degrade': 10,
 
  'pop_nebular': 0,
 

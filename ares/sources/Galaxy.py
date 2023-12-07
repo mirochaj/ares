@@ -168,6 +168,7 @@ class Galaxy(SynthesisModel):
             f_sSFR = lambda logtau: 1e-6 \
                 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
+
             tau = 10**fmin(func, np.log10(tau_guess),
                 disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
 
