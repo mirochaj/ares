@@ -276,8 +276,31 @@ class LightCone(object): # pragma: no cover
         return chunks
 
     def get_mass_chunks(self, logmlim, dlogm):
-        mbins = np.arange(logmlim[0], logmlim[1], dlogm)
-        return np.array([(mbin, mbin+dlogm) for mbin in mbins])
+        """
+        Return segments in log10(halo mass / Msun) space to run maps.
+
+        .. note :: This is mostly for computational purposes, i.e., by dividing
+            up the work in halo mass bins, we can limit memory consumption.
+
+        Parameters
+        ----------
+        logmlim: tuple
+            Boundaries of halo mass space we want to run, e.g., logmlim=(10,13)
+            will simulate the halo mass range 10^10 - 10^13 Msun.
+        dlogm : int, float, np.ndarray
+            The log10 mass bin used to divide up the work. For example, if
+            dlogm=0.5, we will generate maps or catalogs in mass chunks 0.5 dex
+            wide. You can also provide the bin edges explicitly if you'd like,
+            which can be helpful if including very low mass halos (whose
+            abundance grows rapidly). In this case, dlogm should be, e.g.,
+            dlogm=np.ndarray([[10, 10.5], [10.5, 11], [11, 12], [12, 13]])
+
+        """
+        if type(dlogm) in numeric_types:
+            mbins = np.arange(logmlim[0], logmlim[1], dlogm)
+            return np.array([(mbin, mbin+dlogm) for mbin in mbins])
+        else:
+            return dlogm
 
     def get_zindex(self, z):
         """
