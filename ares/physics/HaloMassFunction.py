@@ -757,9 +757,17 @@ class HaloMassFunction(object):
                 tmin = max(self.pf['halo_tmin'] - 2*dt, 20.)
                 tmax = self.pf['halo_tmax'] + 2*dt
 
+                if self.cosm.z_of_t(tmax * s_per_myr) < 0:
+                    tmax -= dt
+
                 Nt = Nz = int(round(((tmax - tmin) / dt) + 1, 1))
                 self._tab_t = np.linspace(tmin, tmax, Nt)[-1::-1]
                 self._tab_z = self.cosm.z_of_t(self.tab_t * s_per_myr)
+
+                # Should check that z >= 0, which can happen if we weren't
+                # careful to check age of Universe with given cosmological
+                # parameters, and because we add a buffer at the end.
+
 
         return self._tab_z
 
@@ -1563,7 +1571,7 @@ class HaloMassFunction(object):
 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)
-            assert zsize % 1 == 0
+            assert zsize % 1 == 0, f"Require integer number of z bins! {zsize}"
             zsize = int(round(zsize, 1))
 
             s = 'halo_mf_{0!s}_{1!s}_logM_{2}_{3}-{4}_{5}_{6}_{7}-{8}'.format(

@@ -1230,6 +1230,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         assert units.lower().startswith('ang')
 
+        dmag = np.diff(bins)
+        assert np.all(np.diff(dmag) == 0), \
+            "Magnitude bins must be uniformly spaced!"
+        dmag = dmag[0]
+
         zedges = np.arange(zmin, zmax+zbin, zbin)
         zcen = bin_e2c(zedges)
         counts = np.zeros_like(bins)
@@ -1291,7 +1296,7 @@ class GalaxyCohort(GalaxyAggregate):
             # Increment counts
             counts[ok==1] += phi[ok==1] * vol
 
-        return counts
+        return counts / dmag
 
 
     @property
