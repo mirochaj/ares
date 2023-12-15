@@ -2384,7 +2384,7 @@ class GalaxyEnsemble(HaloPopulation):
 
         return owaves, flux
 
-    def get_transmission(self, z, x, units='Angstroms', band=None,
+    def get_transmission(self, z, x, units='Angstroms', band=None, idnum=None,
         include_dust_transmission=True, include_igm_transmission=True):
         """
         Convenience routine that wraps self.dust.get_transmission and
@@ -2412,6 +2412,9 @@ class GalaxyEnsemble(HaloPopulation):
 
             Tdust = self.dust.get_transmission(waves,
                 Av=Av, Sd=Sd)
+
+            if idnum is not None:
+                Tdust = Tdust[idnum]
         else:
             Tdust = np.ones_like(waves)
 
@@ -2473,7 +2476,7 @@ class GalaxyEnsemble(HaloPopulation):
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 band=band, units_out=units_out)
 
-            T = self.get_transmission(z, x, units=units, band=band,
+            T = self.get_transmission(z, x, units=units, band=band, idnum=idnum,
                 include_dust_transmission=include_dust_transmission,
                 include_igm_transmission=include_igm_transmission)
             L = L * T

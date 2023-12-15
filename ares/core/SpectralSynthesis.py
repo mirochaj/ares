@@ -1107,11 +1107,13 @@ class SpectralSynthesis(object):
         # simple stellar populations of the corresponding ages (relative to
         # zobs).
         ##
-        Lhist = np.zeros(sfh.shape)
+        if batch_mode:
+            Lhist = np.zeros(sfh.shape)
+        else:
+            Lhist = np.zeros(zarr.shape)
 
         # Start from initial redshift and move forward in time, i.e., from
         # high redshift to low.
-
         for i, _tobs in enumerate(tarr):
 
             # If zobs is supplied, we only have to do one iteration
@@ -1282,7 +1284,6 @@ class SpectralSynthesis(object):
             if not do_all_time:
                 break
 
-
         ##
         # Redden spectra
         ##
@@ -1340,6 +1341,7 @@ class SpectralSynthesis(object):
                     #else:
                     #    Lout = Lhist * (1. - fcov[:,izobs]) \
                     #         + Lhist * fcov[:,izobs] * np.exp(-tau[:,izobs])
+
             else:
                 Lout = Lhist.copy()
         else:
