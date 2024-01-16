@@ -61,7 +61,7 @@ centrals_sf = \
 
  # fstar is SMHM for 'smhm-func' SFR model
  'pop_fstar': 'pq[0]',
- 'pq_func[0]': 'dpl_evolB13',
+ 'pq_func[0]': 'dplx_evolB13',
  'pq_func_var[0]': 'Mh',
  'pq_func_var2[0]': '1+z',
  'pq_func_par0[0]': 0.0003,
@@ -85,6 +85,14 @@ centrals_sf = \
  'pq_func_par18[0]': 0.0,           # peak
  'pq_func_par19[0]': 0.0,           # low
  'pq_func_par20[0]': 0.0,           # high
+
+ # Extension!
+ 'pq_func_par21[0]': 0.0,
+ 'pq_func_par22[0]': 0.0,
+ 'pq_func_par23[0]': 0.0,
+ 'pq_func_par24[0]': 0.0,
+ 'pq_func_par25[0]': 0.0,
+ 'pq_func_par26[0]': 0.0,
 
  'pq_val_ceil[0]': 1,
 
@@ -151,7 +159,7 @@ _sfr_dpl = \
 {
 # sSFR(z, Mstell)
  'pop_sfr': 'pq[1]',
- 'pq_func[1]': 'dpl_evolB13',
+ 'pq_func[1]': 'dplx_evolB13',
  'pq_func_var[1]': 'Mh',
  'pq_func_var2[1]': '1+z',
  'pq_func_par0[1]': 0.01,
@@ -163,7 +171,7 @@ _sfr_dpl = \
  'pq_func_par6[1]': 0.,     # scales (1-a) term
  'pq_func_par7[1]': 0,      # scales (1-a) term
  'pq_func_par8[1]': 0,      # scales (1-a) term
- 'pq_func_par9[1]': 0.,    # scales log(1+z) term
+ 'pq_func_par9[1]': 0.,     # scales log(1+z) term
  'pq_func_par10[1]': 0.0,   # scales log(1+z) term
  'pq_func_par11[1]': 0.0,   # scales log(1+z) term
  'pq_func_par12[1]': 0.0,   # scales log(1+z) term
@@ -175,6 +183,13 @@ _sfr_dpl = \
  'pq_func_par18[1]': 0.0,
  'pq_func_par19[1]': 0.0,
  'pq_func_par20[1]': 0.0,
+ # Extension!
+ 'pq_func_par21[1]': 0.0,
+ 'pq_func_par22[1]': 0.0,
+ 'pq_func_par23[1]': 0.0,
+ 'pq_func_par24[1]': 0.0,
+ 'pq_func_par25[1]': 0.0,
+ 'pq_func_par26[1]': 0.0,
 }
 
 centrals_sf.update(_sfr_dpl)
@@ -408,26 +423,27 @@ best_smfs_same = \
 'pq_func_par2[0]{0}': 1.0288e+00,
 'pq_func_par3[0]{0}': -5.9869e-01,
 'pq_func_par5[0]{0}': 2.0982e+00,
-'pq_func_par9[0]{0}': -3.4821e+00,
-'pq_func_par13[0]{0}': 8.0858e-01,
 'pq_func_par6[0]{0}': -1.5912e+00,
+'pq_func_par9[0]{0}': -3.4821e+00,
 'pq_func_par10[0]{0}': 2.3568e+00,
+'pq_func_par13[0]{0}': 8.0858e-01,
 'pq_func_par14[0]{0}': -4.1392e-01,
+
 'pq_func_par0[2]{0}': 9.4945e-02,
 'pq_func_par1[2]{0}': 9.5740e-01,
 'pq_func_par2[2]{0}': 1.1919e+01,
 'pq_func_par3[2]{0}': -5.1173e-01,
 'pq_func_par4[2]{0}': 6.4382e-01,
-'pq_func_par8[2]{0}': -2.4369e-02,
-'pq_func_par12[2]{0}': 2.0178e-02,
 'pq_func_par5[2]{0}': -2.1909e+00,
-'pq_func_par9[2]{0}': 1.5689e+00,
-'pq_func_par13[2]{0}': -9.6158e-03,
 'pq_func_par6[2]{0}': 9.9856e-01,
-'pq_func_par10[2]{0}': -8.9817e-01,
-'pq_func_par14[2]{0}': 2.1655e-01,
 'pq_func_par7[2]{0}': 3.9622e-01,
+'pq_func_par8[2]{0}': -2.4369e-02,
+'pq_func_par9[2]{0}': 1.5689e+00,
+'pq_func_par10[2]{0}': -8.9817e-01,
 'pq_func_par11[2]{0}': 1.9932e-01,
+'pq_func_par12[2]{0}': 2.0178e-02,
+'pq_func_par13[2]{0}': -9.6158e-03,
+'pq_func_par14[2]{0}': 2.1655e-01,
 'pq_func_par15[2]{0}': -1.0448e-01,
 }
 

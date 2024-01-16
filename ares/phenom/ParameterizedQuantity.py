@@ -47,7 +47,7 @@ func_options = {
     "p_linear": "(p[3] - p[2])/(p[1] - p[0]) * (x - p[1]) + p[3]",
 }
 
-Np_max = 25
+Np_max = 30
 
 optional_kwargs = "pq_val_ceil", "pq_val_floor", "pq_var_ceil", "pq_var_floor"
 
@@ -997,6 +997,61 @@ class DoublePowerLawEvolvingAsB13(BasePQ):
 
         return y
 
+class DoublePowerLawExtendedEvolvingAsB13(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+
+        # Need scale factor
+        a = 1. / (1. + kwargs['z'])
+
+        # Basic idea here is to have parameters that dictate
+        # low-z, medium-z, and high-z behaviour, e.g.,
+        # log10(f_star,10) = p[0] + p[5] * (1 - a) \
+        #                  + p[9] * np.log(1 + z) + p[13] * z
+
+        logp0 = np.log10(self.args[0]) + self.args[5] * (1 - a) \
+              + self.args[9] * np.log(1 + kwargs['z']) \
+              + self.args[13] * kwargs['z'] \
+              + self.args[17] * a
+
+        p0 = 10**logp0
+
+        logp1 = np.log10(self.args[1]) + self.args[6] * (1 - a) \
+              + self.args[10] * np.log(1 + kwargs['z']) \
+              + self.args[14] * kwargs['z'] \
+              + self.args[18] * a
+
+        p1 = 10**logp1
+
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+
+        s1 = self.args[2] + self.args[7] * (1 - a) \
+              + self.args[11] * np.log(1 + kwargs['z']) \
+              + self.args[15] * kwargs['z'] \
+              + self.args[19] * a
+
+        s2 = self.args[3] + self.args[8] * (1 - a) \
+              + self.args[12] * np.log(1 + kwargs['z']) \
+              + self.args[16] * kwargs['z'] \
+              + self.args[20] * a
+
+        # This is to conserve memory.
+        xx = x / p1
+        y  = xx**-s1
+        y += xx**-s2
+        np.divide(1., y, out=y)
+
+        y *= normcorr * p0
+
+        logTurn = np.log10(self.args[21]) + self.args[24] * (1 - a) \
+              + self.args[25] * np.log(1 + kwargs['z']) \
+              + self.args[26] * kwargs['z']
+
+        y *= (1. + (x / 10**logTurn)**self.args[22])**self.args[23]
+
+        return y
+
 class Okamoto(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
@@ -1186,6 +1241,8 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingNormPeakSlopeFloor(**kwargs)
         elif kwargs["pq_func"] == "dpl_evolB13":
             self.func = DoublePowerLawEvolvingAsB13(**kwargs)
+        elif kwargs["pq_func"] == "dplx_evolB13":
+            self.func = DoublePowerLawExtendedEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] == "exp":
             self.func = Exponential(**kwargs)
         elif kwargs["pq_func"] in ["normal", "gaussian"]:
