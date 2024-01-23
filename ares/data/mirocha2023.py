@@ -235,7 +235,7 @@ satellites_sf['pop_centrals_id'] = 0
 satellites_sf['pop_prof_1h'] = 'nfw'
 satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
-satellites_sf['pop_include_shot'] = False
+satellites_sf['pop_include_shot'] = True
 satellites_sf['pop_fstar'] = 'link:fstar:0'
 satellites_sf['pop_ssfr'] = 'link:ssfr:0'
 

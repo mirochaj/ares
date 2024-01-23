@@ -1859,7 +1859,8 @@ class GalaxyCohort(GalaxyAggregate):
         return Tdust * Tigm
 
     def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
-        units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None):
+        units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
+        total_sat=False):
         """
         Determine the luminosity of stellar population(s) for all halos.
         """
@@ -2141,7 +2142,7 @@ class GalaxyCohort(GalaxyAggregate):
                 sfr = self.get_sfr(z)
 
                 # Just the product of SFR and L
-                if self.is_central_pop:
+                if self.is_central_pop or total_sat:
                     _Lh_ = sfr * L_sfr
                 else:
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
@@ -2225,7 +2226,7 @@ class GalaxyCohort(GalaxyAggregate):
     def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
-        include_igm_transmission=True):
+        include_igm_transmission=True, total_sat=True):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -2258,7 +2259,7 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_star_formation']:
             Lh = self._get_lum_stellar_pop(z, x=x, band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,
-                nebular_only=nebular_only, Mh=Mh)
+                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()
@@ -4900,16 +4901,57 @@ class GalaxyCohort(GalaxyAggregate):
         band1 = wave1 if type(wave1) not in numeric_types else None
         band2 = wave2 if type(wave2) not in numeric_types else None
 
+        # For an IHL contribution we won't get this far, because
+        # pop_include_shot = False
         lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
-            raw=raw, nebular_only=nebular_only)
+            raw=raw, nebular_only=nebular_only,
+            total_sat=not self.is_central_pop)
         lum2 = self.get_lum(z, x=wave1, band=band2, units='Angstrom',
-            raw=raw, nebular_only=nebular_only)
+            raw=raw, nebular_only=nebular_only,
+            total_sat=not self.is_central_pop)
 
-        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+        if not self.is_central_pop:
+            iz, k, _prof1_, _prof2_ = self.halos._prep_for_ps(z, k,
+                None, None, ztol)
 
-        ps = self.halos.get_ps_shot(z, k=k,
-            lum1=lum1, lum2=lum2,
-            mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
+            fsurv = self.tab_fsurv[iz,:]
+            focc = self.tab_focc[iz,:]
+
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                self.halos.tab_M < self.get_Mmax(z))
+
+            # In this case, need to integrate over subhalo MF.
+            # This first quantity is the contribution to the shot noise
+            # from satellites for each central halo mass bin.
+            sat_shot = np.zeros_like(self.halos.tab_M)
+            for i, Mc in enumerate(self.halos.tab_M):
+                dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
+                integrand = lum1 * lum2 * dndlnm
+                sat_shot[i] = np.trapz(integrand[ok==1],
+                    x=np.log(self.halos.tab_M[ok==1]))
+
+            # Last step, integrate over central halo abundance
+            # Key assumption for now, no distinguishing satellites of
+            # star-forming vs. quiescent centrals. Could add via focc here
+            # later.
+            integrand = self.halos.tab_dndlnm[iz,:] * sat_shot
+
+            # Assume satellites of galaxies bright enough to have been
+            # masked are gone too.
+            if self.pf['pop_mask_sats_of_centrals']:
+                okc = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                    self.halos.tab_M < self.get_Mmax(z))
+            else:
+                okc = np.ones_like(self.halos.tab_M)
+
+            ps = np.trapz(integrand[okc==1],
+                x=np.log(self.halos.tab_M[okc==1]))
+        else:
+            focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+
+            ps = self.halos.get_ps_shot(z, k=k,
+                lum1=lum1, lum2=lum2,
+                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         return ps
 
