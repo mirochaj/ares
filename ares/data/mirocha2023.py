@@ -87,7 +87,7 @@ centrals_sf = \
  'pq_func_par20[0]': 0.0,           # high
 
  # Extension!
- 'pq_func_par21[0]': 0.0,
+ 'pq_func_par21[0]': 5.0, # evolution done in log10(Mturn), hence default > 0
  'pq_func_par22[0]': 0.0,
  'pq_func_par23[0]': 0.0,
  'pq_func_par24[0]': 0.0,
@@ -123,6 +123,13 @@ centrals_sf = \
  'pq_func_par17[2]': 0,     # terms that scale a
  'pq_func_par18[2]': 0,     # terms that scale a
  'pq_func_par19[2]': 0,     # terms that scale a
+}
+
+focc_erfx = \
+{
+ 'pq_func_par20[2]': 1e11,
+ 'pq_func_par21[2]': -0.1,
+ 'pq_func_par22[2]': 0.1,
 }
 
 _ssfr_dpl = \

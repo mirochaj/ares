@@ -1921,7 +1921,7 @@ class GalaxyCohort(GalaxyAggregate):
                     age = src.pf['source_age']
                     age_def = None
                 elif isinstance(self.pf['pop_age_definition'], numbers.Number):
-                    # e.g., mass doubling time
+                    # e.g., half-mass time
                     age = age_def * Ms / sfr / 1e6
                 elif (not age_is_num) and src.pf['source_age'].lower() == 'hubble':
                     age = np.array([t_H] * len(Ms))

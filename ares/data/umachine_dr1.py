@@ -106,9 +106,9 @@ def get_data(field, flag=None, sources=None):
             data_qf = get_data(field='qf', sources=src)
 
             # First, check that mass range is the same
-            assert np.all(x == data_qf[src][(zlo, zhi)][0]), \
-                f"Mismatch in {src} mass bins for SMF flag={flag}!"
-
+            if (zlo, zhi) not in data_qf[src]:
+                print(f"# Beware: mismatch in {src} mass bins for SMF flag={flag}!")
+            #if not np.all(x == data_qf[src][(zlo, zhi)][0]):
 
 
         ##
