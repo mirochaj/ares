@@ -302,7 +302,11 @@ class ErfXEvolvingAsB13(BasePQ):
         # can be more complicated
 
         # Apply S(M_h)
-        S = (1 + (x / self.args[20])**self.args[21])**self.args[22]
+        Mc = self.args[20] + self.args[23] * (1 - a) \
+           + self.args[24] * np.log(1 + kwargs['z'])
+        gamma_1 = self.args[21]
+        gamma_2 = self.args[22]
+        S = (1 + (x / Mc)**gamma_1)**gamma_2
         p1 = self.args[1] * S
 
         hi = p1 + self.args[5] * (1 - a) \

@@ -5032,7 +5032,11 @@ class GalaxyCohort(GalaxyAggregate):
                 band=band, units='Angstrom',
                 nebular_only=nebular_only)
 
-        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+        if self.is_central_pop:
+            focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+        else:
+            # Assumes satellite properties are independent of centrals.
+            focc1 = focc2 = 1
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,

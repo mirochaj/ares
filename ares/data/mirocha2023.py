@@ -11,7 +11,7 @@ _base = \
 
  # NIRB
  'tau_approx': 0,#'neutral',
- 'tau_clumpy': 0,
+ 'tau_clumpy': 2,
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
@@ -130,6 +130,8 @@ focc_erfx = \
  'pq_func_par20[2]': 1e11,
  'pq_func_par21[2]': -0.1,
  'pq_func_par22[2]': 0.1,
+ 'pq_func_par23[2]': 0.,   # evolution in Mc (par20)
+ 'pq_func_par24[2]': 0.,   # evolution in Mc (par20)
 }
 
 _ssfr_dpl = \
@@ -257,6 +259,13 @@ satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = False
 satellites_q['pop_fstar'] = 'link:fstar:0'
 satellites_q['pop_ssfr'] = None
+
+satellites_q['pop_sfh'] = 'ssp'
+satellites_q['pop_aging'] = True
+satellites_q['pop_ssp'] = True
+satellites_q['pop_age'] = 5e3
+satellites_q['pop_Z'] = 0.02
+
 
 #
 #ihl_from_sat = centrals_sf_old.copy()
