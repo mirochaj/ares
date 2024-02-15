@@ -237,7 +237,7 @@ ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
 
 satellites_sf = centrals_sf.copy()
-satellites_sf['pop_focc'] = 1
+satellites_sf['pop_focc'] = 'link:focc:0'
 satellites_sf['pop_focc_inv'] = False
 satellites_sf['pop_centrals'] = 0
 satellites_sf['pop_centrals_id'] = 0
@@ -249,14 +249,14 @@ satellites_sf['pop_fstar'] = 'link:fstar:0'
 satellites_sf['pop_ssfr'] = 'link:ssfr:0'
 
 satellites_q = centrals_q.copy()
-satellites_q['pop_focc'] = 1
-satellites_q['pop_focc_inv'] = False
+satellites_q['pop_focc'] = 'link:focc:2'
+satellites_q['pop_focc_inv'] = True
 satellites_q['pop_centrals'] = 0
-satellites_q['pop_centrals_id'] = 2
+satellites_q['pop_centrals_id'] = 0
 satellites_q['pop_prof_1h'] = 'nfw'
 satellites_q['pop_include_1h'] = True
 satellites_q['pop_include_2h'] = True
-satellites_q['pop_include_shot'] = False
+satellites_q['pop_include_shot'] = True
 satellites_q['pop_fstar'] = 'link:fstar:0'
 satellites_q['pop_ssfr'] = None
 
@@ -331,7 +331,7 @@ subhalos['pq_func_par19[3]{2}'] = 0
 subhalos['pq_func_par20[3]{2}'] = 0
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
-subhalos['pop_fsurv_inv{3}'] = True
+subhalos['pop_fsurv_inv{3}'] = False
 
 subhalo_focc = {
  'pop_focc': 'pq[20]',

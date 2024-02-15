@@ -1101,7 +1101,6 @@ class GalaxyCohort(GalaxyAggregate):
         # Can access directly for SMHM-based parameterization.
         if self.is_user_smhm:
             iz = np.argmin(np.abs(z - self.halos.tab_z))
-            dndlogm = self.halos.tab_dndlnm[iz,:] * np.log(10.)
 
             logMh = np.log10(self.halos.tab_M)
             logMh_e = bin_c2e(logMh)
@@ -1128,9 +1127,39 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise NotImplementedError('help')
 
+            ##
+            # Extra step if we're dealing with satellites
+            dndlogm = self.halos.tab_dndlnm[iz,:] * np.log(10.)
 
+            if self.is_central_pop:
+                dndlogm = dndlogm * self.tab_focc[iz,:]
+            else:
+                fsurv = self.tab_fsurv[iz,:]
+                focc  = self.tab_focc[iz,:]
 
-            phi = dndlogm * dlogmdlogM * self.tab_focc[iz,:]
+                #  Need to sum up all subhalos over central population
+                dndlnm_c = self.halos.tab_dndm[iz,:] * self.halos.tab_M
+
+                #
+                dndlnm_sat = np.zeros_like(self.halos.tab_M)
+                for i, Mc in enumerate(self.halos.tab_M):
+
+                    # Opposite of what we usually do. Integrating over central
+                    # halo abundance at fixed subhalo mass.
+
+                    # focc independent of central galaxy
+                    dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,i] \
+                        * focc[i] * fsurv[i]
+
+                    dndlnm_sat[i] = np.trapz(dndlnm,
+                        x=np.log(self.halos.tab_M))
+
+                #
+                dndlogm = dndlnm_sat * np.log(10.)
+
+            ##
+            # Convert to [per mass unit] of our choosing.
+            phi = dndlogm * dlogmdlogM
 
             if bins is not None:
                 return bins, np.interp(bins, logMc, phi)
@@ -2599,7 +2628,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         Lh = self.get_lum(z, x=x, window=window,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
-            units_out='erg/s/Hz')
+            units_out='erg/s/Hz', total_sat=self.is_central_pop)
+
 
         #if self.pf['pop_halos'] is None:
         #    Mh = self.halos.tab_M
@@ -2619,17 +2649,51 @@ class GalaxyCohort(GalaxyAggregate):
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
         if abs(z - self.halos.tab_z[iz]) < ztol:
-            dndm = self.halos.tab_dndm[iz,:-1] * self.tab_focc[iz,:-1]
+            dndm = self.halos.tab_dndm[iz,:-1]
+            focc = self.tab_focc[iz,:-1]
+            #if self.is_central_pop:
+            dndm = dndm * focc
         else:
             dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1],
                 axis=0, kind=self.pf['pop_interp_lf'])
 
-            dndm = dndm_func(z) * self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
+            dndm = dndm_func(z)
+            focc = self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
+            #if self.is_central_pop:
+            dndm = dndm * focc
 
         # In this case, obscuration means fraction of objects you don't see
         # in the UV.
         if self.pf['pop_fobsc_by'] == 'num':
             dndm *= fobsc[0:-1]
+
+        ##
+        # Extra step if we're dealing with satellites
+        if not self.is_central_pop:
+
+            fsurv = self.tab_fsurv[iz,:-1]
+
+            # Recall that at this point, Lh is the luminosity as a function
+            # of subhalo mass. Need to sum up all subhalos over central
+            # population
+            dndlnm_c = dndm * self.halos.tab_M[:-1]
+
+            #
+            dndlnm_sat = np.zeros_like(self.halos.tab_M[:-1])
+            for i, Mc in enumerate(self.halos.tab_M[:-1]):
+
+                # Opposite of what we usually do. Integrating over central
+                # halo abunance at fixed subhalo mass.
+
+                # focc independent of central galaxy
+                dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:-1,i] \
+                    * focc[i] * fsurv[i]
+
+                dndlnm_sat[i] = np.trapz(dndlnm,
+                    x=np.log(self.halos.tab_M[:-1]))
+
+            # Replace dndm
+            dndm = dndlnm_sat / self.halos.tab_M[:-1]
 
         dMh_dLh = np.diff(self.halos.tab_M) / np.diff(Lh)
 
@@ -5032,11 +5096,11 @@ class GalaxyCohort(GalaxyAggregate):
                 band=band, units='Angstrom',
                 nebular_only=nebular_only)
 
-        if self.is_central_pop:
-            focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
-        else:
+        #if self.is_central_pop:
+        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+        #else:
             # Assumes satellite properties are independent of centrals.
-            focc1 = focc2 = 1
+        #    focc1 = focc2 = 1
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
