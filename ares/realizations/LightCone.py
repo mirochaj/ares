@@ -1132,7 +1132,7 @@ class LightCone(object): # pragma: no cover
 
         # Progress bar
         pb = ProgressBar(len(all_chunks),
-            name="img(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
+            name="cat(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
                 logmlim[0], logmlim[1], zlim[0], zlim[1]),
             use=use_pbar)
         pb.start()

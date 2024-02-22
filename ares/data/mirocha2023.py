@@ -107,9 +107,9 @@ centrals_sf = \
  'pq_func_par1[2]': 0.85,
  'pq_func_par2[2]': 12.2,
  'pq_func_par3[2]': -0.7,
- 'pq_func_par4[2]': 0.5,    # terms that scale (1 - a)
- 'pq_func_par5[2]': 0.1,    # terms that scale (1 - a)
- 'pq_func_par6[2]': 0.3,    # terms that scale (1 - a)
+ 'pq_func_par4[2]': 0,      # terms that scale (1 - a)
+ 'pq_func_par5[2]': 0,      # terms that scale (1 - a)
+ 'pq_func_par6[2]': 0,      # terms that scale (1 - a)
  'pq_func_par7[2]': 0,      # terms that scale (1 - a)
  'pq_func_par8[2]': 0,      # terms that scale log(1+z)
  'pq_func_par9[2]': 0,      # terms that scale log(1+z)
@@ -138,7 +138,7 @@ _ssfr_dpl = \
 {
 # sSFR(z, Mstell)
  'pop_ssfr': 'pq[1]',
- 'pq_func[1]': 'dpl_evolB13',
+ 'pq_func[1]': 'dplx_evolB13',
  'pq_func_var[1]': 'Ms',
  'pq_func_var2[1]': '1+z',
  'pq_func_par0[1]': 5e-10,
@@ -215,6 +215,10 @@ centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
 centrals_q['pop_focc_inv'] = True
+
+for par in centrals_sf:
+    if ('[0]' in par) or ('[2]' in par):
+        del centrals_q[par]
 
 ihl_scaled = centrals_q.copy()
 ihl_scaled['pop_focc'] = 1
@@ -300,6 +304,29 @@ for i, _pop in enumerate([_pop2, _pop3]):
 
     subhalos.update(pf)
 
+# Dust
+dust = {}
+dust['pop_dust_template'] = 'WD01:MWRV31'
+dust['pop_Av'] = 'pq[4]'
+dust['pq_func[4]'] = 'pl_evolB13'
+dust['pq_func_var[4]'] = 'Ms'
+dust['pq_func_var2[4]'] = '1+z'
+dust['pq_func_par0[4]'] = 0    # Off by default
+dust['pq_func_par1[4]'] = 1e10
+dust['pq_func_par2[4]'] = 0.2
+dust['pq_func_par3[4]'] = 0   # no evolution yet.
+dust['pq_func_par4[4]'] = 0   # no evolution yet.
+dust['pq_func_par5[4]'] = 0   # no evolution yet.
+dust['pq_func_par6[4]'] = 0   # no evolution yet.
+dust['pq_func_par7[4]'] = 0   # no evolution yet.
+dust['pq_func_par8[4]'] = 0   # no evolution yet.
+dust['pq_func_par9[4]'] = 0   # no evolution yet.
+dust['pq_func_par10[4]'] = 0   # no evolution yet.
+dust['pq_val_floor[4]'] = 0
+
+for par in dust.keys():
+    base[par + '{0}'] = dust[par]
+
 # This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 'pq[3]'
 subhalos['pop_fsurv_inv{2}'] = False
@@ -330,48 +357,67 @@ subhalos['pq_func_par18[3]{2}'] = 0
 subhalos['pq_func_par19[3]{2}'] = 0
 subhalos['pq_func_par20[3]{2}'] = 0
 
+# Dust
+subhalos['pop_Av{2}'] = 'link:Av:0'
+subhalos['pop_dust_template{2}'] = 'WD01:MWRV31'
+
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = False
 
-subhalo_focc = {
- 'pop_focc': 'pq[20]',
- 'pq_func[20]': 'erf',
- 'pq_func_var[20]': 'Mh',
- 'pq_func_par0[20]': 0,
- 'pq_func_par1[20]': 1,
- 'pq_func_par2[20]': 8,
- 'pq_func_par3[20]': 1,
-}
+##
+# Allows subhalos to have different SMHM than centrals
+subhalos_smhm_ext = {}
+subhalos_smhm_ext['pop_fstar{2}'] = 'pq[5]'
+subhalos_smhm_ext['pq_func[5]{2}'] = 'dplx_evolB13'
+subhalos_smhm_ext['pq_func_var[5]{2}'] = 'Mh'
+subhalos_smhm_ext['pq_func_var2[5]{2}'] = '1+z'
+subhalos_smhm_ext['pq_func_par0[5]{2}'] = 0.0003
+subhalos_smhm_ext['pq_func_par1[5]{2}'] = 1.5e12
+subhalos_smhm_ext['pq_func_par2[5]{2}'] = 1
+subhalos_smhm_ext['pq_func_par3[5]{2}'] = -0.6
+subhalos_smhm_ext['pq_func_par4[5]{2}'] = 1e10
 
-maximal_ihl = {'pop_focc{2}': 1, 'pop_fsurv{2}': 0}
-minimal_ihl = {'pop_focc{2}': 1, 'pop_fsurv{2}': 1}
+for i in range(5, 27):
+    subhalos_smhm_ext['pq_func_par%i[5]{2}' % i] = 0
 
-ihl_like_z14 = {}
-ihl_like_z14['pq_func_par0[3]{2}'] = 0.00 # step = par0-par1
-ihl_like_z14['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
-ihl_like_z14['pq_func_par2[3]{2}'] = 9.3
-ihl_like_z14['pq_func_par3[3]{2}'] = 0.8 # dlogM
-ihl_like_z14['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
-ihl_like_z14['pq_func_par5[3]{2}'] = -1. # Evolves as (1+z)^{-1}
+subhalos_smhm_ext['pop_fstar{3}'] = 'link:fstar:2'
 
-dust = {}
-dust['pop_dust_template'] = 'WD01:MWRV31'
-dust['pop_Av'] = 'pq[4]'
-dust['pq_func[4]'] = 'pl_evolB13'
-dust['pq_func_var[4]'] = 'Ms'
-dust['pq_func_var2[4]'] = '1+z'
-dust['pq_func_par0[4]'] = 0.   # Off by default
-dust['pq_func_par1[4]'] = 1e10
-dust['pq_func_par2[4]'] = 0.2
-dust['pq_func_par3[4]'] = 0   # no evolution yet.
-dust['pq_func_par4[4]'] = 0   # no evolution yet.
-dust['pq_func_par5[4]'] = 0   # no evolution yet.
-dust['pq_func_par6[4]'] = 0   # no evolution yet.
-dust['pq_func_par7[4]'] = 0   # no evolution yet.
-dust['pq_func_par8[4]'] = 0   # no evolution yet.
-dust['pq_func_par9[4]'] = 0   # no evolution yet.
-dust['pq_func_par10[4]'] = 0   # no evolution yet.
-dust['pq_val_floor[4]'] = 0
+##
+# Allows subhalos to have different quenched fraction than centrals
+subhalos_focc_ext = {}
+subhalos_focc_ext['pop_focc{2}'] = 'pq[6]'
+subhalos_focc_ext['pq_func[6]{2}'] = 'erf_evolB13'
+subhalos_focc_ext['pq_val_ceil[2]{2}'] = 1
+subhalos_focc_ext['pq_func_var[6]{2}'] = 'Mh'
+subhalos_focc_ext['pq_func_var2[6]{2}'] = '1+z'
+subhalos_focc_ext['pq_func_par0[6]{2}'] = 0.
+subhalos_focc_ext['pq_func_par1[6]{2}'] = 0.85
+subhalos_focc_ext['pq_func_par2[6]{2}'] = 12.2
+subhalos_focc_ext['pq_func_par3[6]{2}'] = -0.7
+for i in range(4, 26):
+    subhalos_focc_ext['pq_func_par%i[6]{2}' % i] = 0
+
+subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
+subhalos_focc_ext['pop_focc_inv{3}'] = True
+
+ihl = {}
+ihl['pop_centrals{5}'] = False
+ihl['pop_fstar{5}'] = 'link:fstar:2'
+ihl['pop_focc{5}'] = 1
+ihl['pop_fsurv{5}'] = 'link:fsurv:2'
+ihl['pop_fsurv_inv{5}'] = True
+ihl['pop_include_1h{5}'] = True
+ihl['pop_include_2h{5}'] = True
+ihl['pop_include_shot{5}'] = False
+ihl['pop_Mmin{5}'] = 1e10
+ihl['pop_Tmin{5}'] = None
+ihl['pop_sfh{5}'] = 'ssp'
+ihl['pop_aging{5}'] = True
+ihl['pop_ssfr{5}'] = None
+ihl['pop_sfr{5}'] = None
+ihl['pop_ssp{5}'] = True
+ihl['pop_age{5}'] = 1e4
+ihl['pop_Z{5}'] = 0.02
 
 mzr = \
 {
@@ -390,19 +436,6 @@ mzr = \
  'pq_val_floor[30]': 6,
  'pop_Z': ('mzr', 0.02),
 }
-
-
-expd = base.copy()
-expd['pop_ssp{0}'] = True
-expd['pop_sfh{0}'] = 'exp_decl'
-expd['pop_sfh_axes{0}'] = ('norm', 10**np.arange(-6, 4.2, 0.2)), \
-                          ('tau', 10**np.arange(2, 4.2, 0.2))
-
-expd['pop_age{0}'] = None
-expd['pop_Z{0}'] = 0.02
-expd['pop_aging{0}'] = True
-expd['pop_sed_degrade{0}'] = 10
-expd['pop_sfh_degrade{0}'] = 1  # Tabulate in (z, Mh) degraded by 10x wrt native
 
 smhm_Q = {}
 smhm_Q['pop_fstar{1}'] = 'pq[10]'
@@ -431,170 +464,3 @@ smhm_Q['pq_func_par18[10]{1}'] = 0.0
 smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
-
-best_smfs_same = \
-{
-'pq_func_par0[0]{0}': 1.0281e-03,
-'pq_func_par1[0]{0}': 5.2562e+11,
-'pq_func_par2[0]{0}': 1.0288e+00,
-'pq_func_par3[0]{0}': -5.9869e-01,
-'pq_func_par5[0]{0}': 2.0982e+00,
-'pq_func_par6[0]{0}': -1.5912e+00,
-'pq_func_par9[0]{0}': -3.4821e+00,
-'pq_func_par10[0]{0}': 2.3568e+00,
-'pq_func_par13[0]{0}': 8.0858e-01,
-'pq_func_par14[0]{0}': -4.1392e-01,
-
-'pq_func_par0[2]{0}': 9.4945e-02,
-'pq_func_par1[2]{0}': 9.5740e-01,
-'pq_func_par2[2]{0}': 1.1919e+01,
-'pq_func_par3[2]{0}': -5.1173e-01,
-'pq_func_par4[2]{0}': 6.4382e-01,
-'pq_func_par5[2]{0}': -2.1909e+00,
-'pq_func_par6[2]{0}': 9.9856e-01,
-'pq_func_par7[2]{0}': 3.9622e-01,
-'pq_func_par8[2]{0}': -2.4369e-02,
-'pq_func_par9[2]{0}': 1.5689e+00,
-'pq_func_par10[2]{0}': -8.9817e-01,
-'pq_func_par11[2]{0}': 1.9932e-01,
-'pq_func_par12[2]{0}': 2.0178e-02,
-'pq_func_par13[2]{0}': -9.6158e-03,
-'pq_func_par14[2]{0}': 2.1655e-01,
-'pq_func_par15[2]{0}': -1.0448e-01,
-}
-
-best_smfs_diff = \
-{
-'pq_func_par0[0]{0}': 9.3949e-04,
-'pq_func_par1[0]{0}': 1.0632e+12,
-'pq_func_par2[0]{0}': 1.0366e+00,
-'pq_func_par3[0]{0}': -7.2380e-01,
-'pq_func_par0[10]{1}': 5.2510e-04,
-'pq_func_par1[10]{1}': 5.7532e+11,
-'pq_func_par2[10]{1}': 9.8410e-01,
-'pq_func_par3[10]{1}': -1.4856e-01,
-'pq_func_par5[0]{0}': -6.3509e-01,
-'pq_func_par9[0]{0}': -2.3475e-02,
-'pq_func_par13[0]{0}': -1.5872e-01,
-'pq_func_par6[0]{0}': -1.0569e-01,
-'pq_func_par10[0]{0}': 9.2388e-02,
-'pq_func_par14[0]{0}': 2.8008e-01,
-'pq_func_par5[10]{1}': -1.1792e-01,
-'pq_func_par9[10]{1}': 1.4956e-01,
-'pq_func_par13[10]{1}': -1.2040e-01,
-'pq_func_par6[10]{1}': 3.3779e-02,
-'pq_func_par10[10]{1}': 2.8677e-01,
-'pq_func_par14[10]{1}': -1.8024e-01,
-'pq_func_par0[2]{0}': 8.2985e-01,
-'pq_func_par1[2]{0}': 6.7249e-01,
-'pq_func_par2[2]{0}': 1.1666e+01,
-'pq_func_par3[2]{0}': -2.4143e-01,
-'pq_func_par4[2]{0}': -3.0182e+00,
-'pq_func_par8[2]{0}': 4.5449e-02,
-'pq_func_par12[2]{0}': -2.1116e-03,
-'pq_func_par5[2]{0}': 5.7532e-01,
-'pq_func_par9[2]{0}': 1.5401e-02,
-'pq_func_par13[2]{0}': -1.0251e-02,
-'pq_func_par6[2]{0}': 1.2964e+00,
-'pq_func_par10[2]{0}': -2.9521e-02,
-'pq_func_par14[2]{0}': -9.9506e-03,
-'pq_func_par7[2]{0}': -1.7596e-01,
-'pq_func_par11[2]{0}': -1.7671e-02,
-'pq_func_par15[2]{0}': -1.2388e-02,
-}
-
-best_ssfr = \
-{
-'pq_func_par0[1]{0}': 7.2640e-10,
-'pq_func_par1[1]{0}': 2.2075e+08,
-'pq_func_par2[1]{0}': -7.8741e-02,
-'pq_func_par3[1]{0}': -7.1286e-01,
-'pq_func_par5[1]{0}': 1.3126e+00,
-'pq_func_par6[1]{0}': -1.7541e+00,
-'pq_func_par9[1]{0}': -3.0984e-01,
-'pq_func_par10[1]{0}': 3.8616e+00,
-'pq_func_par13[1]{0}': 7.2800e-02,
-'pq_func_par14[1]{0}': -1.8903e-01,
-}
-
-best_sfr = \
-{
-'pq_func_par0[1]{0}': 7.4748e-03,
-'pq_func_par1[1]{0}': 9.3513e+10,
-'pq_func_par2[1]{0}': 1.8852e+00,
-'pq_func_par3[1]{0}': 2.3410e-01,
-'pq_func_par5[1]{0}': -8.0080e-01,
-'pq_func_par9[1]{0}': 6.6126e-01,
-'pq_func_par13[1]{0}': -1.2146e-02,
-'pq_func_par6[1]{0}': 2.7706e+00,
-'pq_func_par10[1]{0}': -1.6599e+00,
-'pq_func_par14[1]{0}': 4.8501e-01,
-'pq_func_par7[1]{0}': -6.7612e+00,
-'pq_func_par11[1]{0}': 7.6991e+00,
-'pq_func_par15[1]{0}': -1.8067e+00,
-'pq_func_par8[1]{0}': -4.3245e+00,
-'pq_func_par12[1]{0}': 4.6987e+00,
-'pq_func_par16[1]{0}': -1.0069e+00,
-}
-
-#base.update(best_smf_same)
-#base.update(best_sfr)
-
-best = \
-{
-'pq_func_par0[0]{0}': 1.4528e-03,
-'pq_func_par1[0]{0}': 8.0368e+11,
-'pq_func_par2[0]{0}': 1.0138e+00,
-'pq_func_par3[0]{0}': -5.4139e-01,
-'pq_func_par5[0]{0}': -4.4920e-01,
-'pq_func_par9[0]{0}': -3.1000e-01,
-'pq_func_par13[0]{0}': -1.5618e-01,
-'pq_func_par6[0]{0}': -3.6642e-01,
-'pq_func_par10[0]{0}': 3.9501e-01,
-'pq_func_par14[0]{0}': 1.4752e-01,
-'pq_func_par0[2]{0}': 6.8249e-02,
-'pq_func_par1[2]{0}': 6.7548e-01,
-'pq_func_par2[2]{0}': 1.1821e+01,
-'pq_func_par3[2]{0}': -2.8344e-01,
-'pq_func_par4[2]{0}': 8.3226e-01,
-'pq_func_par8[2]{0}': 1.9903e-02,
-'pq_func_par12[2]{0}': -6.6032e-02,
-'pq_func_par5[2]{0}': 2.4409e-01,
-'pq_func_par9[2]{0}': 1.3869e-01,
-'pq_func_par13[2]{0}': 4.0331e-02,
-'pq_func_par6[2]{0}': 4.3713e-01,
-'pq_func_par10[2]{0}': 4.7108e-02,
-'pq_func_par14[2]{0}': -4.6672e-02,
-'pq_func_par7[2]{0}': -7.9427e-02,
-'pq_func_par11[2]{0}': 3.8848e-02,
-'pq_func_par15[2]{0}': 8.2503e-03,
-'pq_func_par0[1]{0}': 1.0485e-02,
-'pq_func_par1[1]{0}': 9.1208e+10,
-'pq_func_par2[1]{0}': 1.8199e+00,
-'pq_func_par3[1]{0}': 3.7529e-01,
-'pq_func_par5[1]{0}': -2.2829e-01,
-'pq_func_par9[1]{0}': 2.4969e-01,
-'pq_func_par13[1]{0}': 5.7209e-02,
-'pq_func_par6[1]{0}': 1.3389e+00,
-'pq_func_par10[1]{0}': -1.0108e-01,
-'pq_func_par14[1]{0}': -5.2890e-02,
-'pq_func_par7[1]{0}': 7.3728e-02,
-'pq_func_par11[1]{0}': -1.2489e-01,
-'pq_func_par15[1]{0}': -2.4701e-02,
-'pq_func_par8[1]{0}': 8.7978e-02,
-'pq_func_par12[1]{0}': 5.6333e-02,
-'pq_func_par16[1]{0}': 2.1005e-02,
-'pq_func_par0[4]{0}': 9.2995e-01,
-'pq_func_par2[4]{0}': 6.5168e-02,
-'pq_func_par3[4]{0}': 8.7186e-01,
-'pq_func_par5[4]{0}': -6.5286e-01,
-'pq_func_par7[4]{0}': -5.0222e-02,
-'pq_func_par4[4]{0}': -1.4911e+00,
-'pq_func_par6[4]{0}': 1.2853e+00,
-'pq_func_par8[4]{0}': -2.0233e-01,
-'mu_0': -3.0337e-01,
-'mu_a': 4.9473e-01,
-'kappa': 1.2483e-01,
-}
-
-base.update(best)

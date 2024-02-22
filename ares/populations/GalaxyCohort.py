@@ -617,10 +617,27 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._rho_N[(Emin, Emax)](z)
 
+    @property
+    def _get_focc(self):
+        if not hasattr(self, '_get_focc_'):
+            raise AttributeError("Must set _get_focc_ by hand.")
+        return self._get_focc_
+
+    @_get_focc.setter
+    def _get_focc(self, value):
+        #print('setting _get_focc', self.id_num)
+        self._get_focc_ = value
+
     def get_focc(self, z, Mh):
         """
         Get occupation fraction.
         """
+
+        if hasattr(self, '_get_focc_'):
+            #print('calling _get_focc', self.id_num)
+            return self._get_focc_(z=z, Mh=Mh)
+
+        #print('calling get_focc', self.id_num)
         func = self._get_function('pop_focc')
         result = func(z=z, Mh=Mh)
         return result
@@ -2343,24 +2360,27 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Lh
 
+    @property
+    def _get_Av(self):
+        if not hasattr(self, '_get_Av_'):
+            raise AttributeError("Must set __get_Av_ by hand.")
+        return self._get_Av_
+
+    @_get_Av.setter
+    def _get_Av(self, value):
+        self._get_Av_ = value
+
     def get_Av(self, z, Ms):
         """
         Get visual extinction.
         """
 
-        #assert self.pf['pop_dustext_template'] is not None
+        if hasattr(self, '_get_Av_'):
+            return self._get_Av_(z=z, Ms=Ms)
 
         func = self._get_function('pop_Av')
 
-        # Should set this up to convert from dust opacity too.
-
         return func(z=z, Ms=Ms)
-
-        #Mh = self.halos.tab_M
-        #smhm = self.get_smhm(z=z, Mh=Mh)
-        #Ms = Mh * smhm
-
-        #return self._func_Av(z=z, Ms=Ms)
 
     def get_ihl(self, z, Mh):
         func = self._get_function('pop_ihl')
@@ -2651,16 +2671,16 @@ class GalaxyCohort(GalaxyAggregate):
         if abs(z - self.halos.tab_z[iz]) < ztol:
             dndm = self.halos.tab_dndm[iz,:-1]
             focc = self.tab_focc[iz,:-1]
-            #if self.is_central_pop:
-            dndm = dndm * focc
+            if self.is_central_pop:
+                dndm = dndm * focc
         else:
             dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1],
                 axis=0, kind=self.pf['pop_interp_lf'])
 
             dndm = dndm_func(z)
             focc = self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
-            #if self.is_central_pop:
-            dndm = dndm * focc
+            if self.is_central_pop:
+                dndm = dndm * focc
 
         # In this case, obscuration means fraction of objects you don't see
         # in the UV.

@@ -21,7 +21,7 @@ from .BlackHoleAggregate import BlackHoleAggregate
 
 after_instance = ['pop_rad_yield']
 allowed_options = ['pop_sfr_model', 'pop_Mmin', 'pop_frd', 'pop_focc',
-    'pop_fsurv', 'pop_fstar', 'pop_ssfr']
+    'pop_fsurv', 'pop_fstar', 'pop_ssfr', 'pop_Av']
 
 class CompositePopulation(object):
     def __init__(self, pf=None, cosm=None, **kwargs):
@@ -107,7 +107,10 @@ class CompositePopulation(object):
         # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
             if entry == []:
+                #print('hi empty', self.pops[i])
                 continue
+
+            #print('hi', i, entry, to_quantity[i], self.pops[i])
 
             for j, element in enumerate(entry):
                 if j == 0:
@@ -129,10 +132,15 @@ class CompositePopulation(object):
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                     self.pops[i]._get_ssfr = self.pops[element].get_ssfr
+                elif to_quantity[i][j] in ['Av']:
+                    if self.pops[i] is None:
+                        self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
+                    self.pops[i]._get_Av = self.pops[element].get_Av
                 elif to_quantity[i][j] in ['focc']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(cosm=self._cosm_, **tmp)
                     if tmp[f'pop_{to_quantity[i][j]}_inv']:
+                        #print('hey link time', i, j, element)
                         self.pops[i]._get_focc = lambda **kw: \
                             1. - self.pops[element].get_focc(**kw)
                     else:
@@ -177,6 +185,10 @@ class CompositePopulation(object):
                     continue
                 else:
                     raise NotImplementedError('help')
+
+
+        #print(self.pops[0].get_focc(z=0.1, Mh=1e10) + self.pops[1].get_focc(z=0.1, Mh=1e10))
+        #print(self.pops[2].get_focc(z=0.1, Mh=1e10) + self.pops[3].get_focc(z=0.1, Mh=1e10))
 
         # Set ID numbers (mostly for debugging purposes)
         for i, pop in enumerate(self.pops):
