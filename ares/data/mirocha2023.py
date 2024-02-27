@@ -401,23 +401,40 @@ subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
 subhalos_focc_ext['pop_focc_inv{3}'] = True
 
 ihl = {}
-ihl['pop_centrals{5}'] = False
-ihl['pop_fstar{5}'] = 'link:fstar:2'
-ihl['pop_focc{5}'] = 1
-ihl['pop_fsurv{5}'] = 'link:fsurv:2'
-ihl['pop_fsurv_inv{5}'] = True
-ihl['pop_include_1h{5}'] = True
-ihl['pop_include_2h{5}'] = True
-ihl['pop_include_shot{5}'] = False
-ihl['pop_Mmin{5}'] = 1e10
-ihl['pop_Tmin{5}'] = None
-ihl['pop_sfh{5}'] = 'ssp'
-ihl['pop_aging{5}'] = True
-ihl['pop_ssfr{5}'] = None
-ihl['pop_sfr{5}'] = None
-ihl['pop_ssp{5}'] = True
-ihl['pop_age{5}'] = 1e4
-ihl['pop_Z{5}'] = 0.02
+ihl['pop_sfr_model{4}'] = 'smhm-func'
+ihl['pop_solve_rte{4}'] = (0.12, E_LyA)
+ihl['pop_Emin{4}'] = 0.12
+ihl['pop_Emax{4}'] = 24.6
+ihl['pop_zdead{4}'] = 0
+
+# SED info
+ihl['pop_sed{4}'] = 'eldridge2017'
+ihl['pop_rad_yield{4}'] = 'from_sed'
+
+ihl['pop_fesc{4}'] = 0.2
+ihl['pop_sed_degrade{4}'] = 10
+
+ihl['pop_nebular{4}'] = 0
+
+# 
+ihl['pop_centrals{4}'] = False
+ihl['pop_centrals_id{4}'] = 0
+ihl['pop_fstar{4}'] = 'link:fstar:2'
+ihl['pop_focc{4}'] = 1
+ihl['pop_fsurv{4}'] = 'link:fsurv:2'
+ihl['pop_fsurv_inv{4}'] = True
+ihl['pop_include_1h{4}'] = True
+ihl['pop_include_2h{4}'] = True
+ihl['pop_include_shot{4}'] = False
+ihl['pop_Mmin{4}'] = 1e10
+ihl['pop_Tmin{4}'] = None
+ihl['pop_sfh{4}'] = 'ssp'
+ihl['pop_aging{4}'] = True
+ihl['pop_ssfr{4}'] = None
+ihl['pop_sfr{4}'] = None
+ihl['pop_ssp{4}'] = True
+ihl['pop_age{4}'] = 1e4
+ihl['pop_Z{4}'] = 0.02
 
 mzr = \
 {
