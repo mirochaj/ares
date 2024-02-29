@@ -131,7 +131,7 @@ class Simulation(object):
                 zf = self.pops[i].zdead
 
             E, flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
-                units=flux_units)
+                units=flux_units, xunits=wave_units)
 
             if wave_units.lower() == 'ev':
                 x = E
@@ -242,20 +242,53 @@ class Simulation(object):
         if waves2 is None:
             waves2 = waves
 
-        ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        ps_auto = np.zeros((len(self.pops), len(scales), len(waves)))
+        ps = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
+        # Save contributing pieces
 
+        # Loop over source populations and compute power spectrum.
+        #
         for i, pop in enumerate(self.pops):
 
             if pops is not None:
                 if i not in pops:
                     continue
 
-            for j, wave in enumerate(waves):
-                # Will default to 1h + 2h + shot
-                ps[i,:,j] = pop.get_ps_obs(scales,
-                    wave_obs1=wave, wave_obs2=waves2[j],
-                    scale_units=scale_units, **kwargs)
+            for j, popx in enumerate(self.pops):
+                if pops is not None:
+                    if j not in pops:
+                        continue
 
+                for k, wave in enumerate(waves):
+                    # Will default to 1h + 2h + shot
+                    if j == i:
+
+                        ps_auto[i,:,k] = pop.get_ps_obs(scales,
+                            wave_obs1=wave, wave_obs2=waves2[k],
+                            scale_units=scale_units, **kwargs)
+
+                    # Need to do this over all z?
+                    # prof1, focc1, lum1a, lum1b = pop.get_ps_ingredients()
+                    # if j == i:
+                    #     prof2 = prof1
+                    #     focc2 = focc1
+                    #     lum2a = lum1a
+                    #     lum2b = lum1b
+
+                    # p_2h = self.halos.get_ps_2h()
+                    # p_1h = self.halos.get_ps_1h()
+                    # Need to get
+                    #ps[i,j,:,k] = self.halos.get_ps_obs(scales,
+                    #    wave_obs1=wave, wave_obs2=waves2[k],
+                    #    scale_units=scale_units, **kwargs)
+
+
+        # For now
+        ps = ps_auto
+
+
+
+        ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
             ps *= cm_per_m**4 / erg_per_s_per_nW**2

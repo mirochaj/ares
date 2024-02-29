@@ -503,7 +503,7 @@ class NebularEmission(object):
             #     / np.sqrt(2. * np.pi) * erg_per_ev * ev_per_hz / sigm
 
             # Find correct element in array. Assume delta function
-            loc = np.digitize(lam_n, bins=self.tab_waves_e) - 1#np.argmin(np.abs(nrg - En))
+            loc = np.digitize(lam_n, bins=self.tab_waves_e) - 1
 
             # Need to get Hz^-1 units; `freq` in descending order
             dnu = freq[loc-1] - freq[loc]

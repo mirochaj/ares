@@ -539,7 +539,6 @@ class Galaxy(SynthesisModel):
         merr = abs(np.log10(_mass / mass))
         serr = abs(np.log10(_sfr / sfr))
 
-        print('hi', mass_return, merr, serr, _mass/mass, _sfr / sfr)
         if (merr < mtol) and (serr < mtol):
             return kw
 

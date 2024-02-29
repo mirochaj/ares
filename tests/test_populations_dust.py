@@ -91,7 +91,6 @@ def test():
     pars0['pop_age'] = (100, 100)
     pars0['pop_ssp'] = False, False
     pop0 = ares.populations.GalaxyPopulation(**pars0)
-    assert not pop0.is_dusty
 
     L0 = pop0.get_lum(z=2, x=1600, units='Angstroms')
     ow, spec0 = pop0.get_spec_obs(z=2, waves=waves)

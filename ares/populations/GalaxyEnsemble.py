@@ -2352,14 +2352,15 @@ class GalaxyEnsemble(HaloPopulation):
         return line_wave, flux
 
     def get_spec_obs(self, z, waves, units_out='erg/s/Hz', idnum=None,
-        include_dust_transmission=True, include_igm_transmission=True):
+        include_dust_transmission=True, include_igm_transmission=True,
+        method=None):
         """
         Generate z=0 observed spectrum for all sources.
 
         Parameters
         ----------
         z : int, float
-            Redshift.
+            Redshift of galaxies.
         waves : np.ndarray
             Array of rest-wavelengths to probe (in Angstrom).
 
@@ -2380,21 +2381,23 @@ class GalaxyEnsemble(HaloPopulation):
 
         T = self.get_transmission(z, waves, units='Angstroms',
             include_dust_transmission=include_dust_transmission,
-            include_igm_transmission=include_igm_transmission)
+            include_igm_transmission=include_igm_transmission,
+            method=method)
 
-        return owaves, flux
+        if include_dust_transmission and (idnum is not None):
+            T = T[idnum,:]
+
+        return owaves, flux * T
 
     def get_transmission(self, z, x, units='Angstroms', band=None, idnum=None,
-        include_dust_transmission=True, include_igm_transmission=True):
+        include_dust_transmission=True, include_igm_transmission=True,
+        method=None):
         """
         Convenience routine that wraps self.dust.get_transmission and
         self.igm.get_transmission, and does all the galaxy-property-finding
         for us. For example, for dust transmission need to know dust surface
         density or Av; this routine fetches that first.
         """
-
-        if not (include_dust_transmission or include_igm_transmission):
-            return np.ones_like(waves)
 
         waves = self.src.get_ang_from_x(x if band is None else band, units=units)
         if band is not None:
@@ -2419,13 +2422,13 @@ class GalaxyEnsemble(HaloPopulation):
             Tdust = np.ones_like(waves)
 
         if include_igm_transmission:
-            Tigm = self.igm.get_transmission(z, owaves)
+            Tigm = self.igm.get_transmission(z, owaves, method=method)
         else:
             Tigm = np.ones_like(waves)
 
         return Tdust * Tigm
 
-    def get_lum(self, z, x=1600., band=None, units='Angstrom',
+    def get_lum(self, z, x=1600., band=None, units='Angstroms',
         idnum=None, window=1, load=True, units_out='erg/s/Hz',
         include_dust_transmission=True, include_igm_transmission=True):
         """

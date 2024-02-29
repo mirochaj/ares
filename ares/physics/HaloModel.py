@@ -476,6 +476,275 @@ class HaloModel(HaloMassFunction):
 
         return ps_1h + ps_2h
 
+    def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, include_shot=True,
+        include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
+        time_res=1, raw=False, nebular_only=False, prof=None):
+        """
+        Compute the angular power spectrum of some population.
+
+        .. note :: This function uses the Limber (1953) approximation.
+
+        Parameters
+        ----------
+        scale : int, float, np.ndarray
+            Angular scale [scale_units]
+        wave_obs : int, float, tuple
+            Observed wavelength of interest [microns]. If tuple, will
+            assume elements define the edges of a spectral channel.
+        scale_units : str
+            So far, allowed to be 'arcsec' or 'arcmin'.
+        time_res : int
+            Can degrade native time or redshift resolution by this
+            factor to speed-up integral. Do so at your own peril. By
+            default, will sample time/redshift integrand at native
+            resolution (set by `hmf_dz` or `hmf_dt`).
+
+        """
+
+        _zarr = self.halos.tab_z
+        _zok  = np.logical_and(_zarr > self.zdead, _zarr <= self.zform)
+        zarr  = self.halos.tab_z[_zok==1]
+
+        # Degrade native time resolution by factor of `time_res`
+        if time_res != 1:
+            zarr = zarr[::time_res]
+
+        dtdz = self.cosm.dtdz(zarr)
+
+        if wave_obs2 is None:
+            wave_obs2 = wave_obs1
+
+        name = '{:.2f} micron'.format(np.mean(wave_obs1)) if np.all(wave_obs1 == wave_obs2) \
+            else '({:.2f} x {:.2f}) microns'.format(np.mean(wave_obs1),
+            np.mean(wave_obs2))
+
+        ##
+        # Loop over scales of interest if given an array.
+        if type(scale) is np.ndarray:
+
+            assert type(scale[0]) in numeric_types
+
+            ps = np.zeros_like(scale)
+
+            pb = ProgressBar(scale.shape[0],
+                use=use_pb and self.pf['progress_bar'],
+                name=f'p(k,{name})')
+            pb.start()
+
+            for h, _scale_ in enumerate(scale):
+
+                integrand = np.zeros_like(zarr)
+                for i, z in enumerate(zarr):
+                    if z < self.zdead:
+                        continue
+                    if z > self.zform:
+                        continue
+
+                    integrand[i] = self._get_ps_obs(z, _scale_,
+                        wave_obs1, wave_obs2,
+                        include_shot=include_shot,
+                        include_1h=include_1h, include_2h=include_2h,
+                        scale_units=scale_units, raw=raw,
+                        nebular_only=nebular_only, prof=prof)
+
+                ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
+
+                pb.update(h)
+
+            pb.finish()
+
+        # Otherwise, just compute PS at a single k.
+        else:
+
+            integrand = np.zeros_like(zarr)
+            for i, z in enumerate(zarr):
+                integrand[i] = self._get_ps_obs(z, scale, wave_obs1, wave_obs2,
+                    include_shot=include_shot, include_2h=include_2h,
+                    scale_units=scale_units, raw=raw,
+                    nebular_only=nebular_only, prof=prof)
+
+            ps = np.trapz(integrand * zarr, x=np.log(zarr))
+
+        ##
+        # Extra factor of nu^2 to eliminate Hz^{-1} units for
+        # monochromatic PS
+        assert type(wave_obs1) == type(wave_obs2)
+
+        if type(wave_obs1) in numeric_types:
+            ps = ps * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+        else:
+            nu1 = c / (np.array(wave_obs1) * 1e-4)
+            nu2 = c / (np.array(wave_obs2) * 1e-4)
+            dnu1 = -np.diff(nu1)
+            dnu2 = -np.diff(nu2)
+
+            ps = ps * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
+
+        return ps
+
+    def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
+        include_1h=True, include_2h=True, scale_units='arcsec', raw=False,
+        nebular_only=False, prof=None):
+        """
+        Compute integrand of angular power spectrum integral.
+        """
+
+        if wave_obs2 is None:
+            wave_obs2 = wave_obs1
+
+        ##
+        # Convert to Angstroms in rest frame. Determine emissivity.
+        # Note: the units of the emisssivity will be different if `wave_obs`
+        # is a tuple vs. a number. In the former case, it will simply
+        # be in erg/s/cMpc^3, while in the latter, it will carry an extra
+        # factor of Hz^-1.
+        if type(wave_obs1) in [int, float, np.float64]:
+            is_band_int = False
+
+            # Get rest wavelength in Angstroms
+            wave1 = wave_obs1 * 1e4 / (1. + z)
+            # Convert to photon energy since that what we work with internally
+            E1 = h_p * c / (wave1 * 1e-8) / erg_per_ev
+            nu1 = c / (wave1 * 1e-8)
+
+            # [enu] = erg/s/cm^3/Hz
+            #enu1 = self.get_emissivity(z, E=E1) * ev_per_hz
+            # Not clear about * nu at the end
+        else:
+            is_band_int = True
+
+            # Get rest wavelengths
+            wave1 = tuple(np.array(wave_obs1) * 1e4 / (1. + z))
+
+            # Convert to photon energies since that what we work with internally
+            E11 = h_p * c / (wave1[0] * 1e-8) / erg_per_ev
+            E21 = h_p * c / (wave1[1] * 1e-8) / erg_per_ev
+
+            # [enu] = erg/s/cm^3
+            #enu1 = self.get_emissivity(z, band=(E21, E11), units='eV')
+
+        if type(wave_obs2) in [int, float, np.float64]:
+            is_band_int = False
+
+            # Get rest wavelength in Angstroms
+            wave2 = wave_obs2 * 1e4 / (1. + z)
+            # Convert to photon energy since that what we work with internally
+            E2 = h_p * c / (wave2 * 1e-8) / erg_per_ev
+            nu2 = c / (wave2 * 1e-8)
+
+            # [enu] = erg/s/cm^3/Hz
+            #enu2 = self.get_emissivity(z, E=E2) * ev_per_hz
+            # Not clear about * nu at the end
+        else:
+            is_band_int = True
+
+            # Get rest wavelengths
+            wave2 = tuple(np.array(wave_obs2) * 1e4 / (1. + z))
+
+            # Convert to photon energies since that what we work with internally
+            E12 = h_p * c / (wave2[0] * 1e-8) / erg_per_ev
+            E22 = h_p * c / (wave2[1] * 1e-8) / erg_per_ev
+
+            # [enu] = erg/s/cm^3
+            #enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
+
+        # Need angular diameter distance and H(z) for all that follows
+        d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
+        Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
+
+        ##
+        # Must retrieve redshift-dependent k given fixed angular scale.
+        if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
+            rad = scale * (np.pi / 180.)
+
+            # Convert to degrees retroactively
+            if scale_units == 'arcsec':
+                rad /= 3600.
+            elif scale_units == 'arcmin':
+                rad /= 60.
+            elif scale_units.startswith('deg'):
+                pass
+            else:
+                raise NotImplemented('Unrecognized scale_units={}'.format(
+                    scale_units
+                ))
+
+            q = 2. * np.pi / rad
+            k = q / (d / cm_per_mpc)
+        elif scale_units.lower() in ['l', 'ell']:
+            k = scale / (d / cm_per_mpc)
+        else:
+            raise NotImplemented('Unrecognized scale_units={}'.format(
+                scale_units))
+
+        ##
+        # First: compute 3-D power spectrum
+        if include_2h:
+            ps3d = self.get_ps_2h(z, k, wave1=wave1, wave2=wave2, raw=False,
+                nebular_only=False)
+        else:
+            ps3d = np.zeros_like(k)
+
+        if include_shot:
+            ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2,
+                raw=self.pf['pop_1h_nebular_only'],
+                nebular_only=False)
+            ps3d += ps_shot
+
+        if include_1h:
+            ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
+                raw=not self.pf['pop_1h_nebular_only'],
+                nebular_only=self.pf['pop_1h_nebular_only'],
+                prof=prof)
+            ps3d += ps_1h
+
+        # Compute "cross-terms" in 1-halo contribution from central--satellite
+        # pairs.
+        if include_1h and self.is_satellite_pop:
+            assert self.pf['pop_centrals_id'] is not None, \
+                "Must provide ID number of central population!"
+
+        # The 3-d PS should have units of luminosity^2 * cMpc^-3.
+        # Yes, that's cMpc^-3, a factor of volume^2 different than what
+        # we're used to (e.g., matter power spectrum).
+
+        # Must convert length units from cMpc (inherited from HMF)
+        # to cgs.
+        # Right now, ps3d \propto n^2 Plin(k)
+        # [ps3d] = (erg/s)^2 (cMpc)^-6 right now
+        # Hence the (ps3d / cm_per_mpc) factors below to get in cgs units.
+
+        ##
+        # Angular scales in arcsec, arcmin, or deg
+        if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
+
+            # e.g., Kashlinsky et al. 2018 Eq. 1, 3
+            # Note: no emissivities here.
+            dfdz = c * self.cosm.dtdz(z) / 4. / np.pi / (1. + z)
+            delsq = (k / cm_per_mpc)**2 * (ps3d / cm_per_mpc**3) * Hofz \
+                / 2. / np.pi / c
+
+            if is_band_int:
+                integrand = 2. * np.pi * dfdz**2 * delsq / q**2
+            else:
+                integrand = 2. * np.pi * dfdz**2 * delsq / q**2
+
+        # Spherical harmonics
+        elif scale_units.lower() in ['l', 'ell']:
+            # Fernandez+ (2010) Eq. A9 or 37
+            if is_band_int:
+                # [ps3d] = cm^3
+                integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
+                    / (1. + z)**4 / (4. * np.pi)**2
+            # Fernandez+ (2010) Eq. A10
+            else:
+                integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
+                    / (1. + z)**2 / (4. * np.pi)**2
+        else:
+            raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
+
+        return integrand
+
     def get_cf_mm(self, z, R=None, load=True, ztol=1e-2):
         """
         Compute the correlation function of the matter power spectrum.

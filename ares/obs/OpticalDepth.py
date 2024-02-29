@@ -44,7 +44,7 @@ class OpticalDepth(object):
     def hydr(self, value):
         self._hydr = value
 
-    def get_transmission(self, z, owaves, l_tol=1e-8):
+    def get_transmission(self, z, owaves, l_tol=1e-8, method=None):
         """
         Compute optical depth of photons at observed wavelengths `owaves`
         emitted by object(s) at redshift `z`.
@@ -65,22 +65,25 @@ class OpticalDepth(object):
         if type(owaves) in [int, float, np.int64, np.float64]:
             owaves = np.array([owaves])
 
-        if self.pf['tau_clumpy'] in [0, None, False]:
+        if method is None:
+            method = self.pf['tau_clumpy']
+
+        if method in [0, None, False]:
             tau = np.zeros_like(owaves)
-        elif self.pf['tau_clumpy'] == 'madau1995':
+        elif method == 'madau1995':
             tau = self.get_tau_m95(z, owaves)
         else:
-            assert self.pf['tau_clumpy'] in [1, 2], \
+            assert method in [1, 2], \
                 "Only know tau_clumpy = 1, 2, or madau1995"
 
             rwaves = owaves * 1e4 / (1. + z)
             tau = np.zeros_like(rwaves)
-            cut = lam_LL if  self.pf['tau_clumpy'] == 1 else lam_LyA
-            tau[rwaves < cut] = np.inf
+            cut = lam_LL if method == 1 else lam_LyA
+            tau[rwaves <= cut] = np.inf
 
             # X-ray cutoff in Ang
             lam_X = h_p * c * 1e8 / erg_per_ev / 2e2
-            tau[rwaves < lam_X] = 0.0
+            tau[rwaves <= lam_X] = 0.0
 
         return np.exp(-tau)
 

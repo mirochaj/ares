@@ -1906,7 +1906,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
-        total_sat=False):
+        total_sat=True):
         """
         Determine the luminosity of stellar population(s) for all halos.
         """
@@ -5096,6 +5096,10 @@ class GalaxyCohort(GalaxyAggregate):
         if cached_result is not None:
             return cached_result
 
+        #prof, focc, lum1, lum2 = self.get_ps_ingredients(z, k,
+        #    wave1=wave1, wave2=wave2, raw=raw,
+        #    nebular_only=nebular_only, ztol=ztol, total_sat=total_sat)
+
         prof = self._profile_delta
 
         # If `wave` is a number, this will have units of erg/s/Hz.
@@ -5130,6 +5134,36 @@ class GalaxyCohort(GalaxyAggregate):
         #    self._cache_ps_2h_[(z, wave1, wave2, raw, nebular_only)] = k, ps
 
         return ps
+
+    def get_ps_ingredients(self, z, k, wave1=1600., wave2=1600., raw=False,
+        nebular_only=False, ztol=1e-3, total_sat=True):
+        """
+        For PS calculations, we always need the luminosity of halos, the
+        occupation fraction of galaxies, and the Fourier-transformed profile.
+        """
+        prof = self._profile_delta
+
+        # If `wave` is a number, this will have units of erg/s/Hz.
+        # If `wave` is a tuple, this will just be in erg/s.
+        if np.all(np.array(wave1) <= 912):
+            lum1 = 0
+        else:
+            band = wave1 if type(wave1) not in numeric_types else None
+            lum1 = self.get_lum(z, x=wave1, raw=raw,
+                band=band, units='Angstrom',
+                nebular_only=nebular_only, total_sat=total_sat)
+
+        if np.all(np.array(wave2) <= 912):
+            lum2 = 0
+        else:
+            band = wave2 if type(wave2) not in numeric_types else None
+            lum2 = self.get_lum(z, x=wave2, raw=raw,
+                band=band, units='Angstrom',
+                nebular_only=nebular_only, total_sat=total_sat)
+
+        focc = self.get_focc(z=z, Mh=self.halos.tab_M)
+
+        return prof, focc, lum1, lum2
 
     def get_prof(self, prof=None):
         """

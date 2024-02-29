@@ -329,6 +329,7 @@ class DustExtinction(object):
             if type(Sd) in numeric_types:
                 Sd = np.array([Sd])
             kappa = self.get_absorption_coeff(wave=wave)
+            
             tau = kappa[None,:] * Sd[:,None]
 
             # Note that inf * 0 = NaN, which is a problem. This happens
