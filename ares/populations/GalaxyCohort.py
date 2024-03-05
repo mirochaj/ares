@@ -713,9 +713,36 @@ class GalaxyCohort(GalaxyAggregate):
                     smhm[self.halos.tab_M < self.get_Mmin(_z)] = 0
                     smhm[self.halos.tab_M > self.get_Mmax(_z)] = 0
 
-                    integ = smhm * self.halos.tab_M * self.halos.tab_dndlnm[i] \
-                        * self.tab_focc[i]
-                    self._tab_smd[i] = np.trapz(integ, x=np.log(self.halos.tab_M))
+                    if self.is_central_pop:
+                        integ = smhm * self.halos.tab_M \
+                            * self.halos.tab_dndlnm[i] * self.tab_focc[i]
+
+                    else:
+                        fsurv = self.tab_fsurv[i,:]
+                        focc  = self.tab_focc[i,:]
+
+                        #  Need to sum up all subhalos over central population
+                        dndlnm_c = self.halos.tab_dndm[i,:] * self.halos.tab_M
+
+                        #
+                        dndlnm_sat = np.zeros_like(self.halos.tab_M)
+                        for j, Mc in enumerate(self.halos.tab_M):
+
+                            # Opposite of what we usually do. Integrating over
+                            # central halo abundance at fixed subhalo mass.
+
+                            # focc independent of central galaxy
+                            dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,j] \
+                                * focc[j] * fsurv[j]
+
+                            dndlnm_sat[j] = np.trapz(dndlnm,
+                                x=np.log(self.halos.tab_M))
+
+                        integ = smhm * self.halos.tab_M * dndlnm_sat
+
+                    self._tab_smd[i] = np.trapz(integ,
+                        x=np.log(self.halos.tab_M))
+
             elif mass_return:
                 tasc = self.halos.tab_t[-1::-1]
                 zasc = self.halos.tab_z[-1::-1]
@@ -2226,6 +2253,11 @@ class GalaxyCohort(GalaxyAggregate):
                 corr_M = self._tab_lum_corr_Ms # actually log10(stellar mass)
                 corr_w = self._tab_lum_corr_waves
 
+                #print("!"*40)
+                #print("Hack for now!")
+                #print("!"*40)
+                #corr[corr > 10] = 1.
+
                 # Use correction for mean of band [if provided] or exact wavelength
                 if band is not None:
                     _band = self.src.get_ang_from_x(band, units=units)
@@ -2240,16 +2272,20 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # If requested z < tabulated range, just return
                 if (ilo == 0) and (z < corr_z[ilo]):
-                    kludge = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw])
+                    kludge = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw],
+                        left=1, right=1)
                 elif ilo == len(corr_z) - 1:
-                    kludge = np.interp(np.log10(Ms), corr_M, corr[-1,:,iw])
+                    kludge = np.interp(np.log10(Ms), corr_M, corr[-1,:,iw],
+                        left=1, right=1)
                 else:
                     # Make sure we're bracketing redshift range.
                     if corr_z[ilo] > z:
                         ilo -= 1
 
-                    kludge1 = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw])
-                    kludge2 = np.interp(np.log10(Ms), corr_M, corr[ilo+1,:,iw])
+                    kludge1 = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw],
+                        left=1, right=1)
+                    kludge2 = np.interp(np.log10(Ms), corr_M, corr[ilo+1,:,iw],
+                        left=1, right=1)
                     m = (kludge2 - kludge1) / (corr_z[ilo+1] - corr_z[ilo])
 
                     # Interpolate in redshift
@@ -2452,7 +2488,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_mags(self, z, absolute=True, x=1600, band=None,
         units='Angstrom', window=1, cam=None, filters=None, dlam=20,
-        presets=None, absolulute=False, method=None, Mh=None,
+        presets=None, method=None, Mh=None,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False,
         restricted_range=None):
         """
@@ -3564,17 +3600,38 @@ class GalaxyCohort(GalaxyAggregate):
                 if z <= self.zdead:
                     break
 
-                # See if Mmin and Mmax fall in the same bin, in which case
-                # we'll just set SFRD -> 0 to avoid numerical nonsense.
-                #j1 = np.argmin(np.abs(self._tab_Mmin[i] - self.halos.tab_M))
-                #j2 = np.argmin(np.abs(self._tab_Mmax[i] - self.halos.tab_M))
-                #if j1 == j2:
-                #    if abs(self._tab_Mmax[i] / self._tab_Mmin[i] - 1) < 1e-2:
-                #        continue
+                if self.is_central_pop:
+                    tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
+                    cumtot = cumtrapz(integrand[i], x=np.log(self.halos.tab_M),
+                        initial=0.0)
+                else:
+                    fsurv = self.tab_fsurv[i,:]
+                    focc  = self.tab_focc[i,:]
 
-                tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
-                cumtot = cumtrapz(integrand[i], x=np.log(self.halos.tab_M),
-                    initial=0.0)
+                    #  Need to sum up all subhalos over central population
+                    dndlnm_c = self.halos.tab_dndm[i,:] * self.halos.tab_M
+
+                    #
+                    dndlnm_sat = np.zeros_like(self.halos.tab_M)
+                    for j, Mc in enumerate(self.halos.tab_M):
+
+                        # Opposite of what we usually do. Integrating over central
+                        # halo abundance at fixed subhalo mass.
+
+                        # focc independent of central galaxy
+                        dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,j] \
+                            * focc[j] * fsurv[j]
+
+                        dndlnm_sat[j] = np.trapz(dndlnm,
+                            x=np.log(self.halos.tab_M))
+
+                    integ = self.tab_sfr[i,:] * dndlnm_sat
+
+                    tot = np.trapz(integ, x=np.log(self.halos.tab_M))
+                    cumtot = cumtrapz(integ, x=np.log(self.halos.tab_M),
+                        initial=0.0)
+
+
 
                 above_Mmin = np.interp(np.log(self._tab_Mmin[i]),
                         np.log(self.halos.tab_M), tot - cumtot)
@@ -5068,7 +5125,7 @@ class GalaxyCohort(GalaxyAggregate):
             return ps
 
     def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False,
-        nebular_only=False, ztol=1e-3):
+        nebular_only=False, ztol=1e-3, cross_pop=None):
         """
         Return 2-halo term of 3-d power spectrum.
 
@@ -5092,6 +5149,11 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_include_2h']:
             return np.zeros_like(k)
 
+        if cross_pop is not None:
+            pop_x = cross_pop
+        else:
+            pop_x = self
+
         cached_result = self._cache_ps_2h(z, k, wave1, wave2, raw, nebular_only)
         if cached_result is not None:
             return cached_result
@@ -5110,21 +5172,30 @@ class GalaxyCohort(GalaxyAggregate):
             band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, x=wave1, raw=raw,
                 band=band, units='Angstrom',
-                nebular_only=nebular_only)
+                nebular_only=nebular_only, total_sat=True)
 
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
             band = wave2 if type(wave2) not in numeric_types else None
-            lum2 = self.get_lum(z, x=wave2, raw=raw,
-                band=band, units='Angstrom',
-                nebular_only=nebular_only)
 
-        #if self.is_central_pop:
-        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
-        #else:
-            # Assumes satellite properties are independent of centrals.
-        #    focc1 = focc2 = 1
+            # In this case, don't waste any time!
+            if (cross_pop is None) and np.all(wave2 == wave1):
+                lum2 = lum1
+            else:
+                lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
+                    band=band, units='Angstrom',
+                    nebular_only=nebular_only, total_sat=True)
+
+
+        focc1 = 1 if (not self.is_central_pop) else \
+            self.get_focc(z=z, Mh=self.halos.tab_M)
+
+        if cross_pop is None:
+            focc2 = focc1
+        else:
+            focc2 = 1 if (not pop_x.is_central_pop) else \
+                pop_x.get_focc(z=z, Mh=self.halos.tab_M)
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
@@ -5135,7 +5206,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return ps
 
-    def get_ps_ingredients(self, z, k, wave1=1600., wave2=1600., raw=False,
+    def get_ps_ingredients(self, z, wave1=1600., wave2=1600., raw=False,
         nebular_only=False, ztol=1e-3, total_sat=True):
         """
         For PS calculations, we always need the luminosity of halos, the
@@ -5213,7 +5284,7 @@ class GalaxyCohort(GalaxyAggregate):
         return prof
 
     def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=False,
-        nebular_only=False, prof=None):
+        nebular_only=False, prof=None, cross_pop=None):
         """
         Return 1-halo term of 3-d power spectrum.
 
@@ -5236,13 +5307,26 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_include_1h']:
             return np.zeros_like(k)
 
-        cached_result = self._cache_ps_1h(z, k, wave1, wave2, raw, nebular_only, prof)
+        if cross_pop is not None:
+            pop_x = cross_pop
+        else:
+            pop_x = self
+
+        #cached_result = self._cache_ps_1h(z, k, wave1, wave2, raw, nebular_only, prof)
         #if cached_result is not None:
         #    print("Loading from cache")
         #    return cached_result
 
         # Default to NFW
-        prof = self.get_prof(prof)
+        if self.is_central_pop:
+            prof1 = self._profile_delta
+        else:
+            prof1 = self.get_prof()
+
+        if pop_x.is_central_pop:
+            prof2 = pop_x._profile_delta
+        else:
+            prof2 = pop_x.get_prof(prof)
 
         # If `wave` is a number, this will have units of erg/s/Hz.
         # If `wave` is a tuple, this will just be in erg/s.
@@ -5253,28 +5337,39 @@ class GalaxyCohort(GalaxyAggregate):
             lum1 = self.get_lum(z, x=wave1, raw=raw,
                 band=band, units='Angstrom',
                 nebular_only=nebular_only)
+
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
             band = wave2 if type(wave2) not in numeric_types else None
-            lum2 = self.get_lum(z, x=wave2, raw=raw,
-                band=band, units='Angstrom',
-                nebular_only=nebular_only)
+            # In this case, don't waste any time!
+            if (cross_pop is None) and np.all(wave2 == wave1):
+                lum2 = lum1
+            else:
+                lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
+                    band=band, units='Angstrom',
+                    nebular_only=nebular_only)
 
-        focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+        focc1 = 1 if (not self.is_central_pop) else \
+            self.get_focc(z=z, Mh=self.halos.tab_M)
 
-        ps = self.halos.get_ps_1h(z, k=k, prof1=prof, prof2=prof, lum1=lum1,
+        if cross_pop is None:
+            focc2 = focc1
+        else:
+            focc2 = pop_x.get_focc(z=z, Mh=self.halos.tab_M)
+
+        ps = self.halos.get_ps_1h(z, k=k, prof1=prof1, prof2=prof2, lum1=lum1,
             lum2=lum2, mmin1=None, mmin2=None, focc1=focc1, focc2=focc2,
             ztol=1e-3)
 
-        if type(k) is np.ndarray:
-            self._cache_ps_1h_[(z, wave1, wave2, raw, nebular_only, prof)] = k, ps
+        #if type(k) is np.ndarray:
+        #    self._cache_ps_1h_[(z, wave1, wave2, raw, nebular_only, prof)] = k, ps
 
         return ps
 
     def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
-        time_res=1, raw=False, nebular_only=False, prof=None):
+        time_res=1, raw=False, nebular_only=False, prof=None, cross_pop=None):
         """
         Compute the angular power spectrum of this galaxy population.
 
@@ -5341,7 +5436,8 @@ class GalaxyCohort(GalaxyAggregate):
                         include_shot=include_shot,
                         include_1h=include_1h, include_2h=include_2h,
                         scale_units=scale_units, raw=raw,
-                        nebular_only=nebular_only, prof=prof)
+                        nebular_only=nebular_only, prof=prof,
+                        cross_pop=cross_pop)
 
                 ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
 
@@ -5357,7 +5453,7 @@ class GalaxyCohort(GalaxyAggregate):
                 integrand[i] = self._get_ps_obs(z, scale, wave_obs1, wave_obs2,
                     include_shot=include_shot, include_2h=include_2h,
                     scale_units=scale_units, raw=raw,
-                    nebular_only=nebular_only, prof=prof)
+                    nebular_only=nebular_only, prof=prof, cross_pop=cross_pop)
 
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
 
@@ -5380,7 +5476,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', raw=False,
-        nebular_only=False, prof=None):
+        nebular_only=False, prof=None, cross_pop=None):
         """
         Compute integrand of angular power spectrum integral.
         """
@@ -5477,7 +5573,7 @@ class GalaxyCohort(GalaxyAggregate):
         # First: compute 3-D power spectrum
         if include_2h:
             ps3d = self.get_ps_2h(z, k, wave1=wave1, wave2=wave2, raw=False,
-                nebular_only=False)
+                nebular_only=False, cross_pop=cross_pop)
         else:
             ps3d = np.zeros_like(k)
 
@@ -5491,14 +5587,8 @@ class GalaxyCohort(GalaxyAggregate):
             ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
                 raw=not self.pf['pop_1h_nebular_only'],
                 nebular_only=self.pf['pop_1h_nebular_only'],
-                prof=prof)
+                prof=prof, cross_pop=cross_pop)
             ps3d += ps_1h
-
-        # Compute "cross-terms" in 1-halo contribution from central--satellite
-        # pairs.
-        if include_1h and self.is_satellite_pop:
-            assert self.pf['pop_centrals_id'] is not None, \
-                "Must provide ID number of central population!"
 
         # The 3-d PS should have units of luminosity^2 * cMpc^-3.
         # Yes, that's cMpc^-3, a factor of volume^2 different than what

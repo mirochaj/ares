@@ -411,12 +411,10 @@ ihl['pop_zdead{4}'] = 0
 ihl['pop_sed{4}'] = 'eldridge2017'
 ihl['pop_rad_yield{4}'] = 'from_sed'
 
-ihl['pop_fesc{4}'] = 0.2
 ihl['pop_sed_degrade{4}'] = 10
-
 ihl['pop_nebular{4}'] = 0
 
-# 
+#
 ihl['pop_centrals{4}'] = False
 ihl['pop_centrals_id{4}'] = 0
 ihl['pop_fstar{4}'] = 'link:fstar:2'

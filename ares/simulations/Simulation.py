@@ -153,7 +153,7 @@ class Simulation(object):
 
     def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
         scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
-        **kwargs):
+        include_inter_pop=False, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
 
@@ -242,19 +242,25 @@ class Simulation(object):
         if waves2 is None:
             waves2 = waves
 
-        ps_auto = np.zeros((len(self.pops), len(scales), len(waves)))
-        ps = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
+        ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
         # Save contributing pieces
 
         # Loop over source populations and compute power spectrum.
         #
         for i, pop in enumerate(self.pops):
 
+            # Honor user-supplied list of populations to include
             if pops is not None:
                 if i not in pops:
                     continue
 
             for j, popx in enumerate(self.pops):
+                # Avoid double counting
+                if j > i:
+                    break
+
+                # Honor user-supplied list of populations to include
                 if pops is not None:
                     if j not in pops:
                         continue
@@ -262,38 +268,35 @@ class Simulation(object):
                 for k, wave in enumerate(waves):
                     # Will default to 1h + 2h + shot
                     if j == i:
-
-                        ps_auto[i,:,k] = pop.get_ps_obs(scales,
+                        ps[i,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=wave, wave_obs2=waves2[k],
                             scale_units=scale_units, **kwargs)
+                        continue
 
-                    # Need to do this over all z?
-                    # prof1, focc1, lum1a, lum1b = pop.get_ps_ingredients()
-                    # if j == i:
-                    #     prof2 = prof1
-                    #     focc2 = focc1
-                    #     lum2a = lum1a
-                    #     lum2b = lum1b
-
-                    # p_2h = self.halos.get_ps_2h()
-                    # p_1h = self.halos.get_ps_1h()
-                    # Need to get
-                    #ps[i,j,:,k] = self.halos.get_ps_obs(scales,
-                    #    wave_obs1=wave, wave_obs2=waves2[k],
-                    #    scale_units=scale_units, **kwargs)
+                    if not include_inter_pop:
+                        continue
 
 
-        # For now
-        ps = ps_auto
+                    ##
+                    # Cross terms only from here on
+                    px[i,j,:,k] = pop.get_ps_obs(scales,
+                        wave_obs1=wave, wave_obs2=waves2[k],
+                        scale_units=scale_units, cross_pop=popx, **kwargs)
 
-
+        ##
+        # Increment `ps` with cross terms.
+        # Convention is that fluctuations for population `i` includes
+        # all crosses with
+        ps += px.sum(axis=1)
 
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
             ps *= cm_per_m**4 / erg_per_s_per_nW**2
+            px *= cm_per_m**4 / erg_per_s_per_nW**2
         elif flux_units.lower() == 'mjy':
             ps *= 1e17
+            px *= 1e17
 
         if pops is None:
             hist = self.history # poke
@@ -301,6 +304,10 @@ class Simulation(object):
 
         if dimensionless:
             ps *= scales_inv[None,:,None]**2 / 2. / np.pi
+            px *= scales_inv[None,:,None]**2 / 2. / np.pi
+
+        self.ps_auto = ps
+        self.ps_cross = px
 
         return scales, scales_inv, waves, ps
 
