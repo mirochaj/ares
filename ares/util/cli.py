@@ -242,6 +242,11 @@ aux_data = {
         "product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM_R3.01.zip",
         None,
     ],
+    "sdss": [
+        "https://www.sdss4.org/wp-content/uploads/2017/04/",
+        "filter_curves.fits",
+        None,
+    ],
     'extinction': [
         'https://archive.stsci.edu/hlsps/reference-atlases/cdbs/extinction',
         'lmc_30dorshell_001.fits',

@@ -136,8 +136,10 @@ class Survey(object):
             return self._read_rubin(filters)
         elif self.camera == 'panstarrs':
             return self._read_panstarrs(filters)
+        elif self.camera == 'sdss':
+            return self._read_sdss(filters)
         else:
-            raise NotImplemented('help')
+            raise NotImplemented(f"Unrecognized cam '{cam}'")
 
     def _read_nircam(self, filters=None): # pragma: no cover
 
@@ -438,6 +440,27 @@ class Survey(object):
         for i, filt in enumerate(list('ugrizy')):
             full_path = os.path.join(path, f"total_{filt}.dat")
             x, y = np.loadtxt(full_path, unpack=True)
+            cent = np.mean(x[y > 0])
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent)
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_sdss(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "sdss")
+
+        from astropy.io import fits
+        hdulist = fits.open(f"{path}/filter_curves.fits")
+
+        data = {}
+        for i, filt in enumerate(list('ugriz')):
+            x = 1e-4 * np.array([element[0] for element in hdulist[i+1].data])
+            y = np.array([element[1] for element in hdulist[i+1].data])
+
             cent = np.mean(x[y > 0])
             data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent)
 

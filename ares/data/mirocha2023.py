@@ -3,8 +3,8 @@ from ares.physics.Constants import E_LyA
 
 _base = \
 {
- "halo_dt": 10,
- "halo_tmin": 30.,
+ "halo_dt": 100,
+ "halo_tmin": 100.,
  "halo_tmax": 13.7e3, # Myr
  'halo_mf': 'Tinker10',
  "halo_mf_sub": 'Tinker08',
@@ -479,3 +479,69 @@ smhm_Q['pq_func_par18[10]{1}'] = 0.0
 smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
+
+best = \
+{
+'pq_func_par0[0]{0}': 3.8954e-04,
+'pq_func_par1[0]{0}': 5.3712e+11,
+'pq_func_par2[0]{0}': 1.1115e+00,
+'pq_func_par3[0]{0}': -4.3636e-01,
+'pq_func_par5[0]{0}': 3.8174e-02,
+'pq_func_par9[0]{0}': 1.1444e-01,
+'pq_func_par13[0]{0}': -3.5468e-01,
+'pq_func_par6[0]{0}': 2.2669e-01,
+'pq_func_par10[0]{0}': 3.3021e-01,
+'pq_func_par14[0]{0}': 2.0931e-02,
+'pq_func_par0[2]{0}': 3.6690e-02,
+'pq_func_par1[2]{0}': 7.7328e-01,
+'pq_func_par2[2]{0}': 1.2209e+01,
+'pq_func_par3[2]{0}': -6.6942e-01,
+'pq_func_par4[2]{0}': 6.1058e-01,
+'pq_func_par8[2]{0}': 4.2276e-02,
+'pq_func_par12[2]{0}': -9.1205e-04,
+'pq_func_par5[2]{0}': 2.9010e-01,
+'pq_func_par9[2]{0}': -2.4559e-02,
+'pq_func_par13[2]{0}': 3.5421e-02,
+'pq_func_par6[2]{0}': -2.8269e-01,
+'pq_func_par10[2]{0}': 7.6175e-02,
+'pq_func_par14[2]{0}': -2.1064e-02,
+'pq_func_par7[2]{0}': 8.5306e-01,
+'pq_func_par11[2]{0}': -1.7278e-02,
+'pq_func_par15[2]{0}': -4.9272e-02,
+'pq_func_par0[1]{0}': 1.5927e-02,
+'pq_func_par1[1]{0}': 7.1008e+10,
+'pq_func_par2[1]{0}': 1.5150e+00,
+'pq_func_par3[1]{0}': 4.5578e-01,
+'pq_func_par5[1]{0}': 2.0392e-02,
+'pq_func_par9[1]{0}': 2.1654e-01,
+'pq_func_par13[1]{0}': 7.9087e-02,
+'pq_func_par6[1]{0}': 2.5633e+00,
+'pq_func_par10[1]{0}': -9.8255e-02,
+'pq_func_par14[1]{0}': -2.0452e-01,
+'pq_func_par0[4]{0}': 1.1732e+00,
+'pq_func_par2[4]{0}': 1.3039e-02,
+'pq_func_par3[4]{0}': -9.3737e-03,
+'pq_func_par5[4]{0}': -2.6789e-01,
+'pq_func_par7[4]{0}': -7.4356e-02,
+'pq_func_par4[4]{0}': 7.1479e-03,
+'pq_func_par6[4]{0}': 3.5031e-02,
+'pq_func_par8[4]{0}': 1.3915e-02,
+'pq_func_par0[3]{2}': 3.0129e-01,
+'pq_func_par1[3]{2}': 7.8550e-01,
+'pq_func_par2[3]{2}': 1.2816e+01,
+'pq_func_par3[3]{2}': 3.4158e+00,
+'pq_func_par4[3]{2}': -1.9960e+00,
+'pq_func_par5[3]{2}': 1.1755e+00,
+'pq_func_par6[3]{2}': -6.3000e-01,
+'pq_func_par7[3]{2}': 9.7541e-01,
+'mu_0': 4.4865e-01,
+'mu_a': -2.4907e-01,
+'mu_z': -4.3745e-01,
+'kappa_0': -5.6027e-02,
+'kappa_a': 3.3710e-01,
+'kappa_z': -2.6643e-01,
+}
+
+base.update(subhalos)
+base.update(ihl)
+base.update(best)

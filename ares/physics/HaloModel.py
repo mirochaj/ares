@@ -142,10 +142,12 @@ class HaloModel(HaloMassFunction):
                 with h5py.File(fn, 'r') as f:
                     self._tab_u_nfw = np.array(f[('tab_u_nfw')])
 
-                print(f"# Loaded {fn}.")
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Loaded {fn}.")
             else:
                 self._tab_u_nfw = None
-                print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
 
         return self._tab_u_nfw
 
@@ -159,10 +161,12 @@ class HaloModel(HaloMassFunction):
                 with h5py.File(fn, 'r') as f:
                     self._tab_Sigma_nfw = np.array(f[('tab_Sigma_nfw')])
 
-                print(f"# Loaded {fn}.")
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Loaded {fn}.")
             else:
                 self._tab_Sigma_nfw = None
-                print(f"# Did not find {fn}.")
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Did not find {fn}.")
 
         return self._tab_Sigma_nfw
 
@@ -916,27 +920,41 @@ class HaloModel(HaloMassFunction):
         else:
             raise IOError('Unrecognized format for halo_table.')
 
+    #def tab_prefix_prof(self):
+    #    M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
+    #    z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
+
+    #    dlogk = self.pf['halo_dlnk']
+    #    kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
+
+    #    logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
+    #        / self.pf['halo_dlogM']
+    #    zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
+    #        / self.pf['halo_dz']) + 1
+
+    #    assert logMsize % 1 == 0
+    #    logMsize = int(logMsize)
+    #    assert zsize % 1 == 0
+    #    zsize = int(round(zsize, 1))
+
+    #    # Should probably save NFW information etc. too
+    #    return 'halo_prof_%s_%s_logM_%s_%i-%i_z_%s_%i-%i_lnk_%.1f-%.1f_dlnk_%.3f' \
+    #        % (self.pf['halo_profile'], self.pf['halo_cmr'],
+    #            logMsize, M1, M2, zsize, z1, z2, kmi, kma, dlogk)
+
     def tab_prefix_prof(self):
-        M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
-        z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
+        hmf_pref = self.tab_prefix_hmf(with_size=True)
 
         dlogk = self.pf['halo_dlnk']
         kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
 
-        logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
-            / self.pf['halo_dlogM']
-        zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
-            / self.pf['halo_dz']) + 1
+        Mz_info = hmf_pref[hmf_pref.find('logM'):].replace('.hdf5', '')
 
-        assert logMsize % 1 == 0
-        logMsize = int(logMsize)
-        assert zsize % 1 == 0
-        zsize = int(round(zsize, 1))
-
-        # Should probably save NFW information etc. too
-        return 'halo_prof_%s_%s_logM_%s_%i-%i_z_%s_%i-%i_lnk_%.1f-%.1f_dlnk_%.3f' \
-            % (self.pf['halo_profile'], self.pf['halo_cmr'],
-                logMsize, M1, M2, zsize, z1, z2, kmi, kma, dlogk)
+        return 'halo_prof_{}_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
+            self.pf['halo_profile'],
+            self.pf['halo_cmr'],
+            Mz_info, kmi, kma, dlogk
+        )
 
     def tab_prefix_surf(self):
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']

@@ -1958,7 +1958,12 @@ class GalaxyCohort(GalaxyAggregate):
             smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
             Ms = self.halos.tab_M * smhm
         except:
-            pass
+            Ms = None
+
+
+        ##
+        # Apply luminosity correction [optional]
+        kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
 
         ##
         # Loop over components (most often just one) and determine L
@@ -2172,8 +2177,8 @@ class GalaxyCohort(GalaxyAggregate):
 
 
             ##
-            # Apply fesc
-            L_sfr *= fesc
+            # Apply fesc and kludge
+            L_sfr *= fesc * kludge
 
             ##
             # Special treatment for SSPs
@@ -2236,6 +2241,20 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             Lh += _Lh_
 
+
+
+
+        ##
+        # Done
+        if Mh is None:
+            return Lh
+        else:
+            Lh = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
+                np.log10(Lh))
+
+            return Lh
+
+    def get_lum_corr(self, z, Ms, x=1600, band=None, units='Angstrom'):
         ##
         # [optional] Apply correction to galaxy luminosities.
         if self.pf['pop_lum_corr'] is not None:
@@ -2252,11 +2271,6 @@ class GalaxyCohort(GalaxyAggregate):
                 corr_z = self._tab_lum_corr_z
                 corr_M = self._tab_lum_corr_Ms # actually log10(stellar mass)
                 corr_w = self._tab_lum_corr_waves
-
-                #print("!"*40)
-                #print("Hack for now!")
-                #print("!"*40)
-                #corr[corr > 10] = 1.
 
                 # Use correction for mean of band [if provided] or exact wavelength
                 if band is not None:
@@ -2291,19 +2305,11 @@ class GalaxyCohort(GalaxyAggregate):
                     # Interpolate in redshift
                     kludge = kludge1 + m * (z - corr_z[ilo])
 
-            ##
-            # Apply luminosity correction
-            Lh = Lh * kludge
-
-        ##
-        # Done
-        if Mh is None:
-            return Lh
         else:
-            Lh = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
-                np.log10(Lh))
+            kludge = 1
 
-            return Lh
+        return kludge
+
 
     def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,

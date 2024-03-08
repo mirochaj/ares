@@ -130,19 +130,19 @@ class Simulation(object):
             else:
                 zf = self.pops[i].zdead
 
-            E, flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
+            x, flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
                 units=flux_units, xunits=wave_units)
 
-            if wave_units.lower() == 'ev':
-                x = E
-            elif wave_units.lower().startswith('mic'):
-                x = 1e4 * c / (E * erg_per_ev / h_p)
-            elif wave_units.lower().startswith('ang'):
-                x = 1e8 * c / (E * erg_per_ev / h_p)
-            else:
-                raise NotImplemented('Unrecognized `wave_units`={}'.format(
-                    wave_units
-                ))
+            #if wave_units.lower() == 'ev':
+            #    x = E
+            #elif wave_units.lower().startswith('mic'):
+            #    x = 1e4 * c / (E * erg_per_ev / h_p)
+            #elif wave_units.lower().startswith('ang'):
+            #    x = 1e8 * c / (E * erg_per_ev / h_p)
+            #else:
+            #    raise NotImplemented('Unrecognized `wave_units`={}'.format(
+            #        wave_units
+            #    ))
 
             data[i] = x, flux
 
@@ -282,6 +282,12 @@ class Simulation(object):
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=wave, wave_obs2=waves2[k],
                         scale_units=scale_units, cross_pop=popx, **kwargs)
+
+
+                ##
+                # Clear out some memory -- u(k|M) tabs can be big.
+                #if hasattr(pop.halos, '_tab_u_nfw'):
+                #    del pop.halos._tab_u_nfw
 
         ##
         # Increment `ps` with cross terms.

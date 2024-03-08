@@ -373,6 +373,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         if xunits.lower() == 'ev':
             x = _E
         elif xunits.lower() in ['angstrom', 'ang', 'a']:
+            x = _lam * 1e4
+        elif xunits.lower() in ['mic', 'microns', 'microns']:
             x = _lam
         else:
             raise NotImplemented("'don't recognize xunits={}".format(xunits))
