@@ -274,7 +274,13 @@ class SynthesisModelBase(Source):
     @property
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
-            self._i_tsf = np.argmin(np.abs(self.pf['source_age'] - self.tab_t))
+            if type(self.pf['source_age']) == str:
+                # Issues when source_age is, e.g., 'hubble'. In this case,
+                # i_tsf will not actually be used?
+                self._i_tsf = 0
+            else:
+                self._i_tsf = np.argmin(np.abs(self.pf['source_age'] - self.tab_t))
+
         return self._i_tsf
 
     #@property
@@ -315,11 +321,11 @@ class SynthesisModelBase(Source):
 
     @property
     def Emin(self):
-        return np.min(self.tab_energies_c)
+        return max(np.min(self.tab_energies_c), self.pf['source_Emin'])
 
     @property
     def Emax(self):
-        return np.max(self.tab_energies_c)
+        return min(np.max(self.tab_energies_c), self.pf['source_Emax'])
 
     @cached_property
     def tab_freq_c(self):

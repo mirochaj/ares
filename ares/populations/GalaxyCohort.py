@@ -1992,7 +1992,8 @@ class GalaxyCohort(GalaxyAggregate):
                 assert self.is_metallicity_constant
             else:
                 # Enforce maximum of a Hubble time
-                t_H = self.cosm.HubbleTime(z) / s_per_myr
+                t_H = self.cosm.t_of_z(z) / s_per_myr
+
                 age_is_num = isinstance(src.pf['source_age'], numbers.Number)
 
                 if (age_def in [None, 'mixed']) and age_is_num and src.pf['source_age'] >= 1:
@@ -2129,6 +2130,12 @@ class GalaxyCohort(GalaxyAggregate):
                 #    slc = slice(None),iz,*isfh
 
             elif age_def is not None:
+                if not hasattr(self, '_check_printed'):
+                    print(f"! Hey! {self.id_num} here. src={i}, sfh={src.pf['source_sfh']}")
+                    print(x, window, band, units, raw, nebular_only, age,
+                        units_out, z)
+                    self._check_printed = True
+
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,
@@ -2208,9 +2215,11 @@ class GalaxyCohort(GalaxyAggregate):
                     # In this case, need to integrate over subhalo MF.
                     Ls = mste * L_sfr
                     _Lh_ = np.zeros_like(self.halos.tab_M)
+                    dndlnm_all = self.halos.tab_dndlnm_sub \
+                        * focc[:,None] * fsurv[:,None]
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
-                        _Lh_[i] = np.trapz(Ls * dndlnm,
+                        #dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
+                        _Lh_[i] = np.trapz(Ls * dndlnm_all[i],
                             x=np.log(self.halos.tab_M))
 
             else:
@@ -2230,9 +2239,11 @@ class GalaxyCohort(GalaxyAggregate):
                     # In this case, need to integrate over subhalo MF.
                     Ls = sfr * L_sfr
                     _Lh_ = np.zeros_like(self.halos.tab_M)
+                    dndlnm_all = self.halos.tab_dndlnm_sub \
+                        * focc[:,None] * fsurv[:,None]
                     for i, Mc in enumerate(self.halos.tab_M):
-                        dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
-                        _Lh_[i] = np.trapz(Ls * dndlnm,
+                        #dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
+                        _Lh_[i] = np.trapz(Ls * dndlnm_all[i],
                             x=np.log(self.halos.tab_M))
 
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),

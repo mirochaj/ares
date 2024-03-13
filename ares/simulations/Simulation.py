@@ -201,7 +201,7 @@ class Simulation(object):
 
         # Make sure we do mean background first in case LW feedback is on.
         if not self.mean_intensity._run_complete:
-            self.mean_intensity.run()
+            self.mean_intensity.run(include_pops=pops)
 
         # Make sure things are arrays
         if type(scales) != np.ndarray:
@@ -293,7 +293,7 @@ class Simulation(object):
         # Increment `ps` with cross terms.
         # Convention is that fluctuations for population `i` includes
         # all crosses with
-        ps += px.sum(axis=1)
+        ps += px.sum(axis=0)
 
         ##
         # Modify PS units before return

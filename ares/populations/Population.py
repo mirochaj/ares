@@ -302,7 +302,8 @@ class Population(object):
 
     @property
     def is_diffuse(self):
-        return self.pf['pop_ihl'] is not None
+        return (self.pf['pop_ihl'] is not None) or \
+            (self.pf['pop_include_1h'] and not self.pf['pop_include_shot'])
 
     @property
     def is_src_radio(self):
@@ -1223,6 +1224,9 @@ class Population(object):
         reprocessed = self.is_emissivity_reprocessed
 
         H = np.array([self.cosm.HubbleParameter(_z_) for _z_ in z])
+
+        if self.pf['verbose']:
+            print(f"# Generating emissivity table for population {self.id_num}...")
 
         ##
         # Most general case: src.Spectrum does not contain all information.
