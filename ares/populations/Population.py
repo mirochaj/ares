@@ -1225,9 +1225,6 @@ class Population(object):
 
         H = np.array([self.cosm.HubbleParameter(_z_) for _z_ in z])
 
-        if self.pf['verbose']:
-            print(f"# Generating emissivity table for population {self.id_num}...")
-
         ##
         # Most general case: src.Spectrum does not contain all information.
         if self.is_emissivity_bruteforce or reprocessed:

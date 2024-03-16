@@ -898,7 +898,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._tab_eta_
 
-    def get_sfr(self, z, Mh=None):
+    def get_sfr(self, **kwargs):
         """
         Get star formation rate at redshift z in a halo of mass Mh.
 
@@ -917,6 +917,12 @@ class GalaxyCohort(GalaxyAggregate):
         trying to connect to a point at SFR=Mh=0.
 
         """
+
+        if hasattr(self, '_get_sfr'):
+            return self._get_sfr(**kwargs)
+
+        z = kwargs['z']
+        Mh = kwargs['Mh']
 
         # User may have supplied a function for SFR(z, Mh) directly.
         if self.pf['pop_sfr'] is not None:
@@ -1598,7 +1604,7 @@ class GalaxyCohort(GalaxyAggregate):
     def get_spec(self, z, waves, Mh=None,
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
         nebular_only=False, include_dust_transmission=True,
-        include_igm_transmission=True):
+        include_igm_transmission=True, total_sat=False):
         """
         Compute the rest-frame SED for all galaxies at given redshift.
 
@@ -1626,7 +1632,8 @@ class GalaxyCohort(GalaxyAggregate):
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only,
                     include_dust_transmission=include_dust_transmission,
-                    include_igm_transmission=include_igm_transmission)
+                    include_igm_transmission=include_igm_transmission,
+                    total_sat=total_sat)
 
             return lum
 
@@ -1635,7 +1642,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz', Mh=None,
         window=1, band=None, include_dust_transmission=True,
-        include_igm_transmission=True):
+        include_igm_transmission=True, total_sat=False):
         """
         Return the spectra of all objects in the observer frame at z=0.
 
@@ -1665,7 +1672,8 @@ class GalaxyCohort(GalaxyAggregate):
         spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz',
             Mh=Mh, window=window, band=band,
             include_dust_transmission=include_dust_transmission,
-            include_igm_transmission=include_igm_transmission)
+            include_igm_transmission=include_igm_transmission,
+            total_sat=total_sat)
         dL = self.cosm.get_luminosity_distance(z)
 
         # Flux at Earth in erg/s/cm^2/Hz
@@ -1954,7 +1962,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Generally need to know stellar masses and SFRs, just do it now.
         try:
-            sfr = self.get_sfr(z)
+            sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
             smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
             Ms = self.halos.tab_M * smhm
         except:
@@ -2130,12 +2138,6 @@ class GalaxyCohort(GalaxyAggregate):
                 #    slc = slice(None),iz,*isfh
 
             elif age_def is not None:
-                if not hasattr(self, '_check_printed'):
-                    print(f"! Hey! {self.id_num} here. src={i}, sfh={src.pf['source_sfh']}")
-                    print(x, window, band, units, raw, nebular_only, age,
-                        units_out, z)
-                    self._check_printed = True
-
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,
@@ -2197,7 +2199,8 @@ class GalaxyCohort(GalaxyAggregate):
                 smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
                 mste = self.halos.tab_M * smhm
 
-                if self.is_central_pop:
+                if self.is_central_pop or \
+                  (self.is_satellite_pop and (not total_sat)):
 
                     # Not for SSPs, L per SFR is really L per Mstell.
                     _Lh_ = mste * L_sfr
@@ -2212,47 +2215,73 @@ class GalaxyCohort(GalaxyAggregate):
                     fsurv = self.tab_fsurv[iz,:]
                     focc = self.tab_focc[iz,:]
 
-                    # In this case, need to integrate over subhalo MF.
                     Ls = mste * L_sfr
-                    _Lh_ = np.zeros_like(self.halos.tab_M)
+                    ok_s = np.logical_and(
+                        self.halos.tab_M >= self.get_Mmin(z),
+                        self.halos.tab_M < self.get_Mmax(z)
+                    )
+
                     dndlnm_all = self.halos.tab_dndlnm_sub \
-                        * focc[:,None] * fsurv[:,None]
-                    for i, Mc in enumerate(self.halos.tab_M):
-                        #dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
-                        _Lh_[i] = np.trapz(Ls * dndlnm_all[i],
-                            x=np.log(self.halos.tab_M))
+                        * focc[None,:] * fsurv[None,:]
+
+                    #import time
+                    #t1 = time.time()
+                    _Lh_ = np.trapz(Ls[None,ok_s==1] * dndlnm_all[:,ok_s==1],
+                        x=np.log(self.halos.tab_M[ok_s==1]), axis=1)
+
+                    # In this case, need to integrate over subhalo MF.
+                    #
+                    #_Lh_ = np.zeros_like(self.halos.tab_M)
+                    #dndlnm_all = self.halos.tab_dndlnm_sub \
+                    #    * focc[:,None] * fsurv[:,None]
+                    #for i, Mc in enumerate(self.halos.tab_M):
+                    #    #dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
+                    #    _Lh_[i] = np.trapz(Ls * dndlnm_all[i],
+                    #        x=np.log(self.halos.tab_M))
 
             else:
 
                 # This uses __getattr__ in case we're allowing Z to be
                 # updated from SAM.
-                sfr = self.get_sfr(z)
+                sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
 
                 # Just the product of SFR and L
-                if self.is_central_pop or total_sat:
+                if self.is_central_pop or \
+                  (self.is_satellite_pop and (not total_sat)):
                     _Lh_ = sfr * L_sfr
                 else:
+                    # In this case, we want the total luminosity of satellites
+                    # as a function of (central) halo mass. This is a
+                    # quantity relevant for, e.g., 1-h and 2-h contributions
+                    # to EBL fluctuations.
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+                    # Occupation and survival vs. subhalo mass at this redshift.
                     fsurv = self.tab_fsurv[iz,:]
                     focc = self.tab_focc[iz,:]
 
-                    # In this case, need to integrate over subhalo MF.
+                    ok_s = np.logical_and(
+                        self.halos.tab_M >= self.get_Mmin(z),
+                        self.halos.tab_M < self.get_Mmax(z)
+                    )
+
+                    # Satellite luminosity vs. subhalo mass at this redshift.
                     Ls = sfr * L_sfr
-                    _Lh_ = np.zeros_like(self.halos.tab_M)
+
+                    # _Lh_ here is total luminosity of central halo from
+                    # satellites
                     dndlnm_all = self.halos.tab_dndlnm_sub \
-                        * focc[:,None] * fsurv[:,None]
-                    for i, Mc in enumerate(self.halos.tab_M):
-                        #dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
-                        _Lh_[i] = np.trapz(Ls * dndlnm_all[i],
-                            x=np.log(self.halos.tab_M))
+                        * focc[None,:] * fsurv[None,:]
+
+                    # Integrate over subhalo mass dimension
+                    _Lh_ = np.trapz(Ls[None,ok_s==1] * dndlnm_all[:,ok_s==1],
+                        x=np.log(self.halos.tab_M[ok_s==1]), axis=1)
 
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                 self.halos.tab_M < self.get_Mmax(z))
             _Lh_[~ok] = 0
             ##
             Lh += _Lh_
-
-
 
 
         ##
@@ -2339,6 +2368,13 @@ class GalaxyCohort(GalaxyAggregate):
             Defines edge of band, if interest in band-averaged luminosity
             rather than monochromatic luminosity. Abides by `units` keyword
             as well. Note: will override `x` if both are provided!
+        total_sat : bool
+            For NON-central populations, this parameter controls whether the
+            returned luminosity is the total luminosity of satellites as a
+            function of central halo mass (total_sat=True) or the luminosity
+            of satellites as a function of sub-halo mass. The former is used
+            to compute 1-h and 2-h terms in power spectra, while the latter is
+            needed for shot noise.
 
         Returns
         -------
@@ -2507,7 +2543,7 @@ class GalaxyCohort(GalaxyAggregate):
         units='Angstrom', window=1, cam=None, filters=None, dlam=20,
         presets=None, method=None, Mh=None,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False,
-        restricted_range=None):
+        restricted_range=None, total_sat=False):
         """
         Return magnitudes corresponding to halos in model at redshift `z`.
 
@@ -2527,7 +2563,7 @@ class GalaxyCohort(GalaxyAggregate):
         if (not use_filters):
             L = self.get_lum(z, x=x, band=band, units=units,
                 window=window, units_out='erg/s/Hz', load=load, raw=raw,
-                nebular_only=nebular_only, Mh=Mh)
+                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
 
             mags = self.magsys.L_to_MAB(L)
             xout = x
@@ -2537,7 +2573,7 @@ class GalaxyCohort(GalaxyAggregate):
                 restricted_range=restricted_range)
 
             owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz',
-                Mh=Mh)
+                Mh=Mh, total_sat=total_sat)
 
             # This is always apparent magnitudes
             filt, xfilt, dxfilt, mags = self.phot.get_photometry(flux, owaves,
@@ -3066,6 +3102,15 @@ class GalaxyCohort(GalaxyAggregate):
     @property
     def _tab_Mmax(self):
         if not hasattr(self, '_tab_Mmax_'):
+
+            # Override switch: source masking
+            if self.pf['pop_mask'] is not None:
+                # Don't understand this...if tab_source_mask gets called
+                # before this method, things don't work out. 03.15.2023.
+                #if hasattr(self, '_tab_source_mask'):
+                #    del self._tab_source_mask
+                self._tab_Mmax_ = self.tab_source_mask.copy()
+                return self._tab_Mmax_
 
             # First, compute threshold mass vs. redshift
             t_limit = self.pf['pop_time_limit']
@@ -5063,12 +5108,18 @@ class GalaxyCohort(GalaxyAggregate):
         # pop_include_shot = False
         lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
             raw=raw, nebular_only=nebular_only,
-            total_sat=not self.is_central_pop)
+            total_sat=self.is_central_pop)
         lum2 = self.get_lum(z, x=wave1, band=band2, units='Angstrom',
             raw=raw, nebular_only=nebular_only,
-            total_sat=not self.is_central_pop)
+            total_sat=self.is_central_pop)
 
-        if not self.is_central_pop:
+        if self.is_central_pop:
+            focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+
+            ps = self.halos.get_ps_shot(z, k=k,
+                lum1=lum1, lum2=lum2,
+                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
+        else:
             iz, k, _prof1_, _prof2_ = self.halos._prep_for_ps(z, k,
                 None, None, ztol)
 
@@ -5081,12 +5132,19 @@ class GalaxyCohort(GalaxyAggregate):
             # In this case, need to integrate over subhalo MF.
             # This first quantity is the contribution to the shot noise
             # from satellites for each central halo mass bin.
-            sat_shot = np.zeros_like(self.halos.tab_M)
-            for i, Mc in enumerate(self.halos.tab_M):
-                dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
-                integrand = lum1 * lum2 * dndlnm
-                sat_shot[i] = np.trapz(integrand[ok==1],
-                    x=np.log(self.halos.tab_M[ok==1]))
+            #sat_shot = np.zeros_like(self.halos.tab_M)
+            #for i, Mc in enumerate(self.halos.tab_M):
+            #    dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
+            #    integrand = lum1 * lum2 * dndlnm
+            #    sat_shot[i] = np.trapz(integrand[ok==1],
+            #        x=np.log(self.halos.tab_M[ok==1]))
+
+            integrand_2d = self.halos.tab_dndlnm_sub[:,:] \
+                * focc[None,:] * fsurv[None,:] * lum1[None,:] * lum2[None,:]
+
+
+            sat_shot = np.trapz(integrand_2d[:,ok==1],
+                x=np.log(self.halos.tab_M[ok==1]), axis=1)
 
             # Last step, integrate over central halo abundance
             # Key assumption for now, no distinguishing satellites of
@@ -5104,12 +5162,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             ps = np.trapz(integrand[okc==1],
                 x=np.log(self.halos.tab_M[okc==1]))
-        else:
-            focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
 
-            ps = self.halos.get_ps_shot(z, k=k,
-                lum1=lum1, lum2=lum2,
-                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         return ps
 
@@ -5353,7 +5406,7 @@ class GalaxyCohort(GalaxyAggregate):
             band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, x=wave1, raw=raw,
                 band=band, units='Angstrom',
-                nebular_only=nebular_only)
+                nebular_only=nebular_only, total_sat=True)
 
         if np.all(np.array(wave2) <= 912):
             lum2 = 0
@@ -5365,7 +5418,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
                     band=band, units='Angstrom',
-                    nebular_only=nebular_only)
+                    nebular_only=nebular_only, total_sat=True)
 
         focc1 = 1 if (not self.is_central_pop) else \
             self.get_focc(z=z, Mh=self.halos.tab_M)
@@ -5469,6 +5522,7 @@ class GalaxyCohort(GalaxyAggregate):
             for i, z in enumerate(zarr):
                 integrand[i] = self._get_ps_obs(z, scale, wave_obs1, wave_obs2,
                     include_shot=include_shot, include_2h=include_2h,
+                    include_1h=include_1h,
                     scale_units=scale_units, raw=raw,
                     nebular_only=nebular_only, prof=prof, cross_pop=cross_pop)
 

@@ -293,7 +293,7 @@ class Simulation(object):
         # Increment `ps` with cross terms.
         # Convention is that fluctuations for population `i` includes
         # all crosses with
-        ps += px.sum(axis=0)
+        ps += px.sum(axis=1)
 
         ##
         # Modify PS units before return

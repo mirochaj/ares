@@ -217,7 +217,7 @@ centrals_q['pop_nebular'] = 0
 centrals_q['pop_focc_inv'] = True
 
 for par in centrals_sf:
-    if ('[0]' in par) or ('[2]' in par):
+    if ('[0]' in par) or ('[1]' in par) or ('[2]' in par):
         del centrals_q[par]
 
 ihl_scaled = centrals_q.copy()
@@ -250,7 +250,11 @@ satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = True
 satellites_sf['pop_fstar'] = 'link:fstar:0'
-satellites_sf['pop_ssfr'] = 'link:ssfr:0'
+for par in centrals_sf:
+    if ('[0]' in par)  or ('[1]' in par) or ('[2]' in par):
+        del satellites_sf[par]
+
+satellites_sf['pop_sfr'] = 'link:sfr:0'
 
 satellites_q = centrals_q.copy()
 satellites_q['pop_focc'] = 'link:focc:2'
@@ -328,34 +332,36 @@ for par in dust.keys():
     base[par + '{0}'] = dust[par]
 
 # This results in a Z14-like amount of IHL
-subhalos['pop_fsurv{2}'] = 'pq[3]'
-subhalos['pop_fsurv_inv{2}'] = False
-subhalos['pq_func[3]{2}'] = 'erf_evolB13'
-subhalos['pq_func_var[3]{2}'] = 'Mh'
-subhalos['pq_func_var2[3]{2}'] = '1+z'
-subhalos['pq_val_ceil[3]{2}'] = 1
-subhalos['pq_val_floor[3]{2}'] = 0
-subhalos['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
-subhalos['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
-subhalos['pq_func_par2[3]{2}'] = 11.5
-subhalos['pq_func_par3[3]{2}'] = 1 # dlogM
-subhalos['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
-subhalos['pq_func_par5[3]{2}'] = 0
-subhalos['pq_func_par6[3]{2}'] = 0
-subhalos['pq_func_par7[3]{2}'] = 0
-subhalos['pq_func_par8[3]{2}'] = 0
-subhalos['pq_func_par9[3]{2}'] = 0
-subhalos['pq_func_par10[3]{2}'] = 0
-subhalos['pq_func_par11[3]{2}'] = 0
-subhalos['pq_func_par12[3]{2}'] = 0
-subhalos['pq_func_par13[3]{2}'] = 0
-subhalos['pq_func_par14[3]{2}'] = 0
-subhalos['pq_func_par15[3]{2}'] = 0
-subhalos['pq_func_par16[3]{2}'] = 0
-subhalos['pq_func_par17[3]{2}'] = 0
-subhalos['pq_func_par18[3]{2}'] = 0
-subhalos['pq_func_par19[3]{2}'] = 0
-subhalos['pq_func_par20[3]{2}'] = 0
+subhalos['pop_fsurv{2}'] = 1#
+subhalos_focc = {}
+subhalos_focc['pop_fsurv{2}'] = 'pq[3]'
+subhalos_focc['pop_fsurv_inv{2}'] = False
+subhalos_focc['pq_func[3]{2}'] = 'erf_evolB13'
+subhalos_focc['pq_func_var[3]{2}'] = 'Mh'
+subhalos_focc['pq_func_var2[3]{2}'] = '1+z'
+subhalos_focc['pq_val_ceil[3]{2}'] = 1
+subhalos_focc['pq_val_floor[3]{2}'] = 0
+subhalos_focc['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
+subhalos_focc['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
+subhalos_focc['pq_func_par2[3]{2}'] = 11.5
+subhalos_focc['pq_func_par3[3]{2}'] = 1 # dlogM
+subhalos_focc['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
+subhalos_focc['pq_func_par5[3]{2}'] = 0
+subhalos_focc['pq_func_par6[3]{2}'] = 0
+subhalos_focc['pq_func_par7[3]{2}'] = 0
+subhalos_focc['pq_func_par8[3]{2}'] = 0
+subhalos_focc['pq_func_par9[3]{2}'] = 0
+subhalos_focc['pq_func_par10[3]{2}'] = 0
+subhalos_focc['pq_func_par11[3]{2}'] = 0
+subhalos_focc['pq_func_par12[3]{2}'] = 0
+subhalos_focc['pq_func_par13[3]{2}'] = 0
+subhalos_focc['pq_func_par14[3]{2}'] = 0
+subhalos_focc['pq_func_par15[3]{2}'] = 0
+subhalos_focc['pq_func_par16[3]{2}'] = 0
+subhalos_focc['pq_func_par17[3]{2}'] = 0
+subhalos_focc['pq_func_par18[3]{2}'] = 0
+subhalos_focc['pq_func_par19[3]{2}'] = 0
+subhalos_focc['pq_func_par20[3]{2}'] = 0
 
 # Dust
 subhalos['pop_Av{2}'] = 'link:Av:0'
@@ -363,42 +369,6 @@ subhalos['pop_dust_template{2}'] = 'WD01:MWRV31'
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = False
-
-##
-# Allows subhalos to have different SMHM than centrals
-subhalos_smhm_ext = {}
-subhalos_smhm_ext['pop_fstar{2}'] = 'pq[5]'
-subhalos_smhm_ext['pq_func[5]{2}'] = 'dplx_evolB13'
-subhalos_smhm_ext['pq_func_var[5]{2}'] = 'Mh'
-subhalos_smhm_ext['pq_func_var2[5]{2}'] = '1+z'
-subhalos_smhm_ext['pq_func_par0[5]{2}'] = 0.0003
-subhalos_smhm_ext['pq_func_par1[5]{2}'] = 1.5e12
-subhalos_smhm_ext['pq_func_par2[5]{2}'] = 1
-subhalos_smhm_ext['pq_func_par3[5]{2}'] = -0.6
-subhalos_smhm_ext['pq_func_par4[5]{2}'] = 1e10
-
-for i in range(5, 27):
-    subhalos_smhm_ext['pq_func_par%i[5]{2}' % i] = 0
-
-subhalos_smhm_ext['pop_fstar{3}'] = 'link:fstar:2'
-
-##
-# Allows subhalos to have different quenched fraction than centrals
-subhalos_focc_ext = {}
-subhalos_focc_ext['pop_focc{2}'] = 'pq[6]'
-subhalos_focc_ext['pq_func[6]{2}'] = 'erf_evolB13'
-subhalos_focc_ext['pq_val_ceil[2]{2}'] = 1
-subhalos_focc_ext['pq_func_var[6]{2}'] = 'Mh'
-subhalos_focc_ext['pq_func_var2[6]{2}'] = '1+z'
-subhalos_focc_ext['pq_func_par0[6]{2}'] = 0.
-subhalos_focc_ext['pq_func_par1[6]{2}'] = 0.85
-subhalos_focc_ext['pq_func_par2[6]{2}'] = 12.2
-subhalos_focc_ext['pq_func_par3[6]{2}'] = -0.7
-for i in range(4, 26):
-    subhalos_focc_ext['pq_func_par%i[6]{2}' % i] = 0
-
-subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
-subhalos_focc_ext['pop_focc_inv{3}'] = True
 
 ihl = {}
 ihl['pop_sfr_model{4}'] = 'smhm-func'
@@ -545,3 +515,46 @@ best = \
 base.update(subhalos)
 base.update(ihl)
 base.update(best)
+
+##
+# Allows subhalos to have different SMHM than centrals
+subhalos_smhm_ext = {}
+subhalos_smhm_ext['pop_fstar{2}'] = 'pq[5]'
+subhalos_smhm_ext['pq_func[5]{2}'] = 'dplx_evolB13'
+subhalos_smhm_ext['pq_func_var[5]{2}'] = 'Mh'
+subhalos_smhm_ext['pq_func_var2[5]{2}'] = '1+z'
+
+for i in range(0, 27):
+    subhalos_smhm_ext['pq_func_par%i[5]{2}' % i] = base['pq_func_par%i[0]{0}' % i]
+
+subhalos_smhm_ext['pop_fstar{3}'] = 'link:fstar:2'
+
+##
+# Allows subhalos to have different SFR than centrals
+subhalos_sfr_ext = {}
+subhalos_sfr_ext['pop_sfr{2}'] = 'pq[6]'
+subhalos_sfr_ext['pq_func[6]{2}'] = 'dplx_evolB13'
+subhalos_sfr_ext['pq_func_var[6]{2}'] = 'Mh'
+subhalos_sfr_ext['pq_func_var2[6]{2}'] = '1+z'
+
+
+for i in range(0, 27):
+    subhalos_sfr_ext['pq_func_par%i[6]{2}' % i] = base['pq_func_par%i[1]{0}' % i]
+
+##
+# Allows subhalos to have different quenched fraction than centrals
+subhalos_focc_ext = {}
+subhalos_focc_ext['pop_focc{2}'] = 'pq[7]'
+subhalos_focc_ext['pq_func[7]{2}'] = 'erf_evolB13'
+subhalos_focc_ext['pq_val_ceil[7]{2}'] = 1
+subhalos_focc_ext['pq_func_var[7]{2}'] = 'Mh'
+subhalos_focc_ext['pq_func_var2[7]{2}'] = '1+z'
+subhalos_focc_ext['pq_func_par0[7]{2}'] = 0.
+subhalos_focc_ext['pq_func_par1[7]{2}'] = 0.85
+subhalos_focc_ext['pq_func_par2[7]{2}'] = 12.2
+subhalos_focc_ext['pq_func_par3[7]{2}'] = -0.7
+for i in range(4, 26):
+    subhalos_focc_ext['pq_func_par%i[7]{2}' % i] = 0
+
+subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
+subhalos_focc_ext['pop_focc_inv{3}'] = True
