@@ -513,7 +513,7 @@ best = \
 }
 
 base.update(subhalos)
-base.update(ihl)
+#base.update(ihl)
 base.update(best)
 
 ##
@@ -558,3 +558,33 @@ for i in range(4, 26):
 
 subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
 subhalos_focc_ext['pop_focc_inv{3}'] = True
+
+sed_modeling = {}
+sed_modeling['pop_age{0}'] = 1e2, 'hubble'
+sed_modeling['pop_age{2}'] = 1e2, 'hubble'
+sed_modeling['pop_age{1}'] = 'hubble'
+sed_modeling['pop_age{3}'] = 'hubble'
+
+sed_modeling['pop_sfh{2}'] = 'constant+ssp'
+sed_modeling['pop_ssp{2}'] = (False, True)
+
+sed_modeling['pop_age_definition{0}'] = 'mixed'
+sed_modeling['pop_age_definition{1}'] = 'mixed'
+sed_modeling['pop_age_definition{2}'] = 'mixed'
+sed_modeling['pop_age_definition{3}'] = 'mixed'
+
+sed_modeling['pop_lum_corr{1}'] = '../sed_modeling/sed_corrections_qgs_below_100.hdf5'
+sed_modeling['pop_lum_corr{3}'] = '../sed_modeling/sed_corrections_qgs_below_100.hdf5'
+sed_modeling['pop_Z{1}'] = 0.02
+sed_modeling['pop_Z{3}'] = 0.02
+sed_modeling['pop_Z{4}'] = 0.02
+
+_mzr02 = {}
+for par in mzr:
+    _mzr02[par + '{0}'] = mzr[par]
+    _mzr02[par + '{2}'] = mzr[par]
+
+sed_modeling.update(_mzr02)
+
+sed_modeling['pop_lum_corr{0}'] = 'sed_corrections_sfgs_mzr.hdf5'
+sed_modeling['pop_lum_corr{2}'] = 'sed_corrections_sfgs_mzr.hdf5'
