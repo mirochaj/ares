@@ -1565,13 +1565,15 @@ class GalaxyCohort(GalaxyAggregate):
 
         return b
 
-    def _cache_L(self, z, wave, band, window, units_out, raw, nebular_only, age):
+    def _cache_L(self, z, x, band, window, units, units_out, raw, nebular_only,
+        age, include_dust_transmission, include_igm_transmission, total_sat):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (z, wave, band, window, units_out, raw, nebular_only, age) in self._cache_L_:
-            return self._cache_L_[(z, wave, band, window, units_out,
-                raw, nebular_only, age)]
+        kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
+            include_dust_transmission, include_igm_transmission, total_sat
+        if kwtup in self._cache_L_:
+            return self._cache_L_[kwtup]
 
         return None
 
@@ -2153,6 +2155,11 @@ class GalaxyCohort(GalaxyAggregate):
                     else:
                         L_sfr = 10**f_L_sfr(np.log10(Z))
 
+
+            ##
+            # Apply fesc and kludge
+            L_sfr *= fesc * kludge
+
             ##
             # Add by-hand line emission [optional]
             # Just be careful not to double count.
@@ -2169,9 +2176,21 @@ class GalaxyCohort(GalaxyAggregate):
                 for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
 
                     if (x is not None) and (wave == _wave_):
-                        raise NotImplemented('help')
+                        R = 1 if self.pf['pop_sed_degrade'] is None \
+                            else self.pf['pop_sed_degrade']
+                        # If lines are delta functions,
+                        if 'erg/s/A' in units_out:
+                            L_lines = _lum_ / R
+                        else:
+                            # Line luminosities are provided in erg/s/(Msun/yr)
+                            # If we assume delta functions, implicitly then
+                            # they are in per Angstrom units.
+                            # dnu/dlam = -c/wave**2
+                            # [dnu/dlam] = Hz / cm
+                            L_lines = _lum_ / (c * 1e8 / wave**2)
+
                     elif (band is not None) and (band[0] <= _wave_ <= band[1]):
-                        L_lines = Lsun * 10**_lum_
+                        L_lines = _lum_#Lsun * 10**_lum_
                         if 'erg/s/A' in units_out:
                             dlam = (band[1] - band[0])
                             dnu = None
@@ -2181,13 +2200,10 @@ class GalaxyCohort(GalaxyAggregate):
                             dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
                             L_lines /= dnu
 
-                # Count it
+                # Remember: all dust and IGM transmission occurs after this!
+                # Increment
                 L_sfr += L_lines
 
-
-            ##
-            # Apply fesc and kludge
-            L_sfr *= fesc * kludge
 
             ##
             # Special treatment for SSPs
@@ -2382,12 +2398,14 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        #if False:
-        kwtup = (z, x, band, window, units_out, raw, nebular_only, age)
-        cached_result = self._cache_L(*kwtup)
+        kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
+            include_dust_transmission, include_igm_transmission, total_sat
 
-        if (cached_result is not None) and (Mh is None):
-            return cached_result
+        if (Mh is None) and self.pf['pop_use_lum_cache']:
+            cached_result = self._cache_L(*kwtup)
+
+            if (cached_result is not None):
+                return cached_result
 
         ##
         # Have options for stars or BHs
@@ -2417,8 +2435,6 @@ class GalaxyCohort(GalaxyAggregate):
 
             Lh = Lbol * I_E * ev_per_hz
 
-            #self._cache_L_[(z, wave)] = Lh
-
             # Don't need to do trajectories unless we're letting
             # BHs grow via accretion, i.e., scaling laws can just get
             # painted on.
@@ -2445,7 +2461,8 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_cache_L'):
             self._cache_L = {}
 
-        #self._cache_L_[kwtup] = Lh
+        if (Mh is None) and self.pf['pop_use_lum_cache']:
+            self._cache_L_[kwtup] = Lh
 
         return Lh
 
@@ -3110,6 +3127,21 @@ class GalaxyCohort(GalaxyAggregate):
                 #if hasattr(self, '_tab_source_mask'):
                 #    del self._tab_source_mask
                 self._tab_Mmax_ = self.tab_source_mask.copy()
+
+                if self.pf['pop_Mmax'] is None:
+                    return self._tab_Mmax_
+
+                # Can apply additional cut from Mmax
+                if type(self.pf['pop_Mmax']) == FunctionType:
+                    M = np.array([self.pf['pop_Mmax'](_z_) \
+                        for _z_ in self.halos.tab_z])
+
+                    self._tab_Mmax_ = np.minimum(self._tab_Mmax_, M)
+                else:
+                    self._tab_Mmax_ = np.minimum(self._tab_Mmax_,
+                        self.pf['pop_Mmax'])
+
+
                 return self._tab_Mmax_
 
             # First, compute threshold mass vs. redshift
@@ -3165,10 +3197,10 @@ class GalaxyCohort(GalaxyAggregate):
                 self._tab_Mmax_ = Mmax
 
             elif self.pf['pop_Mmax'] is not None:
-                if type(self.pf['pop_Mmax']) is FunctionType:
+                if type(self.pf['pop_Mmax']) == FunctionType:
                     self._tab_Mmax_ = np.array(list(map(self.pf['pop_Mmax'], self.halos.tab_z)))
 
-                elif type(self.pf['pop_Mmax']) is tuple:
+                elif type(self.pf['pop_Mmax']) == tuple:
                     extra = self.pf['pop_Mmax'][0]
                     assert self.pf['pop_Mmax'][1] == 'Mmin'
 

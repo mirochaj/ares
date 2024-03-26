@@ -28,6 +28,7 @@ _base = \
 
 centrals_sf = \
 {
+ 'pop_use_lum_cache': True,
  'pop_sfr_model': 'smhm-func',
  'pop_solve_rte': (0.12, E_LyA),
  'pop_Emin': 0.12,
@@ -331,6 +332,8 @@ dust['pq_val_floor[4]'] = 0
 for par in dust.keys():
     base[par + '{0}'] = dust[par]
 
+base_centrals = base.copy()
+
 # This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 1#
 subhalos_focc = {}
@@ -573,11 +576,10 @@ sed_modeling['pop_age_definition{1}'] = 'mixed'
 sed_modeling['pop_age_definition{2}'] = 'mixed'
 sed_modeling['pop_age_definition{3}'] = 'mixed'
 
-sed_modeling['pop_lum_corr{1}'] = '../sed_modeling/sed_corrections_qgs_below_100.hdf5'
-sed_modeling['pop_lum_corr{3}'] = '../sed_modeling/sed_corrections_qgs_below_100.hdf5'
+sed_modeling['pop_lum_corr{1}'] = 'sed_corrections_qgs_below_100.hdf5'
+sed_modeling['pop_lum_corr{3}'] = 'sed_corrections_qgs_below_100.hdf5'
 sed_modeling['pop_Z{1}'] = 0.02
 sed_modeling['pop_Z{3}'] = 0.02
-sed_modeling['pop_Z{4}'] = 0.02
 
 _mzr02 = {}
 for par in mzr:
@@ -588,3 +590,17 @@ sed_modeling.update(_mzr02)
 
 sed_modeling['pop_lum_corr{0}'] = 'sed_corrections_sfgs_mzr.hdf5'
 sed_modeling['pop_lum_corr{2}'] = 'sed_corrections_sfgs_mzr.hdf5'
+
+# Scaling relationships for common strong lines
+# Each pair is rest wavelength [Angstroms] and L_line [erg/s/(Msun/yr)]
+lines = {}
+lines['pop_lum_per_sfr_at_wave{0}'] = \
+    [(6563, 1.27e41),             # H-alpha
+     (5007, 1.32e41),             # [O III]
+     (4861, 0.44e41),             # H-beta
+     (4340, 0.468 * 0.44e41),     # H-gamma
+     (4102, 0.259 * 0.44e41),     # H-delta
+     (3970, 0.159 * 0.44e41),     # H-epsilon
+     (3727, 0.71e41),             # [O II]
+     (1.87e4, 1.27e41 * 0.123)]   # [P-alpha]
+lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']

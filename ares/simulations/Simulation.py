@@ -201,7 +201,7 @@ class Simulation(object):
 
         # Make sure we do mean background first in case LW feedback is on.
         if not self.mean_intensity._run_complete:
-            self.mean_intensity.run(include_pops=pops)
+            self.mean_intensity.run()
 
         # Make sure things are arrays
         if type(scales) != np.ndarray:
