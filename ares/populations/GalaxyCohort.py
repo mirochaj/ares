@@ -2679,61 +2679,67 @@ class GalaxyCohort(GalaxyAggregate):
 
         return mags
 
-    @property
-    def tab_source_mask(self):
+    def get_mask(self):
         """
-        Halo mass corresponding to some limiting magnitude set in pop_mask.
+        This function returns an array of length `self.halos.tab_z` containing
+        the masking depth (as supplied via pop_mask) as a maximum halo mass.
         """
-        if not hasattr(self, '_tab_source_mask'):
-            self._tab_source_mask = self.halos.tab_M.max() \
-                * np.ones_like(self.halos.tab_z)
 
-            if self.pf['pop_mask'] is None:
-                return self._tab_source_mask
+        if self.pf['pop_mask'] is None:
+            return self._tab_Mmax * np.ones_like(self.halos.tab_z)
 
-            tmp = self._tab_source_mask.copy()
+        tmp = np.zeros_like(self.halos.tab_z)
 
-            for i, z in enumerate(self.halos.tab_z):
-
-                if self.pf['pop_mask_interp'] is not None:
-                    if i % self.pf['pop_mask_interp'] != 0:
-                        continue
-
-                # Loop over masking thresholds
-                Mh_lim = self.halos.tab_M.max()
-                for j, mask in enumerate(self.pf['pop_mask']):
-                    if len(mask) == 2:
-                        mwave, mlim = mask
-                        _mags, Mh_lim_j = self.get_Mmax_from_maglim(z, mwave, mlim)
-                        Mh_lim = min(Mh_lim, Mh_lim_j)
-                    else:
-                        mwave, mlim, mags = mask
-                        # inf means 0 = flux, set to some impossibly faint
-                        # magnitude to avoid issues
-                        if not np.any(np.isfinite(mags[i,:])):
-                            continue
-
-                        ok = np.isfinite(mags[i])
-                        if ok.sum() == 0:
-                            continue
-
-                        cand = 10**np.interp(mlim, mags[i,ok==1][-1::-1],
-                            np.log10(self.halos.tab_M[ok==1])[-1::-1],
-                            left=np.log10(self.halos.tab_M.max()),
-                            right=np.log10(self.halos.tab_M.min()))
-
-                        Mh_lim = min(Mh_lim, cand)
-
-                tmp[i] = Mh_lim
+        for i, z in enumerate(self.halos.tab_z):
 
             if self.pf['pop_mask_interp'] is not None:
-                skip = self.pf['pop_mask_interp']
-                self._tab_source_mask = 10**np.interp(self.halos.tab_z,
-                    self.halos.tab_z[::skip], np.log10(tmp[::skip]))
-            else:
-                self._tab_source_mask = tmp
+                if i % self.pf['pop_mask_interp'] != 0:
+                    continue
 
-        return self._tab_source_mask
+            # Loop over masking thresholds
+            Mh_lim = self._tab_Mmax[i]
+            for j, mask in enumerate(self.pf['pop_mask']):
+                if len(mask) == 2:
+                    mwave, mlim = mask
+                    _mags, Mh_lim_j = self.get_Mmax_from_maglim(z, mwave, mlim)
+                    Mh_lim = min(Mh_lim, Mh_lim_j)
+                else:
+                    mwave, mlim, mags = mask
+                    # inf means 0 = flux, set to some impossibly faint
+                    # magnitude to avoid issues
+                    if not np.any(np.isfinite(mags[i,:])):
+                        continue
+
+                    ok = np.isfinite(mags[i])
+                    if ok.sum() == 0:
+                        continue
+
+                    cand = 10**np.interp(mlim, mags[i,ok==1][-1::-1],
+                        np.log10(self.halos.tab_M[ok==1])[-1::-1],
+                        left=np.log10(self.halos.tab_M.max()),
+                        right=np.log10(self.halos.tab_M.min()))
+
+                    Mh_lim = min(Mh_lim, cand)
+
+            tmp[i] = Mh_lim
+
+        if self.pf['pop_mask_interp'] is not None:
+            skip = self.pf['pop_mask_interp']
+
+            # Interpolate in time if we're regularly spaced there.
+            if self.pf['halo_dt'] is not None:
+                mask = 10**np.interp(self.halos.tab_t,
+                    self.halos.tab_t[::skip][-1::-1],
+                    np.log10(tmp[::skip][-1::-1]),
+                        left=tmp.min(), right=tmp.max())
+            else:
+                mask = 10**np.interp(self.halos.tab_z,
+                    self.halos.tab_z[::skip], np.log10(tmp[::skip]),
+                    left=tmp.min(), right=tmp.max())
+        else:
+            mask = tmp
+
+        return mask
 
     def _get_phi_of_L(self, z, x=1600., window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms'):
@@ -3120,30 +3126,6 @@ class GalaxyCohort(GalaxyAggregate):
     def _tab_Mmax(self):
         if not hasattr(self, '_tab_Mmax_'):
 
-            # Override switch: source masking
-            if self.pf['pop_mask'] is not None:
-                # Don't understand this...if tab_source_mask gets called
-                # before this method, things don't work out. 03.15.2023.
-                #if hasattr(self, '_tab_source_mask'):
-                #    del self._tab_source_mask
-                self._tab_Mmax_ = self.tab_source_mask.copy()
-
-                if self.pf['pop_Mmax'] is None:
-                    return self._tab_Mmax_
-
-                # Can apply additional cut from Mmax
-                if type(self.pf['pop_Mmax']) == FunctionType:
-                    M = np.array([self.pf['pop_Mmax'](_z_) \
-                        for _z_ in self.halos.tab_z])
-
-                    self._tab_Mmax_ = np.minimum(self._tab_Mmax_, M)
-                else:
-                    self._tab_Mmax_ = np.minimum(self._tab_Mmax_,
-                        self.pf['pop_Mmax'])
-
-
-                return self._tab_Mmax_
-
             # First, compute threshold mass vs. redshift
             t_limit = self.pf['pop_time_limit']
             m_limit = self.pf['pop_mass_limit']
@@ -3223,12 +3205,11 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Override switch: source masking
             if self.pf['pop_mask'] is not None:
+                mask = self.get_mask()
                 # Don't understand this...if tab_source_mask gets called
                 # before this method, things don't work out. 03.15.2023.
-                if hasattr(self, '_tab_source_mask'):
-                    del self._tab_source_mask
-                self._tab_Mmax_ = np.minimum(self.tab_source_mask,
-                    self._tab_Mmax_)
+
+                self._tab_Mmax_ = np.minimum(mask, self._tab_Mmax_)
 
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
