@@ -283,7 +283,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         if type(popids) not in [list, tuple, np.ndarray]:
             popids = [popids]
 
-        ct = 0
         _zf = [] # for debugging
         # Loop over pops: assumes energy ranges are non-overlapping!
         for popid, pop in enumerate(self.pops):
@@ -311,8 +310,6 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             _energies_today.append(Et)
             _fluxes_today.append(ft)
-
-            ct += 1
 
         ##
         # Add the fluxes! Interpolate to common energy grid first.
@@ -467,9 +464,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not self.pops[popid].pf['pop_solve_rte']:
             return None, None
 
-        t = 0.0
-        z = self.pf['initial_redshift']
-        zf = self.pf['final_redshift']
+        #t = 0.0
+        #z = self.pf['initial_redshift']
+        #zf = self.pf['final_redshift']
 
         all_fluxes = []
         for z in self.solver.redshifts[popid][-1::-1]:

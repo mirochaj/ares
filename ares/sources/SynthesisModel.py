@@ -380,10 +380,8 @@ class SynthesisModelBase(Source):
         x : int, float
             Wavelength of interest [Angstroms].
         window : int
-            Will compute luminosity averaged over this number of pixels in the
-            SED table. So, for `window=1`, the returned luminosity is
-            monochromatic, for `window=10` it is the luminosity averaged in a
-            10 pixel window centered on `wave`, etc.
+            Will compute luminosity averaged over this window, assumed to be
+            a delta lambda width in Angstroms.
         band : tuple
             If provided, should be a range over which to integrate the spectrum,
             in units of Angstroms.
@@ -439,7 +437,7 @@ class SynthesisModelBase(Source):
                     l1, l2 = self.get_ang_from_x(band, units=units)
                     dlam = abs(l1 - l2)
 
-                    if 'erg' in units_out:
+                    if 'erg' in units_out.lower():
                         yield_UV[i] = data[i1,i] * dlam
                     else:
                         yield_UV[i] = data[i1,i] * dlam \
@@ -447,7 +445,7 @@ class SynthesisModelBase(Source):
 
                 else:
 
-                    if 'erg' in units_out:
+                    if 'erg' in units_out.lower():
                         integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
                     else:
                         integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
@@ -476,7 +474,7 @@ class SynthesisModelBase(Source):
                         data -= self._data_raw[j,:]
 
             if window == 1:
-                if 'Hz' in units_out:
+                if 'hz' in units_out.lower():
                     yield_UV = data * np.abs(self.tab_dwdn[j])
                 else:
                     yield_UV = data

@@ -1230,43 +1230,33 @@ class Population(object):
         if self.is_emissivity_bruteforce or reprocessed:
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
 
-            _window = 2 * np.abs(np.diff(_waves))
+            _window = np.abs(np.diff(_waves))
             window = [round(_window[jj],0) for jj in range(Nf-1)]
             window.append(1)
-
-            if self.is_quiescent:
-                window = np.ones_like(_waves)
-
-            #for jj in range(Nf):
-            #    _window[jj]
 
             for ll in range(Nz):
                 iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
 
-                ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z[ll]),
-                    self.halos.tab_M < self.get_Mmax(z[ll]))
+                #ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z[ll]),
+                #    self.halos.tab_M < self.get_Mmax(z[ll]))
 
                 for jj in range(Nf):
 
-                    # [erg/s/Hz]
+                    # [erg/s/Hz] in the rest frame
                     lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
                         raw=False, units_out='erg/s/Hz',
-                        window=window[jj] if window[jj] % 2 == 1 else window[jj]+1)
+                        #window=window[jj] if window[jj] % 2 == 1 else window[jj]+1,
+                        total_sat=True, load=False)
 
                     # Setup integrand over population [erg/s/Hz/cMpc^3]
                     integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \
-                        * self.tab_focc[iz,:] * ok
+                        * self.tab_focc[iz,:] #* ok
 
-                    # Integrate
+                    # Integrate: recall that Mmin and Mmax are enforced
+                    # already in get_lum
                     _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-                    #_cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
-                    #    initial=0.0)
 
-                    #_tmp = _tot - \
-                    #    np.interp(np.log(self._tab_Mmin[iz]),
-                    #        np.log(self.halos.tab_M), _cumtot)
-
-                    # Convert from luminosity in erg to photons
+                    # Convert from luminosity in erg to photons / s / Hz
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
 
         elif scalable:
@@ -1277,7 +1267,6 @@ class Population(object):
                     / erg_per_ev
 
         else:
-
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense

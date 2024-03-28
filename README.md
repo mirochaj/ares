@@ -139,7 +139,7 @@ plt.show()
 To generate a quick luminosity function, you could do
 
 ```python
-pars = ares.util.ParameterBundle('mirocha2020:legacy')
+pars = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
 pop = ares.populations.GalaxyPopulation(**pars)
 
 bins, phi = pop.get_uvlf(z=6, bins=np.arange(-25, -10, 0.1))

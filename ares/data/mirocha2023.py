@@ -17,7 +17,8 @@ _base = \
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
  'cosmological_Mmin': None,
 
- 'final_redshift': 1e-2,
+ 'first_light_redshift': 10,
+ 'final_redshift': 1e-3,
 
  'tau_redshift_bins': 100,
 

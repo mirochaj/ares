@@ -1015,7 +1015,6 @@ class UniformBackground(object):
         # Won't matter that we carried the first element to the end because
         # the incoming flux in that bin is always zero.
 
-
         # Loop over redshift - this is the generator
         z = redshifts[-1]
         while z >= redshifts[0]:
