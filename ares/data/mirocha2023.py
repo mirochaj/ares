@@ -577,8 +577,8 @@ sed_modeling['pop_age_definition{1}'] = 'mixed'
 sed_modeling['pop_age_definition{2}'] = 'mixed'
 sed_modeling['pop_age_definition{3}'] = 'mixed'
 
-sed_modeling['pop_lum_corr{1}'] = 'sed_corrections_qgs_below_100.hdf5'
-sed_modeling['pop_lum_corr{3}'] = 'sed_corrections_qgs_below_100.hdf5'
+sed_modeling['pop_lum_corr{1}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
+sed_modeling['pop_lum_corr{3}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
 sed_modeling['pop_Z{1}'] = 0.02
 sed_modeling['pop_Z{3}'] = 0.02
 
@@ -589,14 +589,15 @@ for par in mzr:
 
 sed_modeling.update(_mzr02)
 
-sed_modeling['pop_lum_corr{0}'] = 'sed_corrections_sfgs_mzr.hdf5'
-sed_modeling['pop_lum_corr{2}'] = 'sed_corrections_sfgs_mzr.hdf5'
+sed_modeling['pop_lum_corr{0}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
+sed_modeling['pop_lum_corr{2}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
 
 # Scaling relationships for common strong lines
 # Each pair is rest wavelength [Angstroms] and L_line [erg/s/(Msun/yr)]
 lines = {}
 lines['pop_lum_per_sfr_at_wave{0}'] = \
-    [(6563, 1.27e41),             # H-alpha
+    [(1216, 6.85e41),             # Ly-a
+     (6563, 1.27e41),             # H-alpha
      (5007, 1.32e41),             # [O III]
      (4861, 0.44e41),             # H-beta
      (4340, 0.468 * 0.44e41),     # H-gamma

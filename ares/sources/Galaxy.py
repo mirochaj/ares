@@ -559,6 +559,7 @@ class Galaxy(SynthesisModel):
             sfh_fall = self.pf['source_sfh_fallback']
         ##
         # If we're here, we're exploring fallback options.
+        print(f"Retrieved mass is off by {merr:.3f} relative to mtol.")
         print(f"Let's try this again with sfh={sfh_fall}...")
         kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
             mtol=mtol, sfh=sfh_fall, mass_return=mass_return, tarr=tarr,

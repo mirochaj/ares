@@ -31,6 +31,12 @@ try:
 except ImportError:
     have_dustext = False
 
+try:
+    from dust_attenuation.averages import C00
+    have_dustatt = True
+except ImportError:
+    have_dustatt = False
+
 # These are AUV = a + b * beta, with a and b in that order in these tuples
 _coeff_irxb = {
     'meurer1999': (4.43, 1.99),
@@ -103,6 +109,15 @@ class DustExtinction(object):
         return self._dustext_instance_
 
     @property
+    def _dustatt_instance(self):
+        if not hasattr(self, '_dustatt_instance_'):
+            assert have_dustatt, "Need dust_attenuation package for this!"
+            self._dustatt_instance_ = C00
+            assert self.method == 'C00'
+
+        return self._dustatt_instance_
+
+    @property
     def tab_x(self):
         """
         1/wavelengths [micron^-1].
@@ -119,6 +134,11 @@ class DustExtinction(object):
         if not hasattr(self, '_tab_waves_c'):
             if self.method.startswith('WD01'):
                 self._tab_waves_c = 1e4 / self._dustext_instance.data_x
+            elif self.method.startswith('C00'):
+                # Just to grab wavelength range
+                CC = self._dustatt_instance(Av=1)
+                self._tab_waves_c = np.arange(1e4 * CC.x_range[0],
+                    1e4 * CC.x_range[1])
             else:
                 self._load()
         return self._tab_waves_c
@@ -129,14 +149,31 @@ class DustExtinction(object):
         Lookup table of Rv=Av/E(B-V).
         """
         if not hasattr(self, '_tab_extinction'):
+            # Callable expects [x] = 1 / microns
+            from astropy.units import micron
+
             if self.method.startswith('WD01'):
-                # Callable expects [x] = 1 / microns
-                from astropy.units import micron
                 self._tab_extinction = self._dustext_instance(self.tab_x / micron)
             else:
                 raise NotImplemented('issue with E(B-V)-based lookup tab not resolved.')
                 self._load()
         return self._tab_extinction
+
+    @property
+    def tab_attenuation(self):
+        """
+        Lookup table of attenuation vs wavelength.
+        """
+        if not hasattr(self, '_tab_attenuation'):
+            # Callable expects [x] = 1 / microns
+            from astropy.units import micron
+
+            if self.method.startswith('WD01'):
+                self._tab_attenuation = self._dustatt_instance(self.tab_x / micron)
+            else:
+                raise NotImplemented('issue with E(B-V)-based lookup tab not resolved.')
+                self._load()
+        return self._tab_attenuation
 
     def _load(self):
         """
@@ -206,6 +243,12 @@ class DustExtinction(object):
         else:
             raise NotImplemented('help')
 
+    @property
+    def tab_Av(self):
+        if not hasattr(self, '_tab_Av'):
+            self._tab_Av = np.arange(0, 10.1, 0.1)
+        return self._tab_Av
+
     def get_curve(self, wave):
         """
         Get extinction (or attenuation) curve from lookup table.
@@ -219,7 +262,20 @@ class DustExtinction(object):
 
         """
 
-        if self.is_template:
+        if self.is_template and self.method.startswith('C00'):
+            # In this case, construct lookup table in Av, self.tab_waves_c
+            if not hasattr(self, '_tab_C00'):
+                self._tab_C00 = np.zeros((self.tab_waves_c.size, self.tab_Av.size))
+                for i, Av in enumerate(self.tab_Av):
+                    C00 = self._dustatt_instance_(Av=Av)
+                    self._tab_C00[:,i] = C00(self.tab_waves_c * 1e-4)
+
+            iw = np.argmin(np.abs(wave - self.tab_waves_c))
+
+            # Pretty crude for now
+            return self._tab_C00[iw,:]
+
+        elif self.is_template:
             return np.interp(wave, self.tab_waves_c, self.tab_extinction)
         else:
             raise NotImplemented('help')
@@ -277,7 +333,15 @@ class DustExtinction(object):
         if type(wave) in numeric_types:
             wave = np.array([wave])
 
-        if self.is_template:
+        if self.is_template and self.method.startswith('C00'):
+            if type(Av) in numeric_types:
+                Av = np.array([Av])
+
+            # This is a lookup table.
+            tab_A = self.get_curve(wave)
+            A = np.interp(Av, self.tab_Av, tab_A, left=0)
+
+        elif self.is_template:
             if type(Av) in numeric_types:
                 Av = np.array([Av])
             A = self.get_curve(wave)[None,:] * Av[:,None]
@@ -329,7 +393,7 @@ class DustExtinction(object):
             if type(Sd) in numeric_types:
                 Sd = np.array([Sd])
             kappa = self.get_absorption_coeff(wave=wave)
-            
+
             tau = kappa[None,:] * Sd[:,None]
 
             # Note that inf * 0 = NaN, which is a problem. This happens
