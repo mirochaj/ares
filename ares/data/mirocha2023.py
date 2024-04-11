@@ -312,7 +312,7 @@ for i, _pop in enumerate([_pop2, _pop3]):
 
 # Dust
 dust = {}
-dust['pop_dust_template'] = 'WD01:MWRV31'
+dust['pop_dust_template'] = 'C00'
 dust['pop_Av'] = 'pq[4]'
 dust['pq_func[4]'] = 'pl_evolB13'
 dust['pq_func_var[4]'] = 'Ms'

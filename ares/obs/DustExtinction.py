@@ -338,8 +338,14 @@ class DustExtinction(object):
                 Av = np.array([Av])
 
             # This is a lookup table.
-            tab_A = self.get_curve(wave)
-            A = np.interp(Av, self.tab_Av, tab_A, left=0)
+            if type(wave) in numeric_types:
+                tab_A = self.get_curve(wave)
+                A = np.interp(Av, self.tab_Av, tab_A, left=0)
+            else:
+                A = np.zeros((len(Av), wave.size))
+                for i, _wave_ in enumerate(wave):
+                    tab_A = self.get_curve(_wave_)
+                    A[:,i] = np.interp(Av, self.tab_Av, tab_A, left=0)
 
         elif self.is_template:
             if type(Av) in numeric_types:
