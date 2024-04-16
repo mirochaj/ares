@@ -3860,30 +3860,68 @@ class GalaxyCohort(GalaxyAggregate):
             exact_match = False
 
         ok = ~self._tab_sfr_mask
-        integrand = ok * self.tab_sfr * self.halos.tab_dndlnm * self.tab_focc
 
-        if not exact_match and self.halos.tab_z[iz] > z:
-            iz -= 1
+        if self.is_central_pop:
+            integrand = ok * self.tab_sfr * self.halos.tab_dndlnm * self.tab_focc
 
-        ilo = np.argmin(np.abs(self.halos.tab_M - Mlo))
-        if Mhi is None:
-            ihi = self.halos.tab_M.size
-        else:
-            ihi = np.argmin(np.abs(self.halos.tab_M - Mhi))
+            if not exact_match and self.halos.tab_z[iz] > z:
+                iz -= 1
 
-        zlo = self.halos.tab_z[iz]
-        zhi = self.halos.tab_z[iz+1]
+            ilo = np.argmin(np.abs(self.halos.tab_M - Mlo))
+            if Mhi is None:
+                ihi = self.halos.tab_M.size
+            else:
+                ihi = np.argmin(np.abs(self.halos.tab_M - Mhi))
 
-        _sfrd_lo = np.trapz(integrand[iz,ilo:ihi+1],
-            x=np.log(self.halos.tab_M[ilo:ihi+1]))
+            zlo = self.halos.tab_z[iz]
+            zhi = self.halos.tab_z[iz+1]
 
-        if not exact_match:
-            _sfrd_hi = np.trapz(integrand[iz+1,ilo:ihi+1],
+            _sfrd_lo = np.trapz(integrand[iz,ilo:ihi+1],
                 x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
-            _sfrd = np.interp(z, [zlo, zhi], [_sfrd_lo, _sfrd_hi])
+            if not exact_match:
+                _sfrd_hi = np.trapz(integrand[iz+1,ilo:ihi+1],
+                    x=np.log(self.halos.tab_M[ilo:ihi+1]))
+
+                _sfrd = np.interp(z, [zlo, zhi], [_sfrd_lo, _sfrd_hi])
+            else:
+                _sfrd = _sfrd_lo
         else:
-            _sfrd = _sfrd_lo
+            if not exact_match and self.halos.tab_z[iz] > z:
+                iz = max(0, iz - 1)
+                zint = iz, iz+1
+            else:
+                zint = iz,
+
+            _sfrd_ = []
+            for _iz in zint:
+                fsurv = self.tab_fsurv[_iz,:]
+                focc  = self.tab_focc[_iz,:]
+
+                #  Need to sum up all subhalos over central population
+                dndlnm_cen = self.halos.tab_dndm[_iz,:] * self.halos.tab_M
+
+                # Generate total SFR from all satellites for each central
+                sfr_sat = np.zeros_like(self.halos.tab_M)
+                for j, Mc in enumerate(self.halos.tab_M):
+
+                    # focc independent of central galaxy
+                    dndlnm = self.halos.tab_dndlnm_sub[j,:] \
+                        * focc * fsurv
+
+                    # SFR contains mass cut off
+                    sfr_sat[j] = np.trapz(dndlnm * self.tab_sfr[_iz,:],
+                        x=np.log(self.halos.tab_M))
+
+                _sfrd_.append(np.trapz(dndlnm_cen * sfr_sat,
+                    x=np.log(self.halos.tab_M)))
+
+            # Interpolate maybe
+            if len(zint) > 1:
+                _sfrd = np.interp(z, self.halos.tab_z[zint[0]:zint[0]+2],
+                    _sfrd_)
+            else:
+                _sfrd = _sfrd_[0]
 
         return _sfrd
 
