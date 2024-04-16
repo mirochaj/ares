@@ -2184,12 +2184,28 @@ class GalaxyCohort(GalaxyAggregate):
                 elif band is not None:
                     band = self.src.get_ang_from_x(band, units=units)
 
+                R = 1 if self.pf['pop_sed_degrade'] is None \
+                    else self.pf['pop_sed_degrade']
+
+                #print('hey check', x, wave, band, R)
+
                 ct = 0
                 for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
 
-                    if (x is not None) and (wave == _wave_):
-                        R = 1 if self.pf['pop_sed_degrade'] is None \
-                            else self.pf['pop_sed_degrade']
+                    if (band is not None):
+                        if (band[0] <= _wave_ <= band[1]):
+                            L_lines = _lum_
+                            if 'erg/s/A' in units_out:
+                                dlam = (band[1] - band[0])
+                                dnu = None
+                                L_lines /= dlam
+                            else:
+                                dlam = None
+                                dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
+                                L_lines /= dnu
+                        else:
+                            continue
+                    elif (x is not None) and (abs(wave - _wave_) < R):
                         # If lines are delta functions,
                         if 'erg/s/A' in units_out:
                             L_lines = _lum_ / R
@@ -2200,25 +2216,15 @@ class GalaxyCohort(GalaxyAggregate):
                             # dnu/dlam = -c/wave**2
                             # [dnu/dlam] = Hz / cm
                             L_lines = _lum_ / (c * 1e8 / wave**2)
-
-                    elif (band is not None) and (band[0] <= _wave_ <= band[1]):
-                        L_lines = _lum_#Lsun * 10**_lum_
-                        if 'erg/s/A' in units_out:
-                            dlam = (band[1] - band[0])
-                            dnu = None
-                            L_lines /= dlam
-                        else:
-                            dlam = None
-                            dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
-                            L_lines /= dnu
                     else:
                         continue
 
                     ct += 1
+
                 # Remember: all dust and IGM transmission occurs after this!
                 # Increment
-                if ct > 0:
-                    print('hey', x, wave, band, L_lines/L_sfr)
+                #if ct > 0:
+                #    print('hey', x, wave, band, L_lines/L_sfr)
 
                 L_sfr += L_lines
 
@@ -3423,7 +3429,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 iz = np.argmin(np.abs(z - self.halos.tab_z))
                 _Ms = self.tab_fstar[iz,:] * self.halos.tab_M
-                Mh = np.interp(Ms, _Ms, self.halos.tab_M)
+                Mh = np.interp(Ms, _Ms, self.halos.tab_M, right=np.nan)
 
                 return self.get_sfr(z=z, Mh=Mh) / Ms
         else:
