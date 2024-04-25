@@ -357,6 +357,9 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         #    f *= np.exp(-tau)
 
+        # Internal units are photons/s/cm^2/Hz, always put back into erg
+        f *= _E * erg_per_ev
+
         if units.lower() == 'cgs':
             pass
         elif units.lower() == 'si':
@@ -389,6 +392,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         Parameters
         ----------
         band : tuple
+            Lower and upper bounds on interval of interest in `xunits`.
 
         """
 
@@ -397,29 +401,28 @@ class MetaGalacticBackground(AnalyzeMGB):
         assert units.lower() == 'cgs'
 
         fint = 0.0
-        xf, ff = self.get_spectrum(zf=zf, popids=popids, xunits=xunits,
-            units=units)
+
+
         for popid, pop in enumerate(self.pops):
-            if xf[popid] is None:
-                continue
 
             if popids is not None:
                 if popid not in popids:
                     continue
 
+            xf, ff = self.get_spectrum(zf=zf, popids=[popid], xunits=xunits,
+                units=units)
+            if xf[popid] is None:
+                continue
+
+            nu = (xf * erg_per_ev) / h_p
+
             lo, hi = band
 
-            flux_today = ff[popid] * xf[popid] \
-                * erg_per_ev / sqdeg_per_std / ev_per_hz
+            flux_today = ff
 
-            xok = np.logical_and(xf[popid] >= lo, xf[popid] <= hi)
+            xok = np.logical_and(xf >= lo, xf < hi)
 
-            xarr = xf[popid][xok]
-
-            # Find integrated flux
-            dlogx = np.diff(np.log10(xarr))
-
-            fint += np.trapz(flux_today[xok] * xarr, dx=dlogx) * np.log(10.)
+            fint += np.trapz(flux_today[xok] * nu[xok], x=np.log(nu[xok]))
 
         return fint
 

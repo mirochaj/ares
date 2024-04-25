@@ -20,7 +20,7 @@ def test():
     pars['pop_Z'] = (0.02, 0.02)
     pars['pop_age'] = (100, 100)
     pars['pop_ssp'] = False, False
-    pars['pop_dust_template'] = 'WD01:MWRV31'
+    pars['pop_dust_template'] = 'C00'
 
     pop_Av = ares.populations.GalaxyPopulation(**pars)
 

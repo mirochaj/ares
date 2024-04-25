@@ -21,8 +21,6 @@ dpl = \
  'pop_MAR{0}': 'hmf',
  'pop_Tmin{0}': 1e4,
 
- "pop_Emin{0}": 10.2,
- "pop_Emax{0}": 24.6,
  "pop_EminNorm{0}": E_LL,
  "pop_EmaxNorm{0}": 24.6,
 
@@ -37,7 +35,7 @@ dpl = \
  'pop_binaries{0}': False,
  'pop_Z{0}': 0.02,
  'pop_Emin{0}': E_LyA,
- 'pop_Emax{0}': 24.6,
+ 'pop_Emax{0}': 2e2,
  'pop_rad_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                                  # should make this automatic
 

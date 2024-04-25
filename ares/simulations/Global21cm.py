@@ -203,6 +203,23 @@ class Global21cm(AnalyzeGlobal21cm):
 
         return True
 
+    def get_21cm_dipole(self, vd_over_c=1.2e-3):
+        """
+
+        """
+        self.run()
+
+        nu, dTb = self.history['nu'], self.history['dTb']
+
+        from ..util.Math import central_difference
+
+        x, _y = central_difference(nu, dTb)
+        y = np.interp(nu, x, _y)
+        dTdn = -y * nu
+        dip = (dTb + dTdn) * vd_over_c
+
+        return dip
+
     def run(self):
         """
         Run a 21-cm simulation.
@@ -217,7 +234,6 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.is_phenom:
             return
         if self.is_complete:
-            print("Already ran simulation!")
             return
 
         # Need to generate radiation backgrounds first.

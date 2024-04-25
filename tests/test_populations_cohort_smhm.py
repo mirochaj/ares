@@ -34,12 +34,13 @@ def test():
 
     focc = pop.get_focc(6, Mh)
     fsurv = pop.get_fsurv(6, Mh)
+    smhm = pop.get_smhm(z=6, Mh=Mh)
 
     assert not np.all(focc == 1)
     assert np.all(fsurv == 1)
 
-    sfr = pop.get_sfr(6, Mh)
-    ssfr = pop.get_ssfr(6, Mh)
+    sfr = pop.get_sfr(z=6, Mh=Mh)
+    ssfr = pop.get_ssfr(z=6, Ms=Mh*smhm)
 
     smd = sim.pops[1].get_smd(6)
     assert np.all(sim.pops[1].get_focc(6, Mh) == 1. - sim.pops[0].get_focc(6, Mh))

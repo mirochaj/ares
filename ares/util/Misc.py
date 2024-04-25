@@ -213,7 +213,7 @@ def get_field_from_catalog(field, pos, Lbox, dims=512, mesh=None,
 
     data = np.array([_x, _y, _z]).T
     hist, edges = np.histogramdd(data, bins=[xe, ye, ze],
-        weights=field if weight_by_field else None, normed=False)
+        weights=field if weight_by_field else None, density=False)
 
     if by_volume:
         hist /= mesh**3

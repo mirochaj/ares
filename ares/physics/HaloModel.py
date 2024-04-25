@@ -332,7 +332,7 @@ class HaloModel(HaloMassFunction):
             corr2 = 0.0
             fcoll2 = 1.
         else:
-            fcoll2 = self.fcoll_2d(z, np.log10(Mmin_2))#self.fcoll_Tmin[iz]
+            fcoll2 = self.tab_fcoll[iz,np.argmin(np.abs(mmin2-self.tab_M))]
             corr2 = 0.0
 
         ok = self.tab_fcoll[iz] > 0
@@ -459,6 +459,11 @@ class HaloModel(HaloMassFunction):
 
         iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
 
+        if lum1 is None:
+            lum1 = 1
+        if lum2 is None:
+            lum2 = 1
+            
         dndlnm = self.tab_dndlnm[iz]
         integrand = dndlnm * focc1 * lum1 * lum2
         shot = np.trapz(integrand, x=np.log(self.tab_M), axis=0)

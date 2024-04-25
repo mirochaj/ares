@@ -36,7 +36,7 @@ If you use ARES in paper please reference [Mirocha (2014)](http://adsabs.harvard
 
 Please also provide a link to [this page](https://github.com/mirochaj/ares) as a footnote.
 
-Note that for some applications, ARES relies heavily on lookup tables and publicly-available software packages that should be referenced as well. These include:
+**Note that for some applications, ARES relies heavily on lookup tables and publicly-available software packages that should be referenced as well.** These include:
 
 - Code for Anisotropies in the Microwave Background ([CAMB](https://camb.readthedocs.io/en/latest/)).
 - The Halo Mass Function ([hmf](https://hmf.readthedocs.io/en/latest/)) package (see [Murray et al.(2013)](https://arxiv.org/abs/1306.6721)).
