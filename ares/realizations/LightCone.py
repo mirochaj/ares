@@ -1345,7 +1345,7 @@ class LightCone(object): # pragma: no cover
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=None, clobber=False, max_sources=None,
-        keep_layers=True, use_pbar=True, verbose=False, dryrun=False, **kwargs):
+        keep_layers=True, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1417,6 +1417,8 @@ class LightCone(object): # pragma: no cover
 
         if np.array(channels).ndim == 1:
             channels = np.array([channels])
+        elif type(channels) in [list, tuple]:
+            channels = np.array(channels)
 
         if channel_names is None:
             channel_names = [None] * len(channels)
@@ -1455,6 +1457,42 @@ class LightCone(object): # pragma: no cover
         all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
+        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
+        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+
+        # Array telling us which chunks were already done and which
+        # we ran from scratch so at the end we know whether to update
+        # the channel maps.
+        # Recall that if we changed zmax, final maps will go in a new
+        # subdirectory.
+        status_done_pre = np.zeros((len(include_pops), len(channels),
+            len(all_zchunks), len(all_mchunks)))
+        status_done_now = status_done_pre.copy()
+
+        # Check status before we start
+        for h, chunk in enumerate(all_chunks):
+
+            # Unpack info about this chunk
+            popid, channel, chname, zchunk, mchunk = chunk
+
+            # Identify indices of each (channel, z, m) chunk
+            ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
+            iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
+            im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
+
+            # See if we already finished this map.
+            fn = self.get_map_fn(fov, pix, channel, popid,
+                logmlim=mchunk, zlim=zchunk)
+
+            if os.path.exists(fn) and (not clobber):
+                status_done_pre[popid,ichan,iz,im] = 1
+
+        print('status pop 0 chan 0', status_done_pre[0,0])
+        if len(channels) > 1:
+            print('status pop 0 chan 1', status_done_pre[0,1])
+        #print(channels[0], status_done_pre[0,0])
+        #input('<enter>')
+
         # Progress bar
         pb = ProgressBar(len(all_chunks),
             name="img(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
@@ -1462,7 +1500,7 @@ class LightCone(object): # pragma: no cover
             use=use_pbar)
         pb.start()
 
-        # Make preliminary buffer for channel map
+        # Make preliminary buffer for channel map (hence 'c' + 'img')
         cimg = np.zeros([npix]*2)
 
         if verbose:
@@ -1470,10 +1508,26 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Start doing work.
+        # The way this works is we treat each chunk: (z, M, pop, lambda)
+        # separately. We'll keep a running tally of the "final" flux in any
+        # given channel map as we go, and only create a new buffer when we
+        # finish all the work for a single channel and a given population.
         for h, chunk in enumerate(all_chunks):
 
             # Unpack info about this chunk
             popid, channel, chname, zchunk, mchunk = chunk
+
+            # Identify indices of each (channel, z, m) chunk
+            ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
+            iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
+            im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
+
+            # Can only move on if ALL chunks are already done, otherwise
+            # it means the user has added z or m chunks since the last run,
+            # and so the final channel map (saved into new subdirectory
+            # to reflect new zmax, logmlim range) must be incremented.
+            #if np.all(status_done_pre[popid,ichan,:,:]):
+            #    continue
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
@@ -1498,9 +1552,6 @@ class LightCone(object): # pragma: no cover
 
             ran_new = True
             if os.path.exists(fn) and (not clobber):
-                if verbose:
-                    print(f"# Found map {fn}. Set clobber=True to re-generate")
-
                 # Load map
                 _buffer, _hdr = self._load_map(fn)
 
@@ -1522,7 +1573,7 @@ class LightCone(object): # pragma: no cover
                 if verbose:
                     print(f"# Generating map {fn}...")
 
-                # Generate map
+                # Generate map -> buffer
                 # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
                 # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
                 self.get_map(fov, pix, channel,
@@ -1534,10 +1585,11 @@ class LightCone(object): # pragma: no cover
                     buffer=buffer, verbose=verbose,
                     **kwargs)
 
+                status_done_now[popid,ichan,iz,im] = 1
+
             # Save every mass chunk within every redshift chunk if the user
             # says so.
             if keep_layers and ran_new:
-                # fov, pix, channel, popid, logmlim=None, zlim=None
                 _fn = self.get_map_fn(fov, pix, channel, popid,
                     logmlim=mchunk, zlim=zchunk,
                     fmt=fmt)
@@ -1552,31 +1604,44 @@ class LightCone(object): # pragma: no cover
             ##
             # Otherwise, figure out what (if anything) needs to be
             # written to disk now.
-            done_w_chan = False
-            done_w_pop = False
-            done_w_z = False
+            done_w_chan = np.all(
+                status_done_pre[popid,ichan,:,:] +
+                status_done_now[popid,ichan,:,:]
+                )
 
-            # Figure out what files need to be written
-            if h == len(all_chunks) - 1:
-                # Write everything on final iteration.
-                done_w_chan = done_w_pop = done_w_z = True
-            else:
+            # This probably means our re-run only added channels, not
+            # z chunks or mass chunks.
+            was_done_already = np.all(status_done_pre[popid,ichan,:,:] == 1) \
+                and (not clobber)
 
-                pnext, cnext, nnext, znext, mnext = all_chunks[h+1]
+            ##
+            # Need to know:
+            # Did we do any work to fill out this spectral channel, e.g.,
+            # augmenting the redshift or mass range? If so, we need to save
+            # a new channel map. If not, we don't need to write anything to
+            # disk, but we do need to clear 'cimg' since the next iteration
+            # will be a new channel.
 
-                if (channel[0] != cnext[0]):
-                    done_w_chan = True
-                if (popid != pnext):
-                    done_w_pop = True
-                if znext[0] < zchunk[0]:
-                    done_w_z = True
+            # Also: for mass chunks, we might run, e.g., (11,12) in one call,
+            # (12,13) next, and then later decide to do (11,13), in which case
+            # all the work is done already *except* creating the final
+            # channel map. That's why below we'll either write the final map
+            # if we can tell the work wasn't done before OR if we can't find
+            # an output file.
 
-            # Means we've done all redshifts and all masses
+            # Filename for the final channel map
+            # (note use of self.zlim, not zchunk, and logmlim, not mchunk)
             _fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
-            if (done_w_chan or done_w_pop) and \
-                (not os.path.exists(_fn) or clobber):
+            _fn_exists = os.path.exists(_fn)
+
+            print('hi', popid, ichan, iz, im, done_w_chan, was_done_already)
+
+            # If we're done with the channel and population, time to write
+            # a final "channel map". Afterward, we'll zero-out `cimg` to be
+            # incremented starting on the next iteration.
+            if done_w_chan and ((not was_done_already) or (not _fn_exists)):
 
                 self.save_map(_fn, cimg * f_norm / dnu,
                     channel, self.zlim, logmlim, fov,
@@ -1613,9 +1678,14 @@ class LightCone(object): # pragma: no cover
                     with open(f'{base_dir}/README', 'a') as f:
                         f.write(s_ch)
 
+            ##
+            # Need to zero-out channel map if done with channel, regardless
+            # of how much work was already done before.
+            if done_w_chan:
                 # Setup blank buffer for next iteration
                 cimg = np.zeros([npix]*2)
 
+            ##
             # Next task
 
         # All done.
