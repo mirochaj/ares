@@ -52,13 +52,13 @@ def test():
     #assert np.all(np.logical_and(1e-3 <= Z, Z < 1)), \
     #    f"Metallicities should be zero! Mean is Z={np.mean(Z)}."
 
-    spec0 = sim.pops[0].get_spec(2, waves)
-    spec1 = sim.pops[1].get_spec(2, waves)
+    spec0 = sim.pops[0].get_spec(6, waves)
+    spec1 = sim.pops[1].get_spec(6, waves)
 
     # Assert that the quiescent population is fainter at rest-UV wavelengths
     # than the star-forming population at fixed stellar mass
-    Mst0 = sim.pops[0].get_field(2, 'Ms')
-    Mst1 = sim.pops[1].get_field(2, 'Ms')
+    Mst0 = sim.pops[0].get_field(6, 'Ms')
+    Mst1 = sim.pops[1].get_field(6, 'Ms')
 
     i10_0 = np.argmin(np.abs(1e10 - Mst0))
     i10_1 = np.argmin(np.abs(1e10 - Mst1))

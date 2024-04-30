@@ -15,12 +15,10 @@ import numpy as np
 
 def test():
     pars = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
-    pars.update(ares.util.ParameterBundle('mirocha2023:dust'))
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
     pars['pop_Z'] = (0.02, 0.02)
     pars['pop_age'] = (100, 100)
     pars['pop_ssp'] = False, False
-    pars['pop_dust_template'] = 'C00'
 
     pop_Av = ares.populations.GalaxyPopulation(**pars)
 
@@ -90,28 +88,29 @@ def test():
     pars0['pop_Z'] = (0.02, 0.02)
     pars0['pop_age'] = (100, 100)
     pars0['pop_ssp'] = False, False
+    pars0['pq_func_par0[4]'] = 0 # Turn dust off
     pop0 = ares.populations.GalaxyPopulation(**pars0)
 
-    L0 = pop0.get_lum(z=2, x=1600, units='Angstroms')
-    ow, spec0 = pop0.get_spec_obs(z=2, waves=waves)
+    L0 = pop0.get_lum(z=6, x=1600, units='Angstroms')
+    ow, spec0 = pop0.get_spec_obs(z=6, waves=waves)
 
     # Call stuff through Cohort, Ensemble.
     for pop in [pop_Av, pop_Sd]:
         assert pop.is_dusty
 
         if pop.pf['pop_Av'] is not None:
-            Av = pop.get_Av(z=2, Ms=Ms)
+            Av = pop.get_Av(z=6, Ms=Ms)
             assert np.all(Av >= 0)
         else:
-            Sd = pop.get_dust_surface_density(z=2, Mh=pop.halos.tab_M)
+            Sd = pop.get_dust_surface_density(z=6, Mh=pop.halos.tab_M)
             assert np.all(Sd >= 0)
 
         # Check luminosity: make sure dusty less luminous than dust-less
-        L1600 = pop.get_lum(z=2, x=1600, units='Angstroms')
+        L1600 = pop.get_lum(z=6, x=1600, units='Angstroms')
         assert np.all(L1600 <= L0)
 
         # Check spec_obs
-        ow, spec = pop.get_spec_obs(z=2, waves=waves)
+        ow, spec = pop.get_spec_obs(z=6, waves=waves)
 
         assert np.all(spec <= spec0)
 

@@ -30,7 +30,7 @@ class LogNormal(LightCone): # pragma: no cover
         seed_rot=None, seed_trans=None, seed_pa=None, seed_nsers=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
-        randomise_in_cell=True, base_dir='ares_mock', **kwargs):
+        randomise_in_cell=True, base_dir='ares_mock', mem_concious=1, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -73,6 +73,8 @@ class LogNormal(LightCone): # pragma: no cover
         self.kwargs = kwargs
         self.base_dir = base_dir
         self.model_name = model_name
+
+        self.mem_concious = mem_concious
 
         if self.bias_model > 0:
             assert self.bias_params is not None, \
@@ -122,7 +124,7 @@ class LogNormal(LightCone): # pragma: no cover
         Return FOV in degrees (single dimension) given redshift and Lbox in
         cMpc / h.
         """
-        return (self.sim.cosm.ComovingLengthToAngle(z, 1) / 60.) \
+        return (self.sim.cosm.get_angle_from_length_comoving(z, 1) / 60.) \
             * (Lbox / self.sim.cosm.h70)
 
     def get_L_from_fov(self, z, fov):
@@ -132,7 +134,7 @@ class LogNormal(LightCone): # pragma: no cover
         .. note :: This is in co-moving Mpc, NOT cMpc / h!
 
         """
-        ang_per_L = self.sim.cosm.ComovingLengthToAngle(z, 1) / 60.
+        ang_per_L = self.sim.cosm.get_angle_from_length_comoving(z, 1) / 60.
 
         return fov / ang_per_L
 
@@ -449,7 +451,7 @@ class LogNormal(LightCone): # pragma: no cover
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, **_kw_):
+        verbose=True, call_gc=False, **_kw_):
         """
         Get a realization of a halo population.
 
@@ -548,6 +550,7 @@ class LogNormal(LightCone): # pragma: no cover
             focc = r = ok = None
 
         del focc, ok, r, pos
-        gc.collect()
+        if self.mem_concious:
+            gc.collect()
 
         return _x, _y, _z, mass

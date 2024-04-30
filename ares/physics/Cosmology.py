@@ -9,8 +9,8 @@ Created on 2010-03-01.
 Description:
 
 """
-import os
 
+import os
 import numpy as np
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -67,6 +67,7 @@ class Cosmology(object):
         self.CriticalDensityNow = self.rho_crit_0 = (
             (3. * self.hubble_0**2) / (8. * np.pi * G)
         )
+        self.rho_crit_0 = self.CriticalDensityNow
 
         self.mean_density0 = (
             self.omega_m_0 * self.rho_crit_0 * cm_per_mpc**3 / g_per_msun
@@ -342,6 +343,9 @@ class Cosmology(object):
 
         return t
 
+    def get_t_at_z(self, z):
+        return self.t_of_z(z)
+
     def z_of_t(self, t):
         C = np.exp(1.5 * self.hubble_0 * t * np.sqrt(1. - self.omega_m_0))
 
@@ -566,14 +570,9 @@ class Cosmology(object):
         return self.get_hubble(z)
 
     def get_hubble(self, z):
+        # Using interpolation stuff ends up being slower, just an
+        # algebraic expression after all.
         return self._get_Hofz(z)
-        if self.interpolate:
-            if not hasattr(self, '_tab_H'):
-                self._tab_H = np.array([self._get_Hofz(_z_) \
-                    for _z_ in self.tab_z])
-            return np.interp(z, self.tab_z, self._tab_H)
-        else:
-            return self._get_Hofz(z)
 
     def get_lightcone_boundaries(self, zlim, Lbox, rtol=1e-6):
         """
@@ -582,7 +581,7 @@ class Cosmology(object):
         """
 
         zarr = np.linspace(0.001, 10, 1000)
-        dofz = np.array([self.ComovingRadialDistance(0, z) \
+        dofz = np.array([self.get_dist_los_comoving(0, z) \
             for z in zarr]) / cm_per_mpc
 
         Rmin = np.interp(zlim[0], zarr, dofz)
@@ -654,6 +653,8 @@ class Cosmology(object):
 
     def CriticalDensity(self, z):
         return (3.0 * self.HubbleParameter(z)**2) / (8.0 * np.pi * G)
+    def get_rho_crit(self, z):
+        return (3.0 * self.HubbleParameter(z)**2) / (8.0 * np.pi * G)
 
     def dtdz(self, z):
         return 1. / self.HubbleParameter(z) / (1. + z)
@@ -677,7 +678,7 @@ class Cosmology(object):
 
     @cached_property
     def tab_z(self):
-        return np.arange(0, 60.05, 0.05)
+        return np.hstack(([1e-3], np.arange(0.05, 60.05, 0.05)))
 
     def get_luminosity_distance(self, z):
         """
@@ -715,10 +716,24 @@ class Cosmology(object):
         return dz
 
     def DeltaZed(self, z0, dR):
-        f = lambda z2: self.ComovingRadialDistance(z0, z2) / cm_per_mpc - dR
+        f = lambda z2: self.get_dist_los_comoving(z0, z2) / cm_per_mpc - dR
         return fsolve(f, x0=z0+0.1)[0] - z0
 
-    def _get_dR_comoving(self, z0, z):
+    @property
+    def _tab_deg_per_cmpc(self):
+        if not hasattr(self, '_tab_deg_per_cmpc_'):
+            # arcmin / Mpc -> deg / Mpc
+            angl = np.array([self._get_angle_from_length_comoving(z, 1) \
+                for z in self.tab_z])
+            self._tab_deg_per_cmpc_ = angl
+        return self._tab_deg_per_cmpc_
+
+    @cached_property
+    def _tab_dist_los_co(self):
+        return np.array([self._get_dist_los_comoving(0, _z_) \
+            for _z_ in self.tab_z])
+
+    def _get_dist_los_comoving(self, z0, z):
         if self.approx_highz:
             return (
                 2. * c * ((1. + z0)**-0.5 - (1. + z)**-0.5)
@@ -730,22 +745,18 @@ class Cosmology(object):
 
         return c * quad(integrand, z0, z)[0] / self.hubble_0
 
-    def ComovingRadialDistance(self, z0, z):
+    def get_dist_los_comoving(self, z0, z):
         """
         Return comoving distance between redshift z0 and z, z0 < z.
         """
 
         if self.interpolate and z0 == 0:
-            if not hasattr(self, '_tab_dR_co'):
-                self._tab_dR_co = np.array([self._get_dR_comoving(0, _z_) \
-                    for _z_ in self.tab_z])
-
-            return np.interp(z, self.tab_z, self._tab_dR_co)
+            return np.interp(z, self.tab_z, self._tab_dist_los_co)
         else:
-            return self._get_dR_comoving(z0, z)
+            return self._get_dist_los_comoving(z0, z)
 
     def ProperRadialDistance(self, z0, z):
-        return self.ComovingRadialDistance(z0, z) / (1. + z0)
+        return self.get_dist_los_comoving(z0, z) / (1. + z0)
 
     def ComovingLineElement(self, z):
         """
@@ -793,7 +804,7 @@ class Cosmology(object):
 
         """
 
-        dA = self.AngleToComovingLength(z, angle * 60.) * cm_per_mpc
+        dA = self.get_length_comoving_from_angle(z, angle * 60.) * cm_per_mpc
         dldz = quad(self.ComovingLineElement, z-0.5*dz, z+0.5*dz)[0]
 
         return dA**2 * dldz / cm_per_mpc**3
@@ -812,39 +823,45 @@ class Cosmology(object):
 
         return 4. * np.pi * (l_J / 2)**3 * self.rho_b_z0 / 3. / g_per_msun
 
-    def _get_ang_from_lco(self, z):
-        f = lambda ang: self.AngleToComovingLength(z, ang) - R
+    @cached_property
+    def _tab_ang_from_co(self):
+        return np.array([self._get_angle_from_length_comoving(_z_, 1) \
+            for _z_ in self.tab_z])
+
+    def _get_angle_from_length_comoving(self, z, R):
+        f = lambda ang: self.get_length_comoving_from_angle(z, ang) - R
         return fsolve(f, x0=0.1)[0]
 
-    def get_angle_from_length_comoving(self, z):
-        if self.interpolate:
-            if not hasattr(self, '_tab_dL'):
-                self._tab_aflco = np.array([self._get_ang_from_lco(_z_) \
-                    for _z_ in self.tab_z])
-            return np.interp(z, self.tab_z, self._tab_aflco)
+    def get_angle_from_length_comoving(self, z, R):
+        if self.interpolate and R == 1:
+            return np.interp(z, self.tab_z, self._tab_ang_from_co)
         else:
-            return self._get_dL(z)
+            return self._get_angle_from_length_comoving(z, R)
 
-    def ComovingLengthToAngle(self, z, R):
-        """
-        Convert a length scale (co-moving) to an observed angle [arcmin].
-        """
-        f = lambda ang: self.AngleToComovingLength(z, ang) - R
-        return fsolve(f, x0=0.1)[0]
+    def get_angle_from_length_proper(self, z, R):
+        return self.get_angle_from_length_comoving(z, R / (1. + z))
 
-    def ProperLengthToAngle(self, z, R):
-        """
-        Convert a length scale (proper) to an observed angle [arcmin].
-        """
-        f = lambda ang: self.AngleToProperLength(z, ang) - R
-        return fsolve(f, x0=0.1)[0]
-
-    def AngleToComovingLength(self, z, angle):
-        return self.AngleToProperLength(z, angle) * (1. + z)
-
-    def AngleToProperLength(self, z, angle):
+    def get_length_comoving_from_angle(self, z, angle):
         """
         Convert an angle to a co-moving length-scale at the observed redshift.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        angle : int, float
+            Angle in arcminutes.
+
+        Returns
+        -------
+        Length scale in Mpc.
+
+        """
+        return self.get_length_proper_from_angle(z, angle) * (1. + z)
+
+    def get_length_proper_from_angle(self, z, angle):
+        """
+        Convert an angle to a proper length-scale at the observed redshift.
 
         Parameters
         ----------

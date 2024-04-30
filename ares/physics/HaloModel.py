@@ -248,7 +248,7 @@ class HaloModel(HaloMassFunction):
         :return:
         """
         if z != None and r == None:
-            r_comov = self.cosm.ComovingRadialDistance(z0, z)
+            r_comov = self.cosm.get_dist_los_comoving(z0, z)
         elif z == None and r != None:
             r_comov = r
         else:
@@ -463,7 +463,7 @@ class HaloModel(HaloMassFunction):
             lum1 = 1
         if lum2 is None:
             lum2 = 1
-            
+
         dndlnm = self.tab_dndlnm[iz]
         integrand = dndlnm * focc1 * lum1 * lum2
         shot = np.trapz(integrand, x=np.log(self.tab_M), axis=0)
@@ -658,7 +658,7 @@ class HaloModel(HaloMassFunction):
             #enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         # Need angular diameter distance and H(z) for all that follows
-        d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
+        d = self.cosm.get_dist_los_comoving(0., z)            # [cm]
         Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
 
         ##

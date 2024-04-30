@@ -30,6 +30,12 @@ try:
 except ImportError:
     pass
 
+try:
+    import pymp
+    have_pymp = True
+except ImportError:
+    have_pymp = False
+
 angles_90 = 90 * np.arange(4)
 
 class LightCone(object): # pragma: no cover
@@ -151,8 +157,8 @@ class LightCone(object): # pragma: no cover
 
         # arcmin / Mpc -> deg / Mpc
         L = self.Lbox / self.sim.cosm.h70
-        angl_per_Llo = self.sim.cosm.ComovingLengthToAngle(zlo, L) / 60.
-        angl_per_Lhi = self.sim.cosm.ComovingLengthToAngle(zhi, L) / 60.
+        angl_per_Llo = self.sim.cosm.get_angle_from_length_comoving(zlo, L) / 60.
+        angl_per_Lhi = self.sim.cosm.get_angle_from_length_comoving(zhi, L) / 60.
 
         return angl_per_Llo
 
@@ -201,6 +207,7 @@ class LightCone(object): # pragma: no cover
     def sim(self):
         if not hasattr(self, '_sim'):
             self._sim = Simulation(verbose=self.verbose, **self.kwargs)
+            assert self._sim.pf['interpolate_cosmology_in_z']
         return self._sim
 
     @property
@@ -381,8 +388,8 @@ class LightCone(object): # pragma: no cover
         ##
         # Print-out information about FOV
         # arcmin / Mpc -> deg / Mpc
-        theta_zmin = self.sim.cosm.ComovingLengthToAngle(zmin, 1) * L / 60.
-        theta_zmax = self.sim.cosm.ComovingLengthToAngle(zmax, 1) * L / 60.
+        theta_zmin = self.sim.cosm.get_angle_from_length_comoving(zmin, 1) * L / 60.
+        theta_zmax = self.sim.cosm.get_angle_from_length_comoving(zmax, 1) * L / 60.
 
         pbar = ProgressBar(Rc.size, name=f"lc(z>={zmin},z<{zmax})",
             use=chunk_id is None)
@@ -524,7 +531,8 @@ class LightCone(object): # pragma: no cover
             if self.apply_rotations or self.apply_translations:
                 del _x, _x_, _y, _y_, _z, _z_, _m_
 
-            gc.collect()
+            if self.mem_concious:
+                gc.collect()
 
         pbar.finish()
 
@@ -549,22 +557,34 @@ class LightCone(object): # pragma: no cover
         # Don't shift zmpc at all, z0 is the front face of the box
 
         # First, get redshifts
-        zarr = np.arange(0, 10, 0.01)
-        #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
-        #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
-
-        dofz = np.array([self.sim.cosm.ComovingRadialDistance(0, z) \
-            for z in zarr]) / cm_per_mpc
-
-        # arcmin / Mpc -> deg / Mpc
-        angl = np.array([self.sim.cosm.ComovingLengthToAngle(z, 1) \
-            for z in zarr]) / 60.
+        #if not self.sim.cosm.interpolate:
+        #    zarr = np.arange(0, 10, 0.01)
+        #    #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
+        #    #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
+        #    dofz = np.array([self.sim.cosm.get_dist_los_comoving(0, z) \
+        #        for z in zarr]) / cm_per_mpc
+        #    # arcmin / Mpc -> deg / Mpc
+        #    angl = np.array([self.sim.cosm.get_length_comoving_from_angle(z, 1) \
+        #        for z in zarr]) / 60.
 
         # Move the front edge of the box to redshift `z0`
-        d0 = np.interp(zlo, zarr, dofz)
+        # Will automatically use interpolation under the hood in `cosm`
+        # if interpolate_cosmology_in_z=True.
+        d0 = self.sim.cosm.get_dist_los_comoving(0, zlo) / cm_per_mpc
 
         # Translate LOS distances to redshifts.
-        red = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, zarr)
+        #if self.sim.cosm.interpolate:
+        #    red = np.interp(zmpc / self.sim.cosm.h70 + d0,
+        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
+        #        self.sim.cosm.tab_z)
+        #    deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0,
+        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
+        #        self.sim.cosm._tab_deg_per_cmpc / 60.)
+        #else:
+        dofz = self.sim.cosm._tab_dist_los_co / cm_per_mpc
+        angl = self.sim.cosm._tab_ang_from_co / 60.
+        red = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz,
+            self.sim.cosm.tab_z)
 
         # Conversion from physical to angular coordinates
         deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, angl)
@@ -573,7 +593,6 @@ class LightCone(object): # pragma: no cover
         dec = ympc * deg_per_mpc
 
         return ra, dec, red
-
 
     def thin_sample(self, max_sources=None):
 
@@ -853,7 +872,7 @@ class LightCone(object): # pragma: no cover
                 Sall = self.sim.pops[popid].halos.tab_Sigma_nfw[_iz,:,:]
                 Mall = self.sim.pops[popid].halos.tab_M
 
-            mpc_per_arcmin = self.sim.cosm.AngleToComovingLength(_z_,
+            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(_z_,
                 pix / 60.)
 
             rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
@@ -867,7 +886,7 @@ class LightCone(object): # pragma: no cover
 
             R_sec = np.zeros_like(Rkpc)
             for kk in range(red.size):
-                R_sec[kk] = self.sim.cosm.ProperLengthToAngle(red[kk], Rkpc[kk] * 1e-3)
+                R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk], Rkpc[kk] * 1e-3)
             R_sec *= 60.
 
             # Uniform for now.
@@ -978,7 +997,8 @@ class LightCone(object): # pragma: no cover
         # Clear out some memory sheesh
         del seds, flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
             mask_ra, mask_de, corr, owaves
-        gc.collect()
+        if self.mem_concious:
+            gc.collect()
 
     def get_output_dir(self, fov, pix, zlim, logmlim=None):
         fn = f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"
@@ -1487,12 +1507,6 @@ class LightCone(object): # pragma: no cover
             if os.path.exists(fn) and (not clobber):
                 status_done_pre[popid,ichan,iz,im] = 1
 
-        print('status pop 0 chan 0', status_done_pre[0,0])
-        if len(channels) > 1:
-            print('status pop 0 chan 1', status_done_pre[0,1])
-        #print(channels[0], status_done_pre[0,0])
-        #input('<enter>')
-
         # Progress bar
         pb = ProgressBar(len(all_chunks),
             name="img(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
@@ -1636,8 +1650,6 @@ class LightCone(object): # pragma: no cover
 
             _fn_exists = os.path.exists(_fn)
 
-            print('hi', popid, ichan, iz, im, done_w_chan, was_done_already)
-
             # If we're done with the channel and population, time to write
             # a final "channel map". Afterward, we'll zero-out `cimg` to be
             # incremented starting on the next iteration.
@@ -1649,7 +1661,8 @@ class LightCone(object): # pragma: no cover
                     verbose=verbose, clobber=clobber)
 
                 del cimg, buffer
-                gc.collect()
+                if self.mem_concious:
+                    gc.collect()
 
                 base_dir = self.get_output_dir(fov, pix,
                     zlim=self.zlim, logmlim=logmlim)

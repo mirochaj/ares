@@ -41,6 +41,17 @@ except ImportError:
     rank = 0
     size = 1
 
+try:
+    import pymp
+    have_pymp = True
+except ImportError:
+    have_pymp = False
+
+    class DummyPyMP(object):
+        def xrange(self, start, stop):
+            yield range(start, stop)
+
+
 small_dz = 1e-8
 ztol = 1e-4
 #z0 = 9. # arbitrary
@@ -1931,11 +1942,15 @@ class GalaxyCohort(GalaxyAggregate):
         if not (include_dust_transmission or include_igm_transmission):
             return np.ones_like(waves)
 
+        iz = self.get_zindex(z)
+
         if self.is_dusty and include_dust_transmission and (not self.dust.is_irxb):
             if self.pf['pop_dust_template'] is not None:
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                smhm = self.tab_fstar[iz,:]
                 Ms = self.halos.tab_M * smhm
-                Av = self.get_Av(z=z, Ms=Ms)
+                #Av = self.get_Av(z=z, Ms=Ms)
+                Av = self.tab_Av[iz,:]
                 Sd = None
             elif self.pf['pop_dust_yield'] is not None:
                 Av = None
@@ -1976,11 +1991,16 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Generally need to know stellar masses and SFRs, just do it now.
         try:
-            sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-            smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            iz = self.get_zindex(z)
+            sfr = self.tab_sfr[iz,:]
+            smhm = self.tab_fstar[iz,:]
+            #sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
+            #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
             Ms = self.halos.tab_M * smhm
-        except:
+        except Exception as e:
+            print(e)
             Ms = None
+            raise Exception('help')
 
         ##
         # Apply luminosity correction [optional]
@@ -2056,7 +2076,7 @@ class GalaxyCohort(GalaxyAggregate):
                 waves = self.src.tab_waves_c
                 dwdn = self.src.tab_dwdn
 
-                iz = np.argmin(np.abs(z - self.halos.tab_z))
+                #iz = np.argmin(np.abs(z - self.halos.tab_z))
 
                 ##
                 # Read from lookup table.
@@ -2097,8 +2117,18 @@ class GalaxyCohort(GalaxyAggregate):
                 if x is not None:
                     wave = self.src.get_ang_from_x(x, units=units)
 
-                lum = np.zeros_like(self.halos.tab_M)
-                for j, _Mh_ in enumerate(self.halos.tab_M):
+                if self.pf['nthreads'] is not None:
+                    lum = pymp.shared.array(shape)
+                    pymp.config.num_threads = self.pf['nthreads']
+                    p = pymp.Parallel(nthreads)
+                else:
+                    lum = np.zeros_like(self.halos.tab_M)
+                    p = DummyPyMP()
+                    print('made a DummyPyMP object')
+
+                #for j, _Mh_ in enumerate(self.halos.tab_M):
+                for j in p.xrange(0, len(self.halos.tab_M)):
+                    _Mh_ = self.halos.tab_M[j]
 
                     # For a single halo, all waves
                     sed = seds[j,:]
@@ -2225,8 +2255,10 @@ class GalaxyCohort(GalaxyAggregate):
                 # Increment
                 #if ct > 0:
                 #    print('hey', x, wave, band, L_lines/L_sfr)
-
-                L_sfr += L_lines
+                if self.pf['pop_lum_per_sfr_off_wave'] == 0:
+                    L_sfr = L_lines
+                else:
+                    L_sfr += L_lines
 
 
             ##
@@ -2236,7 +2268,7 @@ class GalaxyCohort(GalaxyAggregate):
             elif src.is_ssp:
 
                 # Mstell = Mhalo * SMHM
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                smhm = self.tab_fstar[iz,:]#self.get_smhm(z=z, Mh=self.halos.tab_M)
                 mste = self.halos.tab_M * smhm
 
                 if self.is_central_pop or \
@@ -2283,7 +2315,8 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # This uses __getattr__ in case we're allowing Z to be
                 # updated from SAM.
-                sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
+                #sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
+                sfr = self.tab_sfr[iz,:]
 
                 # Just the product of SFR and L
                 if self.is_central_pop or \
@@ -2511,6 +2544,16 @@ class GalaxyCohort(GalaxyAggregate):
         func = self._get_function('pop_Av')
 
         return func(z=z, Ms=Ms)
+
+    @cached_property
+    def tab_Av(self):
+        arr = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+        for i, z in enumerate(self.halos.tab_z):
+            smhm = self.tab_fstar[i,:]
+            Ms = smhm * self.halos.tab_M
+            arr[i,:] = self.get_Av(z, Ms)
+
+        return arr
 
     def get_ihl(self, z, Mh):
         func = self._get_function('pop_ihl')
@@ -5691,7 +5734,7 @@ class GalaxyCohort(GalaxyAggregate):
             #enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         # Need angular diameter distance and H(z) for all that follows
-        d = self.cosm.ComovingRadialDistance(0., z)           # [cm]
+        d = self.cosm.get_dist_los_comoving(0., z)            # [cm]
         Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
 
         ##
