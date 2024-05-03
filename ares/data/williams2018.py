@@ -11,6 +11,7 @@ https://ui.adsabs.harvard.edu/abs/2018ApJS..236...33W/abstract
 import numpy as np
 
 magbins = np.arange(-22.75, -16.75, 0.5)
+redshifts = [0.5, 0.8, 1.25, 1.75, 2.25, 2.75, 3.75]
 
 data = \
 {

@@ -417,7 +417,11 @@ class LightCone(object): # pragma: no cover
                 mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
                 **seed_kwargs)
 
-            if halos[0].size == 0:
+            if halos[0] == None:
+                ra = dec = red = mass = None
+                continue
+                
+            if (halos[0].size == 0):
                 ra = dec = red = mass = None
                 continue
 
