@@ -31,6 +31,14 @@ def test():
     pop = sim.pops[0]
 
     x, phi = pop.get_lf(6, mags)
+    x2, phi2 = pop.get_lf(6, mags, use_tabs=False)
+
+    assert np.allclose(phi, phi2)
+
+    x, phi = pop.get_mf(6, np.arange(6, 12, 0.1))
+    x2, phi2 = pop.get_mf(6, np.arange(6, 12, 0.1), use_tabs=False)
+    
+    assert np.allclose(phi, phi2)
 
     focc = pop.get_focc(6, Mh)
     fsurv = pop.get_fsurv(6, Mh)

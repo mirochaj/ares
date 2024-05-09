@@ -16,7 +16,7 @@ import glob
 from packaging import version
 import pickle
 from types import FunctionType
-
+from functools import cached_property
 import numpy as np
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -674,6 +674,15 @@ class HaloMassFunction(object):
     @_MF.setter
     def _MF(self, value):
         self._MF_ = value
+
+    @cached_property
+    def dlnm(self):
+        lnM = np.log(self.tab_M)
+        dlnM = np.diff(lnM)
+        if np.allclose(np.diff(dlnM), 0):
+            return dlnM[0]
+        else:
+            return None
 
     @property
     def tab_dndlnm_sub(self):

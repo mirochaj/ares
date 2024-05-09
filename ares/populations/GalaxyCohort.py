@@ -1139,10 +1139,11 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplementedError('Unrecognized mass kind={}.'.format(kind))
 
-    def get_smf(self, z, bins=None, units='dex'):
-        return self.get_mf(z, bins=bins, units=units, mass='stellar')
+    def get_smf(self, z, bins=None, units='dex', use_tabs=True):
+        return self.get_mf(z, bins=bins, units=units, mass='stellar',
+            use_tabs=use_tabs)
 
-    def get_mf(self, z, bins=None, units='dex', mass='stellar'):
+    def get_mf(self, z, bins=None, units='dex', mass='stellar', use_tabs=True):
         """
         Return stellar mass function.
 
@@ -1167,7 +1168,11 @@ class GalaxyCohort(GalaxyAggregate):
             logMh_e = bin_c2e(logMh)
 
             if mass == 'stellar':
-                fstar = self.tab_fstar[iz,:]
+                if use_tabs:
+                    fstar = self.tab_fstar[iz,:]
+                else:
+                    fstar = self.get_sfe(z=z, Mh=self.halos.tab_M)
+
                 Ms_c = fstar * self.halos.tab_M
 
                 fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
@@ -1188,15 +1193,29 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise NotImplementedError('help')
 
+            x = np.log(self.halos.tab_M) if self.halos.dlnm is None else None
+            dx = self.halos.dlnm
+
             ##
             # Extra step if we're dealing with satellites
             dndlogm = self.halos.tab_dndlnm[iz,:] * np.log(10.)
 
             if self.is_central_pop:
-                dndlogm = dndlogm * self.tab_focc[iz,:]
+                if use_tabs:
+                    dndlogm = dndlogm * self.tab_focc[iz,:]
+                else:
+                    dndlogm = dndlogm * self.get_focc(z=z, Mh=self.halos.tab_M)
+
             else:
-                fsurv = self.tab_fsurv[iz,:]
-                focc  = self.tab_focc[iz,:]
+                if use_tabs:
+                    fsurv = self.tab_fsurv[iz,:]
+                    focc  = self.tab_focc[iz,:]
+                else:
+                    fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
+                    if type(fsurv) in numeric_types:
+                        fsurv = np.ones_like(self.halos.tab_M) * fsurv
+
+                    focc = self.get_focc(z=z, Mh=self.halos.tab_M)
 
                 #  Need to sum up all subhalos over central population
                 dndlnm_c = self.halos.tab_dndm[iz,:] * self.halos.tab_M
@@ -1212,8 +1231,7 @@ class GalaxyCohort(GalaxyAggregate):
                     dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,i] \
                         * focc[i] * fsurv[i]
 
-                    dndlnm_sat[i] = np.trapz(dndlnm,
-                        x=np.log(self.halos.tab_M))
+                    dndlnm_sat[i] = np.trapz(dndlnm, x=x, dx=dx)
 
                 #
                 dndlogm = dndlnm_sat * np.log(10.)
@@ -1462,7 +1480,8 @@ class GalaxyCohort(GalaxyAggregate):
         return self.get_lf(z, bins, use_mags=use_mags, wave=wave,
             window=window, absolute=absolute)
 
-    def get_lf(self, z, bins, use_mags=True, x=1600., units='Angstrom', window=1.,
+    def get_lf(self, z, bins, use_tabs=True,
+        use_mags=True, x=1600., units='Angstrom', window=1.,
         absolute=True, raw=False, nebular_only=False, band=None, cam=None,
         filters=None, dlam=20, presets=None):
         """
@@ -1519,7 +1538,8 @@ class GalaxyCohort(GalaxyAggregate):
                 cam=cam, filters=filters, dlam=dlam)
         else:
             # By default, we compute dn/dL
-            bins, phi_of_x = self._get_phi_of_L(z, x=x, units=units,
+            bins, phi_of_x = self._get_phi_of_L(z, x=x, use_tabs=use_tabs,
+                units=units,
                 window=window, raw=raw, nebular_only=nebular_only, band=band)
             #raise NotImplemented('needs fixing')
             #phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
@@ -1589,7 +1609,8 @@ class GalaxyCohort(GalaxyAggregate):
         return b
 
     def _cache_L(self, z, x, band, window, units, units_out, raw, nebular_only,
-        age, include_dust_transmission, include_igm_transmission, total_sat):
+        age, include_dust_transmission, include_igm_transmission, total_sat,
+        use_tabs):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
@@ -1968,7 +1989,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Tdust * Tigm
 
-    def _get_lum_stellar_pop(self, z, x=1600, band=None, window=1, units='Angstrom',
+    def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
+        band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
         total_sat=True):
         """
@@ -1992,10 +2014,13 @@ class GalaxyCohort(GalaxyAggregate):
         # Generally need to know stellar masses and SFRs, just do it now.
         try:
             iz = self.get_zindex(z)
-            sfr = self.tab_sfr[iz,:]
-            smhm = self.tab_fstar[iz,:]
-            #sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-            #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+            if use_tabs:
+                sfr = self.tab_sfr[iz,:]
+                smhm = self.tab_fstar[iz,:]
+            else:
+                sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
+                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+
             Ms = self.halos.tab_M * smhm
         except Exception as e:
             print(e)
@@ -2268,7 +2293,11 @@ class GalaxyCohort(GalaxyAggregate):
             elif src.is_ssp:
 
                 # Mstell = Mhalo * SMHM
-                smhm = self.tab_fstar[iz,:]#self.get_smhm(z=z, Mh=self.halos.tab_M)
+                if use_tabs:
+                    smhm = self.tab_fstar[iz,:]#self.get_smhm(z=z, Mh=self.halos.tab_M)
+                else:
+                    smhm = self.get_fstar(z, Mh=self.halos.tab_M)
+
                 mste = self.halos.tab_M * smhm
 
                 if self.is_central_pop or \
@@ -2284,8 +2313,15 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
 
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
-                    fsurv = self.tab_fsurv[iz,:]
-                    focc = self.tab_focc[iz,:]
+                    if use_tabs:
+                        fsurv = self.tab_fsurv[iz,:]
+                        focc = self.tab_focc[iz,:]
+                    else:
+                        focc = self.get_focc(z=z, Mh=self.halos.tab_M)
+                        fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
+                        if type(fsurv) in numeric_types:
+                            fsurv = np.ones_like(self.halos.tab_M) * fsurv
+
 
                     Ls = mste * L_sfr
                     ok_s = np.logical_and(
@@ -2424,7 +2460,8 @@ class GalaxyCohort(GalaxyAggregate):
         return kludge
 
 
-    def get_lum(self, z, x=1600, band=None, window=1, units='Angstrom',
+    def get_lum(self, z, x=1600, use_tabs=True,
+        band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
         include_igm_transmission=True, total_sat=True):
@@ -2456,7 +2493,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
-            include_dust_transmission, include_igm_transmission, total_sat
+            include_dust_transmission, include_igm_transmission, total_sat, use_tabs
 
         if (Mh is None) and self.pf['pop_use_lum_cache'] and load:
             cached_result = self._cache_L(*kwtup)
@@ -2467,7 +2504,8 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Have options for stars or BHs
         if self.pf['pop_star_formation']:
-            Lh = self._get_lum_stellar_pop(z, x=x, band=band, window=window,
+            Lh = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
+                band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,
                 nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
         elif self.pf['pop_bh_formation']:
@@ -2808,7 +2846,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return mask
 
-    def _get_phi_of_L(self, z, x=1600., window=1, raw=False,
+    def _get_phi_of_L(self, z, x=1600., use_tabs=True, window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms',
         cam=None, filters=None, dlam=20):
         """
@@ -2826,7 +2864,7 @@ class GalaxyCohort(GalaxyAggregate):
             if (z, x, window, cam, filters, dlam) in self._phi_of_L:
                 return self._phi_of_L[(z, x, window, cam, filters, dlam)]
 
-        Lh = self.get_lum(z, x=x, window=window,
+        Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out='erg/s/Hz', total_sat=self.is_central_pop)
 
@@ -2850,7 +2888,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         if abs(z - self.halos.tab_z[iz]) < ztol:
             dndm = self.halos.tab_dndm[iz,:-1]
-            focc = self.tab_focc[iz,:-1]
+            if use_tabs:
+                focc = self.tab_focc[iz,:-1]
+            else:
+                focc = self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
+
             if self.is_central_pop:
                 dndm = dndm * focc
         else:
@@ -2871,7 +2913,15 @@ class GalaxyCohort(GalaxyAggregate):
         # Extra step if we're dealing with satellites
         if not self.is_central_pop:
 
-            fsurv = self.tab_fsurv[iz,:-1]
+            _x = np.log(self.halos.tab_M[0:-1]) if self.halos.dlnm is None else None
+            _dx = self.halos.dlnm
+
+            if use_tabs:
+                fsurv = self.tab_fsurv[iz,:-1]
+            else:
+                fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M[0:-1])
+                if type(fsurv) in numeric_types:
+                    fsurv = np.ones_like(self.halos.tab_M) * fsurv
 
             # Recall that at this point, Lh is the luminosity as a function
             # of subhalo mass. Need to sum up all subhalos over central
@@ -2889,8 +2939,7 @@ class GalaxyCohort(GalaxyAggregate):
                 dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:-1,i] \
                     * focc[i] * fsurv[i]
 
-                dndlnm_sat[i] = np.trapz(dndlnm,
-                    x=np.log(self.halos.tab_M[:-1]))
+                dndlnm_sat[i] = np.trapz(dndlnm, x=_x, dx=_dx)
 
             # Replace dndm
             dndm = dndlnm_sat / self.halos.tab_M[:-1]
