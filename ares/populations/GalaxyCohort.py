@@ -1423,7 +1423,7 @@ class GalaxyCohort(GalaxyAggregate):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
         return self._is_uvlf_parametric
 
-    def _get_uvlf_mags(self, z, bins, x=1600., units='Angstroms',
+    def _get_uvlf_mags(self, z, bins, x=1600., use_tabs=True, units='Angstroms',
         window=1, absolute=True, cam=None, filters=None, dlam=20):
 
         if self.is_uvlf_parametric:
@@ -1436,7 +1436,8 @@ class GalaxyCohort(GalaxyAggregate):
         ##
 
         # These are absolute AB magnitudes in `x_phi`
-        x_phi, phi = self._get_phi_of_M(z, x=x, units=units, window=window,
+        x_phi, phi = self._get_phi_of_M(z, x=x, use_tabs=use_tabs,
+            units=units, window=window,
             cam=cam, filters=filters, dlam=dlam)
 
         ok = phi.mask == False
@@ -1533,7 +1534,8 @@ class GalaxyCohort(GalaxyAggregate):
             return bins, phi / self.pf['pop_volume']
 
         if use_mags:
-            _x_, phi_of_x = self._get_uvlf_mags(z, bins, x=x, units=units,
+            _x_, phi_of_x = self._get_uvlf_mags(z, bins, x=x,
+                use_tabs=use_tabs, units=units,
                 window=window, absolute=absolute,
                 cam=cam, filters=filters, dlam=dlam)
         else:
@@ -2296,7 +2298,7 @@ class GalaxyCohort(GalaxyAggregate):
                 if use_tabs:
                     smhm = self.tab_fstar[iz,:]#self.get_smhm(z=z, Mh=self.halos.tab_M)
                 else:
-                    smhm = self.get_fstar(z, Mh=self.halos.tab_M)
+                    smhm = self.get_fstar(z=z, Mh=self.halos.tab_M)
 
                 mste = self.halos.tab_M * smhm
 
@@ -2352,7 +2354,10 @@ class GalaxyCohort(GalaxyAggregate):
                 # This uses __getattr__ in case we're allowing Z to be
                 # updated from SAM.
                 #sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-                sfr = self.tab_sfr[iz,:]
+                if use_tabs:
+                    sfr = self.tab_sfr[iz,:]
+                else:
+                    sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
 
                 # Just the product of SFR and L
                 if self.is_central_pop or \
@@ -2366,8 +2371,14 @@ class GalaxyCohort(GalaxyAggregate):
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
 
                     # Occupation and survival vs. subhalo mass at this redshift.
-                    fsurv = self.tab_fsurv[iz,:]
-                    focc = self.tab_focc[iz,:]
+                    if self.use_tabas:
+                        fsurv = self.tab_fsurv[iz,:]
+                        focc = self.tab_focc[iz,:]
+                    else:
+                        focc = self.get_focc(z=z, Mh=self.halos.tab_M)
+                        fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
+                        if type(fsurv) in numeric_types:
+                            fsurv = np.ones_like(self.halos.tab_M) * fsurv
 
                     ok_s = np.logical_and(
                         self.halos.tab_M >= self.get_Mmin(z),
@@ -2661,7 +2672,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Sd
 
-    def get_mags(self, z, absolute=True, x=1600, band=None,
+    def get_mags(self, z, absolute=True, x=1600, use_tabs=True, band=None,
         units='Angstrom', window=1, cam=None, filters=None, dlam=20,
         presets=None, method=None, Mh=None,
         load=True, raw=False, nebular_only=False, apply_dustcorr=False,
@@ -2683,7 +2694,7 @@ class GalaxyCohort(GalaxyAggregate):
         # range covered by requested photometry.
 
         if (not use_filters):
-            L = self.get_lum(z, x=x, band=band, units=units,
+            L = self.get_lum(z, x=x, band=band, use_tabs=use_tabs, units=units,
                 window=window, units_out='erg/s/Hz', load=load, raw=raw,
                 nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
 
@@ -2990,17 +3001,18 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._phi_of_L[(z, x, window, cam, filters, dlam)]
 
-    def _get_phi_of_M(self, z, x=1600., units='Angstroms', window=1,
+    def _get_phi_of_M(self, z, x=1600., use_tabs=True,
+        units='Angstroms', window=1,
         cam=None, filters=None, dlam=20):
 
         if not hasattr(self, '_phi_of_M'):
             self._phi_of_M = {}
         else:
-            if (z, x, window, cam, filters, dlam) in self._phi_of_M:
-                return self._phi_of_M[(z, x, window, cam, filters, dlam)]
+            if (z, x, window, cam, filters, dlam, use_tabs) in self._phi_of_M:
+                return self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)]
 
         Lh, phi_of_L = self._get_phi_of_L(z, x=x, units=units, window=window,
-            cam=cam, filters=filters, dlam=dlam)
+            use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam)
 
         _MAB = self.magsys.L_to_MAB(Lh)
 
@@ -3013,9 +3025,10 @@ class GalaxyCohort(GalaxyAggregate):
         #else:
         #    raise NotImplemented('help')
 
-        self._phi_of_M[(z, x, window, cam, filters, dlam)] = MAB[0:-1], phi_of_M
+        self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)] = \
+            MAB[0:-1], phi_of_M
 
-        return self._phi_of_M[(z, x, window, cam, filters, dlam)]
+        return self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)]
 
     def get_mag_lim(self, z, absolute=True, x=1600, band=None, units='Ang',
         window=1, load=True, raw=False, nebular_only=False, apply_dustcorr=False):
