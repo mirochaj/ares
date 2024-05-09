@@ -249,6 +249,18 @@ class DustExtinction(object):
             self._tab_Av = np.arange(0, 10.1, 0.1)
         return self._tab_Av
 
+    @property
+    def _tab_C00(self):
+        if not hasattr(self, '_tab_C00_'):
+            if self.pf['pop_dust_cache'] is not None:
+                self._tab_C00_ = self.pf['pop_dust_cache']
+            else:
+                self._tab_C00_ = np.zeros((self.tab_waves_c.size, self.tab_Av.size))
+                for i, Av in enumerate(self.tab_Av):
+                    C00 = self._dustatt_instance(Av=Av)
+                    self._tab_C00_[:,i] = C00(self.tab_waves_c * 1e-4)
+        return self._tab_C00_
+
     def get_curve(self, wave):
         """
         Get extinction (or attenuation) curve from lookup table.
@@ -264,12 +276,6 @@ class DustExtinction(object):
 
         if self.is_template and self.method.startswith('C00'):
             # In this case, construct lookup table in Av, self.tab_waves_c
-            if not hasattr(self, '_tab_C00'):
-                self._tab_C00 = np.zeros((self.tab_waves_c.size, self.tab_Av.size))
-                for i, Av in enumerate(self.tab_Av):
-                    C00 = self._dustatt_instance_(Av=Av)
-                    self._tab_C00[:,i] = C00(self.tab_waves_c * 1e-4)
-
             iw = np.argmin(np.abs(wave - self.tab_waves_c))
 
             # Pretty crude for now

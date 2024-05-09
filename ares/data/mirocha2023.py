@@ -369,7 +369,7 @@ subhalos_focc['pq_func_par20[3]{2}'] = 0
 
 # Dust
 subhalos['pop_Av{2}'] = 'link:Av:0'
-subhalos['pop_dust_template{2}'] = 'WD01:MWRV31'
+subhalos['pop_dust_template{2}'] = 'C00'
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = False

@@ -581,6 +581,7 @@ def PopulationParameters():
 
     # Cache tricks: must be pickleable for MCMC to work.
     "pop_sps_data": None,
+    "pop_dust_cache": None,
 
     "pop_age": 100.,
     "pop_tneb": None,

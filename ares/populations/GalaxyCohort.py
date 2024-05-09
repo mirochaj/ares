@@ -1948,6 +1948,7 @@ class GalaxyCohort(GalaxyAggregate):
         return self._tab_sfh_kwargs_native
 
     def get_transmission(self, z, x, units='Angstroms', band=None,
+        use_tabs=True,
         include_dust_transmission=True, include_igm_transmission=True):
         """
         Convenience routine that wraps self.dust.get_transmission and
@@ -1969,11 +1970,16 @@ class GalaxyCohort(GalaxyAggregate):
 
         if self.is_dusty and include_dust_transmission and (not self.dust.is_irxb):
             if self.pf['pop_dust_template'] is not None:
-                #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-                smhm = self.tab_fstar[iz,:]
+                if use_tabs:
+                    smhm = self.tab_fstar[iz,:]
+                    Av = self.tab_Av[iz,:]
+                else:
+                    smhm = self.get_fstar(z=z, Mh=self.halos.tab_M)
+                    Av = self.get_Av(z=z, Ms=self.halos.tab_M * smhm)
+
                 Ms = self.halos.tab_M * smhm
+
                 #Av = self.get_Av(z=z, Ms=Ms)
-                Av = self.tab_Av[iz,:]
                 Sd = None
             elif self.pf['pop_dust_yield'] is not None:
                 Av = None
@@ -2548,6 +2554,7 @@ class GalaxyCohort(GalaxyAggregate):
             raise NotImplemented('help')
 
         T = self.get_transmission(z, x, units=units, band=band,
+            use_tabs=use_tabs,
             include_dust_transmission=include_dust_transmission,
             include_igm_transmission=include_igm_transmission)
 
@@ -3532,8 +3539,8 @@ class GalaxyCohort(GalaxyAggregate):
                 func = self._get_function('pop_ssfr')
                 return func(z=z, Ms=Ms)
             else:
-                iz = np.argmin(np.abs(z - self.halos.tab_z))
-                _Ms = self.tab_fstar[iz,:] * self.halos.tab_M
+                _Ms = self.get_fstar(z=z, Mh=self.halos.tab_M) \
+                    * self.halos.tab_M
                 Mh = np.interp(Ms, _Ms, self.halos.tab_M, right=np.nan)
 
                 return self.get_sfr(z=z, Mh=Mh) / Ms
