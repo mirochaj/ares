@@ -39,8 +39,7 @@ class MultiPhaseMedium(object):
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
-
-        if pf is not None:
+        else:
             self.pf = pf
 
         self._cosm_ = cosm
@@ -99,10 +98,10 @@ class MultiPhaseMedium(object):
         if not hasattr(self, '_field'):
             if self.pf['include_igm']:
                 self._field = MetaGalacticBackground(pf=self.pf,
-                    grid=self.parcel_igm.grid, **self.kwargs)
+                    grid=self.get_parcel, **self.kwargs)
             else:
                 self._field = MetaGalacticBackground(pf=self.pf,
-                    grid=self.parcel_cgm.grid, **self.kwargs)
+                    grid=self.get_parcel, **self.kwargs)
 
         return self._field
 
@@ -153,6 +152,12 @@ class MultiPhaseMedium(object):
                 self._parcel_cgm = self.parcels[0]
 
         return self._parcel_cgm
+
+    def get_parcel(self, name):
+        if name == 'cgm' and self.pf['include_igm']:
+            return self.parcels[1]
+        else:
+            return self.parcels[0]
 
     def rates_no_RT(self, grid):
         _rates_no_RT = \

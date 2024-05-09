@@ -154,6 +154,14 @@ class MetaGalacticBackground(AnalyzeMGB):
                 cosmological_ics=self.pf['cosmological_ics'],
                 )
             self._grid.set_properties(**self.pf)
+        elif isinstance(self._grid, Grid):
+            pass
+        else:
+            # Assume this is a `get_parcel` function
+            # Sneaky business, I know, but prevents initialization of IGM
+            # zones unless absolutely necessary.
+            p = self._grid('igm' if self.pf['include_igm'] else 'cgm')
+            self._grid = p.grid
 
         return self._grid
 

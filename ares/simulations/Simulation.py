@@ -13,7 +13,7 @@ from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m
 
 class Simulation(object):
-    def __init__(self, pf=None, **kwargs):
+    def __init__(self, pf=None, pf_updates=None, **kwargs):
         """ Wrapper class designed to facilitate easy runs of any simulation. """
 
         if pf is None:
@@ -26,6 +26,9 @@ class Simulation(object):
             self.pf = ParameterFile(**kwargs)
         else:
             self.pf = pf
+
+            if pf_updates is not None:
+                self.pf.update(pf_updates)
 
     @property
     def sim_gs(self):
@@ -321,24 +324,36 @@ class Simulation(object):
     def pops(self):
         return self.sim_gs.medium.field.pops
 
+    #@property
+    #def pops(self):
+    #    if not hasattr(self, '_pops'):
+    #        self._pops = CompositePopulation(pf=self.pf, cosm=self.cosm,
+    #            **self._kwargs).pops
+
+    #    return self._pops
+
     @property
     def grid(self):
         return self.sim_gs.medium.field.grid
 
     @property
     def hydr(self):
-        return self.grid.hydr
+        if not hasattr(self, '_hydr'):
+            if hasattr(self.grid, 'hydr'):
+                self._hydr = self.grid.hydr
+            else:
+                self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
+        return self._hydr
 
     @property
     def cosm(self):
-        return self.grid.cosm
+        if not hasattr(self, '_cosm'):
+            if hasattr(self.grid, 'cosm'):
+                self._cosm = self.grid.cosm
+            else:
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
 
-    #@property
-    #def field(self):
-    #    if not hasattr(self, '_field'):
-    #        self._field = Fluctuations(**self.tab_kwargs)
-    #        self._field.pops = self.pops
-    #    return self._field
+        return self._cosm
 
     @property
     def halos(self):

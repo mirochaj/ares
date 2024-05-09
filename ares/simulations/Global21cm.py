@@ -46,6 +46,8 @@ class Global21cm(AnalyzeGlobal21cm):
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
+        else:
+            self.pf = pf
 
         self.is_complete = False
 
@@ -94,7 +96,8 @@ class Global21cm(AnalyzeGlobal21cm):
     def medium(self):
         if not hasattr(self, '_medium'):
             from .MultiPhaseMedium import MultiPhaseMedium
-            self._medium = MultiPhaseMedium(cosm=self.cosm, **self.kwargs)
+            self._medium = MultiPhaseMedium(
+                cosm=self.cosm, **self.kwargs)
 
         return self._medium
 

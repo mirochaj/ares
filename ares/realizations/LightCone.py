@@ -417,7 +417,7 @@ class LightCone(object): # pragma: no cover
                 mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
                 **seed_kwargs)
 
-            if (type(halos[0] != np.ndarray)) and (halos[0] is None):
+            if (type(halos[0]) != np.ndarray) and (halos[0] is None):
                 ra = dec = red = mass = None
                 continue
 
