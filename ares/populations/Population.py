@@ -109,11 +109,16 @@ def normalize_sed(pop):
 
 
 class Population(object):
-    def __init__(self, grid=None, cosm=None, **kwargs):
+    def __init__(self, pf=None, grid=None, cosm=None, **kwargs):
 
-        self.pf = ParameterFile(**kwargs)
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
 
-        assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)
+        #assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)
 
         self.grid = grid
         self._cosm_ = cosm
@@ -174,7 +179,7 @@ class Population(object):
     @property
     def dust(self):
         if not hasattr(self, '_dust'):
-            self._dust = DustExtinction(**self.pf)
+            self._dust = DustExtinction(pf=self.pf, **self.pf)
         return self._dust
 
     @property

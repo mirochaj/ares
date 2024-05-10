@@ -402,7 +402,8 @@ class ParameterFile(dict):
             # We now have a parameter file containing all non-pop-specific
             # parameters, which we can use as a base for all pop-specific
             # parameter files.
-            pfs_by_pop = [pf_base.copy() for i in range(self.Npops)]
+            pfs_by_pop = [ParameterFile(**pf_base.copy()) \
+                for i in range(self.Npops)]
 
             pfs_by_pop = self.update_pq_pars(pfs_by_pop, **kwargs)
 

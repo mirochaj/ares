@@ -18,7 +18,7 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, s_per_myr, cm_per_mpc, c, E_LL, k_B
 
 class GalaxyAggregate(HaloPopulation):
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
         """
         Initializes a GalaxyAggregate object.
 
@@ -33,7 +33,7 @@ class GalaxyAggregate(HaloPopulation):
 
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
-        HaloPopulation.__init__(self, **kwargs)
+        HaloPopulation.__init__(self, pf=pf, **kwargs)
 
     def get_sfrd(self, z):
         """

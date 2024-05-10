@@ -39,30 +39,34 @@ class MultiPhaseMedium(object):
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
+            self.pf = ParameterFile(**kwargs)
         else:
             self.pf = pf
 
-        self._cosm_ = cosm
+        if cosm is not None:
+            self._cosm_ = cosm
+        else:
+            self._cosm_ = None
 
         self.kwargs = kwargs
 
-    @property
-    def pf(self):
-        if not hasattr(self, '_pf'):
+    #@property
+    #def pf(self):
+    #    if not hasattr(self, '_pf'):
 
-            self._pf = ParameterFile(**self.kwargs)
+    #        self._pf = ParameterFile(**self.kwargs)
 
-            # Make sure PF gets modified by initial conditions choices
-            # and ensure that these changes get passed to everything else
-            # subsequently.
-            inits = self.inits
+    #        # Make sure PF gets modified by initial conditions choices
+    #        # and ensure that these changes get passed to everything else
+    #        # subsequently.
+    #        inits = self.inits
 
-        return self._pf
+    #    return self._pf
 
-    @pf.setter
-    def pf(self, val):
-        self._pf = val
-        inits = self.inits
+    #@pf.setter
+    #def pf(self, val):
+    #    self._pf = val
+    #    #inits = self.inits
 
     @property
     def inits(self):
@@ -116,11 +120,10 @@ class MultiPhaseMedium(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            if self._cosm_ is None:
-                self._cosm = Cosmology(pf=self.pf, **self.pf)
-            else:
+            if self._cosm_ is not None:
                 self._cosm = self._cosm_
-
+            else:
+                self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm
 
     @property
@@ -215,7 +218,8 @@ class MultiPhaseMedium(object):
             if zone == 'igm':
                 self.kw_igm = kw.copy()
 
-                parcel_igm = GasParcel(cosm=self.cosm, **self.kw_igm)
+                parcel_igm = GasParcel(pf=self.pf,
+                    cosm=self.cosm, **self.kw_igm)
                 parcel_igm.grid.set_recombination_rate(False)
 
                 self.gen_igm = parcel_igm.step()
@@ -228,7 +232,8 @@ class MultiPhaseMedium(object):
 
             else:
                 self.kw_cgm = kw.copy()
-                parcel_cgm = GasParcel(cosm=self.cosm, **self.kw_cgm)
+                parcel_cgm = GasParcel(pf=self.pf,
+                    cosm=self.cosm, **self.kw_cgm)
                 parcel_cgm.grid.set_recombination_rate(True)
                 parcel_cgm._set_chemistry()
                 self.gen_cgm = parcel_cgm.step()

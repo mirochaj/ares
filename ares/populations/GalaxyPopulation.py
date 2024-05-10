@@ -22,7 +22,7 @@ from .Parameterized import ParametricPopulation, parametric_options
 
 default_model = PopulationParameters()['pop_sfr_model']
 
-def GalaxyPopulation(**kwargs):
+def GalaxyPopulation(pf=None, cosm=None, **kwargs):
     """
     Return the appropriate Galaxy* instance depending on if any quantities
     are being parameterized by hand.
@@ -71,9 +71,9 @@ def GalaxyPopulation(**kwargs):
 
     if model in ['sfe-func', 'sfr-func', 'mlf-func', 'sfe-tab', 'sfr-tab',
         'uvlf', '21cmfast', 'smhm-func', 'quiescent']:
-        return GalaxyCohort(**kwargs)
+        return GalaxyCohort(pf=pf, **kwargs)
     elif model in ['fcoll', 'sfrd-func', 'sfrd-class']:
-        return GalaxyAggregate(**kwargs)
+        return GalaxyAggregate(pf=pf, **kwargs)
     elif model in ['frd-func']:
         return ClusterPopulation(**kwargs)
     elif model in ['ensemble']:
@@ -81,10 +81,10 @@ def GalaxyPopulation(**kwargs):
     elif model in ['rates']:
         return ParametricPopulation(**kwargs)
     elif model in ['bhmd']:
-        return BlackHoleAggregate(**kwargs)
+        return BlackHoleAggregate(pf=pf, **kwargs)
     elif model in ['toy']:
         return Toy(**kwargs)
     elif model in ['hod']:
-        return GalaxyHOD(**kwargs)
+        return GalaxyHOD(pf=pf, **kwargs)
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))

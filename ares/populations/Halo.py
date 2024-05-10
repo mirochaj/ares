@@ -21,11 +21,11 @@ from ..physics.HaloMassFunction import HaloMassFunction
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
 class HaloPopulation(Population):
-    def __init__(self, **kwargs):
+    def __init__(self, pf=None, **kwargs):
 
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
-        Population.__init__(self, **kwargs)
+        Population.__init__(self, pf=pf, **kwargs)
 
     @property
     def parameterized(self):
@@ -83,7 +83,7 @@ class HaloPopulation(Population):
             if self.pf['halo_mf_instance'] is not None:
                 self._halos = self.pf['halo_mf_instance']
             else:
-                self._halos = HaloModel(**self.pf)
+                self._halos = HaloModel(pf=self.pf, **self.pf)
                 #self._halos = HaloMassFunction(**self.pf)
 
         return self._halos

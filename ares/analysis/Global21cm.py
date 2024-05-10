@@ -21,77 +21,77 @@ from matplotlib.ticker import ScalarFormatter
 from scipy.interpolate import interp1d, splrep, splev
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
 
-class Global21cm(MultiPhaseMedium):
+class Global21cm(object):
 
-    def __getattr__(self, name):
-        """
-        This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet).
-        """
+    #def __getattr__(self, name):
+    #    """
+    #    This gets called anytime we try to fetch an attribute that doesn't
+    #    exist (yet).
+    #    """
 
-        # Trickery
-        #if hasattr(BlobFactory, name):
-        #    return BlobFactory.__dict__[name].__get__(self, BlobFactory)
+    #    # Trickery
+    #    #if hasattr(BlobFactory, name):
+    #    #    return BlobFactory.__dict__[name].__get__(self, BlobFactory)
 
-        if hasattr(MultiPhaseMedium, name):
-            return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
+    #    if hasattr(MultiPhaseMedium, name):
+    #        return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
 
-        # Indicates that this attribute is being accessed from within a
-        # property. Don't want to override that behavior!
-        if (name[0] == '_'):
-            raise AttributeError('This will get caught. Don\'t worry!')
+    #    # Indicates that this attribute is being accessed from within a
+    #    # property. Don't want to override that behavior!
+    #    if (name[0] == '_'):
+    #        raise AttributeError('This will get caught. Don\'t worry!')
 
-        # Now, possibly make an attribute
-        if name not in self.__dict__.keys():
+    #    # Now, possibly make an attribute
+    #    if name not in self.__dict__.keys():
 
-            # See if this is a turning point
-            spl = name.split('_')
+    #        # See if this is a turning point
+    #        spl = name.split('_')
 
-            if len(spl) > 2:
-                quantity = ''
-                for item in spl[0:-1]:
-                    quantity += '{!s}_'.format(item)
-                quantity = quantity.rstrip('_')
-                pt = spl[-1]
-            else:
-                try:
-                    quantity, pt = spl
-                except ValueError:
-                    raise AttributeError('No attribute {!s}.'.format(name))
+    #        if len(spl) > 2:
+    #            quantity = ''
+    #            for item in spl[0:-1]:
+    #                quantity += '{!s}_'.format(item)
+    #            quantity = quantity.rstrip('_')
+    #            pt = spl[-1]
+    #        else:
+    #            try:
+    #                quantity, pt = spl
+    #            except ValueError:
+    #                raise AttributeError('No attribute {!s}.'.format(name))
 
-            if pt not in ['A', 'B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
-                # This'd be where e.g., zrei, should go
-                raise NotImplementedError(('Looking for attribute ' +\
-                    '\'{!s}\'.').format(name))
+    #        if pt not in ['A', 'B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
+    #            # This'd be where e.g., zrei, should go
+    #            raise NotImplementedError(('Looking for attribute ' +\
+    #                '\'{!s}\'.').format(name))
 
-            if pt not in self.turning_points:
-                return np.inf
+    #        if pt not in self.turning_points:
+    #            return np.inf
 
-            if quantity == 'z':
-                self.__dict__[name] = self.turning_points[pt][0]
-            elif quantity == 'nu':
-                self.__dict__[name] = \
-                    nu_0_mhz / (1. + self.turning_points[pt][0])
-            elif quantity in self.history_asc:
-                z = self.turning_points[pt][0]
-                self.__dict__[name] = \
-                    np.interp(z, self.history_asc['z'], self.history_asc[quantity])
-            else:
-                z = self.turning_points[pt][0]
+    #        if quantity == 'z':
+    #            self.__dict__[name] = self.turning_points[pt][0]
+    #        elif quantity == 'nu':
+    #            self.__dict__[name] = \
+    #                nu_0_mhz / (1. + self.turning_points[pt][0])
+    #        elif quantity in self.history_asc:
+    #            z = self.turning_points[pt][0]
+    #            self.__dict__[name] = \
+    #                np.interp(z, self.history_asc['z'], self.history_asc[quantity])
+    #        else:
+    #            z = self.turning_points[pt][0]
 
-                # Treat derivatives specially
-                if quantity == 'slope':
-                    self.__dict__[name] = self.derivative_of_z(z)
-                elif quantity == 'curvature':
-                    self.__dict__[name] = self.curvature_of_z(z)
-                elif name in self.all_blob_names:
-                    # Only works if scalar blob
-                    self.__dict__[name] = self.get_blob(name)
-                else:
-                    raise KeyError('Unrecognized quantity: {!s}'.format(\
-                        quantity))
+    #            # Treat derivatives specially
+    #            if quantity == 'slope':
+    #                self.__dict__[name] = self.derivative_of_z(z)
+    #            elif quantity == 'curvature':
+    #                self.__dict__[name] = self.curvature_of_z(z)
+    #            elif name in self.all_blob_names:
+    #                # Only works if scalar blob
+    #                self.__dict__[name] = self.get_blob(name)
+    #            else:
+    #                raise KeyError('Unrecognized quantity: {!s}'.format(\
+    #                    quantity))
 
-        return self.__dict__[name]
+    #    return self.__dict__[name]
 
     @property
     def dTbdz(self):

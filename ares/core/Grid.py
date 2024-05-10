@@ -64,7 +64,7 @@ util = _ion_utils()
 tiny_number = 1e-8  # A relatively small species fraction
 
 class Grid(object):
-    def __init__(self, cosm=None, **kwargs):
+    def __init__(self, pf=None, cosm=None, **kwargs):
         """
         Initialize grid object.
 
@@ -79,7 +79,13 @@ class Grid(object):
 
         """
 
-        self.pf = ParameterFile(**kwargs)
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
+        else:
+            self.pf = pf
+
+        self.kwargs = kwargs
 
         self.dims = int(self.pf['grid_cells'])
         self.length_units = self.pf['length_units']
@@ -106,6 +112,16 @@ class Grid(object):
 
         # Override, to set ICs by cosmology
         self.cosmological_ics = self.pf['cosmological_ics']
+
+    @property
+    def pf(self):
+        if not hasattr(self, '_pf'):
+            self._pf = ParameterFile(**self.kwargs)
+        return self._pf
+
+    @pf.setter
+    def pf(self, value):
+        self._pf = value
 
     @property
     def zeros_absorbers(self):

@@ -19,17 +19,21 @@ from ..util.ReadData import _sort_history
 from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
 class GasParcel(object):
-    def __init__(self, cosm=None, **kwargs):
+    def __init__(self, pf=None, cosm=None, **kwargs):
         """
         Initialize a GasParcel object.
         """
 
         # This typically isn't the entire parameter file, Grid knows only
         # about a few things.
-        self.pf = ParameterFile(**kwargs)
+        if pf is None:
+            assert kwargs is not None, \
+                "Must provide parameters to initialize a Simulation!"
+        else:
+            self.pf = pf
 
         self._cosm_ = cosm
-        self.grid = Grid(cosm=cosm, **self.pf)
+        self.grid = Grid(pf=self.pf, cosm=cosm, **kwargs)
 
         #self.grid = \
         #Grid(
@@ -64,6 +68,16 @@ class GasParcel(object):
         self.timestep = RestrictTimestep(self.grid, self.pf['epsilon_dt'],
             self.pf['verbose'])
 
+    @property
+    def pf(self):
+        if not hasattr(self, '_pf'):
+            self._pf = ParameterFile(**self.kwargs)
+        return self._pf
+
+    @pf.setter
+    def pf(self, value):
+        self._pf = value
+        
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):

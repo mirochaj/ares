@@ -105,8 +105,11 @@ tiny_fcoll = 1e-18
 tiny_dfcolldz = 1e-18
 
 class HaloMassFunction(object):
-    def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, **kwargs):
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
 
         # Read in a few parameters for convenience
         self.tab_name = self.pf["halo_mf_table"]

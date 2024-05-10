@@ -6,7 +6,6 @@ from types import FunctionType
 from ..util import ProgressBar
 from ..util import ParameterFile
 from .Global21cm import Global21cm
-from ..physics.HaloModel import HaloModel
 from .PowerSpectrum21cm import PowerSpectrum21cm
 from .MetaGalacticBackground import MetaGalacticBackground
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
@@ -27,13 +26,29 @@ class Simulation(object):
         else:
             self.pf = pf
 
+            ##
+            # This is a sneaky way to not have to re-initialize an
+            # entire ParameterFile if we're running lots of models.
+            # Just need to remember that `self.pf` does not contain
+            # population-specific parameters, so much parse parameter
+            # names here and inject into correct element of self.pf.pfs,
+            # i.e., the individual ParameterFile for each population.
             if pf_updates is not None:
-                self.pf.update(pf_updates)
+                for par in pf_updates:
+                    ib = par.find('{')
+                    if ib == -1:
+                        if self.pf['verbose']:
+                            print(f"# Ignoring par={par} in updates.")
+                        continue
+
+                    popid = int(par[ib+1:ib+2])
+                    newname = par.strip(f"{{{popid}}}")
+                    self.pf.pfs[popid][newname] = pf_updates[par]
 
     @property
     def sim_gs(self):
         if not hasattr(self, '_sim_gs'):
-            self._sim_gs = Global21cm(**self.kwargs)
+            self._sim_gs = Global21cm(pf=self.pf, **self.kwargs)
         return self._sim_gs
 
     @sim_gs.setter
@@ -44,7 +59,7 @@ class Simulation(object):
     @property
     def sim_ps(self):
         if not hasattr(self, '_sim_ps'):
-            self._sim_ps = PowerSpectrum21cm(**self.kwargs)
+            self._sim_ps = PowerSpectrum21cm(pf=self.pf, **self.kwargs)
             self._sim_ps.gs = self.sim_gs
         return self._sim_ps
 

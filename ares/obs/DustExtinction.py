@@ -56,8 +56,11 @@ _coeff_b14 = {
 }
 
 class DustExtinction(object):
-    def __init__(self, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, **kwargs):
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
 
     @cached_property
     def method(self):
