@@ -185,7 +185,7 @@ class Population(object):
     @property
     def igm(self):
         if not hasattr(self, '_igm'):
-            self._igm = OpticalDepth(cosm=self.cosm,
+            self._igm = OpticalDepth(pf=self.pf, cosm=self.cosm,
                 **self.pf)
         return self._igm
 

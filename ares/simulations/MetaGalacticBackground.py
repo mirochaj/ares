@@ -157,11 +157,13 @@ class MetaGalacticBackground(AnalyzeMGB):
         elif isinstance(self._grid, Grid):
             pass
         else:
-            # Assume this is a `get_parcel` function
-            # Sneaky business, I know, but prevents initialization of IGM
-            # zones unless absolutely necessary.
-            p = self._grid('igm' if self.pf['include_igm'] else 'cgm')
-            self._grid = p.grid
+            raise NotImplemented('help')
+        #else:
+        #    # Assume this is a `get_parcel` function
+        #    # Sneaky business, I know, but prevents initialization of IGM
+        #    # zones unless absolutely necessary.
+        #    p = self._grid('igm' if self.pf['include_igm'] else 'cgm')
+        #    self._grid = p.grid
 
         return self._grid
 

@@ -713,25 +713,20 @@ class HaloMassFunction(object):
 
         return self._tab_dndlnm_sub
 
-    @property
+    @cached_property
     def tab_dndlnm(self):
-        if not hasattr(self, '_tab_dndlnm'):
-            self._tab_dndlnm = self.tab_M * self.tab_dndm
-        return self._tab_dndlnm
+        return self.tab_M * self.tab_dndm
 
-    @property
+    @cached_property
     def tab_fcoll(self):
-        if not hasattr(self, '_tab_fcoll'):
-            self._tab_fcoll = self.tab_mgtm / self.cosm.mean_density0
-        return self._tab_fcoll
+        return self.tab_mgtm / self.cosm.mean_density0
 
-    @property
+    @cached_property
     def tab_bias(self):
-        if not hasattr(self, '_tab_bias'):
-            self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
+        self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
 
-            for i, z in enumerate(self.tab_z):
-                self._tab_bias[i] = self.get_bias(z)
+        for i, z in enumerate(self.tab_z):
+            self._tab_bias[i] = self.get_bias(z)
 
         return self._tab_bias
 

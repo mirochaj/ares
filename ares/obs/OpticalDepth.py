@@ -16,8 +16,11 @@ from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import h_p, c, erg_per_ev, lam_LL, lam_LyA
 
 class OpticalDepth(object):
-    def __init__(self, cosm=None, hydr=None, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, pf=None, cosm=None, hydr=None, **kwargs):
+        if pf is None:
+            self.pf = ParameterFile(**kwargs)
+        else:
+            self.pf = pf
         self.hydr = hydr
         self.cosm = cosm
 

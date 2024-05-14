@@ -102,10 +102,10 @@ class MultiPhaseMedium(object):
         if not hasattr(self, '_field'):
             if self.pf['include_igm']:
                 self._field = MetaGalacticBackground(pf=self.pf,
-                    grid=self.get_parcel, **self.kwargs)
+                    grid=self.parcel_igm.grid, **self.kwargs)
             else:
                 self._field = MetaGalacticBackground(pf=self.pf,
-                    grid=self.get_parcel, **self.kwargs)
+                    grid=self.parcel_cgm.grid, **self.kwargs)
 
         return self._field
 
@@ -129,7 +129,7 @@ class MultiPhaseMedium(object):
     @property
     def grid(self):
         if not hasattr(self, '_grid'):
-            self._grid = Grid(cosm=self.cosm, **self.pf)
+            self._grid = Grid(pf=self.pf, cosm=self.cosm, **self.pf)
             self._grid.set_properties(**self.pf)
 
         return self._grid

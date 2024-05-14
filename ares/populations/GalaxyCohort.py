@@ -1022,9 +1022,9 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if z < self.halos.tab_z.min():
-            raise ValueError(f"z={z} < tabulated range!")
+            raise ValueError(f"z={z} < tabulated range! zmin={self.halos.tab_z.min():.4f}")
         if z > self.halos.tab_z.max():
-            raise ValueError(f"z={z} > tabulated range!")
+            raise ValueError(f"z={z} > tabulated range! zmax={self.halos.tab_z.max():.4f}")
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
@@ -2006,13 +2006,6 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         ##
-        # Manual override: if user supplies L/SFR directly.
-        if self.pf['pop_lum_per_sfr'] is not None:
-
-            assert self.pf['pop_calib_lum'] is None, \
-                "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
-            return self.pf['pop_lum_per_sfr']
-        ##
 
         ##
         # Determine fesc [will apply in a minute]
@@ -2034,6 +2027,24 @@ class GalaxyCohort(GalaxyAggregate):
             print(e)
             Ms = None
             raise Exception('help')
+
+        ##
+        # Manual override: if user supplies L/SFR directly.
+        if self.pf['pop_lum_per_sfr'] is not None:
+
+            assert self.pf['pop_calib_lum'] is None, \
+                "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
+
+            # Assumed to be erg/s/Hz/(Msun/yr)
+            lum_per_sfr = self.pf['pop_lum_per_sfr']
+
+            if units_out.lower() == 'erg/s/hz':
+                pass
+            else:
+                raise ValueError(f'unknown units={units_out}')
+
+            Lh = sfr * lum_per_sfr
+            return Lh
 
         ##
         # Apply luminosity correction [optional]
@@ -2377,7 +2388,7 @@ class GalaxyCohort(GalaxyAggregate):
                     iz = np.argmin(np.abs(z - self.halos.tab_z))
 
                     # Occupation and survival vs. subhalo mass at this redshift.
-                    if self.use_tabas:
+                    if use_tabs:
                         fsurv = self.tab_fsurv[iz,:]
                         focc = self.tab_focc[iz,:]
                     else:

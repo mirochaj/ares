@@ -29,6 +29,7 @@ class GasParcel(object):
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
+            self.pf = ParameterFile(**kwargs)
         else:
             self.pf = pf
 
@@ -68,16 +69,16 @@ class GasParcel(object):
         self.timestep = RestrictTimestep(self.grid, self.pf['epsilon_dt'],
             self.pf['verbose'])
 
-    @property
-    def pf(self):
-        if not hasattr(self, '_pf'):
-            self._pf = ParameterFile(**self.kwargs)
-        return self._pf
+    #@property
+    #def pf(self):
+    #    if not hasattr(self, '_pf'):
+    #        self._pf = ParameterFile(**self.kwargs)
+    #    return self._pf
 
-    @pf.setter
-    def pf(self, value):
-        self._pf = value
-        
+    #@pf.setter
+    #def pf(self, value):
+    #    self._pf = value
+
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):

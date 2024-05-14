@@ -530,6 +530,63 @@ def make_halos(path):
     )
     return
 
+def generate_unfw_tables(path, **kwargs):
+    """
+    Generate halo mass function tables for ARES.
+
+    Parameters
+    ----------
+    path : str
+        The full path for where to save output files.
+    kwargs
+        Keyword arguments passed to the ares.physics.HaloMassFunction object.
+
+    Returns
+    -------
+    None
+    """
+    # go to path
+    os.chdir(path)
+
+    # initialize hmf values
+    def_kwargs = {
+        "halo_mf": "Tinker10",
+        "halo_logMmin": 4,
+        "halo_logMmax": 18,
+        "halo_dlogM": 0.01,
+
+        "halo_fmt": "hdf5",
+        "halo_table": None,
+        "halo_wdm_mass": None,
+
+        # Can do constant timestep instead of constant dz
+        "halo_dt": 10,
+        "halo_tmin": 30.0,
+        "halo_tmax": 13.7e3,  # Myr
+
+        # Cosmology
+        "cosmology_id": "best",
+        "cosmology_name": "planck_TTTEEE_lowl_lowE",
+
+        'halo_dlnk': 0.05,
+        'halo_dlnR': 0.001,
+        'halo_lnk_min': -9.,
+        'halo_lnk_max': 11.,
+        'halo_lnR_min': -9.,
+        'halo_lnR_max': 9.,
+    }
+
+    def_kwargs.update(kwargs)
+
+    halos = ares.physics.HaloModel(halo_mf_load=True, **pars)
+
+    try:
+        halos.generate_halo_surface_dens(format=fmt, clobber=False,
+            checkpoint=True)
+    except IOError as err:
+        print(err)
+    return
+
 def generate_lowres_sps(path, degrade_to, exact_files=None):
     """
     Takes publicly-available stellar population synthesis (SPS) models and

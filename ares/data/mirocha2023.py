@@ -1,11 +1,12 @@
 import numpy as np
 from ares.physics.Constants import E_LyA
 
-_base = \
+setup = \
 {
  "halo_dt": 100,
  "halo_tmin": 100.,
  "halo_tmax": 13.7e3, # Myr
+
  'halo_mf': 'Tinker10',
  "halo_mf_sub": 'Tinker08',
 
@@ -289,7 +290,7 @@ satellites_q['pop_Z'] = 0.02
 #ihl_from_sat['pop_include_2h'] = True
 #ihl_from_sat['pop_include_shot'] = False
 
-base = _base.copy()
+base = setup.copy()
 _pop0 = centrals_sf.copy()
 _pop1 = centrals_q.copy()
 _pop2 = satellites_sf.copy()
@@ -607,3 +608,17 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (3727, 0.71e41),             # [O II]
      (1.87e4, 1.27e41 * 0.123)]   # [P-alpha]
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
+
+fast = \
+{
+ "halo_dlogM": 0.05,
+ "halo_tmin": 100,
+ "halo_dt": 100,
+}
+
+slow = \
+{
+ "halo_dlogM": 0.01,
+ "halo_tmin": 30,
+ "halo_dt": 10,
+}
