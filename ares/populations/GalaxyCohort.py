@@ -1033,7 +1033,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return iz
 
-    def get_emissivity(self, z, x=None, band=None, units='eV'):
+    def get_emissivity(self, z, x=None, band=None, units='eV', units_out='erg/s/A'):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
@@ -1057,15 +1057,18 @@ class GalaxyCohort(GalaxyAggregate):
             # The advantage here is that the SFRD only has to be calculated
             # once, and the radiation field strength can just be determined
             # by scaling the SFRD.
+
             rhoL = super(GalaxyCohort, self).get_emissivity(z, x=x,
-                band=band, units=units)
+                band=band, units=units, units_out=units_out)
         else:
             iz = self.get_zindex(z)
             z1 = self.halos.tab_z[iz]
             z2 = self.halos.tab_z[iz+1]
 
-            L1 = self.get_lum(z1, x=x, band=band, units='eV')
-            L2 = self.get_lum(z2, x=x, band=band, units='eV')
+            L1 = self.get_lum(z1, x=x, band=band, units=units,
+                units_out=units_out)
+            L2 = self.get_lum(z2, x=x, band=band, units=units,
+                units_out=units_out)
 
             ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
                 self.halos.tab_M < self.get_Mmax(z1))

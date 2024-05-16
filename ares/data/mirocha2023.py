@@ -334,6 +334,34 @@ dust['pq_val_floor[4]'] = 0
 for par in dust.keys():
     base[par + '{0}'] = dust[par]
 
+dust_dpl = \
+{
+ 'pq_func[4]{0}': 'dpl_evolB13',
+ 'pq_func_var[4]{0}': 'Ms',
+ 'pq_func_var2[4]{0}': '1+z',
+ 'pq_func_par0[4]{0}': 0.0,
+ 'pq_func_par1[4]{0}': 1e11,
+ 'pq_func_par2[4]{0}': 0.2,
+ 'pq_func_par3[4]{0}': 0.,
+ 'pq_func_par4[4]{0}': 1e10,           # normalization pinned to this Mh
+ 'pq_func_par5[4]{0}': 0,              # norm
+ 'pq_func_par6[4]{0}': 0,              # peak
+ 'pq_func_par7[4]{0}': 0,              # low
+ 'pq_func_par8[4]{0}': 0,              # high
+ 'pq_func_par9[4]{0}': 0.0,            # norm
+ 'pq_func_par10[4]{0}': 0.0,           # peak
+ 'pq_func_par11[4]{0}': 0.0,           # low
+ 'pq_func_par12[4]{0}': 0.0,           # high
+ 'pq_func_par13[4]{0}': 0.0,           # norm
+ 'pq_func_par14[4]{0}': 0.0,           # peak
+ 'pq_func_par15[4]{0}': 0.0,           # low
+ 'pq_func_par16[4]{0}': 0.0,           # high
+ 'pq_func_par17[4]{0}': 0.0,           # norm
+ 'pq_func_par18[4]{0}': 0.0,           # peak
+ 'pq_func_par19[4]{0}': 0.0,           # low
+ 'pq_func_par20[4]{0}': 0.0,           # high
+}
+
 base_centrals = base.copy()
 
 # This results in a Z14-like amount of IHL
@@ -613,6 +641,7 @@ fast = \
 {
  "halo_dlogM": 0.05,
  "halo_tmin": 100,
+ "halo_tmax": 13.7e3,
  "halo_dt": 100,
 }
 
