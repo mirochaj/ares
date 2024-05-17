@@ -624,9 +624,9 @@ sed_modeling['pop_lum_corr{2}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
 # Scaling relationships for common strong lines
 # Each pair is rest wavelength [Angstroms] and L_line [erg/s/(Msun/yr)]
 lines = {}
-# (1216, 6.85e41),             # Ly-a
 lines['pop_lum_per_sfr_at_wave{0}'] = \
     [
+     (1216., 1.21e42),            # Ly-a
      (6563, 1.27e41),             # H-alpha
      (5007, 1.32e41),             # [O III]
      (4861, 0.44e41),             # H-beta

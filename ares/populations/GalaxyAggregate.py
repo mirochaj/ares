@@ -80,7 +80,8 @@ class GalaxyAggregate(HaloPopulation):
 
         return sfrd
 
-    def get_emissivity(self, z, x=None, band=None, units='eV'):
+    def get_emissivity(self, z, x=None, band=None, units='eV',
+        units_out='erg/s/eV'):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
@@ -116,6 +117,8 @@ class GalaxyAggregate(HaloPopulation):
         if (x is None) and (band is None):
             band = self.src.Emin, self.src.Emax
             assert units.lower() == 'ev'
+
+        assert units_out.lower() == 'erg/s/ev', "Not implemented!"
 
         ##
         # Models based on photons / baryon

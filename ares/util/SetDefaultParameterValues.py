@@ -725,6 +725,7 @@ def PopulationParameters():
     "pop_scatter_mar_seed": None,
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
+    "pop_scatter_smhm": 0.0,
     "pop_scatter_env": 0.0,
 
     "pop_update_dt": 'native',
@@ -901,6 +902,7 @@ def PopulationParameters():
     "pop_lum_per_sfr_off_wave": 1,
     "pop_lum_per_sfr_at_wave": None,
     "pop_lum_corr": None,
+    "pop_lum_tab": None,
 
     "pop_calib_Z": None,        # not implemented
 

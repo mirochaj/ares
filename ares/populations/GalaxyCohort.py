@@ -59,6 +59,10 @@ tiny_phi = 1e-18
 #_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
 #    'L_per_sfr', 'sps-toy']
 
+def lognormal(x, mu, sigma):
+    norm = np.sqrt(2. * np.pi) * sigma #/ np.log(10.)
+    return np.exp(-(x - mu)**2 / 2. / sigma**2) / norm
+
 class GalaxyCohort(GalaxyAggregate):
     """
     Create a GalaxyCohort instance.
@@ -1201,13 +1205,41 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Extra step if we're dealing with satellites
-            dndlogm = self.halos.tab_dndlnm[iz,:] * np.log(10.)
+            dndlogm = self.halos.tab_dndlnm[iz,:] #* np.log(10.)
 
             if self.is_central_pop:
                 if use_tabs:
                     dndlogm = dndlogm * self.tab_focc[iz,:]
                 else:
                     dndlogm = dndlogm * self.get_focc(z=z, Mh=self.halos.tab_M)
+
+                ##
+                # More complicated if we have scatter
+                if self.pf['pop_scatter_smhm'] > 0:
+                    sigma = self.pf['pop_scatter_smhm']
+                    logMst_vs_Mh = np.log10(Ms_c)
+
+                    Mmin = self.get_Mmin(z)
+                    Mmax = self.get_Mmax(z)
+                    mu = np.log10(Ms_c)
+
+                    pdf = np.zeros((self.halos.tab_M.size, len(bins)))
+                    for k, Mh in enumerate(self.halos.tab_M):
+
+                        if (Mh < Mmin) or (Mh > Mmax):
+                            continue
+
+                        # Log-normal distribution of stellar mass at given
+                        # halo mass, need to integrate over.
+                        # Arguments are just: x, mu, sigma
+                        pdf[k,:] = lognormal(bins, mu[k], sigma)
+
+                        print(k, np.log10(Mh), np.trapz(pdf[k,:], dx=dx))
+
+                    # Integrate over halo mass axis
+                    phi_tot = np.trapz(dndlogm[:,None] * pdf, dx=dx, axis=0)
+
+                    return bins, phi_tot #* np.log(10.) * np.diff(bins)[0]
 
             else:
                 if use_tabs:
@@ -2033,6 +2065,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Manual override: if user supplies L/SFR directly.
+        kludge = 1.
         if self.pf['pop_lum_per_sfr'] is not None:
 
             assert self.pf['pop_calib_lum'] is None, \
@@ -2048,10 +2081,17 @@ class GalaxyCohort(GalaxyAggregate):
 
             Lh = sfr * lum_per_sfr
             return Lh
+        # or lookup table, in which case we need to interpolate
+        elif self.pf['pop_lum_tab'] is not None:
+            # Need to interpolate in redshift, stellar mass, wavelength
+            Lh = self.get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+            return Lh
 
         ##
         # Apply luminosity correction [optional]
-        kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
+        elif self.pf['pop_lum_corr'] is not None:
+            kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
+
 
         ##
         # Loop over components (most often just one) and determine L
@@ -2434,6 +2474,49 @@ class GalaxyCohort(GalaxyAggregate):
 
             return Lh
 
+    def get_lum_from_tab(self, z, Ms, x=1600, band=None, units='Angstrom'):
+
+        ltab = self.tab_lum
+        ltab_z = self._tab_lum_z
+        ltab_M = self._tab_lum_Ms # actually log10(stellar mass)
+        ltab_w = self._tab_lum_waves
+
+        # Use correction for mean of band [if provided] or exact wavelength
+        if band is not None:
+            _band = self.src.get_ang_from_x(band, units=units)
+            wave = np.mean(_band)
+        elif x is not None:
+            wave = self.src.get_ang_from_x(x, units=units)
+
+        iw = np.argmin(np.abs(wave - ltab_w))
+
+        # Bracket redshift range
+        ilo = np.argmin(np.abs(z - ltab_z))
+
+        # If requested z < tabulated range, just return
+        if (ilo == 0) and (z < ltab_z[ilo]):
+            kludge = np.interp(np.log10(Ms), ltab_M, ltab[ilo,:,iw],
+                left=0, right=0)
+        elif ilo == len(ltab_z) - 1:
+            kludge = np.interp(np.log10(Ms), ltab_M, ltab[-1,:,iw],
+                left=0, right=0)
+        else:
+            # Make sure we're bracketing redshift range.
+            if ltab_z[ilo] > z:
+                ilo -= 1
+
+            kludge1 = np.interp(np.log10(Ms), ltab_M, ltab[ilo,:,iw],
+                left=0, right=0)
+            kludge2 = np.interp(np.log10(Ms), ltab_z, corr[ilo+1,:,iw],
+                left=0, right=0)
+            m = (kludge2 - kludge1) / (ltab_z[ilo+1] - ltab_z[ilo])
+
+            # Interpolate in redshift
+            kludge = kludge1 + m * (z - ltab_z[ilo])
+
+        # Not a kludge in this case, just luminosity
+        return kludge
+
     def get_lum_corr(self, z, Ms, x=1600, band=None, units='Angstrom'):
         ##
         # [optional] Apply correction to galaxy luminosities.
@@ -2751,6 +2834,25 @@ class GalaxyCohort(GalaxyAggregate):
                 raise NotImplemented('help!')
 
             return xout, self.get_mags_app(z, mags)
+
+    @cached_property
+    def tab_lum(self):
+        if self.pf['pop_lum_tab'] is None:
+            return None
+
+        # Read from file
+        assert type(self.pf['pop_lum_tab']) == str
+
+        with h5py.File(self.pf['pop_lum_tab'], 'r') as f:
+            self._tab_lum_z = np.array(f[('z')])
+            self._tab_lum_Ms = np.array(f[('Ms')])
+            self._tab_lum_waves = np.array(f[('waves')])
+            self._tab_lum = np.array(f[('lum')])
+
+        if self.pf['verbose']:
+            print(f"# Loaded {self.pf['pop_lum_tab']}.")
+
+        return self._tab_lum
 
     @cached_property
     def tab_lum_corr(self):
