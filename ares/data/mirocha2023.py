@@ -99,6 +99,8 @@ centrals_sf = \
 
  'pq_val_ceil[0]': 1,
 
+ 'pop_scatter_smhm': 0,
+
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
  'pq_func[2]': 'erf_evolB13',#'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
