@@ -220,6 +220,7 @@ centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
 centrals_q['pop_focc_inv'] = True
+centrals_q['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
 
 for par in centrals_sf:
     if ('[0]' in par) or ('[1]' in par) or ('[2]' in par):
@@ -255,6 +256,7 @@ satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = True
 satellites_sf['pop_fstar'] = 'link:fstar:0'
+satellites_sf['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
 for par in centrals_sf:
     if ('[0]' in par)  or ('[1]' in par) or ('[2]' in par):
         del satellites_sf[par]
@@ -272,6 +274,7 @@ satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
 satellites_q['pop_fstar'] = 'link:fstar:0'
 satellites_q['pop_ssfr'] = None
+satellites_q['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
 
 satellites_q['pop_sfh'] = 'ssp'
 satellites_q['pop_aging'] = True
