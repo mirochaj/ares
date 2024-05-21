@@ -31,6 +31,7 @@ from scipy.interpolate import (
 from . import Cosmology
 from ..data import ARES
 from ..util import ParameterFile
+from ..util.Stats import bin_c2e
 from ..util.Warnings import no_hmf
 from ..util.PrintInfo import print_hmf
 from ..util.ProgressBar import ProgressBar
@@ -677,6 +678,12 @@ class HaloMassFunction(object):
     @_MF.setter
     def _MF(self, value):
         self._MF_ = value
+
+
+    @cached_property
+    def tab_M_e(self):
+        logM = np.log10(self.tab_M)
+        return 10**bin_c2e(logM)
 
     @cached_property
     def dlnm(self):

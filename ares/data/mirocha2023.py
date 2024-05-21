@@ -100,6 +100,7 @@ centrals_sf = \
  'pq_val_ceil[0]': 1,
 
  'pop_scatter_smhm': 0,
+ 'pop_scatter_sfr': 0,
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
@@ -257,6 +258,8 @@ satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = True
 satellites_sf['pop_fstar'] = 'link:fstar:0'
 satellites_sf['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
+satellites_sf['pop_scatter_sfr'] = 'pop_scatter_sfr{0}'
+
 for par in centrals_sf:
     if ('[0]' in par)  or ('[1]' in par) or ('[2]' in par):
         del satellites_sf[par]
@@ -441,6 +444,7 @@ ihl['pop_sfr{4}'] = None
 ihl['pop_ssp{4}'] = True
 ihl['pop_age{4}'] = 1e4
 ihl['pop_Z{4}'] = 0.02
+ihl['pop_scatter_smhm{4}'] = 'pop_scatter_smhm{0}'
 
 mzr = \
 {

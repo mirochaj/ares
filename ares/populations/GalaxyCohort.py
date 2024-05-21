@@ -1480,8 +1480,9 @@ class GalaxyCohort(GalaxyAggregate):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
         return self._is_uvlf_parametric
 
-    def _get_uvlf_mags(self, z, bins, x=1600., use_tabs=True, units='Angstroms',
-        window=1, absolute=True, cam=None, filters=None, dlam=20):
+    def _get_lf_mags(self, z, bins=None, x=1600., use_tabs=True,
+        units='Angstroms', window=1, absolute=True, cam=None, filters=None,
+        dlam=20):
 
         if self.is_uvlf_parametric:
             assert absolute
@@ -1489,13 +1490,39 @@ class GalaxyCohort(GalaxyAggregate):
             return bins, func(z=z, MUV=bins)
 
         ##
-        # Otherwise, standard SFE parameterized approach.
+        # Otherwise, standard parameterized approach.
         ##
 
         # These are absolute AB magnitudes in `x_phi`
-        x_phi, phi = self._get_phi_of_M(z, x=x, use_tabs=use_tabs,
-            units=units, window=window,
-            cam=cam, filters=filters, dlam=dlam)
+        #x_phi, phi = self._get_lf_mags_raw(z, x=x, use_tabs=use_tabs,
+        #    units=units, window=window, bins=bins,
+        #    cam=cam, filters=filters, dlam=dlam)
+
+        Lh, phi_of_L = self._get_lf_lum(z,
+            x=x, units=units, window=window,
+            use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam)
+
+        MAB = self.magsys.get_mag_abs_from_lum(Lh)
+
+        # Skip 0th element of phi(L):
+        if self.pf['pop_scatter_sfr'] == 0:
+            phi_of_M = phi_of_L[1:] * np.abs(np.diff(Lh) / np.diff(MAB))
+        else:
+            phi_of_M = phi_of_L[1:] * np.abs(np.diff(np.log(Lh)) / np.diff(MAB))
+        #phi_of_M[phi_of_M==0] = tiny_phi
+
+        x_phi = MAB[1:]
+        phi = phi_of_M
+
+        #else:
+        #    raise NotImplemented('help')
+
+        #self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)] = \
+        #    MAB[0:-1], phi_of_M
+
+        #
+        #if bins is not None:
+        #    return x_phi, phi
 
         ok = phi.mask == False
 
@@ -1503,42 +1530,25 @@ class GalaxyCohort(GalaxyAggregate):
             return bins, -np.inf * np.ones_like(bins)
 
         # Setup interpolant. x_phi is in descending, remember!
-        interp = interp1d(x_phi[ok][-1::-1], np.log10(phi[ok][-1::-1]),
+        interp = interp1d(x_phi[ok==1][-1::-1], phi[ok==1][-1::-1],
             kind=self.pf['pop_interp_lf'],
-            bounds_error=False, fill_value=np.log10(tiny_phi))
+            bounds_error=False, fill_value=-np.inf)
 
         if not absolute:
             bins_abs = self.get_mags_abs(z, bins)
         else:
             bins_abs = bins
 
-        phi_of_x = 10**interp(bins_abs)
+        phi_of_x = interp(bins_abs)
 
         return bins, phi_of_x
-
-    def _get_uvlf_lum(self, LUV, z=None, x=1600., units='Angstroms', window=1):
-        x_phi, phi = self._get_phi_of_L(z, x=x, units=units, window=window)
-
-        ok = phi.mask == False
-
-        if ok.sum() == 0:
-            return -np.inf
-
-        # Setup interpolant
-        interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]),
-            kind=self.pf['pop_interp_lf'],
-            bounds_error=False, fill_value=np.log10(tiny_phi))
-
-        phi_of_x = 10**interp(np.log10(LUV))
-
-        return phi_of_x
 
     def get_uvlf(self, z, bins, use_mags=True, wave=1600., window=1.,
         absolute=True):
         return self.get_lf(z, bins, use_mags=use_mags, wave=wave,
             window=window, absolute=absolute)
 
-    def get_lf(self, z, bins, use_tabs=True,
+    def get_lf(self, z, bins=None, use_tabs=True,
         use_mags=True, x=1600., units='Angstrom', window=1.,
         absolute=True, raw=False, nebular_only=False, band=None, cam=None,
         filters=None, dlam=20, presets=None):
@@ -1595,13 +1605,16 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Standard treatment: just need to know if user wants mags or L
         if use_mags:
-            _x_, phi_of_x = self._get_uvlf_mags(z, bins, x=x,
+            # This is essentially calling _get_lf_lum under the hood
+            # and converting to magnitudes.
+            _x_, phi_of_x = self._get_lf_mags(z, bins=bins, x=x,
                 use_tabs=use_tabs, units=units,
                 window=window, absolute=absolute,
                 cam=cam, filters=filters, dlam=dlam)
         else:
             # By default, we compute dn/dL
-            bins, phi_of_x = self._get_phi_of_L(z, x=x, use_tabs=use_tabs,
+            bins, phi_of_x = self._get_lf_lum(z, x=x,
+                use_tabs=use_tabs,
                 units=units,
                 window=window, raw=raw, nebular_only=nebular_only, band=band)
             #raise NotImplemented('needs fixing')
@@ -2489,7 +2502,6 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             Lh += _Lh_
 
-
         ##
         # Done
         if Mh is None:
@@ -2675,6 +2687,8 @@ class GalaxyCohort(GalaxyAggregate):
             # painted on.
         else:
             raise NotImplemented('help')
+
+        import matplotlib.pyplot as plt
 
         T = self.get_transmission(z, x, units=units, band=band,
             use_tabs=use_tabs,
@@ -3006,11 +3020,28 @@ class GalaxyCohort(GalaxyAggregate):
 
         return mask
 
-    def _get_phi_of_L(self, z, x=1600., use_tabs=True, window=1, raw=False,
+    def _get_lf_lum(self, z, x=1600., window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms',
-        cam=None, filters=None, dlam=20):
+        cam=None, filters=None, dlam=20, use_tabs=True):
         """
         Compute the luminosity function at redshift z.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        x : int, float
+            Wavelength or photon energy, in `units`.
+        window : int
+            The width of a box car smoothing kernel applied to galaxy spectra
+            before computing final luminosity, i.e., the final luminosities
+            correspond to x +/- window/2.
+        use_tabs : bool
+            If True, will read key quantities from pre-computed lookup tables
+            that span the full redshift and halo mass range. If False, will
+            generate from scratch. The latter is much faster if only interested
+            in a few redshifts.
+
 
         Returns
         -------
@@ -3024,10 +3055,16 @@ class GalaxyCohort(GalaxyAggregate):
             if (z, x, window, cam, filters, dlam) in self._phi_of_L:
                 return self._phi_of_L[(z, x, window, cam, filters, dlam)]
 
+        # Recall: this is always the *median* luminosity vs. Mh
+        # If scatter is provided, will handle below.
         Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out='erg/s/Hz', total_sat=self.is_central_pop)
 
+        dLh = np.abs(np.diff(Lh))
+
+        ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+            self.halos.tab_M < self.get_Mmax(z))
 
         #if self.pf['pop_halos'] is None:
         #    Mh = self.halos.tab_M
@@ -3047,66 +3084,122 @@ class GalaxyCohort(GalaxyAggregate):
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
         if abs(z - self.halos.tab_z[iz]) < ztol:
-            dndm = self.halos.tab_dndm[iz,:-1]
+            dndm = self.halos.tab_dndm[iz,:]
             if use_tabs:
-                focc = self.tab_focc[iz,:-1]
+                focc = self.tab_focc[iz,:]
             else:
-                focc = self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
+                focc = self.get_focc(z=z, Mh=self.halos.tab_M)
 
             if self.is_central_pop:
                 dndm = dndm * focc
         else:
-            dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:-1],
+            dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:],
                 axis=0, kind=self.pf['pop_interp_lf'])
 
             dndm = dndm_func(z)
-            focc = self.get_focc(z=z, Mh=self.halos.tab_M[0:-1])
+            focc = self.get_focc(z=z, Mh=self.halos.tab_M)
             if self.is_central_pop:
                 dndm = dndm * focc
 
         # In this case, obscuration means fraction of objects you don't see
         # in the UV.
         if self.pf['pop_fobsc_by'] == 'num':
-            dndm *= fobsc[0:-1]
+            dndm *= fobsc
+
+        if self.is_central_pop:
+            if self.pf['pop_scatter_sfr'] > 0:
+                _x = np.log(self.halos.tab_M) \
+                    if self.halos.dlnm is None else None
+                _dx = self.halos.dlnm
+
+                dndlnm = dndm * self.halos.tab_M * np.log(10.)
+                sigma = self.pf['pop_scatter_sfr']
+                x = mu = logL_Lh
+
+                # Log-normal distribution of luminosity at given
+                # halo mass, need to integrate over.
+                # Arguments are just: x, mu, sigma
+                pdf = lognormal(x[None,:], mu[:,None], sigma)
+
+                # Integrate over halo mass axis
+                phi_tot = np.trapz(dndlnm[:,None] * pdf[:,:],
+                    dx=_dx, axis=0)
+
+                mask = np.logical_not(ok)
+
+                lum = np.ma.array(Lh, mask=mask)
+                phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
+
+                return lum, phi
 
         ##
         # Extra step if we're dealing with satellites
-        if not self.is_central_pop:
+        else:
 
-            _x = np.log(self.halos.tab_M[0:-1]) if self.halos.dlnm is None else None
+            _x = np.log(self.halos.tab_M[0:]) \
+                if self.halos.dlnm is None else None
             _dx = self.halos.dlnm
 
             if use_tabs:
-                fsurv = self.tab_fsurv[iz,:-1]
+                fsurv = self.tab_fsurv[iz,:]
             else:
-                fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M[0:-1])
+                fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M[0:1])
                 if type(fsurv) in numeric_types:
                     fsurv = np.ones_like(self.halos.tab_M) * fsurv
 
             # Recall that at this point, Lh is the luminosity as a function
             # of subhalo mass. Need to sum up all subhalos over central
             # population
-            dndlnm_c = dndm * self.halos.tab_M[:-1]
+            dndlnm_c = dndm * self.halos.tab_M[:]
 
             #
-            dndlnm_sat = np.zeros_like(self.halos.tab_M[:-1])
-            for i, Mc in enumerate(self.halos.tab_M[:-1]):
+            dndlnm_sat = np.zeros_like(self.halos.tab_M)
+            for i, Mc in enumerate(self.halos.tab_M):
 
                 # Opposite of what we usually do. Integrating over central
                 # halo abunance at fixed subhalo mass.
 
                 # focc independent of central galaxy
-                dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:-1,i] \
+                dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,i] \
                     * focc[i] * fsurv[i]
 
                 dndlnm_sat[i] = np.trapz(dndlnm, x=_x, dx=_dx)
 
+            #
+            if self.pf['pop_scatter_sfr'] > 0:
+                sigma = self.pf['pop_scatter_sfr']
+                x = mu = logL_Lh
+
+                # Log-normal distribution of luminosity at given
+                # halo mass, need to integrate over.
+                # Arguments are just: x, mu, sigma
+                pdf = lognormal(x[None,:], mu[:,None], sigma)
+
+                ##
+                # OK, we now know the number of subhalos globally as a
+                # function of subhalo mass
+                dndlogm = dndlnm_sat * np.log(10.)
+
+                # Integrate over halo mass axis
+                phi_tot = np.trapz(dndlogm[ok==1,None] * pdf[ok==1],
+                    x=_x, dx=_dx, axis=0)
+
+                mask = np.logical_not(ok)
+
+                lum = np.ma.array(Lh, mask=mask)
+                phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
+
+                return lum, phi
+
+            ##
             # Replace dndm
-            dndm = dndlnm_sat / self.halos.tab_M[:-1]
+            dndm = dndlnm_sat / self.halos.tab_M
 
-        dMh_dLh = np.diff(self.halos.tab_M) / np.diff(Lh)
-
-        dMh_dlogLh = dMh_dLh * Lh[0:-1]
+        ##
+        # Add a ghost zone to the low-L end of Lh.
+        # Should we just compute L at bin edges in the future?
+        dMh_dLh = np.diff(self.halos.tab_M_e) \
+                / np.concatenate(([dLh.min()], np.abs(dLh)))
 
         # Only return stuff above Mmin
         Mmin = np.interp(z, self.halos.tab_z, self._tab_Mmin)
@@ -3116,65 +3209,37 @@ class GalaxyCohort(GalaxyAggregate):
         i_max = np.argmin(np.abs(Mmax - self.halos.tab_M))
 
         if self.pf['pop_scatter_sfr'] > 0:
+            raise NotImplemented('help')
             sigma = self.pf['pop_scatter_sfr']
 
-            phi_of_L = np.zeros_like(Lh[0:-1])
-            for k, logL in enumerate(logL_Lh[0:-1]):
+            phi_of_L = np.zeros_like(Lh)
+            for k, logL in enumerate(logL_Lh):
 
                 # Actually a range of halo masses that can produce galaxy
                 # of luminosity Lh
-                pdf = gauss(logL_Lh[0:-1], logL_Lh[k])
+                pdf = gauss(logL_Lh, logL_Lh[k])
 
                 integ = dndm[i_min:i_max] * pdf[i_min:i_max] * dMh_dlogLh[i_min:i_max]
 
                 phi_of_L[k] = np.trapz(integ, x=logL_Lh[i_min:i_max])
 
             # This needs extra term now?
-            phi_of_L /= Lh[0:-1]
+            phi_of_L /= Lh
 
         else:
             phi_of_L = dndm * dMh_dLh
 
         above_Mmin = self.halos.tab_M >= Mmin
         below_Mmax = self.halos.tab_M <= Mmax
-        ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
+        ok = np.logical_and(above_Mmin, below_Mmax)
         mask = self.mask = np.logical_not(ok)
 
-        lum = np.ma.array(Lh[:-1], mask=mask)
+        lum = np.ma.array(Lh, mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask, fill_value=tiny_phi)
 
         self._phi_of_L[(z, x, window, cam, filters, dlam)] = lum, phi
 
         return self._phi_of_L[(z, x, window, cam, filters, dlam)]
-
-    def _get_phi_of_M(self, z, x=1600., use_tabs=True,
-        units='Angstroms', window=1,
-        cam=None, filters=None, dlam=20):
-
-        if not hasattr(self, '_phi_of_M'):
-            self._phi_of_M = {}
-        else:
-            if (z, x, window, cam, filters, dlam, use_tabs) in self._phi_of_M:
-                return self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)]
-
-        Lh, phi_of_L = self._get_phi_of_L(z, x=x, units=units, window=window,
-            use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam)
-
-        _MAB = self.magsys.L_to_MAB(Lh)
-
-        #wave = self.src.get_ang_from_x(x, units=units)
-        MAB = _MAB
-
-        #if self.pf['pop_halos'] is None:
-        phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
-        phi_of_M[phi_of_M==0] = tiny_phi
-        #else:
-        #    raise NotImplemented('help')
-
-        self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)] = \
-            MAB[0:-1], phi_of_M
-
-        return self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)]
 
     def get_mag_lim(self, z, absolute=True, x=1600, band=None, units='Ang',
         window=1, load=True, raw=False, nebular_only=False, apply_dustcorr=False):

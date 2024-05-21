@@ -48,9 +48,12 @@ class MagnitudeSystem(object):
         # Luminosity!
         return 10**(mag / -2.5) * flux_AB * 4. * np.pi * d10**2
 
-    def L_to_MAB(self, L):
+    def get_mag_abs_from_lum(self, L):
         d10 = 10 * cm_per_pc
         return -2.5 * np.log10(L / 4. / np.pi / d10**2 / flux_AB)
+
+    def L_to_MAB(self, L):
+        return self.get_mag_abs_from_lum(L)
 
     def L_to_mab(self, L, z=None, dL=None):
         # apparent magnitude
