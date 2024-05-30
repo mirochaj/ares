@@ -19,7 +19,7 @@ setup = \
  'cosmological_Mmin': None,
 
  'first_light_redshift': 10,
- 'final_redshift': 1e-3,
+ 'final_redshift': 5e-3,
 
  'tau_redshift_bins': 100,
 

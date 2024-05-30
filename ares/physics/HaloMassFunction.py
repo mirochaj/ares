@@ -695,6 +695,10 @@ class HaloMassFunction(object):
             return None
 
     @property
+    def dlog10m(self):
+        return self.pf['halo_dlogM']
+
+    @property
     def tab_dndlnm_sub(self):
         """
         Sub-halo mass function. Assumed to be Universal.
