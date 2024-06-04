@@ -737,11 +737,11 @@ class GalaxyCohort(GalaxyAggregate):
                         focc  = self.tab_focc[i,:]
 
                         #  Need to sum up all subhalos over central population
-                        dndlnm_c = self.halos.tab_dndm[i,:] * self.halos.tab_M
+                        dndlnm_c = self.halos.tab_dndlnm[i,:]
 
                         #
                         dndlnm_sat = np.zeros_like(self.halos.tab_M)
-                        for j, Mc in enumerate(self.halos.tab_M):
+                        for j, Msat in enumerate(self.halos.tab_M):
 
                             # Opposite of what we usually do. Integrating over
                             # central halo abundance at fixed subhalo mass.
@@ -750,13 +750,11 @@ class GalaxyCohort(GalaxyAggregate):
                             dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,j] \
                                 * focc[j] * fsurv[j]
 
-                            dndlnm_sat[j] = np.trapz(dndlnm,
-                                x=np.log(self.halos.tab_M))
+                            dndlnm_sat[j] = np.trapz(dndlnm, dx=self.halos.dlnm)
 
                         integ = smhm * self.halos.tab_M * dndlnm_sat
 
-                    self._tab_smd[i] = np.trapz(integ,
-                        x=np.log(self.halos.tab_M))
+                    self._tab_smd[i] = np.trapz(integ, dx=self.halos.dlnm)
 
             elif mass_return:
                 tasc = self.halos.tab_t[-1::-1]
@@ -1391,6 +1389,13 @@ class GalaxyCohort(GalaxyAggregate):
             return np.interp(maglim, mags, cgal)
         else:
             return mags, cgal
+
+    def get_sfr_mean(self, z, Mh):
+        return self.get_sfr(z=z, Mh=Mh) \
+            * np.exp(0.5 * self.pf['pop_scatter_sfr']**2)
+    def get_mstell_mean(self, z, Mh):
+        return self.get_smhm(z=z, Mh=Mh) * Mh \
+            * np.exp(0.5 * self.pf['pop_scatter_smhm']**2)
 
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
@@ -2548,6 +2553,7 @@ class GalaxyCohort(GalaxyAggregate):
         if (ilo == 0) and (z < ltab_z[ilo]):
             kludge = np.interp(np.log10(Ms), ltab_M, ltab[ilo,:,iw],
                 left=0, right=0)
+        # Same deal if requested z > tabulated range
         elif ilo == len(ltab_z) - 1:
             kludge = np.interp(np.log10(Ms), ltab_M, ltab[-1,:,iw],
                 left=0, right=0)
@@ -2558,7 +2564,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             kludge1 = np.interp(np.log10(Ms), ltab_M, ltab[ilo,:,iw],
                 left=0, right=0)
-            kludge2 = np.interp(np.log10(Ms), ltab_z, corr[ilo+1,:,iw],
+            kludge2 = np.interp(np.log10(Ms), ltab_M, ltab[ilo+1,:,iw],
                 left=0, right=0)
             m = (kludge2 - kludge1) / (ltab_z[ilo+1] - ltab_z[ilo])
 
@@ -4039,7 +4045,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                     #
                     dndlnm_sat = np.zeros_like(self.halos.tab_M)
-                    for j, Mc in enumerate(self.halos.tab_M):
+                    for j, Msat in enumerate(self.halos.tab_M):
 
                         # Opposite of what we usually do. Integrating over central
                         # halo abundance at fixed subhalo mass.
@@ -4048,13 +4054,12 @@ class GalaxyCohort(GalaxyAggregate):
                         dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,j] \
                             * focc[j] * fsurv[j]
 
-                        dndlnm_sat[j] = np.trapz(dndlnm,
-                            x=np.log(self.halos.tab_M))
+                        dndlnm_sat[j] = np.trapz(dndlnm, dx=self.halos.dlnm)
 
                     integ = self.tab_sfr[i,:] * dndlnm_sat
 
-                    tot = np.trapz(integ, x=np.log(self.halos.tab_M))
-                    cumtot = cumtrapz(integ, x=np.log(self.halos.tab_M),
+                    tot = np.trapz(integ, dx=self.halos.dlnm)
+                    cumtot = cumtrapz(integ, dx=self.halos.dlnm,
                         initial=0.0)
 
 

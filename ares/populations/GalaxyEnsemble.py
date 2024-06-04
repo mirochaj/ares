@@ -168,7 +168,7 @@ class GalaxyEnsemble(HaloPopulation):
                     mask = self.histories['mask'][:,iz]
                     ok = np.logical_and(ok, np.logical_not(mask))
 
-                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) / rhodot_cgs
+                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) 
 
             return sfrd
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
