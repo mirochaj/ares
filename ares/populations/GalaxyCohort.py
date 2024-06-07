@@ -1062,15 +1062,20 @@ class GalaxyCohort(GalaxyAggregate):
 
             rhoL = super(GalaxyCohort, self).get_emissivity(z, x=x,
                 band=band, units=units, units_out=units_out)
+
+            if x is not None:
+                return rhoL * self.src.get_spectrum(x, units=units) * on
+            else:
+                return rhoL * on
         else:
             iz = self.get_zindex(z)
             z1 = self.halos.tab_z[iz]
             z2 = self.halos.tab_z[iz+1]
 
             L1 = self.get_lum(z1, x=x, band=band, units=units,
-                units_out=units_out)
+                units_out=units_out, total_sat=True)
             L2 = self.get_lum(z2, x=x, band=band, units=units,
-                units_out=units_out)
+                units_out=units_out, total_sat=True)
 
             ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
                 self.halos.tab_M < self.get_Mmax(z1))
@@ -1080,10 +1085,12 @@ class GalaxyCohort(GalaxyAggregate):
             integ1 = L1 * self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:]
             integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] * self.tab_focc[iz+1,:]
 
-            rhoL1 = np.trapz(integ1 * ok1, x=np.log(self.halos.tab_M))
-            rhoL2 = np.trapz(integ2 * ok2, x=np.log(self.halos.tab_M))
+            rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
+            rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
 
             rhoL = rhoL1 + (z - z1) * (rhoL2 - rhoL1) / (z2 - z1)
+
+            return rhoL
 
         #else:
         #    # Here, the radiation backgrounds cannot just be scaled.
@@ -1092,10 +1099,7 @@ class GalaxyCohort(GalaxyAggregate):
         #    # and again.
         #    rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
-        if x is not None:
-            return rhoL * self.src.get_spectrum(x, units=units) * on
-        else:
-            return rhoL * on
+
 
     def get_mass(self, z, Mh=None, kind='halo'):
         """
@@ -2089,6 +2093,40 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Tdust * Tigm
 
+    def get_lum_sat_tot(self, z, Lsat, use_tabs=True):
+        """
+        Given the luminosity of satellites as a function of subhalo mass `Lsat`,
+        with elements corresponding to self.halos.tab_M, compute the total
+        luminosity of *centrals*, i.e., integrate over the subhalo MF for
+        each central.
+        """
+
+        # Occupation and survival vs. subhalo mass at this redshift.
+        if use_tabs:
+            iz = self.get_zindex(z)
+            fsurv = self.tab_fsurv[iz,:]
+            focc = self.tab_focc[iz,:]
+        else:
+            focc = self.get_focc(z=z, Mh=self.halos.tab_M)
+            fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
+            if type(fsurv) in numeric_types:
+                fsurv = np.ones_like(self.halos.tab_M) * fsurv
+
+        ok_s = np.logical_and(
+            self.halos.tab_M >= self.get_Mmin(z),
+            self.halos.tab_M < self.get_Mmax(z)
+        )
+
+        #
+        dndlnm_all = self.halos.tab_dndlnm_sub \
+            * focc[None,:] * fsurv[None,:]
+
+        # Integrate over subhalo mass dimension
+        Lh = np.trapz(Lsat[None,ok_s==1] * dndlnm_all[:,ok_s==1],
+            x=np.log(self.halos.tab_M[ok_s==1]), axis=1)
+
+        return Lh
+
     def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
@@ -2142,11 +2180,20 @@ class GalaxyCohort(GalaxyAggregate):
         elif self.pf['pop_lum_tab'] is not None:
             # Need to interpolate in redshift, stellar mass, wavelength
             Lh = self.get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+
+            if (not self.is_central_pop) and total_sat:
+                Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)
+
+            if units_out.lower() == 'erg/s/hz':
+                pass
+            else:
+                raise NotImplemented('help')
+
             return Lh
 
         ##
         # Apply luminosity correction [optional]
-        elif self.pf['pop_lum_corr'] is not None:
+        if self.pf['pop_lum_corr'] is not None:
             kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
 
 
@@ -2430,41 +2477,8 @@ class GalaxyCohort(GalaxyAggregate):
                         _Lh_ *= ihl
 
                 else:
-
-                    iz = np.argmin(np.abs(z - self.halos.tab_z))
-                    if use_tabs:
-                        fsurv = self.tab_fsurv[iz,:]
-                        focc = self.tab_focc[iz,:]
-                    else:
-                        focc = self.get_focc(z=z, Mh=self.halos.tab_M)
-                        fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
-                        if type(fsurv) in numeric_types:
-                            fsurv = np.ones_like(self.halos.tab_M) * fsurv
-
-
                     Ls = mste * L_sfr
-                    ok_s = np.logical_and(
-                        self.halos.tab_M >= self.get_Mmin(z),
-                        self.halos.tab_M < self.get_Mmax(z)
-                    )
-
-                    dndlnm_all = self.halos.tab_dndlnm_sub \
-                        * focc[None,:] * fsurv[None,:]
-
-                    #import time
-                    #t1 = time.time()
-                    _Lh_ = np.trapz(Ls[None,ok_s==1] * dndlnm_all[:,ok_s==1],
-                        x=np.log(self.halos.tab_M[ok_s==1]), axis=1)
-
-                    # In this case, need to integrate over subhalo MF.
-                    #
-                    #_Lh_ = np.zeros_like(self.halos.tab_M)
-                    #dndlnm_all = self.halos.tab_dndlnm_sub \
-                    #    * focc[:,None] * fsurv[:,None]
-                    #for i, Mc in enumerate(self.halos.tab_M):
-                    #    #dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
-                    #    _Lh_[i] = np.trapz(Ls * dndlnm_all[i],
-                    #        x=np.log(self.halos.tab_M))
+                    _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
 
             else:
 
@@ -2485,34 +2499,11 @@ class GalaxyCohort(GalaxyAggregate):
                     # as a function of (central) halo mass. This is a
                     # quantity relevant for, e.g., 1-h and 2-h contributions
                     # to EBL fluctuations.
-                    iz = np.argmin(np.abs(z - self.halos.tab_z))
-
-                    # Occupation and survival vs. subhalo mass at this redshift.
-                    if use_tabs:
-                        fsurv = self.tab_fsurv[iz,:]
-                        focc = self.tab_focc[iz,:]
-                    else:
-                        focc = self.get_focc(z=z, Mh=self.halos.tab_M)
-                        fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
-                        if type(fsurv) in numeric_types:
-                            fsurv = np.ones_like(self.halos.tab_M) * fsurv
-
-                    ok_s = np.logical_and(
-                        self.halos.tab_M >= self.get_Mmin(z),
-                        self.halos.tab_M < self.get_Mmax(z)
-                    )
 
                     # Satellite luminosity vs. subhalo mass at this redshift.
                     Ls = sfr * L_sfr
+                    _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
 
-                    # _Lh_ here is total luminosity of central halo from
-                    # satellites
-                    dndlnm_all = self.halos.tab_dndlnm_sub \
-                        * focc[None,:] * fsurv[None,:]
-
-                    # Integrate over subhalo mass dimension
-                    _Lh_ = np.trapz(Ls[None,ok_s==1] * dndlnm_all[:,ok_s==1],
-                        x=np.log(self.halos.tab_M[ok_s==1]), axis=1)
 
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                 self.halos.tab_M < self.get_Mmax(z))
@@ -2908,6 +2899,9 @@ class GalaxyCohort(GalaxyAggregate):
             self._tab_lum_waves = np.array(f[('waves')])
             self._tab_lum = np.array(f[('lum')])
 
+        # Just means not done. Set to zero.
+        self._tab_lum[np.isinf(self._tab_lum)] = 0
+
         if self.pf['verbose']:
             print(f"# Loaded {self.pf['pop_lum_tab']}.")
 
@@ -3130,6 +3124,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Add a ghost zone to the low-L end of Lh.
         # Should we just compute L at bin edges in the future?
         #Lh[Lh==0] = 1e-20
+        dL = np.diff(Lh)
         lnL = np.log(Lh)
         dlnL = np.diff(lnL)
         dlog10L = np.diff(np.log10(Lh))
@@ -3137,23 +3132,33 @@ class GalaxyCohort(GalaxyAggregate):
                 / np.concatenate(([dlnL.min()], np.abs(dlnL)))
         dMh_dlog10L = np.diff(self.halos.tab_M_e) \
                 / np.concatenate(([dlog10L.min()], np.abs(dlog10L)))
+        dMh_dlog10L[np.isnan(dMh_dlog10L)] = 0
+        dlog10LdL = np.concatenate(([dlog10L[0]], np.abs(dlog10L))) \
+            / np.concatenate(([[dL[0]], np.abs(dL)]))
 
         if self.is_central_pop:
             if self.pf['pop_scatter_sfr'] > 0:
                 #_dx = self.halos.dlog10m
 
+
+
                 dndlog10L = dndm * dMh_dlog10L
                 sigma = self.pf['pop_scatter_sfr']
-                x = mu = np.log10(Lh)
+                xx = mu = np.log10(Lh)
+                xx[Lh==0] = 0
+                mu[Lh==0] = 0
 
                 # Log-normal distribution of luminosity at given
                 # halo mass, need to integrate over.
                 # Arguments are just: x, mu, sigma
-                pdf = lognormal(x[None,:], mu[:,None], sigma)
+                pdf = lognormal(xx[None,:], mu[:,None], sigma)
 
                 # Integrate over halo mass axis
-                phi_tot = np.trapz(dndlog10L[ok==1,None] * pdf[ok==1,:],
-                    x=np.log10(Lh[ok==1]), axis=0)
+
+                _ok = np.logical_and(ok, Lh>0)
+                dndL = dndlog10L * dlog10LdL
+                phi_tot = np.trapz(dndlog10L[_ok==1,None] * pdf[_ok==1,:],
+                    x=np.log10(Lh[_ok==1]), axis=0)
 
                 mask = np.logical_not(ok)
 
@@ -3208,21 +3213,23 @@ class GalaxyCohort(GalaxyAggregate):
             #
             if self.pf['pop_scatter_sfr'] > 0:
                 sigma = self.pf['pop_scatter_sfr']
-                x = mu = np.log10(Lh)
+                xx = mu = np.log10(Lh)
 
                 # Log-normal distribution of luminosity at given
                 # halo mass, need to integrate over.
                 # Arguments are just: x, mu, sigma
-                pdf = lognormal(x[None,:], mu[:,None], sigma)
+                pdf = lognormal(xx[None,:], mu[:,None], sigma)
 
                 ##
                 # OK, we now know the number of subhalos globally as a
                 # function of subhalo mass
                 dndlog10L = dndlog10L_sat
 
+                _ok = np.logical_and(ok, Lh>0)
+
                 # Integrate over halo mass axis
-                phi_tot = np.trapz(dndlog10L[ok==1,None] * pdf[ok==1],
-                    x=np.log10(Lh[ok==1]), axis=0)
+                phi_tot = np.trapz(dndlog10L[_ok==1,None] * pdf[_ok==1],
+                    x=np.log10(Lh[_ok==1]), axis=0)
 
                 mask = np.logical_not(ok)
 
