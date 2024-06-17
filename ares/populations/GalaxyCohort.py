@@ -1234,8 +1234,8 @@ class GalaxyCohort(GalaxyAggregate):
 
                 ##
                 # More complicated if we have scatter
-                if self.pf['pop_scatter_smhm'] > 0:
-                    sigma = self.pf['pop_scatter_smhm']
+                if self.pf['pop_scatter_sfh'] > 0:
+                    sigma = self.pf['pop_scatter_sfh']
                     mu = np.log10(Ms_c)
 
                     # This is essentially dn/dlog10Mstell
@@ -1268,8 +1268,8 @@ class GalaxyCohort(GalaxyAggregate):
                 #  Need to sum up all subhalos over central population
                 #dndlog10m_c = self.halos.tab_dndlnm[iz,:] #* np.log(10.)
 
-                if self.pf['pop_scatter_smhm'] > 0:
-                    sigma = self.pf['pop_scatter_smhm']
+                if self.pf['pop_scatter_sfh'] > 0:
+                    sigma = self.pf['pop_scatter_sfh']
 
                     # Ms_c is really Ms_sat if we're a satellite pop.
                     mu = np.log10(Ms_c)
@@ -1396,10 +1396,10 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_sfr_mean(self, z, Mh):
         return self.get_sfr(z=z, Mh=Mh) \
-            * np.exp(0.5 * self.pf['pop_scatter_sfr']**2)
+            * np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
     def get_mstell_mean(self, z, Mh):
         return self.get_smhm(z=z, Mh=Mh) * Mh \
-            * np.exp(0.5 * self.pf['pop_scatter_smhm']**2)
+            * np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
 
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
@@ -2175,7 +2175,9 @@ class GalaxyCohort(GalaxyAggregate):
                 raise ValueError(f'unknown units={units_out}')
 
             Lh = sfr * lum_per_sfr
+
             return Lh
+
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
             # Need to interpolate in redshift, stellar mass, wavelength
@@ -2190,10 +2192,9 @@ class GalaxyCohort(GalaxyAggregate):
                 raise NotImplemented('help')
 
             return Lh
-
         ##
         # Apply luminosity correction [optional]
-        if self.pf['pop_lum_corr'] is not None:
+        elif self.pf['pop_lum_corr'] is not None:
             kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
 
 
@@ -2620,7 +2621,6 @@ class GalaxyCohort(GalaxyAggregate):
             kludge = 1
 
         return kludge
-
 
     def get_lum(self, z, x=1600, use_tabs=True,
         band=None, window=1, units='Angstrom',
@@ -3137,13 +3137,15 @@ class GalaxyCohort(GalaxyAggregate):
             / np.concatenate(([[dL[0]], np.abs(dL)]))
 
         if self.is_central_pop:
-            if self.pf['pop_scatter_sfr'] > 0:
+            #sigma_sfh = self.pf['pop_scatter_sfr']
+            #sigma = self.pf['pop_scatter_sfh']
+            if self.pf['pop_scatter_sfh'] > 0:
                 #_dx = self.halos.dlog10m
 
 
 
                 dndlog10L = dndm * dMh_dlog10L
-                sigma = self.pf['pop_scatter_sfr']
+                sigma = self.pf['pop_scatter_sfh']
                 xx = mu = np.log10(Lh)
                 xx[Lh==0] = 0
                 mu[Lh==0] = 0
@@ -3211,8 +3213,8 @@ class GalaxyCohort(GalaxyAggregate):
                     dx=self.halos.dlnm)
 
             #
-            if self.pf['pop_scatter_sfr'] > 0:
-                sigma = self.pf['pop_scatter_sfr']
+            if self.pf['pop_scatter_sfh'] > 0:
+                sigma = self.pf['pop_scatter_sfh']
                 xx = mu = np.log10(Lh)
 
                 # Log-normal distribution of luminosity at given

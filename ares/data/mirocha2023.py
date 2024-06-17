@@ -99,8 +99,7 @@ centrals_sf = \
 
  'pq_val_ceil[0]': 1,
 
- 'pop_scatter_smhm': 0,
- 'pop_scatter_sfr': 0,
+ 'pop_scatter_sfh': 0,
 
  # Some occupation function stuff here.
  'pop_focc': 'pq[2]',
@@ -221,7 +220,7 @@ centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
 centrals_q['pop_focc_inv'] = True
-centrals_q['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
+centrals_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 
 for par in centrals_sf:
     if ('[0]' in par) or ('[1]' in par) or ('[2]' in par):
@@ -257,8 +256,7 @@ satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = True
 satellites_sf['pop_fstar'] = 'link:fstar:0'
-satellites_sf['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
-satellites_sf['pop_scatter_sfr'] = 'pop_scatter_sfr{0}'
+satellites_sf['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 
 for par in centrals_sf:
     if ('[0]' in par)  or ('[1]' in par) or ('[2]' in par):
@@ -277,7 +275,7 @@ satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
 satellites_q['pop_fstar'] = 'link:fstar:0'
 satellites_q['pop_ssfr'] = None
-satellites_q['pop_scatter_smhm'] = 'pop_scatter_smhm{0}'
+satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 
 satellites_q['pop_sfh'] = 'ssp'
 satellites_q['pop_aging'] = True
@@ -444,7 +442,7 @@ ihl['pop_sfr{4}'] = None
 ihl['pop_ssp{4}'] = True
 ihl['pop_age{4}'] = 1e4
 ihl['pop_Z{4}'] = 0.02
-ihl['pop_scatter_smhm{4}'] = 'pop_scatter_smhm{0}'
+ihl['pop_scatter_sfh{4}'] = 'pop_scatter_sfh{0}'
 
 mzr = \
 {
@@ -556,7 +554,7 @@ best = \
 
 base.update(subhalos)
 #base.update(ihl)
-base.update(best)
+#base.update(best)
 
 ##
 # Allows subhalos to have different SMHM than centrals

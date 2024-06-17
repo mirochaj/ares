@@ -203,7 +203,12 @@ class Global21cm(AnalyzeGlobal21cm):
         """
         self.run()
 
-        nu, dTb = self.history['nu'], self.history['dTb']
+        if 'nu' in self.history:
+            nu = self.history['nu']
+        else:
+            nu = nu_0_mhz / (1. + self.history['z'])
+            
+        dTb = self.history['dTb']
 
         from ..util.Math import central_difference
 

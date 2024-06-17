@@ -549,6 +549,9 @@ class Galaxy(SynthesisModel):
 
         if sfh == 'const':
             print("Failing on const SFH", np.log10(_mass), np.log10(mass), sfr, t)
+            kw['sfh'] = 'fail'
+
+            return kw
 
         if kw['sfh'] != self.pf['source_sfh']:
             #print("Double fail?")

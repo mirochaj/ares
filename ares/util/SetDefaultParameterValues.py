@@ -726,6 +726,7 @@ def PopulationParameters():
     "pop_scatter_sfr": 0.0,
     "pop_scatter_sfe": 0.0,
     "pop_scatter_smhm": 0.0,
+    "pop_scatter_sfh": 0.0,
     "pop_scatter_env": 0.0,
 
     "pop_update_dt": 'native',

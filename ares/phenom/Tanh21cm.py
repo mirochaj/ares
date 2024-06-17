@@ -171,6 +171,7 @@ class Tanh21cm(object):
         hist = \
         {
          'z': z,
+         'nu': nu_0_mhz / (1. + z),
          'dTb': dTb,
          'igm_dTb': dTb,
          'igm_Tk': Tk,
