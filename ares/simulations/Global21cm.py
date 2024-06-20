@@ -207,7 +207,7 @@ class Global21cm(AnalyzeGlobal21cm):
             nu = self.history['nu']
         else:
             nu = nu_0_mhz / (1. + self.history['z'])
-            
+
         dTb = self.history['dTb']
 
         from ..util.Math import central_difference
@@ -350,6 +350,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
+        self.history['nu'] = nu_0_mhz / (1. + self.history['z'])
 
         ##
         # Optional extra radio background

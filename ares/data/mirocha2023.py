@@ -372,35 +372,35 @@ base_centrals = base.copy()
 
 # This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 1#
-subhalos_focc = {}
-subhalos_focc['pop_fsurv{2}'] = 'pq[3]'
-subhalos_focc['pop_fsurv_inv{2}'] = False
-subhalos_focc['pq_func[3]{2}'] = 'erf_evolB13'
-subhalos_focc['pq_func_var[3]{2}'] = 'Mh'
-subhalos_focc['pq_func_var2[3]{2}'] = '1+z'
-subhalos_focc['pq_val_ceil[3]{2}'] = 1
-subhalos_focc['pq_val_floor[3]{2}'] = 0
-subhalos_focc['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
-subhalos_focc['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
-subhalos_focc['pq_func_par2[3]{2}'] = 11.5
-subhalos_focc['pq_func_par3[3]{2}'] = 1 # dlogM
-subhalos_focc['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
-subhalos_focc['pq_func_par5[3]{2}'] = 0
-subhalos_focc['pq_func_par6[3]{2}'] = 0
-subhalos_focc['pq_func_par7[3]{2}'] = 0
-subhalos_focc['pq_func_par8[3]{2}'] = 0
-subhalos_focc['pq_func_par9[3]{2}'] = 0
-subhalos_focc['pq_func_par10[3]{2}'] = 0
-subhalos_focc['pq_func_par11[3]{2}'] = 0
-subhalos_focc['pq_func_par12[3]{2}'] = 0
-subhalos_focc['pq_func_par13[3]{2}'] = 0
-subhalos_focc['pq_func_par14[3]{2}'] = 0
-subhalos_focc['pq_func_par15[3]{2}'] = 0
-subhalos_focc['pq_func_par16[3]{2}'] = 0
-subhalos_focc['pq_func_par17[3]{2}'] = 0
-subhalos_focc['pq_func_par18[3]{2}'] = 0
-subhalos_focc['pq_func_par19[3]{2}'] = 0
-subhalos_focc['pq_func_par20[3]{2}'] = 0
+subhalos_fsurv = {}
+subhalos_fsurv['pop_fsurv{2}'] = 'pq[3]'
+subhalos_fsurv['pop_fsurv_inv{2}'] = False
+subhalos_fsurv['pq_func[3]{2}'] = 'erf_evolB13'
+subhalos_fsurv['pq_func_var[3]{2}'] = 'Mh'
+subhalos_fsurv['pq_func_var2[3]{2}'] = '1+z'
+subhalos_fsurv['pq_val_ceil[3]{2}'] = 1
+subhalos_fsurv['pq_val_floor[3]{2}'] = 0
+subhalos_fsurv['pq_func_par0[3]{2}'] = 0.0  # step = par0-par1
+subhalos_fsurv['pq_func_par1[3]{2}'] = 1    # fsurv = par1 + step * tanh(stuff)
+subhalos_fsurv['pq_func_par2[3]{2}'] = 11.5
+subhalos_fsurv['pq_func_par3[3]{2}'] = 1 # dlogM
+subhalos_fsurv['pq_func_par4[3]{2}'] = 1.  # Pin to z=0
+subhalos_fsurv['pq_func_par5[3]{2}'] = 0
+subhalos_fsurv['pq_func_par6[3]{2}'] = 0
+subhalos_fsurv['pq_func_par7[3]{2}'] = 0
+subhalos_fsurv['pq_func_par8[3]{2}'] = 0
+subhalos_fsurv['pq_func_par9[3]{2}'] = 0
+subhalos_fsurv['pq_func_par10[3]{2}'] = 0
+subhalos_fsurv['pq_func_par11[3]{2}'] = 0
+subhalos_fsurv['pq_func_par12[3]{2}'] = 0
+subhalos_fsurv['pq_func_par13[3]{2}'] = 0
+subhalos_fsurv['pq_func_par14[3]{2}'] = 0
+subhalos_fsurv['pq_func_par15[3]{2}'] = 0
+subhalos_fsurv['pq_func_par16[3]{2}'] = 0
+subhalos_fsurv['pq_func_par17[3]{2}'] = 0
+subhalos_fsurv['pq_func_par18[3]{2}'] = 0
+subhalos_fsurv['pq_func_par19[3]{2}'] = 0
+subhalos_fsurv['pq_func_par20[3]{2}'] = 0
 
 # Dust
 subhalos['pop_Av{2}'] = 'link:Av:0'
@@ -490,71 +490,7 @@ smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
 
-best = \
-{
-'pq_func_par0[0]{0}': 3.8954e-04,
-'pq_func_par1[0]{0}': 5.3712e+11,
-'pq_func_par2[0]{0}': 1.1115e+00,
-'pq_func_par3[0]{0}': -4.3636e-01,
-'pq_func_par5[0]{0}': 3.8174e-02,
-'pq_func_par9[0]{0}': 1.1444e-01,
-'pq_func_par13[0]{0}': -3.5468e-01,
-'pq_func_par6[0]{0}': 2.2669e-01,
-'pq_func_par10[0]{0}': 3.3021e-01,
-'pq_func_par14[0]{0}': 2.0931e-02,
-'pq_func_par0[2]{0}': 3.6690e-02,
-'pq_func_par1[2]{0}': 7.7328e-01,
-'pq_func_par2[2]{0}': 1.2209e+01,
-'pq_func_par3[2]{0}': -6.6942e-01,
-'pq_func_par4[2]{0}': 6.1058e-01,
-'pq_func_par8[2]{0}': 4.2276e-02,
-'pq_func_par12[2]{0}': -9.1205e-04,
-'pq_func_par5[2]{0}': 2.9010e-01,
-'pq_func_par9[2]{0}': -2.4559e-02,
-'pq_func_par13[2]{0}': 3.5421e-02,
-'pq_func_par6[2]{0}': -2.8269e-01,
-'pq_func_par10[2]{0}': 7.6175e-02,
-'pq_func_par14[2]{0}': -2.1064e-02,
-'pq_func_par7[2]{0}': 8.5306e-01,
-'pq_func_par11[2]{0}': -1.7278e-02,
-'pq_func_par15[2]{0}': -4.9272e-02,
-'pq_func_par0[1]{0}': 1.5927e-02,
-'pq_func_par1[1]{0}': 7.1008e+10,
-'pq_func_par2[1]{0}': 1.5150e+00,
-'pq_func_par3[1]{0}': 4.5578e-01,
-'pq_func_par5[1]{0}': 2.0392e-02,
-'pq_func_par9[1]{0}': 2.1654e-01,
-'pq_func_par13[1]{0}': 7.9087e-02,
-'pq_func_par6[1]{0}': 2.5633e+00,
-'pq_func_par10[1]{0}': -9.8255e-02,
-'pq_func_par14[1]{0}': -2.0452e-01,
-'pq_func_par0[4]{0}': 1.1732e+00,
-'pq_func_par2[4]{0}': 1.3039e-02,
-'pq_func_par3[4]{0}': -9.3737e-03,
-'pq_func_par5[4]{0}': -2.6789e-01,
-'pq_func_par7[4]{0}': -7.4356e-02,
-'pq_func_par4[4]{0}': 7.1479e-03,
-'pq_func_par6[4]{0}': 3.5031e-02,
-'pq_func_par8[4]{0}': 1.3915e-02,
-'pq_func_par0[3]{2}': 3.0129e-01,
-'pq_func_par1[3]{2}': 7.8550e-01,
-'pq_func_par2[3]{2}': 1.2816e+01,
-'pq_func_par3[3]{2}': 3.4158e+00,
-'pq_func_par4[3]{2}': -1.9960e+00,
-'pq_func_par5[3]{2}': 1.1755e+00,
-'pq_func_par6[3]{2}': -6.3000e-01,
-'pq_func_par7[3]{2}': 9.7541e-01,
-'mu_0': 4.4865e-01,
-'mu_a': -2.4907e-01,
-'mu_z': -4.3745e-01,
-'kappa_0': -5.6027e-02,
-'kappa_a': 3.3710e-01,
-'kappa_z': -2.6643e-01,
-}
-
 base.update(subhalos)
-#base.update(ihl)
-#base.update(best)
 
 ##
 # Allows subhalos to have different SMHM than centrals
@@ -658,3 +594,45 @@ slow = \
  "halo_tmin": 30,
  "halo_dt": 10,
 }
+
+minimal = base.copy()
+minimal.update(
+{
+'pq_func_par0[0]{0}': 1.0917e-04,
+'pq_func_par1[0]{0}': 8.4797e+11,
+'pq_func_par2[0]{0}': 1.4747e+00,
+'pq_func_par3[0]{0}': -5.7652e-01,
+'pq_func_par5[0]{0}': -1.6841e+00,
+'pq_func_par6[0]{0}': 9.6114e-01,
+'pq_func_par7[0]{0}': -8.3440e-01,
+'pq_func_par8[0]{0}': -2.1866e-01,
+'pq_func_par0[2]{0}': 8.3439e-01,
+'pq_func_par1[2]{0}': 6.8386e-01,
+'pq_func_par2[2]{0}': 1.1914e+01,
+'pq_func_par3[2]{0}': -2.6544e-01,
+'pq_func_par4[2]{0}': -2.8311e+00,
+'pq_func_par5[2]{0}': 5.5472e-01,
+'pq_func_par6[2]{0}': 1.0800e+00,
+'pq_func_par7[2]{0}': -4.3420e-01,
+'pq_func_par0[1]{0}': 1.0243e-04,
+'pq_func_par1[1]{0}': 2.3953e+11,
+'pq_func_par2[1]{0}': 2.9600e+00,
+'pq_func_par3[1]{0}': -1.4614e-01,
+'pq_func_par5[1]{0}': -5.2900e-01,
+'pq_func_par6[1]{0}': 1.1928e+00,
+'pq_func_par7[1]{0}': -1.6698e+00,
+'pq_func_par8[1]{0}': 7.6926e-01,
+'pq_func_par0[4]{0}': 9.6825e-01,
+'pq_func_par1[4]{0}': 1.3223e+10,
+'pq_func_par2[4]{0}': 1.5324e-01,
+'pq_func_par3[4]{0}': -1.4361e+00,
+'pq_func_par5[4]{0}': 4.3310e-01,
+'pq_func_par6[4]{0}': 1.9648e+00,
+'pq_func_par7[4]{0}': 3.2099e-02,
+'pq_func_par8[4]{0}': 2.2214e+00,
+'pop_scatter_sfh{0}': 2.0421e-01,
+'mu_0': -1.6532e-01,
+'mu_a': 1.0490e-01,
+'kappa': -8.8811e-02,
+}
+)
