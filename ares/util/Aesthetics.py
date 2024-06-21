@@ -10,29 +10,11 @@ Description:
 
 """
 
-import os, re
+import os
+import re
 import importlib
 import numpy as np
-from matplotlib import cm
 from .ParameterFile import par_info
-from matplotlib.colors import ListedColormap
-
-# Charlotte's color-maps
-_charlotte1 = ['#301317','#3F2A3D','#2D4A60','#036B66','#48854D','#9D9436','#F69456']
-_charlotte2 = ['#001316', '#2d2779', '#9c207e', '#c5492a', '#819c0c', '#3dd470', '#64cdf6']
-
-cmap_charlotte1 = ListedColormap(_charlotte1, name='charlotte1')
-cmap_charlotte2 = ListedColormap(_charlotte2, name='charlotte2')
-
-_zall = np.arange(4, 11, 1)
-
-_znormed = (_zall - _zall[0]) / float(_zall[-1] - _zall[0])
-_ch_c1 = cm.get_cmap(cmap_charlotte1, _zall.size)
-_ch_c2 = cm.get_cmap(cmap_charlotte2, _zall.size)
-_normz = lambda zz: (zz - _zall[0]) / float(_zall[-1] - _zall[0])
-
-colors_charlotte1 = lambda z: _ch_c1(_normz(z))
-colors_charlotte2 = lambda z: _ch_c2(_normz(z))
 
 prefixes = ['igm_', 'cgm_']
 
