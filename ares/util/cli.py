@@ -578,7 +578,7 @@ def generate_unfw_tables(path, **kwargs):
 
     def_kwargs.update(kwargs)
 
-    halos = HaloModel(halo_mf_load=True, **pars)
+    halos = HaloModel(halo_mf_load=True, **def_kwargs)
 
     try:
         halos.generate_halo_surface_dens(format=fmt, clobber=False,
