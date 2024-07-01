@@ -264,6 +264,8 @@ def no_hmf(hmf):
             pycamb.
             """
         )
+    #else:
+
 
     dedented_s = textwrap.dedent(s).strip()
     snew = textwrap.fill(dedented_s, width=twidth)

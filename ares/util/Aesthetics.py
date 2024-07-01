@@ -12,7 +12,6 @@ Description:
 
 import os
 import re
-import importlib
 import numpy as np
 from .ParameterFile import par_info
 

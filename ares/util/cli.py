@@ -22,7 +22,7 @@ from .Math import smooth
 from . import ParameterBundle
 from .. import __version__
 from ..data import ARES
-from ..physics import HaloMassFunction
+from ..physics import HaloModel, HaloMassFunction
 from ..populations import GalaxyPopulation
 from ..solvers import OpticalDepth
 from ..sources import BlackHole
@@ -578,7 +578,7 @@ def generate_unfw_tables(path, **kwargs):
 
     def_kwargs.update(kwargs)
 
-    halos = ares.physics.HaloModel(halo_mf_load=True, **pars)
+    halos = HaloModel(halo_mf_load=True, **pars)
 
     try:
         halos.generate_halo_surface_dens(format=fmt, clobber=False,
@@ -621,9 +621,9 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
         print("Loading {}...".format(full_fn))
         data = np.loadtxt(full_fn)
         wave = data[:,0]
-
-        assert np.all(np.diff(wave) == 1), \
-            "Expecting intrinsic spectral resolution of 1 Angstrom."
+        dl = np.diff(wave)
+        assert np.all(dl == 1), \
+            f"Expecting intrinsic spectral resolution of 1 Angstrom. Found dl={dl}."
 
         # We're taking every degrade_to'th wavelength, and will save the
         # SED smoothed with a boxcar to that
