@@ -3,7 +3,6 @@ import copy
 import pickle
 import numpy as np
 from types import FunctionType
-from ..util import ProgressBar
 from ..util import ParameterFile
 from .Global21cm import Global21cm
 from .PowerSpectrum21cm import PowerSpectrum21cm
@@ -178,12 +177,21 @@ class Simulation(object):
         Parameters
         ----------
         scales : int, float, np.ndarray
-
+            Modes (or angular scales) of interest, depending on value of
+            `scale_units`.
         waves : int, float, np.ndarray
             Wavelengths at which to compute power spectra in `wave_units`.
             Note that if 2-D, must have shape (number of bins, 2), in which
             case the power spectra will be computed in series of bandpasses.
-
+        pops : list, tuple
+            If provided, sets the ID numbers of populations that will be
+            included in the model. In other words, any population *not* included
+            in this list will be skipped. By default, this is None and all
+            source populations defined by the parameters (self.pf) are
+            included.
+        include_inter_pop : bool
+            This flag determines whether "inter-population cross terms" are
+            included in the calculation. 
         wave_units : str
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str

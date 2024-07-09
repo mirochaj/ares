@@ -580,9 +580,18 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (1.87e4, 1.27e41 * 0.123)]   # [P-alpha]
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
 
-fast = \
+
+faster = \
 {
  "halo_dlogM": 0.05,
+ "halo_tmin": 100,
+ "halo_tmax": 13.7e3,
+ "halo_dt": 100,
+}
+
+fast = \
+{
+ "halo_dlogM": 0.025,
  "halo_tmin": 100,
  "halo_tmax": 13.7e3,
  "halo_dt": 100,

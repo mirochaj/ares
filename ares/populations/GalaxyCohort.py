@@ -1546,20 +1546,21 @@ class GalaxyCohort(GalaxyAggregate):
         #if bins is not None:
         #    return x_phi, phi
 
-        ok = phi.mask == False
+        ok = np.logical_and(phi.mask == False, phi > 0)
 
         if ok.sum() == 0:
+            print(f"! All LF elements masked at z={z}!")
             return bins, np.zeros_like(bins)
-
-        # Setup interpolant. x_phi is in descending, remember!
-        interp = interp1d(x_phi[ok==1][-1::-1], phi[ok==1][-1::-1],
-            kind=self.pf['pop_interp_lf'],
-            bounds_error=False, fill_value=0)
 
         if not absolute:
             bins_abs = self.get_mags_abs(z, bins)
         else:
             bins_abs = bins
+
+        # Setup interpolant. x_phi is in descending, remember!
+        interp = interp1d(x_phi[ok==1][-1::-1], phi[ok==1][-1::-1],
+            kind=self.pf['pop_interp_lf'],
+            bounds_error=False, fill_value=0)
 
         phi_of_x = interp(bins_abs)
 
