@@ -108,7 +108,7 @@ def _load(fn=None, **kwargs):
 
         data *= Lsun
 
-    return wavelengths, data, _fn
+    return wavelengths, times, data, _fn
 
 
 def _load_tracks(**kwargs):

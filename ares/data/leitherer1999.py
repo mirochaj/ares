@@ -178,4 +178,4 @@ def _load(**kwargs):
         wavelengths = _raw_data[:,0]
         data = 10**_raw_data[:,1:]
 
-    return wavelengths, data, _fn
+    return wavelengths, times, data, _fn

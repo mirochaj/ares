@@ -105,7 +105,7 @@ J21_num = 1e-21 / E_LyA / erg_per_ev
 nu_0_mhz = nu_0 / 1e6
 
 # solar luminosity
-Lsun = 3.828e33
+Lsun = 3.826e33
 Tsun = 5778.
 Rsun = 695508. * cm_per_km
 

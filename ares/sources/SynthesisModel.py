@@ -781,15 +781,24 @@ class SynthesisModel(SynthesisModelBase):
         self._waves_e = bin_c2e(self.tab_waves_c)
         return self._waves_e
 
+    @cached_property
+    def tab_times(self):
+        data = self.tab_sed_raw
+        return self._tab_times
+
+    @property
+    def tab_t(self):
+        return self.tab_times
+
     #@property
     #def weights(self):
     #    return self._litinst.weights
 
-    @cached_property
-    def tab_t(self):
-        if not hasattr(self, '_times'):
-            self._times = self._litinst.times
-        return self._times
+    #@cached_property
+    #def tab_t(self):
+    #    if not hasattr(self, '_times'):
+    #        self._times = self._litinst.times
+    #    return self._times
 
     @cached_property
     def tab_metallicities(self):
@@ -819,7 +828,7 @@ class SynthesisModel(SynthesisModelBase):
                 assert _ssp == self.is_ssp, \
                     f"Cached ssp={_ssp}, from parameter file it's {self.is_ssp}"
             self._data = _data
-            self._times = _times
+            self._tab_times = _times
             self._tab_waves_c = _waves
             #print('# WARNING: If supplying source_sps_data, should include any nebular emission too!')
             #self._add_nebular_emission(self._data)
@@ -835,7 +844,7 @@ class SynthesisModel(SynthesisModelBase):
                 _tmp = self.pf['source_sed_by_Z'][1]
                 self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
             else:
-                self._tab_waves_c, self._data, _fn = \
+                self._tab_waves_c, self._tab_times, self._data, _fn = \
                     self._litinst._load(**self.pf)
 
                 if self.pf['verbose']:
@@ -847,7 +856,7 @@ class SynthesisModel(SynthesisModelBase):
                 assert len(_tmp) == len(Zall)
             else:
                 # Will load in all metallicities
-                self._tab_waves_c, _tmp, _fn = \
+                self._tab_waves_c, self._tab_times, _tmp, _fn = \
                     self._litinst._load(**self.pf)
 
                 if self.pf['verbose']:
