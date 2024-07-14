@@ -1548,6 +1548,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         ok = np.logical_and(phi.mask == False, phi > 0)
 
+        #print('hi', z, x, ok.sum(), x_phi[ok==1], phi[ok==1])
+
         if ok.sum() == 0:
             print(f"! All LF elements masked at z={z}!")
             return bins, np.zeros_like(bins)
@@ -1562,7 +1564,11 @@ class GalaxyCohort(GalaxyAggregate):
             kind=self.pf['pop_interp_lf'],
             bounds_error=False, fill_value=0)
 
-        phi_of_x = interp(bins_abs)
+        try:
+            phi_of_x = interp(bins_abs)
+        except ValueError:
+            print(f"issue with tmpy array at z={z}, {x}, {ok.sum()}, {x_phi[ok==1]}")
+            phi_of_x = np.zeros_like(bins_abs)
 
         return bins, phi_of_x
 

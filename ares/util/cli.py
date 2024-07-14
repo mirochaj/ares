@@ -9,6 +9,7 @@ import argparse
 import os
 import re
 import sys
+import gzip
 import shutil
 import tarfile
 import zipfile
@@ -113,6 +114,56 @@ _bpass_v1_links = [
     f"sed_bpass_z{zval}_tar.gz" for zval in ["001", "004", "008", "020", "040"]
 ]
 
+_bc03_orig_links = []
+for imf in ['chabrier', 'salpeter']:
+    for tracks in ['padova_1994', 'padova_2000', 'geneva_1994']:
+        _bc03_orig_links.append(f"bc03.models.{tracks}_{imf}_imf.tar.gz")
+
+_bc03_2013_links = []
+for imf in ['chabrier', 'salpeter', 'kroupa']:
+    for tracks in ['padova_1994', 'padova_2000']:
+        _bc03_2013_links.append(f"bc03.models.{tracks}_{imf}_imf.tar.gz")
+
+
+def gunzip_files(parent_dir):
+    for filename in os.listdir(parent_dir):
+        if filename.endswith('.gz'):
+            with gzip.open(f"{parent_dir}/{filename}", 'rb') as f_in:
+                with open(filename[:-3], 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+
+                print(f"# Unzipped {parent_dir}/{filename}.")
+
+def unpack_files(parent_dir):
+    for fn in os.listdir(parent_dir):
+        full_path = os.path.join(parent_dir, fn)
+
+        if fn.endswith('tar.gz'):
+            f = tarfile.open(full_path)
+            f.extractall(parent_dir)
+            f.close()
+        elif fn.endswith('.zip'):
+            print('hi', full_path)
+            zip_ref = zipfile.ZipFile(full_path, 'r')
+            zip_ref.extractall(parent_dir)
+            zip_ref.close()
+        elif fn.endswith('gz'):
+            with gzip.open(full_path, 'rb') as f_in:
+                with open(full_path[:-3], 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        else:
+            #print(f"# Unrecognized file format: {full_path}.")
+            continue
+
+        print(f"# Unpacked {full_path}.")
+
+
+def unpack_bc03(parent_dir):
+    path = f"{ARES}/bc03/bc03/models"
+    for tracks in os.listdir(path):
+        for imf in os.listdir(f"{path}/{tracks}"):
+            unpack_files(f"{path}/{tracks}/{imf}")
+
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
 aux_data = {
@@ -149,6 +200,12 @@ aux_data = {
     "bpass_v1_stars": [
         "http://bpass.auckland.ac.nz/1/files", "starsmodels_tar.gz", None
     ],
+    "bc03": [
+        "https://www.bruzual.org/bc03/Original_version_2003"
+    ] + _bc03_orig_links + [unpack_bc03],
+    "bc03_2013": [
+        "https://www.bruzual.org/bc03/Updated_version_2013"
+    ] + _bc03_2013_links + [None],
     "umachine-data": [
         "http://halos.as.arizona.edu/UniverseMachine/DR1",
         "umachine-dr1-obs-only.tar.gz",

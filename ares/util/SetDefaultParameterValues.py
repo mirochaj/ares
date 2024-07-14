@@ -1036,7 +1036,7 @@ def SourceParameters():
         "source_Z": 0.02,
         "source_imf": 2.35,
         "source_imf_Mmax": 300,
-        "source_tracks": None,
+        "source_tracks": 'Padova1994',
         "source_tracks_fn": None,
         "source_stellar_aging": False,
         "source_nebular": False,

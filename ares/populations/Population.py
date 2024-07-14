@@ -45,11 +45,11 @@ from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters, SynthesisParameters
 
 _synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017',
-    'bpass_v1', 'bpass_v2', 'starburst99']
+    'bpass_v1', 'bpass_v2', 'starburst99', 'bc03']
 _single_star_models = ['schaerer2002']
 _sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
     'schaerer2002', 'hybrid',
-    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy']
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy', 'bc03']
 
 simple_sfhs = [None, 'const', 'ssp', 'burst', 'const+ssp', 'constant+ssp',
     'const+burst', 'constant+burst']

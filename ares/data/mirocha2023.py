@@ -43,11 +43,13 @@ centrals_sf = \
  'pop_include_shot': True,
 
  # SED info
- 'pop_sed': 'eldridge2017',
+ 'pop_sed': 'bc03',
+ 'pop_imf': 'chabrier',
+ 'pop_tracks': 'Padova1994',
  'pop_rad_yield': 'from_sed',
 
  'pop_fesc': 0.2,
- 'pop_sed_degrade': 10,
+ 'pop_sed_degrade': None,
 
  'pop_nebular': 0,
 
@@ -417,10 +419,10 @@ ihl['pop_Emax{4}'] = 24.6
 ihl['pop_zdead{4}'] = 0
 
 # SED info
-ihl['pop_sed{4}'] = 'eldridge2017'
+ihl['pop_sed{4}'] = 'bc03'
 ihl['pop_rad_yield{4}'] = 'from_sed'
 
-ihl['pop_sed_degrade{4}'] = 10
+ihl['pop_sed_degrade{4}'] = None#10
 ihl['pop_nebular{4}'] = 0
 
 #
