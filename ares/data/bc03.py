@@ -2,6 +2,7 @@
 Bruzual & Charlot 2003
 """
 
+import pickle
 import numpy as np
 from ares.data import ARES
 from ares.physics.Constants import Lsun
@@ -52,8 +53,6 @@ def _kwargs_to_fn(**kwargs):
 
     mvals = metallicities.values()
 
-    assert kwargs['source_ssp']
-
     #assert kwargs['source_imf'] == 'chabrier'
 
     path += f"/{kwargs['source_imf']}/"
@@ -66,6 +65,9 @@ def _kwargs_to_fn(**kwargs):
     key = list(metallicities.keys())[iZ]
     fn += f"_{key}_{kwargs['source_imf'][0:4]}_ssp.ised_ASCII"
 
+    if not kwargs['source_ssp']:
+        fn += '_csfh'
+
     if kwargs['source_sed_degrade'] is not None:
         fn += '.deg{}'.format(kwargs['source_sed_degrade'])
 
@@ -74,6 +76,13 @@ def _kwargs_to_fn(**kwargs):
 def _load(**kwargs):
     fn = _kwargs_to_fn(**kwargs)
 
+    # Simpler! We made this.
+    if fn.endswith('csfh'):
+        with open(fn, 'rb') as f:
+            data = pickle.load(f)
+        return data['waves'], data['t'], data['data'], fn
+
+    # Otherwise, parse original dateset
     with open(fn, 'r') as f:
         times = []
         waves = []

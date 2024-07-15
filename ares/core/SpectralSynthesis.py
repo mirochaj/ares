@@ -644,7 +644,7 @@ class SpectralSynthesis(object):
 
     def get_spec_rest(self, waves, sfh=None, tarr=None, zarr=None, window=1,
         zobs=None, tobs=None, band=None, idnum=None, units='Hz', hist={},
-        extras={}, load=True, use_pbar=True):
+        extras={}, load=True, use_pbar=True, units_out='erg/s/Hz'):
         """
         This is just a wrapper around `Luminosity`.
         """
@@ -698,7 +698,7 @@ class SpectralSynthesis(object):
                         sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                         band=band, hist=hist, idnum=idnum,
                         extras=extras, window=window, load=load,
-                        use_pbar=use_pbar)
+                        use_pbar=use_pbar, units_out=units_out)
 
                     pb.update(i)
 
@@ -712,7 +712,7 @@ class SpectralSynthesis(object):
                     sfh=sfh, tarr=tarr, zarr=zarr, zobs=zobs, tobs=tobs,
                     band=band, hist=hist, idnum=idnum,
                     extras=extras, window=window, load=load,
-                    use_pbar=not use_pbar)
+                    use_pbar=not use_pbar, units_out=units_out)
 
                 spec[slc] = tmp
 

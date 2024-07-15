@@ -2,7 +2,7 @@
 A module for downloading remote data.
 
 Author: Jordan Mirocha and Paul La Plante
-Affiliation: JPL
+Affiliation: JPL, UNLV
 Created on: Sun Feb 5 12:51:32 PST 2023
 """
 import argparse
@@ -11,6 +11,7 @@ import re
 import sys
 import gzip
 import shutil
+import pickle
 import tarfile
 import zipfile
 from urllib.request import urlretrieve
@@ -24,9 +25,10 @@ from . import ParameterBundle
 from .. import __version__
 from ..data import ARES
 from ..physics import HaloModel, HaloMassFunction
+from ..physics.Constants import c
 from ..populations import GalaxyPopulation
 from ..solvers import OpticalDepth
-from ..sources import BlackHole
+from ..sources import BlackHole, Galaxy
 from ..simulations import RaySegment
 
 
@@ -750,6 +752,43 @@ def make_simpl(path):
     for i, alpha in enumerate([-2.5, -2, -1.5, -1, -0.5, -0.25]):
         for j, fsc in enumerate([0.1, 0.5, 0.9]):
             generate_simpl_seds(path, source_alpha=alpha, source_fsc=fsc)
+
+def generate_csfh_tab(path, **kwargs):
+    def_kwargs = {}
+    def_kwargs['source_aging'] = True
+    def_kwargs['source_ssp'] = True
+    def_kwargs['source_sed_degrade'] = None
+    def_kwargs['source_sed'] = 'bc03'
+    def_kwargs['source_imf'] = 'chabrier'
+    def_kwargs['source_tracks'] = 'Padova1994'
+    def_kwargs['source_Z'] = 0.02
+    def_kwargs['source_ssp'] = True
+    def_kwargs['source_sfh'] = 'const'
+
+    def_kwargs.update(kwargs)
+
+    galaxy = Galaxy(**def_kwargs)
+
+    tarr = galaxy.tab_t
+    waves = galaxy.tab_waves_c
+
+    #data = np.zeros((waves.size, tarr.size))
+    #for i, t in enumerate(tarr[0:-1]):
+    #    if i == 0:
+    #        continue
+
+    # Default units for native SED tables is erg/s/A 
+    data = galaxy.get_spec(zobs=None, t=tarr,
+        sfh=np.ones_like(tarr), waves=waves, units_out='erg/s/A')
+
+        #data[:,i] = spec[i,:]
+
+    fn = f"{path}_csfh"
+    with open(fn, 'wb') as f:
+        pickle.dump({'t': tarr, 'waves': waves, 'data': data.T}, f)
+    #np.savetxt(fn, data.T)
+    print(f"# Wrote {fn}")
+
 
 def generate_rt1d_tabs(path, **kwargs):
     # go to path

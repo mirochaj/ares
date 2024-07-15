@@ -636,7 +636,7 @@ class Galaxy(SynthesisModel):
             raise NotImplemented('help')
 
     def get_spec(self, zobs, t=None, sfh=None, mass=None, sfr=None, waves=None,
-        tau_guess=1e3, use_pbar=True, hist={}, **kwargs):
+        tau_guess=1e3, use_pbar=True, hist={}, units_out='erg/s/Hz', **kwargs):
         """
         Return the rest-frame spectrum of a galaxy at observed redshift, `zobs`.
 
@@ -691,7 +691,7 @@ class Galaxy(SynthesisModel):
         if perform_synthesis:
             spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
                 waves=waves, zobs=zobs, load=False, use_pbar=use_pbar,
-                hist=hist)
+                hist=hist, units_out=units_out)
             return spec
 
         raise ValueError('This shouldnt happen.')

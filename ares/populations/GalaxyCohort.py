@@ -2169,6 +2169,9 @@ class GalaxyCohort(GalaxyAggregate):
         # Manual override: if user supplies L/SFR directly.
         kludge = 1.
         if self.pf['pop_lum_per_sfr'] is not None:
+            wave = self.src.get_ang_from_x(x, units=units)
+            if wave not in [1500,1600]:
+                raise ValueError(f"Should only use pop_lum_per_sfr for rest UV! Attempted {wave} Angstrom.")
 
             assert self.pf['pop_calib_lum'] is None, \
                 "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
