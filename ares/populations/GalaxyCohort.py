@@ -1546,29 +1546,34 @@ class GalaxyCohort(GalaxyAggregate):
         #if bins is not None:
         #    return x_phi, phi
 
-        ok = np.logical_and(phi.mask == False, phi > 0)
+        ok = np.logical_and(phi.mask == False, phi > tiny_phi)
+        #ok = Lh[1:] > 0
 
         #print('hi', z, x, ok.sum(), x_phi[ok==1], phi[ok==1])
 
         if ok.sum() == 0:
-            print(f"! All LF elements masked at z={z}!")
+            print(f"! WARNING: All LF elements masked at z={z} for x={x}!")
             return bins, np.zeros_like(bins)
+
+        ##
+        # Need to check for double-valued-ness. This happens sometimes if
+        # the dust attenuation is a non-monotonic function of mass. np.interp
+        # (or previously scipy.interpolate.interp1d) don't like this, as it's
+        # possible that there will be x values at the start of the array that
+        # are in descending order.
+        dx = np.diff(x_phi[ok==1][-1::-1])
+        if not np.all(dx > 0):
+            ix = np.argwhere(dx < 0).max()
+        else:
+            ix = 0
 
         if not absolute:
             bins_abs = self.get_mags_abs(z, bins)
         else:
             bins_abs = bins
 
-        # Setup interpolant. x_phi is in descending, remember!
-        interp = interp1d(x_phi[ok==1][-1::-1], phi[ok==1][-1::-1],
-            kind=self.pf['pop_interp_lf'],
-            bounds_error=False, fill_value=0)
-
-        try:
-            phi_of_x = interp(bins_abs)
-        except ValueError:
-            print(f"issue with tmpy array at z={z}, {x}, {ok.sum()}, {x_phi[ok==1]}")
-            phi_of_x = np.zeros_like(bins_abs)
+        phi_of_x = np.interp(bins_abs, x_phi[ok==1][-1::-1][ix+1:],
+            phi[ok==1][-1::-1][ix+1:], left=0, right=0)
 
         return bins, phi_of_x
 

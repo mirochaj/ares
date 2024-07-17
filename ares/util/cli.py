@@ -166,6 +166,12 @@ def unpack_bc03(parent_dir):
         for imf in os.listdir(f"{path}/{tracks}"):
             unpack_files(f"{path}/{tracks}/{imf}")
 
+def unpack_bc03_2013(parent_dir):
+    path = f"{ARES}/bc03_2013/bc03/"
+    for tracks in os.listdir(path):
+        for imf in os.listdir(f"{path}/{tracks}"):
+            unpack_files(f"{path}/{tracks}/{imf}")
+
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
 aux_data = {
@@ -207,7 +213,7 @@ aux_data = {
     ] + _bc03_orig_links + [unpack_bc03],
     "bc03_2013": [
         "https://www.bruzual.org/bc03/Updated_version_2013"
-    ] + _bc03_2013_links + [None],
+    ] + _bc03_2013_links + [unpack_bc03_2013],
     "umachine-data": [
         "http://halos.as.arizona.edu/UniverseMachine/DR1",
         "umachine-dr1-obs-only.tar.gz",
@@ -777,7 +783,7 @@ def generate_csfh_tab(path, **kwargs):
     #    if i == 0:
     #        continue
 
-    # Default units for native SED tables is erg/s/A 
+    # Default units for native SED tables is erg/s/A
     data = galaxy.get_spec(zobs=None, t=tarr,
         sfh=np.ones_like(tarr), waves=waves, units_out='erg/s/A')
 
