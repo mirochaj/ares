@@ -37,7 +37,7 @@ np.seterr(all='ignore')   # exp overflow occurs when integrating BB
 
 _sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
     'schaerer2002', 'hybrid',
-    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy', 'bc03']
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy', 'bc03', 'bc03_2013']
 
 class Source(object):
     def __init__(self, grid=None, cosm=None, logN=None, init_tabs=True,

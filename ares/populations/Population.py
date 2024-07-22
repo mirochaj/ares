@@ -45,11 +45,11 @@ from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters, SynthesisParameters
 
 _synthesis_models = ['leitherer1999', 'eldridge2009', 'eldridge2017',
-    'bpass_v1', 'bpass_v2', 'starburst99', 'bc03']
+    'bpass_v1', 'bpass_v2', 'starburst99', 'bc03', 'bc03_2013']
 _single_star_models = ['schaerer2002']
 _sed_tabs = ['leitherer1999', 'eldridge2009', 'eldridge2017',
     'schaerer2002', 'hybrid',
-    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy', 'bc03']
+    'bpass_v1', 'bpass_v2', 'starburst99', 'sps-toy', 'bc03', 'bc03_2013']
 
 simple_sfhs = [None, 'const', 'ssp', 'burst', 'const+ssp', 'constant+ssp',
     'const+burst', 'constant+burst']
@@ -706,8 +706,11 @@ class Population(object):
 
                         if par_pop in self.pf:
                             if self.is_sed_multicomponent and \
-                                (par in ['source_Z', 'source_age', 'source_ssp']):
-                                self._src_kwargs[i][par] = self.pf[par_pop][i]
+                                (par in ['source_Z', 'source_age', 'source_ssp', 'source_sps_data']):
+                                if self.pf[par_pop] == None:
+                                    self._src_kwargs[i][par] = None
+                                else:
+                                    self._src_kwargs[i][par] = self.pf[par_pop][i]
                             else:
                                 self._src_kwargs[i][par] = self.pf[par_pop]
                         else:

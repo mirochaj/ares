@@ -55,7 +55,7 @@ centrals_sf = \
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100, 1e4),
+ 'pop_age': (100, 2.5e3),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
 
@@ -282,7 +282,7 @@ satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 satellites_q['pop_sfh'] = 'ssp'
 satellites_q['pop_aging'] = True
 satellites_q['pop_ssp'] = True
-satellites_q['pop_age'] = 5e3
+satellites_q['pop_age'] = 1e4
 satellites_q['pop_Z'] = 0.02
 
 

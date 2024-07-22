@@ -1430,6 +1430,7 @@ class GalaxyCohort(GalaxyAggregate):
         dmag = dmag[0]
 
         zedges = np.arange(zmin, zmax+zbin, zbin)
+
         zcen = bin_e2c(zedges)
         counts = np.zeros_like(bins)
 
@@ -1536,23 +1537,9 @@ class GalaxyCohort(GalaxyAggregate):
         x_phi = MAB[1:]
         phi = phi_of_M
 
-        #else:
-        #    raise NotImplemented('help')
-
-        #self._phi_of_M[(z, x, window, cam, filters, dlam, use_tabs)] = \
-        #    MAB[0:-1], phi_of_M
-
-        #
-        #if bins is not None:
-        #    return x_phi, phi
-
         ok = np.logical_and(phi.mask == False, phi > tiny_phi)
-        #ok = Lh[1:] > 0
 
-        #print('hi', z, x, ok.sum(), x_phi[ok==1], phi[ok==1])
-
-        if ok.sum() == 0:
-            print(f"! WARNING: All LF elements masked at z={z} for x={x}!")
+        if (ok.sum() == 0) or np.all(phi.mask == True):
             return bins, np.zeros_like(bins)
 
         ##
