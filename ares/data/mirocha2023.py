@@ -371,6 +371,7 @@ dust_dpl = \
 }
 
 base_centrals = base.copy()
+base_centrals.update(dust_dpl)
 
 # This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 1#
@@ -607,8 +608,7 @@ slow = \
 }
 
 # 2222's all around
-minimal = base.copy()
-minimal.update(
+base.update(
 {
 'pq_func_par0[0]{0}': 1.6884e-04,
 'pq_func_par1[0]{0}': 1.2251e+12,
@@ -664,3 +664,4 @@ minimal.update(
 'kappa': -3.3703e-02,
 }
 )
+minimal = base.copy()

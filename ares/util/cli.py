@@ -254,6 +254,16 @@ aux_data = {
         "wfc.tar.gz",
         None,
     ],
+    "hsc": [
+        "http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=Subaru/",
+        "HSC.g",
+        "HSC.r",
+        "HSC.i",
+        "HSC.z",
+        "HSC.Y",
+        None,
+    ],
+
     "irac": [
         "https://irsa.ipac.caltech.edu/data/SPITZER/docs/irac/calibrationfiles"
         "/spectralresponse/",

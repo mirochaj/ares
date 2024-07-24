@@ -138,6 +138,8 @@ class Survey(object):
             return self._read_panstarrs(filters)
         elif self.camera == 'sdss':
             return self._read_sdss(filters)
+        elif self.camera == 'hsc':
+            return self._read_hsc(filters)
         else:
             raise NotImplemented(f"Unrecognized cam '{cam}'")
 
@@ -463,6 +465,24 @@ class Survey(object):
 
             cent = np.mean(x[y > 0])
             data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent)
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+
+    def _read_hsc(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "hsc")
+
+        data = {}
+        cent = 4798.21e-4, 6218.44e-4, 7727.01e-4, 8908.50e-4, 9775.07e-4
+        for i, filt in enumerate(list('grizY')):
+            full_path = os.path.join(path, f"HSC.{filt}")
+            x, y = np.loadtxt(full_path, unpack=True, usecols=[0,1])
+            x *= 1e-4
+            data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
 
             self._filter_cache[filt] = copy.deepcopy(data[filt])
 
