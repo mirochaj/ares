@@ -16,7 +16,8 @@ from ..util import ParameterFile
 from ..physics.Constants import flux_AB, c
 
 all_cameras = ['wfc', 'wfc3', 'hubble', 'hst', 'nircam', 'roman', 'irac',
-    'spitzer', 'wise', '2mass', 'panstarrs', 'euclid', 'spherex', 'sdss']
+    'spitzer', 'wise', '2mass', 'panstarrs', 'euclid', 'spherex', 'sdss',
+    'hsc']
 
 class Photometry(object):
     def __init__(self, **kwargs):
