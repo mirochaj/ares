@@ -130,6 +130,12 @@ centrals_sf = \
  'pq_func_par17[2]': 0,     # terms that scale a
  'pq_func_par18[2]': 0,     # terms that scale a
  'pq_func_par19[2]': 0,     # terms that scale a
+
+ # Systematics
+ 'pop_sys_mstell_0': 0,
+ 'pop_sys_mstell_a': 0,
+ #'pop_sys_mstell_z': 0,
+ 'pop_sys_sfr_0': 0,
 }
 
 focc_erfx = \
@@ -258,7 +264,10 @@ satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
 satellites_sf['pop_include_shot'] = True
 satellites_sf['pop_fstar'] = 'link:fstar:0'
-satellites_sf['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
+satellites_sf['pop_sys_mstell_0'] = 'pop_sys_mstell_0{0}'
+satellites_sf['pop_sys_mstell_a'] = 'pop_sys_mstell_a{0}'
+satellites_sf['pop_sys_sfr_0'] = 'pop_sys_sfr_0{0}'
+
 
 for par in centrals_sf:
     if ('[0]' in par)  or ('[1]' in par) or ('[2]' in par):

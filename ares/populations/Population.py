@@ -723,6 +723,15 @@ class Population(object):
 
         return self._src_kwargs
 
+    @cached_property
+    def is_biased_sfr(self):
+        return (self.pf['pop_sys_sfr_0'] > 0)
+
+    @cached_property
+    def is_biased_mass(self):
+        return (self.pf['pop_sys_mstell_0'] > 0) \
+            or (self.pf['pop_sys_mstell_a'] > 0) \
+            or (self.pf['pop_sys_mstell_z'] > 0)
 
     @property
     def is_synthesis_model(self):

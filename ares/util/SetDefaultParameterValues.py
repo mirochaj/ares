@@ -648,6 +648,12 @@ def PopulationParameters():
     "pop_zform": 60.,
     "pop_zdead": 0.0,
 
+    "pop_sys_mstell_0": 0,
+    "pop_sys_mstell_a": 0,
+    "pop_sys_mstell_z": 0,
+    "pop_sys_sfr_0": 0,
+
+
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
     'pop_fstar_cloud': 1.,  # cloud-scale star formation efficiency

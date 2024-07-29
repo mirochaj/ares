@@ -911,6 +911,118 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._tab_eta_
 
+    def get_ssfr_obs(self, z):
+        Ms = self.get_mass(**kwargs)
+        sfr = self.get_sfr(**kwargs)
+
+        if not (self.is_biased_mass or self.is_biased_sfr):
+            return sfr / Ms
+
+        if 'Mh' in kwargs:
+            assert np.allclose(kwargs['Mh'], self.halos.tab_M)
+
+        offset = self.get_ssfr_sys(z=z)
+
+        return Ms + offset
+
+    def get_ssfr_sys(self, **kwargs):
+        """
+
+        """
+
+        if not (self.is_biased_mass or self.is_biased_sfr):
+            return 0.0
+
+        return self.pf['pop_sys_sfr_0'] \
+            * np.exp(-(kwargs['z'] - 2)**2 / 2.)
+
+        # General case, not currently implemented
+        #dMst = self.get_mstell_sys(z, **kwargs)
+        #dsfr = self.get_sfr_sys(z, **kwargs)
+
+        #return dsfr - dMst
+
+    def get_mstell_sys(self, **kwargs):
+        """
+
+        """
+
+        if not self.is_biased_mass:
+            return 0.0
+
+        a = 1. / (1. + kwargs['z'])
+
+        return self.pf['pop_sys_mstell_0'] + self.pf['pop_sys_mstell_a'] * (1. - a)
+
+    def get_mstell_obs(self, **kwargs):
+        """
+        The "observed" mass may be different from the true mass for
+        empirically calibrated models, if we allowed for nuisance parameters
+        that characterize potential errors in measured stellar masses.
+        """
+
+        Ms = self.get_mstell(**kwargs)
+
+        if not self.is_biased_mass:
+            return Ms
+
+        if 'Mh' in kwargs:
+            assert np.allclose(kwargs['Mh'], self.halos.tab_M)
+
+        offset = self.get_mstell_sys(**kwargs)
+
+        return Ms + offset
+
+    def get_mstell(self, **kwargs):
+        """
+        Return stellar mass over all halo masses at z=`z`.
+        """
+
+        Mh = self.halos.tab_M
+        if 'Mh' in kwargs:
+            assert np.allclose(kwargs['Mh'], Mh)
+
+        return self.get_smhm(**kwargs) * Mh
+
+    def get_sfr_sys(self, **kwargs):
+        """
+        Return the systematic error in observed star formation rates.
+
+        The error is defined as:
+
+            error = \log_{10} [Observed SFR] - \log_{10} [True SFR]
+
+        i.e., the true SFR is the observed SFR - this error.
+
+        """
+
+        if not self.is_biased_sfr:
+            return 0.0
+
+        # B13 approach: add on top of mass systematic, which means
+        # the `pop_sys_sfr_0` actually controls the sSFR.
+        return self.get_mstell_sys(**kwargs) \
+            + self.pf['pop_sys_sfr_0'] * np.exp(-(kwargs['z'] - 2)**2 / 2.)
+
+    def get_sfr_obs(self, **kwargs):
+        """
+        The "observed" SFR may be different from the true SFR for
+        empirically calibrated models, if we allowed for nuisance parameters
+        that characterize potential errors in measured SFRs.
+        """
+
+        sfr = self.get_sfr(**kwargs)
+
+        if not self.is_biased_sfr:
+            return sfr
+
+        offset = self.get_sfr_sys(**kwargs)
+
+        if 'Mh' in kwargs:
+            assert np.allclose(kwargs['Mh'], self.halos.tab_M)
+
+        return sfr + offset
+
     def get_sfr(self, **kwargs):
         """
         Get star formation rate at redshift z in a halo of mass Mh.
@@ -1098,8 +1210,6 @@ class GalaxyCohort(GalaxyAggregate):
         #    # efficient because you're basically calculating the SFRD again
         #    # and again.
         #    rhoL = self._get_luminosity_density(Emin, Emax)(z)
-
-
 
     def get_mass(self, z, Mh=None, kind='halo'):
         """
@@ -2067,12 +2177,11 @@ class GalaxyCohort(GalaxyAggregate):
             if self.pf['pop_dust_template'] is not None:
                 if use_tabs:
                     smhm = self.tab_fstar[iz,:]
+                    Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
                     Av = self.tab_Av[iz,:]
                 else:
-                    smhm = self.get_fstar(z=z, Mh=self.halos.tab_M)
-                    Av = self.get_Av(z=z, Ms=self.halos.tab_M * smhm)
-
-                Ms = self.halos.tab_M * smhm
+                    Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+                    Av = self.get_Av(z=z, Ms=Ms)
 
                 #Av = self.get_Av(z=z, Ms=Ms)
                 Sd = None
@@ -2754,8 +2863,7 @@ class GalaxyCohort(GalaxyAggregate):
     def tab_Av(self):
         arr = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
         for i, z in enumerate(self.halos.tab_z):
-            smhm = self.tab_fstar[i,:]
-            Ms = smhm * self.halos.tab_M
+            Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
             arr[i,:] = self.get_Av(z, Ms)
 
         return arr
