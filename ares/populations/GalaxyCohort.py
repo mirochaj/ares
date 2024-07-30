@@ -2256,11 +2256,11 @@ class GalaxyCohort(GalaxyAggregate):
             if use_tabs:
                 sfr = self.tab_sfr[iz,:]
                 smhm = self.tab_fstar[iz,:]
+                raise NotImplemented('help! update with obs')
             else:
-                sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-                smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
-
-            Ms = self.halos.tab_M * smhm
+                sfr = self.get_sfr_obs(z=z, Mh=self.halos.tab_M)
+                #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
+                Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
         except Exception as e:
             print(e)
             Ms = None
@@ -2570,37 +2570,21 @@ class GalaxyCohort(GalaxyAggregate):
                 _Lh_ = L_sfr * sfr
             elif src.is_ssp:
 
-                # Mstell = Mhalo * SMHM
-                if use_tabs:
-                    smhm = self.tab_fstar[iz,:]#self.get_smhm(z=z, Mh=self.halos.tab_M)
-                else:
-                    smhm = self.get_fstar(z=z, Mh=self.halos.tab_M)
-
-                mste = self.halos.tab_M * smhm
-
                 if self.is_central_pop or \
                   (self.is_satellite_pop and (not total_sat)):
 
                     # Not for SSPs, L per SFR is really L per Mstell.
-                    _Lh_ = mste * L_sfr
+                    _Lh_ = Ms * L_sfr
 
                     if self.pf['pop_ihl'] is not None:
                         ihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
                         _Lh_ *= ihl
 
                 else:
-                    Ls = mste * L_sfr
+                    Ls = Ms * L_sfr
                     _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
 
             else:
-
-                # This uses __getattr__ in case we're allowing Z to be
-                # updated from SAM.
-                #sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-                if use_tabs:
-                    sfr = self.tab_sfr[iz,:]
-                else:
-                    sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
 
                 # Just the product of SFR and L
                 if self.is_central_pop or \
@@ -4236,7 +4220,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         _x_, mags = self.get_mags(z, absolute=absolute, x=x, band=band, units=units,
             window=window, load=load, raw=raw,
-            nebular_only=nebular_only)
+            nebular_only=nebular_only, use_tabs=False)
 
         #Mh = self.get_mass(z, kind='halo')
         Mh = self.halos.tab_M
