@@ -149,8 +149,6 @@ def _read_ised(file):
     junk = _read_binary(fh)
     nages = _read_binary(fh)
 
-    print('hi', nages)
-
     # first consistency check
     if nages < 1 or nages > 2000:
         raise ValueError(

@@ -648,10 +648,12 @@ def PopulationParameters():
     "pop_zform": 60.,
     "pop_zdead": 0.0,
 
-    "pop_sys_mstell_0": 0,
+    "pop_sys_method": 'separate',
+    "pop_sys_mstell_now": 0,
     "pop_sys_mstell_a": 0,
     "pop_sys_mstell_z": 0,
-    "pop_sys_sfr_0": 0,
+    "pop_sys_sfr_now": 0,
+    "pop_sys_sfr_a": 0,
 
 
     # Main parameters in our typical global 21-cm models

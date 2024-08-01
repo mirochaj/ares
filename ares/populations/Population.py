@@ -725,11 +725,12 @@ class Population(object):
 
     @cached_property
     def is_biased_sfr(self):
-        return (self.pf['pop_sys_sfr_0'] != 0)
+        return (self.pf['pop_sys_sfr_now'] != 0) \
+            or (self.pf['pop_sys_sfr_a'] != 0)
 
     @cached_property
     def is_biased_mass(self):
-        return (self.pf['pop_sys_mstell_0'] != 0) \
+        return (self.pf['pop_sys_mstell_now'] != 0) \
             or (self.pf['pop_sys_mstell_a'] != 0) \
             or (self.pf['pop_sys_mstell_z'] != 0)
 
