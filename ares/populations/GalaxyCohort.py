@@ -2276,9 +2276,10 @@ class GalaxyCohort(GalaxyAggregate):
         try:
             if use_tabs:
                 iz = self.get_zindex(z)
-                sfr = self.tab_sfr[iz,:]
-                smhm = self.tab_fstar[iz,:]
-                raise NotImplemented('help! update with obs')
+                sfr = self.tab_sfr[iz,:] \
+                     + self.get_sfr_sys(z=z, Mh=None)
+                Ms = self.tab_fstar[iz,:] * self.halos.tab_M \
+                    + self.get_mstell_sys(z=z, Mh=None)
             else:
                 sfr = self.get_sfr_obs(z=z, Mh=self.halos.tab_M)
                 #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
