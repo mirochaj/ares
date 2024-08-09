@@ -1943,6 +1943,8 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             dwdn = waves**2 / (c * 1e8)
 
+        print('hi', type(waves), waves.shape, waves)
+
         spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz',
             Mh=Mh, window=window, band=band, use_tabs=use_tabs,
             include_dust_transmission=include_dust_transmission,
@@ -2276,13 +2278,12 @@ class GalaxyCohort(GalaxyAggregate):
         try:
             if use_tabs:
                 iz = self.get_zindex(z)
-                sfr = self.tab_sfr[iz,:] \
-                     + self.get_sfr_sys(z=z, Mh=None)
-                Ms = self.tab_fstar[iz,:] * self.halos.tab_M \
-                    + self.get_mstell_sys(z=z, Mh=None)
+                sfr = 10**(np.log10(self.tab_sfr[iz,:]) \
+                    + self.get_sfr_sys(z=z, Mh=None))
+                Ms = 10**(np.log10(self.tab_fstar[iz,:] * self.halos.tab_M) \
+                   + self.get_mstell_sys(z=z, Mh=None))
             else:
                 sfr = self.get_sfr_obs(z=z, Mh=self.halos.tab_M)
-                #smhm = self.get_smhm(z=z, Mh=self.halos.tab_M)
                 Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
         except Exception as e:
             print(e)

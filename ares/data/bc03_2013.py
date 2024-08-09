@@ -140,8 +140,6 @@ def _read_ised(file):
     if not (os.path.isfile(file)):
         raise ValueError(f"The specified model file was not found! {file}")
 
-    print('Reading .ised:  %s' % str(file))
-
     # open the ised file
     fh = open(file, 'rb')
 

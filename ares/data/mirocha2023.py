@@ -43,7 +43,7 @@ centrals_sf = \
  'pop_include_shot': True,
 
  # SED info
- 'pop_sed': 'bc03',
+ 'pop_sed': 'bc03_2013',
  'pop_imf': 'chabrier',
  'pop_tracks': 'Padova1994',
  'pop_rad_yield': 'from_sed',
@@ -55,7 +55,7 @@ centrals_sf = \
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100, 2.5e3),
+ 'pop_age': (100, 1.8e3),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
 
@@ -556,33 +556,33 @@ subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
 subhalos_focc_ext['pop_focc_inv{3}'] = True
 
 sed_modeling = {}
-sed_modeling['pop_age{0}'] = 1e2, 'hubble'
-sed_modeling['pop_age{2}'] = 1e2, 'hubble'
-sed_modeling['pop_age{1}'] = 'hubble'
-sed_modeling['pop_age{3}'] = 'hubble'
+#sed_modeling['pop_age{0}'] = 1e2, 'hubble'
+#sed_modeling['pop_age{2}'] = 1e2, 'hubble'
+#sed_modeling['pop_age{1}'] = 'hubble'
+#sed_modeling['pop_age{3}'] = 'hubble'
 
-sed_modeling['pop_sfh{2}'] = 'constant+ssp'
-sed_modeling['pop_ssp{2}'] = (False, True)
+#sed_modeling['pop_sfh{2}'] = 'constant+ssp'
+#sed_modeling['pop_ssp{2}'] = (False, True)
 
-sed_modeling['pop_age_definition{0}'] = 'mixed'
-sed_modeling['pop_age_definition{1}'] = 'mixed'
-sed_modeling['pop_age_definition{2}'] = 'mixed'
-sed_modeling['pop_age_definition{3}'] = 'mixed'
-
-sed_modeling['pop_lum_tab{1}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
-sed_modeling['pop_lum_tab{3}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
-sed_modeling['pop_Z{1}'] = 0.02
-sed_modeling['pop_Z{3}'] = 0.02
+#sed_modeling['pop_age_definition{0}'] = 'mixed'
+#sed_modeling['pop_age_definition{1}'] = 'mixed'
+#sed_modeling['pop_age_definition{2}'] = 'mixed'
+#sed_modeling['pop_age_definition{3}'] = 'mixed'
+#
+#sed_modeling['pop_lum_tab{1}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
+#sed_modeling['pop_lum_tab{3}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
+#sed_modeling['pop_Z{1}'] = 0.02
+#sed_modeling['pop_Z{3}'] = 0.02
 
 _mzr02 = {}
 for par in mzr:
     _mzr02[par + '{0}'] = mzr[par]
     _mzr02[par + '{2}'] = mzr[par]
 
-sed_modeling.update(_mzr02)
+#sed_modeling.update(_mzr02)
 
-sed_modeling['pop_lum_tab{0}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
-sed_modeling['pop_lum_tab{2}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
+#sed_modeling['pop_lum_tab{0}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
+#sed_modeling['pop_lum_tab{2}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
 
 # Scaling relationships for common strong lines
 # Each pair is rest wavelength [Angstroms] and L_line [erg/s/(Msun/yr)]
@@ -625,60 +625,50 @@ slow = \
 }
 
 # 2222's all around
-#base.update(
-#{
-#'pq_func_par0[0]{0}': 1.6884e-04,
-#'pq_func_par1[0]{0}': 1.2251e+12,
-#'pq_func_par2[0]{0}': 1.3691e+00,
-#'pq_func_par3[0]{0}': -6.0782e-01,
-#'pq_func_par5[0]{0}': -9.1850e-01,
-#'pq_func_par9[0]{0}': -1.6240e-01,
-#'pq_func_par6[0]{0}': -1.4216e+00,
-#'pq_func_par10[0]{0}': 1.2099e+00,
-#'pq_func_par7[0]{0}': 8.4642e-02,
-#'pq_func_par11[0]{0}': -3.6966e-01,
-#'pq_func_par8[0]{0}': 6.5115e-01,
-#'pq_func_par12[0]{0}': -3.7548e-01,
-#'pq_func_par0[2]{0}': 4.0870e-01,
-#'pq_func_par1[2]{0}': 7.5435e-01,
-#'pq_func_par2[2]{0}': 1.2136e+01,
-#'pq_func_par3[2]{0}': -2.5538e-01,
-#'pq_func_par4[2]{0}': -1.4570e+00,
-#'pq_func_par8[2]{0}': 1.0048e+00,
-#'pq_func_par5[2]{0}': -5.5104e-01,
-#'pq_func_par9[2]{0}': 6.6187e-01,
-#'pq_func_par6[2]{0}': 9.7263e-01,
-#'pq_func_par10[2]{0}': -6.8180e-01,
-#'pq_func_par7[2]{0}': -3.7134e-01,
-#'pq_func_par11[2]{0}': 2.7212e-01,
-#'pq_func_par0[1]{0}': 2.0019e-04,
-#'pq_func_par1[1]{0}': 2.1768e+11,
-#'pq_func_par2[1]{0}': 2.7528e+00,
-#'pq_func_par3[1]{0}': 3.7532e-01,
-#'pq_func_par5[1]{0}': -5.6598e-01,
-#'pq_func_par9[1]{0}': 3.1579e-01,
-#'pq_func_par6[1]{0}': 1.2251e+00,
-#'pq_func_par10[1]{0}': -1.8427e-02,
-#'pq_func_par7[1]{0}': -6.7782e-01,
-#'pq_func_par11[1]{0}': -3.0671e-01,
-#'pq_func_par8[1]{0}': -2.2873e+00,
-#'pq_func_par12[1]{0}': 1.3334e+00,
-#'pq_func_par0[4]{0}': 6.6778e-01,
-#'pq_func_par1[4]{0}': 1.4261e+10,
-#'pq_func_par2[4]{0}': 9.7913e-02,
-#'pq_func_par3[4]{0}': -6.5189e-01,
-#'pq_func_par5[4]{0}': 1.8006e+00,
-#'pq_func_par9[4]{0}': -7.1671e-01,
-#'pq_func_par6[4]{0}': 2.0929e+00,
-#'pq_func_par10[4]{0}': -6.3150e-01,
-#'pq_func_par7[4]{0}': 4.3233e-01,
-#'pq_func_par11[4]{0}': -1.1172e-01,
-#'pq_func_par8[4]{0}': -2.7794e-01,
-#'pq_func_par12[4]{0}': 6.1129e-01,
-#'pop_scatter_sfh{0}': 8.2052e-02,
-#'mu_0': -1.9393e-01,
-#'mu_a': 4.3749e-02,
-#'kappa': -3.3703e-02,
-#}
-#)
-minimal = base.copy()
+_compact = \
+{
+'pq_func_par0[0]{0}': 5.4405e-05,
+'pq_func_par1[0]{0}': 8.4801e+11,
+'pq_func_par2[0]{0}': 1.4488e+00,
+'pq_func_par3[0]{0}': -4.5442e-01,
+'pq_func_par5[0]{0}': -9.5941e-01,
+'pq_func_par6[0]{0}': 7.3467e-01,
+'pq_func_par7[0]{0}': -7.8214e-01,
+'pq_func_par8[0]{0}': -4.3917e-02,
+'pq_func_par0[2]{0}': 1.8681e-01,
+'pq_func_par1[2]{0}': 8.9999e-01,
+'pq_func_par2[2]{0}': 1.2695e+01,
+'pq_func_par3[2]{0}': -6.0299e-01,
+'pq_func_par4[2]{0}': -1.9206e+00,
+'pq_func_par8[2]{0}': -3.1333e-01,
+'pq_func_par5[2]{0}': -1.7188e+00,
+'pq_func_par9[2]{0}': 1.3333e+00,
+'pq_func_par6[2]{0}': -2.3702e+00,
+'pq_func_par10[2]{0}': 1.4015e+00,
+'pq_func_par7[2]{0}': 7.6761e-01,
+'pq_func_par11[2]{0}': -4.6953e-01,
+'pq_func_par0[1]{0}': 7.3820e-04,
+'pq_func_par1[1]{0}': 1.8258e+11,
+'pq_func_par2[1]{0}': 2.2648e+00,
+'pq_func_par3[1]{0}': 7.1006e-01,
+'pq_func_par5[1]{0}': -2.9627e+00,
+'pq_func_par9[1]{0}': 1.9292e+00,
+'pq_func_par6[1]{0}': 2.9166e+00,
+'pq_func_par10[1]{0}': -1.1526e+00,
+'pq_func_par7[1]{0}': 6.0435e-02,
+'pq_func_par11[1]{0}': -3.1162e-01,
+'pq_func_par8[1]{0}': -1.9886e+00,
+'pq_func_par12[1]{0}': 9.6222e-01,
+'pq_func_par0[4]{0}': 1.0051e+00,
+'pq_func_par2[4]{0}': 1.0048e-02,
+'pq_func_par5[4]{0}': -1.6956e-01,
+'pq_func_par6[4]{0}': 1.0650e-01,
+'pop_scatter_sfh{0}': 1.9385e-01,
+'pop_sfr_below_ms{1}': 6.1879e+01,
+'pop_sys_mstell_now{0}': -1.4315e-02,
+'pop_sys_mstell_a{0}': -1.9737e-02,
+'pop_sys_sfr_now{0}': 2.1255e-01,
+'pop_sys_sfr_a{0}': 7.8021e-02,
+}
+compact = base.copy()
+compact.update(_compact)

@@ -15,7 +15,7 @@ import numpy as np
 from ..data import ARES
 from .Stats import bin_e2c
 
-numeric_types = [int, float, np.int64, np.float64]
+numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
 
 def get_cmd_line_kwargs(argv):
 
