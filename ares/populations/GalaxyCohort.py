@@ -1206,9 +1206,9 @@ class GalaxyCohort(GalaxyAggregate):
             z2 = self.halos.tab_z[iz+1]
 
             L1 = self.get_lum(z1, x=x, band=band, units=units,
-                units_out=units_out, total_sat=True, for_emissivity=True)
+                units_out=units_out, total_sat=True, for_emissivity=0)
             L2 = self.get_lum(z2, x=x, band=band, units=units,
-                units_out=units_out, total_sat=True, for_emissivity=True)
+                units_out=units_out, total_sat=True, for_emissivity=0)
 
             ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
                 self.halos.tab_M < self.get_Mmax(z1))
@@ -1217,6 +1217,22 @@ class GalaxyCohort(GalaxyAggregate):
 
             integ1 = L1 * self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:]
             integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] * self.tab_focc[iz+1,:]
+
+            if self.pf['pop_scatter_sfh'] > 0:
+                sigma = self.pf['pop_scatter_sfh']
+                mu = np.log10(Ms_c)
+
+                # This is essentially dn/dlog10Mstell
+                pdf = lognormal(bin_c[None,:], mu[:,None], sigma)
+
+                # Integrating over PDF, dn/dlog10Mstell, so convert
+                # halo abundance to dlog10Mstell first.
+                integrand = dndlnm[ok==1,None] * np.log(10.) \
+                    * dlog10mdlog10M[ok==1,None] * pdf[ok==1]
+
+                # Integrate over halo mass axis
+                phi_tot = np.trapz(integrand,
+                    x=np.log10(Ms_c[ok==1]), axis=0)
 
             rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
             rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
@@ -1942,8 +1958,6 @@ class GalaxyCohort(GalaxyAggregate):
             dwdn = self.src.tab_dwdn
         else:
             dwdn = waves**2 / (c * 1e8)
-
-        print('hi', type(waves), waves.shape, waves)
 
         spec = self.get_spec(z, waves=waves, units_out='erg/s/Hz',
             Mh=Mh, window=window, band=band, use_tabs=use_tabs,
