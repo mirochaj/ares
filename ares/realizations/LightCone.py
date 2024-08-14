@@ -1204,85 +1204,94 @@ class LightCone(object): # pragma: no cover
 
                 # Could be empty chunks for very massive halos and/or early times.
                 if _ra is None:
-                    continue
-
-                # Hack out galaxies outside our requested lightcone.
-                ok = np.logical_and(np.abs(_ra)  < fov / 2.,
-                                    np.abs(_dec) < fov / 2.)
-
-                # Limit number of sources, just for testing.
-                if (max_sources is not None):
-                    if (ct == 0) and (max_sources >= _Mh.size):
-                        # In this case, we can accommodate all the galaxies in
-                        # the catalog, so don't do anything yet.
-                        pass
-                    else:
-                        # Flag entries until we hit target.
-                        # This is not efficient but oh well.
-                        for _h in range(_Mh.size):
-                            ok[_h] = 0
-
-                            if ok.sum() == max_sources:
-                                break
-
-                        # This will be the final iteration.
-                        if ct + ok.sum() == max_sources:
-                            self._hit_max_sources = True
-
-
-                # Isolate OK entries.
-                _ra = _ra[ok==1]
-                _dec = _dec[ok==1]
-                _red = _red[ok==1]
-                _Mh = _Mh[ok==1]
-
-                ct += ok.sum()
-
-                ra.extend(list(_ra))
-                dec.extend(list(_dec))
-                red.extend(list(_red))
-
-                ##
-                # Unpack channel info
-                # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
-                # photometric info, e.g., ('roman', 'F087'),
-                # or special quantities like Ly-a EW or luminosity.
-                # Note: if pops[popid] is a GalaxyEnsemble object
-                if channel in ['Mh', 'Ms', 'SFR']:
-                    _dat = _Mh
-                elif channel.lower().startswith('ew'):
-                    raise NotImplemented('help')
+                    # You might think: let's `continue` to the next iteration!
+                    # BUT, if we do that, and we're really unlucky and this
+                    # happens on the last chunk of work for a given channel,
+                    # then no checkpoint will be written below :/
+                    # Hence the use of `pass` here intead.
+                    pass
                 else:
-                    cam, filt = channel.split('_')
+                    # Hack out galaxies outside our requested lightcone.
+                    ok = np.logical_and(np.abs(_ra)  < fov / 2.,
+                                        np.abs(_dec) < fov / 2.)
 
-                    _filt, mags = self.sim.pops[popid].get_mags(zcent[iz],
-                        absolute=False, cam=cam, filters=[filt],
-                        Mh=_Mh)
-
-                    if cat_units == 'mags':
-                        _dat = np.atleast_1d(mags.squeeze())
-                    elif 'jy' in cat_units.lower():
-                        flux = 3631. * 10**(mags / -2.5)
-
-                        if cat_units.lower() == 'jy':
-                            _dat = np.atleast_1d(flux.squeeze())
-                        elif cat_units.lower() in ['microjy', 'ujy']:
-                            _dat = np.atleast_1d(1e6 * flux.squeeze())
+                    # Limit number of sources, just for testing.
+                    if (max_sources is not None):
+                        if (ct == 0) and (max_sources >= _Mh.size):
+                            # In this case, we can accommodate all the galaxies in
+                            # the catalog, so don't do anything yet.
+                            pass
                         else:
-                            raise NotImplemented('help')
+                            # Flag entries until we hit target.
+                            # This is not efficient but oh well.
+                            for _h in range(_Mh.size):
+                                ok[_h] = 0
+
+                                if ok.sum() == max_sources:
+                                    break
+
+                            # This will be the final iteration.
+                            if ct + ok.sum() == max_sources:
+                                self._hit_max_sources = True
+
+
+                    # Isolate OK entries.
+                    _ra = _ra[ok==1]
+                    _dec = _dec[ok==1]
+                    _red = _red[ok==1]
+                    _Mh = _Mh[ok==1]
+
+                    ct += ok.sum()
+
+                    ra.extend(list(_ra))
+                    dec.extend(list(_dec))
+                    red.extend(list(_red))
+
+                    ##
+                    # Unpack channel info
+                    # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
+                    # photometric info, e.g., ('roman', 'F087'),
+                    # or special quantities like Ly-a EW or luminosity.
+                    # Note: if pops[popid] is a GalaxyEnsemble object
+                    if channel in ['Mh', 'Ms', 'SFR']:
+                        _dat = _Mh
+                    elif channel.lower().startswith('ew'):
+                        raise NotImplemented('help')
                     else:
-                        raise NotImplemented('Unrecognized `cat_units`.')
+                        cam, filt = channel.split('_')
 
-                ##
-                # Save
-                self.save_cat(fn, (_ra, _dec, _red, _dat),
-                    channel, zchunk, mchunk,
-                    fov, pix=pix, fmt=fmt, hdr=hdr,
-                    cat_units=cat_units,
-                    clobber=clobber, verbose=verbose)
+                        _filt, mags = self.sim.pops[popid].get_mags(zcent[iz],
+                            absolute=False, cam=cam, filters=[filt],
+                            Mh=_Mh)
+
+                        if cat_units == 'mags':
+                            _dat = np.atleast_1d(mags.squeeze())
+                        elif 'jy' in cat_units.lower():
+                            flux = 3631. * 10**(mags / -2.5)
+
+                            if cat_units.lower() == 'jy':
+                                _dat = np.atleast_1d(flux.squeeze())
+                            elif cat_units.lower() in ['microjy', 'ujy']:
+                                _dat = np.atleast_1d(1e6 * flux.squeeze())
+                            else:
+                                raise NotImplemented('help')
+                        else:
+                            raise NotImplemented('Unrecognized `cat_units`.')
+
+                    ##
+                    # Save
+                    self.save_cat(fn, (_ra, _dec, _red, _dat),
+                        channel, zchunk, mchunk,
+                        fov, pix=pix, fmt=fmt, hdr=hdr,
+                        cat_units=cat_units,
+                        clobber=clobber, verbose=verbose)
 
 
-                dat.extend(list(_dat))
+                    dat.extend(list(_dat))
+
+                # End of else block that generates new catalog if one isn't found.
+
+            # Back to level of loop over chunks of work.
 
             ##
             # Figure out if we're done with all the chunks
