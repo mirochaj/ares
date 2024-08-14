@@ -1206,9 +1206,9 @@ class GalaxyCohort(GalaxyAggregate):
             z2 = self.halos.tab_z[iz+1]
 
             L1 = self.get_lum(z1, x=x, band=band, units=units,
-                units_out=units_out, total_sat=True)
+                units_out=units_out, total_sat=True, for_emissivity=True)
             L2 = self.get_lum(z2, x=x, band=band, units=units,
-                units_out=units_out, total_sat=True)
+                units_out=units_out, total_sat=True, for_emissivity=True)
 
             ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
                 self.halos.tab_M < self.get_Mmax(z1))
@@ -2262,7 +2262,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
-        total_sat=True):
+        total_sat=True, for_emissivity=False):
         """
         Determine the luminosity of stellar population(s) for all halos.
         """
@@ -2324,7 +2324,11 @@ class GalaxyCohort(GalaxyAggregate):
             if units_out.lower() == 'erg/s/hz':
                 pass
             else:
-                raise NotImplemented('help')
+                raise NotImplemented(f'Problem with units_out={units_out}')
+
+            if for_emissivity and (self.pf['pop_scatter_sfh'] > 0):
+                Lh *= np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
+                print('adding scatter', x)
 
             return Lh
         ##
@@ -2745,7 +2749,7 @@ class GalaxyCohort(GalaxyAggregate):
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
-        include_igm_transmission=True, total_sat=True):
+        include_igm_transmission=True, total_sat=True, for_emissivity=False):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -2788,7 +2792,8 @@ class GalaxyCohort(GalaxyAggregate):
             Lh = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
                 band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,
-                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
+                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat,
+                for_emissivity=for_emissivity)
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()

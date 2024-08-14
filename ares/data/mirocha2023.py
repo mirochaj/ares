@@ -555,25 +555,6 @@ for i in range(4, 26):
 subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
 subhalos_focc_ext['pop_focc_inv{3}'] = True
 
-sed_modeling = {}
-#sed_modeling['pop_age{0}'] = 1e2, 'hubble'
-#sed_modeling['pop_age{2}'] = 1e2, 'hubble'
-#sed_modeling['pop_age{1}'] = 'hubble'
-#sed_modeling['pop_age{3}'] = 'hubble'
-
-#sed_modeling['pop_sfh{2}'] = 'constant+ssp'
-#sed_modeling['pop_ssp{2}'] = (False, True)
-
-#sed_modeling['pop_age_definition{0}'] = 'mixed'
-#sed_modeling['pop_age_definition{1}'] = 'mixed'
-#sed_modeling['pop_age_definition{2}'] = 'mixed'
-#sed_modeling['pop_age_definition{3}'] = 'mixed'
-#
-#sed_modeling['pop_lum_tab{1}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
-#sed_modeling['pop_lum_tab{3}'] = 'sed_corrections_qgs_below_100_obs.hdf5'
-#sed_modeling['pop_Z{1}'] = 0.02
-#sed_modeling['pop_Z{3}'] = 0.02
-
 _mzr02 = {}
 for par in mzr:
     _mzr02[par + '{0}'] = mzr[par]
@@ -624,8 +605,8 @@ slow = \
  "halo_dt": 10,
 }
 
-# 2222's all around
-_compact = \
+# Lowest dimensional model we've got?
+_base = \
 {
 'pq_func_par0[0]{0}': 5.4405e-05,
 'pq_func_par1[0]{0}': 8.4801e+11,
@@ -670,5 +651,15 @@ _compact = \
 'pop_sys_sfr_now{0}': 2.1255e-01,
 'pop_sys_sfr_a{0}': 7.8021e-02,
 }
+
+setup = base.copy()
+base.update(_base)
 compact = base.copy()
-compact.update(_compact)
+
+sed_modeling = \
+{
+ 'pop_lum_tab{0}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs.hdf5",
+ 'pop_lum_tab{1}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_1_bb_62_obs.hdf5",
+ 'pop_lum_tab{2}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs.hdf5",
+ 'pop_lum_tab{3}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_1_bb_62_obs.hdf5",
+}

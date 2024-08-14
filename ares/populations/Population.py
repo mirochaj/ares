@@ -604,54 +604,6 @@ class Population(object):
 
         return self._Source_
 
-    def get_systematic_error_mass(self, z, **kwargs):
-        """
-        This is Mstell_obs - Mstell_true (Behroozi+ 2019, Eq. 25)
-        """
-        a = 1. / (1. + z)
-
-        if fit_systematics == 1:
-            return kwargs['mu_0'] + kwargs['mu_a'] * (1. - a)
-        elif fit_systematics == 2:
-            return kwargs['mu_0'] + kwargs['mu_a'] * (1. - a) \
-                 + kwargs['mu_z'] * np.exp(-(z - 2)**2 / 2.)
-        elif fit_systematics == 3:
-            return kwargs['mu_0'] + kwargs['mu_a'] * (1. - a) \
-                 + kwargs['mu_z'] * np.exp(-(z - 1)**2 / 2.)
-
-    def get_systematic_error_sfr(z, **kwargs):
-        """
-        This is SFR_obs - SFR_true (Behroozi+ 2019, Eq. 26)
-        """
-        a = 1. / (1. + z)
-
-        if fit_systematics == 1:
-            return systematic_error_mass(z, **kwargs) \
-                + kwargs['kappa'] * np.exp(-(z - 2)**2 / 2.)
-        elif fit_systematics == 2:
-            return kwargs['kappa_0'] + kwargs['kappa_a'] * (1. - a) \
-                 + kwargs['kappa_z'] * np.exp(-(z - 2)**2 / 2.)
-        elif fit_systematics == 3:
-            return kwargs['kappa_0'] + kwargs['kappa_a'] * (1. - a) \
-                 + kwargs['kappa_z'] * np.exp(-(z - 1)**2 / 2.)
-
-    def get_systematic_error_ssfr(z, **kwargs):
-        if ('kappa' not in kwargs) and ('kappa_0' not in kwargs):
-            return 0
-
-        a = 1. / (1. + z)
-
-        if fit_systematics == 1:
-            return kwargs['kappa'] * np.exp(-(z - 2)**2 / 2.)
-        elif fit_systematics >= 2:
-            dMst = systematic_error_mass(z, **kwargs)
-            dsfr = systematic_error_sfr(z, **kwargs)
-
-            return dsfr - dMst
-
-        else:
-            return 0
-
     @property
     def src_kwargs(self):
         """

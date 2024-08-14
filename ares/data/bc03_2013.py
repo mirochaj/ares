@@ -166,9 +166,9 @@ def _read_ised(file):
     junk = _read_binary(fh, type='f', number=3)
     junk = _read_binary(fh)
     junk = _read_binary(fh, type='f')
-    junk = _read_binary(fh, type='c', number=80)
+    junk = _read_binary(fh, type='B', number=80)
     junk = _read_binary(fh, type='f', number=4)
-    junk = _read_binary(fh, type='c', number=160)
+    junk = _read_binary(fh, type='B', number=160)
     junk = _read_binary(fh)
     junk = _read_binary(fh, number=3)
 
