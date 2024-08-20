@@ -381,7 +381,7 @@ class UniformBackground(object):
                 if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
                     z, nrg, tau, ehat = self._set_grid(pop, bands,
-                        compute_emissivities=True)
+                        compute_emissivities=1)
                 else:
                     z = nrg = ehat = tau = None
 

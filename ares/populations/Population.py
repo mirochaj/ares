@@ -11,7 +11,7 @@ Description:
 """
 
 import re
-import inspect
+import copy
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
@@ -501,6 +501,7 @@ class Population(object):
         return (not self.pf['pop_emissivity_tricks']) \
             or (self.pf['pop_sfh'] not in simple_sfhs) \
             or (self.pf['pop_lum_corr'] is not None) \
+            or (self.pf['pop_lum_tab'] is not None) \
             or (self.pf['pop_lum_per_sfr_at_wave'] is not None)
 
     @property
@@ -513,6 +514,14 @@ class Population(object):
         """
 
         if not hasattr(self, '_is_emissivity_scalable'):
+
+            if self.pf['pop_scatter_sfh'] > 0:
+                self._is_emissivity_scalable = False
+                return self._is_emissivity_scalable
+
+            if self.pf['pop_lum_tab'] is not None:
+                self._is_emissivity_scalable = False
+                return self._is_emissivity_scalable
 
             if self.is_emissivity_bruteforce:
                 self._is_emissivity_scalable = False
@@ -595,7 +604,7 @@ class Population(object):
             elif self.pf['pop_sed'] == 'sps-toy':
                 self._Source_ = SynthesisModelToy
             elif type(self.pf['pop_sed']) is FunctionType or \
-                 inspect.ismethod(self.pf['pop_sed']) or \
+                 ismethod(self.pf['pop_sed']) or \
                  isinstance(self.pf['pop_sed'], interp1d_scipy):
                  self._Source_ = BlackHole
             else:
@@ -1248,9 +1257,34 @@ class Population(object):
         if self.is_emissivity_bruteforce or reprocessed:
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
 
-            _window = np.abs(np.diff(_waves))
-            window = [round(_window[jj],0) for jj in range(Nf-1)]
-            window.append(1)
+            #_window = np.abs(np.diff(_waves))
+            #window = [round(_window[jj],0) for jj in range(Nf-1)]
+            #window.append(1)
+
+            _waves_asc = _waves[::-1]
+
+            if len(_waves_asc) == 1:
+                bands = [None]
+                dfreq = np.ones(1)
+            else:
+                # Set upper edge of all bands by halving distance between centers
+                bands_up = [_waves_asc[i] + 0.5 * (_waves_asc[i+1] - _waves_asc[i]) \
+                    for i in range(len(_waves) - 1)]
+
+                b_up = _waves_asc[-1] + 0.5 * (_waves_asc[-1] - bands_up[-1])
+
+                bands_lo = copy.deepcopy(bands_up)
+                # Insert lowest band
+                b_lo = _waves_asc[0] - 0.5 * (bands_up[0] - _waves_asc[0])
+
+                bands_lo.insert(0, b_lo)
+                bands_up.append(b_up)
+
+                bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
+                dwave = np.abs(np.diff(bands, axis=1))
+                dfreq = c * 1e8 / dwave
+
+                print('hey!', dfreq)
 
             for ll in range(Nz):
                 iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
@@ -1261,21 +1295,27 @@ class Population(object):
                 for jj in range(Nf):
 
                     # [erg/s/Hz] in the rest frame
-                    lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
-                        raw=False, units_out='erg/s/Hz',
-                        #window=window[jj] if window[jj] % 2 == 1 else window[jj]+1,
-                        total_sat=True, load=False)
+                    #lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
+                    #    raw=False, units_out='erg/s/Hz',
+                    #    #window=window[jj] if window[jj] % 2 == 1 else window[jj]+1,
+                    #    total_sat=True, load=False, for_emissivity=True)
 
-                    # Setup integrand over population [erg/s/Hz/cMpc^3]
-                    integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \
-                        * self.tab_focc[iz,:] #* ok
+                    ## Setup integrand over population [erg/s/Hz/cMpc^3]
+                    #integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \
+                    #    * self.tab_focc[iz,:] #* ok
 
-                    # Integrate: recall that Mmin and Mmax are enforced
-                    # already in get_lum
-                    _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
+                    ## Integrate: recall that Mmin and Mmax are enforced
+                    ## already in get_lum
+                    #_tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
+                    _band = tuple(bands[jj]) if len(_waves_asc) > 1 \
+                        else None
+                    _tot = self.get_emissivity(z[ll], x=_waves[jj],
+                        units='Ang', units_out='erg/s/Hz',
+                        band=_band) #/ dfreq[jj]
 
                     # Convert from luminosity in erg to photons / s / Hz
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
+                    # Put Hz^-1 by hand
 
         elif scalable:
             Lbol = self.get_emissivity(z)
@@ -1364,10 +1404,13 @@ class Population(object):
                     if redshift > self.pf['first_light_redshift']:
                         continue
 
+                    print('doing emissivity tab', redshift)
+
                     # Use Emissivity here rather than rho_L because only
                     # GalaxyCohort objects will have a rho_L attribute.
                     epsilon[ll,in_band==1] = fix \
-                        * self.get_emissivity(redshift, band=b, units='eV') \
+                        * self.get_emissivity(redshift, band=b, units='eV',
+                        units_out='erg/s/eV') \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
 
                 ct += 1

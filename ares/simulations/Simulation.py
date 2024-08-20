@@ -191,7 +191,7 @@ class Simulation(object):
             included.
         include_inter_pop : bool
             This flag determines whether "inter-population cross terms" are
-            included in the calculation. 
+            included in the calculation.
         wave_units : str
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str
@@ -226,8 +226,8 @@ class Simulation(object):
         """
 
         # Make sure we do mean background first in case LW feedback is on.
-        if not self.mean_intensity._run_complete:
-            self.mean_intensity.run()
+        #if not self.mean_intensity._run_complete:
+        #    self.mean_intensity.run()
 
         # Make sure things are arrays
         if type(scales) != np.ndarray:

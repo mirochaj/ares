@@ -55,7 +55,7 @@ centrals_sf = \
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100, 1.8e3),
+ 'pop_age': (100., 1.8e3),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
 

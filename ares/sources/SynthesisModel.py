@@ -378,7 +378,12 @@ class SynthesisModelBase(Source):
         Parameters
         ----------
         x : int, float
-            Wavelength of interest [Angstroms].
+            Wavelength (or photon energy) of interest. Pay attention to value of
+            `units`.
+        units : str
+            Units of `x`, e.g., `Angstroms`, `eV`, etc.
+        units_out : str
+            Units of output. The key thing here is whether it's `/Hz` or `/Ang`.
         window : int
             Will compute luminosity averaged over this window, assumed to be
             a delta lambda width in Angstroms.
@@ -410,14 +415,19 @@ class SynthesisModelBase(Source):
             return cached_result
 
         if band is not None:
-
+            # Work in eV regardless of input
             E1, E2 = self.get_ev_from_x(band, units=units)
-            if (E1 < np.min(self.tab_energies_c)) and (E2 < np.min(self.tab_energies_c)):
+
+            # If outside range, don't extrapolate, just set to zero.
+            if (E1 < np.min(self.tab_energies_c)) and \
+               (E2 < np.min(self.tab_energies_c)):
                 return np.zeros_like(self.tab_t)
 
+            # Find indices in tabulated energy range corresponding to band.
             i0 = np.argmin(np.abs(self.tab_energies_c - E1))
             i1 = np.argmin(np.abs(self.tab_energies_c - E2))
 
+            #
             if raw and not (nebular_only or self.pf['source_nebular_only']):
                 poke = self.tab_sed_at_age
                 data = self._data_raw
@@ -434,6 +444,7 @@ class SynthesisModelBase(Source):
 
                 # Special treatment for narrow bands
                 if (i0 == i1) or abs(i0 - i1) == 1:
+                    # Work with wavelengths here
                     l1, l2 = self.get_ang_from_x(band, units=units)
                     dlam = abs(l1 - l2)
 
@@ -451,7 +462,9 @@ class SynthesisModelBase(Source):
                         integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
                             / (self.tab_energies_c[i1:i0] * erg_per_ev)
 
-                    yield_UV[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
+                    yield_UV[i] = np.trapz(integrand,
+                        x=np.log(self.tab_waves_c[i1:i0]))
+
 
         else:
             wave = self.get_ang_from_x(x, units=units)
@@ -525,8 +538,10 @@ class SynthesisModelBase(Source):
 
         Parameters
         ----------
-        wave : int, float
+        x : int, float
             Wavelength at which to determine emissivity.
+        units : str
+            Units of `x`, e.g., `Angstroms`, `eV`.
         window : int
             Number of wavelength bins over which to average
 

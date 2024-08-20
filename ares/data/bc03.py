@@ -92,7 +92,7 @@ def _load(**kwargs):
         spec = None
         dunno = None
         # 221 times, 6900 wavelengths
-        data = np.zeros((6900, 221))
+        data = np.zeros((6900, 221), dtype=float)
         for i in range(332582):
             line = f.readline().split()
 
@@ -129,4 +129,5 @@ def _load(**kwargs):
         assert ct == 221
 
     # Done. Convert times to Myr, SEDs to erg/s, and return
-    return np.array(waves), np.array(times)[1:] / 1e6, data[:,1:] * Lsun * 1e6, fn
+    return np.array(waves, dtype=float), np.array(times, dtype=float)[1:] / 1e6, \
+        data[:,1:] * Lsun * 1e6, fn

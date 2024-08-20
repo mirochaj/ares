@@ -1168,7 +1168,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         return iz
 
-    def get_emissivity(self, z, x=None, band=None, units='eV', units_out='erg/s/A'):
+    def get_emissivity(self, z, x=None, band=None, units='eV',
+        units_out='erg/s/A'):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
@@ -1205,48 +1206,46 @@ class GalaxyCohort(GalaxyAggregate):
             z1 = self.halos.tab_z[iz]
             z2 = self.halos.tab_z[iz+1]
 
-            L1 = self.get_lum(z1, x=x, band=band, units=units,
-                units_out=units_out, total_sat=True, for_emissivity=0)
-            L2 = self.get_lum(z2, x=x, band=band, units=units,
-                units_out=units_out, total_sat=True, for_emissivity=0)
+            ##
+            # Handle case with scatter separately.
+            if self.pf['pop_scatter_sfh'] == 0:
+                L1 = self.get_lum(z1, x=x, band=band, units=units,
+                    units_out=units_out, total_sat=True)
+                L2 = self.get_lum(z2, x=x, band=band, units=units,
+                    units_out=units_out, total_sat=True)
 
-            ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
-                self.halos.tab_M < self.get_Mmax(z1))
-            ok2 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
-                self.halos.tab_M < self.get_Mmax(z2))
+                ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
+                    self.halos.tab_M < self.get_Mmax(z1))
+                ok2 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
+                    self.halos.tab_M < self.get_Mmax(z2))
 
-            integ1 = L1 * self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:]
-            integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] * self.tab_focc[iz+1,:]
+                integ1 = L1 * self.halos.tab_dndlnm[iz,:] \
+                    * self.tab_focc[iz,:]
+                integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] \
+                    * self.tab_focc[iz+1,:]
 
-            if self.pf['pop_scatter_sfh'] > 0:
-                sigma = self.pf['pop_scatter_sfh']
-                mu = np.log10(Ms_c)
+                rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
+                rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
+            else:
+                ##
+                # Just use get_lf.
+                # This is forced to be in units of 'erg/s/Hz' internally.
+                # These LFs are dn/dlnL
+                bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, units=units,
+                    band=band)
+                bins2, phi2 = self.get_lf(z2, x=x, use_mags=False, units=units,
+                    band=band)
 
-                # This is essentially dn/dlog10Mstell
-                pdf = lognormal(bin_c[None,:], mu[:,None], sigma)
+                rhoL1 = np.trapz(phi1 * bins1, x=np.log(bins1))
+                rhoL2 = np.trapz(phi2 * bins2, x=np.log(bins2))
 
-                # Integrating over PDF, dn/dlog10Mstell, so convert
-                # halo abundance to dlog10Mstell first.
-                integrand = dndlnm[ok==1,None] * np.log(10.) \
-                    * dlog10mdlog10M[ok==1,None] * pdf[ok==1]
+                assert units_out.lower().startswith('erg/s/hz')
 
-                # Integrate over halo mass axis
-                phi_tot = np.trapz(integrand,
-                    x=np.log10(Ms_c[ok==1]), axis=0)
-
-            rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
-            rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
-
+            ##
+            # Interpolate to input z
             rhoL = rhoL1 + (z - z1) * (rhoL2 - rhoL1) / (z2 - z1)
 
             return rhoL
-
-        #else:
-        #    # Here, the radiation backgrounds cannot just be scaled.
-        #    # Note that this method can always be used, it's just less
-        #    # efficient because you're basically calculating the SFRD again
-        #    # and again.
-        #    rhoL = self._get_luminosity_density(Emin, Emax)(z)
 
     def get_mass(self, z, Mh=None, kind='halo'):
         """
@@ -1765,7 +1764,7 @@ class GalaxyCohort(GalaxyAggregate):
                     presets=presets)
             else:
                 x = self.get_lum(z=z, x=x, units=units, window=window,
-                    raw=raw, nebular_only=nebular_only)
+                    raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz')
 
             phi, b_e = np.histogram(x, bins=bin_c2e(bins))
             return bins, phi / self.pf['pop_volume']
@@ -2276,7 +2275,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
-        total_sat=True, for_emissivity=False):
+        total_sat=True):
         """
         Determine the luminosity of stellar population(s) for all halos.
         """
@@ -2337,12 +2336,11 @@ class GalaxyCohort(GalaxyAggregate):
 
             if units_out.lower() == 'erg/s/hz':
                 pass
+            elif units_out.lower().startswith('erg/s/a'):
+                wave = self.src.get_ang_from_x(x, units=units)
+                Lh = Lh * c * 1e8 / (np.mean(wave))**2
             else:
-                raise NotImplemented(f'Problem with units_out={units_out}')
-
-            if for_emissivity and (self.pf['pop_scatter_sfh'] > 0):
-                Lh *= np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
-                print('adding scatter', x)
+                raise NotImplementedError(f'Problem with units_out={units_out}')
 
             return Lh
         ##
@@ -2627,7 +2625,6 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
 
             else:
-
                 # Just the product of SFR and L
                 if self.is_central_pop or \
                   (self.is_satellite_pop and (not total_sat)):
@@ -2670,30 +2667,35 @@ class GalaxyCohort(GalaxyAggregate):
         if band is not None:
             _band = self.src.get_ang_from_x(band, units=units)
             wave = np.mean(_band)
+            iw1 = np.argmin(np.abs(min(_band) - ltab_w))
+            iw2 = np.argmin(np.abs(max(_band) - ltab_w))
+            lum = ltab[:,:,iw1:iw2+1].mean(axis=-1)
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
+            iw = np.argmin(np.abs(wave - ltab_w))
+            lum = ltab[:,:,iw]
 
-        iw = np.argmin(np.abs(wave - ltab_w))
+        # Do pre-averaging over wavelength
 
         # Bracket redshift range
         ilo = np.argmin(np.abs(z - ltab_z))
 
         # If requested z < tabulated range, just return
         if (ilo == 0) and (z < ltab_z[ilo]):
-            kludge = np.interp(np.log10(Ms), ltab_M, ltab[ilo,:,iw],
+            kludge = np.interp(np.log10(Ms), ltab_M, lum[ilo,:],
                 left=0, right=0)
         # Same deal if requested z > tabulated range
         elif ilo == len(ltab_z) - 1:
-            kludge = np.interp(np.log10(Ms), ltab_M, ltab[-1,:,iw],
+            kludge = np.interp(np.log10(Ms), ltab_M, lum[-1,:],
                 left=0, right=0)
         else:
             # Make sure we're bracketing redshift range.
             if ltab_z[ilo] > z:
                 ilo -= 1
 
-            kludge1 = np.interp(np.log10(Ms), ltab_M, ltab[ilo,:,iw],
+            kludge1 = np.interp(np.log10(Ms), ltab_M, lum[ilo,:],
                 left=0, right=0)
-            kludge2 = np.interp(np.log10(Ms), ltab_M, ltab[ilo+1,:,iw],
+            kludge2 = np.interp(np.log10(Ms), ltab_M, lum[ilo+1,:],
                 left=0, right=0)
             m = (kludge2 - kludge1) / (ltab_z[ilo+1] - ltab_z[ilo])
 
@@ -2763,7 +2765,7 @@ class GalaxyCohort(GalaxyAggregate):
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
-        include_igm_transmission=True, total_sat=True, for_emissivity=False):
+        include_igm_transmission=True, total_sat=True):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -2806,8 +2808,7 @@ class GalaxyCohort(GalaxyAggregate):
             Lh = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
                 band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,
-                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat,
-                for_emissivity=for_emissivity)
+                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()
@@ -2851,7 +2852,7 @@ class GalaxyCohort(GalaxyAggregate):
         elif np.all(T == 0):
             return np.zeros_like(Lh)
         elif Mh is None:
-            Lh *= T
+            Lh = Lh * T#[:,None]
         else:
             _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
             Lh *= _T_
@@ -5660,10 +5661,10 @@ class GalaxyCohort(GalaxyAggregate):
         # For an IHL contribution we won't get this far, because
         # pop_include_shot = False
         lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
-            raw=raw, nebular_only=nebular_only,
+            raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
         lum2 = self.get_lum(z, x=wave1, band=band2, units='Angstrom',
-            raw=raw, nebular_only=nebular_only,
+            raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
 
         if self.is_central_pop:
@@ -5794,7 +5795,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, x=wave1, raw=raw,
-                band=band, units='Angstrom',
+                band=band, units='Angstrom', units_out='erg/s/Hz',
                 nebular_only=nebular_only, total_sat=True)
 
         if np.all(np.array(wave2) <= 912):
@@ -5807,7 +5808,7 @@ class GalaxyCohort(GalaxyAggregate):
                 lum2 = lum1
             else:
                 lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
-                    band=band, units='Angstrom',
+                    band=band, units='Angstrom', units_out='erg/s/Hz',
                     nebular_only=nebular_only, total_sat=True)
 
 
@@ -5844,7 +5845,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, x=wave1, raw=raw,
-                band=band, units='Angstrom',
+                band=band, units='Angstrom', units_out='erg/s/Hz',
                 nebular_only=nebular_only, total_sat=total_sat)
 
         if np.all(np.array(wave2) <= 912):
@@ -5852,7 +5853,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             band = wave2 if type(wave2) not in numeric_types else None
             lum2 = self.get_lum(z, x=wave2, raw=raw,
-                band=band, units='Angstrom',
+                band=band, units='Angstrom', units_out='erg/s/Hz',
                 nebular_only=nebular_only, total_sat=total_sat)
 
         focc = self.get_focc(z=z, Mh=self.halos.tab_M)
@@ -5958,7 +5959,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, x=wave1, raw=raw,
-                band=band, units='Angstrom',
+                band=band, units='Angstrom', units_out='erg/s/Hz',
                 nebular_only=nebular_only, total_sat=True)
 
         if np.all(np.array(wave2) <= 912):
@@ -5970,7 +5971,7 @@ class GalaxyCohort(GalaxyAggregate):
                 lum2 = lum1
             else:
                 lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
-                    band=band, units='Angstrom',
+                    band=band, units='Angstrom', units_out='erg/s/Hz',
                     nebular_only=nebular_only, total_sat=True)
 
         focc1 = 1 if (not self.is_central_pop) else \
@@ -6119,50 +6120,24 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Get rest wavelength in Angstroms
             wave1 = wave_obs1 * 1e4 / (1. + z)
-            # Convert to photon energy since that what we work with internally
-            E1 = h_p * c / (wave1 * 1e-8) / erg_per_ev
-            nu1 = c / (wave1 * 1e-8)
-
-            # [enu] = erg/s/cm^3/Hz
-            #enu1 = self.get_emissivity(z, E=E1) * ev_per_hz
-            # Not clear about * nu at the end
         else:
             is_band_int = True
 
             # Get rest wavelengths
             wave1 = tuple(np.array(wave_obs1) * 1e4 / (1. + z))
 
-            # Convert to photon energies since that what we work with internally
-            E11 = h_p * c / (wave1[0] * 1e-8) / erg_per_ev
-            E21 = h_p * c / (wave1[1] * 1e-8) / erg_per_ev
-
-            # [enu] = erg/s/cm^3
-            #enu1 = self.get_emissivity(z, band=(E21, E11), units='eV')
-
         if type(wave_obs2) in [int, float, np.float64]:
             is_band_int = False
 
             # Get rest wavelength in Angstroms
             wave2 = wave_obs2 * 1e4 / (1. + z)
-            # Convert to photon energy since that what we work with internally
-            E2 = h_p * c / (wave2 * 1e-8) / erg_per_ev
-            nu2 = c / (wave2 * 1e-8)
 
-            # [enu] = erg/s/cm^3/Hz
-            #enu2 = self.get_emissivity(z, E=E2) * ev_per_hz
-            # Not clear about * nu at the end
         else:
             is_band_int = True
 
             # Get rest wavelengths
             wave2 = tuple(np.array(wave_obs2) * 1e4 / (1. + z))
 
-            # Convert to photon energies since that what we work with internally
-            E12 = h_p * c / (wave2[0] * 1e-8) / erg_per_ev
-            E22 = h_p * c / (wave2[1] * 1e-8) / erg_per_ev
-
-            # [enu] = erg/s/cm^3
-            #enu2 = self.get_emissivity(z, band=(E21, E11), units='eV')
 
         # Need angular diameter distance and H(z) for all that follows
         d = self.cosm.get_dist_los_comoving(0., z)            # [cm]
