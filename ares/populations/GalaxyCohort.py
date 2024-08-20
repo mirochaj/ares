@@ -2329,12 +2329,15 @@ class GalaxyCohort(GalaxyAggregate):
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
             # Need to interpolate in redshift, stellar mass, wavelength
-            Lh = self.get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+            Lh = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
 
             if (not self.is_central_pop) and total_sat:
                 Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)
 
-            if units_out.lower() == 'erg/s/hz':
+            # This stuff should go in _get_lum_from_tab
+            if (band is not None):
+                pass
+            elif units_out.lower() == 'erg/s/hz':
                 pass
             elif units_out.lower().startswith('erg/s/a'):
                 wave = self.src.get_ang_from_x(x, units=units)
@@ -2342,12 +2345,15 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise NotImplementedError(f'Problem with units_out={units_out}')
 
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                self.halos.tab_M < self.get_Mmax(z))
+            Lh[~ok] = 0
+
             return Lh
         ##
         # Apply luminosity correction [optional]
         elif self.pf['pop_lum_corr'] is not None:
             kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
-
 
         ##
         # Loop over components (most often just one) and determine L
@@ -2656,31 +2662,49 @@ class GalaxyCohort(GalaxyAggregate):
 
             return Lh
 
-    def get_lum_from_tab(self, z, Ms, x=1600, band=None, units='Angstrom'):
+    def _get_lum_from_tab(self, z, Ms, x=1600, band=None, window=1,
+        units='Angstrom'):
+        """
+        Returns the luminosity of galaxies from a lookup table.
 
+        We should converge on a more robust approach here, but for now, there
+        are a few assumptions. First, the SED of galaxies is tabulated as
+        a function of redshift and log10(stellar mass). Second, the units
+        of the spectra are erg/s/Hz. Third, the wavelengths are in Angstroms.
+
+        Parameters
+        ----------
+
+        """
+
+        # Grab table elements
         ltab = self.tab_lum
         ltab_z = self._tab_lum_z
         ltab_M = self._tab_lum_Ms # actually log10(stellar mass)
         ltab_w = self._tab_lum_waves
 
+        ##
         # Use correction for mean of band [if provided] or exact wavelength
         if band is not None:
             _band = self.src.get_ang_from_x(band, units=units)
             wave = np.mean(_band)
             iw1 = np.argmin(np.abs(min(_band) - ltab_w))
             iw2 = np.argmin(np.abs(max(_band) - ltab_w))
-            lum = ltab[:,:,iw1:iw2+1].mean(axis=-1)
+            freqs = c * 1e8 / ltab_w
+            lum = np.trapz(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
+                axis=-1)
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
             iw = np.argmin(np.abs(wave - ltab_w))
             lum = ltab[:,:,iw]
-
-        # Do pre-averaging over wavelength
+        else:
+            pass
 
         # Bracket redshift range
         ilo = np.argmin(np.abs(z - ltab_z))
 
-        # If requested z < tabulated range, just return
+        # If requested z < tabulated range, just return whatever we have
+        # at the lower redshift bound.
         if (ilo == 0) and (z < ltab_z[ilo]):
             kludge = np.interp(np.log10(Ms), ltab_M, lum[ilo,:],
                 left=0, right=0)
@@ -5663,7 +5687,7 @@ class GalaxyCohort(GalaxyAggregate):
         lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
             raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
-        lum2 = self.get_lum(z, x=wave1, band=band2, units='Angstrom',
+        lum2 = self.get_lum(z, x=wave2, band=band2, units='Angstrom',
             raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
 
@@ -5695,7 +5719,6 @@ class GalaxyCohort(GalaxyAggregate):
 
             integrand_2d = self.halos.tab_dndlnm_sub[:,:] \
                 * focc[None,:] * fsurv[None,:] * lum1[None,:] * lum2[None,:]
-
 
             sat_shot = np.trapz(integrand_2d[:,ok==1],
                 x=np.log(self.halos.tab_M[ok==1]), axis=1)

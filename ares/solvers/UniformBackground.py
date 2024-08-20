@@ -381,13 +381,20 @@ class UniformBackground(object):
                 if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
                     z, nrg, tau, ehat = self._set_grid(pop, bands,
-                        compute_emissivities=1)
+                        compute_emissivities=0)
                 else:
                     z = nrg = ehat = tau = None
 
                 self._emissivities.append(ehat)
 
         return self._emissivities
+
+    def tab_emissivities(self):
+        if not hasattr(self, '_tab_emissivities'):
+            for i, pop in enumerate(self.pops):
+                pass
+                
+        return self._tab_emissivities
 
     def _set_grid(self, pop, bands, zi=None, zf=None, nz=None,
         compute_tau=False, compute_emissivities=False):
