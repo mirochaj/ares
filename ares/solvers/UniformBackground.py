@@ -189,11 +189,14 @@ class UniformBackground(object):
         else:
             return False
 
-    def _get_bands(self, pop):
+    def get_bands(self, pop):
         """
         Break radiation field into chunks we know how to deal with.
 
         For example, HI, HeI, and HeII sawtooth modulation.
+
+        Parameters
+        ----------
 
         Returns
         -------
@@ -343,14 +346,14 @@ class UniformBackground(object):
                 self._energies = []
                 self._redshifts = []
                 for i, pop in enumerate(self.pops):
-                    bands = self._get_bands(pop)
+                    bands = self.get_bands(pop)
 
                     self._bands_by_pop.append(bands)
 
                     if (bands is None) or (not pop.pf['pop_solve_rte']):
                         z = nrg = ehat = tau = None
                     else:
-                        z, nrg, tau, ehat = self._set_grid(pop, bands)
+                        z, nrg, tau = self.get_grid(pop, bands)
 
                     self._energies.append(nrg)
                     self._redshifts.append(z)
@@ -364,40 +367,72 @@ class UniformBackground(object):
             for i, pop in enumerate(self.pops):
                 if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
-                    z, nrg, tau, ehat = self._set_grid(pop, bands,
+                    z, nrg, tau = self.get_grid(pop, bands,
                         compute_tau=True)
                 else:
-                    z = nrg = ehat = tau = None
+                    z = nrg = tau = None
 
                 self._tau.append(tau)
 
         return self._tau
 
+    #@property
+    #def emissivities(self):
+    #    if not hasattr(self, '_emissivities'):
+    #        self._emissivities = []
+    #        for i, pop in enumerate(self.pops):
+    #            if np.any(self.solve_rte[i]):
+    #                bands = self.bands_by_pop[i]
+    #                z, nrg, tau, ehat = self.get_grid(pop, bands,
+    #                    compute_emissivities=0)
+    #            else:
+    #                z = nrg = ehat = tau = None
+
+    #            self._emissivities.append(ehat)
+
+    #    return self._emissivities
+
+    def _has_sawtooth(self, band):
+        """
+        Identify bands that should be split into sawtooth components.
+        Be careful to not punish users unnecessarily if Emin and Emax
+        aren't set exactly to Ly-a energy or Lyman limit.
+        """
+
+        E0, E1 = band
+
+        has_sawtooth  = (abs(E0 - E_LyA) < 0.1) or (abs(E0 - 4 * E_LyA) < 0.1)
+        has_sawtooth &= E1 > E_LyA
+
+        return has_sawtooth
+
     @property
-    def emissivities(self):
-        if not hasattr(self, '_emissivities'):
-            self._emissivities = []
-            for i, pop in enumerate(self.pops):
-                if np.any(self.solve_rte[i]):
-                    bands = self.bands_by_pop[i]
-                    z, nrg, tau, ehat = self._set_grid(pop, bands,
-                        compute_emissivities=0)
-                else:
-                    z = nrg = ehat = tau = None
-
-                self._emissivities.append(ehat)
-
-        return self._emissivities
-
     def tab_emissivities(self):
+        """
+        Emissivities for each population, with a sub-list for the emissivity
+        of each individual sub-band.
+        """
         if not hasattr(self, '_tab_emissivities'):
+            self._tab_emissivities = []
             for i, pop in enumerate(self.pops):
-                pass
-                
+                bands = self.bands_by_pop[i]
+                z, E, tau = self.get_grid(pop, bands)
+
+                ehat = []
+                for j, band in enumerate(bands):
+
+                    if self._has_sawtooth(band):
+                        ehat.append([pop.get_tab_emissivity(z, Earr) \
+                            for Earr in E[j]])
+                    else:
+                        ehat.append(pop.get_tab_emissivity(z, E[j]))
+
+                self._tab_emissivities.append(ehat)
+
         return self._tab_emissivities
 
-    def _set_grid(self, pop, bands, zi=None, zf=None, nz=None,
-        compute_tau=False, compute_emissivities=False):
+    def get_grid(self, pop, bands, zi=None, zf=None, nz=None,
+        compute_tau=False):
         """
         Create energy and redshift arrays.
 
@@ -433,19 +468,13 @@ class UniformBackground(object):
         # Loop over bands, build energy arrays
         tau_by_band = []
         energies_by_band = []
-        emissivity_by_band = []
+        #emissivity_by_band = []
         for j, band in enumerate(bands):
 
             E0, E1 = band
 
-            # Identify bands that should be split into sawtooth components.
-            # Be careful to not punish users unnecessarily if Emin and Emax
-            # aren't set exactly to Ly-a energy or Lyman limit.
-            has_sawtooth  = (abs(E0 - E_LyA) < 0.1) or (abs(E0 - 4 * E_LyA) < 0.1)
-            has_sawtooth &= E1 > E_LyA
-
             # Special treatment if LWB or UVB
-            if has_sawtooth:
+            if self._has_sawtooth(band):
 
                 HeII = band[0] > E_LL
 
@@ -472,16 +501,16 @@ class UniformBackground(object):
                 #else:
                 tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
 
-                if compute_emissivities:
-                    ehat = [pop.get_tab_emissivity(z, Earr) \
-                        for Earr in E]
-                else:
-                    ehat = None
+                #if compute_emissivities:
+                #    ehat = [pop.get_tab_emissivity(z, Earr) \
+                #        for Earr in E]
+                #else:
+                #    ehat = None
 
                 # Store stuff for this band
                 tau_by_band.append(tau)
                 energies_by_band.append(E)
-                emissivity_by_band.append(ehat)
+                #emissivity_by_band.append(ehat)
 
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
@@ -498,17 +527,17 @@ class UniformBackground(object):
                     tau = None
 
                 # Tabulate emissivity
-                if compute_emissivities:
-                    ehat = pop.get_tab_emissivity(z, E)
-                else:
-                    ehat = None
+                #if compute_emissivities:
+                #    ehat = pop.get_tab_emissivity(z, E)
+                #else:
+                #    ehat = None
 
                 # Store stuff for this band
                 tau_by_band.append(tau)
                 energies_by_band.append(E)
-                emissivity_by_band.append(ehat)
+                #emissivity_by_band.append(ehat)
 
-        return z, energies_by_band, tau_by_band, emissivity_by_band
+        return z, energies_by_band, tau_by_band#, emissivity_by_band
 
     @property
     def tau_solver(self):
@@ -1168,15 +1197,14 @@ class UniformBackground(object):
             if not self.solve_rte[popid][i]:
                 gen = None
                 ct += 1
-            elif type(self.energies[popid][i]) is list:
+            elif self._has_sawtooth(band):
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
-                    z=self.redshifts[popid], ehat=self.emissivities[popid][i],
+                    z=self.redshifts[popid], ehat=self.tab_emissivities[popid][i],
                     tau=self.tau[popid][i], my_id=(popid,ct))
                 ct += len(self.energies[popid][i])
             else:
-
                 gen = self._flux_generator_generic(self.energies[popid][i],
-                    self.redshifts[popid], self.emissivities[popid][i],
+                    self.redshifts[popid], self.tab_emissivities[popid][i],
                     tau=self.tau[popid][i], my_id=(popid,ct))
                 ct += 1
 

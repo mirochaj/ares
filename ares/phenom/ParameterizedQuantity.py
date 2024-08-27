@@ -1409,9 +1409,13 @@ class ParameterizedQuantity(object):
         if self.func.val_ceil is not None:
             if type(self.func.val_ceil) in numeric_types:
                 y = np.minimum(y, self.func.val_ceil)
+            else:
+                raise NotImplemented('help')
         if self.func.val_floor is not None:
             if type(self.func.val_floor) in numeric_types:
                 y = np.maximum(y, self.func.val_floor)
+            else:
+                raise NotImplemented('help')
 
         return y
 

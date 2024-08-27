@@ -15,6 +15,7 @@ import copy
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
+from ..util import ProgressBar
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
@@ -1189,7 +1190,7 @@ class Population(object):
 
         return np.interp(n, self.tab_sersic_n, x)
 
-    def get_tab_emissivity(self, z, E):
+    def get_tab_emissivity(self, z, E, use_pbar=True):
         """
         Tabulate emissivity over photon energy and redshift.
 
@@ -1199,7 +1200,7 @@ class Population(object):
 
         For a scalable emissivity, the tabulation is done for the emissivity
         in the (EminNorm, EmaxNorm) band because conversion to other bands
-        can simply be applied after-the-fact. However, if the emissivity is
+        can simply be applied in post. However, if the emissivity is
         NOT scalable, then it is tabulated separately in the (10.2, 13.6),
         (13.6, 24.6), and X-ray band.
 
@@ -1209,13 +1210,14 @@ class Population(object):
             Array of redshifts
         E : np.ndarray
             Array of photon energies [eV]
-        pop : object
-            Better be some kind of Galaxy population object.
+        use_pbar : int, bool
+            Can toggle on/off use of progress bar, as this can take awhile.
 
         Returns
         -------
         A 2-D array, first axis corresponding to redshift, second axis for
-        photon energy. Units are photons / s / Hz / (co-moving cm)^3.
+        photon energy. Units are photons / s / Hz / (co-moving cm)^3 divided
+        by the Hubble parameter.
 
         """
 
@@ -1255,6 +1257,12 @@ class Population(object):
         ##
         # Most general case: src.Spectrum does not contain all information.
         if self.is_emissivity_bruteforce or reprocessed:
+
+            pb = ProgressBar(z.size*len(E),
+                use=self.pf['progress_bar'] * use_pbar,
+                name=f"ehat(z,E;pop={self.id_num})")
+            pb.start()
+
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
 
             #_window = np.abs(np.diff(_waves))
@@ -1281,41 +1289,27 @@ class Population(object):
                 bands_up.append(b_up)
 
                 bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
-                dwave = np.abs(np.diff(bands, axis=1))
-                dfreq = c * 1e8 / dwave
-
-                print('hey!', dfreq)
+                dfreq = np.abs(np.diff(c * 1e8 / bands, axis=1))
 
             for ll in range(Nz):
                 iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
 
-                #ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z[ll]),
-                #    self.halos.tab_M < self.get_Mmax(z[ll]))
-
                 for jj in range(Nf):
 
-                    # [erg/s/Hz] in the rest frame
-                    #lum_v_Mh = self.get_lum(z[ll], x=_waves[jj], units='Ang',
-                    #    raw=False, units_out='erg/s/Hz',
-                    #    #window=window[jj] if window[jj] % 2 == 1 else window[jj]+1,
-                    #    total_sat=True, load=False, for_emissivity=True)
+                    pb.update(jj + Nf * ll)
 
-                    ## Setup integrand over population [erg/s/Hz/cMpc^3]
-                    #integrand = lum_v_Mh * self.halos.tab_dndlnm[iz,:] \
-                    #    * self.tab_focc[iz,:] #* ok
-
-                    ## Integrate: recall that Mmin and Mmax are enforced
-                    ## already in get_lum
-                    #_tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
                     _band = tuple(bands[jj]) if len(_waves_asc) > 1 \
                         else None
+
+                    # Put Hz^-1 back in by hand [since `band` integrates]
                     _tot = self.get_emissivity(z[ll], x=_waves[jj],
                         units='Ang', units_out='erg/s/Hz',
-                        band=_band) #/ dfreq[jj]
+                        band=_band) / dfreq[jj]
 
                     # Convert from luminosity in erg to photons / s / Hz
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
-                    # Put Hz^-1 by hand
+
+            pb.finish()
 
         elif scalable:
             Lbol = self.get_emissivity(z)

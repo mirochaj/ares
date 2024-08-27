@@ -140,6 +140,8 @@ class Survey(object):
             return self._read_sdss(filters)
         elif self.camera == 'hsc':
             return self._read_hsc(filters)
+        elif self.camera == 'dirbe':
+            return self._read_dirbe(filters)
         else:
             raise NotImplemented(f"Unrecognized cam '{cam}'")
 
@@ -488,6 +490,26 @@ class Survey(object):
 
         return data
 
+    def _read_dirbe(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "dirbe")
+
+        cent = 1.25, 2.2, 3.5, 4.9, 12, 25, 60, 100, 140, 240
+        data = {}
+        full_path = os.path.join(path,
+            "DIRBE_SYSTEM_SPECTRAL_RESPONSE_TABLE.ASC")
+
+        _data = np.loadtxt(full_path, unpack=True, skiprows=15)
+
+        x = _data[0]
+        for _i, band in enumerate(range(1, 11)):
+            data[f"band{band}"] = self._get_filter_prop(x, _data[1+_i], cent[_i])
+            self._filter_cache[f"band{band}"] = copy.deepcopy(data[f"band{band}"])
+
+        return data
+
     def _get_filter_prop(self, x, y, cent):
         Tmax = max(y)
         _ok = y > 1e-2 #y > 1e-2 * y.max()
@@ -533,6 +555,9 @@ class Survey(object):
         return x, y, mi, dx, Tavg
 
     def get_filter_info(self, filt):
+        """
+        Returns the filter center and "full-width-full-max" in microns.
+        """
         return self._filter_cache[filt][2], sum(self._filter_cache[filt][3])
 
     def get_dropout_filter(self, z, filters=None, drop_wave=1216., skip=None):

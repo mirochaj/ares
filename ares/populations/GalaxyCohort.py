@@ -1236,8 +1236,15 @@ class GalaxyCohort(GalaxyAggregate):
                 bins2, phi2 = self.get_lf(z2, x=x, use_mags=False, units=units,
                     band=band)
 
-                rhoL1 = np.trapz(phi1 * bins1, x=np.log(bins1))
-                rhoL2 = np.trapz(phi2 * bins2, x=np.log(bins2))
+                if np.all(phi1[phi1.mask==0] == 0):
+                    rhoL1 = 0
+                else:
+                    rhoL1 = np.trapz(phi1 * bins1, x=np.log(bins1))
+
+                if np.all(phi2[phi2.mask==0] == 0):
+                    rhoL2 = 0
+                else:
+                    rhoL2 = np.trapz(phi2 * bins2, x=np.log(bins2))
 
                 assert units_out.lower().startswith('erg/s/hz')
 
@@ -2349,7 +2356,12 @@ class GalaxyCohort(GalaxyAggregate):
                 self.halos.tab_M < self.get_Mmax(z))
             Lh[~ok] = 0
 
-            return Lh
+            if Mh is None:
+                return Lh
+            else:
+                iM = np.argmin(np.abs(self.halos.tab_M - Mh))
+                return Lh[iM]
+
         ##
         # Apply luminosity correction [optional]
         elif self.pf['pop_lum_corr'] is not None:
@@ -2663,7 +2675,7 @@ class GalaxyCohort(GalaxyAggregate):
             return Lh
 
     def _get_lum_from_tab(self, z, Ms, x=1600, band=None, window=1,
-        units='Angstrom'):
+        units='Ang'):
         """
         Returns the luminosity of galaxies from a lookup table.
 
@@ -2688,6 +2700,7 @@ class GalaxyCohort(GalaxyAggregate):
         if band is not None:
             _band = self.src.get_ang_from_x(band, units=units)
             wave = np.mean(_band)
+
             iw1 = np.argmin(np.abs(min(_band) - ltab_w))
             iw2 = np.argmin(np.abs(max(_band) - ltab_w))
             freqs = c * 1e8 / ltab_w
@@ -2699,6 +2712,9 @@ class GalaxyCohort(GalaxyAggregate):
             lum = ltab[:,:,iw]
         else:
             pass
+
+        if wave > self._tab_lum_waves.max():
+            return np.zeros_like(Ms)
 
         # Bracket redshift range
         ilo = np.argmin(np.abs(z - ltab_z))
@@ -2800,7 +2816,7 @@ class GalaxyCohort(GalaxyAggregate):
         x : int, float
             Wavelength or photon energy or photon frequency, set by `units`.
         band : 2-element tuple
-            Defines edge of band, if interest in band-averaged luminosity
+            Defines edge of band, if interested in band-integrated luminosity
             rather than monochromatic luminosity. Abides by `units` keyword
             as well. Note: will override `x` if both are provided!
         total_sat : bool
@@ -2861,8 +2877,8 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             raise NotImplemented('help')
 
-        import matplotlib.pyplot as plt
-
+        ##
+        # Final step apply dust reddening [optional]
         T = self.get_transmission(z, x, units=units, band=band,
             use_tabs=use_tabs,
             include_dust_transmission=include_dust_transmission,

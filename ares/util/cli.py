@@ -309,6 +309,10 @@ aux_data = {
         '2MASS.H',
         '2MASS.Ks',
         None],
+    'dirbe': [
+        'https://lambda.gsfc.nasa.gov/data/cobe/dirbe/ancil/spec_resp/',
+        'DIRBE_SYSTEM_SPECTRAL_RESPONSE_TABLE.ASC',
+        None],
     "planck": [
         "https://pla.esac.esa.int/pla/aio",
         "product-action?COSMOLOGY.FILE_ID=COM_CosmoParams_base-plikHM-TTTEEE"

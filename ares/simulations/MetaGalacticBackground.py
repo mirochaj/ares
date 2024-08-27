@@ -532,7 +532,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             #if not self.pf['feedback_clear_solver']:
             #    pop._tab_Mmin = np.interp(pop.halos.z, self._zarr, self._Mmin_now)
             #    bands = self.solver.bands_by_pop[popid]
-            #    z, nrg, tau, ehat = self.solver._set_grid(pop, bands,
+            #    z, nrg, tau, ehat = self.solver.get_grid(pop, bands,
             #        compute_emissivities=True)
             #
             #    k = range(self.solver.Npops).index(popid)
@@ -1461,7 +1461,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         fl = [f_data[i][2] for i in range(self.solver.Npops)]
 
         all_data = [(z, E, fl),
-            (self.solver.redshifts, self.solver.energies, self.solver.emissivities)]
+            (self.solver.redshifts, self.solver.energies, self.solver.tab_emissivities)]
 
         for i, data in enumerate(all_data):
             fn = all_fn[i]
