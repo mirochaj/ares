@@ -147,6 +147,9 @@ class Simulation(object):
             else:
                 zf = self.pops[i].zdead
 
+            assert self.pops[i].pf['pop_mask'] is None, \
+                "Turn off mask (via `pop_mask`) before computing mean EBL!"
+
             x, flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
                 units=flux_units, xunits=wave_units)
 

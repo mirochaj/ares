@@ -649,13 +649,20 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if hasattr(self, '_get_focc_'):
-            #print('calling _get_focc', self.id_num)
             return self._get_focc_(z=z, Mh=Mh)
 
-        #print('calling get_focc', self.id_num)
         func = self._get_function('pop_focc')
         result = func(z=z, Mh=Mh)
+
         return result
+
+    def get_fmask(self, z, Mh):
+        #if (self.pf['pop_scatter_sfh'] == 0) or (not self.pf['pop_mask_use_adv']):
+        #    return np.zeros_like(Mh)
+
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+        return self.tab_fmask[iz,:]
 
     @property
     def _get_fsurv(self):
@@ -2279,6 +2286,61 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Lh
 
+    def _get_lum_lines_per_sfr(self, z, x, band, units, units_out):
+
+        if self.pf['pop_lum_per_sfr_at_wave'] is None:
+            return 0
+
+        ##
+        # Add by-hand line emission [optional]
+        # Just be careful not to double count.
+        L_lines = 0.0
+
+        if band is not None:
+            band = self.src.get_ang_from_x(band, units=units)
+
+            if band[0] > band[1]:
+                band = band[::-1]
+
+        elif x is not None:
+            wave = self.src.get_ang_from_x(x, units=units)
+
+        R = 1 if self.pf['pop_sed_degrade'] is None \
+            else self.pf['pop_sed_degrade']
+
+        for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
+
+            if (band is not None):
+                if (band[0] <= _wave_ <= band[1]):
+                    L_lines = _lum_
+                    if 'erg/s/A' in units_out:
+                        dlam = (band[1] - band[0])
+                        dnu = None
+                        L_lines /= dlam
+                        raise NotImplementedError('should deprecate this')
+                    else:
+                        dlam = None
+                        dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
+                        #L_lines /= dnu
+                else:
+                    continue
+            elif (x is not None) and (abs(wave - _wave_) < R):
+                raise NotImplementedError('should deprecate this')
+                # If lines are delta functions,
+                if 'erg/s/A' in units_out:
+                    L_lines = _lum_ / R
+                else:
+                    # Line luminosities are provided in erg/s/(Msun/yr)
+                    # If we assume delta functions, implicitly then
+                    # they are in per Angstrom units.
+                    # dnu/dlam = -c/wave**2
+                    # [dnu/dlam] = Hz / cm
+                    L_lines = _lum_ / (c * 1e8 / wave**2)
+            else:
+                continue
+
+        return L_lines
+
     def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
@@ -2336,7 +2398,20 @@ class GalaxyCohort(GalaxyAggregate):
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
             # Need to interpolate in redshift, stellar mass, wavelength
-            Lh = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+            Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+
+            Lh_l = self._get_lum_lines_per_sfr(z, x=x, band=band, units=units,
+                units_out=units_out) * sfr
+
+            #if np.sum(Lh_c > 0) > 0:
+            #    print('hi', z, max(Lh_l[Lh_c >0] / Lh_c[Lh_c >0]))
+            #else:
+            #    print('hi', z, x)
+
+            if self.pf['pop_lum_per_sfr_off_wave'] == 0:
+                Lh = Lh_l
+            else:
+                Lh = Lh_c + Lh_l
 
             if (not self.is_central_pop) and total_sat:
                 Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)
@@ -2352,8 +2427,10 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise NotImplementedError(f'Problem with units_out={units_out}')
 
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                self.halos.tab_M < self.get_Mmax(z))
+            ok = self.halos.tab_M >= self.get_Mmin(z)
+            #if (self.pf['pop_scatter_sfh'] == 0) or (not self.pf['pop_mask_use_adv']):
+            #    ok *= self.halos.tab_M < self.get_Mmax(z)
+
             Lh[~ok] = 0
 
             if Mh is None:
@@ -2561,66 +2638,6 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # Apply fesc and kludge
             L_sfr *= fesc * kludge
-
-            ##
-            # Add by-hand line emission [optional]
-            # Just be careful not to double count.
-            if (not src.is_ssp) and \
-               (self.pf['pop_lum_per_sfr_at_wave'] is not None):
-
-                L_lines = 0.0
-
-                if x is not None:
-                    wave = self.src.get_ang_from_x(x, units=units)
-                elif band is not None:
-                    band = self.src.get_ang_from_x(band, units=units)
-
-                R = 1 if self.pf['pop_sed_degrade'] is None \
-                    else self.pf['pop_sed_degrade']
-
-                #print('hey check', x, wave, band, R)
-
-                ct = 0
-                for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
-
-                    if (band is not None):
-                        if (band[0] <= _wave_ <= band[1]):
-                            L_lines = _lum_
-                            if 'erg/s/A' in units_out:
-                                dlam = (band[1] - band[0])
-                                dnu = None
-                                L_lines /= dlam
-                            else:
-                                dlam = None
-                                dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
-                                L_lines /= dnu
-                        else:
-                            continue
-                    elif (x is not None) and (abs(wave - _wave_) < R):
-                        # If lines are delta functions,
-                        if 'erg/s/A' in units_out:
-                            L_lines = _lum_ / R
-                        else:
-                            # Line luminosities are provided in erg/s/(Msun/yr)
-                            # If we assume delta functions, implicitly then
-                            # they are in per Angstrom units.
-                            # dnu/dlam = -c/wave**2
-                            # [dnu/dlam] = Hz / cm
-                            L_lines = _lum_ / (c * 1e8 / wave**2)
-                    else:
-                        continue
-
-                    ct += 1
-
-                # Remember: all dust and IGM transmission occurs after this!
-                # Increment
-                #if ct > 0:
-                #    print('hey', x, wave, band, L_lines/L_sfr)
-                if self.pf['pop_lum_per_sfr_off_wave'] == 0:
-                    L_sfr = L_lines
-                else:
-                    L_sfr += L_lines
-
 
             ##
             # Special treatment for SSPs
@@ -3149,6 +3166,87 @@ class GalaxyCohort(GalaxyAggregate):
 
         return mags
 
+    @property
+    def tab_fmask(self):
+        if not hasattr(self, '_tab_fmask'):
+            self._tab_fmask = self._get_mask_general()
+        return self._tab_fmask
+
+    def _get_mask_general(self):
+        """
+        If the relationship between halo mass and galaxy luminosity is not 1:1,
+        we have to be more careful in our construction of the source mask.
+
+        In this case, there's more of an occupation fraction kind of cut on the
+        galaxy population, since some fraction of lower mass halos will pop
+        up above our desired cut.
+        """
+
+        # This is like an occupation fraction, i.e., it's the fraction of
+        # galaxies in a given halo mass bin that are brighter than
+        # our masking threshold.
+        tab_mask = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+
+        sigma = self.pf['pop_scatter_sfh']
+
+        ##
+        # If there's no mask, just use Mmax
+        if (self.pf['pop_mask'] is None):
+            # Just apply Mmax at each redshift.
+            for i, z in enumerate(self.halos.tab_z):
+                Mmax = self.get_Mmax(z)
+                tab_mask[i,self.halos.tab_M >= Mmax] = 1
+
+            return tab_mask
+
+        ##
+        # Otherwise, general case
+        for h, mask in enumerate(self.pf['pop_mask']):
+            mwave, mlim = mask
+
+            assert h == 0, "Not implemented yet."
+
+            for i, z in enumerate(self.halos.tab_z):
+
+                llim = self.magsys.get_lum_from_mag_app(z, mlim)
+
+                # Get P(m_AB < mask | Mh) and record
+                Lh = self.get_lum(z, x=mwave*1e4/(1.+z), window=101,
+                    units='Ang', units_out='erg/s/Hz', total_sat=False)
+
+                if (sigma == 0) or (not self.pf['pop_mask_use_adv']):
+                    tab_mask[i,Lh>=llim] = 1
+                    continue
+
+                xx = mu = np.log10(Lh)
+                xx[Lh==0] = 0
+                mu[Lh==0] = 0
+                gt0 = Lh > 0
+
+                # Log-normal distribution of luminosity at given
+                # halo mass, need to integrate over.
+                # Arguments are just: x, mu, sigma
+                pdf = lognormal(xx[None,:], mu[:,None], sigma)
+                ok = Lh >= llim
+
+                if not np.any(ok):
+                    continue
+
+                for j, M in enumerate(self.halos.tab_M):
+                    tab_mask[i,j] = \
+                        np.trapz(pdf[ok==1,j], x=xx[ok==1]) \
+                      / np.trapz(pdf[gt0==1,j], x=xx[gt0==1])
+
+                    #if np.isnan(tab_mask[i,j]):
+                    #    print(z, M, ok.sum())
+
+        # Need to be careful about tiny negative numbers at machine precision
+        # level given the subtraction above.
+        #tab_mask_occ[tab_mask_occ<0] = 0
+        tab_mask[np.isnan(tab_mask)] = 0
+
+        return tab_mask
+
     def get_mask(self):
         """
         This function returns an array of length `self.halos.tab_z` containing
@@ -3158,8 +3256,10 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_mask'] is None:
             return self._tab_Mmax * np.ones_like(self.halos.tab_z)
 
-        tmp = np.zeros_like(self.halos.tab_z)
+        if (self.pf['pop_scatter_sfh'] > 0) and (not self.pf['pop_mask_use_adv']):
+            return self._get_mask_general()
 
+        tmp = np.zeros_like(self.halos.tab_z)
         for i, z in enumerate(self.halos.tab_z):
 
             if self.pf['pop_mask_interp'] is not None:
@@ -3748,12 +3848,12 @@ class GalaxyCohort(GalaxyAggregate):
                 self._tab_Mmax_ = 1e18 * np.ones_like(self.halos.tab_z)
 
             # Override switch: source masking
-            if self.pf['pop_mask'] is not None:
-                mask = self.get_mask()
-                # Don't understand this...if tab_source_mask gets called
-                # before this method, things don't work out. 03.15.2023.
+            #if self.pf['pop_mask'] is not None:
+            #    mask = self.get_mask()
+            #    # Don't understand this...if tab_source_mask gets called
+            #    # before this method, things don't work out. 03.15.2023.
 
-                self._tab_Mmax_ = np.minimum(mask, self._tab_Mmax_)
+            #    self._tab_Mmax_ = np.minimum(mask, self._tab_Mmax_)
 
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
@@ -5709,6 +5809,10 @@ class GalaxyCohort(GalaxyAggregate):
 
         if self.is_central_pop:
             focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
+            fnmask1 = fnmask2 = 1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
+
+            focc1 *= fnmask1
+            focc2 *= fnmask2
 
             ps = self.halos.get_ps_shot(z, k=k,
                 lum1=lum1, lum2=lum2,
@@ -5719,6 +5823,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             fsurv = self.tab_fsurv[iz,:]
             focc = self.tab_focc[iz,:]
+            fnmask = 1 - self.tab_fmask[iz,:]
+            focc *= fnmask
 
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                 self.halos.tab_M < self.get_Mmax(z))
@@ -5755,7 +5861,6 @@ class GalaxyCohort(GalaxyAggregate):
 
             ps = np.trapz(integrand[okc==1],
                 x=np.log(self.halos.tab_M[okc==1]))
-
 
         return ps
 
@@ -5853,12 +5958,16 @@ class GalaxyCohort(GalaxyAggregate):
 
         focc1 = 1 if (not self.is_central_pop) else \
             self.get_focc(z=z, Mh=self.halos.tab_M)
+        fnmask1 =  1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
+        focc1 *= fnmask1
 
         if cross_pop is None:
             focc2 = focc1
         else:
             focc2 = 1 if (not pop_x.is_central_pop) else \
                 pop_x.get_focc(z=z, Mh=self.halos.tab_M)
+            fnmask2 =  1 - pop_x.get_fmask(z=z, Mh=self.halos.tab_M)
+            focc2 *= fnmask2
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
             lum1=lum1, lum2=lum2,
@@ -5896,6 +6005,8 @@ class GalaxyCohort(GalaxyAggregate):
                 nebular_only=nebular_only, total_sat=total_sat)
 
         focc = self.get_focc(z=z, Mh=self.halos.tab_M)
+        fnmask =  1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
+        focc *= fnmask
 
         return prof, focc, lum1, lum2
 
@@ -6015,11 +6126,15 @@ class GalaxyCohort(GalaxyAggregate):
 
         focc1 = 1 if (not self.is_central_pop) else \
             self.get_focc(z=z, Mh=self.halos.tab_M)
+        fnmask1 =  1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
+        focc1 *= fnmask1
 
         if cross_pop is None:
             focc2 = focc1
         else:
             focc2 = pop_x.get_focc(z=z, Mh=self.halos.tab_M)
+            fnmask2 =  1 - pop_x.get_fmask(z=z, Mh=self.halos.tab_M)
+            focc2 *= fnmask2
 
         ps = self.halos.get_ps_1h(z, k=k, prof1=prof1, prof2=prof2, lum1=lum1,
             lum2=lum2, mmin1=None, mmin2=None, focc1=focc1, focc2=focc2,
