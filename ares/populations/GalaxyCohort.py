@@ -1234,26 +1234,33 @@ class GalaxyCohort(GalaxyAggregate):
                 rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
                 rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
             else:
+                assert units_out.lower().startswith('erg/s/hz')
+
                 ##
                 # Just use get_lf.
                 # This is forced to be in units of 'erg/s/Hz' internally.
                 # These LFs are dn/dlnL
                 bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, units=units,
                     band=band)
-                bins2, phi2 = self.get_lf(z2, x=x, use_mags=False, units=units,
-                    band=band)
-
                 if np.all(phi1[phi1.mask==0] == 0):
                     rhoL1 = 0
                 else:
                     rhoL1 = np.trapz(phi1 * bins1, x=np.log(bins1))
+
+                if z == z1:
+                    return rhoL1
+
+                bins2, phi2 = self.get_lf(z2, x=x, use_mags=False, units=units,
+                    band=band)
 
                 if np.all(phi2[phi2.mask==0] == 0):
                     rhoL2 = 0
                 else:
                     rhoL2 = np.trapz(phi2 * bins2, x=np.log(bins2))
 
-                assert units_out.lower().startswith('erg/s/hz')
+                if z == z2:
+                    return rhoL2
+
 
             ##
             # Interpolate to input z
@@ -3201,21 +3208,34 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Otherwise, general case
+        tmp_mask = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size,
+            len(self.pf['pop_mask'])))
+
+        # Loop over different masks.
         for h, mask in enumerate(self.pf['pop_mask']):
             mwave, mlim = mask
-
-            assert h == 0, "Not implemented yet."
 
             for i, z in enumerate(self.halos.tab_z):
 
                 llim = self.magsys.get_lum_from_mag_app(z, mlim)
 
+                if type(mwave) in numeric_types:
+                    x = mwave * 1e4 / (1 + z)
+                    band = None
+                else:
+                    band = tuple(np.array(mwave) * 1e4 / (1. + z))
+                    x = None
+
                 # Get P(m_AB < mask | Mh) and record
-                Lh = self.get_lum(z, x=mwave*1e4/(1.+z), window=101,
+                Lh = self.get_lum(z, x=x, window=101, band=band,
                     units='Ang', units_out='erg/s/Hz', total_sat=False)
 
+                if x is None:
+                    Lh /= ((c * 1e8 / min(band)) - (c * 1e8 / max(band)))
+
                 if (sigma == 0) or (not self.pf['pop_mask_use_adv']):
-                    tab_mask[i,Lh>=llim] = 1
+                    #print('doing approx mask')
+                    tmp_mask[i,Lh>=llim,h] = 1
                     continue
 
                 xx = mu = np.log10(Lh)
@@ -3233,12 +3253,21 @@ class GalaxyCohort(GalaxyAggregate):
                     continue
 
                 for j, M in enumerate(self.halos.tab_M):
-                    tab_mask[i,j] = \
-                        np.trapz(pdf[ok==1,j], x=xx[ok==1]) \
+                    tmp_mask[i,j,h] = np.trapz(pdf[ok==1,j], x=xx[ok==1]) \
                       / np.trapz(pdf[gt0==1,j], x=xx[gt0==1])
 
-                    #if np.isnan(tab_mask[i,j]):
-                    #    print(z, M, ok.sum())
+
+        ##
+        # Enforce logic of how we combine masks
+        if tmp_mask.shape[-1] == 1:
+            tab_mask = tmp_mask[:,:,0]
+        elif self.pf['pop_mask_logic'] == 'and':
+            tab_mask = np.min(tmp_mask, axis=-1)
+        elif self.pf['pop_mask_logic'] == 'or':
+            tab_mask = np.max(tmp_mask, axis=-1)
+        else:
+            raise NotImplementedError('pop_mask_logic must be `and` or `or`.')
+
 
         # Need to be careful about tiny negative numbers at machine precision
         # level given the subtraction above.
@@ -3367,8 +3396,6 @@ class GalaxyCohort(GalaxyAggregate):
         # objects
         #if self.pf['pop_fobsc_by'] == 'lum':
         #    Lh *= fobsc
-
-
 
         ##
         # Continue with standard approach.
