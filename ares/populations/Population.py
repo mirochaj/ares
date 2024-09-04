@@ -21,7 +21,6 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..obs import MagnitudeSystem
 from functools import cached_property
-from ..util.Misc import numeric_types
 from scipy.special import gammaincinv
 from ares.data import read as read_lit
 from scipy.interpolate import interp1d
@@ -30,6 +29,7 @@ from ..obs.Photometry import Photometry
 from ..obs.OpticalDepth import OpticalDepth
 from ..util.ParameterFile import get_pq_pars
 from ..obs.DustExtinction import DustExtinction
+from ..util.Misc import numeric_types, get_rte_bands
 from scipy.interpolate import interp1d as interp1d_scipy
 from ..phenom.ParameterizedQuantity import get_function_from_par
 from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
@@ -135,8 +135,6 @@ class Population(object):
         assert stars + bhs <= 1, \
             "Populations can only form stars OR black holes."
 
-        if self.is_src_neb and (not self.is_src_ion):
-            raise ValueError('Including nebular line emission for non-ionizing source!')
 
     def run(self):
         # Avoid breaks in fitting (make it look like ares.simulation object)
@@ -326,8 +324,17 @@ class Population(object):
 
     @property
     def is_src_neb(self):
-        return self.pf['pop_nebular'] and \
+        by_hand = self.pf['pop_lum_per_sfr_at_wave'] is not None
+        if by_hand:
+            return True
+
+        by_model = self.pf['pop_nebular'] and \
             (self.pf['pop_nebular_lines'] or self.pf['pop_nebular_continuum'])
+
+        if by_model and (not self.is_src_ion):
+            raise ValueError('Including nebular line emission for non-ionizing source!')
+
+        return by_model
 
     @property
     def is_src_fir(self):
@@ -1263,43 +1270,43 @@ class Population(object):
                 name=f"ehat(z,E;pop={self.id_num})")
             pb.start()
 
+
+
+            ##_window = np.abs(np.diff(_waves))
+            ##window = [round(_window[jj],0) for jj in range(Nf-1)]
+            ##window.append(1)
+
+            #_waves_asc = _waves[::-1]
+
+            #if len(_waves_asc) == 1:
+            #    bands = [None]
+            #    dfreq = np.ones(1)
+            #else:
+            #    # Set upper edge of all bands by halving distance between centers
+            #    bands_up = [_waves_asc[i] + 0.5 * (_waves_asc[i+1] - _waves_asc[i]) \
+            #        for i in range(len(_waves) - 1)]
+
+            #    b_up = _waves_asc[-1] + 0.5 * (_waves_asc[-1] - bands_up[-1])
+
+            #    bands_lo = copy.deepcopy(bands_up)
+            #    # Insert lowest band
+            #    b_lo = _waves_asc[0] - 0.5 * (bands_up[0] - _waves_asc[0])
+
+            #    bands_lo.insert(0, b_lo)
+            #    bands_up.append(b_up)
+
+            #    bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
+            #    dfreq = np.abs(np.diff(c * 1e8 / bands, axis=1))
+
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
-
-            #_window = np.abs(np.diff(_waves))
-            #window = [round(_window[jj],0) for jj in range(Nf-1)]
-            #window.append(1)
-
-            _waves_asc = _waves[::-1]
-
-            if len(_waves_asc) == 1:
-                bands = [None]
-                dfreq = np.ones(1)
-            else:
-                # Set upper edge of all bands by halving distance between centers
-                bands_up = [_waves_asc[i] + 0.5 * (_waves_asc[i+1] - _waves_asc[i]) \
-                    for i in range(len(_waves) - 1)]
-
-                b_up = _waves_asc[-1] + 0.5 * (_waves_asc[-1] - bands_up[-1])
-
-                bands_lo = copy.deepcopy(bands_up)
-                # Insert lowest band
-                b_lo = _waves_asc[0] - 0.5 * (bands_up[0] - _waves_asc[0])
-
-                bands_lo.insert(0, b_lo)
-                bands_up.append(b_up)
-
-                bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
-                dfreq = np.abs(np.diff(c * 1e8 / bands, axis=1))
+            bands, dfreq = get_rte_bands(z.max(), z.min(), nz=z.size,
+                Emin=E.min(), Emax=E.max(), E_user=E)
 
             for ll in range(Nz):
-                iz = np.argmin(np.abs(z[ll] - self.halos.tab_z))
-
                 for jj in range(Nf):
-
                     pb.update(jj + Nf * ll)
 
-                    _band = tuple(bands[jj]) if len(_waves_asc) > 1 \
-                        else None
+                    _band = tuple(bands[jj]) if E.size > 1 else None
 
                     # Put Hz^-1 back in by hand [since `band` integrates]
                     _tot = self.get_emissivity(z[ll], x=_waves[jj],

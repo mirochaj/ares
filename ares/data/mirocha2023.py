@@ -1,5 +1,5 @@
 import numpy as np
-from ares.physics.Constants import E_LyA
+from ares.physics.Constants import E_LyA, lsun
 
 setup = \
 {
@@ -35,8 +35,9 @@ centrals_sf = \
  'pop_sfr_model': 'smhm-func',
  'pop_solve_rte': (0.12, E_LyA),
  'pop_Emin': 0.12,
- 'pop_Emax': E_LyA*0.999,
+ #'pop_Emax': E_LyA*0.999,
  #'pop_Emax': 24.6,
+ 'pop_Emax': 13.6,
 
  'pop_centrals': True,
  'pop_zdead': 0,
@@ -57,7 +58,7 @@ centrals_sf = \
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100., 1.8e3),
+ 'pop_age': (100., 2.5e3),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
 
@@ -580,9 +581,11 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (4102, 0.259 * 0.44e41),     # H-delta
      (3970, 0.159 * 0.44e41),     # H-epsilon
      (3727, 0.71e41),             # [O II]
-     (1.87e4, 1.27e41 * 0.123)]   # [P-alpha]
+     (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
+     (3.3e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
 
+#pah = {'lai2020': [(3.3e4, lsun * 10**6.6)]}
 
 faster = \
 {

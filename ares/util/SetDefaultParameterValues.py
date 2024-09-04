@@ -229,7 +229,7 @@ def PhysicsParameters():
         "floor_Ts_p5": None,
 
         # Lyman alpha sources
-        "lya_nmax": 23,
+        "lya_nmax": 3,
 
         "rate_source": 'fk94', # fk94, option for development here
 

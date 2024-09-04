@@ -14,13 +14,10 @@ import os
 from math import ceil
 import re
 import types
-
 import numpy as np
-
 from ..data import ARES
 from ..core import GlobalVolume
 from ..util import ParameterFile
-from ..util.Misc import num_freq_bins
 from ..util.Math import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
@@ -30,8 +27,9 @@ from ..populations.GalaxyAggregate import GalaxyAggregate
 from scipy.integrate import quad, romberg, romb, trapz, simps, cumtrapz
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, \
     h_p, cm_per_mpc
-#from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
-#    flatten_emissivities
+from ..util.Misc import num_freq_bins, get_rte_grid, get_rte_bands, \
+    get_rte_segments, has_sawtooth
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -206,47 +204,7 @@ class UniformBackground(object):
 
         Emin, Emax = pop.src.Emin, pop.src.Emax
 
-        # Pure X-ray
-        if (Emin > E_LL) and (Emin > 4 * E_LL):
-            return [(Emin, Emax)]
-
-        bands = []
-
-        # Check for optical/IR
-        if (Emin < E_LyA) and (Emax <= E_LyA):
-            bands.append((Emin, Emax))
-            return bands
-
-        # Emission straddling Ly-a -- break off low energy chunk.
-        if (Emin < E_LyA) and (Emax > E_LyA):
-            bands.append((Emin, E_LyA))
-
-            # Keep track as we go
-            _Emin_ = np.max(bands)
-        else:
-            _Emin_ = Emin
-
-        # Check for sawtooth
-        if _Emin_ >= E_LyA and _Emin_ < E_LL:
-            bands.append((_Emin_, min(E_LL, Emax)))
-
-        #if (abs(Emin - E_LyA) < 0.1) and (Emax >= E_LL):
-        #    bands.append((E_LyA, E_LL))
-        #elif abs(Emin - E_LL) < 0.1 and (Emax < E_LL):
-        #    bands.append((max(E_LyA, E_LL), Emax))
-
-        if Emax <= E_LL:
-            return bands
-
-        # Check for HeII
-        if Emax > (4 * E_LL):
-            bands.append((E_LL, 4 * E_LyA))
-            bands.append((4 * E_LyA, 4 * E_LL))
-            bands.append((4 * E_LL, Emax))
-        else:
-            bands.append((E_LL, Emax))
-
-        return bands
+        return get_rte_segments(Emin, Emax)
 
     @property
     def approx_all_pops(self):
@@ -392,19 +350,21 @@ class UniformBackground(object):
 
     #    return self._emissivities
 
-    def _has_sawtooth(self, band):
+    def get_tab_emissivity(self, pop):
         """
-        Identify bands that should be split into sawtooth components.
-        Be careful to not punish users unnecessarily if Emin and Emax
-        aren't set exactly to Ly-a energy or Lyman limit.
+        Tabulate the emissivity of a population over redshift and photon energy.
         """
+        bands = self.bands_by_pop[i]
+        z, E, tau = self.get_grid(pop, bands)
 
-        E0, E1 = band
+        ehat = []
+        for j, band in enumerate(bands):
 
-        has_sawtooth  = (abs(E0 - E_LyA) < 0.1) or (abs(E0 - 4 * E_LyA) < 0.1)
-        has_sawtooth &= E1 > E_LyA
-
-        return has_sawtooth
+            if has_sawtooth(*band):
+                ehat.append([pop.get_tab_emissivity(z, Earr) \
+                    for Earr in E[j]])
+            else:
+                ehat.append(pop.get_tab_emissivity(z, E[j]))
 
     @property
     def tab_emissivities(self):
@@ -421,7 +381,7 @@ class UniformBackground(object):
                 ehat = []
                 for j, band in enumerate(bands):
 
-                    if self._has_sawtooth(band):
+                    if has_sawtooth(*band):
                         ehat.append([pop.get_tab_emissivity(z, Earr) \
                             for Earr in E[j]])
                     else:
@@ -454,6 +414,7 @@ class UniformBackground(object):
 
         """
 
+        # Shorthand
         if zi is None:
             zi = pop.pf['first_light_redshift']
         if zf is None:
@@ -468,13 +429,12 @@ class UniformBackground(object):
         # Loop over bands, build energy arrays
         tau_by_band = []
         energies_by_band = []
-        #emissivity_by_band = []
         for j, band in enumerate(bands):
 
             E0, E1 = band
 
             # Special treatment if LWB or UVB
-            if self._has_sawtooth(band):
+            if has_sawtooth(*band):
 
                 HeII = band[0] > E_LL
 
@@ -488,10 +448,8 @@ class UniformBackground(object):
                         Emi *= 4
                         Ema *= 4
 
-                    N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
-
-                    # Create energy array
-                    EofN = Emi * R**np.arange(N)
+                    _z_, EofN = get_rte_grid(zi, zf, nz=nz, Emin=Emi, Emax=Ema,
+                        start_at_Emin=True)
 
                     # A list of lists!
                     E.append(EofN)
@@ -515,10 +473,16 @@ class UniformBackground(object):
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
 
-                if pop.src.is_delta or pop.src.has_nebular_lines:
-                    E = np.flip(E1 * R**-np.arange(N), 0)
-                else:
-                    E = E0 * R**np.arange(N)
+                start_hi = pop.src.is_delta \
+                        or pop.src.has_nebular_lines \
+                        or pop.is_src_neb
+                _z_, E = get_rte_grid(zi, zf, nz=x.size, Emin=E0, Emax=E1,
+                    start_at_Emin=not start_hi)
+
+                #if :
+                #    E = np.flip(E1 * R**-np.arange(N), 0)
+                #else:
+                #    E = E0 * R**np.arange(N)
 
                 # Tabulate optical depth
                 if compute_tau and self.solve_rte[pop.id_num][j]:
@@ -526,18 +490,11 @@ class UniformBackground(object):
                 else:
                     tau = None
 
-                # Tabulate emissivity
-                #if compute_emissivities:
-                #    ehat = pop.get_tab_emissivity(z, E)
-                #else:
-                #    ehat = None
-
                 # Store stuff for this band
                 tau_by_band.append(tau)
                 energies_by_band.append(E)
-                #emissivity_by_band.append(ehat)
 
-        return z, energies_by_band, tau_by_band#, emissivity_by_band
+        return z, energies_by_band, tau_by_band
 
     @property
     def tau_solver(self):
@@ -1197,7 +1154,7 @@ class UniformBackground(object):
             if not self.solve_rte[popid][i]:
                 gen = None
                 ct += 1
-            elif self._has_sawtooth(band):
+            elif has_sawtooth(*band):
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
                     z=self.redshifts[popid], ehat=self.tab_emissivities[popid][i],
                     tau=self.tau[popid][i], my_id=(popid,ct))
