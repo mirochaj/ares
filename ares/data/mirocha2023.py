@@ -1,5 +1,8 @@
+import os
 import numpy as np
 from ares.physics.Constants import E_LyA, lsun
+
+HOME = os.getenv("HOME")
 
 setup = \
 {
@@ -558,16 +561,6 @@ for i in range(4, 26):
 subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
 subhalos_focc_ext['pop_focc_inv{3}'] = True
 
-_mzr02 = {}
-for par in mzr:
-    _mzr02[par + '{0}'] = mzr[par]
-    _mzr02[par + '{2}'] = mzr[par]
-
-#sed_modeling.update(_mzr02)
-
-#sed_modeling['pop_lum_tab{0}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
-#sed_modeling['pop_lum_tab{2}'] = 'sed_corrections_sfgs_mzr_obs.hdf5'
-
 # Scaling relationships for common strong lines
 # Each pair is rest wavelength [Angstroms] and L_line [erg/s/(Msun/yr)]
 lines = {}
@@ -584,8 +577,6 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
      (3.3e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
-
-#pah = {'lai2020': [(3.3e4, lsun * 10**6.6)]}
 
 faster = \
 {
@@ -613,48 +604,48 @@ slow = \
 # Lowest dimensional model we've got?
 _base = \
 {
-'pq_func_par0[0]{0}': 5.4405e-05,
-'pq_func_par1[0]{0}': 8.4801e+11,
-'pq_func_par2[0]{0}': 1.4488e+00,
-'pq_func_par3[0]{0}': -4.5442e-01,
-'pq_func_par5[0]{0}': -9.5941e-01,
-'pq_func_par6[0]{0}': 7.3467e-01,
-'pq_func_par7[0]{0}': -7.8214e-01,
-'pq_func_par8[0]{0}': -4.3917e-02,
-'pq_func_par0[2]{0}': 1.8681e-01,
-'pq_func_par1[2]{0}': 8.9999e-01,
-'pq_func_par2[2]{0}': 1.2695e+01,
-'pq_func_par3[2]{0}': -6.0299e-01,
-'pq_func_par4[2]{0}': -1.9206e+00,
-'pq_func_par8[2]{0}': -3.1333e-01,
-'pq_func_par5[2]{0}': -1.7188e+00,
-'pq_func_par9[2]{0}': 1.3333e+00,
-'pq_func_par6[2]{0}': -2.3702e+00,
-'pq_func_par10[2]{0}': 1.4015e+00,
-'pq_func_par7[2]{0}': 7.6761e-01,
-'pq_func_par11[2]{0}': -4.6953e-01,
-'pq_func_par0[1]{0}': 7.3820e-04,
-'pq_func_par1[1]{0}': 1.8258e+11,
-'pq_func_par2[1]{0}': 2.2648e+00,
-'pq_func_par3[1]{0}': 7.1006e-01,
-'pq_func_par5[1]{0}': -2.9627e+00,
-'pq_func_par9[1]{0}': 1.9292e+00,
-'pq_func_par6[1]{0}': 2.9166e+00,
-'pq_func_par10[1]{0}': -1.1526e+00,
-'pq_func_par7[1]{0}': 6.0435e-02,
-'pq_func_par11[1]{0}': -3.1162e-01,
-'pq_func_par8[1]{0}': -1.9886e+00,
-'pq_func_par12[1]{0}': 9.6222e-01,
-'pq_func_par0[4]{0}': 1.0051e+00,
-'pq_func_par2[4]{0}': 1.0048e-02,
-'pq_func_par5[4]{0}': -1.6956e-01,
-'pq_func_par6[4]{0}': 1.0650e-01,
-'pop_scatter_sfh{0}': 1.9385e-01,
-'pop_sfr_below_ms{1}': 6.1879e+01,
-'pop_sys_mstell_now{0}': -1.4315e-02,
-'pop_sys_mstell_a{0}': -1.9737e-02,
-'pop_sys_sfr_now{0}': 2.1255e-01,
-'pop_sys_sfr_a{0}': 7.8021e-02,
+'pq_func_par0[0]{0}': 6.1764e-05,
+'pq_func_par1[0]{0}': 9.1754e+11,
+'pq_func_par2[0]{0}': 1.4473e+00,
+'pq_func_par3[0]{0}': -5.5587e-01,
+'pq_func_par5[0]{0}': -1.0034e+00,
+'pq_func_par6[0]{0}': 5.8955e-01,
+'pq_func_par7[0]{0}': -6.7433e-01,
+'pq_func_par8[0]{0}': 1.6365e-01,
+'pq_func_par0[2]{0}': 2.4506e-01,
+'pq_func_par1[2]{0}': 8.2420e-01,
+'pq_func_par2[2]{0}': 1.2364e+01,
+'pq_func_par3[2]{0}': -2.0167e-01,
+'pq_func_par4[2]{0}': -1.0386e-01,
+'pq_func_par8[2]{0}': 3.6803e-01,
+'pq_func_par5[2]{0}': -6.5620e-01,
+'pq_func_par9[2]{0}': 6.3437e-01,
+'pq_func_par6[2]{0}': -2.3490e+00,
+'pq_func_par10[2]{0}': 1.0774e+00,
+'pq_func_par7[2]{0}': 5.3345e-01,
+'pq_func_par11[2]{0}': -2.8394e-01,
+'pq_func_par0[1]{0}': 4.2053e-04,
+'pq_func_par1[1]{0}': 2.7720e+11,
+'pq_func_par2[1]{0}': 2.3336e+00,
+'pq_func_par3[1]{0}': 4.9890e-01,
+'pq_func_par5[1]{0}': -2.8294e+00,
+'pq_func_par9[1]{0}': 1.9135e+00,
+'pq_func_par6[1]{0}': 2.5113e+00,
+'pq_func_par10[1]{0}': -1.0102e+00,
+'pq_func_par7[1]{0}': -5.7024e-01,
+'pq_func_par11[1]{0}': -8.2598e-02,
+'pq_func_par8[1]{0}': -1.2234e+00,
+'pq_func_par12[1]{0}': 6.7375e-01,
+'pq_func_par0[4]{0}': 1.1055e+00,
+'pq_func_par2[4]{0}': 8.7996e-03,
+'pq_func_par5[4]{0}': -2.3831e-01,
+'pq_func_par6[4]{0}': 8.9493e-02,
+'pop_scatter_sfh{0}': 1.4846e-01,
+'pop_sfr_below_ms{1}': 1.4333e+03,
+'pop_sys_mstell_now{0}': -4.2003e-02,
+'pop_sys_mstell_a{0}': 9.3474e-02,
+'pop_sys_sfr_now{0}': 2.1676e-01,
+'pop_sys_sfr_a{0}': 1.3600e-02,
 }
 
 setup = base.copy()
@@ -663,8 +654,8 @@ compact = base.copy()
 
 sed_modeling = \
 {
- 'pop_lum_tab{0}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs.hdf5",
- 'pop_lum_tab{1}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_1_bb_62_obs.hdf5",
- 'pop_lum_tab{2}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs.hdf5",
- 'pop_lum_tab{3}': "ares_2024_08_04_smhm_same_b13_1111_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_11_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_1_ms_1b_cts_0_clst_0_sys_1_sedtab_pop_1_bb_62_obs.hdf5",
+ 'pop_lum_tab{0}': f"{HOME}/.ares/ares_model_1_seds_sfgs.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/ares_model_1_seds_qgs.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/ares_model_1_seds_sfgs.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/ares_model_1_seds_qgs.hdf5",
 }
