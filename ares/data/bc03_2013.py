@@ -203,7 +203,8 @@ def _read_ised(file):
 
     fh.close()
 
-    return ls[-1::-1], ages[1:] / 1e6, seds[-1::-1,1:], file
+    return np.array(ls[-1::-1], dtype=float), np.array(ages[1:] / 1e6, dtype=float), \
+        np.array(seds[-1::-1,1:], dtype=float), file
 
 def _load(**kwargs):
     fn = _kwargs_to_fn(**kwargs)

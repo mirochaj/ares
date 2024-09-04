@@ -130,4 +130,4 @@ def _load(**kwargs):
 
     # Done. Convert times to Myr, SEDs to erg/s, and return
     return np.array(waves, dtype=float), np.array(times, dtype=float)[1:] / 1e6, \
-        data[:,1:] * Lsun * 1e6, fn
+        np.array(data[:,1:] * Lsun * 1e6, dtype=float), fn

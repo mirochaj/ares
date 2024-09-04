@@ -33,7 +33,7 @@ centrals_sf = \
  'pop_use_lum_cache': True,
  'pop_emissivity_tricks': False,
  'pop_sfr_model': 'smhm-func',
- 'pop_solve_rte': (0.12, E_LyA),
+ 'pop_solve_rte': (0.12, 13.6),
  'pop_Emin': 0.12,
  #'pop_Emax': E_LyA*0.999,
  #'pop_Emax': 24.6,

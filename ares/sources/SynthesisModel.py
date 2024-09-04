@@ -453,9 +453,7 @@ class SynthesisModelBase(Source):
                     else:
                         yield_UV[i] = data[i1,i] * dlam \
                             / (self.tab_energies_c[i1] * erg_per_ev)
-
                 else:
-
                     if 'erg' in units_out.lower():
                         integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
                     else:

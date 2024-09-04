@@ -1270,37 +1270,12 @@ class Population(object):
                 name=f"ehat(z,E;pop={self.id_num})")
             pb.start()
 
-
-
-            ##_window = np.abs(np.diff(_waves))
-            ##window = [round(_window[jj],0) for jj in range(Nf-1)]
-            ##window.append(1)
-
-            #_waves_asc = _waves[::-1]
-
-            #if len(_waves_asc) == 1:
-            #    bands = [None]
-            #    dfreq = np.ones(1)
-            #else:
-            #    # Set upper edge of all bands by halving distance between centers
-            #    bands_up = [_waves_asc[i] + 0.5 * (_waves_asc[i+1] - _waves_asc[i]) \
-            #        for i in range(len(_waves) - 1)]
-
-            #    b_up = _waves_asc[-1] + 0.5 * (_waves_asc[-1] - bands_up[-1])
-
-            #    bands_lo = copy.deepcopy(bands_up)
-            #    # Insert lowest band
-            #    b_lo = _waves_asc[0] - 0.5 * (bands_up[0] - _waves_asc[0])
-
-            #    bands_lo.insert(0, b_lo)
-            #    bands_up.append(b_up)
-
-            #    bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
-            #    dfreq = np.abs(np.diff(c * 1e8 / bands, axis=1))
-
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
+            # Provide E_user to be careful about bins lining up with Ly-a.
             bands, dfreq = get_rte_bands(z.max(), z.min(), nz=z.size,
                 Emin=E.min(), Emax=E.max(), E_user=E)
+
+            assert np.all(dfreq > 0), "Negative delta nu's!"
 
             for ll in range(Nz):
                 for jj in range(Nf):

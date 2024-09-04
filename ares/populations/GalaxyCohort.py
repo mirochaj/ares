@@ -1231,6 +1231,7 @@ class GalaxyCohort(GalaxyAggregate):
                 integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] \
                     * self.tab_focc[iz+1,:]
 
+
                 rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
                 rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
             else:
@@ -1261,10 +1262,22 @@ class GalaxyCohort(GalaxyAggregate):
                 if z == z2:
                     return rhoL2
 
+            ##
+            # Don't try to interpolate if everybody's zero
+            if rhoL1 == rhoL2 == 0:
+                return 0
+
+            # If somebody's still positive, take half.
+            if (rhoL1 == 0) or (rhoL2 == 0):
+                return 0.5 * max(rhoL1, rhoL2)
 
             ##
             # Interpolate to input z
-            rhoL = rhoL1 + (z - z1) * (rhoL2 - rhoL1) / (z2 - z1)
+            log10rhoL = np.log10(rhoL1) \
+                + (z - z1) * np.log10(rhoL2 / rhoL1) / (z2 - z1)
+
+            # Need to be a little careful here.
+            rhoL = 10**log10rhoL
 
             return rhoL
 
@@ -2446,10 +2459,6 @@ class GalaxyCohort(GalaxyAggregate):
                 iM = np.argmin(np.abs(self.halos.tab_M - Mh))
                 return Lh[iM]
 
-        ##
-        # Apply luminosity correction [optional]
-        elif self.pf['pop_lum_corr'] is not None:
-            kludge = self.get_lum_corr(z, Ms=Ms, x=x, band=band, units=units)
 
         ##
         # Loop over components (most often just one) and determine L
@@ -2465,39 +2474,28 @@ class GalaxyCohort(GalaxyAggregate):
             #assert isinstance(age, numbers.Number) or (age is None), \
             #    f"Age must be constant or None for now! source_age={age}"
 
-            ##
-            # Special treatment of 'real' star formation histories
-            complex_sfh = False
-            if src.pf['source_sfh'] in complex_sfhs:
-                complex_sfh = True
-                # Override age to just be time since Big Bang, since that's
-                # what we're going to tabulate SED in.
-                age = self.cosm.t_of_z(z) / s_per_myr
 
-                # For now
-                assert self.is_metallicity_constant
+            # Enforce maximum of a Hubble time
+            t_H = self.cosm.t_of_z(z) / s_per_myr
+
+            age_is_num = isinstance(src.pf['source_age'], numbers.Number)
+
+            if (age_def in [None, 'mixed']) and age_is_num and src.pf['source_age'] >= 1:
+                age = src.pf['source_age']
+                age_def = None
+            elif isinstance(self.pf['pop_age_definition'], numbers.Number):
+                # e.g., half-mass time
+                age = age_def * Ms / sfr / 1e6
+            elif (not age_is_num) and src.pf['source_age'].lower() == 'hubble':
+                age = np.array([t_H] * len(Ms))
             else:
-                # Enforce maximum of a Hubble time
-                t_H = self.cosm.t_of_z(z) / s_per_myr
+                raise NotImplemented('help')
 
-                age_is_num = isinstance(src.pf['source_age'], numbers.Number)
-
-                if (age_def in [None, 'mixed']) and age_is_num and src.pf['source_age'] >= 1:
-                    age = src.pf['source_age']
-                    age_def = None
-                elif isinstance(self.pf['pop_age_definition'], numbers.Number):
-                    # e.g., half-mass time
-                    age = age_def * Ms / sfr / 1e6
-                elif (not age_is_num) and src.pf['source_age'].lower() == 'hubble':
-                    age = np.array([t_H] * len(Ms))
-                else:
-                    raise NotImplemented('help')
-
-                if isinstance(age, numbers.Number):
-                    if age > t_H:
-                        age = t_H
-                else:
-                    age[age > t_H] = t_H
+            if isinstance(age, numbers.Number):
+                if age > t_H:
+                    age = t_H
+            else:
+                age[age > t_H] = t_H
 
 
             age_is_arr = type(age) == np.ndarray
@@ -2514,123 +2512,17 @@ class GalaxyCohort(GalaxyAggregate):
                     units=units, window=window, raw=raw,
                     nebular_only=nebular_only, age=age, units_out=units_out)
 
-            # Now, determine luminosity per unit SFR for all halos.
-            # Handle cases with variations in age or metallicity across population.
-            if complex_sfh:
-
-                waves = self.src.tab_waves_c
-                dwdn = self.src.tab_dwdn
-
-                #iz = np.argmin(np.abs(z - self.halos.tab_z))
-
-                ##
-                # Read from lookup table.
-                if self.tab_sed is not None:
-                    # Recall that this is (redshift, halo mass, wavelengths)
-                    tab_seds = self.tab_sed[iz,:,:]
-                else:
-
-                    raise DeprecationError('help')
-
-                    # This table is (waves, times since Big Bang, SFH dims)
-                    tab_sed = self.src.tab_sed_synth
-
-                    # Return what the SFH dims are
-                    axes_names, axes_vals = self.src.get_sfh_axes()
-
-                    # In this case, need to pull luminosity from lookup table of
-                    # SEDs over grid of SFH parameters. The time dimension of
-                    # this table is assumed to be time since Big Bang.
-                    # We're still calling a routine called `get_lum_per_sfr`,
-                    # but we need to pass it parameters that define the SFH.
-
-                    zobs = z
-                    tobs = self.cosm.t_of_z(zobs) / s_per_myr
-
-                    #lum = src.get_lum_per_sfr(x=x)
-
-                    #deg = self.pf['pop_sed_degrade']
-
-
-                # Synthesis done natively in erg/s/Hz
-                if 'Hz' in units_out:
-                    seds = tab_seds[:,:]
-                elif band is not None:
-                    # Put back in per Angstrom for integral
-                    seds = tab_seds[:,:] / dwdn[None,:]
-
-                if x is not None:
-                    wave = self.src.get_ang_from_x(x, units=units)
-
-                if self.pf['nthreads'] is not None:
-                    lum = pymp.shared.array(shape)
-                    pymp.config.num_threads = self.pf['nthreads']
-                    p = pymp.Parallel(nthreads)
-                else:
-                    lum = np.zeros_like(self.halos.tab_M)
-                    p = DummyPyMP()
-                    print('made a DummyPyMP object')
-
-                #for j, _Mh_ in enumerate(self.halos.tab_M):
-                for j in p.xrange(0, len(self.halos.tab_M)):
-                    _Mh_ = self.halos.tab_M[j]
-
-                    # For a single halo, all waves
-                    sed = seds[j,:]
-
-                    ##
-                    # Average over band, window [optional]
-                    if band is not None:
-                        lam_hi, lam_lo = self.src.get_ang_from_x(band, units=units)
-                        i0 = np.argmin(np.abs(waves - lam_lo))
-                        i1 = np.argmin(np.abs(waves - lam_hi))
-
-                        # sed will be in erg/s/Hz at this point based on
-                        # if/else above
-                        lum[j] = np.trapz(sed[i0:i1] * waves[i0:i1],
-                            x=np.log(waves[i0:i1])) #/ dnu
-
-                    elif window != 1:
-                        assert window % 2 != 0, "window must be odd"
-                        window = int(window)
-                        s = (window - 1) / 2
-
-                        j1 = np.argmin(np.abs(wave - s - waves))
-                        j2 = np.argmin(np.abs(wave + s - waves))
-
-                        lum[j] = np.mean(sed[j1:j2+1])
-                    else:
-                        iw = np.argmin(np.abs(wave - waves))
-                        lum[j] = sed[iw]
-
-
-                # Change to appropriate units
-                #if 'hz' in units_out.lower():
-                L_sfr = lum / sfr
-
-                #lum = np.zeros_like(self.halos.tab_M)
-                #for j, _Mh_ in enumerate(self.halos.tab_M):
-
-                #    if _Mh_ < self.get_Mmin(z):
-                #        continue
-                #    if _Mh_ > self.get_Mmax(z):
-                #        continue
-
-                #    # This is (time, halo mass, len(sfh axes))
-                #    kwarr = self.tab_sfh_kwargs_native[iz,j,:]
-
-                #    # Could interpolate....
-                #    isfh = [np.argmin(np.abs(kwarr[k] - axes_vals[k])) \
-                #        for k in range(len(axes_names))]
-
-                #    slc = slice(None),iz,*isfh
-
-            elif age_def is not None:
+            ##
+            # Now, get luminosity per SFR or mass, potentially over age and Z.
+            if age_def is not None:
+                # This means we have allowed an age gradient of some kind.
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,
                     units_out=units_out) for _age_ in age])
             else:
+                # This means we've got uniform age, handled under the hood
+                # in the `src` object.
                 if f_L_sfr is None:
                     L_sfr = src.get_lum_per_sfr(x=x, window=window,
                         band=band, units=units, units_out=units_out,
@@ -2641,16 +2533,13 @@ class GalaxyCohort(GalaxyAggregate):
                     else:
                         L_sfr = 10**f_L_sfr(np.log10(Z))
 
-
             ##
-            # Apply fesc and kludge
-            L_sfr *= fesc * kludge
+            # Apply fesc
+            L_sfr *= fesc
 
             ##
             # Special treatment for SSPs
-            if complex_sfh:
-                _Lh_ = L_sfr * sfr
-            elif src.is_ssp:
+            if src.is_ssp:
 
                 if self.is_central_pop or \
                   (self.is_satellite_pop and (not total_sat)):
@@ -2767,62 +2656,6 @@ class GalaxyCohort(GalaxyAggregate):
             kludge = kludge1 + m * (z - ltab_z[ilo])
 
         # Not a kludge in this case, just luminosity
-        return kludge
-
-    def get_lum_corr(self, z, Ms, x=1600, band=None, units='Angstrom'):
-        ##
-        # [optional] Apply correction to galaxy luminosities.
-        if self.pf['pop_lum_corr'] is not None:
-
-            assert self.pf['pop_nebular'] == 0, \
-                "Need to handle nebular emission separately for pop_lum_corr."
-
-            if type(self.pf['pop_lum_corr']) in numeric_types:
-                kludge = self.pf['pop_lum_corr']
-            else:
-                ##
-                # Need to interpolate in redshift, stellar mass, wavelength
-                corr = self.tab_lum_corr
-                corr_z = self._tab_lum_corr_z
-                corr_M = self._tab_lum_corr_Ms # actually log10(stellar mass)
-                corr_w = self._tab_lum_corr_waves
-
-                # Use correction for mean of band [if provided] or exact wavelength
-                if band is not None:
-                    _band = self.src.get_ang_from_x(band, units=units)
-                    wave = np.mean(_band)
-                elif x is not None:
-                    wave = self.src.get_ang_from_x(x, units=units)
-
-                iw = np.argmin(np.abs(wave - corr_w))
-
-                # Bracket redshift range
-                ilo = np.argmin(np.abs(z - corr_z))
-
-                # If requested z < tabulated range, just return
-                if (ilo == 0) and (z < corr_z[ilo]):
-                    kludge = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw],
-                        left=1, right=1)
-                elif ilo == len(corr_z) - 1:
-                    kludge = np.interp(np.log10(Ms), corr_M, corr[-1,:,iw],
-                        left=1, right=1)
-                else:
-                    # Make sure we're bracketing redshift range.
-                    if corr_z[ilo] > z:
-                        ilo -= 1
-
-                    kludge1 = np.interp(np.log10(Ms), corr_M, corr[ilo,:,iw],
-                        left=1, right=1)
-                    kludge2 = np.interp(np.log10(Ms), corr_M, corr[ilo+1,:,iw],
-                        left=1, right=1)
-                    m = (kludge2 - kludge1) / (corr_z[ilo+1] - corr_z[ilo])
-
-                    # Interpolate in redshift
-                    kludge = kludge1 + m * (z - corr_z[ilo])
-
-        else:
-            kludge = 1
-
         return kludge
 
     def get_lum(self, z, x=1600, use_tabs=True,

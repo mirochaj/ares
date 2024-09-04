@@ -80,11 +80,11 @@ class BasePQ(object):
             self.t = kwargs["pq_func_var2"]
 
             self.tlim = None
-            self.tfill = None
+            #self.tfill = None
             if "pq_func_var2_lim" in kwargs:
                 if kwargs["pq_func_var2_lim"] is not None:
                     self.tlim = kwargs["pq_func_var2_lim"]
-                    self.tfill = kwargs["pq_func_var2_fill"]
+                    #self.tfill = kwargs["pq_func_var2_fill"]
 
     def get_var(self):
         pass
@@ -200,18 +200,20 @@ class PowerLawEvolvingAsB13(BasePQ):
         else:
             x = kwargs[self.x]
 
+        z = self.get_var2(kwargs['z'])
+        
         # Need scale factor
-        a = 1. / (1. + kwargs['z'])
+        a = 1. / (1. + z)
 
         # Recall that p1 is the mass that we're pinning normalization to
         p0 = self.args[0] + self.args[3] * (1 - a) \
-              + self.args[5] * np.log(1 + kwargs['z']) \
-              + self.args[7] * kwargs['z'] \
+              + self.args[5] * np.log(1 + z) \
+              + self.args[7] * z \
               + self.args[9] * a
 
         p2 = self.args[2] + self.args[4] * (1 - a) \
-              + self.args[6] * np.log(1 + kwargs['z']) \
-              + self.args[8] * kwargs['z'] \
+              + self.args[6] * np.log(1 + z) \
+              + self.args[8] * z \
               + self.args[10] * a
 
         return p0 * (x / self.args[1])**p2
