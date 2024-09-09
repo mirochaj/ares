@@ -22,7 +22,7 @@ from ..analysis import ModelSet
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from functools import cached_property
-from ..util.Misc import numeric_types
+from ..util.Misc import numeric_types, get_band_edges
 from scipy.integrate import quad, simps, cumtrapz, ode
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed, complex_sfhs
@@ -1948,15 +1948,28 @@ class GalaxyCohort(GalaxyAggregate):
             if Mh is None:
                 Mh = self.halos.tab_M
 
+            if band is None:
+                band = [[None,None]] * len(waves)
+                dlam = dfreq = np.ones_like(waves)
+            else:
+                assert band.shape[0] == len(waves)
+                dlam = np.abs(np.diff(band, axis=1))
+                dfreq = np.abs(np.diff(c * 1e8 / band, axis=1))
+
             lum = np.zeros((Mh.size, waves.size))
             for i, wave in enumerate(waves):
                 lum[:,i] = self.get_lum(z, x=wave, units='Angstroms',
-                    band=band, window=window, Mh=Mh, use_tabs=use_tabs,
+                    band=tuple(band[i]), window=window, Mh=Mh, use_tabs=use_tabs,
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only,
                     include_dust_transmission=include_dust_transmission,
                     include_igm_transmission=include_igm_transmission,
                     total_sat=total_sat)
+
+                if '/ang' in units_out.lower():
+                    lum[:,i] /= dlam[i]
+                else:
+                    lum[:,i] /= dfreq[i]
 
             return lum
 
@@ -2307,6 +2320,11 @@ class GalaxyCohort(GalaxyAggregate):
         return Lh
 
     def _get_lum_lines_per_sfr(self, z, x, band, units, units_out):
+        """
+        If the user has provided scaling relationships between line luminosity
+        and SFR, here we'll assign those luminosities at the appropriate
+        wavelength.
+        """
 
         if self.pf['pop_lum_per_sfr_at_wave'] is None:
             return 0
@@ -2316,36 +2334,38 @@ class GalaxyCohort(GalaxyAggregate):
         # Just be careful not to double count.
         L_lines = 0.0
 
+        # Convert `band` to Angstroms regardless of input.
         if band is not None:
             band = self.src.get_ang_from_x(band, units=units)
 
             if band[0] > band[1]:
                 band = band[::-1]
-
+        # Save deal for `x`
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
 
         R = 1 if self.pf['pop_sed_degrade'] is None \
             else self.pf['pop_sed_degrade']
 
+        # Loop over provided emission lines, determine if any lie in the
+        # requested wavelength range.
         for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
 
             if (band is not None):
                 if (band[0] <= _wave_ <= band[1]):
-                    L_lines = _lum_
                     if 'erg/s/A' in units_out:
-                        dlam = (band[1] - band[0])
+                        dlam = (max(band) - min(band))
                         dnu = None
-                        L_lines /= dlam
-                        raise NotImplementedError('should deprecate this')
+                        L_lines = _lum_ #/ dlam
+                        #raise NotImplementedError('should deprecate this')
                     else:
                         dlam = None
-                        dnu = (c * 1e8 / band[0]) - (c * 1e8 / band[1])
-                        #L_lines /= dnu
+                        dnu = (c * 1e8 / min(band)) - (c * 1e8 / max(band))
+                        L_lines = _lum_ #/ dnu
                 else:
                     continue
             elif (x is not None) and (abs(wave - _wave_) < R):
-                raise NotImplementedError('should deprecate this')
+                #raise NotImplementedError('should deprecate this')
                 # If lines are delta functions,
                 if 'erg/s/A' in units_out:
                     L_lines = _lum_ / R
@@ -2358,6 +2378,8 @@ class GalaxyCohort(GalaxyAggregate):
                     L_lines = _lum_ / (c * 1e8 / wave**2)
             else:
                 continue
+
+        print('hi', band, units, L_lines, units_out)
 
         return L_lines
 
@@ -2419,9 +2441,10 @@ class GalaxyCohort(GalaxyAggregate):
         elif self.pf['pop_lum_tab'] is not None:
             # Need to interpolate in redshift, stellar mass, wavelength
             Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
-
+            if band is None:
+                assert 'hz' in units_out.lower()
             Lh_l = self._get_lum_lines_per_sfr(z, x=x, band=band, units=units,
-                units_out=units_out) * sfr
+                units_out='erg/s/Hz') * sfr
 
             #if np.sum(Lh_c > 0) > 0:
             #    print('hi', z, max(Lh_l[Lh_c >0] / Lh_c[Lh_c >0]))
@@ -2455,9 +2478,12 @@ class GalaxyCohort(GalaxyAggregate):
 
             if Mh is None:
                 return Lh
-            else:
+            elif type(Mh) in numeric_types:
                 iM = np.argmin(np.abs(self.halos.tab_M - Mh))
                 return Lh[iM]
+            else:
+                return 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
+                    np.log10(Lh), left=0, right=0)
 
 
         ##
@@ -2894,8 +2920,14 @@ class GalaxyCohort(GalaxyAggregate):
                 filters=filters, dlam=dlam,
                 restricted_range=restricted_range)
 
+            bands = get_band_edges(waves)
+
+            # Need to define series of bands. This is to avoid losing emission
+            # lines if we just sample the interval at a discrete series of
+            # wavelengths.
+
             owaves, flux = self.get_spec_obs(z, waves, units_out='erg/s/Hz',
-                Mh=Mh, total_sat=total_sat)
+                Mh=Mh, total_sat=total_sat, band=bands)
 
             # This is always apparent magnitudes
             filt, xfilt, dxfilt, mags = self.phot.get_photometry(flux, owaves,
@@ -3060,7 +3092,7 @@ class GalaxyCohort(GalaxyAggregate):
                     x = None
 
                 # Get P(m_AB < mask | Mh) and record
-                Lh = self.get_lum(z, x=x, window=101, band=band,
+                Lh = self.get_lum(z, x=x, band=band,
                     units='Ang', units_out='erg/s/Hz', total_sat=False)
 
                 if x is None:
@@ -3089,6 +3121,19 @@ class GalaxyCohort(GalaxyAggregate):
                     tmp_mask[i,j,h] = np.trapz(pdf[ok==1,j], x=xx[ok==1]) \
                       / np.trapz(pdf[gt0==1,j], x=xx[gt0==1])
 
+                    #if tmp_mask[i,j,h] > 2:
+                    #    import matplotlib.pyplot as plt
+
+                    #    plt.plot(xx[gt0], pdf[gt0==1,j])
+                    #    plt.plot([np.log10(llim)]*2, [0, 3])
+
+                    #    print('hey!', x, band, tmp_mask[i,j,h])
+
+                    #    plt.figure(3)
+                    #    plt.scatter(np.log10(self.halos.tab_M[gt0]), np.log10(Lh[gt0]))
+                    #    input('<enter>')
+                    #    plt.close()
+
 
         ##
         # Enforce logic of how we combine masks
@@ -3106,6 +3151,19 @@ class GalaxyCohort(GalaxyAggregate):
         # level given the subtraction above.
         #tab_mask_occ[tab_mask_occ<0] = 0
         tab_mask[np.isnan(tab_mask)] = 0
+
+        #if np.any(tab_mask > 1):
+        #    for i, z in enumerate(self.halos.tab_z):
+
+        #        print('bad halos', self.id_num, z, sum(tab_mask[i]>1),
+        #            np.log10(self.halos.tab_M[tab_mask[i]>1]))
+
+        # Would be nice if this wasn't necessary.
+        tab_mask[tab_mask>1] = 1
+
+        #print('hey', self.id_num, np.any(np.isnan(tab_mask)),
+        #    np.any(np.isinf(tab_mask)), np.any(tab_mask < 0))
+        #print(tab_mask[tab_mask>0].min(), tab_mask[tab_mask>0].max())
 
         return tab_mask
 

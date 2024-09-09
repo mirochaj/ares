@@ -255,6 +255,27 @@ def get_rte_grid(zi, zf, nz=100, Emin=1., Emax=10.2, start_at_Emin=True):
 
     return z, E
 
+def get_band_edges(waves):
+    assert np.all(np.diff(waves) > 0), \
+        "Must supply wavelengths in ascending order."
+
+    # Set upper edge of all bands by halving distance between centers
+    bands_up = [waves[i] + 0.5 * (waves[i+1] - waves[i]) \
+        for i in range(len(waves) - 1)]
+
+    b_up = waves[-1] + (waves[-1] - bands_up[-1])
+
+    bands_lo = copy.deepcopy(bands_up)
+    # Insert lowest band
+    b_lo = waves[0] - (bands_up[0] - waves[0])
+
+    bands_lo.insert(0, b_lo)
+    bands_up.append(b_up)
+
+    bands = np.array([bands_lo, bands_up]).T
+
+    return bands
+
 def get_rte_bands(zi, zf, nz=100, Emin=1., Emax=10.2, start_at_Emin=True,
     E_user=None):
     """
@@ -284,20 +305,22 @@ def get_rte_bands(zi, zf, nz=100, Emin=1., Emax=10.2, start_at_Emin=True,
 
     waves_asc = waves[::-1]
 
-    # Set upper edge of all bands by halving distance between centers
-    bands_up = [waves_asc[i] + 0.5 * (waves_asc[i+1] - waves_asc[i]) \
-        for i in range(len(waves) - 1)]
+    bands = get_band_edges(waves_asc)[::-1,:]
 
-    b_up = waves_asc[-1] + 0.5 * (waves_asc[-1] - bands_up[-1])
+    ## Set upper edge of all bands by halving distance between centers
+    #bands_up = [waves_asc[i] + 0.5 * (waves_asc[i+1] - waves_asc[i]) \
+    #    for i in range(len(waves) - 1)]
 
-    bands_lo = copy.deepcopy(bands_up)
-    # Insert lowest band
-    b_lo = waves_asc[0] - 0.5 * (bands_up[0] - waves_asc[0])
+    #b_up = waves_asc[-1] + 0.5 * (waves_asc[-1] - bands_up[-1])
 
-    bands_lo.insert(0, b_lo)
-    bands_up.append(b_up)
+    #bands_lo = copy.deepcopy(bands_up)
+    ## Insert lowest band
+    #b_lo = waves_asc[0] - 0.5 * (bands_up[0] - waves_asc[0])
 
-    bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
+    #bands_lo.insert(0, b_lo)
+    #bands_up.append(b_up)
+
+    #bands = np.array([bands_lo, bands_up]).T[::-1,::-1]
     dfreq = np.abs(np.diff(c * 1e8 / bands, axis=1))
 
     return bands, dfreq

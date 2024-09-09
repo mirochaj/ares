@@ -834,21 +834,26 @@ class LightCone(object): # pragma: no cover
         # [waves] = Angstroms rest-frame, [seds] = erg/s/A.
         # Shape of seds is (N galaxies, N wavelengths)
         # Shape of (ra, dec, red) is just (Ngalaxies)
-        waves = np.arange(_wlo, _whi+dlam, dlam)
+        #waves = np.arange(_wlo, _whi+dlam, dlam)
 
+        x = np.array([np.mean(channel) * 1e4 / (1. + _z_)])
+        band = (channel[0] * 1e4 / (1. + _z_), channel[1] * 1e4 / (1. + _z_))
+        #dfreq = (c * 1e8 / min(band)) - (c * 1e4 / max(band))
+        #dlam = band[1] - band[0]
         # Need to supply band or window?
         # Note: NOT using get_spec_obs because every object has a
         # slightly different redshift, want more precise fluxes.
-        seds = self.sim.pops[popid].get_spec(_z_, waves, Mh=Mh,
-            units_out='erg/s/Ang',
-            window=dlam+1 if dlam % 2 == 0 else dlam)
+
+        seds = self.sim.pops[popid].get_lum(_z_, x, Mh=Mh, units='Ang',
+            units_out='erg/s/Ang', band=tuple(band))
 
         # `owaves` is still in Angstroms
-        owaves = waves[None,:] * (1. + red[:,None])
+        #owaves = waves[None,:] * (1. + red[:,None])
 
         # Frequency "squashing", i.e., our 'per Angstrom' interval is
         # different in the observer frame by a factor of 1+z.
-        flux = corr[:,None] * seds[:,:] / (1. + red[:,None])
+        #flux = corr[:,None] * seds[:,:] / (1. + red[:,None])
+        flux = seds * corr / (1. + red)
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -943,15 +948,8 @@ class LightCone(object): # pragma: no cover
             # Where this galaxy lives in pixel coordinates
             i, j = ra_ind[h], de_ind[h]
 
-            # Compute flux more precisely than summing by differencing
-            # the cumulative integral over the band at the channel edges.
-            cflux = cumtrapz(flux[h] * owaves[h], x=np.log(owaves[h]),
-                initial=0.0)
-
-            # Remember: `owaves` is in Angstroms, `channel` elements are
-            # in microns.
-            _flux_ = np.interp(channel[1] * 1e4, owaves[h], cflux) \
-                   - np.interp(channel[0] * 1e4, owaves[h], cflux)
+            # Grab the flux
+            _flux_ = flux[h]
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
@@ -1000,7 +998,7 @@ class LightCone(object): # pragma: no cover
         ##
         # Clear out some memory sheesh
         del seds, flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
-            mask_ra, mask_de, corr, owaves
+            mask_ra, mask_de, corr
         if self.mem_concious:
             gc.collect()
 
