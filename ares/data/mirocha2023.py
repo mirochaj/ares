@@ -394,7 +394,6 @@ dust_dpl = \
 }
 
 base_centrals = base.copy()
-#base_centrals.update(dust_dpl)
 
 # This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 1#
@@ -602,6 +601,7 @@ slow = \
 }
 
 # Lowest dimensional model we've got?
+# Need to be careful with this
 _base = \
 {
 'pq_func_par0[0]{0}': 6.1764e-05,

@@ -31,7 +31,7 @@ from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
-    cm_per_pc, m_H, s_per_myr, Lsun
+    cm_per_pc, m_H, s_per_myr, Lsun, flux_AB
 
 try:
     from mpi4py import MPI
@@ -2887,6 +2887,25 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Sd
 
+    def get_beta_approx(self, z, x1, x2, units='Ang', window=1):
+        """
+        Computes a UV slope ("beta") from two points. This is approximate!
+        """
+        lam1 = self.src.get_ang_from_x(x1, units=units)
+        lam2 = self.src.get_ang_from_x(x2, units=units)
+
+        lum1 = self.get_lum(z=z, x=x1, units='Ang',
+            window=window, use_tabs=False, units_out='erg/s/Ang')
+        lum2 = self.get_lum(z=z, x=x2, units='Ang',
+            window=window, use_tabs=False, units_out='erg/s/Ang')
+
+        beta = np.log(lum2 / lum1) / np.log(lam2 / lam1)
+
+        return beta
+
+    def get_beta_c94(self, z):
+        pass
+
     def get_mags(self, z, absolute=True, x=1600, use_tabs=True, band=None,
         units='Angstrom', window=1, cam=None, filters=None, dlam=20,
         presets=None, method=None, Mh=None,
@@ -2913,7 +2932,7 @@ class GalaxyCohort(GalaxyAggregate):
                 window=window, units_out='erg/s/Hz', load=load, raw=raw,
                 nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
 
-            mags = self.magsys.L_to_MAB(L)
+            mags = self.magsys.get_mag_abs_from_lum(L)
             xout = x
         else:
             waves = self.phot.get_required_spectral_range(z, cam=cam,

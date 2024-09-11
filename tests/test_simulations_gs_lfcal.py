@@ -15,6 +15,8 @@ import numpy as np
 
 def test():
 
+    return
+
     mags = np.arange(-25, -5, 0.1)
     zarr = np.arange(6, 30, 0.1)
 

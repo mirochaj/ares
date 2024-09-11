@@ -683,7 +683,7 @@ def PopulationParameters():
     "pop_1h_nebular_only": False,
     "pop_mask": None, # should be (wavelength or filter, limiting mag)
     "pop_mask_use_adv": True,
-    "pop_mask_logic": 'and',
+    "pop_mask_logic": 'or',
     "pop_mask_sats_of_centrals": False,
     "pop_mask_interp": None,
 
