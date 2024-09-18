@@ -2379,8 +2379,6 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 continue
 
-        print('hi', band, units, L_lines, units_out)
-
         return L_lines
 
     def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
@@ -3076,8 +3074,9 @@ class GalaxyCohort(GalaxyAggregate):
         # This is like an occupation fraction, i.e., it's the fraction of
         # galaxies in a given halo mass bin that are brighter than
         # our masking threshold.
-        tab_mask = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+        tab_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size))
 
+        # Short-hand for log-normal scatter.
         sigma = self.pf['pop_scatter_sfh']
 
         ##
@@ -3086,31 +3085,36 @@ class GalaxyCohort(GalaxyAggregate):
             # Just apply Mmax at each redshift.
             for i, z in enumerate(self.halos.tab_z):
                 Mmax = self.get_Mmax(z)
-                tab_mask[i,self.halos.tab_M >= Mmax] = 1
+                tab_mask[i,self.halos.tab_M < Mmax] = 0
 
             return tab_mask
 
         ##
         # Otherwise, general case
-        tmp_mask = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size,
+        tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size,
             len(self.pf['pop_mask'])))
 
         # Loop over different masks.
         for h, mask in enumerate(self.pf['pop_mask']):
             mwave, mlim = mask
 
+            # Synthesize galaxy mags one redshift at a time.
             for i, z in enumerate(self.halos.tab_z):
 
+                if (z < self.pf['final_redshift']):
+                    continue
+
+                # Convert the masking depth to luminosity at this redshift.
                 llim = self.magsys.get_lum_from_mag_app(z, mlim)
 
                 if type(mwave) in numeric_types:
-                    x = mwave * 1e4 / (1 + z)
+                    x = mwave * 1e4 / (1. + z)
                     band = None
                 else:
                     band = tuple(np.array(mwave) * 1e4 / (1. + z))
                     x = None
 
-                # Get P(m_AB < mask | Mh) and record
+                # Lh(Mh|z)
                 Lh = self.get_lum(z, x=x, band=band,
                     units='Ang', units_out='erg/s/Hz', total_sat=False)
 
@@ -3118,71 +3122,48 @@ class GalaxyCohort(GalaxyAggregate):
                     Lh /= ((c * 1e8 / min(band)) - (c * 1e8 / max(band)))
 
                 if (sigma == 0) or (not self.pf['pop_mask_use_adv']):
-                    #print('doing approx mask')
-                    tmp_mask[i,Lh>=llim,h] = 1
+                    tmp_mask[i,np.logical_and(Lh>0, Lh<llim),h] = 0
                     continue
 
-                xx = mu = np.log10(Lh)
-                xx[Lh==0] = 0
-                mu[Lh==0] = 0
-                gt0 = Lh > 0
-
-                # Log-normal distribution of luminosity at given
-                # halo mass, need to integrate over.
-                # Arguments are just: x, mu, sigma
-                pdf = lognormal(xx[None,:], mu[:,None], sigma)
-                ok = Lh >= llim
-
-                if not np.any(ok):
-                    continue
+                # Construct array of luminosity vs. halo mass (log10 it)
+                mu = np.log10(Lh)
 
                 for j, M in enumerate(self.halos.tab_M):
-                    tmp_mask[i,j,h] = np.trapz(pdf[ok==1,j], x=xx[ok==1]) \
-                      / np.trapz(pdf[gt0==1,j], x=xx[gt0==1])
+                    if M < self.get_Mmin(z):
+                        tmp_mask[i,j,h] = 0
+                        continue
 
-                    #if tmp_mask[i,j,h] > 2:
-                    #    import matplotlib.pyplot as plt
+                    # This just means Lh == 0, which usually just means
+                    # "unmodeled".
+                    if mu[j] < 0:
+                        continue
 
-                    #    plt.plot(xx[gt0], pdf[gt0==1,j])
-                    #    plt.plot([np.log10(llim)]*2, [0, 3])
-
-                    #    print('hey!', x, band, tmp_mask[i,j,h])
-
-                    #    plt.figure(3)
-                    #    plt.scatter(np.log10(self.halos.tab_M[gt0]), np.log10(Lh[gt0]))
-                    #    input('<enter>')
-                    #    plt.close()
-
+                    # Just do things via brute-force
+                    # Used to be less careful but if PDF is sufficiently narrow
+                    # a rough trapz can cause problems.
+                    tmp_mask[i,j,h] = quad(lambda LL: lognormal(LL, mu[j], sigma),
+                        np.log10(llim), mu[j] + 10*sigma)[0]
 
         ##
         # Enforce logic of how we combine masks
         if tmp_mask.shape[-1] == 1:
             tab_mask = tmp_mask[:,:,0]
         elif self.pf['pop_mask_logic'] == 'and':
+            # If logic is AND, then
             tab_mask = np.min(tmp_mask, axis=-1)
         elif self.pf['pop_mask_logic'] == 'or':
             tab_mask = np.max(tmp_mask, axis=-1)
         else:
             raise NotImplementedError('pop_mask_logic must be `and` or `or`.')
 
-
-        # Need to be careful about tiny negative numbers at machine precision
-        # level given the subtraction above.
-        #tab_mask_occ[tab_mask_occ<0] = 0
-        tab_mask[np.isnan(tab_mask)] = 0
-
-        #if np.any(tab_mask > 1):
-        #    for i, z in enumerate(self.halos.tab_z):
-
-        #        print('bad halos', self.id_num, z, sum(tab_mask[i]>1),
-        #            np.log10(self.halos.tab_M[tab_mask[i]>1]))
-
-        # Would be nice if this wasn't necessary.
+        # Occasionally we get values of 1 + numbers of order machine precision.
+        # This will cause major problems down the line when we, e.g.,
+        # retrieve the unmasked fraction 1 - fmask, and get negative numbers.
+        # Hence this (I think quite reasonable) kludge to enforce values <= 1.
         tab_mask[tab_mask>1] = 1
 
-        #print('hey', self.id_num, np.any(np.isnan(tab_mask)),
-        #    np.any(np.isinf(tab_mask)), np.any(tab_mask < 0))
-        #print(tab_mask[tab_mask>0].min(), tab_mask[tab_mask>0].max())
+        # Same goes for the other side of things
+        tab_mask[tab_mask<0] = 0
 
         return tab_mask
 

@@ -321,7 +321,6 @@ satellites_q['pop_Z'] = 0.02
 #ihl_from_sat['pop_include_2h'] = True
 #ihl_from_sat['pop_include_shot'] = False
 
-base = setup.copy()
 _pop0 = centrals_sf.copy()
 _pop1 = centrals_q.copy()
 _pop2 = satellites_sf.copy()
@@ -332,7 +331,7 @@ for i, _pop in enumerate([_pop0, _pop1]):
     for par in _pop.keys():
         pf[par + '{%i}' % i] = _pop[par]
 
-    base.update(pf)
+    setup.update(pf)
 
 subhalos = {}
 for i, _pop in enumerate([_pop2, _pop3]):
@@ -363,7 +362,7 @@ dust['pq_func_par10[4]'] = 0   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
 for par in dust.keys():
-    base[par + '{0}'] = dust[par]
+    setup[par + '{0}'] = dust[par]
 
 dust_dpl = \
 {
@@ -393,7 +392,7 @@ dust_dpl = \
  'pq_func_par20[4]{0}': 0.0,           # high
 }
 
-base_centrals = base.copy()
+base_centrals = setup.copy()
 
 # This results in a Z14-like amount of IHL
 subhalos['pop_fsurv{2}'] = 1#
@@ -515,7 +514,7 @@ smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
 
-base.update(subhalos)
+setup.update(subhalos)
 
 ##
 # Allows subhalos to have different SMHM than centrals
@@ -526,7 +525,7 @@ subhalos_smhm_ext['pq_func_var[5]{2}'] = 'Mh'
 subhalos_smhm_ext['pq_func_var2[5]{2}'] = '1+z'
 
 for i in range(0, 27):
-    subhalos_smhm_ext['pq_func_par%i[5]{2}' % i] = base['pq_func_par%i[0]{0}' % i]
+    subhalos_smhm_ext['pq_func_par%i[5]{2}' % i] = setup['pq_func_par%i[0]{0}' % i]
 
 subhalos_smhm_ext['pop_fstar{3}'] = 'link:fstar:2'
 
@@ -540,7 +539,7 @@ subhalos_sfr_ext['pq_func_var2[6]{2}'] = '1+z'
 
 
 for i in range(0, 27):
-    subhalos_sfr_ext['pq_func_par%i[6]{2}' % i] = base['pq_func_par%i[1]{0}' % i]
+    subhalos_sfr_ext['pq_func_par%i[6]{2}' % i] = setup['pq_func_par%i[1]{0}' % i]
 
 ##
 # Allows subhalos to have different quenched fraction than centrals
@@ -576,6 +575,12 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
      (3.3e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
+
+no_lines = \
+{
+ 'pop_lum_per_sfr_at_wave{0}': None,
+ 'pop_lum_per_sfr_at_wave{2}': None,
+}
 
 faster = \
 {
@@ -648,8 +653,8 @@ _base = \
 'pop_sys_sfr_a{0}': 1.3600e-02,
 }
 
-setup = base.copy()
-base.update(_base)
+#setup = base.copy()
+#base.update(_base)
 
 sed_modeling = \
 {
@@ -657,4 +662,12 @@ sed_modeling = \
  'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_qgs.hdf5",
  'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_sfgs.hdf5",
  'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_qgs.hdf5",
+}
+
+sys_b13 = \
+{
+ 'pop_sys_method{0}': "b13",
+ 'pop_sys_method{1}': "b13",
+ 'pop_sys_method{2}': "b13",
+ 'pop_sys_method{3}': "b13",
 }
