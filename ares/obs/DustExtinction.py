@@ -209,7 +209,7 @@ class DustExtinction(object):
             self._tab_waves_c = 1e4 / np.array(invwave)[-1::-1]
             self._tab_extinction = np.array(extinct)[-1::-1]
 
-    def get_transmission(self, wave, Av=None, Sd=None, MUV=None):
+    def get_transmission(self, wave, Av=None, Sd=None, MUV=None, z=None):
         """
         Return the dust transmission at user-supplied wavelength [Angstroms].
 
@@ -235,9 +235,9 @@ class DustExtinction(object):
         """
 
         if self.is_template:
-            return 10**(-self.get_attenuation(wave, Av=Av) / 2.5)
+            return 10**(-self.get_attenuation(wave, Av=Av, z=z) / 2.5)
         elif self.is_parameterized:
-            tau = self.get_opacity(wave, Av=Av, Sd=Sd)
+            tau = self.get_opacity(wave, Av=Av, Sd=Sd, z=z)
             return np.exp(-tau)
         elif self.is_irxb:
             # This case is handled separately by the `get_lf` method in
@@ -264,7 +264,7 @@ class DustExtinction(object):
                     self._tab_C00_[:,i] = C00(self.tab_waves_c * 1e-4)
         return self._tab_C00_
 
-    def get_curve(self, wave):
+    def get_curve(self, wave, z=None):
         """
         Get extinction (or attenuation) curve from lookup table.
 
@@ -282,12 +282,23 @@ class DustExtinction(object):
             iw = np.argmin(np.abs(wave - self.tab_waves_c))
 
             # Pretty crude for now
-            return self._tab_C00[iw,:]
+            A = self._tab_C00[iw,:]
 
         elif self.is_template:
-            return np.interp(wave, self.tab_waves_c, self.tab_extinction)
+            A = np.interp(wave, self.tab_waves_c, self.tab_extinction)
         else:
             raise NotImplemented('help')
+
+        if self.pf['pop_dust_template_extension'] is not None:
+
+            if not hasattr(self, '_get_temp_ext_'):
+                self._get_temp_ext_ = get_function_from_par('pop_dust_template_extension',
+                    self.pf)
+
+            ext = self._get_temp_ext_(wave=wave, z=z)
+            return A * ext
+        else:
+            return A
 
     def get_beta_from_MUV(self, MUV, z=None):
         assert self.is_irxb
@@ -348,22 +359,22 @@ class DustExtinction(object):
 
             # This is a lookup table.
             if type(wave) in numeric_types:
-                tab_A = self.get_curve(wave)
+                tab_A = self.get_curve(wave, z=z)
                 A = np.interp(Av, self.tab_Av, tab_A, left=0)
             else:
                 A = np.zeros((len(Av), wave.size))
                 for i, _wave_ in enumerate(wave):
-                    tab_A = self.get_curve(_wave_)
+                    tab_A = self.get_curve(_wave_, z=z)
                     A[:,i] = np.interp(Av, self.tab_Av, tab_A, left=0)
 
         elif self.is_template:
             if type(Av) in numeric_types:
                 Av = np.array([Av])
-            A = self.get_curve(wave)[None,:] * Av[:,None]
+            A = self.get_curve(wave, z=z)[None,:] * Av[:,None]
         elif self.is_parameterized:
             if type(Sd) in numeric_types:
                 Sd = np.array([Sd])
-            tau = self.get_opacity(wave, Av=Av, Sd=Sd)
+            tau = self.get_opacity(wave, Av=Av, Sd=Sd, z=z)
             A = 2.5 * tau / np.log(10.)
         elif self.is_irxb:
             assert 1000 <= wave <= 2000, \
@@ -379,7 +390,7 @@ class DustExtinction(object):
         else:
             return A
 
-    def get_opacity(self, wave, Av=None, Sd=None):
+    def get_opacity(self, wave, Av=None, Sd=None, z=None):
         """
         Compute dust opacity at wavelength `wave`.
 
@@ -402,12 +413,12 @@ class DustExtinction(object):
             if type(Av) in numeric_types:
                 Av = np.array([Av])
             # Alternatively: tau = np.log(10) * attenuation / 2.5
-            T = self.get_transmission(wave, Av=Av, Sd=Sd)
+            T = self.get_transmission(wave, Av=Av, Sd=Sd, z=z)
             tau = -np.log(T)
         elif self.is_parameterized:
             if type(Sd) in numeric_types:
                 Sd = np.array([Sd])
-            kappa = self.get_absorption_coeff(wave=wave)
+            kappa = self.get_absorption_coeff(wave=wave, z=z)
 
             tau = kappa[None,:] * Sd[:,None]
 
@@ -427,7 +438,7 @@ class DustExtinction(object):
         else:
             return tau
 
-    def get_absorption_coeff(self, wave):
+    def get_absorption_coeff(self, wave, z=None):
         """
         Get dust absorption coefficient [cm^2 / g].
         """

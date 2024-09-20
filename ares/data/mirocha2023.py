@@ -361,6 +361,23 @@ dust['pq_func_par9[4]'] = 0   # no evolution yet.
 dust['pq_func_par10[4]'] = 0   # no evolution yet.
 dust['pq_val_floor[4]'] = 0
 
+dust_x = {}
+dust_x['pop_dust_template_extension{0}'] = 'pq[40]'
+dust_x['pq_func{0}[40]'] = 'pl_evolB13'
+dust_x['pq_func_var{0}[40]'] = 'wave'
+dust_x['pq_func_var2{0}[40]'] = '1+z'
+dust_x['pq_func_par0{0}[40]'] = 1
+dust_x['pq_func_par1{0}[40]'] = 5500
+dust_x['pq_func_par2{0}[40]'] = 0.0
+dust_x['pq_func_par3{0}[40]'] = 0     # norm
+dust_x['pq_func_par4{0}[40]'] = 0     # slope
+dust_x['pq_func_par5{0}[40]'] = 0     # norm
+dust_x['pq_func_par6{0}[40]'] = 0     # slope
+dust_x['pq_func_par7{0}[40]'] = 0     # norm
+dust_x['pq_func_par8{0}[40]'] = 0     # slope
+dust_x['pq_func_par9{0}[40]'] = 0     # slope
+dust_x['pq_func_par10{0}[40]'] = 0     # slope
+
 for par in dust.keys():
     setup[par + '{0}'] = dust[par]
 
@@ -429,6 +446,7 @@ subhalos_fsurv['pq_func_par20[3]{2}'] = 0
 # Dust
 subhalos['pop_Av{2}'] = 'link:Av:0'
 subhalos['pop_dust_template{2}'] = 'C00'
+#subhalos['pop_dust_template_extension{2}'] = 'C00'
 
 subhalos['pop_fsurv{3}'] = 'link:fsurv:2'
 subhalos['pop_fsurv_inv{3}'] = False

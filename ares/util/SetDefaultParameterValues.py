@@ -889,6 +889,7 @@ def PopulationParameters():
 
     "pop_Av": None,
     'pop_dust_template': None,
+    "pop_dust_template_extension": None,
     "pop_dust_absorption_coeff": None,   # opacity in [cm^2 / g]
 
     "pop_muvbeta": None,

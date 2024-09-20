@@ -2272,7 +2272,7 @@ class GalaxyCohort(GalaxyAggregate):
                 Sd = self.get_dust_surface_density(z, Mh=self.halos.tab_M)
 
             Tdust = self.dust.get_transmission(waves,
-                Av=Av, Sd=Sd).squeeze()
+                Av=Av, Sd=Sd, z=z).squeeze()
         else:
             Tdust = np.ones_like(waves)
 
@@ -2437,21 +2437,18 @@ class GalaxyCohort(GalaxyAggregate):
 
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
-            # Need to interpolate in redshift, stellar mass, wavelength
-            Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+
             if band is None:
                 assert 'hz' in units_out.lower()
+
             Lh_l = self._get_lum_lines_per_sfr(z, x=x, band=band, units=units,
                 units_out='erg/s/Hz') * sfr
 
-            #if np.sum(Lh_c > 0) > 0:
-            #    print('hi', z, max(Lh_l[Lh_c >0] / Lh_c[Lh_c >0]))
-            #else:
-            #    print('hi', z, x)
-
             if self.pf['pop_lum_per_sfr_off_wave'] == 0:
-                Lh = Lh_l
+                Lh = Lh_l * 1.
             else:
+                # Need to interpolate in redshift, stellar mass, wavelength
+                Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
                 Lh = Lh_c + Lh_l
 
             if (not self.is_central_pop) and total_sat:
