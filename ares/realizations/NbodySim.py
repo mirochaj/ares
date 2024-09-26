@@ -26,8 +26,8 @@ except ImportError:
     pass
 
 class NbodySim(LightCone): # pragma: no cover
-    def __init__(self, Lbox=256, dims=128, zlim=(0.2, 2), verbose=True,
-        prefix='ares_mock', seed_rot=None, seed_trans=None,
+    def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
+        base_dir='ares_mock', seed_rot=None, seed_trans=None, mem_concious=1,
         apply_rotations=False, apply_translations=False, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
@@ -48,15 +48,20 @@ class NbodySim(LightCone): # pragma: no cover
         """
         self.Lbox = Lbox
         self.dims = dims
-        self.zlim = zlim
+        self.zlim = (zmin, zmax)
+        self.zmin = zmin
+        self.zmax = zmax
         self.verbose = verbose
         self.kwargs = kwargs
-        self.prefix = prefix
+        self.base_dir = base_dir
+        self.model_name = model_name
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
 
         self.seed_rot = seed_rot
         self.seed_tra = seed_trans
+
+        self.mem_concious = mem_concious
 
     def get_halo_population(self, z, mmin=0, mmax=np.inf, verbose=False,
         idnum=0, **seed_kwargs):

@@ -676,10 +676,10 @@ _base = \
 
 sed_modeling = \
 {
- 'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_sfgs.hdf5",
- 'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_qgs.hdf5",
- 'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_sfgs.hdf5",
- 'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/ares_model_1_seds_qgs.hdf5",
+ 'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_acen_beta_0.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_qcen_beta_0.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_acen_beta_0.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_qcen_beta_0.hdf5",
 }
 
 sys_b13 = \

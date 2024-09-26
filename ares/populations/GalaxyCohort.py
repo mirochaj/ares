@@ -2714,6 +2714,17 @@ class GalaxyCohort(GalaxyAggregate):
         kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
             include_dust_transmission, include_igm_transmission, total_sat, use_tabs
 
+        # If user-supplied halos from simulation, retrieve 'em
+        if self.pf['pop_halos'] is not None:
+            _Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
+
+            if Mh is not None:
+                assert Mh.size == _Mh.size, \
+                    "If pop_halos is not None, should not supply `Mh`!"
+
+            Mh = _Mh
+
+        # Otherwise check if there's cached luminosities.
         if (Mh is None) and self.pf['pop_use_lum_cache'] and load:
             cached_result = self._cache_L(*kwtup)
 
@@ -2770,7 +2781,7 @@ class GalaxyCohort(GalaxyAggregate):
         elif np.all(T == 0):
             return np.zeros_like(Lh)
         elif Mh is None:
-            Lh = Lh * T#[:,None]
+            Lh = Lh * T
         else:
             _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
             Lh *= _T_
@@ -6115,6 +6126,7 @@ class GalaxyCohort(GalaxyAggregate):
                 name=f'p(k,{name})')
             pb.start()
 
+            #self._ps_obs_integrand = np.zeros((scale.size, zarr.size))
             for h, _scale_ in enumerate(scale):
 
                 integrand = np.zeros_like(zarr)
@@ -6132,6 +6144,8 @@ class GalaxyCohort(GalaxyAggregate):
                         nebular_only=nebular_only, prof=prof,
                         cross_pop=cross_pop)
 
+                #self._ps_obs_integrand[h,i] = integrand.copy()
+
                 ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
 
                 pb.update(h)
@@ -6148,6 +6162,8 @@ class GalaxyCohort(GalaxyAggregate):
                     include_1h=include_1h,
                     scale_units=scale_units, raw=raw,
                     nebular_only=nebular_only, prof=prof, cross_pop=cross_pop)
+
+            #self._ps_obs_integrand = integrand.copy()
 
             ps = np.trapz(integrand * zarr, x=np.log(zarr))
 

@@ -268,6 +268,9 @@ class LightCone(object): # pragma: no cover
         if Lbox is None:
             Lbox = self.Lbox
 
+        if zlim is None:
+            zlim = self.zlim
+
         ze, zmid, Re = self.sim.cosm.get_lightcone_boundaries(zlim, Lbox)
 
         return ze, zmid, Re
