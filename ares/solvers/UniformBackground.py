@@ -24,7 +24,7 @@ from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
-from scipy.integrate import quad, romberg, romb, trapz, simps, cumtrapz
+from scipy.integrate import quad
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, \
     h_p, cm_per_mpc
 from ..util.Misc import num_freq_bins, get_rte_grid, get_rte_bands, \

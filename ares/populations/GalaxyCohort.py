@@ -23,7 +23,7 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 from functools import cached_property
 from ..util.Misc import numeric_types, get_band_edges
-from scipy.integrate import quad, simps, cumtrapz, ode
+from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed, complex_sfhs
 from ..util.Stats import bin_c2e, bin_e2c
@@ -566,7 +566,7 @@ class GalaxyCohort(GalaxyAggregate):
 
 
             _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-            _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
+            _cumtot = cumulative_trapezoid(integrand, x=np.log(self.halos.tab_M),
                 initial=0.0)
 
             _tmp = _tot - \
@@ -619,7 +619,7 @@ class GalaxyCohort(GalaxyAggregate):
                 * self.tab_focc[i] * N_per_Msun * fesc * ok[i]
 
             tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-            cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
+            cumtot = cumulative_trapezoid(integrand, x=np.log(self.halos.tab_M),
                 initial=0.0)
 
             tab[i] = tot - \
@@ -782,7 +782,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 dtdz = np.array([self.cosm.dtdz(z) / s_per_yr \
                     for z in self.halos.tab_z])
-                self._tab_smd = cumtrapz(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
+                self._tab_smd = cumulative_trapezoid(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
                     dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
 
             #self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
@@ -852,10 +852,10 @@ class GalaxyCohort(GalaxyAggregate):
 
                     integ = self.halos.tab_dndlnm[i] * MAR
 
-                    p0 = simps(integ[j1-1:], x=np.log(self.halos.tab_M)[j1-1:])
-                    p1 = simps(integ[j1:], x=np.log(self.halos.tab_M)[j1:])
-                    p2 = simps(integ[j1+1:], x=np.log(self.halos.tab_M)[j1+1:])
-                    p3 = simps(integ[j1+2:], x=np.log(self.halos.tab_M)[j1+2:])
+                    p0 = simpson(integ[j1-1:], x=np.log(self.halos.tab_M)[j1-1:])
+                    p1 = simpson(integ[j1:], x=np.log(self.halos.tab_M)[j1:])
+                    p2 = simpson(integ[j1+1:], x=np.log(self.halos.tab_M)[j1+1:])
+                    p3 = simpson(integ[j1+2:], x=np.log(self.halos.tab_M)[j1+2:])
 
                     interp = interp1d(np.log(self.halos.tab_M)[j1-1:j1+3], [p0,p1,p2,p3],
                         kind=self.pf['pop_interp_MAR'])
@@ -1567,7 +1567,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Cumulative surface density of galaxies *brighter than* Mobs
         # [and optionally brighter ]
-        cgal = cumtrapz(Ngal, x=mags, initial=Ngal[0])
+        cgal = cumulative_trapezoid(Ngal, x=mags, initial=Ngal[0])
 
         if maglim is not None:
             return np.interp(maglim, mags, cgal)
@@ -4231,7 +4231,7 @@ class GalaxyCohort(GalaxyAggregate):
             integrand = self.tab_sfr * self.halos.tab_dndlnm * self.tab_focc
 
             ##
-            # Use cumtrapz instead and interpolate onto Mmin, Mmax
+            # Use cumulative_trapezoid instead and interpolate onto Mmin, Mmax
             ##
             ct = 0
             self._tab_sfrd_total_ = np.zeros_like(self.halos.tab_z)
@@ -4247,7 +4247,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 if self.is_central_pop:
                     tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
-                    cumtot = cumtrapz(integrand[i], x=np.log(self.halos.tab_M),
+                    cumtot = cumulative_trapezoid(integrand[i], x=np.log(self.halos.tab_M),
                         initial=0.0)
                 else:
                     fsurv = self.tab_fsurv[i,:]
@@ -4272,7 +4272,7 @@ class GalaxyCohort(GalaxyAggregate):
                     integ = self.tab_sfr[i,:] * dndlnm_sat
 
                     tot = np.trapz(integ, dx=self.halos.dlnm)
-                    cumtot = cumtrapz(integ, dx=self.halos.dlnm,
+                    cumtot = cumulative_trapezoid(integ, dx=self.halos.dlnm,
                         initial=0.0)
 
 

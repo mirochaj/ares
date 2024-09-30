@@ -14,7 +14,7 @@ import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
@@ -175,7 +175,7 @@ class LogNormal(LightCone): # pragma: no cover
             m = self.sim.pops[0].halos.tab_M[ok==1]
             dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
-            nall = cumtrapz(dndm * m, x=np.log(m), initial=0.0)
+            nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
             nbar = np.trapz(dndm * m, x=np.log(m)) \
                  - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
 
@@ -225,7 +225,7 @@ class LogNormal(LightCone): # pragma: no cover
         m = self.sim.pops[0].halos.tab_M[ok==1]
         dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
-        nall = cumtrapz(dndm * m, x=np.log(m), initial=0.0)
+        nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
         nbar = np.trapz(dndm * m, x=np.log(m)) \
              - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
 
@@ -429,7 +429,7 @@ class LogNormal(LightCone): # pragma: no cover
         dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
         # Compute CDF
-        ngtm = cumtrapz(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
+        ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
             initial=0)[-1::-1]
 
         ntot = np.trapz(dndm * m, x=np.log(m))
