@@ -272,6 +272,11 @@ class Population(object):
         return self.pf['pop_centrals']
 
     @cached_property
+    def is_emission_extended(self):
+        return (self.pf['pop_ihl'] is not None) or \
+            (self.pf['pop_centrals'] == False)
+
+    @cached_property
     def is_satellite_pop(self):
         return not self.is_central_pop
 

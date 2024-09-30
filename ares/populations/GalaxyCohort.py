@@ -6018,12 +6018,12 @@ class GalaxyCohort(GalaxyAggregate):
         #    return cached_result
 
         # Default to NFW
-        if self.is_central_pop:
+        if self.is_central_pop and (not self.is_emission_extended):
             prof1 = self._profile_delta
         else:
             prof1 = self.get_prof()
 
-        if pop_x.is_central_pop:
+        if pop_x.is_central_pop and (not pop_x.is_emission_extended):
             prof2 = pop_x._profile_delta
         else:
             prof2 = pop_x.get_prof(prof)
@@ -6073,7 +6073,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
-        time_res=1, raw=False, nebular_only=False, prof=None, cross_pop=None):
+        raw=False, nebular_only=False, prof=None, cross_pop=None):
         """
         Compute the angular power spectrum of this galaxy population.
 
@@ -6088,21 +6088,10 @@ class GalaxyCohort(GalaxyAggregate):
             assume elements define the edges of a spectral channel.
         scale_units : str
             So far, allowed to be 'arcsec' or 'arcmin'.
-        time_res : int
-            Can degrade native time or redshift resolution by this
-            factor to speed-up integral. Do so at your own peril. By
-            default, will sample time/redshift integrand at native
-            resolution (set by `hmf_dz` or `hmf_dt`).
-
         """
 
-        _zarr = self.halos.tab_z
-        _zok  = np.logical_and(_zarr > self.zdead, _zarr <= self.zform)
-        zarr  = self.halos.tab_z[_zok==1]
-
-        # Degrade native time resolution by factor of `time_res`
-        if time_res != 1:
-            zarr = zarr[::time_res]
+        zarr = self.halos.tab_z
+        zok  = np.logical_and(zarr > self.zdead, zarr <= self.zform)
 
         dtdz = self.cosm.dtdz(zarr)
 
@@ -6126,14 +6115,12 @@ class GalaxyCohort(GalaxyAggregate):
                 name=f'p(k,{name})')
             pb.start()
 
-            #self._ps_obs_integrand = np.zeros((scale.size, zarr.size))
+            self._ps_obs_integrand = np.zeros((scale.size, zarr.size))
             for h, _scale_ in enumerate(scale):
 
                 integrand = np.zeros_like(zarr)
                 for i, z in enumerate(zarr):
-                    if z < self.zdead:
-                        continue
-                    if z > self.zform:
+                    if not zok[i]:
                         continue
 
                     integrand[i] = self._get_ps_obs(z, _scale_,
@@ -6144,9 +6131,10 @@ class GalaxyCohort(GalaxyAggregate):
                         nebular_only=nebular_only, prof=prof,
                         cross_pop=cross_pop)
 
-                #self._ps_obs_integrand[h,i] = integrand.copy()
+                self._ps_obs_integrand[h,:] = integrand.copy()
 
-                ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
+                ps[h] = np.trapz(integrand[zok] * zarr[zok],
+                    x=np.log(zarr[zok]))
 
                 pb.update(h)
 
@@ -6157,30 +6145,20 @@ class GalaxyCohort(GalaxyAggregate):
 
             integrand = np.zeros_like(zarr)
             for i, z in enumerate(zarr):
+                if not zok[i]:
+                    continue
+
                 integrand[i] = self._get_ps_obs(z, scale, wave_obs1, wave_obs2,
                     include_shot=include_shot, include_2h=include_2h,
                     include_1h=include_1h,
                     scale_units=scale_units, raw=raw,
                     nebular_only=nebular_only, prof=prof, cross_pop=cross_pop)
 
-            #self._ps_obs_integrand = integrand.copy()
+            self._ps_obs_integrand = integrand.copy()
 
-            ps = np.trapz(integrand * zarr, x=np.log(zarr))
+            ps = np.trapz(integrand[zok] * zarr[zok],
+                x=np.log(zarr[zok]))
 
-        ##
-        # Extra factor of nu^2 to eliminate Hz^{-1} units for
-        # monochromatic PS
-        assert type(wave_obs1) == type(wave_obs2)
-
-        if type(wave_obs1) in numeric_types:
-            ps = ps * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
-        else:
-            nu1 = c / (np.array(wave_obs1) * 1e-4)
-            nu2 = c / (np.array(wave_obs2) * 1e-4)
-            dnu1 = -np.diff(nu1)
-            dnu2 = -np.diff(nu2)
-
-            ps = ps * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
 
         return ps
 
@@ -6312,6 +6290,21 @@ class GalaxyCohort(GalaxyAggregate):
                     / (1. + z)**2 / (4. * np.pi)**2
         else:
             raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
+
+        ##
+        # Extra factor of nu^2 to eliminate Hz^{-1} units for
+        # monochromatic PS
+        assert type(wave_obs1) == type(wave_obs2)
+
+        if type(wave_obs1) in numeric_types:
+            integrand = integrand * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+        else:
+            nu1 = c / (np.array(wave_obs1) * 1e-4)
+            nu2 = c / (np.array(wave_obs2) * 1e-4)
+            dnu1 = -np.diff(nu1)
+            dnu2 = -np.diff(nu2)
+
+            integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
 
         return integrand
 

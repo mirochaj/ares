@@ -207,9 +207,6 @@ class Simulation(object):
         The `get_ps_obs` methods within ares.populations objects take a
         number of optional arguments that control the output. These include:
 
-        time_res : int, float
-            Time resolution [in Myr] to use when integrating to obtain the
-            total flux due to sources over all redshifts.
         include_1h : bool
             If False, exclude 1-halo term from calculation [Default: True]
         include_2h : bool
@@ -275,6 +272,10 @@ class Simulation(object):
         px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
         # Save contributing pieces
 
+        # [optonal] Save redshift chunks
+        ps_z = np.zeros((len(self.pops), len(self.pops),
+            len(scales), len(waves), self.pops[0].halos.tab_z.size))
+
         # Loop over source populations and compute power spectrum.
         #
         for i, pop in enumerate(self.pops):
@@ -300,18 +301,18 @@ class Simulation(object):
                         ps[i,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=wave, wave_obs2=waves2[k],
                             scale_units=scale_units, **kwargs)
+                        ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
 
                     if not include_inter_pop:
                         continue
-
 
                     ##
                     # Cross terms only from here on
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=wave, wave_obs2=waves2[k],
                         scale_units=scale_units, cross_pop=popx, **kwargs)
-
+                    ps_z[i,j,:,k,:] = pop._ps_obs_integrand.copy()
 
                 ##
                 # Clear out some memory -- u(k|M) tabs can be big.
@@ -329,9 +330,11 @@ class Simulation(object):
         if flux_units.lower() == 'si':
             ps *= cm_per_m**4 / erg_per_s_per_nW**2
             px *= cm_per_m**4 / erg_per_s_per_nW**2
+            ps_z *= cm_per_m**4 / erg_per_s_per_nW**2
         elif flux_units.lower() == 'mjy':
             ps *= 1e17
             px *= 1e17
+            ps_z *= 1e17
 
         if pops is None:
             hist = self.history # poke
@@ -343,6 +346,7 @@ class Simulation(object):
 
         self.ps_auto = ps
         self.ps_cross = px
+        self.ps_zall = ps_z
 
         return scales, scales_inv, waves, ps
 

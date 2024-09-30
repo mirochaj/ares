@@ -249,16 +249,16 @@ for par in centrals_sf:
 
 ihl_scaled = centrals_q.copy()
 ihl_scaled['pop_focc'] = 1
-ihl_scaled['pop_ihl'] = 0.01
-#ihl_q['pq_func[0]'] = 'pl_evolN'
-#ihl_q['pq_func_var[0]'] = 'Mh'
-#ihl_q['pq_func_var2[0]'] = '1+z'
-#ihl_q['pq_func_par0[0]'] = 0.01 # 1% of stellar mass -> IHL
-#ihl_q['pq_func_par1[0]'] = 1e12
-#ihl_q['pq_func_par2[0]'] = 0.  # Flat Mh dependence
-#ihl_q['pq_func_par3[0]'] = 1.  # Anchored to z=0
-#ihl_q['pq_func_par4[0]'] = 0.  # no evolution yet.
-#ihl_q['pop_fstar'] = 'link:fstar:0'
+ihl_scaled['pop_ihl'] = 'pq[50]'
+ihl_scaled['pop_focc_inv'] = False
+ihl_scaled['pq_func[50]'] = 'pl_evolN'
+ihl_scaled['pq_func_var[50]'] = 'Mh'
+ihl_scaled['pq_func_var2[50]'] = '1+z'
+ihl_scaled['pq_func_par0[50]'] = 0.01 # 1% of stellar mass -> IHL
+ihl_scaled['pq_func_par1[50]'] = 1e12
+ihl_scaled['pq_func_par2[50]'] = 1.  # Linear Mh dependence
+ihl_scaled['pq_func_par3[50]'] = 1.  # Anchored to z=0
+ihl_scaled['pq_func_par4[50]'] = 0.  # no evolution yet.
 
 ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
