@@ -31,7 +31,7 @@ from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, interp1d
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
-    cm_per_pc, m_H, s_per_myr, Lsun, flux_AB
+    cm_per_pc, m_H, s_per_myr, Lsun
 
 try:
     from mpi4py import MPI
@@ -1949,7 +1949,7 @@ class GalaxyCohort(GalaxyAggregate):
                 Mh = self.halos.tab_M
 
             if band is None:
-                band = [[None,None]] * len(waves)
+                band = [None] * len(waves)
                 dlam = dfreq = np.ones_like(waves)
             else:
                 assert band.shape[0] == len(waves)
@@ -1959,7 +1959,7 @@ class GalaxyCohort(GalaxyAggregate):
             lum = np.zeros((Mh.size, waves.size))
             for i, wave in enumerate(waves):
                 lum[:,i] = self.get_lum(z, x=wave, units='Angstroms',
-                    band=tuple(band[i]), window=window, Mh=Mh, use_tabs=use_tabs,
+                    band=band[i], window=window, Mh=Mh, use_tabs=use_tabs,
                     units_out=units_out, load=False, raw=raw,
                     nebular_only=nebular_only,
                     include_dust_transmission=include_dust_transmission,
@@ -2569,8 +2569,10 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_ = Ms * L_sfr
 
                     if self.pf['pop_ihl'] is not None:
-                        ihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
-                        _Lh_ *= ihl
+                        fihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
+
+                        # We're definining f_ihl = L_ihl / (L_ihl + L_cen)
+                        _Lh_ *= (fihl / (1. - fihl))
 
                 else:
                     Ls = Ms * L_sfr
@@ -3132,6 +3134,10 @@ class GalaxyCohort(GalaxyAggregate):
                 if (sigma == 0) or (not self.pf['pop_mask_use_adv']):
                     tmp_mask[i,np.logical_and(Lh>0, Lh<llim),h] = 0
                     continue
+
+                if z == 6:
+                    print('hey!', z, mask, llim)
+
 
                 # Construct array of luminosity vs. halo mass (log10 it)
                 mu = np.log10(Lh)
@@ -3772,14 +3778,6 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 # A suitably large number for (I think) any purpose
                 self._tab_Mmax_ = 1e18 * np.ones_like(self.halos.tab_z)
-
-            # Override switch: source masking
-            #if self.pf['pop_mask'] is not None:
-            #    mask = self.get_mask()
-            #    # Don't understand this...if tab_source_mask gets called
-            #    # before this method, things don't work out. 03.15.2023.
-
-            #    self._tab_Mmax_ = np.minimum(mask, self._tab_Mmax_)
 
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)

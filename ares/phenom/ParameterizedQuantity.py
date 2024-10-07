@@ -201,7 +201,7 @@ class PowerLawEvolvingAsB13(BasePQ):
             x = kwargs[self.x]
 
         z = self.get_var2(kwargs['z'])
-        
+
         # Need scale factor
         a = 1. / (1. + z)
 

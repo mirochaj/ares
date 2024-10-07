@@ -141,7 +141,7 @@ class Galaxy(SynthesisModel):
                     pass
 
         else:
-            raise NotImplemented('help')
+            raise NotImplemented(f'Unrecognized sfh={sfh}')
 
         ##
         # Null SFR for times after time of observation!

@@ -172,7 +172,7 @@ class Simulation(object):
         return data
 
     def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
-        scale_units='arcmin', flux_units='SI', dimensionless=False, pops=None,
+        scale_units='ell', flux_units='SI', dimensionless=False, pops=None,
         include_inter_pop=True, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).

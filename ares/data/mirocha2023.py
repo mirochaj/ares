@@ -249,6 +249,7 @@ for par in centrals_sf:
 
 ihl_scaled = centrals_q.copy()
 ihl_scaled['pop_focc'] = 1
+ihl_scaled['pop_age'] = 5e3
 ihl_scaled['pop_ihl'] = 'pq[50]'
 ihl_scaled['pop_focc_inv'] = False
 ihl_scaled['pq_func[50]'] = 'pl_evolN'
@@ -258,7 +259,7 @@ ihl_scaled['pq_func_par0[50]'] = 0.01 # 1% of stellar mass -> IHL
 ihl_scaled['pq_func_par1[50]'] = 1e12
 ihl_scaled['pq_func_par2[50]'] = 1.  # Linear Mh dependence
 ihl_scaled['pq_func_par3[50]'] = 1.  # Anchored to z=0
-ihl_scaled['pq_func_par4[50]'] = 0.  # no evolution yet.
+ihl_scaled['pq_func_par4[50]'] = 0   # No evolution by default [illustrative]
 
 ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
@@ -266,6 +267,32 @@ ihl_scaled['pop_include_shot'] = False
 ihl_scaled['pop_Mmin'] = 1e10
 ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
+
+ihl_b19 = ihl_scaled.copy()
+ihl_b19['pq_func_par0[50]{4}'] = 0.01
+ihl_b19['pq_func_par1[50]{4}'] = 1e12
+ihl_b19['pq_func_par2[50]{4}'] = 0.7
+ihl_b19['pq_val_ceil[50]{4}'] = 0.99
+
+ihl_p24 = ihl_scaled.copy()
+ihl_p24['pq_func_par0[50]{4}'] = 0.13
+ihl_p24['pq_func_par1[50]{4}'] = 1e12
+ihl_p24['pq_func_par2[50]{4}'] = 0.5
+ihl_p24['pq_val_ceil[50]{4}'] = 0.99
+
+ihl_c24 = ihl_scaled.copy()
+ihl_c24['pq_func_par0[50]{4}'] = 0.11
+ihl_c24['pq_func_par1[50]{4}'] = 1e12
+ihl_c24['pq_func_par2[50]{4}'] = 0.25
+ihl_c24['pq_val_ceil[50]{4}'] = 0.99
+
+ihl_p07 = ihl_scaled.copy()
+ihl_p07['pq_func[50]{4}'] = 'tanh_abs'
+ihl_p07['pq_func_par0[50]{4}'] = 0.7
+ihl_p07['pq_func_par1[50]{4}'] = 0.0
+ihl_p07['pq_func_par2[50]{4}'] = 13.6
+ihl_p07['pq_func_par3[50]{4}'] = -1.
+ihl_p07['pq_val_ceil[50]{4}'] = 0.99
 
 satellites_sf = centrals_sf.copy()
 satellites_sf['pop_focc'] = 'link:focc:0'
@@ -307,7 +334,6 @@ satellites_q['pop_aging'] = True
 satellites_q['pop_ssp'] = True
 satellites_q['pop_age'] = 1e4
 satellites_q['pop_Z'] = 0.02
-
 
 #
 #ihl_from_sat = centrals_sf_old.copy()

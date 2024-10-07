@@ -558,6 +558,10 @@ class Survey(object):
         """
         Returns the filter center and "full-width-full-max" in microns.
         """
+
+        # Just to make sure we've loaded in data.
+        data = self.read_throughputs()
+
         return self._filter_cache[filt][2], sum(self._filter_cache[filt][3])
 
     def get_dropout_filter(self, z, filters=None, drop_wave=1216., skip=None):
