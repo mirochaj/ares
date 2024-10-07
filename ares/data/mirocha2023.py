@@ -287,7 +287,7 @@ ihl_c24['pq_func_par2[50]{4}'] = 0.25
 ihl_c24['pq_val_ceil[50]{4}'] = 0.99
 
 ihl_p07 = ihl_scaled.copy()
-ihl_p07['pq_func[50]{4}'] = 'tanh_abs'
+ihl_p07['pq_func[50]{4}'] = 'logtanh_abs'
 ihl_p07['pq_func_par0[50]{4}'] = 0.7
 ihl_p07['pq_func_par1[50]{4}'] = 0.0
 ihl_p07['pq_func_par2[50]{4}'] = 13.6
