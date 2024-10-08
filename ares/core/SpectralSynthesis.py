@@ -1321,6 +1321,8 @@ class SpectralSynthesis(object):
 
                 tau = kappa * Sd
 
+                print('hi', x, idnum, tau[izobs])
+
                 clear = rand > fcov
                 block = ~clear
 

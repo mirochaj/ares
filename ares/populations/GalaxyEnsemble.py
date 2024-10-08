@@ -168,7 +168,7 @@ class GalaxyEnsemble(HaloPopulation):
                     mask = self.histories['mask'][:,iz]
                     ok = np.logical_and(ok, np.logical_not(mask))
 
-                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) 
+                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1])
 
             return sfrd
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
@@ -2468,6 +2468,9 @@ class GalaxyEnsemble(HaloPopulation):
         #if band is not None:
         #    assert self.pf['pop_dust_yield'] in [0, None], \
         #        "Going to get weird answers for L(band != None) if dust is ON."
+
+        if include_dust_transmission:
+            raise ValueError("Need to fix dust reddening! synth.get_lum doing it, should not also do with get_transmission.")
 
         raw = self.histories
         if (x is not None) and (x > self.src.tab_waves_c.max()):
