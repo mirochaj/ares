@@ -2827,6 +2827,65 @@ class GalaxyCohort(GalaxyAggregate):
 
         return arr
 
+    def get_ihl_suppression(self, z, Mh):
+        """
+        This function returns the fraction of IHL emission lost to masking.
+        """
+
+        if self.pf['pop_ihl_suppression'] is None:
+            return 0
+
+        if len(self.pf['pop_ihl_suppression']):
+            n_per_deg, pix = self.pf['pop_ihl_suppression']
+
+            pix_per_deg = 3600.**2 / pix**2
+
+            fmask = np.ones_like(Mh) * n_per_deg / pix_per_deg
+            return np.minimum(1, fmask)
+
+        ##
+        # Otherwise, we're using a local correction as well.
+        n_per_deg, pix = self.pf['pop_ihl_suppression']
+
+        pix_per_deg = 3600.**2 / pix**2
+
+        filt, sat_mags = sat.get_mags(z, x=1.6e4 / (1. + z), window=801,
+            absolute=False, total_sat=False)
+
+        # No need to convert to surface density.
+        # Already have number of galaxies for central of interest. Just need
+        # to flag masking threshold and compute integral.
+        pix_lost_to_sat = []
+
+        for cut in cut_mags:
+            ok = sat_mags < cut
+            ctot = np.trapz(hmf_s[ok==1], x=np.log(sat.halos.tab_M[ok==1]))
+
+            pix_lost_to_sat.append(ctot / sphx_pix_per_halo)
+
+
+        ##
+        # Otherwise, assume that pop_ihl_mask tells us the
+        # masked pixel density (# / deg^2)
+
+        # First, we compute the Virial radius of all halos and convert that
+        # to number of pixels.
+        # Then, we compute the suppression factor as the mask pixel density
+        # divided by the number of pixels for each source.
+
+        Rvir_mpc = self.halos.get_Rvir(z, M=Mh) / 1e3 # [kpc -> Mpc]
+
+        Rvir_ang = self.cosm.get_angle_from_length_comoving(z, Rvir_mpc) * 60 # -> arcsec
+
+        deg_per_halo = 4 * np.pi * Rvir_ang**2
+
+        # Should have correction for unresolved halo.
+        n_per_halo = n_per_deg * deg_per_halo
+
+        flag_per_halo = n_per_deg / pix_per_deg
+
+        return flag_per_halo
+
     def get_ihl(self, z, Mh):
         func = self._get_function('pop_ihl')
         return func(z=z, Mh=Mh)

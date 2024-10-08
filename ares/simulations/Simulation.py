@@ -350,6 +350,49 @@ class Simulation(object):
 
         return scales, scales_inv, waves, ps
 
+    def get_number_counts(self, wave, magbins, window=201, zmax=None):
+        """
+        Determine number counts (per deg^2) summed over all source populations.
+
+        Parameters
+        ----------
+        wave : int, float
+            Observed wavelength of interest [Angstroms].
+        magbins : np.ndarray
+            Array of AB magnitude bins (centers) at which to compute counts.
+
+        Returns
+        -------
+        Counts (np.ndarray) in number / deg^2 in provided `magbins`.
+
+        """
+        tot = np.zeros_like(magbins)
+
+        for i, pop in enumerate(self.pops):
+
+            if pop.is_emission_extended:
+                continue
+
+            if zmax is None:
+                zmax = pop.zform
+
+            num_hiz = pop.get_number_counts(magbins, x=wave,
+                window=window, dlam=10,
+                zbin=0.1, zmin=2., zmax=zmax)
+
+            num_midz = pop.get_number_counts(magbins, x=wave,
+                window=window, dlam=10,
+                zbin=0.01, zmin=0.05, zmax=2)
+
+            num_lowz = pop.get_number_counts(magbins, x=wave,
+                window=window, dlam=10,
+                zbin=0.001, zmin=0.006, zmax=0.05)
+
+            tot += num_midz + num_lowz + num_hiz
+
+        return tot
+
+
     @property
     def pops(self):
         return self.sim_gs.medium.field.pops
