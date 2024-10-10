@@ -44,7 +44,7 @@ Please also provide a link to [this page](https://github.com/mirochaj/ares) as a
 - Collisional coupling coefficients for the 21-cm line from [Zygelman (2005)](https://ui.adsabs.harvard.edu/abs/2005ApJ...622.1356Z/abstract).
 - Wouthuysen-Field coupling coefficients for the 21-cm line from [Chuzhoy & Shapiro (2006)](https://ui.adsabs.harvard.edu/abs/2006ApJ...651....1C/abstract), [Furlanetto \& Pritchard (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.372.1093F/abstract), [Hirata (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367..259H/abstract), and [Mittal & Kulkarni (2021)](https://ui.adsabs.harvard.edu/abs/2021MNRAS.503.4264M/abstract) (see `approx_Salpha` parameter, values of 2, 3, 4, and 5, respectively).
 - Lyman-alpha transition probabilities from [Pritchard \& Furlanetto (2006)](https://ui.adsabs.harvard.edu/abs/2006MNRAS.367.1057P/abstract).
-- Stellar population synthesis model options include starburst99 ([Leitherer et al. (1999)](https://ui.adsabs.harvard.edu/abs/1999ApJS..123....3L/abstract)) and BPASS versions 1 ([Eldridge \& Stanway (2009)](https://ui.adsabs.harvard.edu/abs/2009MNRAS.400.1019E/abstract)) and 2 ([Eldridge et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017PASA...34...58E/abstract),[Stanway \& Eldridge (2018)](https://ui.adsabs.harvard.edu/abs/2018MNRAS.479...75S/abstract)) (via `pop_sed` parameter, values `'starburst99'`, `'bpass_v1'`, and `'bpass_v2'`, respectively).
+- Stellar population synthesis model options include starburst99 ([Leitherer et al. (1999)](https://ui.adsabs.harvard.edu/abs/1999ApJS..123....3L/abstract)), BPASS versions 1 ([Eldridge \& Stanway (2009)](https://ui.adsabs.harvard.edu/abs/2009MNRAS.400.1019E/abstract)) and 2 ([Eldridge et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017PASA...34...58E/abstract),[Stanway \& Eldridge (2018)](https://ui.adsabs.harvard.edu/abs/2018MNRAS.479...75S/abstract)), and the [Bruzual \& Charlot (2003)](https://www.bruzual.org/bc03/) models. Which model is used is controlled by the `pop_sed` parameter, values `'starburst99'`, `'bpass_v1'`, `'bpass_v2'`, and `'bc03'` respectively. Note that each of these models is essentially a big lookup table; some can be downloaded automatically (see below).
 
 Feel free to get in touch if you are unsure of whether any of these tools are being used under the hood for your application.
 
@@ -63,6 +63,7 @@ and optionally,
 - [hmf](https://github.com/steven-murray/hmf)
 - [astropy](https://www.astropy.org/)
 - [dust_extinction](https://dust-extinction.readthedocs.io/en/stable/index.html)
+- [dust_attenuation](https://dust-extinction.readthedocs.io/en/stable/index.html)
 - [mpi4py](http://mpi4py.scipy.org)
 - [pymp](https://github.com/classner/pymp)
 - [progressbar2](http://progressbar-2.readthedocs.io/en/latest/)
@@ -85,7 +86,7 @@ which are pip-installable.
 
 Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
 
-## Getting started
+## Installation
 
 To clone a copy and install:
 
@@ -95,21 +96,43 @@ cd ares
 pip install . # or pip install -e .
 ```
 
-**ares** will look in ``$HOME/.ares`` for lookup tables of various kinds. To download said lookup tables, run:
+**ares** will look in ``$HOME/.ares`` for lookup tables of various kinds. To download the core set of lookup tables needed for the most common use-cases, run:
 
 ```
 ares download all
 ```
 
-This might take a few minutes. If something goes wrong with the download, you can run
+This might take a few minutes. If something goes wrong with the download, e.g., you lose your internet connection, you can run
 
 ```
 ares download all --fresh
 ```
 
-to get fresh copies of everything.
+to get fresh copies of everything. You can also download or re-download one dataset at a time, e.g.,
 
-## Quick Example
+```
+ares download bc03
+```
+
+The examples within the documentation should say whether they require any non-standard lookup tables that, e.g., cannot be downloaded automatically using `ares download`. Please keep an eye out for that -- if you don't see any special instructions, and you're getting `IOError` or `OSError` or the like, do reach out.
+
+Last note on this front. If you are running ARES on a machine with a very small quota in the `$HOME` directory, our trick of hiding lookup tables in `$HOME/.ares` will cause problems. A quick solution to this is to move the contents of `$HOME/.ares` somewhere else with plenty of disk space, and then make the file `$HOME/.ares` a symbolic link that points to this new folder. Probably we should add a flag to the CLI that can re-direct downloads to a user-supplied location to automate this hack in the future.
+
+## Pre-processing
+
+Not only do some ARES calculations rely on external datasets, they often benefit from using slightly-modified versions of those datasets. For example, the spectral resolution of the BPASS models is 1 Angstrom, which is much better than we need for most ARES modeling. So, many examples use "degraded" BPASS models, which just smooth the standard BPASS SEDs with a tophat of some width, generally 10 or even. To do this SED degradation, we also use the ARES CLI:
+
+```python
+import os
+from ares.util import cli as ares_cli
+
+ares_cli.generate_lowres_sps(f"{os.environ.get('HOME')}/.ares/bpass_v2/BPASSv2_imf135_300/OUTPUT_CONT", degrade_to=10)
+ares_cli.generate_lowres_sps(f"{os.environ.get('HOME')}/.ares/bpass_v2/BPASSv2_imf135_300/OUTPUT_POP", degrade_to=10)
+```
+
+Once again, this kind of information should be included in our examples, so please check there for instructions if you get errors indicative of missing files.
+
+## Quick Examples
 
 To generate a model for the global 21-cm signal, simply type:
 
