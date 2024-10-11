@@ -581,7 +581,6 @@ subhalos_sfr_ext['pq_func[6]{2}'] = 'dplx_evolB13'
 subhalos_sfr_ext['pq_func_var[6]{2}'] = 'Mh'
 subhalos_sfr_ext['pq_func_var2[6]{2}'] = '1+z'
 
-
 for i in range(0, 27):
     subhalos_sfr_ext['pq_func_par%i[6]{2}' % i] = setup['pq_func_par%i[1]{0}' % i]
 
