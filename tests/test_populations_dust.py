@@ -14,7 +14,7 @@ import ares
 import numpy as np
 
 def test():
-    pars = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
+    pars = ares.util.ParameterBundle('mirocha2023:setup').pars_by_pop(0,1)
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
     pars['pop_Z'] = (0.02, 0.02)
     pars['pop_age'] = (100, 100)
@@ -37,7 +37,7 @@ def test():
     assert np.exp(-pop_Av.dust.get_opacity(1500, Av=0.5)) \
         == pop_Av.dust.get_transmission(1500, Av=0.5)
 
-    pars2 = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
+    pars2 = ares.util.ParameterBundle('mirocha2023:setup').pars_by_pop(0,1)
     pars2.update(ares.util.ParameterBundle('testing:galaxies'))
     pars2['pop_Z'] = (0.02, 0.02)
     pars2['pop_age'] = (100, 100)
@@ -83,7 +83,7 @@ def test():
 
     assert tau.shape == (Sd.size, waves.size)
 
-    pars0 = ares.util.ParameterBundle('mirocha2023:base').pars_by_pop(0,1)
+    pars0 = ares.util.ParameterBundle('mirocha2023:setup').pars_by_pop(0,1)
     pars0.update(ares.util.ParameterBundle('testing:galaxies'))
     pars0['pop_Z'] = (0.02, 0.02)
     pars0['pop_age'] = (100, 100)
