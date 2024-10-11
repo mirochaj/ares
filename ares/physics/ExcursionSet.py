@@ -15,7 +15,7 @@ from .Constants import rho_cgs
 from .Cosmology import Cosmology
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
-from scipy.integrate import simps, quad
+from scipy.integrate import quad
 from scipy.interpolate import interp1d
 from scipy.misc import derivative
 

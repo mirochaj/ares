@@ -27,7 +27,7 @@ from .Halo import HaloPopulation
 from ..physics import DustEmission
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, cumtrapz
+from scipy.integrate import quad, cumulative_trapezoid
 from ares.data import read as read_lit
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
@@ -1048,7 +1048,7 @@ class GalaxyEnsemble(HaloPopulation):
         fml = (1. - fmr)
 
         # Integrate (crudely) mass accretion rates
-        #_Mint = cumtrapz(_MAR[:,:], dx=dt, axis=1)
+        #_Mint = cumulative_trapezoid(_MAR[:,:], dx=dt, axis=1)
         #_MAR_c = 0.5 * (np.roll(MAR, -1, axis=1) + MAR)
         #_Mint = np.cumsum(_MAR_c[:,1:] * dt, axis=1)
 
@@ -3705,7 +3705,7 @@ class GalaxyEnsemble(HaloPopulation):
             # some corresponding magnitude
             assert Ngal[i,0] == 0, "Broaden binning range?"
             #ntot = np.trapz(Ngal[i,:], x=x)
-            nltm[i,:] = cumtrapz(Ngal[i,:], x=bins, initial=Ngal[i,0])
+            nltm[i,:] = cumulative_trapezoid(Ngal[i,:], x=bins, initial=Ngal[i,0])
 
         # Can just return *maximum* number of galaxies detected,
         # regardless of band. Equivalent to requiring only single-band

@@ -14,7 +14,7 @@ from functools import cached_property
 import numbers
 import numpy as np
 from scipy.optimize import minimize
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 
 from ..core import SpectralSynthesis
 from ..data import ARES
@@ -752,7 +752,7 @@ class SynthesisModelBase(Source):
         if self.is_ssp:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             if return_all_t:
-                phot_per_b = cumtrapz(photons_per_b_t, x=self.tab_t*s_per_myr,
+                phot_per_b = cumulative_trapezoid(photons_per_b_t, x=self.tab_t*s_per_myr,
                     initial=0.0)
             else:
                 phot_per_b = np.trapz(photons_per_b_t, x=self.tab_t*s_per_myr)

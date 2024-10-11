@@ -1498,7 +1498,7 @@ def ControlParameters():
         "sed_prefix": None,
 
         "unsampled_integrator": 'quad',
-        "sampled_integrator": 'simps',
+        "sampled_integrator": 'simpson',
         "integrator_rtol": 1e-6,
         "integrator_atol": 1e-4,
         "integrator_divmax": 1e2,

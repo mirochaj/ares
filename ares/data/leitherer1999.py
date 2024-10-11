@@ -12,7 +12,6 @@ import re, os
 import numpy as np
 from ares.data import ARES
 from ares.physics import Cosmology
-from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H

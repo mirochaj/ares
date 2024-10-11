@@ -17,7 +17,6 @@ import h5py
 import numpy as np
 from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
-from scipy.integrate import cumtrapz, quad
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
 from scipy.spatial.transform import Rotation

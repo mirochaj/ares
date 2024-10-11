@@ -14,7 +14,6 @@ import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
-from scipy.integrate import cumtrapz
 from ..simulations import Simulation
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c

@@ -17,7 +17,7 @@ from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import erg_per_ev
 from ..physics.SecondaryElectrons import *
 import os, re, scipy, itertools, math, copy
-from scipy.integrate import quad, trapz, simps
+from scipy.integrate import quad, simpson
 
 try:
     from mpi4py import MPI
@@ -701,7 +701,7 @@ class IntegralTable(object):
             c &= self.E <= self.src.Emax
             samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
 
-            integral = simps(samples, self.E[c]) / erg_per_ev
+            integral = simpson(samples, self.E[c]) / erg_per_ev
 
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
@@ -738,7 +738,7 @@ class IntegralTable(object):
             c &= self.E <= self.src.Emax
             samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
 
-            integral = simps(samples, self.E[c])
+            integral = simpson(samples, self.E[c])
 
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
@@ -776,7 +776,7 @@ class IntegralTable(object):
             c &= self.E <= self.src.Emax
             samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
 
-            integral = simps(samples, self.E[c]) / erg_per_ev
+            integral = simpson(samples, self.E[c]) / erg_per_ev
 
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
@@ -811,7 +811,7 @@ class IntegralTable(object):
             c &= self.E <= self.src.Emax
             samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
 
-            integral = simps(samples, self.E[c])
+            integral = simpson(samples, self.E[c])
 
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
