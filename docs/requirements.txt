@@ -4,3 +4,4 @@ nbsphinx
 m2r2
 docutils<0.17
 lxml
+lxml_html_clean
