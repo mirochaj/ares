@@ -84,7 +84,7 @@ and if you'd like to run the test suite locally, you'll want:
 
 which are pip-installable.
 
-Note: **ares** has been tested only with Python 2.7.x and Python 3.7.x.
+Note: ARES has been tested only with Python 2.7.x and Python 3.7.x.
 
 ## Installation
 
@@ -96,7 +96,7 @@ cd ares
 pip install . # or pip install -e .
 ```
 
-**ares** will look in ``$HOME/.ares`` for lookup tables of various kinds. To download the core set of lookup tables needed for the most common use-cases, run:
+ARES will look in ``$HOME/.ares`` for lookup tables of various kinds. To download the core set of lookup tables needed for the most common use-cases, we can use the ARES command-line interface (CLI):
 
 ```
 ares download all
@@ -120,7 +120,7 @@ Last note on this front. If you are running ARES on a machine with a very small 
 
 ## Pre-processing
 
-Not only do some ARES calculations rely on external datasets, they often benefit from using slightly-modified versions of those datasets. For example, the spectral resolution of the BPASS models is 1 Angstrom, which is much better than we need for most ARES modeling. So, many examples use "degraded" BPASS models, which just smooth the standard BPASS SEDs with a tophat of some width, generally 10 or even. To do this SED degradation, we also use the ARES CLI:
+Not only do some ARES calculations rely on external datasets, they often benefit from using slightly-modified versions of those datasets. For example, the spectral resolution of the BPASS models is 1 Angstrom, which is much better than we need for most ARES modeling. So, many examples use "degraded" BPASS models, which just smooth the standard BPASS SEDs with a tophat of some width, generally 10 Angstroms. To do this SED degradation, we also use the ARES CLI:
 
 ```python
 import os
@@ -170,9 +170,7 @@ bins, phi = pop.get_uvlf(z=6, bins=np.arange(-25, -10, 0.1))
 plt.semilogy(bins, phi)
 ```
 
-## Help
-
-If you encounter problems with installation or running simple scripts, first check the Troubleshooting page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!
+If you're a pre-version-1.0 ARES user, most of this will look familiar, except these days we're running all models (21-cm, near-infrared background, etc.) through the `ares.simulations.Simulation` interface rather than specific classes. There's also a lot more consistency in call sequences, e.g., we adopt the convention of naming commonly-used functions and attributes as `get_<something>` and `tab_<something>`. A much longer list of v1 convention changes can be found in [Pull Request 61](https://github.com/mirochaj/ares/pull/61).
 
 ## Contributors
 
@@ -180,32 +178,35 @@ Primary author: [Jordan Mirocha](https://sites.google.com/site/jordanmirocha/hom
 
 Additional contributions / corrections / suggestions from:
 
-- Geraint Harker
-- Jason Sun
-- Keith Tauscher
-- Jacob Jost
-- Greg Salvesen
-- Adrian Liu
-- Saurabh Singh
-- Rick Mebane
-- Krishma Singal
-- Donald Trinh
-- Omar Ruiz Macias
-- Arnab Chakraborty
-- Madhurima Choudhury
-- Saul Kohn
-- Aurel Schneider
-- Kristy Fu
-- Garett Lopez
-- Ranita Jana
-- Daniel Meinert
-- Henri Lamarre
-- Matteo Leo
-- Emma Klemets
-- Felix Bilodeau-Chagnon
-- Venno Vipp
-- Oscar Hernandez
-- Joshua Hibbard
-- Trey Driskell
-- Judah Luberto
-- Paul La Plante
+.. hlist::
+   :columns: 3
+
+   * Geraint Harker               
+   * Jason Sun
+   * Keith Tauscher
+   * Jacob Jost
+   * Greg Salvesen
+   * Adrian Liu
+   * Saurabh Singh
+   * Rick Mebane
+   * Krishma Singal
+   * Donald Trinh
+   * Omar Ruiz Macias
+   * Arnab Chakraborty
+   * Madhurima Choudhury
+   * Saul Kohn
+   * Aurel Schneider
+   * Kristy Fu
+   * Garett Lopez
+   * Ranita Jana
+   * Daniel Meinert
+   * Henri Lamarre
+   * Matteo Leo
+   * Emma Klemets
+   * Felix Bilodeau-Chagnon
+   * Venno Vipp
+   * Oscar Hernandez
+   * Joshua Hibbard
+   * Trey Driskell
+   * Judah Luberto
+   * Paul La Plante

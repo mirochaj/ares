@@ -15,8 +15,6 @@ Contents
     examples
     performance
     uth
-    troubleshooting
-    updates
     contributing
     history
     acknowledgements
