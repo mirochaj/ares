@@ -275,7 +275,7 @@ for key in defaults:
     defaults_pop_indep[key] = defaults[key]
 
 class ParameterFile(dict):
-    def __init__(self, **kwargs):
+    def __init__(self, pre_parsed=False, **kwargs):
         """
         Build parameter file instance.
         """
@@ -283,30 +283,18 @@ class ParameterFile(dict):
         # Keep user-supplied kwargs as attribute
         self._kwargs = kwargs.copy()
 
-        #print len(kwargs), len(defaults)
-        #if len(kwargs) < 0.5 * len(defaults):
-        #    for par in self._kwargs:
-        #        if par not in _cosmo_params:
-        #            continue
-        #
-        #        if self._kwargs[par] == _cosmo_params[par]:
-        #            continue
-        #
-        #        print "WARNING: {!s} is cosmological parameter.".format(par)
-        #        print "       : Must update initial conditions and HMF tables!"
-
         # Fix up everything
-        self._parse(**kwargs)
+        if pre_parsed:
+            self._Npops = 1
+            self.pfs = [kwargs]
+            for key in kwargs:
+                self[key] = kwargs[key]
+        else:
+            self._parse(**kwargs)
 
         # Check for stuff that'll break...stuff
         if self['debug']:
             self._check_for_conflicts(**kwargs)
-
-            #if self.orphans:
-            #    if (rank == 0) and self['verbose']:
-            #        for key in self.orphans:
-            #            print("WARNING: {!s} is an `orphan` parameter.".format(\
-            #                key))
 
     @property
     def Npops(self):
@@ -382,7 +370,7 @@ class ParameterFile(dict):
             pfs_by_pop = self.update_pq_pars([pf_base], **kwargs)
             pfs_by_pop[0].update(kwargs)
 
-            self.pfs = pfs_by_pop
+            self.pfs = [ParameterFile(pre_parsed=1, **pfs_by_pop[0])]
 
         # Otherwise, we need to go through and make separate dictionaries
         # for each population
@@ -487,6 +475,7 @@ class ParameterFile(dict):
             # Save as attribute
             self.pfs = pfs_by_pop
 
+        ##
         # Master parameter file
         # Only tag ID number to pop or source parameters
         for i, poppf in enumerate(self.pfs):

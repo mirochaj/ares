@@ -80,21 +80,24 @@ class GalaxyAggregate(HaloPopulation):
 
         return sfrd
 
-    def get_emissivity(self, z, x=None, band=None, units='eV',
+    def get_emissivity(self, z, x=None, units='eV', band=None, 
         units_out='erg/s/eV'):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
 
-        ..note:: If `E` is not supplied, this is a luminosity density in the
-            (Emin, Emax) band. Otherwise, if E is supplied, or the SED is
-            a delta function, the result is a monochromatic luminosity. If
-            nothing is supplied, it's the luminosity density in the
-            reference band.
-
         Parameters
         ----------
         z : int, float
+            Redshift of interest.
+        x : int, float
+            Wavelength, photon energy, etc. depending on `units`.
+        units : str
+            Units of `x`, can be 'Ang', 'eV', 'Hz' at the moment.
+        band : tuple, optional
+            If provided, defines a band in which we report the integrated
+            emissivity.
+
 
         Returns
         -------
