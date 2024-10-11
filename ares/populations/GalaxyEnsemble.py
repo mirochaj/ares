@@ -2428,18 +2428,22 @@ class GalaxyEnsemble(HaloPopulation):
 
         return Tdust * Tigm
 
-    def get_lum(self, z, x=1600., band=None, units='Angstroms',
-        idnum=None, window=1, load=True, units_out='erg/s/Hz',
-        include_dust_transmission=True, include_igm_transmission=True):
+    def get_lum(self, z, x=1600., units='Angstroms', units_out='erg/s/Hz',
+        band=None, window=1, load=True, idnum=None,
+        include_dust_transmission=False, include_igm_transmission=True):
         """
-        Return the luminosity for one or all sources at wavelength `x`.
+        Return the luminosity for one or all halos at wavelength `x`.
 
         Parameters
         ----------
         z : int, float
             Redshift of observation.
         x : int, float
-            Rest wavelength of interest [Angstrom]
+            Rest wavelength of interest [Angstrom by default, but see `units`].
+        units : str
+            Tells ARES what units `x` are in. Can provide `eV`, 'Hz' as well.
+        units_out : str
+            Controls units of output luminosities.
         band : tuple
             Can alternatively request the average luminosity in some wavelength
             interval (again, rest wavelengths in Angstrom).
@@ -2469,16 +2473,31 @@ class GalaxyEnsemble(HaloPopulation):
         #    assert self.pf['pop_dust_yield'] in [0, None], \
         #        "Going to get weird answers for L(band != None) if dust is ON."
 
-        if include_dust_transmission:
-            raise ValueError("Need to fix dust reddening! synth.get_lum doing it, should not also do with get_transmission.")
-
-        raw = self.histories
+        # If supplied wavelength is outside our tabulated range, then we're
+        # doing dust *emission* and so must handle separately.
         if (x is not None) and (x > self.src.tab_waves_c.max()):
             assert units.lower().startswith('ang')
             L = self.dust.Luminosity(z=z, x=x, units=units, band=band, idnum=idnum,
                 window=window, load=load, units_out=units_out)
+
+            ##
+            # Note: in this case, no additional transmission effects in this
+            # case.
+
+        ##
+        # Otherwise, doing our usual: stellar emission only.
         else:
-            L = self.synth.get_lum(x=x, units=units, zobs=z, hist=raw,
+
+            assert include_dust_transmission == False, \
+                "We've kept the keyword argument `include_dust_transmission`" \
+                + " here to preserve call sequence (as in GalaxyCohort). \n" \
+                + " However, it should not be used: dust will be applied" \
+                + " from within the `GalaxyEnsemble.synth` instance. \n"  \
+                + " (The reason for keeping it within the spectral synthesis" \
+                + " machinery is to allow for Charlot & Fall (2000)-like \n" \
+                + " approaches where reddening is age-dependent."
+
+            L = self.synth.get_lum(x=x, units=units, zobs=z, hist=self.histories,
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 band=band, units_out=units_out)
 
@@ -2487,7 +2506,7 @@ class GalaxyEnsemble(HaloPopulation):
                 include_igm_transmission=include_igm_transmission)
             L = L * T
 
-        self._cache_L_[(z, x, band, idnum, window, units_out)] = L.copy()
+        #self._cache_L_[(z, x, band, idnum, window, units_out)] = L.copy()
 
         return L
 

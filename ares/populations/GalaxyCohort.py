@@ -1898,32 +1898,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         return None
 
-    #def get_lum_per_sfr(self, z, Mh=None, x=1600., window=1., raw=False,
-    #    nebular_only=False, band=None, units='Angstrom', age=None):
-    #    """
-    #    Return luminosity per unit SFR.
-    #    """
-
-    #    if not self.is_metallicity_constant:
-    #        Z = self.get_metallicity(z, Mh=self.halos.tab_M)
-
-    #        f_L_sfr = self._get_lum_all_Z(x=x, band=band,
-    #            units=units,
-    #            window=window, raw=raw, nebular_only=nebular_only, age=age)
-
-    #        L_sfr = 10**f_L_sfr(np.log10(Z))
-
-    #    elif self.pf['pop_lum_per_sfr'] is None:
-    #        L_sfr = self.src.get_lum_per_sfr(x=x, window=window,
-    #            band=band, units=units, raw=raw,
-    #            nebular_only=nebular_only, age=age)
-    #    else:
-    #        assert self.pf['pop_calib_lum'] is None, \
-    #            "# Be careful: if setting `pop_lum_per_sfr`, should leave `pop_calib_lum`=None."
-    #        L_sfr = self.pf['pop_lum_per_sfr']
-
-    #    return L_sfr
-
     def get_spec(self, z, waves, Mh=None, use_tabs=False,
         band=None, window=1, units_out='erg/s/Hz', load=True, raw=False,
         nebular_only=False, include_dust_transmission=True,
