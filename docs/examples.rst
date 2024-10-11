@@ -22,7 +22,6 @@ These examples show how to work with source populations individually, i.e., not 
     examples/example_galaxies_demo
     examples/example_pop_popIII
     examples/example_pop_dusty
-    * :doc:`example_edges`
 
 Parameter Studies and Inference
 -------------------------------
