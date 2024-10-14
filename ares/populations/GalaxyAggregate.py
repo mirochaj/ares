@@ -80,7 +80,7 @@ class GalaxyAggregate(HaloPopulation):
 
         return sfrd
 
-    def get_emissivity(self, z, x=None, units='eV', band=None, 
+    def get_emissivity(self, z, x=None, units='eV', band=None,
         units_out='erg/s/eV'):
         """
         Compute the emissivity of this population as a function of redshift
@@ -94,6 +94,9 @@ class GalaxyAggregate(HaloPopulation):
             Wavelength, photon energy, etc. depending on `units`.
         units : str
             Units of `x`, can be 'Ang', 'eV', 'Hz' at the moment.
+        units_out : str
+            Controls output units. Not that there is an assumed "cMpc^{-3}"
+            that the user need not supply.
         band : tuple, optional
             If provided, defines a band in which we report the integrated
             emissivity.
@@ -108,6 +111,8 @@ class GalaxyAggregate(HaloPopulation):
         on = self.on(z)
         if not np.any(on):
             return z * on
+
+        ucon = self._check_band_and_units(x, band, units, units_out)
 
         #from_band = (Emin is not None) and (Emax is not None)
 

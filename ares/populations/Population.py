@@ -229,6 +229,60 @@ class Population(object):
 
         return self._zone
 
+    def _check_band_and_units(self, x, band, units, units_out):
+        """
+        This routine is a sanity check that input and output units jive.
+
+        Returns
+        -------
+        Conversion factor to multiply any SED by to recover `units_out`.
+        """
+
+        # First, check *specific* luminosities, which we obtain when `band`
+        # is None. We're just checking that for units with a *per-<whatever>*
+        # in the denominator, e.g., erg/s/Hz, that the <whatever> is in
+        # the list of allowed options.
+        if band is None:
+            ct = 0
+            for _unit in ['/hz', '/ang', 'ev']:
+                if _unit in units_out.lower():
+                    ct += 1
+
+            assert ct == 1, \
+                "If `band` is None, `units_out` should have /Hz or /Ang or /eV!"
+
+            return 1.
+
+        ##
+        # If we're here, it means the user supplied `band`.
+        # If there are still wavelengths (or freqs or energies) in units_out,
+        # then we need to add them back in since `band` forces an
+        # integration internally over the spectrum.
+
+        # First, convert `band` to Angstroms, if not already.
+        lam = self.src.get_ang_from_x(band, units)
+        # get_ang_from_x will return in the order of `band`. So, if
+        # band was in ascending energy (for example), the values of `lam`
+        # will be ordered from long wavelength to short, i.e., no flip will
+        # be applied to preserve ascending order of the output numbers.
+        # Doesn't actually matter in this routine, just using min/max below,
+        # but FYI....
+
+        if '/hz' in units_out.lower():
+            # Determine the per-hertz interval and return it.
+            dnu = (c / min(lam)) - (c / max(lam))
+            return 1. / dnu
+        elif '/ang' in units_out.lower():
+            # Determine the per-Angstrom interval and return it.
+            return 1. / (max(lam) - min(lam))
+        elif '/ev' in units_out.lower():
+            # Determine the per-eV interval and return it.
+            _dev = h_P * c / (lam * 1e-8)
+            dev = max(_dev) - min(dev)
+            return 1. / dev
+        else:
+            return 1.
+
     @property
     def affects_cgm(self):
         if not hasattr(self, '_affects_cgm'):
