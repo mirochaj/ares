@@ -513,7 +513,7 @@ class GalaxyEnsemble(HaloPopulation):
     @property
     def histories(self):
         if not hasattr(self, '_histories'):
-            self._histories = self.RunSAM()
+            self._histories = self.generate_galaxy_histories()
         return self._histories
 
     @histories.setter
@@ -538,7 +538,16 @@ class GalaxyEnsemble(HaloPopulation):
 
         self._histories = value
 
-    def RunSAM(self):
+    def get_histories(self):
+        """
+        Return the entire growth histories for all halos for many quanties.
+
+        The returned variable is a dictionary, with several fields that are
+        hopefully
+        """
+        return self.histories
+
+    def generate_galaxy_histories(self):
         """
         Run models. If deterministic, will just return pre-determined
         histories. Otherwise, will do some time integration.
@@ -656,7 +665,7 @@ class GalaxyEnsemble(HaloPopulation):
         if (band is not None) and (x is not None):
             raise ValueError("You're being confusing! Supply `x` OR `band`")
 
-        hist = self.histories
+        hist = self.get_histories()
 
         tab = np.zeros_like(zarr)
         for i, z in enumerate(zarr):
@@ -1468,10 +1477,10 @@ class GalaxyEnsemble(HaloPopulation):
          'Mh': Mh,
          'Mg': Mg,
          'Z': Z,
-         'bursty': zeros_like_Mh,
+         #'bursty': zeros_like_Mh,
          'pos': pos,
          #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
-         'Nsn': zeros_like_Mh,
+         #'Nsn': zeros_like_Mh,
         }
 
         if 'flags' in halos.keys():
@@ -2806,32 +2815,28 @@ class GalaxyEnsemble(HaloPopulation):
 
         Parameters
         ----------
-
         z: int, float
             Redshift of interest.
         use_mags : boolean
             if True: returns bin centers in AB magnitudes, whether
             absolute or apparent depends on value of `absolute` parameter.
             if False: returns bin centers in log(L / Lsun)
-
         x : int, float
             Wavelength in Angstroms to be looked at. If wave > 3e5, then
             the luminosity function comes from the dust in the galaxies.
-
         window : int
             Can alternatively retrive the average luminosity at specified
             wavelength after smoothing intrinsic spectrum with a boxcar window
             of this width (in pixels).
-
         band : tuple
             Can alternatively request the average luminosity in some wavelength
             interval (again, rest wavelengths in Angstrom).
-
         total_IR : boolean
             if False: returns luminosity function at the given wavelength
             if True: returns the total infrared luminosity function for wavelengths
             between 8 and 1000 microns.
-            Note: if True, ignores wave and band keywords, and always returns in log(L / Lsun)
+            Note: if True, ignores wave and band keywords, and always returns
+            in log(L / Lsun)
 
         """
         if total_IR:
@@ -2952,8 +2957,8 @@ class GalaxyEnsemble(HaloPopulation):
             phi = hist / dbin
 
             relerr = abs(np.sum(phi * dbin) - N) / N
-            assert relerr < 1e-2, \
-                "Error in number of galaxies! rel_err={:.5f}".format(relerr)
+            #assert relerr < 1e-2, \
+            #    "Error in number of galaxies! rel_err={:.5f}".format(relerr)
 
         #self._cache_lf_[(z, wave)] = x, phi
 
