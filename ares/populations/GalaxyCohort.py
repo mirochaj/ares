@@ -1053,7 +1053,8 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_sfr(self, **kwargs):
         """
-        Get star formation rate at redshift z in a halo of mass Mh.
+        Get star formation rate at redshift `z` in a halo of mass `Mh`,
+        both supplied as keyword arguments.
 
         Parameters
         ----------
@@ -1075,7 +1076,11 @@ class GalaxyCohort(GalaxyAggregate):
             return self._get_sfr(**kwargs)
 
         z = kwargs['z']
-        Mh = kwargs['Mh']
+
+        if 'Mh' in kwargs:
+            Mh = kwargs['Mh']
+        else:
+            Mh = None
 
         # User may have supplied a function for SFR(z, Mh) directly.
         if self.pf['pop_sfr'] is not None:
@@ -1853,11 +1858,34 @@ class GalaxyCohort(GalaxyAggregate):
         return self.get_lf(z, bins, use_mags=True, x=1600, units='Angstroms',
             absolute=True)
 
-    def get_bias(self, z, limit, wave=1600., cut_in_flux=False,
-        cut_in_mass=False, absolute=False):
+    def get_bias(self, z, limit, wave=1600., cut_in_mass=False, absolute=False,
+        cut_in_flux=False):
         """
         Compute linear bias of galaxies brighter than (or more massive than)
         some cut-off.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        limit : int, float
+            This parameter controls either the limiting magnitude or the
+            limiting halo mass, depending on the value of `cut_in_mass`.
+            By default, our approach is to use apparent magnitudes in order to
+            connect to observations more explicitly. For example, `limit=26.5`
+            is a Roman-like magnitude cut on the galaxy population.
+        cut_in_mass : bool
+            If True, then `limit` is assumed to be a halo mass in Msun.
+        absolute : bool
+            Whether `limit` magnitudes are absolute or apparent AB mags.
+        cut_in_flux : bool
+            Not currently implement. Might be useful for comparing with
+            specroscopic surveys which often report sensitivities as a
+            limiting line luminosity in [erg/s/cm^2].
+
+        Returns
+        -------
+
         """
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
@@ -1875,6 +1903,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 ok = tab_M >= limit
         else:
+            _filt, mags = self.get_mags(z, x=wave, absolute=absolute)
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
         integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
@@ -4481,7 +4510,7 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_sfr_model'] in ['smhm-func']:
             return self.get_fstar(**kwargs)
         else:
-            raise NotImplemented('help')
+            return -np.inf
 
     def get_sfe(self, **kwargs):
         return self.get_fstar(**kwargs)
