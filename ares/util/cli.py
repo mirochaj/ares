@@ -346,13 +346,6 @@ aux_data = {
 
 # define which files are needed for which things
 datasets = {
-    "extra": [
-        "nircam",
-        "irac",
-        "roman",
-        "edges",
-        "bpass_v1_stars",
-    ],
     "tests": [
         "inits",
         "secondary_electrons",
@@ -383,6 +376,11 @@ datasets = {
         "spherex",
         "wfc",
         "wfc3",
+    ],
+    "basics": [
+       "inits",
+       "bpass_v1",
+       "bc03_2013",
     ]
 }
 
@@ -477,8 +475,8 @@ def generate_hmf_tables(path, **kwargs):
     # initialize hmf values
     def_kwargs = {
         "halo_mf": "Tinker10",
-        "halo_logMmin": 4,
-        "halo_logMmax": 18,
+        "halo_logMmin": 6,
+        "halo_logMmax": 16,
         "halo_dlogM": 0.01,
 
         "halo_fmt": "hdf5",
@@ -490,7 +488,7 @@ def generate_hmf_tables(path, **kwargs):
         "halo_tmin": 30.0,
         "halo_tmax": 13.7e3,  # Myr
 
-        # Cosmology
+        # Cosmology: just set parameter values by hand.
         "cosmology_id": "best",
         "cosmology_name": "planck_TTTEEE_lowl_lowE",
     }
@@ -734,6 +732,9 @@ def make_lowres_sps(path):
     generate_lowres_sps(path, degrade_to=100)
 
 def generate_simpl_seds(path, **kwargs):
+
+    make_data_dir(path)
+
     # go to path
     os.chdir(path)
 
@@ -1058,6 +1059,30 @@ def generate_data(args):
 
     return
 
+def init_ares():
+    """
+    This is a bundle of pre-processing steps to simplify things for first-time
+    users.
+    """
+    download_files('basics')
+
+    HOME = os.environ.get('HOME')
+
+    # Pre-processing: hmf generation, SED degradation, what else?
+
+    # Smooth BPASS v1 spectra to 10 Angstrom resolution since the native
+    # 1 A resolution is overkill for most things we do.
+    generate_lowres_sps(f"{HOME}/.ares/bpass_v1/SEDS", degrade_to=10)
+
+    # Generate default HMFs.
+    generate_hmf_tables(f"{HOME}/.ares/halos")
+    generate_halo_histories(
+        f"{HOME}/.ares/halos",
+        "halo_mf_Tinker10_logM_1000_6-16_t_971_30-1000.hdf5",
+    )
+
+
+
 def config_clean_subparser(subparser):
     """
     Add the subparser for the "clean" sub-command.
@@ -1167,6 +1192,33 @@ def config_generate_subparser(subparser):
 
     return
 
+def config_init_subparser(subparser):
+    """
+    Add the subparser for the "init" sub-command.
+
+    Parameters
+    ----------
+    subparser : ArgumentParser subparser object
+        The subparser object to add sub-command options to.
+
+    Returns
+    -------
+    None
+    """
+    doc = """
+    Initialize ARES for basic usage.
+    """
+    hlp = "download and pre-process files needed by ARES "
+    sp = subparser.add_parser(
+        "init",
+        description=doc,
+        help=hlp,
+    )
+
+    sp.set_defaults(func=generate_data)
+
+    return
+
 # make the base parser
 def generate_parser():
     """
@@ -1210,6 +1262,7 @@ def generate_parser():
     config_clean_subparser(sub_parsers)
     config_download_subparser(sub_parsers)
     config_generate_subparser(sub_parsers)
+    config_init_subparser(sub_parsers)
 
     return ap
 
