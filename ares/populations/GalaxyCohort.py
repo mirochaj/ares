@@ -53,8 +53,7 @@ except ImportError:
 
 
 small_dz = 1e-8
-ztol = 1e-4
-#z0 = 9. # arbitrary
+ztol = 1e-2
 tiny_phi = 1e-18
 #_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
 #    'L_per_sfr', 'sps-toy']
@@ -794,9 +793,9 @@ class GalaxyCohort(GalaxyAggregate):
         return self._func_smd[mass_return](z)
 
     def get_mar(self, z, Mh):
-        MGR = np.maximum(self.MGR(z, Mh), 0.)
+        MAR = np.maximum(self.get_mass_accretion_rate(z, Mh), 0.)
         eta = self.eta(z, Mh)
-        return eta * MGR
+        return eta * MAR
 
     @property
     def eta(self):
@@ -4007,7 +4006,7 @@ class GalaxyCohort(GalaxyAggregate):
     @property
     def tab_sfr(self):
         """
-        SFR as a function of redshift and halo mass.
+        SFR tabulated as a function of redshift and halo mass.
 
             ..note:: Units are Msun/yr.
 
@@ -4513,6 +4512,7 @@ class GalaxyCohort(GalaxyAggregate):
             return -np.inf
 
     def get_sfe(self, **kwargs):
+        """ Just a wrapper around `get_fstar`. """
         return self.get_fstar(**kwargs)
 
     def get_fstar(self, **kwargs):
@@ -4521,7 +4521,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         .. note :: Takes keyword arguments only (see below).
 
-
         Parameters
         ----------
         z : int, float
@@ -4529,6 +4528,9 @@ class GalaxyCohort(GalaxyAggregate):
         Mh : int, float, np.ndarray
             Halo mass(es) in Msun.
 
+        Returns
+        -------
+        Star formation efficiency (dimensionless) as a function of halo mass.
 
         """
 

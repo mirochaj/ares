@@ -20,7 +20,7 @@ from functools import cached_property
 import numpy as np
 from scipy.misc import derivative
 from scipy.optimize import fsolve
-from scipy.integrate import cumulative_trapezoid, simpson
+from scipy.integrate import cumtrapz, simps
 from scipy.interpolate import (
     UnivariateSpline,
     RectBivariateSpline,
@@ -423,14 +423,14 @@ class HaloMassFunction(object):
                 mf_func = InterpolatedUnivariateSpline(np.log(m), np.log(dndlnm), k=1)
                 mf = mf_func(m_upper)
 
-                int_upper_n = simpson(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
-                int_upper_m = simpson(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
+                int_upper_n = simps(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
+                int_upper_m = simps(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
             else:
                 int_upper_n = 0
                 int_upper_m = 0
 
-            ngtm_ = np.concatenate((cumulative_trapezoid(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
-            mgtm_ = np.concatenate((cumulative_trapezoid(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+            ngtm_ = np.concatenate((cumtrapz(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+            mgtm_ = np.concatenate((cumtrapz(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
 
             ngtm.append(ngtm_ + int_upper_n)
             mgtm.append(mgtm_ + int_upper_m)
@@ -573,7 +573,7 @@ class HaloMassFunction(object):
                     x=np.log(self.tab_M))
                 self.tab_ngtm[i,:] = (
                     ngtm_0
-                    - cumulative_trapezoid(
+                    - cumtrapz(
                         self.tab_dndm[i] * self.tab_M,
                         x=np.log(self.tab_M),
                         initial=0.0,
@@ -581,7 +581,7 @@ class HaloMassFunction(object):
                 )
                 self.tab_mgtm[i,:] = (
                     mgtm_0
-                    - cumulative_trapezoid(
+                    - cumtrapz(
                         self.tab_dndm[i] * self.tab_M**2,
                         x=np.log(self.tab_M),
                         initial=0.0,
@@ -678,7 +678,6 @@ class HaloMassFunction(object):
     @_MF.setter
     def _MF(self, value):
         self._MF_ = value
-
 
     @cached_property
     def tab_M_e(self):
@@ -1274,11 +1273,11 @@ class HaloMassFunction(object):
 
         return self._tab_MAR_delayed
 
-    def MAR_func(self, z, M, grid=True):
-        return self.MAR_func_(z, M, grid=grid)
+    def get_mass_accretion_rate(self, z, M, grid=True):
+        return self._MAR_func(z, M, grid=grid)
 
     @property
-    def MAR_func_(self):
+    def _MAR_func(self):
         if not hasattr(self, '_MAR_func_'):
             mask = np.isfinite(self.tab_MAR)
 
