@@ -882,6 +882,7 @@ class HaloMassFunction(object):
             tmp7 = np.zeros_like(self.tab_growth)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_growth, tmp7)
             self.tab_growth = tmp7
+
         ##
         # Done!
         ##
