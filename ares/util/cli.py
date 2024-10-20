@@ -20,6 +20,7 @@ from urllib.error import URLError, HTTPError
 import numpy as np
 import h5py
 
+from pathlib import Path
 from .Math import smooth
 from . import ParameterBundle
 from .. import __version__
@@ -134,7 +135,7 @@ def gunzip_files(parent_dir):
                 with open(filename[:-3], 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
-                print(f"# Unzipped {parent_dir}/{filename}.")
+                print(f"! Unzipped {parent_dir}/{filename}.")
 
 def unpack_files(parent_dir):
     for fn in os.listdir(parent_dir):
@@ -154,10 +155,10 @@ def unpack_files(parent_dir):
                 with open(full_path[:-3], 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
         else:
-            #print(f"# Unrecognized file format: {full_path}.")
+            #print(f"! Unrecognized file format: {full_path}.")
             continue
 
-        print(f"# Unpacked {full_path}.")
+        print(f"! Unpacked {full_path}.")
 
 
 def unpack_bc03(parent_dir):
@@ -567,7 +568,7 @@ def generate_halo_histories(path, fn_hmf):
 
     fn = "{}.hdf5".format(pref)
     if not os.path.exists(fn):
-        print("# Running new trajectories...")
+        print("! Running new trajectories...")
         zall, hist = pop.get_histories()
 
         with h5py.File(fn, "w") as h5f:
@@ -577,9 +578,9 @@ def generate_halo_histories(path, fn_hmf):
                     continue
                 h5f.create_dataset(key, data=hist[key])
 
-        print("# Wrote {}".format(fn))
+        print("! Wrote {}".format(fn))
     else:
-        print("# File {} exists. Exiting.".format(fn))
+        print("! File {} exists. Exiting.".format(fn))
     return
 
 def make_halos(path):
@@ -762,7 +763,7 @@ def generate_simpl_seds(path, **kwargs):
         def_kwargs['source_alpha'])
 
     if os.path.exists(fn):
-        print("{!s} already exists.".format(fn))
+        print("! {!s} already exists.".format(fn))
         return
 
     src = BlackHole(**def_kwargs)
@@ -808,7 +809,7 @@ def generate_csfh_tab(path, **kwargs):
     with open(fn, 'wb') as f:
         pickle.dump({'t': tarr, 'waves': waves, 'data': data.T}, f)
     #np.savetxt(fn, data.T)
-    print(f"# Wrote {fn}")
+    print(f"! Wrote {fn}")
 
 
 def generate_rt1d_tabs(path, **kwargs):
@@ -849,7 +850,8 @@ def make_data_dir(path=ARES):
     None
     """
     if not os.path.exists(path):
-        os.mkdir(path)
+        _path = Path(path)
+        _path.mkdir(parents=True)
 
     return
 
@@ -897,6 +899,7 @@ def clean_files(args):
 
 def _do_download(full_path, dl_link):
     try:
+        print(f"Downloading {dl_link} to {full_path}.")
         urlretrieve(dl_link, full_path)
         print(f"Downloaded {dl_link} to {full_path}.")
     except (URLError, HTTPError) as error:
@@ -939,14 +942,14 @@ def download_files(args):
             full_path = os.path.join(args.path, dset, aux_data[dset][1])
             if os.path.exists(full_path):
                 if args.fresh:
-                    print(f"Running in dry-run mode; would re-download {full_path}")
+                    print(f"! Running in dry-run mode; would re-download {full_path}")
                 else:
                     print(
-                        f"{full_path} already exists; rerun with --fresh to "
+                        f"! {full_path} already exists; rerun with --fresh to "
                         "force download"
                     )
             else:
-                print(f"Running in dry-run mode; would download {full_path}")
+                print(f"! Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
 
@@ -963,6 +966,11 @@ def download_files(args):
 
             # Loop over [potentially] several files to download
             for _fn in to_dl:
+
+                if args.only is not None:
+                    if args.only not in _fn:
+                        continue
+
                 full_path = os.path.join(parent_dir, _fn)
 
                 # Dropbox links are complete, in that the name of the file we
@@ -978,7 +986,7 @@ def download_files(args):
                         _do_download(full_path, _fn_dl)
                     else:
                         print(
-                            f"{full_path} already exists; rerun with --fresh to "
+                            f"! {full_path} already exists; rerun with --fresh to "
                             "force download"
                         )
                 else:
@@ -1059,29 +1067,66 @@ def generate_data(args):
 
     return
 
-def init_ares():
+def init_ares(args):
     """
     This is a bundle of pre-processing steps to simplify things for first-time
     users.
     """
-    download_files('basics')
 
-    HOME = os.environ.get('HOME')
+    make_data_dir(args.path)
+
+    ##
+    # Add some verbosity to remind users to symlink to $HOME/.ares
+    # if they've provided --path
+    if args.path != ARES:
+        print("\n")
+        print(f"!"*78)
+        print(f"! You have supplied a non-standard path to ARES input data. That's OK!")
+        print(f"! Just be sure to make $HOME/.ares a symbolic link to the provided path, e.g.,")
+        print(f"! ")
+        print(f"! > ln -s {args.path} {ARES}")
+        print(f"!")
+        print(f"!"*78)
+
+    ##
+    # Tell user about how much space this will take and how long.
+    print(f"! This initialization will take a few minutes and ~500 MB of disk space.")
+    print(f"! A complete set of ancillary data used by ARES for broader applications")
+    print(f"! can take several GB of space, so if your $HOME quota is small, <= 10 GB,")
+    print(f"! it is probably a good idea to run `ares init` with the ")
+    print(f"! `--path` flag set. See the README for more details.")
+    print(f"!"*78)
+
+    print(f"! Beginning ARES initialization...")
+
+
+
+    args.dataset = 'inits'
+    download_files(args)
+
+    ##
+    # Need to manually add `dataset` to `args` object
+    args.dataset = 'bpass_v1'
+    args.only = '004'
+
+    # Download only the basics: cosmological initial conditions,
+    # BPASS v1 (default for EoR things), BC03 (default for EBL things)
+    download_files(args)
 
     # Pre-processing: hmf generation, SED degradation, what else?
 
     # Smooth BPASS v1 spectra to 10 Angstrom resolution since the native
     # 1 A resolution is overkill for most things we do.
-    generate_lowres_sps(f"{HOME}/.ares/bpass_v1/SEDS", degrade_to=10)
+    generate_lowres_sps(f"{args.path}/bpass_v1/SEDS", degrade_to=10,
+        exact_files=['sed.bpass.constant.nocont.sin.z004'])
 
-    # Generate default HMFs.
-    generate_hmf_tables(f"{HOME}/.ares/halos")
+    ## Generate default HMFs.
+    make_data_dir(f"{args.path}/halos")
+    generate_hmf_tables(f"{args.path}/halos")
     generate_halo_histories(
-        f"{HOME}/.ares/halos",
+        f"{args.path}/halos",
         "halo_mf_Tinker10_logM_1000_6-16_t_971_30-1000.hdf5",
     )
-
-
 
 def config_clean_subparser(subparser):
     """
@@ -1144,6 +1189,11 @@ def config_download_subparser(subparser):
         type=str,
         help="dataset to download",
         default="all",
+    )
+    sp.add_argument(
+        "--only",
+        help="limit downloads to files containing this sub-string",
+        action="store_true",
     )
     sp.add_argument(
         "--fresh",
@@ -1214,8 +1264,24 @@ def config_init_subparser(subparser):
         description=doc,
         help=hlp,
     )
-
-    sp.set_defaults(func=generate_data)
+    sp.add_argument(
+        "--fresh",
+        help="whether to force a new download or not",
+        action="store_true",
+    )
+    sp.add_argument(
+        "--only",
+        default=None,
+        help="limit downloads to files containing this sub-string",
+        action="store_true",
+    )
+    sp.add_argument(
+        "-p",
+        "--path",
+        default=ARES,
+        help="path to download files to. Defaults to ~/.ares",
+    )
+    sp.set_defaults(func=init_ares)
 
     return
 
