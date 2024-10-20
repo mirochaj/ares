@@ -846,11 +846,11 @@ class HaloMassFunction(object):
             self._MF.update(z=z)
 
             # Undo little h for all main quantities
-            self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
-            self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
-            self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
+            self.tab_dndm[i] = self._MF.dndm * self.cosm.h70**4
+            self.tab_mgtm[i] = self._MF.rho_gtm * self.cosm.h70**2
+            self.tab_ngtm[i] = self._MF.ngtm * self.cosm.h70**3
 
-            self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3
+            self.tab_ps_lin[i] = self._MF.power / self.cosm.h70**3
             self.tab_growth[i] = self._MF.growth_factor * 1.
 
             pb.update(i)
@@ -882,6 +882,7 @@ class HaloMassFunction(object):
             tmp7 = np.zeros_like(self.tab_growth)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_growth, tmp7)
             self.tab_growth = tmp7
+
         ##
         # Done!
         ##
@@ -921,7 +922,6 @@ class HaloMassFunction(object):
         pb.finish()
 
         self.tab_traj = MM
-
 
         if size > 1: # pragma: no cover
             tmp = np.zeros_like(self.tab_traj)

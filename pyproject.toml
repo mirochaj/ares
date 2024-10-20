@@ -1,3 +1,64 @@
 [build-system]
 requires = ["setuptools>=40.8.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "ares"
+dependencies = [
+  "h5py",
+  "matplotlib",
+  "numpy",
+  "scipy>=1.6",
+  "setuptools_scm",
+]
+dynamic = ["version"]
+requires-python = ">= 3.7"
+authors = [
+  {name = "Jordan Mirocha", email = "mirochaj@gmail.com"}
+]
+maintainers = [
+  {name = "Jordan Mirocha", email = "mirochaj@gmail.com"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["astronomy", "cosmology", "reionization"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Langauge :: Python :: 3.10",
+  "Programming Langauge :: Python :: 3.11",
+  "Programming Langauge :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.optional-dependencies]
+hmf = ["hmf", "camb"]
+math = ["mpmath", "mcfit"]
+progressbar = ["progressbar"]
+doc = ["sphinx", "numpydoc", "nbsphinx"]
+tests = ["pytest", "coverage", "pytest-cov", "ares[hmf,math]"]
+all = ["ares[progressbar,doc,tests]"]
+
+[project.scripts]
+ares = "ares.util.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mirochaj/ares/"
+Documentation = "https://ares.readthedocs.io/en/latest/"
+Repository = "https://github.com/mirochaj/ares/"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ares"]
+
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+addopts = "--cov-config=.coveragerc --cov=ares --cov-report=html -v"
+testpaths = [
+  "tests/*.py",
+]

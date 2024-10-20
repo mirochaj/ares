@@ -1353,7 +1353,7 @@ def CosmologyParameters():
         'relativistic_species': 3.04,
         "approx_highz": False,
         "cosmology_id": 'best',
-        "cosmology_name": 'planck_TTTEEE_lowl_lowE',  # Can pass 'named cosmologies'
+        "cosmology_name": None, # Can pass 'named cosmologies', e.g., planck_TTTEEE_lowl_lowE
         "cosmology_number": None,
         "path_to_CosmoRec": None,
         "interpolate_cosmology_in_z": False,

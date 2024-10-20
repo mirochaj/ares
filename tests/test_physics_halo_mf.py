@@ -14,7 +14,7 @@ import ares
 import numpy as np
 from scipy.interpolate import RectBivariateSpline
 
-def test():
+def test(tmp_path):
     pop = ares.populations.HaloPopulation()
 
     m = pop.halos.tab_M
@@ -76,8 +76,8 @@ def test():
     assert abs(fcoll8 - fcoll8_3) < 1e-2, \
         "Percent-level differences in tabulated and generated fcoll: {:.12f} {:.12f}".format(fcoll8, fcoll8_3)
 
-    pop3.halos.save_hmf(clobber=True, save_MAR=True)
-    pop3.halos.save_hmf(clobber=True, save_MAR=True, fmt='pkl')
+    pop3.halos.save_hmf(clobber=True, save_MAR=True, destination=tmp_path)
+    pop3.halos.save_hmf(clobber=True, save_MAR=True, destination=tmp_path, fmt="pkl")
 
     assert np.allclose(dndm, dndm3, rtol=2e-2), \
         "Percent-level differences in tabulated and generated HMF!"

@@ -16,7 +16,7 @@ import ares
 import numpy as np
 from ares.physics.Constants import c, ev_per_hz, erg_per_ev, cm_per_mpc
 
-def test(tol=1e-1):
+def test(tmp_path, tol=1e-1):
 
     alpha = -2.
     beta = -6.
@@ -63,14 +63,15 @@ def test(tol=1e-1):
 
         # Tabulate tau
         tau = igm.TabulateOpticalDepth()
-        igm.save(prefix='tau_test', suffix='pkl', clobber=True)
+        prefix = str(tmp_path / "tau_test")
+        igm.save(prefix=prefix, suffix='pkl', clobber=True)
 
         # Run radiation background calculation
-        pars['tau_table'] = 'tau_test.pkl'
+        pars['tau_table'] = prefix + ".pkl"
         sim_1 = ares.simulations.MetaGalacticBackground(**pars)
         sim_1.run()
 
-        os.remove('tau_test.pkl')
+        os.remove(pars["tau_table"])
 
         # Compare to transparent IGM solution
         pars['tau_approx'] = True
@@ -88,16 +89,17 @@ def test(tol=1e-1):
 
             # Tabulate tau
             tau = igm.TabulateOpticalDepth()
-            igm.save(prefix='tau_test', suffix='pkl', clobber=True)
+            prefix = tmp_path / "tau_test"
+            igm.save(prefix=prefix, suffix='pkl', clobber=True)
 
-            pars['tau_table'] = 'tau_test.pkl'
+            pars['tau_table'] = prefix + ".pkl"
             pars['tau_approx'] = False
             sim_3 = ares.simulations.MetaGalacticBackground(**pars)
             sim_3.run()
 
             z3, E3, f3 = sim_3.get_history(0, flatten=True)
 
-            os.remove('tau_test.pkl')
+            os.remove(pars["tau_table"])
 
             # Check at *lowest* redshift
             assert np.allclose(f3[0], f2[0]), "Problem with tau I/O."
