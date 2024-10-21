@@ -36,7 +36,7 @@ from ..sources import Star, BlackHole, StarQS, Toy, DeltaFunction, \
     SynthesisModel, SynthesisModelToy, SynthesisModelHybrid, DummySource, \
     Galaxy
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
-    ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc
+    ev_per_hz, h_p, cm_per_pc, c, cm_per_mpc, h_P
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -244,7 +244,7 @@ class Population(object):
         # the list of allowed options.
         if band is None:
             ct = 0
-            for _unit in ['/hz', '/ang', 'ev']:
+            for _unit in ['/hz', '/ang', '/ev']:
                 if _unit in units_out.lower():
                     ct += 1
 
@@ -277,10 +277,12 @@ class Population(object):
             return 1. / (max(lam) - min(lam))
         elif '/ev' in units_out.lower():
             # Determine the per-eV interval and return it.
-            _dev = h_P * c / (lam * 1e-8)
-            dev = max(_dev) - min(dev)
+            _dev = h_P * c / (np.array(lam) * 1e-8)
+            dev = max(_dev) - min(_dev)
             return 1. / dev
         else:
+            # If <per-wavelength> unit was provided, then the returned
+            # luminosity is band-integrated.
             return 1.
 
     @property
@@ -1353,7 +1355,7 @@ class Population(object):
             pb.finish()
 
         elif scalable:
-            Lbol = self.get_emissivity(z)
+            Lbol = self.get_emissivity(z, units_out='erg/s')
 
             for ll in range(Nz):
                 epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \

@@ -2379,11 +2379,14 @@ class GalaxyCohort(GalaxyAggregate):
                 iz = self.get_zindex(z)
                 sfr = 10**(np.log10(self.tab_sfr[iz,:]) \
                     + self.get_sfr_sys(z=z, Mh=None))
-                Ms = 10**(np.log10(self.tab_fstar[iz,:] * self.halos.tab_M) \
-                   + self.get_mstell_sys(z=z, Mh=None))
+
+                if self.pf['pop_sfr_model'] == 'smhm-func':
+                    Ms = 10**(np.log10(self.tab_fstar[iz,:] * self.halos.tab_M) \
+                       + self.get_mstell_sys(z=z, Mh=None))
             else:
                 sfr = self.get_sfr_obs(z=z, Mh=self.halos.tab_M)
-                Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+                if self.pf['pop_sfr_model'] == 'smhm-func':
+                    Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
         except Exception as e:
             print(e)
             Ms = None

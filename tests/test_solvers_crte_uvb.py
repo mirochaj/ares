@@ -57,8 +57,8 @@ def test(tol=1e-2):
     # Cosmologically-limited solution to the RTE
     # [Equation A1 in Mirocha (2014)]
     zi, zf = 40., 10.
-    e_nu = np.array([pop.get_emissivity(zf, x=EE, units='eV') / cm_per_mpc**3 \
-        for EE in E])
+    e_nu = np.array([pop.get_emissivity(zf, x=EE, units='eV', units_out='erg/s/eV') \
+        for EE in E]) / cm_per_mpc**3
     e_nu *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
         / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
     e_nu *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))

@@ -81,10 +81,15 @@ class GalaxyAggregate(HaloPopulation):
         return sfrd
 
     def get_emissivity(self, z, x=None, units='eV', band=None,
-        units_out='erg/s/eV'):
+        units_out='erg/s'):
         """
         Compute the emissivity of this population as a function of redshift
-        and rest-frame photon energy [eV].
+        and rest-frame photon wavelength, energy, or frequency, depending on
+        `units`.
+
+        .. note :: If neither `x` or `band` are provided, this will assume
+            the band of interest is the entire range given by the source's
+            `pop_Emin` and `pop_Emax` parameters.
 
         Parameters
         ----------
@@ -101,18 +106,17 @@ class GalaxyAggregate(HaloPopulation):
             If provided, defines a band in which we report the integrated
             emissivity.
 
-
         Returns
         -------
-        Emissivity in units of erg / s / cMpc^3 [/ eV]
-
+        Emissivity in units of `units_out` per cMpc^3, i.e., the per unit
+        volume need not be provided by the user in `units_out`. This is
+        generally just `erg/s/cMpc^3`, but for some tests etc. we may output
+        *specific* emissivities, which have units of, e.g., `erg/s/Hz/cMpc^3`.
         """
 
         on = self.on(z)
         if not np.any(on):
             return z * on
-
-        ucon = self._check_band_and_units(x, band, units, units_out)
 
         #from_band = (Emin is not None) and (Emax is not None)
 
@@ -125,14 +129,9 @@ class GalaxyAggregate(HaloPopulation):
         if (x is None) and (band is None):
             band = self.src.Emin, self.src.Emax
             assert units.lower() == 'ev'
-        elif (band is not None):
-            pass
-        elif (x is not None):
-            # This is a problem because it implies a non-band-integrated
-            # luminosity density, which means we have to be careful with units.
-            raise NotImplementedError(f"Haven't implemented units_out={units_out}")
-        elif units_out.lower() != 'erg/s/ev':
-            raise NotImplementedError(f"Haven't implemented units_out={units_out}")
+
+        ucon = self._check_band_and_units(x, band, units, units_out)
+
 
         ##
         # Models based on photons / baryon
@@ -142,24 +141,30 @@ class GalaxyAggregate(HaloPopulation):
 
             # In this case, photon yields have been provided via parameters.
             # Just need to convert SFRD to baryons/s/cMpc^3
+            # and be careful with converting photon luminosity to `units_out`
+            # provided by user
             if bname == 'LW':
-                return (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
+                # Regardless of input `units`, compute in erg/s/cMpc^3
+                lum_cgs = (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
                     * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
                     * self._get_energy_per_photon(band, units=units) * erg_per_ev
-                #return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
-                #    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
-                #    / self.cosm.g_per_baryon
+
+                # May have additional unit conversion, e.g., to put back a
+                # factor of Hz^-1 or eV^-1 or Ang^-1.
+                return ucon * lum_cgs
+
             elif bname == 'LyC':
-                return (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
+                lum_cgs = (self.get_sfrd(z) * self.cosm.b_per_msun / s_per_yr) \
                     * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
                     * self._get_energy_per_photon(band, units=units) * erg_per_ev
-                #return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
-                #    * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
-                #    / self.cosm.g_per_baryon #/ (Emax - Emin)
+                return ucon * lum_cgs
             else:
                 raise NotImplemented('help')
-                #return rhoL * self.pf['pop_fX'] * self.pf['pop_cX'] \
-                #    / ((self.cosm.g_per_baryon / g_per_msun) / s_per_yr)
+
+        ##
+        # If we made it this far, we're dealing with a more sophisticated
+        # SED model, i.e., we're not using LW or LyC photon yields set by hand.
+        ##
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         if self.is_quiescent:
@@ -169,13 +174,13 @@ class GalaxyAggregate(HaloPopulation):
 
         # At this point [rhoL] = erg/s/cMpc^-3
 
-        # Convert from reference band to arbitrary band
+        # Convert from reference band to arbitrary band, i.e., determine
+        # fraction of luminosity emitted in supplied `band` relative to total.
+        # Also hit with a factor of the escape fraction if applicable.
         rhoL *= self._convert_band(band, units=units)
         rhoL *= self.get_fesc(z, Mh=None, x=x, band=band, units=units)
 
-        #print('hi', band, self._convert_band(band, units=units),
-        #    self.get_fesc(z, Mh=None, x=x, band=band, units=units))
-
+        ##
         #Emin, Emax = self.src.get_ev_from_x(band, units=units)
 
         ## Apply reprocessing
@@ -195,9 +200,9 @@ class GalaxyAggregate(HaloPopulation):
         #    rhoL *= fesc
 
         if x is not None:
-            return rhoL * self.src.get_spectrum(x, units=units)
+            return ucon * rhoL * self.src.get_spectrum(x, units=units)
         else:
-            return rhoL
+            return ucon * rhoL
 
     #def get_fesc(self, z):
     #    """

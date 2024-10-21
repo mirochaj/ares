@@ -76,8 +76,8 @@ def test(tol=1e-2):
             # Cosmologically-limited solution to the RTE
             # [Equation A1 in Mirocha (2014)]
             zi, zf = 40., 10.
-            e_nu = np.array([pop.get_emissivity(zf, EE) / cm_per_mpc**3 \
-                for EE in E[0]])
+            e_nu = np.array([pop.get_emissivity(zf, x=EE, units='eV', units_out='erg/s/eV') \
+                for EE in E[0]]) / cm_per_mpc**3
             e_nu *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
                 / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
             e_nu *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
@@ -88,8 +88,6 @@ def test(tol=1e-2):
             flux_num = flux[0][0] * E[0] * erg_per_ev
 
             diff = np.abs(flux_anl - flux_num) / flux_anl
-
-            print('hey', flux_anl, flux_num)
 
             # Only use softest X-ray bin since this is where error should
             # be worst.

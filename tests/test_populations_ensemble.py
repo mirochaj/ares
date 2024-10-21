@@ -17,9 +17,6 @@ from ares.physics.Constants import rhodot_cgs, E_LL, cm_per_mpc, ev_per_hz
 def test():
     pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
-    # Can't actually do this test yet because we don't have access to
-    # even time-spaced HMFs/HGHs on travis.ci
-
     pop = ares.populations.GalaxyPopulation(**pars)
 
     # Test I/O. Should add more here eventually.
