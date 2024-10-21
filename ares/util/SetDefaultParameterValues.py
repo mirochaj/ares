@@ -564,6 +564,7 @@ def PopulationParameters():
     # For synthesis models
     "pop_Z": 0.02,
     "pop_imf": 2.35,
+    "pop_stellar_lib": 'stelib', # only applies to BC03 models
     "pop_tracks": None,
     "pop_tracks_fn": None,
     "pop_stellar_aging": False,
@@ -1047,6 +1048,7 @@ def SourceParameters():
         "source_Z": 0.02,
         "source_imf": 2.35,
         "source_imf_Mmax": 300,
+        "source_stellar_lib": 'stelib',
         "source_tracks": 'Padova1994',
         "source_tracks_fn": None,
         "source_stellar_aging": False,
