@@ -2361,6 +2361,9 @@ class GalaxyCohort(GalaxyAggregate):
         total_sat=True):
         """
         Determine the luminosity of stellar population(s) for all halos.
+
+            .. note :: This is the *intrinsic* luminosity; dust and IGM
+                    transmission effects are applied separately.
         """
 
         ##
