@@ -1362,6 +1362,7 @@ class Population(object):
                     / erg_per_ev
 
         else:
+
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense
@@ -1441,13 +1442,11 @@ class Population(object):
                     if redshift > self.pf['first_light_redshift']:
                         continue
 
-                    print('doing emissivity tab', redshift)
-
                     # Use Emissivity here rather than rho_L because only
                     # GalaxyCohort objects will have a rho_L attribute.
                     epsilon[ll,in_band==1] = fix \
                         * self.get_emissivity(redshift, band=b, units='eV',
-                        units_out='erg/s/eV') \
+                        units_out='erg/s') \
                         * ev_per_hz * Inu_hat[in_band==1] / H[ll] / erg_per_ev
 
                 ct += 1

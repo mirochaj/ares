@@ -100,7 +100,7 @@ class GalaxyAggregate(HaloPopulation):
         units : str
             Units of `x`, can be 'Ang', 'eV', 'Hz' at the moment.
         units_out : str
-            Controls output units. Not that there is an assumed "cMpc^{-3}"
+            Controls output units. Not that there is an assumed "/cMpc^3"
             that the user need not supply.
         band : tuple, optional
             If provided, defines a band in which we report the integrated

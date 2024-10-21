@@ -48,10 +48,8 @@ def test():
             "Addition of fourth population should change signal!"
 
     # Adding source population should shift timing of features earlier
-    assert sim2.sim_gs.nu_B <= sim1.sim_gs.nu_B
-    assert sim2.sim_gs.nu_C <= sim1.sim_gs.nu_C
-
-
+    assert sim2.sim_gs.turning_points['B'][0] <= sim1.sim_gs.turning_points['B'][0]
+    assert sim2.sim_gs.turning_points['C'][0] <= sim1.sim_gs.turning_points['C'][0]
 
 if __name__ == '__main__':
     test()
