@@ -64,6 +64,10 @@ class LogNormal(LightCone): # pragma: no cover
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
 
+        # Only used for NbodySimLC models
+        self.zchunks = None
+
+        self.fxy = (0, 0)
         self.bias_model = bias_model
         self.bias_params = bias_params
         self.bias_replacement = bias_replacement
@@ -91,33 +95,6 @@ class LogNormal(LightCone): # pragma: no cover
             print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
             print(f"# Number of co-eval chunks: {zmid.size}")
 
-    def get_seed_kwargs(self, chunk, logmlim):
-        # Deterministically adjust the random seeds for the given mass range
-        # and redshift range.
-        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
-
-        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
-
-        if not hasattr(self, '_seeds'):
-            self._seeds = self.seed_rho * np.arange(1, len(zmid)+1)
-            self._seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
-            self._seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
-            self._seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
-
-            if self.seed_nsers is not None:
-                self._seeds_nsers = self.seed_nsers * np.arange(1, len(zmid)+1) * fmh
-            else:
-                self._seeds_nsers = [None] * len(zmid)
-            if self.seed_pa is not None:
-                self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
-            else:
-                self._seeds_pa = [None] * len(zmid)
-
-        i = chunk
-        return {'seed_box': self._seeds[i],
-            'seed': self._seeds_hm[i], 'seed_pos': self._seeds_hp[i],
-            'seed_occ': self._seeds_ho[i],
-            'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
 
     def get_fov_from_L(self, z, Lbox):
         """

@@ -264,6 +264,13 @@ class LightCone(object): # pragma: no cover
 
         """
 
+        if self.zchunks is not None:
+            dofz = [self.sim.cosm.get_dist_los_comoving(0, z) \
+                for z in self.zchunks[:,0]]
+            dofz.append(self.sim.cosm.get_dist_los_comoving(0, self.zchunks[-1,1]))
+            Re = np.array(dofz) / cm_per_mpc
+            return self.zchunks, np.mean(self.zchunks, axis=1), Re
+
         if Lbox is None:
             Lbox = self.Lbox
 
@@ -279,10 +286,13 @@ class LightCone(object): # pragma: no cover
         Return the edges of each co-eval cube as positioned along the LoS.
         """
 
+        if self.zchunks is not None:
+            return self.zchunks
+
         ze, zmid, Re = self.get_domain_info(zlim)
 
         chunks = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
-        return chunks
+        return np.array(chunks)
 
     def get_mass_chunks(self, logmlim, dlogm):
         """
@@ -650,6 +660,35 @@ class LightCone(object): # pragma: no cover
 
     #    return s
 
+    def get_seed_kwargs(self, chunk, logmlim):
+        # Deterministically adjust the random seeds for the given mass range
+        # and redshift range.
+        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
+        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
+
+        if not hasattr(self, '_seeds'):
+            self._seeds = self.seed_rho * np.arange(1, len(zmid)+1)
+            self._seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+            self._seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+            self._seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+
+            if self.seed_nsers is not None:
+                self._seeds_nsers = self.seed_nsers * np.arange(1, len(zmid)+1) * fmh
+            else:
+                self._seeds_nsers = [None] * len(zmid)
+            if self.seed_pa is not None:
+                self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
+            else:
+                self._seeds_pa = [None] * len(zmid)
+
+        i = chunk
+        return {'seed_box': self._seeds[i],
+            'seed': self._seeds_hm[i], 'seed_pos': self._seeds_hp[i],
+            'seed_occ': self._seeds_ho[i],
+            'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
+
+
     #@profile
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
@@ -695,9 +734,13 @@ class LightCone(object): # pragma: no cover
         assert np.diff(fov) == 0, "Only square FOVs allowed right now."
 
         zall = self.get_redshift_chunks(zlim=self.zlim)
-        assert zlim in zall
 
-        ichunk = zall.index(zlim)
+        ##
+        # Make sure `zlim` is in provided redshift chunks.
+        # This is mostly to prevent users from doing something they shouldn't.
+        ichunk = np.argmin(np.abs(zlim[0] - zall[:,0]))
+
+        assert np.allclose(zlim, zall[ichunk])
 
         # Figure out the edges of the domain in RA and DEC (degrees)
         # Pixel coordinates
@@ -750,6 +793,14 @@ class LightCone(object): # pragma: no cover
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose)
 
+        # Correct for field position. Always (0,0) for log-normal boxes,
+        # may not be for halo catalogs from sims.
+        ra -= self.fxy[0]
+        dec -= self.fxy[1]
+
+        print('hi', len(Mh), np.log10(Mh).min(), np.log10(Mh).max(),
+            red.min(), red.max(), zlo, zhi, ra.min(), ra.max(), dec.min(), dec.max())
+
         # Could be empty chunks for very massive halos and/or early times.
         if ra is None:
             return #None, None, None
@@ -797,6 +848,8 @@ class LightCone(object): # pragma: no cover
 
         #if self.verbose:
         #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
+
+        print('hi', ok.sum())
 
         # May have empty chunks, e.g., very massive halos and/or very
         # high redshifts.
@@ -940,6 +993,8 @@ class LightCone(object): # pragma: no cover
 
             rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
 
+        print(f"! Depositing flux from {ra.size} sources.")
+
         ##
         # Actually sum fluxes from all objects in image plane.
         for h in range(ra.size):
@@ -996,6 +1051,7 @@ class LightCone(object): # pragma: no cover
             # Otherwise just add flux to single pixel
             else:
                 img[i,j] += _flux_
+
 
         ##
         # Clear out some memory sheesh
