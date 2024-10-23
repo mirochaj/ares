@@ -1277,7 +1277,7 @@ class LightCone(object): # pragma: no cover
 
         # Must do this after building the directory tree otherwise
         # we'll get errors.
-        rlz._check_for_corrupted_files(fov, pix, channels,
+        self._check_for_corrupted_files(fov, pix, channels,
             logmlim=logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
