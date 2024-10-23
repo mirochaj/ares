@@ -27,9 +27,9 @@ except ImportError:
 
 class NbodySim(LightCone): # pragma: no cover
     def __init__(self, model_name, catalog, verbose=True, base_dir='nbody_mock',
-        fxy=None, fov=None, Lbox=0, dims=0, mem_concious=False,
+        fxy=None, fov=None, Lbox=999, dims=999, mem_concious=False,
         seed_halo_occ=None, seed_nsers=None, seed_pa=None,
-        zmin=0.07, zmax=1.4, zchunks=None, **kwargs):
+        zmin=0.07, zmax=1.4, zchunks=None, include_satellites=0, **kwargs):
         """
         Initialize a galaxy population from a simulated halo lightcone.
 
@@ -61,6 +61,8 @@ class NbodySim(LightCone): # pragma: no cover
         self.zlim = zmin, zmax
         self.zchunks = zchunks
 
+        self.include_satellites = include_satellites
+
         x, y = self.fxy
         self.fbox = x - 0.5 * fov, x + 0.5 * fov, \
                     y - 0.5 * fov, y + 0.5 * fov
@@ -75,7 +77,11 @@ class NbodySim(LightCone): # pragma: no cover
 
         self.prefix, self.indices, self.zchunks = catalog
 
-    def get_catalog(self, zlim=None, logmlim=None, popid=0, verbose=True):
+    def get_halo_population(self):
+        raise NotImplemented('No analog for this in NbodySimLC approach.')
+
+    def get_catalog(self, zlim=None, logmlim=None, popid=0,
+        seed_occ=None, verbose=True):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
 
@@ -117,15 +123,22 @@ class NbodySim(LightCone): # pragma: no cover
         N = 0
         for i in range(ilo, ihi):
             z1, z2 = self.zchunks[i]
+            z = np.mean([z1, z2])
+
             fn = f"{self.prefix}_{z1:.2f}_{z2:.2f}.txt"
+
+            seed_kwargs = self.get_seed_kwargs(i, logmlim)
+            print('hi', i, seed_kwargs)
 
             ##
             # Hack out galaxies outsize `zlim`.
             # `data` will be (number of halos, number of fields saved)
             _data = np.loadtxt(fn, usecols=self.indices)
 
+            numh = _data.shape[0]
+
             if verbose:
-                print(f"! Loaded {fn}.")
+                print(f"! Loaded {fn}. {numh:.1e} halos.")
 
             ##
             # Isolate halos in requested mass range.
@@ -153,17 +166,38 @@ class NbodySim(LightCone): # pragma: no cover
             else:
                 okp = 1
 
+            if self.include_satellites:
+                okc = 1
+            else:
+                okc = np.loadtxt(fn, usecols=[4], unpack=True)
+
+            ##
+            # Apply occupation fraction cut
+            if self.sim.pops[popid].pf['pop_focc'] != 1:
+
+                np.random.seed(seed_kwargs['seed_occ'])
+
+                r = np.random.rand(numh)
+                focc = self.sim.pops[popid].get_focc(z=z, Mh=10**_data[:,3])
+
+                oko = np.ones(numh)
+                oko[r > focc] = 0
+
+                if verbose:
+                    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {logmlim[0]:.1f}-{logmlim[1]:.1f} mass range.")
+                    print(f"# [reduced number of halos by {100*(1-oko.sum()/float(oko.size)):.2f}%]")
+
+            else:
+                oko = 1
+
             ##
             # Append to any previous chunk's data.
             if N == 0:
-                data = _data[okM*okz*okp==1,:].copy()
+                data = _data[okM*okz*okp*okc*oko==1,:].copy()
             else:
-                data = np.vstack((_data[okM*okz*okp==1,:], data))
+                data = np.vstack((_data[okM*okz*okp*okc*oko==1,:], data))
 
             N += 1
-
-            print('hi', N, sum(okM), sum(okz), sum(okp))
-
 
         ##
         # Return transpose, so users can run, e.g.,
@@ -171,6 +205,7 @@ class NbodySim(LightCone): # pragma: no cover
         # First, need to 10** the halo masses.
         _x_, _y_, _z_, _m_ = data.T
 
-        data = np.array([_x_, _y_, _z_, 10**_m_])
+        # MiceCAT uses h=0.7
+        data = np.array([_x_, _y_, _z_, 0.7 * 10**_m_])
 
         return data

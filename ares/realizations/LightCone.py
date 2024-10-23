@@ -269,7 +269,7 @@ class LightCone(object): # pragma: no cover
                 for z in self.zchunks[:,0]]
             dofz.append(self.sim.cosm.get_dist_los_comoving(0, self.zchunks[-1,1]))
             Re = np.array(dofz) / cm_per_mpc
-            return self.zchunks, np.mean(self.zchunks, axis=1), Re
+            return np.mean(self.zchunks, axis=1), self.zchunks, Re
 
         if Lbox is None:
             Lbox = self.Lbox
@@ -333,282 +333,6 @@ class LightCone(object): # pragma: no cover
             iz -= 1
 
         return iz
-
-    def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True):
-        """
-        Get a galaxy catalog in (RA, DEC, redshift) coordinates.
-
-        .. note :: This is essentially a wrapper around `_get_catalog_from_coeval`,
-            i.e., we're just figuring out how many chunks are needed along the
-            line of sight and re-generating the relevant cubes.
-
-        Parameters
-        ----------
-        zlim : tuple
-            Restrict redshift range to be between:
-
-                zlim[0] <= z < zlim[1].
-
-        logmlim : tuple
-            Restrict halo mass range to be between:
-
-                10**logmlim[0] <= Mh/Msun 10**logmlim[1]
-
-        Returns
-        -------
-        A tuple containing (ra, dec, redshift, <mass or magnitudes or SFR or w/e>)
-
-        """
-
-        if zlim is None:
-            zlim = self.zlim
-
-        zmin, zmax = zlim
-        mmin, mmax = 10**np.array(logmlim)
-
-        # Version of Lbox in actual cMpc
-        L = self.Lbox / self.sim.cosm.h70
-
-        # First, get full domain info
-        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
-        Rc = bin_e2c(Re)
-        dz = np.diff(ze)
-
-        # Deterministically adjust the random seeds for the given mass range
-        # and redshift range.
-        #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
-
-        # Figure out if we're getting the catalog of a single chunk
-        chunk_id = None
-        for i, Rlo in enumerate(zmid):
-            zlo, zhi = ze[i:i+2]
-
-            if (zlo == zlim[0]) and (zhi == zlim[1]):
-                chunk_id = i
-                break
-
-        ##
-        # Setup random seeds for random rotations and translations
-        np.random.seed(self.seed_rot)
-        r_rot = np.random.randint(0, high=4, size=(len(Re)-1)*3).reshape(
-            len(Re)-1, 3
-        )
-
-        np.random.seed(self.seed_tra)
-        r_tra = np.random.rand(len(Re)-1, 3)
-
-        ##
-        # Print-out information about FOV
-        # arcmin / Mpc -> deg / Mpc
-        theta_zmin = self.sim.cosm.get_angle_from_length_comoving(zmin, 1) * L / 60.
-        theta_zmax = self.sim.cosm.get_angle_from_length_comoving(zmax, 1) * L / 60.
-
-        pbar = ProgressBar(Rc.size, name=f"lc(z>={zmin},z<{zmax})",
-            use=chunk_id is None)
-        pbar.start()
-
-        ct = 0
-        zlo = zmin * 1.
-        for i, Rlo in enumerate(Re[0:-1]):
-            pbar.update(i)
-
-            zlo, zhi = ze[i:i+2]
-
-            if chunk_id is not None:
-                if i != chunk_id:
-                    continue
-
-            if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                continue
-
-            seed_kwargs = self.get_seed_kwargs(i, logmlim)
-
-            # Contains (x, y, z, mass)
-            # Note that x, y, z are in cMpc / h units, not actual cMpc.
-            halos = self.get_halo_population(z=zmid[i],
-                mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                **seed_kwargs)
-
-            if (type(halos[0]) != np.ndarray) and (halos[0] is None):
-                ra = dec = red = mass = None
-                continue
-
-            if (halos[0].size == 0):
-                ra = dec = red = mass = None
-                continue
-
-            # Might change later if we do domain decomposition
-            x0 = y0 = z0 = 0.0
-            dx = dy = dz = self.Lbox
-
-            ##
-            # Perform random flips and translations here
-            if self.apply_rotations:
-
-                _x_, _y_, _z_, _m_ = halos
-
-                # Put positions in space centered on (0,0,0), i.e.,
-                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
-                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
-                _x = _x_ - (x0 + 0.5 * dx)
-                _y = _y_ - (y0 + 0.5 * dy)
-                _z = _z_ - (z0 + 0.5 * dz)
-
-                # This is just the format required by Rotation below.
-                _view = np.array([_x, _y, _z]).T
-
-                # Loop over axes
-                for k in range(3):
-
-                    # Force new viewing angles to be orthogonal to box faces
-                    r = r_rot[i,k]
-                    _theta = angles_90[r] * np.pi / 180.
-
-                    axis = np.zeros(3)
-                    axis[k] = 1
-
-                    rot = Rotation.from_rotvec(_theta * axis)
-                    _view = rot.apply(_view)
-
-                # Read in our new 'view' of the catalog, undo the shift
-                # so we're back in [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)] region.
-                _x, _y, _z = _view.T
-                _x += (0.5 * dx)
-                _y += (0.5 * dy)
-                _z += (0.5 * dz)
-
-                halos = [_x, _y, _z, _m_]
-
-            else:
-                pass
-
-            ##
-            # Random translations
-            if self.apply_translations:
-                _x_, _y_, _z_, _m_ = halos
-
-                # Put positions in space centered on (0,0,0), i.e.,
-                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
-                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
-                _x = _x_.copy()
-                _y = _y_.copy()
-                _z = _z_.copy()
-
-                _x += r_tra[i,0] * dx
-                overx = _x > dx
-                _x[overx] = _x[overx] - dx
-
-                _y += r_tra[i,1] * dy
-                overy = _y > dy
-                _y[overy] = _y[overy] - dy
-
-                _z += r_tra[i,2] * dz
-                overz = _z > dz
-                _z[overz] = _z[overz] - dz
-
-                halos = [_x, _y, _z, _m_]
-
-            else:
-                pass
-
-            ##
-            # Convert to (ra, dec, redshift) coordinates.
-            # Note: the conversion from cMpc/h to cMpc occurs inside
-            # _get_catalog_from_coeval here:
-            _ra, _de, _red = self._get_catalog_from_coeval(halos, zlo=zlo)
-            _m = halos[-1]
-
-            okr = np.logical_and(_ra <  0.5 * theta_zmin,
-                                 _ra > -0.5 * theta_zmin)
-            okd = np.logical_and(_de <  0.5 * theta_zmin,
-                                 _de > -0.5 * theta_zmin)
-            ok = np.logical_and(okr, okd)
-
-                # Cache intermediate outputs too!
-                #self._cache_cats[(zlo, zhi, mmin)] = \
-                #    _ra[ok==1], _de[ok==1], _red[ok==1], _m[ok==1]
-
-                #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
-
-            if ct == 0:
-                ra = _ra.copy()
-                dec = _de.copy()
-                red = _red.copy()
-                mass = _m.copy()
-            else:
-                ra = np.hstack((ra, _ra))
-                dec = np.hstack((dec, _de))
-                red = np.hstack((red, _red))
-                mass = np.hstack((mass, _m))
-
-            ct += 1
-
-            del _ra, _de, _red, halos, okr, okd, ok, _m
-            if self.apply_rotations or self.apply_translations:
-                del _x, _x_, _y, _y_, _z, _z_, _m_
-
-            if self.mem_concious:
-                gc.collect()
-
-        pbar.finish()
-
-        #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
-
-        return ra, dec, red, mass
-
-    def _get_catalog_from_coeval(self, halos, zlo=0.2):
-        """
-        Make a catalog in lightcone coordinates (RA, DEC, redshift).
-
-        .. note :: RA and DEC output in degrees.
-
-        """
-
-        xmpc, ympc, zmpc, mass = halos
-
-        # Shift coordinates to +/- 0.5 * Lbox
-        xmpc = (xmpc - 0.5 * self.Lbox) / self.sim.cosm.h70
-        ympc = (ympc - 0.5 * self.Lbox) / self.sim.cosm.h70
-
-        # Don't shift zmpc at all, z0 is the front face of the box
-
-        # First, get redshifts
-        #if not self.sim.cosm.interpolate:
-        #    zarr = np.arange(0, 10, 0.01)
-        #    #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
-        #    #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
-        #    dofz = np.array([self.sim.cosm.get_dist_los_comoving(0, z) \
-        #        for z in zarr]) / cm_per_mpc
-        #    # arcmin / Mpc -> deg / Mpc
-        #    angl = np.array([self.sim.cosm.get_length_comoving_from_angle(z, 1) \
-        #        for z in zarr]) / 60.
-
-        # Move the front edge of the box to redshift `z0`
-        # Will automatically use interpolation under the hood in `cosm`
-        # if interpolate_cosmology_in_z=True.
-        d0 = self.sim.cosm.get_dist_los_comoving(0, zlo) / cm_per_mpc
-
-        # Translate LOS distances to redshifts.
-        #if self.sim.cosm.interpolate:
-        #    red = np.interp(zmpc / self.sim.cosm.h70 + d0,
-        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
-        #        self.sim.cosm.tab_z)
-        #    deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0,
-        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
-        #        self.sim.cosm._tab_deg_per_cmpc / 60.)
-        #else:
-        dofz = self.sim.cosm._tab_dist_los_co / cm_per_mpc
-        angl = self.sim.cosm._tab_ang_from_co / 60.
-        red = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz,
-            self.sim.cosm.tab_z)
-
-        # Conversion from physical to angular coordinates
-        deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, angl)
-
-        ra  = xmpc * deg_per_mpc
-        dec = ympc * deg_per_mpc
-
-        return ra, dec, red
 
     def thin_sample(self, max_sources=None):
 
@@ -689,7 +413,6 @@ class LightCone(object): # pragma: no cover
             'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
 
 
-    #@profile
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, buffer=None, **kwargs):
@@ -798,9 +521,6 @@ class LightCone(object): # pragma: no cover
         ra -= self.fxy[0]
         dec -= self.fxy[1]
 
-        print('hi', len(Mh), np.log10(Mh).min(), np.log10(Mh).max(),
-            red.min(), red.max(), zlo, zhi, ra.min(), ra.max(), dec.min(), dec.max())
-
         # Could be empty chunks for very massive halos and/or early times.
         if ra is None:
             return #None, None, None
@@ -848,8 +568,6 @@ class LightCone(object): # pragma: no cover
 
         #if self.verbose:
         #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
-
-        print('hi', ok.sum())
 
         # May have empty chunks, e.g., very massive halos and/or very
         # high redshifts.
@@ -992,8 +710,6 @@ class LightCone(object): # pragma: no cover
             a, b = R_deg, R_deg
 
             rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
-
-        print(f"! Depositing flux from {ra.size} sources.")
 
         ##
         # Actually sum fluxes from all objects in image plane.
@@ -1231,7 +947,7 @@ class LightCone(object): # pragma: no cover
             popid, channel, chname, zchunk, mchunk = chunk
 
             # Get number of z chunk
-            iz = zchunks.index(zchunk)
+            iz = np.digitize(zchunk.mean(), bins=zchunks[:,0]) - 1
 
             # See if we already finished this map.
             fn = self.get_cat_fn(fov, pix, channel, popid,
@@ -1852,8 +1568,6 @@ class LightCone(object): # pragma: no cover
                 print(f"# Wrote {fn}.")
 
         elif fmt == 'fits':
-            from astropy.io import fits
-
             hdr = fits.Header(hdr)
             #_hdr.update(hdr)
             #hdr = _hdr
@@ -1920,7 +1634,9 @@ class LightCone(object): # pragma: no cover
             with h5py.File(fn, 'r') as f:
                 img = np.array(f[('ebl')])
         elif fmt == 'fits':
-            from astropy.io import fits
+            if self.verbose:
+                print(f"! Attempting to load {fn}...")
+                
             with fits.open(fn) as hdu:
                 # In whatever `map_units` user supplied.
                 img = hdu[0].data
