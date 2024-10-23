@@ -1275,6 +1275,12 @@ class LightCone(object): # pragma: no cover
         # Create root directory if it doesn't already exist.
         self.build_directory_structure(fov, pix, dryrun=False)
 
+        # Must do this after building the directory tree otherwise
+        # we'll get errors.
+        rlz._check_for_corrupted_files(fov, pix, channels,
+            logmlim=logmlim, dlogm=dlogm,
+            include_pops=include_pops, channel_names=channel_names)
+
         ##
         # Initialize a README file / see what's in it.
         README = self.get_README(fov=fov, pix=pix, zlim=self.zlim,
