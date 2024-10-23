@@ -67,7 +67,7 @@ class LogNormal(LightCone): # pragma: no cover
         # Only used for NbodySimLC models
         self.zchunks = None
 
-        self.fxy = (0, 0)
+        self.fxy = (0., 0.)
         self.bias_model = bias_model
         self.bias_params = bias_params
         self.bias_replacement = bias_replacement
@@ -700,7 +700,7 @@ class LogNormal(LightCone): # pragma: no cover
         ra  = xmpc * deg_per_mpc
         dec = ympc * deg_per_mpc
 
-        return ra, dec, red    
+        return ra, dec, red
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,

@@ -1146,6 +1146,75 @@ class LightCone(object): # pragma: no cover
 
         return all_chunks
 
+    def _check_for_corrupted_files(self, fov, pix, channels, logmlim, dlogm,
+        include_pops, channel_names=None):
+        """
+        When running on a cluster, occasionally we get really unlucky and an
+        output file will be corrupted, (probably) because we hit the wallclock
+        time limit on the job while the file is being written. This routine
+        does a cursory check that pre-existing files all have the same size, as
+        a quick-and-dirty way of rooting out corrupted files.
+        """
+
+
+        # Assemble list of map layers to run.
+        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+            include_pops=include_pops, channel_names=channel_names)
+
+        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
+        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+
+        # Check status before we start
+        all_sizes = np.zeros(len(all_chunks))
+        all_fn = []
+
+        for h, chunk in enumerate(all_chunks):
+
+            # Unpack info about this chunk
+            popid, channel, chname, zchunk, mchunk = chunk
+
+            # See if we already finished this map.
+            fn = self.get_map_fn(fov, pix, channel, popid,
+                logmlim=mchunk, zlim=zchunk)
+
+            all_fn.append(fn)
+
+            if not os.path.exists(fn):
+                continue
+
+            all_sizes[h] = os.path.getsize(fn)
+
+
+        # Find
+        usizes = np.unique(all_sizes)
+
+        if len(usizes) > 2:
+            print(f"! WARNING: evidence for corrupted file(s)!")
+            should_be = usizes.max()
+
+            probs = []
+            for h, fn in enumerate(all_fn):
+                if all_sizes[h] in [0, should_be]:
+                    continue
+
+                probs.append(fn)
+
+                print(f"! Problem file for chunk={h}: {fn}.")
+
+            ##
+            # Consistent with failed write as job is killed
+            if len(probs) == 1:
+                #os.remove(probs[0])
+                print(f"! Removed corrupted file {fn}.")
+            else:
+                raise IOError('! {len(probs)} corrupted files detected. Help?')
+
+        else:
+            ##
+            # Made it here? All good
+            print(f"! No corrupted files detected! All {len(all_chunks)} chunks look good.")
+
+
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
@@ -1636,11 +1705,13 @@ class LightCone(object): # pragma: no cover
         elif fmt == 'fits':
             if self.verbose:
                 print(f"! Attempting to load {fn}...")
-                
+
             with fits.open(fn) as hdu:
                 # In whatever `map_units` user supplied.
                 img = hdu[0].data
                 hdr = hdu[0].header
+
+            print(f"! Loaded {fn}.")
         else:
             raise NotImplementedError(f'No support for fmt={fmt}!')
 
