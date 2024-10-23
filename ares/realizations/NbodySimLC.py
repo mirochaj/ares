@@ -128,7 +128,6 @@ class NbodySim(LightCone): # pragma: no cover
             fn = f"{self.prefix}_{z1:.2f}_{z2:.2f}.txt"
 
             seed_kwargs = self.get_seed_kwargs(i, logmlim)
-            print('hi', i, seed_kwargs)
 
             ##
             # Hack out galaxies outsize `zlim`.
@@ -169,7 +168,8 @@ class NbodySim(LightCone): # pragma: no cover
             if self.include_satellites:
                 okc = 1
             else:
-                okc = np.loadtxt(fn, usecols=[4], unpack=True)
+                # 0 for centrals!
+                okc = np.logical_not(np.loadtxt(fn, usecols=[4], unpack=True))
 
             ##
             # Apply occupation fraction cut
@@ -206,6 +206,6 @@ class NbodySim(LightCone): # pragma: no cover
         _x_, _y_, _z_, _m_ = data.T
 
         # MiceCAT uses h=0.7
-        data = np.array([_x_, _y_, _z_, 0.7 * 10**_m_])
+        data = np.array([_x_, _y_, _z_, 10**_m_ / 0.7])
 
         return data

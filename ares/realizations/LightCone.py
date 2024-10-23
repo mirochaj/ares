@@ -515,7 +515,7 @@ class LightCone(object): # pragma: no cover
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose)
-        
+
         # Could be empty chunks for very massive halos and/or early times.
         if ra is None:
             return #None, None, None
@@ -1218,7 +1218,7 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=None, clobber=False, max_sources=None,
+        include_pops=None, clobber=False, max_sources=None, load_if_found=True,
         keep_layers=True, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
@@ -1427,20 +1427,24 @@ class LightCone(object): # pragma: no cover
             ran_new = True
             if os.path.exists(fn) and (not clobber):
                 # Load map
-                _buffer, _hdr = self._load_map(fn)
+                if load_if_found:
+                    _buffer, _hdr = self._load_map(fn)
 
-                if _hdr['BUNIT'] == map_units:
-                    _buffer *= (f_norm / dnu)**-1.
+                    if _hdr['BUNIT'] == map_units:
+                        _buffer *= (f_norm / dnu)**-1.
+                    else:
+                        raise NotImplemented('help')
+
+                    # Might need to adjust units before incrementing
+                    #buffer += _buffer
+                    # Increment map for this z chunk
+                    cimg += _buffer
+
+                    if verbose:
+                        print(f"# Loaded map {fn}.")
                 else:
-                    raise NotImplemented('help')
-
-                # Might need to adjust units before incrementing
-                #buffer += _buffer
-                # Increment map for this z chunk
-                cimg += _buffer
-
-                if verbose:
-                    print(f"# Loaded map {fn}.")
+                    print(f"# Elected not to load {fn} since load_if_found=False.")
+                    print(f"# Be sure to re-run `generate_maps` once all checkpoints are done. with load_if_found=True.")
 
                 ran_new = False
             else:
@@ -1513,7 +1517,9 @@ class LightCone(object): # pragma: no cover
             # If we're done with the channel and population, time to write
             # a final "channel map". Afterward, we'll zero-out `cimg` to be
             # incremented starting on the next iteration.
-            if done_w_chan and ((not was_done_already) or (not _fn_exists)):
+            if done_w_chan and ((not was_done_already) or (not _fn_exists)) \
+                and load_if_found:
+
 
                 self.save_map(_fn, cimg * f_norm / dnu,
                     channel, self.zlim, logmlim, fov,
@@ -1550,7 +1556,9 @@ class LightCone(object): # pragma: no cover
                 if write_README:
                     with open(f'{base_dir}/README', 'a') as f:
                         f.write(s_ch)
-
+            elif done_w_chan and ((not was_done_already) or (not _fn_exists)):
+                print(f"! Done with map {_fn} but did not write because load_if_found=False.")
+                
             ##
             # Need to zero-out channel map if done with channel, regardless
             # of how much work was already done before.
@@ -1560,6 +1568,7 @@ class LightCone(object): # pragma: no cover
 
             ##
             # Next task
+
 
         # All done.
         pb.finish()
