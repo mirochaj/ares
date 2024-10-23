@@ -515,15 +515,15 @@ class LightCone(object): # pragma: no cover
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose)
+        
+        # Could be empty chunks for very massive halos and/or early times.
+        if ra is None:
+            return #None, None, None
 
         # Correct for field position. Always (0,0) for log-normal boxes,
         # may not be for halo catalogs from sims.
         ra -= self.fxy[0]
         dec -= self.fxy[1]
-
-        # Could be empty chunks for very massive halos and/or early times.
-        if ra is None:
-            return #None, None, None
 
         ##
         # Figure out which bin each galaxy is in.
