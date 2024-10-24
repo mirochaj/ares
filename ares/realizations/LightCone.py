@@ -20,12 +20,16 @@ from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
 from scipy.spatial.transform import Rotation
-from astropy.modeling.models import Sersic2D
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
 
 try:
     from astropy.io import fits
+except ImportError:
+    pass
+
+try:
+    from astropy.modeling.models import Sersic2D
 except ImportError:
     pass
 
@@ -415,7 +419,8 @@ class LightCone(object): # pragma: no cover
 
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
-        use_pbar=True, verbose=False, max_sources=None, buffer=None, **kwargs):
+        use_pbar=True, verbose=False, max_sources=None, source_prop=None,
+        buffer=None, **kwargs):
         """
         Get a map for a single channel, redshift chunk, mass chunk, and
         source population.
@@ -546,6 +551,14 @@ class LightCone(object): # pragma: no cover
             okz = None
             ok = okp
 
+        # Can isolate further by narrower redshift range
+        if source_prop is not None:
+            if 'z' in source_prop:
+                szlim = source_prop['z']
+                oks = np.logical_and(red >= szlim[0], red < szlim[1])
+
+            ok = np.logical_and(ok, oks)
+
         # For debugging and tests, we can dramatically limit the
         # number of sources. Thin out the herd here.
         if (max_sources is not None):
@@ -631,8 +644,8 @@ class LightCone(object): # pragma: no cover
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
-        # Extended emission from IHL, satellites
-        if (not self.sim.pops[popid].is_central_pop):
+        # Extended emission from IHL
+        if self.sim.pops[popid].is_diffuse:
 
             Rmi, Rma = -3, 1
             dlogR = 0.25
@@ -668,8 +681,12 @@ class LightCone(object): # pragma: no cover
 
             R_sec = np.zeros_like(Rkpc)
             for kk in range(red.size):
-                R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk], Rkpc[kk] * 1e-3)
+                R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
+                    Rkpc[kk] * 1e-3)
             R_sec *= 60.
+
+            # `R_sec` is the angular size of each galaxy in the model in arcsec.
+            # Note: the size is defined as the stellar half-light radius.
 
             # Uniform for now.
             np.random.seed(seed_kw['seed_nsers'])
@@ -680,6 +697,12 @@ class LightCone(object): # pragma: no cover
             # Ellipticity = 1 - b/a
             ellip = np.random.random(size=Rkpc.size)
 
+            ##
+            # Next, impose effective stopping criterion in size where we
+            # stop painting on Sersic profiles and just dump all photons
+            # in a single pixel.
+            #
+
             # Will paint anything half-light radius greater than a pixel
             if size_cut == 0.5:
                 R_X = R_sec
@@ -687,11 +710,6 @@ class LightCone(object): # pragma: no cover
             # radius containing `size_cut` fraction of the light, that
             # exceeds a pixel.
             else:
-                rarr = np.logspace(-1, 1.5, 500)
-                #cog_sfg = [self.sim.pops[popid].get_sersic_cog(r,
-                #    n=nsers[h]) \
-                #    for r in rarr]
-
                 rmax = [self.sim.pops[popid].get_sersic_rmax(size_cut,
                     nsers[h]) for h in range(Rkpc.size)]
 
@@ -726,7 +744,7 @@ class LightCone(object): # pragma: no cover
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
-            if not self.sim.pops[popid].is_central_pop:
+            if self.sim.pops[popid].is_diffuse:
 
                 # Image of distances from halo center
                 r0 = ra_c[i] * 60 * mpc_per_arcmin
@@ -869,7 +887,8 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='fits', hdr={}, max_sources=None, cat_units='uJy',
+        suffix=None, fmt='fits', hdr={}, max_sources=None, source_prop=None,
+        cat_units='uJy',
         include_pops=None, clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
         """
@@ -974,6 +993,8 @@ class LightCone(object): # pragma: no cover
                 _ra, _dec, _red, _Mh = self.get_catalog(zlim=zchunk,
                     logmlim=mchunk, popid=popid, verbose=verbose)
 
+
+
                 # Could be empty chunks for very massive halos and/or early times.
                 if _ra is None:
                     # You might think: let's `continue` to the next iteration!
@@ -1005,6 +1026,13 @@ class LightCone(object): # pragma: no cover
                             # This will be the final iteration.
                             if ct + ok.sum() == max_sources:
                                 self._hit_max_sources = True
+
+                    if source_prop is not None:
+                        if 'z' in source_prop:
+                            szlim = source_prop['z']
+                            oks = np.logical_and(_red >= szlim[0], _red < szlim[1])
+
+                        ok = np.logical_and(ok, oks)
 
 
                     # Isolate OK entries.
@@ -1209,6 +1237,9 @@ class LightCone(object): # pragma: no cover
             else:
                 raise IOError('! {len(probs)} corrupted files detected. Help?')
 
+        elif np.all(all_sizes == 0):
+            # Means this is the first time the mock is being run.
+            pass
         else:
             ##
             # Made it here? All good
@@ -1218,7 +1249,8 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=None, clobber=False, max_sources=None, load_if_found=True,
+        include_pops=None, clobber=False, max_sources=None, source_prop=None,
+        load_if_found=True,
         keep_layers=True, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
@@ -1277,9 +1309,10 @@ class LightCone(object): # pragma: no cover
 
         # Must do this after building the directory tree otherwise
         # we'll get errors.
-        self._check_for_corrupted_files(fov, pix, channels,
-            logmlim=logmlim, dlogm=dlogm,
-            include_pops=include_pops, channel_names=channel_names)
+        if not clobber:
+            self._check_for_corrupted_files(fov, pix, channels,
+                logmlim=logmlim, dlogm=dlogm,
+                include_pops=include_pops, channel_names=channel_names)
 
         ##
         # Initialize a README file / see what's in it.
@@ -1349,6 +1382,7 @@ class LightCone(object): # pragma: no cover
             len(all_zchunks), len(all_mchunks)))
         status_done_now = status_done_pre.copy()
 
+        ##
         # Check status before we start
         for h, chunk in enumerate(all_chunks):
 
@@ -1360,12 +1394,14 @@ class LightCone(object): # pragma: no cover
             iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
             im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
 
+            ip = include_pops.index(popid)
+
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=mchunk, zlim=zchunk)
 
             if os.path.exists(fn) and (not clobber):
-                status_done_pre[popid,ichan,iz,im] = 1
+                status_done_pre[ip,ichan,iz,im] = 1
 
         # Progress bar
         pb = ProgressBar(len(all_chunks),
@@ -1460,10 +1496,11 @@ class LightCone(object): # pragma: no cover
                     size_cut=size_cut,
                     dlam=dlam, use_pbar=False,
                     max_sources=max_sources,
+                    source_prop=source_prop,
                     buffer=buffer, verbose=verbose,
                     **kwargs)
 
-                status_done_now[popid,ichan,iz,im] = 1
+                status_done_now[ip,ichan,iz,im] = 1
 
             # Save every mass chunk within every redshift chunk if the user
             # says so.
@@ -1483,13 +1520,13 @@ class LightCone(object): # pragma: no cover
             # Otherwise, figure out what (if anything) needs to be
             # written to disk now.
             done_w_chan = np.all(
-                status_done_pre[popid,ichan,:,:] +
-                status_done_now[popid,ichan,:,:]
+                status_done_pre[ip,ichan,:,:] +
+                status_done_now[ip,ichan,:,:]
                 )
 
             # This probably means our re-run only added channels, not
             # z chunks or mass chunks.
-            was_done_already = np.all(status_done_pre[popid,ichan,:,:] == 1) \
+            was_done_already = np.all(status_done_pre[ip,ichan,:,:] == 1) \
                 and (not clobber)
 
             ##
@@ -1558,7 +1595,7 @@ class LightCone(object): # pragma: no cover
                         f.write(s_ch)
             elif done_w_chan and ((not was_done_already) or (not _fn_exists)):
                 print(f"! Done with map {_fn} but did not write because load_if_found=False.")
-                
+
             ##
             # Need to zero-out channel map if done with channel, regardless
             # of how much work was already done before.
@@ -1718,15 +1755,19 @@ class LightCone(object): # pragma: no cover
             with h5py.File(fn, 'r') as f:
                 img = np.array(f[('ebl')])
         elif fmt == 'fits':
+
             if self.verbose:
                 print(f"! Attempting to load {fn}...")
 
+            t1 = time.time()
             with fits.open(fn) as hdu:
                 # In whatever `map_units` user supplied.
                 img = hdu[0].data
                 hdr = hdu[0].header
 
-            print(f"! Loaded {fn}.")
+            t2 = time.time()
+            print(f"! Loaded {fn} [took {(t2-t1):.2f} sec].")
+
         else:
             raise NotImplementedError(f'No support for fmt={fmt}!')
 

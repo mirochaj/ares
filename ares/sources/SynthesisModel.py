@@ -364,8 +364,8 @@ class SynthesisModelBase(Source):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if kwds in self._cache_L_:
-            return self._cache_L_[kwds]
+        #if kwds in self._cache_L_:
+        #    return self._cache_L_[kwds]
 
         return None
 
@@ -511,7 +511,7 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        self._cache_L_[kwds] = yield_UV
+        #self._cache_L_[kwds] = yield_UV
 
         return yield_UV
 
