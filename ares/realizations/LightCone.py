@@ -20,12 +20,16 @@ from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
 from scipy.spatial.transform import Rotation
-from astropy.modeling.models import Sersic2D
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
 
 try:
     from astropy.io import fits
+except ImportError:
+    pass
+
+try:
+    from astropy.modeling.models import Sersic2D
 except ImportError:
     pass
 
@@ -264,6 +268,13 @@ class LightCone(object): # pragma: no cover
 
         """
 
+        if self.zchunks is not None:
+            dofz = [self.sim.cosm.get_dist_los_comoving(0, z) \
+                for z in self.zchunks[:,0]]
+            dofz.append(self.sim.cosm.get_dist_los_comoving(0, self.zchunks[-1,1]))
+            Re = np.array(dofz) / cm_per_mpc
+            return np.mean(self.zchunks, axis=1), self.zchunks, Re
+
         if Lbox is None:
             Lbox = self.Lbox
 
@@ -279,10 +290,13 @@ class LightCone(object): # pragma: no cover
         Return the edges of each co-eval cube as positioned along the LoS.
         """
 
+        if self.zchunks is not None:
+            return self.zchunks
+
         ze, zmid, Re = self.get_domain_info(zlim)
 
         chunks = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
-        return chunks
+        return np.array(chunks)
 
     def get_mass_chunks(self, logmlim, dlogm):
         """
@@ -323,282 +337,6 @@ class LightCone(object): # pragma: no cover
             iz -= 1
 
         return iz
-
-    def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True):
-        """
-        Get a galaxy catalog in (RA, DEC, redshift) coordinates.
-
-        .. note :: This is essentially a wrapper around `_get_catalog_from_coeval`,
-            i.e., we're just figuring out how many chunks are needed along the
-            line of sight and re-generating the relevant cubes.
-
-        Parameters
-        ----------
-        zlim : tuple
-            Restrict redshift range to be between:
-
-                zlim[0] <= z < zlim[1].
-
-        logmlim : tuple
-            Restrict halo mass range to be between:
-
-                10**logmlim[0] <= Mh/Msun 10**logmlim[1]
-
-        Returns
-        -------
-        A tuple containing (ra, dec, redshift, <mass or magnitudes or SFR or w/e>)
-
-        """
-
-        if zlim is None:
-            zlim = self.zlim
-
-        zmin, zmax = zlim
-        mmin, mmax = 10**np.array(logmlim)
-
-        # Version of Lbox in actual cMpc
-        L = self.Lbox / self.sim.cosm.h70
-
-        # First, get full domain info
-        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
-        Rc = bin_e2c(Re)
-        dz = np.diff(ze)
-
-        # Deterministically adjust the random seeds for the given mass range
-        # and redshift range.
-        #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
-
-        # Figure out if we're getting the catalog of a single chunk
-        chunk_id = None
-        for i, Rlo in enumerate(zmid):
-            zlo, zhi = ze[i:i+2]
-
-            if (zlo == zlim[0]) and (zhi == zlim[1]):
-                chunk_id = i
-                break
-
-        ##
-        # Setup random seeds for random rotations and translations
-        np.random.seed(self.seed_rot)
-        r_rot = np.random.randint(0, high=4, size=(len(Re)-1)*3).reshape(
-            len(Re)-1, 3
-        )
-
-        np.random.seed(self.seed_tra)
-        r_tra = np.random.rand(len(Re)-1, 3)
-
-        ##
-        # Print-out information about FOV
-        # arcmin / Mpc -> deg / Mpc
-        theta_zmin = self.sim.cosm.get_angle_from_length_comoving(zmin, 1) * L / 60.
-        theta_zmax = self.sim.cosm.get_angle_from_length_comoving(zmax, 1) * L / 60.
-
-        pbar = ProgressBar(Rc.size, name=f"lc(z>={zmin},z<{zmax})",
-            use=chunk_id is None)
-        pbar.start()
-
-        ct = 0
-        zlo = zmin * 1.
-        for i, Rlo in enumerate(Re[0:-1]):
-            pbar.update(i)
-
-            zlo, zhi = ze[i:i+2]
-
-            if chunk_id is not None:
-                if i != chunk_id:
-                    continue
-
-            if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-                continue
-
-            seed_kwargs = self.get_seed_kwargs(i, logmlim)
-
-            # Contains (x, y, z, mass)
-            # Note that x, y, z are in cMpc / h units, not actual cMpc.
-            halos = self.get_halo_population(z=zmid[i],
-                mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                **seed_kwargs)
-
-            if (type(halos[0]) != np.ndarray) and (halos[0] is None):
-                ra = dec = red = mass = None
-                continue
-
-            if (halos[0].size == 0):
-                ra = dec = red = mass = None
-                continue
-
-            # Might change later if we do domain decomposition
-            x0 = y0 = z0 = 0.0
-            dx = dy = dz = self.Lbox
-
-            ##
-            # Perform random flips and translations here
-            if self.apply_rotations:
-
-                _x_, _y_, _z_, _m_ = halos
-
-                # Put positions in space centered on (0,0,0), i.e.,
-                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
-                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
-                _x = _x_ - (x0 + 0.5 * dx)
-                _y = _y_ - (y0 + 0.5 * dy)
-                _z = _z_ - (z0 + 0.5 * dz)
-
-                # This is just the format required by Rotation below.
-                _view = np.array([_x, _y, _z]).T
-
-                # Loop over axes
-                for k in range(3):
-
-                    # Force new viewing angles to be orthogonal to box faces
-                    r = r_rot[i,k]
-                    _theta = angles_90[r] * np.pi / 180.
-
-                    axis = np.zeros(3)
-                    axis[k] = 1
-
-                    rot = Rotation.from_rotvec(_theta * axis)
-                    _view = rot.apply(_view)
-
-                # Read in our new 'view' of the catalog, undo the shift
-                # so we're back in [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)] region.
-                _x, _y, _z = _view.T
-                _x += (0.5 * dx)
-                _y += (0.5 * dy)
-                _z += (0.5 * dz)
-
-                halos = [_x, _y, _z, _m_]
-
-            else:
-                pass
-
-            ##
-            # Random translations
-            if self.apply_translations:
-                _x_, _y_, _z_, _m_ = halos
-
-                # Put positions in space centered on (0,0,0), i.e.,
-                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
-                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
-                _x = _x_.copy()
-                _y = _y_.copy()
-                _z = _z_.copy()
-
-                _x += r_tra[i,0] * dx
-                overx = _x > dx
-                _x[overx] = _x[overx] - dx
-
-                _y += r_tra[i,1] * dy
-                overy = _y > dy
-                _y[overy] = _y[overy] - dy
-
-                _z += r_tra[i,2] * dz
-                overz = _z > dz
-                _z[overz] = _z[overz] - dz
-
-                halos = [_x, _y, _z, _m_]
-
-            else:
-                pass
-
-            ##
-            # Convert to (ra, dec, redshift) coordinates.
-            # Note: the conversion from cMpc/h to cMpc occurs inside
-            # _get_catalog_from_coeval here:
-            _ra, _de, _red = self._get_catalog_from_coeval(halos, zlo=zlo)
-            _m = halos[-1]
-
-            okr = np.logical_and(_ra <  0.5 * theta_zmin,
-                                 _ra > -0.5 * theta_zmin)
-            okd = np.logical_and(_de <  0.5 * theta_zmin,
-                                 _de > -0.5 * theta_zmin)
-            ok = np.logical_and(okr, okd)
-
-                # Cache intermediate outputs too!
-                #self._cache_cats[(zlo, zhi, mmin)] = \
-                #    _ra[ok==1], _de[ok==1], _red[ok==1], _m[ok==1]
-
-                #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
-
-            if ct == 0:
-                ra = _ra.copy()
-                dec = _de.copy()
-                red = _red.copy()
-                mass = _m.copy()
-            else:
-                ra = np.hstack((ra, _ra))
-                dec = np.hstack((dec, _de))
-                red = np.hstack((red, _red))
-                mass = np.hstack((mass, _m))
-
-            ct += 1
-
-            del _ra, _de, _red, halos, okr, okd, ok, _m
-            if self.apply_rotations or self.apply_translations:
-                del _x, _x_, _y, _y_, _z, _z_, _m_
-
-            if self.mem_concious:
-                gc.collect()
-
-        pbar.finish()
-
-        #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
-
-        return ra, dec, red, mass
-
-    def _get_catalog_from_coeval(self, halos, zlo=0.2):
-        """
-        Make a catalog in lightcone coordinates (RA, DEC, redshift).
-
-        .. note :: RA and DEC output in degrees.
-
-        """
-
-        xmpc, ympc, zmpc, mass = halos
-
-        # Shift coordinates to +/- 0.5 * Lbox
-        xmpc = (xmpc - 0.5 * self.Lbox) / self.sim.cosm.h70
-        ympc = (ympc - 0.5 * self.Lbox) / self.sim.cosm.h70
-
-        # Don't shift zmpc at all, z0 is the front face of the box
-
-        # First, get redshifts
-        #if not self.sim.cosm.interpolate:
-        #    zarr = np.arange(0, 10, 0.01)
-        #    #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
-        #    #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
-        #    dofz = np.array([self.sim.cosm.get_dist_los_comoving(0, z) \
-        #        for z in zarr]) / cm_per_mpc
-        #    # arcmin / Mpc -> deg / Mpc
-        #    angl = np.array([self.sim.cosm.get_length_comoving_from_angle(z, 1) \
-        #        for z in zarr]) / 60.
-
-        # Move the front edge of the box to redshift `z0`
-        # Will automatically use interpolation under the hood in `cosm`
-        # if interpolate_cosmology_in_z=True.
-        d0 = self.sim.cosm.get_dist_los_comoving(0, zlo) / cm_per_mpc
-
-        # Translate LOS distances to redshifts.
-        #if self.sim.cosm.interpolate:
-        #    red = np.interp(zmpc / self.sim.cosm.h70 + d0,
-        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
-        #        self.sim.cosm.tab_z)
-        #    deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0,
-        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
-        #        self.sim.cosm._tab_deg_per_cmpc / 60.)
-        #else:
-        dofz = self.sim.cosm._tab_dist_los_co / cm_per_mpc
-        angl = self.sim.cosm._tab_ang_from_co / 60.
-        red = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz,
-            self.sim.cosm.tab_z)
-
-        # Conversion from physical to angular coordinates
-        deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, angl)
-
-        ra  = xmpc * deg_per_mpc
-        dec = ympc * deg_per_mpc
-
-        return ra, dec, red
 
     def thin_sample(self, max_sources=None):
 
@@ -650,10 +388,39 @@ class LightCone(object): # pragma: no cover
 
     #    return s
 
-    #@profile
+    def get_seed_kwargs(self, chunk, logmlim):
+        # Deterministically adjust the random seeds for the given mass range
+        # and redshift range.
+        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
+        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
+
+        if not hasattr(self, '_seeds'):
+            self._seeds = self.seed_rho * np.arange(1, len(zmid)+1)
+            self._seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+            self._seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+            self._seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+
+            if self.seed_nsers is not None:
+                self._seeds_nsers = self.seed_nsers * np.arange(1, len(zmid)+1) * fmh
+            else:
+                self._seeds_nsers = [None] * len(zmid)
+            if self.seed_pa is not None:
+                self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
+            else:
+                self._seeds_pa = [None] * len(zmid)
+
+        i = chunk
+        return {'seed_box': self._seeds[i],
+            'seed': self._seeds_hm[i], 'seed_pos': self._seeds_hp[i],
+            'seed_occ': self._seeds_ho[i],
+            'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
+
+
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
-        use_pbar=True, verbose=False, max_sources=None, buffer=None, **kwargs):
+        use_pbar=True, verbose=False, max_sources=None, source_prop=None,
+        buffer=None, **kwargs):
         """
         Get a map for a single channel, redshift chunk, mass chunk, and
         source population.
@@ -695,9 +462,13 @@ class LightCone(object): # pragma: no cover
         assert np.diff(fov) == 0, "Only square FOVs allowed right now."
 
         zall = self.get_redshift_chunks(zlim=self.zlim)
-        assert zlim in zall
 
-        ichunk = zall.index(zlim)
+        ##
+        # Make sure `zlim` is in provided redshift chunks.
+        # This is mostly to prevent users from doing something they shouldn't.
+        ichunk = np.argmin(np.abs(zlim[0] - zall[:,0]))
+
+        assert np.allclose(zlim, zall[ichunk])
 
         # Figure out the edges of the domain in RA and DEC (degrees)
         # Pixel coordinates
@@ -754,6 +525,11 @@ class LightCone(object): # pragma: no cover
         if ra is None:
             return #None, None, None
 
+        # Correct for field position. Always (0,0) for log-normal boxes,
+        # may not be for halo catalogs from sims.
+        ra -= self.fxy[0]
+        dec -= self.fxy[1]
+
         ##
         # Figure out which bin each galaxy is in.
         ra_bin = np.digitize(ra, bins=ra_e)
@@ -774,6 +550,14 @@ class LightCone(object): # pragma: no cover
         else:
             okz = None
             ok = okp
+
+        # Can isolate further by narrower redshift range
+        if source_prop is not None:
+            if 'z' in source_prop:
+                szlim = source_prop['z']
+                oks = np.logical_and(red >= szlim[0], red < szlim[1])
+
+            ok = np.logical_and(ok, oks)
 
         # For debugging and tests, we can dramatically limit the
         # number of sources. Thin out the herd here.
@@ -860,8 +644,8 @@ class LightCone(object): # pragma: no cover
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
-        # Extended emission from IHL, satellites
-        if (not self.sim.pops[popid].is_central_pop):
+        # Extended emission from IHL
+        if self.sim.pops[popid].is_diffuse:
 
             Rmi, Rma = -3, 1
             dlogR = 0.25
@@ -897,8 +681,12 @@ class LightCone(object): # pragma: no cover
 
             R_sec = np.zeros_like(Rkpc)
             for kk in range(red.size):
-                R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk], Rkpc[kk] * 1e-3)
+                R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
+                    Rkpc[kk] * 1e-3)
             R_sec *= 60.
+
+            # `R_sec` is the angular size of each galaxy in the model in arcsec.
+            # Note: the size is defined as the stellar half-light radius.
 
             # Uniform for now.
             np.random.seed(seed_kw['seed_nsers'])
@@ -909,6 +697,12 @@ class LightCone(object): # pragma: no cover
             # Ellipticity = 1 - b/a
             ellip = np.random.random(size=Rkpc.size)
 
+            ##
+            # Next, impose effective stopping criterion in size where we
+            # stop painting on Sersic profiles and just dump all photons
+            # in a single pixel.
+            #
+
             # Will paint anything half-light radius greater than a pixel
             if size_cut == 0.5:
                 R_X = R_sec
@@ -916,11 +710,6 @@ class LightCone(object): # pragma: no cover
             # radius containing `size_cut` fraction of the light, that
             # exceeds a pixel.
             else:
-                rarr = np.logspace(-1, 1.5, 500)
-                #cog_sfg = [self.sim.pops[popid].get_sersic_cog(r,
-                #    n=nsers[h]) \
-                #    for r in rarr]
-
                 rmax = [self.sim.pops[popid].get_sersic_rmax(size_cut,
                     nsers[h]) for h in range(Rkpc.size)]
 
@@ -955,7 +744,7 @@ class LightCone(object): # pragma: no cover
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
-            if not self.sim.pops[popid].is_central_pop:
+            if self.sim.pops[popid].is_diffuse:
 
                 # Image of distances from halo center
                 r0 = ra_c[i] * 60 * mpc_per_arcmin
@@ -996,6 +785,7 @@ class LightCone(object): # pragma: no cover
             # Otherwise just add flux to single pixel
             else:
                 img[i,j] += _flux_
+
 
         ##
         # Clear out some memory sheesh
@@ -1097,7 +887,8 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='fits', hdr={}, max_sources=None, cat_units='uJy',
+        suffix=None, fmt='fits', hdr={}, max_sources=None, source_prop=None,
+        cat_units='uJy',
         include_pops=None, clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
         """
@@ -1175,7 +966,7 @@ class LightCone(object): # pragma: no cover
             popid, channel, chname, zchunk, mchunk = chunk
 
             # Get number of z chunk
-            iz = zchunks.index(zchunk)
+            iz = np.digitize(zchunk.mean(), bins=zchunks[:,0]) - 1
 
             # See if we already finished this map.
             fn = self.get_cat_fn(fov, pix, channel, popid,
@@ -1201,6 +992,8 @@ class LightCone(object): # pragma: no cover
                 # Get basic halo properties
                 _ra, _dec, _red, _Mh = self.get_catalog(zlim=zchunk,
                     logmlim=mchunk, popid=popid, verbose=verbose)
+
+
 
                 # Could be empty chunks for very massive halos and/or early times.
                 if _ra is None:
@@ -1233,6 +1026,13 @@ class LightCone(object): # pragma: no cover
                             # This will be the final iteration.
                             if ct + ok.sum() == max_sources:
                                 self._hit_max_sources = True
+
+                    if source_prop is not None:
+                        if 'z' in source_prop:
+                            szlim = source_prop['z']
+                            oks = np.logical_and(_red >= szlim[0], _red < szlim[1])
+
+                        ok = np.logical_and(ok, oks)
 
 
                     # Isolate OK entries.
@@ -1374,10 +1174,83 @@ class LightCone(object): # pragma: no cover
 
         return all_chunks
 
+    def _check_for_corrupted_files(self, fov, pix, channels, logmlim, dlogm,
+        include_pops, channel_names=None):
+        """
+        When running on a cluster, occasionally we get really unlucky and an
+        output file will be corrupted, (probably) because we hit the wallclock
+        time limit on the job while the file is being written. This routine
+        does a cursory check that pre-existing files all have the same size, as
+        a quick-and-dirty way of rooting out corrupted files.
+        """
+
+
+        # Assemble list of map layers to run.
+        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+            include_pops=include_pops, channel_names=channel_names)
+
+        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
+        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+
+        # Check status before we start
+        all_sizes = np.zeros(len(all_chunks))
+        all_fn = []
+
+        for h, chunk in enumerate(all_chunks):
+
+            # Unpack info about this chunk
+            popid, channel, chname, zchunk, mchunk = chunk
+
+            # See if we already finished this map.
+            fn = self.get_map_fn(fov, pix, channel, popid,
+                logmlim=mchunk, zlim=zchunk)
+
+            all_fn.append(fn)
+
+            if not os.path.exists(fn):
+                continue
+
+            all_sizes[h] = os.path.getsize(fn)
+
+
+        # Find
+        usizes = np.unique(all_sizes)
+
+        if len(usizes) > 2:
+            print(f"! WARNING: evidence for corrupted file(s)!")
+            should_be = usizes.max()
+
+            probs = []
+            for h, fn in enumerate(all_fn):
+                if all_sizes[h] in [0, should_be]:
+                    continue
+
+                probs.append(fn)
+
+                print(f"! Problem file for chunk={h}: {fn}.")
+
+            ##
+            # Consistent with failed write as job is killed
+            if len(probs) == 1:
+                #os.remove(probs[0])
+                print(f"! Removed corrupted file {fn}.")
+            else:
+                raise IOError('! {len(probs)} corrupted files detected. Help?')
+
+        elif np.all(all_sizes == 0):
+            # Means this is the first time the mock is being run.
+            pass
+        else:
+            ##
+            # Made it here? All good
+            print(f"! No corrupted files detected! All {len(all_chunks)} chunks look good.")
+
+
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=None, clobber=False, max_sources=None,
+        include_pops=None, clobber=False, max_sources=None, source_prop=None,
+        load_if_found=True,
         keep_layers=True, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
@@ -1433,6 +1306,13 @@ class LightCone(object): # pragma: no cover
 
         # Create root directory if it doesn't already exist.
         self.build_directory_structure(fov, pix, dryrun=False)
+
+        # Must do this after building the directory tree otherwise
+        # we'll get errors.
+        if not clobber:
+            self._check_for_corrupted_files(fov, pix, channels,
+                logmlim=logmlim, dlogm=dlogm,
+                include_pops=include_pops, channel_names=channel_names)
 
         ##
         # Initialize a README file / see what's in it.
@@ -1502,6 +1382,7 @@ class LightCone(object): # pragma: no cover
             len(all_zchunks), len(all_mchunks)))
         status_done_now = status_done_pre.copy()
 
+        ##
         # Check status before we start
         for h, chunk in enumerate(all_chunks):
 
@@ -1513,12 +1394,14 @@ class LightCone(object): # pragma: no cover
             iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
             im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
 
+            ip = include_pops.index(popid)
+
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=mchunk, zlim=zchunk)
 
             if os.path.exists(fn) and (not clobber):
-                status_done_pre[popid,ichan,iz,im] = 1
+                status_done_pre[ip,ichan,iz,im] = 1
 
         # Progress bar
         pb = ProgressBar(len(all_chunks),
@@ -1580,20 +1463,24 @@ class LightCone(object): # pragma: no cover
             ran_new = True
             if os.path.exists(fn) and (not clobber):
                 # Load map
-                _buffer, _hdr = self._load_map(fn)
+                if load_if_found:
+                    _buffer, _hdr = self._load_map(fn)
 
-                if _hdr['BUNIT'] == map_units:
-                    _buffer *= (f_norm / dnu)**-1.
+                    if _hdr['BUNIT'] == map_units:
+                        _buffer *= (f_norm / dnu)**-1.
+                    else:
+                        raise NotImplemented('help')
+
+                    # Might need to adjust units before incrementing
+                    #buffer += _buffer
+                    # Increment map for this z chunk
+                    cimg += _buffer
+
+                    if verbose:
+                        print(f"# Loaded map {fn}.")
                 else:
-                    raise NotImplemented('help')
-
-                # Might need to adjust units before incrementing
-                #buffer += _buffer
-                # Increment map for this z chunk
-                cimg += _buffer
-
-                if verbose:
-                    print(f"# Loaded map {fn}.")
+                    print(f"# Elected not to load {fn} since load_if_found=False.")
+                    print(f"# Be sure to re-run `generate_maps` once all checkpoints are done. with load_if_found=True.")
 
                 ran_new = False
             else:
@@ -1609,10 +1496,11 @@ class LightCone(object): # pragma: no cover
                     size_cut=size_cut,
                     dlam=dlam, use_pbar=False,
                     max_sources=max_sources,
+                    source_prop=source_prop,
                     buffer=buffer, verbose=verbose,
                     **kwargs)
 
-                status_done_now[popid,ichan,iz,im] = 1
+                status_done_now[ip,ichan,iz,im] = 1
 
             # Save every mass chunk within every redshift chunk if the user
             # says so.
@@ -1632,13 +1520,13 @@ class LightCone(object): # pragma: no cover
             # Otherwise, figure out what (if anything) needs to be
             # written to disk now.
             done_w_chan = np.all(
-                status_done_pre[popid,ichan,:,:] +
-                status_done_now[popid,ichan,:,:]
+                status_done_pre[ip,ichan,:,:] +
+                status_done_now[ip,ichan,:,:]
                 )
 
             # This probably means our re-run only added channels, not
             # z chunks or mass chunks.
-            was_done_already = np.all(status_done_pre[popid,ichan,:,:] == 1) \
+            was_done_already = np.all(status_done_pre[ip,ichan,:,:] == 1) \
                 and (not clobber)
 
             ##
@@ -1666,7 +1554,9 @@ class LightCone(object): # pragma: no cover
             # If we're done with the channel and population, time to write
             # a final "channel map". Afterward, we'll zero-out `cimg` to be
             # incremented starting on the next iteration.
-            if done_w_chan and ((not was_done_already) or (not _fn_exists)):
+            if done_w_chan and ((not was_done_already) or (not _fn_exists)) \
+                and load_if_found:
+
 
                 self.save_map(_fn, cimg * f_norm / dnu,
                     channel, self.zlim, logmlim, fov,
@@ -1703,6 +1593,8 @@ class LightCone(object): # pragma: no cover
                 if write_README:
                     with open(f'{base_dir}/README', 'a') as f:
                         f.write(s_ch)
+            elif done_w_chan and ((not was_done_already) or (not _fn_exists)):
+                print(f"! Done with map {_fn} but did not write because load_if_found=False.")
 
             ##
             # Need to zero-out channel map if done with channel, regardless
@@ -1713,6 +1605,7 @@ class LightCone(object): # pragma: no cover
 
             ##
             # Next task
+
 
         # All done.
         pb.finish()
@@ -1796,8 +1689,6 @@ class LightCone(object): # pragma: no cover
                 print(f"# Wrote {fn}.")
 
         elif fmt == 'fits':
-            from astropy.io import fits
-
             hdr = fits.Header(hdr)
             #_hdr.update(hdr)
             #hdr = _hdr
@@ -1864,11 +1755,19 @@ class LightCone(object): # pragma: no cover
             with h5py.File(fn, 'r') as f:
                 img = np.array(f[('ebl')])
         elif fmt == 'fits':
-            from astropy.io import fits
+
+            if self.verbose:
+                print(f"! Attempting to load {fn}...")
+
+            t1 = time.time()
             with fits.open(fn) as hdu:
                 # In whatever `map_units` user supplied.
                 img = hdu[0].data
                 hdr = hdu[0].header
+
+            t2 = time.time()
+            print(f"! Loaded {fn} [took {(t2-t1):.2f} sec].")
+
         else:
             raise NotImplementedError(f'No support for fmt={fmt}!')
 
