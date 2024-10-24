@@ -76,6 +76,9 @@ class HaloModel(HaloMassFunction):
         return c** 3. / (4. * np.pi) / (np.log(1 + c) - c / (1 + c))
 
     def get_rho_nfw(self, z, Mh, r, truncate=True):
+        """
+        Return the density at radius `r` for an NFW halo with mass `Mh` at `z`.
+        """
 
         con = self.get_concentration(z, Mh)
         rvir = self.get_Rvir_from_Mh(Mh)

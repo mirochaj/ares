@@ -14,10 +14,10 @@ import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
-from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
+from scipy.integrate import cumulative_trapezoid
 
 try:
     import powerbox as pbox
@@ -394,16 +394,23 @@ class LogNormal(LightCone): # pragma: no cover
         # Done
         return pos
 
-    def get_halo_masses(self, z, N, mmin=1e11, mmax=np.inf, seed=None):
+    def get_halo_masses(self, z, N, mmin=1e11, mmax=np.inf, seed=None,
+        subhalos=False, Mc=None):
         # Grab dn/dm and construct CDF to randomly sampled HMF.
 
         # Don't bother with m << mmin halos
-        iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
         ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
-                            self.sim.pops[0].halos.tab_M < mmax)
+                            self.sim.pops[0].halos.tab_M <  mmax)
 
         m = self.sim.pops[0].halos.tab_M[ok==1]
-        dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
+
+        if subhalos:
+            iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
+            # We only keep dn/dlnM for some reason, convert to dn/dm
+            dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m
+        else:
+            iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+            dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
         # Compute CDF
         ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
@@ -426,9 +433,10 @@ class LogNormal(LightCone): # pragma: no cover
 
         return mass
 
-    def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True):
+    def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
+        satellites=False, logmlim_sats=None):
         """
-        Get a galaxy catalog in (RA, DEC, redshift) coordinates.
+        Get a halo catalog in (RA, DEC, redshift) coordinates.
 
         .. note :: This is essentially a wrapper around `_get_catalog_from_coeval`,
             i.e., we're just figuring out how many chunks are needed along the
@@ -448,7 +456,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         Returns
         -------
-        A tuple containing (ra, dec, redshift, <mass or magnitudes or SFR or w/e>)
+        A tuple containing (ra, dec, redshift, halo mass).
 
         """
 
@@ -646,7 +654,119 @@ class LogNormal(LightCone): # pragma: no cover
 
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
 
-        return ra, dec, red, mass
+        ##
+        # At this point, ra, dec, red, mass are for CENTRALS ONLY.
+        # For satellites, we've got a bit more work to do.
+        if satellites:
+            ra_s, dec_s, red_s, mass_s = self.get_catalog_satellites(ra, dec, red, mass)
+            return ra_s, dec_s, red_s, mass_s
+        else:
+            return ra, dec, red, mass
+
+    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, logmlim=(11,15),
+        seed=None):
+        """
+        Get a catalog of satellite galaxies for input central catalog.
+        """
+
+        ##
+        # All we're going to do is randomly distribute satellites in
+        # mass according to the subhalo mass function and in space
+        # using an NFW profile.
+
+        # First, grab a few things we need. This is 2-D (Mc, Msat)
+        hmf_sub = self.sim.pops[0].halos.tab_dndlnm_sub
+
+        ok_sub = np.logical_and(self.sim.pops[0].halos.tab_M >= 10**logmlim[0],
+                                self.sim.pops[0].halos.tab_M <  10**logmlim[1])
+
+        # Expected number of subhalos vs. central halo mass.
+        # Just need to do this once per `logmlim`.
+        Nexp = np.trapz(hmf_sub[:,ok_sub==1],
+            x=np.log(self.sim.pops[0].halos.tab_M[ok_sub==1]), axis=1)
+
+
+        # Array of radial separations [cMpc]
+        d = np.logspace(-2, 0, 100) # 10 kpc -> 1 Mpc
+
+        ##
+        # Just loop to start. Could truncate based on where expected
+        # number of satellites is effectively zero.
+        Nc = len(mass_c)
+
+        ra = []
+        dec = []
+        red = []
+        mass = []
+
+        for i in range(Nc):
+
+            # First grab the subhalo-mf for this redshift
+            #iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - red_c[i]))
+            #smf = hmf_sub[iz,:]
+
+            # Index for this halo mass
+            iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
+
+            print(f'getting subhalos for halo={i}...')
+
+            print(Nexp[iM], red_c[i], np.log10(mass_c[i]))
+
+            Nsat_exp = int(Nexp[iM])
+
+            # Outsources sampling over sub-halo MF
+            _m = self.get_halo_masses(red_c[i], Nsat_exp,
+                mmin=10**logmlim[0], mmax=10**logmlim[1], seed=seed,
+                subhalos=True, Mc=mass_c[i])
+
+            Nsat_act = len(_m)
+
+            mass.extend(list(_m))
+
+            ##
+            # Now, do positions. Do in 2-D or 3-D?
+            Sigma = self.sim.pops[0].halos.get_halo_surface_dens(red_c[i],
+                mass_c[i], d)
+
+            ##
+            #
+            cdf = cumulative_trapezoid(Sigma, x=d, initial=0) \
+                / np.trapz(Sigma, x=d)
+
+            r = np.random.rand(Nsat_act)
+
+            # Radial displacement of all satellites in cMpc
+            r_proj_mpc = np.exp(np.interp(r, cdf, np.log(d)))
+
+            mpc_per_deg = \
+                self.sim.cosm.get_length_comoving_from_angle(red_c[i], 60.)
+
+            r_proj_deg = r_proj_mpc / mpc_per_deg
+
+            #r_vir_deg = self.sim.pops[0].halos.get_Rvir_from_Mh(mass_c[i]) \
+            #    / mpc_per_deg
+
+            # Need to turn into RA and DEC
+            # Randomly choose an angle
+            theta = np.random.rand(Nsat_act) * 2 * np.pi
+
+            # Then convert to x and y displacements
+            x_deg = np.cos(theta) * r_proj_deg
+            y_deg = np.sin(theta) * r_proj_deg
+
+
+            # Give `y_deg` a random +/- sign
+
+            ra.extend(list(x_deg))
+            dec.extend(list(y_deg))
+
+            ##
+            # Make some dynamical argument to shift redshifts?
+            # Yeah, let's just
+            # get_vcirc -> dz
+            red.extend([red_c[i]] * Nsat_act)
+
+        return np.array(ra), np.array(dec), np.array(red), np.array(mass)
 
     def _get_catalog_from_coeval(self, halos, zlo=0.2):
         """
