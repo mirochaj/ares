@@ -30,7 +30,8 @@ class LogNormal(LightCone): # pragma: no cover
         seed_rot=None, seed_trans=None, seed_pa=None, seed_nsers=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
-        randomise_in_cell=True, base_dir='ares_mock', mem_concious=1, **kwargs):
+        randomise_in_cell=True, base_dir='ares_mock', mem_concious=1,
+        dz_max=0.1, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -53,6 +54,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.zmin = zmin
         self.zmax = zmax
         self.zlim = (zmin, zmax)
+        self.dz_max = dz_max
         self.seed_rho = seed_rho
         self.seed_halo_mass = seed_halo_mass
         self.seed_halo_pos = seed_halo_pos
@@ -658,8 +660,9 @@ class LogNormal(LightCone): # pragma: no cover
         # At this point, ra, dec, red, mass are for CENTRALS ONLY.
         # For satellites, we've got a bit more work to do.
         if satellites:
-            ra_s, dec_s, red_s, mass_s = self.get_catalog_satellites(ra, dec, red, mass)
-            return ra_s, dec_s, red_s, mass_s
+            ra_s, dec_s, red_s, mass_s, par_id = \
+                self.get_catalog_subhalos(ra, dec, red, mass)
+            return ra_s, dec_s, red_s, mass_s#, par_id
         else:
             return ra, dec, red, mass
 
@@ -698,7 +701,7 @@ class LogNormal(LightCone): # pragma: no cover
         dec = []
         red = []
         mass = []
-
+        par_id = []
         for i in range(Nc):
 
             # First grab the subhalo-mf for this redshift
@@ -707,10 +710,6 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Index for this halo mass
             iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
-
-            print(f'getting subhalos for halo={i}...')
-
-            print(Nexp[iM], red_c[i], np.log10(mass_c[i]))
 
             Nsat_exp = int(Nexp[iM])
 
@@ -766,7 +765,11 @@ class LogNormal(LightCone): # pragma: no cover
             # get_vcirc -> dz
             red.extend([red_c[i]] * Nsat_act)
 
-        return np.array(ra), np.array(dec), np.array(red), np.array(mass)
+            # Save index for the parent halo.
+            par_id.extend([i] * Nsat_act)
+
+        return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
+            np.array(par_id)
 
     def _get_catalog_from_coeval(self, halos, zlo=0.2):
         """

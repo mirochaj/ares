@@ -416,7 +416,6 @@ class LightCone(object): # pragma: no cover
             'seed_occ': self._seeds_ho[i],
             'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
 
-
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
@@ -498,28 +497,13 @@ class LightCone(object): # pragma: no cover
         ct = 0
 
         zlo, zhi = zlim
-
-        ##
-        # Loop over redshift chunks and assemble image.
-        #for _iz_, (zlo, zhi) in enumerate(zall):
-
-        #    if _hit_max_sources:
-        #        break
-
-        #    if (zhi <= zlim[0]) or (zlo >= zlim[1]):
-        #        continue
-
-        _z_ = np.mean([zlo, zhi])
-
-            #   if save_intermediate:
-            #       iz = _iz_
-            #   else:
-            #       iz = 0
+        zmid = np.mean([zlo, zhi])
 
         seed_kw = self.get_seed_kwargs(ichunk, logmlim)
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
-            logmlim=logmlim, popid=popid, verbose=verbose)
+            logmlim=logmlim, popid=popid, verbose=verbose,
+            satellites=self.sim.pops[popid].is_satellite_pop)
 
         # Could be empty chunks for very massive halos and/or early times.
         if ra is None:
@@ -608,33 +592,34 @@ class LightCone(object): # pragma: no cover
         # rest wavelengths, so must divide by (1+z) to get flux in observer
         # frame.
 
-        # Find bounding wavelength range to limit memory consumption, i.e.,
-        # don't grab rest-frame SED outside of range needed by observer.
-        # This really only helps if the user has instituted a cut in
-        # redshift that eliminates a significant fraction of any chunk.
-        _zlo = zlim[0] if zlim is not None else red.min()
-        _zhi = zlim[1] if zlim is not None else red.max()
-        _wlo = channel[0] * 1e4 / (1. + min(red.max(), _zhi))
-        _whi = channel[1] * 1e4 / (1. + max(red.min(), _zlo))
-
-        # [waves] = Angstroms rest-frame, [seds] = erg/s/A.
-        # Shape of seds is (N galaxies, N wavelengths)
         # Shape of (ra, dec, red) is just (Ngalaxies)
-        #waves = np.arange(_wlo, _whi+dlam, dlam)
 
-        x = np.array([np.mean(channel) * 1e4 / (1. + _z_)])
-        band = (channel[0] * 1e4 / (1. + _z_), channel[1] * 1e4 / (1. + _z_))
-        #dfreq = (c * 1e8 / min(band)) - (c * 1e4 / max(band))
-        #dlam = band[1] - band[0]
-        # Need to supply band or window?
+        ##
+        # In general, we'll scan through narrow z slices and report the
+        # integrated emission in those slices. If we don't do this, big co-eval
+        # boxes will lead to spectral errors.
+        zsub_lo = 1 * zlo
+
+        seds = np.zeros(ok.sum())
+        while zsub_lo < zhi:
+
+            zsub_hi = min(zsub_lo + self.dz_max, zhi)
+
+            zsub_mid = np.mean([zsub_lo, zsub_hi])
+
+            band = channel[0] * 1e4 / (1. + zsub_lo), \
+                   channel[1] * 1e4 / (1. + zsub_hi)
+
+            okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
+
+            seds[okzsub==1] = self.sim.pops[popid].get_lum(zsub_mid, x=None,
+                Mh=Mh[okzsub==1], units='Ang',
+                units_out='erg/s/Ang', band=tuple(band))
+
+            zsub_lo += self.dz_max
+
         # Note: NOT using get_spec_obs because every object has a
         # slightly different redshift, want more precise fluxes.
-
-        seds = self.sim.pops[popid].get_lum(_z_, x, Mh=Mh, units='Ang',
-            units_out='erg/s/Ang', band=tuple(band))
-
-        # `owaves` is still in Angstroms
-        #owaves = waves[None,:] * (1. + red[:,None])
 
         # Frequency "squashing", i.e., our 'per Angstrom' interval is
         # different in the observer frame by a factor of 1+z.
@@ -654,20 +639,20 @@ class LightCone(object): # pragma: no cover
             if max_sources == 1:
 
                 Sall = self.sim.pops[popid].halos.get_halo_surface_dens(
-                    _z_, Mh[0], Rall
+                    zmid, Mh[0], Rall
                 )
 
                 Sall = np.array([Sall])
 
                 Mall = Mh
             else:
-                _iz = np.argmin(np.abs(_z_ - self.sim.pops[popid].halos.tab_z))
+                _iz = np.argmin(np.abs(zmid - self.sim.pops[popid].halos.tab_z))
 
                 # Remaining dimensions (Mh, R)
                 Sall = self.sim.pops[popid].halos.tab_Sigma_nfw[_iz,:,:]
                 Mall = self.sim.pops[popid].halos.tab_M
 
-            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(_z_,
+            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
                 pix / 60.)
 
             rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
@@ -864,7 +849,7 @@ class LightCone(object): # pragma: no cover
         hdr += "# Note: all wavelengths here are in microns.\n"
         hdr += "#" * 78
         hdr += "\n"
-        hdr += "# channel name [optional]; central wavelength; "
+        hdr += "# channel name; central wavelength; "
         hdr += "channel lower edge; channel upper edge; "
         hdr += "population ID; filename \n"
 
@@ -888,7 +873,7 @@ class LightCone(object): # pragma: no cover
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={}, max_sources=None, source_prop=None,
-        cat_units='uJy',
+        cat_units='uJy', keep_layers=False,
         include_pops=None, clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
         """
@@ -965,6 +950,9 @@ class LightCone(object): # pragma: no cover
             # Unpack info about this chunk
             popid, channel, chname, zchunk, mchunk = chunk
 
+            # Short-hand needed below
+            zlo, zhi = zchunk
+
             # Get number of z chunk
             iz = np.digitize(zchunk.mean(), bins=zchunks[:,0]) - 1
 
@@ -991,9 +979,8 @@ class LightCone(object): # pragma: no cover
 
                 # Get basic halo properties
                 _ra, _dec, _red, _Mh = self.get_catalog(zlim=zchunk,
-                    logmlim=mchunk, popid=popid, verbose=verbose)
-
-
+                    logmlim=mchunk, popid=popid, verbose=verbose,
+                    satellites=self.sim.pops[popid].is_satellite_pop)
 
                 # Could be empty chunks for very massive halos and/or early times.
                 if _ra is None:
@@ -1060,9 +1047,31 @@ class LightCone(object): # pragma: no cover
                     else:
                         cam, filt = channel.split('_')
 
-                        _filt, mags = self.sim.pops[popid].get_mags(zcent[iz],
-                            absolute=False, cam=cam, filters=[filt],
-                            Mh=_Mh)
+                        ##
+                        # Once again, in general need to sub-cycle through z
+                        # to preserve accuracy.
+                        zsub_lo = 1 * zlo
+
+                        mags = np.inf * np.ones(_Mh.size)
+                        while zsub_lo < zhi:
+
+                            zsub_hi = min(zsub_lo + self.dz_max, zhi)
+
+                            zsub_mid = np.mean([zsub_lo, zsub_hi])
+
+                            okzsub = np.logical_and(_red >= zsub_lo,
+                                _red < zsub_hi)
+
+                            _filt, out = \
+                                self.sim.pops[popid].get_mags(zsub_mid,
+                                absolute=False, cam=cam, filters=[filt],
+                                Mh=_Mh[okzsub==1])
+
+                            # There's a meaningless second dimension here
+                            # because get_mags can report mags for multiple
+                            # filters at once, we're just not doing that here.
+                            mags[okzsub==1] = out[:,0]
+                            zsub_lo += self.dz_max
 
                         if cat_units == 'mags':
                             _dat = np.atleast_1d(mags.squeeze())
@@ -1080,11 +1089,12 @@ class LightCone(object): # pragma: no cover
 
                     ##
                     # Save
-                    self.save_cat(fn, (_ra, _dec, _red, _dat),
-                        channel, zchunk, mchunk,
-                        fov, pix=pix, fmt=fmt, hdr=hdr,
-                        cat_units=cat_units,
-                        clobber=clobber, verbose=verbose)
+                    if keep_layers:
+                        self.save_cat(fn, (_ra, _dec, _red, _dat),
+                            channel, zchunk, mchunk,
+                            fov, pix=pix, fmt=fmt, hdr=hdr,
+                            cat_units=cat_units,
+                            clobber=clobber, verbose=verbose)
 
 
                     dat.extend(list(_dat))
@@ -1251,7 +1261,7 @@ class LightCone(object): # pragma: no cover
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=None, clobber=False, max_sources=None, source_prop=None,
         load_if_found=True,
-        keep_layers=True, use_pbar=False, verbose=False, dryrun=False, **kwargs):
+        keep_layers=False, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1799,7 +1809,7 @@ class LightCone(object): # pragma: no cover
         return ra, dec, red, X, Xunit
 
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
-        prefix=None, suffix=None, save_dir=None, keep_layers=True, fmt='fits'):
+        prefix=None, suffix=None, save_dir=None, keep_layers=False, fmt='fits'):
         """
         Assemble an array of maps.
         """
