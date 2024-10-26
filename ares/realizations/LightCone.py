@@ -516,8 +516,9 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Figure out which bin each galaxy is in.
-        ra_bin = np.digitize(ra, bins=ra_e)
-        dec_bin = np.digitize(dec, bins=dec_e)
+        # Slightly faster than np.digitize
+        ra_bin = np.searchsorted(ra_e, ra, side='right')
+        dec_bin = np.searchsorted(dec_e, dec, side='right')
         mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
         mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
         ra_ind = ra_bin - 1
@@ -607,8 +608,8 @@ class LightCone(object): # pragma: no cover
 
             zsub_mid = np.mean([zsub_lo, zsub_hi])
 
-            band = channel[0] * 1e4 / (1. + zsub_lo), \
-                   channel[1] * 1e4 / (1. + zsub_hi)
+            band = channel[0] * 1e4 / (1. + zsub_mid), \
+                   channel[1] * 1e4 / (1. + zsub_mid)
 
             okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
 
