@@ -601,7 +601,7 @@ class LightCone(object): # pragma: no cover
         # boxes will lead to spectral errors.
         zsub_lo = 1 * zlo
 
-        seds = np.zeros(ok.sum())
+        flux = np.zeros(ok.sum())
         while zsub_lo < zhi:
 
             zsub_hi = min(zsub_lo + self.dz_max, zhi)
@@ -613,19 +613,15 @@ class LightCone(object): # pragma: no cover
 
             okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
 
-            seds[okzsub==1] = self.sim.pops[popid].get_lum(zsub_mid, x=None,
+            _flux_ = self.sim.pops[popid].get_lum(zsub_mid, x=None,
                 Mh=Mh[okzsub==1], units='Ang',
                 units_out='erg/s/Ang', band=tuple(band))
 
+            # Frequency "squashing", i.e., our 'per Angstrom' interval is
+            # different in the observer frame by a factor of 1+z.
+            flux[okzsub==1] = _flux_ * corr[okzsub==1] / (1. + zsub_mid)
+
             zsub_lo += self.dz_max
-
-        # Note: NOT using get_spec_obs because every object has a
-        # slightly different redshift, want more precise fluxes.
-
-        # Frequency "squashing", i.e., our 'per Angstrom' interval is
-        # different in the observer frame by a factor of 1+z.
-        #flux = corr[:,None] * seds[:,:] / (1. + red[:,None])
-        flux = seds * corr / (1. + red)
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -728,6 +724,8 @@ class LightCone(object): # pragma: no cover
             # Grab the flux
             _flux_ = flux[h]
 
+            #print(f'should be adding flux to pixel i={i}, j={j}, flux={flux[h]}')
+
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
             if self.sim.pops[popid].is_diffuse:
@@ -751,6 +749,8 @@ class LightCone(object): # pragma: no cover
                 else:
                     img[:,:] += _flux_ * I / tot
 
+                #print(f"doing IHL, _flux_={_flux_}, tot={tot}")
+
             elif include_galaxy_sizes and R_X[h] >= 1:
 
                 model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
@@ -772,10 +772,9 @@ class LightCone(object): # pragma: no cover
             else:
                 img[i,j] += _flux_
 
-
         ##
         # Clear out some memory sheesh
-        del seds, flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
+        del flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
             mask_ra, mask_de, corr
         if self.mem_concious:
             gc.collect()

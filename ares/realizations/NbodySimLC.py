@@ -28,7 +28,7 @@ except ImportError:
 class NbodySim(LightCone): # pragma: no cover
     def __init__(self, model_name, catalog, verbose=True, base_dir='nbody_mock',
         fxy=None, fov=None, Lbox=999, dims=999, mem_concious=False,
-        seed_halo_occ=None, seed_nsers=None, seed_pa=None,
+        seed_halo_occ=None, seed_nsers=None, seed_pa=None, dz_max=0.1,
         zmin=0.07, zmax=1.4, zchunks=None, include_satellites=0, **kwargs):
         """
         Initialize a galaxy population from a simulated halo lightcone.
@@ -58,6 +58,7 @@ class NbodySim(LightCone): # pragma: no cover
         self.mem_concious = mem_concious
         self.zmin = zmin
         self.zmax = zmax
+        self.dz_max = dz_max
         self.zlim = zmin, zmax
         self.zchunks = zchunks
 
@@ -81,7 +82,7 @@ class NbodySim(LightCone): # pragma: no cover
         raise NotImplemented('No analog for this in NbodySimLC approach.')
 
     def get_catalog(self, zlim=None, logmlim=None, popid=0,
-        seed_occ=None, verbose=True):
+        seed_occ=None, verbose=True, satellites=False):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
 
@@ -165,7 +166,7 @@ class NbodySim(LightCone): # pragma: no cover
             else:
                 okp = 1
 
-            if self.include_satellites:
+            if self.include_satellites and satellites:
                 okc = 1
             else:
                 # 0 for centrals!

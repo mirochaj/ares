@@ -436,7 +436,7 @@ class LogNormal(LightCone): # pragma: no cover
         return mass
 
     def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
-        satellites=False, logmlim_sats=None):
+        satellites=False, logmlim_sats=None, max_sources=None):
         """
         Get a halo catalog in (RA, DEC, redshift) coordinates.
 
@@ -509,7 +509,11 @@ class LogNormal(LightCone): # pragma: no cover
             use=chunk_id is None)
         pbar.start()
 
+        # Keep running tally of sources
         ct = 0
+        # Track max_sources
+        _hit_max_sources = False
+
         zlo = zmin * 1.
         for i, Rlo in enumerate(Re[0:-1]):
             pbar.update(i)
@@ -523,10 +527,14 @@ class LogNormal(LightCone): # pragma: no cover
             if (zhi <= zlim[0]) or (zlo >= zlim[1]):
                 continue
 
+            if _hit_max_sources:
+                break
+
             seed_kwargs = self.get_seed_kwargs(i, logmlim)
 
             # Contains (x, y, z, mass)
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
+            # The values thus run from 0 to Lbox.
             halos = self.get_halo_population(z=zmid[i],
                 mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
                 **seed_kwargs)
@@ -538,6 +546,17 @@ class LogNormal(LightCone): # pragma: no cover
             if (halos[0].size == 0):
                 ra = dec = red = mass = None
                 continue
+
+            # Limit number of sources, just for testing.
+            if (max_sources is not None):
+                if (ct == 0) and (max_sources >= halos[0].size):
+                    # In this case, we can accommodate all the galaxies in
+                    # the catalog, so don't do anything yet.
+                    pass
+                else:
+                    # If we ever do max_sources>>1 this will be wrong.
+                    halos = np.array(halos)[:,0:max_sources]
+                    _hit_max_sources = True
 
             # Might change later if we do domain decomposition
             x0 = y0 = z0 = 0.0
@@ -666,8 +685,8 @@ class LogNormal(LightCone): # pragma: no cover
         else:
             return ra, dec, red, mass
 
-    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, logmlim=(11,15),
-        seed=None):
+    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c,
+        logmlim=(11,15), seed=None):
         """
         Get a catalog of satellite galaxies for input central catalog.
         """
@@ -771,7 +790,7 @@ class LogNormal(LightCone): # pragma: no cover
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
             np.array(par_id)
 
-    def _get_catalog_from_coeval(self, halos, zlo=0.2):
+    def _get_catalog_from_coeval(self, halos, zlo):
         """
         Make a catalog in lightcone coordinates (RA, DEC, redshift).
 
@@ -779,46 +798,30 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        # Right now, in [0, Lbox / h] units.
         xmpc, ympc, zmpc, mass = halos
 
         # Shift coordinates to +/- 0.5 * Lbox
         xmpc = (xmpc - 0.5 * self.Lbox) / self.sim.cosm.h70
         ympc = (ympc - 0.5 * self.Lbox) / self.sim.cosm.h70
 
-        # Don't shift zmpc at all, z0 is the front face of the box
-
-        # First, get redshifts
-        #if not self.sim.cosm.interpolate:
-        #    zarr = np.arange(0, 10, 0.01)
-        #    #dofz = self._mf.cosmo.comoving_distance(zarr).to_value()
-        #    #angl = self._mf.cosmo.arcsec_per_kpc_comoving(zarr).to_value()
-        #    dofz = np.array([self.sim.cosm.get_dist_los_comoving(0, z) \
-        #        for z in zarr]) / cm_per_mpc
-        #    # arcmin / Mpc -> deg / Mpc
-        #    angl = np.array([self.sim.cosm.get_length_comoving_from_angle(z, 1) \
-        #        for z in zarr]) / 60.
-
-        # Move the front edge of the box to redshift `z0`
+        # Move the front edge of the box to redshift `zlo`
         # Will automatically use interpolation under the hood in `cosm`
         # if interpolate_cosmology_in_z=True.
         d0 = self.sim.cosm.get_dist_los_comoving(0, zlo) / cm_per_mpc
 
         # Translate LOS distances to redshifts.
-        #if self.sim.cosm.interpolate:
-        #    red = np.interp(zmpc / self.sim.cosm.h70 + d0,
-        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
-        #        self.sim.cosm.tab_z)
-        #    deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0,
-        #        self.sim.cosm._tab_dR_co / cm_per_mpc,
-        #        self.sim.cosm._tab_deg_per_cmpc / 60.)
-        #else:
+
+        # Distance from z=0 to z
         dofz = self.sim.cosm._tab_dist_los_co / cm_per_mpc
+        #
         angl = self.sim.cosm._tab_ang_from_co / 60.
-        red = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz,
+        # Determine redshift by interpolating distance along z
+        red = np.interp((zmpc / self.sim.cosm.h70) + d0, dofz,
             self.sim.cosm.tab_z)
 
         # Conversion from physical to angular coordinates
-        deg_per_mpc = np.interp(zmpc / self.sim.cosm.h70 + d0, dofz, angl)
+        deg_per_mpc = np.interp((zmpc / self.sim.cosm.h70) + d0, dofz, angl)
 
         ra  = xmpc * deg_per_mpc
         dec = ympc * deg_per_mpc
@@ -929,4 +932,9 @@ class LogNormal(LightCone): # pragma: no cover
         if self.mem_concious:
             gc.collect()
 
+        ##
+        # Sort by mass? Otherwise will essentially be in order of pixels as
+        # determined by np.ravel.
+        #sorter = np.argsort(mass)[-1::-1]
         return _x, _y, _z, mass
+        #return _x[sorter], _y[sorter], _z[sorter], mass[sorter]
