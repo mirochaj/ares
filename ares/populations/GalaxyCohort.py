@@ -1585,7 +1585,7 @@ class GalaxyCohort(GalaxyAggregate):
         return self.get_smhm(z=z, Mh=Mh) * Mh \
             * np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
 
-    def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
+    def get_number_counts(self, bins, zmin=0, zmax=10, xobs=1600,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
         dlam=20, zbin=0.1, selection=None):
         """
@@ -1596,58 +1596,96 @@ class GalaxyCohort(GalaxyAggregate):
 
         Parameters
         ----------
-        bins : np.ndarray
-            Magnitude bins in which to report counts [AB].
-        zmin :
-        x : int, float
+        xobs : int, float
             If no `cam` or `filters` provided, this is the *observed*
             wavelength of interest (in `units`). By default, monochromatic,
             but user can supply a `window` as well.
+        bins : np.ndarray
+            Magnitude bins in which to report counts [AB].
+        absolute : bool
+            Controls whether magnitudes provided are absolute or apparent.
+        zmin : int, float
+            Lower limit of integration in redshift.
+        zmax : int, float
+            Upper limit of integration in redshift.
+        zbin : int, float
+            Will do sub-integrations in redshift slices this wide.
+        cam : str, optional
+            If provided, is the telescope camera whose photometry we're trying
+            to mimic, e.g., "wfc3", "euclid", "sdss".
+        filters : tuple
+            If provided, the filter(s) we want photometry for.
+        dlam : int, float
+            If generating photometry via use of `cam` and `filters`, this is the
+            spectral resolution (in Angstroms) that galaxy SEDs are generated
+            at prior to convolving with filter transmission curve.
+
+        Returns
+        -------
+        A tuple containing:
+
+            - Redshift bin centers
+            - 2-D surface density of galaxies in # mag^-1 as a function of
+             redshift (1st axis) and user-supplied magnitude `bins` (2nd axis).
+            - 1-D surface density, integrated over the redshift dimension.
+
+        We leave the magnitude dimension alone since one of the most common
+        use-cases is to integrate above some limiting magnitude.
 
         """
 
         assert units.lower().startswith('ang')
 
+        # Figure out magnibutde binning, assert that the bin-widths are constant.
         dmag = np.diff(bins)
         assert np.all(np.diff(dmag) == 0), \
             "Magnitude bins must be uniformly spaced!"
         dmag = dmag[0]
 
+        # Figure out redshift bins.
         zedges = np.arange(zmin, zmax+zbin, zbin)
-
         zcen = bin_e2c(zedges)
-        counts = np.zeros_like(bins)
 
+        # Loop over redshift intervals and record number counts.
+        counts = np.zeros((len(zcen), len(bins)))
         for i, z in enumerate(zcen):
-            if cam is None:
-                _x_ = x / (1. + z)
-                _w_ = int(window / (1. + z))
-                if _w_ % 2 == 0:
-                    _w_ += 1
-            else:
-                _w_ = None
-                _x_ = None
 
+            # If no `cam` or `filters` provided, map observed wavelength
+            # and `window` into rest-frame, since that's what `get_lf` needs
+            # below.
+            #if cam is None:
+            _x_ = xobs / (1. + z)
+            _w_ = int(window / (1. + z))
+            if _w_ % 2 == 0:
+                _w_ += 1
+            #else:
+            #    _w_ = None
+            #    _x_ = None
+
+            # Compute the luminosity function at this redshift.
             mags, phi = self.get_lf(z, bins, x=_x_,
                 units=units, window=_w_,
                 use_mags=True, absolute=absolute, cam=cam, filters=filters,
                 dlam=dlam)
 
+            # If luminosities are all zero, mags will be inf. Move along.
             if np.all(np.isinf(phi)):
                 continue
 
+            # Get conversion factor from angle and redshift slice to volume.
             vol = self.cosm.ProjectedVolume(z, angle=1., dz=zbin)
 
+            ##
             # Optional: apply selection in other band.
             if selection is not None:
                 assert type(selection) == dict
                 assert 'maglim' in selection.keys()
 
-                if 'cam' not in selection.keys():
-                    _xs_ = selection['x'] / (1. + z)
-                    _ws_ = selection['window'] / (1. + z)
-                else:
-                    _xs_ = _ws_ = None
+                #if 'cam' not in selection.keys():
+                _xs_ = selection['x'] / (1. + z)
+                _ws_ = selection['window'] / (1. + z)
+                #else:
+                #    _xs_ = _ws_ = None
 
                 _xs_, mags_sel = self.get_mags(z=z, x=_xs_, units=units,
                     absolute=absolute, window=_ws_) #raw=raw,
@@ -1676,10 +1714,12 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Increment counts
-            counts[ok==1] += phi[ok==1] * vol
+            counts[i,ok==1] += phi[ok==1] * vol
+
+        counts_tot = np.trapz(counts, x=zcen, axis=0)
 
         # get_lf already has the mag^-1 units! No need to divide by dmag
-        return counts
+        return zcen, counts, counts_tot
 
     @property
     def is_uvlf_parametric(self):
@@ -1858,7 +1898,7 @@ class GalaxyCohort(GalaxyAggregate):
             absolute=True)
 
     def get_bias(self, z, limit, wave=1600., cut_in_mass=False, absolute=False,
-        cut_in_flux=False):
+        cut_in_flux=False, cam=None, filters=None, method=None):
         """
         Compute linear bias of galaxies brighter than (or more massive than)
         some cut-off.
@@ -1902,7 +1942,8 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 ok = tab_M >= limit
         else:
-            _filt, mags = self.get_mags(z, x=wave, absolute=absolute)
+            _filt, mags = self.get_mags(z, x=wave, absolute=absolute,
+                cam=cam, filters=filters, method=method)
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
         integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
@@ -2922,10 +2963,16 @@ class GalaxyCohort(GalaxyAggregate):
         load=True, raw=False, nebular_only=False, apply_dustcorr=False,
         restricted_range=None, total_sat=False):
         """
-        Return magnitudes corresponding to halos in model at redshift `z`.
+        Compute magnitudes for all halos in model at redshift `z`.
 
         .. note :: Assumes AB magnitudes, either absolute or apparent
             depending on value of `absolute` keyword argument.
+
+        Returns
+        -------
+        Tuple containing (filter info, magnitudes). Note that if `cam` and
+        `filters` are provided, the filter info is itself a tuple containing
+        the (filter name, central wavelength, and width [full-width-full-max]).
 
         """
 
@@ -3140,7 +3187,6 @@ class GalaxyCohort(GalaxyAggregate):
                 if z == 6:
                     print('hey!', z, mask, llim)
 
-
                 # Construct array of luminosity vs. halo mass (log10 it)
                 mu = np.log10(Lh)
 
@@ -3282,11 +3328,28 @@ class GalaxyCohort(GalaxyAggregate):
             if (z, x, window, cam, filters, dlam) in self._phi_of_L:
                 return self._phi_of_L[(z, x, window, cam, filters, dlam)]
 
-        # Recall: this is always the *median* luminosity vs. Mh
-        # If scatter is provided, will handle below.
-        Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
-            raw=raw, nebular_only=nebular_only, band=band, units=units,
-            units_out='erg/s/Hz', total_sat=self.is_central_pop)
+        ##
+        # Note: handle `cam` and `filters` with care!
+        if cam is not None:
+            assert len(filters) == 1, "Generalize? Or use `method` kwargs?"
+            finfo, mags = self.get_mags(z, x=x, absolute=True, use_tabs=use_tabs,
+                band=band, units=units, window=window, cam=cam, filters=filters,
+                dlam=dlam,
+                #presets=None, method=None, Mh=None,
+                #load=True, raw=False, nebular_only=False, apply_dustcorr=False,
+                restricted_range=None, total_sat=False
+                )
+
+            # This is a little goofy, but don't worry, we'll get mags
+            # back later.
+            Lh = self.magsys.get_lum_from_mag_abs(z, mags)
+
+        else:
+            # Recall: this is always the *median* luminosity vs. Mh
+            # If scatter is provided, will handle below.
+            Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
+                raw=raw, nebular_only=nebular_only, band=band, units=units,
+                units_out='erg/s/Hz', total_sat=self.is_central_pop)
 
         #dLh = np.abs(np.diff(Lh))
 

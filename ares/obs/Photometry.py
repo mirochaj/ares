@@ -279,10 +279,10 @@ class Photometry(object):
         ##
         # First, easy stuff.
         # If only one filter, or no averaging requested, just return.
-        if (method is None) or (mags.ndim == 1):
+        if (method is None) and (mags.ndim == 1):
             return mags
 
-        if mags.ndim == 2:
+        if (method is None) and mags.ndim == 2:
             if mags.shape[1] == 1:
                 return mags[:,0]
 

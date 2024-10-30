@@ -50,6 +50,9 @@ class MagnitudeSystem(object):
     #    # Luminosity!
     #    return 10**(mag / -2.5) * flux_AB * 4. * np.pi * d10**2
 
+    def get_lum_from_mag_abs(self, z, mags):
+        return 10**(mags / -2.5) * flux_AB * 4. * np.pi * d10**2
+
     def get_lum_from_mag_app(self, z, mags):
         mag_abs = self.get_mags_abs(z, mags)
 
