@@ -10,6 +10,7 @@ Description:
 
 """
 
+import os
 import gc
 import numpy as np
 from ..util import ProgressBar
@@ -122,6 +123,7 @@ class NbodySim(LightCone): # pragma: no cover
 
         # Loop over chunks, read-in data
         N = 0
+        data = None
         for i in range(ilo, ihi):
             z1, z2 = self.zchunks[i]
             z = np.mean([z1, z2])
@@ -191,14 +193,23 @@ class NbodySim(LightCone): # pragma: no cover
             else:
                 oko = 1
 
+            ok = okM*okz*okp*okc*oko
+
+            if not np.any(ok):
+                continue
+
             ##
             # Append to any previous chunk's data.
-            if N == 0:
-                data = _data[okM*okz*okp*okc*oko==1,:].copy()
+            if data is None:
+                data = _data[ok==1,:].copy()
             else:
-                data = np.vstack((_data[okM*okz*okp*okc*oko==1,:], data))
+                data = np.vstack((_data[ok==1,:], data))
 
-            N += 1
+
+        ##
+        # Possible to not get any hits
+        if data is None:
+            return None, None, None, None
 
         ##
         # Return transpose, so users can run, e.g.,

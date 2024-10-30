@@ -978,6 +978,7 @@ class LightCone(object): # pragma: no cover
             else:
 
                 # Get basic halo properties
+                #print('entering get_catalog', zchunk, mchunk)
                 _ra, _dec, _red, _Mh = self.get_catalog(zlim=zchunk,
                     logmlim=mchunk, popid=popid, verbose=verbose,
                     satellites=self.sim.pops[popid].is_satellite_pop)
@@ -991,6 +992,12 @@ class LightCone(object): # pragma: no cover
                     # Hence the use of `pass` here intead.
                     pass
                 else:
+
+                    # Correct for field position. Always (0,0) for log-normal boxes,
+                    # may not be for halo catalogs from sims.
+                    _ra -= self.fxy[0]
+                    _dec -= self.fxy[1]
+
                     # Hack out galaxies outside our requested lightcone.
                     ok = np.logical_and(np.abs(_ra)  < fov / 2.,
                                         np.abs(_dec) < fov / 2.)
