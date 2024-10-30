@@ -585,8 +585,8 @@ class LightCone(object): # pragma: no cover
         de_ind = de_ind[ok==1]
 
         # Get geometrical dilution factor
-        corr = 1. / 4. / np.pi \
-            / (np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc)**2
+        #corr = 1. / 4. / np.pi \
+        #        / (np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc)**2
 
         # Get flux from each object. Units = erg/s/cm^2/Ang.
         # Already accounting for geometrical dilution but provided at
@@ -619,7 +619,9 @@ class LightCone(object): # pragma: no cover
 
             # Frequency "squashing", i.e., our 'per Angstrom' interval is
             # different in the observer frame by a factor of 1+z.
-            flux[okzsub==1] = _flux_ * corr[okzsub==1] / (1. + zsub_mid)
+            corr = 1. / 4. / np.pi \
+                / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
+            flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
 
             zsub_lo += self.dz_max
 
@@ -1067,7 +1069,7 @@ class LightCone(object): # pragma: no cover
                             zsub_mid = np.mean([zsub_lo, zsub_hi])
 
                             okzsub = np.logical_and(_red >= zsub_lo,
-                                _red < zsub_hi)
+                                                    _red < zsub_hi)
 
                             _filt, out = \
                                 self.sim.pops[popid].get_mags(zsub_mid,
