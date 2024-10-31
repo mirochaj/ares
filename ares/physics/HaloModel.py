@@ -265,7 +265,7 @@ class HaloModel(HaloMassFunction):
         return ans
 
     def _get_ps_integrals(self, k, iz, prof1, prof2, lum1, lum2, mmin1, mmin2,
-        focc1, focc2, term):
+        focc1, focc2, bias2, term):
         """
         Compute integrals over profile, weighted by bias, dndm, etc.,
         needed for halo model.
@@ -279,7 +279,8 @@ class HaloModel(HaloMassFunction):
             integ1 = []; integ2 = []
             for _k in k:
                 _integ1, _integ2 = self._integrate_over_prof(_k, iz,
-                    prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term)
+                    prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2,
+                    bias2, term)
                 integ1.append(_integ1)
                 integ2.append(_integ2)
 
@@ -287,12 +288,13 @@ class HaloModel(HaloMassFunction):
             integ2 = np.array(integ2)
         else:
             integ1, integ2 = self._integrate_over_prof(k, iz,
-                prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term)
+                prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2,
+                bias2, term)
 
         return integ1, integ2
 
     def _integrate_over_prof(self, k, iz, prof1, prof2, lum1, lum2, mmin1,
-        mmin2, focc1, focc2, term):
+        mmin2, focc1, focc2, bias2, term):
         """
         Compute integrals over profile, weighted by bias, dndm, etc.,
         needed for halo model.
@@ -310,15 +312,19 @@ class HaloModel(HaloMassFunction):
             p2 = np.abs([np.interp(k, self.tab_k, prof2[iz,iM,:]) \
                 for iM in np.arange(self.tab_M.size)])
 
-        bias = self.tab_bias[iz]
-        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+        # Short-hand for halo bias and HMF at this redshift
+        b_h = self.tab_bias[iz]
         dndlnm = self.tab_dndlnm[iz]
 
+        # Only need mean matter density if no luminosities supplied.
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+
+        #
         if (mmin1 is None) and (lum1 is None):
             fcoll1 = 1.
 
             # Small halo correction. Make use of Cooray & Sheth Eq. 71
-            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            _integrand = dndlnm * (self.tab_M / rho_bar) * b_h
             corr1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         elif lum1 is not None:
             corr1 = 0.0
@@ -327,9 +333,11 @@ class HaloModel(HaloMassFunction):
             fcoll1 = self.tab_fcoll[iz,np.argmin(np.abs(mmin1-self.tab_M))]
             corr1 = 0.0
 
-        if (mmin2 is None) and (lum2 is None):
+        if bias2 is not None:
+            corr2 = fcoll2 = 1
+        elif (mmin2 is None) and (lum2 is None):
             fcoll2 = 1.#self.mgtm[iz,0] / rho_bar
-            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            _integrand = dndlnm * (self.tab_M / rho_bar) * b_h
             corr2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         elif lum2 is not None:
             corr2 = 0.0
@@ -349,7 +357,9 @@ class HaloModel(HaloMassFunction):
             weight1 = lum1
             norm1 = 1.
 
-        if lum2 is None:
+        if bias2 is not None:
+            weight2 = norm2 = 1
+        elif lum2 is None:
             weight2 = self.tab_M
             norm2 = rho_bar * fcoll2
         else:
@@ -367,13 +377,19 @@ class HaloModel(HaloMassFunction):
             return result, None
 
         elif term == 2:
-            integrand1 = dndlnm * focc1 * weight1 * p1 * bias / norm1
-            integrand2 = dndlnm * focc2 * weight2 * p2 * bias / norm2
+            integrand1 = dndlnm * focc1 * weight1 * p1 * b_h / norm1
+
 
             integral1 = np.trapz(integrand1[ok==1], x=np.log(self.tab_M[ok==1]),
                 axis=0)
-            integral2 = np.trapz(integrand2[ok==1], x=np.log(self.tab_M[ok==1]),
-                axis=0)
+
+            if bias2 is not None:
+                integral2 = bias2
+                corr2 = 0
+            else:
+                integrand2 = dndlnm * focc2 * weight2 * p2 * b_h / norm2
+                integral2 = np.trapz(integrand2[ok==1], x=np.log(self.tab_M[ok==1]),
+                    axis=0)
 
             return integral1 + corr1, integral2 + corr2
 
@@ -433,7 +449,7 @@ class HaloModel(HaloMassFunction):
         return integ1
 
     def get_ps_2h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, focc1=1, focc2=1, ztol=1e-3):
+        mmin1=None, mmin2=None, focc1=1, focc2=1, bias2=None, ztol=1e-3):
         """
         Get 2-halo term of power spectrum.
         """
@@ -448,9 +464,12 @@ class HaloModel(HaloMassFunction):
                 return ps_lin
 
         integ1, integ2 = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, focc1, focc2, term=2)
+            lum1, lum2, mmin1, mmin2, focc1, focc2, bias2=bias2, term=2)
 
-        ps = integ1 * integ2 * ps_lin
+        if bias2 is not None:
+            ps = integ1 * bias2 * ps_lin
+        else:
+            ps = integ1 * integ2 * ps_lin
 
         return ps
 

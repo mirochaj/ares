@@ -1898,7 +1898,8 @@ class GalaxyCohort(GalaxyAggregate):
             absolute=True)
 
     def get_bias(self, z, limit, wave=1600., cut_in_mass=False, absolute=False,
-        cut_in_flux=False, cam=None, filters=None, method=None):
+        cut_in_flux=False, cam=None, filters=None, method=None,
+        weight_by_lum=False):
         """
         Compute linear bias of galaxies brighter than (or more massive than)
         some cut-off.
@@ -1918,9 +1919,11 @@ class GalaxyCohort(GalaxyAggregate):
         absolute : bool
             Whether `limit` magnitudes are absolute or apparent AB mags.
         cut_in_flux : bool
-            Not currently implement. Might be useful for comparing with
+            Not currently implemented. Might be useful for comparing with
             specroscopic surveys which often report sensitivities as a
             limiting line luminosity in [erg/s/cm^2].
+        weight_by_lum : bool
+
 
         Returns
         -------
@@ -1931,8 +1934,13 @@ class GalaxyCohort(GalaxyAggregate):
         tab_M = self.halos.tab_M
         tab_b = self.halos.tab_bias[iz,:]
         tab_n = self.halos.tab_dndm[iz,:]
-        tab_f = self.tab_focc[iz,:]
+        tab_f = self.tab_focc[iz,:] \
+              * (1 - self.get_fmask(z=z, Mh=self.halos.tab_M))
 
+        # No weights by default
+        w = np.ones_like(self.halos.tab_M)
+
+        # Impose cut by mass or magnitude.
         if cut_in_flux:
             raise NotImplemented('help')
         elif cut_in_mass:
@@ -1941,13 +1949,19 @@ class GalaxyCohort(GalaxyAggregate):
                 ok = np.logical_and(tab_M >= lo, tab_M < hi)
             else:
                 ok = tab_M >= limit
+
+            if weight_by_lum:
+                w = self.get_lum(z, x=wave, units='Ang', units_out='erg/s/Hz')
         else:
             _filt, mags = self.get_mags(z, x=wave, absolute=absolute,
                 cam=cam, filters=filters, method=method)
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
-        integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
-        integ_bot = tab_n[ok==1] * tab_f[ok==1]
+            if weight_by_lum:
+                w = self.magsys.get_lum_from_mag_app(z, mags)
+
+        integ_top = w[ok==1] * tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
+        integ_bot = w[ok==1] * tab_n[ok==1] * tab_f[ok==1]
 
         b = np.trapz(integ_top * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
           / np.trapz(integ_bot * tab_M[ok==1], x=np.log(tab_M[ok==1]))
@@ -1986,38 +2000,36 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func', 'sfe-func']:
+        assert self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func', 'sfe-func'], \
+            "pop_sfr_model must be smhm-func, sfr-func, or sfe-func right now!"
 
-            if Mh is None:
-                Mh = self.halos.tab_M
+        if Mh is None:
+            Mh = self.halos.tab_M
 
-            if band is None:
-                band = [None] * len(waves)
-                dlam = dfreq = np.ones_like(waves)
-            else:
-                assert band.shape[0] == len(waves)
-                dlam = np.abs(np.diff(band, axis=1))
-                dfreq = np.abs(np.diff(c * 1e8 / band, axis=1))
-
-            lum = np.zeros((Mh.size, waves.size))
-            for i, wave in enumerate(waves):
-                lum[:,i] = self.get_lum(z, x=wave, units='Angstroms',
-                    band=band[i], window=window, Mh=Mh, use_tabs=use_tabs,
-                    units_out=units_out, load=False, raw=raw,
-                    nebular_only=nebular_only,
-                    include_dust_transmission=include_dust_transmission,
-                    include_igm_transmission=include_igm_transmission,
-                    total_sat=total_sat)
-
-                if '/ang' in units_out.lower():
-                    lum[:,i] /= dlam[i]
-                else:
-                    lum[:,i] /= dfreq[i]
-
-            return lum
-
+        if band is None:
+            band = [None] * len(waves)
+            dlam = dfreq = np.ones_like(waves)
         else:
-            raise NotImplemented('help')
+            assert band.shape[0] == len(waves)
+            dlam = np.abs(np.diff(band, axis=1))
+            dfreq = np.abs(np.diff(c * 1e8 / band, axis=1))
+
+        lum = np.zeros((Mh.size, waves.size))
+        for i, wave in enumerate(waves):
+            lum[:,i] = self.get_lum(z, x=wave, units='Angstroms',
+                band=band[i], window=window, Mh=Mh, use_tabs=use_tabs,
+                units_out=units_out, load=False, raw=raw,
+                nebular_only=nebular_only,
+                include_dust_transmission=include_dust_transmission,
+                include_igm_transmission=include_igm_transmission,
+                total_sat=total_sat)
+
+            if '/ang' in units_out.lower():
+                lum[:,i] /= dlam[i]
+            else:
+                lum[:,i] /= dfreq[i]
+
+        return lum
 
     def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz', Mh=None,
         window=1, band=None, include_dust_transmission=True, use_tabs=False,
@@ -5884,10 +5896,10 @@ class GalaxyCohort(GalaxyAggregate):
 
             return ps
 
-    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False,
+    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., bias2=None, raw=False,
         nebular_only=False, ztol=1e-3, cross_pop=None):
         """
-        Return 2-halo term of 3-d power spectrum.
+        Compute the 2-halo term of the 3-d power spectrum.
 
         Parameters
         ----------
@@ -5914,9 +5926,9 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             pop_x = self
 
-        cached_result = self._cache_ps_2h(z, k, wave1, wave2, raw, nebular_only)
-        if cached_result is not None:
-            return cached_result
+        #cached_result = self._cache_ps_2h(z, k, wave1, wave2, raw, nebular_only)
+        #if cached_result is not None:
+        #    return cached_result
 
         #prof, focc, lum1, lum2 = self.get_ps_ingredients(z, k,
         #    wave1=wave1, wave2=wave2, raw=raw,
@@ -5934,7 +5946,9 @@ class GalaxyCohort(GalaxyAggregate):
                 band=band, units='Angstrom', units_out='erg/s/Hz',
                 nebular_only=nebular_only, total_sat=True)
 
-        if np.all(np.array(wave2) <= 912):
+        if bias2 is not None:
+            lum2 = None
+        elif np.all(np.array(wave2) <= 912):
             lum2 = 0
         else:
             band = wave2 if type(wave2) not in numeric_types else None
@@ -5953,7 +5967,9 @@ class GalaxyCohort(GalaxyAggregate):
         fnmask1 =  1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
         focc1 *= fnmask1
 
-        if cross_pop is None:
+        if bias2 is not None:
+            focc2 = None
+        elif cross_pop is None:
             focc2 = focc1
         else:
             focc2 = 1 if (not pop_x.is_central_pop) else \
@@ -5961,8 +5977,10 @@ class GalaxyCohort(GalaxyAggregate):
             fnmask2 =  1 - pop_x.get_fmask(z=z, Mh=self.halos.tab_M)
             focc2 *= fnmask2
 
+        ##
+        # Allow user to just supply bias by hand if they want?
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
-            lum1=lum1, lum2=lum2,
+            lum1=lum1, lum2=lum2, bias2=bias2,
             mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         #if type(k) is np.ndarray:
@@ -6137,11 +6155,83 @@ class GalaxyCohort(GalaxyAggregate):
 
         return ps
 
+    def get_xs_obs(self, scale, wave_obs, galaxy_prop, scale_units='ell',
+        use_pb=True, **kwargs):
+        """
+        Compute the cross-spectrum between EBL and target galaxy population.
+        """
+
+        zarr = self.halos.tab_z
+        zok  = np.logical_and(zarr > self.zdead, zarr <= self.zform)
+
+        name = '{:.2f} micron'.format(np.mean(wave_obs))
+
+        if type(scale) in numeric_types:
+            scales = np.array([scale])
+        else:
+            scales = scale
+
+        ps = np.zeros_like(scale)
+
+        pb = ProgressBar(scale.shape[0],
+            use=use_pb and self.pf['progress_bar'],
+            name=f'p(k,{name})')
+        pb.start()
+
+        magbins = np.arange(10, 30, 0.5)
+
+        # Pre-select galaxies for cross
+        cut_cam, cut_filt, cut_mag = galaxy_prop['mag']
+        _z_, cts_vs_z, cts_tot = self.get_number_counts(magbins,
+            xobs=8500, cam=cut_cam, filters=(cut_filt))
+
+        #cts = np.interp(zarr, _z_, cts_tot)
+
+        for h, _scale_ in enumerate(scales):
+
+            integrand = np.zeros_like(zarr)
+            for i, z in enumerate(zarr):
+
+                if not zok[i]:
+                    continue
+
+                # Pre-processing: compute bias and surface density of
+                # target population.
+                b_g = self.get_bias(z, cut_mag, cam=cut_cam, filters=(cut_filt))
+
+                iz = np.argmin(np.abs(z - _z_))
+                dNdz = np.trapz(cts_vs_z[iz,magbins <= cut_mag],
+                    x=magbins[magbins <= cut_mag])
+
+                if dNdz == 0:
+                    continue
+
+                integrand[i] = self._get_ps_obs(z, _scale_,
+                    wave_obs, wave_obs2=None, cross_w_galaxies=(b_g, dNdz),
+                    #include_shot=include_shot,
+                    #include_1h=include_1h, include_2h=include_2h,
+                    scale_units=scale_units)#, #raw=raw,
+                    #nebular_only=nebular_only, #prof=prof)
+
+                if np.isnan(integrand[i]):
+                    integrand[i] = 0
+                    print('hi', _scale_, z, b_g, dNdz, integrand[i])
+
+            ps[h] = np.trapz(integrand[zok] * zarr[zok],
+                x=np.log(zarr[zok]))
+
+            pb.update(h)
+
+        pb.finish()
+
+        return ps
+
     def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', use_pb=True,
         raw=False, nebular_only=False, prof=None, cross_pop=None):
         """
-        Compute the angular power spectrum of this galaxy population.
+        Compute the angular power spectrum of the entire galaxy population,
+        a.k.a., the extragalactic background light anisotropies.
 
         .. note :: This function uses the Limber (1953) approximation.
 
@@ -6228,15 +6318,48 @@ class GalaxyCohort(GalaxyAggregate):
 
         return ps
 
-    def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
-        include_1h=True, include_2h=True, scale_units='arcsec', raw=False,
+    def _get_k_from_ell(self, scale, scale_units):
+        d = self.cosm.get_dist_los_comoving(0., z)
+
+        ##
+        # Must retrieve redshift-dependent k given fixed angular scale.
+        if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
+            rad = scale * (np.pi / 180.)
+
+            # Convert to degrees retroactively
+            if scale_units == 'arcsec':
+                rad /= 3600.
+            elif scale_units == 'arcmin':
+                rad /= 60.
+            elif scale_units.startswith('deg'):
+                pass
+            else:
+                raise NotImplemented('Unrecognized scale_units={}'.format(
+                    scale_units
+                ))
+
+            q = 2. * np.pi / rad
+            k = q / (d / cm_per_mpc)
+        elif scale_units.lower() in ['l', 'ell']:
+            k = scale / (d / cm_per_mpc)
+        else:
+            raise NotImplemented('Unrecognized scale_units={}'.format(
+                scale_units))
+
+    def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2=None,
+        cross_w_galaxies=None,
+        include_shot=True, include_1h=True, include_2h=True,
+        scale_units='arcsec', raw=False,
         nebular_only=False, prof=None, cross_pop=None):
         """
         Compute integrand of angular power spectrum integral.
         """
 
-        if wave_obs2 is None:
+        if cross_w_galaxies is not None:
+            b_g, N_g = cross_w_galaxies
+        elif wave_obs2 is None:
             wave_obs2 = wave_obs1
+            b_g = N_g = None
 
         ##
         # Convert to Angstroms in rest frame. Determine emissivity.
@@ -6255,7 +6378,9 @@ class GalaxyCohort(GalaxyAggregate):
             # Get rest wavelengths
             wave1 = tuple(np.array(wave_obs1) * 1e4 / (1. + z))
 
-        if type(wave_obs2) in [int, float, np.float64]:
+        if cross_w_galaxies is not None:
+            wave2 = None
+        elif type(wave_obs2) in [int, float, np.float64]:
             is_band_int = False
 
             # Get rest wavelength in Angstroms
@@ -6301,6 +6426,7 @@ class GalaxyCohort(GalaxyAggregate):
         # First: compute 3-D power spectrum
         if include_2h:
             ps3d = self.get_ps_2h(z, k, wave1=wave1, wave2=wave2, raw=False,
+                bias2=b_g,
                 nebular_only=False, cross_pop=cross_pop)
         else:
             ps3d = np.zeros_like(k)
@@ -6345,8 +6471,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Spherical harmonics
         elif scale_units.lower() in ['l', 'ell']:
+            if cross_w_galaxies is not None:
+                integrand = c * ps3d / Hofz / d**2 \
+                    / (1. + z)**2 / (4. * np.pi)
             # Fernandez+ (2010) Eq. A9 or 37
-            if is_band_int:
+            elif is_band_int:
                 # [ps3d] = cm^3
                 integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**4 / (4. * np.pi)**2
@@ -6360,17 +6489,26 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Extra factor of nu^2 to eliminate Hz^{-1} units for
         # monochromatic PS
-        assert type(wave_obs1) == type(wave_obs2)
+        if cross_w_galaxies is None:
+            assert type(wave_obs1) == type(wave_obs2)
 
-        if type(wave_obs1) in numeric_types:
-            integrand = integrand * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+            if type(wave_obs1) in numeric_types:
+                integrand = integrand * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+            else:
+                nu1 = c / (np.array(wave_obs1) * 1e-4)
+                nu2 = c / (np.array(wave_obs2) * 1e-4)
+                dnu1 = -np.diff(nu1)
+                dnu2 = -np.diff(nu2)
+
+                integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
         else:
-            nu1 = c / (np.array(wave_obs1) * 1e-4)
-            nu2 = c / (np.array(wave_obs2) * 1e-4)
-            dnu1 = -np.diff(nu1)
-            dnu2 = -np.diff(nu2)
+            if type(wave_obs1) in numeric_types:
+                integrand = integrand * (c / (wave_obs1 * 1e-4))
+            else:
+                nu1 = c / (np.array(wave_obs1) * 1e-4)
+                dnu1 = -np.diff(nu1)
 
-            integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
+                integrand = integrand * np.mean(nu1) / dnu1
 
         return integrand
 

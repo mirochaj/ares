@@ -350,6 +350,110 @@ class Simulation(object):
 
         return scales, scales_inv, waves, ps
 
+    def get_ebl_x_galaxies(self, scales, waves, galaxy_prop, wave_units='mic',
+        scale_units='ell', flux_units='SI', dimensionless=False, pops=None,
+        include_inter_pop=True, **kwargs):
+        """
+        Compute cross spectrum between EBL and galaxy population.
+
+        Parameters
+        ----------
+        scales : int, float, np.ndarray
+            Modes (or angular scales) of interest, depending on value of
+            `scale_units`.
+        waves : int, float, np.ndarray
+            Wavelengths at which to compute power spectra in `wave_units`.
+            Note that if 2-D, must have shape (number of bins, 2), in which
+            case the power spectra will be computed in series of bandpasses.
+        galaxy_prop : dict
+            A dictionary defining the magnitude and/or color and/or redshift
+            cuts used to select galaxies. At the moment, this is just a
+            magnitude cut provided as galaxy_prop={'mag': (cam, filter, cut)}
+        pops : list, tuple
+            If provided, sets the ID numbers of populations that will be
+            included in the model. In other words, any population *not* included
+            in this list will be skipped. By default, this is None and all
+            source populations defined by the parameters (self.pf) are
+            included.
+        include_inter_pop : bool
+            This flag determines whether "inter-population cross terms" are
+            included in the calculation.
+        wave_units : str
+            Current options: 'eV', 'microns', 'Ang'
+        flux_units : str
+            Current options: 'cgs', 'SI'
+        scale_units : str
+            Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
+
+
+        Returns
+        -------
+        Tuple containing (scales, 2 pi / scales or l*l(+1),
+            waves, power spectra).
+
+        Note that the power spectra are returned as 3-D arrays with shape
+        (number of populations, number of ell modes, number of wavelengths).
+
+        """
+
+        # Make sure things are arrays
+        if type(scales) != np.ndarray:
+            scales = np.array([scales])
+        if type(waves) != np.ndarray:
+            waves = np.array([waves])
+
+        waves_is_2d = False
+        if waves.ndim == 2:
+            assert waves.shape[1] == 2, \
+                "If `waves` is 2-D, must have shape (num waves, 2)."
+            waves_is_2d = True
+
+        if wave_units.lower().startswith('mic'):
+            pass
+        else:
+            raise NotImplemented('help')
+
+        # Do some error-handling if waves is 2-D: means the user provided
+        # bandpasses instead of a set of wavelengths.
+
+
+        ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        #px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
+        # Save contributing pieces
+
+        # [optonal] Save redshift chunks
+        #ps_z = np.zeros((len(self.pops), len(self.pops),
+        #    len(scales), len(waves), self.pops[0].halos.tab_z.size))
+
+        # Loop over source populations and compute power spectrum.
+        #
+        for i, pop in enumerate(self.pops):
+
+            # Honor user-supplied list of populations to include
+            if pops is not None:
+                if i not in pops:
+                    continue
+
+            for k, wave in enumerate(waves):
+                ps[i,:,k] = pop.get_xs_obs(scales,
+                    wave_obs=wave, galaxy_prop=galaxy_prop,
+                    scale_units=scale_units, **kwargs)
+
+        ##
+        # Modify PS units before return
+        if flux_units.lower() == 'si':
+            ps *= cm_per_m**2 / erg_per_s_per_nW
+
+        else:
+            raise NotImplemented()
+
+        #if pops is None:
+        #    hist = self.history # poke
+        #    self._history['ps_nirb_x_gal'] = scales, scales_inv, waves, ps
+
+        return scales, waves, ps
+
+
     @property
     def pops(self):
         return self.sim_gs.medium.field.pops
