@@ -130,8 +130,6 @@ class NbodySim(LightCone): # pragma: no cover
 
             fn = f"{self.prefix}_{z1:.2f}_{z2:.2f}.txt"
 
-            seed_kwargs = self.get_seed_kwargs(i, logmlim)
-
             ##
             # Hack out galaxies outsize `zlim`.
             # `data` will be (number of halos, number of fields saved)
@@ -177,6 +175,7 @@ class NbodySim(LightCone): # pragma: no cover
             ##
             # Apply occupation fraction cut
             if self.sim.pops[popid].pf['pop_focc'] != 1:
+                seed_kwargs = self.get_seed_kwargs(i, logmlim)
 
                 np.random.seed(seed_kwargs['seed_occ'])
 
