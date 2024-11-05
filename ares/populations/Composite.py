@@ -111,11 +111,14 @@ class CompositePopulation(object):
                 #print('hi empty', self.pops[i])
                 continue
 
-            #print('hi', i, entry, to_quantity[i], self.pops[i])
-
             for j, element in enumerate(entry):
                 if j == 0:
                     tmp = self.pfs[i].copy()
+
+                # Confusing behavior. 11/05/2024.
+                # By defining `element_hard=element*1` here, we often
+                # get recursion errors, but simply by moving it to within
+                # if/else blocks below, all seems well. Hmmm...
 
                 if to_quantity[i][j] in ['sfrd', 'emissivity']:
                     if self.pops[i] is None:
@@ -149,16 +152,19 @@ class CompositePopulation(object):
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(pf=self.pf.pfs[i],
                             cosm=self._cosm_, **tmp)
+
+                    element_hard = element * 1
                     if tmp[f'pop_{to_quantity[i][j]}_inv']:
                         self.pops[i]._get_focc = lambda **kw: \
-                            1. - self.pops[element].get_focc(**kw)
+                            1. - self.pops[element_hard].get_focc(**kw)
                     else:
-                        self.pops[i]._get_focc = self.pops[element].get_focc
+                        self.pops[i]._get_focc = self.pops[element_hard].get_focc
                 elif to_quantity[i][j] in ['fsurv']:
-                    element_hard = 1 * element
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(pf=self.pf.pfs[i],
                             cosm=self._cosm_, **tmp)
+
+                    element_hard = element * 1
                     if tmp[f'pop_{to_quantity[i][j]}_inv']:
                         self.pops[i]._get_fsurv = lambda **kw: \
                             1. - self.pops[element_hard].get_fsurv(**kw)

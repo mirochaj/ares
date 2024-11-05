@@ -639,7 +639,6 @@ class GalaxyCohort(GalaxyAggregate):
 
     @_get_focc.setter
     def _get_focc(self, value):
-        #print('setting _get_focc', self.id_num)
         self._get_focc_ = value
 
     def get_focc(self, z, Mh):
