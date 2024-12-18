@@ -15,6 +15,7 @@ import gc
 import time
 import h5py
 import numpy as np
+from pathlib import Path
 from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
@@ -802,7 +803,8 @@ class LightCone(object): # pragma: no cover
 
         # Everything should exist up to the m_??.??_??.?? subdirectory
         if not os.path.exists(fn):
-            os.mkdir(fn)
+            path = Path(fn)
+            path.mkdir(parents=True)
 
         return fn
 

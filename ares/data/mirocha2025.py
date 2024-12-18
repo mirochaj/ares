@@ -558,6 +558,7 @@ smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
 
+setup_centrals = setup.copy()
 setup.update(subhalos)
 
 ##
