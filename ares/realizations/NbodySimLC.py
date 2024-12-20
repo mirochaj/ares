@@ -124,7 +124,7 @@ class NbodySim(LightCone): # pragma: no cover
         # Loop over chunks, read-in data
         N = 0
         data = None
-        for i in range(ilo, ihi):
+        for i in range(ilo, ihi+1):
             z1, z2 = self.zchunks[i]
             z = np.mean([z1, z2])
 
