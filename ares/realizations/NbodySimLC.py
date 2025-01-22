@@ -125,6 +125,10 @@ class NbodySim(LightCone): # pragma: no cover
         N = 0
         data = None
         for i in range(ilo, ihi+1):
+
+            if i > len(self.zchunks) - 1:
+                break
+                
             z1, z2 = self.zchunks[i]
             z = np.mean([z1, z2])
 
