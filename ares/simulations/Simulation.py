@@ -132,7 +132,7 @@ class Simulation(object):
             data = {}
 
         if not self.background_intensity._run_complete:
-            self.background_intensity.run()
+            self.background_intensity.run()#include_pops=pops)
 
         for i in range(len(self.pops)):
             if i in data:

@@ -1173,7 +1173,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         iz = np.argmin(np.abs(z - self.halos.tab_z))
 
-        if z > self.halos.tab_z[iz]:
+        # redshift is in ascending order always
+        if z < self.halos.tab_z[iz]:
             iz -= 1
 
         return iz
@@ -1234,7 +1235,6 @@ class GalaxyCohort(GalaxyAggregate):
                 integ2 = L2 * self.halos.tab_dndlnm[iz+1,:] \
                     * self.tab_focc[iz+1,:]
 
-
                 rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
                 rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
             else:
@@ -1273,6 +1273,14 @@ class GalaxyCohort(GalaxyAggregate):
             # If somebody's still positive, take half.
             if (rhoL1 == 0) or (rhoL2 == 0):
                 return 0.5 * max(rhoL1, rhoL2)
+
+            if (rhoL1 < 0) and (rhoL2 < 0):
+                print(f"! PROBLEM: both emissivities < 0 at z={z}! Setting to 0.")
+                return 0.0
+
+            if (rhoL1 < 0) or (rhoL2 < 0):
+                print(f"! WARNING: We've got a negative emissivity at z={z}, band={band}. Using positive one.")
+                return max(rhoL1, rhoL2)
 
             ##
             # Interpolate to input z
@@ -2986,9 +2994,23 @@ class GalaxyCohort(GalaxyAggregate):
             return None
 
         # Read from file
-        assert type(self.pf['pop_lum_tab']) == str
+        if self.pf['pop_lum_tab_prefix'] is None:
+            fn = self.pf['pop_lum_tab']
+            assert type(fn) is str
+        else:
+            fn = f"{self.pf['pop_lum_tab_prefix']}_sedtab"
+            T0 = self.pf['pop_lum_tab_T0']
+            alpha = self.pf['pop_lum_tab_T0_alpha']
+            if self.is_star_forming:
+                fn += f'pop_{self.is_quiescent}_mzr_{0:.0f}_obs'
+                fn += f'_T0_12_{T0:.1f}_alpha_{alpha:.2f}.hdf5'
 
-        with h5py.File(self.pf['pop_lum_tab'], 'r') as f:
+            else:
+                bb = self.pf['pop_sfr_below_ms{1}']
+                fn += f'pop_{self.is_quiescent}_bb_{bb:.0f}_obs'
+                fn += f'_T0_12_{T0:.1f}_alpha_{alpha:.2f}.hdf5'
+
+        with h5py.File(fn, 'r') as f:
             self._tab_lum_z = np.array(f[('z')])
             self._tab_lum_Ms = np.array(f[('Ms')])
             self._tab_lum_waves = np.array(f[('waves')])
@@ -2998,7 +3020,7 @@ class GalaxyCohort(GalaxyAggregate):
         self._tab_lum[np.isinf(self._tab_lum)] = 0
 
         if self.pf['verbose']:
-            print(f"# Loaded {self.pf['pop_lum_tab']}.")
+            print(f"# Loaded {fn}.")
 
         return self._tab_lum
 
@@ -3305,7 +3327,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Continue with standard approach.
-        iz = np.argmin(np.abs(z - self.halos.tab_z))
+        iz = self.get_zindex(z)
 
         if abs(z - self.halos.tab_z[iz]) < ztol:
             dndm = self.halos.tab_dndm[iz,:]
@@ -3352,8 +3374,6 @@ class GalaxyCohort(GalaxyAggregate):
             #sigma = self.pf['pop_scatter_sfh']
             if self.pf['pop_scatter_sfh'] > 0:
                 #_dx = self.halos.dlog10m
-
-
 
                 dndlog10L = dndm * dMh_dlog10L
                 sigma = self.pf['pop_scatter_sfh']
