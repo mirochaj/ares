@@ -132,7 +132,7 @@ class Simulation(object):
             data = {}
 
         if not self.background_intensity._run_complete:
-            self.background_intensity.run()
+            self.background_intensity.run()#include_pops=pops)
 
         for i in range(len(self.pops)):
             if i in data:
@@ -172,7 +172,7 @@ class Simulation(object):
         return data
 
     def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
-        scale_units='ell', flux_units='SI', dimensionless=False, pops=None,
+        scale_units='ell', flux_units='SI', pops=None,
         include_inter_pop=True, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
@@ -217,11 +217,17 @@ class Simulation(object):
 
         Returns
         -------
-        Tuple containing (scales, 2 pi / scales or l*l(+1),
-            waves, power spectra).
+        Tuple containing (scales, waves, total power spectrum, PS by pop).
 
-        Note that the power spectra are return as 2-D arrays with shape
-        (len(scales), len(waves))
+        Note the total power spectrum is a 2-D array with shape
+        (len(scales), len(waves)), while the final "PS by pop" array is 4-D,
+        as it saves separately all of the constituent terms, and is thus
+        (len(pops), len(pops), len(scales), len(waves)). So, the
+        element [0,0] encodes the PS of star-forming galaxies x star-forming
+        galaxies, [1,1] is quiescent galaxies x quiescent galaxies, and so on.
+
+        Saves as attributes
+        -------------------
 
         """
 
@@ -240,22 +246,6 @@ class Simulation(object):
             assert waves.shape[1] == 2, \
                 "If `waves` is 2-D, must have shape (num waves, 2)."
             waves_is_2d = True
-
-        # Prep scales
-        if scale_units.lower() in ['l', 'ell']:
-            scales_inv = np.sqrt(scales * (scales + 1))
-            # Squared below hence the sqrt here.
-        else:
-            if scale_units.lower().startswith('deg'):
-                scale_rad = scales * (np.pi / 180.)
-            elif scale_units.lower() == 'arcmin':
-                scale_rad = (scales / 60.) * (np.pi / 180.)
-            elif scale_units.lower() == 'arcsec':
-                scale_rad = (scales / 3600.) * (np.pi / 180.)
-            else:
-                raise NotImplemented(f"Don't recognize `scale_units`={scale_units}")
-
-            scales_inv = 2 * np.pi / scale_rad
 
         if wave_units.lower().startswith('mic'):
             pass
@@ -301,6 +291,7 @@ class Simulation(object):
                         ps[i,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=wave, wave_obs2=waves2[k],
                             scale_units=scale_units, **kwargs)
+                        px[i,i,:,k] = ps[i,:,k].copy()
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
 
@@ -323,7 +314,7 @@ class Simulation(object):
         # Increment `ps` with cross terms.
         # Convention is that fluctuations for population `i` includes
         # all crosses with
-        ps += px.sum(axis=1)
+        #ps += px.sum(axis=1)
 
         ##
         # Modify PS units before return
@@ -336,19 +327,17 @@ class Simulation(object):
             px *= 1e17
             ps_z *= 1e17
 
+        ptot = px.sum(axis=0).sum(axis=0)
+
         if pops is None:
             hist = self.history # poke
-            self._history['ps_nirb'] = scales, scales_inv, waves, ps
-
-        if dimensionless:
-            ps *= scales_inv[None,:,None]**2 / 2. / np.pi
-            px *= scales_inv[None,:,None]**2 / 2. / np.pi
+            self._history['ps_nirb'] = scales, waves, ptot, px
 
         self.ps_auto = ps
         self.ps_cross = px
         self.ps_zall = ps_z
 
-        return scales, scales_inv, waves, ps
+        return scales, waves, ptot, px
 
     def get_number_counts(self, wave, magbins, window=201, zmax=None):
         """

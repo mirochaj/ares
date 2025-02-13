@@ -679,7 +679,6 @@ class HaloMassFunction(object):
     def _MF(self, value):
         self._MF_ = value
 
-
     @cached_property
     def tab_M_e(self):
         logM = np.log10(self.tab_M)
@@ -1274,11 +1273,11 @@ class HaloMassFunction(object):
 
         return self._tab_MAR_delayed
 
-    def MAR_func(self, z, M, grid=True):
-        return self.MAR_func_(z, M, grid=grid)
+    def get_mass_accretion_rate(self, z, M, grid=True):
+        return self._MAR_func(z, M, grid=grid)
 
     @property
-    def MAR_func_(self):
+    def _MAR_func(self):
         if not hasattr(self, '_MAR_func_'):
             mask = np.isfinite(self.tab_MAR)
 

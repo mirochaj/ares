@@ -101,7 +101,7 @@ class HaloPopulation(Population):
                 self.pf['pop_fcoll'], self.pf['pop_dfcolldz']
 
     @property
-    def MGR(self):
+    def get_mass_accretion_rate(self):
         """
         Mass growth rate of halos of mass M at redshift z.
 
@@ -119,7 +119,7 @@ class HaloPopulation(Population):
                 raise NotImplemented('do this')
             elif self.pf['pop_MAR'] == 'hmf':
                 # Would be nice if this were a pointer...
-                self._MAR = self.halos.MAR_func
+                self._MAR = self.halos.get_mass_accretion_rate
             else:
                 self._MAR = read_lit(self.pf['pop_MAR'],
                     verbose=self.pf['verbose']).MAR
@@ -129,7 +129,7 @@ class HaloPopulation(Population):
     def MGR_integrated(self, z, source=None):
         """
         The integrated DM accretion rate.
-
+p
         Parameters
         ----------
         z : int, float

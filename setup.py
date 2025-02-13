@@ -35,7 +35,7 @@ setup_args = {
         "h5py",
         "numpy",
         "matplotlib",
-        "scipy",
+        "scipy>=1.6",
         "setuptools_scm",
     ],
     "extras_require": {

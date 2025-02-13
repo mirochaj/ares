@@ -11,7 +11,7 @@ Description:
 """
 import matplotlib.pyplot as pl
 import numpy as np
-from scipy.integrate import trapz
+from scipy.integrate import trapezoid
 
 from ..util import labels
 from ..util.Pickling import read_pickle_file
@@ -268,7 +268,7 @@ class MetaGalacticBackground(object):
         E = np.logspace(np.log10(Emin), np.log10(Emax), Nbins)
         F = self.ResolvedFlux(E, perturb=perturb) / E
 
-        return trapz(F, E)  # erg / s / cm^2 / deg^2
+        return trapezoid(F, E)  # erg / s / cm^2 / deg^2
 
     def PlotIntegratedFlux(self, E, **kwargs):
         return self.PlotSpectrum(E, vs_redshift=True, **kwargs)

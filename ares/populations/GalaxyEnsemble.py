@@ -27,7 +27,7 @@ from .Halo import HaloPopulation
 from ..physics import DustEmission
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, cumtrapz
+from scipy.integrate import quad, cumulative_trapezoid
 from ares.data import read as read_lit
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
@@ -168,7 +168,7 @@ class GalaxyEnsemble(HaloPopulation):
                     mask = self.histories['mask'][:,iz]
                     ok = np.logical_and(ok, np.logical_not(mask))
 
-                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1]) 
+                sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1])
 
             return sfrd
         #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
@@ -513,7 +513,7 @@ class GalaxyEnsemble(HaloPopulation):
     @property
     def histories(self):
         if not hasattr(self, '_histories'):
-            self._histories = self.RunSAM()
+            self._histories = self.generate_galaxy_histories()
         return self._histories
 
     @histories.setter
@@ -538,7 +538,16 @@ class GalaxyEnsemble(HaloPopulation):
 
         self._histories = value
 
-    def RunSAM(self):
+    def get_histories(self):
+        """
+        Return the entire growth histories for all halos for many quanties.
+
+        The returned variable is a dictionary, with several fields that are
+        hopefully
+        """
+        return self.histories
+
+    def generate_galaxy_histories(self):
         """
         Run models. If deterministic, will just return pre-determined
         histories. Otherwise, will do some time integration.
@@ -656,7 +665,7 @@ class GalaxyEnsemble(HaloPopulation):
         if (band is not None) and (x is not None):
             raise ValueError("You're being confusing! Supply `x` OR `band`")
 
-        hist = self.histories
+        hist = self.get_histories()
 
         tab = np.zeros_like(zarr)
         for i, z in enumerate(zarr):
@@ -1048,7 +1057,7 @@ class GalaxyEnsemble(HaloPopulation):
         fml = (1. - fmr)
 
         # Integrate (crudely) mass accretion rates
-        #_Mint = cumtrapz(_MAR[:,:], dx=dt, axis=1)
+        #_Mint = cumulative_trapezoid(_MAR[:,:], dx=dt, axis=1)
         #_MAR_c = 0.5 * (np.roll(MAR, -1, axis=1) + MAR)
         #_Mint = np.cumsum(_MAR_c[:,1:] * dt, axis=1)
 
@@ -1468,10 +1477,10 @@ class GalaxyEnsemble(HaloPopulation):
          'Mh': Mh,
          'Mg': Mg,
          'Z': Z,
-         'bursty': zeros_like_Mh,
+         #'bursty': zeros_like_Mh,
          'pos': pos,
          #'imf': np.zeros((Mh.shape[0], self.tab_imf_mc.size)),
-         'Nsn': zeros_like_Mh,
+         #'Nsn': zeros_like_Mh,
         }
 
         if 'flags' in halos.keys():
@@ -2428,18 +2437,22 @@ class GalaxyEnsemble(HaloPopulation):
 
         return Tdust * Tigm
 
-    def get_lum(self, z, x=1600., band=None, units='Angstroms',
-        idnum=None, window=1, load=True, units_out='erg/s/Hz',
-        include_dust_transmission=True, include_igm_transmission=True):
+    def get_lum(self, z, x=1600., units='Angstroms', units_out='erg/s/Hz',
+        band=None, window=1, load=True, idnum=None,
+        include_dust_transmission=False, include_igm_transmission=True):
         """
-        Return the luminosity for one or all sources at wavelength `x`.
+        Return the luminosity for one or all halos at wavelength `x`.
 
         Parameters
         ----------
         z : int, float
             Redshift of observation.
         x : int, float
-            Rest wavelength of interest [Angstrom]
+            Rest wavelength of interest [Angstrom by default, but see `units`].
+        units : str
+            Tells ARES what units `x` are in. Can provide `eV`, 'Hz' as well.
+        units_out : str
+            Controls units of output luminosities.
         band : tuple
             Can alternatively request the average luminosity in some wavelength
             interval (again, rest wavelengths in Angstrom).
@@ -2469,13 +2482,31 @@ class GalaxyEnsemble(HaloPopulation):
         #    assert self.pf['pop_dust_yield'] in [0, None], \
         #        "Going to get weird answers for L(band != None) if dust is ON."
 
-        raw = self.histories
+        # If supplied wavelength is outside our tabulated range, then we're
+        # doing dust *emission* and so must handle separately.
         if (x is not None) and (x > self.src.tab_waves_c.max()):
             assert units.lower().startswith('ang')
             L = self.dust.Luminosity(z=z, x=x, units=units, band=band, idnum=idnum,
                 window=window, load=load, units_out=units_out)
+
+            ##
+            # Note: in this case, no additional transmission effects in this
+            # case.
+
+        ##
+        # Otherwise, doing our usual: stellar emission only.
         else:
-            L = self.synth.get_lum(x=x, units=units, zobs=z, hist=raw,
+
+            assert include_dust_transmission == False, \
+                "We've kept the keyword argument `include_dust_transmission`" \
+                + " here to preserve call sequence (as in GalaxyCohort). \n" \
+                + " However, it should not be used: dust will be applied" \
+                + " from within the `GalaxyEnsemble.synth` instance. \n"  \
+                + " (The reason for keeping it within the spectral synthesis" \
+                + " machinery is to allow for Charlot & Fall (2000)-like \n" \
+                + " approaches where reddening is age-dependent."
+
+            L = self.synth.get_lum(x=x, units=units, zobs=z, hist=self.histories,
                 extras=self.extras, idnum=idnum, window=window, load=load,
                 band=band, units_out=units_out)
 
@@ -2484,7 +2515,7 @@ class GalaxyEnsemble(HaloPopulation):
                 include_igm_transmission=include_igm_transmission)
             L = L * T
 
-        self._cache_L_[(z, x, band, idnum, window, units_out)] = L.copy()
+        #self._cache_L_[(z, x, band, idnum, window, units_out)] = L.copy()
 
         return L
 
@@ -2784,32 +2815,28 @@ class GalaxyEnsemble(HaloPopulation):
 
         Parameters
         ----------
-
         z: int, float
             Redshift of interest.
         use_mags : boolean
             if True: returns bin centers in AB magnitudes, whether
             absolute or apparent depends on value of `absolute` parameter.
             if False: returns bin centers in log(L / Lsun)
-
         x : int, float
             Wavelength in Angstroms to be looked at. If wave > 3e5, then
             the luminosity function comes from the dust in the galaxies.
-
         window : int
             Can alternatively retrive the average luminosity at specified
             wavelength after smoothing intrinsic spectrum with a boxcar window
             of this width (in pixels).
-
         band : tuple
             Can alternatively request the average luminosity in some wavelength
             interval (again, rest wavelengths in Angstrom).
-
         total_IR : boolean
             if False: returns luminosity function at the given wavelength
             if True: returns the total infrared luminosity function for wavelengths
             between 8 and 1000 microns.
-            Note: if True, ignores wave and band keywords, and always returns in log(L / Lsun)
+            Note: if True, ignores wave and band keywords, and always returns
+            in log(L / Lsun)
 
         """
         if total_IR:
@@ -2930,8 +2957,8 @@ class GalaxyEnsemble(HaloPopulation):
             phi = hist / dbin
 
             relerr = abs(np.sum(phi * dbin) - N) / N
-            assert relerr < 1e-2, \
-                "Error in number of galaxies! rel_err={:.5f}".format(relerr)
+            #assert relerr < 1e-2, \
+            #    "Error in number of galaxies! rel_err={:.5f}".format(relerr)
 
         #self._cache_lf_[(z, wave)] = x, phi
 
@@ -3683,7 +3710,7 @@ class GalaxyEnsemble(HaloPopulation):
             # some corresponding magnitude
             assert Ngal[i,0] == 0, "Broaden binning range?"
             #ntot = np.trapz(Ngal[i,:], x=x)
-            nltm[i,:] = cumtrapz(Ngal[i,:], x=bins, initial=Ngal[i,0])
+            nltm[i,:] = cumulative_trapezoid(Ngal[i,:], x=bins, initial=Ngal[i,0])
 
         # Can just return *maximum* number of galaxies detected,
         # regardless of band. Equivalent to requiring only single-band

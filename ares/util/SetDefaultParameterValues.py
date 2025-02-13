@@ -565,6 +565,7 @@ def PopulationParameters():
     # For synthesis models
     "pop_Z": 0.02,
     "pop_imf": 2.35,
+    "pop_stellar_lib": 'stelib', # only applies to BC03 models
     "pop_tracks": None,
     "pop_tracks_fn": None,
     "pop_stellar_aging": False,
@@ -916,6 +917,10 @@ def PopulationParameters():
     "pop_lum_per_sfr_at_wave": None,
     "pop_lum_corr": None,
     "pop_lum_tab": None,
+    "pop_lum_tab_prefix": None,
+    "pop_lum_tab_T0": 1,
+    "pop_lum_tab_T0_alpha": 0,
+
 
     "pop_calib_Z": None,        # not implemented
 
@@ -1048,6 +1053,7 @@ def SourceParameters():
         "source_Z": 0.02,
         "source_imf": 2.35,
         "source_imf_Mmax": 300,
+        "source_stellar_lib": 'stelib',
         "source_tracks": 'Padova1994',
         "source_tracks_fn": None,
         "source_stellar_aging": False,
@@ -1499,7 +1505,7 @@ def ControlParameters():
         "sed_prefix": None,
 
         "unsampled_integrator": 'quad',
-        "sampled_integrator": 'simps',
+        "sampled_integrator": 'simpson',
         "integrator_rtol": 1e-6,
         "integrator_atol": 1e-4,
         "integrator_divmax": 1e2,

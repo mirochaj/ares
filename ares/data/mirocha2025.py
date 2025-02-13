@@ -22,13 +22,15 @@ setup = \
  'cosmological_Mmin': None,
 
  'first_light_redshift': 15,
- 'final_redshift': 5e-3,
+ 'final_redshift': 6e-3,
 
  'tau_redshift_bins': 100,
 
  'halo_dlnk': 0.05,
  'halo_lnk_min': -9.,
  'halo_lnk_max': 11.,
+
+ #'interpolate_cosmology_in_z': True,
 }
 
 centrals_sf = \
@@ -269,30 +271,30 @@ ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
 
 ihl_b19 = ihl_scaled.copy()
-ihl_b19['pq_func_par0[50]{4}'] = 0.01
-ihl_b19['pq_func_par1[50]{4}'] = 1e12
-ihl_b19['pq_func_par2[50]{4}'] = 0.7
-ihl_b19['pq_val_ceil[50]{4}'] = 0.99
+ihl_b19['pq_func_par0[50]'] = 0.01
+ihl_b19['pq_func_par1[50]'] = 1e12
+ihl_b19['pq_func_par2[50]'] = 0.7
+ihl_b19['pq_val_ceil[50]'] = 0.99
 
 ihl_p24 = ihl_scaled.copy()
-ihl_p24['pq_func_par0[50]{4}'] = 0.13
-ihl_p24['pq_func_par1[50]{4}'] = 1e12
-ihl_p24['pq_func_par2[50]{4}'] = 0.5
-ihl_p24['pq_val_ceil[50]{4}'] = 0.99
+ihl_p24['pq_func_par0[50]'] = 0.13
+ihl_p24['pq_func_par1[50]'] = 1e12
+ihl_p24['pq_func_par2[50]'] = 0.5
+ihl_p24['pq_val_ceil[50]'] = 0.99
 
 ihl_c24 = ihl_scaled.copy()
-ihl_c24['pq_func_par0[50]{4}'] = 0.11
-ihl_c24['pq_func_par1[50]{4}'] = 1e12
-ihl_c24['pq_func_par2[50]{4}'] = 0.25
-ihl_c24['pq_val_ceil[50]{4}'] = 0.99
+ihl_c24['pq_func_par0[50]'] = 0.11
+ihl_c24['pq_func_par1[50]'] = 1e12
+ihl_c24['pq_func_par2[50]'] = 0.25
+ihl_c24['pq_val_ceil[50]'] = 0.99
 
 ihl_p07 = ihl_scaled.copy()
-ihl_p07['pq_func[50]{4}'] = 'logtanh_abs'
-ihl_p07['pq_func_par0[50]{4}'] = 0.7
-ihl_p07['pq_func_par1[50]{4}'] = 0.0
-ihl_p07['pq_func_par2[50]{4}'] = 13.6
-ihl_p07['pq_func_par3[50]{4}'] = -1.
-ihl_p07['pq_val_ceil[50]{4}'] = 0.99
+ihl_p07['pq_func[50]'] = 'logtanh_abs'
+ihl_p07['pq_func_par0[50]'] = 0.7
+ihl_p07['pq_func_par1[50]'] = 0.0
+ihl_p07['pq_func_par2[50]'] = 13.6
+ihl_p07['pq_func_par3[50]'] = -1.
+ihl_p07['pq_val_ceil[50]'] = 0.99
 
 satellites_sf = centrals_sf.copy()
 satellites_sf['pop_focc'] = 'link:focc:0'
@@ -325,7 +327,7 @@ satellites_q['pop_prof_1h'] = 'nfw'
 satellites_q['pop_include_1h'] = True
 satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
-satellites_q['pop_fstar'] = 'link:fstar:0'
+satellites_q['pop_fstar'] = 'link:fstar:1'
 satellites_q['pop_ssfr'] = None
 satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 
@@ -558,6 +560,7 @@ smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
 
+setup_centrals = setup.copy()
 setup.update(subhalos)
 
 ##
@@ -699,6 +702,8 @@ _base = \
 
 #setup = base.copy()
 #base.update(_base)
+
+
 
 sed_modeling = \
 {

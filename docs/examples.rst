@@ -16,7 +16,7 @@ Advanced Source Populations
 These examples show how to work with source populations individually, i.e., not as part of a larger simulation. So, if you're just interested in, e.g., modeling galaxy luminosity functions, or using a more sophisticated galaxy model for 21-cm calculations, this should be a good starting point.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     examples/example_pop_galaxy
     examples/example_galaxies_demo

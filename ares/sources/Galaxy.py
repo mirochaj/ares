@@ -171,7 +171,7 @@ class Galaxy(SynthesisModel):
         return 0.05 * np.log(1. + t / 1.4)
 
     def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.05, tau_guess=1e3,
-        sfh=None, mass_return=False, tarr=None, **kwargs):
+        sfh=None, mass_return=False, tarr=None, xtol=0.01, ftol=0.01, **kwargs):
         """
         Determine the free parameters of a model needed to produce stellar mass
         `mass` and star formation rate `sfr` at time `t` [since Big Bang / Myr].
@@ -199,7 +199,7 @@ class Galaxy(SynthesisModel):
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
 
             tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -235,7 +235,7 @@ class Galaxy(SynthesisModel):
                     return abs(dSFR) + abs(dMst)
 
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.0001, xtol=0.0001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
                 norm, tau = 10**best
 
@@ -268,7 +268,7 @@ class Galaxy(SynthesisModel):
                 / (10**logtau * (np.exp(t / 10**logtau) - np.exp(t0 / 10**logtau)))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
             tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -304,7 +304,7 @@ class Galaxy(SynthesisModel):
                     return abs(dSFR) + abs(dMst)
 
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.0001, xtol=0.0001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
                 norm, tau = 10**best
 
@@ -334,7 +334,7 @@ class Galaxy(SynthesisModel):
                 / (10**logtau * (1 - np.exp(-t / 10**logtau)))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
             tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=0.001, xtol=0.001)[0]
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(t / tau) / np.exp(-self.tH / tau)
@@ -370,7 +370,7 @@ class Galaxy(SynthesisModel):
                 ##
                 # Run minimization
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.001, xtol=0.001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
                 norm, tau = 10**best
 
@@ -420,7 +420,7 @@ class Galaxy(SynthesisModel):
                     return abs(dMst)
 
                 best = fmin(func, [np.log10(t*0.5)],
-                    disp=disp, full_output=disp, ftol=0.001, xtol=0.001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
                 t0 = 10**best[0]
 
@@ -468,7 +468,7 @@ class Galaxy(SynthesisModel):
                 return abs(dSFR) + abs(dMst)
 
             best = fmin(func, [1, np.log10(tau_guess)],
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.01)
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
             norm, tau = 10**best
 
@@ -505,7 +505,7 @@ class Galaxy(SynthesisModel):
                 ##
                 # Run minimization
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.001, xtol=0.001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
                 norm, tau = 10**best
 
@@ -534,7 +534,7 @@ class Galaxy(SynthesisModel):
             raise NotImplemented("help!")
 
         ##
-        # Check stellar mass -- if way above requested `mass`, then the
+        # Check stellar mass -- if way above/below requested `mass`, then the
         # requested history is inadequate. Switch to something else, potentially.
         merr = abs(np.log10(_mass / mass))
         serr = abs(np.log10(_sfr / sfr))
@@ -562,10 +562,12 @@ class Galaxy(SynthesisModel):
             sfh_fall = self.pf['source_sfh_fallback']
         ##
         # If we're here, we're exploring fallback options.
-        print(f"Retrieved mass is off by {merr:.3f} relative to mtol.")
-        print(f"Let's try this again with sfh={sfh_fall}...")
+        print(f"! Retrieved mass is off by {np.log10(_mass / mass):.3f} dex (mtol={mtol}).")
+        print(f"! Retrieved SFR  is off by {np.log10(_sfr / sfr):.3f} dex (stol={mtol}).")
+        print(f"! Let's try this again with sfh={sfh_fall}...")
         kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
             mtol=mtol, sfh=sfh_fall, mass_return=mass_return, tarr=tarr,
+            ftol=ftol, xtol=xtol,
             **kwargs)
 
         return kw

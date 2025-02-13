@@ -16,7 +16,7 @@ from .Source import Source
 import matplotlib.pyplot as pl
 from functools import cached_property
 from ares.data import read as read_lit
-from scipy.integrate import quad, cumtrapz
+from scipy.integrate import quad, cumulative_trapezoid
 from ..util.Stats import bin_c2e, bin_e2c
 from ..util.ParameterFile import ParameterFile
 from ..physics.Constants import h_p, c, erg_per_ev, ev_per_hz, \
@@ -359,7 +359,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
         return 1. - 10**np.interp(np.log10(m), np.log10(self.Ms), np.log10(self.tab_imf_cdf))
 
     def mgtm(self, m):
-        cdf_by_m = cumtrapz(self.tab_imf * self.Ms**2, x=np.log(self.Ms), initial=0.) \
+        cdf_by_m = cumulative_trapezoid(self.tab_imf * self.Ms**2, x=np.log(self.Ms), initial=0.) \
             / np.trapz(self.tab_imf * self.Ms**2, x=np.log(self.Ms))
 
         return 1. - np.interp(m, self.Ms, cdf_by_m)
@@ -450,7 +450,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
                 self._tab_imf_cdf = np.concatenate((_tot0, _tot1, _tot2)) / _tot2[-1]
 
             else:
-                self._tab_imf_cdf = cumtrapz(self.tab_imf, x=self.Ms, initial=0.) \
+                self._tab_imf_cdf = cumulative_trapezoid(self.tab_imf, x=self.Ms, initial=0.) \
                     / np.trapz(self.tab_imf * self.Ms, x=np.log(self.Ms))
 
         return self._tab_imf_cdf
@@ -502,7 +502,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
     def tab_dtd_cdf(self):
         if not hasattr(self, '_tab_dtd_cdf'):
             ok = self.Ms >= 8.
-            top = cumtrapz(self.tab_life[ok==1] * self.tab_imf[ok==1] \
+            top = cumulative_trapezoid(self.tab_life[ok==1] * self.tab_imf[ok==1] \
                 * self.Ms[ok==1], x=np.log(self.Ms[ok==1]), initial=0.0)
 
             bot = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1] \

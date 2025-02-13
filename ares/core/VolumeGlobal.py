@@ -16,7 +16,7 @@ from ..util import ProgressBar
 from ..physics.Constants import *
 import types, os, re, sys
 from ..physics import SecondaryElectrons
-from scipy.integrate import dblquad, romb, simps, quad, trapz
+from scipy.integrate import dblquad, romb, simpson, quad
 
 try:
     import h5py
@@ -528,7 +528,7 @@ class GlobalVolume(object):
                     heat = romb(integrand[0:imax] * self.E[0:imax],
                         dx=self.dlogE[0:imax])[0] * log10
                 else:
-                    heat = simps(integrand[0:imax] * self._E[popid][band][0:imax],
+                    heat = simpson(integrand[0:imax] * self._E[popid][band][0:imax],
                         x=self.logE[popid][band][0:imax]) * log10
 
             else:
@@ -541,7 +541,7 @@ class GlobalVolume(object):
                     heat = np.trapz(integrand[imin:] * self._E[popid][band][imin:],
                         x=self.logE[popid][band][imin:]) * log10
                 else:
-                    heat = simps(integrand[imin:] * self._E[popid][band][imin:],
+                    heat = simpson(integrand[imin:] * self._E[popid][band][imin:],
                         x=self.logE[popid][band][imin:]) * log10
 
         # Re-normalize, get rid of per steradian units
@@ -696,7 +696,7 @@ class GlobalVolume(object):
                 ion = romb(integrand * self.E[popid][band],
                     dx=self.dlogE[popid][band])[0] * log10
             else:
-                ion = simps(integrand * self.E[popid][band],
+                ion = simpson(integrand * self.E[popid][band],
                     x=self.logE[popid][band]) * log10
 
         # Re-normalize
@@ -831,7 +831,7 @@ class GlobalVolume(object):
                 ion = romb(integrand * self.E[popid][band],
                     dx=self.dlogE[popid][band])[0] * log10
             else:
-                ion = simps(integrand * self.E[popid][band],
+                ion = simpson(integrand * self.E[popid][band],
                     x=self.logE[popid][band]) * log10
 
         # Re-normalize
@@ -927,7 +927,7 @@ class GlobalVolume(object):
                 e_ax = romb(integrand[0:imax] * self.E[0:imax],
                     dx=self.dlogE[0:imax])[0] * log10
             else:
-                e_ax = simps(integrand[0:imax] * self._E[popid][band][0:imax],
+                e_ax = simpson(integrand[0:imax] * self._E[popid][band][0:imax],
                     x=self.logE[popid][band][0:imax]) * log10
         else:
             imin = np.argmin(np.abs(self._E[popid][band] - pop.pf['pop_Emin']))
@@ -939,7 +939,7 @@ class GlobalVolume(object):
                 e_ax = np.trapz(integrand[imin:] * self._E[popid][band][imin:],
                     x=self.logE[popid][band][imin:]) * log10
             else:
-                e_ax = simps(integrand[imin:] * self._E[popid][band][imin:],
+                e_ax = simpson(integrand[imin:] * self._E[popid][band][imin:],
                     x=self.logE[popid][band][imin:]) * log10
 
         # Re-normalize. This is essentially a photon emissivity modulo 4 pi ster

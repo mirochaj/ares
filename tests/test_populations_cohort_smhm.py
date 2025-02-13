@@ -23,7 +23,7 @@ def test():
     testing_pars = ares.util.ParameterBundle('testing:galaxies')
     testing_pars.num = 0
 
-    pars = ares.util.ParameterBundle('mirocha2023:base')
+    pars = ares.util.ParameterBundle('mirocha2023:setup')
     pars.update(testing_pars)
     pars['pop_Z{0}'] = (0.02, 0.02)
 

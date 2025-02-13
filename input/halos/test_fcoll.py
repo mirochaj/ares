@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from scipy.integrate import simps
+from scipy.integrate import simpson
 
 pop = ares.populations.HaloPopulation(pop_sfr_model='fcoll', pop_Mmin=1e8,
     halo_mf_interp='linear')
@@ -38,7 +38,7 @@ for z in zarr:
     dndlnm = dndm * M
 
     #fcoll_mgtm2 = np.trapz(dndlnm, x=np.log(M)) / pop.halos.MF.mean_density0
-    fcoll_mgtm2 = simps(dndlnm[ok], x=np.log(M[ok])) / pop.halos.MF.mean_density0
+    fcoll_mgtm2 = simpson(dndlnm[ok], x=np.log(M[ok])) / pop.halos.MF.mean_density0
 
     print('{0!s} {1!s} {2!s}'.format(z, fcoll_mgtm1, fcoll_mgtm2))#, fcoll
 
