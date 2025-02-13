@@ -22,13 +22,15 @@ setup = \
  'cosmological_Mmin': None,
 
  'first_light_redshift': 15,
- 'final_redshift': 5e-3,
+ 'final_redshift': 6e-3,
 
  'tau_redshift_bins': 100,
 
  'halo_dlnk': 0.05,
  'halo_lnk_min': -9.,
  'halo_lnk_max': 11.,
+
+ #'interpolate_cosmology_in_z': True,
 }
 
 centrals_sf = \
@@ -700,6 +702,8 @@ _base = \
 
 #setup = base.copy()
 #base.update(_base)
+
+
 
 sed_modeling = \
 {

@@ -3990,7 +3990,8 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 _Ms = self.get_fstar(z=z, Mh=self.halos.tab_M) \
                     * self.halos.tab_M
-                Mh = np.interp(Ms, _Ms, self.halos.tab_M, right=np.nan)
+                Mh = np.interp(Ms, _Ms, self.halos.tab_M,
+                    right=self.halos.tab_M.max())
 
                 return self.get_sfr(z=z, Mh=Mh) / Ms
         else:
