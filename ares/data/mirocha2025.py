@@ -270,11 +270,12 @@ ihl_scaled['pop_Mmin'] = 1e10
 ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
 
-ihl_b19 = ihl_scaled.copy()
-ihl_b19['pq_func_par0[50]'] = 0.01
-ihl_b19['pq_func_par1[50]'] = 1e12
-ihl_b19['pq_func_par2[50]'] = 0.7
-ihl_b19['pq_val_ceil[50]'] = 0.99
+#ihl_b19 = ihl_scaled.copy()
+#ihl_b19['pq_func_par0[50]'] = 0.01
+#ihl_b19['pq_func_par1[50]'] = 1e12
+#ihl_b19['pq_func_par2[50]'] = 0.7
+#ihl_b19['pq_val_ceil[50]'] = 0.99
+#ihl_b19['pq_val_floor[50]{4}'] = 3e-3
 
 ihl_p24 = ihl_scaled.copy()
 ihl_p24['pq_func_par0[50]'] = 0.13
@@ -295,6 +296,14 @@ ihl_p07['pq_func_par1[50]'] = 0.0
 ihl_p07['pq_func_par2[50]'] = 13.6
 ihl_p07['pq_func_par3[50]'] = -1.
 ihl_p07['pq_val_ceil[50]'] = 0.99
+
+ihl_b19 = ihl_scaled.copy()
+ihl_b19['pq_func[50]'] = 'logtanh_abs'
+ihl_b19['pq_func_par0[50]'] = 0.7
+ihl_b19['pq_func_par1[50]'] = 3e-3
+ihl_b19['pq_func_par2[50]'] = 14.1
+ihl_b19['pq_func_par3[50]'] = -0.8
+ihl_b19['pq_val_ceil[50]'] = 0.99
 
 satellites_sf = centrals_sf.copy()
 satellites_sf['pop_focc'] = 'link:focc:0'

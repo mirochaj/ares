@@ -2583,6 +2583,11 @@ class GalaxyCohort(GalaxyAggregate):
                         # We're definining f_ihl = L_ihl / (L_ihl + L_cen)
                         _Lh_ *= (fihl / (1. - fihl))
 
+                        if self.pf['pop_ihl_suppression'] is not None:
+                            fsupp = self.get_ihl_suppression(z=z,
+                                Mh=self.halos.tab_M)
+                            _Lh_ *= (1 - fsupp)
+
                 else:
                     Ls = Ms * L_sfr
                     _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
