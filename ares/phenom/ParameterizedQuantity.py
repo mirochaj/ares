@@ -1239,6 +1239,34 @@ class LinLogEvolvingNorm(BasePQ):
         y = p0 + self.args[2] * (np.log10(x) - self.args[1])
         return y
 
+class LinLogEvolvingAsB13(BasePQ):
+    def __call__(self, **kwargs):
+        if self.x == "1+z":
+            x = 1. + kwargs["z"]
+        else:
+            x = kwargs[self.x]
+
+        z = self.get_var2(kwargs['z'])
+
+        # Need scale factor
+        a = 1. / (1. + z)
+
+        # Recall that p1 is the mass that we're pinning normalization to
+        p0 = self.args[0] + self.args[3] * (1 - a) \
+              + self.args[5] * np.log(1 + z) \
+              + self.args[7] * z \
+              + self.args[9] * a
+
+        p2 = self.args[2] + self.args[4] * (1 - a) \
+              + self.args[6] * np.log(1 + z) \
+              + self.args[8] * z \
+              + self.args[10] * a
+
+        y = p0 + p2 * (np.log10(x) - self.args[1])
+
+        return y
+
+
 class LogLinearEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -1377,6 +1405,8 @@ class ParameterizedQuantity(object):
             self.func = LinLog(**kwargs)
         elif kwargs["pq_func"] in ["linlog_evolN"]:
             self.func = LinLogEvolvingNorm(**kwargs)
+        elif kwargs["pq_func"] in ["linlog_evolB13"]:
+            self.func = LinLogEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] in ["loglin_evolN"]:
             raise NotImplemented('help')
         elif kwargs["pq_func"] in ["p_linear"]:

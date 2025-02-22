@@ -3444,11 +3444,13 @@ class GalaxyCohort(GalaxyAggregate):
             if self.is_central_pop:
                 dndm = dndm * focc
         else:
-            dndm_func = interp1d(self.halos.tab_z, self.halos.tab_dndm[:,:],
+            dndm_func = interp1d(self.halos.tab_z,
+                self.halos.tab_dndm[:,:],
                 axis=0, kind=self.pf['pop_interp_lf'])
 
             dndm = dndm_func(z)
             focc = self.get_focc(z=z, Mh=self.halos.tab_M)
+
             if self.is_central_pop:
                 dndm = dndm * focc
 
@@ -3480,7 +3482,8 @@ class GalaxyCohort(GalaxyAggregate):
             if self.pf['pop_scatter_sfh'] > 0:
                 #_dx = self.halos.dlog10m
 
-                dndlog10L = dndm * dMh_dlog10L
+                dndlog10L = np.abs(dndm * dMh_dlog10L)
+
                 sigma = self.pf['pop_scatter_sfh']
                 xx = mu = np.log10(Lh)
                 xx[Lh==0] = 0

@@ -198,7 +198,7 @@ _sfr_dpl = \
  'pq_func_par1[1]': 3e12,
  'pq_func_par2[1]': 1.6,
  'pq_func_par3[1]': 0.2,
- 'pq_func_par4[1]': 1e10,  # Mh anchor
+ 'pq_func_par4[1]': 1e10,   # Mh anchor
  'pq_func_par5[1]': 0.6,    # scales (1-a) term
  'pq_func_par6[1]': 0.,     # scales (1-a) term
  'pq_func_par7[1]': 0,      # scales (1-a) term
@@ -216,10 +216,10 @@ _sfr_dpl = \
  'pq_func_par19[1]': 0.0,
  'pq_func_par20[1]': 0.0,
  # Extension!
- 'pq_func_par21[1]': 0.0,
- 'pq_func_par22[1]': 0.0,
- 'pq_func_par23[1]': 0.0,
- 'pq_func_par24[1]': 0.0,
+ 'pq_func_par21[1]': 0.0,   # Turn-over mass
+ 'pq_func_par22[1]': 0.0,   # upturn
+ 'pq_func_par23[1]': 0.0,   # upturn
+ 'pq_func_par24[1]': 0.0,   # evolution in turn-over mass
  'pq_func_par25[1]': 0.0,
  'pq_func_par26[1]': 0.0,
 }
@@ -444,6 +444,25 @@ dust_dpl = \
  'pq_func_par18[4]{0}': 0.0,           # peak
  'pq_func_par19[4]{0}': 0.0,           # low
  'pq_func_par20[4]{0}': 0.0,           # high
+}
+
+dust_linlog = \
+{
+ 'pq_func[4]{0}': 'linlog_evolB13',
+ 'pq_func_var[4]{0}': 'Ms',
+ 'pq_func_var2[4]{0}': '1+z',
+ 'pq_func_par0[4]{0}': 0.5,
+ 'pq_func_par1[4]{0}': 10,             # log10(Mstell/Msun) we pin to
+ 'pq_func_par2[4]{0}': 0.1,            # slope
+ # Start evol params
+ 'pq_func_par3[4]{0}': 0.,             # norm  (1 - a)
+ 'pq_func_par4[4]{0}': 0,              # slope (1 - a)
+ 'pq_func_par5[4]{0}': 0,              # norm  log(1+z)
+ 'pq_func_par6[4]{0}': 0,              # slope log(1+z)
+ 'pq_func_par7[4]{0}': 0,              # norm  z
+ 'pq_func_par8[4]{0}': 0,              # slope z
+ 'pq_func_par9[4]{0}': 0.0,            # norm  a
+ 'pq_func_par10[4]{0}': 0.0,           # slope a
 }
 
 base_centrals = setup.copy()
