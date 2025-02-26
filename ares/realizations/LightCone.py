@@ -1266,31 +1266,37 @@ class LightCone(object): # pragma: no cover
             # Made it here? All good
             print(f"! No corrupted files detected! All {len(all_chunks)} chunks look good.")
 
+    def get_map_norm(self, map_units, pix):
+        """
+        Remember: we're using cgs units internally. This method determines the
+        conversion factor to user's favorite `map_units` (within reason).
+        """
+        if (map_units.lower() == 'si') or ('nw/m^2' in map_units.lower()):
+            # aka (1e2)^2 / 0.01 = 1e6
+            f_norm = cm_per_m**2 / erg_per_s_per_nW
+        elif map_units.lower() == 'cgs':
+            f_norm = 1.
+        elif 'mjy' in map_units.lower():
+            # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr = 1e17 MJy / cgs units
+            f_norm = 1e17
+        else:
+            raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
+
+        pix_deg = pix / 3600.
+        if '/sr' in map_units.lower():
+            sr_per_pix = pix_deg**2 / sqdeg_per_std
+            f_norm /= sr_per_pix
+
+        return f_norm
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=None, clobber=False, max_sources=None, source_prop=None,
-        load_if_found=True,
+        load_if_found=True, keep_layers_custom_z=None,
         keep_layers=False, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
-
-        Naming convention is:
-
-        "<prefix>_<a bunch of other stuff>" where other stuff is:
-
-            + _ch_<channel lower edge in microns>_<upper edge>
-            + _pix_<pixel scale in arcseconds>
-            + _fov_<field of view in degrees on a side>
-            + _L<box size of "co-eval cubes" in cMpc / h>
-            + _N<number of grid zones on a side for each co-eval cube>
-            + _z_<zlo>_<zhi>
-            + _M_<log10(halo mass / Msun) lower limit>_<upper limit>
-            + <suffix>
-
-        The user is encouraged to add descriptive `prefix` and `suffix` that
-        will be prepended/appended to this string.
 
         Parameters
         ----------
@@ -1306,6 +1312,10 @@ class LightCone(object): # pragma: no cover
         dlogm : float
             To limit memory consumption, only generate halos in a log10(mass)
             bin this wide at a time.
+        include_galaxy_sizes : bool
+            If True, use empirical mass-size relations to paint on galaxy
+            surface brightness profiles (assume Sersic). Relies on parameter
+            `pop_msr`, a function of argument `z` and `Ms`.
         zlim : tuple
             Boundaries of lightcone used to create map in redshift.
         dlam : int, float
@@ -1368,24 +1378,8 @@ class LightCone(object): # pragma: no cover
 
         npix = int(fov * 3600 / pix)
 
-        ##
-        # Remember: using cgs units internally. Compute conversion factor to
-        # users favorite units (within reason).
-        # 1 Jy = 1e-23 erg/s/cm^2/sr
-        if (map_units.lower() == 'si') or ('nw/m^2' in map_units.lower()):
-            # aka (1e2)^2 / 0.01 = 1e6
-            f_norm = cm_per_m**2 / erg_per_s_per_nW
-        elif map_units.lower() == 'cgs':
-            f_norm = 1.
-        elif 'mjy' in map_units.lower():
-            # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr = 1e17 MJy / cgs units
-            f_norm = 1e17
-        else:
-            raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
-
-        if '/sr' in map_units.lower():
-            sr_per_pix = pix_deg**2 / sqdeg_per_std
-            f_norm /= sr_per_pix
+        # Converts from cgs [internal units] to `map_units`
+        f_norm = self.get_map_norm(map_units, pix)
 
         # Assemble list of map layers to run.
         all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
@@ -1393,6 +1387,15 @@ class LightCone(object): # pragma: no cover
 
         all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
         all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+
+        # User can custom define subset of redshift layers to save
+        # (this is a computational choice: saving all can be ~TBs of images)
+        if keep_layers:
+            if (keep_layers_custom_z == None):
+                _keep_layers_custom = list(np.arange(0, len(all_zchunks)))
+            else:
+                _keep_layers_custom = list(keep_layers_custom_z)
+
 
         # Array telling us which chunks were already done and which
         # we ran from scratch so at the end we know whether to update
@@ -1487,13 +1490,12 @@ class LightCone(object): # pragma: no cover
                 if load_if_found:
                     _buffer, _hdr = self._load_map(fn)
 
+                    # Might need to adjust units before incrementing
                     if _hdr['BUNIT'] == map_units:
                         _buffer *= (f_norm / dnu)**-1.
                     else:
                         raise NotImplemented('help')
 
-                    # Might need to adjust units before incrementing
-                    #buffer += _buffer
                     # Increment map for this z chunk
                     cimg += _buffer
 
@@ -1501,7 +1503,7 @@ class LightCone(object): # pragma: no cover
                         print(f"# Loaded map {fn}.")
                 else:
                     print(f"# Elected not to load {fn} since load_if_found=False.")
-                    print(f"# Be sure to re-run `generate_maps` once all checkpoints are done. with load_if_found=True.")
+                    print(f"# Be sure to re-run `generate_maps` once all checkpoints are done with load_if_found=True.")
 
                 ran_new = False
             else:
@@ -1526,16 +1528,23 @@ class LightCone(object): # pragma: no cover
             # Save every mass chunk within every redshift chunk if the user
             # says so.
             if keep_layers and ran_new:
-                _fn = self.get_map_fn(fov, pix, channel, popid,
-                    logmlim=mchunk, zlim=zchunk,
-                    fmt=fmt)
-                self.save_map(_fn, buffer * f_norm / dnu,
-                    channel, zchunk, logmlim, fov,
-                    pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
-                    verbose=verbose, clobber=clobber)
 
-                # Increment map for this z chunk
+                if iz in _keep_layers_custom:
+                    _fn = self.get_map_fn(fov, pix, channel, popid,
+                        logmlim=mchunk, zlim=zchunk,
+                        fmt=fmt)
+                    self.save_map(_fn, buffer * f_norm / dnu,
+                        channel, zchunk, logmlim, fov,
+                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                        verbose=verbose, clobber=clobber)
+
+            # Increment map for this z chunk
+            # (a new `cimg` gets created later once full mass range is done)
+            #if ran_new:
                 cimg += buffer
+            #else:
+                # Already incremented above after loaded
+            #    pass
 
             ##
             # Otherwise, figure out what (if anything) needs to be
@@ -1577,7 +1586,6 @@ class LightCone(object): # pragma: no cover
             # incremented starting on the next iteration.
             if done_w_chan and ((not was_done_already) or (not _fn_exists)) \
                 and load_if_found:
-
 
                 self.save_map(_fn, cimg * f_norm / dnu,
                     channel, self.zlim, logmlim, fov,
@@ -1631,7 +1639,96 @@ class LightCone(object): # pragma: no cover
         # All done.
         pb.finish()
 
+        print(f"Doing post processing...")
+
+        ##
+        # Stitch together z slices?
+        self.post_process_z_layers(fov, pix, channels,
+            logmlim=logmlim, dlogm=dlogm,
+            clobber=clobber, channel_names=channel_names,
+            include_pops=include_pops, verbose=verbose,
+            map_units=map_units,
+            keep_layers=keep_layers, keep_layers_custom_z=keep_layers_custom_z)
+
         return
+
+    def post_process_z_layers(self, fov, pix, channels, logmlim, dlogm=1,
+        clobber=False, include_pops=[0], verbose=True, channel_names=None,
+        keep_layers=False, keep_layers_custom_z=None, map_units='MJy/sr',
+        hdr={}, fmt='fits'):
+        """
+        If we decided to save redshift layers, we may still need to sum
+        together the individual mass layers.
+        """
+
+        print('in post_process_z_layers')
+
+        if not keep_layers:
+            return
+
+        print('still in post_process_z_layers')
+
+        # Full list of map layers to run.
+        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+            include_pops=include_pops, channel_names=channel_names)
+
+        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
+        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+
+        # User can custom define subset of redshift layers to save
+        # (this is a computational choice: saving all can be ~TBs of images)
+        if (keep_layers_custom_z == None):
+            _keep_layers_custom = list(np.arange(0, len(all_zchunks)))
+        else:
+            _keep_layers_custom = list(keep_layers_custom_z)
+
+        # A few last things we need
+        f_norm = self.get_map_norm(map_units, pix)
+        npix = int(fov * 3600 / pix)
+
+        ##
+        # loop through redshift layers of interest
+        for ichan, channel in enumerate(channels):
+
+            nu = c * 1e4 / np.mean(channel)
+            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
+
+            for popid in include_pops:
+
+                for iz in keep_layers_custom_z:
+
+                    cimg = np.zeros([npix, npix])
+                    for im, mchunk in enumerate(all_mchunks):
+
+                        # See if we already finished this map.
+                        fn = self.get_map_fn(fov, pix, channel, popid,
+                            logmlim=mchunk, zlim=all_zchunks[iz])
+
+                        print(f"about to load {fn}.")
+
+                        _buffer, _hdr = self._load_map(fn)
+
+                        # Might need to adjust units before incrementing
+                        if _hdr['BUNIT'] == map_units:
+                            _buffer *= (f_norm / dnu)**-1.
+                        else:
+                            raise NotImplemented('help')
+
+                        # Increment map for this z chunk
+                        cimg += _buffer
+
+                    ##
+                    # Done with mass slices. Save redshift slice.
+                    _fn = self.get_map_fn(fov, pix, channel, popid,
+                        logmlim=logmlim, zlim=all_zchunks[iz])
+
+                    print(f"!! Saving z checkpoint {iz}: {_fn}")
+
+                    self.save_map(_fn, cimg * f_norm / dnu,
+                        channel, all_zchunks[iz], logmlim, fov,
+                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                        verbose=verbose, clobber=clobber)
+
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='fits',
         hdr={}, clobber=False, verbose=False, cat_units=''):
