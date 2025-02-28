@@ -2268,10 +2268,10 @@ class GalaxyCohort(GalaxyAggregate):
                 if use_tabs:
                     iz = self.get_zindex(z)
                     smhm = self.tab_fstar[iz,:]
-                    Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+                    Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
                     Av = self.tab_Av[iz,:]
                 else:
-                    Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+                    Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
                     Av = self.get_Av(z=z, Ms=Ms)
 
                 #Av = self.get_Av(z=z, Ms=Ms)
@@ -2843,7 +2843,7 @@ class GalaxyCohort(GalaxyAggregate):
     def tab_Av(self):
         arr = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
         for i, z in enumerate(self.halos.tab_z):
-            Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+            Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
             arr[i,:] = self.get_Av(z, Ms)
 
         return arr
