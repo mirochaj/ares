@@ -270,6 +270,17 @@ ihl_scaled['pop_Mmin'] = 1e10
 ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
 
+# These numbers are Purcell-like
+ihl_tanh = ihl_scaled.copy()
+ihl_tanh['pq_func[50]'] = 'logtanh_abs'
+ihl_tanh['pq_func_par0[50]'] = 0.7
+ihl_tanh['pq_func_par1[50]'] = 0.0
+ihl_tanh['pq_func_par2[50]'] = 13.6
+ihl_tanh['pq_func_par3[50]'] = -1.
+ihl_tanh['pq_val_ceil[50]'] = 0.99
+
+ihl_tanh_zevol = ihl_tanh.copy()
+
 #ihl_b19 = ihl_scaled.copy()
 #ihl_b19['pq_func_par0[50]'] = 0.01
 #ihl_b19['pq_func_par1[50]'] = 1e12

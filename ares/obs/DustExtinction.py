@@ -69,8 +69,6 @@ class DustExtinction(object):
     @cached_property
     def is_template(self):
         is_templ = self.pf['pop_dust_template'] is not None
-        if is_templ:
-            assert have_dustext
         return is_templ
 
     @cached_property
