@@ -398,6 +398,26 @@ class LogNormal(LightCone): # pragma: no cover
 
     def get_halo_masses(self, z, N, mmin=1e11, mmax=np.inf, seed=None,
         subhalos=False, Mc=None):
+        """
+        Draw halos from a model halo mass function.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        N : int
+            Number of halos to draw.
+        mmin : float
+            Minimum mass [Msun].
+        mmax : float
+            Maximum mass [Msun]
+        subhalos : bool
+            If True, draw from subhalo mass function. In this case, must
+            also provide central halo mass via `Mc`.
+        Mc : float
+            Central halo mass [Msun]. Only applicable if `subhalos`=True.
+
+        """
         # Grab dn/dm and construct CDF to randomly sampled HMF.
 
         # Don't bother with m << mmin halos
@@ -407,6 +427,7 @@ class LogNormal(LightCone): # pragma: no cover
         m = self.sim.pops[0].halos.tab_M[ok==1]
 
         if subhalos:
+            assert Mc is not None, "Must provide `Mc` if subhalos=True!"
             iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
             # We only keep dn/dlnM for some reason, convert to dn/dm
             dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m
@@ -679,8 +700,12 @@ class LogNormal(LightCone): # pragma: no cover
         # At this point, ra, dec, red, mass are for CENTRALS ONLY.
         # For satellites, we've got a bit more work to do.
         if satellites:
+            if logmlim_sats is None:
+                logmlim_sats = logmlim
+
             ra_s, dec_s, red_s, mass_s, par_id = \
-                self.get_catalog_subhalos(ra, dec, red, mass)
+                self.get_catalog_subhalos(ra, dec, red, mass,
+                    logmlim=logmlim_sats)
             return ra_s, dec_s, red_s, mass_s#, par_id
         else:
             return ra, dec, red, mass
@@ -707,7 +732,6 @@ class LogNormal(LightCone): # pragma: no cover
         Nexp = np.trapz(hmf_sub[:,ok_sub==1],
             x=np.log(self.sim.pops[0].halos.tab_M[ok_sub==1]), axis=1)
 
-
         # Array of radial separations [cMpc]
         d = np.logspace(-2, 0, 100) # 10 kpc -> 1 Mpc
 
@@ -732,12 +756,15 @@ class LogNormal(LightCone): # pragma: no cover
 
             Nsat_exp = int(Nexp[iM])
 
+            #np.random.seed(seed)
+            Nsat_act = np.random.poisson(Nsat_exp)
+
             # Outsources sampling over sub-halo MF
-            _m = self.get_halo_masses(red_c[i], Nsat_exp,
+            _m = self.get_halo_masses(red_c[i], Nsat_act,
                 mmin=10**logmlim[0], mmax=10**logmlim[1], seed=seed,
                 subhalos=True, Mc=mass_c[i])
 
-            Nsat_act = len(_m)
+            print("hi", i, Nsat_exp, Nsat_act)
 
             mass.extend(list(_m))
 
@@ -772,11 +799,10 @@ class LogNormal(LightCone): # pragma: no cover
             x_deg = np.cos(theta) * r_proj_deg
             y_deg = np.sin(theta) * r_proj_deg
 
+            ra.extend(list(ra_c[i] + x_deg))
+            dec.extend(list(dec_c[i] + y_deg))
 
-            # Give `y_deg` a random +/- sign
-
-            ra.extend(list(x_deg))
-            dec.extend(list(y_deg))
+            #print('hi', i, ra_c[i], dec_c[i], x_deg.min(), x_deg.max(), y_deg.min(), y_deg.max())
 
             ##
             # Make some dynamical argument to shift redshifts?

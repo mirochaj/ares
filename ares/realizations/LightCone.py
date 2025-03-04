@@ -1508,6 +1508,10 @@ class LightCone(object): # pragma: no cover
                 if verbose:
                     print(f"# Generating map {fn}...")
 
+                if include_galaxy_sizes:
+                    assert self.sim.pops[popid].pf['pop_msr'] is not None, \
+                        "Must provide `pop_msr` if include_galaxy_sizes=True!"
+
                 # Generate map -> buffer
                 # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
                 # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
