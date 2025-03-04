@@ -576,8 +576,21 @@ class Cosmology(object):
 
     def get_lightcone_boundaries(self, zlim, Lbox, rtol=1e-6):
         """
-        Based on size of co-eval cubes (in Mpc/h), and redshift limits,
-        determine all of the sub-intervals in redshift along line of sight.
+        Determine line-of-sight bins in both redshift and cMpc.
+
+        Parameters
+        ----------
+        zlim : tuple
+            Redshift range of interest.
+        Lbox : int, float
+            Co-eval box size in cMpc / h.
+
+        Returns
+        -------
+        A tuple containing (chunk edges in redshift, chunk midpoints in redshift,
+            chunk edges in comoving Mpc [NOT cMpc / h, despite input `Lbox`
+            being in cMpc/h!]).
+
         """
 
         zarr = np.linspace(0.001, 10, 1000)
