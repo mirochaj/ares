@@ -14,6 +14,7 @@ import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
+from ..util.Misc import get_pop_info
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
@@ -96,7 +97,6 @@ class LogNormal(LightCone): # pragma: no cover
             print(f"# Old zlim=({zmin:.3f},{zmax:.3f})")
             print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
             print(f"# Number of co-eval chunks: {zmid.size}")
-
 
     def get_fov_from_L(self, z, Lbox):
         """
@@ -483,6 +483,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        pid, pid_par, pid_str = get_pop_info(popid)
+
         if zlim is None:
             zlim = self.zlim
 
@@ -703,14 +705,18 @@ class LogNormal(LightCone): # pragma: no cover
             if logmlim_sats is None:
                 logmlim_sats = logmlim
 
+            if (mass is None):
+                return None, None, None, None
+
             ra_s, dec_s, red_s, mass_s, par_id = \
-                self.get_catalog_subhalos(ra, dec, red, mass,
+                self.get_catalog_subhalos(ra, dec, red, mass, pid_c=pid_par,
                     logmlim=logmlim_sats)
+
             return ra_s, dec_s, red_s, mass_s#, par_id
         else:
             return ra, dec, red, mass
 
-    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c,
+    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, pid_c,
         logmlim=(11,15), seed=None):
         """
         Get a catalog of satellite galaxies for input central catalog.
@@ -756,6 +762,12 @@ class LogNormal(LightCone): # pragma: no cover
 
             Nsat_exp = int(Nexp[iM])
 
+            # Note that some Nexp==0 objects should statistically end up
+            # with one or even a few satellites, but this should be a really
+            # small effect and at the moment (at least) not SUs well spent.
+            if Nsat_exp == 0:
+                continue
+
             #np.random.seed(seed)
             Nsat_act = np.random.poisson(Nsat_exp)
 
@@ -763,8 +775,6 @@ class LogNormal(LightCone): # pragma: no cover
             _m = self.get_halo_masses(red_c[i], Nsat_act,
                 mmin=10**logmlim[0], mmax=10**logmlim[1], seed=seed,
                 subhalos=True, Mc=mass_c[i])
-
-            print("hi", i, Nsat_exp, Nsat_act)
 
             mass.extend(list(_m))
 
@@ -801,8 +811,6 @@ class LogNormal(LightCone): # pragma: no cover
 
             ra.extend(list(ra_c[i] + x_deg))
             dec.extend(list(dec_c[i] + y_deg))
-
-            #print('hi', i, ra_c[i], dec_c[i], x_deg.min(), x_deg.max(), y_deg.min(), y_deg.max())
 
             ##
             # Make some dynamical argument to shift redshifts?
@@ -860,12 +868,29 @@ class LogNormal(LightCone): # pragma: no cover
         """
         Get a realization of a halo population.
 
+        Parameters
+        ----------
+        z : int, float
+            Redshift, will be used to identify co-eval cube.
+        seed : int
+            Random seed for halo masses.
+        seed_box : int
+            Random seed for density field.
+        seed_pos : int
+            Random seed for halo positions.
+        seed_occ : int
+            Random seed for halo occupation.
+
         Returns
         -------
         Tuple containing (x, y, z, mass), where x, y, and z are halo positions
         in cMpc / h (between 0 and self.Lbox), and mass is in Msun.
 
         """
+
+        # Unpack popid more [as of March 2025]
+        # (id number in ARES, parent ID number [if satellite], name as str)
+        pid, pid_par, pid_str = get_pop_info(popid)
 
         pb = self.get_box(z=z, seed=seed_box)
 
@@ -930,12 +955,12 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Apply occupation fraction here?
-        if self.sim.pops[popid].pf['pop_focc'] != 1:
+        if self.sim.pops[pid_par].pf['pop_focc'] != 1:
 
             np.random.seed(seed_occ)
 
             r = np.random.rand(N)
-            focc = self.sim.pops[popid].get_focc(z=z, Mh=mass)
+            focc = self.sim.pops[pid_par].get_focc(z=z, Mh=mass)
 
             ok = np.ones(N)
             ok[r > focc] = 0

@@ -19,8 +19,8 @@ from pathlib import Path
 from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
-from ..util.Misc import numeric_types, get_hash
 from scipy.spatial.transform import Rotation
+from ..util.Misc import numeric_types, get_hash, get_pop_info
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
 
@@ -388,6 +388,7 @@ class LightCone(object): # pragma: no cover
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
+        logmlim_sats=(11,15),
         buffer=None, **kwargs):
         """
         Get a map for a single channel, redshift chunk, mass chunk, and
@@ -444,6 +445,10 @@ class LightCone(object): # pragma: no cover
 
         Npix = [ra_c.size, dec_c.size]
 
+        # Unpack popid more [as of March 2025]
+        # (id number in ARES, parent ID number [if satellite], name as str)
+        pid, pid_par, pid_str = get_pop_info(popid)
+
         # Initialize empty map
         img = buffer
         #if buffer is not None:
@@ -472,7 +477,8 @@ class LightCone(object): # pragma: no cover
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose,
-            satellites=self.sim.pops[popid].is_satellite_pop)
+            satellites=self.sim.pops[pid].is_satellite_pop,
+            logmlim_sats=logmlim_sats)
 
         # Could be empty chunks for very massive halos and/or early times.
         if ra is None:
@@ -582,7 +588,7 @@ class LightCone(object): # pragma: no cover
 
             okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
 
-            _flux_ = self.sim.pops[popid].get_lum(zsub_mid, x=None,
+            _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
                 Mh=Mh[okzsub==1], units='Ang',
                 units_out='erg/s/Ang', band=tuple(band))
 
@@ -598,7 +604,7 @@ class LightCone(object): # pragma: no cover
         # Need some extra info to do more sophisticated modeling...
         ##
         # Extended emission from IHL
-        if self.sim.pops[popid].is_diffuse:
+        if self.sim.pops[pid].is_diffuse:
 
             Rmi, Rma = -3, 1
             dlogR = 0.25
@@ -606,7 +612,7 @@ class LightCone(object): # pragma: no cover
 
             if max_sources == 1:
 
-                Sall = self.sim.pops[popid].halos.get_halo_surface_dens(
+                Sall = self.sim.pops[pid].halos.get_halo_surface_dens(
                     zmid, Mh[0], Rall
                 )
 
@@ -614,11 +620,11 @@ class LightCone(object): # pragma: no cover
 
                 Mall = Mh
             else:
-                _iz = np.argmin(np.abs(zmid - self.sim.pops[popid].halos.tab_z))
+                _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
 
                 # Remaining dimensions (Mh, R)
-                Sall = self.sim.pops[popid].halos.tab_Sigma_nfw[_iz,:,:]
-                Mall = self.sim.pops[popid].halos.tab_M
+                Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
+                Mall = self.sim.pops[pid].halos.tab_M
 
             mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
                 pix / 60.)
@@ -629,8 +635,8 @@ class LightCone(object): # pragma: no cover
 
         elif include_galaxy_sizes:
 
-            Ms = self.sim.pops[popid].get_smhm(z=red, Mh=Mh) * Mh
-            Rkpc = self.pops[popid].get_size(z=red, Ms=Ms)
+            Ms = self.sim.pops[pid].get_smhm(z=red, Mh=Mh) * Mh
+            Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
 
             R_sec = np.zeros_like(Rkpc)
             for kk in range(red.size):
@@ -663,7 +669,7 @@ class LightCone(object): # pragma: no cover
             # radius containing `size_cut` fraction of the light, that
             # exceeds a pixel.
             else:
-                rmax = [self.sim.pops[popid].get_sersic_rmax(size_cut,
+                rmax = [self.sim.pops[pid].get_sersic_rmax(size_cut,
                     nsers[h]) for h in range(Rkpc.size)]
 
                 R_X = np.array(rmax) * R_sec
@@ -699,7 +705,7 @@ class LightCone(object): # pragma: no cover
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
-            if self.sim.pops[popid].is_diffuse:
+            if self.sim.pops[pid].is_diffuse:
 
                 # Image of distances from halo center
                 r0 = ra_c[i] * 60 * mpc_per_arcmin
@@ -779,27 +785,30 @@ class LightCone(object): # pragma: no cover
     def get_map_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
         fmt='fits'):
         """
-
+        Return filename expected for map with given properties.
         """
 
         save_dir = self.get_output_dir(fov=fov, pix=pix,
             zlim=zlim, logmlim=logmlim)
 
-        fn = '{}/map_{:.3f}_{:.3f}_pop_{:.0f}'.format(save_dir,
-            channel[0], channel[1], popid)
+        pid, pid_parent, pid_str = get_pop_info(popid)
+
+        fn = f'{save_dir}/map_{channel[0]:.3f}_{channel[1]:.3f}_pop_{pid_str}'
 
         return fn + '.' + fmt
 
     def get_cat_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
         fmt='fits'):
         """
-
+        Return filename expected for catalog with given properties.
         """
 
         save_dir = self.get_output_dir(fov=fov, pix=pix,
             zlim=zlim, logmlim=logmlim)
 
-        fn = f'{save_dir}/cat_{channel}_pop_{popid:.0f}'
+        pid, pid_parent, pid_str = get_pop_info(popid)
+
+        fn = f'{save_dir}/cat_{channel}_pop_{pid_str}'
 
         return fn + '.' + fmt
 
@@ -845,8 +854,8 @@ class LightCone(object): # pragma: no cover
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={}, max_sources=None, source_prop=None,
-        cat_units='uJy', keep_layers=False,
-        include_pops=None, clobber=False, verbose=False, dryrun=False,
+        cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
+        include_pops=[0], clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
         """
         Generate galaxy catalogs.
@@ -888,9 +897,6 @@ class LightCone(object): # pragma: no cover
         if zlim is None:
             zlim = self.zlim
 
-        if include_pops is None:
-            include_pops = range(0, len(self.sim.pops))
-
         assert fov * 3600 / pix % 1 == 0, \
             "FOV must be integer number of pixels wide!"
 
@@ -921,6 +927,8 @@ class LightCone(object): # pragma: no cover
 
             # Unpack info about this chunk
             popid, channel, chname, zchunk, mchunk = chunk
+
+            pid, pid_par, pid_str = get_pop_info(popid)
 
             # Short-hand needed below
             zlo, zhi = zchunk
@@ -953,10 +961,11 @@ class LightCone(object): # pragma: no cover
                 #print('entering get_catalog', zchunk, mchunk)
                 _ra, _dec, _red, _Mh = self.get_catalog(zlim=zchunk,
                     logmlim=mchunk, popid=popid, verbose=verbose,
-                    satellites=self.sim.pops[popid].is_satellite_pop)
+                    satellites=self.sim.pops[pid].is_satellite_pop,
+                    logmlim_sats=logmlim_sats)
 
                 # Could be empty chunks for very massive halos and/or early times.
-                if _ra is None:
+                if (_ra is None) or (len(_ra) == 0):
                     # You might think: let's `continue` to the next iteration!
                     # BUT, if we do that, and we're really unlucky and this
                     # happens on the last chunk of work for a given channel,
@@ -1000,7 +1009,6 @@ class LightCone(object): # pragma: no cover
 
                         ok = np.logical_and(ok, oks)
 
-
                     # Isolate OK entries.
                     _ra = _ra[ok==1]
                     _dec = _dec[ok==1]
@@ -1042,7 +1050,7 @@ class LightCone(object): # pragma: no cover
                                                     _red < zsub_hi)
 
                             _filt, out = \
-                                self.sim.pops[popid].get_mags(zsub_mid,
+                                self.sim.pops[pid].get_mags(zsub_mid,
                                 absolute=False, cam=cam, filters=[filt],
                                 Mh=_Mh[okzsub==1])
 
@@ -1112,7 +1120,7 @@ class LightCone(object): # pragma: no cover
         # Done
         return
 
-    def get_layers(self, channels, logmlim, dlogm=0.5, include_pops=None,
+    def get_layers(self, channels, logmlim, dlogm=0.5, include_pops=[0],
         channel_names=None):
         """
         Take a list of channels, populations, and bounds in halo mass,
@@ -1137,9 +1145,6 @@ class LightCone(object): # pragma: no cover
         >>>    <do cool stuff>
 
         """
-
-        if include_pops is None:
-            include_pops = range(0, len(self.sim.pops))
 
         zchunks = self.get_redshift_chunks(self.zlim)
         mchunks = self.get_mass_chunks(logmlim, dlogm)
@@ -1272,10 +1277,10 @@ class LightCone(object): # pragma: no cover
 
         return f_norm
 
-    def generate_maps(self, fov, pix, channels, logmlim, dlogm=0.5,
+    def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=None, clobber=False, max_sources=None, source_prop=None,
+        include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None,
         keep_layers=False, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
@@ -1353,9 +1358,6 @@ class LightCone(object): # pragma: no cover
         #if zlim is None:
         zlim = self.zlim
 
-        if include_pops is None:
-            include_pops = range(0, len(self.sim.pops))
-
         assert fov * 3600 / pix % 1 == 0, \
             "FOV must be integer number of pixels wide!"
 
@@ -1378,7 +1380,6 @@ class LightCone(object): # pragma: no cover
                 _keep_layers_custom = list(np.arange(0, len(all_zchunks)))
             else:
                 _keep_layers_custom = list(keep_layers_custom_z)
-
 
         # Array telling us which chunks were already done and which
         # we ran from scratch so at the end we know whether to update
@@ -1433,6 +1434,10 @@ class LightCone(object): # pragma: no cover
 
             # Unpack info about this chunk
             popid, channel, chname, zchunk, mchunk = chunk
+
+            # Unpack popid more [as of March 2025]
+            # (id number in ARES, parent ID number [if satellite], name as str)
+            pid, pid_par, pid_str = get_pop_info(popid)
 
             # Identify indices of each (channel, z, m) chunk
             ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
@@ -1494,7 +1499,7 @@ class LightCone(object): # pragma: no cover
                     print(f"# Generating map {fn}...")
 
                 if include_galaxy_sizes:
-                    assert self.sim.pops[popid].pf['pop_msr'] is not None, \
+                    assert self.sim.pops[pid].pf['pop_msr'] is not None, \
                         "Must provide `pop_msr` if include_galaxy_sizes=True!"
 
                 # Generate map -> buffer

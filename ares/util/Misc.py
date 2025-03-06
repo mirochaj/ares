@@ -17,7 +17,37 @@ from ..data import ARES
 from .Stats import bin_e2c
 from ..physics.Constants import c, erg_per_ev, h_p, E_LL, E_LyA
 
+letters = list('abcdef')
 numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
+
+def get_pop_info(popid):
+    """
+    Parse `popid`, as we (as of March 2025) allow non-integer IDs.
+
+    Returns
+    -------
+    Tuple containing (ARES popid, parent popid [if applicable], pop name).
+
+    """
+
+    # In this case, 'classic' behavior: just an integer, i.e.,
+    # central galaxies.
+    if type(popid) == int:
+        return popid, popid, str(popid)
+
+    if type(popid) == tuple:
+        assert popid[1] < popid[0]
+        if type(popid[1]) == str:
+            s = letters.index(popid[1])
+        else:
+            s = letters[popid[1]]
+
+        return popid[0], popid[1], f'{popid[0]}{s}'
+
+    if type(popid) == str:
+        return int(popid[0]), int(letters.index(popid[1])), popid
+
+    raise NotImplemented('help')
 
 def get_cmd_line_kwargs(argv):
 
