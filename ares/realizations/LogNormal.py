@@ -29,7 +29,7 @@ class LogNormal(LightCone): # pragma: no cover
     def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
         seed_rot=None, seed_trans=None, seed_pa=None, seed_nsers=None,
-        apply_rotations=False, apply_translations=False,
+        seed_sats=None, apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=1,
         dz_max=0.1, **kwargs):
@@ -64,6 +64,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.seed_tra = seed_trans
         self.seed_pa = seed_pa
         self.seed_nsers = seed_nsers
+        self.seed_sats = seed_sats
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
 
@@ -485,6 +486,9 @@ class LogNormal(LightCone): # pragma: no cover
 
         pid, pid_par, pid_str = get_pop_info(popid)
 
+        if logmlim_sats is None:
+            logmlim_sats = logmlim
+
         if zlim is None:
             zlim = self.zlim
 
@@ -674,6 +678,18 @@ class LogNormal(LightCone): # pragma: no cover
 
                 #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
 
+            ##
+            # For satellites: one more step before moving to next chunk.
+            if satellites:
+
+                ra_s, dec_s, red_s, mass_s, par_id = \
+                    self.get_catalog_subhalos(_ra, _de, _red, _m,
+                        pid_c=pid_par, logmlim=logmlim_sats,
+                        seed=seed_kwargs['seed_sats'])
+
+                _ra, _de, _red, _m = ra_s, dec_s, red_s, mass_s
+
+            # Save results
             if ct == 0:
                 ra = _ra.copy()
                 dec = _de.copy()
@@ -691,30 +707,20 @@ class LogNormal(LightCone): # pragma: no cover
             if self.apply_rotations or self.apply_translations:
                 del _x, _x_, _y, _y_, _z, _z_, _m_
 
+            if satellites:
+                del ra_s, dec_s, red_s, mass_s, par_id
+
             if self.mem_concious:
                 gc.collect()
+
+            ##
+            # Done with this co-eval chunk
 
         pbar.finish()
 
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
 
-        ##
-        # At this point, ra, dec, red, mass are for CENTRALS ONLY.
-        # For satellites, we've got a bit more work to do.
-        if satellites:
-            if logmlim_sats is None:
-                logmlim_sats = logmlim
-
-            if (mass is None):
-                return None, None, None, None
-
-            ra_s, dec_s, red_s, mass_s, par_id = \
-                self.get_catalog_subhalos(ra, dec, red, mass, pid_c=pid_par,
-                    logmlim=logmlim_sats)
-
-            return ra_s, dec_s, red_s, mass_s#, par_id
-        else:
-            return ra, dec, red, mass
+        return ra, dec, red, mass
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, pid_c,
         logmlim=(11,15), seed=None):
@@ -745,6 +751,10 @@ class LogNormal(LightCone): # pragma: no cover
         # Just loop to start. Could truncate based on where expected
         # number of satellites is effectively zero.
         Nc = len(mass_c)
+
+        ##
+        # Reproducibility is important
+        np.random.seed(seed)
 
         ra = []
         dec = []

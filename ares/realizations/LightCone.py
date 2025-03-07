@@ -358,38 +358,66 @@ class LightCone(object): # pragma: no cover
         return iz
 
     def get_seed_kwargs(self, chunk, logmlim):
-        # Deterministically adjust the random seeds for the given mass range
-        # and redshift range.
+        """
+        Deterministically adjust the random seeds for the given redshift chunk
+        and mass range.
+
+        Parameters
+        ----------
+        chunk : int
+            ID number for given co-eval redshift `chunk`.
+        logmlim : tuple
+            Min/mass log10(halo mass / Msun) range of interest.
+
+        Returns
+        -------
+        Dictionary of random seeds to use for halo masses, positions,
+        occupation, orientation, Sersic index....
+
+        """
         fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
         ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
 
-        if not hasattr(self, '_seeds'):
-            self._seeds = self.seed_rho * np.arange(1, len(zmid)+1)
-            self._seeds_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
-            self._seeds_hp = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
-            self._seeds_ho = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+        #if not hasattr(self, '_seeds'):
+        seed_rho = self.seed_rho * np.arange(1, len(zmid)+1)
+        seed_mh = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+        seed_xyz = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+        seed_focc = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
 
-            if self.seed_nsers is not None:
-                self._seeds_nsers = self.seed_nsers * np.arange(1, len(zmid)+1) * fmh
-            else:
-                self._seeds_nsers = [None] * len(zmid)
-            if self.seed_pa is not None:
-                self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
-            else:
-                self._seeds_pa = [None] * len(zmid)
+        if self.seed_nsers is not None:
+            self._seeds_nsers = self.seed_nsers * np.arange(1, len(zmid)+1) * fmh
+        else:
+            self._seeds_nsers = [None] * len(zmid)
+        if self.seed_pa is not None:
+            self._seeds_pa = self.seed_pa * np.arange(1, len(zmid)+1) * fmh
+        else:
+            self._seeds_pa = [None] * len(zmid)
+
 
         i = chunk
-        return {'seed_box': self._seeds[i],
-            'seed': self._seeds_hm[i], 'seed_pos': self._seeds_hp[i],
-            'seed_occ': self._seeds_ho[i],
+        seed_kw = {'seed_box': seed_rho[i],
+            'seed': seed_mh[i], 'seed_pos': seed_xyz[i],
+            'seed_occ': seed_focc[i],
             'seed_nsers': self._seeds_nsers[i], 'seed_pa': self._seeds_pa[i]}
+
+        ##
+        # [optional] seeds for satellites
+        # Let's hardcode the most likely
+        # Need seed for satellite occupation, position wrt central,
+        # and mass.
+        #seeds_sats = {}
+        #seed_sats_hm = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh \
+
+        seed_kw['seed_sats'] = self.seed_sats * np.arange(1, len(zmid)+1) * fmh
+
+        # Done
+        return seed_kw
 
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
-        logmlim_sats=(11,15),
-        buffer=None, **kwargs):
+        logmlim_sats=(11,15), buffer=None, **kwargs):
         """
         Get a map for a single channel, redshift chunk, mass chunk, and
         source population.
