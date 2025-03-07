@@ -2269,10 +2269,12 @@ class GalaxyCohort(GalaxyAggregate):
                     iz = self.get_zindex(z)
                     smhm = self.tab_fstar[iz,:]
                     Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
+                    sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
                     Av = self.tab_Av[iz,:]
                 else:
                     Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
-                    Av = self.get_Av(z=z, Ms=Ms)
+                    sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
+                    Av = self.get_Av(z=z, Ms=Ms, SFR=sfr)
 
                 #Av = self.get_Av(z=z, Ms=Ms)
                 Sd = None
@@ -2827,24 +2829,25 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_Av(self, value):
         self._get_Av_ = value
 
-    def get_Av(self, z, Ms):
+    def get_Av(self, z, Ms=None, SFR=None):
         """
         Get visual extinction.
         """
 
         if hasattr(self, '_get_Av_'):
-            return self._get_Av_(z=z, Ms=Ms)
+            return self._get_Av_(z=z, Ms=Ms, SFR=SFR)
 
         func = self._get_function('pop_Av')
 
-        return func(z=z, Ms=Ms)
+        return func(z=z, Ms=Ms, SFR=SFR)
 
     @cached_property
     def tab_Av(self):
         arr = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
         for i, z in enumerate(self.halos.tab_z):
             Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
-            arr[i,:] = self.get_Av(z, Ms)
+            sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
+            arr[i,:] = self.get_Av(z, Ms=Ms, SFR=sfr)
 
         return arr
 
