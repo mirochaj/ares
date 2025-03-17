@@ -28,11 +28,12 @@ except ImportError:
 class LogNormal(LightCone): # pragma: no cover
     def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
-        seed_rot=None, seed_trans=None, seed_pa=None, seed_nsers=None,
-        seed_sats=None, apply_rotations=False, apply_translations=False,
+        seed_rot=None, seed_trans=None, seed_profile=None, seed_sats=None,
+        apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=1,
-        dz_max=0.1, **kwargs):
+        distribute_sats_spatially=True,
+        dz_max=0.01, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -62,11 +63,11 @@ class LogNormal(LightCone): # pragma: no cover
         self.seed_halo_occ = seed_halo_occ
         self.seed_rot = seed_rot
         self.seed_tra = seed_trans
-        self.seed_pa = seed_pa
-        self.seed_nsers = seed_nsers
+        self.seed_profile = seed_profile
         self.seed_sats = seed_sats
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
+        self.distribute_sats_spatially = distribute_sats_spatially
 
         # Only used for NbodySimLC models
         self.zchunks = None
@@ -457,6 +458,35 @@ class LogNormal(LightCone): # pragma: no cover
 
         return mass
 
+    def get_prof_params(self, num, seed):
+        """
+        Return arrays of Sersic indices, positions angles, and ellipticies.
+
+        Parameters
+        ----------
+        num : int
+            Number of galaxies to draw.
+        seed : int
+            Random seed. Should be determined in LightCone class using the
+            get_seed_kwargs function for a given co-eval redshift chunk.
+
+        Returns
+        -------
+        Tuple with three elements: (sersic index, position angle [deg],
+        ellipticity = 1 - b / a).
+        """
+        # Uniform for now.
+        np.random.seed(seed)
+
+        # Sersic indices and position angles
+        nsers = np.random.random(size=num) * 5.9 + 0.3
+        pa = np.random.random(size=num) * 360
+
+        # Ellipticity = 1 - b/a
+        ellip = np.random.random(size=num)
+
+        return nsers, pa, ellip
+
     def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
         satellites=False, logmlim_sats=None, max_sources=None):
         """
@@ -685,7 +715,8 @@ class LogNormal(LightCone): # pragma: no cover
                 ra_s, dec_s, red_s, mass_s, par_id = \
                     self.get_catalog_subhalos(_ra, _de, _red, _m,
                         pid_c=pid_par, logmlim=logmlim_sats,
-                        seed=seed_kwargs['seed_sats'])
+                        seed=seed_kwargs['seed_sats'],
+                        distribute_in_space=self.distribute_sats_spatially)
 
                 _ra, _de, _red, _m = ra_s, dec_s, red_s, mass_s
 
@@ -723,9 +754,28 @@ class LogNormal(LightCone): # pragma: no cover
         return ra, dec, red, mass
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, pid_c,
-        logmlim=(11,15), seed=None):
+        logmlim=(11,15), seed=None, distribute_in_space=True):
         """
         Get a catalog of satellite galaxies for input central catalog.
+
+        Parameters
+        ----------
+        ra_c : np.ndarray
+            Right ascension of all central halos [deg].
+        dec_c : np.ndarray
+            Declination of all central halos [deg].
+        red_c : np.ndarray
+            Redshifts of all central halos.
+        mass_c : np.ndarray
+            Masses of all central halos [Msun].
+        pid_c : np.ndarray
+
+        distribute_in_space : bool
+            If True, will position subhalos randomly in proportion to the
+            projected NFW density profile. If False, subhalos will be placed at
+            the location of their parent central. This is really just an option
+            implemented for sanity checks.
+
         """
 
         ##
@@ -753,8 +803,16 @@ class LogNormal(LightCone): # pragma: no cover
         Nc = len(mass_c)
 
         ##
-        # Reproducibility is important
+        # Reproducibility is important.
+        # Make seeds for halo position and mass sampling.
+        # Note that this is done in a slightly different way from centrals.
+        # Instead of providing seeds for everything by hand, we use one seed
+        # to deterministically create seeds for the masses and positions
+        # of all subhalos for each central.
         np.random.seed(seed)
+        seeds_num = np.random.randint(0, high=Nc * 1000, size=Nc)
+        seeds_pos = np.random.randint(0, high=Nc * 1000, size=Nc)
+        seeds_mass = np.random.randint(0, high=Nc * 1000, size=Nc)
 
         ra = []
         dec = []
@@ -762,11 +820,6 @@ class LogNormal(LightCone): # pragma: no cover
         mass = []
         par_id = []
         for i in range(Nc):
-
-            # First grab the subhalo-mf for this redshift
-            #iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - red_c[i]))
-            #smf = hmf_sub[iz,:]
-
             # Index for this halo mass
             iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
 
@@ -778,54 +831,59 @@ class LogNormal(LightCone): # pragma: no cover
             if Nsat_exp == 0:
                 continue
 
-            #np.random.seed(seed)
+            # Poisson random draw to determine actual number of subhalos,
+            # given expected number.
+            np.random.seed(seeds_num[i])
             Nsat_act = np.random.poisson(Nsat_exp)
 
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act,
-                mmin=10**logmlim[0], mmax=10**logmlim[1], seed=seed,
+                mmin=10**logmlim[0], mmax=10**logmlim[1], seed=seeds_mass[i],
                 subhalos=True, Mc=mass_c[i])
 
             mass.extend(list(_m))
 
             ##
             # Now, do positions. Do in 2-D or 3-D?
-            Sigma = self.sim.pops[0].halos.get_halo_surface_dens(red_c[i],
-                mass_c[i], d)
+            if distribute_in_space:
+                Sigma = self.sim.pops[0].halos.get_halo_surface_dens(red_c[i],
+                    mass_c[i], d)
 
-            ##
-            #
-            cdf = cumulative_trapezoid(Sigma, x=d, initial=0) \
-                / np.trapz(Sigma, x=d)
+                ##
+                #
+                cdf = cumulative_trapezoid(Sigma, x=d, initial=0) \
+                    / np.trapz(Sigma, x=d)
 
-            r = np.random.rand(Nsat_act)
+                np.random.seed(seeds_pos[i])
+                r = np.random.rand(Nsat_act)
 
-            # Radial displacement of all satellites in cMpc
-            r_proj_mpc = np.exp(np.interp(r, cdf, np.log(d)))
+                # Radial displacement of all satellites in cMpc
+                r_proj_mpc = np.exp(np.interp(r, cdf, np.log(d)))
 
-            mpc_per_deg = \
-                self.sim.cosm.get_length_comoving_from_angle(red_c[i], 60.)
+                mpc_per_deg = \
+                    self.sim.cosm.get_length_comoving_from_angle(red_c[i], 60.)
 
-            r_proj_deg = r_proj_mpc / mpc_per_deg
+                r_proj_deg = r_proj_mpc / mpc_per_deg
 
-            #r_vir_deg = self.sim.pops[0].halos.get_Rvir_from_Mh(mass_c[i]) \
-            #    / mpc_per_deg
+                # Need to turn into RA and DEC
+                # Randomly choose an angle
+                np.random.seed(seeds_pos[i] * 2)
+                theta = np.random.rand(Nsat_act) * 2 * np.pi
 
-            # Need to turn into RA and DEC
-            # Randomly choose an angle
-            theta = np.random.rand(Nsat_act) * 2 * np.pi
+                # Then convert to x and y displacements
+                x_deg = np.cos(theta) * r_proj_deg
+                y_deg = np.sin(theta) * r_proj_deg
 
-            # Then convert to x and y displacements
-            x_deg = np.cos(theta) * r_proj_deg
-            y_deg = np.sin(theta) * r_proj_deg
+            else:
+                x_deg = y_deg = 0
 
+            # Save progress
             ra.extend(list(ra_c[i] + x_deg))
             dec.extend(list(dec_c[i] + y_deg))
 
             ##
             # Make some dynamical argument to shift redshifts?
-            # Yeah, let's just
-            # get_vcirc -> dz
+            # Someday, sure. For now, just put at same exact z as central.
             red.extend([red_c[i]] * Nsat_act)
 
             # Save index for the parent halo.

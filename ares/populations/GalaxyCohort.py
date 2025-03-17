@@ -2496,7 +2496,6 @@ class GalaxyCohort(GalaxyAggregate):
                 return 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
                     np.log10(Lh), left=0, right=0)
 
-
         ##
         # Loop over components (most often just one) and determine L
         Lh = np.zeros_like(self.halos.tab_M, dtype=np.float64)

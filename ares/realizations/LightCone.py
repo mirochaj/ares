@@ -185,10 +185,22 @@ class LightCone(object): # pragma: no cover
 
     def get_pixels(self, fov, pix=1, hdr=None):
         """
-        For a given field of view [deg, linear dimension] and pixel scale `pix`
-        [arcseconds], return arrays containing bin edges and centers in both
-        dimensions, i.e., (RA_edges, RA_centers, DEC_edges, DEC_centers), all
-        in degrees.
+        For a given field of view and pixel scale get pixel centers and edges.
+
+        .. note :: We assume the center of the image is at RA=DEC=0, so pixel
+            coordinates span the domain [-1/2, -1/2] * FOV.
+
+        Parameters
+        ----------
+        fov : int, float
+            Field of view (assumed square) in degrees.
+        pix : int, float
+            Pixel scale in arcseconds.
+
+        Returns
+        -------
+        Tuple containing the (RA pixel edges, RA pixel centers, DEC pixel
+        edges, DEC pixel centers), all in degrees.
         """
 
         if type(fov) in numeric_types:
@@ -377,41 +389,30 @@ class LightCone(object): # pragma: no cover
         """
         fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
-        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
+        if not hasattr(self, '_seeds'):
+            ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
 
-        seed_rho = self.seed_rho * np.arange(1, len(zmid)+1)
-        seed_mh = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
-        seed_xyz = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
-        seed_focc = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+            seed_rho = self.seed_rho * np.arange(1, len(zmid)+1)
+            seed_mh = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
+            seed_xyz = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
+            seed_focc = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+            seed_prof = self.seed_profile * np.arange(1, len(zmid)+1) * fmh
 
-        if self.seed_nsers is not None:
-            seeds_nsers = self.seed_nsers \
-                * np.arange(1, len(zmid)+1) * fmh
-        else:
-            seeds_nsers = [None] * len(zmid)
+            self._seeds = {'seed_box': seed_rho,
+                'seed': seed_mh, 'seed_pos': seed_xyz,
+                'seed_occ': seed_focc,
+                'seed_profile': seed_prof}
 
-        if self.seed_pa is not None:
-            seeds_pa = self.seed_pa \
-                * np.arange(1, len(zmid)+1) * fmh
-        else:
-            seeds_pa = [None] * len(zmid)
+            ##
+            # [optional] seeds for satellites
+            if self.seed_sats is not None:
+                seed_sats = self.seed_sats \
+                    * np.arange(1, len(zmid)+1) * fmh
+                self._seeds['seed_sats'] = seed_sats
 
         i = chunk
-        seed_kw = {'seed_box': seed_rho[i],
-            'seed': seed_mh[i], 'seed_pos': seed_xyz[i],
-            'seed_occ': seed_focc[i],
-            'seed_nsers': seeds_nsers[i],
-            'seed_pa': seeds_pa[i]}
-
-        ##
-        # [optional] seeds for satellites
-        if self.seed_sats is not None:
-            seed_sats = self.seed_sats \
-                * np.arange(1, len(zmid)+1) * fmh
-            seed_kw['seed_sats'] = seed_sats[i]
-
         # Done
-        return seed_kw
+        return {key:self._seeds[key][i] for key in self._seeds.keys()}
 
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
@@ -631,7 +632,7 @@ class LightCone(object): # pragma: no cover
         # Need some extra info to do more sophisticated modeling...
         ##
         # Extended emission from IHL
-        if self.sim.pops[pid].is_diffuse:
+        if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
 
             Rmi, Rma = -3, 1
             dlogR = 0.25
@@ -675,9 +676,10 @@ class LightCone(object): # pragma: no cover
             # Note: the size is defined as the stellar half-light radius.
 
             # Uniform for now.
-            np.random.seed(seed_kw['seed_nsers'])
+            np.random.seed(seed_kw['seed_profile'])
+
+            # Sersic indices and position angles
             nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
-            np.random.seed(seed_kw['seed_pa'])
             pa = np.random.random(size=Rkpc.size) * 360
 
             # Ellipticity = 1 - b/a
@@ -732,7 +734,7 @@ class LightCone(object): # pragma: no cover
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
-            if self.sim.pops[pid].is_diffuse:
+            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
 
                 # Image of distances from halo center
                 r0 = ra_c[i] * 60 * mpc_per_arcmin
@@ -1428,7 +1430,6 @@ class LightCone(object): # pragma: no cover
             ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
             iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
             im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
-
             ip = include_pops.index(popid)
 
             # See if we already finished this map.
@@ -1470,6 +1471,7 @@ class LightCone(object): # pragma: no cover
             ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
             iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
             im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
+            ip = include_pops.index(popid)
 
             # Can only move on if ALL chunks are already done, otherwise
             # it means the user has added z or m chunks since the last run,
@@ -1525,7 +1527,10 @@ class LightCone(object): # pragma: no cover
                 if verbose:
                     print(f"# Generating map {fn}...")
 
-                if include_galaxy_sizes:
+                # Make sure user gave us info needed to generate surface
+                # brightness profiles. Note that IHL is exempt from this as
+                # we only have one option (projected NFW treatment).
+                if include_galaxy_sizes and (not self.sim.pops[pid].is_diffuse):
                     assert self.sim.pops[pid].pf['pop_msr'] is not None, \
                         "Must provide `pop_msr` if include_galaxy_sizes=True!"
 
@@ -1712,7 +1717,7 @@ class LightCone(object): # pragma: no cover
 
             for popid in include_pops:
 
-                for iz in keep_layers_custom_z:
+                for iz in _keep_layers_custom:
 
                     cimg = np.zeros([npix, npix])
                     for im, mchunk in enumerate(all_mchunks):
