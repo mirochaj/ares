@@ -1219,7 +1219,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             ##
             # Handle case with scatter separately.
-            if self.pf['pop_scatter_sfh'] == 0:
+            if self.pf['pop_scatter_sfh'] == self.pf['pop_scatter_sfr'] == 0:
                 L1 = self.get_lum(z1, x=x, band=band, units=units,
                     units_out=units_out, total_sat=True)
                 L2 = self.get_lum(z2, x=x, band=band, units=units,
@@ -1425,8 +1425,13 @@ class GalaxyCohort(GalaxyAggregate):
 
                 ##
                 # More complicated if we have scatter
-                if self.pf['pop_scatter_sfh'] > 0:
-                    sigma = self.pf['pop_scatter_sfh']
+                if (self.pf['pop_scatter_sfh'] > 0) or \
+                   (self.pf['pop_scatter_smhm'] > 0):
+
+                    if (self.pf['pop_scatter_sfh'] > 0):
+                        sigma = self.pf['pop_scatter_sfh']
+                    else:
+                        sigma = self.pf['pop_scatter_smhm']
                     mu = np.log10(Ms_c)
 
                     # This is essentially dn/dlog10Mstell
@@ -1459,8 +1464,13 @@ class GalaxyCohort(GalaxyAggregate):
                 #  Need to sum up all subhalos over central population
                 #dndlog10m_c = self.halos.tab_dndlnm[iz,:] #* np.log(10.)
 
-                if self.pf['pop_scatter_sfh'] > 0:
-                    sigma = self.pf['pop_scatter_sfh']
+                if (self.pf['pop_scatter_sfh'] > 0) or \
+                   (self.pf['pop_scatter_smhm'] > 0):
+
+                    if (self.pf['pop_scatter_sfh'] > 0):
+                        sigma = self.pf['pop_scatter_sfh']
+                    else:
+                        sigma = self.pf['pop_scatter_smhm']
 
                     # Ms_c is really Ms_sat if we're a satellite pop.
                     mu = np.log10(Ms_c)
@@ -1586,11 +1596,24 @@ class GalaxyCohort(GalaxyAggregate):
             return mags, cgal
 
     def get_sfr_mean(self, z, Mh):
-        return self.get_sfr(z=z, Mh=Mh) \
-            * np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
+        if (self.pf['pop_scatter_sfh'] > 0):
+            sigma = self.pf['pop_scatter_sfh']
+        elif (self.pf['pop_scatter_sfr'] > 0):
+            sigma = self.pf['pop_scatter_sfr']
+        else:
+            sigma = 0
+
+        return self.get_sfr(z=z, Mh=Mh) * np.exp(0.5 * sigma**2)
+
     def get_mstell_mean(self, z, Mh):
-        return self.get_smhm(z=z, Mh=Mh) * Mh \
-            * np.exp(0.5 * self.pf['pop_scatter_sfh']**2)
+        if (self.pf['pop_scatter_sfh'] > 0):
+            sigma = self.pf['pop_scatter_sfh']
+        elif (self.pf['pop_scatter_smhm'] > 0):
+            sigma = self.pf['pop_scatter_smhm']
+        else:
+            sigma = 0
+
+        return self.get_smhm(z=z, Mh=Mh) * Mh * np.exp(0.5 * sigma**2)
 
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
@@ -3486,12 +3509,16 @@ class GalaxyCohort(GalaxyAggregate):
         if self.is_central_pop:
             #sigma_sfh = self.pf['pop_scatter_sfr']
             #sigma = self.pf['pop_scatter_sfh']
-            if self.pf['pop_scatter_sfh'] > 0:
+            if (self.pf['pop_scatter_sfh'] > 0) or (self.pf['pop_scatter_sfr'] > 0):
                 #_dx = self.halos.dlog10m
 
                 dndlog10L = np.abs(dndm * dMh_dlog10L)
 
-                sigma = self.pf['pop_scatter_sfh']
+                if (self.pf['pop_scatter_sfh'] > 0):
+                    sigma = self.pf['pop_scatter_sfh']
+                else:
+                    sigma = self.pf['pop_scatter_sfr']
+
                 xx = mu = np.log10(Lh)
                 xx[Lh==0] = 0
                 mu[Lh==0] = 0
@@ -3559,8 +3586,11 @@ class GalaxyCohort(GalaxyAggregate):
                     dx=self.halos.dlnm)
 
             #
-            if self.pf['pop_scatter_sfh'] > 0:
-                sigma = self.pf['pop_scatter_sfh']
+            if (self.pf['pop_scatter_sfh'] > 0) or (self.pf['pop_scatter_sfr'] > 0):
+                if (self.pf['pop_scatter_sfh'] > 0):
+                    sigma = self.pf['pop_scatter_sfh']
+                else:
+                    sigma = self.pf['pop_scatter_sfr']
                 xx = mu = np.log10(Lh)
 
                 # Log-normal distribution of luminosity at given

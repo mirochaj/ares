@@ -239,6 +239,7 @@ centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
 centrals_q['pop_focc_inv'] = True
 centrals_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
+
 centrals_q['pop_sys_method'] = 'separate'
 centrals_q['pop_sys_mstell_now'] = 'pop_sys_mstell_now{0}'
 centrals_q['pop_sys_mstell_a'] = 'pop_sys_mstell_a{0}'
@@ -349,7 +350,8 @@ satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
 satellites_q['pop_fstar'] = 'link:fstar:1'
 satellites_q['pop_ssfr'] = None
-satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
+#satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
+#satellites_q['pop_scatter_smhm'] = 'pop_scatter_smhm{1}'
 
 satellites_q['pop_sfh'] = 'ssp'
 satellites_q['pop_aging'] = True
@@ -551,7 +553,6 @@ ihl['pop_sfr{4}'] = None
 ihl['pop_ssp{4}'] = True
 ihl['pop_age{4}'] = 1e4
 ihl['pop_Z{4}'] = 0.02
-ihl['pop_scatter_sfh{4}'] = 'pop_scatter_sfh{0}'
 
 mzr = \
 {
@@ -776,4 +777,15 @@ sys_b13 = \
  'pop_sys_method{1}': "b13",
  'pop_sys_method{2}': "b13",
  'pop_sys_method{3}': "b13",
+}
+
+scatter_flex = \
+{
+ 'pop_scatter_sfh{0}': 0,
+ 'pop_scatter_sfh{1}': 0,
+ 'pop_scatter_sfh{2}': 0,
+ 'pop_scatter_sfh{3}': 0,
+ 'pop_scatter_sfr{0}': 0.,
+ 'pop_scatter_smhm{0}': 0.,
+ 'pop_scatter_smhm{1}': 0.,
 }

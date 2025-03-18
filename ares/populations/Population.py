@@ -528,7 +528,9 @@ class Population(object):
 
         if not hasattr(self, '_is_emissivity_scalable'):
 
-            if self.pf['pop_scatter_sfh'] > 0:
+            if (self.pf['pop_scatter_sfh'] > 0) or \
+               (self.pf['pop_scatter_sfr'] > 0) or \
+               (self.pf['pop_scatter_smhm'] > 0):
                 self._is_emissivity_scalable = False
                 return self._is_emissivity_scalable
 
