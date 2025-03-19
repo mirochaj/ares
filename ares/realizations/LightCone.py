@@ -1310,8 +1310,8 @@ class LightCone(object): # pragma: no cover
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
-        load_if_found=True, keep_layers_custom_z=None,
-        keep_layers=False, use_pbar=False, verbose=False, dryrun=False, **kwargs):
+        load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
+        use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1343,7 +1343,17 @@ class LightCone(object): # pragma: no cover
             calculation, e.g., [0] would just include the first population,
             typically star-forming galaxies, while [0, 1] would include the
             first two (ID number 1 is usually quiescent centrals).
-
+        keep_layers : bool
+            If True, individual mass and redshift 'layers' will be saved to
+            disk in the `checkpoints` subdirectory. This can get heavy for
+            big mocks -- see next parameter for another option.
+        keep_layers_custom_z : list
+            If provided, this is a list of individual layers to save (i.e.,
+            not all of them). Note that these need to be integers for now, so
+            you have to kind of know what you're doing. See the method
+            `get_redshift_chunks` to reveal the co-eval redshift chunks
+            that are available.
+        
         Returns
         -------
         Right now, nothing. Just saves files to disk.
@@ -1409,6 +1419,9 @@ class LightCone(object): # pragma: no cover
                 _keep_layers_custom = list(np.arange(0, len(all_zchunks)))
             else:
                 _keep_layers_custom = list(keep_layers_custom_z)
+        else:
+            if keep_layers_custom_z is not None:
+                raise ValueError('You set keep_layers_custom_z but not keep_layers! Set latter to True (probably).')
 
         # Array telling us which chunks were already done and which
         # we ran from scratch so at the end we know whether to update
