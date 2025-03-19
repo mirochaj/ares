@@ -103,7 +103,7 @@ class LightCone(object): # pragma: no cover
 
         # Directory for intermediate products?
         # Lightconing is deterministic, so given zmin and Lbox, we know
-        # where the chunks will be.
+        # where the layers will be.
         if dryrun:
             print(f"# Creating {sofar}/checkpoints")
         elif not os.path.exists(f"{sofar}/checkpoints"):
@@ -111,19 +111,19 @@ class LightCone(object): # pragma: no cover
 
         chck = f"{sofar}/checkpoints"
 
-        # For each redshift chunk, make a new subdirectory in checkpoints
-        # Add a README in checkpoints as well that indicates chunk properties.
-        chunks = self.get_redshift_chunks(self.zlim)
+        # For each redshift layer, make a new subdirectory in checkpoints
+        # Add a README in checkpoints as well that indicates layer properties.
+        layers = self.get_redshift_layers(self.zlim)
         fn_R = f"{chck}/README"
 
         if dryrun:
             print(f"# Creating {fn_R}")
-            for i, (zlo, zhi) in enumerate(chunks):
+            for i, (zlo, zhi) in enumerate(layers):
                 print(f"# Creating {chck}/z_{zlo:.3f}_{zhi:.3f}/")
         else:
             with open(fn_R, 'w') as f:
-                f.write('# co-eval chunk number; z lower edge; z upper edge\n')
-                for i, (zlo, zhi) in enumerate(chunks):
+                f.write('# co-eval layer number; z lower edge; z upper edge\n')
+                for i, (zlo, zhi) in enumerate(layers):
                     f.write(f'{str(i).zfill(3)}; {zlo:.5f}; {zhi:.5f}\n')
                     if not os.path.exists(f"{chck}/z_{zlo:.3f}_{zhi:.3f}/"):
                         os.mkdir(f"{chck}/z_{zlo:.3f}_{zhi:.3f}/")
@@ -174,7 +174,7 @@ class LightCone(object): # pragma: no cover
     def get_max_timestep(self):
         """
         Based on the size of our box, return the time interval corresponding to
-        the z-axis for each chunk of our lightcone.
+        the z-axis for each layer of our lightcone.
         """
 
         ze, zc, Re = self.get_domain_info()
@@ -289,18 +289,18 @@ class LightCone(object): # pragma: no cover
 
         Returns
         -------
-        A tuple containing (chunk edges in redshift, chunk midpoints in redshift,
-            chunk edges in comoving Mpc [NOT cMpc / h, despite input `Lbox`
+        A tuple containing (layer edges in redshift, layer midpoints in redshift,
+            layer edges in comoving Mpc [NOT cMpc / h, despite input `Lbox`
             being in cMpc/h!]).
 
         """
 
-        if self.zchunks is not None:
+        if self.zlayers is not None:
             dofz = [self.sim.cosm.get_dist_los_comoving(0, z) \
-                for z in self.zchunks[:,0]]
-            dofz.append(self.sim.cosm.get_dist_los_comoving(0, self.zchunks[-1,1]))
+                for z in self.zlayers[:,0]]
+            dofz.append(self.sim.cosm.get_dist_los_comoving(0, self.zlayers[-1,1]))
             Re = np.array(dofz) / cm_per_mpc
-            return np.mean(self.zchunks, axis=1), self.zchunks, Re
+            return np.mean(self.zlayers, axis=1), self.zlayers, Re
 
         if Lbox is None:
             Lbox = self.Lbox
@@ -312,7 +312,7 @@ class LightCone(object): # pragma: no cover
 
         return ze, zmid, Re
 
-    def get_redshift_chunks(self, zlim):
+    def get_redshift_layers(self, zlim):
         """
         Return the edges of each co-eval cube as positioned along the LoS.
 
@@ -321,15 +321,15 @@ class LightCone(object): # pragma: no cover
 
         """
 
-        if self.zchunks is not None:
-            return self.zchunks
+        if self.zlayers is not None:
+            return self.zlayers
 
         ze, zmid, Re = self.get_domain_info(zlim)
 
-        chunks = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
-        return np.array(chunks)
+        layers = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
+        return np.array(layers)
 
-    def get_mass_chunks(self, logmlim, dlogm):
+    def get_mass_layers(self, logmlim, dlogm):
         """
         Return segments in log10(halo mass / Msun) space to run maps.
 
@@ -343,7 +343,7 @@ class LightCone(object): # pragma: no cover
             will simulate the halo mass range 10^10 - 10^13 Msun.
         dlogm : int, float, np.ndarray
             The log10 mass bin used to divide up the work. For example, if
-            dlogm=0.5, we will generate maps or catalogs in mass chunks 0.5 dex
+            dlogm=0.5, we will generate maps or catalogs in mass layers 0.5 dex
             wide. You can also provide the bin edges explicitly if you'd like,
             which can be helpful if including very low mass halos (whose
             abundance grows rapidly). In this case, dlogm should be, e.g.,
@@ -358,10 +358,10 @@ class LightCone(object): # pragma: no cover
 
     def get_zindex(self, z):
         """
-        For a given redshift, return the index of the chunk that contains it
+        For a given redshift, return the index of the layer that contains it
         in the LoS direction.
         """
-        zall = self.get_redshift_chunks()
+        zall = self.get_redshift_layers()
         zlo, zhi = np.array(zall).T
         iz = np.argmin(np.abs(z - zlo))
         if zlo[iz] > z:
@@ -369,15 +369,15 @@ class LightCone(object): # pragma: no cover
 
         return iz
 
-    def get_seed_kwargs(self, chunk, logmlim):
+    def get_seed_kwargs(self, layer, logmlim):
         """
-        Deterministically adjust the random seeds for the given redshift chunk
+        Deterministically adjust the random seeds for the given redshift layer
         and mass range.
 
         Parameters
         ----------
-        chunk : int
-            ID number for given co-eval redshift `chunk`.
+        layer : int
+            ID number for given co-eval redshift `layer`.
         logmlim : tuple
             Min/mass log10(halo mass / Msun) range of interest.
 
@@ -396,12 +396,16 @@ class LightCone(object): # pragma: no cover
             seed_mh = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
             seed_xyz = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
             seed_focc = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
-            seed_prof = self.seed_profile * np.arange(1, len(zmid)+1) * fmh
 
             self._seeds = {'seed_box': seed_rho,
                 'seed': seed_mh, 'seed_pos': seed_xyz,
-                'seed_occ': seed_focc,
-                'seed_profile': seed_prof}
+                'seed_occ': seed_focc}
+
+            ##
+            # [optional] resolved galaxies
+            if self.seed_profile is not None:
+                seed_prof = self.seed_profile * np.arange(1, len(zmid)+1) * fmh
+                self._seeds['seed_profile'] = seed_prof
 
             ##
             # [optional] seeds for satellites
@@ -410,7 +414,7 @@ class LightCone(object): # pragma: no cover
                     * np.arange(1, len(zmid)+1) * fmh
                 self._seeds['seed_sats'] = seed_sats
 
-        i = chunk
+        i = layer
         # Done
         return {key:self._seeds[key][i] for key in self._seeds.keys()}
 
@@ -419,11 +423,11 @@ class LightCone(object): # pragma: no cover
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
         logmlim_sats=(11,15), buffer=None, **kwargs):
         """
-        Get a map for a single channel, redshift chunk, mass chunk, and
+        Get a map for a single channel, redshift layer, mass layer, and
         source population.
 
         .. note :: To get a 'full' map, containing contributions from multiple
-            redshift and mass chunks, and potentially populations, see the
+            redshift and mass layers, and potentially populations, see the
             wrapper routine `generate_maps`.
 
         Parameters
@@ -458,14 +462,14 @@ class LightCone(object): # pragma: no cover
 
         assert np.diff(fov) == 0, "Only square FOVs allowed right now."
 
-        zall = self.get_redshift_chunks(zlim=self.zlim)
+        zall = self.get_redshift_layers(zlim=self.zlim)
 
         ##
-        # Make sure `zlim` is in provided redshift chunks.
+        # Make sure `zlim` is in provided redshift layers.
         # This is mostly to prevent users from doing something they shouldn't.
-        ichunk = np.argmin(np.abs(zlim[0] - zall[:,0]))
+        ilayer = np.argmin(np.abs(zlim[0] - zall[:,0]))
 
-        assert np.allclose(zlim, zall[ichunk])
+        assert np.allclose(zlim, zall[ilayer])
 
         # Figure out the edges of the domain in RA and DEC (degrees)
         # Pixel coordinates
@@ -501,14 +505,14 @@ class LightCone(object): # pragma: no cover
         zlo, zhi = zlim
         zmid = np.mean([zlo, zhi])
 
-        seed_kw = self.get_seed_kwargs(ichunk, logmlim)
+        seed_kw = self.get_seed_kwargs(ilayer, logmlim)
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose,
             satellites=self.sim.pops[pid].is_satellite_pop,
             logmlim_sats=logmlim_sats)
 
-        # Could be empty chunks for very massive halos and/or early times.
+        # Could be empty layers for very massive halos and/or early times.
         if ra is None:
             return #None, None, None
 
@@ -531,7 +535,7 @@ class LightCone(object): # pragma: no cover
         okp = np.logical_not(np.logical_or(mask_ra, mask_de))
 
         # Filter out galaxies outside specified redshift range.
-        # [usually don't do this within chunk, but hey, functionality there]
+        # [usually don't do this within layer, but hey, functionality there]
         if zlim is not None:
             okz = np.logical_and(red >= zlo, red < zhi)
             ok = np.logical_and(okp, okz)
@@ -570,7 +574,7 @@ class LightCone(object): # pragma: no cover
         #if self.verbose:
         #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
 
-        # May have empty chunks, e.g., very massive halos and/or very
+        # May have empty layers, e.g., very massive halos and/or very
         # high redshifts.
         if not np.any(ok):
             return #None, None, None
@@ -930,15 +934,15 @@ class LightCone(object): # pragma: no cover
             "FOV must be integer number of pixels wide!"
 
         npix = int(fov * 3600 / pix)
-        zchunks = self.get_redshift_chunks(self.zlim)
+        zlayers = self.get_redshift_layers(self.zlim)
         zcent, ze, Re = self.get_domain_info(self.zlim)
-        mchunks = self.get_mass_chunks(logmlim, dlogm)
+        mlayers = self.get_mass_layers(logmlim, dlogm)
 
-        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+        all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
         # Progress bar
-        pb = ProgressBar(len(all_chunks),
+        pb = ProgressBar(len(all_layers),
             name="cat(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
                 logmlim[0], logmlim[1], zlim[0], zlim[1]),
             use=use_pbar)
@@ -952,22 +956,22 @@ class LightCone(object): # pragma: no cover
         dec = []
         red = []
         dat = []
-        for h, chunk in enumerate(all_chunks):
+        for h, layer in enumerate(all_layers):
 
-            # Unpack info about this chunk
-            popid, channel, chname, zchunk, mchunk = chunk
+            # Unpack info about this layer
+            popid, channel, chname, zlayer, mlayer = layer
 
             pid, pid_par, pid_str = get_pop_info(popid)
 
             # Short-hand needed below
-            zlo, zhi = zchunk
+            zlo, zhi = zlayer
 
-            # Get number of z chunk
-            iz = np.digitize(zchunk.mean(), bins=zchunks[:,0]) - 1
+            # Get number of z layer
+            iz = np.digitize(zlayer.mean(), bins=zlayers[:,0]) - 1
 
             # See if we already finished this map.
             fn = self.get_cat_fn(fov, pix, channel, popid,
-                logmlim=mchunk, zlim=zchunk)
+                logmlim=mlayer, zlim=zlayer)
 
             pb.update(h)
 
@@ -987,17 +991,17 @@ class LightCone(object): # pragma: no cover
             else:
 
                 # Get basic halo properties
-                #print('entering get_catalog', zchunk, mchunk)
-                _ra, _dec, _red, _Mh = self.get_catalog(zlim=zchunk,
-                    logmlim=mchunk, popid=popid, verbose=verbose,
+                #print('entering get_catalog', zlayer, mlayer)
+                _ra, _dec, _red, _Mh = self.get_catalog(zlim=zlayer,
+                    logmlim=mlayer, popid=popid, verbose=verbose,
                     satellites=self.sim.pops[pid].is_satellite_pop,
                     logmlim_sats=logmlim_sats)
 
-                # Could be empty chunks for very massive halos and/or early times.
+                # Could be empty layers for very massive halos and/or early times.
                 if (_ra is None) or (len(_ra) == 0):
                     # You might think: let's `continue` to the next iteration!
                     # BUT, if we do that, and we're really unlucky and this
-                    # happens on the last chunk of work for a given channel,
+                    # happens on the last layer of work for a given channel,
                     # then no checkpoint will be written below :/
                     # Hence the use of `pass` here intead.
                     pass
@@ -1107,7 +1111,7 @@ class LightCone(object): # pragma: no cover
                     # Save
                     if keep_layers:
                         self.save_cat(fn, (_ra, _dec, _red, _dat),
-                            channel, zchunk, mchunk,
+                            channel, zlayer, mlayer,
                             fov, pix=pix, fmt=fmt, hdr=hdr,
                             cat_units=cat_units,
                             clobber=clobber, verbose=verbose)
@@ -1117,14 +1121,14 @@ class LightCone(object): # pragma: no cover
 
                 # End of else block that generates new catalog if one isn't found.
 
-            # Back to level of loop over chunks of work.
+            # Back to level of loop over layers of work.
 
             ##
-            # Figure out if we're done with all the chunks
-            if h == len(all_chunks) - 1:
+            # Figure out if we're done with all the layers
+            if h == len(all_layers) - 1:
                 done_w_chan = True
             else:
-                done_w_chan = channel != all_chunks[h+1][1]
+                done_w_chan = channel != all_layers[h+1][1]
 
             # If we're done with this channel, save file containing
             # full redshift and mass range.
@@ -1153,49 +1157,49 @@ class LightCone(object): # pragma: no cover
         channel_names=None):
         """
         Take a list of channels, populations, and bounds in halo mass,
-        and construct a list of chunks of work to do of the form:
+        and construct a list of layers of work to do of the form:
 
-        all_chunks = [
-            (popid, channel, chname, zchunk, mchunk),
-            (popid, channel, chname, zchunk, mchunk),
-            (popid, channel, chname, zchunk, mchunk),
-            (popid, channel, chname, zchunk, mchunk),
+        all_layers = [
+            (popid, channel, chname, zlayer, mlayer),
+            (popid, channel, chname, zlayer, mlayer),
+            (popid, channel, chname, zlayer, mlayer),
+            (popid, channel, chname, zlayer, mlayer),
           ...
         ]
 
         Basically this allows us to 'flatten' a series of for loops over
-        spectral channels, populations, redshift, and mass chunks into
+        spectral channels, populations, redshift, and mass layers into
         a single loop. Just unpack as, e.g.,
 
-        >>> all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+        >>> all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
         >>>    include_pops=include_pops)
-        >>> for chunk in all_chunks:
-        >>>    popid, channel, chname, zchunk, mchunk = chunk
+        >>> for layer in all_layers:
+        >>>    popid, channel, chname, zlayer, mlayer = layer
         >>>    <do cool stuff>
 
         """
 
-        zchunks = self.get_redshift_chunks(self.zlim)
-        mchunks = self.get_mass_chunks(logmlim, dlogm)
-        pchunks = include_pops
+        zlayers = self.get_redshift_layers(self.zlim)
+        mlayers = self.get_mass_layers(logmlim, dlogm)
+        players = include_pops
 
         if channel_names is None:
             channel_names = [None] * len(channels)
 
 
-        all_chunks = []
-        for h, popid in enumerate(pchunks):
+        all_layers = []
+        for h, popid in enumerate(players):
             for i, channel in enumerate(channels):
-                for j, zchunk in enumerate(zchunks):
+                for j, zlayer in enumerate(zlayers):
 
                     # Option to limit redshift range.
-                    zlo, zhi = zchunk
+                    zlo, zhi = zlayer
 
-                    for k, mchunk in enumerate(mchunks):
-                        all_chunks.append((popid, channel, channel_names[i],
-                            zchunk, mchunk))
+                    for k, mlayer in enumerate(mlayers):
+                        all_layers.append((popid, channel, channel_names[i],
+                            zlayer, mlayer))
 
-        return all_chunks
+        return all_layers
 
     def _check_for_corrupted_files(self, fov, pix, channels, logmlim, dlogm,
         include_pops, channel_names=None):
@@ -1209,24 +1213,24 @@ class LightCone(object): # pragma: no cover
 
 
         # Assemble list of map layers to run.
-        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+        all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
-        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
-        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+        all_zlayers = np.array(self.get_redshift_layers(self.zlim))
+        all_mlayers = np.array(self.get_mass_layers(logmlim, dlogm))
 
         # Check status before we start
-        all_sizes = np.zeros(len(all_chunks))
+        all_sizes = np.zeros(len(all_layers))
         all_fn = []
 
-        for h, chunk in enumerate(all_chunks):
+        for h, layer in enumerate(all_layers):
 
-            # Unpack info about this chunk
-            popid, channel, chname, zchunk, mchunk = chunk
+            # Unpack info about this layer
+            popid, channel, chname, zlayer, mlayer = layer
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mchunk, zlim=zchunk)
+                logmlim=mlayer, zlim=zlayer)
 
             all_fn.append(fn)
 
@@ -1250,7 +1254,7 @@ class LightCone(object): # pragma: no cover
 
                 probs.append(fn)
 
-                print(f"! Problem file for chunk={h}: {fn}.")
+                print(f"! Problem file for layer={h}: {fn}.")
 
             ##
             # Consistent with failed write as job is killed
@@ -1266,7 +1270,7 @@ class LightCone(object): # pragma: no cover
         else:
             ##
             # Made it here? All good
-            print(f"! No corrupted files detected! All {len(all_chunks)} chunks look good.")
+            print(f"! No corrupted files detected! All {len(all_layers)} layers look good.")
 
     def get_map_norm(self, map_units, pix):
         """
@@ -1306,11 +1310,19 @@ class LightCone(object): # pragma: no cover
 
         return f_norm
 
+    def _check_chunks(self, keep_chunks):
+        """
+
+        """
+
+        pass
+
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
+        keep_chunks=None,
         use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
@@ -1351,9 +1363,9 @@ class LightCone(object): # pragma: no cover
             If provided, this is a list of individual layers to save (i.e.,
             not all of them). Note that these need to be integers for now, so
             you have to kind of know what you're doing. See the method
-            `get_redshift_chunks` to reveal the co-eval redshift chunks
+            `get_redshift_layers` to reveal the co-eval redshift layers
             that are available.
-        
+
         Returns
         -------
         Right now, nothing. Just saves files to disk.
@@ -1406,54 +1418,54 @@ class LightCone(object): # pragma: no cover
         f_norm = self.get_map_norm(map_units, pix)
 
         # Assemble list of map layers to run.
-        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+        all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
-        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
-        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+        all_zlayers = np.array(self.get_redshift_layers(self.zlim))
+        all_mlayers = np.array(self.get_mass_layers(logmlim, dlogm))
 
         # User can custom define subset of redshift layers to save
         # (this is a computational choice: saving all can be ~TBs of images)
         if keep_layers:
             if (keep_layers_custom_z == None):
-                _keep_layers_custom = list(np.arange(0, len(all_zchunks)))
+                _keep_layers_custom = list(np.arange(0, len(all_zlayers)))
             else:
                 _keep_layers_custom = list(keep_layers_custom_z)
         else:
             if keep_layers_custom_z is not None:
                 raise ValueError('You set keep_layers_custom_z but not keep_layers! Set latter to True (probably).')
 
-        # Array telling us which chunks were already done and which
+        # Array telling us which layers were already done and which
         # we ran from scratch so at the end we know whether to update
         # the channel maps.
         # Recall that if we changed zmax, final maps will go in a new
         # subdirectory.
         status_done_pre = np.zeros((len(include_pops), len(channels),
-            len(all_zchunks), len(all_mchunks)))
+            len(all_zlayers), len(all_mlayers)))
         status_done_now = status_done_pre.copy()
 
         ##
         # Check status before we start
-        for h, chunk in enumerate(all_chunks):
+        for h, layer in enumerate(all_layers):
 
-            # Unpack info about this chunk
-            popid, channel, chname, zchunk, mchunk = chunk
+            # Unpack info about this layer
+            popid, channel, chname, zlayer, mlayer = layer
 
-            # Identify indices of each (channel, z, m) chunk
+            # Identify indices of each (channel, z, m) layer
             ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
-            iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
-            im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
+            iz = np.argmin(np.abs(zlayer[0] - all_zlayers[:,0]))
+            im = np.argmin(np.abs(mlayer[0] - all_mlayers[:,0]))
             ip = include_pops.index(popid)
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mchunk, zlim=zchunk)
+                logmlim=mlayer, zlim=zlayer)
 
             if os.path.exists(fn) and (not clobber):
                 status_done_pre[ip,ichan,iz,im] = 1
 
         # Progress bar
-        pb = ProgressBar(len(all_chunks),
+        pb = ProgressBar(len(all_layers),
             name="img(Mh>={:.1f}, Mh<{:.1f}, z>={:.3f}, z<{:.3f})".format(
                 logmlim[0], logmlim[1], zlim[0], zlim[1]),
             use=use_pbar)
@@ -1463,31 +1475,31 @@ class LightCone(object): # pragma: no cover
         cimg = np.zeros([npix]*2)
 
         if verbose:
-            print(f"# Generating {len(all_chunks)} individual map layers...")
+            print(f"# Generating {len(all_layers)} individual map layers...")
 
         ##
         # Start doing work.
-        # The way this works is we treat each chunk: (z, M, pop, lambda)
+        # The way this works is we treat each layer: (z, M, pop, lambda)
         # separately. We'll keep a running tally of the "final" flux in any
         # given channel map as we go, and only create a new buffer when we
         # finish all the work for a single channel and a given population.
-        for h, chunk in enumerate(all_chunks):
+        for h, layer in enumerate(all_layers):
 
-            # Unpack info about this chunk
-            popid, channel, chname, zchunk, mchunk = chunk
+            # Unpack info about this layer
+            popid, channel, chname, zlayer, mlayer = layer
 
             # Unpack popid more [as of March 2025]
             # (id number in ARES, parent ID number [if satellite], name as str)
             pid, pid_par, pid_str = get_pop_info(popid)
 
-            # Identify indices of each (channel, z, m) chunk
+            # Identify indices of each (channel, z, m) layer
             ichan = np.argmin(np.abs(channel[0] - channels[:,0]))
-            iz = np.argmin(np.abs(zchunk[0] - all_zchunks[:,0]))
-            im = np.argmin(np.abs(mchunk[0] - all_mchunks[:,0]))
+            iz = np.argmin(np.abs(zlayer[0] - all_zlayers[:,0]))
+            im = np.argmin(np.abs(mlayer[0] - all_mlayers[:,0]))
             ip = include_pops.index(popid)
 
-            # Can only move on if ALL chunks are already done, otherwise
-            # it means the user has added z or m chunks since the last run,
+            # Can only move on if ALL layers are already done, otherwise
+            # it means the user has added z or m layers since the last run,
             # and so the final channel map (saved into new subdirectory
             # to reflect new zmax, logmlim range) must be incremented.
             #if np.all(status_done_pre[popid,ichan,:,:]):
@@ -1495,7 +1507,7 @@ class LightCone(object): # pragma: no cover
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mchunk, zlim=zchunk)
+                logmlim=mlayer, zlim=zlayer)
 
             pb.update(h)
 
@@ -1526,7 +1538,7 @@ class LightCone(object): # pragma: no cover
                     else:
                         raise NotImplemented('help')
 
-                    # Increment map for this z chunk
+                    # Increment map for this z layer
                     cimg += _buffer
 
                     if verbose:
@@ -1551,7 +1563,7 @@ class LightCone(object): # pragma: no cover
                 # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
                 # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
                 self.get_map(fov, pix, channel,
-                    logmlim=mchunk, zlim=zchunk, popid=popid,
+                    logmlim=mlayer, zlim=zlayer, popid=popid,
                     include_galaxy_sizes=include_galaxy_sizes,
                     size_cut=size_cut,
                     dlam=dlam, use_pbar=False,
@@ -1562,20 +1574,20 @@ class LightCone(object): # pragma: no cover
 
                 status_done_now[ip,ichan,iz,im] = 1
 
-            # Save every mass chunk within every redshift chunk if the user
+            # Save every mass layer within every redshift layer if the user
             # says so.
             if keep_layers and ran_new:
 
                 if iz in _keep_layers_custom:
                     _fn = self.get_map_fn(fov, pix, channel, popid,
-                        logmlim=mchunk, zlim=zchunk,
+                        logmlim=mlayer, zlim=zlayer,
                         fmt=fmt)
                     self.save_map(_fn, buffer * f_norm / dnu,
-                        channel, zchunk, logmlim, fov,
+                        channel, zlayer, logmlim, fov,
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                         verbose=verbose, clobber=clobber)
 
-            # Increment map for this z chunk
+            # Increment map for this z layer
             # (a new `cimg` gets created later once full mass range is done)
             #if ran_new:
                 cimg += buffer
@@ -1592,7 +1604,7 @@ class LightCone(object): # pragma: no cover
                 )
 
             # This probably means our re-run only added channels, not
-            # z chunks or mass chunks.
+            # z layers or mass layers.
             was_done_already = np.all(status_done_pre[ip,ichan,:,:] == 1) \
                 and (not clobber)
 
@@ -1604,7 +1616,7 @@ class LightCone(object): # pragma: no cover
             # disk, but we do need to clear 'cimg' since the next iteration
             # will be a new channel.
 
-            # Also: for mass chunks, we might run, e.g., (11,12) in one call,
+            # Also: for mass layers, we might run, e.g., (11,12) in one call,
             # (12,13) next, and then later decide to do (11,13), in which case
             # all the work is done already *except* creating the final
             # channel map. That's why below we'll either write the final map
@@ -1612,7 +1624,7 @@ class LightCone(object): # pragma: no cover
             # an output file.
 
             # Filename for the final channel map
-            # (note use of self.zlim, not zchunk, and logmlim, not mchunk)
+            # (note use of self.zlim, not zlayer, and logmlim, not mlayer)
             _fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
@@ -1689,8 +1701,8 @@ class LightCone(object): # pragma: no cover
 
     def post_process_z_layers(self, fov, pix, channels, logmlim, dlogm=1,
         clobber=False, include_pops=[0], verbose=True, channel_names=None,
-        keep_layers=False, keep_layers_custom_z=None, map_units='MJy/sr',
-        hdr={}, fmt='fits'):
+        keep_layers=False, keep_layers_custom_z=None, keep_chunks=None,
+        map_units='MJy/sr', hdr={}, fmt='fits'):
         """
         If we decided to save redshift layers, we may still need to sum
         together the individual mass layers.
@@ -1700,20 +1712,20 @@ class LightCone(object): # pragma: no cover
 
         """
 
-        if not keep_layers:
+        if (not keep_layers) and (keep_chunks is None):
             return
 
         # Full list of map layers to run.
-        all_chunks = self.get_layers(channels, logmlim, dlogm=dlogm,
+        all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
             include_pops=include_pops, channel_names=channel_names)
 
-        all_zchunks = np.array(self.get_redshift_chunks(self.zlim))
-        all_mchunks = np.array(self.get_mass_chunks(logmlim, dlogm))
+        all_zlayers = np.array(self.get_redshift_layers(self.zlim))
+        all_mlayers = np.array(self.get_mass_layers(logmlim, dlogm))
 
         # User can custom define subset of redshift layers to save
         # (this is a computational choice: saving all can be ~TBs of images)
         if (keep_layers_custom_z == None):
-            _keep_layers_custom = list(np.arange(0, len(all_zchunks)))
+            _keep_layers_custom = list(np.arange(0, len(all_zlayers)))
         else:
             _keep_layers_custom = list(keep_layers_custom_z)
 
@@ -1733,11 +1745,11 @@ class LightCone(object): # pragma: no cover
                 for iz in _keep_layers_custom:
 
                     cimg = np.zeros([npix, npix])
-                    for im, mchunk in enumerate(all_mchunks):
+                    for im, mlayer in enumerate(all_mlayers):
 
                         # See if we already finished this map.
                         fn = self.get_map_fn(fov, pix, channel, popid,
-                            logmlim=mchunk, zlim=all_zchunks[iz])
+                            logmlim=mlayer, zlim=all_zlayers[iz])
 
                         _buffer, _hdr = self._load_map(fn)
 
@@ -1747,16 +1759,16 @@ class LightCone(object): # pragma: no cover
                         else:
                             raise NotImplemented('help')
 
-                        # Increment map for this z chunk
+                        # Increment map for this z layer
                         cimg += _buffer
 
                     ##
                     # Done with mass slices. Save redshift slice.
                     _fn = self.get_map_fn(fov, pix, channel, popid,
-                        logmlim=logmlim, zlim=all_zchunks[iz])
+                        logmlim=logmlim, zlim=all_zlayers[iz])
 
                     self.save_map(_fn, cimg * f_norm / dnu,
-                        channel, all_zchunks[iz], logmlim, fov,
+                        channel, all_zlayers[iz], logmlim, fov,
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                         verbose=verbose, clobber=clobber)
 
@@ -1971,11 +1983,11 @@ class LightCone(object): # pragma: no cover
             save_dir = '.'
 
         npix = int(fov * 3600 / pix)
-        zchunks = self.get_redshift_chunks(self.zlim)
-        mchunks = self.get_mass_chunks(logmlim, dlogm)
+        zlayers = self.get_redshift_layers(self.zlim)
+        mlayers = self.get_mass_layers(logmlim, dlogm)
 
         if keep_layers:
-            layers = np.zeros((len(channels), len(zchunks), len(mchunks), npix, npix))
+            layers = np.zeros((len(channels), len(zlayers), len(mlayers), npix, npix))
         else:
             layers = np.zeros((len(channels), npix, npix))
 
@@ -1984,9 +1996,9 @@ class LightCone(object): # pragma: no cover
         Nloaded = 0
         for i, channel in enumerate(channels):
 
-            for j, (zlo, zhi) in enumerate(zchunks):
+            for j, (zlo, zhi) in enumerate(zlayers):
 
-                for k, (mlo, mhi) in enumerate(mchunks):
+                for k, (mlo, mhi) in enumerate(mlayers):
 
                     fn = self.get_fn(fov, channel, pix=pix,
                         zlim=(zlo, zhi), prefix=prefix, suffix=suffix,
@@ -2009,4 +2021,4 @@ class LightCone(object): # pragma: no cover
         if Nloaded == 0:
             raise IOError("Did not find any files! Are prefix, suffix, and save_dir set appropriately?")
 
-        return channels, zchunks, mchunks, ra_c, dec_c, layers
+        return channels, zlayers, mlayers, ra_c, dec_c, layers

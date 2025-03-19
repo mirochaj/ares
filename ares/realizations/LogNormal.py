@@ -70,7 +70,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.distribute_sats_spatially = distribute_sats_spatially
 
         # Only used for NbodySimLC models
-        self.zchunks = None
+        self.zlayers = None
 
         self.fxy = (0., 0.)
         self.bias_model = bias_model
@@ -98,7 +98,7 @@ class LogNormal(LightCone): # pragma: no cover
             print(f"# Overriding user-supplied zlim slightly to accommodate box size.")
             print(f"# Old zlim=({zmin:.3f},{zmax:.3f})")
             print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
-            print(f"# Number of co-eval chunks: {zmid.size}")
+            print(f"# Number of co-eval layers: {zmid.size}")
 
     def get_fov_from_L(self, z, Lbox):
         """
@@ -468,7 +468,7 @@ class LogNormal(LightCone): # pragma: no cover
             Number of galaxies to draw.
         seed : int
             Random seed. Should be determined in LightCone class using the
-            get_seed_kwargs function for a given co-eval redshift chunk.
+            get_seed_kwargs function for a given co-eval redshift layer.
 
         Returns
         -------
@@ -493,7 +493,7 @@ class LogNormal(LightCone): # pragma: no cover
         Get a halo catalog in (RA, DEC, redshift) coordinates.
 
         .. note :: This is essentially a wrapper around `_get_catalog_from_coeval`,
-            i.e., we're just figuring out how many chunks are needed along the
+            i.e., we're just figuring out how many layers are needed along the
             line of sight and re-generating the relevant cubes.
 
         Parameters
@@ -537,13 +537,13 @@ class LogNormal(LightCone): # pragma: no cover
         # and redshift range.
         #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
-        # Figure out if we're getting the catalog of a single chunk
-        chunk_id = None
+        # Figure out if we're getting the catalog of a single layer
+        layer_id = None
         for i, Rlo in enumerate(zmid):
             zlo, zhi = ze[i:i+2]
 
             if (zlo == zlim[0]) and (zhi == zlim[1]):
-                chunk_id = i
+                layer_id = i
                 break
 
         ##
@@ -563,7 +563,7 @@ class LogNormal(LightCone): # pragma: no cover
         theta_zmax = self.sim.cosm.get_angle_from_length_comoving(zmax, 1) * L / 60.
 
         pbar = ProgressBar(Rc.size, name=f"lc(z>={zmin},z<{zmax})",
-            use=chunk_id is None)
+            use=layer_id is None)
         pbar.start()
 
         # Keep running tally of sources
@@ -577,8 +577,8 @@ class LogNormal(LightCone): # pragma: no cover
 
             zlo, zhi = ze[i:i+2]
 
-            if chunk_id is not None:
-                if i != chunk_id:
+            if layer_id is not None:
+                if i != layer_id:
                     continue
 
             if (zhi <= zlim[0]) or (zlo >= zlim[1]):
@@ -709,7 +709,7 @@ class LogNormal(LightCone): # pragma: no cover
                 #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
 
             ##
-            # For satellites: one more step before moving to next chunk.
+            # For satellites: one more step before moving to next layer.
             if satellites:
 
                 ra_s, dec_s, red_s, mass_s, par_id = \
@@ -745,7 +745,7 @@ class LogNormal(LightCone): # pragma: no cover
                 gc.collect()
 
             ##
-            # Done with this co-eval chunk
+            # Done with this co-eval layer
 
         pbar.finish()
 
