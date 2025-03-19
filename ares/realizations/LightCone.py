@@ -1312,10 +1312,42 @@ class LightCone(object): # pragma: no cover
 
     def _check_chunks(self, keep_chunks):
         """
+        Go through user-provided `keep_chunks`, check to see that their demands
+        can be met, and offer up slightly modified chunk edges if they've
+        strayed from what's actually available. We'll also return a list of
+        custom redshift layers that are needed in order to construct the
+        desired chunks in post processing.
 
+        Returns
+        -------
+        Tuple containing: (keep_chunks -> closest available chunks,
+            list of custom redshift layers needed to be able to construct
+            the requested chunks)
+            
         """
 
-        pass
+        zlayers = self.get_redshift_layers(self.zlim)
+
+        chunks_out = []
+        zlayers_minimal = []
+
+        for (zlo, zhi) in keep_chunks:
+
+            i = np.argmin(np.abs(zlo - zlayers[:,0]))
+            j = np.argmin(np.abs(zhi - zlayers[:,1]))
+
+            if i not in zlayers_minimal:
+                zlayers_minimal.append(i)
+            if j not in zlayers_minimal:
+                zlayers_minimal.append(j)
+
+            chunks_out.append((zlayers[i,0], zlayers[j,1]))
+
+        return chunks_out, list(np.sort(zlayers_minimal))
+
+
+
+
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
