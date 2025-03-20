@@ -789,7 +789,7 @@ class LightCone(object): # pragma: no cover
         if self.mem_concious:
             gc.collect()
 
-    def get_output_dir(self, fov, pix, zlim, logmlim=None):
+    def get_output_dir(self, fov, pix, zlim, logmlim=None, force_chunk=False):
         fn = f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"
         fn += f"/box_{self.Lbox:.0f}/dim_{self.dims:.0f}"
         fn += f"/{self.model_name}"
@@ -798,15 +798,25 @@ class LightCone(object): # pragma: no cover
         # Need directory for zmax, logmlim range
         final = (zlim[0] == self.zlim[0]) and (zlim[1] == self.zlim[1])
 
+        # [new] Check if this redshift range spans more than one layer
+        all_zchunks = self.get_redshift_layers(self.zlim)
+        ilo = np.argmin(np.abs(zlim[0] - all_zchunks[:,0]))
+        ihi = np.argmin(np.abs(zlim[1] - all_zchunks[:,1]))
+        is_chunk = force_chunk or (ihi > ilo)
+
         #
-        if final:
-            fn += f"/zmax_{zlim[1]:.3f}"
+        if final or is_chunk:
+            fn += f"/zmax_{self.zlim[1]:.3f}"
             if logmlim is not None:
                 fn += f"/m_{logmlim[0]:.2f}_{logmlim[1]:.2f}"
         else:
             fn += f'/checkpoints/z_{zlim[0]:.3f}_{zlim[1]:.3f}'
             if logmlim is not None:
                 fn += f'/m_{logmlim[0]:.2f}_{logmlim[1]:.2f}'
+
+        #
+        if is_chunk:
+            fn += f'/z_{zlim[0]:.3f}_{zlim[1]:.3f}'
 
         # Everything should exist up to the m_??.??_??.?? subdirectory
         if not os.path.exists(fn):
@@ -816,13 +826,13 @@ class LightCone(object): # pragma: no cover
         return fn
 
     def get_map_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
-        fmt='fits'):
+        fmt='fits', force_chunk=False):
         """
         Return filename expected for map with given properties.
         """
 
         save_dir = self.get_output_dir(fov=fov, pix=pix,
-            zlim=zlim, logmlim=logmlim)
+            zlim=zlim, logmlim=logmlim, force_chunk=force_chunk)
 
         pid, pid_parent, pid_str = get_pop_info(popid)
 
@@ -1320,15 +1330,22 @@ class LightCone(object): # pragma: no cover
 
         Returns
         -------
-        Tuple containing: (keep_chunks -> closest available chunks,
+        Tuple containing: (keep_chunks -> closest available redshifts,
+            bounding indices of redshift layers in chunks,
             list of custom redshift layers needed to be able to construct
             the requested chunks)
-            
+
+
+
         """
+
+        if keep_chunks is None:
+            return None, None, None
 
         zlayers = self.get_redshift_layers(self.zlim)
 
-        chunks_out = []
+        chunks_edges = []
+        chunks_edges_ids = []
         zlayers_minimal = []
 
         for (zlo, zhi) in keep_chunks:
@@ -1336,26 +1353,19 @@ class LightCone(object): # pragma: no cover
             i = np.argmin(np.abs(zlo - zlayers[:,0]))
             j = np.argmin(np.abs(zhi - zlayers[:,1]))
 
-            if i not in zlayers_minimal:
-                zlayers_minimal.append(i)
-            if j not in zlayers_minimal:
-                zlayers_minimal.append(j)
+            zlayers_minimal.extend(list(np.arange(i,j+1)))
 
-            chunks_out.append((zlayers[i,0], zlayers[j,1]))
+            chunks_edges.append((zlayers[i,0], zlayers[j,1]))
+            chunks_edges_ids.append((i, j))
 
-        return chunks_out, list(np.sort(zlayers_minimal))
-
-
-
-
+        return chunks_edges, chunks_edges_ids, list(np.sort(zlayers_minimal))
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
         include_galaxy_sizes=False, size_cut=0.9, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
-        keep_chunks=None,
-        use_pbar=False, verbose=False, dryrun=False, **kwargs):
+        keep_chunks=None, use_pbar=False, verbose=False, dryrun=False, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1456,6 +1466,14 @@ class LightCone(object): # pragma: no cover
         all_zlayers = np.array(self.get_redshift_layers(self.zlim))
         all_mlayers = np.array(self.get_mass_layers(logmlim, dlogm))
 
+        # Users can keep custom chunks (i.e., sums over layers)
+        if keep_chunks is not None:
+            assert keep_layers, "Must set keep_layers=True to `keep_chunks`."
+            chunks_edges, chunks_edges_ids, chunks_zlayers_needed = \
+                self._check_chunks(keep_chunks)
+        else:
+            chunk_edges = chunk_edges_ids = chunks_zlayers_needed = None
+
         # User can custom define subset of redshift layers to save
         # (this is a computational choice: saving all can be ~TBs of images)
         if keep_layers:
@@ -1463,6 +1481,16 @@ class LightCone(object): # pragma: no cover
                 _keep_layers_custom = list(np.arange(0, len(all_zlayers)))
             else:
                 _keep_layers_custom = list(keep_layers_custom_z)
+
+            # Make sure we save the layers needed to build provided chunks
+            if keep_chunks is not None:
+                for layer_id in chunks_zlayers_needed:
+                    if layer_id not in _keep_layers_custom:
+                        _keep_layers_custom.append(layer_id)
+                        if verbose:
+                            print(f"! Added layer {layer_id} to list of layers to keep.")
+
+                _keep_layers_custom = list(np.sort(_keep_layers_custom))
         else:
             if keep_layers_custom_z is not None:
                 raise ValueError('You set keep_layers_custom_z but not keep_layers! Set latter to True (probably).')
@@ -1727,7 +1755,9 @@ class LightCone(object): # pragma: no cover
             clobber=clobber, channel_names=channel_names,
             include_pops=include_pops, verbose=verbose,
             map_units=map_units,
-            keep_layers=keep_layers, keep_layers_custom_z=keep_layers_custom_z)
+            keep_layers=keep_layers,
+            keep_layers_custom_z=keep_layers_custom_z,
+            keep_chunks=keep_chunks)
 
         return
 
@@ -1746,6 +1776,9 @@ class LightCone(object): # pragma: no cover
 
         if (not keep_layers) and (keep_chunks is None):
             return
+
+        chunks_edges_z, chunks_edges_ids, chunks_zlayers_needed = \
+            self._check_chunks(keep_chunks)
 
         # Full list of map layers to run.
         all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
@@ -1804,6 +1837,44 @@ class LightCone(object): # pragma: no cover
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                         verbose=verbose, clobber=clobber)
 
+                if chunks_edges_ids is None:
+                    continue
+
+                ##
+                # Now, [optionally] sum over redshift layers to form 'chunks'
+                # like "EoR", "cosmic noon", etc.
+                for k, chunk_edge_id in enumerate(chunks_edges_ids):
+
+                    cimg = np.zeros([npix, npix])
+                    for iz in range(chunk_edge_id[0], chunk_edge_id[1]+1):
+                        # Load z layer summed over mass (`logmlim` is whole range)
+                        fn = self.get_map_fn(fov, pix, channel, popid,
+                            logmlim=logmlim,
+                            zlim=all_zlayers[iz])
+
+                        _buffer, _hdr = self._load_map(fn)
+
+                        # Might need to adjust units before incrementing
+                        if _hdr['BUNIT'] == map_units:
+                            _buffer *= (f_norm / dnu)**-1.
+                        else:
+                            raise NotImplemented('help')
+
+                        # Increment map for this z layer
+                        cimg += _buffer
+
+                    ##
+                    # Done with mass slices. Save redshift slice.
+                    _fn = self.get_map_fn(fov, pix, channel, popid,
+                        logmlim=logmlim, zlim=chunks_edges_z[k],
+                        force_chunk=True)
+
+                    print(f"prep for chunk={k}, {chunks_edges_z[k]}, {_fn}")
+
+                    self.save_map(_fn, cimg * f_norm / dnu,
+                        channel, chunks_edges_z[k], logmlim, fov,
+                        pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
+                        verbose=verbose, clobber=clobber)
 
     def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='fits',
         hdr={}, clobber=False, verbose=False, cat_units=''):
