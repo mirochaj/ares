@@ -1266,7 +1266,6 @@ class LinLogEvolvingAsB13(BasePQ):
 
         return y
 
-
 class LogLinearEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":

@@ -16,6 +16,7 @@ import time
 import h5py
 import numpy as np
 from pathlib import Path
+from scipy.stats import truncnorm
 from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
@@ -369,10 +370,10 @@ class LightCone(object): # pragma: no cover
 
         return iz
 
-    def get_seed_kwargs(self, layer, logmlim):
+    def get_seed_kwargs(self, layer, logmlim, popid):
         """
-        Deterministically adjust the random seeds for the given redshift layer
-        and mass range.
+        Deterministically adjust the random seeds for the given redshift layer,
+        mass range, and population.
 
         Parameters
         ----------
@@ -380,6 +381,8 @@ class LightCone(object): # pragma: no cover
             ID number for given co-eval redshift `layer`.
         logmlim : tuple
             Min/mass log10(halo mass / Msun) range of interest.
+        popid : int
+            Population ID number.
 
         Returns
         -------
@@ -392,19 +395,28 @@ class LightCone(object): # pragma: no cover
         if not hasattr(self, '_seeds'):
             ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
 
-            seed_rho = self.seed_rho * np.arange(1, len(zmid)+1)
-            seed_mh = self.seed_halo_mass * np.arange(1, len(zmid)+1) * fmh
-            seed_xyz = self.seed_halo_pos * np.arange(1, len(zmid)+1) * fmh
-            seed_focc = self.seed_halo_occ * np.arange(1, len(zmid)+1) * fmh
+            seed_rho = self.seed_rho \
+                * np.arange(1, len(zmid)+1)
+            seed_mh  = self.seed_halo_mass \
+                * np.arange(1, len(zmid)+1) * fmh
+            seed_xyz = self.seed_halo_pos \
+                * np.arange(1, len(zmid)+1) * fmh
+            seed_focc = self.seed_halo_occ \
+                * np.arange(1, len(zmid)+1) * fmh
 
+            # These seeds uniquely determine the locations and masses
+            # of star-forming and quiescent centrals.
             self._seeds = {'seed_box': seed_rho,
                 'seed': seed_mh, 'seed_pos': seed_xyz,
                 'seed_occ': seed_focc}
 
             ##
             # [optional] resolved galaxies
+            # Need `popid` here to ensure we use different seeds for the
+            # surface brightness profiles of quiescent galaxies.
             if self.seed_profile is not None:
-                seed_prof = self.seed_profile * np.arange(1, len(zmid)+1) * fmh
+                seed_prof = (self.seed_profile + popid) \
+                    * np.arange(1, len(zmid)+1) * fmh
                 self._seeds['seed_profile'] = seed_prof
 
             ##
@@ -505,7 +517,7 @@ class LightCone(object): # pragma: no cover
         zlo, zhi = zlim
         zmid = np.mean([zlo, zhi])
 
-        seed_kw = self.get_seed_kwargs(ilayer, logmlim)
+        seed_kw = self.get_seed_kwargs(ilayer, logmlim, pid)
 
         ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose,
@@ -667,6 +679,9 @@ class LightCone(object): # pragma: no cover
 
         elif include_galaxy_sizes:
 
+            assert self.profile_info is not None, \
+                "Must supply `profile_info` at initialization!"
+
             Ms = self.sim.pops[pid].get_smhm(z=red, Mh=Mh) * Mh
             Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
 
@@ -683,11 +698,49 @@ class LightCone(object): # pragma: no cover
             np.random.seed(seed_kw['seed_profile'])
 
             # Sersic indices and position angles
-            nsers = np.random.random(size=Rkpc.size) * 5.9 + 0.3
-            pa = np.random.random(size=Rkpc.size) * 360
+            # Hard-coded for now (eye-balling W18's Fig 16 for a
+            # reasonable start), should be more careful in the future.
+            pop_s = 'sfg' if self.pops[pid].is_star_forming else 'qg'
+
+            # First, identify redshift interval to use.
+            zoptions = self.profile_info[f'{pop_s}_z']
+
+            #zopt_arr = np.array([key for key in self.profile_info['sfg_z']])
+
+            z1, z2 = np.array(zoptions).T
+
+            iz = np.argmin(np.abs(zlo - z1))
+            if zlo < z1[iz]:
+                iz += 1
+
+            key = zoptions[iz]
+
+            # Axis ratios first
+            ba_loc, ba_scale = self.profile_info[f'{pop_s}_ba'][key]
+
+            ba_trunc_lo = 0.1
+            ba_trunc_hi = 1
+            ba_t_lo = (ba_trunc_lo - ba_loc) / ba_scale
+            ba_t_hi = (ba_trunc_hi - ba_loc) / ba_scale
+
+            rv_ba = truncnorm(ba_t_lo, ba_t_hi, loc=ba_loc, scale=ba_scale)
+            b_over_a = rv_ba.rvs(size=Rkpc.size)
+
+            # Now Sersic indices
+            n_loc, n_scale = self.profile_info[f'{pop_s}_n'][key]
+
+            n_trunc_lo = 0.2
+            n_trunc_hi = 7
+            n_t_lo = (n_trunc_lo - n_loc) / n_scale
+            n_t_hi = (n_trunc_lo - n_loc) / n_scale
+
+            rv_n = truncnorm(n_t_lo, n_t_hi, loc=n_loc, scale=n_scale)
+            nsers = rv_ba.rvs(size=Rkpc.size)
 
             # Ellipticity = 1 - b/a
-            ellip = np.random.random(size=Rkpc.size)
+            ellip = 1 - b_over_a
+
+            pa = np.random.random(size=Rkpc.size) * 360
 
             ##
             # Next, impose effective stopping criterion in size where we

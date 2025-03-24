@@ -32,7 +32,7 @@ class LogNormal(LightCone): # pragma: no cover
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=1,
-        distribute_sats_spatially=True,
+        distribute_sats_spatially=True, profile_info=None,
         dz_max=0.01, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
@@ -64,6 +64,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.seed_rot = seed_rot
         self.seed_tra = seed_trans
         self.seed_profile = seed_profile
+        self.profile_info = profile_info
         self.seed_sats = seed_sats
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
@@ -587,7 +588,7 @@ class LogNormal(LightCone): # pragma: no cover
             if _hit_max_sources:
                 break
 
-            seed_kwargs = self.get_seed_kwargs(i, logmlim)
+            seed_kwargs = self.get_seed_kwargs(i, logmlim, pid)
 
             # Contains (x, y, z, mass)
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
