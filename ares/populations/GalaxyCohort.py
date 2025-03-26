@@ -1773,8 +1773,16 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             bins_abs = bins
 
-        phi_of_x = np.interp(bins_abs, x_phi[ok==1][-1::-1][ix+1:],
-            phi[ok==1][-1::-1][ix+1:], left=0, right=0)
+        try:
+            phi_of_x = np.interp(bins_abs, x_phi[ok==1][-1::-1][ix+1:],
+                phi[ok==1][-1::-1][ix+1:], left=0, right=0)
+        except ValueError:
+            print(f"Getting 'array of samples points empty' error.")
+            print(bins_abs)
+            print(x_phi)
+            print(phi)
+
+            return bins, tiny_phi * np.ones_like(bins)
 
         return bins, phi_of_x
 
@@ -2297,7 +2305,7 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
                     sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-                    Av = self.get_Av(z=z, Ms=Ms, SFR=sfr)
+                    Av = self.get_Av(z=z, Ms=Ms, SFR=sfr, Mh=self.halos.tab_M)
 
                 #Av = self.get_Av(z=z, Ms=Ms)
                 Sd = None
@@ -2851,17 +2859,17 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_Av(self, value):
         self._get_Av_ = value
 
-    def get_Av(self, z, Ms=None, SFR=None):
+    def get_Av(self, z, Ms=None, SFR=None, Mh=None):
         """
         Get visual extinction.
         """
 
         if hasattr(self, '_get_Av_'):
-            return self._get_Av_(z=z, Ms=Ms, SFR=SFR)
+            return self._get_Av_(z=z, Ms=Ms, SFR=SFR, Mh=Mh)
 
         func = self._get_function('pop_Av')
 
-        return func(z=z, Ms=Ms, SFR=SFR)
+        return func(z=z, Ms=Ms, SFR=SFR, Mh=Mh)
 
     @cached_property
     def tab_Av(self):
@@ -2869,7 +2877,7 @@ class GalaxyCohort(GalaxyAggregate):
         for i, z in enumerate(self.halos.tab_z):
             Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
             sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
-            arr[i,:] = self.get_Av(z, Ms=Ms, SFR=sfr)
+            arr[i,:] = self.get_Av(z, Ms=Ms, SFR=sfr, Mh=self.halos.tab_M)
 
         return arr
 
