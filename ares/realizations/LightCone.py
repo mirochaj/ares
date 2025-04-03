@@ -430,6 +430,56 @@ class LightCone(object): # pragma: no cover
         # Done
         return {key:self._seeds[key][i] for key in self._seeds.keys()}
 
+    def _get_flux_catalog(self, zlim, red, Mh, channel, pid):
+        """
+        Compute flux from catalog of sources in given redshift range.
+
+        Parameters
+        ----------
+        zlim : tuple
+            Redshift range in which to sum fluxes.
+        red : np.ndarray
+            Redshifts of galaxies in catalog.
+        Mh : np.ndarray
+            Halo masses [Msun] of galaxies in catalog.
+        channel : tuple
+            Spectral channel edges in microns.
+
+        Returns
+        -------
+        An array of fluxes corresponding to the halos in `red` and `Mh`, the
+        units are erg/s/Angstrom.
+
+        """
+        zlo, zhi = zlim
+        zsub_lo = 1 * zlo
+
+        flux = np.zeros_like(Mh)
+        while zsub_lo < zhi:
+
+            zsub_hi = min(zsub_lo + self.dz_max, zhi)
+
+            zsub_mid = np.mean([zsub_lo, zsub_hi])
+
+            band = channel[0] * 1e4 / (1. + zsub_mid), \
+                   channel[1] * 1e4 / (1. + zsub_mid)
+
+            okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
+
+            _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
+                Mh=Mh[okzsub==1], units='Ang',
+                units_out='erg/s/Ang', band=tuple(band))
+
+            # Frequency "squashing", i.e., our 'per Angstrom' interval is
+            # different in the observer frame by a factor of 1+z.
+            corr = 1. / 4. / np.pi \
+                / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
+            flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
+
+            zsub_lo += self.dz_max
+
+        return flux
+
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
@@ -618,31 +668,35 @@ class LightCone(object): # pragma: no cover
         # In general, we'll scan through narrow z slices and report the
         # integrated emission in those slices. If we don't do this, big co-eval
         # boxes will lead to spectral errors.
-        zsub_lo = 1 * zlo
+        #zsub_lo = 1 * zlo
 
-        flux = np.zeros(ok.sum())
-        while zsub_lo < zhi:
+        #flux = np.zeros(ok.sum())
+        #while zsub_lo < zhi:
 
-            zsub_hi = min(zsub_lo + self.dz_max, zhi)
+        #    zsub_hi = min(zsub_lo + self.dz_max, zhi)
 
-            zsub_mid = np.mean([zsub_lo, zsub_hi])
+        #    zsub_mid = np.mean([zsub_lo, zsub_hi])
 
-            band = channel[0] * 1e4 / (1. + zsub_mid), \
-                   channel[1] * 1e4 / (1. + zsub_mid)
+        #    band = channel[0] * 1e4 / (1. + zsub_mid), \
+        #           channel[1] * 1e4 / (1. + zsub_mid)
 
-            okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
+        #    okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
 
-            _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
-                Mh=Mh[okzsub==1], units='Ang',
-                units_out='erg/s/Ang', band=tuple(band))
+        #    _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
+        #        Mh=Mh[okzsub==1], units='Ang',
+        #        units_out='erg/s/Ang', band=tuple(band))
 
-            # Frequency "squashing", i.e., our 'per Angstrom' interval is
-            # different in the observer frame by a factor of 1+z.
-            corr = 1. / 4. / np.pi \
-                / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
-            flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
+        #    # Frequency "squashing", i.e., our 'per Angstrom' interval is
+        #    # different in the observer frame by a factor of 1+z.
+        #    corr = 1. / 4. / np.pi \
+        #        / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
+        #    flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
 
-            zsub_lo += self.dz_max
+        #    zsub_lo += self.dz_max
+
+        # Fluxes for sources in this chunk of redshift space
+        flux = self._get_flux_catalog((zlo, zhi), red, Mh,
+            channel, pid)
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -838,7 +892,7 @@ class LightCone(object): # pragma: no cover
         ##
         # Clear out some memory sheesh
         del flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
-            mask_ra, mask_de, corr
+            mask_ra, mask_de
         if self.mem_concious:
             gc.collect()
 
@@ -906,7 +960,10 @@ class LightCone(object): # pragma: no cover
 
         pid, pid_parent, pid_str = get_pop_info(popid)
 
-        fn = f'{save_dir}/cat_{channel}_pop_{pid_str}'
+        if type(channel) in [tuple, list, np.ndarray]:
+            fn = f'{save_dir}/cat_{channel[0]:.3f}_{channel[1]:.3f}_pop_{pid_str}'
+        else:
+            fn = f'{save_dir}/cat_{channel}_pop_{pid_str}'
 
         return fn + '.' + fmt
 
@@ -976,11 +1033,8 @@ class LightCone(object): # pragma: no cover
             zlim=self.zlim, logmlim=logmlim)
 
         # At least save halo mass since we get it for free.
-        if (channels is None) or (channels == ['Mh']):
-            run_phot = False
+        if (channels is None):
             channels = ['Mh']
-        else:
-            run_phot = True
 
         if channel_names is None:
             channel_names = channels
@@ -1132,7 +1186,11 @@ class LightCone(object): # pragma: no cover
                     # photometric info, e.g., ('roman', 'F087'),
                     # or special quantities like Ly-a EW or luminosity.
                     # Note: if pops[popid] is a GalaxyEnsemble object
-                    if channel in ['Mh']:
+                    if type(channel) in [tuple, list, np.ndarray]:
+                        _dat = self._get_flux_catalog(zlayer, _red, _Mh,
+                            channel, pid)
+                        _dat *= self.get_map_norm(cat_units)
+                    elif channel in ['Mh']:
                         _dat = _Mh
                     elif channel.lower().startswith('ew'):
                         raise NotImplemented('help')
@@ -1211,7 +1269,9 @@ class LightCone(object): # pragma: no cover
 
             # If we're done with this channel, save file containing
             # full redshift and mass range.
-            if done_w_chan:
+            # Only reason we do np.all here is because a spectral channel will
+            # be a 2-element tuple.
+            if np.all(done_w_chan):
                 #_fn = self.get_cat_fn(fov, pix, channel, popid,
                 #    logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
@@ -1356,7 +1416,7 @@ class LightCone(object): # pragma: no cover
             # Made it here? All good
             print(f"! No corrupted files detected! All {len(all_layers)} layers look good.")
 
-    def get_map_norm(self, map_units, pix):
+    def get_map_norm(self, map_units, pix=None):
         """
         Remember: we're using cgs units internally. This method determines the
         conversion factor to user's favorite `map_units` (within reason).
@@ -1365,7 +1425,7 @@ class LightCone(object): # pragma: no cover
         ----------
         map_units : str
             Current options are 'si' (nW/m^2/sr^1), 'cgs' (erg/s/cm^2),
-            or 'MJy/sr'. Case insensivive.
+            or 'MJy/sr'. Case insensitive.
         pix : int, float
             Pixel scale [arcseconds]. This is just in here because we are
             generating fluxes *per pixel* first and so much convert to
@@ -1381,16 +1441,20 @@ class LightCone(object): # pragma: no cover
             f_norm = cm_per_m**2 / erg_per_s_per_nW
         elif map_units.lower() == 'cgs':
             f_norm = 1.
-        elif 'mjy' in map_units.lower():
-            # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr = 1e17 MJy / cgs units
+        elif 'mjy' in map_units.lower() :
+            # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr -> 1e17 MJy / cgs units
+            f_norm = 1e17
+        elif 'ujy' in map_units.lower() :
+            # 1 micro-Jy = 1e-6 Jy = 1e-6 * 1e-23 erg/s/cm^2/sr -> 1e17 MJy / cgs units
             f_norm = 1e17
         else:
             raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
 
-        pix_deg = pix / 3600.
-        if '/sr' in map_units.lower():
-            sr_per_pix = pix_deg**2 / sqdeg_per_std
-            f_norm /= sr_per_pix
+        if pix is not None:
+            pix_deg = pix / 3600.
+            if '/sr' in map_units.lower():
+                sr_per_pix = pix_deg**2 / sqdeg_per_std
+                f_norm /= sr_per_pix
 
         return f_norm
 
@@ -1943,8 +2007,6 @@ class LightCone(object): # pragma: no cover
                         logmlim=logmlim, zlim=chunks_edges_z[k],
                         force_chunk=True)
 
-                    print(f"prep for chunk={k}, {chunks_edges_z[k]}, {_fn}")
-
                     self.save_map(_fn, cimg * f_norm / dnu,
                         channel, chunks_edges_z[k], logmlim, fov,
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
@@ -1990,14 +2052,15 @@ class LightCone(object): # pragma: no cover
             #col1 = fits.Column(name='ra', format='D', unit='deg', array=ra)
             #col2 = fits.Column(name='dec', format='D', unit='deg', array=dec)
             #col3 = fits.Column(name='z', format='D', unit='', array=red)
-
-            col4 = fits.Column(name=channel, format='D', unit=cat_units, array=cat)
+            if type(channel) in [list, tuple, np.ndarray]:
+                col4 = fits.Column(name='flux', format='D', unit=cat_units,
+                    array=np.array(cat, dtype=float))
+            else:
+                col4 = fits.Column(name=channel, format='D', unit=cat_units,
+                    array=np.array(cat, dtype=float))
             coldefs = fits.ColDefs([col4])
 
             hdu = fits.BinTableHDU.from_columns(coldefs)
-
-            print(f'actually about to write to {fn}')
-            print(len(cat), cat_units, hdu)
             hdu.writeto(fn, overwrite=clobber)
         else:
             raise NotImplemented(f'Unrecognized `fmt` option "{fmt}"')
@@ -2155,7 +2218,7 @@ class LightCone(object): # pragma: no cover
 
             # Determine field name from column header
             name = data.columns[0].name
-            X = data[name]
+            X = np.array(data[name], dtype=float)
             Xunit = f[1].header['TUNIT1']
 
             out = []
@@ -2164,7 +2227,7 @@ class LightCone(object): # pragma: no cover
                     break
 
                 with fits.open(fn.replace(name, field)) as f:
-                    data = f[1].data
+                    data = np.array(f[1].data, dtype=float)
 
                 out.append(data)
 
