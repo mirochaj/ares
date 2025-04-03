@@ -82,7 +82,7 @@ class NbodySim(LightCone): # pragma: no cover
     def get_halo_population(self):
         raise NotImplemented('No analog for this in NbodySimLC approach.')
 
-    def get_catalog(self, zlim=None, logmlim=None, popid=0,
+    def get_catalog_halos(self, zlim=None, logmlim=None, popid=0,
         seed_occ=None, verbose=True, satellites=False):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
@@ -128,7 +128,7 @@ class NbodySim(LightCone): # pragma: no cover
 
             if i > len(self.zchunks) - 1:
                 break
-                
+
             z1, z2 = self.zchunks[i]
             z = np.mean([z1, z2])
 

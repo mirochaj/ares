@@ -519,7 +519,7 @@ class LightCone(object): # pragma: no cover
 
         seed_kw = self.get_seed_kwargs(ilayer, logmlim, pid)
 
-        ra, dec, red, Mh = self.get_catalog(zlim=(zlo, zhi),
+        ra, dec, red, Mh = self.get_catalog_halos(zlim=(zlo, zhi),
             logmlim=logmlim, popid=popid, verbose=verbose,
             satellites=self.sim.pops[pid].is_satellite_pop,
             logmlim_sats=logmlim_sats)
@@ -851,11 +851,13 @@ class LightCone(object): # pragma: no cover
         # Need directory for zmax, logmlim range
         final = (zlim[0] == self.zlim[0]) and (zlim[1] == self.zlim[1])
 
-        # [new] Check if this redshift range spans more than one layer
+        # [new] Check if this redshift range spans more than one layer.
+        # BUT: don't count if final=True, since the definition of final
+        # is 100% of the layers
         all_zchunks = self.get_redshift_layers(self.zlim)
         ilo = np.argmin(np.abs(zlim[0] - all_zchunks[:,0]))
         ihi = np.argmin(np.abs(zlim[1] - all_zchunks[:,1]))
-        is_chunk = force_chunk or (ihi > ilo)
+        is_chunk = (force_chunk or (ihi > ilo)) and (not final)
 
         #
         if final or is_chunk:
@@ -1024,6 +1026,11 @@ class LightCone(object): # pragma: no cover
             # Unpack info about this layer
             popid, channel, chname, zlayer, mlayer = layer
 
+            # Just used for file naming
+            field_names = ['ra', 'dec', 'z', channel]
+            field_units = ['deg', 'deg', '', cat_units]
+
+            # Retrieve info about population
             pid, pid_par, pid_str = get_pop_info(popid)
 
             # Short-hand needed below
@@ -1033,6 +1040,8 @@ class LightCone(object): # pragma: no cover
             iz = np.digitize(zlayer.mean(), bins=zlayers[:,0]) - 1
 
             # See if we already finished this map.
+            # Note that if this file exists, it's guaranteed that the
+            # corresponding ra, dec, and redshift catalogs are done too.
             fn = self.get_cat_fn(fov, pix, channel, popid,
                 logmlim=mlayer, zlim=zlayer)
 
@@ -1055,7 +1064,7 @@ class LightCone(object): # pragma: no cover
 
                 # Get basic halo properties
                 #print('entering get_catalog', zlayer, mlayer)
-                _ra, _dec, _red, _Mh = self.get_catalog(zlim=zlayer,
+                _ra, _dec, _red, _Mh = self.get_catalog_halos(zlim=zlayer,
                     logmlim=mlayer, popid=popid, verbose=verbose,
                     satellites=self.sim.pops[pid].is_satellite_pop,
                     logmlim_sats=logmlim_sats)
@@ -1123,9 +1132,13 @@ class LightCone(object): # pragma: no cover
                     # photometric info, e.g., ('roman', 'F087'),
                     # or special quantities like Ly-a EW or luminosity.
                     # Note: if pops[popid] is a GalaxyEnsemble object
-                    if channel in ['Mh', 'Ms', 'SFR']:
+                    if channel in ['Mh']:
                         _dat = _Mh
                     elif channel.lower().startswith('ew'):
+                        raise NotImplemented('help')
+                    elif channel in ['Ms', 'SFR']:
+                        raise NotImplemented('help')
+                    elif channel.lower() in ['ellip', 'nsers', 'pa']:
                         raise NotImplemented('help')
                     else:
                         cam, filt = channel.split('_')
@@ -1173,11 +1186,14 @@ class LightCone(object): # pragma: no cover
                     ##
                     # Save
                     if keep_layers:
-                        self.save_cat(fn, (_ra, _dec, _red, _dat),
-                            channel, zlayer, mlayer,
-                            fov, pix=pix, fmt=fmt, hdr=hdr,
-                            cat_units=cat_units,
-                            clobber=clobber, verbose=verbose)
+
+                        for ff, field in enumerate([_ra, _dec, _red, _dat]):
+                            fn_ff = self.get_cat_fn(fov, pix, field_names[ff],
+                                popid, logmlim=mlayer, zlim=zlayer)
+                            self.save_cat(fn_ff, field, field_names[ff],
+                                zlayer, mlayer, fov, pix=pix, fmt=fmt, hdr=hdr,
+                                cat_units=field_units[ff],
+                                clobber=clobber, verbose=verbose)
 
 
                     dat.extend(list(_dat))
@@ -1196,13 +1212,18 @@ class LightCone(object): # pragma: no cover
             # If we're done with this channel, save file containing
             # full redshift and mass range.
             if done_w_chan:
-                _fn = self.get_cat_fn(fov, pix, channel, popid,
-                    logmlim=logmlim, zlim=self.zlim, fmt=fmt)
+                #_fn = self.get_cat_fn(fov, pix, channel, popid,
+                #    logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
-                self.save_cat(_fn, (ra, dec, red, dat),
-                    channel, self.zlim, logmlim,
-                    fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=cat_units,
-                    clobber=clobber, verbose=verbose)
+
+                for ff, field in enumerate([ra, dec, red, dat]):
+                    _fn_ff = self.get_cat_fn(fov, pix, field_names[ff], popid,
+                        logmlim=logmlim, zlim=self.zlim, fmt=fmt)
+
+                    self.save_cat(_fn_ff, field,
+                        field_names[ff], self.zlim, logmlim,
+                        fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=field_units[ff],
+                        clobber=clobber, verbose=verbose)
 
                 del ra, dec, red, dat
                 dat = []
@@ -1938,12 +1959,12 @@ class LightCone(object): # pragma: no cover
         ----------
         fn : str
             Output filename.
-        cat : tuple
-            Contains four elements: (ra/deg, dec/deg, redshift, X), where
-            `X` is likely magnitude in some band, or SFR, etc.
+        cat : np.array
+            1-D Array containing the quantity to be saved.
+        channel : str
+            Name of the field being saved.
 
         """
-        ra, dec, red, X = cat
 
         # Should just figure out `fmt` from filename in future
         assert fn.endswith(fmt)
@@ -1955,10 +1976,10 @@ class LightCone(object): # pragma: no cover
 
         if fmt == 'hdf5':
             with h5py.File(fn, 'w') as f:
-                f.create_dataset('ra', data=ra)
-                f.create_dataset('dec', data=dec)
-                f.create_dataset('z', data=red)
-                f.create_dataset(channel, data=X)
+                #f.create_dataset('ra', data=ra)
+                #f.create_dataset('dec', data=dec)
+                #f.create_dataset('z', data=red)
+                f.create_dataset(channel, data=cat)
 
                 # Save hdr
                 grp = f.create_group('hdr')
@@ -1966,19 +1987,18 @@ class LightCone(object): # pragma: no cover
                     grp.create_dataset(key, data=hdr[key])
 
         elif fmt == 'fits':
-            col1 = fits.Column(name='ra', format='D', unit='deg', array=ra)
-            col2 = fits.Column(name='dec', format='D', unit='deg', array=dec)
-            col3 = fits.Column(name='z', format='D', unit='', array=red)
+            #col1 = fits.Column(name='ra', format='D', unit='deg', array=ra)
+            #col2 = fits.Column(name='dec', format='D', unit='deg', array=dec)
+            #col3 = fits.Column(name='z', format='D', unit='', array=red)
 
-            col4 = fits.Column(name=channel, format='D', unit=cat_units, array=X)
-            coldefs = fits.ColDefs([col1, col2, col3, col4])
+            col4 = fits.Column(name=channel, format='D', unit=cat_units, array=cat)
+            coldefs = fits.ColDefs([col4])
 
             hdu = fits.BinTableHDU.from_columns(coldefs)
 
-            if os.path.exists(fn) and (not clobber):
-                print(f"# {fn} exists and clobber=False. Moving on.")
-            else:
-                hdu.writeto(fn, overwrite=clobber)
+            print(f'actually about to write to {fn}')
+            print(len(cat), cat_units, hdu)
+            hdu.writeto(fn, overwrite=clobber)
         else:
             raise NotImplemented(f'Unrecognized `fmt` option "{fmt}"')
 
@@ -2102,8 +2122,26 @@ class LightCone(object): # pragma: no cover
 
         return img, hdr
 
-    def _load_cat(self, fn):
+    def _load_cat(self, fn, skip_pos=False):
+        """
+        Load a catalog from disk.
+
+        Parameters
+        ----------
+        fn : str
+            Filename.
+        skip_pos : bool
+            If True, will not (re-)load (ra, dec, z) from file. This an be
+            advantageous for big catalogs if you already have the galaxy
+            positions loaded in memory.
+
+        Returns
+        -------
+        A tuple containing (ra, dec, redshift, catalog, catalog_units), unless
+        skip_pos==True, in which case it will just be (catalog, catalog_units).
+        """
         if fn.endswith('hdf5'):
+            raise NotImplemented('hdf5 option needs updating')
             with h5py.File(fn, 'r') as f:
                 ra = np.array(f[('ra')])
                 dec = np.array(f[('dec')])
@@ -2111,21 +2149,32 @@ class LightCone(object): # pragma: no cover
                 X = np.array(f[('Mh')])
                 Xunit = None
         elif fn.endswith('fits'):
+
             with fits.open(fn) as f:
                 data = f[1].data
-                ra = data['ra']
-                dec = data['dec']
-                red = data['z']
 
-                # Hack for now.
-                name = data.columns[3].name
-                X = data[name]
-                Xunit = f[1].header['TUNIT4']
+            # Determine field name from column header
+            name = data.columns[0].name
+            X = data[name]
+            Xunit = f[1].header['TUNIT1']
+
+            out = []
+            for field in ['ra', 'dec', 'z']:
+                if skip_pos or name in ['ra', 'dec', 'z']:
+                    break
+
+                with fits.open(fn.replace(name, field)) as f:
+                    data = f[1].data
+
+                out.append(data)
+
+            out.extend([X, Xunit])
+
         else:
             raise NotImplemented('Unrecognized file format `{}`'.format(
                 fn[fn.rfind('.'):]))
 
-        return ra, dec, red, X, Xunit
+        return tuple(out)
 
     def read_maps(self, fov, channels, pix=1, logmlim=None, dlogm=0.5,
         prefix=None, suffix=None, save_dir=None, keep_layers=False, fmt='fits'):

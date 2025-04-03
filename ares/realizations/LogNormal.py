@@ -488,7 +488,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         return nsers, pa, ellip
 
-    def get_catalog(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
+    def get_catalog_halos(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
         satellites=False, logmlim_sats=None, max_sources=None):
         """
         Get a halo catalog in (RA, DEC, redshift) coordinates.
