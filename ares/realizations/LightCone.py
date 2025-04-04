@@ -448,7 +448,7 @@ class LightCone(object): # pragma: no cover
         Returns
         -------
         An array of fluxes corresponding to the halos in `red` and `Mh`, the
-        units are erg/s/Angstrom.
+        units are erg/s/cm^2/Angstrom.
 
         """
         zlo, zhi = zlim
@@ -605,37 +605,6 @@ class LightCone(object): # pragma: no cover
             okz = None
             ok = okp
 
-        # Can isolate further by narrower redshift range
-        if source_prop is not None:
-            if 'z' in source_prop:
-                szlim = source_prop['z']
-                oks = np.logical_and(red >= szlim[0], red < szlim[1])
-
-            ok = np.logical_and(ok, oks)
-
-        # For debugging and tests, we can dramatically limit the
-        # number of sources. Thin out the herd here.
-        if (max_sources is not None):
-            if (ct == 0) and (max_sources >= Mh.size):
-                # In this case, we can accommodate all the galaxies in
-                # the catalog, so don't do anything yet.
-                pass
-            else:
-                # Flag entries until we hit target.
-                # This is not efficient but oh well.
-                for h in range(Mh.size):
-                    ok[h] = 0
-
-                    if ok.sum() == max_sources:
-                        break
-
-                # This will be the final iteration.
-                if ct + ok.sum() == max_sources:
-                    _hit_max_sources = True
-
-        #if self.verbose:
-        #    print("Masked fraction: {:.5f}".format((ok.size - ok.sum()) / float(ok.size)))
-
         # May have empty layers, e.g., very massive halos and/or very
         # high redshifts.
         if not np.any(ok):
@@ -653,50 +622,11 @@ class LightCone(object): # pragma: no cover
         ra_ind = ra_ind[ok==1]
         de_ind = de_ind[ok==1]
 
-        # Get geometrical dilution factor
-        #corr = 1. / 4. / np.pi \
-        #        / (np.interp(red, self.tab_z, self.tab_dL) * cm_per_mpc)**2
-
-        # Get flux from each object. Units = erg/s/cm^2/Ang.
-        # Already accounting for geometrical dilution but provided at
-        # rest wavelengths, so must divide by (1+z) to get flux in observer
-        # frame.
-
         # Shape of (ra, dec, red) is just (Ngalaxies)
 
-        ##
-        # In general, we'll scan through narrow z slices and report the
-        # integrated emission in those slices. If we don't do this, big co-eval
-        # boxes will lead to spectral errors.
-        #zsub_lo = 1 * zlo
 
-        #flux = np.zeros(ok.sum())
-        #while zsub_lo < zhi:
-
-        #    zsub_hi = min(zsub_lo + self.dz_max, zhi)
-
-        #    zsub_mid = np.mean([zsub_lo, zsub_hi])
-
-        #    band = channel[0] * 1e4 / (1. + zsub_mid), \
-        #           channel[1] * 1e4 / (1. + zsub_mid)
-
-        #    okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
-
-        #    _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
-        #        Mh=Mh[okzsub==1], units='Ang',
-        #        units_out='erg/s/Ang', band=tuple(band))
-
-        #    # Frequency "squashing", i.e., our 'per Angstrom' interval is
-        #    # different in the observer frame by a factor of 1+z.
-        #    corr = 1. / 4. / np.pi \
-        #        / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
-        #    flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
-
-        #    zsub_lo += self.dz_max
-
-        # Fluxes for sources in this chunk of redshift space
-        flux = self._get_flux_catalog((zlo, zhi), red, Mh,
-            channel, pid)
+        # Get flux from each object. Units = erg/s/cm^2/Ang.
+        flux = self._get_flux_catalog((zlo, zhi), red, Mh, channel, pid)
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -840,8 +770,6 @@ class LightCone(object): # pragma: no cover
 
             # Grab the flux
             _flux_ = flux[h]
-
-            #print(f'should be adding flux to pixel i={i}, j={j}, flux={flux[h]}')
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
@@ -1035,6 +963,8 @@ class LightCone(object): # pragma: no cover
         # At least save halo mass since we get it for free.
         if (channels is None):
             channels = ['Mh']
+            # Override cat_units
+            cat_units = 'Msun'
 
         if channel_names is None:
             channel_names = channels
@@ -1187,14 +1117,24 @@ class LightCone(object): # pragma: no cover
                     # or special quantities like Ly-a EW or luminosity.
                     # Note: if pops[popid] is a GalaxyEnsemble object
                     if type(channel) in [tuple, list, np.ndarray]:
+                        # Internally, these fluxes are always in
+                        # erg/s/cm^2/Ang, but then integrated over channel so
+                        # erg/s/cm^2 in the end
+                        # Will need channel width in Hz to recover specific intensities
+                        # averaged over band.
+                        nu = c * 1e4 / np.mean(channel)
+                        dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
+
                         _dat = self._get_flux_catalog(zlayer, _red, _Mh,
                             channel, pid)
-                        _dat *= self.get_map_norm(cat_units)
+                        _dat *= self.get_map_norm(cat_units) / dnu
                     elif channel in ['Mh']:
                         _dat = _Mh
                     elif channel.lower().startswith('ew'):
                         raise NotImplemented('help')
-                    elif channel in ['Ms', 'SFR']:
+                    elif channel.lower() == 'sfr':
+                        _dat = self.sim.pops[pid].get_sfr(z=z, Mh=Mh)
+                    elif channel.lower() in ['ms', 'mstell']:
                         raise NotImplemented('help')
                     elif channel.lower() in ['ellip', 'nsers', 'pa']:
                         raise NotImplemented('help')
@@ -1445,8 +1385,8 @@ class LightCone(object): # pragma: no cover
             # 1 MJy = 1e6 Jy = 1e6 * 1e-23 erg/s/cm^2/sr -> 1e17 MJy / cgs units
             f_norm = 1e17
         elif 'ujy' in map_units.lower() :
-            # 1 micro-Jy = 1e-6 Jy = 1e-6 * 1e-23 erg/s/cm^2/sr -> 1e17 MJy / cgs units
-            f_norm = 1e17
+            # 1 micro-Jy = 1e-6 Jy = 1e-6 * 1e-23 erg/s/cm^2/sr -> 1e29 uJy / cgs units
+            f_norm = 1e29
         else:
             raise ValueErorr(f"Unrecognized option `map_units={map_units}`")
 
