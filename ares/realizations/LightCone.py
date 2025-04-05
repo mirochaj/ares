@@ -430,7 +430,7 @@ class LightCone(object): # pragma: no cover
         # Done
         return {key:self._seeds[key][i] for key in self._seeds.keys()}
 
-    def _get_flux_catalog(self, zlim, red, Mh, channel, pid):
+    def _get_flux_catalog(self, zlim, logmlim, red, Mh, channel, pid):
         """
         Compute flux from catalog of sources in given redshift range.
 
@@ -479,6 +479,97 @@ class LightCone(object): # pragma: no cover
             zsub_lo += self.dz_max
 
         return flux
+
+    def _get_size_catalog(self, zlim, logmlim, red, Mh, pid):
+        """
+        Return sizes and surface brightness profile info for a galaxy catalog.
+
+        Parameters
+        ----------
+        zlim : tuple
+            Redshift range in which to sum fluxes.
+        red : np.ndarray
+            Redshifts of galaxies in catalog.
+        Mh : np.ndarray
+            Halo masses [Msun] of galaxies in catalog.
+
+        Returns
+        -------
+        A tuple containing the:
+        - Half-light radii of galaxies (in arcseconds)
+        - sersic indices
+        - ellipcities
+        - position angles
+
+        """
+        Ms = self.sim.pops[pid].get_smhm(z=red, Mh=Mh) * Mh
+        Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
+
+        R_sec = np.zeros_like(Rkpc)
+        for kk in range(red.size):
+            R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
+                Rkpc[kk] * 1e-3)
+        R_sec *= 60.
+
+        zlo, zhi = zlim
+        zall = self.get_redshift_layers(zlim=self.zlim)
+
+        ##
+        # Make sure `zlim` is in provided redshift layers.
+        # This is mostly to prevent users from doing something they shouldn't.
+        ilayer = np.argmin(np.abs(zlim[0] - zall[:,0]))
+
+        seed_kw = self.get_seed_kwargs(ilayer, logmlim, pid)
+
+        # `R_sec` is the angular size of each galaxy in the model in arcsec.
+        # Note: the size is defined as the stellar half-light radius.
+
+        # Uniform for now.
+        np.random.seed(seed_kw['seed_profile'])
+
+        # Sersic indices and position angles
+        # Hard-coded for now (eye-balling W18's Fig 16 for a
+        # reasonable start), should be more careful in the future.
+        pop_s = 'sfg' if self.pops[pid].is_star_forming else 'qg'
+
+        # First, identify redshift interval to use.
+        zoptions = self.profile_info[f'{pop_s}_z']
+        z1, z2 = np.array(zoptions).T
+
+        iz = np.argmin(np.abs(zlo - z1))
+        if zlo < z1[iz]:
+            iz += 1
+
+        key = zoptions[iz]
+
+        # Axis ratios first
+        ba_loc, ba_scale = self.profile_info[f'{pop_s}_ba'][key]
+
+        ba_trunc_lo = 0.1
+        ba_trunc_hi = 1
+        ba_t_lo = (ba_trunc_lo - ba_loc) / ba_scale
+        ba_t_hi = (ba_trunc_hi - ba_loc) / ba_scale
+
+        rv_ba = truncnorm(ba_t_lo, ba_t_hi, loc=ba_loc, scale=ba_scale)
+        b_over_a = rv_ba.rvs(size=Rkpc.size)
+
+        # Now Sersic indices
+        n_loc, n_scale = self.profile_info[f'{pop_s}_n'][key]
+
+        n_trunc_lo = 0.2
+        n_trunc_hi = 7
+        n_t_lo = (n_trunc_lo - n_loc) / n_scale
+        n_t_hi = (n_trunc_lo - n_loc) / n_scale
+
+        rv_n = truncnorm(n_t_lo, n_t_hi, loc=n_loc, scale=n_scale)
+        nsers = rv_ba.rvs(size=Rkpc.size)
+
+        # Ellipticity = 1 - b/a
+        ellip = 1 - b_over_a
+
+        pa = np.random.random(size=Rkpc.size) * 360
+
+        return R_sec, nsers, ellip, pa
 
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
@@ -626,7 +717,7 @@ class LightCone(object): # pragma: no cover
 
 
         # Get flux from each object. Units = erg/s/cm^2/Ang.
-        flux = self._get_flux_catalog((zlo, zhi), red, Mh, channel, pid)
+        flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -666,65 +757,8 @@ class LightCone(object): # pragma: no cover
             assert self.profile_info is not None, \
                 "Must supply `profile_info` at initialization!"
 
-            Ms = self.sim.pops[pid].get_smhm(z=red, Mh=Mh) * Mh
-            Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
-
-            R_sec = np.zeros_like(Rkpc)
-            for kk in range(red.size):
-                R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
-                    Rkpc[kk] * 1e-3)
-            R_sec *= 60.
-
-            # `R_sec` is the angular size of each galaxy in the model in arcsec.
-            # Note: the size is defined as the stellar half-light radius.
-
-            # Uniform for now.
-            np.random.seed(seed_kw['seed_profile'])
-
-            # Sersic indices and position angles
-            # Hard-coded for now (eye-balling W18's Fig 16 for a
-            # reasonable start), should be more careful in the future.
-            pop_s = 'sfg' if self.pops[pid].is_star_forming else 'qg'
-
-            # First, identify redshift interval to use.
-            zoptions = self.profile_info[f'{pop_s}_z']
-
-            #zopt_arr = np.array([key for key in self.profile_info['sfg_z']])
-
-            z1, z2 = np.array(zoptions).T
-
-            iz = np.argmin(np.abs(zlo - z1))
-            if zlo < z1[iz]:
-                iz += 1
-
-            key = zoptions[iz]
-
-            # Axis ratios first
-            ba_loc, ba_scale = self.profile_info[f'{pop_s}_ba'][key]
-
-            ba_trunc_lo = 0.1
-            ba_trunc_hi = 1
-            ba_t_lo = (ba_trunc_lo - ba_loc) / ba_scale
-            ba_t_hi = (ba_trunc_hi - ba_loc) / ba_scale
-
-            rv_ba = truncnorm(ba_t_lo, ba_t_hi, loc=ba_loc, scale=ba_scale)
-            b_over_a = rv_ba.rvs(size=Rkpc.size)
-
-            # Now Sersic indices
-            n_loc, n_scale = self.profile_info[f'{pop_s}_n'][key]
-
-            n_trunc_lo = 0.2
-            n_trunc_hi = 7
-            n_t_lo = (n_trunc_lo - n_loc) / n_scale
-            n_t_hi = (n_trunc_lo - n_loc) / n_scale
-
-            rv_n = truncnorm(n_t_lo, n_t_hi, loc=n_loc, scale=n_scale)
-            nsers = rv_ba.rvs(size=Rkpc.size)
-
-            # Ellipticity = 1 - b/a
-            ellip = 1 - b_over_a
-
-            pa = np.random.random(size=Rkpc.size) * 360
+            R_sec, nsers, ellip, pa = self._get_size_catalog(zlim, logmlim,
+                red, Mh, pid)
 
             ##
             # Next, impose effective stopping criterion in size where we
@@ -740,7 +774,7 @@ class LightCone(object): # pragma: no cover
             # exceeds a pixel.
             else:
                 rmax = [self.sim.pops[pid].get_sersic_rmax(size_cut,
-                    nsers[h]) for h in range(Rkpc.size)]
+                    nsers[h]) for h in range(R_sec.size)]
 
                 R_X = np.array(rmax) * R_sec
 
@@ -1072,32 +1106,6 @@ class LightCone(object): # pragma: no cover
                     ok = np.logical_and(np.abs(_ra)  < fov / 2.,
                                         np.abs(_dec) < fov / 2.)
 
-                    # Limit number of sources, just for testing.
-                    if (max_sources is not None):
-                        if (ct == 0) and (max_sources >= _Mh.size):
-                            # In this case, we can accommodate all the galaxies in
-                            # the catalog, so don't do anything yet.
-                            pass
-                        else:
-                            # Flag entries until we hit target.
-                            # This is not efficient but oh well.
-                            for _h in range(_Mh.size):
-                                ok[_h] = 0
-
-                                if ok.sum() == max_sources:
-                                    break
-
-                            # This will be the final iteration.
-                            if ct + ok.sum() == max_sources:
-                                self._hit_max_sources = True
-
-                    if source_prop is not None:
-                        if 'z' in source_prop:
-                            szlim = source_prop['z']
-                            oks = np.logical_and(_red >= szlim[0], _red < szlim[1])
-
-                        ok = np.logical_and(ok, oks)
-
                     # Isolate OK entries.
                     _ra = _ra[ok==1]
                     _dec = _dec[ok==1]
@@ -1118,14 +1126,13 @@ class LightCone(object): # pragma: no cover
                     # Note: if pops[popid] is a GalaxyEnsemble object
                     if type(channel) in [tuple, list, np.ndarray]:
                         # Internally, these fluxes are always in
-                        # erg/s/cm^2/Ang, but then integrated over channel so
-                        # erg/s/cm^2 in the end
-                        # Will need channel width in Hz to recover specific intensities
-                        # averaged over band.
+                        # erg/s/cm^2/Ang, but then integrated over channel.
+                        # Will need channel width in Hz to recover specific
+                        # intensities averaged over band.
                         nu = c * 1e4 / np.mean(channel)
                         dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
 
-                        _dat = self._get_flux_catalog(zlayer, _red, _Mh,
+                        _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                             channel, pid)
                         _dat *= self.get_map_norm(cat_units) / dnu
                     elif channel in ['Mh']:
@@ -1133,11 +1140,17 @@ class LightCone(object): # pragma: no cover
                     elif channel.lower().startswith('ew'):
                         raise NotImplemented('help')
                     elif channel.lower() == 'sfr':
-                        _dat = self.sim.pops[pid].get_sfr(z=z, Mh=Mh)
+                        _dat = self.sim.pops[pid].get_sfr(z=_red, Mh=_Mh)
                     elif channel.lower() in ['ms', 'mstell']:
                         raise NotImplemented('help')
-                    elif channel.lower() in ['ellip', 'nsers', 'pa']:
-                        raise NotImplemented('help')
+                    elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
+                        R_sec, nsers, ellip, pa = self._get_size_catalog(zlim,
+                            logmlim, _red, _Mh, pid)
+
+                        _dat_dict = {'r50': R_sec, 'nsers': nsers,
+                            'ellip': ellip, 'pa': pa}
+
+                        _dat = _dat_dict[channel.lower()]
                     else:
                         cam, filt = channel.split('_')
 
