@@ -749,7 +749,8 @@ class LightCone(object): # pragma: no cover
                 pix / 60.)
 
             rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
-                                dec_c * 60 * mpc_per_arcmin)
+                                dec_c * 60 * mpc_per_arcmin,
+                                indexing='ij')
 
 
         elif include_galaxy_sizes:
@@ -790,7 +791,8 @@ class LightCone(object): # pragma: no cover
             x0, y0 = ra, dec
             a, b = R_deg, R_deg
 
-            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg)
+            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
+                indexing='ij')
 
         ##
         # Actually sum fluxes from all objects in image plane.
@@ -840,6 +842,15 @@ class LightCone(object): # pragma: no cover
                 # Fractional contribution to total flux
                 I = model_SB(rr, dd)
                 tot = I.sum()
+
+                ##
+                # Test: null flux from beyond 4 R_e
+                #dr = np.sqrt((rr - ra[h] / pix_deg)**2 \
+                #   +         (dd - dec[h] / pix_deg)**2)
+                #beyond_edges = dr > 8 * R_pix[h]
+                #I[beyond_edges==1] = 0
+
+                #print('hi', h, R_pix[h], I.sum())
 
                 if tot == 0:
                     img[i,j] += _flux_
