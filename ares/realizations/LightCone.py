@@ -559,10 +559,10 @@ class LightCone(object): # pragma: no cover
         n_trunc_lo = 0.2
         n_trunc_hi = 7
         n_t_lo = (n_trunc_lo - n_loc) / n_scale
-        n_t_hi = (n_trunc_lo - n_loc) / n_scale
+        n_t_hi = (n_trunc_hi - n_loc) / n_scale
 
         rv_n = truncnorm(n_t_lo, n_t_hi, loc=n_loc, scale=n_scale)
-        nsers = rv_ba.rvs(size=Rkpc.size)
+        nsers = rv_n.rvs(size=Rkpc.size)
 
         # Ellipticity = 1 - b/a
         ellip = 1 - b_over_a
