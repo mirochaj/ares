@@ -58,6 +58,8 @@ tiny_phi = 1e-18
 #_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
 #    'L_per_sfr', 'sps-toy']
 
+gauss = lambda x, args: args[0] * np.exp(-(x - args[1])**2 / 2. / args[2]**2)
+
 def lognormal(x, mu, sigma):
     return np.exp(-0.5 * (x - mu)**2 / sigma**2) \
          / np.sqrt(2. * np.pi) / sigma
@@ -2361,6 +2363,26 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Lh
 
+    @cached_property
+    def _tab_norm_lines(self):
+        self._tab_norm_lines_ = np.zeros(len(self.pf['pop_lum_per_sfr_at_wave']))
+        for i, line_info in enumerate(self.pf['pop_lum_per_sfr_at_wave']):
+
+            if len(line_info) == 2:
+                _wave_, _lum_ = line_info
+                _width_ = None
+                self._tab_norm_lines_[i] = 1
+                continue
+
+            _wave_, _lum_, _width_ = line_info
+
+            gint = quad(lambda xx: gauss(xx, [1, _wave_, _width_]),
+                _wave_-5*_width_, _wave_+5*_width_)[0]
+
+            self._tab_norm_lines_[i] = _lum_ / gint
+
+        return self._tab_norm_lines_
+
     def _get_lum_lines_per_sfr(self, z, x, band, units, units_out):
         """
         If the user has provided scaling relationships between line luminosity
@@ -2382,6 +2404,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             if band[0] > band[1]:
                 band = band[::-1]
+
+            wave = np.mean(self.src.get_ang_from_x(band, units=units))
         # Save deal for `x`
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
@@ -2391,19 +2415,41 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Loop over provided emission lines, determine if any lie in the
         # requested wavelength range.
-        for (_wave_, _lum_) in self.pf['pop_lum_per_sfr_at_wave']:
+        for i, line_info in enumerate(self.pf['pop_lum_per_sfr_at_wave']):
 
-            if (band is not None):
+            if len(line_info) == 2:
+                _wave_, _lum_ = line_info
+                _width_ = None
+            else:
+                _wave_, _lum_, _width_ = line_info
+
+            if _width_ is not None:
+                # This is the only case where we should be allowed to "double count"
+                # hence the incrementing below (L_lines += )
+
+                # Need to figure out fraction of total emission that's
+                # emitted in the supplied band.
+                A = self._tab_norm_lines[i]
+
+                if (x is not None):
+                    conv = 1. / (c * 1e8 / wave**2) if 'hz' in units_out.lower() \
+                        else 1.
+                    # This will be in erg/s/SFR/Ang given _tab_norm_lines
+                    # integral over wavelength, so we have to convert to
+                    # erg/s/SFR/Hz
+                    L_lines += gauss(wave, [A, _wave_, _width_]) * conv
+                else:
+                    lo = gauss(band[0], [A, _wave_, _width_])
+                    hi = gauss(band[1], [A, _wave_, _width_])
+
+                    # Just do a trapezoid
+                    L_lines += 0.5 * (band[1] - band[0]) * (lo + hi)
+
+            elif (band is not None):
+                # units_out is irrelevant in this case because we're integrating
+                # over `band`
                 if (band[0] <= _wave_ <= band[1]):
-                    if 'erg/s/A' in units_out:
-                        dlam = (max(band) - min(band))
-                        dnu = None
-                        L_lines = _lum_ #/ dlam
-                        #raise NotImplementedError('should deprecate this')
-                    else:
-                        dlam = None
-                        dnu = (c * 1e8 / min(band)) - (c * 1e8 / max(band))
-                        L_lines = _lum_ #/ dnu
+                    L_lines = _lum_
                 else:
                     continue
             elif (x is not None) and (abs(wave - _wave_) < R):

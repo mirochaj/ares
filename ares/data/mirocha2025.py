@@ -660,8 +660,27 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (3970, 0.159 * 0.44e41),     # H-epsilon
      (3727, 0.71e41),             # [O II]
      (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
-     (3.3e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
+     (3.28e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
+
+lines_wprof = {}
+lines_wprof['pop_lum_per_sfr_at_wave{0}'] = \
+    [
+     (1216., 1.21e42),            # Ly-a
+     (6563, 1.27e41),             # H-alpha
+     (5007, 1.32e41),             # [O III]
+     (4861, 0.44e41),             # H-beta
+     (4340, 0.468 * 0.44e41),     # H-gamma
+     (4102, 0.259 * 0.44e41),     # H-delta
+     (3970, 0.159 * 0.44e41),     # H-epsilon
+     (3727, 0.71e41),             # [O II]
+     (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
+     (3.28e4, 0.505 * lsun * 10**6.6, 0.0301e4),     # 3.3 micron PAH (Lai+ 2020)
+     (3.28e4, 0.495 * lsun * 10**6.6, 0.1028e4),
+     (3.40e4, 0.08592 * lsun * 10**6.6, 0.0301e4),
+     (3.48e4, 0.17205 * lsun * 10**6.6, 0.0555e4)]
+
+lines_wprof['pop_lum_per_sfr_at_wave{2}'] = lines_wprof['pop_lum_per_sfr_at_wave{0}']
 
 no_lines = \
 {
