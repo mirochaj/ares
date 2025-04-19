@@ -1387,6 +1387,7 @@ class GalaxyCohort(GalaxyAggregate):
             logMh_e = bin_c2e(logMh)
 
             if mass == 'stellar':
+
                 if use_tabs:
                     fstar = self.tab_fstar[iz,:]
                 else:
@@ -1434,6 +1435,7 @@ class GalaxyCohort(GalaxyAggregate):
                         sigma = self.pf['pop_scatter_sfh']
                     else:
                         sigma = self.pf['pop_scatter_smhm']
+
                     mu = np.log10(Ms_c)
 
                     # This is essentially dn/dlog10Mstell
@@ -1596,6 +1598,83 @@ class GalaxyCohort(GalaxyAggregate):
             return np.interp(maglim, mags, cgal)
         else:
             return mags, cgal
+
+    def get_main_sequence(self, z, bin, use_tabs=True):
+        """
+        Return mean SFR of galaxies in provided log10(stellar mass / msun) `bin`.
+        """
+
+        iz = self.get_zindex(z)
+
+        # Halo masses, bin centers and edges (in log10)
+        Mh = self.halos.tab_M
+        logMh = np.log10(self.halos.tab_M)
+        logMh_e = bin_c2e(logMh)
+
+        # SFR, SMHM, fQ
+        if use_tabs:
+            fstar = self.tab_fstar[iz,:]
+            focc = self.tab_focc[iz,:]
+
+        else:
+            fstar = self.get_sfe(z=z, Mh=self.halos.tab_M)
+            focc = self.get_focc(z=z, Mh=Mh)
+
+        sfr = self.get_sfr_obs(z=z, Mh=Mh)
+        Ms = self.get_mstell_obs(z=z, Mh=Mh)
+
+        # Need log10
+        log10M = np.log10(Ms)
+        log10SFR = np.log10(sfr)
+
+        # Get stellar mass bin edges and centers
+        Ms_c = fstar * self.halos.tab_M
+        fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
+        Ms_e = fstar_e * 10**logMh_e
+        logMs_e = np.log10(Ms_e)
+
+        dlog10mdlog10M = np.diff(logMh_e) / np.diff(logMs_e)
+
+        binc = 0.5 * (bin[0] + bin[1])
+        dndlnm = self.halos.tab_dndlnm[iz]
+
+        sigma_m = self.pf['pop_scatter_smhm']
+        sigma_sfr = self.pf['pop_scatter_sfr']
+
+        Mmin = self.get_Mmin(z)
+
+        # 2-D PDF: (<Mstell(Mh)>, Mstell)
+        # In other words, pdf[0] is the probability distribution of stellar mass
+        # for an object in halo 0, with mean stellar mass Ms[0]
+        pdf_m = lognormal(log10M[None,:], log10M[:,None], sigma_m) \
+            * np.log(10.)
+
+        # Null out contributions from stellar masses outside the bin of interest
+        ok = np.logical_and(log10M >= bin[0], log10M < bin[1])
+        pdf_m[:,ok==0] = 0
+
+        xx2 = np.log10(sfr)
+
+        pdf_sfr = lognormal(xx2[None,:], log10SFR[:,None], sigma_sfr) \
+            * np.log(10.)
+
+        norm = 0.0#np.zeros_like(sfr)
+        integrand = 0.0#np.zeros_like(sfr)
+        for i, M in enumerate(self.halos.tab_M):
+            if M < Mmin:
+                continue
+
+            # First: determine mean SFR in this halo mass bin
+
+            # Then: integrate over stellar mass PDF.
+            # Need a dmstell/dmh factor no?
+            integrand += np.trapz(sfr[i] * dndlnm[i] * dlog10mdlog10M[i] \
+                * focc[i] * pdf_m[i,:], x=log10M)
+
+            norm += np.trapz(dndlnm[i] * focc[i] * pdf_m[i,:],
+                x=log10M)
+
+        return integrand / norm
 
     def get_sfr_mean(self, z, Mh):
         if (self.pf['pop_scatter_sfh'] > 0):

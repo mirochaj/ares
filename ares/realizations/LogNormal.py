@@ -815,12 +815,18 @@ class LogNormal(LightCone): # pragma: no cover
         seeds_pos = np.random.randint(0, high=Nc * 1000, size=Nc)
         seeds_mass = np.random.randint(0, high=Nc * 1000, size=Nc)
 
+        pbar = ProgressBar(Nc, name=f"subhalos", use=True)
+        pbar.start()
+
         ra = []
         dec = []
         red = []
         mass = []
         par_id = []
         for i in range(Nc):
+
+            pbar.update(i)
+
             # Index for this halo mass
             iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
 
@@ -889,6 +895,9 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Save index for the parent halo.
             par_id.extend([i] * Nsat_act)
+
+        #
+        pbar.finish()
 
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
             np.array(par_id)

@@ -611,9 +611,11 @@ class LightCone(object): # pragma: no cover
 
         # In degrees
         if type(fov) in numeric_types:
-            fov = np.array([fov]*2)
+            fov_2d = np.array([fov]*2)
+        else:
+            fov_2d = fov
 
-        assert np.diff(fov) == 0, "Only square FOVs allowed right now."
+        assert np.diff(fov_2d) == 0, "Only square FOVs allowed right now."
 
         zall = self.get_redshift_layers(zlim=self.zlim)
 
@@ -634,90 +636,100 @@ class LightCone(object): # pragma: no cover
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        # Initialize empty map
-        img = buffer
-        #if buffer is not None:
-        #    img = buffer
-        #elif save_intermediate:
-        #    img = np.zeros([len(zall)] + Npix, dtype=np.float64)
-        #else:
-        #    img = np.zeros([1] + Npix, dtype=np.float64)
-
-        ##
-        # Might take awhile.
-        #pb = ProgressBar(len(zall),
-        #    name="img(z; Mh>={:.1f}, Mh<{:.1f})".format(logmlim[0], logmlim[1]),
-        #    use=use_pbar)
-        #pb.start()
-
-        # Track max_sources
-        _hit_max_sources = False
-
-        ct = 0
-
         zlo, zhi = zlim
         zmid = np.mean([zlo, zhi])
 
         seed_kw = self.get_seed_kwargs(ilayer, logmlim, pid)
 
-        ra, dec, red, Mh = self.get_catalog_halos(zlim=(zlo, zhi),
-            logmlim=logmlim, popid=popid, verbose=verbose,
-            satellites=self.sim.pops[pid].is_satellite_pop,
-            logmlim_sats=logmlim_sats)
-
-        # Could be empty layers for very massive halos and/or early times.
-        if ra is None:
-            return #None, None, None
-
-        # Correct for field position. Always (0,0) for log-normal boxes,
-        # may not be for halo catalogs from sims.
-        ra -= self.fxy[0]
-        dec -= self.fxy[1]
+        # Initialize empty map
+        img = buffer
 
         ##
-        # Figure out which bin each galaxy is in.
-        # Slightly faster than np.digitize
-        ra_bin = np.searchsorted(ra_e, ra, side='right')
-        dec_bin = np.searchsorted(dec_e, dec, side='right')
-        mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
-        mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
-        ra_ind = ra_bin - 1
-        de_ind = dec_bin - 1
+        # First, check for a pre-existing catalog in this channel.
+        fn_cat_ch = self.get_cat_fn(fov, pix, channel, popid,
+            logmlim=logmlim, zlim=(zlo, zhi))
 
-        # Mask out galaxies that aren't in our desired image plane.
-        okp = np.logical_not(np.logical_or(mask_ra, mask_de))
+        if os.path.exists(fn_cat_ch):
 
-        # Filter out galaxies outside specified redshift range.
-        # [usually don't do this within layer, but hey, functionality there]
-        if zlim is not None:
-            okz = np.logical_and(red >= zlo, red < zhi)
-            ok = np.logical_and(okp, okz)
+            ra, dec, red, flux = self._load_cat(fn_cat_ch)
+
+            # Figure out what pixel each source is in
+            ra_bin = np.searchsorted(ra_e, ra, side='right')
+            dec_bin = np.searchsorted(dec_e, dec, side='right')
+            ra_ind = ra_bin - 1
+            de_ind = dec_bin - 1
+
+            # Internally, these fluxes are always in
+            # erg/s/cm^2/Ang, but then integrated over channel.
+            # Will need channel width in Hz to recover specific
+            # intensities averaged over band.
+            nu = c * 1e4 / np.mean(channel)
+            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
+
+            _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                channel, pid)
+            flux *= 1. / (self.get_map_norm(cat_units) / dnu)
         else:
-            okz = None
-            ok = okp
 
-        # May have empty layers, e.g., very massive halos and/or very
-        # high redshifts.
-        if not np.any(ok):
-            return #None, None, None
+            # Run fresh if we didn't find anything
+            ra, dec, red, Mh = self.get_catalog_halos(zlim=(zlo, zhi),
+                logmlim=logmlim, popid=popid, verbose=verbose,
+                satellites=self.sim.pops[pid].is_satellite_pop,
+                logmlim_sats=logmlim_sats)
 
-        # Increment counter
-        ct += ok.sum()
+            # Could be empty layers for very massive halos and/or early times.
+            if ra is None:
+                return #None, None, None
+
+            # Correct for field position. Always (0,0) for log-normal boxes,
+            # may not be for halo catalogs from sims.
+            ra -= self.fxy[0]
+            dec -= self.fxy[1]
+
+            ##
+            # Figure out which bin each galaxy is in.
+            # Slightly faster than np.digitize
+            ra_bin = np.searchsorted(ra_e, ra, side='right')
+            dec_bin = np.searchsorted(dec_e, dec, side='right')
+            mask_ra = np.logical_or(ra_bin == 0, ra_bin == Npix[0]+1)
+            mask_de = np.logical_or(dec_bin == 0, dec_bin == Npix[1]+1)
+            ra_ind = ra_bin - 1
+            de_ind = dec_bin - 1
+
+            # Mask out galaxies that aren't in our desired image plane.
+            okp = np.logical_not(np.logical_or(mask_ra, mask_de))
+
+            # Filter out galaxies outside specified redshift range.
+            # [usually don't do this within layer, but hey, functionality there]
+            if zlim is not None:
+                okz = np.logical_and(red >= zlo, red < zhi)
+                ok = np.logical_and(okp, okz)
+            else:
+                okz = None
+                ok = okp
+
+            # May have empty layers, e.g., very massive halos and/or very
+            # high redshifts.
+            if not np.any(ok):
+                return #None, None, None
+
+            ##
+            # Isolate OK entries.
+            ra = ra[ok==1]
+            dec = dec[ok==1]
+            red = red[ok==1]
+            Mh = Mh[ok==1]
+            ra_ind = ra_ind[ok==1]
+            de_ind = de_ind[ok==1]
+
+            # Shape of (ra, dec, red) is just (Ngalaxies)
+
+            # Get flux from each object. Units = erg/s/cm^2/Ang.
+            flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
 
         ##
-        # Isolate OK entries.
-        ra = ra[ok==1]
-        dec = dec[ok==1]
-        red = red[ok==1]
-        Mh = Mh[ok==1]
-        ra_ind = ra_ind[ok==1]
-        de_ind = de_ind[ok==1]
-
-        # Shape of (ra, dec, red) is just (Ngalaxies)
-
-
-        # Get flux from each object. Units = erg/s/cm^2/Ang.
-        flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
+        # Here: have fluxes, just need to paint into image
+        #self._get_map_from_cat(ra, dec, flux)
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -744,6 +756,152 @@ class LightCone(object): # pragma: no cover
                 # Remaining dimensions (Mh, R)
                 Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
                 Mall = self.sim.pops[pid].halos.tab_M
+
+            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
+                pix / 60.)
+
+            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
+                                dec_c * 60 * mpc_per_arcmin,
+                                indexing='ij')
+
+
+        elif include_galaxy_sizes:
+
+            assert self.profile_info is not None, \
+                "Must supply `profile_info` at initialization!"
+
+            R_sec, nsers, ellip, pa = self._get_size_catalog(zlim, logmlim,
+                red, Mh, pid)
+
+            ##
+            # Next, impose effective stopping criterion in size where we
+            # stop painting on Sersic profiles and just dump all photons
+            # in a single pixel.
+            #
+
+            # Will paint anything half-light radius greater than a pixel
+            if size_cut == 0.5:
+                R_X = R_sec
+            # General option: paint anything with size, defined as the
+            # radius containing `size_cut` fraction of the light, that
+            # exceeds a pixel.
+            else:
+                rmax = [self.sim.pops[pid].get_sersic_rmax(size_cut,
+                    nsers[h]) for h in range(R_sec.size)]
+
+                R_X = np.array(rmax) * R_sec
+
+            #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
+
+            # Size in degrees
+            R_deg = R_sec / 3600.
+            R_pix = R_deg / pix_deg
+
+            R_X /= (3600 * pix_deg)
+
+            # All in degrees
+            x0, y0 = ra, dec
+            a, b = R_deg, R_deg
+
+            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
+                indexing='ij')
+
+        ##
+        # Actually sum fluxes from all objects in image plane.
+        for h in range(ra.size):
+
+            #if not ok[h]:
+            #    continue
+
+            # Where this galaxy lives in pixel coordinates
+            i, j = ra_ind[h], de_ind[h]
+
+            # Grab the flux
+            _flux_ = flux[h]
+
+            # HERE: account for fact that galaxies aren't point sources.
+            # [optional]
+            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
+
+                # Image of distances from halo center
+                r0 = ra_c[i] * 60 * mpc_per_arcmin
+                d0 = dec_c[j] * 60 * mpc_per_arcmin
+                Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
+
+                # In Msun/cMpc^3
+
+                # Interpolate between tabulated solutions.
+                iM = np.argmin(np.abs(Mh[h] - Mall))
+
+                I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+
+                tot = I.sum()
+
+                if tot == 0:
+                    img[i,j] += _flux_
+                else:
+                    img[:,:] += _flux_ * I / tot
+
+                #print(f"doing IHL, _flux_={_flux_}, tot={tot}")
+
+            elif include_galaxy_sizes and R_X[h] >= 1:
+
+                model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
+                    x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
+                    n=nsers[h], theta=pa[h] * np.pi / 180.,
+                    ellip=ellip[h])
+
+                # Fractional contribution to total flux
+                I = model_SB(rr, dd)
+                tot = I.sum()
+
+                ##
+                # Test: null flux from beyond 4 R_e
+                #dr = np.sqrt((rr - ra[h] / pix_deg)**2 \
+                #   +         (dd - dec[h] / pix_deg)**2)
+                #beyond_edges = dr > 8 * R_pix[h]
+                #I[beyond_edges==1] = 0
+
+                #print('hi', h, R_pix[h], I.sum())
+
+                if tot == 0:
+                    img[i,j] += _flux_
+                else:
+                    img[:,:] += _flux_ * I / tot
+
+            ##
+            # Otherwise just add flux to single pixel
+            else:
+                img[i,j] += _flux_
+
+        ##
+        # Clear out some memory sheesh
+        del flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
+            mask_ra, mask_de
+        if self.mem_concious:
+            gc.collect()
+
+    def _get_map_from_cat(self, fov, pix, ra, dec, red, flux, pid,
+        include_galaxy_sizes):
+        ##
+        # Need some extra info to do more sophisticated modeling...
+        ##
+        raise NotImplemented('help')
+
+        ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
+
+        # Extended emission from IHL
+        if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
+
+            Rmi, Rma = -3, 1
+            dlogR = 0.25
+            Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+
+            _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
+
+            # Remaining dimensions (Mh, R)
+            Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
+            Mall = self.sim.pops[pid].halos.tab_M
 
             mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
                 pix / 60.)
@@ -1467,7 +1625,8 @@ class LightCone(object): # pragma: no cover
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
-        keep_chunks=None, use_pbar=False, verbose=False, dryrun=False, **kwargs):
+        keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
+        logmlim_sats=(11,15), **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1732,6 +1891,7 @@ class LightCone(object): # pragma: no cover
                     max_sources=max_sources,
                     source_prop=source_prop,
                     buffer=buffer, verbose=verbose,
+                    logmlim_sats=logmlim_sats,
                     **kwargs)
 
                 status_done_now[ip,ichan,iz,im] = 1
