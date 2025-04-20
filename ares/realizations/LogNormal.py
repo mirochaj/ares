@@ -811,9 +811,11 @@ class LogNormal(LightCone): # pragma: no cover
         # to deterministically create seeds for the masses and positions
         # of all subhalos for each central.
         np.random.seed(seed)
-        seeds_num = np.random.randint(0, high=Nc * 1000, size=Nc)
-        seeds_pos = np.random.randint(0, high=Nc * 1000, size=Nc)
-        seeds_mass = np.random.randint(0, high=Nc * 1000, size=Nc)
+        # Recall that max allowed seed value is 2**32 - 1
+        # Providing some margin here since we scale below.
+        seeds_num = np.random.randint(0, high=2**30, size=Nc)
+        seeds_pos = np.random.randint(0, high=2**30, size=Nc)
+        seeds_mass = np.random.randint(0, high=2**30, size=Nc)
 
         ra = []
         dec = []
