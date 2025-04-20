@@ -9,6 +9,7 @@ from types import FunctionType, MethodType
 import numpy as np
 import scipy.special as sp
 from scipy.integrate import quad
+from functools import cached_property
 
 from ..data import ARES
 from ..util.ProgressBar import ProgressBar
@@ -1369,6 +1370,13 @@ class HaloModel(HaloMassFunction):
             print(f"# Wrote {fn}.")
 
         return
+
+    @cached_property
+    def tab_R_nfw(self):
+        Rmi, Rma = -3, 1
+        dlogR = 0.25
+        R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+        return R
 
     def get_halo_surface_dens(self, z, Mh, R):
         model_nfw = lambda MM, rr: self.get_rho_nfw(z, Mh=MM, r=rr,

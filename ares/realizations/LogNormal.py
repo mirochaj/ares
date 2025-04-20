@@ -796,7 +796,7 @@ class LogNormal(LightCone): # pragma: no cover
             x=np.log(self.sim.pops[0].halos.tab_M[ok_sub==1]), axis=1)
 
         # Array of radial separations [cMpc]
-        d = np.logspace(-2, 0, 100) # 10 kpc -> 1 Mpc
+        d = self.sim.pops[0].halos.tab_R_nfw
 
         ##
         # Just loop to start. Could truncate based on where expected
@@ -823,6 +823,11 @@ class LogNormal(LightCone): # pragma: no cover
         for i in range(Nc):
             # Index for this halo mass
             iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
+            # And redshift
+            iz = np.argmin(np.abs(red_c[i] - self.sim.pops[0].halos.tab_z))
+
+            # Remaining dimension: halos.tab_R_nfw
+            Sigma = self.sim.pops[0].halos.tab_Sigma_nfw[iz,iM,:]
 
             Nsat_exp = int(Nexp[iM])
 
@@ -847,9 +852,6 @@ class LogNormal(LightCone): # pragma: no cover
             ##
             # Now, do positions. Do in 2-D or 3-D?
             if distribute_in_space:
-                Sigma = self.sim.pops[0].halos.get_halo_surface_dens(red_c[i],
-                    mass_c[i], d)
-
                 ##
                 #
                 cdf = cumulative_trapezoid(Sigma, x=d, initial=0) \
