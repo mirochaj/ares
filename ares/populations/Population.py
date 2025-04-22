@@ -1176,7 +1176,7 @@ class Population(object):
     def tab_sersic_n(self):
         return np.arange(0.3, 6.25, 0.05)
 
-    def get_sersic_rmax(self, frac, n):
+    def get_sersic_r_containing_lightfrac(self, frac, n):
         """
         Return the radius containing `frac` per-cent of the total surface
         brightness for a Sersic profile of index `n`.

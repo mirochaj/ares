@@ -31,7 +31,7 @@ class LogNormal(LightCone): # pragma: no cover
         seed_rot=None, seed_trans=None, seed_profile=None, seed_sats=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
-        randomise_in_cell=True, base_dir='ares_mock', mem_concious=1,
+        randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
         distribute_sats_spatially=True, profile_info=None,
         dz_max=0.01, **kwargs):
         """

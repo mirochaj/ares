@@ -767,17 +767,28 @@ class LightCone(object): # pragma: no cover
             # in a single pixel.
             #
 
-            # Will paint anything half-light radius greater than a pixel
+            # Will paint anything with a half-light radius greater than a pixel
             if size_cut == 0.5:
                 R_X = R_sec
             # General option: paint anything with size, defined as the
             # radius containing `size_cut` fraction of the light, that
             # exceeds a pixel.
+            elif size_cut == 1:
+                R_X = np.inf # ensures detailed model for every galaxy
             else:
-                rmax = [self.sim.pops[pid].get_sersic_rmax(size_cut,
-                    nsers[h]) for h in range(R_sec.size)]
+                # e.g., if size_cut == 0.9, we'll find the radius containing
+                # 90% of the light for a given galaxy, and if that radius is
+                # bigger than a pixel, we'll model its profile.
+                rcut = [self.sim.pops[pid].get_sersic_r_containing_lightfrac(
+                    size_cut, nsers[h]) for h in range(R_sec.size)]
 
+                # `rcut` is in units of the half-light radius, so we need
+                # to multiply by `R_sec` to obtain the size in arcseconds.
                 R_X = np.array(rmax) * R_sec
+
+            ##
+            # R_X here is still in arcseconds, will get converted to pixels
+            # below.
 
             #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
 
@@ -1463,7 +1474,7 @@ class LightCone(object): # pragma: no cover
         return chunks_edges, chunks_edges_ids, list(np.sort(zlayers_minimal))
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
-        include_galaxy_sizes=False, size_cut=0.9, dlam=20,
+        include_galaxy_sizes=False, size_cut=0.5, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
@@ -1489,6 +1500,14 @@ class LightCone(object): # pragma: no cover
             If True, use empirical mass-size relations to paint on galaxy
             surface brightness profiles (assume Sersic). Relies on parameter
             `pop_msr`, a function of argument `z` and `Ms`.
+        size_cut : float
+            It is computationally expensive to generate galaxy sizes. So, for
+            sufficiently small galaxies, we revert to the point source treatment.
+            `size_cut` determines when we revert -- if size_cut=0.5, it means
+            that any galaxy with half-light radius >= 1 pixel will be modeled
+            in detail. If `size_cut=0.9`, it means any galaxy whose 90%-light
+            radius is bigger than a pixel will be modeled. Bigger numbers mean
+            more expensive calculations.
         zlim : tuple
             Boundaries of lightcone used to create map in redshift.
         dlam : int, float
