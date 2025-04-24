@@ -31,7 +31,7 @@ class LogNormal(LightCone): # pragma: no cover
         seed_rot=None, seed_trans=None, seed_profile=None, seed_sats=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
-        randomise_in_cell=True, base_dir='ares_mock', mem_concious=1,
+        randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
         distribute_sats_spatially=True, profile_info=None,
         dz_max=0.01, **kwargs):
         """
@@ -796,7 +796,7 @@ class LogNormal(LightCone): # pragma: no cover
             x=np.log(self.sim.pops[0].halos.tab_M[ok_sub==1]), axis=1)
 
         # Array of radial separations [cMpc]
-        d = np.logspace(-2, 0, 100) # 10 kpc -> 1 Mpc
+        d = self.sim.pops[0].halos.tab_R_nfw
 
         ##
         # Just loop to start. Could truncate based on where expected
@@ -811,9 +811,11 @@ class LogNormal(LightCone): # pragma: no cover
         # to deterministically create seeds for the masses and positions
         # of all subhalos for each central.
         np.random.seed(seed)
-        seeds_num = np.random.randint(0, high=Nc * 1000, size=Nc)
-        seeds_pos = np.random.randint(0, high=Nc * 1000, size=Nc)
-        seeds_mass = np.random.randint(0, high=Nc * 1000, size=Nc)
+        # Recall that max allowed seed value is 2**32 - 1
+        # Providing some margin here since we scale below.
+        seeds_num = np.random.randint(0, high=2**30, size=Nc)
+        seeds_pos = np.random.randint(0, high=2**30, size=Nc)
+        seeds_mass = np.random.randint(0, high=2**30, size=Nc)
 
         pbar = ProgressBar(Nc, name=f"subhalos", use=True)
         pbar.start()
@@ -829,6 +831,11 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Index for this halo mass
             iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
+            # And redshift
+            iz = np.argmin(np.abs(red_c[i] - self.sim.pops[0].halos.tab_z))
+
+            # Remaining dimension: halos.tab_R_nfw
+            Sigma = self.sim.pops[0].halos.tab_Sigma_nfw[iz,iM,:]
 
             Nsat_exp = int(Nexp[iM])
 
@@ -853,9 +860,6 @@ class LogNormal(LightCone): # pragma: no cover
             ##
             # Now, do positions. Do in 2-D or 3-D?
             if distribute_in_space:
-                Sigma = self.sim.pops[0].halos.get_halo_surface_dens(red_c[i],
-                    mass_c[i], d)
-
                 ##
                 #
                 cdf = cumulative_trapezoid(Sigma, x=d, initial=0) \
