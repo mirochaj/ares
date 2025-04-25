@@ -790,8 +790,6 @@ class LightCone(object): # pragma: no cover
             # R_X here is still in arcseconds, will get converted to pixels
             # below.
 
-            #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
-
             # Size in degrees
             R_deg = R_sec / 3600.
             R_pix = R_deg / pix_deg
