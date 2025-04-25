@@ -528,20 +528,11 @@ class LightCone(object): # pragma: no cover
         Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
 
         # Much faster to interpolate from table than generate angle/pMpc
-        # on the fly.
-        #tab =
-
-        R_sec = np.zeros_like(Rkpc)
-        for kk in range(red.size):
-            # Interpolant automatically used if provided R is 1
-            arcsec_per_pmpc = 60 * self.sim.cosm.get_angle_from_length_proper(
-                red[kk], 1.
-            )
-            R_sec[kk] = arcsec_per_pmpc * Rkpc[kk] * 1e-3
-            #R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
-            #    Rkpc[kk] * 1e-3)
-
-        #R_sec *= 60.
+        # on the fly. Interpolant automatically used if provided R is 1
+        arcsec_per_pmpc = 60 * self.sim.cosm.get_angle_from_length_proper(
+            red, 1.
+        )
+        R_sec = arcsec_per_pmpc * Rkpc * 1e-3
 
         zlo, zhi = zlim
         zall = self.get_redshift_layers(zlim=self.zlim)
