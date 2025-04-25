@@ -276,6 +276,12 @@ class LightCone(object): # pragma: no cover
                 for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
 
+    @property
+    def _cache_domain(self):
+        if not hasattr(self, '_cache_domain_'):
+            self._cache_domain_ = {}
+        return self._cache_domain_
+
     def get_domain_info(self, zlim=None, Lbox=None):
         """
         Figure out how the domain will be divided up along the line of sight.
@@ -296,6 +302,9 @@ class LightCone(object): # pragma: no cover
 
         """
 
+        if (zlim, Lbox) in self._cache_domain.keys():
+            return self._cache_domain[(zlim, Lbox)]
+
         if self.zlayers is not None:
             dofz = [self.sim.cosm.get_dist_los_comoving(0, z) \
                 for z in self.zlayers[:,0]]
@@ -311,7 +320,15 @@ class LightCone(object): # pragma: no cover
 
         ze, zmid, Re = self.sim.cosm.get_lightcone_boundaries(zlim, Lbox)
 
+        self._cache_domain[(zlim, Lbox)] = ze, zmid, Re
+
         return ze, zmid, Re
+
+    @property
+    def _cache_zlayers(self):
+        if not hasattr(self, '_cache_zlayers_'):
+            self._cache_zlayers_ = {}
+        return self._cache_zlayers_
 
     def get_redshift_layers(self, zlim):
         """
@@ -324,11 +341,16 @@ class LightCone(object): # pragma: no cover
 
         if self.zlayers is not None:
             return self.zlayers
+        if zlim in self._cache_zlayers.keys():
+            return self._cache_zlayers[zlim]
 
         ze, zmid, Re = self.get_domain_info(zlim)
 
         layers = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
-        return np.array(layers)
+
+        self._cache_zlayers[zlim] = np.array(layers)
+
+        return np.array(self._cache_zlayers[zlim])
 
     def get_mass_layers(self, logmlim, dlogm):
         """
@@ -505,11 +527,21 @@ class LightCone(object): # pragma: no cover
         Ms = self.sim.pops[pid].get_smhm(z=red, Mh=Mh) * Mh
         Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
 
+        # Much faster to interpolate from table than generate angle/pMpc
+        # on the fly.
+        #tab =
+
         R_sec = np.zeros_like(Rkpc)
         for kk in range(red.size):
-            R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
-                Rkpc[kk] * 1e-3)
-        R_sec *= 60.
+            # Interpolant automatically used if provided R is 1
+            arcsec_per_pmpc = 60 * self.sim.cosm.get_angle_from_length_proper(
+                red[kk], 1.
+            )
+            R_sec[kk] = arcsec_per_pmpc * Rkpc[kk] * 1e-3
+            #R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
+            #    Rkpc[kk] * 1e-3)
+
+        #R_sec *= 60.
 
         zlo, zhi = zlim
         zall = self.get_redshift_layers(zlim=self.zlim)
