@@ -551,17 +551,21 @@ class LightCone(object): # pragma: no cover
         np.random.seed(seed_kw['seed_profile'])
 
         # Sersic indices and position angles
-        # Hard-coded for now (eye-balling W18's Fig 16 for a
-        # reasonable start), should be more careful in the future.
         pop_s = 'sfg' if self.pops[pid].is_star_forming else 'qg'
 
         # First, identify redshift interval to use.
         zoptions = self.profile_info[f'{pop_s}_z']
         z1, z2 = np.array(zoptions).T
 
+        # Make sure `iz` gets redshift within appropriate window
         iz = np.argmin(np.abs(zlo - z1))
         if zlo < z1[iz]:
-            iz += 1
+            iz -= 1
+
+        # If provided redshift is > max redshift in profile_info, just use
+        # highest available redshift.
+        if zlo > z2.max():
+            iz = -1
 
         key = zoptions[iz]
 
