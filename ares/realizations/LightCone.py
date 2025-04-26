@@ -18,6 +18,7 @@ import numpy as np
 from pathlib import Path
 from scipy.stats import truncnorm
 from ..simulations import Simulation
+from ..util.WorkerPools import WorkerPool
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
 from scipy.spatial.transform import Rotation
@@ -601,7 +602,7 @@ class LightCone(object): # pragma: no cover
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
-        logmlim_sats=(11,15), buffer=None, **kwargs):
+        logmlim_sats=(11,15), buffer=None, nthreads=None, **kwargs):
         """
         Get a map for a single channel, redshift layer, mass layer, and
         source population.
@@ -661,14 +662,7 @@ class LightCone(object): # pragma: no cover
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        # Initialize empty map
-        img = buffer
-        #if buffer is not None:
-        #    img = buffer
-        #elif save_intermediate:
-        #    img = np.zeros([len(zall)] + Npix, dtype=np.float64)
-        #else:
-        #    img = np.zeros([1] + Npix, dtype=np.float64)
+        pool = WorkerPool(nthreads)
 
         ##
         # Might take awhile.
@@ -676,11 +670,6 @@ class LightCone(object): # pragma: no cover
         #    name="img(z; Mh>={:.1f}, Mh<{:.1f})".format(logmlim[0], logmlim[1]),
         #    use=use_pbar)
         #pb.start()
-
-        # Track max_sources
-        _hit_max_sources = False
-
-        ct = 0
 
         zlo, zhi = zlim
         zmid = np.mean([zlo, zhi])
@@ -727,9 +716,6 @@ class LightCone(object): # pragma: no cover
         # high redshifts.
         if not np.any(ok):
             return #None, None, None
-
-        # Increment counter
-        ct += ok.sum()
 
         ##
         # Isolate OK entries.
@@ -830,12 +816,25 @@ class LightCone(object): # pragma: no cover
             rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
                 indexing='ij')
 
+        # Initialize empty map
+        if pool.is_pymp_pool:
+            print('hello')
+            print(pool.pool)
+            #print(f"* Initialized worker pool with {pool.nthreads} threads.")
+            #img = pool.get_buffer((Npix, Npix), dtype='float')
+            img = pymp.shared.array((Npix, Npix), dtype=float)
+            print("created buffer")
+        else:
+            img = buffer
+
         ##
         # Actually sum fluxes from all objects in image plane.
-        for h in range(ra.size):
+        for h in pool.xrange(ra.size):
 
-            #if not ok[h]:
-            #    continue
+            if h % pool.thread_num != 0:
+                continue
+
+            #print('hi', h, pool.thread_num)
 
             # Where this galaxy lives in pixel coordinates
             i, j = ra_ind[h], de_ind[h]
@@ -897,6 +896,8 @@ class LightCone(object): # pragma: no cover
             # Otherwise just add flux to single pixel
             else:
                 img[i,j] += _flux_
+
+        pool.done()
 
         ##
         # Clear out some memory sheesh
@@ -1503,7 +1504,8 @@ class LightCone(object): # pragma: no cover
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
-        keep_chunks=None, use_pbar=False, verbose=False, dryrun=False, **kwargs):
+        keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
+        nthreads=None, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1775,7 +1777,7 @@ class LightCone(object): # pragma: no cover
                     dlam=dlam, use_pbar=False,
                     max_sources=max_sources,
                     source_prop=source_prop,
-                    buffer=buffer, verbose=verbose,
+                    buffer=buffer, nthreads=nthreads, verbose=verbose,
                     **kwargs)
 
                 status_done_now[ip,ichan,iz,im] = 1

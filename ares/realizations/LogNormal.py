@@ -817,21 +817,24 @@ class LogNormal(LightCone): # pragma: no cover
         seeds_pos = np.random.randint(0, high=2**30, size=Nc)
         seeds_mass = np.random.randint(0, high=2**30, size=Nc)
 
+
+        # Determine closest mass and redshift bins for projected density profile
+        iM = np.searchsorted(self.sim.pops[0].halos.tab_M_e, mass_c,
+            side='right') - 1
+        iz = np.searchsorted(self.sim.pops[0].halos.tab_z, red_c,
+            side='right') - 1
+
         ra = []
         dec = []
         red = []
         mass = []
         par_id = []
         for i in range(Nc):
-            # Index for this halo mass
-            iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
-            # And redshift
-            iz = np.argmin(np.abs(red_c[i] - self.sim.pops[0].halos.tab_z))
 
             # Remaining dimension: halos.tab_R_nfw
-            Sigma = self.sim.pops[0].halos.tab_Sigma_nfw[iz,iM,:]
+            Sigma = self.sim.pops[0].halos.tab_Sigma_nfw[iz[i],iM[i],:]
 
-            Nsat_exp = int(Nexp[iM])
+            Nsat_exp = int(Nexp[iM[i]])
 
             # Note that some Nexp==0 objects should statistically end up
             # with one or even a few satellites, but this should be a really
