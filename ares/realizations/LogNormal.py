@@ -857,10 +857,8 @@ class LogNormal(LightCone): # pragma: no cover
             ##
             # Now, do positions. Do in 2-D or 3-D?
             if distribute_in_space:
-                ##
-                #
-                cdf = cumulative_trapezoid(Sigma, x=d, initial=0) \
-                    / np.trapz(Sigma, x=d)
+                
+                cdf = self.sim.pops[0].halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
                 np.random.seed(seeds_pos[i])
                 r = np.random.rand(Nsat_act)
