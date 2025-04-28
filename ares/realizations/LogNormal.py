@@ -427,35 +427,41 @@ class LogNormal(LightCone): # pragma: no cover
         ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
                             self.sim.pops[0].halos.tab_M <  mmax)
 
-        m = self.sim.pops[0].halos.tab_M[ok==1]
+        m = self.sim.pops[0].halos.tab_M
+        iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+        immin = np.argmin(np.abs(self.sim.pops[0].halos.tab_M - mmin))
+        immax = np.argmin(np.abs(self.sim.pops[0].halos.tab_M - mmax))
 
         if subhalos:
             assert Mc is not None, "Must provide `Mc` if subhalos=True!"
             iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
             # We only keep dn/dlnM for some reason, convert to dn/dm
-            dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m
+            dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m[ok==1]
+
+            #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
+            #    initial=0)[-1::-1]
+
+            ngtm = self.sim.pops[0].halos.tab_ngtm_sub[iM,ok==1] #\
+                 #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
+            #nltm = ngtm[0]
+
         else:
-            iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+
             dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
-        # Compute CDF
-        ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
-            initial=0)[-1::-1]
+            ngtm = self.sim.pops[0].halos.tab_ngtm[iz,ok==1]
 
-        ntot = np.trapz(dndm * m, x=np.log(m))
+        # Compute CDF
+        ntot = np.trapz(dndm * m[ok==1], x=np.log(m[ok==1]))
         nltm = ntot - ngtm
+
         cdf = nltm / ntot
 
         # Assign halo masses according to HMF.
         np.random.seed(seed)
         r = np.random.rand(N)
 
-        #mass = np.exp(np.interp(np.log(r), np.log(cdf), np.log(m)))
-        mass = np.exp(np.interp(r, cdf, np.log(m)))
-
-        #if np.any(np.isnan(mass)):
-        #    print('hey wtf', r[np.argwhere(np.isnan(mass))], r.min(), r.max(),
-        #        np.interp(r[np.argwhere(np.isnan(mass))], cdf, m))
+        mass = np.exp(np.interp(r, cdf, np.log(m[ok==1])))
 
         return mass
 
@@ -857,7 +863,7 @@ class LogNormal(LightCone): # pragma: no cover
             ##
             # Now, do positions. Do in 2-D or 3-D?
             if distribute_in_space:
-                
+
                 cdf = self.sim.pops[0].halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
                 np.random.seed(seeds_pos[i])
