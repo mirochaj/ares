@@ -32,7 +32,7 @@ def get_pop_info(popid):
 
     # In this case, 'classic' behavior: just an integer, i.e.,
     # central galaxies.
-    if (type(popid) == int) or (popid.isnumeric()):
+    if (type(popid) == int) or popid.isnumeric():
         return int(popid), int(popid), str(popid)
 
     if type(popid) == tuple:

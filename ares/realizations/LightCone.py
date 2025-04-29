@@ -662,8 +662,6 @@ class LightCone(object): # pragma: no cover
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        pool = WorkerPool(nthreads)
-
         ##
         # Might take awhile.
         #pb = ProgressBar(len(zall),
@@ -817,24 +815,11 @@ class LightCone(object): # pragma: no cover
                 indexing='ij')
 
         # Initialize empty map
-        if pool.is_pymp_pool:
-            print('hello')
-            print(pool.pool)
-            #print(f"* Initialized worker pool with {pool.nthreads} threads.")
-            #img = pool.get_buffer((Npix, Npix), dtype='float')
-            img = pymp.shared.array((Npix, Npix), dtype=float)
-            print("created buffer")
-        else:
-            img = buffer
+        img = buffer
 
         ##
         # Actually sum fluxes from all objects in image plane.
-        for h in pool.xrange(ra.size):
-
-            if h % pool.thread_num != 0:
-                continue
-
-            #print('hi', h, pool.thread_num)
+        for h in range(ra.size):
 
             # Where this galaxy lives in pixel coordinates
             i, j = ra_ind[h], de_ind[h]
@@ -896,8 +881,6 @@ class LightCone(object): # pragma: no cover
             # Otherwise just add flux to single pixel
             else:
                 img[i,j] += _flux_
-
-        pool.done()
 
         ##
         # Clear out some memory sheesh
