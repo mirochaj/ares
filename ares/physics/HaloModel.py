@@ -978,9 +978,9 @@ class HaloModel(HaloMassFunction):
 
         zstr = self.get_table_zstr()
 
-        # Hard-coded for now, change this.
-        Rmi, Rma = -3, 1
-        dlogR = 0.05
+        Rall = self.tab_R_nfw
+        Rmi, Rma = np.log10(self.tab_R_nfw.min()), np.log10(self.tab_R_nfw.max())
+        dlogR = np.diff(np.log10(self.tab_R_nfw))[0]
 
         logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
             / self.pf['halo_dlogM']
@@ -995,8 +995,6 @@ class HaloModel(HaloMassFunction):
         return 'halo_surf_%s_logM_%i_%i-%i_%s_logR_%.1f-%.1f_dlnR_%.3f' \
             % (self.pf['halo_cmr'],
                 logMsize, M1, M2, zstr, Rmi, Rma, dlogR)
-
-
 
     def tab_prefix_ps(self, with_size=True):
         """

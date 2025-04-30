@@ -27,16 +27,16 @@ pars = \
  "halo_dlogM": 0.01,
  "halo_logMmin": 4,
  "halo_logMmax": 18,
- #"halo_zmin": 0,
- #"halo_zmax": 60,
- #"halo_dz": 0.05,
+ "halo_zmin": 0,
+ "halo_zmax": 60,
+ "halo_dz": 0.05,
 
  #"hps_zmin": 0,
  #"hps_zmax": 30,
  #"hps_dz": 0.1,
 
- "halo_dt": 100,
- "halo_tmin": 100.,
+ "halo_dt": 10,
+ "halo_tmin": 30.,
  "halo_tmax": 13.7e3, # Myr
 
 

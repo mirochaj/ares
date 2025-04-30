@@ -602,7 +602,7 @@ class LightCone(object): # pragma: no cover
 
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
-        use_pbar=True, verbose=False, max_sources=None, source_prop=None,
+        use_pbar=True, verbose=False,
         logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
         postage_stamp=10, **kwargs):
         """
@@ -638,7 +638,6 @@ class LightCone(object): # pragma: no cover
         """
 
         pix_deg = pix / 3600.
-        #sr_per_pix = pix_deg**2 / sqdeg_per_std
 
         assert fov * 3600 / pix % 1 == 0, \
             "FOV must be integer number of pixels wide!"
@@ -742,30 +741,21 @@ class LightCone(object): # pragma: no cover
         # Extended emission from IHL
         if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
 
-            Rmi, Rma = -3, 1
-            dlogR = 0.25
-            Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+            Rall = self.sim.pops[0].halos.tab_R_nfw
 
-            if max_sources == 1:
+            _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
 
-                Sall = self.sim.pops[pid].halos.get_halo_surface_dens(
-                    zmid, Mh[0], Rall
-                )
-
-                Sall = np.array([Sall])
-
-                Mall = Mh
-            else:
-                _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
-
-                # Remaining dimensions (Mh, R)
-                Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
-                Mall = self.sim.pops[pid].halos.tab_M
+            # Remaining dimensions (Mh, R)
+            Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
+            Mall = self.sim.pops[pid].halos.tab_M
 
             mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
                 pix / 60.)
 
-            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
+            # Pixel coordinates in RA and DEC
+            if postage_stamp is None:
+
+                rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
                                 dec_c * 60 * mpc_per_arcmin,
                                 indexing='ij')
 
@@ -821,8 +811,9 @@ class LightCone(object): # pragma: no cover
             a, b = R_deg, R_deg
 
             # Pixel coordinates in RA and DEC
-            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
-                indexing='ij')
+            if postage_stamp is None:
+                rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
+                    indexing='ij')
 
             ##
             # Shorthand for later
@@ -854,17 +845,21 @@ class LightCone(object): # pragma: no cover
             # [optional]
             if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
 
-                # Image of distances from halo center
-                r0 = ra_c[i] * 60 * mpc_per_arcmin
-                d0 = dec_c[j] * 60 * mpc_per_arcmin
-                Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
+                if postage_stamp is not None:
+                    pass
+                else:
+                    # Image of distances from halo center
+                    r0 = ra_c[i] * 60 * mpc_per_arcmin
+                    d0 = dec_c[j] * 60 * mpc_per_arcmin
+                    Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
 
-                # In Msun/cMpc^3
+                    # In Msun/cMpc^3
 
-                # Interpolate between tabulated solutions.
-                iM = np.argmin(np.abs(Mh[h] - Mall))
+                    # Interpolate between tabulated solutions.
+                    iM = np.argmin(np.abs(Mh[h] - Mall))
 
-                I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+
 
                 tot = I.sum()
 
@@ -872,8 +867,6 @@ class LightCone(object): # pragma: no cover
                     img[i,j] += _flux_
                 else:
                     img[:,:] += _flux_ * I / tot
-
-                #print(f"doing IHL, _flux_={_flux_}, tot={tot}")
 
             elif include_galaxy_sizes and (R_X[h] >= 1):
 
@@ -899,12 +892,6 @@ class LightCone(object): # pragma: no cover
 
                     # Fractional contribution to total flux
                     pstamp = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
-
-                    #print('hello', R_pix[h], pstamp.max())
-                    #import matplotlib.pyplot as plt
-                    #from matplotlib.colors import LogNorm
-                    #plt.imshow(pstamp, norm=LogNorm())
-                    #input('<enter>')
 
                     nx, ny = pstamp.shape
 
@@ -1102,7 +1089,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='fits', hdr={}, max_sources=None, source_prop=None,
+        suffix=None, fmt='fits', hdr={},
         cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
         include_pops=[0], clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
@@ -1586,7 +1573,7 @@ class LightCone(object): # pragma: no cover
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=[0], clobber=False, max_sources=None, source_prop=None,
+        include_pops=[0], clobber=False,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
         postage_stamp=10, nthreads=None, **kwargs):
@@ -1859,8 +1846,6 @@ class LightCone(object): # pragma: no cover
                     include_galaxy_sizes=include_galaxy_sizes,
                     size_cut=size_cut,
                     dlam=dlam, use_pbar=False,
-                    max_sources=max_sources,
-                    source_prop=source_prop,
                     buffer=buffer, nthreads=nthreads, verbose=verbose,
                     postage_stamp=postage_stamp,
                     **kwargs)
