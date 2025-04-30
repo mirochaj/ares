@@ -18,6 +18,7 @@ import numpy as np
 from pathlib import Path
 from scipy.stats import truncnorm
 from ..simulations import Simulation
+from scipy.special import gammaincinv
 from ..util.WorkerPools import WorkerPool
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
@@ -25,6 +26,8 @@ from scipy.spatial.transform import Rotation
 from ..util.Misc import numeric_types, get_hash, get_pop_info
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
+
+from line_profiler import profile
 
 try:
     from astropy.io import fits
@@ -599,10 +602,12 @@ class LightCone(object): # pragma: no cover
 
         return R_sec, nsers, ellip, pa
 
+    @profile
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
-        logmlim_sats=(11,15), buffer=None, nthreads=None, **kwargs):
+        logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
+        postage_stamp=None, **kwargs):
         """
         Get a map for a single channel, redshift layer, mass layer, and
         source population.
@@ -622,6 +627,10 @@ class LightCone(object): # pragma: no cover
         zlim : tuple, list, np.ndarray
             Optional redshift range. If None, will include all objects in the
             catalog.
+        postage_stamp : int, float
+            If provided, and `include_galaxy_sizes==True`, this is the size of
+            image (in units of R_eff) on which we'll create each galaxy's
+            surface brightness profile, to then by slotted into the full image.
 
         Returns
         -------
@@ -803,19 +812,36 @@ class LightCone(object): # pragma: no cover
 
             # Size in degrees
             R_deg = R_sec / 3600.
+            # Size in pixels (`pix_deg` is the pixel scale in degrees)
             R_pix = R_deg / pix_deg
 
+            # R_X is the threshold size of an object we'll model in detail.
+            #
             R_X /= (3600 * pix_deg)
 
             # All in degrees
             x0, y0 = ra, dec
             a, b = R_deg, R_deg
 
+            # Pixel coordinates in RA and DEC
             rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
                 indexing='ij')
 
+            ##
+            # Shorthand for later
+            x_0 = ra / pix_deg
+            y_0 = dec / pix_deg
+            theta = pa * np.pi / 180.
+
+            b_n = gammaincinv(2. * nsers, 0.5)
+            a, b = R_pix, (1 - ellip) * R_pix
+            cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+            #
+
         # Initialize empty map
         img = buffer
+
+        Ibatch = None
 
         ##
         # Actually sum fluxes from all objects in image plane.
@@ -852,15 +878,91 @@ class LightCone(object): # pragma: no cover
 
                 #print(f"doing IHL, _flux_={_flux_}, tot={tot}")
 
-            elif include_galaxy_sizes and R_X[h] >= 1:
+            elif include_galaxy_sizes and (R_X[h] >= 1):
 
-                model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
-                    x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
-                    n=nsers[h], theta=pa[h] * np.pi / 180.,
-                    ellip=ellip[h])
+                if postage_stamp is not None:
 
-                # Fractional contribution to total flux
-                I = model_SB(rr, dd)
+                    # Determine how big of a postage stamp image to make in
+                    # number of pixels (just scale R_eff by `postage_stamp`)
+                    # (Force to be odd)
+                    _r_ = np.ceil(postage_stamp * R_pix[h])
+                    if _r_ % 2 == 0:
+                        _r_ += 1
+
+                    # Pixel coordinates
+                    xy = np.arange(-_r_, _r_ + 1, 1, dtype=int)
+                    xx, yy = np.meshgrid(xy, xy, indexing='ij')
+
+                    # Put galaxies at the center of the postage stamp, hence
+                    # no (xx - x_0) factors, just xx
+                    x_maj = xx * cos_theta[h] + yy * sin_theta[h]
+                    x_min = -xx * sin_theta[h] + yy * cos_theta[h]
+                    #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+                    zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
+
+                    # Fractional contribution to total flux
+                    pstamp = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
+
+                    #print('hello', R_pix[h], pstamp.max())
+                    #import matplotlib.pyplot as plt
+                    #from matplotlib.colors import LogNorm
+                    #plt.imshow(pstamp, norm=LogNorm())
+                    #input('<enter>')
+
+                    nx, ny = pstamp.shape
+
+                    # OK, now we need to figure out how to slot this postage
+                    # stamp into the entire image. Mostly just tedium like
+                    # worrying about sources near the edge of the frame.
+
+                    # `i` and `j` refer to pixels in the full frame image
+                    # Here, we're figuring out the chunk of the full frame
+                    # into which we'll drop our postage stamp
+                    slcx = slice(max(i-(nx-1)//2, 0), i+(nx-1)//2 + 1)
+                    slcy = slice(max(j-(ny-1)//2, 0), j+(ny-1)//2 + 1)
+                    # i.e., this is where we're sticking the postage stamp
+                    # If we're unlucky and near the edge, we need to also
+                    # slice the `pstamp`.
+
+                    # If source spills off x-axis, adjust postage stamp
+                    # accordingly (i.e., remove a few columns)
+                    if (slcx.start == 0):
+                        xlo = abs(i-(nx-1)//2)
+                    else:
+                        xlo = 0
+                    if (slcx.stop > buffer.shape[0]):
+                        xhi = -(slcx.stop - buffer.shape[0])
+                    else:
+                        xhi = None
+
+                    if (slcy.start == 0):
+                        ylo = abs(j-(ny-1)//2)
+                    else:
+                        ylo = 0
+
+                    if (slcy.stop > buffer.shape[1]):
+                        yhi = -(slcy.stop - buffer.shape[1])
+                    else:
+                        yhi = None
+
+                    slcx2 = slice(xlo, xhi)
+                    slcy2 = slice(ylo, yhi)
+
+                    I = pstamp
+
+                else:
+
+                    x_maj =  (rr - x_0[h]) * cos_theta[h] \
+                          + (dd - y_0[h]) * sin_theta[h]
+                    x_min = -(rr - x_0[h]) * sin_theta[h] \
+                          + (dd - y_0[h]) * cos_theta[h]
+                    #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+                    zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
+
+                    # Fractional contribution to total flux
+                    I = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
+
+                # Get total flux
                 tot = I.sum()
 
                 ##
@@ -872,7 +974,9 @@ class LightCone(object): # pragma: no cover
 
                 #print('hi', h, R_pix[h], I.sum())
 
-                if tot == 0:
+                if postage_stamp is not None:
+                    img[slcx,slcy] += _flux_ * pstamp[slcx2,slcy2] / tot
+                elif tot == 0 or R_X[h] < 1:
                     img[i,j] += _flux_
                 else:
                     img[:,:] += _flux_ * I / tot
@@ -1488,7 +1592,7 @@ class LightCone(object): # pragma: no cover
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
-        nthreads=None, **kwargs):
+        postage_stamp=None, nthreads=None, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1761,6 +1865,7 @@ class LightCone(object): # pragma: no cover
                     max_sources=max_sources,
                     source_prop=source_prop,
                     buffer=buffer, nthreads=nthreads, verbose=verbose,
+                    postage_stamp=postage_stamp,
                     **kwargs)
 
                 status_done_now[ip,ichan,iz,im] = 1

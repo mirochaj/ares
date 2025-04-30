@@ -1050,9 +1050,10 @@ class LogNormal(LightCone): # pragma: no cover
             _z = _z[ok==1]
             mass = mass[ok==1]
 
-            if verbose:
-                print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
-                print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
+            # Don't really need to see this anymore.
+            #if verbose:
+            #    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
+            #    print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
 
             if ok.sum() == 0:
                 return None, None, None, None
