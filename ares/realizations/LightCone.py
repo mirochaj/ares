@@ -27,8 +27,6 @@ from ..util.Misc import numeric_types, get_hash, get_pop_info
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
 
-from line_profiler import profile
-
 try:
     from astropy.io import fits
 except ImportError:
@@ -602,12 +600,11 @@ class LightCone(object): # pragma: no cover
 
         return R_sec, nsers, ellip, pa
 
-    @profile
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, max_sources=None, source_prop=None,
         logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
-        postage_stamp=None, **kwargs):
+        postage_stamp=10, **kwargs):
         """
         Get a map for a single channel, redshift layer, mass layer, and
         source population.
@@ -1592,7 +1589,7 @@ class LightCone(object): # pragma: no cover
         include_pops=[0], clobber=False, max_sources=None, source_prop=None,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
-        postage_stamp=None, nthreads=None, **kwargs):
+        postage_stamp=10, nthreads=None, **kwargs):
         """
         Write maps in one or more spectral channels to disk.
 
