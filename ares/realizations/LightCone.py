@@ -600,6 +600,62 @@ class LightCone(object): # pragma: no cover
 
         return R_sec, nsers, ellip, pa
 
+    def _get_postage_stamp_pix(self, R, psize):
+        # Determine how big of a postage stamp image to make in
+        # number of pixels (just scale R_eff by `postage_stamp`)
+        # (Force to be odd)
+        _r_ = np.ceil(psize * R)
+        if _r_ % 2 == 0:
+            _r_ += 1
+
+        # Pixel coordinates
+        xy = np.arange(-_r_, _r_ + 1, 1, dtype=int)
+        xx, yy = np.meshgrid(xy, xy, indexing='ij')
+
+        return xx, yy
+
+    def _get_postage_stamp_slices(self, pstamp, buffer, i, j):
+        nx, ny = pstamp.shape
+
+        # OK, now we need to figure out how to slot this postage
+        # stamp into the entire image. Mostly just tedium like
+        # worrying about sources near the edge of the frame.
+
+        # `i` and `j` refer to pixels in the full frame image
+        # Here, we're figuring out the chunk of the full frame
+        # into which we'll drop our postage stamp
+        slcx = slice(max(i-(nx-1)//2, 0), i+(nx-1)//2 + 1)
+        slcy = slice(max(j-(ny-1)//2, 0), j+(ny-1)//2 + 1)
+        # i.e., this is where we're sticking the postage stamp
+        # If we're unlucky and near the edge, we need to also
+        # slice the `pstamp`.
+
+        # If source spills off x-axis, adjust postage stamp
+        # accordingly (i.e., remove a few columns)
+        if (slcx.start == 0):
+            xlo = abs(i-(nx-1)//2)
+        else:
+            xlo = 0
+        if (slcx.stop > buffer.shape[0]):
+            xhi = -(slcx.stop - buffer.shape[0])
+        else:
+            xhi = None
+
+        if (slcy.start == 0):
+            ylo = abs(j-(ny-1)//2)
+        else:
+            ylo = 0
+
+        if (slcy.stop > buffer.shape[1]):
+            yhi = -(slcy.stop - buffer.shape[1])
+        else:
+            yhi = None
+
+        slcx2 = slice(xlo, xhi)
+        slcy2 = slice(ylo, yhi)
+
+        return slcx, slcy, slcx2, slcy2
+
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False,
@@ -735,6 +791,8 @@ class LightCone(object): # pragma: no cover
         # Get flux from each object. Units = erg/s/cm^2/Ang.
         flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
 
+
+
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
@@ -742,7 +800,7 @@ class LightCone(object): # pragma: no cover
         if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
 
             Rall = self.sim.pops[0].halos.tab_R_nfw
-
+            Rvir = self.sim.pops[0].halos.get_Rvir(zmid, Mh) / 1e3 # kpc->Mpc
             _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
 
             # Remaining dimensions (Mh, R)
@@ -752,9 +810,10 @@ class LightCone(object): # pragma: no cover
             mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
                 pix / 60.)
 
+            R_pix = R_X = Rvir * 60 / mpc_per_arcmin / pix
+
             # Pixel coordinates in RA and DEC
             if postage_stamp is None:
-
                 rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
                                 dec_c * 60 * mpc_per_arcmin,
                                 indexing='ij')
@@ -843,10 +902,24 @@ class LightCone(object): # pragma: no cover
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
-            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
+            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes and (R_X[h] >= 1):
+                # Interpolate between tabulated solutions.
+                iM = np.argmin(np.abs(Mh[h] - Mall))
 
                 if postage_stamp is not None:
-                    pass
+                    xx, yy = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
+
+                    # This is in pixels, need to convert to cMpc before
+                    # interpolating
+                    Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
+                        * mpc_per_arcmin
+
+                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+
+                    # OK, now need to drop into full image
+                    slcx, slcy, slcx2, slcy2 = \
+                        self._get_postage_stamp_slices(I, img, i, j)
+
                 else:
                     # Image of distances from halo center
                     r0 = ra_c[i] * 60 * mpc_per_arcmin
@@ -854,16 +927,15 @@ class LightCone(object): # pragma: no cover
                     Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
 
                     # In Msun/cMpc^3
-
-                    # Interpolate between tabulated solutions.
-                    iM = np.argmin(np.abs(Mh[h] - Mall))
-
                     I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
 
 
                 tot = I.sum()
 
-                if tot == 0:
+                if postage_stamp is not None:
+                    img[slcx,slcy] += _flux_ * I[slcx2,slcy2] \
+                        / I[slcx2,slcy2].sum()
+                elif tot == 0:
                     img[i,j] += _flux_
                 else:
                     img[:,:] += _flux_ * I / tot
@@ -872,16 +944,7 @@ class LightCone(object): # pragma: no cover
 
                 if postage_stamp is not None:
 
-                    # Determine how big of a postage stamp image to make in
-                    # number of pixels (just scale R_eff by `postage_stamp`)
-                    # (Force to be odd)
-                    _r_ = np.ceil(postage_stamp * R_pix[h])
-                    if _r_ % 2 == 0:
-                        _r_ += 1
-
-                    # Pixel coordinates
-                    xy = np.arange(-_r_, _r_ + 1, 1, dtype=int)
-                    xx, yy = np.meshgrid(xy, xy, indexing='ij')
+                    xx, yy = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
 
                     # Put galaxies at the center of the postage stamp, hence
                     # no (xx - x_0) factors, just xx
@@ -893,44 +956,8 @@ class LightCone(object): # pragma: no cover
                     # Fractional contribution to total flux
                     pstamp = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
 
-                    nx, ny = pstamp.shape
-
-                    # OK, now we need to figure out how to slot this postage
-                    # stamp into the entire image. Mostly just tedium like
-                    # worrying about sources near the edge of the frame.
-
-                    # `i` and `j` refer to pixels in the full frame image
-                    # Here, we're figuring out the chunk of the full frame
-                    # into which we'll drop our postage stamp
-                    slcx = slice(max(i-(nx-1)//2, 0), i+(nx-1)//2 + 1)
-                    slcy = slice(max(j-(ny-1)//2, 0), j+(ny-1)//2 + 1)
-                    # i.e., this is where we're sticking the postage stamp
-                    # If we're unlucky and near the edge, we need to also
-                    # slice the `pstamp`.
-
-                    # If source spills off x-axis, adjust postage stamp
-                    # accordingly (i.e., remove a few columns)
-                    if (slcx.start == 0):
-                        xlo = abs(i-(nx-1)//2)
-                    else:
-                        xlo = 0
-                    if (slcx.stop > buffer.shape[0]):
-                        xhi = -(slcx.stop - buffer.shape[0])
-                    else:
-                        xhi = None
-
-                    if (slcy.start == 0):
-                        ylo = abs(j-(ny-1)//2)
-                    else:
-                        ylo = 0
-
-                    if (slcy.stop > buffer.shape[1]):
-                        yhi = -(slcy.stop - buffer.shape[1])
-                    else:
-                        yhi = None
-
-                    slcx2 = slice(xlo, xhi)
-                    slcy2 = slice(ylo, yhi)
+                    slcx, slcy, slcx2, slcy2 = \
+                        self._get_postage_stamp_slices(pstamp, img, i, j)
 
                     I = pstamp
 
@@ -949,17 +976,9 @@ class LightCone(object): # pragma: no cover
                 # Get total flux
                 tot = I.sum()
 
-                ##
-                # Test: null flux from beyond 4 R_e
-                #dr = np.sqrt((rr - ra[h] / pix_deg)**2 \
-                #   +         (dd - dec[h] / pix_deg)**2)
-                #beyond_edges = dr > 8 * R_pix[h]
-                #I[beyond_edges==1] = 0
-
-                #print('hi', h, R_pix[h], I.sum())
-
                 if postage_stamp is not None:
-                    img[slcx,slcy] += _flux_ * pstamp[slcx2,slcy2] / tot
+                    img[slcx,slcy] += _flux_ * pstamp[slcx2,slcy2] \
+                        / pstamp[slcx2,slcy2].sum()
                 elif tot == 0 or R_X[h] < 1:
                     img[i,j] += _flux_
                 else:
