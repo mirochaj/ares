@@ -15,6 +15,7 @@ from ..data import ARES
 from ..util.ProgressBar import ProgressBar
 from .HaloMassFunction import HaloMassFunction
 from .Constants import rho_cgs, c, cm_per_mpc
+from scipy.integrate import cumulative_trapezoid
 from ..util.Math import get_cf_from_ps_tab, get_cf_from_ps_func
 
 try:
@@ -164,6 +165,7 @@ class HaloModel(HaloMassFunction):
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
                     self._tab_Sigma_nfw = np.array(f[('tab_Sigma_nfw')])
+                    self._tab_Sigma_nfw_cdf = np.array(f[('tab_Sigma_nfw_cdf')])
 
                 if self.pf['verbose'] and rank == 0:
                     print(f"# Loaded {fn}.")
@@ -173,6 +175,12 @@ class HaloModel(HaloMassFunction):
                     print(f"# Did not find {fn}.")
 
         return self._tab_Sigma_nfw
+
+    @property
+    def tab_Sigma_nfw_cdf(self):
+        if not hasattr(self, '_tab_Sigma_nfw_cdf'):
+            poke = self.tab_Sigma_nfw
+        return self._tab_Sigma_nfw_cdf
 
     def get_u_isl(self, z, Mh, k, rmax=1e2):
         """
@@ -970,9 +978,9 @@ class HaloModel(HaloMassFunction):
 
         zstr = self.get_table_zstr()
 
-        # Hard-coded for now, change this.
-        Rmi, Rma = -3, 1
-        dlogR = 0.05
+        Rall = self.tab_R_nfw
+        Rmi, Rma = np.log10(self.tab_R_nfw.min()), np.log10(self.tab_R_nfw.max())
+        dlogR = np.diff(np.log10(self.tab_R_nfw))[0]
 
         logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
             / self.pf['halo_dlogM']
@@ -987,8 +995,6 @@ class HaloModel(HaloMassFunction):
         return 'halo_surf_%s_logM_%i_%i-%i_%s_logR_%.1f-%.1f_dlnR_%.3f' \
             % (self.pf['halo_cmr'],
                 logMsize, M1, M2, zstr, Rmi, Rma, dlogR)
-
-
 
     def tab_prefix_ps(self, with_size=True):
         """
@@ -1412,14 +1418,15 @@ class HaloModel(HaloMassFunction):
             print(f"# Will save to {fn}.")
 
         # Hard-coded for now, change this.
-        Rmi, Rma = -3, 1
-        dlogR = 0.25
-        R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+        R = self.tab_R_nfw
 
         shape = (self.tab_z.size, self.tab_M.size, R.size)
         self._tab_sigma_nfw = np.zeros(shape)
         if self._tab_sigma_nfw.nbytes / 1e9 > 8:
             print(f"WARNING: Size of profile table projected to be >8 GB!")
+
+        # Also do CDF while we're at it
+        self._tab_sigma_nfw_cdf = np.zeros_like(self._tab_sigma_nfw)
 
         pb = ProgressBar(len(self.tab_z), 'Sigma(z|M,R)', use=rank==0)
         pb.start()
@@ -1447,6 +1454,11 @@ class HaloModel(HaloMassFunction):
                 for jj, _R_ in enumerate(R):
                     self._tab_sigma_nfw[i,ii,jj] = Sigma(_R_)
 
+                self._tab_sigma_nfw_cdf[i,ii,:] = \
+                    cumulative_trapezoid(self._tab_sigma_nfw[i,ii,:],
+                        x=R, initial=0) \
+                    / np.trapz(self._tab_sigma_nfw[i,ii,:], x=R)
+
         pb.finish()
 
         if size > 1:
@@ -1461,6 +1473,7 @@ class HaloModel(HaloMassFunction):
 
         with h5py.File(fn, 'w') as f:
             f.create_dataset('tab_Sigma_nfw', data=self._tab_sigma_nfw)
+            f.create_dataset('tab_Sigma_nfw_cdf', data=self._tab_sigma_nfw_cdf)
             f.create_dataset('tab_R', data=R)
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_z', data=self.tab_z)

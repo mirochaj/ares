@@ -27,9 +27,9 @@ pars = \
  "halo_dlogM": 0.01,
  "halo_logMmin": 4,
  "halo_logMmax": 18,
- #"halo_zmin": 0,
- #"halo_zmax": 60,
- #"halo_dz": 0.05,
+ "halo_zmin": 0,
+ "halo_zmax": 60,
+ "halo_dz": 0.05,
 
  #"hps_zmin": 0,
  #"hps_zmax": 30,
@@ -50,4 +50,4 @@ pars = \
 
 halos = ares.physics.HaloModel(halo_mf_load=True, **pars)
 
-halos.generate_halo_surface_dens(format=fmt, clobber=False, checkpoint=True)
+halos.generate_halo_surface_dens(format=fmt, clobber=True, checkpoint=True)

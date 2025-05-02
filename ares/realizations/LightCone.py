@@ -18,6 +18,8 @@ import numpy as np
 from pathlib import Path
 from scipy.stats import truncnorm
 from ..simulations import Simulation
+from scipy.special import gammaincinv
+from ..util.WorkerPools import WorkerPool
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
 from scipy.spatial.transform import Rotation
@@ -270,6 +272,12 @@ class LightCone(object): # pragma: no cover
                 for z in self.tab_z]) / cm_per_mpc
         return self._tab_dL
 
+    @property
+    def _cache_domain(self):
+        if not hasattr(self, '_cache_domain_'):
+            self._cache_domain_ = {}
+        return self._cache_domain_
+
     def get_domain_info(self, zlim=None, Lbox=None):
         """
         Figure out how the domain will be divided up along the line of sight.
@@ -290,6 +298,9 @@ class LightCone(object): # pragma: no cover
 
         """
 
+        if (zlim, Lbox) in self._cache_domain.keys():
+            return self._cache_domain[(zlim, Lbox)]
+
         if self.zlayers is not None:
             dofz = [self.sim.cosm.get_dist_los_comoving(0, z) \
                 for z in self.zlayers[:,0]]
@@ -305,7 +316,15 @@ class LightCone(object): # pragma: no cover
 
         ze, zmid, Re = self.sim.cosm.get_lightcone_boundaries(zlim, Lbox)
 
+        self._cache_domain[(zlim, Lbox)] = ze, zmid, Re
+
         return ze, zmid, Re
+
+    @property
+    def _cache_zlayers(self):
+        if not hasattr(self, '_cache_zlayers_'):
+            self._cache_zlayers_ = {}
+        return self._cache_zlayers_
 
     def get_redshift_layers(self, zlim):
         """
@@ -318,11 +337,16 @@ class LightCone(object): # pragma: no cover
 
         if self.zlayers is not None:
             return self.zlayers
+        if zlim in self._cache_zlayers.keys():
+            return self._cache_zlayers[zlim]
 
         ze, zmid, Re = self.get_domain_info(zlim)
 
         layers = [(zlo, ze[i+1]) for i, zlo in enumerate(ze[0:-1])]
-        return np.array(layers)
+
+        self._cache_zlayers[zlim] = np.array(layers)
+
+        return np.array(self._cache_zlayers[zlim])
 
     def get_mass_layers(self, logmlim, dlogm):
         """
@@ -499,11 +523,12 @@ class LightCone(object): # pragma: no cover
         Ms = self.sim.pops[pid].get_smhm(z=red, Mh=Mh) * Mh
         Rkpc = self.pops[pid].get_size(z=red, Ms=Ms)
 
-        R_sec = np.zeros_like(Rkpc)
-        for kk in range(red.size):
-            R_sec[kk] = self.sim.cosm.get_angle_from_length_proper(red[kk],
-                Rkpc[kk] * 1e-3)
-        R_sec *= 60.
+        # Much faster to interpolate from table than generate angle/pMpc
+        # on the fly. Interpolant automatically used if provided R is 1
+        arcsec_per_pmpc = 60 * self.sim.cosm.get_angle_from_length_proper(
+            red, 1.
+        )
+        R_sec = arcsec_per_pmpc * Rkpc * 1e-3
 
         zlo, zhi = zlim
         zall = self.get_redshift_layers(zlim=self.zlim)
@@ -522,17 +547,21 @@ class LightCone(object): # pragma: no cover
         np.random.seed(seed_kw['seed_profile'])
 
         # Sersic indices and position angles
-        # Hard-coded for now (eye-balling W18's Fig 16 for a
-        # reasonable start), should be more careful in the future.
         pop_s = 'sfg' if self.pops[pid].is_star_forming else 'qg'
 
         # First, identify redshift interval to use.
         zoptions = self.profile_info[f'{pop_s}_z']
         z1, z2 = np.array(zoptions).T
 
+        # Make sure `iz` gets redshift within appropriate window
         iz = np.argmin(np.abs(zlo - z1))
         if zlo < z1[iz]:
-            iz += 1
+            iz -= 1
+
+        # If provided redshift is > max redshift in profile_info, just use
+        # highest available redshift.
+        if zlo > z2.max():
+            iz = -1
 
         key = zoptions[iz]
 
@@ -565,10 +594,67 @@ class LightCone(object): # pragma: no cover
 
         return R_sec, nsers, ellip, pa
 
+    def _get_postage_stamp_pix(self, R, psize):
+        # Determine how big of a postage stamp image to make in
+        # number of pixels (just scale R_eff by `postage_stamp`)
+        # (Force to be odd)
+        _r_ = np.ceil(psize * R)
+        if _r_ % 2 == 0:
+            _r_ += 1
+
+        # Pixel coordinates
+        xy = np.arange(-_r_, _r_ + 1, 1, dtype=int)
+        xx, yy = np.meshgrid(xy, xy, indexing='ij')
+
+        return xx, yy
+
+    def _get_postage_stamp_slices(self, pstamp, buffer, i, j):
+        nx, ny = pstamp.shape
+
+        # OK, now we need to figure out how to slot this postage
+        # stamp into the entire image. Mostly just tedium like
+        # worrying about sources near the edge of the frame.
+
+        # `i` and `j` refer to pixels in the full frame image
+        # Here, we're figuring out the chunk of the full frame
+        # into which we'll drop our postage stamp
+        slcx = slice(max(i-(nx-1)//2, 0), i+(nx-1)//2 + 1)
+        slcy = slice(max(j-(ny-1)//2, 0), j+(ny-1)//2 + 1)
+        # i.e., this is where we're sticking the postage stamp
+        # If we're unlucky and near the edge, we need to also
+        # slice the `pstamp`.
+
+        # If source spills off x-axis, adjust postage stamp
+        # accordingly (i.e., remove a few columns)
+        if (slcx.start == 0):
+            xlo = abs(i-(nx-1)//2)
+        else:
+            xlo = 0
+        if (slcx.stop > buffer.shape[0]):
+            xhi = -(slcx.stop - buffer.shape[0])
+        else:
+            xhi = None
+
+        if (slcy.start == 0):
+            ylo = abs(j-(ny-1)//2)
+        else:
+            ylo = 0
+
+        if (slcy.stop > buffer.shape[1]):
+            yhi = -(slcy.stop - buffer.shape[1])
+        else:
+            yhi = None
+
+        slcx2 = slice(xlo, xhi)
+        slcy2 = slice(ylo, yhi)
+
+        return slcx, slcy, slcx2, slcy2
+
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
-        include_galaxy_sizes=False, size_cut=0.5, dlam=20.,
-        use_pbar=True, verbose=False, max_sources=None, source_prop=None,
-        logmlim_sats=(11,15), buffer=None, **kwargs):
+        include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20.,
+        use_pbar=True, verbose=False,
+        logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
+        postage_stamp=5, **kwargs):
         """
         Get a map for a single channel, redshift layer, mass layer, and
         source population.
@@ -588,6 +674,10 @@ class LightCone(object): # pragma: no cover
         zlim : tuple, list, np.ndarray
             Optional redshift range. If None, will include all objects in the
             catalog.
+        postage_stamp : int, float
+            If provided, and `include_galaxy_sizes==True`, this is the size of
+            image (in units of R_eff) on which we'll create each galaxy's
+            surface brightness profile, to then by slotted into the full image.
 
         Returns
         -------
@@ -598,7 +688,6 @@ class LightCone(object): # pragma: no cover
         """
 
         pix_deg = pix / 3600.
-        #sr_per_pix = pix_deg**2 / sqdeg_per_std
 
         assert fov * 3600 / pix % 1 == 0, \
             "FOV must be integer number of pixels wide!"
@@ -721,40 +810,31 @@ class LightCone(object): # pragma: no cover
             # Get flux from each object. Units = erg/s/cm^2/Ang.
             flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
 
-        ##
-        # Here: have fluxes, just need to paint into image
-        #self._get_map_from_cat(ra, dec, flux)
 
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
+        mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
+            pix / 60.)
+
         # Extended emission from IHL
         if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
 
-            Rmi, Rma = -3, 1
-            dlogR = 0.25
-            Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+            Rall = self.sim.pops[0].halos.tab_R_nfw
+            Rvir = self.sim.pops[0].halos.get_Rvir(zmid, Mh) / 1e3 # kpc->Mpc
+            _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
 
-            if max_sources == 1:
+            # Remaining dimensions (Mh, R)
+            Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
+            Mall = self.sim.pops[pid].halos.tab_M
 
-                Sall = self.sim.pops[pid].halos.get_halo_surface_dens(
-                    zmid, Mh[0], Rall
-                )
 
-                Sall = np.array([Sall])
 
-                Mall = Mh
-            else:
-                _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
+            R_pix = R_X = Rvir * 60 / mpc_per_arcmin / pix
 
-                # Remaining dimensions (Mh, R)
-                Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
-                Mall = self.sim.pops[pid].halos.tab_M
-
-            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
-                pix / 60.)
-
-            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
+            # Pixel coordinates in RA and DEC
+            if postage_stamp is None:
+                rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
                                 dec_c * 60 * mpc_per_arcmin,
                                 indexing='ij')
 
@@ -766,6 +846,8 @@ class LightCone(object): # pragma: no cover
 
             R_sec, nsers, ellip, pa = self._get_size_catalog(zlim, logmlim,
                 red, Mh, pid)
+
+            Rvir = self.sim.pops[0].halos.get_Rvir(zmid, Mh) / 1e3 # kpc->Mpc
 
             ##
             # Next, impose effective stopping criterion in size where we
@@ -796,27 +878,43 @@ class LightCone(object): # pragma: no cover
             # R_X here is still in arcseconds, will get converted to pixels
             # below.
 
-            #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
-
             # Size in degrees
             R_deg = R_sec / 3600.
+            # Size in pixels (`pix_deg` is the pixel scale in degrees)
             R_pix = R_deg / pix_deg
 
+            # R_X is the threshold size of an object we'll model in detail.
+            #
             R_X /= (3600 * pix_deg)
 
             # All in degrees
             x0, y0 = ra, dec
             a, b = R_deg, R_deg
 
-            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
-                indexing='ij')
+            # Pixel coordinates in RA and DEC
+            if postage_stamp is None:
+                rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
+                    indexing='ij')
+
+            ##
+            # Shorthand for later
+            x_0 = ra / pix_deg
+            y_0 = dec / pix_deg
+            theta = pa * np.pi / 180.
+
+            b_n = gammaincinv(2. * nsers, 0.5)
+            a, b = R_pix, (1 - ellip) * R_pix
+            cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+            #
+
+        # Initialize empty map
+        img = buffer
+
+        Ibatch = None
 
         ##
         # Actually sum fluxes from all objects in image plane.
         for h in range(ra.size):
-
-            #if not ok[h]:
-            #    continue
 
             # Where this galaxy lives in pixel coordinates
             i, j = ra_ind[h], de_ind[h]
@@ -826,50 +924,95 @@ class LightCone(object): # pragma: no cover
 
             # HERE: account for fact that galaxies aren't point sources.
             # [optional]
-            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
-
-                # Image of distances from halo center
-                r0 = ra_c[i] * 60 * mpc_per_arcmin
-                d0 = dec_c[j] * 60 * mpc_per_arcmin
-                Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
-
-                # In Msun/cMpc^3
-
+            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes and (R_X[h] >= 1):
                 # Interpolate between tabulated solutions.
                 iM = np.argmin(np.abs(Mh[h] - Mall))
 
-                I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+                if postage_stamp is not None:
+                    xx, yy = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
+
+                    # This is in pixels, need to convert to cMpc before
+                    # interpolating
+                    Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
+                        * mpc_per_arcmin
+
+                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+
+                    # OK, now need to drop into full image
+                    slcx, slcy, slcx2, slcy2 = \
+                        self._get_postage_stamp_slices(I, img, i, j)
+
+                else:
+                    # Image of distances from halo center
+                    r0 = ra_c[i] * 60 * mpc_per_arcmin
+                    d0 = dec_c[j] * 60 * mpc_per_arcmin
+                    Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
+
+                    # In Msun/cMpc^3
+                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+
+                # Optional: hard cut at large radius.
+                I[Rarr >= null_beyond_size * Rvir[h]] = 0
 
                 tot = I.sum()
 
-                if tot == 0:
+                if postage_stamp is not None:
+                    img[slcx,slcy] += _flux_ * I[slcx2,slcy2] \
+                        / I[slcx2,slcy2].sum()
+                elif tot == 0:
                     img[i,j] += _flux_
                 else:
                     img[:,:] += _flux_ * I / tot
 
-                #print(f"doing IHL, _flux_={_flux_}, tot={tot}")
+            elif include_galaxy_sizes and (R_X[h] >= 1):
 
-            elif include_galaxy_sizes and R_X[h] >= 1:
+                if postage_stamp is not None:
 
-                model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
-                    x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
-                    n=nsers[h], theta=pa[h] * np.pi / 180.,
-                    ellip=ellip[h])
+                    xx, yy = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
 
-                # Fractional contribution to total flux
-                I = model_SB(rr, dd)
+                    # This is in pixels, need to convert to cMpc before
+                    # interpolating
+                    Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
+                        * mpc_per_arcmin
+
+                    # Put galaxies at the center of the postage stamp, hence
+                    # no (xx - x_0) factors, just xx
+                    x_maj = xx * cos_theta[h] + yy * sin_theta[h]
+                    x_min = -xx * sin_theta[h] + yy * cos_theta[h]
+                    #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+                    zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
+
+                    # Fractional contribution to total flux
+                    pstamp = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
+
+                    slcx, slcy, slcx2, slcy2 = \
+                        self._get_postage_stamp_slices(pstamp, img, i, j)
+
+                    I = pstamp
+
+                else:
+                    Rarr = np.sqrt((rr - x_0[h])**2 + (dd - y_0[h])**2)
+
+                    x_maj =  (rr - x_0[h]) * cos_theta[h] \
+                          + (dd - y_0[h]) * sin_theta[h]
+                    x_min = -(rr - x_0[h]) * sin_theta[h] \
+                          + (dd - y_0[h]) * cos_theta[h]
+                    #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+                    zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
+
+                    # Fractional contribution to total flux
+                    I = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
+
+                # Optional: hard cut at large radius.
+                I[Rarr >= null_beyond_size * Rvir[h]] = 0
+
+                # Get total flux
                 tot = I.sum()
 
-                ##
-                # Test: null flux from beyond 4 R_e
-                #dr = np.sqrt((rr - ra[h] / pix_deg)**2 \
-                #   +         (dd - dec[h] / pix_deg)**2)
-                #beyond_edges = dr > 8 * R_pix[h]
-                #I[beyond_edges==1] = 0
-
-                #print('hi', h, R_pix[h], I.sum())
-
-                if tot == 0:
+                if postage_stamp is not None:
+                    img[slcx,slcy] += _flux_ * pstamp[slcx2,slcy2] \
+                        / pstamp[slcx2,slcy2].sum()
+                elif tot == 0 or R_X[h] < 1:
                     img[i,j] += _flux_
                 else:
                     img[:,:] += _flux_ * I / tot
@@ -1071,7 +1214,7 @@ class LightCone(object): # pragma: no cover
         return fn
 
     def get_map_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
-        fmt='fits', force_chunk=False):
+        fmt='fits', force_chunk=False, include_galaxy_sizes=False):
         """
         Return filename expected for map with given properties.
         """
@@ -1082,6 +1225,14 @@ class LightCone(object): # pragma: no cover
         pid, pid_parent, pid_str = get_pop_info(popid)
 
         fn = f'{save_dir}/map_{channel[0]:.3f}_{channel[1]:.3f}_pop_{pid_str}'
+
+        if include_galaxy_sizes:
+            if popid == 4:
+                fn += '_prof_nfw'
+            else:
+                fn += '_prof_sers'
+        else:
+            fn += '_prof_delt'
 
         return fn + '.' + fmt
 
@@ -1144,7 +1295,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='fits', hdr={}, max_sources=None, source_prop=None,
+        suffix=None, fmt='fits', hdr={},
         cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
         include_pops=[0], clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
@@ -1473,7 +1624,7 @@ class LightCone(object): # pragma: no cover
         return all_layers
 
     def _check_for_corrupted_files(self, fov, pix, channels, logmlim, dlogm,
-        include_pops, channel_names=None):
+        include_pops, channel_names=None, include_galaxy_sizes=False):
         """
         When running on a cluster, occasionally we get really unlucky and an
         output file will be corrupted, (probably) because we hit the wallclock
@@ -1501,7 +1652,8 @@ class LightCone(object): # pragma: no cover
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mlayer, zlim=zlayer)
+                logmlim=mlayer, zlim=zlayer,
+                include_galaxy_sizes=include_galaxy_sizes)
 
             all_fn.append(fn)
 
@@ -1626,12 +1778,14 @@ class LightCone(object): # pragma: no cover
         return chunks_edges, chunks_edges_ids, list(np.sort(zlayers_minimal))
 
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
-        include_galaxy_sizes=False, size_cut=0.5, dlam=20,
+        include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=[0], clobber=False, max_sources=None, source_prop=None,
+        include_pops=[0], clobber=False,
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
-        logmlim_sats=(11,15), **kwargs):
+        logmlim_sats=(11,15),
+        postage_stamp=5, nthreads=None, **kwargs):
+
         """
         Write maps in one or more spectral channels to disk.
 
@@ -1698,7 +1852,8 @@ class LightCone(object): # pragma: no cover
         if not clobber:
             self._check_for_corrupted_files(fov, pix, channels,
                 logmlim=logmlim, dlogm=dlogm,
-                include_pops=include_pops, channel_names=channel_names)
+                include_pops=include_pops, channel_names=channel_names,
+                include_galaxy_sizes=include_galaxy_sizes)
 
         ##
         # Initialize a README file / see what's in it.
@@ -1791,12 +1946,31 @@ class LightCone(object): # pragma: no cover
             im = np.argmin(np.abs(mlayer[0] - all_mlayers[:,0]))
             ip = include_pops.index(popid)
 
+            if np.all(status_done_pre[ip,ichan,:,:]) == 1:
+                continue
+
+            # Check first for final map.
+            fn = self.get_map_fn(fov, pix, channel, popid,
+                logmlim=logmlim, zlim=self.zlim,
+                include_galaxy_sizes=include_galaxy_sizes)
+
+            if os.path.exists(fn) and (not clobber):
+                status_done_pre[ip,ichan,:,:] = 1
+                print(f"! Final map for popid={ip} and channel={channel} exists.")
+                continue
+
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mlayer, zlim=zlayer)
+                logmlim=mlayer, zlim=zlayer,
+                include_galaxy_sizes=include_galaxy_sizes)
 
             if os.path.exists(fn) and (not clobber):
                 status_done_pre[ip,ichan,iz,im] = 1
+
+        ##
+        # If all maps done, exit.
+        if np.all(status_done_pre == 1):
+            return
 
         # Progress bar
         pb = ProgressBar(len(all_layers),
@@ -1836,12 +2010,13 @@ class LightCone(object): # pragma: no cover
             # it means the user has added z or m layers since the last run,
             # and so the final channel map (saved into new subdirectory
             # to reflect new zmax, logmlim range) must be incremented.
-            #if np.all(status_done_pre[popid,ichan,:,:]):
-            #    continue
+            if np.all(status_done_pre[ip,ichan,:,:]):
+                continue
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mlayer, zlim=zlayer)
+                logmlim=mlayer, zlim=zlayer,
+                include_galaxy_sizes=include_galaxy_sizes)
 
             pb.update(h)
 
@@ -1899,12 +2074,12 @@ class LightCone(object): # pragma: no cover
                 self.get_map(fov, pix, channel,
                     logmlim=mlayer, zlim=zlayer, popid=popid,
                     include_galaxy_sizes=include_galaxy_sizes,
+                    null_beyond_size=null_beyond_size,
                     size_cut=size_cut,
                     dlam=dlam, use_pbar=False,
-                    max_sources=max_sources,
-                    source_prop=source_prop,
-                    buffer=buffer, verbose=verbose,
                     logmlim_sats=logmlim_sats,
+                    buffer=buffer, nthreads=nthreads, verbose=verbose,
+                    postage_stamp=postage_stamp,
                     **kwargs)
 
                 status_done_now[ip,ichan,iz,im] = 1
@@ -1916,7 +2091,7 @@ class LightCone(object): # pragma: no cover
                 if iz in _keep_layers_custom:
                     _fn = self.get_map_fn(fov, pix, channel, popid,
                         logmlim=mlayer, zlim=zlayer,
-                        fmt=fmt)
+                        fmt=fmt, include_galaxy_sizes=include_galaxy_sizes)
                     self.save_map(_fn, buffer * f_norm / dnu,
                         channel, zlayer, logmlim, fov,
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
@@ -1961,7 +2136,8 @@ class LightCone(object): # pragma: no cover
             # Filename for the final channel map
             # (note use of self.zlim, not zlayer, and logmlim, not mlayer)
             _fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=logmlim, zlim=self.zlim, fmt=fmt)
+                logmlim=logmlim, zlim=self.zlim, fmt=fmt,
+                include_galaxy_sizes=include_galaxy_sizes)
 
             _fn_exists = os.path.exists(_fn)
 
@@ -2030,6 +2206,7 @@ class LightCone(object): # pragma: no cover
             clobber=clobber, channel_names=channel_names,
             include_pops=include_pops, verbose=verbose,
             map_units=map_units,
+            include_galaxy_sizes=include_galaxy_sizes,
             keep_layers=keep_layers,
             keep_layers_custom_z=keep_layers_custom_z,
             keep_chunks=keep_chunks)
@@ -2039,6 +2216,7 @@ class LightCone(object): # pragma: no cover
     def post_process_z_layers(self, fov, pix, channels, logmlim, dlogm=1,
         clobber=False, include_pops=[0], verbose=True, channel_names=None,
         keep_layers=False, keep_layers_custom_z=None, keep_chunks=None,
+        include_galaxy_sizes=False,
         map_units='MJy/sr', hdr={}, fmt='fits'):
         """
         If we decided to save redshift layers, we may still need to sum
@@ -2089,7 +2267,8 @@ class LightCone(object): # pragma: no cover
 
                         # See if we already finished this map.
                         fn = self.get_map_fn(fov, pix, channel, popid,
-                            logmlim=mlayer, zlim=all_zlayers[iz])
+                            logmlim=mlayer, zlim=all_zlayers[iz],
+                            include_galaxy_sizes=include_galaxy_sizes)
 
                         _buffer, _hdr = self._load_map(fn)
 
@@ -2105,7 +2284,8 @@ class LightCone(object): # pragma: no cover
                     ##
                     # Done with mass slices. Save redshift slice.
                     _fn = self.get_map_fn(fov, pix, channel, popid,
-                        logmlim=logmlim, zlim=all_zlayers[iz])
+                        logmlim=logmlim, zlim=all_zlayers[iz],
+                        include_galaxy_sizes=include_galaxy_sizes)
 
                     self.save_map(_fn, cimg * f_norm / dnu,
                         channel, all_zlayers[iz], logmlim, fov,
@@ -2125,7 +2305,8 @@ class LightCone(object): # pragma: no cover
                         # Load z layer summed over mass (`logmlim` is whole range)
                         fn = self.get_map_fn(fov, pix, channel, popid,
                             logmlim=logmlim,
-                            zlim=all_zlayers[iz])
+                            zlim=all_zlayers[iz],
+                            include_galaxy_sizes=include_galaxy_sizes)
 
                         _buffer, _hdr = self._load_map(fn)
 
@@ -2142,7 +2323,7 @@ class LightCone(object): # pragma: no cover
                     # Done with mass slices. Save redshift slice.
                     _fn = self.get_map_fn(fov, pix, channel, popid,
                         logmlim=logmlim, zlim=chunks_edges_z[k],
-                        force_chunk=True)
+                        force_chunk=True, include_galaxy_sizes=include_galaxy_sizes)
 
                     self.save_map(_fn, cimg * f_norm / dnu,
                         channel, chunks_edges_z[k], logmlim, fov,

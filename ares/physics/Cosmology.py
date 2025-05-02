@@ -741,6 +741,15 @@ class Cosmology(object):
             self._tab_deg_per_cmpc_ = angl
         return self._tab_deg_per_cmpc_
 
+    @property
+    def _tab_deg_per_pmpc(self):
+        if not hasattr(self, '_tab_deg_per_pmpc_'):
+            # arcmin / Mpc -> deg / Mpc
+            angl = np.array([self._get_angle_from_length_comoving(z, 1) \
+                for z in self.tab_z])
+            self._tab_deg_per_cmpc_ = angl
+        return self._tab_deg_per_cmpc_
+
     @cached_property
     def _tab_dist_los_co(self):
         return np.array([self._get_dist_los_comoving(0, _z_) \
@@ -841,8 +850,17 @@ class Cosmology(object):
         return np.array([self._get_angle_from_length_comoving(_z_, 1) \
             for _z_ in self.tab_z])
 
+    @cached_property
+    def _tab_ang_from_prop(self):
+        return np.array([self._get_angle_from_length_proper(_z_, 1) \
+            for _z_ in self.tab_z])
+
     def _get_angle_from_length_comoving(self, z, R):
         f = lambda ang: self.get_length_comoving_from_angle(z, ang) - R
+        return fsolve(f, x0=0.1)[0]
+
+    def _get_angle_from_length_proper(self, z, R):
+        f = lambda ang: self.get_length_proper_from_angle(z, ang) - R
         return fsolve(f, x0=0.1)[0]
 
     def get_angle_from_length_comoving(self, z, R):
@@ -852,7 +870,10 @@ class Cosmology(object):
             return self._get_angle_from_length_comoving(z, R)
 
     def get_angle_from_length_proper(self, z, R):
-        return self.get_angle_from_length_comoving(z, R / (1. + z))
+        if self.interpolate and R == 1:
+            return np.interp(z, self.tab_z, self._tab_ang_from_prop)
+        else:
+            return self.get_angle_from_length_comoving(z, R / (1. + z))
 
     def get_length_comoving_from_angle(self, z, angle):
         """
