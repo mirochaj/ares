@@ -823,9 +823,6 @@ class LogNormal(LightCone): # pragma: no cover
         seeds_pos = np.random.randint(0, high=2**30, size=Nc)
         seeds_mass = np.random.randint(0, high=2**30, size=Nc)
 
-        pbar = ProgressBar(Nc, name=f"subhalos", use=True)
-        pbar.start()
-
         # Determine closest mass and redshift bins for projected density profile
         iM = np.searchsorted(self.sim.pops[0].halos.tab_M_e, mass_c,
             side='right') - 1
@@ -904,7 +901,7 @@ class LogNormal(LightCone): # pragma: no cover
             par_id.extend([i] * Nsat_act)
 
         #
-        pbar.finish()
+        #pbar.finish()
 
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
             np.array(par_id)

@@ -810,7 +810,6 @@ class LightCone(object): # pragma: no cover
             # Get flux from each object. Units = erg/s/cm^2/Ang.
             flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
 
-
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
