@@ -35,12 +35,6 @@ try:
 except ImportError:
     pass
 
-try:
-    import pymp
-    have_pymp = True
-except ImportError:
-    have_pymp = False
-
 angles_90 = 90 * np.arange(4)
 
 class LightCone(object): # pragma: no cover

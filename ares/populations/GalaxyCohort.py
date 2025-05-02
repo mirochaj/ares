@@ -41,17 +41,6 @@ except ImportError:
     rank = 0
     size = 1
 
-try:
-    import pymp
-    have_pymp = True
-except ImportError:
-    have_pymp = False
-
-    class DummyPyMP(object):
-        def xrange(self, start, stop):
-            yield range(start, stop)
-
-
 small_dz = 1e-8
 ztol = 1e-2
 tiny_phi = 1e-18
@@ -1602,9 +1591,26 @@ class GalaxyCohort(GalaxyAggregate):
     def get_main_sequence(self, z, bin, use_tabs=True):
         """
         Return mean SFR of galaxies in provided log10(stellar mass / msun) `bin`.
+
+        This routine exists to handle the non-trivial case when we have scatter
+        in SFR and/or Mstell in a given halo mass bin. It integrates over the
+        PDF(s) of these quantites weighted by the abundance of galaxies in a
+        given bin.
+
+        Returns
+        -------
+        Star formation rate [Msun/yr; observed] in the provided stellar mass bin
+        (also assumed to be 'observed').
         """
 
         iz = self.get_zindex(z)
+        dndlnm = self.halos.tab_dndlnm[iz]
+        # Recall: dndlog10x = dndlnx / np.log(10.)
+        dndlog10m = dndlnm / np.log(10.)
+        # [note that log(10) won't matter: will cancel in the end anyways]
+
+        # Bin centers
+        binc = 0.5 * (bin[0] + bin[1])
 
         # Halo masses, bin centers and edges (in log10)
         Mh = self.halos.tab_M
@@ -1615,15 +1621,15 @@ class GalaxyCohort(GalaxyAggregate):
         if use_tabs:
             fstar = self.tab_fstar[iz,:]
             focc = self.tab_focc[iz,:]
-
         else:
-            fstar = self.get_sfe(z=z, Mh=self.halos.tab_M)
+            fstar = self.get_sfe(z=z, Mh=Mh)
             focc = self.get_focc(z=z, Mh=Mh)
 
+        # Get mean relations
         sfr = self.get_sfr_obs(z=z, Mh=Mh)
         Ms = self.get_mstell_obs(z=z, Mh=Mh)
 
-        # Need log10
+        # Need log10 of each
         log10M = np.log10(Ms)
         log10SFR = np.log10(sfr)
 
@@ -1633,11 +1639,10 @@ class GalaxyCohort(GalaxyAggregate):
         Ms_e = fstar_e * 10**logMh_e
         logMs_e = np.log10(Ms_e)
 
+        # dlogMh/dlogMstell
         dlog10mdlog10M = np.diff(logMh_e) / np.diff(logMs_e)
 
-        binc = 0.5 * (bin[0] + bin[1])
-        dndlnm = self.halos.tab_dndlnm[iz]
-
+        # Shorthand
         sigma_m = self.pf['pop_scatter_smhm']
         sigma_sfr = self.pf['pop_scatter_sfr']
 
@@ -1646,17 +1651,18 @@ class GalaxyCohort(GalaxyAggregate):
         # 2-D PDF: (<Mstell(Mh)>, Mstell)
         # In other words, pdf[0] is the probability distribution of stellar mass
         # for an object in halo 0, with mean stellar mass Ms[0]
-        pdf_m = lognormal(log10M[None,:], log10M[:,None], sigma_m) \
-            * np.log(10.)
+        # Do we need to multiply by log(10) here? implies we're converting
+        # dndlog10x to dndlnx. [removed: will cancel anyways]
+        pdf_m = lognormal(log10M[None,:], log10M[:,None], sigma_m)
+
+        # PDF of SFR at fixed halo mass [or <Mstell(Mh)>]
+        #pdf_sfr = lognormal(log10SFR[None,:], log10SFR[:,None], sigma_sfr) \
+        #    * np.log(10.)
 
         # Null out contributions from stellar masses outside the bin of interest
         ok = np.logical_and(log10M >= bin[0], log10M < bin[1])
         pdf_m[:,ok==0] = 0
-
-        xx2 = np.log10(sfr)
-
-        pdf_sfr = lognormal(xx2[None,:], log10SFR[:,None], sigma_sfr) \
-            * np.log(10.)
+        #pdf_sfr[:,ok==0] = 0
 
         norm = 0.0#np.zeros_like(sfr)
         integrand = 0.0#np.zeros_like(sfr)
@@ -1665,13 +1671,14 @@ class GalaxyCohort(GalaxyAggregate):
                 continue
 
             # First: determine mean SFR in this halo mass bin
+            sfr_bin = sfr[i] * np.exp(0.5 * sigma_sfr**2)
 
             # Then: integrate over stellar mass PDF.
-            # Need a dmstell/dmh factor no?
-            integrand += np.trapz(sfr[i] * dndlnm[i] * dlog10mdlog10M[i] \
+            integrand += np.trapz(sfr_bin * dndlog10m[i] * dlog10mdlog10M[i] \
                 * focc[i] * pdf_m[i,:], x=log10M)
 
-            norm += np.trapz(dndlnm[i] * focc[i] * pdf_m[i,:],
+            norm += np.trapz(dndlog10m[i] * dlog10mdlog10M[i] \
+                * focc[i] * pdf_m[i,:],
                 x=log10M)
 
         return integrand / norm
