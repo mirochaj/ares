@@ -837,6 +837,13 @@ class LogNormal(LightCone): # pragma: no cover
         par_id = []
         for i in range(Nc):
 
+            pbar.update(i)
+
+            # Index for this halo mass
+            iM = np.argmin(np.abs(mass_c[i] - self.sim.pops[0].halos.tab_M))
+            # And redshift
+            iz = np.argmin(np.abs(red_c[i] - self.sim.pops[0].halos.tab_z))
+
             # Remaining dimension: halos.tab_R_nfw
             Sigma = self.sim.pops[0].halos.tab_Sigma_nfw[iz[i],iM[i],:]
 
@@ -900,6 +907,9 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Save index for the parent halo.
             par_id.extend([i] * Nsat_act)
+
+        #
+        pbar.finish()
 
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
             np.array(par_id)
