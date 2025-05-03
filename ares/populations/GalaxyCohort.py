@@ -1633,6 +1633,9 @@ class GalaxyCohort(GalaxyAggregate):
         log10M = np.log10(Ms)
         log10SFR = np.log10(sfr)
 
+        # Halo mass bin corresponding to mean relation
+        log10Mh_bar = np.interp(binc, log10M, np.log10(Mh))
+
         # Get stellar mass bin edges and centers
         Ms_c = fstar * self.halos.tab_M
         fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
@@ -1646,7 +1649,7 @@ class GalaxyCohort(GalaxyAggregate):
         sigma_m = self.pf['pop_scatter_smhm']
         sigma_sfr = self.pf['pop_scatter_sfr']
 
-        Mmin = self.get_Mmin(z)
+        log10Mmin = np.log10(self.get_Mmin(z))
 
         # 2-D PDF: (<Mstell(Mh)>, Mstell)
         # In other words, pdf[0] is the probability distribution of stellar mass
@@ -1666,9 +1669,14 @@ class GalaxyCohort(GalaxyAggregate):
 
         norm = 0.0#np.zeros_like(sfr)
         integrand = 0.0#np.zeros_like(sfr)
-        for i, M in enumerate(self.halos.tab_M):
-            if M < Mmin:
+        for i, logM in enumerate(np.log10(self.halos.tab_M)):
+            if logM < log10Mmin:
                 continue
+
+            # Skip elements way far away from mean relation to save time.
+            if (logM < (log10Mh_bar - 3 * sigma_m)) or \
+               (logM > (log10Mh_bar + 3 * sigma_m)):
+               continue
 
             # First: determine mean SFR in this halo mass bin
             sfr_bin = sfr[i] * np.exp(0.5 * sigma_sfr**2)
