@@ -1588,6 +1588,23 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             return mags, cgal
 
+    def get_pdf_mstell(self, z, log10M=None):
+        if not hasattr(self, '_cache_pdf_mstell'):
+            self._cache_pdf_mstell = {}
+
+        if z in self._cache_pdf_mstell.keys():
+            return self._cache_pdf_mstell[z]
+
+        if log10M is None:
+            log10M = np.log10(self.get_mstell_obs(z=z, Mh=self.halos.tab_M))
+
+        pdf = lognormal(log10M[None,:], log10M[:,None],
+            self.pf['pop_scatter_smhm'])
+
+        self._cache_pdf_mstell[z] = pdf
+
+        return pdf
+
     def get_main_sequence(self, z, bin, use_tabs=True):
         """
         Return mean SFR of galaxies in provided log10(stellar mass / msun) `bin`.
@@ -1602,7 +1619,6 @@ class GalaxyCohort(GalaxyAggregate):
         Star formation rate [Msun/yr; observed] in the provided stellar mass bin
         (also assumed to be 'observed').
         """
-
         iz = self.get_zindex(z)
         dndlnm = self.halos.tab_dndlnm[iz]
         # Recall: dndlog10x = dndlnx / np.log(10.)
@@ -1614,8 +1630,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Halo masses, bin centers and edges (in log10)
         Mh = self.halos.tab_M
-        logMh = np.log10(self.halos.tab_M)
-        logMh_e = bin_c2e(logMh)
+        logMh = self.halos.tab_log10M
+        logMh_e = self.halos.tab_log10M_e
 
         # SFR, SMHM, fQ
         if use_tabs:
@@ -1656,19 +1672,23 @@ class GalaxyCohort(GalaxyAggregate):
         # for an object in halo 0, with mean stellar mass Ms[0]
         # Do we need to multiply by log(10) here? implies we're converting
         # dndlog10x to dndlnx. [removed: will cancel anyways]
-        pdf_m = lognormal(log10M[None,:], log10M[:,None], sigma_m)
-
-        # PDF of SFR at fixed halo mass [or <Mstell(Mh)>]
-        #pdf_sfr = lognormal(log10SFR[None,:], log10SFR[:,None], sigma_sfr) \
-        #    * np.log(10.)
+        pdf_m = self.get_pdf_mstell(z, log10M=log10M).copy()
+        # We make a copy to avoid nulling out all elements upon successive
+        # iterations (via `ok` mask below)
 
         # Null out contributions from stellar masses outside the bin of interest
         ok = np.logical_and(log10M >= bin[0], log10M < bin[1])
         pdf_m[:,ok==0] = 0
         #pdf_sfr[:,ok==0] = 0
 
-        norm = 0.0#np.zeros_like(sfr)
-        integrand = 0.0#np.zeros_like(sfr)
+        # First: determine mean SFR in this halo mass bin
+        sfr_bin = sfr * np.exp(0.5 * sigma_sfr**2)
+
+        integrand = dndlog10m[:,None] * dlog10mdlog10M[:,None] \
+            * focc[:,None] * pdf_m[:,:]
+
+        norm = 0.0
+        mainseq = 0.0
         for i, logM in enumerate(np.log10(self.halos.tab_M)):
             if logM < log10Mmin:
                 continue
@@ -1678,18 +1698,12 @@ class GalaxyCohort(GalaxyAggregate):
                (logM > (log10Mh_bar + 3 * sigma_m)):
                continue
 
-            # First: determine mean SFR in this halo mass bin
-            sfr_bin = sfr[i] * np.exp(0.5 * sigma_sfr**2)
-
             # Then: integrate over stellar mass PDF.
-            integrand += np.trapz(sfr_bin * dndlog10m[i] * dlog10mdlog10M[i] \
-                * focc[i] * pdf_m[i,:], x=log10M)
+            mainseq += np.trapz(sfr_bin[i] * integrand[i,:], x=log10M)
 
-            norm += np.trapz(dndlog10m[i] * dlog10mdlog10M[i] \
-                * focc[i] * pdf_m[i,:],
-                x=log10M)
+            norm += np.trapz(integrand[i,:], x=log10M)
 
-        return integrand / norm
+        return mainseq / norm
 
     def get_sfr_mean(self, z, Mh):
         if (self.pf['pop_scatter_sfh'] > 0):

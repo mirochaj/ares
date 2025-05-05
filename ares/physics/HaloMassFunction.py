@@ -685,6 +685,14 @@ class HaloMassFunction(object):
         return 10**bin_c2e(logM)
 
     @cached_property
+    def tab_log10M_e(self):
+        return np.log10(self.tab_M_e)
+        
+    @cached_property
+    def tab_log10M(self):
+        return np.log10(self.tab_M)
+
+    @cached_property
     def dlnm(self):
         lnM = np.log(self.tab_M)
         dlnM = np.diff(lnM)
