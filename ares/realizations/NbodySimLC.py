@@ -30,7 +30,8 @@ class NbodySim(LightCone): # pragma: no cover
     def __init__(self, model_name, catalog, verbose=True, base_dir='nbody_mock',
         fxy=None, fov=None, Lbox=999, dims=999, mem_concious=False,
         seed_halo_occ=None, seed_nsers=None, seed_pa=None, dz_max=0.1,
-        zmin=0.07, zmax=1.4, zchunks=None, include_satellites=0, **kwargs):
+        zmin=0.07, zmax=1.4, zchunks=None, include_satellites=0,
+        seed_profile=None, seed_sats=None, profile_info=None, **kwargs):
         """
         Initialize a galaxy population from a simulated halo lightcone.
 
@@ -61,7 +62,7 @@ class NbodySim(LightCone): # pragma: no cover
         self.zmax = zmax
         self.dz_max = dz_max
         self.zlim = zmin, zmax
-        self.zchunks = zchunks
+        self.zlayers = zchunks
 
         self.include_satellites = include_satellites
 
@@ -77,13 +78,18 @@ class NbodySim(LightCone): # pragma: no cover
         self.seed_halo_mass = -np.inf
         self.seed_halo_pos = -np.inf
 
+        # Profiles and satellites
+        self.seed_profile = seed_profile
+        self.profile_info = profile_info
+        self.seed_sats = seed_sats
+
         self.prefix, self.indices, self.zchunks = catalog
 
     def get_halo_population(self):
         raise NotImplemented('No analog for this in NbodySimLC approach.')
 
     def get_catalog_halos(self, zlim=None, logmlim=None, popid=0,
-        seed_occ=None, verbose=True, satellites=False):
+        seed_occ=None, verbose=True, satellites=False, logmlim_sats=None):
         """
         Get a galaxy catalog in (RA, DEC, redshift) coordinates.
 
@@ -179,7 +185,7 @@ class NbodySim(LightCone): # pragma: no cover
             ##
             # Apply occupation fraction cut
             if self.sim.pops[popid].pf['pop_focc'] != 1:
-                seed_kwargs = self.get_seed_kwargs(i, logmlim)
+                seed_kwargs = self.get_seed_kwargs(i, logmlim, popid)
 
                 np.random.seed(seed_kwargs['seed_occ'])
 
