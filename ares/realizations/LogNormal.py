@@ -33,7 +33,7 @@ class LogNormal(LightCone): # pragma: no cover
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
         distribute_sats_spatially=True, profile_info=None,
-        dz_max=0.01, **kwargs):
+        dz_max=0.01, lightcone_max_evol=np.inf, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -45,8 +45,11 @@ class LogNormal(LightCone): # pragma: no cover
         dims : int
             Number of grid points in each dimension, so total number of
             grid elements per co-eval cube is dims**3.
-        zlim : tuple
-            Defines domain size along line of sight, zlim[0] <= z < zlim[1].
+        zmin, zmax : int, float
+            Defines domain size along line of sight, zmin <= z < zmax.
+        dz_max : float
+            Will sub-sample along the line of sight direction in `dz_max` sized
+            redshift increments, e.g., when computing fluxes from sources.
         kwargs : dictionary
             Set of parameters that defines an ares.simulations.Simulation.
 
@@ -57,6 +60,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.zmax = zmax
         self.zlim = (zmin, zmax)
         self.dz_max = dz_max
+        self.lightcone_max_evol = lightcone_max_evol
         self.seed_rho = seed_rho
         self.seed_halo_mass = seed_halo_mass
         self.seed_halo_pos = seed_halo_pos
@@ -247,8 +251,55 @@ class LogNormal(LightCone): # pragma: no cover
 
         return power(k)
 
-    def get_density_field(self, z, seed=None):
-        return self.get_box(z=z, seed=seed)
+    def get_density_field(self, z, seed=None, enforce_lightcone_rules=False):
+        """
+
+        """
+
+        if not enforce_lightcone_rules:
+            return self.get_box(z=z, seed=seed).delta_x()
+
+        ##
+        # If operating within a larger calculation (probably the case),
+        # we need to be more careful. First, check how much P(k) evolves
+        # over a single co-eval cube, and then generate two realizations if
+        # necessary to form an interpolant along the line of sight.
+        # First, get full domain info
+        ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
+        zlayers = self.get_redshift_layers(zlim=self.zlim)
+
+        iz = np.argmin(np.abs(z - zmid))
+        if z < zlayers[iz,0]:
+            iz -= 1
+
+        zlo, zhi = zlayers[iz,:]
+
+        # Just use a large-scale mode
+        kbig = 1e-3
+
+        Plo = self.get_ps_mm(zlo, kbig)
+        Phi = self.get_ps_mm(zhi, kbig)
+
+        if np.abs(Plo - Phi) / Plo < self.lightcone_max_evol:
+            return self.get_box(z=z, seed=seed).delta_x()
+
+        ##
+        box_lo = self.get_box(z=zlo, seed=seed).delta_x()
+        box_hi = self.get_box(z=zhi, seed=seed).delta_x()
+
+        # Need redshifts of each voxel along LoS.
+        Lpix = self.Lbox / float(self.dims)
+        zpix_e, zpix_c, zpix_Re = \
+            self.sim.cosm.get_lightcone_boundaries((zlo, zhi), Lpix)
+
+        # Need to replace z-axis
+        new_box = np.zeros_like(box_lo)
+        for i, zz in enumerate(zpix_c):
+            func = interp1d([zlo, zhi],
+                np.array([box_lo[:,:,i], box_hi[:,:,i]]), axis=0)
+            new_box[:,:,i] = func(zz)
+
+        return new_box
 
     def get_box(self, z, seed=None):
         """
