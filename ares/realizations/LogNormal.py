@@ -251,12 +251,14 @@ class LogNormal(LightCone): # pragma: no cover
 
         return power(k)
 
-    def get_density_field(self, z, seed=None, enforce_lightcone_rules=False):
+    def get_density_field(self, z, seed=None, lightcone_corr=False):
+        """
+        This is a wrapper around `get_box` that will optionally perform a
+        lightcone correction, i.e., account for the fact that for sufficiently
+        large boxes there will be evolution in P(k) along the line of sight.
         """
 
-        """
-
-        if not enforce_lightcone_rules:
+        if not lightcone_corr:
             return self.get_box(z=z, seed=seed).delta_x()
 
         ##
@@ -546,7 +548,8 @@ class LogNormal(LightCone): # pragma: no cover
         return nsers, pa, ellip
 
     def get_catalog_halos(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
-        satellites=False, logmlim_sats=None, max_sources=None):
+        satellites=False, logmlim_sats=None, max_sources=None,
+        lightcone_corr=False):
         """
         Get a halo catalog in (RA, DEC, redshift) coordinates.
 
@@ -559,7 +562,7 @@ class LogNormal(LightCone): # pragma: no cover
         zlim : tuple
             Restrict redshift range to be between:
 
-                zlim[0] <= z < zlim[1].
+                zlim[0] <= z < zlim[1]
 
         logmlim : tuple
             Restrict halo mass range to be between:
@@ -647,12 +650,95 @@ class LogNormal(LightCone): # pragma: no cover
 
             seed_kwargs = self.get_seed_kwargs(i, logmlim, pid)
 
+            ##
+            # Optional: lightcone correction
+            need_corr = False
+            if lightcone_corr:
+                # Use lightcone_max_evol parameter to determine how much
+                # to sub-sample. Restrict attention to range of halo masses
+                # for which we expect 1 /per box.
+                tol = self.lightcone_max_evol
+
+                izmi = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - zmid[i]))
+                Mh = self.sim.pops[0].halos.tab_M
+                ngtm = self.sim.pops[0].halos.tab_ngtm[izmi,:]
+                mmax = np.interp(10., ngtm[-1::-1] * L**3, Mh[-1::-1])
+                imax = np.argmin(np.abs(Mh - mmax))
+
+                okm = np.logical_and(Mh >= mmin, Mh < mmax)
+                izlo = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - zlo))
+                izhi = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - zhi))
+                hmf_lo = self.sim.pops[0].halos.tab_dndlnm[izlo,okm==1]
+                hmf_hi = self.sim.pops[0].halos.tab_dndlnm[izhi,okm==1]
+                err = np.abs(hmf_hi - hmf_lo) / hmf_hi
+
+                need_corr = np.any(err > tol)
+
+                # How many chunks do we need?
+                N = 2
+                dz = zhi - zlo
+                while np.any(err > tol):
+                    zsub_e = np.linspace(zlo, zhi, N+1)
+                    zsub = bin_e2c(zsub_e)
+
+                    err_prev = err.copy()
+
+                    hmfs = []
+                    err = np.zeros(okm.sum())
+                    for ll, _z_ in enumerate(zsub_e):
+                        _i_ = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - _z_))
+                        hmfs.append(self.sim.pops[0].halos.tab_dndlnm[_i_,okm==1])
+
+                        if ll == 0:
+                            continue
+
+                        _err = np.abs(hmfs[ll] - hmfs[ll-1]) / hmfs[ll]
+                        err = np.maximum(err, _err)
+
+                    N += 1
+
+                    if np.allclose(err, err_prev):
+                        print(f"HMF evolution along LoS reached minimum with N={N}")
+                        break
+
+                print(f"! Will sub-cycle in {N} intervals from ({zlo}, {zhi})")
+                ##
+                # Need to map these redshift intervals to cMpc / h units
+
+
             # Contains (x, y, z, mass)
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             # The values thus run from 0 to Lbox.
-            halos = self.get_halo_population(z=zmid[i],
-                mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                **seed_kwargs)
+            if not need_corr:
+                halos = self.get_halo_population(z=zmid[i],
+                    mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
+                    **seed_kwargs)
+            else:
+                # In this case, generate the halo population in segments.
+                # The density field will automatically be LC-corrected
+                # so we just need to handle sub-cycling over a few redshifts
+                ra = []; dec = []; red = []; mass = []
+                for ll, _z_ in enumerate(zsub):
+                    _halos = self.get_halo_population(z=zmid[i],
+                        mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
+                        zsub=_z_, lightcone_corr=1, **seed_kwargs)
+
+                    _ra, _de, _red = \
+                        self._get_catalog_from_coeval(_halos, zlo=zlo)
+
+                    # Cut out halos outside zsub_e[ll], zsub_e[ll+1]
+                    _x_, _y_, _z_, _m_ = _halos
+
+                    # WRONG: these _z_'s aren't redshifts. That happens later.
+                    # Remember: these (x, y, z) values are in [0, Lbox / [cMpc/h]]
+                    oksub = np.logical_and(_red >= zsub_e[ll], _red < zsub_e[ll+1])
+
+                    ra.extend(_x_[oksub==1])
+                    dec.extend(_y_[oksub==1])
+                    red.extend(_z_[oksub==1])
+                    mass.extend(_m_[oksub==1])
+
+                halos = np.array(ra), np.array(dec), np.array(red), np.array(mass)#np.array([ra, dec, red, mass]).T
 
             if (type(halos[0]) != np.ndarray) and (halos[0] is None):
                 ra = dec = red = mass = None
@@ -661,91 +747,6 @@ class LogNormal(LightCone): # pragma: no cover
             if (halos[0].size == 0):
                 ra = dec = red = mass = None
                 continue
-
-            # Limit number of sources, just for testing.
-            if (max_sources is not None):
-                if (ct == 0) and (max_sources >= halos[0].size):
-                    # In this case, we can accommodate all the galaxies in
-                    # the catalog, so don't do anything yet.
-                    pass
-                else:
-                    # If we ever do max_sources>>1 this will be wrong.
-                    halos = np.array(halos)[:,0:max_sources]
-                    _hit_max_sources = True
-
-            # Might change later if we do domain decomposition
-            x0 = y0 = z0 = 0.0
-            dx = dy = dz = self.Lbox
-
-            ##
-            # Perform random flips and translations here
-            if self.apply_rotations:
-
-                _x_, _y_, _z_, _m_ = halos
-
-                # Put positions in space centered on (0,0,0), i.e.,
-                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
-                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
-                _x = _x_ - (x0 + 0.5 * dx)
-                _y = _y_ - (y0 + 0.5 * dy)
-                _z = _z_ - (z0 + 0.5 * dz)
-
-                # This is just the format required by Rotation below.
-                _view = np.array([_x, _y, _z]).T
-
-                # Loop over axes
-                for k in range(3):
-
-                    # Force new viewing angles to be orthogonal to box faces
-                    r = r_rot[i,k]
-                    _theta = angles_90[r] * np.pi / 180.
-
-                    axis = np.zeros(3)
-                    axis[k] = 1
-
-                    rot = Rotation.from_rotvec(_theta * axis)
-                    _view = rot.apply(_view)
-
-                # Read in our new 'view' of the catalog, undo the shift
-                # so we're back in [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)] region.
-                _x, _y, _z = _view.T
-                _x += (0.5 * dx)
-                _y += (0.5 * dy)
-                _z += (0.5 * dz)
-
-                halos = [_x, _y, _z, _m_]
-
-            else:
-                pass
-
-            ##
-            # Random translations
-            if self.apply_translations:
-                _x_, _y_, _z_, _m_ = halos
-
-                # Put positions in space centered on (0,0,0), i.e.,
-                # [(-0.5 * dx, 0.5 * dx), (-0.5 * dy, 0.5 * dy), etc.]
-                # not [(x0,x0+dx), (y0,y0+dy), (z0,z0+dz)]
-                _x = _x_.copy()
-                _y = _y_.copy()
-                _z = _z_.copy()
-
-                _x += r_tra[i,0] * dx
-                overx = _x > dx
-                _x[overx] = _x[overx] - dx
-
-                _y += r_tra[i,1] * dy
-                overy = _y > dy
-                _y[overy] = _y[overy] - dy
-
-                _z += r_tra[i,2] * dz
-                overz = _z > dz
-                _z[overz] = _z[overz] - dz
-
-                halos = [_x, _y, _z, _m_]
-
-            else:
-                pass
 
             ##
             # Convert to (ra, dec, redshift) coordinates.
@@ -997,7 +998,7 @@ class LogNormal(LightCone): # pragma: no cover
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, call_gc=False, **_kw_):
+        verbose=True, call_gc=False, zsub=None, lightcone_corr=False, **_kw_):
         """
         Get a realization of a halo population.
 
@@ -1013,6 +1014,7 @@ class LogNormal(LightCone): # pragma: no cover
             Random seed for halo positions.
         seed_occ : int
             Random seed for halo occupation.
+        zsub :
 
         Returns
         -------
@@ -1021,14 +1023,18 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        if zsub is None:
+            zsub = z
+
         # Unpack popid more [as of March 2025]
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        pb = self.get_box(z=z, seed=seed_box)
+        rho = self.get_density_field(z=z, seed=seed_box,
+            lightcone_corr=lightcone_corr)
 
         # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
-        nbar = self.get_nbar(z, mmin=mmin, mmax=mmax)
+        nbar = self.get_nbar(zsub, mmin=mmin, mmax=mmax)
 
         # Compute expected number of halos in volume
         h = self.sim.cosm.h70
@@ -1038,11 +1044,11 @@ class LogNormal(LightCone): # pragma: no cover
         # in each voxel independently. Then, generate the appropriate number
         # of halo masses.
         if self.bias_model == 0:
-            pos = self.get_halo_positions(z, Nexp, pb.delta_x(), seed=seed_pos)
+            pos = self.get_halo_positions(zsub, Nexp, rho, seed=seed_pos)
             Nact = pos.shape[0]
 
             # Draw halo masses from HMF
-            mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
+            mass = self.get_halo_masses(zsub, Nact, mmin=mmin, mmax=mmax,
                 seed=seed)
 
         # In this case, we need to know the masses of halos before we generate
@@ -1054,10 +1060,10 @@ class LogNormal(LightCone): # pragma: no cover
             Nact = np.random.poisson(Nexp)
 
             # Draw halo masses from HMF
-            mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
+            mass = self.get_halo_masses(zsub, Nact, mmin=mmin, mmax=mmax,
                 seed=seed)
 
-            pos = self.get_halo_positions(z, Nact, pb.delta_x(), m=mass,
+            pos = self.get_halo_positions(zsub, Nact, rho, m=mass,
                 seed=seed_pos)
         else:
             raise NotImplemented('help')
@@ -1093,7 +1099,7 @@ class LogNormal(LightCone): # pragma: no cover
             np.random.seed(seed_occ)
 
             r = np.random.rand(N)
-            focc = self.sim.pops[pid_par].get_focc(z=z, Mh=mass)
+            focc = self.sim.pops[pid_par].get_focc(z=zsub, Mh=mass)
 
             ok = np.ones(N)
             ok[r > focc] = 0

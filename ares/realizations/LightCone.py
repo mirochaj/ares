@@ -1226,7 +1226,7 @@ class LightCone(object): # pragma: no cover
         fn = f'{save_dir}/map_{channel[0]:.3f}_{channel[1]:.3f}_pop_{pid_str}'
 
         if include_galaxy_sizes:
-            if popid == 4:
+            if popid in [4, '4']:
                 fn += '_prof_nfw'
             else:
                 fn += '_prof_sers'
