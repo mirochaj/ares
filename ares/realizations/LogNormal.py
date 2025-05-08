@@ -723,16 +723,18 @@ class LogNormal(LightCone): # pragma: no cover
                         mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
                         zsub=_z_, lightcone_corr=1, **seed_kwargs)
 
+                    # Convert to lightcone coordinates to slice on redshift
                     _ra, _de, _red = \
                         self._get_catalog_from_coeval(_halos, zlo=zlo)
+
+                    # Select only objects in the right sub-interval
+                    oksub = np.logical_and(_red >= zsub_e[ll], _red < zsub_e[ll+1])
 
                     # Cut out halos outside zsub_e[ll], zsub_e[ll+1]
                     _x_, _y_, _z_, _m_ = _halos
 
-                    # WRONG: these _z_'s aren't redshifts. That happens later.
-                    # Remember: these (x, y, z) values are in [0, Lbox / [cMpc/h]]
-                    oksub = np.logical_and(_red >= zsub_e[ll], _red < zsub_e[ll+1])
-
+                    # Note that (x, y, z) here are still [0, Lbox],
+                    # but we constructed `oksub` from the redshifts properly.
                     ra.extend(_x_[oksub==1])
                     dec.extend(_y_[oksub==1])
                     red.extend(_z_[oksub==1])
